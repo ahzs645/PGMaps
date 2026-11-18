@@ -11,6 +11,7 @@ import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { MapStyleField } from '@/components/ui/map-style-field'
 import type { LabelStyleId } from '@/lib/mapSheet/callouts'
 import { LABEL_STYLES } from '@/lib/mapSheet/callouts'
+import { isSheetFormat } from '@/lib/mapSheet/sheetFormats'
 
 import type { BlockNoteParts } from './VisualsParagraphPanel'
 import type { NoteImage, ViewpointPage } from './blockNote'
@@ -42,6 +43,8 @@ import {
 import { buildFs1252, type FormReview } from './pdf/fs1252'
 import { serializePreview, type SavedDriveView } from './previewState'
 import { serializeScene, type ForestryScene } from './scene'
+import { isSceneGisFormat, sceneGisLayers } from './sceneGis'
+import type { ScenePackage } from './scenePackage'
 import { findSceneLandform } from './sceneInput'
 import type { AnalysisProgress, AnalysisResult, TargetPolygon } from './types'
 import type { ViewpointInventoryState } from './ViewpointFinderPanel'
@@ -86,7 +89,22 @@ import type { DraftPicture, ReportDraftPages, ReportDraftResult } from './Report
 import { withReportEdit } from './viaReport/edits'
 import { useOwnRecipes } from './userRecipeStore'
 import { timed } from './exportTiming'
-import { ExportPackagePane, VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
+import {
+  ExportPackagePane,
+  VisualsExportDialog,
+  type BuildOptions,
+  type BuiltFile,
+  type OutputRecording,
+} from './VisualsExportDialog'
+import { RoadVideoOptions, useRoadVideoSettings } from './RoadVideoOptions'
+import {
+  formatVideoDuration,
+  planRoadVideo,
+  ROAD_VIDEO_FORMAT,
+  roadVideoSummary,
+  type RoadVideoScene,
+} from './roadVideo'
+import type { RoadVideoApi, RoadVideoTake } from './useRoadVideo'
 import type { ViewCaptureApi, ViewCaptureReport } from './useViewCapture'
 import { isIncluded, viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
 import { useVisualsSheetSettings, VisualsBlockSheetForm } from './VisualsBlockSheetSetup'
@@ -138,6 +156,56 @@ const textFile = (text: string, fileName: string, type: string): BuiltFile => ({
   blob: new Blob([text], { type }),
   fileName,
 })
+
+/** A recorded take as the file Download and Save as… write, with how it ended. */
+function videoFile(take: RoadVideoTake): BuiltFile {
+  const notes = [take.endedEarly ? `Recorded, ${take.endedEarly}.` : null, ...take.notes].filter(Boolean).join(' ')
+  return { blob: take.blob, fileName: take.fileName, ...(notes ? { notes } : {}) }
+}
+
+/** The road view video's take as the dialog records it (`OutputRecording`). */
+function videoRecording(
+  api: RoadVideoApi,
+  plan: ReturnType<typeof planRoadVideo>,
+  frame: RoadVideoScene['frame'],
+): OutputRecording {
+  const take = api.take && api.take.key === plan.key ? api.take : null
+  const { status, elapsedSeconds, message } = api.state
+  return {
+    plan: roadVideoSummary(plan),
+    problem: plan.problem,
+    status,
+    message,
+    progress:
+      status === 'recording' || status === 'stopping'
+        ? `${formatVideoDuration(elapsedSeconds * 1000)} of ${plan.mode === 'views' ? 'about ' : ''}${formatVideoDuration(plan.durationMs)}`
+        : null,
+    file: take
+      ? {
+          ...videoFile(take),
+          url: take.url,
+          summary: `${formatVideoDuration(take.durationMs)} · ${take.width} × ${take.height} px · ${take.extension.toUpperCase()}. Download and Save as… write this recording.`,
+        }
+      : null,
+    otherTake:
+      api.take && !take
+        ? 'The recording kept was made with other choices or another look, so it is not this video: record again, or put them back.'
+        : null,
+    aspect: frame ? frame.width / Math.max(1, frame.height) : 16 / 9,
+    record: () => api.record(plan),
+    stop: api.stop,
+    cancel: api.cancel,
+    monitor: api.setMonitor,
+  }
+}
+
+/** Notes shown with a GIS file at most; the rest are counted (the shapefiles' README lists them all). */
+const GIS_NOTES_SHOWN = 8
+/** The GIS writers' warnings as the line shown with the file. */
+const gisNotes = (notes: readonly string[]) =>
+  `Not written as given: ${notes.slice(0, GIS_NOTES_SHOWN).join(' ')}${
+    notes.length > GIS_NOTES_SHOWN ? ` And ${notes.length - GIS_NOTES_SHOWN} more.` : ''
+  }`
 
 /** The evidence package and workspace backup, from the assessment tools' stored document. */
 export type EvidenceExports = {
@@ -278,7 +346,8 @@ export function useVisualsExport(input: {
   onOpenRoadView: () => void
   /** The worked figures as Markdown, or null when the run is not current. */
   worksheet: () => BuiltFile | null
-  scenePackage: { ready: boolean; build: () => BuiltFile }
+  /** The road view's scene package (`scenePackage.ts`), written as JSON or drawn as a 3D model (`sceneModel.ts`). */
+  scenePackage: { ready: boolean; build: () => ScenePackage }
   /** Everything in progress as one file (`projectFile.ts`), written by the page, which holds the views' pictures. */
   project: { build: () => Promise<BuiltFile> }
   evidence: EvidenceExports
@@ -358,6 +427,11 @@ export function useVisualsExport(input: {
   /** The views of interest under the dialog's own *Views* entry (`ViewsOfInterestList`), with its subtitle. */
   viewsPane?: ReactNode
   viewsSummary?: string
+  /**
+   * The road view video (`roadVideo.ts`, `useRoadVideo.ts`): the scene as a take reads it (called only while the
+   * dialog is open) and the page's take, which records the eye map and puts the road view back. Absent: no video.
+   */
+  roadVideo?: { scene: () => RoadVideoScene; api: RoadVideoApi }
 }) {
   const {
     scene,
@@ -399,6 +473,8 @@ export function useVisualsExport(input: {
   const branding = useBranding()
   // The block map sheet's sheet type, paper, scale, typed fields and map style, kept in this browser.
   const [sheetSettings, setSheetSettings] = useVisualsSheetSettings()
+  // The road view video's choices (what it records, speed, stretch, views, hold, caption), kept in this browser.
+  const [videoSettings, setVideoSettings] = useRoadVideoSettings()
   // The package's saved views left out by hand, read by every output that draws views; and the block note's land
   // checks in or out. Both last as long as the page.
   const [excludedViews, setExcludedViews] = useState<ReadonlySet<string>>(() => new Set())
@@ -447,10 +523,32 @@ export function useVisualsExport(input: {
   // The with-timber measures made this session, by scene, view and save: a before render moves the road view for a
   // few seconds, so a view is rendered once. Only measured ones are kept; an absent one is looked for again.
   const timberMeasures = useRef(new Map<string, TimberMeasure>())
+  // *Scene for GIS* is written from parts of the scene the run's key leaves out (views of interest, tree-free areas):
+  // its preview is current only while those parts are the same objects, so a moved view writes the file again.
+  const gisParts = [
+    scene.viewpoint,
+    scene.targets,
+    scene.masks,
+    scene.treeFreeAreas,
+    scene.viewsOfInterest,
+    scene.activeLandformId,
+  ]
+  const gisVersion = useRef({ parts: gisParts, n: 0 })
+  if (gisParts.some((part, index) => part !== gisVersion.current.parts[index]))
+    gisVersion.current = { parts: gisParts, n: gisVersion.current.n + 1 }
 
   // Closed, the dialog costs the page nothing: this page re-renders several times a second while the
   // road view moves, and nothing below is needed until the dialog opens.
   if (!open) return null
+
+  // The road view video: the plan a take records, and the take kept when it was recorded from this same plan.
+  const video = input.roadVideo
+  const videoScene = video ? video.scene() : null
+  const videoPlan = videoScene ? planRoadVideo(videoScene, videoSettings) : null
+  const videoTake: RoadVideoTake | null =
+    video?.api.take && videoPlan && video.api.take.key === videoPlan.key ? video.api.take : null
+  const videoStatus = video?.api.state.status ?? 'idle'
+  const videoBusy = videoStatus === 'preparing' || videoStatus === 'recording' || videoStatus === 'stopping'
 
   // The package, chosen once for every output: the recipe and the document format it names, and the views that go
   // in (the saved views not left out, and the current capture of each view of interest included).
@@ -821,6 +919,9 @@ export function useVisualsExport(input: {
     ...(input.visualInventory
       ? { visualInventory: { status: input.visualInventory.status, error: input.visualInventory.error } }
       : {}),
+    ...(videoScene && videoPlan
+      ? { roadVideo: { scene: videoScene, plan: videoPlan, take: videoTake, recording: videoBusy } }
+      : {}),
     planned: pkg.planned,
     unprinted,
     ...(input.viewCapture
@@ -868,6 +969,8 @@ export function useVisualsExport(input: {
       roadViewReady: null,
       // Only the block note prints the BC viewpoints near its block and the land status checks.
       inventory: kind === 'block-note' ? context.inventory : null,
+      // A take's progress is no other output's content.
+      roadVideo: kind === 'road-video' ? context.roadVideo : null,
       landChecks: kind === 'block-note' ? context.landChecks : null,
       // A render finishing is content (the counts, and the jobs below); its clock and queue are not.
       renderer: {
@@ -903,6 +1006,7 @@ export function useVisualsExport(input: {
       chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo',
       // The sheet's typed fields and comments are not in the context's summary of it.
       kind === 'block-sheet' ? JSON.stringify(sheet) : '',
+      kind === 'scene-gis' ? `gis:${gisVersion.current.n}` : '',
     ].join('|')
 
   // The export context under another name: the report's build names its own `context`.
@@ -1414,7 +1518,12 @@ export function useVisualsExport(input: {
     else if (id === 'maps' || id === 'renders') await captureGroup(id, named)
     setPictureTick((tick) => tick + 1)
   }
-  const build = async (kind: VisualsExport, format: string, signal?: AbortSignal): Promise<BuiltFile> => {
+  const build = async (
+    kind: VisualsExport,
+    format: string,
+    signal?: AbortSignal,
+    writing?: BuildOptions,
+  ): Promise<BuiltFile> => {
     switch (kind) {
       case 'block-note':
         if (!blockNoteParts) throw new Error('Add a cutblock to write its note.')
@@ -1504,27 +1613,31 @@ export function useVisualsExport(input: {
         }
       }
       case 'block-sheet': {
-        const [{ visualsSheetPdf }, { printedLogoRaster }] = await Promise.all([
+        const [{ visualsSheetFile }, { printedLogoRaster }] = await Promise.all([
           import('./visualsBlockSheetPdf'),
           import('@/branding/raster'),
         ])
         const metadata = scene.reportMetadata ?? {}
-        return visualsSheetPdf({
-          settings: sheet,
-          scene: sheetScene,
-          office: sheetOffice,
-          issue: {
-            date: new Date().toLocaleDateString('en-CA'),
-            preparedBy: [metadata.evaluator, metadata.evaluatorDesignation]
-              .map((part) => part?.trim())
-              .filter(Boolean)
-              .join(', '),
-            organisation: metadata.evaluatorOrganisation?.trim() ?? '',
-            revision: '',
+        // The format is the dialog's chips, which write `sheet.output.format` (`formatControls`): the two agree.
+        return visualsSheetFile(
+          {
+            settings: { ...sheet, output: { ...sheet.output, format: isSheetFormat(format) ? format : 'pdf' } },
+            scene: sheetScene,
+            office: sheetOffice,
+            issue: {
+              date: new Date().toLocaleDateString('en-CA'),
+              preparedBy: [metadata.evaluator, metadata.evaluatorDesignation]
+                .map((part) => part?.trim())
+                .filter(Boolean)
+                .join(', '),
+              organisation: metadata.evaluatorOrganisation?.trim() ?? '',
+              revision: '',
+            },
+            logo: (await printedLogoRaster(branding)) ?? undefined,
+            signal,
           },
-          logo: (await printedLogoRaster(branding)) ?? undefined,
-          signal,
-        })
+          { preview: writing?.preview, onProgress: writing?.onProgress },
+        )
       }
       case 'worksheet': {
         const file = input.worksheet()
@@ -1543,8 +1656,54 @@ export function useVisualsExport(input: {
         return textFile(serializePreview(scene, [...savedViews]), 'forestry-driving-preview.json', 'application/json')
       case 'workspace':
         return textFile(evidence.workspaceJson(), 'forestry-assessment-workspace.json', 'application/json')
-      case 'scene-package':
-        return input.scenePackage.build()
+      case 'scene-package': {
+        const scenePackage = input.scenePackage.build()
+        if (format !== 'glb' && format !== 'obj' && format !== 'stl')
+          return textFile(JSON.stringify(scenePackage), 'forestry-scene-package.json', 'application/json')
+        // The model and its writers load with the file, never with the page.
+        const [{ sceneModelExport }, { zipSync }] = await Promise.all([import('./sceneModel'), import('fflate')])
+        const model = sceneModelExport(scenePackage, format)
+        // What the model simplified or left out, and what the format cannot carry: shown with the file.
+        const notes = `About the model: ${model.notes.join(' ')}`
+        if (model.files.length === 1)
+          return {
+            blob: new Blob([model.files[0].bytes as BlobPart], { type: model.mime }),
+            fileName: model.files[0].name,
+            notes,
+          }
+        // OBJ is two files that must sit side by side: zipped together.
+        return {
+          blob: new Blob(
+            [zipSync(Object.fromEntries(model.files.map((file) => [file.name, file.bytes]))) as BlobPart],
+            {
+              type: 'application/zip',
+            },
+          ),
+          fileName: 'forestry-visual-quality-scene-obj.zip',
+          notes,
+          readBack: 'zip',
+        }
+      }
+      case 'scene-gis': {
+        const gisFormat = isSceneGisFormat(format) ? format : 'gpkg'
+        const layers = sceneGisLayers(scene)
+        if (!layers.length) throw new Error('The scene has no shapes to write yet.')
+        const [{ writeSceneGis }, SQL] = await Promise.all([
+          import('./sceneGisFiles'),
+          gisFormat === 'gpkg' ? import('@/lib/browserSqlite').then((module) => module.loadSqlJs()) : undefined,
+        ])
+        const blockNames = blocks.map((entry) => entry.name).join(', ')
+        const file = writeSceneGis(layers, gisFormat, {
+          title: `Visual quality scene: ${blockNames || scene.viewpoint.name || 'unnamed'}`,
+          ...(SQL ? { SQL } : {}),
+        })
+        return {
+          blob: new Blob([file.bytes as BlobPart], { type: file.mime }),
+          fileName: file.fileName,
+          ...(file.notes.length ? { notes: gisNotes(file.notes) } : {}),
+          ...(gisFormat === 'shp' ? { readBack: 'zip' as const } : {}),
+        }
+      }
       case 'stand-trees':
         if (!input.prescribedStands.length) throw new Error('No block has a stand prescription.')
         return format === 'geojson'
@@ -1553,6 +1712,10 @@ export function useVisualsExport(input: {
       case 'sightline-archive':
         if (!input.sightlineArchive) throw new Error('Retain a run in Reference measurements first.')
         return { blob: input.sightlineArchive.blob, fileName: input.sightlineArchive.name }
+      case 'road-video':
+        // Recorded on request (`recordings` below), never written here: Download writes the take it holds.
+        if (!videoTake) throw new Error('Nothing recorded yet: record the video under Preview first.')
+        return videoFile(videoTake)
       case 'castor-constraint': {
         const constraint = castorVqoConstraint(scene, result)
         if (!constraint)
@@ -1727,6 +1890,19 @@ export function useVisualsExport(input: {
           ),
         }
       : {}),
+    ...(videoScene && videoPlan
+      ? {
+          'road-video': (
+            <RoadVideoOptions
+              scene={videoScene}
+              plan={videoPlan}
+              settings={videoSettings}
+              onChange={setVideoSettings}
+              disabled={videoBusy}
+            />
+          ),
+        }
+      : {}),
   }
 
   // The package's choices, shown once under its own entry in the dialog's list.
@@ -1869,6 +2045,32 @@ export function useVisualsExport(input: {
       )}
       build={build}
       version={version}
+      formatControls={{
+        ...(sheetSummary
+          ? {
+              // The block map sheet's format is kept with its other settings in this browser, and its extension is
+              // the series' container when it writes one (a ZIP, or one PDF).
+              'block-sheet': {
+                value: sheetSettings.output.format,
+                onChange: (id) => {
+                  if (isSheetFormat(id))
+                    setSheetSettings((current) => ({ ...current, output: { ...current.output, format: id } }))
+                },
+                extension: sheetSummary.extension,
+              },
+            }
+          : {}),
+        // The video's one format takes the extension this browser writes: MP4 where it can, else WebM.
+        ...(videoScene
+          ? {
+              'road-video': {
+                value: ROAD_VIDEO_FORMAT.id,
+                onChange: () => {},
+                extension: `.${videoTake?.extension ?? videoScene.format ?? 'mp4'}`,
+              },
+            }
+          : {}),
+      }}
       onGoToStep={onGoToStep}
       onAction={onAction}
       onRun={analysis.run}
@@ -1887,6 +2089,9 @@ export function useVisualsExport(input: {
       drafts={{
         'via-report': { build: buildDraft, draw: drawDraftPicture, pages: buildDraftPages, edit: editReportValue },
       }}
+      {...(video && videoPlan && videoScene
+        ? { recordings: { 'road-video': videoRecording(video.api, videoPlan, videoScene.frame) } }
+        : {})}
       {...(input.viewCapture ? { onCapture: captureViews, onCancelCapture: input.viewCapture.cancel } : {})}
       onRender={(kind) => {
         // Only the VIA report prints before pictures: the other outputs never wait for them.

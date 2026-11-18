@@ -7,10 +7,35 @@
  * The sheet is a map of the scene and reads nothing from the run: no percentage is printed on it.
  * Its **map style** is PGMaps' sheet symbols or one of the VIA figure styles (`presets.ts`), whose
  * landform, block, opening, private-land and rock symbols then draw the same features on the map as
- * on that style's analysis sheet. No DOM or network access: the terrain tiles, the slice runner and
- * the imagery capture are passed in.
+ * on that style's analysis sheet. It is written as a PDF, an editable SVG or a PNG, as one sheet or
+ * as a series of one sheet per block (`sheetSeries.ts`), optionally dimmed outside the block. No DOM
+ * or network access: the terrain tiles, the slice runner, the imagery capture, jsPDF and the PNG
+ * rasteriser are passed in.
  */
 import { buildSheet, type BuiltSheet, type SheetBuildDeps } from '@/lib/forestry/blockSheet/buildSheet'
+import {
+  DEFAULT_SHEET_OUTPUT,
+  fillSeriesFields,
+  fillSeriesTokens,
+  MAX_SHEET_SERIES_PAGES,
+  parseSheetOutputSettings,
+  SERIES_NOTES_FILE,
+  seriesContainer,
+  seriesFileNames,
+  seriesPages,
+  writeSheetSeries,
+  type SheetOutputSettings,
+  type SheetSeriesBlock,
+  type SheetSeriesPage,
+  type SheetSeriesProgress,
+} from '@/lib/forestry/blockSheet/sheetSeries'
+import {
+  SHEET_FORMAT_INFO,
+  sheetFile,
+  withSheetExtension,
+  type SheetFileDeps,
+  type SheetFormat,
+} from '@/lib/mapSheet/sheetFormats'
 import {
   sheetFocus,
   sheetFrame,
@@ -64,6 +89,12 @@ export interface VisualsSheetSettings {
   comments: string
   /** `SHEET_SYMBOLS_STYLE`, or the id of a VIA figure style. */
   style: string
+  /**
+   * How the sheet is written (`MapSheetOutput`): PDF, SVG or PNG, one sheet or one per block, and the mask outside the
+   * block. Kept with the rest, in this browser; the series' block ids are matched against the scene each time
+   * (`visualsSheetOutputPlan`).
+   */
+  output: SheetOutputSettings
 }
 
 export const DEFAULT_VISUALS_SHEET: VisualsSheetSettings = {
@@ -74,6 +105,7 @@ export const DEFAULT_VISUALS_SHEET: VisualsSheetSettings = {
   fields: {},
   comments: '',
   style: SHEET_SYMBOLS_STYLE,
+  output: DEFAULT_SHEET_OUTPUT,
 }
 
 /** Validates settings read back from browser storage; anything unknown falls back to the default. */
@@ -94,6 +126,7 @@ export function parseVisualsSheetSettings(raw: unknown): VisualsSheetSettings {
     fields: parseSheetFields(r.fields),
     comments: typeof r.comments === 'string' ? r.comments.slice(0, MAX_SHEET_COMMENTS_LENGTH) : '',
     style: typeof r.style === 'string' && findPreset(r.style) ? r.style : SHEET_SYMBOLS_STYLE,
+    output: parseSheetOutputSettings(r.output),
   }
 }
 
@@ -216,7 +249,9 @@ export const visualsSheetStyleName = (styleId: string) =>
 
 /** What the page hands the sheet: the scene's shapes and the planned views. */
 export interface VisualsSheetScene {
-  targets: readonly Pick<TargetPolygon, 'id' | 'name' | 'role' | 'geometry'>[]
+  /** `planning` (the imported block, licence, permit and opening) fills a series' `{attr:…}` tokens. */
+  targets: readonly (Pick<TargetPolygon, 'id' | 'name' | 'role' | 'geometry'> &
+    Partial<Pick<TargetPolygon, 'planning'>>)[]
   masks: readonly Pick<AssessmentMask, 'kind' | 'geometry'>[]
   viewpoint: Pick<Viewpoint, 'name' | 'mode' | 'coordinates'>
   /** Views of interest; a view left out of the package is left out here too. */
@@ -237,6 +272,203 @@ export const visualsSheetBlockId = (scene: Pick<VisualsSheetScene, 'targets'>, b
   const blocks = visualsSheetBlocks(scene)
   return blocks.some((entry) => entry.value === block) ? block : (blocks[0]?.value ?? '')
 }
+
+// ---------------------------------------------------------------- formats and series
+
+/** The formats the sheet is written in, PDF first. */
+export const VISUALS_SHEET_FORMATS: readonly SheetFormat[] = ['pdf', 'svg', 'png']
+
+/**
+ * The scene's proposed blocks as a series takes them, in the scene's order: each block's id, its name as printed and
+ * the attributes its import gave (`planning`), which `{attr:BLOCK}`, `{attr:FL}`, `{attr:CP}` and `{attr:OPENING}`
+ * read. An attribute the import did not give is absent, so its token stays as typed.
+ */
+export function visualsSeriesBlocks(scene: Pick<VisualsSheetScene, 'targets'>): SheetSeriesBlock[] {
+  return scene.targets
+    .filter((target) => target.role === 'block')
+    .map((target) => {
+      const planning = target.planning ?? {}
+      const attributes = Object.fromEntries(
+        (
+          [
+            ['BLOCK', planning.blockId],
+            ['FL', planning.licenceId],
+            ['CP', planning.permitId],
+            ['OPENING', planning.openingId],
+          ] as const
+        ).filter(([, value]) => typeof value === 'string' && value.trim()),
+      )
+      return {
+        id: target.id,
+        name: target.name || 'Unnamed block',
+        ...(Object.keys(attributes).length ? { attributes } : {}),
+      }
+    })
+}
+
+/** What the output settings write for this scene, worked out once for the form, *What goes in* and the file. */
+export interface VisualsSheetOutputPlan {
+  format: SheetFormat
+  /** One sheet per block: asked for, and the scene has two blocks or more. */
+  series: boolean
+  /** The series' pages in order, by block id and name; empty for one sheet. */
+  pages: { id: string; name: string }[]
+  /** The ids the settings keep, less those no longer in the scene: what the form shows ticked. */
+  selection: 'all' | string[]
+  /** Blocks chosen earlier that this scene does not have, by count: left out, never replaced. */
+  stale: number
+  /** What the download is: the format for one sheet, else one PDF or a ZIP. */
+  container: SheetFormat | 'zip'
+  /** Each page's file name inside a ZIP; empty otherwise. */
+  fileNames: string[]
+  mask: boolean
+  /** Why the series cannot be written as chosen, or null. */
+  problem: string | null
+}
+
+/**
+ * The output settings read against the scene. A list of chosen blocks is matched by id: ids the scene no longer has
+ * (a block removed, or a list kept from another scene in this browser) are dropped and counted in `stale`, never
+ * swapped for another block, so a series prints only blocks the person ticked. With every chosen id gone, the series
+ * has no pages and says so; *All* takes in every block, new ones included.
+ */
+export function visualsSheetOutputPlan(
+  scene: Pick<VisualsSheetScene, 'targets'>,
+  output: SheetOutputSettings,
+): VisualsSheetOutputPlan {
+  const blocks = visualsSeriesBlocks(scene)
+  const known = new Set(blocks.map((block) => block.id))
+  const selection = output.blocks === 'all' ? 'all' : output.blocks.filter((id) => known.has(id))
+  const stale = output.blocks === 'all' ? 0 : output.blocks.length - selection.length
+  const series = output.series && blocks.length > 1
+  const pages = series
+    ? seriesPages(blocks, { order: output.order, selected: selection }).map(({ id, name }) => ({ id, name }))
+    : []
+  const container = series ? seriesContainer(output) : output.format
+  const problem = !series
+    ? null
+    : !pages.length
+      ? stale
+        ? 'The blocks chosen for the series are no longer in the scene. Choose the blocks again.'
+        : 'Choose at least one block for the series.'
+      : pages.length > MAX_SHEET_SERIES_PAGES
+        ? `A series is at most ${MAX_SHEET_SERIES_PAGES} sheets; ${pages.length} blocks are chosen. Choose fewer blocks.`
+        : null
+  return {
+    format: output.format,
+    series,
+    pages,
+    selection,
+    stale,
+    container,
+    fileNames:
+      series && container === 'zip'
+        ? seriesFileNames(
+            output.fileName,
+            seriesPages(blocks, { order: output.order, selected: selection }),
+            SHEET_FORMAT_INFO[output.format].extension,
+          )
+        : [],
+    mask: output.mask,
+    problem,
+  }
+}
+
+/** The extension the download has, with its dot: the format's for one sheet, else `.pdf` or `.zip`. */
+export const visualsSheetExtension = (plan: Pick<VisualsSheetOutputPlan, 'container'>) =>
+  `.${plan.container === 'zip' ? 'zip' : SHEET_FORMAT_INFO[plan.container].extension}`
+
+/** Names listed in *What goes in* before "and N more". */
+const LISTED_NAMES = 6
+
+const listed = (names: readonly string[]) =>
+  names.length > LISTED_NAMES
+    ? `${names.slice(0, LISTED_NAMES).join(', ')} and ${names.length - LISTED_NAMES} more`
+    : names.join(', ')
+
+/** The sheet types that read terrain tiles for their frame (contours, slope or hillshade). */
+const readsTerrain = (kind: SheetKind) => {
+  const preset = SHEET_PRESETS[kind]
+  return preset.base === 'slope' || preset.base === 'hillshade' || !!preset.contours
+}
+
+/**
+ * The file as *What goes in* lists it, from the same plan the file is written from: the format, what the download is
+ * (one sheet, one PDF of N pages or a ZIP of N files), which blocks in what order, blocks chosen earlier that are gone,
+ * the ZIP's file names, the mask, and the terrain (and imagery) a series reads once per sheet. `note` says what the
+ * format holds and, for a series, how a sheet that cannot be made is reported.
+ */
+export function visualsSheetFileRows(
+  scene: Pick<VisualsSheetScene, 'targets'>,
+  settings: Pick<VisualsSheetSettings, 'kind' | 'output'>,
+): { rows: { label: string; value: string }[]; note: string; plan: VisualsSheetOutputPlan } {
+  const plan = visualsSheetOutputPlan(scene, settings.output)
+  const info = SHEET_FORMAT_INFO[plan.format]
+  const ext = info.extension.toUpperCase()
+  const n = plan.pages.length
+  const terrain = readsTerrain(settings.kind)
+  const imagery = SHEET_PRESETS[settings.kind].base === 'imagery'
+  const rows = [
+    { label: 'Format', value: info.label },
+    {
+      label: 'Written as',
+      value: !plan.series
+        ? `One sheet, ${ext}`
+        : plan.problem
+          ? `Nothing: ${plan.problem.replace(/\.$/, '').toLowerCase()}`
+          : plan.container === 'pdf'
+            ? `One PDF of ${count(n, 'page')}, one a block`
+            : `A ZIP of ${count(n, `${ext} file`)}, one a block`,
+    },
+    ...(plan.series && n ? [{ label: 'Blocks, in order', value: listed(plan.pages.map((page) => page.name)) }] : []),
+    ...(plan.series && plan.stale
+      ? [{ label: 'Chosen earlier', value: `${count(plan.stale, 'block')} no longer in the scene: left out` }]
+      : []),
+    ...(plan.fileNames.length ? [{ label: 'File names', value: listed(plan.fileNames) }] : []),
+    { label: 'Outside the block', value: plan.mask ? 'Dimmed, and the sheet says so' : 'Drawn evenly' },
+    ...(terrain
+      ? [
+          {
+            label: 'Terrain read',
+            value:
+              plan.series && n > 1
+                ? `Up to ${SHEET_DEM_TILE_BUDGET} tiles a sheet, ${n * SHEET_DEM_TILE_BUDGET} at most for the series`
+                : `Up to ${SHEET_DEM_TILE_BUDGET} tiles`,
+          },
+        ]
+      : []),
+    ...(imagery && plan.series && n > 1
+      ? [{ label: 'Imagery', value: `Captured once for each of the ${n} sheets` }]
+      : []),
+  ]
+  const note = plan.series
+    ? `${info.description} Each sheet is framed on its own block, drawn there as the block of interest with the others as other blocks; typed fields and comments fill their {name}, {page}, {total} and {attr:…} tokens for it. The sheets are made one after another, each reading its own terrain${imagery ? ' and imagery' : ''}, so a long series takes a while; Download says which sheet it is on, and closing the dialog stops it. A sheet that cannot be made is left out by name and said beside the saved file${plan.container === 'zip' ? ` and in the ZIP's ${SERIES_NOTES_FILE}` : ''}. The preview shows the first sheet.`
+    : info.description
+  return { rows, note, plan }
+}
+
+/** One page of a series: the run framed on that page's block, its typed fields and comments filled for it. */
+export function visualsSeriesPageRun(run: VisualsSheetRun, page: SheetSeriesPage): VisualsSheetRun {
+  return {
+    ...run,
+    settings: {
+      ...run.settings,
+      block: page.id,
+      fields: fillSeriesFields(run.settings.fields, page),
+      comments: fillSeriesTokens(run.settings.comments, page),
+    },
+  }
+}
+
+/** The series' own file name before its extension, which `withSheetExtension` adds for its container. */
+export const visualsSeriesFileName = (settings: Pick<VisualsSheetSettings, 'kind'>) =>
+  `visual-quality-block-sheets-${settings.kind}`
+
+/** A series' progress as Download shows it. */
+export const seriesProgressText = (progress: SheetSeriesProgress) =>
+  progress.page === null
+    ? `Writing the file: ${count(progress.total, 'sheet')}…`
+    : `Making sheet ${progress.done + 1} of ${progress.total}: ${progress.page}…`
 
 const ASSESSED_ROAD: LineSymbol = { ...VIA_OVERVIEW_MAP.highway, label: 'Assessed road' }
 const RETENTION: AreaSymbol = { ...VIA_OVERVIEW_MAP.wtra, label: 'Wildlife tree patch / retention' }
@@ -317,17 +549,30 @@ export function visualsSheetSummary(
   style: string
   unavailable: string | null
   drawn: { label: string; value: string }[]
+  /** The file: its format, what it is written as, which blocks, the mask (`visualsSheetFileRows`). */
+  file: { label: string; value: string }[]
+  /** What the file says about itself: the format, or a series' terrain cost and how a page is left out. */
+  fileNote: string
+  /** Why the series cannot be written as chosen, or null. */
+  problem: string | null
+  /** The download's extension, with its dot. */
+  extension: string
 } | null {
   const blocks = visualsSheetBlocks(scene)
   if (!blocks.length) return null
   const blockId = visualsSheetBlockId(scene, settings.block)
+  const { rows: file, note: fileNote, plan } = visualsSheetFileRows(scene, settings)
   const of = (role: TargetPolygon['role']) => scene.targets.filter((target) => target.role === role).length
   const masks = (kind: AssessmentMask['kind']) => scene.masks.filter((mask) => mask.kind === kind).length
   const left = masks('permanent')
   const corridor = scene.viewpoint.mode === 'corridor' && scene.viewpoint.coordinates.length > 1
   const drawn = [
-    { label: 'Block of interest', value: blocks.find((entry) => entry.value === blockId)?.label ?? 'None' },
-    ...(blocks.length > 1 ? [{ label: 'Other blocks', value: String(blocks.length - 1) }] : []),
+    plan.series
+      ? { label: 'Block of interest', value: 'Each chosen block on its own sheet' }
+      : { label: 'Block of interest', value: blocks.find((entry) => entry.value === blockId)?.label ?? 'None' },
+    ...(blocks.length > 1
+      ? [{ label: 'Other blocks', value: plan.series ? 'The rest, on every sheet' : String(blocks.length - 1) }]
+      : []),
     { label: 'Landform', value: of('landscape') ? count(of('landscape'), 'outline') : 'None in the scene' },
     ...(of('harvested') ? [{ label: 'Existing openings', value: String(of('harvested')) }] : []),
     ...(masks('private') ? [{ label: 'Private land', value: count(masks('private'), 'area') }] : []),
@@ -346,13 +591,19 @@ export function visualsSheetSummary(
     ...(scene.vqo?.length ? [{ label: 'Established VQO polygons', value: String(scene.vqo.length) }] : []),
   ]
   return {
-    block: blocks.find((entry) => entry.value === blockId)?.label ?? 'None',
+    block: plan.series
+      ? `Each chosen block on its own sheet (${plan.pages.length} of ${blocks.length})`
+      : (blocks.find((entry) => entry.value === blockId)?.label ?? 'None'),
     sheet: visualsSheetLabel(settings.kind),
     paper: PAPER_SIZES[settings.paper].label,
     scale: settings.scale === 'fit' ? 'Fit the block' : formatScale(settings.scale),
     style: visualsSheetStyleName(settings.style),
     unavailable: visualsSheetUnavailable(settings.kind),
     drawn,
+    file,
+    fileNote,
+    problem: plan.problem,
+    extension: visualsSheetExtension(plan),
   }
 }
 
@@ -422,13 +673,17 @@ export interface VisualsSheetDeps extends SheetBuildDeps {
   ) => Promise<{ source: ElevationSource; missingTileCount: number }>
 }
 
-/** The file name's stem: the block and the sheet type. */
-export function visualsSheetFileName(settings: VisualsSheetSettings, blockName: string | undefined): string {
+/** One sheet's file name: the block and the sheet type, with the format's extension. */
+export function visualsSheetFileName(
+  settings: Pick<VisualsSheetSettings, 'kind'>,
+  blockName: string | undefined,
+  format: SheetFormat = 'pdf',
+): string {
   const stem = (blockName ?? 'visual-quality')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-  return `${stem || 'block'}-${settings.kind}.pdf`
+  return `${stem || 'block'}-${settings.kind}.${SHEET_FORMAT_INFO[format].extension}`
 }
 
 /**
@@ -486,10 +741,91 @@ export async function buildVisualsSheet(run: VisualsSheetRun, deps: VisualsSheet
       issue: run.issue,
       logo: run.logo,
       caveat: VISUALS_SHEET_CAVEAT,
+      maskOutsideBlock: settings.output.mask,
       signal: run.signal,
     },
     deps,
   )
   // "No terrain is loaded" would repeat the reason already given.
   return { ...built, missing: [...missing, ...(terrain || !wantsTerrain ? built.missing : [])] }
+}
+
+// ---------------------------------------------------------------- the file
+
+/** What writing adds to building: the format's writer (jsPDF, the PNG rasteriser), passed in. */
+export interface VisualsSheetFileDeps extends VisualsSheetDeps {
+  files: SheetFileDeps
+}
+
+export interface VisualsSheetWritten {
+  blob: Blob
+  fileName: string
+  /** What the file was written without, one sentence each: a sheet left out of a series, terrain that did not load. */
+  notes: string[]
+  /** One sheet as drawn, so it can be copied as a PNG without being built again; absent for a series. */
+  sheet?: BuiltSheet['sheet']
+  /** Set when the file is a preview of part of the download (a series' first sheet): what it is, in words. */
+  previewOf?: string
+}
+
+const sentence = (text: string) => (/[.!?…]$/.test(text) ? text : `${text}.`)
+
+/**
+ * The sheet as the person chose to write it (`settings.output`): one sheet in its format, or a series of one sheet per
+ * chosen block as one PDF or a ZIP (`writeSheetSeries`), each page framed on its block with its tokens filled. With
+ * `preview`, a series writes only its first sheet, as the series writes it, and says so in `previewOf`. A series that
+ * cannot be written as chosen (no block left, too many) is refused with the plan's reason before anything is read.
+ */
+export async function writeVisualsSheet(
+  run: VisualsSheetRun,
+  deps: VisualsSheetFileDeps,
+  options: { preview?: boolean; onProgress?: (text: string) => void } = {},
+): Promise<VisualsSheetWritten> {
+  const { settings, signal } = run
+  const output = settings.output
+  const plan = visualsSheetOutputPlan(run.scene, output)
+  if (plan.problem) throw Error(plan.problem)
+  if (!plan.series) {
+    const blockId = visualsSheetBlockId(run.scene, settings.block)
+    const name = visualsSheetBlocks(run.scene).find((entry) => entry.value === blockId)?.label
+    const built = await buildVisualsSheet({ ...run, settings: { ...settings, block: blockId } }, deps)
+    return {
+      blob: await sheetFile(built.sheet, output.format, deps.files, { title: name, signal }),
+      fileName: visualsSheetFileName(settings, name, output.format),
+      notes: built.missing.map(sentence),
+      sheet: built.sheet,
+    }
+  }
+  const blocks = visualsSeriesBlocks(run.scene)
+  const base = visualsSeriesFileName(settings)
+  if (options.preview) {
+    const [first] = seriesPages(blocks, { order: output.order, selected: plan.selection })
+    const built = await buildVisualsSheet(visualsSeriesPageRun(run, first), deps)
+    const whole =
+      plan.container === 'pdf'
+        ? `one PDF of ${count(first.total, 'page')}`
+        : `a ZIP of ${count(first.total, `${SHEET_FORMAT_INFO[output.format].extension.toUpperCase()} file`)}`
+    return {
+      blob: await sheetFile(built.sheet, output.format, deps.files, { title: first.name, signal }),
+      fileName: withSheetExtension(base, plan.container),
+      notes: built.missing.map((text) => `${first.name}: ${sentence(text)}`),
+      previewOf: `The first sheet of ${first.total}, ${first.name}, as the series writes it. Download makes every sheet and writes ${whole}.`,
+    }
+  }
+  const result = await writeSheetSeries({
+    blocks,
+    settings: { ...output, blocks: plan.selection },
+    build: async (page, pageSignal) => {
+      const built = await buildVisualsSheet({ ...visualsSeriesPageRun(run, page), signal: pageSignal ?? signal }, deps)
+      return { sheet: built.sheet, missing: built.missing }
+    },
+    deps: deps.files,
+    signal,
+    onProgress: options.onProgress && ((progress) => options.onProgress!(seriesProgressText(progress))),
+  })
+  return {
+    blob: result.blob,
+    fileName: withSheetExtension(base, result.container),
+    notes: result.notes.map(sentence),
+  }
 }

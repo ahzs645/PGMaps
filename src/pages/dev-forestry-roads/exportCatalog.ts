@@ -27,6 +27,9 @@ export type RoadExport =
   | 'dxf'
   | 'stakeout'
   | 'shapefile'
+  | 'geopackage'
+  | 'kmz'
+  | 'design-model'
   | 'plotbook'
   | 'plotbook-pdf'
   | 'terrain-landxml'
@@ -73,6 +76,8 @@ export const STAMPED_EXPORTS: readonly RoadExport[] = [
 export const MULTI_ROAD_EXPORTS: readonly RoadExport[] = [
   'geojson',
   'shapefile',
+  'geopackage',
+  'kmz',
   'roadeng',
   'roadeng-project',
   'report-package',
@@ -85,7 +90,14 @@ export const MULTI_ROAD_EXPORTS: readonly RoadExport[] = [
 ]
 export type RoadScope = 'active' | 'all'
 /** Outputs that write other programs' styles, so the browser's style library can change what they draw. */
-export const STYLE_LIBRARY_EXPORTS: readonly RoadExport[] = ['shapefile', 'qgis-project', 'arcgis-pro', 'web-map-style']
+export const STYLE_LIBRARY_EXPORTS: readonly RoadExport[] = [
+  'shapefile',
+  'geopackage',
+  'kmz',
+  'qgis-project',
+  'arcgis-pro',
+  'web-map-style',
+]
 
 /**
  * The roads a multi-road output writes. A file handed to someone else carries the road on screen
@@ -136,6 +148,8 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   // Design surfaces built from the calculated sections, read by CAD and machine control.
   'subgrade-landxml': 'refuse',
   'finished-surface-landxml': 'refuse',
+  // A picture of the same surfaces, opened in modelling software that has nowhere to show a notice.
+  'design-model': 'refuse',
   roadeng: 'refuse',
   'roadeng-project': 'refuse',
   dxf: 'refuse',
@@ -143,6 +157,8 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   csv: 'refuse',
   geojson: 'refuse',
   shapefile: 'refuse',
+  geopackage: 'refuse',
+  kmz: 'refuse',
   'qgis-project': 'refuse',
   'arcgis-pro': 'refuse',
   'web-map-style': 'refuse',
@@ -216,15 +232,15 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     label: 'Map PDF',
     extension: '.pdf',
     description:
-      'The plan map as it is shown now, on an A4 page with the terrain source and datum. Its symbols are the plan’s: choose them under Map settings → Legend and map symbols.',
+      'The plan map as it is shown now, on an A4 page with the terrain source and datum; or, under Options, the road, every road or a block on the paper and at the scale you choose, north-up, with a scale bar and georeferenced for Avenza and QGIS. Its symbols are the plan’s: choose them under Map settings → Legend and map symbols.',
   },
   {
     kind: 'block-sheet-pdf',
     group: 'documents',
     label: 'Block map sheet',
-    extension: '.pdf',
+    extension: '.pdf / .svg / .png / .zip',
     description:
-      'A printed block map with information, legend and roads. Choose field, LiDAR, access, imagery or Ministry-style operating plan layouts, and a map style: PGMaps’ sheet symbols or your saved styles.',
+      'A printed block map with information, legend and roads. Choose field, LiDAR, access, imagery or Ministry-style operating plan layouts, and a map style: PGMaps’ sheet symbols or your saved styles. Written as a PDF, an editable SVG or a PNG, for one block or one sheet per block.',
   },
   {
     kind: 'dline-sheet-pdf',
@@ -263,6 +279,22 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     extension: '.zip',
     description:
       'Road centrelines, stations and culverts as shapefile layers, zipped with their projection files and a QGIS (.qml), SLD and ArcGIS Pro (.lyrx) style beside each. One road or all.',
+  },
+  {
+    kind: 'geopackage',
+    group: 'gis',
+    label: 'GeoPackage',
+    extension: '.gpkg',
+    description:
+      'Road centrelines, stations, culverts, streams, existing roads and constraints as layers of one GeoPackage, each with its QGIS style stored in the file so it opens looking as it does here. One road or all.',
+  },
+  {
+    kind: 'kmz',
+    group: 'gis',
+    label: 'KMZ',
+    extension: '.kmz',
+    description:
+      'The same layers for Google Earth and field apps: a folder per road and per kind of feature, coloured as the plan draws them, each placemark named and keeping its attributes. One road or all.',
   },
   {
     kind: 'qgis-project',
@@ -347,6 +379,14 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     extension: '.xml',
     description:
       'The top of the surfacing across the running surface and the subgrade beyond it, as a LandXML TIN with its faces and outer boundary, broken where a section is incomplete.',
+  },
+  {
+    kind: 'design-model',
+    group: 'survey',
+    label: '3D surface model',
+    extension: '.glb / .zip / .stl',
+    description:
+      'The subgrade and finished surface, with the ground beside the road where the sections carry it, as glTF, OBJ or STL for Blender or SketchUp. A picture of the calculated surfaces, not a machine-control file: build from the LandXML surfaces.',
   },
   {
     kind: 'roadeng',
@@ -499,6 +539,7 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
       'landxml',
       'subgrade-landxml',
       'finished-surface-landxml',
+      'design-model',
       'roadeng',
       'roadeng-project',
       'dxf',
@@ -539,15 +580,27 @@ type Position = [number, number]
 
 export interface GeometryLayer {
   name: string
+  /** The layer's colour in the file, where it has one; else the preview picks one. */
+  color?: string
   points: Position[]
   lines: Position[][]
 }
 
 export type ExportPreview =
   | { type: 'html'; html: string }
-  | { type: 'image'; src: string; width: number; height: number }
+  | {
+      type: 'image'
+      src: string
+      width: number
+      height: number
+      /** Said under the picture, e.g. which page of a series it is. */
+      caption?: string
+      /** Copies the picture at print resolution (`CopyImageButton`); never the preview thumbnail. */
+      copy?: { label: string; png: () => Promise<Blob> }
+    }
   | { type: 'table'; header: string[]; rows: string[][]; total: number }
-  | { type: 'geometry'; layers: GeometryLayer[] }
+  /** `notes`: what the file could not carry as given (field warnings, simplified symbols). */
+  | { type: 'geometry'; layers: GeometryLayer[]; notes?: string[] }
   | { type: 'text'; text: string; lines: number; bytes: number }
 
 const PREVIEW_ROWS = 40

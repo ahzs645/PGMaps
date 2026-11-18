@@ -147,7 +147,17 @@ import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import type { Map as MapLibreMap } from 'maplibre-gl'
-import { FilesDialog, type RoadExport } from './dev-forestry-roads/FilesDialog'
+import { FilesDialog, type FilesSaveAs, type RoadExport } from './dev-forestry-roads/FilesDialog'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import {
+  blockSheetWrites,
+  DESIGN_MODEL_FORMATS,
+  exportBasename,
+  exportFileType,
+  saveAsFileType,
+  saveAsOffered,
+  savedNotice,
+} from './dev-forestry-roads/exportFiles'
 import { UndoHistoryButton } from './dev-forestry-roads/UndoHistoryMenu'
 import { isoDate, issueLine, issueStamp, PLANNING_CAVEAT } from './dev-forestry-roads/projectIssue'
 import {
@@ -166,6 +176,7 @@ import {
 } from './dev-forestry-roads/exportCatalog'
 import { SoftreeLocationOptions } from './dev-forestry-roads/SoftreeLocationOptions'
 import type { LocationAsciiOptions } from './dev-forestry-roads/softreeExports'
+import type { ModelFormat } from '@/lib/model3d/model'
 import { mapNotesGeoJson } from './dev-forestry-roads/mapNotes'
 import { streamRegisterCsv } from './dev-forestry-roads/streamReports'
 import { buildCulvertSchedule, culvertScheduleCsv } from './dev-forestry-roads/culverts/culvertSchedule'
@@ -399,6 +410,10 @@ import { readStoredStyleLibrary, StyleLibraryPanel } from './dev-forestry-roads/
 import type { StyledExportKind } from './dev-forestry-roads/styledExports'
 import { RoadPaneLayout, roadPaneKey, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
 import { useBlockSheet } from './dev-forestry-roads/BlockSheetSetup'
+import { MapPdfOptions, useMapPdfSettings } from './dev-forestry-roads/MapPdfOptions'
+import { framedPageSketch, isAsShown, mapPdfPlan, type MapPdfTargets } from './dev-forestry-roads/mapPdfFrame'
+import { MAX_SHEET_SERIES_PAGES } from '@/lib/forestry/blockSheet/sheetSeries'
+import { SHEET_FORMAT_INFO, type SheetFormat } from '@/lib/mapSheet/sheetFormats'
 import { SHEET_PRESETS } from '@/lib/forestry/blockSheet/sheets'
 import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
 import type {
@@ -566,6 +581,8 @@ export default function DevForestryRoads({
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
   const investigation = isAccessInvestigation(project)
   const blockSheet = useBlockSheet(project, source, () => setStyleLibraryRevision((n) => n + 1))
+  // Save & export → Map PDF → Options: this browser's, never the project's.
+  const [mapPdfSettings, setMapPdfSettings] = useMapPdfSettings()
   const { ref, fullscreen, toggle } = useElementFullscreen<HTMLDivElement>()
   const compact = useMediaQuery('(max-width: 767px), (max-height: 760px)')
   const dockLayers = useMediaQuery('(min-width: 900px)')
@@ -1084,6 +1101,8 @@ export default function DevForestryRoads({
   const [packageScope, setPackageScope] = useState<RoadScope>('all')
   // The Softree location ASCII file's options as set in Save & export; null follows the project.
   const [locationAscii, setLocationAscii] = useState<LocationAsciiOptions | null>(null)
+  // Save & export's 3D surface model format, for this session only: choosing it writes nothing to the project.
+  const [modelFormat, setModelFormat] = useState<ModelFormat>('glb')
   // The preliminary estimate is a project document too, and shares the package's choice.
   const scopeFor = (kind: RoadExport) =>
     kind === 'report-package' || kind === 'estimate-pdf' ? packageScope : roadScope
@@ -3503,7 +3522,7 @@ export default function DevForestryRoads({
     const invalid = exportInvalidInput(kind)
     if (invalid && INVALID_INPUT_RULES[kind] === 'refuse')
       throw Error(invalidInputRefusal(EXPORT_ITEMS.find((item) => item.kind === kind)?.label ?? 'This file', invalid))
-    const basename = (safe.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'forest-road').slice(0, 70)
+    const basename = exportBasename(safe.name)
     return { safe, basename }
   }
   const reportHtml = (safe: RoadProject) =>
@@ -3654,6 +3673,40 @@ export default function DevForestryRoads({
       { encodePng, SQL: needsSql ? await loadSqlJs() : undefined },
     )
   }
+  /** The GeoPackage or KMZ of the roads in scope, from the same layers the QGIS project writes (`gisExports.ts`). */
+  const gisFile = async (kind: 'geopackage' | 'kmz', safe: RoadProject) => {
+    const gis = await import('./dev-forestry-roads/gisExports')
+    const input = {
+      name: safe.name,
+      roads: exportRoads(safe.alignments, alignment.id, roadScope),
+      analyses: w.analyses,
+      activeId: alignment.id,
+      context: safe.context,
+      // Read when the file is built, so a style chosen a moment ago is the one written.
+      overrides: roleOverrides(readStoredStyleLibrary()),
+    }
+    if (kind === 'geopackage') {
+      const { loadSqlJs } = await import('@/lib/browserSqlite')
+      return gis.roadGeoPackage(await loadSqlJs(), input)
+    }
+    const { encodePng } = await import('@/lib/mapSheet/png')
+    return gis.roadKmz(input, { dotIcon: await gis.kmzDotIcon(encodePng) })
+  }
+  /** The road on screen's design surfaces as a 3D model in the chosen format (`designModelExport.ts`). */
+  const designModel = async () => {
+    const { designModelFile } = await import('./dev-forestry-roads/designModelExport')
+    return designModelFile(
+      {
+        alignment,
+        analysis,
+        terrain: project.terrain,
+        ...exportGrid(project.terrain, alignment.points[0].coordinate),
+        projectName: project.name,
+      },
+      modelFormat,
+      exportBasename(project.name),
+    )
+  }
   /**
    * The location ASCII file's options: as set in Save & export, else the project's unit from the
    * road's start station (0 without one). RoadEng's L-stations run on through station equations.
@@ -3692,32 +3745,19 @@ export default function DevForestryRoads({
     const road = safe.alignments.find((a) => a.id === alignment.id) ?? alignment
     const units = s.softreeUnits(project.terrain)
     const inUnits = units === 'imperial' ? ' in feet and cubic yards, as the project’s RoadEng design' : ''
-    const csvFile = (content: string, suffix: string, notice: string) => ({
-      content,
-      filename: `${basename}-${suffix}.csv`,
-      mime: 'text/csv;charset=utf-8',
-      notice,
-    })
+    const type = exportFileType(kind, basename)
+    const csvFile = (content: string, notice: string) => ({ content, filename: type.name, mime: type.mime, notice })
     switch (kind) {
       case 'mass-haul-csv':
-        return csvFile(
-          s.massHaulCsvFile(analysis, road.engineering, units),
-          'mass-haul',
-          `RoadEng mass haul downloaded${inUnits}.`,
-        )
+        return csvFile(s.massHaulCsvFile(analysis, road.engineering, units), `RoadEng mass haul downloaded${inUnits}.`)
       case 'optimal-haul-csv': {
         const written = s.optimalHaulCsvFile(analysis, road.engineering, units)
-        return csvFile(
-          written.text,
-          'optimal-haul',
-          [`RoadEng optimal haul downloaded${inUnits}.`, ...written.leftOut].join(' '),
-        )
+        return csvFile(written.text, [`RoadEng optimal haul downloaded${inUnits}.`, ...written.leftOut].join(' '))
       }
       case 'optimal-areas-csv': {
         const grid = await roadEngGrid()
         return csvFile(
           s.optimalAreasCsvFile(analysis, road.engineering, grid.toGrid, units),
-          'optimal-areas',
           `Softree Optimal areas downloaded${inUnits}, in ${grid.epsg === null ? 'the design file’s own coordinates' : `EPSG:${grid.epsg} grid coordinates`}.`,
         )
       }
@@ -3727,8 +3767,8 @@ export default function DevForestryRoads({
         for (const file of await optimalInputs(safe, basename)) zip.file(file.path, file.content)
         return {
           content: await zip.generateAsync({ type: 'blob' }),
-          filename: `${basename}-optimal-inputs.zip`,
-          mime: 'application/zip',
+          filename: type.name,
+          mime: type.mime,
           notice: `Softree Optimal materials, pits and cost model downloaded${inUnits}.`,
         }
       }
@@ -3737,8 +3777,8 @@ export default function DevForestryRoads({
         const options = locationAsciiOptions()
         return {
           content: s.locationAsciiFile(road, analysis, grid.toGrid, options),
-          filename: `${basename}-location.txt`,
-          mime: 'text/plain',
+          filename: type.name,
+          mime: type.mime,
           notice: `Softree location ASCII downloaded in ${options.unitM === 1 ? 'metres' : 'feet'}, ${grid.epsg === null ? 'in the design file’s own coordinates' : `in EPSG:${grid.epsg} grid coordinates`}, from station ${options.startStationM.toFixed(3)} m.`,
         }
       }
@@ -3747,8 +3787,8 @@ export default function DevForestryRoads({
         const written = s.terrainAsciiFromRoadEngProject(zipped.bytes)
         return {
           content: written.text,
-          filename: `${basename}-terrain.txt`,
-          mime: 'text/plain',
+          filename: type.name,
+          mime: type.mime,
           notice: [
             `Softree terrain ASCII downloaded, ${zipped.epsg === null ? 'in the design file’s own coordinates' : `in EPSG:${zipped.epsg} grid coordinates`}: the RoadEng project's terrain.`,
             ...written.notes,
@@ -3774,15 +3814,18 @@ export default function DevForestryRoads({
     >,
   ): Promise<{ content: string | Blob; filename: string; mime: string; notice: string }> => {
     const { safe, basename } = exportBasis(kind)
-    const text = (content: string, filename: string, mime: string, notice = 'Export downloaded.') => ({
+    // Every name and type from one table (`exportFiles.ts`), which Save as offers before the build.
+    const type = exportFileType(kind, basename, { modelFormat }, safe.name)
+    const text = (content: string, notice = 'Export downloaded.') => ({
       content:
-        mime.startsWith('text/html') && !content.includes('id="pgmaps-export-brand"')
+        type.mime.startsWith('text/html') && !content.includes('id="pgmaps-export-brand"')
           ? brandedHtml(content, selectedExportBrand, printLogo)
           : content,
-      filename,
-      mime,
+      filename: type.name,
+      mime: type.mime,
       notice,
     })
+    const binary = (content: Blob, notice: string) => ({ content, filename: type.name, mime: type.mime, notice })
     switch (kind) {
       case 'terrain-landxml':
       case 'terrain-ascii': {
@@ -3793,22 +3836,15 @@ export default function DevForestryRoads({
           kind === 'terrain-landxml'
             ? terrainSurfaceLandXml(raster, safe.terrain.preparation?.tin)
             : terrainAscii(raster),
-          `${basename}-terrain.${kind === 'terrain-landxml' ? 'xml' : 'asc'}`,
-          kind === 'terrain-landxml' ? 'application/xml' : 'text/plain',
           'Terrain surface exported with its source grid coordinates and datum notes.',
         )
       }
       case 'project':
-        return text(serializeProject(safe), `${basename}.road.json`, 'application/json')
+        return text(serializeProject(safe))
       case 'notes':
-        return text(
-          JSON.stringify(mapNotesGeoJson(safe.notes ?? []), null, 2),
-          `${basename}-notes.geojson`,
-          'application/geo+json',
-          'Map notes exported.',
-        )
+        return text(JSON.stringify(mapNotesGeoJson(safe.notes ?? []), null, 2), 'Map notes exported.')
       case 'streams-csv':
-        return text(streamRegisterCsv(safe, w.analyses), `${basename}-streams.csv`, 'text/csv;charset=utf-8')
+        return text(streamRegisterCsv(safe, w.analyses))
       case 'culvert-schedule-csv':
         // The road's own stationing names its stations, whatever the screen shows.
         return text(
@@ -3827,18 +3863,12 @@ export default function DevForestryRoads({
               }),
             ),
           ),
-          `${basename}-culverts.csv`,
-          'text/csv;charset=utf-8',
           'Culvert schedule exported. Its appraisal columns are the manual’s figures, not part of the estimate.',
         )
       case 'provincial-evidence':
         if (!safe.provincialStreamData)
           throw Error('Load provincial stream evidence before exporting its source records.')
-        return text(
-          JSON.stringify(provincialEvidenceGeoJson(safe.provincialStreamData), null, 2),
-          `${basename}-provincial-stream-evidence.geojson`,
-          'application/geo+json',
-        )
+        return text(JSON.stringify(provincialEvidenceGeoJson(safe.provincialStreamData), null, 2))
       case 'geojson':
         return text(
           JSON.stringify(
@@ -3849,16 +3879,12 @@ export default function DevForestryRoads({
             null,
             2,
           ),
-          `${basename}.geojson`,
-          'application/geo+json',
         )
       case 'plotbook': {
         if (terrainProfile) throw Error('Return to the road before plotting design sheets.')
         const book = await plotBookFor(safe, alignment, analysis, safe.reportSettings)
         return text(
           book.html,
-          `${basename}-plot-book.html`,
-          'text/html;charset=utf-8',
           book.contourError
             ? `Plot book downloaded without contours (${book.contourError}). Open it and use Print / Save as PDF.`
             : 'Plot book downloaded. Open it and use Print / Save as PDF.',
@@ -3887,14 +3913,23 @@ export default function DevForestryRoads({
           roleOverrides(readStoredStyleLibrary()),
         )
         for (const file of styles.files) zip.file(file.path, file.content)
-        return {
-          content: await zip.generateAsync({ type: 'blob' }),
-          filename: `${basename}-shapefiles.zip`,
-          mime: 'application/zip',
-          notice: warnings.length
+        return binary(
+          await zip.generateAsync({ type: 'blob' }),
+          warnings.length
             ? `Shapefiles downloaded with ${warnings.length} field warning${warnings.length === 1 ? '' : 's'}: ${warnings.join(' ')}`
             : 'Shapefiles downloaded with QGIS, SLD and ArcGIS Pro styles.',
-        }
+        )
+      }
+      case 'geopackage':
+      case 'kmz': {
+        const [gis, built] = await Promise.all([import('./dev-forestry-roads/gisExports'), gisFile(kind, safe)])
+        const label = EXPORT_ITEMS.find((item) => item.kind === kind)?.label ?? 'Export'
+        return binary(new Blob([built.bytes as BlobPart], { type: type.mime }), gis.roadGisNotice(label, built))
+      }
+      case 'design-model': {
+        if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
+        const [model, built] = await Promise.all([import('./dev-forestry-roads/designModelExport'), designModel()])
+        return binary(new Blob([built.bytes as BlobPart], { type: type.mime }), model.designModelNotice(built))
       }
       case 'qgis-project':
       case 'arcgis-pro':
@@ -3905,11 +3940,9 @@ export default function DevForestryRoads({
         for (const file of bundle.files) zip.file(file.path, file.content)
         const label = EXPORT_ITEMS.find((item) => item.kind === kind)?.label ?? 'Export'
         const approximations = bundle.diagnostics.filter((d) => d.severity !== 'info').length
-        return {
-          content: await zip.generateAsync({ type: 'blob' }),
-          filename: `${basename}-${kind}.zip`,
-          mime: 'application/zip',
-          notice: [
+        return binary(
+          await zip.generateAsync({ type: 'blob' }),
+          [
             `${label} downloaded.`,
             approximations
               ? `${approximations} symbol part${approximations === 1 ? ' is' : 's are'} approximated; README.txt lists ${approximations === 1 ? 'it' : 'them'}.`
@@ -3918,7 +3951,7 @@ export default function DevForestryRoads({
           ]
             .filter(Boolean)
             .join(' '),
-        }
+        )
       }
       case 'dxf': {
         if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
@@ -3926,8 +3959,6 @@ export default function DevForestryRoads({
         const grid = exportGrid(project.terrain, alignment.points[0].coordinate)
         return text(
           roadDxf({ name: safe.name, alignment, analysis, terrain: project.terrain, ...grid }),
-          `${basename}.dxf`,
-          'application/dxf',
           `DXF downloaded: plan in EPSG:${grid.epsg} grid metres, profile and sections at true scale below it.`,
         )
       }
@@ -3947,15 +3978,13 @@ export default function DevForestryRoads({
       case 'roadeng': {
         if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
         const written = await roadEngFile(safe)
-        return {
-          content: new Blob([Uint8Array.from(written.bytes)], { type: 'application/octet-stream' }),
-          filename: `${basename}.dsnx`,
-          mime: 'application/octet-stream',
-          notice: [
+        return binary(
+          new Blob([Uint8Array.from(written.bytes)], { type: type.mime }),
+          [
             `RoadEng design downloaded: ${written.roads} road${written.roads === 1 ? '' : 's'} in ${written.epsg === null ? 'the design file’s own coordinates' : `EPSG:${written.epsg} grid metres`}.`,
             ...written.notes,
           ].join(' '),
-        }
+        )
       }
       case 'mass-haul-csv':
       case 'optimal-haul-csv':
@@ -3972,13 +4001,11 @@ export default function DevForestryRoads({
         return kind === 'landxml'
           ? text(
               landXml({ name: safe.name, alignment, analysis, terrain: project.terrain, ...grid }),
-              `${basename}.xml`,
-              'application/xml',
               ['Export downloaded.', ...minimumControlExportNotes(alignment.verticalControls, 'LandXML file')].join(
                 ' ',
               ),
             )
-          : text(stakeoutCsv({ alignment, analysis, ...grid }), `${basename}-stakeout.csv`, 'text/csv;charset=utf-8')
+          : text(stakeoutCsv({ alignment, analysis, ...grid }))
       }
       case 'subgrade-landxml':
       case 'finished-surface-landxml': {
@@ -3993,23 +4020,16 @@ export default function DevForestryRoads({
           terrain: project.terrain,
           ...grid,
         })
-        return text(written.xml, `${basename}-${kindOf}-surface.xml`, 'application/xml', written.notice)
+        return text(written.xml, written.notice)
       }
       case 'csv':
         return text(
           terrainProfile
             ? terrainProfileCsv(displayedAnalysis, project.terrain)
             : stationsCsv(displayedAnalysis, project.terrain),
-          `${basename}-stations.csv`,
-          'text/csv;charset=utf-8',
         )
       case 'report':
-        return text(
-          reportHtml(safe),
-          `${basename}-report.html`,
-          'text/html;charset=utf-8',
-          'Report downloaded. Open it and use Print / Save as PDF.',
-        )
+        return text(reportHtml(safe), 'Report downloaded. Open it and use Print / Save as PDF.')
     }
   }
   /** The block sheet's run: the calculated roads, the issue stamp and any invalid-input notice. */
@@ -4357,54 +4377,215 @@ export default function DevForestryRoads({
       caveat: PLANNING_CAVEAT,
     }
   }
+  /** The PDFs that render in one step, as a file: for their Download and for Save as. */
+  type PdfExport = Extract<
+    RoadExport,
+    'dline-sheet-pdf' | 'plotbook-pdf' | 'estimate-pdf' | 'block-sheet-pdf' | 'report-pdf' | 'map-pdf'
+  >
+  const PDF_BUSY: Record<PdfExport, string> = {
+    'dline-sheet-pdf': 'Building the D-line sheet…',
+    'plotbook-pdf': 'Building the plot book PDF…',
+    'estimate-pdf': 'Pricing each road three ways…',
+    'block-sheet-pdf': 'Building block map sheet…',
+    'report-pdf': 'Building report PDF…',
+    'map-pdf': 'Building map PDF…',
+  }
+  const isPdfExport = (kind: RoadExport): kind is PdfExport => kind in PDF_BUSY
+  /** The files that take long enough to want Cancel: a series of sheets, a framed capture of the plan. */
+  const PDF_CANCEL: Partial<Record<PdfExport, { label: string; notice: string }>> = {
+    'block-sheet-pdf': { label: 'Cancel', notice: 'Block map sheet cancelled.' },
+    'map-pdf': { label: 'Cancel', notice: 'Map PDF cancelled. The plan is back where it was.' },
+  }
+  /** A picture for the clipboard built at print resolution, with the busy line and Cancel. */
+  const buildForCopy = (message: string, make: (signal: AbortSignal) => Promise<Blob>) =>
+    new Promise<Blob>((resolve, reject) => {
+      run(
+        message,
+        async (signal) => resolve(await make(signal)),
+        { label: 'Cancel', notice: 'Copy cancelled.' },
+        true,
+      ).catch(reject)
+    })
+  /** A `data:` URL's bytes as a Blob, without fetching it. */
+  const dataUrlBlob = (url: string) => {
+    const comma = url.indexOf(',')
+    const bytes = Uint8Array.from(atob(url.slice(comma + 1)), (c) => c.charCodeAt(0))
+    return new Blob([bytes], { type: /^data:([^;,]+)/.exec(url)?.[1] ?? 'image/png' })
+  }
+  /** What the Map PDF can frame: the plan's centre, the road on screen, every road, the block sheet's blocks. */
+  const mapPdfTargets = (safe: RoadProject, map: MapLibreMap | null): MapPdfTargets => {
+    const lineOf = (road: Alignment) => {
+      const roadAnalysis = w.analyses.get(road.id)
+      const line = roadAnalysis?.centerline.length
+        ? roadAnalysis.centerline
+        : road.points.map((point) => point.coordinate)
+      return line.map((p) => [p[0], p[1]] as [number, number])
+    }
+    const roads = safe.alignments.filter((road) => road.id !== safe.designPlaceholderId)
+    const active = roads.find((road) => road.id === alignment.id)
+    const center = map?.getCenter()
+    const container = map?.getContainer()
+    return {
+      ...(center ? { viewCenter: [center.lng, center.lat] as [number, number] } : {}),
+      ...(container ? { viewSize: { width: container.clientWidth, height: container.clientHeight } } : {}),
+      ...(active ? { road: { name: active.name, line: lineOf(active) } } : {}),
+      roads: roads.map(lineOf),
+      blocks: blockSheet.blocks.map((choice) => ({
+        value: choice.value,
+        label: choice.label,
+        ring: choice.geometry.coordinates[0].map((p) => [p[0], p[1]] as [number, number]),
+      })),
+    }
+  }
+  /** The Map PDF's title, terrain line and logo. The stamp and the caveat ride on the source line, under the name. */
+  const mapPdfHeader = (safe: RoadProject) => {
+    const invalid = exportInvalidInput('map-pdf')
+    return {
+      name: safe.name,
+      terrain: project.terrain.name,
+      datum: `${project.terrain.verticalReference} | ${issueLine(issueStamp(safe.issue))} | ${PLANNING_CAVEAT}${
+        invalid ? ` | NOT CURRENT: ${invalidInputNotice(invalid)}` : ''
+      }`,
+      branding: selectedExportBrand,
+      logo: printLogo,
+    }
+  }
+  /** The block sheet's run as the Block map sheet export writes it: with the output's mask. */
+  const blockSheetExportRun = (safe: RoadProject, signal?: AbortSignal) => ({
+    ...blockSheetRun('block-sheet-pdf', safe),
+    signal,
+    branding: selectedExportBrand,
+    maskOutsideBlock: blockSheet.settings.output.mask,
+  })
+  /** What the notice says while a slower file is built for its download. */
+  const BUILDING_NOTICE: Partial<Record<RoadExport, string>> = {
+    plotbook: 'Building the plot book…',
+    shapefile: 'Building the shapefiles…',
+    geopackage: 'Building the GeoPackage…',
+    kmz: 'Building the KMZ…',
+    'design-model': 'Building the 3D surface model…',
+  }
+  /** What a file's name depends on besides the project (`exportFiles.ts`). */
+  const fileVariant = () => ({
+    blockSheetKind: blockSheet.settings.kind,
+    blockSheet: blockSheetWrites(blockSheet.settings.output, blockSheet.seriesBlocks.length),
+    dLineName: cableLine?.name,
+    modelFormat,
+  })
+  const pdfFile = async (
+    kind: PdfExport,
+    safe: RoadProject,
+    basename: string,
+    signal: AbortSignal,
+  ): Promise<{ content: Blob; filename: string; mime: string; notice: string }> => {
+    const type = exportFileType(kind, basename, fileVariant(), safe.name)
+    const pdf = (content: Blob, notice: string) => ({ content, filename: type.name, mime: type.mime, notice })
+    switch (kind) {
+      case 'dline-sheet-pdf': {
+        const { dLineSheetPdf } = await import('./dev-forestry-roads/dline/sheetExport')
+        const blob = await dLineSheetPdf({
+          ...dLineSheetRequest(safe),
+          signal,
+          branding: selectedExportBrand,
+          logo: printLogo,
+        })
+        return pdf(blob, 'D-line sheet downloaded.')
+      }
+      case 'plotbook-pdf': {
+        const [book, { plotBookPdf }] = await Promise.all([
+          exportFile('plotbook'),
+          import('./dev-forestry-roads/plotBookPdf'),
+        ])
+        const paper = parseRoadReportSettings(safe.reportSettings).paper
+        return pdf(
+          await plotBookPdf(book.content as string, paper, signal, selectedExportBrand),
+          book.notice
+            .replace(/^Plot book downloaded/, 'Plot book PDF downloaded')
+            .replace(/ Open it and use Print \/ Save as PDF\.$/, ''),
+        )
+      }
+      case 'estimate-pdf': {
+        const html = await estimatePageHtml(safe)
+        signal.throwIfAborted()
+        const { reportPdfBlob } = await import('./dev-forestry-roads/pdf')
+        return pdf(await reportPdfBlob(html, selectedExportBrand, printLogo), 'Preliminary estimate downloaded.')
+      }
+      case 'block-sheet-pdf': {
+        const sheets = await import('./dev-forestry-roads/blockSheet')
+        const output = blockSheet.settings.output
+        const writes = blockSheetWrites(output, blockSheet.seriesBlocks.length)
+        const run = blockSheetExportRun(safe, signal)
+        if (writes.series) {
+          // One page at a time; a page that cannot be built is left out by name and the rest written.
+          const result = await sheets.blockSheetSeries(run, blockSheet.seriesBlocks, {
+            onProgress: (progress) => {
+              if (!progress.page) return
+              w.setBusy(`Building block map sheets: ${progress.page}…`)
+              w.setBusyProgress({ step: progress.done + 1, total: progress.total })
+            },
+          })
+          const written = `${result.written} sheet${result.written === 1 ? '' : 's'}`
+          return pdf(
+            result.blob,
+            [
+              `Block map sheets downloaded: ${written} as ${
+                result.container === 'pdf'
+                  ? 'one PDF, a page a block'
+                  : `a ZIP of one ${SHEET_FORMAT_INFO[output.format].extension.toUpperCase()} a block`
+              }.`,
+              // Each left-out page by name with its reason, then what each written page was drawn without.
+              ...result.notes.map((note) => (/[.!?]$/.test(note) ? note : `${note}.`)),
+              ...(result.container === 'zip' && result.notes.length ? ['The ZIP’s notes.txt lists the same.'] : []),
+            ].join(' '),
+          )
+        }
+        const format = writes.file as SheetFormat
+        const { blob, built } = await sheets.blockSheetFile(run, format)
+        return pdf(
+          blob,
+          [
+            format === 'pdf'
+              ? 'Block map sheet downloaded.'
+              : `Block map sheet downloaded as ${SHEET_FORMAT_INFO[format].label}.`,
+            ...built.missing,
+          ].join(' '),
+        )
+      }
+      case 'report-pdf': {
+        const { reportPdfBlob } = await import('./dev-forestry-roads/pdf')
+        return pdf(await reportPdfBlob(reportHtml(safe), selectedExportBrand, printLogo), 'Report PDF downloaded.')
+      }
+      case 'map-pdf': {
+        if (hiddenPanels.includes('plan')) setHiddenPanels(hiddenPanels.filter((id) => id !== 'plan'))
+        // Two frames for the plan to lay out; Cancel ends the wait, since a hidden page draws no frames.
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+          signal.addEventListener('abort', () => resolve(), { once: true })
+        })
+        signal.throwIfAborted()
+        const map = planMap.current
+        if (!map) throw Error('The plan map is still loading. Try again once it is ready.')
+        resizeMap(map)
+        const plan = mapPdfPlan(mapPdfSettings, mapPdfTargets(safe, map))
+        const { mapPdf, mapPdfNotice } = await import('./dev-forestry-roads/mapPdf')
+        const result = await mapPdf(map, { plan, ...mapPdfHeader(safe), signal })
+        return pdf(result.blob, mapPdfNotice(plan, result))
+      }
+    }
+  }
   const save = (kind: RoadExport) => {
     try {
       const { safe, basename } = exportBasis(kind)
-      if (kind === 'dline-sheet-pdf') {
-        void run('Building the D-line sheet…', async (signal) => {
-          const { dLineSheetPdf } = await import('./dev-forestry-roads/dline/sheetExport')
-          const blob = await dLineSheetPdf({
-            ...dLineSheetRequest(safe),
-            signal,
-            branding: selectedExportBrand,
-            logo: printLogo,
-          })
-          const name = (cableLine?.name ?? 'd-line').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'd-line'
-          downloadBlob(blob, `${basename}-${name.slice(0, 40)}-sheet.pdf`)
-          w.setNotice('D-line sheet downloaded.')
-        })
-        return
-      }
-      if (kind === 'plotbook-pdf') {
-        void run('Building the plot book PDF…', async (signal) => {
-          const [book, { plotBookPdf }] = await Promise.all([
-            exportFile('plotbook'),
-            import('./dev-forestry-roads/plotBookPdf'),
-          ])
-          const paper = parseRoadReportSettings(safe.reportSettings).paper
-          downloadBlob(
-            await plotBookPdf(book.content as string, paper, signal, selectedExportBrand),
-            `${basename}-plot-book.pdf`,
-          )
-          w.setNotice(
-            book.notice
-              .replace(/^Plot book downloaded/, 'Plot book PDF downloaded')
-              .replace(/ Open it and use Print \/ Save as PDF\.$/, ''),
-          )
-        })
-        return
-      }
-      if (kind === 'estimate-pdf') {
-        void run('Pricing each road three ways…', async (signal) => {
-          const html = await estimatePageHtml(safe)
-          signal.throwIfAborted()
-          const { reportPdfBlob } = await import('./dev-forestry-roads/pdf')
-          downloadBlob(
-            await reportPdfBlob(html, selectedExportBrand, printLogo),
-            `${basename}-preliminary-estimate.pdf`,
-          )
-          w.setNotice('Preliminary estimate downloaded.')
-        })
+      if (isPdfExport(kind)) {
+        void run(
+          PDF_BUSY[kind],
+          async (signal) => {
+            const file = await pdfFile(kind, safe, basename, signal)
+            downloadBlob(file.content, file.filename)
+            w.setNotice(file.notice)
+          },
+          PDF_CANCEL[kind],
+        )
         return
       }
       if (kind === 'report-package') {
@@ -4412,46 +4593,6 @@ export default function DevForestryRoads({
           const built = await buildReportPackage(safe, basename, signal)
           downloadBlob(built.blob, built.filename)
           w.setNotice(built.notice)
-        })
-        return
-      }
-      if (kind === 'block-sheet-pdf') {
-        void run('Building block map sheet…', async (signal) => {
-          const { blockSheetPdf } = await import('./dev-forestry-roads/blockSheet')
-          const { blob, built } = await blockSheetPdf({
-            ...blockSheetRun(kind, safe),
-            signal,
-            branding: selectedExportBrand,
-          })
-          downloadBlob(blob, `${basename}-${blockSheet.settings.kind}.pdf`)
-          w.setNotice(['Block map sheet downloaded.', ...built.missing].join(' '))
-        })
-        return
-      }
-      if (kind === 'map-pdf' || kind === 'report-pdf') {
-        void run(kind === 'map-pdf' ? 'Building map PDF…' : 'Building report PDF…', async (signal) => {
-          const { exportMapPdf, exportReportPdf } = await import('./dev-forestry-roads/pdf')
-          if (kind === 'map-pdf') {
-            if (hiddenPanels.includes('plan')) setHiddenPanels(hiddenPanels.filter((id) => id !== 'plan'))
-            await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-            const map = planMap.current
-            if (!map) throw Error('The plan map is still loading. Try again once it is ready.')
-            resizeMap(map)
-            // The stamp and the caveat ride on the page's source line, under the project name.
-            await exportMapPdf(
-              map,
-              safe.name,
-              project.terrain.name,
-              `${project.terrain.verticalReference} | ${issueLine(issueStamp(safe.issue))} | ${PLANNING_CAVEAT}${
-                exportInvalidInput(kind) ? ` | NOT CURRENT: ${invalidInputNotice(exportInvalidInput(kind)!)}` : ''
-              }`,
-              `${basename}-map.pdf`,
-              signal,
-              selectedExportBrand,
-              printLogo,
-            )
-          } else await exportReportPdf(reportHtml(safe), `${basename}-report.pdf`, selectedExportBrand, printLogo)
-          w.setNotice(kind === 'map-pdf' ? 'Map PDF downloaded.' : 'Report PDF downloaded.')
         })
         return
       }
@@ -4466,14 +4607,64 @@ export default function DevForestryRoads({
       if (kind === 'terrain-landxml' || kind === 'terrain-ascii')
         void run('Exporting the terrain surface…', async () => download(await exportFile(kind)))
       else {
-        if (kind === 'plotbook' || kind === 'shapefile')
-          w.setNotice(`Building the ${kind === 'plotbook' ? 'plot book' : 'shapefiles'}…`)
+        const building = BUILDING_NOTICE[kind]
+        if (building) w.setNotice(building)
         void exportFile(kind)
           .then(download)
           .catch((error) => w.setError(error instanceof Error ? error.message : 'Could not export project.'))
       }
     } catch (error) {
       w.setError(error instanceof Error ? error.message : 'Could not export project.')
+    }
+  }
+  /**
+   * Save as… for an output (`saveFileAs`): the name and type from the table Download names its file
+   * by, offered in the save dialog before anything is built; then the same build, refusals and
+   * aftermath as Download (the project file marked saved, the notice). Null where the output is on
+   * Download only (`DOWNLOAD_ONLY_EXPORTS`).
+   */
+  const saveAsFor = (kind: RoadExport): FilesSaveAs | null => {
+    if (!saveAsOffered(kind)) return null
+    const type = exportFileType(kind, exportBasename(project.name), fileVariant(), project.name)
+    let notice = ''
+    return {
+      suggestedName: type.name,
+      fileType: saveAsFileType(kind, type),
+      content: async () => {
+        if (isPdfExport(kind)) {
+          // The same busy line and cancellation as its Download; the checks run inside, so a refusal names the input.
+          const file = await new Promise<Awaited<ReturnType<typeof pdfFile>>>((resolve, reject) => {
+            run(
+              PDF_BUSY[kind],
+              async (signal) => {
+                const { safe, basename } = exportBasis(kind)
+                resolve(await pdfFile(kind, safe, basename, signal))
+              },
+              PDF_CANCEL[kind],
+              true,
+            ).catch(reject)
+          })
+          notice = file.notice
+          return file.content
+        }
+        if (kind === 'report-package') throw Error('This file is offered on Download only.')
+        const building = BUILDING_NOTICE[kind]
+        if (building) w.setNotice(building)
+        const file = await exportFile(kind)
+        notice = file.notice
+        return file.content
+      },
+      onResult: (result) => {
+        if (result.outcome === 'cancelled') return
+        if (kind === 'project') w.markFileSaved()
+        if (!isPdfExport(kind)) setLastExport(kind)
+        w.setNotice(savedNotice(notice, result.outcome, result.fileName))
+        w.setError('')
+      },
+      // Cancel already said so in the notice.
+      onError: (error) => {
+        if ((error.cause as { name?: string } | undefined)?.name !== 'AbortError') w.setError(error.message)
+      },
     }
   }
   // A preview is rebuilt when anything its file is made from changes.
@@ -4492,6 +4683,8 @@ export default function DevForestryRoads({
       branding,
       styleLibraryRevision,
       locationAscii,
+      modelFormat,
+      mapPdfSettings,
     }),
     [
       project,
@@ -4507,6 +4700,8 @@ export default function DevForestryRoads({
       branding,
       styleLibraryRevision,
       locationAscii,
+      modelFormat,
+      mapPdfSettings,
     ],
   )
   /** What the Save & export dialog shows for one output, from the content its download writes. */
@@ -4554,20 +4749,89 @@ export default function DevForestryRoads({
         branding: selectedExportBrand,
         logo: printLogo,
       })
-      return { type: 'image', src: preview.src, width: preview.width, height: preview.height }
+      return {
+        type: 'image',
+        src: preview.src,
+        width: preview.width,
+        height: preview.height,
+        // The preview already holds the whole sheet; the PNG is drawn from it at print resolution.
+        copy: { label: 'Copy image', png: preview.png },
+      }
     }
     if (kind === 'block-sheet-pdf') {
-      const { blockSheetPreview } = await import('./dev-forestry-roads/blockSheet')
-      const preview = await blockSheetPreview({ ...blockSheetRun(kind, safe), signal, branding: selectedExportBrand })
-      return { type: 'image', src: preview.src, width: preview.width, height: preview.height }
+      const sheets = await import('./dev-forestry-roads/blockSheet')
+      const output = blockSheet.settings.output
+      const writes = blockSheetWrites(output, blockSheet.seriesBlocks.length)
+      let run: Parameters<typeof sheets.blockSheetPreview>[0] = blockSheetExportRun(safe, signal)
+      let caption: string | undefined
+      if (writes.series) {
+        // A series previews its first page and says how many it writes.
+        const { page, total } = sheets.firstSeriesPage(blockSheet.seriesBlocks, output)
+        run = sheets.seriesPageRun(run, page)
+        caption = `Page 1 of ${total}: ${page.name}. ${
+          total > MAX_SHEET_SERIES_PAGES
+            ? `A series is at most ${MAX_SHEET_SERIES_PAGES} sheets: choose fewer blocks.`
+            : `Writes ${total} sheet${total === 1 ? '' : 's'} as ${
+                writes.file === 'pdf'
+                  ? 'one PDF, a page a block'
+                  : `a ZIP of one ${SHEET_FORMAT_INFO[output.format].extension.toUpperCase()} a block`
+              }.`
+        }`
+      }
+      const preview = await sheets.blockSheetPreview(run)
+      // The copy builds the sheet in full on its own click: imagery and terrain at print resolution.
+      const full = { ...run, signal: undefined }
+      return {
+        type: 'image',
+        src: preview.src,
+        width: preview.width,
+        height: preview.height,
+        caption,
+        copy: {
+          label: writes.series ? 'Copy page 1' : 'Copy image',
+          png: () =>
+            buildForCopy('Drawing the sheet for the clipboard…', (copySignal) =>
+              sheets.blockSheetPng({ ...full, signal: copySignal }),
+            ),
+        },
+      }
     }
     if (kind === 'map-pdf') {
+      if (!isAsShown(mapPdfSettings)) {
+        // A sketch of the framed page: the plan is moved only when the PDF is made, not for every setting.
+        const targets = mapPdfTargets(safe, planMap.current)
+        const plan = mapPdfPlan(mapPdfSettings, targets)
+        if (plan.mode === 'framed') {
+          const { mapPdfHeaderTop } = await import('./dev-forestry-roads/mapPdf')
+          const sketch = framedPageSketch({
+            plan,
+            title: safe.name,
+            lines: targets.roads ?? [],
+            rings: targets.blocks.map((block) => block.ring),
+            topMm: await mapPdfHeaderTop(mapPdfHeader(safe), plan),
+          })
+          return {
+            type: 'image',
+            src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sketch.svg)}`,
+            width: sketch.width,
+            height: sketch.height,
+            caption: sketch.caption,
+          }
+        }
+      }
       const map = planMap.current
       if (!map || hiddenPanels.includes('plan') || map.getCanvas().clientWidth < 1)
         throw Error('Show the plan panel to preview its map. The PDF opens it for you.')
       const { mapImage } = await import('./dev-forestry-roads/pdf')
       const capture = await mapImage(map, signal)
-      return { type: 'image', src: capture.image, width: capture.width, height: capture.height }
+      return {
+        type: 'image',
+        src: capture.image,
+        width: capture.width,
+        height: capture.height,
+        // The map picture the page prints, as captured; the page's title and footer are not in it.
+        copy: { label: 'Copy map image', png: async () => dataUrlBlob(capture.image) },
+      }
     }
     if (kind === 'optimal-inputs') {
       // The zip holds three CSV files; preview each under its name.
@@ -4594,6 +4858,15 @@ export default function DevForestryRoads({
       ])
       const label = EXPORT_ITEMS.find((item) => item.kind === kind)?.label ?? 'Export'
       return { type: 'html', html: styledExportPreviewHtml(label, bundle) }
+    }
+    if (kind === 'geopackage' || kind === 'kmz') {
+      // Built as it downloads, so the preview lists the same warnings and simplified symbols.
+      const [gis, built] = await Promise.all([import('./dev-forestry-roads/gisExports'), gisFile(kind, safe)])
+      return gis.roadGisPreview(built)
+    }
+    if (kind === 'design-model') {
+      const [model, built] = await Promise.all([import('./dev-forestry-roads/designModelExport'), designModel()])
+      return { type: 'html', html: model.designModelPreviewHtml(built) }
     }
     if (kind === 'shapefile') {
       // The zip holds binary layers; preview the same layers' geometry instead.
@@ -6118,6 +6391,13 @@ export default function DevForestryRoads({
         previewVersion={exportPreviewVersion}
         setupViews={{
           'block-sheet-pdf': blockSheet.setup,
+          'map-pdf': (
+            <MapPdfOptions
+              value={mapPdfSettings}
+              onChange={setMapPdfSettings}
+              blocks={blockSheet.blocks.map(({ value, label }) => ({ value, label }))}
+            />
+          ),
           'softree-location-ascii': (
             <SoftreeLocationOptions
               value={locationAsciiOptions()}
@@ -6135,7 +6415,21 @@ export default function DevForestryRoads({
         setupLabels={{
           ...Object.fromEntries(STYLE_LIBRARY_EXPORTS.map((kind) => [kind, 'Styles'])),
           'softree-location-ascii': 'Options',
+          'map-pdf': 'Options',
         }}
+        outputOptions={{
+          'design-model': (
+            <SegmentedControl
+              size="sm"
+              fullWidth={false}
+              label="Model format"
+              value={modelFormat}
+              onChange={setModelFormat}
+              options={DESIGN_MODEL_FORMATS.map((format) => ({ value: format.value, label: format.label }))}
+            />
+          ),
+        }}
+        saveAs={saveAsFor}
         blockSheetSettings={{ value: blockSheet.settings, onApply: blockSheet.apply }}
       />
       <CostBreakdown

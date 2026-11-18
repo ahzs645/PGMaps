@@ -137,5 +137,22 @@ export async function dLineSheetPreview(request: DLineSheetRequest) {
     src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
     width: sheet.width,
     height: sheet.height,
+    /** The same sheet as a PNG at `SHEET_PNG_DPI`, with the logo, for the clipboard. */
+    png: async () => {
+      const [{ encodeSheetImages }, { standaloneSheetSvg }, { sheetPngBlob }, { SHEET_PNG_PIXELS_PER_POINT }] =
+        await Promise.all([
+          import('@/lib/mapSheet/png'),
+          import('@/lib/mapSheet/renderSvg'),
+          import('@/lib/mapSheet/sheetPng'),
+          import('@/lib/mapSheet/sheetFormats'),
+        ])
+      let file = standaloneSheetSvg(await encodeSheetImages(sheet.ops), sheet.width, sheet.height)
+      if (request.branding || request.logo)
+        file = file.replace(
+          /<\/svg>\s*$/,
+          `${printedLogoSvg(request.branding?.brand, request.logo, 28, 15, 175, 26, 72 / 25.4)}</svg>\n`,
+        )
+      return sheetPngBlob(file, sheet.width, sheet.height, SHEET_PNG_PIXELS_PER_POINT)
+    },
   }
 }

@@ -4,6 +4,7 @@ import { Download } from 'lucide-react'
 import { PreparerProfileHostProvider, PreparerProfilePane, PreparerProfileRow } from '@/branding/PreparerProfile'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
+import { SaveAsButton, type SaveAsButtonProps } from '@/components/ui/save-as-button'
 import { ResultRow } from '@/components/ui/result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Field, roadFieldClass } from './Controls'
@@ -44,6 +45,9 @@ const PREVIEW_DELAY_MS = 250
 /** A road name short enough for a choice chip; the whole name is in the header's road switcher. */
 const clipName = (name: string) => (name.length > 30 ? `${name.slice(0, 29)}…` : name)
 
+/** What Save as… needs for one output: the name and type offered, the build, and what to do after. */
+export type FilesSaveAs = Pick<SaveAsButtonProps, 'suggestedName' | 'fileType' | 'content' | 'onResult' | 'onError'>
+
 type PreviewResult =
   | { request: object; preview: ExportPreview; error?: undefined }
   | { request: object; preview?: undefined; error: string }
@@ -76,6 +80,8 @@ export function FilesDialog({
   previewVersion,
   setupViews,
   setupLabels,
+  outputOptions,
+  saveAs,
   blockSheetSettings,
   selected: controlledSelected,
   onSelectedChange,
@@ -113,6 +119,13 @@ export function FilesDialog({
   setupViews?: Partial<Record<RoadExport, ReactNode>>
   /** The setup view's tab caption where it is not "Sheet setup", e.g. "Styles". */
   setupLabels?: Partial<Record<RoadExport, string>>
+  /** Choices shown above an output's preview, such as the 3D model's format. */
+  outputOptions?: Partial<Record<RoadExport, ReactNode>>
+  /**
+   * Save as… beside Download for an output, or null where it is offered on Download only. It is
+   * hidden where the browser has no save dialog, since it would only repeat Download.
+   */
+  saveAs?: (kind: RoadExport) => FilesSaveAs | null
   /** The block sheet's settings, so a saved sheet setup can be saved from and applied to it. */
   blockSheetSettings?: { value: BlockSheetSettings; onApply: (settings: BlockSheetSettings) => void }
   /** The output shown, when the page follows it (a live lesson reads it); otherwise the dialog keeps its own. */
@@ -157,6 +170,7 @@ export function FilesDialog({
     view === 'setup' ? (setupAvailable ? view : 'preview') : view === 'issue' && !stamped ? 'preview' : view
   const settingUp = shownView !== 'preview'
   const chooseRoads = MULTI_ROAD_EXPORTS.includes(item.kind) && !!onRoadScope && (roads?.count ?? 0) > 1
+  const saveAsSpec = saveAs?.(item.kind) ?? null
   // A new object per selection or content change: a preview is current only for its own request.
   const request = useMemo(() => ({ kind: item.kind, version: previewVersion }), [item.kind, previewVersion])
   const [result, setResult] = useState<PreviewResult | null>(null)
@@ -276,16 +290,29 @@ export function FilesDialog({
                   </h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
                 </div>
-                <Button
-                  className="shrink-0"
-                  disabled={!!unavailable}
-                  aria-label={item.kind === 'project' ? 'Save project JSON' : `Download ${item.label}`}
-                  data-tutorial-id={ROAD_TOUR_ANCHORS.filesSave}
-                  onClick={() => onSave(item.kind)}
-                >
-                  <Download className="size-4" />
-                  {item.kind === 'project' ? 'Save' : 'Download'}
-                </Button>
+                <div className="flex shrink-0 flex-wrap items-start justify-end gap-2">
+                  {saveAsSpec && (
+                    // Keyed by output, so a "Saved" or a failure beside it does not follow to the next one.
+                    <SaveAsButton
+                      key={item.kind}
+                      {...saveAsSpec}
+                      rememberFolderAs="pgmaps-road-exports"
+                      size="default"
+                      disabled={!!unavailable}
+                      aria-label={`Save ${item.kind === 'project' ? 'project JSON' : item.label} as…`}
+                    />
+                  )}
+                  <Button
+                    className="shrink-0"
+                    disabled={!!unavailable}
+                    aria-label={item.kind === 'project' ? 'Save project JSON' : `Download ${item.label}`}
+                    data-tutorial-id={ROAD_TOUR_ANCHORS.filesSave}
+                    onClick={() => onSave(item.kind)}
+                  >
+                    <Download className="size-4" />
+                    {item.kind === 'project' ? 'Save' : 'Download'}
+                  </Button>
+                </div>
               </div>
               {/* The name every file is saved under; opening and importing files live in Projects and Design. */}
               {item.kind === 'project' && (
@@ -347,6 +374,7 @@ export function FilesDialog({
                   ]}
                 />
               )}
+              {outputOptions?.[item.kind]}
               {stampNote && (
                 <p
                   role="status"

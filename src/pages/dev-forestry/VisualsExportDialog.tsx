@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Download, Loader2 } from 'lucide-react'
+import { Circle, Download, Loader2, Save, Square } from 'lucide-react'
 
 import { PreparerProfileHostProvider, PreparerProfilePane, PreparerProfileRow } from '@/branding/PreparerProfile'
 import { Button } from '@/components/ui/button'
+import { CopyImageButton } from '@/components/ui/copy-image-button'
 import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { insetBox } from '@/components/ui/inset-box'
@@ -12,10 +13,12 @@ import { ResultRow } from '@/components/ui/result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TextButton } from '@/components/ui/text-button'
 import { downloadBlob } from '@/lib/download'
+import { SaveFileError, saveFileAs, saveFilePickerSupported } from '@/lib/saveFile'
 import { useInterfaceThemeApplied } from '@/lib/interfaceTheme'
 import { cn } from '@/lib/utils'
 
 import { timed } from './exportTiming'
+import { readBackFor, type FileReadBack } from './exportFilePreview'
 import { ReportDraftView, type ReportDraftPages, type ReportDraftResult } from './ReportDraftView'
 import type { ViewCaptureReport } from './useViewCapture'
 import { VIA_STEPS, type ViaStepId } from './via'
@@ -27,8 +30,10 @@ import {
   packageSummary,
   rendererMissing,
   uncapturedNote,
+  exportFileType,
   exportUnavailable,
   findVisualsExport,
+  suggestedExportName,
   USES_PACKAGE_VIEWS,
   VISUALS_EXPORT_GROUP_LABELS,
   VISUALS_EXPORTS,
@@ -44,9 +49,29 @@ import {
 
 /**
  * A written file: what the download saves and the preview shows. `notes` says what it was written without (terrain
- * that did not load, say), shown over the preview and beside the save line.
+ * that did not load, say), shown over the preview and beside the save line. `readBack` says how the preview reads a
+ * file back that its type alone does not (a ZIP of shapefiles or of an OBJ and its `.mtl`, `exportFilePreview.ts`).
+ * `previewOf` marks a preview that is part of the download (a block sheet series' first sheet), in words: it is shown
+ * over the preview, and Download makes the whole file rather than saving it. `copyPng` makes the previewed picture as
+ * a PNG at print resolution from what was drawn for it, for *Copy image*; absent, nothing is offered to copy.
  */
-export type BuiltFile = { blob: Blob; fileName: string; notes?: string }
+export type BuiltFile = {
+  blob: Blob
+  fileName: string
+  notes?: string
+  readBack?: FileReadBack
+  previewOf?: string
+  copyPng?: () => Promise<Blob>
+}
+
+/** How a file is being written: for the preview (which may be a part of it, `BuiltFile.previewOf`) and its progress. */
+export type BuildOptions = { preview?: boolean; onProgress?: (text: string) => void }
+
+/**
+ * An output whose format the page keeps rather than the dialog (the block map sheet's, kept in this browser with its
+ * other settings): the chips read and write it, and `extension` is what the download really is (a series' `.zip`).
+ */
+export type FormatControl = { value: string; onChange: (id: string) => void; extension?: string }
 
 /** What a file is missing: what its preparation left out, then what its own writing did. */
 const withFileNotes = (missing: string | null, file: BuiltFile) =>
@@ -63,6 +88,138 @@ export type OutputDraft = {
   pages?: () => Promise<ReportDraftPages>
   /** Changes one printed value by hand; null puts back what the output filled. */
   edit?: (key: string, value: string | null, original?: string | null) => void
+}
+
+/**
+ * An output recorded on request rather than written on Preview (the road view video): a take runs as long as the
+ * video, so opening the output or its preview never starts one. Its pane records it (`record`, with *Stop*), shows its
+ * progress and plays the recorded file; *Download* and *Save as…* write that same file and never record again. While
+ * a take runs, no other output is previewed or written: a take moves the road view.
+ */
+export type OutputRecording = {
+  /** What a take records, in one line. */
+  plan: string
+  /** Why it cannot be recorded as set (past the time limit, nothing to film), or null. */
+  problem: string | null
+  status: 'idle' | 'preparing' | 'recording' | 'stopping' | 'done' | 'cancelled' | 'error'
+  /** What the take is doing, or how it ended. */
+  message: string | null
+  /** "12 s of 1 min 40 s" while it records. */
+  progress: string | null
+  /** The recorded file for the output as it is set now, with its address for the player; null until recorded. */
+  file: (BuiltFile & { url: string; summary: string }) | null
+  /** Said when the take kept was recorded with other settings, so it is not this output's file. */
+  otherTake: string | null
+  /** The monitor's shape, width over height. */
+  aspect: number
+  record: () => Promise<void>
+  /** Ends the take, keeping what was recorded. */
+  stop: () => void
+  /** Ends the take and keeps nothing: before it records, and when the dialog closes. */
+  cancel: () => void
+  /** The small live picture of what is being recorded. */
+  monitor?: (canvas: HTMLCanvasElement | null) => void
+}
+
+const recordingBusy = (recording: OutputRecording | undefined) =>
+  !!recording &&
+  (recording.status === 'preparing' || recording.status === 'recording' || recording.status === 'stopping')
+
+/** A small live picture of what a take records: the canvas is lent to the take while shown (`attach`). */
+function RecordingMonitor({ attach, aspect }: { attach: (canvas: HTMLCanvasElement | null) => void; aspect: number }) {
+  const canvas = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    attach(canvas.current)
+    return () => attach(null)
+  }, [attach])
+  return (
+    <canvas
+      ref={canvas}
+      width={480}
+      height={Math.max(2, Math.round(480 / Math.max(0.1, aspect)))}
+      aria-label="What is being recorded"
+      className="w-full max-w-md rounded-md border bg-black"
+    />
+  )
+}
+
+/** The pane of an output recorded on request: its plan, *Record* or *Stop* with the progress, and the recorded file. */
+function RecordingPane({
+  recording,
+  title,
+  blocked,
+  onRecord,
+}: {
+  recording: OutputRecording
+  title: string
+  /** Why a take cannot start now (a capture or a file being written), or null. */
+  blocked: string | null
+  onRecord: () => void
+}) {
+  const busy = recordingBusy(recording)
+  const preparing = recording.status === 'preparing'
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <p className="text-xs text-muted-foreground">{recording.plan}</p>
+      {recording.problem && <InlineAlert tone="warning">{recording.problem}</InlineAlert>}
+      <div className="flex flex-wrap items-center gap-2">
+        {busy ? (
+          <Button
+            variant="outline"
+            disabled={recording.status === 'stopping'}
+            aria-label={preparing ? `Cancel ${title}` : `Stop ${title}`}
+            onClick={preparing ? recording.cancel : recording.stop}
+          >
+            <Square className="size-4" />
+            {preparing ? 'Cancel' : 'Stop'}
+          </Button>
+        ) : (
+          <Button
+            disabled={!!recording.problem || !!blocked}
+            aria-label={`Record ${title}`}
+            title={blocked ?? undefined}
+            onClick={onRecord}
+          >
+            <Circle className="size-4 fill-current text-destructive" />
+            {recording.file ? 'Record again' : 'Record'}
+          </Button>
+        )}
+        {busy && (
+          <span role="status" className="text-xs text-muted-foreground">
+            {[recording.progress, recording.message].filter(Boolean).join(' · ')}
+          </span>
+        )}
+      </div>
+      {!busy && blocked && <p className="text-2xs text-muted-foreground">{blocked}</p>}
+      {busy && recording.monitor && <RecordingMonitor attach={recording.monitor} aspect={recording.aspect} />}
+      {!busy && recording.message && (
+        <InlineAlert
+          tone={recording.status === 'error' ? 'error' : recording.status === 'done' ? 'success' : 'warning'}
+        >
+          <span role="status">{recording.message}</span>
+        </InlineAlert>
+      )}
+      {!busy && recording.otherTake && <InlineAlert tone="warning">{recording.otherTake}</InlineAlert>}
+      {recording.file && !busy ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-1">
+          <video
+            controls
+            src={recording.file.url}
+            aria-label={`${title} preview`}
+            className="max-h-[32rem] w-full rounded-md border bg-black"
+          />
+          <p className="text-2xs text-muted-foreground">{recording.file.summary}</p>
+        </div>
+      ) : (
+        !busy && (
+          <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>
+            Nothing recorded yet. Record plays the road view as planned and records it in real time; the preview is the
+            recorded file, and Download and Save as… write it.
+          </p>
+        )
+      )}
+    </div>
+  )
 }
 
 const GROUPS = Object.keys(VISUALS_EXPORT_GROUP_LABELS) as VisualsExportGroup[]
@@ -124,6 +281,17 @@ async function previewOf(file: BuiltFile): Promise<Preview> {
   const type = file.blob.type
   if (type === 'application/pdf') return { type: 'pdf', url: URL.createObjectURL(file.blob) }
   if (type.startsWith('image/')) return { type: 'image', url: URL.createObjectURL(file.blob) }
+  // A GeoPackage, a KMZ, a 3D model or a ZIP of shapefiles: the bytes read back, as a GIS or a viewer would read them.
+  const readBack = readBackFor(type, file.readBack)
+  if (readBack) {
+    const [{ readBackText }, bytes, SQL] = await Promise.all([
+      import('./exportFilePreview'),
+      file.blob.arrayBuffer(),
+      readBack === 'geopackage' ? import('@/lib/browserSqlite').then((module) => module.loadSqlJs()) : undefined,
+    ])
+    const text = readBackText(readBack, new Uint8Array(bytes), SQL)
+    return { type: 'text', text: text.slice(0, TEXT_PREVIEW_CHARS), truncated: text.length > TEXT_PREVIEW_CHARS }
+  }
   // A workbook is shown as its sheets, read back from the file itself, never as its zipped bytes.
   if (type === XLSX_TYPE) {
     const [{ workbookPreviewHtml }, ExcelJS] = await Promise.all([import('./workbookPreview'), import('exceljs')])
@@ -479,6 +647,7 @@ export function VisualsExportDialog({
   options,
   build,
   version,
+  formatControls,
   onGoToStep,
   onAction,
   onRun,
@@ -488,6 +657,7 @@ export function VisualsExportDialog({
   viewsPane,
   viewsSummary,
   drafts,
+  recordings,
   onCapture,
   onCancelCapture,
   portalContainer,
@@ -500,10 +670,12 @@ export function VisualsExportDialog({
   context: ExportContext
   /** Each output's own options (stations, figure style, block), shown above what goes in. */
   options: Partial<Record<VisualsExport, ReactNode>>
-  /** Writes one output; `signal` aborts when the selection or its content changes. */
-  build: (kind: VisualsExport, format: string, signal: AbortSignal) => Promise<BuiltFile>
+  /** Writes one output; `signal` aborts when the selection or its content changes, or the dialog closes. */
+  build: (kind: VisualsExport, format: string, signal: AbortSignal, options?: BuildOptions) => Promise<BuiltFile>
   /** Changes whenever this output's content would (and never for another output's state or a wait's progress). */
   version: (kind: VisualsExport) => string
+  /** Outputs whose format the page keeps (`FormatControl`); the others keep theirs in the dialog while it is open. */
+  formatControls?: Partial<Record<VisualsExport, FormatControl>>
   /** Closes the dialog and opens a step of the sidebar. */
   onGoToStep?: (id: ViaStepId) => void
   /** Does a part's job: stand at a viewpoint, read the inventory, open the road view. */
@@ -528,6 +700,8 @@ export function VisualsExportDialog({
   viewsSummary?: string
   /** Outputs with a draft view (`OutputDraft`): the VIA report. */
   drafts?: Partial<Record<VisualsExport, OutputDraft>>
+  /** Outputs recorded on request rather than written on Preview (`OutputRecording`): the road view video. */
+  recordings?: Partial<Record<VisualsExport, OutputRecording>>
   /**
    * Captures views of interest as saved views (`viewsToCapture`, `beforeToCapture`) before an output that draws them
    * is written; `before`, with each one's before-harvest render where it stands.
@@ -558,6 +732,9 @@ export function VisualsExportDialog({
   const [drawError, setDrawError] = useState<string | null>(null)
   const [formats, setFormats] = useState<Partial<Record<VisualsExport, string>>>({})
   const [saving, setSaving] = useState(false)
+  // A long file's progress while Download or Save as writes it (a block sheet series, sheet by sheet), and its Stop.
+  const [saveStage, setSaveStage] = useState<string | null>(null)
+  const saveController = useRef<AbortController | null>(null)
   const [status, setStatus] = useState<{ tone: 'info' | 'warning' | 'error'; text: string } | null>(null)
   // The part being edited in place (`ContentsSection`), by its title: one at a time, since a part's editor is one
   // element shown in one place.
@@ -578,10 +755,28 @@ export function VisualsExportDialog({
   }
   const item = findVisualsExport(selected)
   const draftOf = drafts?.[item.kind]
+  // The selected output when it is recorded on request, and whether any take is under way (which holds every
+  // preview and file: a take moves the road view).
+  const recordingOf = recordings?.[item.kind]
+  const runningTake = Object.values(recordings ?? {}).find(recordingBusy)
+  const takeRunning = !!runningTake
   // An output without a draft shows its contents in place of one.
   const shownView = view === 'draft' && !draftOf ? 'contents' : view
-  const format = item.formats.find((entry) => entry.id === formats[item.kind]) ?? item.formats[0]
-  const unavailable = exportUnavailable(item.kind, context)
+  /** The format chosen for an output: the page's (`formatControls`) where it keeps it, else this dialog's. */
+  const formatOf = (entry: (typeof VISUALS_EXPORTS)[number]) => {
+    const control = formatControls?.[entry.kind]
+    const chosen =
+      entry.formats.find((f) => f.id === (control ? control.value : formats[entry.kind])) ?? entry.formats[0]
+    return control?.extension ? { ...chosen, extension: control.extension } : chosen
+  }
+  const chooseFormat = (kind: VisualsExport, id: string) => {
+    const control = formatControls?.[kind]
+    if (control) control.onChange(id)
+    else setFormats((current) => ({ ...current, [kind]: id }))
+  }
+  const format = formatOf(item)
+  // A take under way keeps its pane (and its Stop) whatever the road view reports meanwhile.
+  const unavailable = recordingBusy(recordingOf) ? null : exportUnavailable(item.kind, context)
   const sections = useMemo(() => exportContents(item.kind, context), [item.kind, context])
   const preparation = exportPreparation(item.kind, context)
 
@@ -611,6 +806,7 @@ export function VisualsExportDialog({
   const latestCapture = useRef(onCapture)
   const latestCancelCapture = useRef(onCancelCapture)
   const latestDrafts = useRef(drafts)
+  const latestRecordings = useRef(recordings)
   // The capture this dialog started, while it runs: every wait shares it rather than starting another, since the
   // capture moves the page and each move restarts the preview.
   const captureInFlight = useRef<Promise<ViewCaptureReport> | null>(null)
@@ -624,6 +820,7 @@ export function VisualsExportDialog({
     latestCapture.current = onCapture
     latestCancelCapture.current = onCancelCapture
     latestDrafts.current = drafts
+    latestRecordings.current = recordings
   })
   useEffect(() => {
     changedAt.current = Date.now()
@@ -753,19 +950,27 @@ export function VisualsExportDialog({
     return uncapturedNote(kind, latestContext.current)
   }, [])
 
-  // A wait in flight stops with the dialog, and so does a capture it started: it drives the page.
+  // A wait in flight stops with the dialog, and so does a capture it started, and a take: they drive the page. A
+  // cancelled take keeps nothing and hands the road view back (`useRoadVideo`'s `finally`).
   const live = useRef(new Set<AbortController>())
   useEffect(() => {
     const controllers = live.current
     return () => {
       controllers.forEach((controller) => controller.abort())
       if (captureInFlight.current) latestCancelCapture.current?.()
+      for (const recording of Object.values(latestRecordings.current ?? {})) recording?.cancel()
     }
   }, [])
 
   /** Writes the file once the one before it is done; aborts while waiting, never in the middle of another's moves. */
   const writeFile = useCallback(
-    async (kind: VisualsExport, formatId: string, signal: AbortSignal, onStage?: (text: string) => void) => {
+    async (
+      kind: VisualsExport,
+      formatId: string,
+      signal: AbortSignal,
+      onStage?: (text: string) => void,
+      options?: BuildOptions,
+    ) => {
       let settled = false
       void buildInFlight.current.then(() => (settled = true))
       await Promise.resolve()
@@ -777,24 +982,28 @@ export function VisualsExportDialog({
           ? 'Writing the report: its maps and before pictures are captured from the page’s maps, a few seconds each…'
           : 'Writing the file…',
       )
-      const job = timed(`write ${kind}`, () => latestBuild.current(kind, formatId, signal))
+      const job = timed(`write ${kind}`, () => latestBuild.current(kind, formatId, signal, options))
       buildInFlight.current = job.catch(() => undefined)
       return job
     },
     [],
   )
 
+  // An output recorded on request is never written by its preview; no preview is written while a take runs.
+  const recorded = !!recordingOf
   useEffect(() => {
     if (!open || unavailable || shownView !== 'preview' || packageOpen || viewsOpen || detailsOpen) return
+    if (recorded || takeRunning) return
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
       let missing: string | null = null
       prepare(request.kind, controller.signal)
         .then((note) => {
           missing = note
-          return writeFile(request.kind, request.format, controller.signal, (text) => {
+          const stage = (text: string) => {
             if (!controller.signal.aborted) setPreviewStage({ request, text })
-          })
+          }
+          return writeFile(request.kind, request.format, controller.signal, stage, { preview: true, onProgress: stage })
         })
         .then(async (file) => {
           const preview = await previewOf(file)
@@ -821,7 +1030,19 @@ export function VisualsExportDialog({
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [open, request, unavailable, shownView, packageOpen, viewsOpen, detailsOpen, prepare, writeFile])
+  }, [
+    open,
+    request,
+    unavailable,
+    shownView,
+    packageOpen,
+    viewsOpen,
+    detailsOpen,
+    prepare,
+    writeFile,
+    recorded,
+    takeRunning,
+  ])
   // The draft is laid out again whenever the output's content changes; it captures nothing, so it waits for nothing.
   useEffect(() => {
     if (!open || unavailable || shownView !== 'draft' || packageOpen || viewsOpen || detailsOpen) return
@@ -851,7 +1072,7 @@ export function VisualsExportDialog({
   /** Draws one picture group of the draft, after any file being written: both move the page's maps. */
   const drawPicture = async (id: string) => {
     const draft = latestDrafts.current?.[item.kind]
-    if (!draft || drawing) return
+    if (!draft || drawing || takeRunning) return
     setDrawing(id)
     setDrawError(null)
     try {
@@ -888,45 +1109,135 @@ export function VisualsExportDialog({
     // Stacked on a phone, the pane sits under the list; bring it up. Side by side this does nothing.
     requestAnimationFrame(() => pane.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
+  /**
+   * The file a download or *Save as…* writes: the previewed file when it is this one and nothing waits; otherwise made
+   * and written now, with the run, the captures and the renders it reads made first (`prepare`). Either tries again
+   * the views of interest whose capture failed. `missing` says what it was written without.
+   */
+  const fileToSave = async (signal: AbortSignal): Promise<{ file: BuiltFile; missing: string | null }> => {
+    // A recorded output writes the take it holds, never a second one.
+    if (recordingOf) {
+      if (!recordingOf.file) throw new Error('Nothing recorded yet: record the video under Preview first.')
+      return { file: recordingOf.file, missing: recordingOf.file.notes ?? null }
+    }
+    const again = exportPreparation(item.kind, context, { retry: true })
+    const ready =
+      item.kind !== 'project' &&
+      !again.run &&
+      !again.landChecks &&
+      !again.render &&
+      !again.inventory &&
+      !again.capture.length &&
+      context.autoRun.status !== 'running' &&
+      !(USES_PACKAGE_VIEWS.has(item.kind) && context.capture.status === 'running')
+    // A preview of part of the file (a series' first sheet) is never what is saved.
+    if (ready && current?.file && !current.file.previewOf)
+      return { file: current.file, missing: current.missing ?? null }
+    const missing = await prepare(item.kind, signal, true)
+    const file = await writeFile(item.kind, format.id, signal, undefined, {
+      onProgress: (text) => {
+        if (!signal.aborted) setSaveStage(text)
+      },
+    })
+    return { file, missing: withFileNotes(missing, file) }
+  }
+  /** Stops a Download or Save as in flight (a long series); what was made so far is thrown away and nothing is saved. */
+  const stopSaving = () => {
+    saveController.current?.abort()
+    saveController.current = null
+    setSaving(false)
+    setSaveStage(null)
+    setStatus({ tone: 'warning', text: 'Stopped: nothing was saved.' })
+  }
+  const savedStatus = (fileName: string, missing: string | null) =>
+    setStatus(
+      missing
+        ? { tone: 'warning', text: `Saved ${fileName}. ${missing}` }
+        : { tone: 'info', text: `Saved ${fileName}.` },
+    )
   const download = async () => {
     setSaving(true)
     setStatus(null)
     const controller = new AbortController()
     live.current.add(controller)
+    saveController.current = controller
     try {
-      // The previewed file when it is this one and nothing waits; otherwise made and written now. A download tries
-      // again the views of interest whose capture failed.
-      const again = exportPreparation(item.kind, context, { retry: true })
-      const ready =
-        item.kind !== 'project' &&
-        !again.run &&
-        !again.landChecks &&
-        !again.render &&
-        !again.inventory &&
-        !again.capture.length &&
-        context.autoRun.status !== 'running' &&
-        !(USES_PACKAGE_VIEWS.has(item.kind) && context.capture.status === 'running')
-      let file = ready ? current?.file : undefined
-      let missing = ready ? (current?.missing ?? null) : null
-      if (!file) {
-        missing = await prepare(item.kind, controller.signal, true)
-        file = await writeFile(item.kind, format.id, controller.signal)
-        missing = withFileNotes(missing, file)
-      }
+      const { file, missing } = await fileToSave(controller.signal)
       if (controller.signal.aborted) return
       downloadBlob(file.blob, file.fileName)
-      setStatus(
-        missing
-          ? { tone: 'warning', text: `Saved ${file.fileName}. ${missing}` }
-          : { tone: 'info', text: `Saved ${file.fileName}.` },
-      )
+      savedStatus(file.fileName, missing)
     } catch (error) {
-      if (error instanceof Aborted) return
+      if (error instanceof Aborted || controller.signal.aborted) return
       setStatus({ tone: 'error', text: error instanceof Error ? error.message : 'The file could not be written.' })
     } finally {
       live.current.delete(controller)
-      if (!controller.signal.aborted) setSaving(false)
+      if (saveController.current === controller) saveController.current = null
+      if (!controller.signal.aborted) {
+        setSaving(false)
+        setSaveStage(null)
+      }
     }
+  }
+  /**
+   * *Save as…*: the browser's save dialog opens first, inside the click (`saveFileAs`), and only once a place is chosen
+   * is the file made, as Download makes it (`fileToSave`: the run, the captures and the renders first). A cancelled
+   * dialog makes nothing.
+   */
+  const saveAs = () => {
+    const controller = new AbortController()
+    let missing: string | null = null
+    // Synchronously, inside the click: the dialog needs the click's activation.
+    const saving = saveFileAs({
+      suggestedName: recordingOf?.file?.fileName ?? current?.file?.fileName ?? suggestedExportName(item, format),
+      type: exportFileType(item, format),
+      rememberFolderAs: 'pgmaps-visual-quality',
+      content: async () => {
+        const made = await fileToSave(controller.signal)
+        missing = made.missing
+        return made.file.blob
+      },
+    })
+    setSaving(true)
+    setStatus(null)
+    live.current.add(controller)
+    saveController.current = controller
+    saving
+      .then((result) => {
+        if (controller.signal.aborted || result.outcome === 'cancelled') return
+        savedStatus(result.fileName, missing)
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted || (error instanceof SaveFileError && error.cause instanceof Aborted)) return
+        setStatus({ tone: 'error', text: error instanceof Error ? error.message : 'The file could not be saved.' })
+      })
+      .finally(() => {
+        live.current.delete(controller)
+        if (saveController.current === controller) saveController.current = null
+        if (!controller.signal.aborted) {
+          setSaving(false)
+          setSaveStage(null)
+        }
+      })
+  }
+  // Where the browser has no save dialog, Save as would only repeat Download.
+  const canSaveAs = useMemo(() => saveFilePickerSupported(), [])
+
+  // A take waits for the file being written (both move the road view), and holds every other file until it ends.
+  const recordBlocked = saving
+    ? 'A file is being written: record once it is saved.'
+    : context.capture.status === 'running'
+      ? 'Views of interest are being captured: record once they are done.'
+      : context.autoRun.status === 'running'
+        ? 'The assessment is running: record once it finishes, since the road view reloads its terrain after a run.'
+        : null
+  const startRecording = async () => {
+    const recording = latestRecordings.current?.[item.kind]
+    if (!recording || takeRunning) return
+    setStatus(null)
+    await buildInFlight.current
+    const job = recording.record()
+    buildInFlight.current = job.catch(() => undefined)
+    await job
   }
 
   const openPackage = () => {
@@ -1015,7 +1326,7 @@ export function VisualsExportDialog({
                 </h3>
                 {VISUALS_EXPORTS.filter((entry) => entry.group === group).map((entry) => {
                   const reason = exportUnavailable(entry.kind, context)
-                  const shown = entry.formats.find((f) => f.id === formats[entry.kind]) ?? entry.formats[0]
+                  const shown = formatOf(entry)
                   return (
                     <ResultRow
                       key={entry.kind}
@@ -1093,15 +1404,35 @@ export function VisualsExportDialog({
                   </h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
                 </div>
-                <Button
-                  className="shrink-0"
-                  disabled={!!unavailable || saving}
-                  aria-label={`Download ${item.label}`}
-                  onClick={() => void download()}
-                >
-                  {saving ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                  {item.group === 'files' ? 'Save' : 'Download'}
-                </Button>
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  {/* The previewed picture itself, at print resolution: copying starts no run, capture or render. */}
+                  {!unavailable && current?.file?.copyPng && (
+                    <CopyImageButton
+                      size="default"
+                      aria-label={`Copy ${item.label} as an image`}
+                      png={current.file.copyPng}
+                    />
+                  )}
+                  {canSaveAs && (
+                    <Button
+                      variant="outline"
+                      disabled={!!unavailable || saving || takeRunning || (!!recordingOf && !recordingOf.file)}
+                      aria-label={`Save ${item.label} as…`}
+                      onClick={saveAs}
+                    >
+                      <Save className="size-4" />
+                      Save as…
+                    </Button>
+                  )}
+                  <Button
+                    disabled={!!unavailable || saving || takeRunning || (!!recordingOf && !recordingOf.file)}
+                    aria-label={`Download ${item.label}`}
+                    onClick={() => void download()}
+                  >
+                    {saving ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                    {item.group === 'files' ? 'Save' : 'Download'}
+                  </Button>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <SegmentedControl
@@ -1126,7 +1457,7 @@ export function VisualsExportDialog({
                     fullWidth={false}
                     label={`${item.label} format`}
                     value={format.id}
-                    onChange={(id) => setFormats((current) => ({ ...current, [item.kind]: id }))}
+                    onChange={(id) => chooseFormat(item.kind, id)}
                     options={item.formats.map((entry) => ({ value: entry.id, label: entry.label }))}
                   />
                 )}
@@ -1134,6 +1465,14 @@ export function VisualsExportDialog({
               {status && (
                 <InlineAlert tone={status.tone === 'info' ? 'success' : status.tone}>
                   <span role="status">{status.text}</span>
+                </InlineAlert>
+              )}
+              {saving && saveStage && (
+                <InlineAlert loading>
+                  <span role="status">{saveStage}</span>
+                  <TextButton className="ml-2 text-2xs" onClick={stopSaving}>
+                    Stop
+                  </TextButton>
                 </InlineAlert>
               )}
               {!unavailable &&
@@ -1158,6 +1497,26 @@ export function VisualsExportDialog({
                 >
                   {unavailable}
                 </p>
+              )}
+              {takeRunning && runningTake && !(runningTake === recordingOf && shownView === 'preview') && (
+                <InlineAlert loading>
+                  <span role="status">
+                    Recording the road view video
+                    {runningTake.progress ? `, ${runningTake.progress}` : ''}: other files are written once it ends,
+                    since it moves the road view.
+                  </span>
+                  <TextButton
+                    className="ml-2 text-2xs"
+                    onClick={runningTake.status === 'preparing' ? runningTake.cancel : runningTake.stop}
+                  >
+                    {runningTake.status === 'preparing' ? 'Cancel' : 'Stop'}
+                  </TextButton>
+                </InlineAlert>
+              )}
+              {!unavailable && recordingOf && !recordingOf.file && shownView !== 'preview' && (
+                <InlineAlert>
+                  Nothing recorded yet: Preview records it, then Download and Save as… write that recording.
+                </InlineAlert>
               )}
               {/* Side by side the pane scrolls; stacked on a phone it flows with the dialog. */}
               <div className="min-h-0 flex-1 overflow-x-clip sm:overflow-y-auto overscroll-none">
@@ -1209,8 +1568,16 @@ export function VisualsExportDialog({
                   <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>
                     {unavailable}
                   </p>
+                ) : recordingOf ? (
+                  <RecordingPane
+                    recording={recordingOf}
+                    title={item.label}
+                    blocked={recordBlocked}
+                    onRecord={() => void startRecording()}
+                  />
                 ) : current?.preview ? (
                   <div className="flex h-full min-h-0 flex-col gap-2">
+                    {current.file.previewOf && <InlineAlert>{current.file.previewOf}</InlineAlert>}
                     {current.missing && <InlineAlert tone="warning">{current.missing}</InlineAlert>}
                     <div className="min-h-0 flex-1">
                       <PreviewView preview={current.preview} title={item.label} />

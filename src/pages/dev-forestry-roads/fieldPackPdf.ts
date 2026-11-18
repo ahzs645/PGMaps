@@ -1,8 +1,8 @@
 /**
  * The field pack's geospatial PDF (guide `docs/forestry-road-design/field-review.md`). Browser only.
  *
- * The plan map is turned north-up and flat, framed on the issue, captured with its markers
- * (`mapImage`), and put back as it was. The issued centreline and the checks are drawn over the
+ * The plan map is turned north-up and flat, framed on the issue, captured with its markers and put
+ * back as it was (`withNorthUpPlan`, `planCapture.ts`, which a framed Map PDF shares). The issued centreline and the checks are drawn over the
  * capture from the issue's own geometry, never from the road as it now stands. The image's
  * corners are read from the map at capture, and `addMapViewports` registers the page in Web
  * Mercator, the CRS the image was drawn in, so Avenza, GDAL and PGMaps' reader place it exactly.
@@ -13,12 +13,10 @@ import { configurePdfBrand, drawPdfPrintedLogo, setPdfBrandFont } from '@/brandi
 import { addMapViewports, WEB_MERCATOR_WKT } from '@/lib/geoPdf/writeViewport'
 import { FIELD_CHECK_KINDS, issuedPositionAt, type FieldIssue } from './fieldReview'
 import { PLANNING_CAVEAT } from './projectIssue'
-import { mapImage } from './pdf'
+import { withNorthUpPlan } from './planCapture'
 
 /** Space round the issue's extent on the sheet, in screen pixels. */
 const FRAME_PADDING_PX = 48
-/** How long the map may take to draw the framed view. */
-const FRAME_IDLE_TIMEOUT_MS = 10_000
 const MM_TO_PT = 72 / 25.4
 const pdfText = (value: string) =>
   value
@@ -28,29 +26,6 @@ const pdfText = (value: string) =>
     .replace(/·/g, '|')
     .replace(/©/g, '(c)')
     .replace(/[^\x20-\x7e]/g, '?')
-
-/** Resolves when the framed view has drawn (or after the timeout); rejects at once when cancelled. */
-function idle(map: MapLibreMap, signal?: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    const done = () => {
-      clearTimeout(timer)
-      map.off('idle', done)
-      signal?.removeEventListener('abort', cancelled)
-      resolve()
-    }
-    const cancelled = () => {
-      clearTimeout(timer)
-      map.off('idle', done)
-      reject(new DOMException('Field pack PDF cancelled.', 'AbortError'))
-    }
-    // Both handlers read `timer` only once called, after it is set here.
-    const timer = setTimeout(done, FRAME_IDLE_TIMEOUT_MS)
-    if (signal?.aborted) return cancelled()
-    map.once('idle', done)
-    signal?.addEventListener('abort', cancelled, { once: true })
-    map.triggerRepaint()
-  })
-}
 
 /** Draws the issued centreline and checks over the capture, placed by the map as framed. */
 async function overlayIssue(map: MapLibreMap, image: string, width: number, height: number, issue: FieldIssue) {
@@ -117,44 +92,29 @@ async function overlayIssue(map: MapLibreMap, image: string, width: number, heig
   }
 }
 
-/** Frames the map on the issue, captures it and puts the camera back. */
+/** Frames the map on the issue, captures it and puts the camera back (`withNorthUpPlan`). */
 async function captureIssue(map: MapLibreMap, issue: FieldIssue, signal?: AbortSignal) {
-  const projection = (map as unknown as { getProjection?: () => { type?: string } | undefined }).getProjection?.()
-  if (projection?.type && projection.type !== 'mercator')
-    throw Error('Switch the plan to the flat map before issuing a field pack.')
-  const camera = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }
-  const terrain = map.getTerrain()
   const xs = issue.centreline.map((c) => c[0]),
     ys = issue.centreline.map((c) => c[1])
-  try {
-    if (terrain) map.setTerrain(null)
-    map.jumpTo({ bearing: 0, pitch: 0, roll: 0 })
-    map.fitBounds(
-      [
+  return withNorthUpPlan(
+    map,
+    {
+      bounds: [
         [Math.min(...xs), Math.min(...ys)],
         [Math.max(...xs), Math.max(...ys)],
       ],
-      { padding: FRAME_PADDING_PX, animate: false, bearing: 0, pitch: 0 },
-    )
-    await idle(map, signal)
-    const capture = await mapImage(map, signal)
-    const { clientWidth: w, clientHeight: h } = map.getContainer()
-    const corner = (x: number, y: number) => {
-      const p = map.unproject([x, y])
-      return [p.lng, p.lat] as [number, number]
-    }
-    const corners: [[number, number], [number, number], [number, number], [number, number]] = [
-      corner(0, 0),
-      corner(w, 0),
-      corner(w, h),
-      corner(0, h),
-    ]
-    const image = await overlayIssue(map, capture.image, capture.width, capture.height, issue)
-    return { image, width: capture.width, height: capture.height, corners }
-  } finally {
-    if (terrain) map.setTerrain(terrain)
-    map.jumpTo({ ...camera, roll: 0 })
-  }
+      paddingPx: FRAME_PADDING_PX,
+    },
+    {
+      signal,
+      globeMessage: 'Switch the plan to the flat map before issuing a field pack.',
+      cancelledMessage: 'Field pack PDF cancelled.',
+    },
+    async (capture) => {
+      const image = await overlayIssue(map, capture.image, capture.width, capture.height, issue)
+      return { image, width: capture.width, height: capture.height, corners: capture.corners }
+    },
+  )
 }
 
 export interface FieldPackPdfOptions {

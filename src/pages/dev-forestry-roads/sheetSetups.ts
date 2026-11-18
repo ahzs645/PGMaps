@@ -1,14 +1,17 @@
 /**
  * Named sheet setups: the plot book's paper, chapters, scales, subviews, labels and report contents,
- * and the block map sheet's kind, paper, scale and typed title fields, kept under a name so one
- * office standard can be applied to any project. The library lives in this browser; a setup also
- * travels as a small JSON file, and a project file's plot-book settings can be read as one.
- * Nothing project-specific is kept: not the block a sheet shows, nor its access comments.
+ * and the block map sheet's kind, paper, scale, typed title fields and output (format, one sheet per
+ * block, order, file names, mask), kept under a name so one office standard can be applied to any
+ * project. The library lives in this browser; a setup also travels as a small JSON file, and a
+ * project file's plot-book settings can be read as one. Nothing project-specific is kept: not the
+ * block a sheet shows, its access comments, nor the blocks a series takes.
  * No DOM or network access; `SheetSetupLibrary.tsx` reads and writes browser storage.
  */
+import { parseSheetOutputSettings, type SheetOutputSettings } from '@/lib/forestry/blockSheet/sheetSeries'
 import { SHEET_PRESETS } from '@/lib/forestry/blockSheet/sheets'
 import { PAPER_SIZES } from '@/lib/mapSheet/layout'
 import { formatScale } from '@/lib/mapSheet/scale'
+import { SHEET_FORMAT_INFO } from '@/lib/mapSheet/sheetFormats'
 import { parseBlockSheetSettings, type BlockSheetSettings } from './blockSheet'
 import { parseRoadReportSettings, REPORT_PAPERS, type RoadReportSettings } from './reportSettings'
 
@@ -20,11 +23,23 @@ export const MAX_SHEET_SETUP_NAME = 80
 /** Largest file read as a setup: the project-file limit, since a project file's plot-book settings can be read. */
 export const MAX_SHEET_SETUP_FILE_BYTES = 120_000_000
 
+/** The block sheet's output a setup keeps: everything but the blocks a series takes, which are the project's. */
+export type SheetSetupOutput = Omit<SheetOutputSettings, 'blocks'>
+
 /**
  * The block sheet's settings a setup keeps: everything except the block and its comments, which are
- * the project's, and the symbol choice, which names this browser's style library.
+ * the project's, the symbol choice, which names this browser's style library, and the series' blocks.
+ * A setup saved before the output was kept has none, and applying it leaves the output as it is.
  */
-export type BlockSheetSetup = Omit<BlockSheetSettings, 'block' | 'comments' | 'symbols'>
+export type BlockSheetSetup = Omit<BlockSheetSettings, 'block' | 'comments' | 'symbols' | 'output'> & {
+  output?: SheetSetupOutput
+}
+
+/** The output a setup keeps: the settings without the blocks chosen. */
+export function setupOutput(output: SheetOutputSettings): SheetSetupOutput {
+  const { format, series, order, fileName, bundle, mask } = parseSheetOutputSettings(output)
+  return { format, series, order, fileName, bundle, mask }
+}
 
 export interface SheetSetup {
   schema: typeof SHEET_SETUP_SCHEMA
@@ -52,7 +67,14 @@ function setupName(raw: unknown): string {
 
 function blockSheetPart(raw: unknown): BlockSheetSetup {
   const parsed = parseBlockSheetSettings(raw)
-  return { kind: parsed.kind, paper: parsed.paper, scale: parsed.scale, fields: parsed.fields }
+  const hasOutput = !!raw && typeof raw === 'object' && (raw as { output?: unknown }).output !== undefined
+  return {
+    kind: parsed.kind,
+    paper: parsed.paper,
+    scale: parsed.scale,
+    fields: parsed.fields,
+    ...(hasOutput ? { output: setupOutput(parsed.output) } : {}),
+  }
 }
 
 const day = (date: Date) =>
@@ -167,7 +189,7 @@ export function sheetSetupFromFile(text: string, today = new Date()): SheetSetup
 
 /**
  * The settings after applying `setup`. Each part it holds replaces that part; the block sheet keeps
- * its block and comments, which belong to the project, and its symbol choice.
+ * its block and comments, which belong to the project, its symbol choice and the series' blocks.
  */
 export function applySheetSetup(
   setup: SheetSetup,
@@ -182,6 +204,9 @@ export function applySheetSetup(
             block: current.blockSheet.block,
             comments: current.blockSheet.comments,
             symbols: current.blockSheet.symbols,
+            output: setup.blockSheet.output
+              ? { ...setup.blockSheet.output, blocks: current.blockSheet.output.blocks }
+              : current.blockSheet.output,
           }),
         }
       : {}),
@@ -202,10 +227,19 @@ export function describeSheetSetup(setup: SheetSetup): string[] {
   }
   if (setup.blockSheet) {
     const fields = Object.values(setup.blockSheet.fields).filter((value) => value?.trim()).length
+    const output = setup.blockSheet.output
+    // Only what differs from one PDF sheet, so a setup saved with the defaults reads as before.
+    const writes = output
+      ? [
+          output.format === 'pdf' ? '' : SHEET_FORMAT_INFO[output.format].label,
+          output.series ? 'one sheet per block' : '',
+          output.mask ? 'dimmed outside the block' : '',
+        ].filter(Boolean)
+      : []
     lines.push(
       `Block sheet: ${SHEET_PRESETS[setup.blockSheet.kind].label}, ${PAPER_SIZES[setup.blockSheet.paper].label}, ${
         setup.blockSheet.scale === 'fit' ? 'fit the block' : formatScale(setup.blockSheet.scale)
-      }${fields ? `, ${fields} typed field${fields === 1 ? '' : 's'}` : ''}`,
+      }${fields ? `, ${fields} typed field${fields === 1 ? '' : 's'}` : ''}${writes.length ? `, ${writes.join(', ')}` : ''}`,
     )
   }
   return lines

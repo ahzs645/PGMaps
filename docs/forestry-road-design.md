@@ -1746,6 +1746,19 @@ terrain-fit and zoom buttons use the same 32 × 32 px size as Map display settin
   and flags; and its culverts. Fields widen to fit, numbers up to 19 characters and text up
   to 254 bytes; a value that still does not fit, or a number of 10²¹ or more, is blanked or
   cut and counted in the page notice.
+- GeoPackage and KMZ (`gisExports.ts`, writers in `src/lib/gis`): the QGIS project's layers
+  (the shapefile's three plus `context_lines` and `context_areas`), one road or every road, with a
+  `STATION` label in the road's own stationing on stations and culverts. The GeoPackage stores each
+  layer's `.qml` as QGIS's default style; the KMZ puts each road and each kind of context feature in
+  its own folder, coloured from `exportStyles.ts` as far as KML draws it, and lists what it
+  simplified. Both are refused while an input is invalid.
+- 3D surface model (`designModelExport.ts` over `designSurfaceModel.ts`): the active road's
+  subgrade and finished surface, face for face the LandXML TINs, with the ground beside the road
+  from the sections' own samples, as glTF, zipped OBJ + MTL or STL in local metres from a stated
+  origin. A picture for modelling software; the LandXML surfaces are the ones to build from.
+- **Save as…** beside Download opens the browser's save dialog (where it has one) with the name
+  Download uses (`exportFiles.ts`) and builds the same file after a place is chosen; the Map PDF and
+  the report package stay on Download only.
 - Plot book (`plotBook.ts`), configurable A3/A4 landscape with saved chapters, ranges,
   scales, subviews, label templates and schedule columns. The backward-compatible default
   remains A3 landscape in two chapters:

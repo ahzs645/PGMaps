@@ -6,6 +6,7 @@ import { createViewOfInterestId, viewCaptureKey, type ViewOfInterest } from './v
 import { REPORT_RECIPES, recipeFormat } from './viaReport/recipes'
 import { VIA_DOCUMENT_FORMATS } from './viaDocument/formats'
 import { DEFAULT_VISUALS_SHEET, visualsSheetSummary } from './visualsBlockSheet'
+import { DEFAULT_ROAD_VIDEO_SETTINGS, planRoadVideo, type RoadVideoScene } from './roadVideo'
 import {
   beforeToCapture,
   buildExportContext,
@@ -26,6 +27,10 @@ import {
   READS_INVENTORY,
   rendererMissing,
   exportUnavailable,
+  exportFileType,
+  findVisualsExport,
+  RUNS_ON_EXPORT,
+  suggestedExportName,
   VISUALS_EXPORTS,
   type ContextInput,
   type ContextView,
@@ -124,6 +129,56 @@ describe('visual-quality exports', () => {
     expect(exportUnavailable('block-sheet', buildExportContext(input(scene, { blockSheet: canopy })))).toMatch(
       /canopy height grid/,
     )
+  })
+
+  it('writes the block map sheet as PDF first, SVG or PNG, and lists the file it writes', () => {
+    const item = VISUALS_EXPORTS.find((entry) => entry.kind === 'block-sheet')!
+    expect(item.formats.map((format) => [format.id, format.extension])).toEqual([
+      ['pdf', '.pdf'],
+      ['svg', '.svg'],
+      ['png', '.png'],
+    ])
+    expect(exportFileType(item, item.formats[1])).toMatchObject({ mime: 'image/svg+xml', extension: '.svg' })
+    // A made-up scene of two blocks, written as a series.
+    const square = (lng: number): GeoJSON.Polygon => ({
+      type: 'Polygon',
+      coordinates: [
+        [
+          [lng, 54],
+          [lng + 0.004, 54],
+          [lng + 0.004, 54.004],
+          [lng, 54],
+        ],
+      ],
+    })
+    const sheetScene = {
+      targets: [
+        { id: 'n', name: 'North', role: 'block' as const, geometry: square(-122.5) },
+        { id: 's', name: 'South', role: 'block' as const, geometry: square(-122.49) },
+      ],
+      masks: [],
+      viewpoint: { name: 'Road', mode: 'spot' as const, coordinates: [[-122.51, 54]] as [number, number][] },
+      views: [],
+    }
+    const settings = {
+      ...DEFAULT_VISUALS_SHEET,
+      output: { ...DEFAULT_VISUALS_SHEET.output, series: true, format: 'svg' as const, mask: true },
+    }
+    const ctx = buildExportContext(
+      input(createSampleScene(), { blockSheet: visualsSheetSummary(sheetScene, settings)! }),
+    )
+    const sections = exportContents('block-sheet', ctx)
+    expect(rowValue(sections, 'Sheet', 'Block')).toBe('Each chosen block on its own sheet (2 of 2)')
+    expect(rowValue(sections, 'File', 'Written as')).toBe('A ZIP of 2 SVG files, one a block')
+    expect(rowValue(sections, 'File', 'Blocks, in order')).toBe('North, South')
+    expect(rowValue(sections, 'File', 'Outside the block')).toMatch(/^Dimmed/)
+    expect(sections.find((section) => section.title === 'File')?.note).toMatch(/Inkscape/)
+    expect(exportUnavailable('block-sheet', ctx)).toBeNull()
+    // Every chosen block gone from the scene: nothing to write, and the dialog says why.
+    const gone = visualsSheetSummary(sheetScene, { ...settings, output: { ...settings.output, blocks: ['old'] } })!
+    expect(
+      exportUnavailable('block-sheet', buildExportContext(input(createSampleScene(), { blockSheet: gone }))),
+    ).toMatch(/no longer in the scene/)
   })
 
   it('says why a document cannot be written before there is a block, a run or a saved view', () => {
@@ -432,6 +487,108 @@ describe('visual-quality exports', () => {
     const ctx = buildExportContext(input(createSampleScene()))
     const section = exportContents('scene-package', ctx).find((entry) => entry.title === 'Road view')
     expect(section?.action).toEqual({ id: 'open-road-view', label: 'Open the road view' })
+  })
+
+  it('offers the 3D scene as JSON first, then as a glTF, OBJ or STL model, a simplified drawing', () => {
+    const item = findVisualsExport('scene-package')
+    expect(item.formats.map((format) => [format.id, format.extension])).toEqual([
+      ['json', '.json'],
+      ['glb', '.glb'],
+      ['obj', '.zip'],
+      ['stl', '.stl'],
+    ])
+    expect(item.description).toMatch(/simplified drawing with generated low-polygon trees\. Display only\./)
+    const ctx = buildExportContext(input(createSampleScene()))
+    expect(exportUnavailable('scene-package', ctx)).toMatch(/Open the road view/)
+    expect(exportContents('scene-package', ctx).find((entry) => entry.title === 'As a 3D model')?.note).toMatch(
+      /notes shown with the file/,
+    )
+  })
+
+  it('writes the scene for GIS from the scene alone: its layers counted, no run, nothing staled', () => {
+    const item = findVisualsExport('scene-gis')
+    expect(item.group).toBe('exchange')
+    expect(item.formats.map((format) => format.id)).toEqual(['gpkg', 'kmz', 'shp', 'geojson'])
+    expect(RUNS_ON_EXPORT.has('scene-gis')).toBe(false)
+
+    const empty = buildExportContext(input(createEmptyScene()))
+    expect(exportUnavailable('scene-gis', empty)).toMatch(/Draw or import a block, a landform or the road/)
+
+    const scene = createSampleScene()
+    const ctx = buildExportContext(input(scene))
+    expect(exportUnavailable('scene-gis', ctx)).toBeNull()
+    // It reads no run: nothing to run first, even with none.
+    expect(exportPreparation('scene-gis', ctx)).toMatchObject({ run: false, capture: [], render: false, note: null })
+    const sections = exportContents('scene-gis', ctx)
+    const blocks = scene.targets.filter((target) => target.role === 'block').length
+    expect(rowValue(sections, 'Layers', 'Proposed blocks')).toBe(`${blocks} area${blocks === 1 ? '' : 's'}`)
+    expect(sections.find((section) => section.title === 'Not in the file')?.note).toMatch(
+      /run’s figures .* live inventories/,
+    )
+  })
+
+  it('gives Save as… each format’s file type and a name before the file is written', () => {
+    const gis = findVisualsExport('scene-gis')
+    expect(exportFileType(gis, gis.formats[0])).toEqual({
+      mime: 'application/geopackage+sqlite3',
+      extension: '.gpkg',
+      description: 'Scene for GIS (GeoPackage)',
+    })
+    const project = findVisualsExport('project')
+    expect(exportFileType(project, project.formats[0])).toMatchObject({
+      mime: 'application/zip',
+      extension: '.pgvq.zip',
+    })
+    expect(suggestedExportName(gis, gis.formats[2])).toBe('forestry-visual-quality-scene-gis.zip')
+    // Every output's every format has a media type the save dialog can offer.
+    for (const entry of VISUALS_EXPORTS)
+      for (const format of entry.formats)
+        expect(exportFileType(entry, format).mime).not.toBe('application/octet-stream')
+  })
+
+  it('offers the road view video for other tools, recorded on request and never run or captured for', () => {
+    const item = findVisualsExport('road-video')
+    expect(item.group).toBe('exchange')
+    expect(item.description).toMatch(/not a photo simulation/)
+    expect(exportFileType(item, { ...item.formats[0], extension: '.webm' }).mime).toBe('video/webm')
+    expect(exportFileType(item, item.formats[0]).mime).toBe('video/mp4')
+    const scene = createSampleScene()
+    expect(exportUnavailable('road-video', buildExportContext(input(scene)))).toMatch(/not offered here/)
+    const videoScene: RoadVideoScene = {
+      road: { name: 'Made-up road', lengthMeters: 1500 },
+      facingNow: null,
+      views: [],
+      harvestPhase: 'after',
+      renderer: { id: 'pgmaps', label: 'PGMaps' },
+      roadView: 'Open the road view and let its terrain load first: the video records it.',
+      frame: null,
+      format: 'mp4',
+      look: [],
+    }
+    const plan = planRoadVideo(videoScene, DEFAULT_ROAD_VIDEO_SETTINGS)
+    const closed = buildExportContext(
+      input(scene, { roadVideo: { scene: videoScene, plan, take: null, recording: false } }),
+    )
+    expect(exportUnavailable('road-video', closed)).toMatch(/Open the road view/)
+    // A take under way keeps its pane, whatever the road view reports meanwhile.
+    const busy = buildExportContext(
+      input(scene, { roadVideo: { scene: videoScene, plan, take: null, recording: true } }),
+    )
+    expect(exportUnavailable('road-video', busy)).toBeNull()
+    expect(exportContents('road-video', closed).map((section) => section.title)).toEqual([
+      'Video',
+      'Route',
+      'As the road view draws it',
+      'Not in the file',
+    ])
+    // Display only: it waits for no run, capture, render or inventory read.
+    expect(exportPreparation('road-video', closed)).toMatchObject({
+      run: false,
+      capture: [],
+      render: false,
+      inventory: false,
+      note: null,
+    })
   })
 
   it("words a view's settings from the view itself when no screenshot was kept", () => {

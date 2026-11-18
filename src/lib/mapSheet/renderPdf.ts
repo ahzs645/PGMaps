@@ -6,7 +6,11 @@
 import type { GState as GStateClass, jsPDF as JsPdf } from 'jspdf'
 import type { DrawOp, Point, StrokeStyle } from './drawOps'
 
-type JsPdfModule = { jsPDF: typeof JsPdf; GState: typeof GStateClass }
+/** The parts of the jsPDF module the renderer uses; callers import it lazily and pass it in. */
+export type JsPdfModule = { jsPDF: typeof JsPdf; GState: typeof GStateClass }
+
+/** Fonts a brand puts in the PDF (`configurePdfBrand`); without them the sheet prints Helvetica. */
+export type SheetPdfFonts = { body: string; heading: string; custom: boolean }
 
 /** jsPDF's standard fonts are WinAnsi: fold the characters a sheet commonly carries into it. */
 export function pdfText(value: string): string {
@@ -45,13 +49,16 @@ export function createSheetPdf(module: JsPdfModule, width: number, height: numbe
   })
 }
 
+/**
+ * Starts the next page of a multi-page sheet PDF, `width` × `height` points: each page carries its
+ * own size, so a series can mix papers. Draw it with `drawSheetPdf`, which draws on the current page.
+ */
+export function addSheetPage(pdf: JsPdf, width: number, height: number) {
+  pdf.addPage([width, height], width >= height ? 'landscape' : 'portrait')
+}
+
 /** Draws `ops` onto the current page of `pdf`. */
-export function drawSheetPdf(
-  pdf: JsPdf,
-  module: JsPdfModule,
-  ops: readonly DrawOp[],
-  fonts?: { body: string; heading: string; custom: boolean },
-) {
+export function drawSheetPdf(pdf: JsPdf, module: JsPdfModule, ops: readonly DrawOp[], fonts?: SheetPdfFonts) {
   const opacity = (fill?: number, stroke?: number) => {
     pdf.setGState(
       new module.GState({

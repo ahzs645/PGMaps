@@ -43,6 +43,8 @@ export interface SheetBuild {
   signal?: AbortSignal
   /** Lower resolution, and a flat colour for imagery: the on-screen preview. */
   preview?: boolean
+  /** Dim the map outside the block of interest (`ComposeInput.maskOutsideBlock`); off by default. */
+  maskOutsideBlock?: boolean
 }
 
 export interface SheetBuildDeps {
@@ -120,6 +122,7 @@ export async function buildSheet(run: SheetBuild, deps: SheetBuildDeps): Promise
     sourceLine: sourceParts.join('; '),
     stamp: run.stamp,
     caveat: run.caveat,
+    maskOutsideBlock: run.maskOutsideBlock,
   })
   return { sheet, facts, missing: products.missing }
 }

@@ -1,16 +1,23 @@
+import { strFromU8, unzipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { syntheticTerrain } from '@/lib/forestry/blockSheet/blockSheetFixtures'
 import { INVALID_INPUT_RULES, STAMPED_EXPORTS } from './exportCatalog'
 import {
   blockChoices,
+  blockSheetFile,
   blockSheetLayers,
+  blockSheetSeries,
   blockSheetUnavailable,
   buildBlockSheet,
   canopySurfaceId,
   changeBlockSheetSettings,
   DEFAULT_BLOCK_SHEET,
+  firstSeriesPage,
   parseBlockSheetSettings,
+  seriesBlocks,
+  seriesPageRun,
   sheetContourSource,
+  type BlockSheetRun,
 } from './blockSheet'
 import { createDemoProject } from './terrain'
 import type { ContextFeature, RoadProject } from './types'
@@ -211,6 +218,81 @@ describe('road tool block sheet', () => {
     expect(built.facts?.areaHa).toBeGreaterThan(0)
     expect(built.missing.join(' ')).toMatch(/no contours/)
     expect(built.sheet.legend.map((item) => item.key)).toContain('block')
+  })
+})
+
+describe('block sheet formats and series', () => {
+  const run = (output: Partial<typeof DEFAULT_BLOCK_SHEET.output> = {}): BlockSheetRun => ({
+    settings: {
+      ...DEFAULT_BLOCK_SHEET,
+      block: 'context:b1',
+      fields: { blockId: '{name} ({page} of {total})' },
+      comments: 'Access to {name}',
+      output: { ...DEFAULT_BLOCK_SHEET.output, ...output },
+    },
+    project: project(),
+    analyses: new Map(),
+    terrain: null,
+    terrainName: 'none',
+    terrainResolutionM: 1,
+    canopy: null,
+    issue: { date: '2026-11-10', preparedBy: '', organisation: '', revision: '' },
+    caveat: 'Preliminary',
+    preview: true,
+  })
+
+  it('reads output settings stored before there were any as one PDF sheet', () => {
+    expect(parseBlockSheetSettings({ kind: 'field-layout' }).output).toEqual(DEFAULT_BLOCK_SHEET.output)
+    expect(DEFAULT_BLOCK_SHEET.output).toMatchObject({ format: 'pdf', series: false, mask: false })
+    expect(
+      parseBlockSheetSettings({ output: { format: 'svg', series: true, blocks: ['context:b2'] } }).output,
+    ).toMatchObject({ format: 'svg', series: true, blocks: ['context:b2'] })
+  })
+
+  it('lists the sheet’s own blocks for a series and fills each page’s tokens', () => {
+    const p = project()
+    expect(seriesBlocks(p).map((block) => [block.id, block.name])).toEqual([
+      ['context:b1', 'Block 1'],
+      ['context:b2', 'Block 2'],
+    ])
+    const { page, total } = firstSeriesPage(seriesBlocks(p), { ...DEFAULT_BLOCK_SHEET.output, order: 'name' })
+    expect(total).toBe(2)
+    const second = { ...page, block: seriesBlocks(p)[1], id: 'context:b2', name: 'Block 2', number: 2 }
+    expect(seriesPageRun(run(), second).settings).toMatchObject({
+      block: 'context:b2',
+      fields: { blockId: 'Block 2 (2 of 2)' },
+      comments: 'Access to Block 2',
+    })
+    expect(() => firstSeriesPage(seriesBlocks(p), { ...DEFAULT_BLOCK_SHEET.output, blocks: [] })).toThrow(
+      /at least one block/,
+    )
+  })
+
+  it('writes one sheet as an SVG with its text kept as text, and its fields as typed', async () => {
+    const { blob } = await blockSheetFile(run(), 'svg', {})
+    expect(blob.type).toBe('image/svg+xml')
+    const svg = await blob.text()
+    expect(svg).toMatch(/^<\?xml/)
+    expect(svg).toContain('<title>Block 1</title>')
+    // Tokens fill only in a series: one sheet prints what was typed, as it always did.
+    expect(svg).toContain('{name} ({page} of {total})')
+  })
+
+  it('writes one sheet a block, each framed on its block, in a ZIP named by the pattern', async () => {
+    const result = await blockSheetSeries(
+      run({ series: true, format: 'svg', bundle: 'zip' }),
+      seriesBlocks(project()),
+      {
+        deps: {},
+      },
+    )
+    expect(result).toMatchObject({ container: 'zip', written: 2, leftOut: [] })
+    const files = unzipSync(new Uint8Array(await result.blob.arrayBuffer()))
+    const names = Object.keys(files).filter((name) => name !== 'notes.txt')
+    expect(names).toEqual(['1-Block-1.svg', '2-Block-2.svg'])
+    expect(strFromU8(files['2-Block-2.svg'])).toContain('Block 2 (2 of 2)')
+    // Every page here is drawn without contours, and the notes say so page by page.
+    expect(result.notes.some((note) => /^Block 2: .*no contours/.test(note))).toBe(true)
   })
 })
 

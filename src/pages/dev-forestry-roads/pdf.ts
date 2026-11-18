@@ -5,6 +5,8 @@ import { configurePdfBrand, drawPdfPrintedLogo, setPdfBrandFont } from '@/brandi
 
 const text = (value: string) =>
   value.replace(/−/g, '-').replace(/[–—]/g, ' - ').replace(/→/g, ' to ').replace(/Σ/g, 'Sum ')
+/** Text as the report and Map PDF print it in jsPDF's standard fonts. */
+export const pdfPlainText = text
 
 /** A table cell that reads as one quantity (money, a measure, a percentage) or an empty dash. */
 const NUMERIC_CELL = /^\s*(?:[-+]?\$?\(?[\d,]+(?:\.\d+)?\)?\s*(?:%|m|m²|m³|km|ha)?|-)\s*$/
@@ -111,9 +113,13 @@ function markerLabelAsSvg(element: HTMLElement) {
   element.replaceChildren(svg)
 }
 
-/** Read WebGL once, inside render, before its drawing buffer is discarded. */
-/** The plan map with its HTML markers, as the map PDF prints it. */
-export async function mapImage(map: MapLibreMap, signal?: AbortSignal) {
+/**
+ * The plan map with its HTML markers, as the map PDF prints it. WebGL is read once, inside render,
+ * before its drawing buffer is discarded. `scale` is image pixels per CSS pixel (2 unless a framed
+ * capture raised the plan's pixel ratio, `planCapture.ts`).
+ */
+export async function mapImage(map: MapLibreMap, signal?: AbortSignal, options: { scale?: number } = {}) {
+  const scale = options.scale ?? 2
   let capture = () => {}
   let removed = () => {}
   const image = await withinExportBudget(
@@ -144,8 +150,8 @@ export async function mapImage(map: MapLibreMap, signal?: AbortSignal) {
   const width = Math.ceil(bounds.width),
     height = Math.ceil(bounds.height)
   const canvas = document.createElement('canvas')
-  canvas.width = width * 2
-  canvas.height = height * 2
+  canvas.width = Math.round(width * scale)
+  canvas.height = Math.round(height * scale)
   // Composition is immediately encoded. A CPU-backed canvas avoids another GPU readback.
   if (!canvas.getContext('2d', { willReadFrequently: true })) throw Error('This browser cannot create a map image.')
   const existingFrames = new Set(document.querySelectorAll<HTMLIFrameElement>('iframe.html2canvas-container'))
@@ -163,7 +169,7 @@ export async function mapImage(map: MapLibreMap, signal?: AbortSignal) {
           height,
           backgroundColor: '#ffffff',
           useCORS: true,
-          scale: 2,
+          scale,
           logging: false,
           imageTimeout: MAP_IMAGE_STAGE_TIMEOUT_MS,
           ignoreElements: (element) => {
@@ -229,69 +235,6 @@ export async function mapImage(map: MapLibreMap, signal?: AbortSignal) {
     canvas.width = 0
     canvas.height = 0
   }
-}
-
-export async function exportMapPdf(
-  map: MapLibreMap,
-  name: string,
-  terrain: string,
-  datum: string,
-  filename: string,
-  signal?: AbortSignal,
-  branding?: ExportBrand,
-  /** The user's own logo (`printedLogo`), printed in place of the brand's. */
-  logo?: UploadedLogo | null,
-) {
-  throwIfAborted(signal)
-  if (map.getCanvas().clientWidth < 1 || map.getCanvas().clientHeight < 1)
-    throw Error('Show the plan panel before exporting its map.')
-  const [{ jsPDF }, capture] = await Promise.all([import('jspdf'), mapImage(map, signal)])
-  throwIfAborted(signal)
-  const pdf = new jsPDF({
-    orientation: capture.width >= capture.height ? 'landscape' : 'portrait',
-    unit: 'mm',
-    format: 'a4',
-    compress: true,
-  })
-  const width = pdf.internal.pageSize.getWidth(),
-    height = pdf.internal.pageSize.getHeight()
-  const fonts = configurePdfBrand(pdf, branding)
-  const logoDrawn = await drawPdfPrintedLogo(pdf, branding, logo, width - 58, 8, 46, 20)
-  if (branding) setPdfBrandFont(pdf, fonts, true)
-  pdf.setFontSize(16)
-  const title: string[] = pdf.splitTextToSize(text(name), width - (logoDrawn ? 84 : 24))
-  pdf.text(title, 12, 18)
-  pdf.setFontSize(8)
-  if (branding) setPdfBrandFont(pdf, fonts)
-  const metadata: string[] = pdf.splitTextToSize(text(`${terrain} | ${datum}`), width - (logoDrawn ? 84 : 24))
-  const metadataY = 18 + title.length * 7
-  pdf.text(metadata, 12, metadataY)
-  const imageY = Math.max(metadataY + metadata.length * 4 + 5, logoDrawn ? 34 : 0)
-  const scale = Math.min((width - 24) / capture.width, (height - imageY - 22) / capture.height)
-  const w = capture.width * scale,
-    h = capture.height * scale
-  pdf.addImage(capture.image, 'PNG', (width - w) / 2, imageY, w, h)
-  const attribution = [
-    ...new Set(
-      Object.values(map.getStyle().sources).flatMap((source) =>
-        'attribution' in source && source.attribution
-          ? [new DOMParser().parseFromString(source.attribution, 'text/html').body.textContent?.trim() ?? '']
-          : [],
-      ),
-    ),
-  ].join(' | ')
-  if (attribution) {
-    pdf.setFontSize(6)
-    pdf.text(attribution, 12, height - 14, { maxWidth: width - 24 })
-  }
-  pdf.setFontSize(7)
-  pdf.text(
-    `${branding?.brand.profile.name ?? 'DDC Access'} | Current plan view | Preliminary planning - not for construction`,
-    12,
-    height - 8,
-  )
-  throwIfAborted(signal)
-  downloadBlob(pdf.output('blob'), filename)
 }
 
 async function svgImage(element: Element) {

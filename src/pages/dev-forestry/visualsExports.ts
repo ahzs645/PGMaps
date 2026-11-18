@@ -9,8 +9,17 @@ import { CASTOR_DENOMINATOR_NOTE, castorConstraintProblem, castorVqoConstraint }
 import { layoutStageLabel, layoutStageOf } from './fieldChecklist'
 import type { SavedDriveView } from './previewState'
 import type { ForestryScene } from './scene'
+import { sceneGisPlan, sceneGisUnavailable, type SceneGisPlanEntry } from './sceneGis'
 import { findSceneLandform } from './sceneInput'
 import { landformAssignments } from './viewLandform'
+import {
+  ROAD_VIDEO_FORMAT,
+  roadVideoContents,
+  roadVideoUnavailable,
+  type RoadVideoPlan,
+  type RoadVideoScene,
+  type RoadVideoTakeFacts,
+} from './roadVideo'
 import type { AnalysisResult, HarvestSystem, TargetPolygon } from './types'
 import type { ViaAssessment, ViaStepId } from './via'
 import { lineLengthMeters, polygonAreaMeters } from './visibility'
@@ -40,9 +49,11 @@ export type VisualsExport =
   | 'views'
   | 'workspace'
   | 'scene-package'
+  | 'scene-gis'
   | 'castor-constraint'
   | 'stand-trees'
   | 'sightline-archive'
+  | 'road-video'
 
 export type VisualsExportGroup = 'documents' | 'files' | 'exchange'
 
@@ -127,8 +138,9 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     group: 'documents',
     label: 'Block map sheet',
     description:
-      'A printed map of one block at a stated scale, in the road designer’s sheet types: field layout, slope and hillshade, 1:50,000 access, imagery and the operating plan. The landform, openings, masks and viewpoints are drawn on it, in PGMaps’ sheet symbols or a figure style.',
-    formats: [PDF],
+      'A printed map of a block at a stated scale, in the road designer’s sheet types: field layout, slope and hillshade, 1:50,000 access, imagery and the operating plan. The landform, openings, masks and viewpoints are drawn on it, in PGMaps’ sheet symbols or a figure style. One sheet, or one sheet per block as one PDF or a ZIP; the map can be dimmed outside the block.',
+    // PDF first and unchanged. The chips write the format kept with the sheet's other settings in this browser.
+    formats: [PDF, { id: 'svg', label: 'SVG', extension: '.svg' }, { id: 'png', label: 'PNG', extension: '.png' }],
   },
   {
     kind: 'worksheet',
@@ -190,8 +202,27 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     group: 'files',
     label: '3D scene',
     description:
-      'The road view as a file for other renderers: the ground, every tree drawn within 600 m, the cut ground and where the eye stands. Display only.',
-    formats: [JSON_FILE],
+      'The road view as a file for other renderers: the ground, every tree drawn within 600 m, the cut ground and where the eye stands. Or the same scene as a 3D model (glTF, OBJ or STL) to look at in Blender or SketchUp: a simplified drawing with generated low-polygon trees. Display only.',
+    // JSON first: other renderers read it, and it stays as it was.
+    formats: [
+      JSON_FILE,
+      { id: 'glb', label: 'glTF', extension: '.glb' },
+      { id: 'obj', label: 'OBJ', extension: '.zip' },
+      { id: 'stl', label: 'STL', extension: '.stl' },
+    ],
+  },
+  {
+    kind: 'scene-gis',
+    group: 'exchange',
+    label: 'Scene for GIS',
+    description:
+      'The scene’s shapes for QGIS, ArcGIS or Google Earth, one layer per kind: blocks, landforms, existing openings, masks, tree-free areas, the viewpoint and the views of interest with the way each faces, in the plan map’s colours. No run figures.',
+    formats: [
+      { id: 'gpkg', label: 'GeoPackage', extension: '.gpkg' },
+      { id: 'kmz', label: 'KMZ', extension: '.kmz' },
+      { id: 'shp', label: 'Shapefiles', extension: '.zip' },
+      { id: 'geojson', label: 'GeoJSON', extension: '.geojson' },
+    ],
   },
   {
     kind: 'castor-constraint',
@@ -215,10 +246,57 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
       { id: 'geojson', label: 'GeoJSON points', extension: '.geojson' },
     ],
   },
+  {
+    kind: 'road-video',
+    group: 'exchange',
+    label: 'Road view video',
+    description:
+      'The road view as a video: the drive along the road at a chosen speed, or each view of interest in turn, as PGMaps draws it. A drawing of the scene with timber drawn to the inventory, not a photo simulation, with no figures. Recorded in real time as MP4, or WebM where the browser cannot write MP4. Display only.',
+    // One format: the extension is the browser's (`formatControls` in `useVisualsExport`).
+    formats: [ROAD_VIDEO_FORMAT],
+  },
 ]
 
 export const findVisualsExport = (kind: VisualsExport) =>
   VISUALS_EXPORTS.find((item) => item.kind === kind) ?? VISUALS_EXPORTS[0]
+
+/** Media types by the extension a format writes, for *Save as…*'s dialog. */
+const MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  svg: 'image/svg+xml',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  md: 'text/markdown',
+  html: 'text/html',
+  json: 'application/json',
+  csv: 'text/csv',
+  geojson: 'application/geo+json',
+  zip: 'application/zip',
+  gpkg: 'application/geopackage+sqlite3',
+  kmz: 'application/vnd.google-earth.kmz',
+  glb: 'model/gltf-binary',
+  stl: 'model/stl',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+}
+
+/** The file type *Save as…* offers for an output in a format: its media type, extension and a description. */
+export function exportFileType(item: VisualsExportItem, format: ExportFormat) {
+  const last = format.extension.split('.').at(-1) ?? ''
+  return {
+    mime: MIME_BY_EXTENSION[last] ?? 'application/octet-stream',
+    extension: format.extension,
+    description: item.formats.length > 1 ? `${item.label} (${format.label})` : item.label,
+  }
+}
+
+/**
+ * The name *Save as…* suggests when the file has not been written yet (the preview's file names it once it has): the
+ * save dialog opens inside the click, before the file exists.
+ */
+export function suggestedExportName(item: VisualsExportItem, format: ExportFormat): string {
+  return `forestry-visual-quality-${item.kind}${format.extension}`
+}
 
 export type Row = { label: string; value: string }
 
@@ -312,6 +390,14 @@ export type ExportBlockSheet = {
   /** Why the chosen sheet type cannot be made here, or null. */
   unavailable: string | null
   drawn: Row[]
+  /** The file: format, one sheet or a series and which blocks, file names, the mask, the terrain read. */
+  file: Row[]
+  /** What the format holds and, for a series, how it is made and how a sheet that cannot be made is reported. */
+  fileNote: string
+  /** Why the series cannot be written as chosen (no block left, too many), or null. */
+  problem: string | null
+  /** The download's extension: the format's, or `.zip` / `.pdf` for a series. */
+  extension: string
 }
 
 export type ExportAutoRun = {
@@ -462,6 +548,8 @@ export type ExportContext = {
   ownPhotos?: { count: number; accepted: number; flights: number }
   /** The road view is open with its terrain loaded, so the 3D scene can be written. */
   roadViewReady: boolean
+  /** *Scene for GIS*: the layers the scene gives with their counts (`sceneGisPlan`), and the kinds it holds none of. */
+  gis: { layers: SceneGisPlanEntry[]; absent: string[] }
   /** The Castor constraint as the current run gives it (`castorConstraint.ts`), or why it cannot be written yet. */
   castor: {
     constraint: { id: string; zoneId: string; threshold: number; percentage: number; percentageNote: string } | null
@@ -482,6 +570,16 @@ export type ExportContext = {
     include: boolean
     pending: number
     rows: Array<Row & { note: string; review: boolean; reading: boolean }>
+  }
+  /**
+   * The road view video (`roadVideo.ts`): the scene as it reads it, the plan a take records, the take kept for that
+   * plan (null when none matches it) and whether a take is under way. Absent: the page offers no video.
+   */
+  roadVideo?: {
+    scene: RoadVideoScene
+    plan: RoadVideoPlan
+    take: RoadVideoTakeFacts | null
+    recording: boolean
   }
   /** BC inventory viewpoints near the block note's block. */
   inventory: {
@@ -776,7 +874,9 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
     case 'field-brief':
       return ctx.brief.block ? null : 'Add a cutblock in step 1 to brief the crew on it.'
     case 'block-sheet':
-      return ctx.blockSheet ? ctx.blockSheet.unavailable : 'Add a cutblock in step 1 to print its map sheet.'
+      return ctx.blockSheet
+        ? (ctx.blockSheet.unavailable ?? ctx.blockSheet.problem)
+        : 'Add a cutblock in step 1 to print its map sheet.'
     case 'worksheet':
       return ctx.run === 'current' || !ctx.autoRun.blocker
         ? null
@@ -794,6 +894,8 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
       return null
     case 'scene-package':
       return ctx.roadViewReady ? null : 'Open the road view and let its terrain load first.'
+    case 'scene-gis':
+      return sceneGisUnavailable(ctx.gis)
     case 'castor-constraint':
       if (!ctx.landform) return 'Delineate or adopt one active landform first: it is the constraint’s zone.'
       if (ctx.run !== 'current')
@@ -811,6 +913,12 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
       return ctx.sightlineArchive
         ? null
         : 'Retain a run first: Reference measurements → Numerical run and offline replay → Run and retain.'
+    case 'road-video':
+      if (!ctx.roadVideo) return 'The road view video is not offered here.'
+      // A take under way keeps its pane and its Stop, whatever the road view reports meanwhile.
+      return ctx.roadVideo.recording
+        ? null
+        : roadVideoUnavailable(ctx.roadVideo.scene, ctx.roadVideo.plan, ctx.roadVideo.take)
   }
 }
 
@@ -1472,6 +1580,11 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           note: 'The legend lists only what falls inside the map frame. Terrain for the contours, slope or hillshade is read from the terrain tiles when the sheet is written; the block’s elevations come from the same tiles.',
         },
         {
+          title: 'File',
+          rows: sheet.file,
+          note: sheet.fileNote,
+        },
+        {
           title: 'On the map',
           step: 'identify',
           editor: 'cutblocks',
@@ -1595,7 +1708,34 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           action: ctx.roadViewReady ? undefined : { id: 'open-road-view', label: 'Open the road view' },
           note: 'The eye and the look are where the road view stands now.',
         },
+        {
+          title: 'As a 3D model',
+          note: 'glTF, OBJ and STL draw the same scene as a simplified model: the ground from its grid, cut ground and water as their own parts, and each tree a generated low-polygon shape of its own height and crown, never the road view’s drawings. A large scene is thinned to stay within a million triangles; the notes shown with the file say what was simplified or left out. OBJ comes zipped with its .mtl; STL has no colours. Display only.',
+        },
       ]
+    case 'scene-gis': {
+      const { layers, absent } = ctx.gis
+      const shapes = { point: ['point', 'points'], line: ['line', 'lines'], polygon: ['area', 'areas'] } as const
+      return [
+        {
+          title: 'Layers',
+          step: 'identify',
+          rows: layers.map((layer) => ({
+            label: layer.title,
+            value: `${layer.count} ${shapes[layer.geometry][layer.count === 1 ? 0 : 1]}`,
+          })),
+          empty: 'None: the scene has no shapes yet.',
+          note: 'Each with its attributes: names, a block’s harvest system as stored and as shown, areas in BC Albers hectares, a mask’s kind as stored beside its label, each view’s bearing, lens and block. Drawn in the plan map’s colours: a QGIS style in the GeoPackage and beside each shapefile, one style per layer in the KMZ; GeoJSON carries none.',
+        },
+        ...(absent.length
+          ? [{ title: 'None in the scene', step: 'identify' as const, note: `No ${absent.join(', ').toLowerCase()}.` }]
+          : []),
+        {
+          title: 'Not in the file',
+          note: 'The run’s figures (visibility samples, percent alteration, the rating) and the live inventories (VRI, the visual landscape inventory, BC viewpoints): this file holds the scene only, so it needs no run and changes nothing. Sub-landforms and lines of force, drawn from the terrain and never kept in the scene. Saved views and their screenshots.',
+        },
+      ]
+    }
     case 'stand-trees':
       return [
         {
@@ -1622,6 +1762,10 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
         },
       ]
     }
+    case 'road-video':
+      return ctx.roadVideo
+        ? roadVideoContents(ctx.roadVideo.scene, ctx.roadVideo.plan, ctx.roadVideo.take)
+        : [{ title: 'Video', note: 'The road view video is not offered here.' }]
     case 'castor-constraint': {
       const c = ctx.castor.constraint
       return [
@@ -1718,6 +1862,8 @@ export type ContextInput = {
   reportRecipe?: { name: string; sources: string } | null
   /** The block map sheet as chosen. Absent: the scene has no block. */
   blockSheet?: ExportBlockSheet
+  /** The road view video as planned (`ExportContext.roadVideo`). Absent: the page offers none. */
+  roadVideo?: ExportContext['roadVideo']
 }
 
 const objectiveName = (id: VisualQualityClassId) => {
@@ -1905,6 +2051,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
     evidence: { loaded: input.evidence.loaded, gaps: input.evidence.gaps, ...input.evidence.counts },
     ...(input.ownPhotos?.count ? { ownPhotos: input.ownPhotos } : {}),
     roadViewReady: input.roadViewReady,
+    gis: sceneGisPlan(scene),
     prescribedStands: input.prescribedStands ?? [],
     sightlineArchive: input.sightlineArchive ?? null,
     castor: {
@@ -1921,6 +2068,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
     landChecks: input.landChecks,
     inventory: input.inventory,
     ...(input.visualInventory ? { visualInventory: input.visualInventory } : {}),
+    ...(input.roadVideo ? { roadVideo: input.roadVideo } : {}),
   }
 }
 

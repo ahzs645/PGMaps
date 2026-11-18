@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import { CopyImageButton } from '@/components/ui/copy-image-button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { fitGeometry, type ExportPreview } from './exportCatalog'
 import { previewPick, PREVIEW_PICK_SELECTOR, type PickedElement, type PreviewPick } from './previewPick'
@@ -122,7 +124,7 @@ export function ExportPreviewView({
         />
       )
       const frame = 'flex h-full min-h-60 w-full items-center justify-center rounded-md border bg-white p-2'
-      return onPick ? (
+      const picture = onPick ? (
         <button
           type="button"
           className={`${frame} cursor-pointer hover:ring-2 hover:ring-primary/40`}
@@ -134,6 +136,23 @@ export function ExportPreviewView({
         </button>
       ) : (
         <div className={frame}>{image}</div>
+      )
+      if (!preview.caption && !preview.copy) return picture
+      // The copy button sits under the picture, never inside the button that opens the setup.
+      return (
+        <div className="flex h-full min-h-0 flex-col gap-1.5">
+          <div className="min-h-60 flex-1">{picture}</div>
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+            {preview.caption ? (
+              <p className="min-w-0 text-2xs text-muted-foreground" data-testid="road-export-preview-caption">
+                {preview.caption}
+              </p>
+            ) : (
+              <span />
+            )}
+            {preview.copy && <CopyImageButton png={preview.copy.png}>{preview.copy.label}</CopyImageButton>}
+          </div>
+        </div>
       )
     }
     case 'table':
@@ -196,7 +215,7 @@ export function ExportPreviewView({
                 aria-label={`${title} geometry`}
               >
                 {preview.layers.map((layer, index) => {
-                  const color = LAYER_COLORS[index % LAYER_COLORS.length]
+                  const color = layer.color ?? LAYER_COLORS[index % LAYER_COLORS.length]
                   return (
                     <g key={layer.name} stroke={color} fill={color}>
                       {layer.lines.map((line, i) => (
@@ -219,7 +238,7 @@ export function ExportPreviewView({
               <li key={layer.name} className="inline-flex items-center gap-1.5">
                 <span
                   className="size-2 rounded-full"
-                  style={{ background: LAYER_COLORS[index % LAYER_COLORS.length] }}
+                  style={{ background: layer.color ?? LAYER_COLORS[index % LAYER_COLORS.length] }}
                 />
                 {layer.name}
                 <span className="tabular-nums">
@@ -233,6 +252,21 @@ export function ExportPreviewView({
               </li>
             ))}
           </ul>
+          {preview.notes?.length ? (
+            <DisclosureRow
+              title={`${preview.notes.length} note${preview.notes.length === 1 ? '' : 's'}: what the file simplifies or leaves out`}
+              className="shrink-0 text-2xs"
+            >
+              <ul
+                className="max-h-32 list-disc overflow-y-auto pl-4 text-2xs text-muted-foreground"
+                data-testid="road-export-preview-notes"
+              >
+                {preview.notes.map((note, index) => (
+                  <li key={index}>{note}</li>
+                ))}
+              </ul>
+            </DisclosureRow>
+          ) : null}
         </div>
       )
     }

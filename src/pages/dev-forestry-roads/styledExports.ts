@@ -125,6 +125,7 @@ const FORMAT_NAMES: Record<ExchangeDiagnostic['format'], string> = {
   mapx: 'ArcGIS Pro map (.mapx)',
   pagx: 'ArcGIS Pro layout (.pagx)',
   stylx: 'ArcGIS Pro style (.stylx)',
+  kml: 'KML',
 }
 
 /** The bundle's README: how to open it, then every approximation grouped by format. */

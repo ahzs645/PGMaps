@@ -2,8 +2,9 @@
  * The road tool's block map sheet: which areas can be the block, what the project contributes to
  * the sheet's layers, and the run that builds the PDF or its preview. The sheet engine itself is
  * `src/lib/mapSheet` and the presets `src/lib/forestry/blockSheet`; see
- * docs/forestry-block-map-sheets.md. Module scope has no DOM or network access; the run loads the
- * imagery capture and jsPDF on demand.
+ * docs/forestry-block-map-sheets.md. A sheet is written as PDF, SVG or PNG, or as a series of one
+ * sheet per block (**Formats**, **Sheet series**). Module scope has no DOM or network access; the
+ * run loads the imagery capture, jsPDF and the PNG rasteriser on demand.
  */
 import { buildSheet, sheetNeeds, type BuiltSheet } from '@/lib/forestry/blockSheet/buildSheet'
 import {
@@ -24,7 +25,20 @@ import {
   type SheetFields,
   type SheetKind,
 } from '@/lib/forestry/blockSheet/sheets'
+import {
+  DEFAULT_SHEET_OUTPUT,
+  fillSeriesFields,
+  fillSeriesTokens,
+  parseSheetOutputSettings,
+  seriesPages,
+  writeSheetSeries,
+  type SheetOutputSettings,
+  type SheetSeriesBlock,
+  type SheetSeriesPage,
+  type SheetSeriesProgress,
+} from '@/lib/forestry/blockSheet/sheetSeries'
 import type { RasterImage } from '@/lib/mapSheet/drawOps'
+import type { SheetFileDeps, SheetFormat } from '@/lib/mapSheet/sheetFormats'
 import { PAPER_SIZES, type PaperId } from '@/lib/mapSheet/layout'
 import { MAX_SHEET_SCALE } from '@/lib/mapSheet/scale'
 import { runCooperatively } from './cooperative'
@@ -49,6 +63,12 @@ export interface BlockSheetSettings {
    * library assigns to them (`styleLibrary.ts`), with PGMaps' symbol for every feature it leaves alone.
    */
   symbols: SheetSymbolChoice
+  /**
+   * How the sheet is written: format, one sheet or one per block, the series' blocks, order and file
+   * names, and the mask outside the block. A saved sheet setup keeps all of it but the blocks chosen,
+   * which are the project's (`sheetSetups.ts`).
+   */
+  output: SheetOutputSettings
 }
 
 export type SheetSymbolChoice = 'pgmaps' | 'library'
@@ -65,6 +85,7 @@ export const DEFAULT_BLOCK_SHEET: BlockSheetSettings = {
   fields: {},
   comments: '',
   symbols: 'pgmaps',
+  output: DEFAULT_SHEET_OUTPUT,
 }
 
 /** Validates settings read back from browser storage; anything unknown falls back to the default. */
@@ -85,6 +106,7 @@ export function parseBlockSheetSettings(raw: unknown): BlockSheetSettings {
     fields: parseSheetFields(r.fields),
     comments: typeof r.comments === 'string' ? r.comments.slice(0, MAX_SHEET_COMMENTS_LENGTH) : '',
     symbols: r.symbols === 'library' ? 'library' : 'pgmaps',
+    output: parseSheetOutputSettings(r.output),
   }
 }
 
@@ -96,11 +118,24 @@ export function changeBlockSheetSettings(current: BlockSheetSettings, next: Bloc
 }
 
 /** Polygons that can be the sheet's block: harvest areas and imported reference areas. */
-export function blockChoices(project: RoadProject): { value: string; label: string; geometry: GeoJSON.Polygon }[] {
+export function blockChoices(project: RoadProject): {
+  value: string
+  label: string
+  geometry: GeoJSON.Polygon
+  /** The area's source attributes, for a series' `{attr:FIELD}` tokens. */
+  attributes?: Readonly<Record<string, string | number | boolean | null>>
+}[] {
   return [
     ...project.context.flatMap((feature) =>
       feature.kind === 'harvest' && feature.geometry.type === 'Polygon'
-        ? [{ value: `context:${feature.id}`, label: feature.name || 'Unnamed block', geometry: feature.geometry }]
+        ? [
+            {
+              value: `context:${feature.id}`,
+              label: feature.name || 'Unnamed block',
+              geometry: feature.geometry,
+              ...(feature.attributes ? { attributes: feature.attributes } : {}),
+            },
+          ]
         : [],
     ),
     ...(project.reference ?? []).flatMap((feature) =>
@@ -110,6 +145,7 @@ export function blockChoices(project: RoadProject): { value: string; label: stri
               value: `reference:${feature.id}`,
               label: `${feature.name || 'Reference area'} (reference)`,
               geometry: feature.geometry,
+              ...(feature.attributes ? { attributes: feature.attributes } : {}),
             },
           ]
         : [],
@@ -228,6 +264,11 @@ export interface BlockSheetRun {
    * `settings.symbols` is `library`; the map and the sheet's legend then both draw them.
    */
   librarySymbols?: SheetSymbols
+  /**
+   * Dim the map outside the block (`SheetOutputSettings.mask`). Set by the Block map sheet export
+   * only, so the report package's sheets are unchanged.
+   */
+  maskOutsideBlock?: boolean
 }
 
 export type BuiltBlockSheet = BuiltSheet
@@ -312,6 +353,7 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
       caveat: run.caveat,
       signal: run.signal,
       preview: run.preview,
+      maskOutsideBlock: run.maskOutsideBlock,
     },
     {
       drive: (steps) => runCooperatively(steps, { signal: run.signal }, 'Block sheet cancelled.'),
@@ -363,4 +405,95 @@ export async function blockSheetPreview(run: BlockSheetRun) {
     height: built.sheet.height,
     built,
   }
+}
+
+/** The blocks a series can take: the sheet's own block list, by id, the name printed and attributes. */
+export function seriesBlocks(project: RoadProject): SheetSeriesBlock[] {
+  return blockChoices(project).map((choice) => ({
+    id: choice.value,
+    name: choice.label.replace(/ \(reference\)$/, ''),
+    ...(choice.attributes ? { attributes: choice.attributes } : {}),
+  }))
+}
+
+/** The run for one page of a series: framed on its block, its typed fields' tokens filled for it. */
+export function seriesPageRun(run: BlockSheetRun, page: SheetSeriesPage): BlockSheetRun {
+  return {
+    ...run,
+    settings: {
+      ...run.settings,
+      block: page.id,
+      fields: fillSeriesFields(run.settings.fields, page),
+      comments: fillSeriesTokens(run.settings.comments, page),
+    },
+  }
+}
+
+/**
+ * The series' first page, which the preview shows, and how many pages the series has. Throws when no
+ * block is chosen.
+ */
+export function firstSeriesPage(blocks: readonly SheetSeriesBlock[], output: SheetOutputSettings) {
+  const pages = seriesPages(blocks, { order: output.order, selected: output.blocks })
+  if (!pages.length) throw Error('Choose at least one block for the series.')
+  return { page: pages[0], total: pages.length }
+}
+
+/** What writing needs from the browser for `format`: jsPDF with the brand's fonts, or the PNG rasteriser. */
+async function fileDeps(format: SheetFormat, run: BlockSheetRun): Promise<SheetFileDeps> {
+  const [{ browserSheetFileDeps }, { configurePdfBrand }] = await Promise.all([
+    import('@/lib/mapSheet/sheetFileDeps'),
+    import('@/branding/pdf'),
+  ])
+  // Without a brand, no fonts: the graticule keeps its Times labels, as `blockSheetPdf` draws them.
+  return browserSheetFileDeps(format, {
+    configurePdf: (pdf) => (run.branding ? configurePdfBrand(pdf, run.branding) : undefined),
+  })
+}
+
+/**
+ * One sheet in `format`. PDF is `blockSheetPdf`, so a default sheet is written exactly as before;
+ * SVG and PNG go through the shared writer (`sheetFile`).
+ */
+export async function blockSheetFile(
+  run: BlockSheetRun,
+  format: SheetFormat,
+  deps?: SheetFileDeps,
+): Promise<{ blob: Blob; built: BuiltBlockSheet }> {
+  if (format === 'pdf' && !deps) return blockSheetPdf(run)
+  const built = await buildBlockSheet(run)
+  const { sheetFile } = await import('@/lib/mapSheet/sheetFormats')
+  const title = blockSheetLayers(run.project, run.analyses, run.settings.block).block?.name
+  const blob = await sheetFile(built.sheet, format, deps ?? (await fileDeps(format, run)), {
+    title,
+    signal: run.signal,
+  })
+  return { blob, built }
+}
+
+/** The sheet as a PNG at `SHEET_PNG_DPI`, for the clipboard. */
+export const blockSheetPng = (run: BlockSheetRun) => blockSheetFile(run, 'png').then((file) => file.blob)
+
+/**
+ * One sheet per block (`writeSheetSeries`): each page framed on its block with its typed fields'
+ * tokens filled, one after another, as one PDF or a ZIP. A page that cannot be built is left out by
+ * name and the rest are written.
+ */
+export async function blockSheetSeries(
+  run: BlockSheetRun,
+  blocks: readonly SheetSeriesBlock[],
+  options: { deps?: SheetFileDeps; onProgress?: (progress: SheetSeriesProgress) => void } = {},
+) {
+  const { output } = run.settings
+  return writeSheetSeries({
+    blocks,
+    settings: output,
+    build: async (page, signal) => {
+      const built = await buildBlockSheet({ ...seriesPageRun(run, page), signal: signal ?? run.signal })
+      return { sheet: built.sheet, missing: built.missing }
+    },
+    deps: options.deps ?? (await fileDeps(output.format, run)),
+    signal: run.signal,
+    onProgress: options.onProgress,
+  })
 }

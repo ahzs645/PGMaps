@@ -110,6 +110,17 @@ export function formatLatLng(point: { lng: number; lat: number }): string {
   return `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`
 }
 
+/**
+ * The address a brief's "stand at" coordinate opens, to find the place on a phone: Google Maps' documented
+ * cross-platform search URL (`api=1`) for the coordinate as printed. It opens the maps app where one is installed
+ * (Google Maps on Android, Google Maps or the browser on iOS) and the web map elsewhere, needs no account, and carries
+ * nothing but the latitude and longitude. A `geo:` URI would open the phone's default maps app on Android but nothing
+ * on iOS, and PDF readers often refuse a scheme that is not http(s).
+ */
+export function mapsLinkUrl(point: { lng: number; lat: number }): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formatLatLng(point).replace(' ', ''))}`
+}
+
 const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
 /** "245° (SW)" */
 export function formatBearing(bearing: number): string {
@@ -435,6 +446,8 @@ type Pdf = InstanceType<PdfModule['jsPDF']>
 /** Letter portrait, millimetres. */
 const PAGE = { width: 215.9, height: 279.4, margin: 12 }
 const INK: [number, number, number] = [17, 24, 39]
+/** A link box starts this share of the font size above the baseline (Helvetica's cap height and a little more). */
+const LINK_ASCENT = 0.8
 const MUTED: [number, number, number] = [107, 114, 128]
 
 const STATIC_TEXT = [
@@ -577,6 +590,13 @@ export function fieldBriefPdf(brief: FieldBrief, { jsPDF }: PdfModule): ArrayBuf
       margin + 72,
       y + 3,
     )
+    // The coordinate opens the place in a maps app: a link over the text as printed, which draws nothing on paper.
+    if (point.location) {
+      const size = pdf.getFontSize() / pdf.internal.scaleFactor
+      pdf.link(margin + 72, y + 3 - size * LINK_ASCENT, pdf.getTextWidth(formatLatLng(point.location)), size, {
+        url: mapsLinkUrl(point.location),
+      })
+    }
     setText(8)
     const next = tickBox(pdf, margin + 132, y + 3, labels.yes, point.check?.answer === 'yes')
     tickBox(pdf, next, y + 3, labels.no, point.check?.answer === 'no')

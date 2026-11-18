@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { PrintedPreparer } from '@/branding/PreparerProfile'
+import { MapSheetOutput } from '@/components/ui/map-sheet-output'
 import { MapSheetSetup } from '@/components/ui/map-sheet-setup'
 import { blockFacts } from '@/lib/forestry/blockSheet/blockFacts'
 import { sheetSetupFields } from '@/lib/forestry/blockSheet/setupFields'
@@ -17,7 +18,10 @@ import {
   parseVisualsSheetSettings,
   SHEET_SYMBOLS_STYLE,
   visualsSheetBlocks,
+  VISUALS_SHEET_FORMATS,
+  visualsSeriesBlocks,
   visualsSheetLabel,
+  visualsSheetOutputPlan,
   visualsSheetUnavailable,
   type VisualsSheetScene,
   type VisualsSheetSettings,
@@ -54,7 +58,9 @@ export function useVisualsSheetSettings() {
 /**
  * The sheet's options in Save & export: which sheet, paper, scale and block, the map style, and the
  * fields it prints. A blank F.L., CP or Forest District shows and prints the FS1252 office field
- * (`office`); `settings.block` is the block in effect (`visualsSheetBlockId`).
+ * (`office`); `settings.block` is the block in effect (`visualsSheetBlockId`). Under them, *File*
+ * (`MapSheetOutput`): one sheet per block, which blocks and in what order, the file names in a ZIP,
+ * and the mask outside the block. The format is the dialog's chips, so the form does not show it.
  */
 export function VisualsBlockSheetForm({
   scene,
@@ -70,6 +76,10 @@ export function VisualsBlockSheetForm({
   portalContainer?: HTMLElement | null
 }) {
   const blocks = useMemo(() => visualsSheetBlocks(scene), [scene])
+  const seriesBlocks = useMemo(() => visualsSeriesBlocks(scene), [scene])
+  // Ids chosen earlier that the scene no longer has are never ticked or printed; they are kept until the blocks are
+  // ticked again (another scene opened in this browser may have them), and the form says how many.
+  const plan = visualsSheetOutputPlan(scene, settings.output)
   const geometry = scene.targets.find((target) => target.id === settings.block && target.role === 'block')?.geometry
   const facts = useMemo(() => {
     try {
@@ -93,7 +103,13 @@ export function VisualsBlockSheetForm({
           onChange(
             changeVisualsSheetSettings(
               settings,
-              parseVisualsSheetSettings({ ...value, fields: typed, block: settings.block, style: settings.style }),
+              parseVisualsSheetSettings({
+                ...value,
+                fields: typed,
+                block: settings.block,
+                style: settings.style,
+                output: settings.output,
+              }),
             ),
           )
         }}
@@ -118,8 +134,26 @@ export function VisualsBlockSheetForm({
         commentsLabel={preset.comments ? 'Block access comments' : undefined}
         commentsMaxLength={MAX_SHEET_COMMENTS_LENGTH}
       />
+      <div className="grid gap-1.5" data-testid="visuals-block-sheet-output">
+        <h5 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">File</h5>
+        <MapSheetOutput
+          value={settings.output}
+          onChange={(output) => onChange({ ...settings, output })}
+          blocks={seriesBlocks}
+          formats={VISUALS_SHEET_FORMATS}
+          showFormat={false}
+        />
+        {plan.series && plan.stale > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {plan.stale === 1 ? 'A block' : `${plan.stale} blocks`} chosen earlier {plan.stale === 1 ? 'is' : 'are'} no
+            longer in the scene and {plan.stale === 1 ? 'is' : 'are'} left out.
+          </p>
+        )}
+      </div>
       <p className="text-xs text-muted-foreground">
-        A blank F.L., CP or Forest District prints the FS1252 office field. These settings are kept in this browser.
+        A blank F.L., CP or Forest District prints the FS1252 office field. In a series, the typed fields and comments
+        take the same tokens as the file names, filled for each block. These settings, the format included, are kept in
+        this browser.
       </p>
       <PrintedPreparer portalContainer={portalContainer} />
     </div>

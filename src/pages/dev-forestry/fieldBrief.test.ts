@@ -12,6 +12,8 @@ import {
   fieldBriefPdf,
   fieldBriefStrings,
   formatBearing,
+  formatLatLng,
+  mapsLinkUrl,
   measuredText,
   viewOfInterestCheck,
   viewOfInterestCheckKey,
@@ -330,6 +332,55 @@ describe('field brief PDF', () => {
     expect(brief.viewpoints).toEqual([])
     const text = new TextDecoder('latin1').decode(new Uint8Array(fieldBriefPdf(brief, jspdf)))
     expect(text.startsWith('%PDF')).toBe(true)
+  })
+
+  it('links each stand-at coordinate to a maps app, over the coordinate as printed', () => {
+    const brief = buildFieldBrief({
+      block,
+      targets,
+      viewpoint: road,
+      landform,
+      result,
+      stale: false,
+      assessment: null,
+      review: {},
+      savedViews: views,
+      images: {},
+      generatedAt: new Date(2026, 10, 11, 12),
+    })
+    const located = brief.viewpoints.filter((point) => point.location)
+    // The station and the view saved on this road; the view saved elsewhere has no place to link.
+    expect(located).toHaveLength(2)
+    expect(brief.viewpoints).toHaveLength(3)
+    const text = new TextDecoder('latin1').decode(new Uint8Array(fieldBriefPdf(brief, jspdf)))
+    const links = [
+      ...text.matchAll(/\/Subtype \/Link \/Rect \[([^\]]+)\] \/Border \[0 0 0\] \/A <<\/S \/URI \/URI \(([^)]*)\)/g),
+    ].map((match) => ({ rect: match[1].trim().split(/\s+/).map(Number), url: match[2] }))
+    expect(links.map((link) => link.url)).toEqual(located.map((point) => mapsLinkUrl(point.location!)))
+    const pt = 72 / 25.4
+    links.forEach((link, index) => {
+      const [x1, top, x2, bottom] = link.rect
+      // The link starts where the coordinate column does (margin + 72 mm) and is no wider than the coordinate.
+      expect(x1).toBeCloseTo(84 * pt, 3)
+      expect(x2 - x1).toBeGreaterThan(20 * pt)
+      expect(x2 - x1).toBeLessThan(40 * pt)
+      // It sits over the coordinate's own line: the text drawn at that x, inside the box's height.
+      const printed = formatLatLng(located[index].location!)
+      const drawn = new RegExp(
+        `${(84 * pt).toFixed(3).slice(0, -1)}\\d* ([\\d.]+) Td\\n\\(${printed.replace(/[.]/g, '\\.')}`,
+      )
+      const baseline = Number(drawn.exec(text)?.[1])
+      expect(baseline).toBeGreaterThan(bottom)
+      expect(baseline).toBeLessThan(top)
+    })
+    // On paper nothing changes: a link has no border and adds no drawing.
+    expect(text).not.toMatch(/\/Border \[0 0 1\]/)
+  })
+
+  it('builds a maps link that carries only the coordinate, as printed', () => {
+    expect(mapsLinkUrl({ lng: -122.104561, lat: 53.912344 })).toBe(
+      'https://www.google.com/maps/search/?api=1&query=53.91234%2C-122.10456',
+    )
   })
 
   it('names bearings by compass point', () => {

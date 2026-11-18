@@ -390,6 +390,13 @@ export const SHEET_CHROME = {
   attribution: '#323232',
 } as const
 
+/**
+ * The optional mask outside the block of interest (`ComposeInput.maskOutsideBlock`): white over the
+ * map at this opacity, under the block outline and the sheet furniture, as GeoLibre's atlas mask
+ * (white at 0.7) but lighter, so roads and contours outside stay readable. Not a legend symbol.
+ */
+export const OUTSIDE_BLOCK_MASK = { color: '#ffffff', opacity: 0.6 } as const
+
 /** Raw RGBA of a class colour at an opacity. */
 export function classRgba(color: string, opacity: number): [number, number, number, number] {
   return [

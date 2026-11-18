@@ -16,8 +16,9 @@ formats are specified in the
   is re-downloaded without a check. The training hillside is synthetic. See
   [Restoring terrain](#restoring-terrain).
 - **Check the coordinate system of each file.** LandXML and the stakeout CSV use projected grid
-  coordinates. GeoJSON, shapefiles and the CSVs use WGS84 longitude/latitude. Do not mix them in
-  another program without reprojecting.
+  coordinates. GeoJSON, shapefiles, the GeoPackage, the KMZ and the CSVs use WGS84
+  longitude/latitude. The 3D surface model is in local metres from an origin in the LandXML grid.
+  Do not mix them in another program without reprojecting.
 - **Check the vertical datum.** Every elevation in every file is in the terrain's vertical datum,
   as typed or recorded. No file converts it. The datum text travels in LandXML, the CSVs, the
   plot book title block and the report.
@@ -49,15 +50,19 @@ formats are specified in the
 | Landing reach CSV                                              | One row per bearing: reach or lower bound, what limited it, tailhold position, settings                                                                                                                                                                                                                                                                                                                                                                                                                                      | WGS84 lon/lat                                                                    | Lateral yarding, side-slope, profile samples                                                                                                                              |
 | LandXML 1.2 (`.xml`)                                           | Active road only: lines, arcs and clothoid spirals; PVI profile with parabolic curves; ground profile; design and ground cross-sections about every 20 m; superelevation per curve; 3D feature lines                                                                                                                                                                                                                                                                                                                         | Terrain's projected EPSG, else WGS84 UTM zone of the first point                 | Other alternatives, design surfaces (their own files), template/corridor model, curve widening, ditches as objects, culverts                                                                 |
 | Design surfaces (`-subgrade-surface.xml`, `-finished-surface.xml`) | Active road only: the subgrade or the finished surface as LandXML 1.2 TINs, one `Surface` per piece between incomplete sections, with explicit faces and an outer boundary | Same as LandXML | Volumes, walls and barriers as solids, the original ground (its own Terrain surface file) |
+| 3D surface model (`-design-surfaces.glb`, `.zip` for OBJ, `.stl`) | Active road only: the subgrade and finished surface as named parts, face for face the LandXML TINs, and the ground beside the road from the sections' own samples; the origin, EPSG, datum and notes in the file (glTF extras, OBJ comments, STL header). A picture for modelling software, not a machine-control file | Local metres (glTF and OBJ Y up, STL Z up) from an origin in the LandXML grid, stated in the notice and the file | Ground under the road and where a section has no catch point, volumes, walls and barriers as solids, texture; OBJ attributes are comments only; STL has no colours or names |
 | RoadEng design (`.dsnx`)                                       | The road on screen or every road, one alignment each: PIs with radii and spirals, per-curve design values, vertical PIs with curves, calculated stations with design levels (ground levels for a road without a profile), report stations at template-range, ground-layer, pit and superelevation points, ground types and haul costs. A road read from RoadEng also keeps everything else its design held: the `.dsn` with PGMaps' edits written into the fields they came from, the kept `.ds2` records, `.ds1` and `.ds3` | Same as LandXML                                                                  | A wall, barrier or sub-cut a template's components do not hold, a culvert's inverts and costs (kept in `[PGMaps]`); a road not read from RoadEng gets no RoadEng template |
 | Stakeout CSV                                                   | Active road, about every 20 m: centreline, formation edges, ditch bottoms (cut only) and catch points with offset, grid coordinates, level, ground and cut/fill                                                                                                                                                                                                                                                                                                                                                              | Same as LandXML                                                                  | Reference or offset stakes, instrument data, point descriptions for a data collector                                                                                      |
 | CAD drawing (`.dxf`, R12)                                      | Active road: plan centreline (lines and true arcs, spirals as polylines), 3D feature lines for the centreline, formation edges, ditch bottoms and catch points at every calculated station, station ticks and labels; profile and cross-sections at true scale below the plan                                                                                                                                                                                                                                                | Plan: same as LandXML. Profile and sections: their own frames below the plan     | Surfaces, hatching, title block, other roads, terrain contours                                                                                                            |
 | Shapefile (`-shapefiles.zip`)                                  | `road_centrelines` (the road on screen, or every road), `road_stations` and `road_culverts` (active road only), each with `.prj` and `.cpg`                                                                                                                                                                                                                                                                                                                                                                                  | WGS84 lon/lat (`GCS_WGS_1984` `.prj`), 2D                                        | Sections, catch lines, sites, context, drainage, elevations as Z                                                                                                          |
 | QGIS project / ArcGIS Pro map / Web map styles (`-<kind>.zip`) | The shapefile layers plus `context_lines` and `context_areas`, styled with the plan's symbols for QGIS (`.qgz`, `.qml`, `.qpt` layouts), ArcGIS Pro (`.lyrx`, `.mapx`, `.pagx`, `.stylx`) or MapLibre, GeoLibre and SLD; a README lists what each format approximates. See [map styles](map-style-exchange.md)                                                                                                                                                                                                               | WGS84 lon/lat data                                                               | Sections, stations of other roads, drainage, terrain                                                                                                                      |
+| GeoPackage (`.gpkg`) | The QGIS project's layers (`context_lines`, `context_areas`, `road_centrelines` for the road on screen or every road, `road_stations` and `road_culverts` of the active road) as tables of one GeoPackage 1.3, each with its `.qml` as QGIS's default style and its `.sld` in `layer_styles`; stations and culverts add `STATION`, the label in the road's own stationing | WGS84 lon/lat (EPSG:4326), 2D | Sections, stations of other roads, drainage, terrain, an R-tree spatial index (QGIS offers to build one) |
+| KMZ (`.kmz`) | The same layers as `doc.kml`, a folder per layer and symbol (each road, each kind of context feature), every placemark named (road, station label in the road's own stationing, culvert, feature name) with its attributes in `ExtendedData`, and `icons/dot.png` for points | WGS84 lon/lat, draped on the ground | As the GeoPackage, and every symbol part KML cannot draw (listed in the document's description, the notice and the preview) |
 | Symbol library (`-symbol-library.zip`)                         | Every catalogue symbol as a QGIS style library, an ArcGIS Pro `.stylx` and a GeoLibre style library                                                                                                                                                                                                                                                                                                                                                                                                                          | None                                                                             | Data                                                                                                                                                                      |
 | Plot book (`.pdf` and `.html`)                                 | Active road: A3 plan-and-profile sheets every 250 m with mass haul, then cross-section sheets of twelve every 20 m; title block on each                                                                                                                                                                                                                                                                                                                                                                                      | Plan drawn in grid metres, rotated to the road; no coordinate grid               | Culverts, curve data, PI table, legend, a fixed print scale                                                                                                               |
 | Printed report (`-report.html`)                                | Active road summary, profile, full station table, crossings, materials, culverts, haul, costs, provenance, assumptions, and up to 240 section plots every 20 m                                                                                                                                                                                                                                                                                                                                                               | Chainage                                                                         | Drainage, plan view, LandXML-level geometry                                                                                                                               |
-| Block map sheet (`-<sheet>.pdf`)                               | One block on a printed sheet: field layout, LiDAR slope, canopy height or hillshade, 1:50,000 access or portrait imagery. Title bar, block information (area, centroid, BCGS mapsheet, elevation range, typed fields), a legend of what is drawn, Road Information table, scale bar, north arrow, the plan's notes as review markup. See [block map sheets](../forestry-block-map-sheets.md)                                                                                                                                 | Web Mercator, north up; scale true at the frame's centre latitude; DMS graticule | Sections, profiles, culverts, haul; road surface classes; the reference sheets' BC Albers rotation                                                                        |
+| Block map sheet (`-<sheet>.pdf`, `.svg`, `.png`; a series `-<sheet>-series.pdf` or `.zip`) | One block on a printed sheet: field layout, LiDAR slope, canopy height or hillshade, 1:50,000 access or portrait imagery. Title bar, block information (area, centroid, BCGS mapsheet, elevation range, typed fields), a legend of what is drawn, Road Information table, scale bar, north arrow, the plan's notes as review markup. Written as a PDF, an editable SVG or a PNG at 150 dpi; with **One sheet per block**, one sheet a chosen block as one PDF (a page a block) or a ZIP of one file a block, with `notes.txt` when a page was left out or drawn without something. Optionally dimmed outside the block. See [Block map sheet](#block-map-sheet) and [block map sheets](../forestry-block-map-sheets.md) | Web Mercator, north up; scale true at the frame's centre latitude; DMS graticule | Sections, profiles, culverts, haul; road surface classes; the reference sheets' BC Albers rotation; the PNG holds no vector and the SVG and PNG no brand font |
+| Map PDF (`-map.pdf`) | The plan map with its markers and labels on one page, under the project name, terrain, datum, issue stamp and caveat, with every source's credit and the brand line. By default the plan as it is shown on A4; under **Options**, a paper, what it frames (the road on screen, every road, a block from the block sheet's list) and a fitted or typed scale, printed north-up with the scale and a scale bar. See [Map PDF](#map-pdf) | Framed: Web Mercator (EPSG:3857), north up, scale true at the frame's centre latitude, registered (`/VP` map frame). As shown: registered only when the plan is north-up, flat and without 3D terrain | The on-map attribution box and map controls; anything the plan does not show; as shown, no scale |
 | Report package (`-report-package.pdf`, or `.zip`)              | The road on screen or every road: a cover with contents and page numbers, the chosen block sheets, each road's report and plot book with the chosen parts; each part placed in an appendix is a PDF of its own with its own cover                                                                                                                                                                                                                                                                                            |
 | Preliminary estimate (`-preliminary-estimate.pdf`)             | Every road (or the one on screen) priced low, medium and high on copies of it, beside its estimate as imported, with the allowances and what each level did                                                                                                                                                                                                                                                                                                                                                                  |
 
@@ -97,6 +102,8 @@ book.
 | LandXML import                        | 50,000,000 characters; 4,000 elements an alignment; checks 7 mm, 1 mm, 0.06°                                                                                                                                                                                                                                                                                                                                                     | `landXmlImport.ts` `MAX_LANDXML_BYTES`, `MAX_LANDXML_ELEMENTS`, `LANDXML_LENGTH_TOLERANCE_M`, `LANDXML_JOINT_TOLERANCE_M`, `LANDXML_KINK_TOLERANCE_DEG`                                                                                                                                                                                                                                  |
 | LandXML superelevation                | 2,000 `Superelevation` elements an alignment; rate 0–20 %                                                                                                                                                                                                                                                                                                                                                                        | `landXmlSuperelevation.ts` `MAX_LANDXML_SUPERELEVATIONS`                                                                                                                                                                                                                                                                                                                                 |
 | Design surfaces                       | A vertical face is drawn 10 mm wide; section points within 1 mm across the road are one point | `designSurfaceExport.ts` `VERTICAL_FACE_INSET_M`, `SAME_OFFSET_M` |
+| 3D surface model preview | Draws up to 60,000 triangles in plan | `designModelExport.ts` `MODEL_PREVIEW_MAX_TRIANGLES` | The preview lists the parts without the drawing; the file holds every triangle |
+| KMZ symbols | One line, one fill and one icon a folder; a point at least half the client's 32 px icon; a hatch or marker fill as a fill at the share of the area it inks | `src/lib/styleExchange/kml/kmlStyle.ts` `KML_ICON_PX`, `KML_MIN_ICON_SCALE` | Simplified, and listed in the KML's description, the notice and the preview |
 | RoadEng design import (`.dsnx`)       | 50,000,000 bytes, 100,000,000 a part unpacked; 50 alignments; 1,998 PIs and 498 vertical PIs an alignment; rebuild checks 10 mm plan and profile; fit 0.1 m; thinned profile 10 mm, doubled until it fits 500 PVIs                                                                                                                                                                                                               | `roadEngImport.ts` `MAX_ROADENG_BYTES`, `MAX_ROADENG_ENTRY_BYTES`, `MAX_ROADENG_ALIGNMENTS`, `MAX_ROADENG_PIS`, `MAX_ROADENG_VIPS`, `ROADENG_PLAN_TOLERANCE_M`, `ROADENG_PROFILE_TOLERANCE_M`, `ROADENG_FIT_DEVIATION_M`                                                                                                                                                                 | Refused over the size, alignment and PI limits; a check outside its limit follows the design's stations                              |
 | Values by station                     | 100 a road, 200 stations each; values within the template field's limits                                                                                                                                                                                                                                                                                                                                                         | `templateParameterOverrides.ts`, `MAX_PARAMETER_OVERRIDES`, `MAX_OVERRIDE_POINTS`                                                                                                                                                                                                                                                                                                        | The file is refused; a RoadEng design's further overrides are listed under Not carried over                                          |
 | RoadEng parts kept with a road        | 4,000,000 characters an alignment (its `.dsn`, base64 `.ds1`/`.ds3`, kept `.ds2` records, the first alignment's `.dsn` for a later one, its P-line)                                                                                                                                                                                                                                                                              | `roadEngImport.ts` `MAX_ROADENG_SOURCE_CHARS`                                                                                                                                                                                                                                                                                                                                            | Over it the road keeps none and a RoadEng file written from it holds only what this workspace models; the notice says so             |
@@ -115,7 +122,9 @@ book.
 | DBF text                              | Starts at `NAME` 80 bytes, `FLAGS` 200 bytes (UTF-8); widens to fit, up to 254 bytes (`DBF_MAX_TEXT_BYTES`)                                                                                                                                                                                                                                                                                                                      | `designExports.ts`, `roadShapefileLayers`; `shapefile.ts`, `encodeDbf`                                                                                                                                                                                                                                                                                                                   | Cut on a character boundary; the notice counts it                                                                                    |
 | DBF numbers                           | Starts at e.g. `GROUND_M` 10.2, `COVER_PCT` 7.2, `COST_CAD` 14.0; widens to fit, up to 19 characters (`DBF_MAX_NUMBER_WIDTH`)                                                                                                                                                                                                                                                                                                    | `designExports.ts`, `roadShapefileLayers`; `shapefile.ts`, `encodeDbf`                                                                                                                                                                                                                                                                                                                   | Written blank; the notice counts it. Values of 10²¹ or more are always blank                                                         |
 | Block map sheet                       | Scales to 1:250,000; terrain raster 150 dpi, at most 4,000,000 cells; 10 m contours, at most 250,000 segments; imagery 200 dpi, 4,096 px, 30 s; 10 roads in the table                                                                                                                                                                                                                                                            | `src/lib/mapSheet/scale.ts` `MAX_SHEET_SCALE`; `prepareSheet.ts` `SHEET_RASTER_DPI`; `classedRasters.ts` `MAX_SHEET_GRID_CELLS`; `contours.ts` `MAX_SHEET_CONTOUR_SEGMENTS`; `printCapture.ts` `PRINT_CAPTURE_DPI`, `MAX_CAPTURE_SIDE_PX`, `PRINT_CAPTURE_TIMEOUT_MS`; `composeSheet.ts` `ROAD_TABLE_ROWS`                                                                               | Coarsened, contour interval doubled, or refused; see the [sheet guide](../forestry-block-map-sheets.md#limits-and-budgets)           |
-| File name                             | Project name, non-alphanumerics to `-`, at most 70 characters                                                                                                                                                                                                                                                                                                                                                                    | `DevForestryRoads.tsx`, `save`                                                                                                                                                                                                                                                                                                                                                           | Shortened                                                                                                                            |
+| Block map sheet files                 | PNG 150 dpi, at most 8,192 px a side; a series at most 50 sheets; a series page's file name at most 100 characters | `src/lib/mapSheet/sheetFormats.ts` `SHEET_PNG_DPI`; `sheetPng.ts` `MAX_SHEET_PNG_SIDE`; `src/lib/forestry/blockSheet/sheetSeries.ts` `MAX_SHEET_SERIES_PAGES`, `MAX_SERIES_FILE_NAME_LENGTH` | PNG resolution lowered to fit; a larger series refused before any page is built (the preview says so); a name shortened |
+| Map PDF                               | Typed scale 1:500 to 1:250,000; a fitted frame takes the finest of the sheets' fit scales that holds it; margin 0, 5, 10 or 20 %; framed capture aims for 200 dpi, raising the plan's pixel ratio to at most 3 (MapLibre then holds the canvas within 4,096 px a side); the framed plan has 10 s to draw | `mapPdfFrame.ts` `MIN_MAP_PDF_SCALE`, `MAP_PDF_SCALE_PRESETS`, `MAP_PDF_MARGINS`, `MAP_PDF_TARGET_DPI`, `MAP_PDF_MAX_PIXEL_RATIO`; `src/lib/mapSheet/scale.ts` `FIT_SCALES`, `MAX_SHEET_SCALE`; `planCapture.ts` `FRAME_IDLE_TIMEOUT_MS` | A typed scale outside the range is not accepted; a frame too large for 1:250,000 or a scale the plan cannot zoom to is refused with the reason; the notice states the resolution the map printed at; a slow plan is captured as drawn |
+| File name                             | Project name, non-alphanumerics to `-`, at most 70 characters                                                                                                                                                                                                                                                                                                                                                                    | `exportFiles.ts`, `exportBasename`, `exportFileType` (one table for Download and Save as)                                                                                                                                                                                                                                                                                                 | Shortened                                                                                                                            |
 | Saved layout name                     | 60 characters                                                                                                                                                                                                                                                                                                                                                                                                                    | `LayoutPicker.tsx`                                                                                                                                                                                                                                                                                                                                                                       | Shortened                                                                                                                            |
 
 ## Built-in assumptions
@@ -236,8 +245,8 @@ reader for GeoJSON, zipped shapefiles, KML and KMZ when the geometry is intended
   the contours and under streams, constraints and every road, and their points under the road line
   (`REFERENCE_LAYERS` in `ReferenceLayer.tsx`, ordered with the plan's other layers in
   `PlanView.tsx`). The GeoJSON export writes them with `kind: "reference"`, so they import back as
-  reference. The map PDF is a picture of the plan as it is on screen, so it shows them with their
-  point names, and follows the plan's layer visibility. The printed report and
+  reference. The map PDF is a picture of the plan (as it is on screen, or moved to the frame chosen
+  under its Options), so it shows them with their point names, and follows the plan's layer visibility. The printed report and
   the plot book draw their own figures from the design and do not include them.
 - **A KML altitude or a third coordinate** is dropped: it is not ground and carries no datum. The
   exception is a GeoJSON feature that states its datum in a `referenceVerticalDatum` property, as
@@ -259,7 +268,7 @@ Those results are not the current design, so each output follows one rule
 | Rule       | Outputs                                                                                                                                       | Why                                                                                                            |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Stamped    | Report HTML, Report PDF, Map PDF, Block map sheet, Report package (refused while it holds plot-book sheets)                                   | A person reads them, and the stamp is the first thing on the page                                              |
-| Refused    | LandXML, Subgrade and Finished surface, DXF, Stakeout CSV, Plot book, Station CSV, Culvert schedule CSV, GeoJSON, Shapefile, and the Station table, Engineering and Selected-section CSV downloads | They go to a contractor or into other software, and have nowhere to carry a notice their reader will see       |
+| Refused    | LandXML, Subgrade and Finished surface, 3D surface model, DXF, Stakeout CSV, Plot book, Station CSV, Culvert schedule CSV, GeoJSON, Shapefile, GeoPackage, KMZ, and the Station table, Engineering and Selected-section CSV downloads | They go to a contractor or into other software, and have nowhere to carry a notice their reader will see       |
 | Unaffected | Project JSON, Map notes, Terrain surface and grid, Stream register, Fish & watershed evidence                                                 | They hold no calculated design result. The project JSON is still refused by its own validation, as noted above |
 
 - **The stamp** on the report is a red box under the title: "Not current: this report leaves out an
@@ -388,6 +397,38 @@ the program builds, not only the coordinates.
    check the face count survives.
 3. **QGIS** (no native LandXML surface reader): skip, or check the points through a converter.
 4. **RoadEng**: not a target; RoadEng builds its own surfaces from the design.
+
+### 3D surface model
+
+**3D surface model** in Save & export's Survey & CAD group writes the road on screen's design
+surfaces as a 3D model to look at in Blender, SketchUp or a CAD viewer (`designModelExport.ts` over
+`designSurfaceModel.ts`). It is a picture of the calculated surfaces, not a machine-control file:
+build from the [LandXML surfaces](#design-surfaces-landxml-tin).
+
+- **Choose the format above the preview** (**Model format**): glTF (`.glb`, one file), OBJ (the
+  `.obj` and the `.mtl` it names, zipped together because they must sit side by side) or STL. The
+  choice is for this session and is not saved with the project.
+- **The surfaces are the LandXML TINs, face for face.** The subgrade and the finished surface are
+  separate named parts, broken where an incomplete section breaks the TIN, each named as its
+  LandXML `<Surface>`. The finished surface lies on the subgrade beyond the formation edges: hide one
+  part to see the other.
+- **The ground beside the road** is the terrain each section was sampled on, outside its catch
+  points, joined section to section. It is not read from the terrain again: there is none under the
+  road, and none where a section has no catch point on that side or its ground has a gap.
+- **Local metres from a stated origin.** The formats hold single-precision numbers, so the model is
+  cut from the LandXML grid less an origin (the plan's centre to the metre, the lowest level rounded
+  down). The notice, the preview and the file give the origin's easting, northing, EPSG and
+  elevation with the vertical datum; add them back to place the model. glTF and OBJ are Y up, STL
+  Z up.
+- **What each format carries:** glTF names every part and keeps its attributes and the notes in
+  `extras`; OBJ names every part, its colours are in the `.mtl` and its notes are comments; STL is
+  one mesh with no colours, names or attributes, and only as much of the origin as its 80-character
+  header holds.
+- **The preview** draws the parts in plan, lists them with their triangle counts and the file's
+  size, and prints the same notes as the notice. Past `MODEL_PREVIEW_MAX_TRIANGLES` it lists the
+  parts without the drawing.
+- **Refused like the LandXML surfaces:** while an input is invalid, and for a road with no two
+  complete sections in a row.
 
 ### Importing a LandXML alignment
 
@@ -1203,10 +1244,28 @@ cut_fill_m, epsg`. Cut/fill is ground minus design: positive is cut.
   offset stakes, no instrument or control data and no tolerance. A surveyor needs to set out from
   control in the same CRS and datum.
 
+### Save as…
+
+Beside **Download**, **Save as…** opens the browser's save dialog with the same file name, so the
+file goes where you choose. It appears only where the browser has a save dialog (Chrome and Edge on
+a desktop); elsewhere Download is the only button, since Save as… would do the same thing.
+
+- **Same file, same checks.** The name and type come from the table Download names its files by
+  (`exportFileType`, `exportFiles.ts`), and the file is built by the same code after you choose
+  where it goes. A refused output stays refused, and a project file saved this way counts as saved.
+  The notice reads "… saved as _name_" in place of "… downloaded".
+- **Cancelling builds nothing.**
+- **The file name follows the choices.** The Block map sheet's name and type follow its File
+  choices (`blockSheetWrites`): `.svg` or `.png` for one sheet, `-series.pdf` or `-series.zip` for a
+  series. The Map PDF builds through the same path as its Download, opening and moving the plan.
+- **On Download only:** the **Report package**, which is one PDF or a zip of several depending on its
+  parts (`DOWNLOAD_ONLY_EXPORTS`).
+
 ### One road or every road
 
-GeoJSON, the shapefile and the report package can hold more than one road. Save & export offers **This road** and
-**All _N_ roads** for them. GeoJSON and the shapefile start on **This road**: a file handed to someone else then carries
+GeoJSON, the shapefile, the GeoPackage, the KMZ and the report package can hold more than one road. Save & export
+offers **This road** and **All _N_ roads** for them. GeoJSON, the shapefile, the GeoPackage and the KMZ start on
+**This road**: a file handed to someone else then carries
 the road on screen, not a superseded alternative or the starter line a project begins with
 (`exportRoads`, `exportCatalog.ts`). The report package is the project's document and starts on
 **All _N_ roads**, with its own choice. Neither choice is saved with the project. The project file
@@ -1248,6 +1307,44 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   to 254 bytes. A number still too wide, or of 10²¹ or more, is written blank, and text still too
   long is cut on a character boundary. Either way the notice reads "Shapefiles downloaded with _N_
   field warnings: …", naming the layer, field and number of records.
+
+### GeoPackage
+
+- **The QGIS project's layers in one file.** `context_lines` (streams, existing and deactivated
+  roads), `context_areas` (constraints, other blocks), `road_centrelines`, `road_stations` and
+  `road_culverts`, written by `writeGeoPackage` (`src/lib/gis/geoPackage.ts`) from the same layers
+  the shapefile and the QGIS project write (`gisExports.ts`), with the same fields. Stations and
+  culverts add `STATION`, the station label in the road's own stationing; `STATION_M` stays chainage.
+- **It opens looking as it does here.** Each layer's `.qml` from the [map styles](map-style-exchange.md)
+  is its default style in QGIS's `layer_styles` table, so QGIS draws the roads in their own colours,
+  the context with the plan's sheet symbols, and labels the roads, as soon as a layer is added. The
+  layer's `.sld` is kept beside it. Other GIS programs read the tables and ignore the styles.
+- **Your saved styles apply,** as for the other styled exports (**Styles** in the pane).
+- **No spatial index.** sql.js has no R-tree module; QGIS offers to build the index, and GDAL and
+  ArcGIS Pro open the file without one.
+- **The notice counts the layers and features,** the symbol parts a style simplified, and every
+  value or name the writer could not keep as given; the preview draws the layers in their colours and
+  lists the same.
+
+### KMZ
+
+- **For Google Earth and field apps.** `doc.kml` (KML 2.2) first in the archive, with
+  `icons/dot.png`, a white disc each point style tints.
+- **A folder per layer and symbol.** A KML folder carries one style, so the roads are split by road,
+  each in its own colour, and the context by the sheet symbol it takes (streams, existing roads,
+  constraints, other blocks). A layer drawn by one symbol stays one folder.
+- **Named placemarks.** A road by its name, a station by its label in the road's own stationing, a
+  culvert by its name, a context feature by its name. Every field is in `ExtendedData`, so the
+  attributes come back into QGIS, ArcGIS and PGMaps' own reader.
+- **Coloured from the plan's symbols, simplified** (`kmlStyleForSymbol`,
+  `src/lib/styleExchange/kml/kmlStyle.ts`): a line draws its widest stroke (dashes, casings and
+  markers are left out); an area its fill and widest outline, and a hatch or marker fill becomes a
+  fill of its colour at the share of the area it inks (a 0.5 pt hatch every 5 pt is a 10% tint); a
+  point a tinted disc at its size, never smaller than half the client's icon. Every simplification
+  is listed in the KML document's description, counted in the notice and listed in the preview.
+- **Draped, 2D.** No heights are written; lines and polygon edges follow the client's terrain.
+- **Not the field review pack's KML**, which issues a road to a crew with its own rules
+  ([Field review](field-review.md)).
 
 ### Plot book
 
@@ -1354,6 +1451,103 @@ on each road, and the allowance notes. The high level benches the stretches a sl
 steeper whenever the project has one, whatever the package's slope-sheet choice. It is stamped
 like the reports, and the preview is the page it prints.
 
+### Map PDF
+
+Save & export → Documents → **Map PDF** prints the plan map with its markers and labels on one page:
+the project name, the terrain and datum line with the issue stamp and caveat, the logo, every
+source's credit and the brand line. Its **Options** pane (`MapPdfOptions.tsx`; the rules in
+`mapPdfFrame.ts`, the page in `mapPdf.ts`) chooses the paper, what the page frames and the scale.
+The options are kept in this browser (`localStorage`, `pgmaps.forestryRoads.mapPdf`), never in the
+project file, and opening the pane changes nothing.
+
+| Option      | Choices                                                                                               | Default                    |
+| ----------- | ----------------------------------------------------------------------------------------------------- | -------------------------- |
+| Frames      | The plan as shown; the road on screen; every road; a block from the block sheet's own list (harvest areas and imported reference areas) | The plan as shown          |
+| Paper       | The sheet papers (`PAPER_SIZES`, `layout.ts`): Letter, Tabloid, ANSI D, A4, A3, 36 × 29 in              | A4                         |
+| Orientation | Follow the map's shape (landscape when at least as wide as tall), landscape, portrait                  | Follow the map's shape     |
+| Scale       | Fit to the frame (for the plan as shown: the plan's own zoom), 1:5,000, 1:10,000, 1:20,000, 1:50,000 (`MAP_PDF_SCALE_PRESETS`), or a typed 1:N from 1:500 to 1:250,000 | Fit                        |
+| Margin      | Clear space round what is framed when the scale is fitted, on every side: 0, 5, 10 or 20 % of the map | 10 %                       |
+
+- **The default is the Map PDF as it always was:** the plan as it is shown now, turned and tilted
+  as it is, fitted onto A4 under the same header and footer (`mapPdfPlan` returns `as-shown`, and
+  jsPDF gets its own `'a4'`). A different paper or orientation with the plan as shown changes only
+  the page.
+- **The plan as shown is georeferenced only when it is a Web Mercator picture:** north-up, flat,
+  without 3D terrain and not on the globe (`asShownRegistrable`). The footer then reads
+  "Current plan view | Georeferenced, Web Mercator" and the page carries a `/VP` map frame with the
+  plan's corners as captured. A turned or tilted view is printed unregistered, and the notice says
+  why ("Not georeferenced, because the plan is turned or tilted"). It prints no scale: the plan's
+  zoom is not a scale on paper.
+- **Anything else is a framed page.** The road, every road or a block is framed at the finest of
+  the sheets' fit scales (`FIT_SCALES`) that holds it with the margin clear on every side, measured
+  at its centre latitude (`fittedMapScale`); a typed scale centres the frame on what is framed, or on
+  the plan's centre for the plan as shown. The page's map box is that scale on that paper, true at
+  the frame's centre latitude (`mapPdfFrameProjection`, the block sheets' `frameProjection`).
+- **To draw a framed page the plan moves.** It is turned north-up and flat (3D terrain off), its
+  pixel ratio is raised toward `MAP_PDF_TARGET_DPI` (200 dpi on paper) up to
+  `MAP_PDF_MAX_PIXEL_RATIO` (3), it is placed so the frame fills it on its tighter side
+  (`captureCamera`), it draws (up to `FRAME_IDLE_TIMEOUT_MS`), it is captured with its markers, and
+  the camera, the terrain and the pixel ratio are put back in a `finally`, whatever happens,
+  Cancel included. This is `withNorthUpPlan` (`planCapture.ts`), the capture the field pack's
+  geospatial PDF takes. The page prints the centred crop of the capture at exactly the stated scale.
+- **A framed page states its scale and is registered.** Under the map: "Scale 1:N on _paper_, true
+  at latitude _lat_ N | North up | Web Mercator | Georeferenced (EPSG:3857)", a scale bar
+  (`scaleBar`), the credits and "_brand_ | _what is framed_ | Preliminary planning - not for
+  construction". The page carries a `/VP` map frame (`addMapViewports`) over the map box with the
+  crop's four corners read from the plan as framed, so Avenza, QGIS and GDAL place it.
+- **Resolution is the plan's, honestly stated.** The map is a picture of the plan, so its detail is
+  the plan panel's: the plan is drawn at a raised pixel ratio, and MapLibre lowers that to keep the
+  canvas within 4,096 px a side. HTML markers and labels are placed in CSS pixels and do not move.
+  The notice says the resolution the map printed at ("The map prints at about 160 dpi"). A larger
+  plan panel prints sharper; a large paper at a fine scale prints coarser than 200 dpi.
+- **The preview of a framed page is a sketch,** drawn from the frame's own projection: the paper,
+  the title, the map box with the roads and blocks that fall in it, and the scale line, at the scale
+  the PDF will print (the header is measured on a scratch page, `mapPdfHeaderTop`). The plan is moved
+  only when the PDF is made, not for every setting. The plan as shown previews the capture itself.
+- **What is refused, with the reason:** a frame with nothing in it ("There is no road on screen to
+  frame"), a frame too large for 1:250,000 on the paper, a scale the plan cannot zoom to, the plan on
+  the globe ("Switch the plan to the flat map before printing a framed Map PDF"), and a header that
+  leaves no room for the map.
+- **Not offered:** drawing a print extent on the plan. A box drawn with the shared sketch would need
+  the dialog to step aside while the plan takes the drawing; framing on a road, every road or a block,
+  with a typed scale for the plan's centre, covers the uses asked for so far.
+- **Save as…** writes the same file through the same path.
+
+### Block map sheet
+
+Save & export → Documents → **Block map sheet** writes the sheet chosen in its **Sheet setup**
+(`BlockSheetSetup.tsx`, through `buildSheet`, `blockSheet.ts`); the sheets themselves are described
+in [Block map sheets](../forestry-block-map-sheets.md). Under the setup, **File** (`MapSheetOutput`)
+chooses how it is written:
+
+| Choice                        | What it writes                                                                                                         | Default |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------- |
+| Format                        | PDF (`-<sheet>.pdf`), an editable SVG (`-<sheet>.svg`) or a PNG at 150 dpi (`-<sheet>.png`)                           | PDF     |
+| One sheet per block           | With two or more blocks: a series of the chosen blocks, in the listed order or by name, as one PDF a page a block (`-<sheet>-series.pdf`) or a ZIP of one file a block (`-<sheet>-series.zip`; always a ZIP for SVG and PNG) | Off     |
+| File names                    | Each page's name in a ZIP, with tokens (`{page}-{name}`)                                                               | `{page}-{name}` |
+| Dim the map outside the block | White at 0.6 over the map outside the block; the sheet says "Map dimmed outside the block"                            | Off     |
+
+- **A default sheet is written exactly as before.** One PDF sheet goes through `blockSheetPdf`, the
+  same writer as always; SVG, PNG and series go through the shared writers (`sheetFile`,
+  `writeSheetSeries`). Brand fonts reach the PDF only.
+- **A series builds one page at a time,** each framed on its block with its typed fields' tokens
+  filled (`seriesPageRun`), with the page's name and number in the busy line and Cancel. A page that
+  cannot be built is left out and the rest are written; the notice names each left-out page with its
+  reason and each page's missing layers ("Block 7: no contours …"), and a ZIP adds `notes.txt` with
+  the same. With one block, the choice is read as off and the sheet is written alone.
+- **The preview** shows the sheet; for a series its first page, with "Page 1 of N: _name_. Writes N
+  sheets as …" under it. **Copy image** (**Copy page 1** for a series) builds the sheet in full and
+  puts it on the clipboard as a PNG at 150 dpi, never the preview's low-resolution picture; the
+  D-line sheet's preview offers the same, and the Map PDF's preview of the plan as shown copies the
+  map picture the page prints. The button is hidden where the browser cannot write an image to the
+  clipboard.
+- **Where the choices live.** With the rest of the block sheet's settings, in this browser
+  (`localStorage`), never in the project file. A saved sheet setup keeps the format, the series, its
+  order, the file names and the mask, but not the blocks a series takes, which are the project's
+  ([Saved sheet setups](#saved-sheet-setups)).
+- **The report package does not follow these choices.** Its block sheets are PDF pages of the
+  sheet setup, one each, never dimmed.
+
 ### Printed report
 
 - **You choose the sections it prints.** Save & export → Report → **Contents** has a checkbox per
@@ -1376,7 +1570,8 @@ like the reports, and the preview is the page it prints.
 - **The PDF report right-aligns columns of quantities, prints each list item on its own line
   (numbered lists keep the numbers tables cite), keeps a heading with what follows it, and never
   prints a `<style>` block as text** (`exportReportPdf`, `pdf.ts`).
-- **The Map PDF prints the current plan view.** It leaves out the on-map attribution box (the
+- **The Map PDF prints the current plan view** unless its Options frame something else
+  ([Map PDF](#map-pdf)). It leaves out the on-map attribution box (the
   footer lists every source's credit). On the plan the compact attribution stays folded to its ⓘ
   until opened (`keepAttributionFolded`, `src/components/ui/map-attribution.ts`), and culvert labels
   that would overlap fold to their Ø mark until zooming gives them room (`planLabelRoom.ts`); the
@@ -1426,7 +1621,8 @@ sheets as one PDF with a cover, for the road on screen or every road (`reportPac
   length, interval) and its subviews and paper. A kind the setup has no chapter for prints with
   the chapter defaults (`createReportChapter`).
 - **Block sheets print once per file,** not per road, with the Block map sheet setup; the package
-  overrides only the sheet kind.
+  overrides only the sheet kind. It ignores the sheet's File choices: each is a PDF page of the
+  chosen block, never a series and never dimmed.
 - **While an input is invalid** the reports carry the "Not current" stamp and so does the cover;
   a package that holds plot-book sheets is refused, as the plot book is.
 - **A road with no calculated results is left out** and the notice says so.
@@ -1586,13 +1782,15 @@ The plot book's and the block map sheet's Sheet setup panes start with **Saved s
 
 - **A setup is an office standard, not a project's sheet.** It keeps the plot book's paper,
   chapters, ranges, scales, subviews, labels and report contents, and the block sheet's sheet,
-  paper, scale and typed fields. It never keeps the block a sheet shows or its access comments, nor
+  paper, scale, typed fields and File choices (format, one sheet per block, order, file names, mask).
+  It never keeps the block a sheet shows, the blocks a series takes or its access comments, nor
   the sheet's **Map style** (PGMaps' symbols or this browser's saved styles), which names a style
   library another browser does not have.
 - **Save current setup as** stores both parts under a name in this browser's `localStorage`
   (`pgmaps.forestryRoads.sheetSetups`); a name already used (ignoring case) is replaced.
-  **Apply** sets every part the setup holds on the open project, keeping its block and comments,
-  and says what it changed. Undo takes back the plot-book part; the block sheet's settings are
+  **Apply** sets every part the setup holds on the open project, keeping its block, comments and
+  series blocks, and says what it changed. A setup saved before File choices were kept leaves them
+  as they are. Undo takes back the plot-book part; the block sheet's settings are
   per browser and are not in the undo history.
 - **Download** writes the setup as `<name>.sheet-setup.json`; **Import** reads one, or a project
   file, whose plot-book settings become a setup named "<project> plot book". A project file

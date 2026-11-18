@@ -515,13 +515,16 @@ interest's *Export…*).
 | | VIA document | Markdown, JSON | The format, only while the package has no recipe |
 | | VIA report | PDF, Printable HTML, Markdown | The overview sheet's style when the recipe prints one; the maps' style; logo. A *Draft* view lays it out with stand-ins and draws its pictures one group at a time (**VIA reports**) |
 | | Field brief | PDF | Block, when there are several (shared with step 2's checklist) |
-| | Block map sheet | PDF | Sheet type, paper, scale, block, map style, the fields the sheet prints; logo (below) |
+| | Block map sheet | PDF, SVG, PNG; a series as one PDF or a `.zip` | Sheet type, paper, scale, block, map style, the fields the sheet prints; one sheet per block, which blocks, order, file names; the mask outside the block; logo (below) |
 | | Worksheet | Markdown | — |
 | | VIA evidence package | PDF, printable HTML | — |
 | Save and reopen | Project | `.pgvq.zip` | — (scene, photos, captures and attachments; below) |
-| | Scene, Saved views, Assessment workspace, 3D scene | JSON | — |
-| For other tools | Castor constraint | `constraints.csv`, zone GeoJSON | — |
+| | Scene, Saved views, Assessment workspace | JSON | — |
+| | 3D scene | JSON, glTF (`.glb`), OBJ (`.zip` with its `.mtl`), STL | — (JSON for other renderers; the model formats below) |
+| For other tools | Scene for GIS | GeoPackage, KMZ, Shapefiles (`.zip`), GeoJSON | — (below) |
+| | Castor constraint | `constraints.csv`, zone GeoJSON | — |
 | | Prescribed trees | CSV, GeoJSON points | — (every block with a stand prescription; see **Stand prescriptions**) |
+| | Road view video | MP4, or WebM where the browser cannot write MP4 | Along the road (speed, stretch, facing) or through the views of interest (which, how long each); the caption. Recorded on request under *Preview* (below) |
 
 Each output's pane has two views. **What goes in** lists, from the same state the
 file is written from, the parts it carries: the landform (name, objective, VAC,
@@ -544,9 +547,180 @@ that step, *Change in Package* and *Rate in Package* open the package's entry.
 No part points at step 5, which only opens Save & export.
 **Preview** builds the file itself and shows it (a PDF in the browser's viewer,
 an image, HTML in a sandboxed frame, an Excel workbook as its sheets read back
-from the file by `workbookPreview.ts`, text); *Download* saves that same file. An
-output that cannot be written yet says why in the list (no block, no view in
-the package, the road view closed, a scene that cannot run).
+from the file by `workbookPreview.ts`, text); *Download* saves that same file. A
+binary file that is none of these is read back from its own bytes as text
+(`exportFilePreview.ts`, DOM-free): a GeoPackage is reopened with SQLite and
+lists each layer with its feature count, columns, first rows and whether it has
+a QGIS style; a KMZ shows its `doc.kml`; a ZIP lists its files with each
+dBase table's record count and fields and the text of its README, `.prj` and
+`.mtl` and the head of an `.obj`; a glTF binary its parts with their triangles
+and its notes; an STL its header and triangle count. `BuiltFile.readBack` names
+the reading for a ZIP whose type alone does not (the project ZIP keeps its file
+list). An output that cannot be written yet says why in the list (no block, no
+view in the package, the road view closed, a scene that cannot run).
+
+**Save as…** sits beside *Download* for every output where the browser has a
+save dialog (`saveFileAs`, `src/lib/saveFile.ts`; `docs/shared-ui.md`, **Saving
+a file where the person chooses**), and is hidden where it would only repeat
+*Download*. The dialog opens first, inside the click, named after the previewed
+file when there is one (else `suggestedExportName`) with the format's type
+(`exportFileType`); only once a place is chosen is the file made, exactly as
+*Download* makes it (`fileToSave` in `VisualsExportDialog.tsx`: the previewed
+file when nothing waits, else the run, the captures, the inventory read and the
+renders first). A cancelled dialog makes nothing. *Download* is unchanged and
+still fires the browser's download, which the end-to-end suites wait for.
+
+**Copy image** (`CopyImageButton`; `docs/shared-ui.md`, **Copying a picture**)
+sits beside *Save as…* and *Download* on the analysis sheet and the block map
+sheet, once their preview is current, and copies that previewed sheet as a PNG
+at print resolution: the analysis sheet through the writer of its PNG format
+(`figurePng`, 2 px a point, from the same composed figure, so the same
+with-timber measure), the block map sheet through `sheetFile` at
+`SHEET_PNG_DPI` (150 dpi) from the sheet as drawn for the preview. A file
+written with `BuiltFile.copyPng` offers it; nothing else does. Copying never
+starts the run, a capture, a before render or an engine render: it is offered
+only for the file already previewed, never in its place, and is hidden while
+the preview is being written or out of date. *Download* still makes the file as
+it always has, so where it would try a failed capture again it may differ from
+what was copied. A block sheet series has nothing to copy: it is many pictures.
+Where the browser cannot copy images the button is not shown.
+
+A long file shows its progress beside the buttons while *Download* or *Save
+as…* writes it (`BuildOptions.onProgress`; a block sheet series sheet by sheet),
+with *Stop*; closing the dialog stops it too, and nothing is saved.
+
+**Scene for GIS** (`sceneGis.ts` builds the layers, `sceneGisFiles.ts` writes
+them; both DOM-free, sql.js passed in) puts the scene's shapes where QGIS,
+ArcGIS or Google Earth can open them, one layer per kind the scene holds, in
+WGS84:
+
+| Layer | Geometry | Fields |
+| --- | --- | --- |
+| `landforms` | area | `id`, `name`, `assessed` (the run's landform), `objective` (code) and `obj_name`, `vac`, `area_ha`, `inv_unit`, `source` |
+| `existing_openings` | area | `id`, `name`, `harv_year`, `cc_pct` (the inventory's percent clearcut as recorded), `area_ha`, `source` |
+| `masks_natural`, `masks_private`, `masks_permanent`, `masks_retained` | area | `id`, `name`, `kind` (stored) and `kind_label` (`MASK_LABELS`: `retained` reads *Wildlife tree patch / retention*), `landform` it was traced on, `mappedrock` (natural only), `area_ha`, `source` |
+| `tree_free_areas` | area | `id`, `name`, `area_ha` (display only, and the layer says so) |
+| `blocks` | area | `id`, `name`, `system` (stored) and `system_txt` (as shown), `retain_pct`, `remove_pct`, `residual_m`, `plan_year`, `area_ha`, `block_code`, `licence`, `permit`, `opening`, `source` |
+| `road` or `viewpoint` | line or point | `id`, `name`, and `length_km` for a road or `eye_elev_m` (the surveyed eye that applies) for a spot |
+| `view_wedges` | area | `id`, `number`, `name`, `bearing`, `hfov_deg`, `reach_m`: the lens's width along the view's facing as the plan draws it (`viewsOfInterestPlan`), a drawing aid, never a sight line |
+| `views_of_interest` | point | `id`, `number`, `name`, `block`, `block_id`, `facing`, `bearing`, `lens_mm`, `hfov_deg`, `framing`, `from` (map, vli, rec-site), `included`, `landform` |
+
+A kind the scene holds none of is left out and named under *None in the
+scene*. Field names are at most ten characters, so the shapefiles keep them
+(in dBase's capitals, said once in their README). Areas are planar BC Albers
+hectares (`blockAreaHa`, the block map sheet's), to four places. It reads only
+the scene: no run figures, visibility samples, percentages or live inventory,
+so it is not in `RUNS_ON_EXPORT`, needs no run and stales nothing; *What goes
+in* lists the layers with their counts from `sceneGisPlan`, the same items the
+layers are built from, and says what is not in the file. Sub-landforms and
+lines of force are drawn from the terrain and never stored, so they are not in
+it. The preview is current while the scene's shapes are the same objects
+(`gisVersion` in `useVisualsExport`), since views of interest and tree-free
+areas are outside the run's key.
+
+Each layer is drawn in the plan map's colours (`SCENE_GIS_LOOKS`, from
+`ROLE_COLORS` and `planMapStyle.ts`, at the plan's fill opacities): the
+GeoPackage carries a QGIS default style per layer in `layer_styles` (QML from
+the style exchange's `qmlForLayer`), each shapefile its `.qml` beside it, which
+QGIS loads with it, and the KMZ one style per layer folder. GeoJSON is one
+collection whose features name their `layer` and carries no style. Every
+writer's warning (a value cut to fit a dBase field, a renamed table) comes back
+with the file, shown over the preview and in the saved line, and the
+shapefiles' README lists them all.
+
+**3D scene as a model.** The *3D scene* output keeps JSON first and unchanged
+(other renderers read it) and also writes the same scene package through
+`sceneModelExport` (`sceneModel.ts`) as glTF binary, OBJ zipped with its `.mtl`,
+or STL. It is a simplified drawing to look at in Blender or SketchUp: the
+ground from the package's grid, cut ground and water as their own parts, and
+each tree a generated low-polygon shape of its own height and crown, never the
+road view's drawings; display only. The model's notes (what was thinned to fit
+`SCENE_MODEL_TRIANGLE_BUDGET`, the origin, what the format cannot carry) are
+shown with the file. Its availability is the scene package's: the road view
+open with its terrain loaded.
+
+**Road view video.** *For other tools → Road view video* records what PGMaps'
+own road view draws, as a video file. The plan is `roadVideo.ts` (DOM-free:
+what a take records, its length, its refusals, the caption, the file name and
+*What goes in*); the take is `useRoadVideo.ts`, recorded with the shared
+composed recorder (`src/lib/mapRecording/canvasRecorder.ts`). Two takes:
+
+- **Along the road**: the road view's own drive (`DriveController`) from the
+  start of a stretch of the assessed road to its end, at one of the road view's
+  speeds (`DRIVE_SPEEDS_KMH`), looking along the road or, when the road view
+  faces something, toward it as it does now. It is the drive the reviewer sees,
+  not a second camera path. A road view standing at one spot (a viewpoint's
+  pull-out) has no road to drive and offers only the views.
+- **Through the views of interest**: each chosen view in the list's order, held
+  for a chosen time, with a cut between views: the eye never flies across the
+  terrain between them. The drive camera stands at each view as it stands at a
+  lined-up field photo (`standAt`, `fixedLook`, the view's lens as
+  `horizontalFovDegrees`): the eye at the view's place over the road view's own
+  ground mosaic, facing its block or its bearing. It never stands there through
+  the page's stand-at action, which would run the assessment there, so a view
+  off the ground the road view has loaded, or a photo view taken from the air,
+  is left out and named. A view is filmed through one frame of its lens; a
+  panorama's frames are not joined.
+
+It is display only. A take borrows the drive camera (`videoDrive` in
+`DevForestryVisuals.tsx`, mapped onto `DriveCamera`'s props) and never writes
+`drive`: the reviewer's place on the road, speed, facing, lens and harvest
+phase stay as they were, and the take's pose reports never reach
+`drive.positionMeters`. Handing the camera back (`drive(null)`, in the take's
+`finally`, on success, *Stop*, an error and the dialog closing) seeks it to the
+reviewer's place again with the look they had, and `DriveCamera`'s own lens
+effects put back the vertical field. It starts no run, stales none and changes
+no scene, saved view or setting; a capture of views of interest is refused
+while a take runs. The caption burned into every frame (on by default) names
+what is shown (the stretch and speed, or each view by name) and says, on its
+second line, the harvest phase and *Drawn by PGMaps: a drawing of the scene,
+not a photo simulation*. No figure, percentage or rating is printed.
+
+While a take runs the eye map draws every frame (`triggerRepaint` each
+animation frame: the road view's frame loops sleep when nothing moves, which
+would freeze the video), each frame is copied into the recorder inside the
+map's `render` event, and the guide layers are hidden as every capture hides
+them (`hideRoadViewGuides`, looked at again each second). Between views nothing
+is copied until the next view has drawn (the camera placed, the timber near it
+grown and its tiles loaded, held for `steadyMs`), so the video holds the last
+view meanwhile and the cut lands on a drawn view. The look is the road view's
+own (its harvest phase, *View options* and *Drawn timber*), listed in *What goes
+in*; a take never lowers the drawing quality under itself. With another engine
+drawing the road view, the video records PGMaps' own map drawn underneath it
+and says so in its caption and *What goes in*: an engine's frame is never
+recorded as PGMaps' drawing.
+
+The road view must be open on the assessed road with its terrain loaded. The
+dialog stays where it is while a take runs: the road view keeps drawing at its
+full size behind it (the recorder reads its canvas, not the screen), and the
+pane shows a small live picture of what is being recorded. Opening the output
+or its *Preview* never starts a take: *Preview* shows the planned length and
+*Record*; while it records, its progress in seconds and *Stop*, which keeps what
+was recorded and says the video ended early; afterwards the recorded file
+itself in a player. *Download* and *Save as…* write that file and never record
+again; they wait for a take, and so does every other output's preview and file
+while one runs (a take moves the road view). Closing the dialog cancels a take
+and keeps nothing. The last take is kept for the page's life, and is this
+output's file only while the choices and the look are the ones it was recorded
+with (`RoadVideoPlan.key`). The choices are this browser's
+(`pgmaps.forestryVisuals.roadVideo`), never the scene's or the project file's.
+
+Browsers: Chrome and Edge (from 126) and Safari write MP4 (H.264), which plays
+almost everywhere; Firefox writes WebM. Recording is in real time: a two-minute
+drive takes two minutes to record, and a hidden tab stops the take (a browser
+stops drawing it).
+
+| Limit | Value | Constant |
+| --- | --- | --- |
+| Longest video | 10 min; a longer plan is refused with a way to shorten it (a faster speed, a shorter stretch, a shorter hold, fewer views) | `ROAD_VIDEO_LIMITS.maxDurationMs` (`MAX_RECORDING_MS`) |
+| Shortest stretch of road | 25 m | `ROAD_VIDEO_LIMITS.minStretchMeters` |
+| Hold per view | 1–60 s, 5 s by default | `ROAD_VIDEO_LIMITS` |
+| Speed | the road view's speeds, 5–120 km/h; 40 km/h by default | `DRIVE_SPEEDS_KMH`, `ROAD_VIDEO_LIMITS.defaultSpeedKmh` |
+| Start of the stretch drawn | 60 s, else the take fails and says why | `ROAD_VIDEO_TIMING.placeMs` |
+| One view drawn | 45 s, else that view is left out and named | `ROAD_VIDEO_TIMING.viewMs` |
+| A stalled take | stops itself at the plan's length and half again plus a minute (a tour: plus 45 s a view), keeping what it has | `runRoadVideoTake`'s `maxDurationMs` |
+| Frame | the road view's canvas at the display's resolution, even sides, at most 3840 px a side | `recordingFrameSize`, `MAX_RECORDING_FRAME_SIDE` |
+| Frame rate, bitrate | 30 fps, 12 Mbps (about 90 MB a minute) | `DEFAULT_RECORDING_FPS`, `RECORDING_BITS_PER_SECOND` |
 
 **Block map sheet.** A printed map of one proposed block in the sheet types the
 road designer prints (field layout, slope, hillshade, 1:50,000 access, imagery,
@@ -563,6 +737,45 @@ file, as the road designer keeps its own; a blank F.L., CP or Forest District
 prints the FS1252 office field. What a sheet was written without (terrain that
 did not load) is said over the preview and beside the save line
 (`BuiltFile.notes`).
+
+It is written as a PDF (the default, drawn exactly as before), an editable SVG
+or a PNG at 150 dpi (`writeVisualsSheet`, DOM-free, with jsPDF or the
+rasteriser passed in by `visualsBlockSheetPdf.ts`). The format is the dialog's
+chips, stored with the sheet's other settings (`VisualsSheetSettings.output`),
+so it is chosen in one place; under the sheet's options, *File*
+(`MapSheetOutput`, `showFormat={false}`) chooses one sheet per block, which
+blocks and in what order, the file names in a ZIP, and *Dim the map outside the
+block*. A series takes the scene's proposed blocks (`visualsSeriesBlocks`; a
+block's planning ids fill `{attr:BLOCK}`, `{attr:FL}`, `{attr:CP}` and
+`{attr:OPENING}`), frames each sheet on its block with its typed fields and
+comments filled for it (`visualsSeriesPageRun`), and writes one PDF of a page a
+block or a ZIP of one file a block (`writeSheetSeries`). With one block in the
+scene there is no series. *What goes in*'s *File* section reads the same plan
+the file is written from (`visualsSheetOutputPlan`, `visualsSheetFileRows`): the
+format, one sheet or how many pages in which container, the blocks in order,
+the ZIP's file names, the mask, and the terrain read; the row and the dialog's
+heading show the download's extension (`.zip` for a ZIP series).
+
+- **A block chosen earlier and gone is left out, never replaced.** The series'
+  block list is ids kept in this browser; ids the scene does not have are
+  dropped from the series and counted under *Chosen earlier* (and under the
+  form), and the list keeps them until the blocks are ticked again, since
+  another scene opened in this browser may hold them. With every chosen block
+  gone the sheet cannot be written and says why; *All* takes in every block,
+  new ones included.
+- **The preview of a series is its first sheet**, written as the series writes
+  it (in the page's format) and marked as such over the preview
+  (`BuiltFile.previewOf`). *Download* never saves that preview: it makes every
+  sheet, then writes the file. Previewing the whole series would read terrain
+  for every block on each edit of the options.
+- **A series costs a sheet's reading per block.** Each sheet reads its own
+  terrain tiles, up to `SHEET_DEM_TILE_BUDGET` (64), so a series of N sheets
+  reads up to 64 × N, and an imagery sheet captures its imagery once a sheet;
+  at most `MAX_SHEET_SERIES_PAGES` (50) sheets. The sheets are made one after
+  another; *Download* shows which, and *Stop* or closing the dialog cancels it.
+- **A sheet that cannot be made is left out by name** (its terrain did not
+  load, say) and the rest are written; the left-out sheet and its reason are
+  said beside the save line and, in a ZIP, in `notes.txt`.
 
 **The VIA report's map style.** The report's maps keep their own symbols unless
 its options name a figure style (*Map style*): the overview map, the 11 × 17
@@ -3054,7 +3267,7 @@ of two ways (`EngineSurface.tsx`, `engineChannel.ts`):
 | `src/pages/dev-forestry/ForestOverlay.tsx` | Which ground to grow, and when to regrow it |
 | `src/pages/dev-forestry/visualsNarrative.ts`, `VisualsParagraphPanel.tsx` | Step 5's planning-note summary and the drafted Visuals paragraph |
 | `src/pages/dev-forestry/fieldChecklist.ts`, `fieldBrief.ts`, `FieldBriefPanel.tsx` | The VIA stage, the crew checklist, and step 2's one-page field brief |
-| `src/pages/dev-forestry/visualsBlockSheet.ts`, `visualsBlockSheetPdf.ts`, `VisualsBlockSheetSetup.tsx` | Save & export's block map sheet: its layers and map style from the scene (DOM-free), the PDF writer that reads the terrain tiles, and its options form |
+| `src/pages/dev-forestry/visualsBlockSheet.ts`, `visualsBlockSheetPdf.ts`, `VisualsBlockSheetSetup.tsx` | Save & export's block map sheet: its layers, map style, series plan and file writing from the scene (DOM-free), the browser writer that reads the terrain tiles and loads jsPDF or the rasteriser, and its options form |
 | `src/pages/dev-forestry/visualMeasures.ts` | The drafted visual measures for the Site Plan and Logging Plan (pure) |
 | `src/pages/dev-forestry/WildlifeTreePatchPanel.tsx` | Step 3's *Draw a wildlife tree patch* and the patches in the scene |
 | `src/pages/dev-forestry/viewpointInventory.ts`, `ViewpointFinderPanel.tsx` | VLI viewpoints and arrows, rec sites, screenings and tenure road names around a block |
@@ -3444,7 +3657,14 @@ viewpoints — which saves a second trip to the field.
   block's views of interest (a view's capture is the view, not a second row),
   each other saved view on this road at its position along it, and views saved
   while standing elsewhere (no position on this road), each with latitude/longitude, the
-  bearing to face and *Reachable / Not reachable* tick boxes; up to three of
+  bearing to face and *Reachable / Not reachable* tick boxes. Each printed
+  latitude/longitude is a PDF link (`mapsLinkUrl`) over the coordinate as
+  printed, with no border, so the page prints as before and a crew member
+  reading it on a phone opens the place in a maps app: Google Maps' documented
+  cross-platform search address (`api=1`, `query=lat,long`), which opens the
+  installed maps app or the web map, needs no account and carries only the
+  coordinate (a `geo:` address does nothing on iOS and is refused by many PDF
+  readers). Then up to three of
   the saved views' screenshots (taken at *Save viewpoint*), numbered as their
   rows. *What to look for* prompts strategic WTP placement, leave trees,
   natural boundary shapes, skyline notches and edge feathering, plus a line

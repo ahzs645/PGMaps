@@ -103,6 +103,7 @@ export type ExchangeFormat =
   | 'mapx'
   | 'pagx'
   | 'stylx'
+  | 'kml'
 
 export interface ExchangeDiagnostic {
   severity: 'info' | 'warning' | 'error'

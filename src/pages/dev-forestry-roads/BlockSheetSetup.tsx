@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { readLogoFile } from '@/branding/logoFile'
 import { saveUploadedLogo } from '@/branding/store'
 import { useBranding } from '@/branding/useBranding'
+import { MapSheetOutput } from '@/components/ui/map-sheet-output'
 import { MapSheetSetup, type MapSheetField } from '@/components/ui/map-sheet-setup'
 import { blockFacts } from '@/lib/forestry/blockSheet/blockFacts'
 import { sheetSetupFields } from '@/lib/forestry/blockSheet/setupFields'
@@ -15,6 +16,7 @@ import {
   changeBlockSheetSettings,
   DEFAULT_BLOCK_SHEET,
   parseBlockSheetSettings,
+  seriesBlocks,
   SHEET_SYMBOL_CHOICES,
   type BlockSheetSettings,
 } from './blockSheet'
@@ -43,6 +45,8 @@ function stored(): BlockSheetSettings {
  * and report (`saveUploadedLogo`), never in the project file. Returns the settings, the canopy surface and the setup form.
  * With *Map style* on *My saved styles* the form also holds the style library, where each feature's
  * style is chosen; `onStyleLibraryChange` lets the page rebuild the sheet's preview after an edit there.
+ * Under it, *File* (`MapSheetOutput`) chooses the format, one sheet per block and the mask; those
+ * choices are kept with the rest in this browser, never in the project.
  */
 export function useBlockSheet(project: RoadProject, terrain: TerrainSource | null, onStyleLibraryChange?: () => void) {
   const [settings, setSettings] = useState<BlockSheetSettings>(stored)
@@ -81,6 +85,7 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
     }
   }, [project.terrain])
   const blocks = useMemo(() => blockChoices(project), [project])
+  const series = useMemo(() => seriesBlocks(project), [project])
   // A stored block that is not in this project falls back to the first one.
   const block = blocks.some((entry) => entry.value === settings.block) ? settings.block : (blocks[0]?.value ?? '')
   const effective = useMemo(() => ({ ...settings, block }), [settings, block])
@@ -148,6 +153,15 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
         </p>
       )}
       {effective.symbols === 'library' && <StyleLibraryPanel onChange={onStyleLibraryChange} />}
+      <section aria-label="File" className="grid gap-2 border-t pt-3">
+        <h4 className="text-xs font-semibold">File</h4>
+        <MapSheetOutput
+          value={effective.output}
+          onChange={(output) => setSettings({ ...effective, output })}
+          blocks={series}
+          mask={blocks.length > 0}
+        />
+      </section>
       {gallery &&
         (gallery.startsWith('/') ? (
           <Link
@@ -172,5 +186,5 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
   )
   /** Replaces the settings, e.g. from a saved sheet setup (`SheetSetupLibrary.tsx`). */
   const apply = (next: BlockSheetSettings) => setSettings(parseBlockSheetSettings(next))
-  return { settings: effective, canopy, logo: logo?.image, setup, apply }
+  return { settings: effective, canopy, logo: logo?.image, setup, apply, blocks, seriesBlocks: series }
 }

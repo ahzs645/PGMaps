@@ -1,8 +1,9 @@
 # Block map sheets
 
-A block map sheet is a printed PDF of one harvest block: a map frame at a stated scale, a title
+A block map sheet is a printed sheet of one harvest block: a map frame at a stated scale, a title
 bar, block information, a legend that lists only what is drawn, a scale bar, a north arrow and a
-footer. Six presets reproduce the layout and symbology of a set of ArcGIS Pro block-map sheets
+footer. It is written as a PDF, an editable SVG or a PNG ([Formats](#formats)), one block at a time
+or as a series of one sheet per block ([Sheet series](#sheet-series)). Six presets reproduce the layout and symbology of a set of ArcGIS Pro block-map sheets
 (field layout, three LiDAR design sheets, a 1:50,000 access sheet and a portrait imagery sheet).
 An additional **Ministry-style Operating Plan** preset uses a measured 36 × 29-inch landscape
 layout with a white right-hand column, two-column legend and project locator.
@@ -10,7 +11,7 @@ No licensee names or logos come with them; a user can add one logo of their own.
 branding store (IndexedDB) and used by every sheet and report, never in a project file; without one, the brand
 selected in Branding supplies its logo.
 
-The road design tool offers it as **Files → Project & exports → Block map sheet**, and the visual
+The road design tool offers it as **Save & export → Block map sheet** ([In the road designer](#in-the-road-designer)), and the visual
 quality page as **Save & export → Block map sheet** ([On the visual quality page](#on-the-visual-quality-page)).
 Both print through one builder, so a sheet type is the same sheet in either. The engine is generic and
 other tools can adopt it; see [Adopting it in another tool](#adopting-it-in-another-tool).
@@ -23,6 +24,8 @@ other tools can adopt it; see [Adopting it in another tool](#adopting-it-in-anot
 | Fixed-interval contours  | `src/lib/mapSheet/contours.ts`                                          | None                                        |
 | Text widths              | `src/lib/mapSheet/textMetrics.ts`                                       | None                                        |
 | PDF and SVG renderers    | `src/lib/mapSheet/renderPdf.ts`, `renderSvg.ts`                         | None (jsPDF is passed in)                   |
+| Formats, file writer     | `src/lib/mapSheet/sheetFormats.ts`; `sheetFileDeps.ts`                  | None (jsPDF, rasteriser passed in); `sheetFileDeps.ts` browser |
+| Sheet series             | `src/lib/forestry/blockSheet/sheetSeries.ts`                            | None (jsPDF, rasteriser passed in; fflate)  |
 | PNG encoder              | `src/lib/mapSheet/png.ts`                                               | None (`CompressionStream`)                  |
 | Imagery capture          | `src/lib/mapSheet/printCapture.ts`                                      | Browser: hidden MapLibre map, tile requests |
 | Symbol model and drawing | `src/lib/mapSheet/symbols.ts`, `icons.ts`                               | None                                        |
@@ -37,6 +40,7 @@ other tools can adopt it; see [Adopting it in another tool](#adopting-it-in-anot
 | Shared sheet run         | `src/lib/forestry/blockSheet/buildSheet.ts`, `setupFields.ts`           | None (slice runner and imagery passed in)   |
 | Operating-plan panels    | `src/lib/forestry/blockSheet/operatingPlanPanels.ts`                    | None                                        |
 | Setup form               | `src/components/ui/map-sheet-setup.tsx`                                 | React                                       |
+| Output form              | `src/components/ui/map-sheet-output.tsx`                                | React                                       |
 | Road tool adapter        | `src/pages/dev-forestry-roads/blockSheet.ts`, `BlockSheetSetup.tsx`     | Loads capture and jsPDF on demand           |
 | Visual quality adapter   | `src/pages/dev-forestry/visualsBlockSheet.ts`, `visualsBlockSheetPdf.ts`, `VisualsBlockSheetSetup.tsx` | Module none; the PDF writer reads terrain tiles |
 | Road plan sheet symbols  | `src/pages/dev-forestry-roads/planSheetSymbols.ts`, `PlanView.tsx`      | Module none; the plan adds the layers       |
@@ -343,6 +347,140 @@ is printed on it.
   Forest District prints the FS1252 office field.
 - **Terrain that does not load** leaves a contour sheet without contours or block elevations, said
   beside the saved file; a slope or hillshade sheet is refused, since the terrain is the sheet.
+- **Every format, the series and the mask.** The dialog's format chips choose PDF (unchanged, the
+  default, no brand fonts), SVG or PNG and are stored with the sheet's other settings
+  (`VisualsSheetSettings.output`); **File** under the sheet's options is `MapSheetOutput` with
+  `showFormat={false}`, so the format is chosen in one place. `writeVisualsSheet` (DOM-free; jsPDF
+  or the rasteriser passed in by `visualsBlockSheetPdf.ts`) writes one sheet through `sheetFile` or
+  a series through `writeSheetSeries`. _What goes in_ lists the file from the same plan
+  (`visualsSheetOutputPlan`, `visualsSheetFileRows`): format, pages and container, blocks in order,
+  ZIP file names, mask and terrain read.
+- **The series' blocks are the scene's proposed blocks** (`visualsSeriesBlocks`, in the scene's
+  order; a block's imported planning ids fill `{attr:BLOCK}`, `{attr:FL}`, `{attr:CP}` and
+  `{attr:OPENING}`). Each page is the same run framed on its block, its typed fields and comments
+  filled for it (`visualsSeriesPageRun`). With one block in the scene there is no series.
+- **Blocks chosen earlier and gone are left out, never replaced.** The list of chosen ids is this
+  browser's; ids the scene does not have are dropped from the series and counted in _What goes in_,
+  and kept in the list until the blocks are ticked again. With every chosen block gone, nothing is
+  written and the dialog says why.
+- **A series reads terrain per sheet**: up to `SHEET_DEM_TILE_BUDGET` (64) tiles a sheet, so up to
+  64 × N for N sheets, and the imagery sheet captures its imagery once a sheet. Sheets are made one
+  after another with progress; _Stop_ or closing the dialog cancels. A sheet that cannot be made is
+  left out by name, said beside the saved file and in a ZIP's `notes.txt`.
+- **The preview of a series is its first sheet**, in the page's format and marked as such; Download
+  makes every sheet. A single sheet's preview is the downloaded file itself.
+- **Copy image** sits beside Download once a single sheet's preview is current, and copies that
+  drawn sheet as a PNG at `SHEET_PNG_DPI` without building it again. A series offers none.
+
+## In the road designer
+
+**Save & export → Block map sheet** (`blockSheet.ts`, `BlockSheetSetup.tsx`) offers every format,
+the series and the mask under **File** in its Sheet setup (`MapSheetOutput`); the details are in the
+road design guide's
+[Block map sheet](forestry-road-design/exports-and-project-files.md#block-map-sheet).
+
+- **A default sheet is the same file as before:** one PDF goes through `blockSheetPdf`; SVG, PNG and
+  series go through `sheetFile` and `writeSheetSeries` (`blockSheetFile`, `blockSheetSeries`).
+- **The series' blocks are the sheet's own list** (`seriesBlocks`: harvest areas and imported
+  reference areas, with their attributes for `{attr:FIELD}`). Each page is the same run framed on its
+  block (`seriesPageRun`).
+- **The File choices are this browser's,** kept with the rest of the sheet's settings. A saved sheet
+  setup keeps them without the blocks a series takes, which belong to the project.
+- **The mask is the export's only.** The report package's block sheets are built without it.
+- **Copy image** on the preview builds the sheet in full and copies it as a PNG at `SHEET_PNG_DPI`.
+
+## Formats
+
+`sheetFile(sheet, format, deps)` (`src/lib/mapSheet/sheetFormats.ts`) writes a composed sheet as
+one file; `SHEET_FORMAT_INFO` gives each format's label, extension and MIME type. Raw rasters are
+encoded as PNG first (`encodeSheetImages`), so a `ComposedSheet` goes in as `buildSheet` returned
+it. jsPDF and the PNG rasteriser are passed in; `browserSheetFileDeps(format)` (`sheetFileDeps.ts`,
+browser only) loads what the chosen format needs.
+
+| Format | What is vector                                                                      | What is a picture                                                    | Needs           |
+| ------ | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------- | --------------- |
+| PDF    | Frames, symbols, hatches, contours, text with halos                                  | The terrain base (slope, canopy height, hillshade), imagery, the logo | `deps.jspdf`    |
+| SVG    | The same: text stays `<text>`, lines and fills stay `<path>`, `<rect>`, `<circle>`  | The same rasters, embedded as PNG (or the logo's JPEG) data URLs      | Nothing         |
+| PNG    | Nothing: the SVG drawn on a canvas at `SHEET_PNG_DPI` (150 dpi)                     | The whole sheet                                                      | `deps.rasterise` |
+
+**The SVG is a standalone file** for Inkscape and Illustrator (`standaloneSheetSvg`, `renderSvg.ts`):
+an XML declaration; `width` and `height` in points (`1224pt` × `792pt` for tabloid) with a matching
+`viewBox`, so one unit is one point; `xml:space="preserve"`; `xmlns` and `xmlns:xlink`; a `<title>`;
+the map frame as a `clipPath` group. Text names its fonts plainly (Helvetica, Arial, sans-serif; Times
+New Roman for the graticule), never through a CSS variable, and a label centred on its line is moved
+down by `SVG_MIDDLE_BASELINE_EM` rather than set with `dominant-baseline`, which Illustrator ignores.
+A haloed label is two `<text>` elements, the halo first. Nothing outside the file is referenced: an
+image that is not a data URL is refused, and characters XML cannot hold are dropped. The in-app
+preview (`sheetSvg`) is unchanged.
+
+- **Brand fonts reach the PDF only.** `deps.configurePdf` is called once on each new document (the
+  road designer passes `configurePdfBrand`); the SVG and PNG print Helvetica.
+- **The PNG is a picture of the SVG**, so it shows exactly what the SVG and the PDF show; above
+  `MAX_SHEET_PNG_SIDE` (8,192 px) its resolution is lowered to fit. The rasters inside it keep the
+  resolution they were sampled at (150 dpi terrain, 200 dpi imagery).
+
+## Sheet series
+
+A series is one sheet per block (`src/lib/forestry/blockSheet/sheetSeries.ts`), as a GIS atlas or
+map series prints one page per feature. The tool lists its blocks (`SheetSeriesBlock`: an id, the
+name printed and attributes); the person picks which (`'all'`, which takes in blocks added later, or a
+list of ids) and the order: **As listed** (the tool's order) or **By name**, read as people read it
+("Block 2" before "Block 10", case ignored).
+
+`writeSheetSeries({ blocks, settings, build, deps, signal, onProgress })` builds the pages one after
+another through the tool's own `build(page)` (its `buildSheet` call framed on that page's block),
+reports progress page by page, stops on Cancel, and writes:
+
+| Format | Written as                                                                                    |
+| ------ | --------------------------------------------------------------------------------------------- |
+| PDF    | One PDF, a page a block (each page keeps its own paper size); or, if asked, a ZIP of one PDF a block |
+| SVG    | A ZIP of one standalone SVG a block                                                            |
+| PNG    | A ZIP of one PNG a block                                                                       |
+
+Only one page's drawing is held at a time: each page is encoded and written before the next is built.
+
+**A page that cannot be built is left out by name, never silently.** Its block and reason go in the
+result's `leftOut` and `notes`, and in a ZIP's `notes.txt` (`SERIES_NOTES_FILE`) with every sentence a
+written page was drawn without (`BuiltSheet.missing`, under the page's name). One block without terrain
+or canopy should not cost the other forty pages of a long series; the tool shows the notes beside
+the saved file. Cancel stops the whole series, and a series where no page could be built is an error
+that names each page and its reason.
+
+**Tokens.** A file name pattern, and in a series any typed field of the sheet (`fillSeriesFields`),
+can hold:
+
+| Token          | Becomes                                                                     |
+| -------------- | --------------------------------------------------------------------------- |
+| `{name}`       | The block's name                                                            |
+| `{page}`       | The page number, from 1                                                     |
+| `{total}`      | How many pages the series has                                               |
+| `{attr:FIELD}` | The block's `FIELD` attribute (case ignored when no exact match), e.g. `{attr:CP}` |
+
+Token names ignore case. A token PGMaps does not know, and an attribute the block does not have,
+stay as typed, so a typo shows on the sheet rather than vanishing; the form lists them under the
+pattern (`unfilledSeriesTokens`). An attribute the block has but leaves blank fills in empty. A typed
+field without a token prints the same on every page: in a series, type `{name}` (or leave Block ID
+blank, which falls back to each block's name).
+
+**File names** (`seriesFileNames`): the pattern (default `{page}-{name}`) filled for each page, then
+made safe on Windows, macOS and Linux (letters, digits, `.`, `_`, `-`, `(`, `)`, `+`; spaces and
+anything else become `-`; no leading or trailing dot; a reserved device name such as `CON` gains `_`;
+at most `MAX_SERIES_FILE_NAME_LENGTH` characters), falling back to `sheet-N`. Two pages whose names
+match the way a file system compares them (case ignored) get `-2`, `-3`, … so none overwrites another
+when the ZIP is unpacked.
+
+## Mask outside the block
+
+`maskOutsideBlock` (`ComposeInput`, `SheetBuild`; **Dim the map outside the block** in the output
+form) lays white at 0.6 (`OUTSIDE_BLOCK_MASK`) over the map frame outside the block of interest:
+over the base, contours, constraints, other blocks, streams and roads, under the block's own outline,
+its label, the point symbols, the review markup and the sheet furniture. It is one even-odd path,
+the frame's ring with the block's rings cut out, so a hole in the block is dimmed too. It is off by
+default, and a sheet with no block (framed on its roads) is never dimmed.
+
+A masked sheet says so once (`MASK_NOTE`, "Map dimmed outside the block"): first in the source bar on
+the sheets that have one (the LiDAR sheets and the operating plan), else in the footer's map note
+after "North up, Web Mercator". The legend gains no row: the mask is not a map feature.
 
 ## Symbol gallery
 
@@ -351,8 +489,8 @@ is printed on it.
 - **Sheet presets**: each preset at 1:5,000, 1:10,000, 1:20,000 and 1:50,000 on tabloid, and on
   letter, A3 and A4 at its default scale, drawn from the synthetic fixtures (`galleryLayers`) through
   the real composer and SVG renderer. Previews draw when scrolled into view, one at a time; each card
-  downloads its PDF (terrain at 150 dpi) and PNG (100 dpi, 2 px a point). The imagery sheet uses a
-  synthetic stand-in, so the gallery needs no network.
+  downloads its PDF, SVG and PNG through `sheetFile`, the tools' own writer (terrain at 150 dpi). The
+  imagery sheet uses a synthetic stand-in, so the gallery needs no network.
 - **Symbols**: every catalogue symbol in its group, drawn on a sample shape at twice print size, its
   legend swatch and, for patterned areas, the map's pattern tile, beside the source values and the
   data it comes from.
@@ -405,6 +543,10 @@ falls in the cell north or east of it.
 | Map pattern spacing error   | 2 %                                            | `symbolRaster.ts`, `PATTERN_TILE_TOLERANCE`                                     | A larger tile with more periods is tried                   |
 | Points to screen pixels     | 96/72                                          | `symbolRaster.ts`, `PX_PER_PT`                                                  | —                                                          |
 | PNG sheet                   | 8,192 pixels on the longest side               | `sheetPng.ts`, `MAX_SHEET_PNG_SIDE`                                             | Pixels per point lowered to fit                            |
+| PNG sheet resolution        | 150 dpi (150/72 px a point)                    | `sheetFormats.ts`, `SHEET_PNG_DPI`                                              | —                                                          |
+| Sheets in one series        | 50                                             | `sheetSeries.ts`, `MAX_SHEET_SERIES_PAGES`                                      | Refused before any page is built: "Choose fewer blocks"    |
+| Series file name            | 100 characters before the extension            | `sheetSeries.ts`, `MAX_SERIES_FILE_NAME_LENGTH`                                 | Cut                                                        |
+| Outside-block mask          | White at 0.6                                   | `styles.ts`, `OUTSIDE_BLOCK_MASK`                                               | —                                                          |
 | Terrain tiles (visual quality sheet) | 64 a sheet                            | `src/pages/dev-forestry/visualsBlockSheet.ts`, `SHEET_DEM_TILE_BUDGET`          | A coarser zoom is read, down to zoom 10                    |
 
 ## Built-in assumptions
@@ -457,9 +599,13 @@ falls in the cell north or east of it.
    slice runner, so Cancel works) with any `ElevationSource`, takes the imagery through
    `captureImagery` (`captureBasemap(IMAGERY_BASEMAP, …)`) for the imagery preset, and composes the
    sheet. `symbols` is the tool's map style, when it has one ([Choosing a map style](#choosing-a-map-style)).
-4. `encodeSheetImages(ops)` and `drawSheetPdf` (or `sheetSvg` for a preview).
+4. `sheetFile(built.sheet, format, await browserSheetFileDeps(format))` for the file
+   ([Formats](#formats)), or `encodeSheetImages(ops)` and `sheetSvg` for a preview. For a series,
+   `writeSheetSeries` with the tool's blocks and a `build` that runs step 3 for each page
+   ([Sheet series](#sheet-series)).
 5. Offer `MapSheetSetup` for the choices, with the tool's own `kinds` and `areas`, the fields from
-   `sheetSetupFields(kind, facts)` and, when the tool has more than one look, `styles`.
+   `sheetSetupFields(kind, facts)` and, when the tool has more than one look, `styles`; and
+   `MapSheetOutput` beside it for the format, the series and the mask.
 
 The road designer (`blockSheet.ts`) and the visual quality page (`visualsBlockSheet.ts`) are the two
 adapters to read.

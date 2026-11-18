@@ -70,6 +70,14 @@ import { lensHfovDeg, viewCaptureKey, type ViewOfInterest } from './dev-forestry
 import { AssessFromView } from './dev-forestry/AssessFromView'
 import { useViewCapture, type ViewCaptureHost, type ViewSaveOutcome } from './dev-forestry/useViewCapture'
 import {
+  browserVideoFormat,
+  roadVideoFrame,
+  useRoadVideo,
+  type RoadVideoDrive,
+  type RoadVideoHost,
+} from './dev-forestry/useRoadVideo'
+import { roadVideoViews, type RoadVideoScene } from './dev-forestry/roadVideo'
+import {
   MAX_SAVED_VIEWS,
   figurePlanFor,
   lensApplied,
@@ -427,6 +435,8 @@ import { bearingDegrees, lineLengthMeters, polygonAreaMeters, polygonBounds } fr
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 import { useOfflineTool } from '@/lib/offline/offlineTools'
 import { keptCopySource } from '@/lib/offline/keptReads'
+/** The look a road view video's take starts each placement with: no yaw or tilt of the reviewer's on top. */
+const VIDEO_LOOK = { yaw: 0, tilt: 0 }
 const NO_TARGETS: TargetPolygon[] = []
 const NO_CANDIDATES: ViewpointCandidate[] = []
 
@@ -733,6 +743,29 @@ function DevForestryVisuals() {
   const [showInventory, setShowInventory] = useState(true)
   const [driveStationIndex, setDriveStationIndex] = useState(0)
   const [seekVersion, setSeekVersion] = useState(0)
+  // A road view video's take (`useRoadVideo.ts`) borrows the drive camera: while set, `DriveCamera` takes the take's
+  // place, playing, speed, facing and lens in place of the reviewer's (`drive` is never written), and the reviewer's
+  // place on the road is not overwritten by the take's pose reports. Handing it back (null) seeks the camera to the
+  // reviewer's place again with the look they had, and their lens and field of view return with their own props.
+  const [videoDrive, setVideoDrive] = useState<RoadVideoDrive | null>(null)
+  const videoDriveRef = useRef<RoadVideoDrive | null>(null)
+  const videoLookBack = useRef<{ yaw: number; tilt: number } | null>(null)
+  // After a take, pose reports still on the take's road position (a frame drawn before the seek back) are not the
+  // reviewer's: they are kept out of `drive.positionMeters` until the camera is back, or for 2 s at most.
+  const videoReturn = useRef<{ meters: number; until: number } | null>(null)
+  const driveForVideo = useCallback((next: RoadVideoDrive | null) => {
+    const previous = videoDriveRef.current
+    if (!next && !previous) return
+    if (next && !previous) videoLookBack.current = { ...cameraLook.current }
+    videoDriveRef.current = next
+    setVideoDrive(next)
+    if (!next) {
+      if (videoLookBack.current) setRestoreLook(videoLookBack.current)
+      videoLookBack.current = null
+      videoReturn.current = { meters: driveRef.current.positionMeters, until: performance.now() + 2000 }
+      setSeekVersion((version) => version + 1)
+    } else if (!previous || previous.serial !== next.serial) setSeekVersion((version) => version + 1)
+  }, [])
   const [snapMessage, setSnapMessage] = useState<string | null>(null)
   const [forestStatus, setForestStatus] = useState<ForestStatus | null>(null)
   // The roads the last reverse run was scored against, so a result can be
@@ -4896,6 +4929,8 @@ function DevForestryVisuals() {
       }
     },
     stand: (view, options) => {
+      // A video's take holds the drive camera: standing elsewhere would move it under the recording.
+      if (videoDriveRef.current) return { error: 'A road view video is being recorded: try again once it ends.' }
       const block = scene.targets.find((target) => target.id === view.blockId && target.role === 'block')
       if (!block) return { error: 'Its block is no longer in the scene.' }
       if (view.landformId && !scene.targets.some((t) => t.id === view.landformId && t.role === 'landscape'))
@@ -5062,13 +5097,6 @@ function DevForestryVisuals() {
         'Terrain: the road view’s drawn ground (AWS Open Data CDEM/SRTM). Trees: VRI where recorded, the regional stand elsewhere.',
       ],
     })
-  }
-  const scenePackageFile = (): BuiltFile => {
-    const scenePackage = currentScenePackage()
-    return {
-      blob: new Blob([JSON.stringify(scenePackage)], { type: 'application/json' }),
-      fileName: 'forestry-scene-package.json',
-    }
   }
   const reopenPreviousPreview = () => {
     projectRequest.current += 1
@@ -6029,7 +6057,72 @@ function DevForestryVisuals() {
       />
     ) : null
 
+  // The road view video (Save & export): the take borrows the drive camera through this host, rebuilt each render so
+  // each step reads the page as it is now. It never stands at a view through the stand-at action, which would run the
+  // assessment there.
+  const roadVideoHostRef = useRef<RoadVideoHost | null>(null)
+  roadVideoHostRef.current = {
+    eyeMap: () =>
+      drive.active && !preliminaryDrive ? (eyeMapRef.current as unknown as import('maplibre-gl').Map | null) : null,
+    pose: () => drivePoseRef.current,
+    placed: () => cameraStatus === 'ready' && (!drive.forest || !!currentForestStatus?.nearbyReady),
+    drive: driveForVideo,
+  }
+  const roadVideo = useRoadVideo(roadVideoHostRef)
+  const videoFormat = useMemo(() => browserVideoFormat(), [])
+  /** The scene as a video's take reads it; called only while Save & export is open. */
+  const roadVideoScene = (): RoadVideoScene => {
+    const eyeMap = eyeMapRef.current as unknown as import('maplibre-gl').Map | null
+    const ground = previewTerrain.source
+    const open = drive.active && !preliminaryDrive && !!eyeMap
+    const spot = activeRouteLength <= 2 * PULLOUT_METERS
+    const faced = drive.lookAtTargetId
+      ? (scene.targets.find((target) => target.id === drive.lookAtTargetId)?.name ?? 'the block')
+      : drive.lookBearing !== null
+        ? `${Math.round(wrapBearing(drive.lookBearing))}°`
+        : null
+    return {
+      road: result && !spot ? { name: scene.viewpoint.name || 'The road', lengthMeters: activeRouteLength } : null,
+      roadAbsent: !result
+        ? 'Run the assessment and open the road view: the video drives the assessed road.'
+        : 'The road view stands at one spot, a viewpoint’s pull-out: there is no road to drive. Film the views instead.',
+      facingNow: faced,
+      // Before the road view has its ground, every view reads as placeable: the road view's own reason says why
+      // nothing can be recorded yet.
+      views: roadVideoViews(
+        viewsOfInterest,
+        scene.targets.filter((target) => target.role === 'block'),
+        ground ? (lng, lat) => ground.elevationAt(lng, lat) : () => 0,
+      ),
+      harvestPhase: drive.harvestPhase,
+      renderer: { id: drive.renderer, label: roadRendererInfo(drive.renderer).label },
+      roadView: !drive.active
+        ? 'Open the road view and let its terrain load first: the video records it.'
+        : preliminaryDrive
+          ? 'The road view is showing the route before an assessment: run the assessment, then open the road view on the assessed road.'
+          : !eyeMap
+            ? 'Show the road view’s pane: the video records it.'
+            : !ground
+              ? 'The road view’s terrain is still loading.'
+              : cameraStatus !== 'ready'
+                ? 'The road view’s camera is not placed yet: its terrain is still loading.'
+                : null,
+      frame: open ? roadVideoFrame(eyeMap) : null,
+      format: videoFormat,
+      look: [
+        { label: 'Drawn timber', value: drive.forest ? 'On, drawn to the inventory' : 'Off: bare ground' },
+        { label: 'Imagery', value: drive.imagery ? 'Satellite imagery on the ground' : 'Off' },
+        { label: 'Analysis colours', value: drive.showAnalysis ? 'On' : 'Off' },
+        { label: 'Haze', value: drive.haze ? 'On' : 'Off' },
+        ...(drive.movingResolution === 'reduced'
+          ? [{ label: 'Resolution', value: 'Lower while moving (View options), full while still' }]
+          : []),
+      ],
+    }
+  }
+
   const exportDialog = useVisualsExport({
+    roadVideo: { scene: roadVideoScene, api: roadVideo },
     opener: exportOpener,
     siteLandform,
     ownPhotos: {
@@ -6084,7 +6177,7 @@ function DevForestryVisuals() {
     onStandAt: (candidate, block) => handleUseViewpoint(candidate, null, block),
     onOpenRoadView: () => openPreview(),
     worksheet: worksheetFile,
-    scenePackage: { ready: drive.active && !!previewTerrain.source && !!driveEye, build: scenePackageFile },
+    scenePackage: { ready: drive.active && !!previewTerrain.source && !!driveEye, build: () => currentScenePackage() },
     project: { build: buildProjectFile },
     evidence: tools.evidence,
     renders: {
@@ -7815,51 +7908,90 @@ function DevForestryVisuals() {
                                     }
                                     preliminary={preliminaryDrive}
                                     spot={!preliminaryDrive && activeRouteLength <= 2 * PULLOUT_METERS}
-                                    restoredLook={restoreLook}
+                                    restoredLook={videoDrive ? VIDEO_LOOK : restoreLook}
                                     onLookChange={(look) => {
                                       cameraLook.current = look
                                     }}
                                     onStatusChange={setCameraStatus}
-                                    onSlowFrames={drive.quality === 'auto' ? () => setLowFrameRate(true) : undefined}
+                                    // A take never lowers the drawing quality under itself.
+                                    onSlowFrames={
+                                      drive.quality === 'auto' && !videoDrive ? () => setLowFrameRate(true) : undefined
+                                    }
                                     forestReady={!drive.forest || !!currentForestStatus?.nearbyReady}
                                     routeLengthMeters={activeRouteLength}
                                     onSeek={(distance) => updateDrive({ positionMeters: distance, playing: false })}
                                     speedKmh={drive.speedKmh}
                                     onSpeedChange={(speedKmh) => updateDrive({ speedKmh })}
                                     fixedLook={
-                                      photoLook ??
-                                      (photoStandNow
-                                        ? {
-                                            bearing: photoStandNow.bearing,
-                                            pitch: photoStandNow.pitch,
-                                            roll: photoStandNow.roll,
-                                          }
-                                        : null)
+                                      videoDrive
+                                        ? videoDrive.kind === 'view'
+                                          ? {
+                                              bearing: videoDrive.bearing,
+                                              pitch: videoDrive.pitch,
+                                              roll: videoDrive.roll,
+                                            }
+                                          : null
+                                        : (photoLook ??
+                                          (photoStandNow
+                                            ? {
+                                                bearing: photoStandNow.bearing,
+                                                pitch: photoStandNow.pitch,
+                                                roll: photoStandNow.roll,
+                                              }
+                                            : null))
                                     }
-                                    verticalFovDegrees={photoLook ? fieldPhoto.viewFov : null}
-                                    horizontalFovDegrees={roadViewHfov}
-                                    standAt={photoLook ? fieldPhoto.standAt : null}
+                                    verticalFovDegrees={!videoDrive && photoLook ? fieldPhoto.viewFov : null}
+                                    horizontalFovDegrees={videoDrive?.kind === 'view' ? videoDrive.hfov : roadViewHfov}
+                                    standAt={
+                                      videoDrive
+                                        ? videoDrive.kind === 'view'
+                                          ? { lng: videoDrive.lng, lat: videoDrive.lat }
+                                          : null
+                                        : photoLook
+                                          ? fieldPhoto.standAt
+                                          : null
+                                    }
                                     elevation={previewTerrain.source}
                                     active={drive.active}
-                                    playing={drive.playing}
+                                    playing={
+                                      videoDrive ? videoDrive.kind === 'road' && videoDrive.playing : drive.playing
+                                    }
                                     stations={activeStations}
                                     roadCoordinates={
                                       preliminaryDrive
                                         ? scene.viewpoint.coordinates
                                         : result?.inputSnapshot?.viewpoint.coordinates
                                     }
-                                    seekMeters={drive.positionMeters}
+                                    seekMeters={
+                                      videoDrive?.kind === 'road' ? videoDrive.fromMeters : drive.positionMeters
+                                    }
                                     seekVersion={seekVersion}
-                                    speedMetersPerSecond={(drive.speedKmh * 1000) / 3600}
+                                    speedMetersPerSecond={
+                                      videoDrive?.kind === 'road'
+                                        ? videoDrive.speedMetersPerSecond
+                                        : (drive.speedKmh * 1000) / 3600
+                                    }
                                     eyeHeightMeters={
                                       preliminaryDrive
                                         ? 150
-                                        : ((photoLook ? fieldPhoto.standEyeHeightMeters : null) ??
+                                        : ((photoLook && !videoDrive ? fieldPhoto.standEyeHeightMeters : null) ??
                                           result?.settings.observerHeightMeters ??
                                           scene.settings.observerHeightMeters)
                                     }
-                                    surveyedEye={preliminaryDrive || photoLook ? null : surveyedEye}
-                                    lookAt={preliminaryDrive ? null : lookAtTarget}
+                                    surveyedEye={
+                                      preliminaryDrive || (photoLook && !videoDrive) || videoDrive?.kind === 'view'
+                                        ? null
+                                        : surveyedEye
+                                    }
+                                    lookAt={
+                                      preliminaryDrive
+                                        ? null
+                                        : videoDrive
+                                          ? videoDrive.kind === 'road' && videoDrive.facing === 'view'
+                                            ? lookAtTarget
+                                            : null
+                                          : lookAtTarget
+                                    }
                                     spotBearing={spotBearing}
                                     onPosition={(pose) => {
                                       drivePoseRef.current = pose
@@ -7892,16 +8024,29 @@ function DevForestryVisuals() {
                                         )
                                         setViewerFov((current) => (current === fov ? current : fov))
                                       }
-                                      setDrive((current) =>
-                                        Math.abs(current.positionMeters - distanceMeters) < 0.0001
-                                          ? current
-                                          : { ...current, positionMeters: distanceMeters },
+                                      // A video's take drives the camera without moving the reviewer's place, and its last
+                                      // reports before the camera is back are not the reviewer's either.
+                                      const back = videoReturn.current
+                                      if (
+                                        back &&
+                                        (Math.abs(distanceMeters - back.meters) < 0.5 || performance.now() > back.until)
                                       )
+                                        videoReturn.current = null
+                                      if (!videoDriveRef.current && !videoReturn.current)
+                                        setDrive((current) =>
+                                          Math.abs(current.positionMeters - distanceMeters) < 0.0001
+                                            ? current
+                                            : { ...current, positionMeters: distanceMeters },
+                                        )
                                     }}
                                     onPause={() => setDrive((current) => ({ ...current, playing: false }))}
                                     onPlay={() => setDrive((current) => ({ ...current, playing: true }))}
                                     onExit={leaveRoadView}
-                                    onReachEnd={() => setDrive((current) => ({ ...current, playing: false }))}
+                                    onReachEnd={() => {
+                                      // A take's own drive ends where its stretch does; the reviewer's stays as it was.
+                                      if (!videoDriveRef.current)
+                                        setDrive((current) => ({ ...current, playing: false }))
+                                    }}
                                   />
                                 )}
                               </>

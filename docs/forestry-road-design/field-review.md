@@ -50,7 +50,9 @@ The button downloads two files built from the same issue:
 
 The PDF is made from the plan map. The plan is turned north-up and flat (pitch and roll 0, any 3D
 terrain off), framed, captured and put back in a `finally`. A globe projection is refused rather
-than registered. A downloaded issue can be downloaded again from its row; removing an issue keeps
+than registered. The capture is `withNorthUpPlan` (`planCapture.ts`), the same path a framed Map
+PDF takes ([Map PDF](exports-and-project-files.md#map-pdf)); the field pack keeps the plan's own
+pixel ratio and composes at twice CSS size, as it always did. A downloaded issue can be downloaded again from its row; removing an issue keeps
 its observations and clears their match.
 
 ## Import observations

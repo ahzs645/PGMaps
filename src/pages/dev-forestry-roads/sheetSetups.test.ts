@@ -45,6 +45,8 @@ describe('sheet setups', () => {
       paper: 'ansi-d',
       scale: 5000,
       fields: { forestLicence: 'A12345', cuttingPermit: '123' },
+      // How the sheet is written is an office standard; the blocks a series takes are not kept.
+      output: { format: 'pdf', series: false, order: 'listed', fileName: '{page}-{name}', bundle: 'pdf', mask: false },
     })
     expect(JSON.stringify(setup)).not.toContain('block-7')
     expect(JSON.stringify(setup)).not.toContain('Gate')
@@ -80,6 +82,49 @@ describe('sheet setups', () => {
     const applied = applySheetSetup(setup, { blockSheet: here })
     expect(applied.plotBook).toBeUndefined()
     expect(applied.blockSheet).toEqual({ ...blockSheet, block: 'reference:r1', comments: 'Here' })
+  })
+
+  it('keeps the format, series, file names and mask, never the blocks a series takes', () => {
+    const output = {
+      format: 'svg' as const,
+      series: true,
+      blocks: ['context:block-7', 'reference:r9'],
+      order: 'name' as const,
+      fileName: '{attr:CP}-{name}',
+      bundle: 'zip' as const,
+      mask: true,
+    }
+    const setup = createSheetSetup('Series', { blockSheet: { ...blockSheet, output } }, today)
+    expect(setup.blockSheet?.output).toEqual({
+      format: 'svg',
+      series: true,
+      order: 'name',
+      fileName: '{attr:CP}-{name}',
+      bundle: 'zip',
+      mask: true,
+    })
+    expect(JSON.stringify(setup)).not.toContain('block-7')
+    expect(JSON.stringify(setup)).not.toContain('r9')
+    expect(sheetSetupFromFile(serializeSheetSetup(setup))).toEqual(setup)
+    expect(describeSheetSetup(setup)[0]).toBe(
+      'Block sheet: LiDAR Design Slope, ANSI D 22 × 34 in, 1:5,000, 2 typed fields, SVG (editable), one sheet per block, dimmed outside the block',
+    )
+    // Applied, it keeps the blocks this project's series takes.
+    const here: BlockSheetSettings = {
+      ...DEFAULT_BLOCK_SHEET,
+      output: { ...DEFAULT_BLOCK_SHEET.output, blocks: ['context:here'] },
+    }
+    expect(applySheetSetup(setup, { blockSheet: here }).blockSheet?.output).toEqual({
+      ...output,
+      blocks: ['context:here'],
+    })
+    // A setup saved before the output was kept leaves the output as it is.
+    const older = parseSheetSetup({
+      ...JSON.parse(serializeSheetSetup(setup)),
+      blockSheet: { kind: 'lidar-slope', paper: 'a3', scale: 'fit', fields: {} },
+    })
+    expect(older.blockSheet?.output).toBeUndefined()
+    expect(applySheetSetup(older, { blockSheet: here }).blockSheet?.output).toEqual(here.output)
   })
 
   it('keeps a library of named setups, replacing one of the same name and dropping damaged entries', () => {

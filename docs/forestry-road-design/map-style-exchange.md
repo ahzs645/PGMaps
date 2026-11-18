@@ -29,6 +29,8 @@ how the files were checked.
 | Output (Save & export → GIS data) | Files                                                                                                                                                                                                                                      | Opens in                                                    |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
 | Shapefile                         | `road_centrelines`, `road_stations`, `road_culverts` shapefiles, and beside each a `.qml`, an `.sld` and a `.lyrx`                                                                                                                         | Any GIS; QGIS loads the `.qml` with the layer automatically |
+| GeoPackage | One `.gpkg` with the QGIS project's layers as tables, each with its `.qml` as QGIS's default style and its `.sld` in `layer_styles` | QGIS draws it with the style as soon as a layer is added; other GIS programs read the data |
+| KMZ | `doc.kml` with a folder per layer and symbol, each with one KML style simplified from the symbol, and `icons/dot.png` | Google Earth, field apps, any KML reader |
 | QGIS project                      | `<project>.qgz`; `data/` with the road layers plus `context_lines` (streams, existing and deactivated roads) and `context_areas` (constraints, other blocks), each with its `.qml`; `layouts/` with the five block sheet layouts as `.qpt` | QGIS 3.28 and later, including 4.x                          |
 | ArcGIS Pro map                    | A `.lyrx` per layer, `<project>.mapx`, `layouts/*.pagx`, `styles/*.stylx` (every PGMaps symbol), `data/`                                                                                                                                   | ArcGIS Pro 3.x (see [Checks](#checks))                      |
 | Web map styles                    | `maplibre/style.json` with the data inline and `sprite(@2x).json/png`; `geolibre/<project>.geolibre` and a `.geolibre.style.json` per layer; `sld/*.sld`; `geojson/*.geojson`                                                              | MapLibre GL, GeoLibre, GeoServer, QGIS                      |
@@ -89,6 +91,15 @@ Writing PGMaps' symbols out:
 | Point icons              | Embedded SVG, exact                                | Vector marker drawn from the icon's own shapes, exact                               | `data:` URL, inline SVG and a mark fallback                                                             | Sprite                                        | Custom SVG only when every rule shares the icon, else circles             |
 | Labels                   | Exact                                              | Exact (`$feature.FIELD`, halo)                                                      | Exact                                                                                                   | Needs a glyphs URL; without one, no labels    | Exact                                                                     |
 | Range rules              | Exact                                              | Class breaks one floating-point step below our upper bound, so both ends match      | Exact                                                                                                   | Exact; a missing value falls to the else rule | Exact                                                                     |
+
+KML has one line, one fill and one icon per style, so the KMZ (`kmlStyleForSymbol`,
+`src/lib/styleExchange/kml/kmlStyle.ts`) splits each layer into a folder per rule and draws each
+symbol as far as that allows: a line its widest stroke, solid; an area its fill and widest outline,
+a hatch or marker fill as a fill of its colour at the share of the area it inks; a point a disc in
+its colour at its size, at least half the client's 32 px icon. Casings, dashes, offsets, markers
+along a line, inside casings, icon shapes, second colours and halos are left out, and each loss is a
+`kml` diagnostic, listed in the KML document's description, the notice and the preview. Labels are
+the placemark names.
 
 MapLibre refuses a relative sprite URL, so `style.json` says `./sprite`: replace it with the absolute
 URL of the hosted folder, or rewrite it with `transformStyle`. The MapLibre style carries the data

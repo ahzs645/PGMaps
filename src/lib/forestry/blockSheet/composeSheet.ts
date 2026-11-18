@@ -50,6 +50,7 @@ import {
   LABEL_HALO,
   NCD_STREAM,
   OTHER_BLOCK,
+  OUTSIDE_BLOCK_MASK,
   proposedRoad,
   reviewArea,
   reviewLine,
@@ -207,6 +208,12 @@ export interface ComposeInput {
    * same object, so they cannot disagree; one of the wrong kind for its feature is left out.
    */
   symbols?: SheetSymbols
+  /**
+   * Dim the map outside the block of interest (`OUTSIDE_BLOCK_MASK`), as a map series' page often
+   * does. Off by default; with no block in the frame nothing is dimmed. The source bar, or on a sheet
+   * without one the footer's map note, says the map is dimmed (`MASK_NOTE`); the legend gains nothing.
+   */
+  maskOutsideBlock?: boolean
 }
 
 export interface LegendItem {
@@ -225,6 +232,8 @@ export interface ComposedSheet {
 }
 
 const NOT_RECORDED = 'not recorded'
+/** What a masked sheet prints (`ComposeInput.maskOutsideBlock`). */
+export const MASK_NOTE = 'Map dimmed outside the block'
 
 function formatNumber(value: number, digits: number) {
   return value.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
@@ -481,10 +490,23 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
   }
   ops.push(...roadLabels)
 
+  let masked = false
   if (input.layers.block) {
     const symbol = chosen('block', BLOCK_OF_INTEREST[preset.blockStyle])
     const parts = polygonParts(input.layers.block.geometry)
     if (visible(parts)) {
+      if (input.maskOutsideBlock) {
+        // The frame with the block's rings cut out (even-odd: a hole in the block is dimmed too),
+        // over everything drawn so far and under the block's own outline and label.
+        ops.push({
+          op: 'path',
+          parts: [rectRing(frame.x, frame.y, frame.w, frame.h), ...parts],
+          closed: true,
+          fill: OUTSIDE_BLOCK_MASK.color,
+          fillOpacity: OUTSIDE_BLOCK_MASK.opacity,
+        })
+        masked = true
+      }
       fillArea(parts, symbol)
       mark('block', symbol)
       const centre = input.facts ? projection.project(...input.facts.centroid) : null
@@ -740,14 +762,17 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
     }),
   )
   const classLegend = input.base?.legend ?? []
+  // A masked sheet says so once: in the source bar, where the sheet states its sources, or, on a
+  // sheet without one, in the footer's map note.
+  const maskInFooter = masked && !sheet.panels.some((panel) => panel.id === 'source')
   for (const panel of sheet.panels) {
     const body = panel.bare ? panel.rect : sectionBox(ops, sheet, panel.rect, panel.title ?? '', preset)
     switch (panel.id) {
       case 'blockInfo':
-        blockInfo(ops, sheet, preset, body, input, projection)
+        blockInfo(ops, sheet, preset, body, input, projection, maskInFooter)
         break
       case 'source':
-        sourceBar(ops, sheet, body, input)
+        sourceBar(ops, sheet, body, input, masked)
         break
       case 'legend':
         legendPanel(ops, sheet, preset, body, legend, classLegend)
@@ -756,7 +781,7 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
         roadTable(ops, sheet, body, roads, input.issue)
         break
       case 'footer':
-        footer(ops, sheet, body, input, projection)
+        footer(ops, sheet, body, input, projection, maskInFooter)
         break
       case 'comments':
         commentsPanel(ops, sheet, body, input.comments ?? '')
@@ -874,6 +899,7 @@ function blockInfo(
   body: Rect,
   input: ComposeInput,
   projection: FrameProjection,
+  masked: boolean,
 ) {
   const k = sheet.k
   const size = fontSize(sheet, preset.info.size)
@@ -975,11 +1001,11 @@ function blockInfo(
     closed: false,
     stroke: { color: SHEET_CHROME.line, width: 1 * k },
   })
-  footer(ops, sheet, { x: body.x, y: footerTop, w: body.w, h: footerHeight }, input, projection)
+  footer(ops, sheet, { x: body.x, y: footerTop, w: body.w, h: footerHeight }, input, projection, masked)
 }
 
 /** The LiDAR sheets' spare bar: what the base raster was made from. */
-function sourceBar(ops: DrawOp[], sheet: ResolvedSheet, body: Rect, input: ComposeInput) {
+function sourceBar(ops: DrawOp[], sheet: ResolvedSheet, body: Rect, input: ComposeInput, masked: boolean) {
   const k = sheet.k
   ops.push({
     op: 'rect',
@@ -992,7 +1018,8 @@ function sourceBar(ops: DrawOp[], sheet: ResolvedSheet, body: Rect, input: Compo
     op: 'text',
     x: body.x + body.w / 2,
     y: body.y + body.h / 2,
-    text: fitText(input.sourceLine ?? '', size, body.w - 8 * k),
+    // The mask goes first, so a long source line that is cut never cuts it.
+    text: fitText([masked ? MASK_NOTE : '', input.sourceLine ?? ''].filter(Boolean).join('; '), size, body.w - 8 * k),
     size,
     color: SHEET_CHROME.barText,
     align: 'center',
@@ -1251,7 +1278,14 @@ function roadTable(ops: DrawOp[], sheet: ResolvedSheet, body: Rect, roads: Sheet
 }
 
 /** Scale and date, the scale bar, then the logo and organisation. */
-function footer(ops: DrawOp[], sheet: ResolvedSheet, body: Rect, input: ComposeInput, projection: FrameProjection) {
+function footer(
+  ops: DrawOp[],
+  sheet: ResolvedSheet,
+  body: Rect,
+  input: ComposeInput,
+  projection: FrameProjection,
+  masked = false,
+) {
   const k = sheet.k
   const pad = 5 * k
   const size = fontSize(sheet, input.frame.preset.type.footer)
@@ -1342,7 +1376,9 @@ function footer(ops: DrawOp[], sheet: ResolvedSheet, body: Rect, input: ComposeI
   const lines = [
     { text: input.issue.organisation, bold: true },
     {
-      text: `North up, Web Mercator. Scale true at ${Math.abs(centreLat).toFixed(2)}°${centreLat < 0 ? 'S' : 'N'}.`,
+      text: `North up, Web Mercator. Scale true at ${Math.abs(centreLat).toFixed(2)}°${centreLat < 0 ? 'S' : 'N'}.${
+        masked ? ` ${MASK_NOTE}.` : ''
+      }`,
       bold: false,
     },
     {

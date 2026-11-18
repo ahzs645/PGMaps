@@ -345,6 +345,40 @@ that restores focus and selection; AVAST and dataset-information adapters retain
 their existing specialized fallback behavior. Keep serialization errors distinct
 from clipboard rejection when presenting a share-link failure.
 
+### Copying a picture
+
+A map image, a sheet or a figure is copied as PNG with `CopyImageButton`
+(`copy-image-button.tsx`) over `copyImageToClipboard` (`src/lib/clipboardImage.ts`).
+Give it `png`, a function that makes the PNG, the same one the Download beside it uses.
+The button calls it in the click and hands the clipboard the *promise* of the picture,
+so the write starts inside the click and the picture renders while it waits. Safari
+refuses a clipboard write that starts after an `await`, so never render first and copy
+after, and never call `copyImageToClipboard` from a timer or an effect. The button shows
+*Copying…*, *Copied* and the failure's reason in words (denied by the browser, not a
+PNG, the picture could not be made). Where the browser cannot copy images (no
+`ClipboardItem`, or a page that is not https) it renders nothing by default, leaving
+Download; `whenUnsupported="explain"` shows it disabled with the reason behind an (i).
+It sits beside Download, never in place of it.
+
+## Saving a file where the person chooses
+
+*Save as…* is `SaveAsButton` (`save-as-button.tsx`) over `saveFileAs`
+(`src/lib/saveFile.ts`). Give it the suggested name, the file type (`mime`,
+`extension`, `description`) and `content`, the same build the Download button uses
+(a Blob or a string, slow or not). Where the browser has a save dialog
+(`showSaveFilePicker`: Chrome and Edge on a desktop) the dialog opens first, inside the
+click, and the file is built only after the person has chosen where it goes: a build
+awaited before the dialog loses the click and the dialog refuses to open. A cancelled
+dialog builds nothing. Without a dialog (Firefox, Safari, phones) `saveFileAs` builds and
+downloads through `downloadBlob`, and the button hides itself by default, since it
+would only repeat Download; `showWithoutPicker` shows it anyway. The result says
+`saved` (with the name chosen), `downloaded` or `cancelled`.
+
+It is offered beside a tool's Download button, never in place of it: the end-to-end
+suites wait for the download event. Call `saveFileAs` synchronously in the click handler
+when not using the button. `rememberFolderAs` lets the dialog reopen in the folder used
+last for that kind of file.
+
 ## Floating notifications
 
 Anything that pops in over the page to report an event (an update is ready, a

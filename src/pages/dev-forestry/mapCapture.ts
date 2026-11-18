@@ -27,8 +27,11 @@ const captureSize = (source: { width: number; height: number }, maxSide: number)
  */
 export const ROAD_VIEW_GUIDE_SOURCE = 'road-view-guides'
 
-/** Hides the road view's guide layers for a picture; the function returned puts them back. */
-function hideGuides(map: MapLibreMap): () => void {
+/**
+ * Hides the road view's guide layers for a picture; the function returned puts them back. Exported for the road view
+ * video (`useRoadVideo.ts`), which is a picture too and hides them for its whole take.
+ */
+export function hideRoadViewGuides(map: MapLibreMap): () => void {
   const source = `fill-shared-${ROAD_VIEW_GUIDE_SOURCE}`
   const ids = map.getLayersOrder?.() ?? (map.getStyle().layers ?? []).map((layer) => layer.id)
   const hidden = ids.filter(
@@ -43,7 +46,7 @@ function hideGuides(map: MapLibreMap): () => void {
 
 export function captureMapImage(map: MapLibreMap, maxSide = MAX_SIDE): Promise<CapturedImage> {
   return new Promise((resolve, reject) => {
-    const showGuides = hideGuides(map)
+    const showGuides = hideRoadViewGuides(map)
     const timer = window.setTimeout(() => {
       showGuides()
       reject(new Error('The map did not draw a frame to capture.'))
@@ -165,7 +168,7 @@ export async function captureAtCamera(
       MAX_CANVAS_SIDE / largest,
     ),
   )
-  const showGuides = hideGuides(map)
+  const showGuides = hideRoadViewGuides(map)
   try {
     if (ratio > ratioBefore) map.setPixelRatio(ratio)
     const wanted = {
@@ -595,7 +598,7 @@ export async function captureFramed(
     height,
   }))
   const drawnZooms: Array<number | null> = []
-  const showGuides = hideGuides(map)
+  const showGuides = hideRoadViewGuides(map)
   try {
     if (ratio > ratioBefore) map.setPixelRatio(ratio)
     for (let i = 0; i < plan.frames.length; i++) {

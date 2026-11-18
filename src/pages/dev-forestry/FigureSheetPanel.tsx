@@ -484,10 +484,15 @@ export async function analysisSheetFile(
   logo: RasterImage | null = null,
   /** The view's with-timber measure (`timberMeasureFor`), or why it has none. */
   timber: TimberMeasure | null = null,
-): Promise<{ blob: Blob; fileName: string }> {
+): Promise<{ blob: Blob; fileName: string; copyPng: () => Promise<Blob> }> {
   const figure = await composeResolved(resolved, logo, timber)
   const blob = format === 'pdf' ? await figurePdf(figure) : await figurePng(figure)
-  return { blob, fileName: `via-analysis-${safeName(resolved.view?.name ?? 'view')}-${resolved.preset.id}.${format}` }
+  return {
+    blob,
+    fileName: `via-analysis-${safeName(resolved.view?.name ?? 'view')}-${resolved.preset.id}.${format}`,
+    // The same composed sheet as the PNG format writes it, for the clipboard: nothing is captured or measured again.
+    copyPng: format === 'png' ? async () => blob : () => figurePng(figure),
+  }
 }
 
 /** The analysis sheet as an SVG image for the preview, with the composer's notes. */

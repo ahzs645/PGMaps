@@ -5,12 +5,14 @@ import { blockFacts } from './blockFacts'
 import {
   chainageRange,
   composeSheet,
+  MASK_NOTE,
   sheetFocus,
   sheetFrame,
   type ComposeInput,
   type SheetLayers,
 } from './composeSheet'
 import { sampleLayers } from './blockSheetFixtures'
+import { OUTSIDE_BLOCK_MASK } from './styles'
 
 const issue = { date: '2026-11-10', preparedBy: '', organisation: '', revision: '' }
 const block = sampleLayers.block!
@@ -184,5 +186,41 @@ describe('composeSheet', () => {
     const frame = sheetFrame('field-layout', 'tabloid', 'fit', { bounds: sheetFocus({ block })! })
     expect(frame.projection.scale).toBe(10000)
     expect(() => sheetFrame('field-layout', 'tabloid', 500000, { bounds: sheetFocus({ block })! })).toThrow(/1:250,000/)
+  })
+
+  it('dims the map outside the block only when asked, under the outline, and says so once', () => {
+    const layers: SheetLayers = { block, roads: sampleLayers.roads }
+    const note = new RegExp(MASK_NOTE)
+    for (const kind of ['field-layout', 'lidar-slope', 'general-access', 'field-imagery', 'operating-plan'] as const) {
+      const plain = compose(layers, {}, kind)
+      const masked = compose(layers, { maskOutsideBlock: true, sourceLine: 'Slope % from LiDAR' }, kind)
+      const mask = masked.ops.findIndex(
+        (op) =>
+          op.op === 'path' && op.fill === OUTSIDE_BLOCK_MASK.color && op.fillOpacity === OUTSIDE_BLOCK_MASK.opacity,
+      )
+      expect(mask, kind).toBeGreaterThan(0)
+      // Everything up to the mask is the same sheet.
+      expect(masked.ops.slice(0, mask)).toEqual(plain.ops.slice(0, mask))
+      const op = masked.ops[mask]
+      // The frame's ring and then the block's rings, filled even-odd so the block stays clear.
+      expect(op.op === 'path' && op.parts.length).toBe(
+        1 +
+          (block.geometry.type === 'Polygon'
+            ? block.geometry.coordinates.length
+            : block.geometry.coordinates.flat().length),
+      )
+      // The block's outline, its label and the furniture draw after it; the legend gains nothing.
+      const firstRoad = masked.ops.findIndex((o) => o.op === 'text' && o.text === sampleLayers.roads![0].name)
+      expect(firstRoad).toBeLessThan(mask)
+      expect(masked.legend).toEqual(plain.legend)
+      expect(
+        texts(masked.ops).filter((t) => note.test(t.text)),
+        kind,
+      ).toHaveLength(1)
+      expect(texts(plain.ops).some((t) => note.test(t.text))).toBe(false)
+    }
+    // Nothing to dim around without a block.
+    const roadsOnly = compose({ roads: sampleLayers.roads }, { maskOutsideBlock: true })
+    expect(texts(roadsOnly.ops).some((t) => note.test(t.text))).toBe(false)
   })
 })

@@ -9,8 +9,10 @@ import {
   geoJsonPreview,
   INVALID_INPUT_RULES,
   invalidInputRefusal,
+  MULTI_ROAD_EXPORTS,
   optimalHaulUnavailable,
   parseCsv,
+  STYLE_LIBRARY_EXPORTS,
   textPreview,
   type ExportContext,
 } from './exportCatalog'
@@ -116,7 +118,18 @@ describe('exports while an input is invalid', () => {
   })
 
   it('refuses the files a contractor or another program reads, and names the input', () => {
-    for (const kind of ['landxml', 'stakeout', 'plotbook', 'plotbook-pdf', 'csv', 'geojson', 'shapefile'] as const)
+    for (const kind of [
+      'landxml',
+      'stakeout',
+      'plotbook',
+      'plotbook-pdf',
+      'csv',
+      'geojson',
+      'shapefile',
+      'geopackage',
+      'kmz',
+      'design-model',
+    ] as const)
       expect(exportUnavailable(kind, context)).toBe(
         'Correct the invalid input first. Road section: left half-width (m) must be 0.1 to 50.',
       )
@@ -245,5 +258,36 @@ describe('exportRoads', () => {
     expect(exportRoads(roads, 'spur-optimized', 'all')).toEqual(roads)
     // An id that names no road keeps the file whole rather than empty.
     expect(exportRoads(roads, 'missing', 'active')).toEqual(roads)
+  })
+})
+
+describe('GeoPackage, KMZ and the 3D surface model', () => {
+  it('are GIS data and a survey file', () => {
+    const group = (kind: string) => EXPORT_ITEMS.find((item) => item.kind === kind)?.group
+    expect(group('geopackage')).toBe('gis')
+    expect(group('kmz')).toBe('gis')
+    expect(group('design-model')).toBe('survey')
+  })
+
+  it('hold one road or every road, drawn with the style library, as the shapefile does', () => {
+    for (const kind of ['geopackage', 'kmz'] as const) {
+      expect(MULTI_ROAD_EXPORTS).toContain(kind)
+      expect(STYLE_LIBRARY_EXPORTS).toContain(kind)
+    }
+    // The model is the road on screen's surfaces, as the LandXML surfaces are.
+    expect(MULTI_ROAD_EXPORTS).not.toContain('design-model')
+    expect(STYLE_LIBRARY_EXPORTS).not.toContain('design-model')
+  })
+
+  it('need the road for the model, not for the map layers', () => {
+    expect(exportUnavailable('design-model', { ...ready, terrainProfile: true })).toMatch(/Return to the road/)
+    expect(exportUnavailable('geopackage', { ...ready, terrainProfile: true })).toBeNull()
+    expect(exportUnavailable('kmz', { ...ready, hasResults: false })).toMatch(/No calculated results/)
+  })
+
+  it('tell the model apart from a machine-control file', () => {
+    expect(EXPORT_ITEMS.find((item) => item.kind === 'design-model')?.description).toMatch(
+      /not a machine-control file: build from the LandXML surfaces/,
+    )
   })
 })

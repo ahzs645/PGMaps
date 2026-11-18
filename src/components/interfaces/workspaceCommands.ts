@@ -1,5 +1,8 @@
 import { EXPORT_ITEMS, type RoadExport } from '@/pages/dev-forestry-roads/exportCatalog'
 import {
+  Cuboid,
+  DatabaseZap,
+  MapPinPlus,
   FileArchive,
   History,
   FileChartLine,
@@ -186,6 +189,9 @@ const additionalExportIcons: Partial<Record<RoadExport, LucideIcon>> = {
   'roadeng-project': Package,
   dxf: DraftingCompass,
   shapefile: FolderArchive,
+  geopackage: DatabaseZap,
+  kmz: MapPinPlus,
+  'design-model': Cuboid,
   'plotbook-pdf': BookCopy,
   'report-package': PackageOpen,
   'estimate-pdf': ReceiptText,
