@@ -279,36 +279,52 @@ export function PreparerProfileRow({
 
 /**
  * *Use my details*: copies the profile into a record's blank preparer fields on a click. `patch` is what would be
- * written (`blanksFilledFromProfile`); with nothing to write the button says why instead.
+ * written (`blanksFilledFromProfile`). With no details entered yet it opens *Your details* instead (Save & export's
+ * pane when there is one, else the modal), so they are entered once and then used here with a second click; it
+ * never fills the record by itself. With every field already filled it says so.
  */
 export function UseMyDetailsButton<K extends string>({
   patch,
   onApply,
   children = 'Use my details',
+  portalContainer,
 }: {
   patch: Partial<Record<K, string>>
   onApply: (patch: Partial<Record<K, string>>) => void
   children?: ReactNode
+  /** Where the *Your details* modal renders, inside a host dialog. */
+  portalContainer?: HTMLElement | null
 }) {
   const branding = useBranding()
+  const details = useOpenPreparerProfile(portalContainer)
   const count = Object.keys(patch).length
-  const reason = profileIsEmpty(branding.profile)
-    ? 'Enter your details first (Your details, at the top of Save & export).'
-    : count === 0
-      ? 'Every field your details would fill is already filled here.'
-      : undefined
+  if (profileIsEmpty(branding.profile))
+    return (
+      <span className="inline-flex flex-wrap items-baseline gap-2">
+        <TextButton className="text-xs" data-testid="use-my-details" onClick={details.open}>
+          Enter your details…
+        </TextButton>
+        <span className="text-2xs text-muted-foreground">
+          Then use them here; kept in this browser for every project.
+        </span>
+        {details.dialog}
+      </span>
+    )
   return (
     <span className="inline-flex flex-wrap items-baseline gap-2">
       <TextButton
         className="text-xs"
         disabled={count === 0}
-        title={reason}
         data-testid="use-my-details"
         onClick={() => onApply(patch)}
       >
         {children}
       </TextButton>
-      {reason && <span className="text-2xs text-muted-foreground">{reason}</span>}
+      {count === 0 && (
+        <span className="text-2xs text-muted-foreground">
+          Every field your details would fill is already filled here.
+        </span>
+      )}
     </span>
   )
 }

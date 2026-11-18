@@ -544,7 +544,9 @@ track grows to the longest cell in any column.
   Save & export, and Save stays explicit in both: the details are shared by every tool in this browser.
 - A record copies them only on a click: `UseMyDetailsButton` with `blanksFilledFromProfile`, which fills the
   record's blank fields and never replaces one it already holds. A document prints the record, so it prints
-  the same whoever's browser opens the project. Seal, signature and date are never filled.
+  the same whoever's browser opens the project. Seal, signature and date are never filled. With no details
+  entered yet the button reads *Enter your details…* and opens them (the pane, else the modal), so they are
+  entered once; filling the record is still a second click.
 - A field that names a person (*Checked by*, *Assessor*, *Reviewer*) is `PersonInput`
   (`src/branding/PersonInput.tsx`): a plain text box with *Use mine* under it, or *Use mine instead* when it
   holds someone else's name. Never a field that fills itself from the profile.
