@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction 
 
 import { MAX_FIELD_RECORDS, type FieldRecord, type PhotoJob } from './assessmentTools'
 import { HeicDecodeError } from '@/lib/heic/heicDecode'
-import { showablePhoto } from '@/lib/heic/heicDecodeClient'
+import { heicDecodeConcurrency, showablePhoto } from '@/lib/heic/heicDecodeClient'
 import { loadElevationGrid } from '@/lib/forestry/terrain/demLoader'
 import { MAX_WALK_METERS, nearestStation } from './driveMath'
 import {
@@ -22,7 +22,8 @@ import {
   type RoadViewPose,
 } from './exifPose'
 import type { MatchedCamera } from './matchedCamera'
-import { comparePhotoCameras, type CombinedSettings } from './photoCombinedSearch'
+import { comparePhotoCameras, type CombinedResult, type CombinedSettings } from './photoCombinedSearch'
+import { depthModelStored, estimatePhotoDepth, type DepthGrid, type PhotoDepthModel } from './photoDepth'
 import { openPhotoFeatureMatcher } from './photoFeatureClient'
 import {
   compareFlightProposals,
@@ -47,10 +48,22 @@ import {
   type RoadPhoto,
 } from './mapillary'
 import { panoViewPose, projectToPhoto, reprojectEquirect, terrainSkyline, type PhotoPose } from './photoPose'
-import { fitSkyline, photoSkyline, terrainProfile, type ProfilePoint, type SkylineFit } from './skylineFit'
+import {
+  SKYLINE_READERS,
+  fitSkyline,
+  photoSkyline,
+  readPhotoSkyline,
+  skylineReaderKey,
+  terrainProfile,
+  type ProfilePoint,
+  type SkylineFit,
+  type SkylineReader,
+} from './skylineFit'
 import { wrapSigned } from './skylineAlign'
 import {
   MIN_SKYLINE_COLUMNS,
+  READER_SETTLED_AGREEMENT,
+  searchRank,
   sunCheck,
   type SunCheck,
   type WideSearchInput,
@@ -97,6 +110,7 @@ import {
 import { acceptanceSource } from './photoAcceptPreview'
 import {
   burstNeighbour,
+  cameraClockTime,
   instantOf,
   lensCheck,
   neighbourPriors,
@@ -119,8 +133,13 @@ import {
   checkedPoseFor,
   controlSolveSuspect,
   featuresKey,
+  featuresNext,
+  inLanes,
   horizonKey,
+  IMAGERY_RINGS,
+  imageryBox,
   imageryKey,
+  imageryRingKeys,
   lensRangeFor,
   nextInQueue,
   photoFlights,
@@ -140,6 +159,7 @@ import {
   type PhotoFound,
 } from './photoQueue'
 import { fieldImageFromBlob } from './toolImports'
+import { loadPhotoDepth, savePhotoDepth } from './toolsStorage'
 import { viewFromAcceptedPhoto, type ViewOfInterest } from './viewsOfInterest'
 import { demTileRange } from '@/lib/forestry/terrain/terrain'
 
@@ -171,6 +191,10 @@ export type OwnPhoto = {
   id: string
   name: string
   src: string
+  /** The same picture small, for a strip of photos; `src` where none was made. */
+  thumb?: string
+  /** The camera's own clock when it was taken ("09:04:29"), for display; absent when the file gave none. */
+  clock?: string | null
   /** Whether `src` is an object URL this hook made and must revoke. */
   objectUrl: boolean
   /** Original bytes for a local photo, shared with its project attachment. */
@@ -342,6 +366,11 @@ export type OwnPhotoWork = {
   pairsOff?: string[]
   controlSolve: ControlSolveResult | null
   flightProposals?: FlightCameraProposal[]
+  /**
+   * The camera comparison the queue ran for a photo its skyline did not settle (`comparePhotoCameras`): ground
+   * appearance, and depth when this browser already holds the model. Absent until it has run; null when it could not.
+   */
+  combined?: { result: CombinedResult; depth: boolean } | null
 }
 
 const EMPTY_WORK: OwnPhotoWork = Object.freeze({
@@ -413,6 +442,20 @@ const decodeImage = async (src: string) => {
   await picture.decode()
   // Natural size is after the EXIF orientation, as the photo is shown.
   return { width: picture.naturalWidth, height: picture.naturalHeight }
+}
+
+/** The depth model the queue uses by itself, when this browser already holds it: the small one. */
+const AUTO_DEPTH_MODEL: PhotoDepthModel = 'da2-small'
+
+/** A photo whose search came back without a camera to trust: its cameras are worth comparing by the ground. */
+const unsettled = (work: OwnPhotoWork) => work.search.status === 'done' && !work.search.result.trustworthy
+
+/** Whether everything that follows a photo's search is done: its features, and the comparison when it wants one. */
+const followedUp = (work: OwnPhotoWork) => work.features !== null && (!unsettled(work) || work.combined !== undefined)
+
+/** Drops every reader's skyline kept for a picture. */
+const forgetSkylines = (skylines: { delete(key: string): unknown }, src: string) => {
+  for (const reader of SKYLINE_READERS) skylines.delete(`${src}|${skylineReaderKey(reader)}`)
 }
 
 const positioned = (photo: OwnPhoto): photo is OwnPhoto & { pose: OwnPose & { lng: number; lat: number } } =>
@@ -626,9 +669,12 @@ export function useFieldPhoto({
     /** Search results by photo, camera start, ranges and priors (`searchKey`). */
     results: new PhotoCache<WideSearchResult | null>({ maxEntries: 64, sizeOf: () => 0 }),
     /** Imagery layers round a place (`imageryKey`). */
-    imagery: new PhotoCache<ImageryLayer[]>({ maxEntries: 2 }),
+    // One ring a entry: a flight's photos share the far and middle rings and differ in a few near ones.
+    imagery: new PhotoCache<ImageryLayer>({ maxEntries: 9, maxBytes: 160e6, sizeOf: (layer) => layer.data.byteLength }),
     /** Hit buffers by camera (`photoPoseKey`). */
     hits: new PhotoCache<HitBuffer>({ maxEntries: 6 }),
+    /** A photo's depth estimate by picture and model: worked out once, kept in this browser's database too. */
+    depth: new PhotoCache<DepthGrid>({ maxEntries: 32, sizeOf: (grid) => grid.inverse.byteLength }),
     /** Features read for a box (`featuresKey`). */
     features: new PhotoCache<PhotoFeatureReads>({ maxEntries: 12, sizeOf: () => 0 }),
   }))
@@ -1252,36 +1298,34 @@ export function useFieldPhoto({
       context.drawImage(picture, 0, 0, width, height)
       return context.getImageData(0, 0, width, height)
     })
-  /** The photo's own skyline, read once, in `pose`'s pixels. */
-  const skylineOf = (photo: OwnPhoto, pixels: ImageData, pose: PhotoPose) => {
-    let read = caches.skyline.get(photo.src)
+  /** The photo's own skyline by one reader, read once, in `pose`'s pixels. */
+  const skylineOf = (photo: OwnPhoto, pixels: ImageData, pose: PhotoPose, reader: SkylineReader = { mode: 'auto' }) => {
+    const key = `${photo.src}|${skylineReaderKey(reader)}`
+    let read = caches.skyline.get(key)
     if (!read) {
-      read = photoSkyline(pixels, 200)
-      caches.skyline.set(photo.src, read)
+      read = readPhotoSkyline(pixels, reader, 200)
+      caches.skyline.set(key, read)
     }
     const sx = pose.width / pixels.width,
       sy = pose.height / pixels.height
     return read.map((point) => (point ? { x: point.x * sx, y: point.y * sy } : null))
   }
-  /** Imagery near (zoom 14 to 6 km), middle (zoom 11 to 25 km) and far (zoom 9 to 90 km) round a place. */
-  const imageryLayers = (lng: number, lat: number, signal: AbortSignal) =>
-    caches.imagery.getOrCreate(
-      imageryKey(lng, lat),
-      async (shared) => {
-        const box = (radius: number): [number, number, number, number] => {
-          const degLat = radius / 110574,
-            degLng = radius / (111320 * Math.cos((lat * Math.PI) / 180))
-          return [lng - degLng, lat - degLat, lng + degLng, lat + degLat]
-        }
-        const layers = await Promise.all([
-          loadImageryMosaic(box(6000), 14, shared),
-          loadImageryMosaic(box(25000), 11, shared),
-          loadImageryMosaic(box(WIDE_RADIUS_METERS), 9, shared),
-        ])
-        return layers.map((mosaic) => mosaic.layer)
-      },
-      signal,
+  /**
+   * Imagery near, middle and far round a place (`IMAGERY_RINGS`), each ring kept by the tiles it holds, so the photos
+   * of a flight share the rings they have in common.
+   */
+  const imageryLayers = (lng: number, lat: number, signal: AbortSignal) => {
+    const keys = imageryRingKeys(lng, lat)
+    return Promise.all(
+      IMAGERY_RINGS.map(({ radiusMeters, maxZoom }, ring) =>
+        caches.imagery.getOrCreate(
+          keys[ring],
+          async (shared) => (await loadImageryMosaic(imageryBox(lng, lat, radiusMeters), maxZoom, shared)).layer,
+          signal,
+        ),
+      ),
     )
+  }
   /** An accepted photo within a burst of this one, whose camera can seed its search. */
   const neighbourOf = (photo: OwnPhoto) => {
     if (!positioned(photo)) return null
@@ -1317,6 +1361,7 @@ export function useFieldPhoto({
     searchPriors: CameraPriors,
     signal: AbortSignal,
     onProgress: (done: number) => void,
+    reader: SkylineReader = { mode: 'auto' },
   ) => {
     const pitchRange = pitchRangeFor({ tilt: photo.exif?.tilt, airborne: photo.pose.altitudeMeters != null })
     const rollRange = [-15, 15] as const
@@ -1331,7 +1376,8 @@ export function useFieldPhoto({
       priors: searchPriors,
     })
     return caches.results.getOrCreate(
-      key,
+      // The skyline searched is the reader's, so a result is kept by reader too.
+      `${key}|${skylineReaderKey(reader)}`,
       (shared) =>
         runWideOrientation(
           {
@@ -1439,13 +1485,6 @@ export function useFieldPhoto({
       return stop('No terrain round the camera to search against.', { lens: photo.lens, terrain: false })
     patchWork(id, (current) => ({ ...current, search: { status: 'working', stage: 'photo', done: 0 } }))
     const pixels = await readPixels(photo)
-    const skyline = skylineOf(photo, pixels, base)
-    if (skyline.filter(Boolean).length < MIN_SKYLINE_COLUMNS)
-      return stop('Too little open sky over distant terrain to search by. Pair points instead.', {
-        lens: photo.lens,
-        terrain: true,
-        skyline: false,
-      })
     const progress = (from: number, share: number) => (done: number) =>
       patchWork(id, (current) => ({
         ...current,
@@ -1453,16 +1492,56 @@ export function useFieldPhoto({
       }))
     patchWork(id, (current) => ({ ...current, search: { status: 'working', stage: 'search', done: 0 } }))
     const neighbour = neighbourFirst ? neighbourOf(photo) : null
+    // The colour reader first; when its fit does not settle it, the brightness readers side by side (each search runs
+    // in a worker of its own), keeping the result that fits best (`searchRank`). They read a sky the colour reader
+    // cannot: lit from behind, under dark cloud, in haze.
+    const full = neighbour ? 0.8 : 1
+    type Tried = { result: WideSearchResult; skyline: Array<{ x: number; y: number } | null>; reader: SkylineReader }
+    const tryReader = async (reader: SkylineReader, onProgress: (done: number) => void): Promise<Tried | null> => {
+      const skyline = skylineOf(photo, pixels, base, reader)
+      if (skyline.filter(Boolean).length < MIN_SKYLINE_COLUMNS) return null
+      const result = await runSearch(photo, base, profile, skyline, searchPriors, signal, onProgress, reader)
+      return result ? { result, skyline, reader } : null
+    }
+    const [colourReader, ...others] = SKYLINE_READERS
+    let chosen = await tryReader(colourReader, progress(0, full / 2))
+    signal.throwIfAborted()
+    if (!chosen || !(chosen.result.fit.trustworthy && chosen.result.fit.agreement >= READER_SETTLED_AGREEMENT)) {
+      const share = full / 2
+      const done = others.map(() => 0)
+      const more = await Promise.all(
+        others.map((reader, k) =>
+          tryReader(reader, (value) => {
+            done[k] = value
+            progress(full / 2, share)(done.reduce((sum, each) => sum + each, 0) / others.length)
+          }),
+        ),
+      )
+      signal.throwIfAborted()
+      // In the readers' order, so a tie keeps the earlier reader.
+      for (const tried of more)
+        if (tried && (!chosen || searchRank(tried.result) > searchRank(chosen.result))) chosen = tried
+    }
+    // A "best" heading with next to no column on the terrain's skyline is no fit at all: it once came back as the
+    // best fit with 0 columns, 140° from the camera.
+    if (!chosen || chosen.result.fit.agreeing < MIN_SKYLINE_COLUMNS)
+      return stop('Too little open sky over distant terrain to search by. Pair points instead.', {
+        lens: photo.lens,
+        terrain: true,
+        skyline: false,
+      })
+    const found = chosen.result
     let narrowFit: NarrowFit | null = null
     if (neighbour) {
       const narrow = await runSearch(
         photo,
         base,
         profile,
-        skyline,
+        chosen.skyline,
         neighbourPriors(neighbour.photo.pose),
         signal,
-        progress(0, 0.2),
+        progress(full, 1 - full),
+        chosen.reader,
       )
       const agrees = narrowAgreement(narrow, neighbour.photo.pose.bearing)
       if (narrow && agrees)
@@ -1476,22 +1555,7 @@ export function useFieldPhoto({
           skySpanShare: narrow.fit.span,
         }
     }
-    const found = await runSearch(
-      photo,
-      base,
-      profile,
-      skyline,
-      searchPriors,
-      signal,
-      neighbour ? progress(0.2, 0.8) : progress(0, 1),
-    )
     signal.throwIfAborted()
-    if (!found)
-      return stop('Too little open sky over distant terrain to search by. Pair points instead.', {
-        lens: photo.lens,
-        terrain: true,
-        skyline: false,
-      })
     const result = found
     const utc = utcOf(photo)
     const at = (angles: { bearing: number; pitch: number; roll: number; hfov?: number }) =>
@@ -1501,6 +1565,10 @@ export function useFieldPhoto({
     if (lifted !== null)
       notes.push(
         `Taken from the air: its GPS altitude is ${Math.round(lifted - groundMeters)} m above the ground, so the eye stands at ${Math.round(lifted)} m.`,
+      )
+    if (chosen.reader.mode === 'luma')
+      notes.push(
+        'The sky is lit from behind or hazy: the skyline was read from where the picture darkens, not from the sky’s colour.',
       )
     if (photo.lens?.cropped && result.hfov !== undefined)
       notes.push(`Cropped: the lens that fits best is ${result.hfov.toFixed(0)}° across.`)
@@ -1656,7 +1724,7 @@ export function useFieldPhoto({
       found: { ...current.found, notes: [...(current.found?.notes ?? []), note] },
     }))
 
-  /** One photo through the queue: the search, model views for the winner and the runner-up, the features check. */
+  /** One photo through the queue: the search, then model views for the winner and the runner-up. */
   const runPhoto = async (id: string, signal: AbortSignal) => {
     const photo = photoById(id)
     if (!photo) return
@@ -1682,7 +1750,7 @@ export function useFieldPhoto({
         if (aborted(signal)) throw error
         addNote(id, `The model views were not drawn: ${reason(error)}`)
       }
-      await checkFeatures(id, winner, signal)
+      // The features are read after the searches (`featuresNext`, below), never between two of them.
     } catch (error) {
       if (aborted(signal)) {
         patchWork(id, (current) =>
@@ -1730,6 +1798,89 @@ export function useFieldPhoto({
       pending: [...current.pending, ...ids.filter((id) => !current.pending.includes(id) && id !== current.running)],
     }))
   }, [])
+
+  // The features check, after the searches: one read at a time, the open photo first and at once, the others in time
+  // order once every search is done. A read is six requests and megabytes of shapes from DataBC; run inside the queue it
+  // held the next photo's search back about three seconds, fourteen times over.
+  const [featuresRunning, setFeaturesRunning] = useState<string | null>(null)
+  const featuresAbort = useRef<AbortController | null>(null)
+  const checkFeaturesRef = useRef(checkFeatures)
+  checkFeaturesRef.current = checkFeatures
+  /**
+   * Compares cameras for a photo its skyline did not settle, as *Combined camera search* does on a click: ground
+   * appearance for the options and a coarse sweep of headings, and depth where this browser already holds the model
+   * or the photo's estimate. It never starts a model download. The result is a suggestion on the photo, never its
+   * camera.
+   */
+  const compareUnsettled = async (id: string, signal: AbortSignal) => {
+    const photo = photoById(id)
+    const usesDepth =
+      !!photo &&
+      (caches.depth.get(`${photo.src}|${AUTO_DEPTH_MODEL}`) !== undefined || (await depthModelStored(AUTO_DEPTH_MODEL)))
+    const result = await runCombinedCameraSearch(
+      id,
+      { useSkyline: true, depthModel: usesDepth ? AUTO_DEPTH_MODEL : null },
+      signal,
+      () => undefined,
+    )
+    patchWork(id, (current) => ({ ...current, combined: { result, depth: !!result.depthModel } }))
+  }
+  const compareRef = useRef(compareUnsettled)
+  compareRef.current = compareUnsettled
+  useEffect(() => {
+    if (featuresRunning) return
+    const id = featuresNext({
+      photos: photos.map((photo) => ({
+        id: photo.id,
+        takenAtUtc: photo.takenAtUtc,
+        name: photo.name,
+        positioned: positioned(photo),
+        searched: (work[photo.id] ?? EMPTY_WORK).search.status === 'done',
+        // Done once its features are read and, where the skyline did not settle it, its cameras are compared.
+        read: followedUp(work[photo.id] ?? EMPTY_WORK),
+      })),
+      activeId,
+      searching: !!queueRun.running || queueRun.pending.length > 0,
+      held: queueRun.paused || queueRun.cancelled,
+    })
+    const photo = id ? photoById(id) : null
+    if (!id || !photo) return
+    const controller = new AbortController()
+    featuresAbort.current = controller
+    setFeaturesRunning(id)
+    const before = work[id] ?? EMPTY_WORK
+    const follow = async () => {
+      if (before.features === null)
+        await checkFeaturesRef.current(
+          id,
+          { bearing: photo.pose.bearing, pitch: photo.pose.pitch, roll: photo.pose.roll },
+          controller.signal,
+        )
+      if (before.combined === undefined && unsettled(before)) await compareRef.current(id, controller.signal)
+    }
+    void follow()
+      .catch((error: unknown) => {
+        // Stopped because the photo went or the set was cleared: nothing is left to mark.
+        if (controller.signal.aborted || !photoById(id)) return
+        // Anything else (the terrain did not load) is kept as failed, or the photo would be tried again without end.
+        patchWork(id, (current) => ({
+          ...current,
+          features:
+            current.features && current.features.status !== 'loading'
+              ? current.features
+              : { status: 'failed', poseKey: '', message: `The features were not read: ${reason(error)}` },
+          // Tried, and it could not be made: never tried again by itself.
+          combined: current.combined === undefined ? null : current.combined,
+        }))
+      })
+      .finally(() => {
+        if (featuresAbort.current === controller) featuresAbort.current = null
+        setFeaturesRunning((current) => (current === id ? null : current))
+      })
+    // The read takes the photo by id; its caches and work updater are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [featuresRunning, photos, work, activeId, queueRun])
+  useEffect(() => () => featuresAbort.current?.abort(), [])
 
   // ---------------------------------------------------------------------------------------------------------------
   // The options card, acceptance and the photo's jobs.
@@ -1984,6 +2135,23 @@ export function useFieldPhoto({
   )
 
   /** Compare several cameras without moving or checking the active camera. */
+  /**
+   * A photo's depth by a model: the estimate kept for it (in memory, else in this browser's database), else a fresh
+   * one, which is then kept. The estimate is the same every time, and costs a model load and a second or more.
+   */
+  const photoDepthFor = (photo: OwnPhoto, pixels: ImageData, model: PhotoDepthModel, signal: AbortSignal) =>
+    caches.depth.getOrCreate(
+      `${photo.src}|${model}`,
+      async (shared) => {
+        const stored = photo.recordId ? await loadPhotoDepth(photo.recordId, model).catch(() => null) : null
+        if (stored) return { width: stored.width, height: stored.height, inverse: stored.inverse }
+        const depth = await estimatePhotoDepth(pixels, model, shared)
+        if (photo.recordId) void savePhotoDepth(photo.recordId, model, depth).catch(() => undefined)
+        return depth
+      },
+      signal,
+    )
+
   const runCombinedCameraSearch = async (
     id: string,
     settings: CombinedSettings,
@@ -2014,6 +2182,7 @@ export function useFieldPhoto({
       imagery,
       signal,
       onProgress,
+      depthFor: (model, depthSignal) => photoDepthFor(target, pixels, model, depthSignal),
     })
   }
 
@@ -2142,6 +2311,23 @@ export function useFieldPhoto({
     [photos, optionsFor, checksDrawnFor, records, patchPhoto],
   )
 
+  /**
+   * The photo's acceptance for a job that draws from its camera: the one it has while the camera is still the one
+   * accepted, else one made now, by this click, for the camera as it stands. A reviewer never has to visit an
+   * acceptance form before putting a photo to use; the record still says when and on what evidence.
+   */
+  const ensureAccepted = useCallback(
+    (
+      id: string,
+      fields: { initials: string; note: string } = { initials: '', note: '' },
+    ): { ok: true; acceptance: PhotoAcceptance } | { ok: false; reason: string } => {
+      const photo = photos.find((entry) => entry.id === id)
+      if (photo?.acceptance && acceptanceState(id) === 'accepted') return { ok: true, acceptance: photo.acceptance }
+      return acceptCamera(id, fields)
+    },
+    [photos, acceptanceState, acceptCamera],
+  )
+
   /** Links a photo to a job, or takes it off one, on its record and here. */
   const setJob = useCallback(
     (id: string, job: PhotoJob, on: boolean, targetId: string | null = null) => {
@@ -2154,18 +2340,23 @@ export function useFieldPhoto({
   )
 
   /**
-   * Makes an accepted photo's camera a view of interest (`viewFromAcceptedPhoto`), or updates the one it already
-   * made, and links the photo to it as a viewpoint.
+   * Makes a photo's camera a view of interest (`viewFromAcceptedPhoto`), or updates the one it already made, and
+   * links the photo to it as a viewpoint. A camera not yet accepted is accepted by this click (`ensureAccepted`).
    */
   const makeViewpoint = useCallback(
-    (id: string): { ok: true; viewId: string; added: boolean } | { ok: false; reason: string } => {
+    (
+      id: string,
+      fields?: { initials: string; note: string },
+    ): { ok: true; viewId: string; added: boolean } | { ok: false; reason: string } => {
       const photo = photos.find((entry) => entry.id === id)
       if (!photo) return { ok: false, reason: 'That photo is no longer open.' }
       const set = callbacks.current.setViewsOfInterest
       if (!set) return { ok: false, reason: 'Views of interest cannot be listed from here.' }
       if (!photo.recordId) return { ok: false, reason: 'The photo is not in the workspace’s field records.' }
+      const accepted = ensureAccepted(id, fields)
+      if (!accepted.ok) return accepted
       const link = viewFromAcceptedPhoto(
-        { id: photo.recordId, name: photo.name, acceptance: photo.acceptance },
+        { id: photo.recordId, name: photo.name, acceptance: accepted.acceptance },
         sceneRef.current,
         acceptancePoseOf(photo),
       )
@@ -2176,7 +2367,7 @@ export function useFieldPhoto({
       setJob(id, 'viewpoint', true, view.id)
       return { ok: true, viewId: view.id, added: link.kind === 'add' }
     },
-    [photos, setJob],
+    [photos, setJob, ensureAccepted],
   )
 
   // ---------------------------------------------------------------------------------------------------------------
@@ -2229,6 +2420,8 @@ export function useFieldPhoto({
         id,
         name: file.name.slice(0, 200),
         src,
+        thumb: recordImage.thumb,
+        clock: cameraClockTime(tags),
         objectUrl: true,
         original: saved?.blob ?? file,
         decodedFrom: shown.decodedFrom,
@@ -2262,14 +2455,18 @@ export function useFieldPhoto({
     }
   }
 
-  /** Puts photos into the set as the active one's neighbours, makes `activeId` (else the earliest) active and queues them. */
-  const takePhotos = (made: OwnPhoto[], activeId?: string | null) => {
+  /**
+   * Puts photos into the set as the active one's neighbours, makes `activeId` (else the earliest) active and queues
+   * them. `joining` photos come after the first of one add: they only join the set and the queue, and the photo that
+   * is open stays open.
+   */
+  const takePhotos = (made: OwnPhoto[], activeId?: string | null, { joining = false }: { joining?: boolean } = {}) => {
     for (const photo of made) {
       // A photo opened again replaces its earlier copy: release that copy's URL and pixels.
       const earlier = photosRef.current.find((other) => other.id === photo.id)
       if (earlier && earlier.src !== photo.src) {
         caches.pixels.delete(earlier.src)
-        caches.skyline.delete(earlier.src)
+        forgetSkylines(caches.skyline, earlier.src)
         if (earlier.objectUrl) URL.revokeObjectURL(earlier.src)
       }
       if (photo.objectUrl) objectUrls.current.set(photo.id, photo.src)
@@ -2277,14 +2474,16 @@ export function useFieldPhoto({
     }
     const ids = new Set(made.map((photo) => photo.id))
     setPhotos((current) => withPhotoFlights([...current.filter((photo) => !ids.has(photo.id)), ...made]))
-    const first =
-      (activeId && made.some((photo) => photo.id === activeId) ? activeId : null) ?? queueOrder(made)[0] ?? null
-    abort.current?.abort()
-    setImage(null)
-    setMatch(null)
-    setAlignment({ status: 'idle', fit: null, message: null })
-    setToolsError(null)
-    if (first) activate(first)
+    if (!joining) {
+      const first =
+        (activeId && made.some((photo) => photo.id === activeId) ? activeId : null) ?? queueOrder(made)[0] ?? null
+      abort.current?.abort()
+      setImage(null)
+      setMatch(null)
+      setAlignment({ status: 'idle', fit: null, message: null })
+      setToolsError(null)
+      if (first) activate(first)
+    }
     enqueue(queueOrder(made))
   }
 
@@ -2292,6 +2491,10 @@ export function useFieldPhoto({
    * Adds the reviewer's own photos: each decoded (a HEIC in a worker), its EXIF read, its record made and added to
    * the assessment tools, its original kept as the record's attachment, grouped into flights, and queued. A set
    * larger than the workspace's room is refused before any is read.
+   *
+   * Several are read side by side (`heicDecodeConcurrency`), and each joins the set, and the queue, as soon as it is
+   * read, so the first photo's search starts while the rest decode. The set opens on the first photo read, then on an
+   * earlier one in time when that arrives, unless the reviewer has opened another photo meanwhile.
    */
   const addOwnFiles = useCallback(
     async (files: File[], roadView: RoadViewPose | null = null): Promise<AddOwnFilesResult> => {
@@ -2303,39 +2506,71 @@ export function useFieldPhoto({
         setOwnStatus({ loading: false, error: text })
         return { added: [], refused: text, errors: [] }
       }
-      const made: Array<{ photo: OwnPhoto; record: FieldRecord; file: File }> = []
+      const added: OwnPhoto[] = []
       const errors: string[] = []
-      for (const [i, file] of files.entries()) {
-        const stage = files.length > 1 ? `Reading photo ${i + 1} of ${files.length}…` : 'Reading the photo…'
-        setOwnStatus({ loading: true, error: null, stage })
+      let read = 0,
+        decoding = 0,
+        full: string | null = null
+      /** The photo this add opened by itself; it gives way to an earlier one only while it is still the open photo. */
+      let opened: string | null = null
+      const say = () =>
+        setOwnStatus({
+          loading: true,
+          error: null,
+          stage:
+            (files.length > 1 ? `Reading photos: ${read} of ${files.length} read…` : 'Reading the photo…') +
+            (decoding ? ` Decoding ${files.length > 1 ? 'HEIC photos' : 'the HEIC photo'} in this browser…` : ''),
+        })
+      say()
+      const take = (photo: OwnPhoto) => {
+        if (!opened) {
+          takePhotos([photo])
+          opened = photo.id
+        } else {
+          takePhotos([photo], null, { joining: true })
+          const earliest = queueOrder([...added, photo])[0]
+          if (activeRef.current === opened && earliest && earliest !== opened) {
+            activate(earliest)
+            opened = earliest
+          }
+        }
+        added.push(photo)
+      }
+      await inLanes(files, heicDecodeConcurrency(), async (file) => {
+        if (started !== generation.current || full) return
+        let decodingThis = false
         try {
-          const read = await readOwnFile(file, roadView, null, () =>
-            setOwnStatus({ loading: true, error: null, stage: `${stage} Decoding the HEIC photo in this browser…` }),
-          )
-          made.push({ ...read, file })
+          const made = await readOwnFile(file, roadView, null, () => {
+            decodingThis = true
+            decoding++
+            say()
+          })
+          // The set was cleared, or the workspace filled, while this one was read.
+          if (started !== generation.current || full) {
+            URL.revokeObjectURL(made.photo.src)
+            return
+          }
+          const noRoom = bridge ? bridge.addPhotoRecords([made.record]) : null
+          if (noRoom) {
+            URL.revokeObjectURL(made.photo.src)
+            full = noRoom
+            return
+          }
+          const photo = bridge ? made.photo : { ...made.photo, recordId: null }
+          callbacks.current.onOriginalPhoto?.(file, photo.id)
+          take(photo)
         } catch (error) {
           errors.push(files.length > 1 ? `${file.name}: ${reason(error)}` : reason(error))
+        } finally {
+          if (decodingThis) decoding--
+          read++
+          if (started === generation.current && read < files.length) say()
         }
-        if (started !== generation.current) {
-          for (const { photo } of made) URL.revokeObjectURL(photo.src)
-          return { added: [], refused: null, errors }
-        }
-      }
-      if (!made.length) {
-        setOwnStatus({ loading: false, error: errors.join(' ') || 'No photo was read.' })
-        return { added: [], refused: null, errors }
-      }
-      const full = bridge ? bridge.addPhotoRecords(made.map(({ record }) => record)) : null
-      if (full) {
-        for (const { photo } of made) URL.revokeObjectURL(photo.src)
-        setOwnStatus({ loading: false, error: full })
-        return { added: [], refused: full, errors }
-      }
-      const photosMade = made.map(({ photo }) => (bridge ? photo : { ...photo, recordId: null }))
-      for (const { file, photo } of made) callbacks.current.onOriginalPhoto?.(file, photo.id)
-      takePhotos(photosMade)
-      setOwnStatus({ loading: false, error: errors.length ? errors.join(' ') : null })
-      return { added: queueOrder(photosMade), refused: null, errors }
+      })
+      if (started !== generation.current) return { added: [], refused: null, errors }
+      const failed = [full, ...errors].filter(Boolean).join(' ')
+      setOwnStatus({ loading: false, error: added.length ? failed || null : failed || 'No photo was read.' })
+      return { added: queueOrder(added), refused: full, errors }
     },
     // takePhotos and readOwnFile read refs and stable setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2352,28 +2587,43 @@ export function useFieldPhoto({
     async (entries: Array<{ file: File; saved: SavedOwnPhoto }>, activeId?: string | null): Promise<boolean> => {
       const started = generation.current
       const bridge = records?.current
-      const made: OwnPhoto[] = []
       const errors: string[] = []
-      for (const [i, { file, saved }] of entries.entries()) {
-        const stage = entries.length > 1 ? `Reading photo ${i + 1} of ${entries.length}…` : 'Reading the photo…'
-        setOwnStatus({ loading: true, error: null, stage })
+      let read = 0,
+        stopped = false
+      const say = () =>
+        setOwnStatus({
+          loading: true,
+          error: null,
+          stage: entries.length > 1 ? `Reading photos: ${read} of ${entries.length} read…` : 'Reading the photo…',
+        })
+      say()
+      // Read side by side, as `addOwnFiles` reads them; taken into the set together, in the order the file kept.
+      const slots = await inLanes(entries, heicDecodeConcurrency(), async ({ file, saved }) => {
+        if (stopped) return null
         const record = saved.recordId ? (bridge?.getRecord?.(saved.recordId) ?? null) : null
         const held = record ? { ...saved, acceptance: record.acceptance ?? null, uses: record.uses ?? [] } : saved
         try {
-          const { photo, record: madeRecord } = await readOwnFile(file, null, held, () =>
-            setOwnStatus({ loading: true, error: null, stage: `${stage} Decoding the HEIC photo in this browser…` }),
-          )
-          if (started !== generation.current) {
+          const { photo, record: madeRecord } = await readOwnFile(file, null, held, () => undefined)
+          if (stopped || started !== generation.current) {
+            stopped = true
             URL.revokeObjectURL(photo.src)
-            for (const other of made) URL.revokeObjectURL(other.src)
-            return false
+            return null
           }
           // An older project kept a photo with no record: it becomes one now when there is room.
           const recorded = saved.recordId ? true : !(bridge?.addPhotoRecords([madeRecord]) ?? 'none')
-          made.push(recorded ? photo : { ...photo, recordId: null })
+          return recorded ? photo : { ...photo, recordId: null }
         } catch (error) {
           errors.push(entries.length > 1 ? `${file.name}: ${reason(error)}` : reason(error))
+          return null
+        } finally {
+          read++
+          if (!stopped && started === generation.current && read < entries.length) say()
         }
+      })
+      const made = slots.filter((photo): photo is OwnPhoto => photo !== null)
+      if (stopped || started !== generation.current) {
+        for (const other of made) URL.revokeObjectURL(other.src)
+        return false
       }
       if (made.length) takePhotos(made, activeId)
       setOwnStatus({ loading: false, error: errors.length ? errors.join(' ') : null })
@@ -2467,18 +2717,23 @@ export function useFieldPhoto({
       }
       if (!photo) return
       if (queueRun.running === id) queueAbort.current?.abort()
+      if (featuresRunning === id) featuresAbort.current?.abort()
       setQueueRun((current) => ({ ...current, pending: current.pending.filter((other) => other !== id) }))
       const url = objectUrls.current.get(id)
       if (url) URL.revokeObjectURL(url)
       objectUrls.current.delete(id)
       caches.pixels.delete(photo.src)
-      caches.skyline.delete(photo.src)
+      forgetSkylines(caches.skyline, photo.src)
       setPhotos((current) => withPhotoFlights(current.filter((other) => other.id !== id)))
       const rest = photosRef.current.filter((other) => other.id !== id)
       setWork((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== id)))
-      if (activeRef.current === id) activate(queueOrder(rest)[0] ?? null)
+      if (activeRef.current === id) {
+        // Its drape goes with it: left on, the next photo opened would be laid on the plan unasked.
+        setDrapeView((current) => (current.shown ? { ...current, shown: false } : current))
+        activate(queueOrder(rest)[0] ?? null)
+      }
     },
-    [queueRun.running, records, caches, activate],
+    [queueRun.running, featuresRunning, records, caches, activate],
   )
 
   // ---------------------------------------------------------------------------------------------------------------
@@ -3260,6 +3515,7 @@ export function useFieldPhoto({
       abort.current?.abort()
       cameraAbort.current?.abort()
       queueAbort.current?.abort()
+      featuresAbort.current?.abort()
       const match = flightMatchAbort.current
       flightMatchAbort.current = null
       match?.abort()
@@ -3300,6 +3556,18 @@ export function useFieldPhoto({
     },
     addOwnFiles,
     removePhoto,
+    /**
+     * Clears the street photo (a Mapillary image and its line-up) and nothing else. `clear` empties the reviewer's
+     * own photos too, which is what that panel's button once did to a set it had nothing to do with.
+     */
+    clearStreetPhoto: () => {
+      abort.current?.abort()
+      setImage(null)
+      setMatch(null)
+      setInput('')
+      setAlignment({ status: 'idle', fit: null, message: null })
+      setToolsError(null)
+    },
     /** Everything worked out for a photo: its search, model views, checks, features, priors and pairs. */
     workFor: (id: string): OwnPhotoWork => work[id] ?? EMPTY_WORK,
 
@@ -3323,6 +3591,35 @@ export function useFieldPhoto({
     // ---- Options, checks and acceptance ----
     optionsFor,
     runCombinedCameraSearch,
+    /** Keeps a comparison the reviewer ran as the photo's latest, so what it favours is offered beside its options. */
+    keepCombined: (id: string, result: CombinedResult) =>
+      patchWork(id, (current) => ({ ...current, combined: { result, depth: !!result.depthModel } })),
+    /**
+     * Compares a photo's cameras with depth, downloading the small model when this browser does not hold it yet (the
+     * reviewer's click is the asking). Every other photo compared without depth is then compared again by the queue,
+     * which finds the model here.
+     */
+    compareWithDepth: async (id: string, signal: AbortSignal) => {
+      const result = await runCombinedCameraSearch(
+        id,
+        { useSkyline: true, depthModel: AUTO_DEPTH_MODEL },
+        signal,
+        () => undefined,
+      )
+      setWork((current) =>
+        Object.fromEntries(
+          Object.entries(current).map(([key, entry]) => [
+            key,
+            key === id
+              ? { ...entry, combined: { result, depth: !!result.depthModel } }
+              : entry.combined && !entry.combined.depth && result.depthModel
+                ? { ...entry, combined: undefined }
+                : entry,
+          ]),
+        ),
+      )
+      return result
+    },
     flightMatchProgress,
     flightMatchFrames: ownPhotos.map(flightFrameOf),
     runFlightMatch,
@@ -3336,6 +3633,7 @@ export function useFieldPhoto({
     /** Whether a check asked for is waiting for its camera's hit buffer. */
     checkPending: !!pendingCheck && pendingCheck.id === activeId,
     acceptCamera,
+    ensureAccepted,
     acceptanceState,
 
     // ---- Use ----

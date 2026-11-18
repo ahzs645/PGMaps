@@ -12,12 +12,16 @@
  *
  * Free of DOM and network access.
  */
+import type { LineSymbol } from '@/lib/mapSheet/symbols'
+
 import type { BcSensitivityUnit } from './bcVisualInventory'
 import type { VriStand } from './bcVegetationInventory'
 import type { CanopyStand } from './canopy'
 import type { Box } from './photoFeatures'
-import type { PhotoLayerId } from './photoLayers'
+import type { PhotoCustomLayer, PhotoLayerId } from './photoLayers'
 import type { PhotoFeature } from './photoOverlay'
+import { ROAD_COLOR } from './planMapStyle'
+import type { ForestryScene } from './scene'
 import type { VliViewpoint } from './viewpointInventory'
 import { EVQO_CODE_FOR_CLASS } from './visualsNarrative'
 
@@ -281,4 +285,37 @@ export function inventoryViewpointFeatures(viewpoints: readonly VliViewpoint[]):
     label: viewpoint.number !== null ? `${viewpoint.typeLabel} ${viewpoint.number}` : viewpoint.typeLabel,
     geometry: { type: 'Point', coordinates: [viewpoint.lng, viewpoint.lat] },
   }))
+}
+
+/** The road to assess, in the plan's own road colour over a white casing, so it reads on forest and on sky. */
+const ASSESSED_ROAD: LineSymbol = {
+  kind: 'line',
+  label: 'Road to assess',
+  layers: [
+    { color: '#ffffff', width: 3, opacity: 0.85, cap: 'round', join: 'round' },
+    { color: ROAD_COLOR, width: 1.6, cap: 'round', join: 'round' },
+  ],
+}
+
+/**
+ * Layers of the scene put on a photo through the added-layer path (`PhotoCustomLayer`), not a case of their own in the
+ * photo tools: the road the assessment views the block from. A new thing to show on a photo starts here, as one more
+ * entry, with its features and the symbol the plan or a sheet already draws it with.
+ */
+export function scenePhotoLayers(
+  scene: { viewpoint?: Pick<ForestryScene['viewpoint'], 'mode' | 'coordinates'> | null } | null | undefined,
+): PhotoCustomLayer[] {
+  const road = scene?.viewpoint
+  const line = road && road.mode === 'corridor' && road.coordinates.length > 1 ? road.coordinates : null
+  return [
+    {
+      id: 'scene-road',
+      label: 'Road to assess',
+      group: 'The scene',
+      source: 'The road the assessment views the block from, as drawn in step 1',
+      symbol: ASSESSED_ROAD,
+      features: line ? [{ id: 'road', geometry: { type: 'LineString', coordinates: line } }] : [],
+      defaultOn: false,
+    },
+  ]
 }

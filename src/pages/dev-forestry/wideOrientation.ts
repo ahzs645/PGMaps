@@ -86,6 +86,16 @@ export interface WideSearchResult extends SkylineCandidate {
   hfov?: number
 }
 
+/**
+ * How well a search's result fits, to choose between the results of two skyline readers: a fit `fitSkyline` trusts
+ * before one it does not, then the more agreeing columns at the higher agreement (the bench's rule, `orient.ts`).
+ */
+export const searchRank = (result: Pick<WideSearchResult, 'fit'>): number =>
+  (result.fit.trustworthy ? 1e6 : 0) + result.fit.agreeing * result.fit.agreement
+
+/** A fit this good by one reader needs no other reader tried. */
+export const READER_SETTLED_AGREEMENT = 0.95
+
 /** Lenses tried across an `hfovRange`, this many degrees apart … */
 export const LENS_STEP_DEGREES = 3
 /** … and never more than this many: each is a whole search. */

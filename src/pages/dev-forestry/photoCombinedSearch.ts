@@ -9,7 +9,7 @@ import {
   COMBINED_SAMPLE_WIDTH,
   type CameraCues,
 } from './photoCombined'
-import { estimatePhotoDepth, type PhotoDepthModel } from './photoDepth'
+import { estimatePhotoDepth, type DepthGrid, type PhotoDepthModel } from './photoDepth'
 import { ownPhotoPose } from './exifPose'
 import type { PhotoOption } from './photoOptions'
 import type { Rgba } from './photoViews'
@@ -101,6 +101,7 @@ export async function comparePhotoCameras({
   imagery,
   signal,
   onProgress,
+  depthFor,
 }: {
   settings: CombinedSettings
   current: AcceptancePose
@@ -114,6 +115,11 @@ export async function comparePhotoCameras({
   imagery: ImageryLayer[]
   signal: AbortSignal
   onProgress: (message: string) => void
+  /**
+   * The photo's depth by a model: the caller's kept estimate, else a fresh one it keeps. Absent, it is estimated here
+   * every time, which is a second or more of inference and a model load for the same answer.
+   */
+  depthFor?: (model: PhotoDepthModel, signal: AbortSignal) => Promise<DepthGrid>
 }): Promise<CombinedResult> {
   const { seeds, coarse, trustedSky } = seedsFor(current, options, settings.useSkyline, overlapP90, photoWidth)
   let depthIssue: string | null = null
@@ -121,7 +127,7 @@ export async function comparePhotoCameras({
   const inferred = model
     ? (() => {
         onProgress('Estimating depth on this device…')
-        return estimatePhotoDepth(pixels, model, signal).catch(() => {
+        return (depthFor ? depthFor(model, signal) : estimatePhotoDepth(pixels, model, signal)).catch(() => {
           depthIssue = 'Local depth was unavailable. Other camera cues were compared.'
           return null
         })

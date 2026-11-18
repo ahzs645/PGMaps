@@ -9,14 +9,14 @@
  * is resizable by the grip on its left edge, between a third and a half of that row by default and never more than
  * half, so the plan keeps room to be read; the width lasts the visit.
  */
-import { useRef, useState, type PointerEvent } from 'react'
+import { useMemo, useRef, useState, type PointerEvent } from 'react'
 import { GripVertical, Maximize2, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-import { PHOTO_STATUS_TEXT } from './photoOptions'
-import type { PhotoPageFeatures } from './photoPageFeatures'
+import { photoStripState } from './photoOptions'
+import { scenePhotoLayers, type PhotoPageFeatures } from './photoPageFeatures'
 import { PhotoWithOverlays } from './PhotoWithOverlays'
 import type { FieldPhotoState } from './useFieldPhoto'
 
@@ -46,6 +46,7 @@ export function DockedPhotoPane({
   className?: string
 }) {
   const [width, setWidth] = useState(DEFAULT_WIDTH)
+  const sceneLayers = useMemo(() => scenePhotoLayers(photo.ownScene), [photo.ownScene])
   const drag = useRef<{ x: number; width: number; pointer: number; max: number } | null>(null)
   const own = photo.own
   if (!own) return null
@@ -55,9 +56,9 @@ export function DockedPhotoPane({
     acceptance === 'lapsed'
       ? 'Acceptance lapsed: the camera moved'
       : entry
-        ? PHOTO_STATUS_TEXT[entry.status]
+        ? photoStripState(entry).short
         : acceptance === 'accepted'
-          ? PHOTO_STATUS_TEXT.accepted
+          ? 'Accepted'
           : null
 
   const startResize = (event: PointerEvent<HTMLDivElement>) => {
@@ -109,6 +110,7 @@ export function DockedPhotoPane({
         cursorPixel={cursorPixel}
         onHoverGround={onHoverGround}
         pageFeatures={pageFeatures}
+        customLayers={sceneLayers}
         imageClassName="max-h-[45vh]"
         toolbar={
           <Button type="button" variant="ghost" size="xs" className="ml-auto touch:h-10" onClick={onOpenWindow}>

@@ -8,7 +8,6 @@ const base: OwnPhotoPrimaryInput = {
   queue: { running: false, position: null, total: 3 },
   status: 'options',
   acceptance: 'none',
-  checked: false,
   acceptReason: null,
   viewpointId: null,
   standReason: null,
@@ -45,22 +44,22 @@ describe('ownPhotoPrimary', () => {
     })
   })
 
-  it('checks before it accepts, and passes on the gate’s reason', () => {
-    expect(ownPhotoPrimary(base).kind).toBe('check')
-    expect(ownPhotoPrimary({ ...base, status: 'failed' }).kind).toBe('check')
-    expect(ownPhotoPrimary({ ...base, checked: true, acceptReason: 'Type your initials.' })).toEqual({
+  it('accepts in one click once a camera is there, and passes on the gate’s reason', () => {
+    expect(ownPhotoPrimary(base)).toEqual({ kind: 'accept', label: 'Accept camera', reason: null })
+    expect(ownPhotoPrimary({ ...base, status: 'failed' }).kind).toBe('accept')
+    expect(ownPhotoPrimary({ ...base, acceptReason: 'A held-out pair lands 80 px off.' })).toEqual({
       kind: 'accept',
       label: 'Accept camera',
-      reason: 'Type your initials.',
+      reason: 'A held-out pair lands 80 px off.',
     })
   })
 
   it('treats a lapsed acceptance as none', () => {
-    expect(ownPhotoPrimary({ ...base, acceptance: 'lapsed' }).kind).toBe('check')
+    expect(ownPhotoPrimary({ ...base, acceptance: 'lapsed' }).kind).toBe('accept')
   })
 
   it('makes a viewpoint, stands there, then moves on', () => {
-    const accepted = { ...base, status: 'accepted' as const, acceptance: 'accepted' as const, checked: true }
+    const accepted = { ...base, status: 'accepted' as const, acceptance: 'accepted' as const }
     expect(ownPhotoPrimary(accepted).kind).toBe('viewpoint')
     expect(ownPhotoPrimary({ ...accepted, viewpointId: 'v' }).kind).toBe('stand')
     expect(ownPhotoPrimary({ ...accepted, viewpointId: 'v', standReason: 'Too far' })).toEqual({

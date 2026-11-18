@@ -1,8 +1,10 @@
 /// <reference lib="webworker" />
 /**
- * Decodes one HEIC photo off the page's thread and hands it back as a JPEG the page can show. The
- * wasm file is fetched here, only when a HEIC photo is opened in a browser that cannot show one.
- * Where a worker has no 2D canvas, the pixels go back for the page to encode.
+ * Decodes HEIC photos off the page's thread, one request at a time, and hands each back as a JPEG the
+ * page can show. The wasm file is fetched and compiled here once, when the first HEIC photo is opened
+ * in a browser that cannot show one; each photo then gets a decoder instance of its own, whose memory
+ * goes with it. The page keeps a few of these workers between photos (`heicDecodePool.ts`). Where a
+ * worker has no 2D canvas, the pixels go back for the page to encode.
  */
 import { compileHeicDecoder, decodeHeic, HeicDecodeError } from './heicDecode'
 
@@ -15,8 +17,8 @@ export interface HeicDecodeRequest {
 
 export type HeicDecodeResponse =
   /**
-   * The JPEG as bytes, not a Blob: this worker ends as soon as it has answered, and a Blob made here can
-   * be unreadable on the page once it has.
+   * The JPEG as bytes, not a Blob: this worker ends once it has been idle a while, and a Blob made here
+   * can be unreadable on the page once it has.
    */
   | { type: 'jpeg'; jpeg: ArrayBuffer; width: number; height: number; srgb: boolean }
   | { type: 'pixels'; rgba: ArrayBuffer; width: number; height: number; srgb: boolean }
@@ -40,13 +42,22 @@ const encodeJpeg = async (
   }
 }
 
+/** The decoder, fetched and compiled once a worker; a failed load is tried again by the next photo. */
+let compiled: Promise<WebAssembly.Module> | null = null
+const decoderModule = () =>
+  (compiled ??= (async () => {
+    const response = await fetch(new URL('./heic_decode.wasm', import.meta.url))
+    if (!response.ok) throw new Error(`The HEIC decoder did not load (${response.status}).`)
+    return compileHeicDecoder(await response.arrayBuffer())
+  })().catch((error: unknown) => {
+    compiled = null
+    throw error
+  }))
+
 scope.onmessage = async (event: MessageEvent<HeicDecodeRequest>) => {
   const { file, maxPixels, quality } = event.data
   try {
-    const response = await fetch(new URL('./heic_decode.wasm', import.meta.url))
-    if (!response.ok) throw new Error(`The HEIC decoder did not load (${response.status}).`)
-    const decoder = await compileHeicDecoder(await response.arrayBuffer())
-    const picture = await decodeHeic(decoder, new Uint8Array(file), maxPixels)
+    const picture = await decodeHeic(await decoderModule(), new Uint8Array(file), maxPixels)
     const { width, height, srgb } = picture
     const blob = await encodeJpeg(picture, quality)
     if (blob) {

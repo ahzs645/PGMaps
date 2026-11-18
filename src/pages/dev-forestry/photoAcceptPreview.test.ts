@@ -33,17 +33,10 @@ describe('acceptPreview', () => {
     expect(preview.evidence.skyColumns).toBe(40)
   })
 
-  it('asks for a note when the fit is not settled, and passes once there is one', () => {
-    expect(acceptPreview(base).gate).toEqual({
-      ok: false,
-      reason: 'The fit is not settled: write why this camera is the right one.',
-    })
-    expect(acceptPreview({ ...base, note: 'The lake sits on the lake.' }).gate).toEqual({ ok: true })
-  })
-
-  it('refuses until the checks are drawn for this camera', () => {
-    expect(acceptPreview({ ...base, checkedPose: null }).gate.ok).toBe(false)
-    expect(acceptPreview({ ...base, checkedPose: { ...pose, bearing: 125 } }).gate.ok).toBe(false)
+  it('lets a camera be accepted with no note, no initials and no checks drawn', () => {
+    expect(acceptPreview(base).gate).toEqual({ ok: true })
+    expect(acceptPreview({ ...base, initials: '', checkedPose: null }).gate).toEqual({ ok: true })
+    expect(acceptPreview({ ...base, checkedPose: { ...pose, bearing: 125 } }).gate).toEqual({ ok: true })
   })
 
   it('falls back to where the heading came from when no row is this camera', () => {

@@ -1,7 +1,9 @@
+import { PHOTO_DEPTH_CACHE, depthModelUrls, type PhotoDepthModel } from './photoDepthModels'
 import type { Rgba } from './photoViews'
 
+export type { PhotoDepthModel }
+
 export type DepthGrid = { width: number; height: number; inverse: Float32Array }
-export type PhotoDepthModel = 'da2-small' | 'da3-small'
 export type PhotoDepthRequest = { photo: Rgba; model: PhotoDepthModel }
 export type PhotoDepthReply = { depth: DepthGrid } | { error: string }
 
@@ -30,4 +32,19 @@ export function estimatePhotoDepth(photo: Rgba, model: PhotoDepthModel, signal: 
     }
     worker.postMessage({ photo, model } satisfies PhotoDepthRequest)
   })
+}
+
+/**
+ * Whether a model's weights are already in this browser (downloaded for an earlier comparison). The queue runs a
+ * depth comparison by itself only then: it never starts a download of tens of megabytes nobody asked for.
+ */
+export async function depthModelStored(model: PhotoDepthModel): Promise<boolean> {
+  try {
+    const cache = await globalThis.caches?.open(PHOTO_DEPTH_CACHE)
+    if (!cache) return false
+    const kept = await Promise.all(depthModelUrls(model).map((url) => cache.match(url)))
+    return kept.every(Boolean)
+  } catch {
+    return false
+  }
 }

@@ -9,6 +9,11 @@ import {
   lensRangeFor,
   methodForOption,
   methodForSource,
+  IMAGERY_RINGS,
+  featuresNext,
+  imageryKey,
+  imageryRingKeys,
+  inLanes,
   nextInQueue,
   photoFlights,
   photoQueueStatus,
@@ -55,6 +60,89 @@ describe('the queue’s order', () => {
     // 70 minutes later: a flight of its own.
     expect(flights.get('d')?.flightId).not.toBe(flights.get('a')!.flightId)
     expect(flights.has('x')).toBe(false)
+  })
+})
+
+describe('imagery shared by a flight', () => {
+  // Made-up places: two frames 300 m apart, and one 60 km away.
+  const a = imageryRingKeys(-122.5, 53.9)
+  const near = imageryRingKeys(-122.4955, 53.9005)
+  const far = imageryRingKeys(-121.6, 53.9)
+
+  it('keys each ring by the tiles it holds, finest first', () => {
+    expect(a).toHaveLength(IMAGERY_RINGS.length)
+    expect(a.map((key) => Number(key.split('/')[0]))).toEqual(
+      [...a.map((key) => Number(key.split('/')[0]))].sort((x, y) => y - x),
+    )
+    expect(imageryKey(-122.5, 53.9)).toBe(a.join('|'))
+  })
+
+  it('gives two frames of a burst the same middle and far rings', () => {
+    expect(near[1]).toBe(a[1])
+    expect(near[2]).toBe(a[2])
+  })
+
+  it('gives a photo taken far away rings of its own', () => {
+    expect(far[0]).not.toBe(a[0])
+    expect(far[1]).not.toBe(a[1])
+  })
+})
+
+describe('reading a set side by side', () => {
+  it('keeps the results in order and never runs more than its lanes at once', async () => {
+    let running = 0,
+      most = 0
+    const results = await inLanes([30, 5, 20, 1, 10], 2, async (ms, index) => {
+      most = Math.max(most, ++running)
+      await new Promise((resolve) => setTimeout(resolve, ms))
+      running--
+      return `${index}:${ms}`
+    })
+    expect(results).toEqual(['0:30', '1:5', '2:20', '3:1', '4:10'])
+    expect(most).toBe(2)
+  })
+
+  it('runs one at a time for one lane, and nothing for no items', async () => {
+    const order: number[] = []
+    await inLanes([1, 2, 3], 1, async (item) => void order.push(item))
+    expect(order).toEqual([1, 2, 3])
+    expect(await inLanes([], 4, async () => 1)).toEqual([])
+  })
+})
+
+describe('the features check, after the searches', () => {
+  const at = (
+    id: string,
+    minute: number,
+    state: Partial<{ positioned: boolean; searched: boolean; read: boolean }>,
+  ) => ({
+    id,
+    takenAtUtc: `2026-06-01T10:${String(minute).padStart(2, '0')}:00.000Z`,
+    positioned: true,
+    searched: true,
+    read: false,
+    ...state,
+  })
+  const set = [at('late', 9, {}), at('early', 1, {}), at('middle', 5, {})]
+
+  it('reads the open photo first, even while other searches run', () => {
+    expect(featuresNext({ photos: set, activeId: 'middle', searching: true, held: false })).toBe('middle')
+  })
+
+  it('waits for the searches before the others, then goes in time order', () => {
+    const openRead = set.map((photo) => (photo.id === 'middle' ? { ...photo, read: true } : photo))
+    expect(featuresNext({ photos: openRead, activeId: 'middle', searching: true, held: false })).toBeNull()
+    expect(featuresNext({ photos: openRead, activeId: 'middle', searching: false, held: false })).toBe('early')
+  })
+
+  it('reads only the open photo while the queue is paused or cancelled', () => {
+    expect(featuresNext({ photos: set, activeId: null, searching: false, held: true })).toBeNull()
+    expect(featuresNext({ photos: set, activeId: 'late', searching: false, held: true })).toBe('late')
+  })
+
+  it('never reads a photo with no position, no search result, or its features already read', () => {
+    const none = [at('a', 1, { positioned: false }), at('b', 2, { searched: false }), at('c', 3, { read: true })]
+    expect(featuresNext({ photos: none, activeId: 'a', searching: false, held: false })).toBeNull()
   })
 })
 

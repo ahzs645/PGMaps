@@ -1,6 +1,7 @@
 import { Minus, Plus, RotateCcw } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 
 import { offsetPosition } from './driveMath'
@@ -120,9 +121,8 @@ export function PhotoFineTune({
           onStep={(sign) => photo.setOwnPose({ hfov: hfov + sign * lens })}
         />
       </div>
-      <details>
-        <summary className="cursor-pointer py-1 text-xs font-medium">Move the camera</summary>
-        <div className="mt-1 grid grid-cols-2 gap-1.5">
+      <DisclosureRow title="Move the camera" summary="east, north and height">
+        <div className="grid grid-cols-2 gap-1.5">
           {offset && (
             <>
               <Stepper
@@ -149,7 +149,7 @@ export function PhotoFineTune({
             }
           />
         </div>
-      </details>
+      </DisclosureRow>
     </div>
   )
 }

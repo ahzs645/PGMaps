@@ -175,7 +175,8 @@ describe('the own-photo worker', () => {
       (stage, done) => {
         if (stage !== 'work') return
         progress.push(done)
-        if (progress.length === 2) controller.abort()
+        // The view is drawn in two slices: aborted after the first, the worker drops it before the second is done.
+        if (progress.length === 1) controller.abort()
       },
     )
     await expect(slow).rejects.toThrow()

@@ -196,6 +196,7 @@ import {
   type PhotoPageFeatures,
 } from './dev-forestry/photoPageFeatures'
 import { searchSummaryFrom } from './dev-forestry/photoRecords'
+import { useOwnPhotoPersistence } from './dev-forestry/useOwnPhotoPersistence'
 import type { MapillaryImage } from './dev-forestry/mapillary'
 import {
   clearingWidthForRoadClass,
@@ -5261,6 +5262,25 @@ function DevForestryVisuals() {
     removeFieldRecord: tools.removeFieldRecord,
     getRecord: tools.fieldRecord,
   }
+  // Own photos across a reload (`useOwnPhotoPersistence`): the originals and each photo's camera, kept in this browser
+  // beside the workspace and opened again once it has loaded.
+  useOwnPhotoPersistence({
+    ready: tools.evidence.loaded,
+    attachments: projectAttachments,
+    setAttachments: setProjectAttachments,
+    photos: fieldPhoto.ownPhotos.flatMap((own) => {
+      if (!own.recordId) return []
+      const work = fieldPhoto.workFor(own.id)
+      const search =
+        work.search.status === 'done'
+          ? searchSummaryFrom(work.search.result, [work.modelViews.camera, work.modelViews['runner-up']])
+          : (own.savedSearch ?? null)
+      return [{ id: own.recordId, name: own.name, state: { pose: own.pose, sources: own.sources, search } }]
+    }),
+    activeId: fieldPhoto.activeId,
+    hasRecord: (id) => !!tools.fieldRecord(id),
+    restore: fieldPhoto.openSavedPhotos,
+  })
   /** Everything in progress as one archive, for Save & export's Project. */
   const buildProjectFile = async () => {
     // Every own photo in the set, the open one first: its original, pose, record, where each value came from and its

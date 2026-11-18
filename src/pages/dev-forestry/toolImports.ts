@@ -68,27 +68,49 @@ export async function importFieldImage(
 
 /** The longest side of a field record's image, pixels: the record shows the photo; its original keeps the detail. */
 const FIELD_IMAGE_MAX_PX = 1600
+/** The longest side of a photo's thumbnail in a strip: a strip of full-size photos decodes every one of them whole. */
+const FIELD_THUMB_MAX_PX = 320
+
+/** A canvas as a JPEG data URL, encoded off the page's thread (`toDataURL` holds it for the whole encode). */
+async function jpegDataUrl(canvas: HTMLCanvasElement, quality: number): Promise<string> {
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+  if (!blob) throw new Error('This browser could not write the photo as JPEG.')
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  let binary = ''
+  // In runs: one call with every byte as an argument overflows the stack on a large picture.
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return `data:image/jpeg;base64,${btoa(binary)}`
+}
 
 /**
  * A photo the browser can show (a JPEG or PNG, or a HEIC already decoded by `showablePhoto`) re-encoded as a field
- * record's image: a JPEG at most `FIELD_IMAGE_MAX_PX` on its longer side, on white.
+ * record's image: a JPEG at most `FIELD_IMAGE_MAX_PX` on its longer side, on white. `thumb` is the same picture at
+ * most `FIELD_THUMB_MAX_PX` on its longer side, for a strip of photos; both come from the one decode.
  */
-export async function fieldImageFromBlob(blob: Blob): Promise<{ dataUrl: string; width: number; height: number }> {
-  const bitmap = await createImageBitmap(blob),
-    factor = Math.min(1, FIELD_IMAGE_MAX_PX / Math.max(bitmap.width, bitmap.height)),
-    canvas = document.createElement('canvas')
-  canvas.width = Math.round(bitmap.width * factor)
-  canvas.height = Math.round(bitmap.height * factor)
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
+export async function fieldImageFromBlob(
+  blob: Blob,
+): Promise<{ dataUrl: string; width: number; height: number; thumb: string }> {
+  const bitmap = await createImageBitmap(blob)
+  try {
+    const drawn = (maxPx: number) => {
+      const factor = Math.min(1, maxPx / Math.max(bitmap.width, bitmap.height)),
+        canvas = document.createElement('canvas')
+      canvas.width = Math.round(bitmap.width * factor)
+      canvas.height = Math.round(bitmap.height * factor)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Image decoding is unavailable.')
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+      return canvas
+    }
+    const full = drawn(FIELD_IMAGE_MAX_PX)
+    const { width, height } = full
+    const [dataUrl, thumb] = await Promise.all([jpegDataUrl(full, 0.82), jpegDataUrl(drawn(FIELD_THUMB_MAX_PX), 0.8)])
+    return { dataUrl, width, height, thumb }
+  } finally {
     bitmap.close()
-    throw new Error('Image decoding is unavailable.')
   }
-  ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  bitmap.close()
-  return { dataUrl: canvas.toDataURL('image/jpeg', 0.82), width: canvas.width, height: canvas.height }
 }
 
 export async function importLocalRaster(

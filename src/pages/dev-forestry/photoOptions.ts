@@ -436,7 +436,7 @@ export const PHOTO_STATUS_TEXT: Record<PhotoQueueStatus, string> = {
   queued: 'Waiting its turn',
   searching: 'Searching for the camera',
   options: 'Options ready: choose a camera',
-  checked: 'Checked: ready to accept',
+  checked: 'Looked at: accept it or choose another camera',
   accepted: 'Accepted',
   failed: 'Camera not found',
 }
@@ -448,6 +448,72 @@ export const PHOTO_FAILURE_TEXT: Record<PhotoFailureReason, string> = {
   'cropped-lens': 'Cropped: the photo is not the size the camera took, so its lens is unknown.',
   'phone-heading-only': 'Only the phone’s heading, which from an aircraft can be far out.',
   'disagrees-with-neighbour': 'Disagrees with the frame taken just before or after it.',
+}
+
+/** What a photo's dot says: nothing yet, in hand, the reviewer's to confirm, wanting the reviewer's help, or done. */
+export type PhotoStripTone = 'idle' | 'waiting' | 'working' | 'ready' | 'help' | 'done' | 'failed'
+
+/**
+ * A photo in the strip: the dot's tone, a word or two under its picture, and the sentence that says what to do next.
+ * A status alone does not sort a set: every searched photo is *options*, but one whose skyline settled only wants a
+ * look, and one where two headings fit wants a landmark.
+ */
+export function photoStripState(entry: Pick<PhotoQueueEntry, 'status' | 'reasons'> | undefined): {
+  tone: PhotoStripTone
+  short: string
+  text: string
+} {
+  const status = entry?.status ?? 'queued'
+  const has = (reason: PhotoFailureReason) => !!entry?.reasons.includes(reason)
+  switch (status) {
+    case 'unsearched':
+      return { tone: 'idle', short: 'Not searched', text: PHOTO_STATUS_TEXT.unsearched }
+    case 'queued':
+      return { tone: 'waiting', short: 'Waiting', text: PHOTO_STATUS_TEXT.queued }
+    case 'searching':
+      return { tone: 'working', short: 'Searching', text: PHOTO_STATUS_TEXT.searching }
+    case 'accepted':
+      return { tone: 'done', short: 'Accepted', text: PHOTO_STATUS_TEXT.accepted }
+    case 'failed':
+      if (has('outside-terrain'))
+        return { tone: 'failed', short: 'No terrain', text: PHOTO_FAILURE_TEXT['outside-terrain'] }
+      if (has('no-skyline'))
+        return {
+          tone: 'failed',
+          short: 'No skyline',
+          text: 'No skyline to search by: pair a landmark in the photo and on the plan to get a camera.',
+        }
+      return { tone: 'failed', short: 'Not found', text: PHOTO_STATUS_TEXT.failed }
+    // The check images are drawn whenever a photo's camera is on screen, so *checked* says only that it was looked
+    // at: what the photo needs is still read from why its camera is in doubt.
+    case 'checked':
+    case 'options':
+      if (has('disagrees-with-neighbour'))
+        return {
+          tone: 'help',
+          short: 'Disagrees with a neighbour',
+          text: 'The camera found disagrees with the frame taken just before or after it: compare both, or pair a landmark.',
+        }
+      if (has('not-settled'))
+        return {
+          tone: 'help',
+          short: 'Needs a landmark',
+          text: 'More than one heading fits the skyline about as well: pair one landmark to settle it, or compare the options.',
+        }
+      if (has('phone-heading-only'))
+        return {
+          tone: 'help',
+          short: 'Needs a landmark',
+          text: 'Only the phone’s heading so far, which from an aircraft can be far out: pair a landmark.',
+        }
+      if (has('cropped-lens'))
+        return { tone: 'help', short: 'Cropped: check the lens', text: PHOTO_FAILURE_TEXT['cropped-lens'] }
+      return {
+        tone: 'ready',
+        short: 'Check it',
+        text: 'A camera was found: check it against the photo, then accept it.',
+      }
+  }
 }
 
 /** A failure reason in words; the neighbour's name when there is one. */

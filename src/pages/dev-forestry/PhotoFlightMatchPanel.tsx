@@ -1,5 +1,6 @@
 import { Link2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DisclosureCard } from '@/components/ui/disclosure'
 import { planFlightMatches } from './photoFlightMatching'
 import type { FieldPhotoState } from './useFieldPhoto'
 
@@ -19,9 +20,12 @@ export function PhotoFlightMatchPanel({ photo }: { photo: FieldPhotoState }) {
   })
 
   return (
-    <details className="rounded-md border border-border p-3">
-      <summary className="cursor-pointer text-sm font-semibold">Match flight photos</summary>
-      <div className="mt-2 space-y-2 text-xs leading-5">
+    <DisclosureCard
+      title="Match flight photos"
+      summary={`${anchors.length} accepted · ${targets.length} to review${options.length ? ` · ${options.length} suggested` : ''}`}
+      contentClassName="space-y-2 leading-5"
+    >
+      <>
         <p className="text-muted-foreground">
           Match shared features against accepted photos from this flight. Open a result to adjust it in Camera options.
           Accept a checked result and rerun to use it as another reference.
@@ -93,7 +97,7 @@ export function PhotoFlightMatchPanel({ photo }: { photo: FieldPhotoState }) {
             ))}
           </ul>
         )}
-      </div>
-    </details>
+      </>
+    </DisclosureCard>
   )
 }

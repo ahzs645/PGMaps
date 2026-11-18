@@ -150,6 +150,55 @@ The build was driven end to end in a browser with the fourteen helicopter photos
 - **Not exercised in the browser:** the 2×2 comparison (photo, model view of the best fit, model view of the runner-up, their difference), shown only for a fit that is not settled, and a full paired-point solve from clicked pairs. Both have unit tests; neither was driven by hand.
 - **Most of these photos do not settle on the skyline alone.** Of the fourteen, IMG_9297 and IMG_9311 settle; the other twelve come back *not settled* (another heading at least 15° away fits about as well). The queue's search was rebuilt by hand in the page for all fourteen and matched it exactly, so this is the photos, not the queue: their skylines are mostly one straight ridge. Paired points are the way to settle them. A burst neighbour's accepted camera is offered on the next frame's card, but the narrow search round IMG_9311 put IMG_9310 16° away, so the neighbour-agreement evidence (within 2°) did not appear on this set.
 
+## 6a. Speed and layout pass (17 November 2026)
+
+A DevTools trace of the fourteen HEIC photos showed where the wait was (its times are under the profiler on a dev build, so higher than a plain run). Import took 42 s: each photo decoded in turn, in a worker of its own that compiled the decoder again, and none shown until all were read. The queue then took about half a minute a photo, of which the search was about one second: the two model views took 11.6 s and 14.2 s, a ray marched to 90 km through every pixel, and the features read another 3 s of DataBC between searches.
+
+What changed:
+
+- **Model views from the hit buffer.** `renderModelView` now colours `buildHitBuffer`'s one walk per azimuth, which §2.3 already described and the overlay already used. On synthetic terrain with the flight's camera shape a 320-pixel view went from 7.85 s to 0.12 s, with sky and ground the same on every pixel and colour differing on 0.04% of them.
+- **Features after the searches.** The open photo's are read as soon as its search is done; the others' once every search is done.
+- **A set read side by side, shown as it arrives.** Up to four decode workers kept between photos; each photo joins the strip and the queue when read.
+- **Thumbnails in the strip**, made with the record image, in place of fourteen full-size pictures.
+
+Measured in the page with the fourteen originals, before and after: the same machine, headless Chrome on its GPU, a dev build with no profiler, timed from the files being handed to the chooser.
+
+| | Before (`9484a457`) | After |
+|---|---|---|
+| First photo in the strip | 18.7 s | 1.0 s |
+| Every photo in the strip | 18.7 s | 4.9 s |
+| First camera found | 34.7 s | 4.9 s |
+| Every camera searched | 152.3 s | 23.8 s |
+
+The cameras found are the same: IMG_9297 still reads heading 48.8°, pitch −5.7°, roll +0.8°, agreement 0.24 against −0.14 for the runner-up.
+
+Layout, from the same review: the set and the queue stay on screen as a filmstrip on *Camera* and *Use*; each photo says what it needs (*Check it* or *Needs a landmark*) instead of fourteen identical *options ready*; the *Camera* tab shows one picture at a time; one sentence above the options says what the open photo needs; times are the camera's clock, not UTC.
+
+The items first listed here as not done were taken up in section 6b.
+
+## 6b. Second pass (18 November 2026)
+
+Asked for after the first pass, and done:
+
+- **Accept is one click and optional.** No check step, no required initials or note; a job that draws from the camera accepts it in the same click. Only a point solve whose held-out pair misses is refused.
+- **One flight is one flight.** A gap over half an hour starts a new one (it was five minutes, which listed this flight as three).
+- **Photos survive a reload.** Originals, cameras and depth estimates are kept in this browser's database; fourteen photos were back in the set 4.9 s after a reload.
+- **Imagery is shared by tile range**, a ring at a time.
+- **A second skyline reader.** IMG_9319 read 358.6° with 0 agreeing columns and IMG_9320 44.1°; with the brightness readers they read 140.7° and 138.9°. The bench had solved IMG_9320 at 139.0°.
+- **Depth for a photo the skyline cannot settle**, with its estimate kept: IMG_9310 went from 207.6° to the 263–280° sector the bench's hand trace (275.7°) sits in. First depth run 3.0 s, later runs 0.9 s.
+- **Layers on the photo** in a shared list, with a way to add any map layer; the scene's road is the first.
+- **Folds** in the window are the application's own, not the browser's `<details>`.
+
+Queue time for the fourteen photos is now about 30 s (24 s before the brightness readers): eleven photos do not settle on the colour reader and try three more.
+
+Still open:
+
+- **The spinner cost did not reproduce.** Outside DevTools the page makes no style recalculations at rest and a spinning icon runs on the compositor (0 main-thread frames in 2 s). The 120 frames a second in the trace look like the profiler's own effect; nothing was changed.
+- **A photo reopened from its field record after *Close my photos*** is still its 1,600-pixel copy, although its original is now kept. `openOwnRecord` should open the original.
+- **Scene swaps leave photos behind.** *Start from* a sample, *New site* and *Open saved preview* replace the scene and keep the photo set, its records and originals. Whether those should go with the scene is a decision.
+- **The block note's plan map is the live plan**, so it can include the photo drape, cones and track; the VIA report's maps cannot.
+- **Twelve of fourteen photos still need a landmark** to be exact. Depth picks the sector; it does not fit the camera.
+
 ## 7. Sources for the interface patterns
 
 - Smapshot (participatory georeferencing): automatic residual gate before validation, a human check, and propagation of a reference image's pose to its neighbours.

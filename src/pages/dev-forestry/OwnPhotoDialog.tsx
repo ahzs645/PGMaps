@@ -13,7 +13,7 @@
  * it works on lives in `useFieldPhoto`, so nothing is lost while it is away. `docs/forestry-visual-quality.md`,
  * "A photo of your own".
  */
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowRight,
@@ -31,6 +31,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TabBar } from '@/components/ui/tab-bar'
 import { cn } from '@/lib/utils'
 
@@ -39,15 +40,16 @@ import { ownPhotoSteps } from './ownPhotoSteps'
 import { OWN_PHOTO_TABS, adjustsAt, ownPhotoPrimary, tabOf, type OwnPhotoTab } from './ownPhotoTabs'
 import { PhotoAcceptPanel, PhotoUsePanel } from './PhotoAcceptPanel'
 import { acceptPreview } from './photoAcceptPreview'
-import { sameCamera } from './photoAcceptance'
 import { PhotoAdjustPanel } from './PhotoAdjustPanel'
 import type { StartPlanPick } from './PhotoCameraTools'
 import { PhotoCompare } from './PhotoCompare'
 import { PhotoCombinedPanel } from './PhotoCombinedPanel'
 import { PhotoFlightMatchPanel } from './PhotoFlightMatchPanel'
 import { PhotoOptionsCard, ownAcceptancePose } from './PhotoOptionsCard'
+import { photoStripState } from './photoOptions'
+import { scenePhotoLayers } from './photoPageFeatures'
 import { controlSolveSuspect } from './photoQueue'
-import { PhotoStrip, queueLine } from './PhotoStrip'
+import { PHOTO_TONE_DOT, PhotoFilmstrip, PhotoStrip, queueLine } from './PhotoStrip'
 import { PhotoWithOverlays } from './PhotoWithOverlays'
 import type { FieldPhotoState } from './useFieldPhoto'
 
@@ -100,6 +102,10 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
   const [adjust, setAdjust] = useState(() => adjustsAt(photo.ownDialog.step))
   const [align, setAlign] = useState(false)
   const [placing, setPlacing] = useState(false)
+  // What the scene adds over the photo beside the layers the photo reads itself (`scenePhotoLayers`).
+  const sceneLayers = useMemo(() => scenePhotoLayers(photo.ownScene), [photo.ownScene])
+  // One picture at a time on the Camera tab: what is drawn over the photo, or the photo against the model view.
+  const [viewer, setViewer] = useState<CameraViewer>('photo')
   const [initials, setInitials] = useState('')
   const [note, setNote] = useState('')
   const [acceptError, setAcceptError] = useState<string | null>(null)
@@ -108,6 +114,8 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
   const [pickRequested, setPickRequested] = useState(false)
   const steppedAside = pickRequested && !!actions.pickActive
   const comparing = !!own && !!photo.match
+  // A landmark is picked, and the skyline dragged, on the photo itself: both bring it back.
+  const showModel = viewer === 'model' && !placing && !align
 
   // An older step name (the sidebar's Position or Direction) opens the hand tools; another photo starts clean.
   const [seen, setSeen] = useState({ step: photo.ownDialog.step, id: own?.id ?? null })
@@ -123,10 +131,18 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
     setSeen({ step: photo.ownDialog.step, id: own?.id ?? null })
   }
 
+  // The check images count as drawn once what is laid over the photo has its hit buffer for this exact camera
+  // (`requestCheck`). Asked for whenever a photo's camera is on screen, never by a button: an acceptance then records
+  // truthfully whether they were in front of the reviewer.
+  const { requestCheck, activePoseKey } = photo
+  const shownId = tab === 'camera' && photo.ownDialog.open && !steppedAside ? (own?.id ?? null) : null
+  useEffect(() => {
+    if (shownId) requestCheck(shownId)
+  }, [shownId, activePoseKey, requestCheck])
+
   const current = ownAcceptancePose(own)
   const options = own ? photo.optionsFor(own.id) : []
   const checkedPose = own ? photo.checksDrawnFor(own.id) : null
-  const checked = !!current && !!checkedPose && sameCamera(checkedPose, current)
   const preview = acceptPreview({
     pose: current,
     chosen: own?.chosen ?? null,
@@ -138,6 +154,37 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
     photoWidth: own?.width ?? 0,
   })
   const entry = own ? photo.queue.entries.find((row) => row.recordId === own.id) : undefined
+  // What the queue's own comparison of cameras favours for a photo the skyline did not settle, when that is not the
+  // camera as it stands: a start to take in one click, never taken for the reviewer.
+  const compared = own ? photo.workFor(own.id).combined : null
+  const [depthBusy, setDepthBusy] = useState<string | null>(null)
+  const [depthError, setDepthError] = useState<string | null>(null)
+  const depthRequest = useRef<AbortController | null>(null)
+  useEffect(() => () => depthRequest.current?.abort(), [])
+  const compareWithDepth = () => {
+    if (!own || depthRequest.current) return
+    const controller = new AbortController()
+    depthRequest.current = controller
+    setDepthBusy(own.id)
+    setDepthError(null)
+    void photo
+      .compareWithDepth(own.id, controller.signal)
+      .then((result) => {
+        if (!result.depthModel) setDepthError(result.depthIssue ?? 'Depth could not be estimated for this photo.')
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) setDepthError(error instanceof Error ? error.message : String(error))
+      })
+      .finally(() => {
+        if (depthRequest.current === controller) depthRequest.current = null
+        setDepthBusy(null)
+      })
+  }
+  const favoured = compared?.result.candidates[0]
+  const groundSuggestion =
+    current && favoured && !sameHeading(favoured.pose.bearing, current.bearing) && entry?.status !== 'accepted'
+      ? { pose: favoured.pose, depth: !!favoured.cues.depth }
+      : null
   const viewpointId = own?.uses.find((use) => use.job === 'viewpoint')?.targetId ?? null
   const blocked = own ? lineUpBlocked(photo, actions.canLineUp) : null
   const activeIndex = own ? ownPhotos.findIndex((entry) => entry.id === own.id) : -1
@@ -155,7 +202,6 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
     },
     status: entry?.status ?? null,
     acceptance: own ? photo.acceptanceState(own.id) : 'none',
-    checked,
     acceptReason: preview.gate.ok ? null : preview.gate.reason,
     viewpointId,
     standReason: blocked,
@@ -182,18 +228,6 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
     )
   }
 
-  /** Draws the checks for the camera as it stands: what is drawn over the photo, and the model view. */
-  const checkCamera = () => {
-    if (!own) return
-    setTab('camera')
-    // Counted once what is drawn over the photo has its hit buffer for this exact camera (`requestCheck`), never on
-    // the click alone.
-    photo.requestCheck(own.id)
-    const hasModel =
-      !!photo.activePoseKey &&
-      Object.values(photo.workFor(own.id).modelViews).some((model) => model.poseKey === photo.activePoseKey)
-    if (!hasModel) void photo.renderModel('camera')
-  }
   const accept = () => {
     if (!own) return
     const made = photo.acceptCamera(own.id, { initials, note })
@@ -203,11 +237,11 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
     }
     setAcceptError(null)
     setNote('')
-    setTab('use')
+    setNotice('Camera accepted. Make it a viewpoint, or go on to the next photo.')
   }
   const makeViewpoint = () => {
     if (!own) return
-    const made = photo.makeViewpoint(own.id)
+    const made = photo.makeViewpoint(own.id, { initials, note })
     setNotice(
       made.ok
         ? made.added
@@ -226,10 +260,8 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
     switch (primary.kind) {
       case 'add':
         return setTab('photos')
-      case 'check':
-        return checkCamera()
       case 'accept':
-        return tab === 'use' ? accept() : setTab('use')
+        return accept()
       case 'viewpoint':
         return makeViewpoint()
       case 'stand':
@@ -243,7 +275,7 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
   const primaryDisabled =
     primary.kind === 'searching' ||
     primary.kind === 'none' ||
-    (primary.kind === 'accept' && tab === 'use' && !!primary.reason) ||
+    (primary.kind === 'accept' && !!primary.reason) ||
     (primary.kind === 'stand' && !!primary.reason)
   const primaryReason =
     (primary.kind === 'accept' || primary.kind === 'stand' || primary.kind === 'viewpoint') && primary.reason
@@ -265,22 +297,26 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
         }
         toolbar={
           ownPhotos.length ? (
-            <TabBar<OwnPhotoTab>
-              label="Own photo"
-              idPrefix="own-photo"
-              value={tab}
-              onChange={setTab}
-              stretch
-              options={OWN_PHOTO_TABS.map((entry) => ({
-                value: entry.tab,
-                label: entry.label,
-                disabled: entry.tab !== 'photos' && !own,
-                badge:
-                  entry.tab === 'photos' && photo.queue.running ? (
-                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-                  ) : undefined,
-              }))}
-            />
+            <>
+              <TabBar<OwnPhotoTab>
+                label="Own photo"
+                idPrefix="own-photo"
+                value={tab}
+                onChange={setTab}
+                stretch
+                options={OWN_PHOTO_TABS.map((entry) => ({
+                  value: entry.tab,
+                  label: entry.label,
+                  disabled: entry.tab !== 'photos' && !own,
+                  badge:
+                    entry.tab === 'photos' && photo.queue.running ? (
+                      <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                    ) : undefined,
+                }))}
+              />
+              {/* The Photos tab is the set at full size; on the others it stays in reach as one row. */}
+              {tab !== 'photos' && <PhotoFilmstrip photo={photo} />}
+            </>
           ) : undefined
         }
         footer={
@@ -334,8 +370,9 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
             records={actions.records}
             roadView={actions.roadView}
             onAdded={(added) => {
-              // A first set opens on its earliest photo's camera; adding to a set stays here.
-              if (added.length && !ownPhotos.length) setTab('camera')
+              // A first photo opens on its camera. A first set stays here, where each photo's place in the queue and
+              // what it needs can be read at a glance; adding to a set stays here too.
+              if (added.length === 1 && !ownPhotos.length) setTab('camera')
             }}
           />
         </TabPanel>
@@ -343,46 +380,93 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
           <TabPanel tab="camera" current={tab}>
             <div className="grid gap-5 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]" aria-label="Own photo camera">
               <div className="min-w-0 space-y-4 self-start md:sticky md:top-0">
+                <SegmentedControl<CameraViewer>
+                  label="What to look at"
+                  size="sm"
+                  value={showModel ? 'model' : 'photo'}
+                  onChange={(next) => {
+                    if (next === 'model') {
+                      setPlacing(false)
+                      setAlign(false)
+                    }
+                    setViewer(next)
+                  }}
+                  options={[
+                    { value: 'photo', label: 'Layers on the photo' },
+                    { value: 'model', label: 'Against the model view' },
+                  ]}
+                />
                 {placing && (
                   <p className="text-xs font-medium text-foreground">
                     Click a spot in the photo; this window then steps aside for you to click the same spot on the plan.
                   </p>
                 )}
-                <PhotoWithOverlays
-                  photo={photo}
-                  pageFeatures={actions.pageFeatures}
-                  layersMenu="inline"
-                  align={align}
-                  showPairs
-                  readOnClick={!placing}
-                  imageClassName="max-h-[52dvh]"
-                  onPickPixel={placing ? placePoint : undefined}
-                  onPairPixel={startPick ? placePoint : undefined}
-                  toolbar={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      className="ml-auto touch:h-10"
-                      disabled={own.pose.lng === null}
-                      onClick={() => {
-                        photo.showDrape('camera')
-                        photo.closeOwnDialog()
-                      }}
-                    >
-                      <MapIcon className="h-3.5 w-3.5" />
-                      Show on the plan, beside the photo
-                    </Button>
-                  }
-                />
-                <PhotoCompare
-                  key={own.id}
-                  photo={photo}
-                  active={tab === 'camera' && photo.ownDialog.open && !steppedAside}
-                />
+                {/* Hidden, not unmounted, while the model view shows: laying the layers on the photo again costs a
+                    second or more a camera. */}
+                <div hidden={showModel}>
+                  <PhotoWithOverlays
+                    photo={photo}
+                    pageFeatures={actions.pageFeatures}
+                    customLayers={sceneLayers}
+                    layersMenu="inline"
+                    align={align}
+                    showPairs
+                    readOnClick={!placing}
+                    imageClassName="max-h-[52dvh]"
+                    onPickPixel={placing ? placePoint : undefined}
+                    onPairPixel={startPick ? placePoint : undefined}
+                    toolbar={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="xs"
+                        className="ml-auto touch:h-10"
+                        disabled={own.pose.lng === null}
+                        onClick={() => {
+                          photo.showDrape('camera')
+                          photo.closeOwnDialog()
+                        }}
+                      >
+                        <MapIcon className="h-3.5 w-3.5" />
+                        Show on the plan, beside the photo
+                      </Button>
+                    }
+                  />
+                </div>
+                <div hidden={!showModel}>
+                  <PhotoCompare
+                    key={own.id}
+                    photo={photo}
+                    active={showModel && tab === 'camera' && photo.ownDialog.open && !steppedAside}
+                  />
+                </div>
               </div>
               <div className="min-w-0 space-y-4 text-sm">
                 {photo.ownStatus.error && <InlineAlert tone="error">{photo.ownStatus.error}</InlineAlert>}
+                {entry && (
+                  <PhotoNeeds
+                    entry={entry}
+                    suggestion={groundSuggestion}
+                    onUseSuggestion={
+                      groundSuggestion
+                        ? () => {
+                            // The suggestion is a sector (the sweep is 30° apart), so the skyline is then searched
+                            // inside it: the heading is held near the suggestion, shown under Adjust as a held angle.
+                            photo.setOwnPose(groundSuggestion.pose)
+                            void photo.findCamera({
+                              heading: { value: groundSuggestion.pose.bearing, tolerance: SUGGESTION_SECTOR_DEGREES },
+                            })
+                          }
+                        : undefined
+                    }
+                    depth={
+                      compared && !compared.depth && entry.status !== 'accepted'
+                        ? { busy: depthBusy === own.id, error: depthError, onCompare: compareWithDepth }
+                        : undefined
+                    }
+                  />
+                )}
+                <PhotoOptionsCard photo={photo} onAdjust={() => setAdjust(true)} />
                 {guideWithLandmarks && (
                   <section className="space-y-2 rounded-md border border-border p-3" aria-label="Guide with landmarks">
                     <h4 className="text-sm font-semibold">Guide with landmarks</h4>
@@ -428,15 +512,10 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                   </section>
                 )}
                 {tab === 'camera' && <PhotoFlightMatchPanel photo={photo} />}
-                <PhotoOptionsCard photo={photo} onAdjust={() => setAdjust(true)} />
                 {tab === 'camera' && <PhotoCombinedPanel key={own.id} photo={photo} />}
                 <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
                   <p className="text-xs text-muted-foreground">
-                    {checked
-                      ? 'Checks drawn for this camera: compare them with the photo.'
-                      : photo.checkPending
-                        ? 'Drawing the checks for this camera…'
-                        : 'Not checked for this camera yet.'}
+                    Numbers, held angles, a matched camera and dragging the skyline by hand.
                   </p>
                   <Button
                     type="button"
@@ -481,6 +560,7 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                 <PhotoWithOverlays
                   photo={photo}
                   pageFeatures={actions.pageFeatures}
+                  customLayers={sceneLayers}
                   compact
                   layersMenu="inline"
                   imageClassName="max-h-[40dvh]"
@@ -499,7 +579,7 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                   onAccept={accept}
                   acceptError={acceptError}
                 />
-                <PhotoUsePanel photo={photo} onRemoved={() => setTab('photos')} />
+                <PhotoUsePanel photo={photo} initials={initials} note={note} onRemoved={() => setTab('photos')} />
               </div>
             </div>
           </TabPanel>
@@ -510,23 +590,105 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
   )
 }
 
+type CameraViewer = 'photo' | 'model'
+
+/** How far either side of a suggested heading the skyline is then searched: the sweep's own spacing is 30°. */
+const SUGGESTION_SECTOR_DEGREES = 20
+
+/** Headings this close are the same suggestion as the camera in use: the comparison's sweep is 30° apart. */
+const sameHeading = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180) < 15
+
+/**
+ * What the open photo needs, in one sentence, above everything that could be done to it; and, for a photo the skyline
+ * did not settle, the camera the ground favours, to take as a start.
+ */
+function PhotoNeeds({
+  entry,
+  suggestion,
+  onUseSuggestion,
+  depth,
+}: {
+  entry: Parameters<typeof photoStripState>[0]
+  suggestion?: { pose: { bearing: number; pitch: number }; depth: boolean } | null
+  onUseSuggestion?: () => void
+  /** Offered while the photo's cameras were compared without depth: depth is what tells two headings apart. */
+  depth?: { busy: boolean; error: string | null; onCompare: () => void }
+}) {
+  const state = photoStripState(entry)
+  return (
+    <div className="space-y-2">
+      <NeedsLine state={state} />
+      {suggestion && onUseSuggestion && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card p-2.5 text-xs leading-5"
+          data-testid="own-photo-ground-suggestion"
+        >
+          <p className="min-w-0 flex-1">
+            Compared by {suggestion.depth ? 'depth and the look of the ground' : 'the look of the ground'}, a camera
+            near heading {suggestion.pose.bearing.toFixed(0)}°, pitch {suggestion.pose.pitch.toFixed(0)}° fits best.
+            Starting from it searches the skyline within {SUGGESTION_SECTOR_DEGREES}° of that heading. Check the result
+            against the photo before accepting it.
+          </p>
+          <Button type="button" variant="outline" size="sm" className="touch:h-10" onClick={onUseSuggestion}>
+            Start from it
+          </Button>
+        </div>
+      )}
+      {depth && state.tone === 'help' && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card p-2.5 text-xs leading-5"
+          data-testid="own-photo-depth-offer"
+        >
+          <p className="min-w-0 flex-1">
+            {depth.error ??
+              'A depth estimate of the photo can tell headings apart where the skyline cannot. It runs in this browser; the model is a 27 MB download, kept here, and unsettled photos then use it by themselves.'}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="touch:h-10"
+            disabled={depth.busy}
+            onClick={depth.onCompare}
+          >
+            {depth.busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            Compare with depth
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NeedsLine({ state }: { state: ReturnType<typeof photoStripState> }) {
+  return (
+    <p
+      className="flex items-start gap-2 rounded-md border border-border bg-card p-2.5 text-xs leading-5"
+      role="status"
+      aria-label="What this photo needs"
+      data-testid="own-photo-needs"
+    >
+      <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', PHOTO_TONE_DOT[state.tone])} aria-hidden />
+      <span className="min-w-0">{state.text}</span>
+    </p>
+  )
+}
+
 function PrimaryIcon({ kind }: { kind: ReturnType<typeof ownPhotoPrimary>['kind'] }) {
   const Icon =
     kind === 'searching'
       ? Loader2
       : kind === 'search'
         ? Search
-        : kind === 'check'
-          ? SlidersHorizontal
-          : kind === 'accept'
-            ? Check
-            : kind === 'viewpoint'
-              ? MapPin
-              : kind === 'stand'
-                ? Camera
-                : kind === 'next'
-                  ? ArrowRight
-                  : null
+        : kind === 'accept'
+          ? Check
+          : kind === 'viewpoint'
+            ? MapPin
+            : kind === 'stand'
+              ? Camera
+              : kind === 'next'
+                ? ArrowRight
+                : null
   return Icon ? <Icon className={cn('h-4 w-4', kind === 'searching' && 'animate-spin')} /> : null
 }
 

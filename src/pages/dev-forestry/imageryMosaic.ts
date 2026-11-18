@@ -5,7 +5,7 @@
  */
 import { SATELLITE_TILES } from '@/components/ui/map-satellite-imagery'
 import type { ImageryLayer } from './photoWork'
-import { mosaicSampler, tileXY, type ImagerySampler } from './photoViews'
+import { imageryTileRange, mosaicSampler, type ImagerySampler } from './photoViews'
 
 /** The most tiles one mosaic fetches; past it the zoom drops. */
 const MAX_TILES = 64
@@ -15,14 +15,8 @@ export async function loadImageryMosaic(
   maxZoom: number,
   signal?: AbortSignal,
 ): Promise<{ sampler: ImagerySampler; zoom: number; tiles: number; layer: ImageryLayer }> {
-  let zoom = maxZoom
-  const range = (z: number) => {
-    const [x0, y0] = tileXY(bounds[0], bounds[3], z),
-      [x1, y1] = tileXY(bounds[2], bounds[1], z)
-    return { minX: Math.floor(x0), minY: Math.floor(y0), maxX: Math.floor(x1), maxY: Math.floor(y1) }
-  }
-  let r = range(zoom)
-  while ((r.maxX - r.minX + 1) * (r.maxY - r.minY + 1) > MAX_TILES && zoom > 3) r = range(--zoom)
+  const r = imageryTileRange(bounds, maxZoom, MAX_TILES)
+  const zoom = r.zoom
   const cols = r.maxX - r.minX + 1,
     rows = r.maxY - r.minY + 1
   const canvas = new OffscreenCanvas(cols * 256, rows * 256)

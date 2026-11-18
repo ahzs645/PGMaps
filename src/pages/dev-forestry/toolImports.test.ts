@@ -23,7 +23,8 @@ describe('field image camera suggestions', () => {
         width: 0,
         height: 0,
         getContext: () => ({ fillStyle: '', fillRect: vi.fn(), drawImage: vi.fn() }),
-        toDataURL: () => 'data:image/jpeg;base64,AAAA',
+        // Three zero bytes, which read back as the data URL's AAAA.
+        toBlob: (done: (blob: Blob) => void) => done(new Blob([new Uint8Array(3)], { type: 'image/jpeg' })),
       }
     vi.stubGlobal(
       'createImageBitmap',
@@ -41,6 +42,7 @@ describe('field image camera suggestions', () => {
       alignmentChecked: false,
       width: 1600,
     })
+    expect(f.image).toBe('data:image/jpeg;base64,AAAA')
     expect(f.hfov).toBeCloseTo(39.6, 0)
     expect(close).toHaveBeenCalledOnce()
     vi.mocked(parse).mockResolvedValue({ GPSImgDirectionRef: 'M', GPSImgDirection: 90 })

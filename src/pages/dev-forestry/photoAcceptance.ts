@@ -1,14 +1,17 @@
 /**
  * A reviewer's acceptance of an own photo's camera, stored on the photo's field record (doc proposal
  * `forestry-visual-quality-own-photo-redesign-2026-11-17.md`, §2.6). Nothing before it is a verdict: the skyline
- * search, the point solve and a matched file each say what the camera rests on, and the reviewer, having looked at the
- * check images drawn for that exact camera, says it is right.
+ * search, the point solve and a matched file each say what the camera rests on, and the reviewer's one click says it
+ * is the camera to use.
  *
- * The record keeps who (typed initials, never the preparer profile printed directly), when, how the camera was found,
- * the pose, and the evidence the reviewer saw. Moving the pose afterwards lapses it (`acceptanceLapsed`), and the
- * page says so rather than carrying an acceptance over to a camera nobody looked at.
+ * The record keeps when, how the camera was found, the pose, the evidence behind it and whether the check images had
+ * been drawn for that exact camera (`evidence.checksDrawn`). Initials (typed, never the preparer profile printed
+ * directly) and a note are the reviewer's to add or leave out. Moving the pose afterwards lapses it
+ * (`acceptanceLapsed`), and the page says so rather than carrying an acceptance over to a camera nobody chose.
  *
- * The gate (`acceptGate`) follows Smapshot's validation: an automatic residual test first, then a person's check.
+ * The gate (`acceptGate`) refuses one thing only: a point solve whose held-out pair misses, a measured failure, as
+ * Smapshot refuses a validation over its residual. Checks, initials and a note were once required first; a forced
+ * form before every use of a photo was not how a reviewer works through a flight.
  *
  * Free of DOM and network access: records are validated by hand, with no schema library.
  */
@@ -28,7 +31,7 @@ export const PHOTO_CAMERA_METHODS: readonly PhotoCameraMethod[] = [
 ]
 
 export type PhotoAcceptance = {
-  /** Typed initials. */
+  /** Typed initials; empty when the reviewer added none. */
   acceptedBy: string
   /** ISO time. */
   acceptedAt: string
@@ -58,8 +61,10 @@ export type PhotoAcceptance = {
     overlapMatches?: number
     neighbourId?: string | null
     neighbourAgreesDegrees?: number | null
+    /** Whether the check images had been drawn for this exact camera when it was accepted. */
+    checksDrawn?: boolean
   }
-  /** Required when `evidence.settled === false`. */
+  /** The reviewer's own words on why this camera, when they wrote any. */
   note: string
 }
 
@@ -149,30 +154,19 @@ export function pointsHeldOutLimit(photoWidth?: number): number {
 }
 
 /**
- * Whether *Accept* may be pressed, and the one thing to do first when not: draw the checks for this camera, fix a
- * point solve whose held-out pair misses, write why a camera that is not settled is right, and type initials.
+ * Whether *Accept* may be pressed, and why not: only a point solve whose held-out pair lands too far off is refused,
+ * and initials, when typed, must be initials. Nothing else is asked first.
  */
 export function acceptGate(input: AcceptGateInput): AcceptGateResult {
-  if (!input.checkedPose) return { ok: false, reason: 'Draw the checks over the photo first, then compare them.' }
-  if (!sameCamera(input.checkedPose, input.pose))
-    return { ok: false, reason: 'The camera has changed since the checks were drawn: draw them again.' }
   if (input.method === 'points') {
     const worst = input.evidence.worstPairPixels
-    if (worst === null || worst === undefined || !Number.isFinite(worst))
-      return {
-        ok: false,
-        reason: 'Pair one more point: with no pair held out, the solve cannot be checked.',
-      }
     const limit = pointsHeldOutLimit(input.photoWidth)
-    if (worst > limit)
+    if (worst !== null && worst !== undefined && Number.isFinite(worst) && worst > limit)
       return {
         ok: false,
         reason: `A held-out pair lands ${Math.round(worst)} px off (over ${Math.round(limit)} px): check or remove it.`,
       }
   }
-  if (input.evidence.settled === false && !input.note.trim())
-    return { ok: false, reason: 'The fit is not settled: write why this camera is the right one.' }
-  if (!input.initials.trim()) return { ok: false, reason: 'Type your initials.' }
   if (input.initials.trim().length > MAX_INITIALS) return { ok: false, reason: 'Initials only, please.' }
   return { ok: true }
 }
@@ -189,7 +183,7 @@ export function makePhotoAcceptance(
     acceptedAt: now.toISOString(),
     method: input.method,
     pose: input.pose,
-    evidence: input.evidence,
+    evidence: { ...input.evidence, checksDrawn: !!input.checkedPose && sameCamera(input.checkedPose, input.pose) },
     note: input.note.trim(),
   })
   return acceptance ? { ok: true, acceptance } : { ok: false, reason: 'The camera’s values are out of range.' }
@@ -248,6 +242,7 @@ function parseEvidence(raw: unknown): AcceptanceEvidence {
   share('skySpanShare')
   share('agreeShare')
   if (typeof e.settled === 'boolean') out.settled = e.settled
+  if (typeof e.checksDrawn === 'boolean') out.checksDrawn = e.checksDrawn
   maybeNumber('runnerUpBearing')
   maybeNumber('modelScore')
   maybeNumber('runnerUpModelScore')
@@ -260,20 +255,19 @@ function parseEvidence(raw: unknown): AcceptanceEvidence {
 }
 
 /**
- * Reads a stored acceptance; null when it is not one. Who, when, how and the pose must all be there: an acceptance
- * missing any of them is no acceptance. One of a fit that was not settled must carry its note.
+ * Reads a stored acceptance; null when it is not one. When, how and the pose must all be there: an acceptance missing
+ * any of them is no acceptance. Initials and a note are kept when given.
  */
 export function parsePhotoAcceptance(raw: unknown): PhotoAcceptance | null {
   const a = plain(raw)
   if (!a) return null
   const acceptedBy = typeof a.acceptedBy === 'string' ? a.acceptedBy.trim() : ''
-  if (!acceptedBy || acceptedBy.length > MAX_INITIALS) return null
+  if (acceptedBy.length > MAX_INITIALS) return null
   if (typeof a.acceptedAt !== 'string' || !Number.isFinite(Date.parse(a.acceptedAt))) return null
   if (typeof a.method !== 'string' || !PHOTO_CAMERA_METHODS.includes(a.method as PhotoCameraMethod)) return null
   const pose = parsePose(a.pose)
   if (!pose) return null
   const evidence = parseEvidence(a.evidence)
   const note = typeof a.note === 'string' ? a.note.slice(0, MAX_NOTE) : ''
-  if (evidence.settled === false && !note.trim()) return null
   return { acceptedBy, acceptedAt: a.acceptedAt, method: a.method as PhotoCameraMethod, pose, evidence, note }
 }

@@ -2,11 +2,13 @@
  * Opening a photo a browser may not be able to show. A HEIC file (an iPhone's default) is shown as
  * it is where the browser can (Safari), and otherwise decoded here, in a worker, to a JPEG held in
  * memory: nothing is uploaded, and the file the person picked is left as it was. Any other file is
- * passed through untouched.
+ * passed through untouched. Several photos decode side by side in a few workers kept between them
+ * (`heicDecodePool.ts`), so a caller opening a set should start them together rather than in turn.
  *
  * Browser-only. The decoder is `heicDecode.ts`; the HEIC test is `heicFile.ts`.
  */
 import { HEIC_MAX_PIXELS, HeicDecodeError } from './heicDecode'
+import { createDecodePool, decodePoolSize, type DecodePool, type PoolWorker } from './heicDecodePool'
 import { HEIC_SNIFF_BYTES, looksLikeHeic } from './heicFile'
 import type { HeicDecodeRequest, HeicDecodeResponse } from './heicDecode.worker'
 
@@ -68,7 +70,28 @@ async function jpegFromPixels(rgba: ArrayBuffer, width: number, height: number):
   )
 }
 
-/** Decodes a HEIC file to a JPEG in a worker that ends, with its memory, when the photo is done. */
+let pool: DecodePool<HeicDecodeRequest, HeicDecodeResponse> | null = null
+/** The page's decode workers, made when the first HEIC photo needs one. */
+const decodePool = () =>
+  (pool ??= createDecodePool<HeicDecodeRequest, HeicDecodeResponse>({
+    make: () =>
+      new Worker(new URL('./heicDecode.worker.ts', import.meta.url), { type: 'module' }) as unknown as PoolWorker<
+        HeicDecodeRequest,
+        HeicDecodeResponse
+      >,
+    size: decodePoolSize(
+      navigator.hardwareConcurrency,
+      (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+    ),
+  }))
+
+/** How many HEIC photos this browser decodes side by side: what a caller opening a set should run together. */
+export const heicDecodeConcurrency = (): number =>
+  typeof navigator === 'undefined'
+    ? 1
+    : decodePoolSize(navigator.hardwareConcurrency, (navigator as Navigator & { deviceMemory?: number }).deviceMemory)
+
+/** Decodes a HEIC file to a JPEG in one of the pool's workers; an idle worker ends, with its memory, after a while. */
 export async function heicToJpeg(
   file: Blob,
   { signal, maxPixels = HEIC_MAX_PIXELS }: Pick<ShowablePhotoOptions, 'signal' | 'maxPixels'> = {},
@@ -76,14 +99,7 @@ export async function heicToJpeg(
   signal?.throwIfAborted()
   const bytes = await file.arrayBuffer()
   signal?.throwIfAborted()
-  const worker = new Worker(new URL('./heicDecode.worker.ts', import.meta.url), { type: 'module' })
-  const response = await new Promise<HeicDecodeResponse>((resolve, reject) => {
-    const abort = () => reject(signal?.reason ?? new DOMException('Opening the photo was cancelled.', 'AbortError'))
-    signal?.addEventListener('abort', abort, { once: true })
-    worker.onmessage = (event: MessageEvent<HeicDecodeResponse>) => resolve(event.data)
-    worker.onerror = (event) => reject(new Error(event.message || 'The HEIC decoder failed to start.'))
-    worker.postMessage({ file: bytes, maxPixels, quality: JPEG_QUALITY } satisfies HeicDecodeRequest, [bytes])
-  }).finally(() => worker.terminate())
+  const response = await decodePool().run({ file: bytes, maxPixels, quality: JPEG_QUALITY }, [bytes], signal)
   if (response.type === 'error')
     throw response.refused ? new HeicDecodeError(response.message) : new Error(response.message)
   const { width, height, srgb } = response

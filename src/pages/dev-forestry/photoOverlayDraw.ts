@@ -16,12 +16,13 @@
  */
 import { textOps, labelOps, type FigureLabel } from '@/lib/mapSheet/callouts'
 import type { DrawOp, Point } from '@/lib/mapSheet/drawOps'
-import { pointSymbolOps, type LineSymbol } from '@/lib/mapSheet/symbols'
+import { pointSymbolOps, type LineSymbol, type SheetSymbol } from '@/lib/mapSheet/symbols'
 
 import type { PhotoFeature, PhotoFeaturePaths, BearingTick, DistanceContour } from './photoOverlay'
 import { PHOTO_FEATURE_SOURCES, type Box, type PhotoFeatureReads } from './photoFeatures'
 import {
   PHOTO_SYMBOL_REFERENCE_WIDTH_POINTS,
+  isPhotoLayerId,
   photoLayer,
   photoLayerSymbol,
   photoStrokes,
@@ -37,7 +38,10 @@ export type DrawnFeature = { paths: PhotoFeaturePaths; properties?: Record<strin
 export type PhotoDrawInput = {
   photoWidth: number
   photoHeight: number
-  visibility: Record<PhotoLayerId, boolean>
+  /** By layer: the built-in layers' ids, and the keys of any added layers (`customLayerKey`). */
+  visibility: Readonly<Record<string, boolean>>
+  /** The symbols of added layers, by key; a built-in layer's symbol comes from `photoLayerSymbol`. */
+  symbols?: Readonly<Record<string, SheetSymbol>>
   /** The figure style the scene's roles take; the default style's when absent. */
   styleId?: string | null
   /** The terrain's skyline in photo pixels; a null breaks it. */
@@ -244,15 +248,18 @@ export function photoDrawOps(input: PhotoDrawInput): PhotoDraw {
     })
   }
   for (const { paths, properties } of input.features ?? []) {
-    const layer = paths.layer as PhotoLayerId
+    const layer = paths.layer
     if (!on[layer]) continue
-    const symbol = photoLayerSymbol(layer, properties ?? {}, input.styleId)
+    const added = input.symbols?.[layer]
+    // A layer that is neither built in nor added with a symbol has nothing to be drawn with.
+    if (!added && !isPhotoLayerId(layer)) continue
+    const symbol = added ?? photoLayerSymbol(layer as PhotoLayerId, properties ?? {}, input.styleId)
     group(`${layer}|hidden`, strokeOps(fit(paths.hiddenParts), symbol, k, true))
     group(`${layer}|seen`, strokeOps(fit(paths.visibleParts), symbol, k, false))
     if (symbol.kind === 'point')
       for (const marker of paths.markers)
         if (marker.visible) markers.push(...pointSymbolOps(symbol, marker.x * s, marker.y * s, k))
-    const role = LABELLED[layer]
+    const role = LABELLED[layer as PhotoLayerId]
     if (input.labels && role && paths.label && paths.labelAnchor)
       labels.push({
         title: paths.label,
@@ -358,7 +365,9 @@ export function photoOverlayFeatures(
 export function photoPickLayers(features: readonly PhotoFeature[], within?: Box | null): PhotoPickLayer[] {
   const byLayer = new Map<string, Array<{ id?: string | number; label?: string; geometry: PolygonGeometry }>>()
   for (const feature of features) {
-    const layer = photoLayer(feature.layer as PhotoLayerId)
+    // An added layer is drawn, never read under a click.
+    if (!isPhotoLayerId(feature.layer)) continue
+    const layer = photoLayer(feature.layer)
     if (!layer.pickable || layer.geometry !== 'area' || !polygonal(feature.geometry)) continue
     const list = byLayer.get(layer.id) ?? []
     list.push({

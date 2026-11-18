@@ -71,48 +71,39 @@ describe('acceptanceLapsed', () => {
 })
 
 describe('acceptGate', () => {
-  it('passes a checked, settled camera with initials', () => {
+  it('passes a camera with nothing asked first: no checks, no initials, no note', () => {
     expect(acceptGate(gate)).toEqual({ ok: true })
-  })
-
-  it('wants the checks drawn for this exact camera', () => {
-    expect(acceptGate({ ...gate, checkedPose: null })).toMatchObject({
-      ok: false,
-      reason: expect.stringMatching(/Draw the checks/),
-    })
-    expect(acceptGate({ ...gate, checkedPose: { ...pose, bearing: pose.bearing - 1 } })).toMatchObject({
-      ok: false,
-      reason: expect.stringMatching(/changed since/),
-    })
+    expect(acceptGate({ ...gate, checkedPose: null, initials: '', note: '' })).toEqual({ ok: true })
+    expect(acceptGate({ ...gate, checkedPose: { ...pose, bearing: pose.bearing - 1 } })).toEqual({ ok: true })
+    // A fit that is not settled is the reviewer's to choose, with or without a note.
+    expect(acceptGate({ ...gate, evidence: { settled: false }, initials: '' })).toEqual({ ok: true })
   })
 
   it('refuses a point solve whose worst held-out pair misses, scaled to the photo’s width', () => {
     const points = { ...gate, method: 'points' as const }
     expect(acceptGate({ ...points, evidence: { worstPairPixels: 12 } })).toEqual({ ok: true })
-    expect(acceptGate({ ...points, evidence: { worstPairPixels: POINTS_MAX_HELD_OUT_PX + 1 } }).ok).toBe(false)
+    expect(acceptGate({ ...points, evidence: { worstPairPixels: POINTS_MAX_HELD_OUT_PX + 1 } })).toMatchObject({
+      ok: false,
+      reason: expect.stringMatching(/held-out pair lands/),
+    })
     // At 4,284 px wide the limit is about 163 px.
     expect(pointsHeldOutLimit(4284)).toBeCloseTo(163.2, 1)
     expect(acceptGate({ ...points, photoWidth: 4284, evidence: { worstPairPixels: 120 } })).toEqual({ ok: true })
-    expect(acceptGate({ ...points, evidence: { worstPairPixels: null } })).toMatchObject({
+    // With no pair held out there is nothing measured to refuse on.
+    expect(acceptGate({ ...points, evidence: { worstPairPixels: null } })).toEqual({ ok: true })
+  })
+
+  it('takes initials when given, but not a name', () => {
+    expect(acceptGate({ ...gate, initials: '  ' })).toEqual({ ok: true })
+    expect(acceptGate({ ...gate, initials: 'A reviewer with a long name' })).toMatchObject({
       ok: false,
-      reason: expect.stringMatching(/Pair one more point/),
+      reason: 'Initials only, please.',
     })
-  })
-
-  it('wants a note for a fit that is not settled', () => {
-    const unsettled = { ...gate, evidence: { settled: false } }
-    expect(acceptGate(unsettled)).toMatchObject({ ok: false, reason: expect.stringMatching(/not settled/) })
-    expect(acceptGate({ ...unsettled, note: 'Runner-up puts the lake on a ridge.' })).toEqual({ ok: true })
-  })
-
-  it('wants initials, not a name', () => {
-    expect(acceptGate({ ...gate, initials: '  ' })).toMatchObject({ ok: false, reason: 'Type your initials.' })
-    expect(acceptGate({ ...gate, initials: 'A reviewer with a long name' }).ok).toBe(false)
   })
 })
 
 describe('makePhotoAcceptance', () => {
-  it('records who, when, how and the evidence once the gate passes', () => {
+  it('records when, how, the evidence and whether the checks were drawn for this camera', () => {
     const made = makePhotoAcceptance(
       { ...gate, initials: ' AJ ', evidence: { skyColumns: 140, settled: true, modelScore: 0.3 } },
       new Date('2026-11-17T18:00:00Z'),
@@ -124,17 +115,27 @@ describe('makePhotoAcceptance', () => {
         acceptedAt: '2026-11-17T18:00:00.000Z',
         method: 'skyline',
         pose,
-        evidence: { skyColumns: 140, settled: true, modelScore: 0.3 },
+        evidence: { skyColumns: 140, settled: true, modelScore: 0.3, checksDrawn: true },
         note: '',
       },
     })
   })
 
+  it('accepts with no initials, and says the checks were not drawn when they were for another camera', () => {
+    const made = makePhotoAcceptance(
+      { ...gate, initials: '', checkedPose: { ...pose, bearing: pose.bearing + 3 } },
+      new Date('2026-11-17T18:00:00Z'),
+    )
+    expect(made.ok && made.acceptance.acceptedBy).toBe('')
+    expect(made.ok && made.acceptance.evidence.checksDrawn).toBe(false)
+    const never = makePhotoAcceptance({ ...gate, checkedPose: null }, new Date())
+    expect(never.ok && never.acceptance.evidence.checksDrawn).toBe(false)
+  })
+
   it('returns the gate’s reason when it does not pass', () => {
-    expect(makePhotoAcceptance({ ...gate, initials: '' }, new Date())).toEqual({
-      ok: false,
-      reason: 'Type your initials.',
-    })
+    expect(
+      makePhotoAcceptance({ ...gate, method: 'points', evidence: { worstPairPixels: 500 } }, new Date()),
+    ).toMatchObject({ ok: false, reason: expect.stringMatching(/held-out pair/) })
   })
 })
 
@@ -143,10 +144,10 @@ describe('parsePhotoAcceptance', () => {
     expect(parsePhotoAcceptance(JSON.parse(JSON.stringify(accepted)))).toEqual(accepted)
   })
 
-  it('refuses a record missing who, when, how or a sound pose', () => {
+  it('refuses a record missing when, how or a sound pose, and one whose initials are a name', () => {
     expect(parsePhotoAcceptance(null)).toBeNull()
     expect(parsePhotoAcceptance([])).toBeNull()
-    expect(parsePhotoAcceptance({ ...accepted, acceptedBy: '' })).toBeNull()
+    expect(parsePhotoAcceptance({ ...accepted, acceptedBy: 'A reviewer with a long name' })).toBeNull()
     expect(parsePhotoAcceptance({ ...accepted, acceptedAt: 'yesterday' })).toBeNull()
     expect(parsePhotoAcceptance({ ...accepted, method: 'guess' })).toBeNull()
     expect(parsePhotoAcceptance({ ...accepted, pose: { ...pose, lat: 95 } })).toBeNull()
@@ -154,9 +155,10 @@ describe('parsePhotoAcceptance', () => {
     expect(parsePhotoAcceptance({ ...accepted, pose: { ...pose, altitudeMeters: 20000 } })).toBeNull()
   })
 
-  it('refuses an unsettled acceptance without its note', () => {
-    const unsettled = { ...accepted, evidence: { settled: false } }
-    expect(parsePhotoAcceptance(unsettled)).toBeNull()
+  it('keeps an acceptance made with no initials and no note, settled or not', () => {
+    expect(parsePhotoAcceptance({ ...accepted, acceptedBy: '' })?.acceptedBy).toBe('')
+    const unsettled = { ...accepted, evidence: { settled: false, checksDrawn: true } }
+    expect(parsePhotoAcceptance(unsettled)?.evidence).toEqual({ settled: false, checksDrawn: true })
     expect(parsePhotoAcceptance({ ...unsettled, note: 'Sun glare matches.' })?.note).toBe('Sun glare matches.')
   })
 
