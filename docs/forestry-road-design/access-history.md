@@ -146,10 +146,10 @@ data diagram; rendered browser acceptance is still a separate check.
    uses the bypass constructed in 2016. Expand **Structure evidence and conflicts**.
 6. Select the saved 2010 route again. Its date and evidence remain 2010 even while
    the next trace date is 2022. The map and legend identify the selected saved date.
-7. Expand **Review this association**, choose **Documented use**, select the
+7. Press **Review this association**, choose **Documented use**, select the
    synthetic haul-ledger source, enter a reviewer and a specific reference, and
    save the assertion. This demonstrates the review mechanism using invented evidence.
-8. Export the history bundle or Markdown report, or use **Save → Save project JSON**.
+8. Under **Evidence ledger**, export the history bundle or Markdown report, or use **Save → Save project JSON**.
    Reopen the project and inspect the retained route, review, identifiers and sources.
 
 The example contains two cutblocks, eight road features, a bridge, a culvert,

@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import type { HistoricalCoverageNextStep, HistoricalCoverageSummary } from './accessHistorySummary'
 import type { AccessHistoryQueryStatus, AccessHistorySelection } from './AccessHistorySelection'
@@ -75,6 +76,9 @@ export function AccessHistoryOverview({
   const selectedValue =
     selection && ['road', 'structure'].includes(selection.kind) ? `${selection.kind}:${selection.id}` : ''
   const latestQuery = query && (!query.blockId || query.blockId === block?.id) ? query : null
+  const queried = coverage.queryCoverage.filter((item) => item.status === 'success').length
+  const warnings = coverage.findings.filter((finding) => finding.tone === 'warning').length
+  const coverageSummary = `${queried} of ${coverage.queryCoverage.length} queries retained${warnings ? ` · ${warnings} warning${warnings === 1 ? '' : 's'}` : ''}`
   return (
     <div className={cn(insetBox({ tone: 'muted' }), 'space-y-3 text-xs')} data-testid="history-block-overview">
       <div className="flex items-start gap-2">
@@ -181,40 +185,46 @@ export function AccessHistoryOverview({
         </InlineAlert>
       )}
       {block && (
-        <details className="space-y-2" data-testid="history-coverage-gaps">
-          <summary className="cursor-pointer font-medium">Evidence coverage and remaining gaps</summary>
-          <ul className="list-disc space-y-1 pl-4">
-            {coverage.queryCoverage.map((query) => (
-              <li key={query.source}>
-                {query.sourceRecord?.query?.requestUrl ? (
-                  <a href={query.sourceRecord.query.requestUrl} target="_blank" rel="noreferrer" className="underline">
-                    {sourceNames[query.source] ?? query.source}
-                  </a>
-                ) : (
-                  (sourceNames[query.source] ?? query.source)
-                )}
-                :{' '}
-                {query.status === 'success'
-                  ? `${query.recordCount} record${query.recordCount === 1 ? '' : 's'} returned`
-                  : query.status === 'skipped'
-                    ? `not queried · ${query.sourceRecord?.query?.reason ?? 'prerequisite missing'}`
-                    : 'no query result retained'}
-                {query.sourceRecord && (
-                  <span className="text-muted-foreground"> · {query.sourceRecord.retrievedAt.slice(0, 10)}</span>
-                )}
+        <div data-testid="history-coverage-gaps">
+          <DisclosureRow title="Evidence coverage and remaining gaps" summary={coverageSummary}>
+            <ul className="list-disc space-y-1 pl-4">
+              {coverage.queryCoverage.map((query) => (
+                <li key={query.source}>
+                  {query.sourceRecord?.query?.requestUrl ? (
+                    <a
+                      href={query.sourceRecord.query.requestUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
+                      {sourceNames[query.source] ?? query.source}
+                    </a>
+                  ) : (
+                    (sourceNames[query.source] ?? query.source)
+                  )}
+                  :{' '}
+                  {query.status === 'success'
+                    ? `${query.recordCount} record${query.recordCount === 1 ? '' : 's'} returned`
+                    : query.status === 'skipped'
+                      ? `not queried · ${query.sourceRecord?.query?.reason ?? 'prerequisite missing'}`
+                      : 'no query result retained'}
+                  {query.sourceRecord && (
+                    <span className="text-muted-foreground"> · {query.sourceRecord.retrievedAt.slice(0, 10)}</span>
+                  )}
+                </li>
+              ))}
+              <li>
+                Structure inventories: loaded by local file only; the open record queries do not check bridges or
+                culverts.
               </li>
+            </ul>
+            {coverage.findings.map((finding) => (
+              <p key={finding.id} className={finding.tone === 'warning' ? 'text-warning' : 'text-muted-foreground'}>
+                {finding.message}
+              </p>
             ))}
-            <li>
-              Structure inventories: loaded by local file only; the open record queries do not check bridges or
-              culverts.
-            </li>
-          </ul>
-          {coverage.findings.map((finding) => (
-            <p key={finding.id} className={finding.tone === 'warning' ? 'text-warning' : 'text-muted-foreground'}>
-              {finding.message}
-            </p>
-          ))}
-        </details>
+          </DisclosureRow>
+        </div>
       )}
       {recordOptions.length > 0 && (
         <Field

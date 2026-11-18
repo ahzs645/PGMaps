@@ -62,17 +62,14 @@ export function ReferenceRegistration({
   actions: ReferenceGeometryActions
   onChange: (row: ReferenceRow) => void
 }) {
-  const [open, setOpen] = useState(false)
+  // Mounted only once its tab has been shown, so nothing is read before the reviewer asks.
   return (
-    <details className="space-y-2 rounded-md border p-3" onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary className="cursor-pointer font-medium">Register an image and project a trace</summary>
-      {open && (
-        <Registration
-          key={row.id + (chosenValues(row).referenceImage ?? '')}
-          {...{ row, attachments, inputs, actions, onChange }}
-        />
-      )}
-    </details>
+    <section className="space-y-2" aria-label="Register an image and project a trace">
+      <Registration
+        key={row.id + (chosenValues(row).referenceImage ?? '')}
+        {...{ row, attachments, inputs, actions, onChange }}
+      />
+    </section>
   )
 }
 function Registration({

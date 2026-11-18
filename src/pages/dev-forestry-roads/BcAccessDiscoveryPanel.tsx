@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { PencilRuler, Radar, Search, SquareArrowOutUpRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DisclosureCard } from '@/components/ui/disclosure'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ListHeader, ListState } from '@/components/ui/result-list'
 import { Field, roadFieldClass, RoadSelect } from './Controls'
@@ -329,56 +330,57 @@ function LidarTestBlocks({
 }) {
   const categories = Object.keys(LIDAR_TEST_CATEGORIES) as LidarTestCategory[]
   return (
-    <details className={cn(insetBox({ padding: 'lg' }), 'min-w-0')} data-testid="lidar-test-blocks">
-      <summary className="cursor-pointer text-sm font-semibold">LiDAR test blocks</summary>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Real blocks whose LidarBC DEM tiles were flown at a useful time, screened {LIDAR_TEST_BLOCKS_SCREENED}. Opening
-        one reads its records live. Then load the LiDAR ground from Terrain → Load 1 m DEM → LidarBC; a listed tile is a
-        footprint, so that load reports whether it holds elevations over the block.
-      </p>
-      {categories.map((category) => {
-        const blocks = LIDAR_TEST_BLOCKS.filter((block) => block.category === category)
-        return (
-          <section key={category} className="mt-3 min-w-0" aria-label={LIDAR_TEST_CATEGORIES[category].title}>
-            <h4 className="text-xs font-semibold">{LIDAR_TEST_CATEGORIES[category].title}</h4>
-            <p className="text-xs text-muted-foreground">{LIDAR_TEST_CATEGORIES[category].use}</p>
-            <ul className="mt-1 divide-y">
-              {blocks.map((block) => {
-                const label = `${block.licence}${block.cuttingPermit ? ` CP ${block.cuttingPermit}` : ''} · block ${block.block}`
-                const canOpen = block.openingId ? true : !!onOpenBlock
-                const loading = block.openingId
-                  ? pendingOpening === block.openingId
-                  : pendingBlock !== null && pendingBlock === block.cutblockSKey
-                return (
-                  <li key={block.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-xs">
-                    <div className="min-w-0 flex-1">
-                      <div className="break-words font-medium">
-                        {label} <span className="font-normal text-muted-foreground">({block.district})</span>
+    <div className="min-w-0" data-testid="lidar-test-blocks">
+      <DisclosureCard title="LiDAR test blocks" summary={`${LIDAR_TEST_BLOCKS.length} screened real blocks`}>
+        <p className="text-xs text-muted-foreground">
+          Real blocks whose LidarBC DEM tiles were flown at a useful time, screened {LIDAR_TEST_BLOCKS_SCREENED}.
+          Opening one reads its records live. Then load the LiDAR ground from Terrain → Load 1 m DEM → LidarBC; a listed
+          tile is a footprint, so that load reports whether it holds elevations over the block.
+        </p>
+        {categories.map((category) => {
+          const blocks = LIDAR_TEST_BLOCKS.filter((block) => block.category === category)
+          return (
+            <section key={category} className="min-w-0" aria-label={LIDAR_TEST_CATEGORIES[category].title}>
+              <h4 className="text-xs font-semibold">{LIDAR_TEST_CATEGORIES[category].title}</h4>
+              <p className="text-xs text-muted-foreground">{LIDAR_TEST_CATEGORIES[category].use}</p>
+              <ul className="mt-1 divide-y">
+                {blocks.map((block) => {
+                  const label = `${block.licence}${block.cuttingPermit ? ` CP ${block.cuttingPermit}` : ''} · block ${block.block}`
+                  const canOpen = block.openingId ? true : !!onOpenBlock
+                  const loading = block.openingId
+                    ? pendingOpening === block.openingId
+                    : pendingBlock !== null && pendingBlock === block.cutblockSKey
+                  return (
+                    <li key={block.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-xs">
+                      <div className="min-w-0 flex-1">
+                        <div className="break-words font-medium">
+                          {label} <span className="font-normal text-muted-foreground">({block.district})</span>
+                        </div>
+                        <div className="break-words text-muted-foreground">
+                          Harvest {block.harvest} · {block.lidar}
+                        </div>
                       </div>
-                      <div className="break-words text-muted-foreground">
-                        Harvest {block.harvest} · {block.lidar}
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={disabled || !canOpen}
-                      aria-label={`${block.openingId ? 'Open study' : 'Design from block'} for LiDAR test block ${label}`}
-                      onClick={() =>
-                        block.openingId ? onOpenStudy(block.openingId) : onOpenBlock && onOpenBlock(block)
-                      }
-                    >
-                      {loading ? 'Opening…' : block.openingId ? 'Open study' : 'Design from block'}
-                    </Button>
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-        )
-      })}
-    </details>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={disabled || !canOpen}
+                        aria-label={`${block.openingId ? 'Open study' : 'Design from block'} for LiDAR test block ${label}`}
+                        onClick={() =>
+                          block.openingId ? onOpenStudy(block.openingId) : onOpenBlock && onOpenBlock(block)
+                        }
+                      >
+                        {loading ? 'Opening…' : block.openingId ? 'Open study' : 'Design from block'}
+                      </Button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )
+        })}
+      </DisclosureCard>
+    </div>
   )
 }
 

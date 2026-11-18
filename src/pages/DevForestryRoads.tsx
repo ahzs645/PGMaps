@@ -184,6 +184,7 @@ import { culvertChannels } from './dev-forestry-roads/culverts/culvertChannels'
 import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStreamData'
 import { FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
 import { insetBox } from '@/components/ui/inset-box'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
 import { RoadSummary, RoadSummarySettings } from './dev-forestry-roads/RoadSummary'
@@ -7874,17 +7875,32 @@ export default function DevForestryRoads({
                                               ))}
                                             </RoadSelect>
                                             {cableResult.summary && (
-                                              <details
-                                                className={cn(insetBox({ padding: 'none' }), 'mb-1 px-2 py-1 text-2xs')}
+                                              <div
+                                                className={cn(insetBox({ padding: 'none' }), 'mb-1 px-2 text-2xs')}
                                                 data-testid="road-cable-summary"
                                               >
-                                                <summary className="cursor-pointer">
-                                                  Horizontal span {number(cableResult.summary.horizontalSpanM)} m ·{' '}
-                                                  {cableAnalysis.mechanics?.span
-                                                    ? 'rope and load'
-                                                    : `assumed sag ${number(cableResult.summary.assumedSagM)} m`}
-                                                </summary>
-                                                <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+                                                <DisclosureRow
+                                                  title="D-line geometry"
+                                                  summary={`Horizontal span ${number(cableResult.summary.horizontalSpanM)} m · ${
+                                                    cableAnalysis.mechanics?.span
+                                                      ? 'rope and load'
+                                                      : `assumed sag ${number(cableResult.summary.assumedSagM)} m`
+                                                  }`}
+                                                  help={
+                                                    cableAnalysis.mechanics?.span
+                                                      ? 'These geometric lengths use the assumed sag %. The profile below solves the rope and load for tension and the loaded carriage path; equipment and anchors are not checked.'
+                                                      : 'Geometric lengths describe the entered sag model; equipment, tension and operating loads are not calculated.'
+                                                  }
+                                                  contentClassName="grid grid-cols-2 gap-x-3 gap-y-1 space-y-0"
+                                                >
+                                                  <span>
+                                                    Horizontal span {number(cableResult.summary.horizontalSpanM)} m
+                                                  </span>
+                                                  <span>
+                                                    {cableAnalysis.mechanics?.span
+                                                      ? 'Sag from rope and load'
+                                                      : `Assumed sag ${number(cableResult.summary.assumedSagM)} m`}
+                                                  </span>
                                                   <span>
                                                     Support Δ elevation{' '}
                                                     {number(cableResult.summary.supportElevationDifferenceM)} m
@@ -7899,13 +7915,8 @@ export default function DevForestryRoads({
                                                   <span>
                                                     Known ground {number(cableResult.summary.knownGroundPercent)}%
                                                   </span>
-                                                </div>
-                                                <p className="mt-1 text-muted-foreground">
-                                                  {cableAnalysis.mechanics?.span
-                                                    ? 'These geometric lengths use the assumed sag %. The profile below solves the rope and load for tension and the loaded carriage path; equipment and anchors are not checked.'
-                                                    : 'Geometric lengths describe the entered sag model; equipment, tension and operating loads are not calculated.'}
-                                                </p>
-                                              </details>
+                                                </DisclosureRow>
+                                              </div>
                                             )}
                                             <div className="mb-1 flex gap-1">
                                               <Button

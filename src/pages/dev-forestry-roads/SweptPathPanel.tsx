@@ -13,6 +13,7 @@ import {
   type SweptPathResult,
 } from './sweptPath'
 import type { Alignment, DesignVehicle, LoadSpan, VehicleCheck, VehicleUnit } from './types'
+import { DisclosureCard } from '@/components/ui/disclosure'
 import { InfoTip } from '@/components/ui/info-tip'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
@@ -259,9 +260,14 @@ function SteeringFields({
         hint="Largest angle of the first unit’s steer axle. Every turn is checked against it; blank leaves it unchecked."
       />
       {geometry && (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-2xs font-medium">Turning calculator</summary>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="mt-2 space-y-2">
+          <p className="flex items-center gap-1 text-2xs font-medium">
+            Turning radii at this lock
+            <InfoTip label="About the turning radii">
+              Type a radius to set the steering lock that gives it; the other radii follow.
+            </InfoTip>
+          </p>
+          <div className="grid grid-cols-2 gap-2">
             <NumberField
               label="Steer-axle radius (m)"
               value={round2(geometry.steerRadiusM)}
@@ -296,8 +302,8 @@ function SteeringFields({
               <p className="font-mono tabular-nums">{m(geometry.innerFrontWheelM)}</p>
             </div>
           </div>
-          {problem && <p className="mt-1 text-2xs text-destructive">{problem}</p>}
-        </details>
+          {problem && <p className="text-2xs text-destructive">{problem}</p>}
+        </div>
       )}
     </fieldset>
   )
@@ -673,159 +679,160 @@ export function SweptPathPanel({
             {w}
           </p>
         ))}
-      <details className={insetBox({ padding: 'none' })}>
-        <summary className="cursor-pointer p-2 font-medium">Vehicle, direction & clearance</summary>
-        <div className="space-y-2 border-t p-2">
-          <Field label="Starting configuration">
+      <DisclosureCard
+        title="Vehicle, direction & clearance"
+        summary={`${check.vehicle.units.length} unit${check.vehicle.units.length === 1 ? '' : 's'} · ${m(check.vehicle.widthM)} wide${check.vehicle.steeringLockDeg === undefined ? '' : ` · ${check.vehicle.steeringLockDeg}° lock`}`}
+        contentClassName="space-y-2"
+      >
+        <Field label="Starting configuration">
+          <RoadSelect
+            className={roadFieldClass}
+            ariaLabel="Design vehicle preset"
+            disabled={!onChange}
+            value={preset?.id ?? (saved >= 0 ? `library:${saved}` : 'custom')}
+            onValueChange={(value) => {
+              const next = VEHICLE_PRESETS.find((p) => p.id === value)
+              if (next) set({ vehicle: structuredClone(next.vehicle) })
+              const own = value.startsWith('library:') ? library[Number(value.slice(8))] : undefined
+              if (own) set({ vehicle: structuredClone(own) })
+            }}
+          >
+            {VEHICLE_PRESETS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+            {library.map((v, i) => (
+              <option key={`library:${i}`} value={`library:${i}`}>
+                {`Project vehicle: ${v.name}`}
+              </option>
+            ))}
+            <option value="custom" disabled>
+              Custom dimensions
+            </option>
+          </RoadSelect>
+        </Field>
+        {tools && (
+          <VehicleLibraryActions vehicle={check.vehicle} library={library} onLibraryChange={tools.onLibraryChange} />
+        )}
+        <p className="text-2xs text-warning">
+          Presets are example or transcribed dimensions, not approvals: the source below says which values to confirm.
+          Enter your fleet’s truck, trailer and load before relying on a result.
+        </p>
+        <Field label="Vehicle name">
+          <input
+            className={roadFieldClass}
+            aria-label="Design vehicle name"
+            maxLength={200}
+            disabled={!onChange}
+            value={check.vehicle.name}
+            onChange={(e) => setVehicle({ name: e.target.value })}
+          />
+        </Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Loaded travel">
             <RoadSelect
               className={roadFieldClass}
-              ariaLabel="Design vehicle preset"
+              ariaLabel="Design vehicle travel direction"
               disabled={!onChange}
-              value={preset?.id ?? (saved >= 0 ? `library:${saved}` : 'custom')}
-              onValueChange={(value) => {
-                const next = VEHICLE_PRESETS.find((p) => p.id === value)
-                if (next) set({ vehicle: structuredClone(next.vehicle) })
-                const own = value.startsWith('library:') ? library[Number(value.slice(8))] : undefined
-                if (own) set({ vehicle: structuredClone(own) })
-              }}
+              value={check.direction}
+              onValueChange={(value) => set({ direction: value as VehicleCheck['direction'] })}
             >
-              {VEHICLE_PRESETS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
-              {library.map((v, i) => (
-                <option key={`library:${i}`} value={`library:${i}`}>
-                  {`Project vehicle: ${v.name}`}
-                </option>
-              ))}
-              <option value="custom" disabled>
-                Custom dimensions
-              </option>
+              <option value="both">Both directions</option>
+              <option value="up">Up-station</option>
+              <option value="down">Down-station</option>
             </RoadSelect>
           </Field>
-          {tools && (
-            <VehicleLibraryActions vehicle={check.vehicle} library={library} onLibraryChange={tools.onLibraryChange} />
-          )}
-          <p className="text-2xs text-warning">
-            Presets are example or transcribed dimensions, not approvals: the source below says which values to confirm.
-            Enter your fleet’s truck, trailer and load before relying on a result.
-          </p>
-          <Field label="Vehicle name">
-            <input
-              className={roadFieldClass}
-              aria-label="Design vehicle name"
-              maxLength={200}
-              disabled={!onChange}
-              value={check.vehicle.name}
-              onChange={(e) => setVehicle({ name: e.target.value })}
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Loaded travel">
-              <RoadSelect
-                className={roadFieldClass}
-                ariaLabel="Design vehicle travel direction"
-                disabled={!onChange}
-                value={check.direction}
-                onValueChange={(value) => set({ direction: value as VehicleCheck['direction'] })}
-              >
-                <option value="both">Both directions</option>
-                <option value="up">Up-station</option>
-                <option value="down">Down-station</option>
-              </RoadSelect>
-            </Field>
-            <NumberField
-              label="Wheel clearance (m)"
-              value={check.clearanceM}
-              min={VEHICLE_LIMITS.clearanceM[0]}
-              max={VEHICLE_LIMITS.clearanceM[1]}
-              step={0.05}
-              disabled={!onChange}
-              onChange={(clearanceM) => set({ clearanceM })}
-              hint="Kept between the outer wheel path and the formation edge. Take it from your road class or criteria."
-            />
-            <NumberField
-              label="Vehicle width (m)"
-              value={check.vehicle.widthM}
-              min={VEHICLE_LIMITS.widthM[0]}
-              max={VEHICLE_LIMITS.widthM[1]}
-              step={0.05}
-              disabled={!onChange}
-              onChange={(widthM) => setDimensions({ widthM })}
-            />
-          </div>
-          {check.vehicle.units.map((u, i) => (
-            <UnitFields
-              key={i}
-              unit={u}
-              index={i}
-              last={i === check.vehicle.units.length - 1}
-              onChange={(patch) =>
-                setDimensions({ units: check.vehicle.units.map((x, j) => (j === i ? { ...x, ...patch } : x)) })
-              }
-            />
-          ))}
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1"
-              disabled={!onChange || check.vehicle.units.length >= VEHICLE_LIMITS.units}
-              onClick={() =>
-                setDimensions({
-                  units: [
-                    ...check.vehicle.units,
-                    {
-                      name: `Unit ${check.vehicle.units.length + 1}`,
-                      wheelbaseM: 6,
-                      frontOverhangM: 0.5,
-                      rearOverhangM: 0.5,
-                      hitchOffsetM: 0,
-                    },
-                  ],
-                })
-              }
-            >
-              Add a unit
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1"
-              disabled={!onChange || check.vehicle.units.length < 2}
-              onClick={() => {
-                const units = check.vehicle.units.slice(0, -1)
-                const loads = (check.vehicle.loads ?? []).filter((l) => l.rear.unit < units.length)
-                setDimensions({ units, loads: loads.length ? loads : undefined })
-              }}
-            >
-              Remove {unitLabel(check.vehicle.units.at(-1)!, check.vehicle.units.length - 1)}
-            </Button>
-          </div>
-          <SteeringFields vehicle={check.vehicle} disabled={!onChange} onChange={setDimensions} />
-          <LoadFields vehicle={check.vehicle} disabled={!onChange} onChange={setDimensions} />
-          <Field label="Dimension source">
-            <textarea
-              className={`${roadFieldClass} min-h-16`}
-              aria-label="Design vehicle source"
-              maxLength={2000}
-              disabled={!onChange}
-              value={check.vehicle.source ?? ''}
-              onChange={(e) => setVehicle({ source: e.target.value })}
-            />
-          </Field>
+          <NumberField
+            label="Wheel clearance (m)"
+            value={check.clearanceM}
+            min={VEHICLE_LIMITS.clearanceM[0]}
+            max={VEHICLE_LIMITS.clearanceM[1]}
+            step={0.05}
+            disabled={!onChange}
+            onChange={(clearanceM) => set({ clearanceM })}
+            hint="Kept between the outer wheel path and the formation edge. Take it from your road class or criteria."
+          />
+          <NumberField
+            label="Vehicle width (m)"
+            value={check.vehicle.widthM}
+            min={VEHICLE_LIMITS.widthM[0]}
+            max={VEHICLE_LIMITS.widthM[1]}
+            step={0.05}
+            disabled={!onChange}
+            onChange={(widthM) => setDimensions({ widthM })}
+          />
+        </div>
+        {check.vehicle.units.map((u, i) => (
+          <UnitFields
+            key={i}
+            unit={u}
+            index={i}
+            last={i === check.vehicle.units.length - 1}
+            onChange={(patch) =>
+              setDimensions({ units: check.vehicle.units.map((x, j) => (j === i ? { ...x, ...patch } : x)) })
+            }
+          />
+        ))}
+        <div className="flex gap-1">
           <Button
             size="sm"
             variant="outline"
-            className="w-full"
-            disabled={!onChange}
-            onClick={() => onChange?.(undefined)}
+            className="flex-1"
+            disabled={!onChange || check.vehicle.units.length >= VEHICLE_LIMITS.units}
+            onClick={() =>
+              setDimensions({
+                units: [
+                  ...check.vehicle.units,
+                  {
+                    name: `Unit ${check.vehicle.units.length + 1}`,
+                    wheelbaseM: 6,
+                    frontOverhangM: 0.5,
+                    rearOverhangM: 0.5,
+                    hitchOffsetM: 0,
+                  },
+                ],
+              })
+            }
           >
-            Remove vehicle check
+            Add a unit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            disabled={!onChange || check.vehicle.units.length < 2}
+            onClick={() => {
+              const units = check.vehicle.units.slice(0, -1)
+              const loads = (check.vehicle.loads ?? []).filter((l) => l.rear.unit < units.length)
+              setDimensions({ units, loads: loads.length ? loads : undefined })
+            }}
+          >
+            Remove {unitLabel(check.vehicle.units.at(-1)!, check.vehicle.units.length - 1)}
           </Button>
         </div>
-      </details>
+        <SteeringFields vehicle={check.vehicle} disabled={!onChange} onChange={setDimensions} />
+        <LoadFields vehicle={check.vehicle} disabled={!onChange} onChange={setDimensions} />
+        <Field label="Dimension source">
+          <textarea
+            className={`${roadFieldClass} min-h-16`}
+            aria-label="Design vehicle source"
+            maxLength={2000}
+            disabled={!onChange}
+            value={check.vehicle.source ?? ''}
+            onChange={(e) => setVehicle({ source: e.target.value })}
+          />
+        </Field>
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full"
+          disabled={!onChange}
+          onClick={() => onChange?.(undefined)}
+        >
+          Remove vehicle check
+        </Button>
+      </DisclosureCard>
       {junctionPanel(check)}
       {tools && alignment && (
         <VehicleOnRoadPanel

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { StyledSelect } from '@/components/ui/styled-select'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { EngineeringTable, ColumnHeader } from '@/components/ui/engineering-table'
@@ -217,8 +218,10 @@ export function PdfRasterDetails({ grid, project, id }: { grid: PdfClassGrid; pr
           {grid.kind === 'slope' && !terrain && (
             <p>Load a terrain raster (LiDAR, a GeoTIFF or a sheet's contours) to compare slope ranges with it.</p>
           )}
-          <details>
-            <summary>Pixels without an exact class</summary>
+          <DisclosureRow
+            title="Pixels without an exact class"
+            summary={`${ha(Object.values(data.unknownAreasM2).reduce((sum, value) => sum + value, 0))} ha`}
+          >
             <ul className="space-y-1">
               {Object.entries(data.unknownAreasM2).map(([code, value]) => (
                 <li key={code}>
@@ -229,17 +232,18 @@ export function PdfRasterDetails({ grid, project, id }: { grid: PdfClassGrid; pr
                 </li>
               ))}
             </ul>
-          </details>
+          </DisclosureRow>
         </div>
       )}
-      <details>
-        <summary>Raster interpretation</summary>
+      <DisclosureRow
+        title="Raster interpretation"
+        summary={`${grid.notes.length} note${grid.notes.length === 1 ? '' : 's'}`}
+        contentClassName="space-y-1"
+      >
         {grid.notes.map((note) => (
-          <p key={note} className="mt-1">
-            {note}
-          </p>
+          <p key={note}>{note}</p>
         ))}
-      </details>
+      </DisclosureRow>
     </div>
   )
 }

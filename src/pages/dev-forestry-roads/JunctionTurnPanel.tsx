@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { DisclosureCard } from '@/components/ui/disclosure'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -173,21 +174,19 @@ export function JunctionTurnPanel({
   useEffect(() => () => onOverlay(null), [onOverlay])
   const attention = rows.filter((r) => isJunctionError(r.outcome) || !r.outcome.fits || r.outcome.lockExceeded).length
   return (
-    <details
-      className={insetBox({ padding: 'none' })}
-      data-testid="road-junction-turns"
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary className="cursor-pointer p-2 font-medium">
-        Junction turns{' '}
-        <span className="font-normal text-muted-foreground">
-          ·{' '}
-          {found.junctions.length
+    <div data-testid="road-junction-turns">
+      <DisclosureCard
+        title="Junction turns"
+        summary={
+          found.junctions.length
             ? `${found.junctions.length} junction${found.junctions.length === 1 ? '' : 's'} · ${attention ? `${attention} of ${rows.length} turns need attention` : `all ${rows.length} turns fit`}`
-            : 'none found'}
-        </span>
-      </summary>
-      <div className="space-y-2 border-t p-2">
+            : 'none found'
+        }
+        // The selected turn is drawn on the plan only while the list is open.
+        open={open}
+        onOpenChange={setOpen}
+        contentClassName="space-y-2"
+      >
         <div className="grid grid-cols-2 gap-2">
           <NumberField
             label="Turn radius (m)"
@@ -301,7 +300,7 @@ export function JunctionTurnPanel({
           {vehicle.name} · {m(clearanceM)} wheel clearance.
           {showOnPlan ? ' The selected turn’s wheel paths are drawn on the plan while this list is open.' : ''}
         </p>
-      </div>
-    </details>
+      </DisclosureCard>
+    </div>
   )
 }

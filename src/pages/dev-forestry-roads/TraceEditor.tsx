@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { NumberField, roadFieldClass, RoadSelect } from './Controls'
 import type { DesignVehicle } from './types'
@@ -18,6 +19,8 @@ export function TraceEditor({
   const [unit, setUnit] = useState(0)
   const [aheadM, setAheadM] = useState(0)
   const [leftM, setLeftM] = useState(vehicle.widthM / 2)
+  // The point form shows only while a point is being added.
+  const [adding, setAdding] = useState(false)
   const full = traces.length >= DRIVE_LIMITS.traces
   const unitName = (i: number) => vehicle.units[i]?.name || `Unit ${i + 1}`
   return (
@@ -39,9 +42,13 @@ export function TraceEditor({
           </option>
         ))}
       </RoadSelect>
-      <details>
-        <summary className="cursor-pointer text-2xs font-medium">Trace another point (mirror, bunk, bumper)</summary>
-        <div className="mt-2 grid grid-cols-2 gap-2">
+      {!adding ? (
+        <Button size="sm" variant="outline" className="w-full" disabled={full} onClick={() => setAdding(true)}>
+          <Plus className="size-3" />
+          Trace another point (mirror, bunk, bumper)
+        </Button>
+      ) : (
+        <div className="grid grid-cols-2 gap-2" role="group" aria-label="Trace another point">
           <RoadSelect
             className={`${roadFieldClass} col-span-2`}
             ariaLabel="Unit of the traced point"
@@ -75,7 +82,6 @@ export function TraceEditor({
           <Button
             size="sm"
             variant="outline"
-            className="col-span-2"
             disabled={full}
             onClick={() => {
               const u = Math.min(unit, vehicle.units.length - 1)
@@ -83,12 +89,16 @@ export function TraceEditor({
                 ...traces,
                 { label: `${unitName(u)} point ${aheadM} m ahead, ${leftM} m left`, unit: u, aheadM, leftM },
               ])
+              setAdding(false)
             }}
           >
             Add this point
           </Button>
+          <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
+            Cancel
+          </Button>
         </div>
-      </details>
+      )}
       {!!traces.length && (
         <ul className="space-y-1">
           {traces.map((t, i) => (

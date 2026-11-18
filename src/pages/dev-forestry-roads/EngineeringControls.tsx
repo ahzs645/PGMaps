@@ -7,6 +7,7 @@ import { ArrowRight, Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ColorField } from '@/components/ui/color-field'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { ToolDisclosure } from '@/components/ui/tool-section'
 import { crossingsWithoutStructure } from './costReadiness'
 import { TabBar } from '@/components/ui/tab-bar'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
@@ -298,6 +299,11 @@ const sideFields: NumericField<RoadTemplate>[] = [
   { key: 'leftSurfaceDepth', label: 'Left surface depth (m)', max: 2 },
   { key: 'rightSurfaceDepth', label: 'Right surface depth (m)', max: 2 },
 ]
+/** How many side values a template sets apart from its symmetric section, for its fold's row. */
+function sideOverridesSummary(template: RoadTemplate) {
+  const set = sideFields.filter(({ key }) => template[key] !== undefined).length
+  return set ? `${set} side value${set === 1 ? '' : 's'} set` : 'Symmetric'
+}
 type TemplateCandidate = {
   alignmentId: string
   templateId: string | undefined
@@ -821,41 +827,36 @@ export function EngineeringControls({
                   surfaces={project.terrain.referenceSurfaces}
                   onChange={(value) => updateTemplate(value)}
                 />
-                <details className={insetBox()}>
-                  <summary className="cursor-pointer text-xs">
-                    Benches, walls, barriers and sub-cuts · {structuresSummary(candidate)}
-                  </summary>
-                  <div className="pt-2">
-                    <SectionStructuresEditor
-                      template={candidate}
-                      materials={design.materials}
-                      // A merge: a block the editor removed is passed as undefined to clear it.
-                      onChange={(value) =>
-                        updateTemplate(
-                          Object.fromEntries(
-                            STRUCTURE_TEMPLATE_KEYS.map((key) => [key, value[key]]),
-                          ) as Partial<RoadTemplate>,
-                        )
-                      }
-                    />
-                  </div>
-                </details>
-                <details className={insetBox()}>
-                  <summary className="cursor-pointer text-xs">Rock cut · {rockCutSummary(candidate)}</summary>
-                  <div className="pt-2">
-                    <RockCutFields
-                      template={candidate}
-                      list="templates"
-                      id={selected.id}
-                      problem={problem}
-                      onChange={(rockCut) => updateTemplate({ rockCut })}
-                    />
-                  </div>
-                </details>
-                <details className={insetBox()}>
-                  <summary className="cursor-pointer text-xs">Independent left / right components</summary>
+                <ToolDisclosure label="Benches, walls, barriers and sub-cuts" summary={structuresSummary(candidate)}>
+                  <SectionStructuresEditor
+                    template={candidate}
+                    materials={design.materials}
+                    // A merge: a block the editor removed is passed as undefined to clear it.
+                    onChange={(value) =>
+                      updateTemplate(
+                        Object.fromEntries(
+                          STRUCTURE_TEMPLATE_KEYS.map((key) => [key, value[key]]),
+                        ) as Partial<RoadTemplate>,
+                      )
+                    }
+                  />
+                </ToolDisclosure>
+                <ToolDisclosure label="Rock cut" summary={rockCutSummary(candidate)}>
+                  <RockCutFields
+                    template={candidate}
+                    list="templates"
+                    id={selected.id}
+                    problem={problem}
+                    onChange={(rockCut) => updateTemplate({ rockCut })}
+                  />
+                </ToolDisclosure>
+                <ToolDisclosure
+                  label="Left and right sides"
+                  summary={sideOverridesSummary(candidate)}
+                  help="Values set here override the symmetric section on one side only. Inherit returns a side to the symmetric value."
+                >
                   <div className="space-y-2">
-                    <div className="flex flex-wrap gap-1 pt-2">
+                    <div className="flex flex-wrap gap-1">
                       {(['left', 'right'] as const).map((from) => (
                         <Button
                           key={from}
@@ -910,7 +911,7 @@ export function EngineeringControls({
                       </div>
                     ))}
                   </div>
-                </details>
+                </ToolDisclosure>
                 <div className="grid grid-cols-2 gap-1">
                   <Button size="sm" disabled={!templateDirty} onClick={saveTemplate}>
                     Save template

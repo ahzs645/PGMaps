@@ -1,3 +1,4 @@
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Button } from '@/components/ui/button'
 import { insetBox } from '@/components/ui/inset-box'
@@ -41,6 +42,17 @@ export function SectionAssemblyEditor({
     onChange({ ...template, components: components.map((c) => (c.id === id ? { ...c, ...patch } : c)) })
   const updateLayer = (id: string, patch: Partial<SectionLayer>) =>
     onChange({ ...template, layers: layers.map((c) => (c.id === id ? { ...c, ...patch } : c)) })
+  // What a component's outward end is tied to, for its reference fold's row.
+  const referenceSummary = (c: SectionComponent) => {
+    const feature =
+      c.referenceFeatureId && (features.find((f) => f.id === c.referenceFeatureId)?.name ?? c.referenceFeatureId)
+    const surface =
+      c.referenceSurfaceId &&
+      ({ 'original-ground': 'Original ground', 'prepared-ground': 'Prepared ground' }[c.referenceSurfaceId] ??
+        surfaces.find((v) => v.id === c.referenceSurfaceId)?.name ??
+        c.referenceSurfaceId)
+    return [feature, surface].filter(Boolean).join(' · ') || 'Relative dimensions'
+  }
   const material = (value: string | undefined, change: (id: string | undefined) => void, label: string) => (
     <Field label={label}>
       <RoadSelect
@@ -215,12 +227,12 @@ export function SectionAssemblyEditor({
           </div>
           {material(c.materialId, (materialId) => update(c.id, { materialId }), `Component ${i + 1} fill material`)}
           {c.kind !== 'key' && (
-            <details className={insetBox()}>
-              <summary className="cursor-pointer text-xs">Reference feature or surface</summary>
-              <p className="my-1 text-2xs text-muted-foreground">
-                A feature anchors the outward endpoint where it crosses this section. A surface supplies its elevation;
-                offsets remain editable. An unresolved reference makes the section incomplete.
-              </p>
+            <DisclosureRow
+              title="Reference feature or surface"
+              summary={referenceSummary(c)}
+              help="A feature anchors the outward endpoint where it crosses this section. A surface supplies its elevation; offsets remain editable. An unresolved reference makes the section incomplete."
+              className="text-xs"
+            >
               <div className="grid grid-cols-2 gap-2">
                 <Field label={`Component ${i + 1} reference feature`}>
                   <RoadSelect
@@ -276,7 +288,7 @@ export function SectionAssemblyEditor({
                   onChange={(referenceElevationM) => update(c.id, { referenceElevationM })}
                 />
               </div>
-            </details>
+            </DisclosureRow>
           )}
           <Field label={`Component ${i + 1} point code`}>
             <input

@@ -26,6 +26,9 @@ vi.mock('@/components/ui/info-tip', () => ({
   InfoTip: ({ children }: { children: ReactNode }) => createElement('aside', {}, children),
 }))
 vi.mock('@/components/ui/map-panels', () => ({
+  // Folds keep their content mounted, as the real one does.
+  CollapsibleSection: ({ label, children }: { label: ReactNode; children: ReactNode }) =>
+    createElement('section', {}, createElement('h4', {}, label), children),
   InlineAlert: ({ children }: { children: ReactNode }) => createElement('div', { role: 'alert' }, children),
   KeyValueRows: ({ rows }: { rows: ({ key: string; label: string; value: ReactNode } | null)[] }) =>
     createElement(
@@ -507,6 +510,8 @@ describe('historical access workflow', () => {
 
   it('saves an explicit reviewed assertion with its source and preserves current reuse choices', async () => {
     const h = await harness()
+    expect(h.renderer.root.findAllByProps({ 'aria-label': 'Reviewed relationship' })).toHaveLength(0)
+    await act(async () => button(h.renderer, 'Review this association').props.onClick())
     await act(async () => {
       h.renderer.root
         .findByProps({ 'aria-label': 'Reviewed relationship' })
@@ -526,6 +531,9 @@ describe('historical access workflow', () => {
     expect(reviewed?.sourceIds).toContain('example-haul-ledger')
     expect(reviewed?.review?.reviewer).toBe('Training reviewer')
     expect(h.project.context.some((feature) => feature.roadEvidence?.reuseAllowed)).toBe(false)
+    // A saved review closes its form; the card shows the recorded review instead.
+    expect(h.renderer.root.findAllByProps({ 'aria-label': 'Reviewed relationship' })).toHaveLength(0)
+    expect(button(h.renderer, 'Review this association')).toBeTruthy()
   })
 
   it('retains invalid editor drafts and the saved project on validation failure', async () => {

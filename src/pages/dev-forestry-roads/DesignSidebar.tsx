@@ -3,6 +3,7 @@ import { ROAD_LIMIT_MESSAGE, roadLimitReached } from './roadLimits'
 import { derivedRoadName } from './mappedRoad'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
+import { DisclosureCard } from '@/components/ui/disclosure'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { downloadText } from '@/lib/download'
@@ -21,7 +22,6 @@ import { terrainDisplayName } from './terrainName'
 import { terrainResolutionText } from './tinGround'
 import type { Alignment, RoadProject, TerrainSource } from './types'
 import { insetBox } from '@/components/ui/inset-box'
-import { cn } from '@/lib/utils'
 export type { FileKind } from './DesignSidebarBody'
 export type SidebarProps = Omit<BodyProps, 'onOptimize'>
 type Review = {
@@ -243,22 +243,28 @@ export function DesignSidebar(props: SidebarProps) {
                 : 'Coarse screening terrain: grades between its cells are interpolated, so check the route on LiDAR or your own DEM.'}
             </InlineAlert>
           )}
-          <details className={cn(insetBox(), 'mt-3 text-xs')}>
-            <summary className="cursor-pointer font-medium">What adopting keeps, and what this does not check</summary>
-            <p className="mt-2">
+          <DisclosureCard
+            className="mt-3"
+            title="What adopting keeps, and what this does not check"
+            summary={
+              review.result.warnings.length
+                ? `${review.result.warnings.length} note${review.result.warnings.length === 1 ? '' : 's'} on this route`
+                : 'Horizontal curves only'
+            }
+            contentClassName="space-y-2"
+          >
+            <p>
               Adopting adds the candidate as a new road with its fitted horizontal curves. Vertical design, culverts,
               template assignments and widenings stay on your original road; they are not copied to different stations.
             </p>
             {review.result.warnings.map((warning) => (
-              <p key={warning} className="mt-2">
-                {warning}
-              </p>
+              <p key={warning}>{warning}</p>
             ))}
-            <p className="mt-2">
+            <p>
               Exclusions apply to the centreline. Full cut/fill footprint and buffers must be reviewed in the connected
               section and engineering views. Intentional rolling grades may be needed for drainage.
             </p>
-          </details>
+          </DisclosureCard>
         </DialogShell>
       )}
     </>

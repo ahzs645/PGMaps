@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { loadBcStreamContext } from './bcStreamData'
@@ -96,12 +97,12 @@ export function ProvincialStreamsPanel({ workspace: w }: { workspace: RoadWorksp
         </InlineAlert>
       )}
       {data && (
-        <details className="text-2xs">
-          <summary className="cursor-pointer">
-            BC evidence · {data.streamFeatureIds.length} flow arcs · {data.fish.length} fish observations ·{' '}
-            {data.watersheds.length} watersheds
-          </summary>
-          <p className="mt-1 text-muted-foreground">
+        <DisclosureRow
+          title="BC evidence"
+          summary={`${data.streamFeatureIds.length} flow arcs · ${data.fish.length} fish observations · ${data.watersheds.length} watersheds`}
+          contentClassName="space-y-1 text-2xs"
+        >
+          <p className="text-muted-foreground">
             Retrieved {data.retrievedAt}. Complete for this query only; no absence determination.
           </p>
           <p className="break-words text-muted-foreground">
@@ -117,7 +118,7 @@ export function ProvincialStreamsPanel({ workspace: w }: { workspace: RoadWorksp
               </a>
             ))}
           </div>
-        </details>
+        </DisclosureRow>
       )}
     </div>
   )

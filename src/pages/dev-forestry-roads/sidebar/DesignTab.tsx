@@ -11,6 +11,7 @@ import type { WorkspaceCommand } from '@/components/interfaces/workspaceCommands
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { insetBox } from '@/components/ui/inset-box'
+import { ToolSubsection } from '@/components/ui/tool-section'
 import { cn } from '@/lib/utils'
 import { FolderTree, Map as MapIcon, Mountain, Truck } from 'lucide-react'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from '../Controls'
@@ -761,9 +762,8 @@ function HorizontalPoints(p: SidebarProps) {
         </div>
       )}
       <CurveTools workspace={p.workspace} />
-      <details className="mt-2">
-        <summary className="cursor-pointer text-xs">Segment distances & ground grades</summary>
-        <div className="mt-2 max-h-48 overflow-auto overscroll-none">
+      <ToolSubsection title="Segment distances & ground grades" className="mt-2">
+        <div className="max-h-48 overflow-auto overscroll-none">
           <EngineeringTable>
             <thead>
               <tr>
@@ -798,7 +798,7 @@ function HorizontalPoints(p: SidebarProps) {
             </tbody>
           </EngineeringTable>
         </div>
-      </details>
+      </ToolSubsection>
     </RoadSection>
   )
 }

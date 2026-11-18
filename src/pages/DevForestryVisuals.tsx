@@ -47,7 +47,7 @@ import {
 import { queryVisualInventory } from './dev-forestry/visualInventoryQuery'
 import { usePersistentScene } from './dev-forestry/usePersistentScene'
 import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
-import { ProjectAttachments } from './dev-forestry/ProjectAttachments'
+import { ProjectAttachmentsButton, ProjectAttachmentsDialog } from './dev-forestry/ProjectAttachments'
 import type { ProjectAttachment } from './dev-forestry/projectArchive'
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
 import { ToolSourcesPanel, TOOL_SOURCES_TITLE, toolSourcesSummary } from './dev-forestry/ToolSourcesPanel'
@@ -688,6 +688,8 @@ function DevForestryVisuals() {
   const [projectTitle, setProjectTitle] = useState<string | null>(null)
   const [projectMessage, setProjectMessage] = useState<{ text: string; error?: boolean } | null>(null)
   const [projectAttachments, setProjectAttachments] = useState<ProjectAttachment[]>([])
+  // The header's paperclip opens the attachments; the historical VIA review opens from there, beside its files.
+  const [filesDialog, setFilesDialog] = useState<'attachments' | 'reference' | null>(null)
   // A photo's original names the field record it became (`recordId`), whichever of its two callers reports it first.
   const addProjectAttachments = useCallback((files: File[], recordId: string | null = null) => {
     setProjectAttachments((current) => [
@@ -6126,10 +6128,22 @@ function DevForestryVisuals() {
     }
   }
 
+  /** What an attachment belongs to: the field record whose original it is, or nothing. */
+  const attachmentLink = (file: ProjectAttachment) => {
+    if (!file.recordId) return null
+    const record = tools.fieldRecord(file.recordId)
+    return record ? `Field ${record.kind}: ${record.name}` : 'A field record'
+  }
   const exportDialog = useVisualsExport({
     roadVideo: { scene: roadVideoScene, api: roadVideo },
     opener: exportOpener,
     siteLandform,
+    attachments: projectAttachments.map((file) => ({
+      name: file.name,
+      bytes: file.blob.size,
+      linked: attachmentLink(file),
+    })),
+    onManageAttachments: () => setFilesDialog('attachments'),
     ownPhotos: {
       count: fieldPhoto.ownPhotos.length,
       accepted: fieldPhoto.ownPhotos.filter((photo) => fieldPhoto.acceptanceState(photo.id) === 'accepted').length,
@@ -7104,13 +7118,7 @@ function DevForestryVisuals() {
               <InlineAlert tone={projectMessage.error ? 'error' : 'info'}>{projectMessage.text}</InlineAlert>
             </div>
           )}
-          {tools.referencePanel}
-          <ProjectAttachments
-            title={projectTitle}
-            files={projectAttachments}
-            onAdd={addProjectAttachments}
-            onRemove={(file) => setProjectAttachments((current) => current.filter((entry) => entry !== file))}
-          />
+          {projectTitle && <p className="mt-2 text-xs font-medium">{projectTitle}</p>}
         </>
       }
       onOpenExport={exportOpener.openExport}
@@ -7170,6 +7178,7 @@ function DevForestryVisuals() {
               dialogTestId="visuals-layouts-dialog"
             />
           )}
+          <ProjectAttachmentsButton count={projectAttachments.length} onClick={() => setFilesDialog('attachments')} />
           {/* Every file the page writes, with what goes into each: one place, as in the road designer. */}
           <Button
             // 32 px, the layout select's and the panels button's height beside it.
@@ -7183,6 +7192,38 @@ function DevForestryVisuals() {
           </Button>
         </div>
         {exportDialog}
+        <ProjectAttachmentsDialog
+          open={filesDialog === 'attachments'}
+          onOpenChange={(open) => setFilesDialog(open ? 'attachments' : null)}
+          title={projectTitle}
+          files={projectAttachments}
+          onAdd={addProjectAttachments}
+          // A field record's original goes with its record (and any view's link to it), never on its own.
+          onRemove={(file) =>
+            file.recordId
+              ? fieldPhoto.removePhoto(file.recordId)
+              : setProjectAttachments((current) => current.filter((entry) => entry !== file))
+          }
+          linkedTo={attachmentLink}
+          footer={
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="mr-auto min-w-0 text-xs text-muted-foreground">
+                Reviewing a historical VIA? Its case.json and sheets are read from here.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!tools.reference.loaded}
+                title={tools.reference.loaded ? undefined : 'The assessment workspace is still loading'}
+                onClick={() => setFilesDialog('reference')}
+              >
+                Reference measurements ({tools.reference.count})…
+              </Button>
+            </div>
+          }
+        />
+        {tools.referencePanel(filesDialog === 'reference', (open) => setFilesDialog(open ? 'reference' : null))}
         {viewsSlot && createPortal(renderViewsOfInterest(ViewsOfInterestList, true), viewsSlot)}
         <MovableContent target={noteSlot}>
           <VisualsParagraphPanel

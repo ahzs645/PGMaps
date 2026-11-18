@@ -11,6 +11,8 @@ import {
 } from './constraints'
 import type { ContextFeature } from './types'
 import { insetBox } from '@/components/ui/inset-box'
+import { InfoTip } from '@/components/ui/info-tip'
+import { cn } from '@/lib/utils'
 
 /** A recorded planning decision, scoped to this feature and its current evidence. */
 export function ConstraintPolicyEditor({
@@ -25,6 +27,8 @@ export function ConstraintPolicyEditor({
   const [reviewer, setReviewer] = useState(policy.review?.reviewer ?? '')
   const [basis, setBasis] = useState(policy.review?.basis ?? '')
   const [reviewedOn, setReviewedOn] = useState(policy.review?.reviewedOn ?? new Date().toISOString().slice(0, 10))
+  // The review form opens from its button; nothing is recorded until Record conditional review.
+  const [reviewing, setReviewing] = useState(false)
   const priced = policy.treatment === 'avoid-where-practical' || policy.treatment === 'additional-cost'
   return (
     <div className="space-y-2" data-testid={`constraint-policy-${feature.id}`}>
@@ -91,14 +95,26 @@ export function ConstraintPolicyEditor({
               onChange={(event) => onChange({ ...policy, condition: event.target.value })}
             />
           </Field>
-          <details className={insetBox({ padding: 'none' })}>
-            <summary className="cursor-pointer px-2 py-1 text-xs">Review conditional use</summary>
-            <div className="space-y-2 border-t p-2">
-              <p className="text-2xs text-muted-foreground">
-                Record how the condition is addressed for this area and proposed use. This enables planning search
-                through the area; it does not grant approval. Changed geometry, evidence or conditions require another
-                review.
-              </p>
+          {policy.review && (
+            <p className="text-2xs text-muted-foreground">
+              Reviewed by {policy.review.reviewer} on {policy.review.reviewedOn}
+            </p>
+          )}
+          {!reviewing && (
+            <Button size="sm" variant="outline" className="w-full text-xs" onClick={() => setReviewing(true)}>
+              Review conditional use
+            </Button>
+          )}
+          {reviewing && (
+            <div className={cn(insetBox(), 'space-y-2')} role="group" aria-label="Review conditional use">
+              <div className="flex items-center gap-1">
+                <h4 className="min-w-0 flex-1 text-xs font-medium">Review conditional use</h4>
+                <InfoTip label="About the conditional review">
+                  Record how the condition is addressed for this area and proposed use. This enables planning search
+                  through the area; it does not grant approval. Changed geometry, evidence or conditions require another
+                  review.
+                </InfoTip>
+              </div>
               <Field label="Condition reviewer">
                 <input
                   className={roadFieldClass}
@@ -128,7 +144,7 @@ export function ConstraintPolicyEditor({
                 size="sm"
                 className="w-full text-xs"
                 disabled={!policy.condition?.trim() || !reviewer.trim() || !basis.trim() || !reviewedOn}
-                onClick={() =>
+                onClick={() => {
                   onChange({
                     ...policy,
                     review: {
@@ -138,7 +154,8 @@ export function ConstraintPolicyEditor({
                       fingerprint: constraintFingerprint(feature, policy),
                     },
                   })
-                }
+                  setReviewing(false)
+                }}
               >
                 Record conditional review
               </Button>
@@ -152,8 +169,21 @@ export function ConstraintPolicyEditor({
                   Clear conditional review
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-full text-xs"
+                onClick={() => {
+                  setReviewer(policy.review?.reviewer ?? '')
+                  setBasis(policy.review?.basis ?? '')
+                  setReviewedOn(policy.review?.reviewedOn ?? new Date().toISOString().slice(0, 10))
+                  setReviewing(false)
+                }}
+              >
+                Cancel
+              </Button>
             </div>
-          </details>
+          )}
         </>
       )}
     </div>

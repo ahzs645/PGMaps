@@ -34,7 +34,7 @@ test('a stream goes from unassessed to a reviewed class, and survives a reload',
   await expect(suggestion(page)).toContainText('20 m reserve + 20 m management each side')
   await expect(suggestion(page)).toContainText('Provisional')
 
-  await page.getByText('Record a review', { exact: true }).click()
+  await page.getByRole('button', { name: 'Record a review', exact: true }).click()
   await page.getByRole('textbox', { name: 'Assessor' }).fill('A. Reviewer')
   await page.getByRole('button', { name: 'Record review', exact: true }).click()
   await expect(suggestion(page)).toContainText('Reviewed')
@@ -102,12 +102,11 @@ test('riparian screening keeps unresolved evidence visible and condition reviews
   await stream(page).click()
   // A narrow channel can still have a wide active floodplain; the average is always available.
   await expect(page.getByRole('spinbutton', { name: '1 km average width (m)', exact: true })).toBeVisible()
-  await page.getByText('Riparian map & route treatment', { exact: true }).click()
   const policy = page.getByTestId('stream-riparian-policy')
   await expect(policy).toContainText('100 m horizontal screening allowance')
   await expect(policy).toContainText('not surveyed legal boundaries')
   await expect(policy).toContainText('Blocked: conditional review pending')
-  await policy.getByText('Review conditional use', { exact: true }).click()
+  await policy.getByRole('button', { name: 'Review conditional use', exact: true }).click()
   await expect(policy.getByRole('button', { name: 'Record conditional review', exact: true })).toBeDisabled()
   await policy.getByRole('textbox', { name: 'Condition reviewer', exact: true }).fill('Planning reviewer')
   await policy

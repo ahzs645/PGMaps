@@ -61,8 +61,10 @@ describe('junction turn panel', () => {
     expect(rows.map((r) => r.props['data-state'])).toContain('attention')
     // Closed, nothing is drawn; opened, the worst turn is.
     expect(onOverlay).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'FeatureCollection' }))
-    const details = renderer!.root.findByProps({ 'data-testid': 'road-junction-turns' })
-    act(() => details.props.onToggle({ currentTarget: { open: true } }))
+    const toggle = renderer!.root
+      .findByProps({ 'data-testid': 'road-junction-turns' })
+      .find((node) => node.type === 'button' && node.props['aria-expanded'] === false)
+    act(() => toggle.props.onClick())
     const drawn = onOverlay.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection
     expect(drawn.features.map((f) => f.properties?.role)).toContain('swept-wheels')
     // Choosing another turn draws that one instead.

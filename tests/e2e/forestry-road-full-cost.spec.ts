@@ -214,7 +214,8 @@ test('dated evidence expires eligibility without fabricating or overwriting the 
   const estimate = roads.getByTestId('road-condition-estimate')
   await expect(estimate).toHaveAttribute('data-estimated-condition', 'serviceable')
   await expect(estimate).toHaveAttribute('data-evidence-basis', 'inspection')
-  await roads.getByText('Assessment date & evidence age', { exact: true }).click()
+  const ageSettings = roads.getByRole('button', { name: /^Assessment date & evidence age/ })
+  if ((await ageSettings.getAttribute('aria-expanded')) !== 'true') await ageSettings.click()
   await roads.getByLabel('Assess condition as of', { exact: true }).fill('2028-01-01')
   await expect(estimate).toHaveAttribute('data-estimated-condition', 'unknown')
   await expect(roads.getByRole('combobox', { name: 'Planning condition', exact: true })).toHaveAttribute(

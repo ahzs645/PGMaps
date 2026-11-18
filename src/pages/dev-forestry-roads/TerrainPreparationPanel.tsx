@@ -1,7 +1,9 @@
 import { StationValue, useStationReader } from './roadStation'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { insetBox } from '@/components/ui/inset-box'
+import { ToolSubsection } from '@/components/ui/tool-section'
 import { cn } from '@/lib/utils'
 import { formatRoadStation } from './Charts'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
@@ -170,6 +172,8 @@ export function TerrainPreparationPanel({
   // Ground distances are reduced to the grid by the combined scale factor at the survey start.
   const [groundDistances, setGroundDistances] = useState(false),
     [geoidM, setGeoidM] = useState(-17)
+  // The TIN and pad forms open from their buttons; nothing is written until Apply.
+  const [tool, setTool] = useState<'tin' | 'pad' | null>(null)
   const [tinVertex, setTinVertex] = useState(0),
     [tinElevation, setTinElevation] = useState(0)
   const file = useRef<HTMLInputElement>(null)
@@ -521,14 +525,21 @@ export function TerrainPreparationPanel({
               {metadata.preparation.method} · {metadata.preparation.sources.length} source records
             </p>
           )}
-          {raster && metadata.preparation?.tin && (
-            <details className={insetBox()}>
-              <summary className="cursor-pointer text-xs font-medium">Edit retained source TIN</summary>
-              <p className="mt-2 text-2xs text-muted-foreground">
-                Edit a vertex elevation while retaining breakline topology. The grid is rebuilt from the edited
-                triangles; source holes stay unknown.
-              </p>
-              <div className="mt-2 grid grid-cols-2 gap-2">
+          {raster && metadata.preparation?.tin && tool !== 'tin' && (
+            <Button size="sm" variant="outline" className="w-full" onClick={() => setTool('tin')}>
+              Edit retained source TIN
+            </Button>
+          )}
+          {raster && metadata.preparation?.tin && tool === 'tin' && (
+            <div className={cn(insetBox(), 'space-y-2')} aria-label="Edit retained source TIN" role="group">
+              <div className="flex items-center gap-1">
+                <h4 className="min-w-0 flex-1 text-xs font-medium">Edit retained source TIN</h4>
+                <InfoTip label="About editing the retained TIN">
+                  Edit a vertex elevation while retaining breakline topology. The grid is rebuilt from the edited
+                  triangles; source holes stay unknown.
+                </InfoTip>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
                 <NumberField
                   label="TIN vertex index"
                   value={tinVertex}
@@ -548,7 +559,7 @@ export function TerrainPreparationPanel({
               <Button
                 size="sm"
                 variant="ghost"
-                className="mt-2 w-full"
+                className="w-full"
                 onClick={() => {
                   try {
                     const { at, grid } = center(),
@@ -572,123 +583,120 @@ export function TerrainPreparationPanel({
               >
                 Nearest vertex to selected station
               </Button>
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  className="min-w-0 flex-1"
+                  onClick={() =>
+                    void run(async () => {
+                      const current = metadata.preparation!
+                      const edited = editTinElevation(raster, current.tin!, tinVertex, tinElevation)
+                      await apply(
+                        edited.raster,
+                        {
+                          ...current,
+                          method: 'Edited retained TIN; constrained topology retained',
+                          parameters: {
+                            ...current.parameters,
+                            editedVertex: tinVertex,
+                            editedElevationM: tinElevation,
+                          },
+                          tin: edited.tin,
+                        },
+                        false,
+                      )
+                    })
+                  }
+                >
+                  Apply TIN vertex elevation
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setTool(null)}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          )}
+          {tool !== 'pad' && (
+            <Button size="sm" variant="outline" className="w-full" onClick={() => setTool('pad')}>
+              Grade a pad at the selected station
+            </Button>
+          )}
+          {tool === 'pad' && (
+            <div className={cn(insetBox(), 'space-y-2')} aria-label="Grade a pad at the selected station" role="group">
+              <h4 className="text-xs font-medium">Grade a pad at the selected station</h4>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ['widthM', 'Pad width (m)', 0.1, 500],
+                    ['lengthM', 'Pad length (m)', 0.1, 1000],
+                    ['bearingDegrees', 'Pad bearing (°)', 0, 360],
+                    ['elevationM', 'Pad elevation (m)', -12000, 12000],
+                    ['crossfallPercent', 'Pad crossfall (%)', -30, 30],
+                    ['gradePercent', 'Pad grade (%)', -30, 30],
+                    ['batterHV', 'Pad batter H:V', 0.1, 10],
+                  ] as const
+                ).map(([key, label, min, max]) => (
+                  <NumberField
+                    key={key}
+                    label={label}
+                    value={pad[key]}
+                    min={min}
+                    max={max}
+                    onChange={(v) => setPad({ ...pad, [key]: v })}
+                  />
+                ))}
+              </div>
               <Button
                 size="sm"
-                className="mt-2 w-full"
-                onClick={() =>
-                  void run(async () => {
-                    const current = metadata.preparation!
-                    const edited = editTinElevation(raster, current.tin!, tinVertex, tinElevation)
-                    await apply(
-                      edited.raster,
-                      {
-                        ...current,
-                        method: 'Edited retained TIN; constrained topology retained',
-                        parameters: { ...current.parameters, editedVertex: tinVertex, editedElevationM: tinElevation },
-                        tin: edited.tin,
-                      },
-                      false,
-                    )
-                  })
-                }
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  try {
+                    const { at } = center()
+                    setPad({
+                      ...pad,
+                      elevationM: at.designElevation ?? at.groundElevation ?? 0,
+                      bearingDegrees: at.bearing,
+                    })
+                  } catch (error) {
+                    w.setError(String(error))
+                  }
+                }}
               >
-                Apply TIN vertex elevation
+                Use selected station level and bearing
               </Button>
-            </details>
-          )}
-          {!!metadata.referenceSurfaces?.length && (
-            <details className={insetBox()}>
-              <summary className="cursor-pointer text-xs font-medium">Named analytical reference surfaces</summary>
-              <p className="mt-2 text-2xs text-muted-foreground">
-                Section components can target these earlier ground surfaces. Remove a snapshot only after changing
-                components that reference it.
-              </p>
-              {metadata.referenceSurfaces.map((surface) => (
-                <div key={surface.id} className="mt-2 flex min-w-0 items-center gap-2">
-                  <span className="min-w-0 flex-1 break-words text-xs">{surface.name}</span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      w.update((p) => ({
-                        ...p,
-                        terrain: {
-                          ...p.terrain,
-                          referenceSurfaces: p.terrain.referenceSurfaces?.filter((s) => s.id !== surface.id),
-                        },
-                      }))
-                    }
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ))}
-            </details>
-          )}
-          <details className={insetBox()}>
-            <summary className="cursor-pointer text-xs font-medium">Grade a pad at the selected station</summary>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {(
-                [
-                  ['widthM', 'Pad width (m)', 0.1, 500],
-                  ['lengthM', 'Pad length (m)', 0.1, 1000],
-                  ['bearingDegrees', 'Pad bearing (°)', 0, 360],
-                  ['elevationM', 'Pad elevation (m)', -12000, 12000],
-                  ['crossfallPercent', 'Pad crossfall (%)', -30, 30],
-                  ['gradePercent', 'Pad grade (%)', -30, 30],
-                  ['batterHV', 'Pad batter H:V', 0.1, 10],
-                ] as const
-              ).map(([key, label, min, max]) => (
-                <NumberField
-                  key={key}
-                  label={label}
-                  value={pad[key]}
-                  min={min}
-                  max={max}
-                  onChange={(v) => setPad({ ...pad, [key]: v })}
-                />
-              ))}
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  className="min-w-0 flex-1"
+                  disabled={!raster}
+                  onClick={() =>
+                    void run(async () => {
+                      if (!raster) throw Error('Import terrain before grading a pad.')
+                      const { at, grid } = center(),
+                        raw = gradePad(raster, {
+                          ...pad,
+                          name: 'Graded landing pad',
+                          center: grid.toGrid(at.coordinate),
+                        })
+                      await apply(raw, {
+                        operation: 'graded-pad',
+                        sources: [sourceRecord(metadata)],
+                        method: 'Planar pad with daylight batters',
+                        parameters: { ...pad, stationM: at.chainage },
+                      })
+                      setTool(null)
+                    })
+                  }
+                >
+                  Apply graded pad as terrain
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setTool(null)}>
+                  Cancel
+                </Button>
+              </div>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="mt-2 w-full"
-              onClick={() => {
-                try {
-                  const { at } = center()
-                  setPad({
-                    ...pad,
-                    elevationM: at.designElevation ?? at.groundElevation ?? 0,
-                    bearingDegrees: at.bearing,
-                  })
-                } catch (error) {
-                  w.setError(String(error))
-                }
-              }}
-            >
-              Use selected station level and bearing
-            </Button>
-            <Button
-              size="sm"
-              className="mt-2 w-full"
-              disabled={!raster}
-              onClick={() =>
-                void run(async () => {
-                  if (!raster) throw Error('Import terrain before grading a pad.')
-                  const { at, grid } = center(),
-                    raw = gradePad(raster, { ...pad, name: 'Graded landing pad', center: grid.toGrid(at.coordinate) })
-                  await apply(raw, {
-                    operation: 'graded-pad',
-                    sources: [sourceRecord(metadata)],
-                    method: 'Planar pad with daylight batters',
-                    parameters: { ...pad, stationM: at.chainage },
-                  })
-                })
-              }
-            >
-              Apply graded pad as terrain
-            </Button>
-          </details>
+          )}
           <Button
             size="sm"
             variant="outline"
@@ -734,6 +742,33 @@ export function TerrainPreparationPanel({
           >
             Merge this road into ground for a junction
           </Button>
+          {!!metadata.referenceSurfaces?.length && (
+            <ToolSubsection
+              title="Named analytical reference surfaces"
+              help="Section components can target these earlier ground surfaces. Remove a snapshot only after changing components that reference it."
+            >
+              {metadata.referenceSurfaces.map((surface) => (
+                <div key={surface.id} className="flex min-w-0 items-center gap-2">
+                  <span className="min-w-0 flex-1 break-words text-xs">{surface.name}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      w.update((p) => ({
+                        ...p,
+                        terrain: {
+                          ...p.terrain,
+                          referenceSurfaces: p.terrain.referenceSurfaces?.filter((s) => s.id !== surface.id),
+                        },
+                      }))
+                    }
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </ToolSubsection>
+          )}
         </fieldset>
       </RoadSection>
       <RoadSection
