@@ -191,19 +191,21 @@ SCANFI_CACHE=/tmp/cs node --import tsx scripts/forestry/canopy-sources/road-cano
 The SlideRule fetch takes 2–6 minutes a box. The `atl03x` request returns every classified photon:
 about 100 MB for a 6 × 7 km box.
 
-## What the app could take next (not built)
+## In the app (built the same day)
 
-1. **Ground check in Review's terrain row**: ICESat-2 ground photons along the project, with a "terrain
-   reads +x m against N laser bins" line, never a shift of the terrain.
-   - Needs either a browser SlideRule client or a fetched-and-imported points file.
-   - It answers the question every coarse-terrain project leaves open.
-2. **A canopy plan layer and a corridor panel** on CHM v2: evidence only, like the Sentinel-2 layer.
-   - It would state its imagery dates per tile (bake a BC slice of `acq_dates.parquet`, about 2,000
-     tiles) and its height bias.
-   - It would leave every cost and quantity alone; clearing area already comes from the design.
-3. **SCANFI through bcdatamapper**: a BC clip of height, age and biomass at 30 m, published as COGs
-   with CORS. NRCan's own host cannot serve a browser. Disturbance year (from the age layer and the
-   2015/2020/2025 heights) is the most useful layer to clip.
+Built and tried on 18 November 2026; the contract is
+[Canopy height and the ICESat-2 ground check](../forestry-road-design/canopy-and-satellite-ground.md).
+
+1. **ICESat-2 ground check in Review** — built. A browser SlideRule client (`sliderule.ts`, its
+   record stream decoded from the server's own `/source/definition` replies), EGM2008 from PROJ's
+   CDN (`geoid.ts`), and a Review row once it has run. On the app's 093G086 LiDAR sample it reads
+   −0.06 m (spread 0.28 m, 148 bins), the bench's figure. SlideRule's time is the weak point: one
+   minute to past its 600 s limit for the same 1 km² box within an hour.
+2. **Canopy plan layer and corridor panel** — built, with per-tile imagery dates (3,160 BC tiles,
+   161 KB, loaded only when the layer is on). The view read in 3.5 s and the 1.4 km training road's corridor in under 2 s.
+3. **SCANFI through bcdatamapper** — not built. The 2025 height layer's tiles inside BC's bounding
+   box hold 910 MB (the box is larger than BC), against the 459 MB bcdatamapper's Pages site has left, for one layer and one year; and
+   BC's harvest layers and Sentinel-2 already date cuts in the app.
 
 ## Corrections to the note this started from
 

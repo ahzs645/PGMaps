@@ -7,7 +7,7 @@ import { usePlanImageryOrder } from '../usePlanImageryOrder'
 import type { SentinelImage } from './useSentinel2'
 
 /** The picked pixels as an object URL, revoked a little after the image changes. */
-function useImageUrl(image: SentinelImage | null) {
+export function useImageUrl(image: Pick<SentinelImage, 'key' | 'width' | 'height' | 'rgba'> | null) {
   const [url, setUrl] = useState<{ key: string; url: string } | null>(null)
   useEffect(() => {
     if (!image) return
@@ -41,7 +41,7 @@ function useImageUrl(image: SentinelImage | null) {
  * right after the layer adds it, and again as each new image starts), so the load's metadata event
  * makes the control show it; removing the source takes it away.
  */
-function useSourceCredit(map: MapLibreMap | null, sourceId: string, credit: string | null) {
+export function useSourceCredit(map: MapLibreMap | null, sourceId: string, credit: string | null) {
   useEffect(() => {
     if (!map || !credit) return
     const apply = () => {

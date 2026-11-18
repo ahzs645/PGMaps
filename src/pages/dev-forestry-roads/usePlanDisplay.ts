@@ -85,6 +85,8 @@ export function usePlanDisplay() {
     [setImageryVisible],
   )
   const [showHrdem, setShowHrdem] = useState(true)
+  // A part-transparent overlay, so it can sit over either imagery layer.
+  const [showCanopy, setShowCanopy] = useState(false)
   const [fitRequest, setFitRequest] = useState<FitRequest>({ revision: 0, target: 'roads' })
   const fit = (target: FitRequest['target']) =>
     setFitRequest((previous) => ({ revision: previous.revision + 1, target }))
@@ -116,6 +118,8 @@ export function usePlanDisplay() {
     setShowSentinel,
     showHrdem,
     setShowHrdem,
+    showCanopy,
+    setShowCanopy,
     fitRequest,
     fit,
   }

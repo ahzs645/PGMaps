@@ -12,7 +12,7 @@ import {
   trueColourRgba,
 } from './render'
 import { defaultPair, defaultScene, type RatedScene } from './sceneChoice'
-import { SENTINEL_ANCHOR_LAYER_ID, SENTINEL_LAYER_ID, imageryBeforeId } from './planOrder'
+import { SENTINEL_ANCHOR_LAYER_ID, SENTINEL_LAYER_ID, imageryBeforeId, overlayBeforeId } from './planOrder'
 
 const BASELINE_04 = { red: { scale: 0.0001, offset: -0.1 }, nir: { scale: 0.0001, offset: -0.1 } }
 
@@ -162,5 +162,27 @@ describe('imagery layer order', () => {
       SENTINEL_ANCHOR_LAYER_ID,
     )
     expect(beforeSentinel([layer(SENTINEL_LAYER_ID, 'raster')])).toBeNull()
+  })
+
+  it('keeps the canopy overlay over the imagery, and neither rule moves the other back', () => {
+    const settled = [
+      layer('road-terrain', 'raster'),
+      layer(SENTINEL_LAYER_ID, 'raster'),
+      layer('road-canopy-height', 'raster'),
+      layer(SENTINEL_ANCHOR_LAYER_ID),
+    ]
+    expect(beforeSentinel(settled)).toBeNull()
+    expect(overlayBeforeId(settled, 'road-canopy-height')).toBeNull()
+    // Imagery turned on after the canopy lands above it: the imagery stays, the overlay moves up.
+    const late = [
+      layer('road-canopy-height', 'raster'),
+      layer(SENTINEL_LAYER_ID, 'raster'),
+      layer(SENTINEL_ANCHOR_LAYER_ID),
+    ]
+    expect(beforeSentinel(late)).toBeNull()
+    expect(overlayBeforeId(late, 'road-canopy-height')).toBe(SENTINEL_ANCHOR_LAYER_ID)
+    expect(
+      overlayBeforeId([layer(SENTINEL_ANCHOR_LAYER_ID), layer('road-canopy-height', 'raster')], 'road-canopy-height'),
+    ).toBe(SENTINEL_ANCHOR_LAYER_ID)
   })
 })
