@@ -135,14 +135,102 @@ export function gridCorners(grid: PdfClassGrid): [XY, XY, XY, XY] {
     ] as XY[]
   ).map((xy) => p.inverse(applyMatrix(grid.transform, xy)) as XY) as [XY, XY, XY, XY]
 }
+/**
+ * Ground size of the cells a JPEG estimate is drawn and read in. The cell shows its commonest
+ * estimated class, which is a statement about the cell: in the calibration it was the cell's true
+ * commonest class for 80% of slope pixels and 71% of canopy pixels (92% and 95% within one class),
+ * against 44% and 36% for the pixels' own estimates. Read at one pixel it is no better than that
+ * pixel's estimate (48% against 54% slope, 44% against 45% canopy). A majority filter at the pixel
+ * grid did not help, so the cell is coarser instead.
+ */
+export const ESTIMATE_DISPLAY_CELL_M = 10
+/** Opacity of an estimated cell in a class display, of 255; exact cells are solid. */
+export const ESTIMATE_DISPLAY_ALPHA = 150
+/** Ground size of a native pixel, metres. */
+export const gridPixelM = (grid: Pick<PdfClassGrid, 'transform'>) =>
+  Math.sqrt(Math.abs(grid.transform[0] * grid.transform[3] - grid.transform[1] * grid.transform[2]))
+/** Native pixels along the side of an estimate cell. */
+export const estimateCellPixels = (grid: Pick<PdfClassGrid, 'transform'>) =>
+  Math.max(1, Math.round(ESTIMATE_DISPLAY_CELL_M / gridPixelM(grid)))
+
+const displayed = new WeakMap<PdfClassGrid, Uint8Array>()
+/**
+ * The grid as it is drawn and queried: exact cells, the not-drawn mask and unknown cells as stored;
+ * each JPEG-estimated cell takes the commonest estimated class of its `ESTIMATE_DISPLAY_CELL_M`
+ * cell. Only estimated pixels are repainted, so the exact transparency mask and every exact class
+ * keep their own pixels. Area summaries read the stored cells, never these.
+ */
+export function displayCells(grid: PdfClassGrid): Uint8Array {
+  const old = displayed.get(grid)
+  if (old) return old
+  const cells = decodeCells(grid),
+    size = estimateCellPixels(grid),
+    classes = grid.legend.length
+  const out = cells.slice()
+  if (size > 1) {
+    const counts = new Uint32Array(classes)
+    for (let y0 = 0; y0 < grid.height; y0 += size)
+      for (let x0 = 0; x0 < grid.width; x0 += size) {
+        const y1 = Math.min(grid.height, y0 + size),
+          x1 = Math.min(grid.width, x0 + size)
+        counts.fill(0)
+        let any = false
+        for (let y = y0; y < y1; y++)
+          for (let x = x0; x < x1; x++) {
+            const code = cells[y * grid.width + x]
+            if (code > 64 && code <= 64 + classes) {
+              counts[code - 65]++
+              any = true
+            }
+          }
+        if (!any) continue
+        let best = 0
+        for (let k = 1; k < classes; k++) if (counts[k] > counts[best]) best = k
+        for (let y = y0; y < y1; y++)
+          for (let x = x0; x < x1; x++) {
+            const i = y * grid.width + x
+            if (cells[i] > 64 && cells[i] <= 64 + classes) out[i] = 65 + best
+          }
+      }
+  }
+  displayed.set(grid, out)
+  return out
+}
+
+/**
+ * Straight RGBA of the display: legend colours, exact cells solid, estimated cells at
+ * `ESTIMATE_DISPLAY_ALPHA`, everything else clear. At the native pixels when the longer side fits
+ * `maxSide`, else the nearest display cell of a grid scaled to fit.
+ */
+export function classDisplayRgba(grid: PdfClassGrid, maxSide: number = PDF_LIMITS.classDisplaySide) {
+  const scale = Math.min(1, maxSide / Math.max(grid.width, grid.height))
+  const width = Math.max(1, Math.round(grid.width * scale)),
+    height = Math.max(1, Math.round(grid.height * scale))
+  const cells = displayCells(grid),
+    data = new Uint8ClampedArray(width * height * 4)
+  for (let row = 0; row < height; row++) {
+    const from = Math.min(grid.height - 1, Math.floor(((row + 0.5) * grid.height) / height)) * grid.width
+    for (let col = 0; col < width; col++) {
+      const code = cells[from + Math.min(grid.width - 1, Math.floor(((col + 0.5) * grid.width) / width))]
+      const estimated = estimatedClass(code, grid)
+      if (!estimated && !knownClass(code, grid)) continue
+      const color = grid.legend[(estimated ? code - 64 : code) - 1].color,
+        i = (row * width + col) * 4
+      data[i] = color[0]
+      data[i + 1] = color[1]
+      data[i + 2] = color[2]
+      data[i + 3] = estimated ? ESTIMATE_DISPLAY_ALPHA : 255
+    }
+  }
+  return { data, width, height }
+}
+
 export function sampleClass(grid: PdfClassGrid, coordinate: XY) {
   const xy = applyMatrix(invertMatrix(grid.transform), gridProjection(grid).forward(coordinate) as XY)
   const col = Math.floor(xy[0]),
     row = Math.floor(xy[1])
-  const code =
-    col < 0 || row < 0 || col >= grid.width || row >= grid.height
-      ? UNKNOWN.outside
-      : decodeCells(grid)[row * grid.width + col]
+  const inside = col >= 0 && row >= 0 && col < grid.width && row < grid.height
+  const code = inside ? decodeCells(grid)[row * grid.width + col] : UNKNOWN.outside
   const estimated = estimatedClass(code, grid)
   return {
     code,
@@ -150,6 +238,8 @@ export function sampleClass(grid: PdfClassGrid, coordinate: XY) {
     row,
     estimated,
     range: knownClass(code, grid) || estimated ? grid.legend[(estimated ? code - 64 : code) - 1] : null,
+    /** For an estimated pixel: the commonest estimated class of its display cell, the class the map draws. */
+    areaRange: estimated ? grid.legend[displayCells(grid)[row * grid.width + col] - 65] : null,
     reason: estimated
       ? 'JPEG estimate; one pixel is uncertain, area shares are the reliable reading'
       : codeLabel(code, grid),

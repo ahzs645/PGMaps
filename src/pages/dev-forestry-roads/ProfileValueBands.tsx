@@ -9,6 +9,7 @@ import {
   type BandValue,
 } from './profileBands'
 import { roadSidehill, SIDEHILL_CLASSES, type SidehillClass } from './sectionSideSlope'
+import { roadSheetClassesKept, sheetClassText, type RoadSheet } from './sheetBands'
 import { formatStation } from './verticalStandards'
 import type { Alignment, RoadAnalysis } from './types'
 
@@ -23,12 +24,16 @@ const PLOT_RIGHT = 16
 /**
  * Three rows (ground, ground grade, sidehill) on a terrain profile. On a road: nine (the seven
  * elevation, depth, grade, crossfall and sidehill rows plus both slope stakes), a tenth for the
- * clearing width when the road computes one, and the curvature and superelevation diagrams.
+ * clearing width when the road computes one, and the curvature and superelevation diagrams. Each
+ * imported map sheet read along the road adds a row.
  */
-const bandsHeight = (terrainOnly: boolean, clearing: boolean) =>
-  (terrainOnly ? 3 * ROW_PX : (clearing ? 10 : 9) * ROW_PX + CURVATURE_PX + SUPER_PX) + 2
+const bandsHeight = (terrainOnly: boolean, clearing: boolean, sheetRows = 0) =>
+  (terrainOnly ? (3 + sheetRows) * ROW_PX : ((clearing ? 10 : 9) + sheetRows) * ROW_PX + CURVATURE_PX + SUPER_PX) + 2
 const hasClearing = (analysis: RoadAnalysis) =>
   analysis.stations.some((s) => typeof s.clearingWidthM === 'number' && Number.isFinite(s.clearingWidthM))
+/** A map-sheet row's colour over its text: the sheet's legend colour, paler where the class is an estimate. */
+const SHEET_FILL_OPACITY = { exact: 0.6, estimated: 0.32 } as const
+const NO_SHEETS: readonly RoadSheet[] = []
 
 /** The sidehill strip's fill by class: none on gentle ground, rising tints, then amber and red. */
 const SIDEHILL_FILL: Record<SidehillClass, string | null> = {
@@ -87,6 +92,7 @@ export function ProfileValueBands({
   station,
   onStation,
   terrainOnly = false,
+  sheets = NO_SHEETS,
 }: {
   analysis: RoadAnalysis
   alignment: Alignment
@@ -95,11 +101,13 @@ export function ProfileValueBands({
   station: number
   onStation: (chainage: number) => void
   terrainOnly?: boolean
+  /** Imported map sheets read along the road (`roadSheets`): each adds a row under Sidehill. */
+  sheets?: readonly RoadSheet[]
 }) {
   if (!(analysis.length > 0) || !(end > start)) return null
   return (
     <div data-testid="road-profile-value-bands" data-range-start={start} data-range-end={end}>
-      <SizedChart height={bandsHeight(terrainOnly, hasClearing(analysis))}>
+      <SizedChart height={bandsHeight(terrainOnly, hasClearing(analysis), sheets.length)}>
         {(width) => (
           <ValueBandsSvg
             width={width}
@@ -110,6 +118,7 @@ export function ProfileValueBands({
             station={station}
             onStation={onStation}
             terrainOnly={terrainOnly}
+            sheets={sheets}
           />
         )}
       </SizedChart>
@@ -126,6 +135,7 @@ function ValueBandsSvg({
   station,
   onStation,
   terrainOnly,
+  sheets,
 }: {
   width: number
   analysis: RoadAnalysis
@@ -135,6 +145,7 @@ function ValueBandsSvg({
   station: number
   onStation: (chainage: number) => void
   terrainOnly: boolean
+  sheets: readonly RoadSheet[]
 }) {
   const left = plotLeft(width)
   const plotWidth = Math.max(1, width - left - PLOT_RIGHT)
@@ -143,15 +154,30 @@ function ValueBandsSvg({
   const minSpacingM = Number((BAND_VALUE_MIN_GAP_PX * metresPerPx).toPrecision(2))
   // Every station's sidehill once per analysis; panning and zooming only re-window it.
   const sidehill = useMemo(() => roadSidehill(analysis.stations), [analysis.stations])
+  // Each sheet's class at every station, remembered by where the stations are (`roadSheetClassesKept`).
+  const sheetBands = useMemo(
+    () => sheets.map((sheet) => ({ sheet, classes: roadSheetClassesKept(analysis.stations, sheet) })),
+    [analysis.stations, sheets],
+  )
   const bands = useMemo(
-    () => profileValueBands(analysis, alignment, { start, end, minSpacingM, terrainOnly, sidehill, stakes: true }),
-    [analysis, alignment, start, end, minSpacingM, terrainOnly, sidehill],
+    () =>
+      profileValueBands(analysis, alignment, {
+        start,
+        end,
+        minSpacingM,
+        terrainOnly,
+        sidehill,
+        stakes: true,
+        sheets: sheetBands,
+      }),
+    [analysis, alignment, start, end, minSpacingM, terrainOnly, sidehill, sheetBands],
   )
   const x = (chainage: number) => left + ((chainage - start) / Math.max(1e-9, end - start)) * plotWidth
   const showCurvature = !terrainOnly
   const height = bandsHeight(
     terrainOnly,
     bands.rows.some((row) => row.key === 'clearing'),
+    sheets.length,
   )
   const chainages = bands.stations.map((s) => s.chainage)
   const step = (event: KeyboardEvent<SVGSVGElement>) => {
@@ -203,6 +229,7 @@ function ValueBandsSvg({
     >
       {bands.rows.map((row, index) => {
         const y = index * ROW_PX
+        const sheetRun = bands.sheetSpans.find((run) => run.key === row.key)
         return (
           <g key={row.key} data-band={row.key}>
             <rect x={left} y={y + 1} width={plotWidth} height={ROW_PX - 2} fill="hsl(var(--muted))" opacity={0.5} />
@@ -227,6 +254,30 @@ function ValueBandsSvg({
                   </rect>
                 )
               })}
+            {sheetRun?.spans.map((span) => {
+              // Not drawn on the sheet, or not covered by it: the row's plain background.
+              if (span.classIndex === null || span.classIndex < 0) return null
+              const [r, g, b] = sheetRun.sheet.grid.legend[span.classIndex].color
+              const label = sheetClassText(sheetRun.sheet.grid, span.classIndex)
+              return (
+                <rect
+                  key={span.start}
+                  x={x(span.start)}
+                  y={y + 1}
+                  width={Math.max(1, x(span.end) - x(span.start))}
+                  height={ROW_PX - 2}
+                  fill={`rgb(${r} ${g} ${b})`}
+                  fillOpacity={span.estimated ? SHEET_FILL_OPACITY.estimated : SHEET_FILL_OPACITY.exact}
+                  data-sheet-class={label}
+                  data-sheet-estimated={span.estimated}
+                >
+                  <title>
+                    {row.title} {span.estimated ? 'about ' : ''}
+                    {label}: {formatStation(span.start)}–{formatStation(span.end)}
+                  </title>
+                </rect>
+              )
+            })}
             <text x={3} y={y + 11} fontSize="9" fill="hsl(var(--muted-foreground))">
               {row.title}
               <title>{row.detail}</title>
@@ -243,6 +294,8 @@ function ValueBandsSvg({
                   className="cursor-pointer tabular-nums"
                   fill={value.tone ? TONE_FILL[value.tone] : 'hsl(var(--foreground))'}
                   fontWeight={value.tone === 'super' ? 700 : undefined}
+                  // Over a sheet's colours the text keeps a halo of the page, so it reads on any class.
+                  {...(sheetRun ? { stroke: 'hsl(var(--background))', strokeWidth: 2.5, paintOrder: 'stroke' } : {})}
                   data-band-value={value.value === null ? 'unknown' : value.value}
                   data-station={value.chainage}
                   onPointerDown={(event) => {

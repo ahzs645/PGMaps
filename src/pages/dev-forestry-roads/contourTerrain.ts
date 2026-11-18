@@ -16,10 +16,22 @@ import {
 import type { Bounds } from '@/lib/forestry/terrain/terrain'
 import type { TerrainMetadata, TerrainSource } from './types'
 
+/** A contour surface refined between its contours from a hillshade sheet (`hillshadeRefine.ts`). */
+export interface ContourRelief {
+  /** The hillshade sheet's file name. */
+  name: string
+  sharePercent: number
+  medianChangeM: number
+  p99ChangeM: number
+  /** What was done, for the import notice. */
+  summary: string
+}
+
 export function contourTerrain(
   surface: PdfContourSurface,
   source: PdfSource,
   verticalReference: string,
+  relief?: ContourRelief,
 ): { metadata: TerrainMetadata; source: TerrainSource; summary: string } {
   const file = source.file.split('/').at(-1) ?? source.file
   if (!verticalReference.trim())
@@ -30,7 +42,7 @@ export function contourTerrain(
   if (verticalReference.trim().length > 300) throw Error('Shorten the vertical datum to at most 300 characters.')
   const raster = validateRoadRaster({
     id: `terrain-${source.sha256.slice(0, 16)}-contours`,
-    name: `Contours · ${file}`.slice(0, 200),
+    name: `${relief ? 'Contours + hillshade' : 'Contours'} · ${file}`.slice(0, 200),
     kind: 'terrain',
     epsg: surface.epsg,
     origin: [...surface.origin],
@@ -52,12 +64,22 @@ export function contourTerrain(
     verticalReference: raster.verticalReference,
     sha256: source.sha256,
     raster,
+    ...(relief
+      ? {
+          relief: {
+            name: relief.name,
+            sharePercent: relief.sharePercent,
+            medianChangeM: relief.medianChangeM,
+            p99ChangeM: relief.p99ChangeM,
+          },
+        }
+      : {}),
   }
   const a = surface.assignment
   return {
     metadata,
     source: rasterSource(raster),
-    summary: `Terrain from ${file}'s ${a.interval} m contours (${a.labelledLines} labelled, ${a.inferredLines} inferred lines; ${surface.cellM} m cells). Coarser than LiDAR; ground beyond the labelled contours is left missing.`,
+    summary: `Terrain from ${file}'s ${a.interval} m contours (${a.labelledLines} labelled, ${a.inferredLines} inferred lines; ${surface.cellM} m cells).${relief ? ` ${relief.summary}` : ''} Coarser than LiDAR; ground beyond the labelled contours is left missing.`,
   }
 }
 
@@ -192,12 +214,12 @@ export async function fillBeyondContours(
   const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
     b.toString(16).padStart(2, '0'),
   ).join('')
-  const file = r.name.replace(/^Contours · /, '')
+  // "Contours · file", or "Contours + hillshade · file" for a surface refined from a hillshade.
   const share = `${Math.round(filledShare * 100)}%`
   const raster = validateRoadRaster({
     ...r,
     id: `terrain-${sha256.slice(0, 16)}-contours`,
-    name: `Contours · ${file} + regional DEM beyond them (${share} of cells)`.slice(0, 200),
+    name: `${r.name} + regional DEM beyond them (${share} of cells)`.slice(0, 200),
     origin: [grid.x0, grid.y0],
     pixelSize: [grid.cell, -grid.cell],
     width: grid.width,
@@ -242,5 +264,7 @@ export const isContourTerrain = (raster: { id: string } | undefined) => !!raster
  * sheet's exact pixels by `scripts/forestry/check-pdf-contour-slope.ts` (one supplied company
  * sheet pair, November 2026). See `docs/forestry-road-design/source-pdf-import.md`.
  */
+export const CONTOUR_RELIEF_SLOPE_CHECK =
+  'On the one sheet set checked, slope from contours refined with the hillshade was in the same printed range for 53% of the slope sheet’s exact pixels and within one range for 80% (contours alone: 43% and 69% on the same pixels); it agreed 91–94% on the 35%, 40% and 60% thresholds.'
 export const CONTOUR_SLOPE_CHECK =
   'On the one sheet pair checked, contour slope was in the same printed range for 43% of the sheet’s exact pixels and within one range for 69%; it agreed 87–91% on the 35%, 40% and 60% thresholds and read the 60%+ share low (38% against 42%).'

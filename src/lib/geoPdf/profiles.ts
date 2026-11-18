@@ -33,6 +33,16 @@ export interface LegendGeometry {
   labelOffset: number
 }
 
+/** An image layer the template publishes as a picture: offered at its own pixels, never classified. */
+export interface ImageLayerProfile {
+  kind: 'hillshade' | 'imagery'
+  /** The optional-content layer the tiles are drawn in. */
+  layer: string
+  name: string
+  /** Offered ticked in the import dialog. */
+  selected: boolean
+}
+
 export interface ContourConventions {
   /** Legend text stating the interval; the first group is the interval in metres. */
   statedInterval?: RegExp
@@ -48,6 +58,8 @@ export interface PdfTemplateProfile {
   rules: PdfLayerRule[]
   /** Class rasters this template publishes; empty when it has none. */
   rasters: RasterProfile[]
+  /** Image layers offered at their native pixels; absent when the template has none. */
+  images?: ImageLayerProfile[]
   legend: LegendGeometry
   contours: ContourConventions
   /** Colour the exporter writes under transparent pixels; JPEG tiles encode it. */
@@ -81,6 +93,11 @@ export const CANFOR_PROFILE: PdfTemplateProfile = {
     { name: 'LiDAR streams', match: /^LiDAR Stream(?:s)?$/, shape: 'line', selected: false },
   ],
   rasters: CANFOR_RASTERS,
+  images: [
+    { kind: 'hillshade', layer: 'Hillshade', name: 'Hillshade', selected: true },
+    // The same imagery the plan's Satellite basemap shows, so it is offered but not ticked.
+    { kind: 'imagery', layer: 'ESRI - World Imagery', name: 'Ortho imagery', selected: false },
+  ],
   legend: { swatchWidth: [8, 40], swatchHeight: [4, 20], placement: 'right-of-frame', labelGap: 12, labelOffset: 5 },
   contours: { statedInterval: /^Contours\s*-\s*(\d+)\s*m$/i },
   transparentFill: [0, 0, 0],

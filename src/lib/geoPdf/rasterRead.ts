@@ -163,6 +163,31 @@ export function readRasterLegend(
   })
 }
 
+/** Sampled pixels are enough to tell a clean palette tile from a compressed one. */
+const OFF_LEGEND_SAMPLES = 200_000
+/** Share of a tile's drawn pixels whose colour is not a legend colour within the lossless radius. */
+function offLegendShare(
+  pixels: Uint8Array | Uint8ClampedArray,
+  stride: number,
+  legend: PdfRasterClass[],
+  alpha: number,
+  excluded: number,
+) {
+  const classify = colorClassifier(legend, false, alpha, excluded)
+  const count = pixels.length / stride
+  const step = Math.max(1, Math.floor(count / OFF_LEGEND_SAMPLES))
+  let drawn = 0,
+    off = 0
+  for (let p = 0; p < count; p += step) {
+    const i = p * stride
+    const a = stride === 4 ? pixels[i + 3] : 255
+    if (!a) continue
+    drawn++
+    if (classify(pixels[i], pixels[i + 1], pixels[i + 2], alpha) === UNKNOWN.color) off++
+  }
+  return drawn ? off / drawn : 0
+}
+
 const imageMatrix = (image: ImageInstance): Matrix =>
   multiply(image.matrix, [1 / image.width, 0, 0, -1 / image.height, 0, 1])
 export function mosaicPlacement(images: ImageInstance[]) {
@@ -244,7 +269,8 @@ export async function extractClassRasters({
     const palette = rasterPalette(legend, excluded)
     const legendCode = legend.flatMap((_, i) => (i === excluded ? [] : [i + 1]))
     let decodedTiles = 0
-    const decodeFailures: string[] = []
+    const decodeFailures: string[] = [],
+      damagedTiles: string[] = []
     for (const tile of mosaic.offsets) {
       const image = await new Promise<DecodedPdfImage>((resolve) => page.objs.get(tile.image.id, resolve))
       const pixels = image.data ?? imagePixels?.(image)
@@ -253,7 +279,12 @@ export async function extractClassRasters({
       const stride = pixels.length / (image.width * image.height)
       if (![3, 4].includes(stride)) throw Error('Unsupported source raster colour channels.')
       const reference = image.ref ?? 'unknown'
-      const lossy = reference === 'unknown' || lossyImages.has(reference)
+      const storedLossy = reference === 'unknown' || lossyImages.has(reference)
+      // A tile stored losslessly whose colours are not the legend's was compressed before it was
+      // stored (a copy saved again by a program that re-encodes images). Its classes are estimates.
+      const offLegend = storedLossy ? 0 : offLegendShare(pixels, stride, legend, profile.alpha, excluded)
+      const lossy = storedLossy || offLegend > PDF_LIMITS.damagedTileShare
+      if (lossy && !storedLossy) damagedTiles.push(`${reference} (${Math.round(offLegend * 100)}% of its drawn pixels)`)
       const classify = colorClassifier(legend, lossy, profile.alpha, excluded)
       sourceImages.push({ reference, width: image.width, height: image.height, lossy, layer: profile.layer })
       const alphaAt = (i: number) => (stride === 4 ? pixels[i * 4 + 3] : 255)
@@ -387,6 +418,11 @@ export async function extractClassRasters({
           : 'All JPEG-derived matches remain estimates and are excluded from lossless matched-class area totals. Colour proximity alone did not reliably reproduce classes in the template compression benchmark.',
         ...(decodeFailures.length
           ? [`Coefficient decoding failed for ${decodeFailures.join('; ')}; those tiles use the colour match.`]
+          : []),
+        ...(damagedTiles.length
+          ? [
+              `Stored losslessly, but not in the legend's colours: ${damagedTiles.join('; ')}. The image was compressed before this file was saved, so its classes are colour-match estimates. The original export reads better.`,
+            ]
           : []),
         ...(profile.overlay
           ? [

@@ -299,6 +299,7 @@ import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
 import { withJunctionOverlay } from './dev-forestry-roads/junctionTurn'
 import { projectProfileJunctions, withVerticalControl } from './dev-forestry-roads/profileJunctions'
 import { shownSearchBand } from './dev-forestry-roads/profileSearchBand'
+import { roadSheets } from './dev-forestry-roads/sheetBands'
 import { minimumControlExportNotes } from './dev-forestry-roads/verticalStandards'
 import { DEFAULT_DESIGN_STANDARDS, gradeRule } from './dev-forestry-roads/designStandards'
 import {
@@ -1279,6 +1280,8 @@ export default function DevForestryRoads({
     () => ({ standards: project.standards, stationIntervalM: project.settings.stationInterval }),
     [project.standards, project.settings.stationInterval],
   )
+  // The value bands read an imported map sheet's slope and canopy classes along the road.
+  const profileSheets = useMemo(() => roadSheets(project.reference), [project.reference])
   // The profile draws tangents over the project's grade rule red.
   const profileGradeLimits = useMemo(
     () => ({ rule: gradeRule(project.settings, project.standards) }),
@@ -3301,17 +3304,43 @@ export default function DevForestryRoads({
   const commitLayerImport = (choices: LayerImportChoice[], options?: LayerImportOptions) => {
     const terrainChoice = choices.find((choice) => choice.role === 'terrain')
     if (!terrainChoice) return applyLayerChoices(choices, options)
+    // The hillshade sheet read in the same import, whether or not its layer is being loaded.
+    const hillshade = options?.refineWithHillshade
+      ? layerImportFiles?.find((file) => file.pdf?.imageMosaic?.kind === 'hillshade')?.pdf
+      : undefined
     setLayerImportFiles(null)
-    const surface = terrainChoice.file.pdf?.contourSurface,
+    const contours = terrainChoice.file.pdf?.contourSurface,
       source = terrainChoice.file.pdf?.source
     void run('Building terrain from contours…', async (signal) => {
-      if (!surface || !source) throw Error('That layer has no contour surface.')
+      if (!contours || !source) throw Error('That layer has no contour surface.')
       const { contourTerrain } = await import('./dev-forestry-roads/contourTerrain')
+      let surface = contours,
+        relief: import('./dev-forestry-roads/contourTerrain').ContourRelief | undefined,
+        reliefFailure = ''
+      if (hillshade?.imageMosaic) {
+        const file = hillshade.source.file.split('/').at(-1) ?? hillshade.source.file
+        w.setBusy('Reading the ground between the contours from the hillshade…')
+        try {
+          const { refineContourSurface } = await import('./dev-forestry-roads/hillshadeRefine')
+          const refined = await refineContourSurface(contours, hillshade.imageMosaic, file, signal, (progress) =>
+            w.setBusy(`Reading the ground between the contours from the hillshade… ${Math.round(progress * 100)}%`),
+          )
+          surface = refined.surface
+          relief = refined.relief
+        } catch (cause) {
+          if (signal.aborted) return
+          // The contours alone are still a terrain: say why the hillshade was not used.
+          reliefFailure = ` ${file} could not refine the ground between the contours (${cause instanceof Error ? cause.message : 'not read'}); the contour surface is used as it is.`
+        }
+        if (signal.aborted) return
+        w.setBusy('Building terrain from contours…')
+      }
       // The sheet prints no vertical datum: always ask, never reuse the open terrain's.
       let loaded = await importTerrainWithAnswers(
-        async (answers) => contourTerrain(surface, source, answers.verticalReference ?? ''),
+        async (answers) => contourTerrain(surface, source, answers.verticalReference ?? '', relief),
         askTerrain,
       )
+      if (loaded && reliefFailure) loaded = { ...loaded, summary: `${loaded.summary}${reliefFailure}` }
       if (signal.aborted) return
       const others = choices.filter((choice) => choice !== terrainChoice)
       // A sheet's contours stop at its frame; roads that run off it take the regional DEM there.
@@ -7383,6 +7412,7 @@ export default function DevForestryRoads({
                                         }
                                       >
                                         <ProfileChart
+                                          sheets={profileSheets}
                                           sharedXAxis={profileView === 'profile-grade'}
                                           sharedMeasurement={
                                             profileView === 'profile-grade' ? profileGradeMeasurement : undefined

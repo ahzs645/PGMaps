@@ -68,6 +68,8 @@ readout) and `profileBands.ts` (band values and the curvature diagram). The scre
 | Stake L/R  | Slope-stake offset each side (m), where the batter meets the ground; negative left; screen only          | That side of the section is incomplete    |
 | Clearing   | Clearing width across the road (m), catches plus preparation margin; only when the road computes one     | The station has no clearing width         |
 | Sidehill % | Ground cross slope across the road and its uphill side ("13 R"), from `sectionSideSlope.ts`; screen only  | Either side has under 5 m of known ground |
+| Map slope  | The commonest slope class an imported map sheet prints around the station ("40–50"); screen only          | The sheet covers under half the patch     |
+| Map canopy | The commonest canopy height class an imported map sheet prints around the station ("20–25"); screen only  | The sheet covers under half the patch     |
 | Curvature  | 1/R, right turns above the line and left below, ramping over spirals; each arc labelled R and side        | Never: it is the fitted geometry          |
 
 A terrain profile has ground, ground grade and sidehill only.
@@ -84,6 +86,39 @@ The Stake and Clearing rows are RoadEng's `L-Ssl`/`L-Ssr` band and clearing widt
 (`stakeRows`, `profileBands.ts`). Like Sidehill they are on screen only: `profileValueBands` adds them
 when given `stakes`, so the plot book's sheets keep their rows. Whether the Clearing row shows is
 decided over the whole road, never the window, so the bands keep their height while panning.
+
+### Map slope and Map canopy
+
+A project that has imported a company map sheet's slope or canopy classes
+([Company source-map imports](source-pdf-import.md)) gets a row for each under Sidehill
+(`sheetBands.ts`): the company's LiDAR products read beside the estimate's own ground. They are
+display only. No quantity, search, check or export reads them; the slope sheet's check against the
+estimate stays Review's **Ground as steep as the slope sheet shows** row.
+
+- **What is read.** At every calculated station, the sheet's stored cells over a patch 15 m either
+  side of the centreline (`SHEET_BAND.halfWidthM`, the Sidehill row's reach) and half-way to each
+  neighbouring station along the road, at most 10 m each way (`alongM`), every 2 m (`stepM`). The
+  value is the commonest class in the patch. Not drawn on the sheet counts as the class below its
+  lowest printed range ("<20", "<5").
+- **Why a patch.** One JPEG-tile pixel of a sheet is right about half the time; shares over an
+  area this size hold to about a tenth. A patch is a few hundred of the supplied sheets' pixels.
+- **≈ marks an estimate.** Where fewer than half the winning class's points are exact
+  (`exactShare`), the value is prefixed ≈ and its colour is paler. Not drawn is always exact, in a
+  JPEG tile too.
+- **Unknown.** Where the sheet gives a class for under half the patch's points (`minCoverage`),
+  the row prints —: the road has left the sheet's frame.
+- **Colour.** Each station is coloured in the sheet's own legend colour, at every station as the
+  Sidehill row is, and runs of one class join (`sheetSpans`). Slope values take the Sidehill row's
+  amber from 50 % and red from 60 %, so the two rows read against the same screens.
+- **Which sheet.** The first slope raster and the first canopy raster among the project's
+  reference layers (`roadSheets`), whether or not the layer is shown on the plan.
+- **Comparing with Sidehill.** The sheet's class is the ground's slope in its steepest direction;
+  Sidehill is the cross slope on one fitted line across the road. On a road running straight up a
+  hill the sheet reads steep and Sidehill near level, and both are right.
+
+The reading is remembered by where the stations are (`roadSheetClassesKept`), so a grade edit,
+which moves no station on the ground, does not read the sheets again. The plot book's bands leave
+these rows out, as they do Sidehill.
 
 Values are printed only at calculated
 stations, never interpolated between them. Stations on a round multiple of the spacing (1, 2, 2.5

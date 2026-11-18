@@ -2,7 +2,7 @@ import buffer from '@turf/buffer'
 import { featuresBounds, type GeometryCarrier } from '@/lib/featureBounds'
 import { AREA_PATTERNS, type AreaPattern } from '@/lib/mapSheet/symbolStyle'
 import type { ContextFeature, Coordinate } from './types'
-import { referenceLayerKey, type ReferenceFeature } from './referenceFeatures'
+import { isImageFrame, referenceLayerKey, type ReferenceFeature } from './referenceFeatures'
 
 export const MAX_CUTBLOCK_BUFFER_M = 10_000
 export const CUTBLOCK_BUFFER_COLOR = '#7c3aed'
@@ -26,10 +26,7 @@ export function keepCutblockBuffers(
   const sources = new Map<string, boolean>()
   for (const feature of reference) {
     const key = referenceLayerKey(feature)
-    sources.set(
-      key,
-      sources.get(key) !== false && feature.geometry.type === 'Polygon' && !feature.sheet && !feature.classGrid,
-    )
+    sources.set(key, sources.get(key) !== false && feature.geometry.type === 'Polygon' && !isImageFrame(feature))
   }
   const used = new Set<string>()
   return buffers.filter((setting) => {

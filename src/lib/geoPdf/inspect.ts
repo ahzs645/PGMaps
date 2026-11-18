@@ -9,6 +9,7 @@
 import type * as PdfJs from 'pdfjs-dist'
 import { PDFDocument, PDFName, PDFRawStream, PDFRef } from 'pdf-lib'
 import { projectedEpsg, readMapFrames, type MapFrame } from './georeference'
+import { withoutDeadObjectStreams } from './deadObjectStreams'
 import { readJpegCoefficients } from './jpegCoefficients'
 import { drawingPaths, multiply, transform } from './paths'
 import { PDF_PROFILES, type PdfTemplateProfile } from './profiles'
@@ -98,8 +99,8 @@ const INTERVALS = [1, 2, 5, 10, 20, 25, 50, 100]
 const STROKED_POINT_BUDGET = 3_000_000
 
 /** Compression and mask of every image XObject, from the file's own objects. */
-async function imageObjects(bytes: Uint8Array) {
-  const pdf = await PDFDocument.load(bytes, { updateMetadata: false })
+async function imageObjects(source: Uint8Array) {
+  const pdf = await PDFDocument.load(withoutDeadObjectStreams(source).bytes, { updateMetadata: false })
   const out = new Map<string, { filter: string; mask: string | null }>()
   const streams = new Map<string, PDFRawStream>()
   const id = (ref: PDFRef) => `${ref.objectNumber}R${ref.generationNumber || ''}`

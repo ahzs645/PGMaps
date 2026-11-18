@@ -22,6 +22,8 @@ export interface LayerImportOptions {
   loadRoads: boolean
   /** Widen a contour terrain to the roads and blocks, taking the ground past the contours from the regional DEM. */
   fillBeyondContours: boolean
+  /** Read the ground between a contour terrain's contours from the hillshade sheet in the same import. */
+  refineWithHillshade: boolean
 }
 
 const roleHelp: Record<LayerImportRole, string> = {
@@ -61,13 +63,21 @@ export function LayerImportDialog({
   const prepareDem = prepareDemChoice ?? !terrainIncluded
   const [loadRoads, setLoadRoads] = useState(true)
   const [fillBeyondContours, setFillBeyondContours] = useState(true)
+  // Off unless asked for: it is an estimate between contours, and takes about a minute.
+  const [refineWithHillshade, setRefineWithHillshade] = useState(false)
+  const hillshade = files.find((file) => file.pdf?.imageMosaic?.kind === 'hillshade')
   const commit = () => {
     try {
       const selected = choices.filter((_, i) => included[i])
       if (!selected.length) throw Error('Choose at least one layer to import.')
       if (selected.filter((choice) => choice.role === 'terrain').length > 1)
         throw Error('Choose one terrain: a project has a single terrain surface.')
-      onImport(selected, { prepareDem, loadRoads, fillBeyondContours })
+      onImport(selected, {
+        prepareDem,
+        loadRoads,
+        fillBeyondContours,
+        refineWithHillshade: refineWithHillshade && !!hillshade,
+      })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not import the layers.')
     }
@@ -168,6 +178,21 @@ export function LayerImportDialog({
                   <span>
                     Fill past the contours from the regional DEM (about 22 m), so roads and blocks off the sheet have
                     ground. The two are not shifted to meet.
+                  </span>
+                </label>
+              )}
+              {role === 'terrain' && included[index] && hillshade && (
+                <label className="mt-2 flex items-start gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={refineWithHillshade}
+                    onChange={(event) => setRefineWithHillshade(event.target.checked)}
+                  />
+                  <span>
+                    Read the ground between the contours from {hillshade.pdf!.source.file.split('/').at(-1)}. The
+                    contours keep the heights; the hillshade adds the gullies and benches between them, within one
+                    contour interval. An estimate, not a survey; takes about a minute.
                   </span>
                 </label>
               )}

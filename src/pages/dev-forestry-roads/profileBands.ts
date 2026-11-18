@@ -15,6 +15,16 @@ import {
   type SidehillSpan,
   type StationSidehill,
 } from './sectionSideSlope'
+import {
+  SHEET_BAND,
+  sheetClassMinimum,
+  sheetClassText,
+  sheetSlopeTone,
+  sheetSpans,
+  type RoadSheet,
+  type SheetSpan,
+  type StationSheetClass,
+} from './sheetBands'
 import type { Alignment, RoadAnalysis, RoadStation } from './types'
 
 const EPS = 1e-6
@@ -58,6 +68,20 @@ export type ValueBandKey =
   | 'stakeRight'
   | 'clearing'
   | 'sidehill'
+  | 'sheetSlope'
+  | 'sheetCanopy'
+
+/** An imported map sheet read along the road (`sheetBands.ts`): every station's class, in station order. */
+export interface SheetBandInput {
+  sheet: RoadSheet
+  classes: readonly StationSheetClass[]
+}
+/** A sheet row's colour runs over the window, with the sheet whose legend colours them. */
+export interface SheetBandSpans {
+  key: ValueBandKey
+  sheet: RoadSheet
+  spans: SheetSpan[]
+}
 
 export interface BandValue {
   chainage: number
@@ -99,6 +123,8 @@ export interface ProfileValueBands {
   maxCurvaturePerKm: number
   /** The sidehill row's colour runs over every station in the window; empty without `sidehill`. */
   sidehillSpans: SidehillSpan[]
+  /** Each map-sheet row's colour runs; empty without `sheets`. */
+  sheetSpans: SheetBandSpans[]
 }
 
 /**
@@ -194,6 +220,7 @@ export function profileValueBands(
     terrainOnly = false,
     sidehill,
     stakes = false,
+    sheets = [],
   }: {
     start: number
     end: number
@@ -209,11 +236,24 @@ export function profileValueBands(
      * the crossfall rows (`stakeRows`). Off (the plot book), the bands are as before.
      */
     stakes?: boolean
+    /**
+     * Imported map sheets read along the road. Each adds a row under Sidehill: the company's slope
+     * or canopy classes beside the estimate's ground. Absent (the plot book), the bands are as before.
+     */
+    sheets?: readonly SheetBandInput[]
   },
 ): ProfileValueBands {
   const stations = bandStations(analysis.stations, start, end, minSpacingM)
-  const sidehillRows: ValueBandRow[] = sidehill ? [sidehillRow(stations, sidehill)] : []
+  const sidehillRows: ValueBandRow[] = [
+    ...(sidehill ? [sidehillRow(stations, sidehill)] : []),
+    ...sheets.map((input) => sheetRow(stations, input)),
+  ]
   const spans = sidehill ? sidehillSpans(sidehill, start, end) : []
+  const sheetRuns: SheetBandSpans[] = sheets.map((input) => ({
+    key: sheetBandKey(input.sheet),
+    sheet: input.sheet,
+    spans: sheetSpans(input.classes, start, end),
+  }))
   const ground: ValueBandRow = {
     key: 'ground',
     title: 'Ground',
@@ -245,6 +285,7 @@ export function profileValueBands(
       curvatureLabels: [],
       maxCurvaturePerKm: 0,
       sidehillSpans: spans,
+      sheetSpans: sheetRuns,
     }
   const rows: ValueBandRow[] = [
     ground,
@@ -320,6 +361,7 @@ export function profileValueBands(
     stations,
     rows,
     sidehillSpans: spans,
+    sheetSpans: sheetRuns,
     curvature: vertices,
     curvatureLabels: labels,
     maxCurvaturePerKm: Math.max(0, ...vertices.map((v) => Math.abs(v.perKm))),
@@ -380,6 +422,34 @@ function sidehillRow(stations: readonly RoadStation[], sidehill: readonly Statio
           : cls === 'past-appraisal'
             ? { tone: 'appraisal' as const }
             : {}),
+      }
+    }),
+  }
+}
+
+const sheetBandKey = (sheet: RoadSheet): ValueBandKey => (sheet.kind === 'slope' ? 'sheetSlope' : 'sheetCanopy')
+
+/**
+ * A map-sheet row: the commonest class the sheet prints around each labelled station, "≈" before
+ * one that is mostly a JPEG estimate. Slope classes take the Sidehill row's amber and red.
+ */
+function sheetRow(stations: readonly RoadStation[], { sheet, classes }: SheetBandInput): ValueBandRow {
+  const byChainage = new Map(classes.map((row) => [row.chainage, row]))
+  const slope = sheet.kind === 'slope'
+  return {
+    key: sheetBandKey(sheet),
+    title: slope ? 'Map slope' : 'Map canopy',
+    detail: `The commonest ${slope ? 'slope class (%)' : 'canopy height class (m)'} ${sheet.name} prints within ${SHEET_BAND.halfWidthM} m of the centreline around the station. The imported map sheet, not the estimate's ground${slope ? ': compare it with Sidehill' : ''}. The band is coloured at every station in the sheet's own colours, paler and marked ≈ where most of the class is an estimate from a compressed tile. — where the sheet does not reach.`,
+    values: stations.map((s) => {
+      const row = byChainage.get(s.chainage)
+      if (!row || row.classIndex === null) return unknown(s.chainage)
+      const tone = sheetSlopeTone(sheet, row.classIndex)
+      return {
+        chainage: s.chainage,
+        // The class's lower bound; the not-drawn class below the printed ranges reads 0.
+        value: Math.max(0, sheetClassMinimum(sheet.grid, row.classIndex)),
+        text: `${row.estimated ? '≈' : ''}${sheetClassText(sheet.grid, row.classIndex)}`,
+        ...(tone ? { tone } : {}),
       }
     }),
   }

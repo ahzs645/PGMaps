@@ -64,6 +64,8 @@ export interface SpatialFile {
     selected: boolean
     sheet?: PdfSheet
     classGrid?: PdfClassGrid
+    /** An image layer at its own pixels (hillshade, ortho imagery). */
+    imageMosaic?: import('@/lib/geoPdf/types').PdfImageMosaic
     /** Terrain from the sheet's contours: only ever the project's terrain, never a reference layer. */
     contourSurface?: import('@/lib/geoPdf/contours').PdfContourSurface
   }
@@ -1191,11 +1193,13 @@ export function buildSpatialImport(file: SpatialFile, roles: RoleChoice, intent?
                 pdfSource: file.pdf.source,
                 ...(file.pdf.sheet ? { sheet: file.pdf.sheet } : {}),
                 ...(file.pdf.classGrid ? { classGrid: file.pdf.classGrid } : {}),
+                ...(file.pdf.imageMosaic ? { imageMosaic: file.pdf.imageMosaic } : {}),
               }
             : {
                 ...(feature.properties?.pdfSource ? { pdfSource: feature.properties.pdfSource } : {}),
                 ...(feature.properties?.pdfSheet ? { sheet: feature.properties.pdfSheet } : {}),
                 ...(feature.properties?.pdfClassGrid ? { classGrid: feature.properties.pdfClassGrid } : {}),
+                ...(feature.properties?.pdfImageMosaic ? { imageMosaic: feature.properties.pdfImageMosaic } : {}),
               }),
         }))
       })

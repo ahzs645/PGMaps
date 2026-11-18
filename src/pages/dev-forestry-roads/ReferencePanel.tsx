@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'
 import {
   compactReferenceFolder,
   importedCutblockFeatures,
+  isImageFrame,
   referenceFolders,
   referenceLayers,
   referenceShape,
@@ -269,7 +270,7 @@ export function ReferencePanel({
     const shapes = new Set(features.map(referenceShape))
     const shape = shapes.has('area') ? 'area' : shapes.has('line') ? 'line' : 'point'
     // Planned blocks keep the block sheet's symbol; scanned sheets and class rasters are images.
-    const styleable = !!onLayerStyleChange && role !== 'planned-block' && features.some((f) => !f.sheet && !f.classGrid)
+    const styleable = !!onLayerStyleChange && role !== 'planned-block' && features.some((f) => !isImageFrame(f))
     const buffer = cutblockBuffers?.find(({ layer }) => layer === key)
     const bufferVisible = !hiddenKeys?.includes(cutblockBufferKey(key))
     const bufferSource = buffer && 'source' in buffer ? layers.find((layer) => layer.key === buffer.source) : undefined
@@ -354,11 +355,7 @@ export function ReferencePanel({
                     layer.key !== key &&
                     (!attached.has(layer.key) || layer.key === bufferSource?.key) &&
                     layer.features.every(
-                      (feature) =>
-                        !feature.cutblock &&
-                        !feature.sheet &&
-                        !feature.classGrid &&
-                        feature.geometry.type === 'Polygon',
+                      (feature) => !feature.cutblock && !isImageFrame(feature) && feature.geometry.type === 'Polygon',
                     ),
                 )}
                 onChange={(setting) => onBufferChange(key, setting)}
@@ -598,9 +595,11 @@ export function ReferencePanel({
                               <p>
                                 {feature.classGrid
                                   ? 'Published class grid'
-                                  : feature.sheet
-                                    ? 'Source sheet'
-                                    : 'Recovered drawing'}
+                                  : feature.imageMosaic
+                                    ? `Image layer at its own pixels (${feature.imageMosaic.width.toLocaleString('en-CA')} × ${feature.imageMosaic.height.toLocaleString('en-CA')})`
+                                    : feature.sheet
+                                      ? 'Source sheet'
+                                      : 'Recovered drawing'}
                                 ; registration fit {feature.pdfSource.registrationErrorM.toFixed(2)} m. This is a
                                 control-point fit, not source accuracy.
                               </p>

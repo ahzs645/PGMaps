@@ -2,10 +2,22 @@ import { PDFDocument, PDFName, PDFString, PDFOperator, PDFOperatorNames, rgb, St
 import { encode } from 'fast-png'
 import proj4 from 'proj4'
 import { CANFOR_RASTERS } from '../../src/lib/geoPdf/rasterProfiles'
+import { SYNTHETIC_JPEGS } from './syntheticClassJpeg'
 
 /** Synthetic geometry and template vocabulary only; no company plan or map artwork. */
 export async function canforPdfFixture(
-  options: { registered?: boolean; supported?: boolean; raster?: 'slope' | 'canopy'; legend?: boolean } = {},
+  options: {
+    registered?: boolean
+    supported?: boolean
+    raster?: 'slope' | 'canopy'
+    legend?: boolean
+    /** The class tile's colours as a compressed-then-stored copy has them: near the legend's, not on it. */
+    damaged?: boolean
+    /** A hillshade image layer: two lossless tiles side by side, or one JPEG tile. */
+    picture?: 'png' | 'jpeg'
+    /** Written with a classic cross-reference table, as a re-saving program writes it. */
+    classicXref?: boolean
+  } = {},
 ) {
   const pdf = await PDFDocument.create()
   pdf.setCreator('Esri ArcGISPro synthetic test')
@@ -20,6 +32,7 @@ export async function canforPdfFixture(
   const profile = CANFOR_RASTERS.find((p) => p.kind === options.raster)
   if (profile) names.push(profile.layer)
   if (profile?.overlay) names.push(profile.overlay.layer)
+  if (options.picture) names.push('Hillshade')
   const groups = names.map((name) =>
     pdf.context.register(
       pdf.context.obj({ Type: 'OCG', Name: PDFString.of(options.supported === false ? 'Unknown layer' : name) }),
@@ -71,6 +84,7 @@ export async function canforPdfFixture(
       const c = profile.overlay && i % 8 === 7 ? [255, 0, 0] : colors[i % 8]
       data.set([...c, profile.alpha], i * 4)
     }
+    if (options.damaged) for (let i = 0; i < 16; i++) for (let c = 0; c < 3; c++) data[i * 4 + c] ^= 6
     data[8 * 4 + 3] = 0 // No mapped class, not a below-range class.
     data.set([100, 100, 100, profile.alpha], 9 * 4) // Reject a colour absent from the legend.
     data[10 * 4 + 3] = 100 // Unexpected alpha stays unknown.
@@ -107,6 +121,24 @@ export async function canforPdfFixture(
       })
     }
   }
+  if (options.picture) {
+    const layer = PDFName.of(`L${names.length - 1}`)
+    page.pushOperators(PDFOperator.of(PDFOperatorNames.BeginMarkedContentSequence, [PDFName.of('OC'), layer]))
+    if (options.picture === 'jpeg') {
+      const jpeg = Uint8Array.from(atob(SYNTHETIC_JPEGS.plain.b64), (c) => c.charCodeAt(0))
+      page.drawImage(await pdf.embedJpg(jpeg), { x: 20, y: 68, width: 180, height: 132 })
+    } else
+      // Two 2 × 4 grey tiles on one 45-point pixel grid; each pixel's grey is 10 × its column + row.
+      for (const [index, x] of [20, 110].entries()) {
+        const data = new Uint8Array(2 * 4 * 3)
+        for (let row = 0; row < 4; row++)
+          for (let col = 0; col < 2; col++)
+            data.fill(10 * (col + index * 2) + row, (row * 2 + col) * 3, (row * 2 + col) * 3 + 3)
+        const tile = await pdf.embedPng(encode({ width: 2, height: 4, data, channels: 3 }))
+        page.drawImage(tile, { x, y: 20, width: 90, height: 180 })
+      }
+    page.pushOperators(PDFOperator.of(PDFOperatorNames.EndMarkedContent))
+  }
   if (options.registered !== false) {
     const wkt =
       'PROJCS["NAD83 / BC Albers",GEOGCS["NAD83",DATUM["North_American_Datum_1983",SPHEROID["GRS 1980",6378137,298.257222101]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]],PROJECTION["Albers_Conic_Equal_Area"],PARAMETER["standard_parallel_1",50],PARAMETER["standard_parallel_2",58.5],PARAMETER["latitude_of_center",45],PARAMETER["longitude_of_center",-126],PARAMETER["false_easting",1000000],PARAMETER["false_northing",0],UNIT["metre",1]]'
@@ -138,5 +170,5 @@ export async function canforPdfFixture(
       ]),
     )
   }
-  return pdf.save()
+  return pdf.save(options.classicXref ? { useObjectStreams: false } : undefined)
 }

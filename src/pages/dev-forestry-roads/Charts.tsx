@@ -853,11 +853,14 @@ export function ProfileChart({
   sharedMeasurement,
   searchBand,
   onClearSearchBand,
+  sheets,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
   alignment: Alignment
   station: number
+  /** Imported map sheets read along the road, for the value bands' map rows (`sheetBands.ts`). */
+  sheets?: readonly import('./sheetBands').RoadSheet[]
   /** The selected station's record, when it was typed and lies between calculated stations. */
   selectedStation?: RoadStation
   onStation: (chainage: number) => void
@@ -1298,6 +1301,7 @@ export function ProfileChart({
             station={station}
             onStation={onStation}
             terrainOnly={terrainOnly}
+            sheets={sheets}
           />
         ),
       }}

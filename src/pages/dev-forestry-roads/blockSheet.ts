@@ -15,7 +15,7 @@ import {
   type SheetNote,
   type SheetSymbols,
 } from '@/lib/forestry/blockSheet/composeSheet'
-import type { SheetTerrainSources } from '@/lib/forestry/blockSheet/prepareSheet'
+import type { PublishedBase, SheetTerrainSources } from '@/lib/forestry/blockSheet/prepareSheet'
 import {
   IMAGERY_BASEMAP,
   MAX_SHEET_COMMENTS_LENGTH,
@@ -43,7 +43,17 @@ import { PAPER_SIZES, type PaperId } from '@/lib/mapSheet/layout'
 import { MAX_SHEET_SCALE } from '@/lib/mapSheet/scale'
 import { runCooperatively } from './cooperative'
 import { arrowHead, type MapNote } from './mapNotes'
+import {
+  publishedChoice,
+  publishedClassRaster,
+  publishedHillshade,
+  publishedOffers,
+  SHEET_RASTER_CHOICES,
+  type PublishedOffer,
+  type SheetRasterChoice,
+} from './pdfSheetRasters'
 import { contextSheetKey, isDeactivatedRoad, riparianSheetKey } from './planSheetSymbols'
+import { isImageFrame } from './referenceFeatures'
 import { riparianMapFeatures } from './riparian'
 import { mergeRiparianZones } from './riparianDisplay'
 import { distinctRoadColors } from './roadColors'
@@ -69,6 +79,11 @@ export interface BlockSheetSettings {
    * which are the project's (`sheetSetups.ts`).
    */
   output: SheetOutputSettings
+  /**
+   * Where the slope, canopy height and hillshade sheets take their raster when the project holds an
+   * imported map sheet's (`pdfSheetRasters.ts`): PGMaps' choice, the project's terrain, or the sheet.
+   */
+  raster: SheetRasterChoice
 }
 
 export type SheetSymbolChoice = 'pgmaps' | 'library'
@@ -86,6 +101,7 @@ export const DEFAULT_BLOCK_SHEET: BlockSheetSettings = {
   comments: '',
   symbols: 'pgmaps',
   output: DEFAULT_SHEET_OUTPUT,
+  raster: 'auto',
 }
 
 /** Validates settings read back from browser storage; anything unknown falls back to the default. */
@@ -107,6 +123,7 @@ export function parseBlockSheetSettings(raw: unknown): BlockSheetSettings {
     comments: typeof r.comments === 'string' ? r.comments.slice(0, MAX_SHEET_COMMENTS_LENGTH) : '',
     symbols: r.symbols === 'library' ? 'library' : 'pgmaps',
     output: parseSheetOutputSettings(r.output),
+    raster: SHEET_RASTER_CHOICES.includes(r.raster as SheetRasterChoice) ? (r.raster as SheetRasterChoice) : 'auto',
   }
 }
 
@@ -139,7 +156,7 @@ export function blockChoices(project: RoadProject): {
         : [],
     ),
     ...(project.reference ?? []).flatMap((feature) =>
-      feature.geometry.type === 'Polygon' && !feature.sheet && !feature.classGrid
+      feature.geometry.type === 'Polygon' && !isImageFrame(feature)
         ? [
             {
               value: `reference:${feature.id}`,
@@ -229,13 +246,46 @@ export function blockSheetLayers(
   }
 }
 
-/** Why a sheet kind cannot be made for this project, or null. */
-export function blockSheetUnavailable(kind: SheetKind, sources: SheetTerrainSources): string | null {
+/**
+ * Why a sheet kind cannot be made for this project, or null. An imported map sheet's raster of the
+ * kind's base (`offers`) makes it available without the terrain or canopy surface it otherwise needs.
+ */
+export function blockSheetUnavailable(
+  kind: SheetKind,
+  sources: SheetTerrainSources,
+  offers: readonly PublishedOffer[] = [],
+): string | null {
   const needs = sheetNeeds(kind, sources)
+  if (!needs) return null
+  const base = SHEET_PRESETS[kind].base
+  if (offers.some((offer) => offer.base === base && !offer.reason)) return null
+  const refused = offers.find((offer) => offer.base === base && offer.reason)
+  const also = refused ? ` The imported ${refused.file} cannot stand in: ${refused.reason}.` : ''
   if (needs === 'canopy')
-    return 'Needs a canopy height grid. Add one as a named reference surface whose name includes "canopy" or "CHM".'
-  if (needs === 'terrain') return 'Needs terrain under the block.'
-  return null
+    return `Needs a canopy height grid. Add one as a named reference surface whose name includes "canopy" or "CHM", or import a canopy height map sheet.${also}`
+  return `Needs terrain under the block.${also}`
+}
+
+/**
+ * The imported map sheet a block sheet of `kind` is drawn from under the settings, or null when it
+ * is drawn from the project's own terrain or canopy surface.
+ */
+export function blockSheetPublished(
+  kind: SheetKind,
+  choice: SheetRasterChoice,
+  project: Pick<RoadProject, 'reference' | 'terrain'>,
+  sources: Pick<SheetTerrainSources, 'terrain' | 'canopy'>,
+): PublishedOffer | null {
+  const offers = publishedOffers(project.reference)
+  // With no terrain or canopy surface to draw from, the sheet is the only source whatever was chosen.
+  const forced = sheetNeeds(kind, sources) ? 'sheet' : choice
+  return publishedChoice(
+    SHEET_PRESETS[kind].base,
+    forced,
+    offers,
+    sources.terrain ? project.terrain : null,
+    !!sources.canopy,
+  )
 }
 
 /** A reference surface named as a canopy height model, if the terrain has one. */
@@ -309,8 +359,29 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
   if (!focus) throw Error('Choose a block, or draw a road, before making a block sheet.')
   const frame = sheetFrame(settings.kind, settings.paper, settings.scale, { bounds: focus })
   const sources: SheetTerrainSources = { terrain: run.terrain ?? undefined, canopy: run.canopy ?? undefined }
-  const unavailable = blockSheetUnavailable(settings.kind, sources)
+  const unavailable = blockSheetUnavailable(settings.kind, sources, publishedOffers(run.project.reference))
   if (unavailable) throw Error(unavailable)
+  const publishedMissing: string[] = []
+  const offer = blockSheetPublished(settings.kind, settings.raster, run.project, sources)
+  if (offer) {
+    const { feature, file, base } = offer
+    if (feature.classGrid) {
+      const made = publishedClassRaster(feature.classGrid, file)
+      if ('raster' in made) sources.published = { [base]: made.raster }
+    } else if (feature.imageMosaic) {
+      // The browser decodes the stored tiles; a tile it cannot decode prints as missing ground.
+      const { decodeMosaicTiles } = await import('./pdfMosaicPixels')
+      const pixels = await decodeMosaicTiles(feature.imageMosaic)
+      if (run.signal?.aborted) throw new DOMException('Block sheet cancelled.', 'AbortError')
+      const read = pixels.filter(Boolean).length
+      if (read)
+        sources.published = { [base satisfies PublishedBase]: publishedHillshade(feature.imageMosaic, pixels, file) }
+      if (read < pixels.length)
+        publishedMissing.push(
+          `${pixels.length - read} of the ${pixels.length} hillshade tiles of ${file} could not be decoded here${read ? '; that ground prints blank' : `, so the hillshade is ${sources.terrain ? 'worked out from the terrain' : 'left out'}`}.`,
+        )
+    }
+  }
   // Contours over the whole frame (`sheetContourSource`). The preview keeps the loaded terrain, as it
   // keeps a flat colour for imagery: a thumbnail should not fetch tiles on every setting change.
   let frameContours = false
@@ -371,7 +442,7 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
         'This sheet has insufficient room for the selected brand logo. Choose a larger sheet or turn export branding off.',
       )
   }
-  return { ...built, missing: [...contourMissing, ...built.missing] }
+  return { ...built, missing: [...publishedMissing, ...contourMissing, ...built.missing] }
 }
 
 /** Builds the sheet and returns its PDF. */

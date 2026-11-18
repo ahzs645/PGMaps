@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMap } from '@/components/ui/map'
 import { MapOverlay, KeyValueRows } from '@/components/ui/map-panels'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
-import { sampleClass } from '@/lib/geoPdf/classGrid'
+import { ESTIMATE_DISPLAY_CELL_M, sampleClass } from '@/lib/geoPdf/classGrid'
 import type { MapMouseEvent } from 'maplibre-gl'
 import type { ReferenceFeature } from './referenceFeatures'
 
@@ -28,11 +28,15 @@ export function PdfClassInspector({ features, enabled }: { features: readonly Re
     return {
       key: feature.id,
       label: feature.name,
-      value: value.range
-        ? `${value.range.label} ${grid.unit} · ${value.estimated ? 'JPEG estimate (uncertain at one pixel)' : 'lossless palette match'}`
-        : value.code === 0 && grid.undrawn
-          ? (value.reason ?? 'Not drawn')
-          : `Unknown · ${value.reason}`,
+      value: value.areaRange
+        ? `${value.areaRange.label} ${grid.unit} · JPEG estimate: the commonest class of this ${ESTIMATE_DISPLAY_CELL_M} m cell${
+            value.range && value.range !== value.areaRange ? ` (this pixel alone reads ${value.range.label})` : ''
+          }`
+        : value.range
+          ? `${value.range.label} ${grid.unit} · lossless palette match`
+          : value.code === 0 && grid.undrawn
+            ? (value.reason ?? 'Not drawn')
+            : `Unknown · ${value.reason}`,
     }
   })
   return (

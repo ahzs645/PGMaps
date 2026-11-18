@@ -130,6 +130,22 @@ Two things decide what the class maps can deliver:
   measured on Canfor's quality settings (DC step 57, 2 × 2 chroma). For different settings, measure
   again (step 8) before quoting area-share accuracy.
 
+### Image layers: `images`
+
+A raster the template publishes as a picture (a hillshade, ortho imagery) is an
+`ImageLayerProfile`: its `kind` (`hillshade` or `imagery`), the `layer` named in the image rows'
+**Layers** column, the `name` the import dialog shows, and whether it starts ticked. The reader
+takes every image drawn in that layer, requires one pixel grid at whole-pixel offsets, and keeps
+each tile as the PDF stores it. Nothing is classified, so there is no legend to match. Leave
+`images` out for a template with none. A hillshade listed here can be a block map sheet's base;
+check it is a picture of the bare ground before naming it one.
+
+A hillshade layer is also what the import's **Read the ground between the contours** option reads.
+That option checks the picture itself on every use, and refuses one that is stretched, coloured or
+lit from several directions, so a profile states nothing about the lighting. Before telling a
+company's users to rely on it, run `check-pdf-contour-slope.ts` with their hillshade sheet as its
+fourth argument and read the `lighting` and `heldOut` parts of its report.
+
 ## 7. Try the draft
 
 Write the profile in a local file (not in the repo yet):
@@ -198,6 +214,7 @@ These need code changes, each with its own tests:
 - legend labels anywhere but to the right of their swatches;
 - more than one registered map frame per page, insets, or a non-rectangular frame;
 - CRSs other than BC Albers and the UTM zones listed in step 3, for terrain;
-- class tiles that do not share one native pixel grid;
+- class tiles, or an image layer's tiles, that do not share one native pixel grid;
+- image layers other than a hillshade and ortho imagery (`PdfImageMosaic.kind`);
 - progressive or arithmetic-coded JPEG tiles (they fall back to the colour match);
 - scanned or flattened PDFs without vector layers or embedded registration.

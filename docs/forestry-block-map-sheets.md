@@ -574,7 +574,46 @@ falls in the cell north or east of it.
   avoid areas draw as constraint areas.
 - Review markup is the plan's map notes, drawn as they are. There is no separate markup layer.
 - The canopy height sheet needs a canopy height grid. In the road tool that is a named reference
-  surface whose name contains "canopy" or "CHM"; otherwise the preset is unavailable.
+  surface whose name contains "canopy" or "CHM", or an imported canopy height map sheet (below);
+  otherwise the preset is unavailable.
+
+## Rasters from an imported map sheet
+
+In the road tool, a company map sheet imported through **Layers** ([Company source-map
+imports](forestry-road-design/source-pdf-import.md)) can be the base of the three LiDAR sheets
+(`pdfSheetRasters.ts`): its slope classes, its canopy height classes, or its hillshade picture,
+drawn as the company published them in place of a raster worked out from the project's terrain.
+Where no LiDAR terrain covers a block, these are the only LiDAR-derived products the project holds.
+
+- **Classes are the sheet's own, or nothing.** A class raster is used only when every printed range
+  is one of the sheet's classes with the same bounds, the 95 + overlay included, and its not-drawn
+  class ends where the sheet's clear class does. Then the legend the sheet prints is true of the
+  raster. Ranges that differ are never re-binned: the preset says the imported sheet cannot stand
+  in, and why.
+- **Estimates print paler.** A class the import could only estimate (a JPEG tile) prints as the
+  commonest class of its 10 m cell at `ESTIMATE_SHEET_OPACITY` (0.6) of the class opacity, and the
+  legend gains a "Paler: estimated, per 10 m" row. What that reading is worth is measured in the
+  import guide's **How estimates are drawn**.
+- **The hillshade is the picture.** The stored tiles are decoded in the browser
+  (`pdfMosaicPixels.ts`) and read at the nearest pixel; a tile that will not decode leaves its
+  ground blank and is named in the sheet's notes. The source bar reads "Hillshade as published on
+  *file*", not the 315°/45° of a hillshade PGMaps works out.
+- **Coverage is stated.** The company's sheet stops at its own frame. Where it covers less than
+  the whole of this frame the sheet's notes give the share; the rest of the frame prints without it.
+- **Contours and elevations stay the terrain's.** Only the base raster changes.
+
+Which source is drawn is the setup form's **Slope classes from**, **Canopy height from** or
+**Hillshade from**, shown when both exist (`BlockSheetSettings.raster`):
+
+| Choice                   | Drawn from                                                                                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PGMaps chooses (default) | The imported sheet, unless the project's terrain is a detailed one of its own: regional terrain, the training terrain, a surface built from a sheet's contours and a contour surface widened with the regional DEM are all coarser than the LiDAR the company drew from. Canopy height: the canopy surface when one is loaded. |
+| The terrain              | The project's terrain or canopy surface, as before.                                                                                                                 |
+| Imported sheet           | The imported sheet.                                                                                                                                                 |
+
+With no terrain or canopy surface to work from, the imported sheet is drawn whatever was chosen.
+The choice is this browser's, like the rest of the setup, and a saved sheet setup does not carry
+it, because it depends on what a project has imported.
 
 ## Failure modes
 
@@ -584,6 +623,9 @@ falls in the cell north or east of it.
 | Min./Max. elevation "not recorded"                             | No terrain under the block, or no terrain loaded                                      |
 | Blank or partial slope raster                                  | The terrain does not cover the frame; outside it the base stays white                 |
 | "No canopy height grid is loaded."                             | Canopy height preset without a canopy surface                                         |
+| "The imported *file* cannot stand in: …"                       | An imported class raster whose printed ranges are not the sheet's classes             |
+| "The imported sheet covers N% of the map frame…"               | The company's sheet stops short of this frame; the rest prints without the raster     |
+| "N of the M hillshade tiles of *file* could not be decoded…"   | The browser refused a stored tile; that ground prints blank                           |
 | "A map image provider blocks image export."                    | The imagery server sent no CORS header (from `captureMapImage`)                       |
 | "The imagery did not finish loading in time."                  | Tiles slower than 30 s; retry, or pick a smaller paper or coarser scale               |
 | Red "NOT CURRENT" box over the map                             | An invalid section or engineering input: the sheet is stamped (`INVALID_INPUT_RULES`) |
@@ -611,5 +653,9 @@ The road designer (`blockSheet.ts`) and the visual quality page (`visualsBlockSh
 adapters to read.
 
 A LiDAR tool that already has `slope.tif` or a CHM grid can wrap it as an `ElevationSource`
-(`elevationAt(lng, lat)`) and pass it straight in. Keep the presets' colours in `styles.ts` and
+(`elevationAt(lng, lat)`) and pass it straight in. A tool that holds a raster someone already
+classed or shaded passes it as `sources.published` (`PublishedRaster`, `prepareSheet.ts`): a
+`sample(lng, lat, out, offset)` that writes the colour at a point, a one-line `source` for the
+source bar, which cuts it to fit, and the class `legend` it prints. It is drawn in place of the
+heights the base would be worked out from, and the preset stops needing them. Keep the presets' colours in `styles.ts` and
 use `lineSymbolPaint`/`areaSymbolPaint` for any MapLibre layer that should match the sheet.

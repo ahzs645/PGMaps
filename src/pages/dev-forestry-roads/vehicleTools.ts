@@ -10,7 +10,7 @@
  */
 import { centrelineSamples, effectiveWidths } from './engine'
 import type { MapNote } from './mapNotes'
-import type { ReferenceFeature } from './referenceFeatures'
+import { isImageFrame, type ReferenceFeature } from './referenceFeatures'
 import type { Alignment, Coordinate } from './types'
 import type { MultiPolygon } from './vehiclePath'
 import type { VehicleOutline, XY } from './vehicleKinematics'
@@ -53,7 +53,7 @@ export function vehicleToolSources(notes: readonly MapNote[] = [], reference: re
     else sources.push({ id: `note:${note.id}`, label: label('Pin'), kind: 'point', coordinates: note.points })
   }
   for (const feature of reference) {
-    if (feature.sheet || feature.classGrid) continue
+    if (isImageFrame(feature)) continue
     const g = feature.geometry
     const label = `Reference: ${feature.name}`
     if (g.type === 'LineString')

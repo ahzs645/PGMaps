@@ -5,8 +5,12 @@ import {
   classAreaBreakdown,
   codeLabel,
   cellChecksum,
+  classDisplayRgba,
   colorClassifier,
   decodeCells,
+  displayCells,
+  ESTIMATE_DISPLAY_ALPHA,
+  estimateCellPixels,
   encodeCells,
   gridCorners,
   gridProjection,
@@ -162,5 +166,71 @@ describe('exact drawn / not drawn split', () => {
     expect(split.undrawnM2).toBe(0)
     expect(split.drawnNotExactM2).toBe(35)
     expect(split.otherUnknownM2).toBeCloseTo(35)
+  })
+
+  describe('how a class grid is drawn and queried', () => {
+    /** A 6 × 4 grid of 5 m pixels, so an estimate cell is 2 × 2 pixels. */
+    function drawn(values: number[]): PdfClassGrid {
+      const data = Uint8Array.from(values),
+        counts = Array(256).fill(0)
+      for (const c of data) counts[c]++
+      return {
+        ...fixture(),
+        width: 6,
+        height: 4,
+        transform: [5, 0, 0, -5, 1291000, 1016000],
+        cells: encodeCells(data),
+        checksum: cellChecksum(data),
+        counts,
+      }
+    }
+    // prettier-ignore
+    const values = [
+      65, 66,   1, 66,  66, 66,
+      66, 66,  66,  0,  66, 65,
+      65, 65,   2,  2, 245, 66,
+      66,  0,   2,  2,  65, 65,
+    ]
+    it('gives each estimated pixel the commonest estimated class of its 10 m cell and leaves every other pixel alone', () => {
+      const grid = drawn(values)
+      expect(estimateCellPixels(grid)).toBe(2)
+      // prettier-ignore
+      expect([...displayCells(grid)]).toEqual([
+        66, 66,   1, 66,  66, 66,
+        66, 66,  66,  0,  66, 66,
+        65, 65,   2,  2, 245, 65,
+        65,  0,   2,  2,  65, 65,
+      ])
+      // The stored cells, which area summaries read, are not changed.
+      expect([...decodeCells(grid)]).toEqual(values)
+      // A grid already as coarse as the cell is drawn as stored.
+      expect([...displayCells(fixture())]).toEqual([1, 2, 0, 65])
+    })
+    it('draws exact cells solid, estimates faded and everything else clear, at the native pixels', () => {
+      const grid = drawn(values)
+      const { data, width, height } = classDisplayRgba(grid)
+      expect([width, height]).toEqual([6, 4])
+      const pixel = (col: number, row: number) => [...data.subarray((row * 6 + col) * 4, (row * 6 + col) * 4 + 4)]
+      expect(pixel(2, 0)).toEqual([255, 0, 0, 255])
+      expect(pixel(2, 2)).toEqual([0, 255, 0, 255])
+      expect(pixel(0, 0)).toEqual([0, 255, 0, ESTIMATE_DISPLAY_ALPHA])
+      expect(pixel(0, 2)).toEqual([255, 0, 0, ESTIMATE_DISPLAY_ALPHA])
+      expect(pixel(3, 1)).toEqual([0, 0, 0, 0])
+      expect(pixel(4, 2)).toEqual([0, 0, 0, 0])
+      // A display too large for one image is sampled down to the longer side allowed.
+      const small = classDisplayRgba(grid, 3)
+      expect([small.width, small.height]).toEqual([3, 2])
+      expect([...small.data.subarray(0, 4)]).toEqual([0, 255, 0, ESTIMATE_DISPLAY_ALPHA])
+    })
+    it('answers a point query on an estimate with the class its cell is drawn in', () => {
+      const grid = drawn(values)
+      const world = (p: XY) => proj4(grid.wkt, 'EPSG:4326', applyMatrix(grid.transform, p)) as XY
+      // The pixel alone reads 5–10; its cell's commonest estimate is 10+.
+      const estimate = sampleClass(grid, world([0.5, 0.5]))
+      expect(estimate).toMatchObject({ code: 65, estimated: true, range: { minimum: 5 }, areaRange: { minimum: 10 } })
+      expect(sampleClass(grid, world([2.5, 0.5]))).toMatchObject({ code: 1, estimated: false, areaRange: null })
+      expect(sampleClass(grid, world([3.5, 1.5]))).toMatchObject({ code: 0, range: null, areaRange: null })
+      expect(sampleClass(grid, world([-1, 0.5]))).toMatchObject({ code: UNKNOWN.outside, areaRange: null })
+    })
   })
 })

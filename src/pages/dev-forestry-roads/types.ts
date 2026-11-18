@@ -622,6 +622,12 @@ export interface TerrainMetadata {
    * terrain's fitness by this source's cell size too, not the grid's alone.
    */
   fill?: { name: string; resolutionM: number; sharePercent: number }
+  /**
+   * A contour terrain whose ground between contours was read from a hillshade sheet
+   * (`hillshadeRelief.ts`): the sheet's name, the share of its cells refined, and how far they
+   * moved from the plain contour surface. An estimate between contours; Review says so.
+   */
+  relief?: { name: string; sharePercent: number; medianChangeM: number; p99ChangeM: number }
   /** What the RoadEng terrain this came from holds that the grid does not (`roadEngTerrain.ts`), written back unchanged. */
   roadEngSource?: import('./roadEngTerrain').RoadEngTerrainSource
 }

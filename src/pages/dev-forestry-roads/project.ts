@@ -741,6 +741,16 @@ function parseTerrain(raw: unknown): TerrainMetadata {
       sharePercent: number(f.sharePercent, 'Terrain fill share', 0, 100),
     }
   }
+  if (r.relief !== undefined) {
+    const f = object(r.relief, 'Terrain relief')
+    if (!result.raster) throw Error('Only an embedded terrain grid records a hillshade refinement.')
+    result.relief = {
+      name: text(f.name, 'Terrain relief source', 200),
+      sharePercent: number(f.sharePercent, 'Terrain relief share', 0, 100),
+      medianChangeM: number(f.medianChangeM, 'Terrain relief median change', 0, 1000),
+      p99ChangeM: number(f.p99ChangeM, 'Terrain relief largest change', 0, 1000),
+    }
+  }
   if (result.kind === 'geotiff' && !result.raster && (!result.sourceUrl || !result.sha256))
     throw Error('A GeoTIFF terrain needs embedded cells or a source URL and checksum.')
   return result

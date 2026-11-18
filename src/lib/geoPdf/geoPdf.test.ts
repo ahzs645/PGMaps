@@ -14,6 +14,8 @@ import { buildSpatialImport, type SpatialFile } from '@/pages/dev-forestry-roads
 import { vehicleToolSources } from '@/pages/dev-forestry-roads/vehicleTools'
 import { blockChoices } from '@/pages/dev-forestry-roads/blockSheet'
 import { decodeCells, parseClassGrid, UNKNOWN } from './classGrid'
+import { parseImageMosaic } from './imageMosaic'
+import { PDF_LIMITS } from './types'
 
 const limits = { maxFeatures: 500, maxVertices: 50_000 }
 describe('company GeoPDF reader', () => {
@@ -57,6 +59,37 @@ describe('company GeoPDF reader', () => {
       expect(blockChoices(restored).some((c) => c.value === 'reference:raster')).toBe(false)
     },
   )
+
+  it('reads a tile stored losslessly in off-legend colours as estimates, and says why', async () => {
+    const result = await readGeoPdf(
+      await canforPdfFixture({ raster: 'canopy', damaged: true }),
+      'Recompressed.pdf',
+      runtime,
+      limits,
+    )
+    const grid = parseClassGrid(result.layers.find((l) => l.classGrid)!.classGrid)!
+    // Every drawn pixel is near a legend colour and on none: no class is exact, and none is lost.
+    expect([...decodeCells(grid)]).toEqual([
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      UNKNOWN.lossyNeutral,
+      0,
+      UNKNOWN.color,
+      UNKNOWN.alpha,
+      68,
+      69,
+      70,
+      71,
+      UNKNOWN.lossyNeutral,
+    ])
+    expect(grid.sourceImages.every((i) => i.lossy)).toBe(true)
+    expect(grid.notes.join('\n')).toMatch(/Stored losslessly, but not in the legend's colours: .*compressed before/)
+  })
 
   it('reports a missing legend instead of guessing colours from a familiar layer name', async () => {
     const result = await readGeoPdf(
@@ -210,7 +243,27 @@ describe.skipIf(!privateMaps)('local Canfor source sheets', () => {
       expect(result.layers[0].source.profile).toMatch(/Canfor/)
       expect(result.layers.some((l) => l.name === 'Roads')).toBe(true)
       expect(result.layers.some((l) => l.name === 'Streams')).toBe(true)
-      expect(result.layers.every((l) => l.source.registrationErrorM < 1)).toBe(true)
+      // A copy saved again by another program carries rounded registration points, and says so.
+      const resaved = result.notices.some((note) => /saved again by another program/.test(note))
+      expect(
+        result.layers.every((l) => l.source.registrationErrorM < (resaved ? PDF_LIMITS.registrationErrorM : 1)),
+      ).toBe(true)
+      expect(result.notices.some((note) => /registration points disagree/.test(note))).toBe(
+        result.layers[0].source.registrationErrorM > PDF_LIMITS.registrationNoticeM,
+      )
+      if (/Hillshade|Ortho/.test(name)) {
+        const picture = result.layers.find((l) => l.imageMosaic)
+        expect(picture, result.notices.join('\n')).toBeDefined()
+        const mosaic = parseImageMosaic(picture!.imageMosaic)!
+        // The hillshade shares the class rasters' pixel grid; every tile is the PDF's own JPEG file.
+        if (/Hillshade/.test(name)) expect(mosaic).toMatchObject({ kind: 'hillshade', width: 3637, height: 3004 })
+        expect(mosaic.tiles).toHaveLength(/Hillshade/.test(name) ? 4 : 6)
+        expect(mosaic.tiles.every((tile) => tile.lossy && tile.image.startsWith('data:image/jpeg;base64,/9j/'))).toBe(
+          true,
+        )
+        expect(mosaic.tiles.reduce((sum, tile) => sum + tile.width * tile.height, 0)).toBe(mosaic.width * mosaic.height)
+        expect(picture!.selected).toBe(/Hillshade/.test(name))
+      } else expect(result.layers.some((l) => l.imageMosaic)).toBe(false)
       if (/Canopy_Height|Slope|revised/.test(name)) {
         const grid = result.layers.find((l) => l.classGrid)?.classGrid
         expect(grid, result.notices.join('\n')).toBeDefined()

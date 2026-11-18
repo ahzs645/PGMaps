@@ -24,20 +24,27 @@ conversion server, upload, Python, installed GDAL or RustGIS requirement.
    JPEG tiles by the coefficient decoder. The transparency mask is read exactly in both. Build
    a registered byte class grid. This never reads the reduced JPEG sheet preview. See
    **Class rasters** below.
-4. Build a terrain surface from the field sheet's labelled contours, offered only as terrain.
-   See **Terrain from contours** below.
-5. Show a review dialog with a checkbox and permitted role for each recovered layer. A PDF
+4. Read the sheet's hillshade and ortho imagery as image layers at their own pixels, the tiles
+   kept exactly as the PDF stores them. See **Image layers** below.
+5. Build a terrain surface from the field sheet's labelled contours, offered only as terrain.
+   See **Terrain from contours** below. When the same import holds the hillshade sheet, the
+   terrain row offers to read the ground between the contours from it (off by default). See
+   **Relief between contours from the hillshade** below.
+6. Show a review dialog with a checkbox and permitted role for each recovered layer. A PDF
    drawing starts as **Reference**. A line layer can explicitly become proposed roads, and a
    polygon layer can explicitly become planned blocks. A GIS record of several separate lines
    (a road shapefile holding a road and its spurs under one name) loads one road per line,
    named "(part _n_)", and the row says how many; a PDF drawing of several pieces is one
    painting operation, not a record, and stays reference. A sheet image and compound
-   stream drawing and a class raster stay reference. A contour surface can only be
+   stream drawing, a class raster and an image layer stay reference. A contour surface can only be
    **Terrain (replaces current)**. The profile does not infer planned/constructed road status,
    stream class, reserve restrictions or legal meaning from colour and symbols.
-6. For several PDFs, initially select the field-layout sheet if present, otherwise the first
+7. For several PDFs, initially select the field-layout sheet if present, otherwise the first
    sheet. Initially select its bounded geometry only when native GIS layers were not supplied.
-   Select the first class raster of each kind even when native GIS files are supplied. The
+   Select the first class raster of each kind, and the first hillshade, even when native GIS
+   files are supplied; ortho imagery is offered unticked, because the plan's Satellite basemap
+   shows the same source. Where two sheets offer the same raster, the one whose registration
+   points fit tighter is the one ticked (see **Re-saved copies** below). The
    contour terrain starts selected over the sample, training and regional terrains, and over
    any terrain that does not cover the roads and blocks coming in; an imported terrain that
    covers them stays unless the person picks the contours. While a terrain is selected,
@@ -48,10 +55,11 @@ conversion server, upload, Python, installed GDAL or RustGIS requirement.
    (the PDF drawings' attribute caveat) prints once, naming the files. A numbered road naming another block beside a canonical block
    shapefile is left unselected for review. Different revisions are never collapsed because
    their filenames resemble each other.
-7. Save accepted source references with the project: file path, SHA-256, page, original layer,
+8. Save accepted source references with the project: file path, SHA-256, page, original layer,
    profile version and registration-fit residual. **Layers** exposes these and original scalar
    GIS attributes. Project and reference GeoJSON round trips keep them. The bounded JPEG sheet
-   preview, PNG class display and compressed native class grid are embedded too; reloading needs no access to the original PDF. Original PDFs are
+   preview, PNG class display, compressed native class grid and image-layer tiles are embedded too;
+   reloading needs no access to the original PDF. Original PDFs are
    not embedded. Reference-sheet visibility follows its layer's eye and **Fit all layers**.
 
 A stream layer is a `MultiLineString` of recovered drawing paths. It does not imply that a
@@ -60,6 +68,64 @@ not join gaps. Original GIS record boundaries and attributes cannot be recovered
 sheets. Copying a recovered simple road into a design samples the selected terrain through
 the existing road workflow. Reference data do not change crossings, constraints, volumes or
 terrain by themselves; only an accepted contour surface replaces the terrain.
+
+## Re-saved copies
+
+A sheet that was opened, marked up and saved again by another program is still read, with two
+differences the import notes state.
+
+- **Its registration points can be rounded.** macOS Preview writes them as single-precision
+  numbers: the supplied re-saved slope sheet's longitudes lost their last digit (−121.54739 became
+  −121.5474), its frame corners moved 1.5–2.1 m and its fit residual rose from 0.08 m to 1.21 m. A
+  residual above 0.5 m (`PDF_LIMITS.registrationNoticeM`) is named in the notes; above 3 m the
+  sheet is still refused. When another sheet in the same import shows the same frame (every corner
+  within `SAME_FRAME_M`, 10 m) and fits more than `REGISTRATION_PREFERENCE_M` (0.3 m) tighter, the
+  notes say which sheet sits off, and a class raster or image layer both offer is taken from the
+  tighter one (`preferTighterRegistration`, `referenceImport.ts`). Nothing is dropped or moved:
+  the person can still tick the copy's layers.
+- **Its image tiles are found through the file's own cross-reference table.** Preview copies every
+  object of the file it opened, including the original's object streams, which nothing refers to
+  any more and which still carry the original's object numbers. pdf-lib reads a file front to back
+  and unpacks every object stream it meets, so those stale numbers replaced the real image objects:
+  the JPEG tiles were read as lossless, 60% of the supplied copy's slope grid went "colour outside
+  the legend tolerance", and the exact 95+ mask over those tiles went unknown with it.
+  `deadObjectStreams.ts` renames an object stream only in a file whose cross-reference chain is
+  classic tables throughout, where no compressed object can be in use (ISO 32000-1, 7.5.8), and
+  only in the copy pdf-lib reads. The supplied copy now gives the same class grid as its original,
+  cell for cell. The tiles themselves were never changed by the re-save: the same JPEG bytes.
+
+A tile stored losslessly whose colours are not the legend's was compressed before it was stored (a
+program that re-encodes images on save). When more than `PDF_LIMITS.damagedTileShare` (25%) of a
+lossless tile's drawn pixels miss every legend colour, the tile is read as a JPEG without its file:
+by colour match, as estimates, with a note naming the tile. The original export reads better.
+
+## Image layers
+
+A sheet's hillshade and ortho imagery are image layers of their own (`imageMosaic.ts`,
+`ImageLayerProfile` in the profile). The sheet preview is one picture of the whole page, capped at
+1,400 pixels, with roads, contours and labels drawn into it. An image layer is the raster alone,
+at the pixels the PDF holds:
+
+| Supplied sheet | Layer         | Pixels        | Ground pixel | Tiles  | Stored |
+| -------------- | ------------- | ------------- | ------------ | ------ | ------ |
+| Hillshade      | Hillshade     | 3,637 × 3,004 | 0.85 m       | 4 JPEG | 2.8 MB |
+| Field ortho    | Ortho imagery | 3,061 × 4,181 | 0.85 m       | 6 JPEG | 2.5 MB |
+
+Against the preview's 2.2 m (hillshade) and 2.5 m (ortho) a pixel. Both sheets' tiles are
+high-quality JPEG (luma DC step 6, no chroma subsampling).
+
+- **Tiles are kept as stored.** A JPEG tile is the PDF's own JPEG file, passed through without
+  decoding, so nothing is compressed a second time. Lossless pixels are written as PNG. A tile
+  drawn through a mask, or a JPEG that is not grey or three-colour, is decoded and written as PNG.
+- **Placement is the class rasters'.** Tiles must share one pixel grid at whole-pixel offsets
+  (`mosaicPlacement`); otherwise the layer is left in the sheet preview, with a notice. The plan
+  draws one image a tile, placed by that tile's own four corners.
+- **Tiles are whole.** The export's tiles run a few metres past the map frame (2.5 m on the
+  supplied sheets), and the layer shows them to their edges.
+- **A picture, not a measurement.** No height, slope or shade value is read from an image layer.
+  It cannot be a block, a buffer source, a vehicle source or terrain. Its one other use is a block
+  map sheet's hillshade base ([Block map sheets](../forestry-block-map-sheets.md), **Rasters from
+  an imported map sheet**).
 
 ## Class rasters
 
@@ -72,9 +138,38 @@ strip either side of the road, never one pixel, and never change a quantity (see
 [Exports](exports-and-project-files.md), **Report package**). On the supplied block the
 estimate's ground showed 7–11 points less 60%+ ground than the sheet on every road, and up to
 30 points less on single 200 m stretches.
-Visibility follows the layer eye; the plan legend shows the source palette. JPEG estimates
-draw faded, lossless matches draw solid, and not-drawn cells are transparent. The source-sheet
-preview is a separate layer, so hide it to see the classified layer alone.
+Visibility follows the layer eye; the plan legend shows the source palette. The class layer is
+drawn at the grid's own pixels (`classDisplayRgba`; a grid longer than
+`PDF_LIMITS.classDisplaySide`, 4,096, on a side is sampled down to it). Lossless matches draw
+solid, JPEG estimates faded, and not-drawn cells are transparent. The source-sheet preview is a
+separate layer, so hide it to see the classified layer alone.
+
+### How estimates are drawn
+
+A JPEG estimate is drawn, and answered in **Inspect map**, as the commonest estimated class of
+its 10 m cell (`ESTIMATE_DISPLAY_CELL_M`, `displayCells`): 12 × 12 native pixels on the supplied
+sheets. Only estimated pixels are repainted, so exact classes and the exact not-drawn mask keep
+their own pixels. Area summaries, the slope-sheet check and the saved grid read the stored
+per-pixel estimates, never the display.
+
+This is a statement about the cell, not about each pixel in it. On the calibration tiles:
+
+| Reading                                              | Slope: stored pixel | Slope: 10 m cell | Canopy: stored pixel | Canopy: 10 m cell |
+| ---------------------------------------------------- | ------------------- | ---------------- | -------------------- | ----------------- |
+| The true commonest class of the 10 m cell            | 44%                 | 80%              | 36%                  | 71%               |
+| Within one class of it                               | 68%                 | 92%              | 66%                  | 95%               |
+| The true class of the single pixel                   | 54%                 | 48%              | 45%                  | 44%               |
+| Within one class of the single pixel                 | 81%                 | 73%              | 72%                  | 81%               |
+
+So the drawn cell says what the ground is mostly like within 10 m, and is right about that four
+times in five for slope. It is no better than a coin toss at one 0.85 m pixel, which was already
+true of the pixel estimates it replaces on the map. The point query prints both: the cell's class,
+and the pixel's own estimate where it differs.
+
+Measured and not adopted: a majority filter at the native pixels. A 3 × 3 window read the single
+pixel right 58% of the time (slope) and 52% (canopy), against 54% and 45% unfiltered; wider windows
+gained less, and at 9 × 9 slope fell below the unfiltered estimate. A few points at the pixel still
+leave a speckled map that reads as detail the file does not hold.
 
 `rasterProfiles.ts` records this template's image-layer families, expected alpha, printed
 ranges and the unpainted class below them. `rasterRead.ts` reads image placements through
@@ -253,17 +348,194 @@ ground is over-represented in that score. This is one sheet pair. Assignment on 
 labelled, 386 inferred and 351 left out, mostly fragments under a point long or beyond the
 labelled area.
 
+## Relief between contours from the hillshade
+
+A contour surface knows nothing finer than its interval: between two contours the ground is a
+plane, and triangles on one contour are flat terraces. The same sheet set's hillshade was drawn
+from the LiDAR the contours came from, at 0.85 m on the supplied sheets, and it holds the gullies
+and benches in between. The import can put the two together (`hillshadeRelief.ts`).
+
+Tick **Read the ground between the contours from *the hillshade sheet*** on the terrain row. It is
+shown when the import holds a hillshade image layer, and it is off by default: the result is an
+estimate, and it takes the better part of a minute on a full sheet.
+
+### How it works
+
+A hillshade pixel is one measurement: the cosine of the angle between the ground's normal and the
+sun. For ground rising p to the east and q to the north, under a sun at azimuth a and zenith Z,
+
+    shade = (cos Z − sin Z (p sin a + q cos a)) / √(1 + p² + q²)
+
+That is one equation for two slopes, so a hillshade alone gives no surface: only shape, and errors
+that grow with distance. Tied to the contours it does. The labelled lines fix the heights, and
+between two lines the shading says how the ground gets from one to the other.
+
+1. **The hillshade is laid on the contour surface's cells** (`hillshadeOnGrid`): each 2 m cell
+   takes the mean grey of the sheet's pixels under it. The two sheets must be in the same
+   projection.
+2. **The sun is read from the two together, and a picture that is not a plain hillshade is
+   refused** (`fitHillshadeLighting`). Over ground the contours give a slope for,
+   shade × √(1 + slope²) is linear in the two slopes: its constant is the sine of the sun's height
+   and its slope terms point at the sun. Both are smoothed alike first, because the contours hold
+   only the long shapes. The picture is refused, with the reason, when
+   - it does not follow the contours' own shading (correlation under 0.6): another surface, or a
+     multi-directional hillshade;
+   - level ground reads outside a 20–80° sun;
+   - the sun's fitted strength is more than 0.08 above, or 0.15 below, the cosine its height
+     implies: a contrast stretch or a gamma curve. A plain hillshade's level-ground value and its
+     change with slope are the sine and cosine of one angle, and a stretch breaks that pair.
+3. **The surface is solved** as the one that reproduces the hillshade, passes through the contour
+   lines, stays smooth where neither speaks, and stays near the plain contour surface where
+   nothing pins it. It is a least-squares problem solved by Gauss–Newton, each step by LSQR without
+   forming a matrix, at 8 m, 4 m and then 2 m cells, so the long shapes settle before the detail.
+4. **It is bounded.** No cell ends more than one contour interval from the plain contour surface,
+   which is all two neighbouring contours allow; the share held at that bound is stated. The
+   change fades in over 10 cells from the hillshade's edge, so there is no step where the hillshade
+   stops. Ground the contours leave empty stays empty: the hillshade fills nothing.
+
+The terrain is named "Contours + hillshade · *file*", records `terrain.relief` (the hillshade
+sheet, the share of cells refined, the median and 99th-percentile change), and Review's **Terrain
+fit for site quantities** row says the ground between contours is an estimate. If the refinement
+fails or is refused, the plain contour surface is used and the import notice says why.
+
+### What was measured
+
+Three checks: the supplied sheets against their own contours and slope sheet, the supplied
+project's roads, and a public LiDAR tile where the true ground is known.
+
+On the supplied sheets (`check-pdf-contour-slope.ts` with the hillshade sheet as its fourth
+argument), the sun was read at 315.5°, 44.6° up, level ground at 179 of 255 (180 is a 45° sun),
+with a correlation of 0.98: a plain, unstretched hillshade. Of the 1.71 million cells with ground,
+93% lay under the hillshade and were refined, in 16 s. They moved 0.37 m at the median and under
+5.4 m for 99 in 100; 0.04% were held at the 10 m bound.
+
+**Heights, with contours held back.** The surface was rebuilt from the 20 m contours alone, with
+and without the hillshade, and read at the 10 m contours left out, whose heights the sheet prints
+(97,075 points, a cell apart along them):
+
+| Surface                   | Median error | 90% within | 99% within | RMSE   |
+| ------------------------- | ------------ | ---------- | ---------- | ------ |
+| 20 m contours alone       | 0.98 m       | 3.8 m      | 10.0 m     | 3.22 m |
+| 20 m contours + hillshade | 0.40 m       | 1.6 m      | 10.2 m     | 2.24 m |
+
+The typical error falls by more than half. The worst places do not improve: about one point in a hundred
+is still most of an interval out, where the sparse contours leave a terrace or a gap that the
+shading cannot rescue. With every contour in, as the import uses them, those stretches are half as
+long.
+
+**Slope, with every contour, against the slope sheet's exact pixels** (2.4 million, the same pixels
+for both):
+
+| Surface              | Same range | Within one | 35 / 40 / 60% splits | Sheet's 60%+ ground found | Drawn split |
+| -------------------- | ---------- | ---------- | -------------------- | ------------------------- | ----------- |
+| Contours alone       | 43.4%      | 69.1%      | 86.8 / 88.9 / 90.9%  | 84.2%                     | 84.9%       |
+| Contours + hillshade | 52.6%      | 79.9%      | 91.3 / 92.5 / 94.0%  | 91.4%                     | 91.8%       |
+
+The 60%+ share reads 40.6% against the sheet's 41.8% (contours alone: 37.7%). This is the test a
+new surface has to pass (**Interpolation between contours**): it beats the TIN on every score.
+
+**Along the supplied project's roads** (`compare-road-terrains.ts --hillshade`), each station's
+slope read in the sheet's ranges, within one range of what the slope sheet prints there:
+
+| Road         | Stations | Regional DEM | Contours | Contours + hillshade |
+| ------------ | -------- | ------------ | -------- | -------------------- |
+| A            | 94       | 48%          | 38%      | 61%                  |
+| B            | 324      | 62%          | 70%      | 78%                  |
+| C            | 32       | 50%          | 50%      | 69%                  |
+| D            | 80       | 46%          | 56%      | 59%                  |
+| E            | 62       | 53%          | 66%      | 69%                  |
+| F            | 53       | 64%          | 64%      | 76%                  |
+| All six      | 645      | 57%          | 62%      | 72%                  |
+
+Better on every road. The centreline also reads rougher: the ground grade changes 7.9 points from
+one station to the next on road B against 5.7 on the contours alone, and more on the short spurs.
+That is mostly the ground, not noise, as the next check shows. On road B the refined terrain's cut
+and fill (8,475 and 6,647 m³) sit nearer the regional DEM's than the plain contours' do (6,908 and
+4,467 m³), which under-read both by smoothing the hillside.
+
+**Against real LiDAR** (`check-hillshade-relief-lidar.ts`). PGMaps' public 1 m tile near Prince
+George was reduced to what a sheet set gives, 10 m contours and an 8-bit hillshade, then rebuilt
+both ways and scored against the DTM it came from (448,000 cells of 2 m):
+
+| Measure                                  | Contours alone | Contours + hillshade | True ground |
+| ---------------------------------------- | -------------- | -------------------- | ----------- |
+| Height error, median                     | 0.62 m         | 0.22 m               |             |
+| Height error, 90% within                 | 2.4 m          | 1.2 m                |             |
+| Height error, 99% within                 | 5.2 m          | 4.3 m                |             |
+| Slope in the same class                  | 71.5%          | 81.2%                |             |
+| Slope within one class                   | 88.1%          | 97.1%                |             |
+| 60%+ ground found                        | 54%            | 81%                  |             |
+| Grade over 10 m, mean error              | 6.1 points     | 3.1 points           |             |
+| Change of grade from one 10 m to the next | 3.9 points     | 9.2 points           | 8.3 points  |
+
+The last row is why the refined centreline reads rougher: real ground changes grade 8.3 points
+from one 10 m step to the next, the contour surface shows less than half of that, and the refined
+surface shows it with about a tenth too much. This test has no JPEG noise, no mislabelled contour
+and no registration error; the sheets' own checks above carry those.
+
+### Limits
+
+- **It needs the contours.** The heights are the contours'. Where the sheet labels no contour the
+  surface is empty and stays empty.
+- **It is an estimate between contours.** Good for alignment, grades and a preliminary earthwork
+  figure; not ground to stake or build from. The licensee's bare-earth DEM, or LidarBC's 1 m
+  release, replaces it.
+- **One sheet set.** The figures above are one block's sheets, November 2026. Another company's
+  hillshade may be stretched, coloured or multi-directional; the checks refuse those rather than
+  misread them, and a mild stretch under the tolerance would bias slopes without being refused.
+- **Whatever the hillshade shows becomes ground.** An existing road bench, a LiDAR artefact or a
+  misclassified building is read as terrain, as it would be in a LiDAR DEM.
+- **The hillshade's pixels are JPEG.** High quality on the supplied sheets (luma DC step 6); the
+  result reproduces the hillshade to about 7 grey levels of 255.
+
+## Against public terrain
+
+How the sheets compare with the terrain anyone can load for the same ground
+(`compare-public-terrains.ts`): slope from each terrain, over its own cells, read in the slope
+sheet's ranges and scored on the sheet's exact pixels. On the ground every terrain covers:
+
+| Terrain                               | Same range | Within one | Sheet's 60%+ ground found |
+| ------------------------------------- | ---------- | ---------- | ------------------------- |
+| Field sheet contours + hillshade      | 52.6%      | 79.9%      | 91.4%                     |
+| Field sheet contours (2 m surface)    | 43.3%      | 69.2%      | 84.4%                     |
+| BC CDED (0.75″ posts, about 14 × 23 m) | 32.5%      | 57.6%      | 78.9%                     |
+| Regional Terrarium (22 m)             | 29.9%      | 56.7%      | 78.9%                     |
+| NRCan MRDEM-30                        | 26.2%      | 51.8%      | 74.1%                     |
+
+(The first row is the whole-sheet figure from the table above; the others are on 150,318 sampled
+pixels where all four terrains have ground.)
+
+- **Every public terrain finds most of the steep ground**, so each is a fair screen for whether a
+  hillside is steep. None places a slope class well: right about three times in ten.
+- **Whole-sheet scores flatter the public terrains** (53–57% in the same range), only because they
+  cover the flat north-east, where the contour surface is empty and everything reads under 20%.
+- **Heights.** Against the contour surface, Terrarium sits 0.9 m higher at the median, CDED 1.4 m
+  and MRDEM 0.8 m, and the middle 90% of the differences run about ±10 m (−12 to +16 m for MRDEM):
+  coarse cells shave ridges and fill draws. Against laser ground points, the contour surface was
+  0.28 m low and Terrarium 0.97 m high
+  ([Open canopy and satellite LiDAR](../research/open-canopy-and-satellite-lidar-2026-11-18.md)).
+- **No public LiDAR covers the supplied block.** LidarBC lists it as flown and unpublished, and
+  NRCan's 1 m mosaic has no data there
+  ([Terrain sources](../research/bc-road-terrain-sources-2026-11-12.md)). A hillshade worked out
+  from a 14–30 m terrain shows cells, not ground.
+
+The whole comparison, with the canopy sources, is written up in
+[Map sheet rasters and public terrain](../research/map-sheet-rasters-and-public-terrain-2026-11-18.md).
+
 ## What each sheet gives the road tools
 
 | Sheet        | Becomes               | Used by                                                                                                                                                                                   |
 | ------------ | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Field layout | Terrain (when chosen) | Every analysis view: profiles, sections, cut/fill and quantities, route searches and grade limits, skid reach, cable lines, sight distance. Slope anywhere is computed from this surface. |
-| Slope        | Reference class layer | Point readings, block summaries with exact, estimated and **From terrain** columns. No road tool reads it: route search and skid reach take slope from the terrain.                       |
-| Canopy       | Reference class layer | Point readings and block summaries. Nothing else reads it yet: not extraction reach, cable volume or the canopy background.                                                               |
+| Slope        | Reference class layer | Point readings, block summaries with exact, estimated and **From terrain** columns, the LiDAR slope block map sheet, and the profile's **Map slope** row beside Sidehill ([Profile labels and bands](profile-labels-and-bands.md)). No road tool reads it: route search and skid reach take slope from the terrain. |
+| Canopy       | Reference class layer | Point readings, block summaries, the canopy height block map sheet and the profile's **Map canopy** row. Nothing else reads it yet: not extraction reach, cable volume or the canopy background. |
+| Hillshade    | Reference image layer | The plan, as a picture under the design, and the hillshade block map sheet. Its greys are read only when the terrain row's option asks for the ground between the contours.               |
+| Field ortho  | Reference image layer | The plan, as a picture (offered unticked).                                                                                                                                                |
 
-So the LiDAR-derived terrain is a design input; the slope and canopy maps are for reading and
-comparing. Wiring either into a design check (a slope-class screen beside the terrain's, canopy
-height in extraction or cable volume) would be a new, separately validated feature.
+So the LiDAR-derived terrain is a design input; the slope, canopy and hillshade maps are for
+reading, comparing and printing. Wiring a class raster into a design check (a slope-class screen
+beside the terrain's, canopy height in extraction or cable volume) would be a new, separately
+validated feature.
 
 ## Against a regional DEM along mapped roads
 
@@ -362,8 +634,9 @@ slope sheet before it replaces the TIN.
 Canopy height, slope classes, ortho and hillshade in these PDFs are rendered colour images.
 The class pass recovers their published ranges where the source retains them. These are not
 the original CHM, DTM or point cloud, and do not supply precise heights or slopes. Use the original
-numeric rasters or LAS/LAZ for calculations. A preview is placed by its four registered
-corners, rather than being resampled as an analytical raster into Web Mercator.
+numeric rasters or LAS/LAZ for calculations. A preview, a class display and each image-layer tile
+is placed by its four registered corners, rather than being resampled as an analytical raster into
+Web Mercator.
 
 Registration fit is the residual of the PDF's own control points, **not positional accuracy**.
 Drawing coordinates and curves carry the precision of the published sheet. Curves flatten
@@ -381,6 +654,13 @@ not prove which block or road status it belongs to.
 | Extracted vertices per page         | `PDF_LIMITS.vertices`: 250,000                                   | Refused                                                                                                |
 | One extracted layer / saved project | `MAX_REFERENCE_FEATURES`: 500; `MAX_REFERENCE_VERTICES`: 50,000  | Oversized PDF layers left in the preview with a notice; a saved project's aggregate limits still apply |
 | Sheet preview                       | `PDF_LIMITS.previewSide`: 1,400 pixels on the longer side        | Display JPEG, separate from source measurement resolution                                              |
+| Class display                       | `PDF_LIMITS.classDisplaySide`: 4,096 pixels on the longer side   | Native pixels up to it; a larger grid's display is sampled down, its analysis grid is not              |
+| Estimate display cell               | `ESTIMATE_DISPLAY_CELL_M`: 10 m                                  | Estimates drawn and queried as the cell's commonest class; summaries read the stored pixels            |
+| Stored sheet or class display image | `PDF_LIMITS.sheetImageChars`: 12,000,000 base64 characters       | A project holding a larger one is refused on load                                                      |
+| Image layer tiles                   | `PDF_LIMITS.mosaicBytes`: 12 MB a layer; `rasterImages`: 32      | Left in the sheet preview, with a notice                                                               |
+| Registration residual named         | `PDF_LIMITS.registrationNoticeM`: 0.5 m                          | Import note; the sheet is still read                                                                   |
+| Same frame, tighter registration    | `SAME_FRAME_M`: 10 m; `REGISTRATION_PREFERENCE_M`: 0.3 m         | Note naming the looser sheet; a raster both offer is ticked on the tighter one                         |
+| Lossless tile off the legend        | `PDF_LIMITS.damagedTileShare`: 25% of its drawn pixels           | Tile read as estimates by colour match, with a note                                                    |
 | Native class raster                 | `PDF_LIMITS.rasterCells`: 16,777,216 cells                       | Refuse oversized grid; never silently downsample analysis                                              |
 | Source class images including masks | `PDF_LIMITS.rasterImages`: 32                                    | Refuse oversized extraction                                                                            |
 | Saved compressed raster             | `PDF_LIMITS.rasterCompressedBytes`: 8 MB                         | Reject oversized payload                                                                               |
@@ -391,6 +671,12 @@ not prove which block or road status it belongs to.
 | Contour vertices                    | `PDF_LIMITS.contourVertices`: 3,000,000                          | No surface, with a notice; contours stay in the sheet preview                                          |
 | Contour label on its line           | `LABEL_ON_LINE_PT`: 1 point; `LABEL_MARGIN_PT`: 0.5              | Label ignored                                                                                          |
 | Contour TIN triangle                | `CONTOUR_TIN_MAX_EDGE_M`: 200 m; rise at most one interval       | Left empty (missing terrain)                                                                           |
+| Contour points kept                 | `MAX_ANCHOR_NUMBERS`: 2,000,000 points, a cell apart             | Further points are left out; the surface is built from every vertex regardless                         |
+| Hillshade follows the contours      | `RELIEF.minFitCorrelation`: 0.6                                  | Refinement refused; the plain contour surface is used                                                  |
+| Hillshade is unstretched            | `RELIEF.strengthAbove`: 0.08; `strengthBelow`: 0.15; sun 20–80°  | Refinement refused; the plain contour surface is used                                                  |
+| Refined ground from the contours    | One contour interval                                             | Held at the bound; the share is stated                                                                 |
+| Refinement at the hillshade's edge  | `RELIEF.taperCells`: 10 cells                                    | The change fades to nothing at the edge                                                                |
+| Refinement levels and effort        | `RELIEF.levels`: 4, 2, 1 × the cell; `steps`; `iterations`       | A level stops early when no cell moves 0.02 m (`settledM`)                                             |
 | Contour surface                     | 2 m cells, grown until 4,194,304 cells (`MAX_ROAD_RASTER_CELLS`) | Cell size stated in the import notice                                                                  |
 
 Contours never become a reference layer: they exceed the reference budget, and they stay
@@ -415,11 +701,17 @@ it against the company's own data, then ship it with fixtures and tests. Moving 
 its profile left every supplied sheet's output byte-identical.
 
 Tests: `src/lib/geoPdf/geoPdf.test.ts` uses a generated map with known projected coordinates,
-clipped legend content, a reserve hole and compound streams. `jpegDecode.test.ts` reads a
+clipped legend content, a reserve hole and compound streams, and a class tile stored losslessly in
+off-legend colours. `deadObjectStreams.test.ts` re-saves the generated map with a leftover object
+stream that carries a JPEG tile's number. `imageMosaic.test.ts` reads a generated hillshade as
+lossless tiles and as one JPEG tile, through a project file and back. `classGrid.test.ts` pins the
+10 m display cells and the point query on an estimate. `jpegDecode.test.ts` reads a
 synthetic Pillow JPEG (with and without restart markers) against jpeglib's coefficients and
 checks the decoder beats the nearest colour on area shares. `contours.test.ts` builds a plane's
 contours with a wrong label and a spot height. `contourTerrain.test.ts` covers the datum
-question, the terrain role and slope ranges. The optional `PGMAPS_CANFOR_MAPS=/local/Maps`
+question, the terrain role, slope ranges and the record of a hillshade refinement.
+`hillshadeRelief.test.ts` refines a generated hillside from its own hillshade and contours, and
+checks the bound, the fade at the hillshade's edge and the refusal of a stretched picture. The optional `PGMAPS_CANFOR_MAPS=/local/Maps`
 reads the supplied real sheets without copying them.
 `tests/e2e/forestry-road-geopdf.spec.ts` (with `PGMAPS_CANFOR_MAPS` and `PGMAPS_CANFOR_BLOCK`, the block shapefile's stem, for the real sheets) exercises the actual browser worker, absence of upload,
 dialog, image map source and browser persistence. `PGMAPS_CANFOR_PDF=/local/sheet.pdf` also
@@ -436,11 +728,16 @@ PGMAPS_CANFOR_MAPS=/local/Maps npx vitest run src/lib/geoPdf
 npx tsx scripts/forestry/check-pdf-rasters.ts /local/Maps /local/Shapefiles/block.shp /tmp/pdf-class-report.json
 python3 scripts/forestry/pdf-jpeg-calibration.py /local/Maps /tmp/pdf-calibration
 npx tsx scripts/forestry/check-pdf-jpeg-calibration.ts /tmp/pdf-class-report.json /tmp/pdf-calibration
-npx tsx scripts/forestry/check-pdf-contour-slope.ts /local/Maps/Field_Layout.pdf /local/Maps/Slope_Map.pdf /tmp/contour-slope.json
+npx tsx scripts/forestry/check-pdf-contour-slope.ts /local/Maps/Field_Layout.pdf /local/Maps/Slope_Map.pdf /tmp/contour-slope.json /local/Maps/Hillshade_Map.pdf
+node --import tsx scripts/forestry/compare-public-terrains.ts /local/Maps/Field_Layout.pdf /local/Maps/Slope_Map.pdf /tmp/public-terrains.json
 ```
 
+The hillshade sheet is the contour check's optional fourth argument: with it the refined surface
+is scored beside the contour surface and the held-out test is run. The public terrain comparison
+downloads the regional tiles, two CDED half-sheets and an MRDEM window.
+
 ```sh
-node --use-env-proxy --import tsx scripts/forestry/compare-road-terrains.ts /local/project.road.json /local/Maps/Field_Layout.pdf /local/Maps/Slope_Map.pdf /tmp/road-terrains.json
+node --use-env-proxy --import tsx scripts/forestry/compare-road-terrains.ts /local/project.road.json /local/Maps/Field_Layout.pdf /local/Maps/Slope_Map.pdf /tmp/road-terrains.json --hillshade /local/Maps/Hillshade_Map.pdf
 ```
 
 The road comparison fetches the project's regional DEM tiles like the app does. `SWEEPS=n` before
@@ -460,6 +757,11 @@ from these commands on the supplied sheets, November 2026.
 - JPEG restoration by projection onto convex sets (Zakhor 1992; Yang, Galatsanos and
   Katsaggelos 1993) constrains a decoded image to the stored coefficients' quantization bins.
   The decoder uses that constraint with a known palette in place of a smoothness prior.
+- Shape from shading (Horn 1970; Horn and Brooks, *Shape from Shading*, 1989): a surface's
+  brightness under a known light constrains its slope. The hillshade refinement uses it with the
+  contour heights as boundary values, which removes the method's usual ambiguity.
+- LSQR (Paige and Saunders, *ACM Transactions on Mathematical Software* 8, 1982): the sparse
+  least-squares solver each Gauss–Newton step uses, implemented here from the paper.
 - [Deep Colormap Extraction from Visualizations](https://arxiv.org/abs/2103.00741): colour-map
   recovery is an established inverse-graphics problem. Our known-template adapter uses the
   actual printed palette and image objects rather than inferring an unknown palette or

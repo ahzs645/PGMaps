@@ -1,6 +1,7 @@
 import proj4 from 'proj4'
 import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRawStream, PDFString } from 'pdf-lib'
 import { PDF_LIMITS, type Box, type XY, type Matrix } from './types'
+import { withoutDeadObjectStreams } from './deadObjectStreams'
 
 export interface MapFrame {
   page: number
@@ -129,7 +130,9 @@ export function fitMapFrame(page: number, bbox: Box, local: number[], geographic
   }
 }
 
-export async function readMapFrames(bytes: Uint8Array) {
+export async function readMapFrames(source: Uint8Array) {
+  // A re-saved copy can carry object streams nothing refers to; unpacked, they replace real objects.
+  const { bytes, dead } = withoutDeadObjectStreams(source)
   const pdf = await PDFDocument.load(bytes, { updateMetadata: false })
   if (pdf.getPageCount() > PDF_LIMITS.pages) throw Error(`Import at most ${PDF_LIMITS.pages} PDF pages at a time.`)
   const frames: MapFrame[] = []
@@ -167,7 +170,13 @@ export async function readMapFrames(bytes: Uint8Array) {
     throw Error(
       'This PDF has no supported embedded map registration. Import its original GIS files or georeference the image first.',
     )
+  if (dead)
+    notices.push(
+      'This PDF was saved again by another program after it was exported, which can round its registration points. Import the original export when you have it.',
+    )
   const lossyImages = new Set<string>()
+  /** Images drawn through a soft or stencil mask: their stored bytes alone are not the picture. */
+  const maskedImages = new Set<string>()
   const jpegs = new Map<string, PDFRawStream>()
   for (const [ref, object] of pdf.context.enumerateIndirectObjects()) {
     const dict = object instanceof PDFDict ? object : 'dict' in object ? object.dict : null
@@ -175,6 +184,7 @@ export async function readMapFrames(bytes: Uint8Array) {
     const filter = dict.get(key('Filter'))?.toString() ?? ''
     const id = `${ref.objectNumber}R${ref.generationNumber || ''}`
     if (/DCTDecode|JPXDecode/.test(filter)) lossyImages.add(id)
+    if (dict.has(key('SMask')) || dict.has(key('Mask'))) maskedImages.add(id)
     // A stream whose only filter is DCTDecode holds the JPEG file itself, coefficients and tables.
     if (/^\[?\s*\/DCTDecode\s*\]?$/.test(filter) && object instanceof PDFRawStream) jpegs.set(id, object)
   }
@@ -183,6 +193,7 @@ export async function readMapFrames(bytes: Uint8Array) {
     frames,
     notices,
     lossyImages,
+    maskedImages,
     jpegBytes: (reference: string) => jpegs.get(reference)?.getContents(),
   }
 }

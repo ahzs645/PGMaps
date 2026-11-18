@@ -28,10 +28,11 @@ export type SheetSetupOutput = Omit<SheetOutputSettings, 'blocks'>
 
 /**
  * The block sheet's settings a setup keeps: everything except the block and its comments, which are
- * the project's, the symbol choice, which names this browser's style library, and the series' blocks.
- * A setup saved before the output was kept has none, and applying it leaves the output as it is.
+ * the project's, the symbol choice, which names this browser's style library, the raster choice,
+ * which depends on the map sheets the project has imported, and the series' blocks. A setup saved
+ * before the output was kept has none, and applying it leaves the output as it is.
  */
-export type BlockSheetSetup = Omit<BlockSheetSettings, 'block' | 'comments' | 'symbols' | 'output'> & {
+export type BlockSheetSetup = Omit<BlockSheetSettings, 'block' | 'comments' | 'symbols' | 'output' | 'raster'> & {
   output?: SheetSetupOutput
 }
 
@@ -207,6 +208,7 @@ export function applySheetSetup(
             output: setup.blockSheet.output
               ? { ...setup.blockSheet.output, blocks: current.blockSheet.output.blocks }
               : current.blockSheet.output,
+            raster: current.blockSheet.raster,
           }),
         }
       : {}),

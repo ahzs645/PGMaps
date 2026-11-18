@@ -4,6 +4,7 @@ import { readLogoFile } from '@/branding/logoFile'
 import { saveUploadedLogo } from '@/branding/store'
 import { useBranding } from '@/branding/useBranding'
 import { MapSheetOutput } from '@/components/ui/map-sheet-output'
+import { SelectField } from '@/components/ui/form-field'
 import { MapSheetSetup, type MapSheetField } from '@/components/ui/map-sheet-setup'
 import { blockFacts } from '@/lib/forestry/blockSheet/blockFacts'
 import { sheetSetupFields } from '@/lib/forestry/blockSheet/setupFields'
@@ -11,6 +12,7 @@ import { MAX_SHEET_COMMENTS_LENGTH, SHEET_KINDS, SHEET_PRESETS, type SheetKind }
 import type { RasterImage } from '@/lib/mapSheet/drawOps'
 import {
   blockChoices,
+  blockSheetPublished,
   blockSheetUnavailable,
   canopySurfaceId,
   changeBlockSheetSettings,
@@ -21,6 +23,7 @@ import {
   type BlockSheetSettings,
 } from './blockSheet'
 import { ROAD_DESIGN_DEPLOYMENT } from './deployment'
+import { publishedOffers, type SheetRasterChoice } from './pdfSheetRasters'
 import { StyleLibraryPanel } from './StyleLibraryPanel'
 import { terrainReferenceSurfaces } from './terrain'
 import type { RoadProject, TerrainSource } from './types'
@@ -111,6 +114,15 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
     )
   }
   const sources = { terrain: terrain ?? undefined, canopy: canopy ?? undefined }
+  // An imported map sheet's slope or canopy classes, or its hillshade, can be the sheet's raster.
+  const offers = useMemo(() => publishedOffers(project.reference), [project.reference])
+  const base = preset.base
+  const offer = offers.find((entry) => entry.base === base && !entry.reason)
+  const own = base === 'canopy-height' ? !!canopy : !!terrain
+  const drawn = offer ? blockSheetPublished(effective.kind, effective.raster, project, sources) : null
+  const autoDrawn = offer ? blockSheetPublished(effective.kind, 'auto', project, sources) : null
+  const rasterName = base === 'slope' ? 'Slope classes' : base === 'hillshade' ? 'Hillshade' : 'Canopy height'
+  const ownName = base === 'canopy-height' ? 'the canopy surface' : `the terrain (${project.terrain.name})`
   const setup = (
     <div className="grid gap-2">
       <MapSheetSetup
@@ -124,7 +136,7 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
           value: kind,
           label: SHEET_PRESETS[kind].label,
           description: SHEET_PRESETS[kind].description,
-          unavailable: blockSheetUnavailable(kind, sources),
+          unavailable: blockSheetUnavailable(kind, sources, offers),
         }))}
         areas={
           blocks.length
@@ -147,6 +159,28 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
         logoName={logo?.name ?? null}
         onLogo={chooseLogo}
       />
+      {offer &&
+        (own ? (
+          <SelectField
+            label={`${rasterName} from`}
+            hint={
+              drawn
+                ? `Drawn as ${offer.file} published it. Classes it could only estimate print paler.`
+                : `Worked out from ${ownName}.`
+            }
+            value={effective.raster}
+            onChange={(event) => setSettings({ ...effective, raster: event.target.value as SheetRasterChoice })}
+          >
+            <option value="auto">PGMaps chooses (now: {autoDrawn ? 'the imported sheet' : ownName})</option>
+            <option value="terrain">{ownName.replace(/^the /, 'The ')}</option>
+            <option value="sheet">Imported sheet: {offer.file}</option>
+          </SelectField>
+        ) : (
+          <p className="text-xs text-muted-foreground" data-testid="block-sheet-raster-source">
+            {rasterName} drawn as {offer.file} published it: the project has no{' '}
+            {base === 'canopy-height' ? 'canopy surface' : 'terrain'} to work it out from.
+          </p>
+        ))}
       {logoError && (
         <p role="alert" className="text-xs text-danger">
           {logoError}

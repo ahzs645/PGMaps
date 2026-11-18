@@ -3,12 +3,19 @@ import { Button } from '@/components/ui/button'
 import { StyledSelect } from '@/components/ui/styled-select'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { EngineeringTable, ColumnHeader } from '@/components/ui/engineering-table'
-import { classAreaBreakdown, codeLabel, summarizeClassSteps, type ClassAreaSummary } from '@/lib/geoPdf/classGrid'
+import {
+  classAreaBreakdown,
+  codeLabel,
+  ESTIMATE_DISPLAY_CELL_M,
+  summarizeClassSteps,
+  type ClassAreaSummary,
+} from '@/lib/geoPdf/classGrid'
 import type { PdfClassGrid } from '@/lib/geoPdf/types'
 import type { RoadProject } from './types'
+import { isImageFrame } from './referenceFeatures'
 import { runCooperatively } from './cooperative'
 import { summarizeTerrainSlopeSteps, type TerrainSlopeSummary } from './terrainSlopeClasses'
-import { CONTOUR_SLOPE_CHECK, isContourTerrain } from './contourTerrain'
+import { CONTOUR_RELIEF_SLOPE_CHECK, CONTOUR_SLOPE_CHECK, isContourTerrain } from './contourTerrain'
 
 export function PdfRasterDetails({ grid, project, id }: { grid: PdfClassGrid; project: RoadProject; id: string }) {
   const areas = useMemo(
@@ -17,9 +24,7 @@ export function PdfRasterDetails({ grid, project, id }: { grid: PdfClassGrid; pr
         f.geometry.type === 'Polygon' && f.kind === 'harvest' ? [{ id: f.id, name: f.name, geometry: f.geometry }] : [],
       ),
       ...(project.reference ?? []).flatMap((f) =>
-        f.geometry.type === 'Polygon' && !f.sheet && !f.classGrid
-          ? [{ id: f.id, name: f.name, geometry: f.geometry }]
-          : [],
+        f.geometry.type === 'Polygon' && !isImageFrame(f) ? [{ id: f.id, name: f.name, geometry: f.geometry }] : [],
       ),
     ],
     [project.context, project.reference],
@@ -83,7 +88,8 @@ export function PdfRasterDetails({ grid, project, id }: { grid: PdfClassGrid; pr
         Inspect mode to query visible class layers.
       </p>
       <p>
-        Lossless palette matches are solid. JPEG estimates are faded: read them as area shares, not single pixels.
+        Lossless palette matches are solid at the sheet's own pixels. JPEG estimates are faded and drawn as the
+        commonest class of each {ESTIMATE_DISPLAY_CELL_M} m cell: read them as area shares, not single pixels.
         Transparent pixels are the sheet's unpainted class{grid.undrawn ? ` (${grid.undrawn.label} ${grid.unit})` : ''}.
       </p>
       {areas.length ? (
@@ -201,7 +207,9 @@ export function PdfRasterDetails({ grid, project, id }: { grid: PdfClassGrid; pr
               From terrain: slope of {project.terrain.name} on its {slope.cellM} m cells, read with this sheet's ranges
               (cell centres inside the area; "Not known" is missing terrain).{' '}
               {isContourTerrain(terrain)
-                ? CONTOUR_SLOPE_CHECK
+                ? project.terrain.relief
+                  ? CONTOUR_RELIEF_SLOPE_CHECK
+                  : CONTOUR_SLOPE_CHECK
                 : 'A different measurement from the sheet: compare ranges, not cells.'}
             </p>
           )}

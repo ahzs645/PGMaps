@@ -5,7 +5,7 @@ import { readGeoPdf } from './read'
 import { PDF_LIMITS } from './types'
 import type { MapFrame } from './georeference'
 import type { DocumentInitParameters } from 'pdfjs-dist/types/src/display/api'
-import { decodeCells, gridCorners, knownClass, estimatedClass } from './classGrid'
+import { classDisplayRgba, gridCorners } from './classGrid'
 import type { PdfClassGrid } from './types'
 import type { DecodedPdfImage } from './rasterRead'
 
@@ -57,25 +57,10 @@ function imagePixels(image: DecodedPdfImage) {
   return ctx.getImageData(0, 0, image.width, image.height).data
 }
 async function renderClasses(grid: PdfClassGrid) {
-  const scale = Math.min(1, PDF_LIMITS.previewSide / Math.max(grid.width, grid.height))
-  const width = Math.ceil(grid.width * scale),
-    height = Math.ceil(grid.height * scale)
-  const data = decodeCells(grid),
-    rgba = new Uint8ClampedArray(width * height * 4)
-  for (let row = 0; row < height; row++)
-    for (let col = 0; col < width; col++) {
-      const code =
-        data[
-          Math.min(grid.height - 1, Math.floor(((row + 0.5) * grid.height) / height)) * grid.width +
-            Math.min(grid.width - 1, Math.floor(((col + 0.5) * grid.width) / width))
-        ]
-      const estimated = estimatedClass(code, grid)
-      if (!knownClass(code, grid) && !estimated) continue
-      const i = (row * width + col) * 4
-      rgba.set([...grid.legend[(estimated ? code - 64 : code) - 1].color, estimated ? 100 : 255], i)
-    }
+  // The native pixels, with each JPEG estimate drawn as its 10 m cell's commonest class.
+  const { data, width, height } = classDisplayRgba(grid)
   const canvas = new OffscreenCanvas(width, height)
-  canvas.getContext('2d')!.putImageData(new ImageData(rgba, width, height), 0, 0)
+  canvas.getContext('2d')!.putImageData(new ImageData(data, width, height), 0, 0)
   const bytes = new Uint8Array(await (await canvas.convertToBlob({ type: 'image/png' })).arrayBuffer())
   let binary = ''
   for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192))

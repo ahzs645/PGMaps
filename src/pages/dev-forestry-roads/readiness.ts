@@ -163,7 +163,10 @@ export function vehicleFit(result: SweptPathResult): VehicleFit {
 export interface ReadinessInput {
   settings: RoadSettings
   standards?: DesignStandards
-  terrain: Pick<TerrainMetadata, 'kind' | 'name' | 'resolutionM' | 'verticalReference' | 'fill' | 'preparation'>
+  terrain: Pick<
+    TerrainMetadata,
+    'kind' | 'name' | 'resolutionM' | 'verticalReference' | 'fill' | 'relief' | 'preparation'
+  >
   context: readonly ContextFeature[]
   alignment: Alignment
   analysis: RoadAnalysis
@@ -540,7 +543,10 @@ function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
       check: 'Terrain fit for site quantities',
       state: 'met',
       result: `Terrain resolves the road: ${resolutionText}`,
-      measured: sourceText,
+      // A contour surface refined from a hillshade: its cells are fine, its ground between contours an estimate.
+      measured: terrain.relief
+        ? `${sourceText} · between its contours the ground is an estimate read from ${terrain.relief.name}'s hillshade (${trim(terrain.relief.sharePercent, 0)}% of cells, moved ${trim(terrain.relief.medianChangeM, 2)} m at the median)`
+        : sourceText,
       judgedOn: `${siteLimit}. Accuracy is the source's, not checked here`,
     })
 

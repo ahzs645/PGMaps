@@ -52,6 +52,7 @@ export function layerImportOptions(file: SpatialFile): LayerImportRole[] {
   if (
     file.pdf?.sheet ||
     file.pdf?.classGrid ||
+    file.pdf?.imageMosaic ||
     file.collection.features.some((f) => f.geometry.type === 'MultiLineString' && (file.pdf || f.properties?.pdfSource))
   )
     return ['reference']
@@ -59,6 +60,64 @@ export function layerImportOptions(file: SpatialFile): LayerImportRole[] {
   if (shapes.size === 1 && shapes.has('line')) return ['reference', 'proposed-road']
   if (shapes.size === 1 && shapes.has('polygon')) return ['reference', 'planned-block']
   return ['reference']
+}
+
+/** Two sheets whose frame corners all lie this close show the same map frame. */
+export const SAME_FRAME_M = 10
+/** A registration fit this much tighter than another sheet's of the same frame is preferred, and said. */
+export const REGISTRATION_PREFERENCE_M = 0.3
+
+/**
+ * A sheet saved again by another program can carry rounded registration points, so its layers sit a
+ * metre or two off the original export's. Where two sheets show the same frame, the import notes
+ * say which is registered less tightly, and a class raster or image layer both offer is taken from
+ * the tighter one. Changes `files` in place; nothing is dropped.
+ */
+export function preferTighterRegistration(files: SpatialFile[]): void {
+  const pdfs = files.filter((file) => file.pdf)
+  const fit = (file: SpatialFile) => file.pdf!.source.registrationErrorM
+  const name = (file: SpatialFile) => file.pdf!.source.file.split('/').at(-1)!
+  const kindOf = (file: SpatialFile) =>
+    file.pdf!.classGrid
+      ? `class:${file.pdf!.classGrid.kind}`
+      : file.pdf!.imageMosaic
+        ? `image:${file.pdf!.imageMosaic.kind}`
+        : null
+  for (const kind of new Set(pdfs.map(kindOf))) {
+    if (!kind) continue
+    const offered = pdfs.filter((file) => kindOf(file) === kind)
+    const chosen = offered.find((file) => file.pdf!.selected)
+    const best = offered.reduce((a, b) => (fit(b) < fit(a) ? b : a))
+    if (!chosen || best === chosen || fit(chosen) - fit(best) <= REGISTRATION_PREFERENCE_M) continue
+    chosen.pdf!.selected = false
+    best.pdf!.selected = true
+    ;(best.notices ??= []).push(
+      `${name(best)}: chosen over ${name(chosen)} for the same layer, because its registration points fit ${fit(best).toFixed(1)} m against ${fit(chosen).toFixed(1)} m.`,
+    )
+  }
+  const metres = (a: number[], b: number[]) =>
+    Math.hypot((a[0] - b[0]) * Math.cos((a[1] * Math.PI) / 180), a[1] - b[1]) * 111_320
+  const frames = pdfs.flatMap((file) => {
+    const geometry = file.collection.features[0]?.geometry
+    return file.pdf!.sheet && !file.pdf!.classGrid && geometry?.type === 'Polygon'
+      ? [{ file, corners: geometry.coordinates[0].slice(0, 4) }]
+      : []
+  })
+  for (const worse of frames) {
+    const better = frames
+      .filter(
+        (other) =>
+          other !== worse &&
+          fit(worse.file) - fit(other.file) > REGISTRATION_PREFERENCE_M &&
+          other.corners.length === worse.corners.length &&
+          other.corners.every((corner, i) => metres(corner, worse.corners[i]) <= SAME_FRAME_M),
+      )
+      .reduce<(typeof frames)[number] | null>((a, b) => (!a || fit(b.file) < fit(a.file) ? b : a), null)
+    if (better)
+      (worse.file.notices ??= []).push(
+        `${name(worse.file)} shows the same map frame as ${name(better.file)}, but its registration points fit ${fit(worse.file).toFixed(1)} m against ${fit(better.file).toFixed(1)} m, so its layers can sit about that far off. Use ${name(better.file)}'s layers where both offer one.`,
+      )
+  }
 }
 
 /** How many single lines a file's line features hold: a multi-part record loads one road per part. */
@@ -108,7 +167,7 @@ export function designExtent(
 export function layersExtent(files: readonly SpatialFile[]) {
   return designExtent(
     files
-      .filter((file) => !file.pdf?.sheet && !file.pdf?.classGrid)
+      .filter((file) => !file.pdf?.sheet && !file.pdf?.classGrid && !file.pdf?.imageMosaic)
       .map((file) => ({ file, role: 'planned-block' as const })),
   )
 }
@@ -263,6 +322,7 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
   if (pdfs.length) {
     const { importGeoPdf } = await import('@/lib/geoPdf/client')
     const seen = new Map<string, string>()
+    // The first class raster and the first ticked image layer of each kind start selected.
     const classKinds = new Set<string>()
     const preferred = pdfs.find((p) => /Field_Layout/i.test(p.path)) ?? pdfs[0]
     for (const { file, path } of pdfs) {
@@ -301,8 +361,11 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
           ? false
           : layer.classGrid
             ? !classKinds.has(layer.classGrid.kind)
-            : path === preferred.path && (layer.name === 'Map sheet' || (!layers.length && layer.selected))
+            : layer.imageMosaic
+              ? layer.selected && !classKinds.has(`image:${layer.imageMosaic.kind}`)
+              : path === preferred.path && (layer.name === 'Map sheet' || (!layers.length && layer.selected))
         if (layer.classGrid) classKinds.add(layer.classGrid.kind)
+        if (layer.imageMosaic) classKinds.add(`image:${layer.imageMosaic.kind}`)
         const selected = requested && layer.features.length <= featureBudget && vertices <= vertexBudget
         if (selected) {
           featureBudget -= layer.features.length
@@ -318,6 +381,7 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
             note: layer.note,
             sheet: layer.sheet,
             classGrid: layer.classGrid,
+            imageMosaic: layer.imageMosaic,
             contourSurface: layer.contourSurface,
             selected,
           },
@@ -326,6 +390,7 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
       if (added[0]) added[0].notices = result.notices.map((note) => `${path}: ${note}`)
       decoded.push(...added)
     }
+    preferTighterRegistration(decoded)
     // A template draws the same contours on several sheets. Offer one terrain: the field sheet's,
     // else the one with the most labelled lines, and name the others.
     const surfaces = decoded.filter((file) => file.pdf?.contourSurface)

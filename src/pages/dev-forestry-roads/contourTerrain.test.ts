@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { PdfContourSurface } from '@/lib/geoPdf/contours'
 import { contourTerrain, fillBeyondContours, isContourTerrain } from './contourTerrain'
+import { reliefSummary } from './hillshadeReliefSummary'
+import { parseProject, serializeProject } from './project'
 import { TerrainImportQuestion } from './terrain'
 import { slopeRangeIndex, summarizeTerrainSlopeSteps } from './terrainSlopeClasses'
 import { applyLayerImport, layerImportOptions, suggestedLayerRole } from './referenceImport'
@@ -55,6 +57,74 @@ describe('terrain from a sheet’s contours', () => {
     expect(metadata.raster!.values[39]).toBeNull()
     expect(terrain.elevationAt(...lonLat(origin[0] + 50, origin[1] - 50))).toBeCloseTo(915, 1)
   })
+  it('records a surface refined from a hillshade, through the project file and a widening', async () => {
+    const relief = reliefSummary(
+      {
+        values: surface.values,
+        lighting: { azimuthDeg: 315.9, altitudeDeg: 44.6, flatGrey: 179, correlation: 0.89 },
+        cells: 1000,
+        refinedCells: 930,
+        medianChangeM: 0.374,
+        p99ChangeM: 5.37,
+        boundedShare: 0.0003,
+        shadeResidualGrey: 6.8,
+      },
+      'Hillshade_Map.pdf',
+      10,
+    )
+    expect(relief).toMatchObject({ name: 'Hillshade_Map.pdf', sharePercent: 93, medianChangeM: 0.37, p99ChangeM: 5.37 })
+    expect(relief.summary).toBe(
+      "Between the contours the ground is read from Hillshade_Map.pdf's hillshade (sun at 316°, 45° up) over 93% of the cells: it moved them 0.4 m at the median and 5.4 m at most for 99 in 100, never more than the 10 m contour interval. The contours still set the heights. An estimate between contours, not a survey.",
+    )
+    // A bound that held some cells is said.
+    expect(
+      reliefSummary(
+        {
+          values: surface.values,
+          lighting: { azimuthDeg: 315, altitudeDeg: 45, flatGrey: 180, correlation: 0.9 },
+          cells: 10,
+          refinedCells: 10,
+          medianChangeM: 0.04,
+          p99ChangeM: 10,
+          boundedShare: 0.021,
+          shadeResidualGrey: 5,
+        },
+        'h.pdf',
+        10,
+      ).summary,
+    ).toContain(
+      'moved them 0.04 m at the median and 10.0 m at most for 99 in 100, never more than the 10 m contour interval (2.1% of cells are held at that bound)',
+    )
+    const { metadata, summary } = contourTerrain(surface, source, 'CGVD2013', relief)
+    expect(metadata.raster!.name).toBe('Contours + hillshade · Field_Layout.pdf')
+    expect(isContourTerrain(metadata.raster)).toBe(true)
+    expect(metadata.relief).toEqual({
+      name: 'Hillshade_Map.pdf',
+      sharePercent: 93,
+      medianChangeM: 0.37,
+      p99ChangeM: 5.37,
+    })
+    expect(summary).toContain("read from Hillshade_Map.pdf's hillshade")
+    // The plain contour terrain records nothing of it.
+    expect(contourTerrain(surface, source, 'CGVD2013').metadata.relief).toBeUndefined()
+    const project = { ...createDemoProject(), terrain: metadata }
+    expect(parseProject(JSON.parse(serializeProject(project))).terrain.relief).toEqual(metadata.relief)
+    expect(() =>
+      parseProject({ ...JSON.parse(serializeProject(project)), terrain: { ...metadata, relief: { name: 'x' } } }),
+    ).toThrow(/relief/)
+    // Widened with the regional DEM, it is still the refined surface.
+    const far: [number, number, number, number] = [
+      ...lonLat(origin[0] - 200, origin[1] - 400),
+      ...lonLat(origin[0] + 400, origin[1] + 100),
+    ] as [number, number, number, number]
+    const wide = await fillBeyondContours(contourTerrain(surface, source, 'CGVD2013', relief), far, {
+      source: { elevationAt: () => 700, bounds: far } as never,
+      resolutionM: 22,
+    })
+    expect(wide.metadata.raster!.name).toMatch(/^Contours \+ hillshade · Field_Layout\.pdf \+ regional DEM beyond them/)
+    expect(wide.metadata.relief).toEqual(metadata.relief)
+  })
+
   it('is only ever offered as terrain, and adds no layer when imported', () => {
     const file: SpatialFile = {
       fileName: 'Maps/Field_Layout.pdf/Page 1/Terrain from contours',

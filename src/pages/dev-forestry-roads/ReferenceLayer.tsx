@@ -1,8 +1,11 @@
+import { useEffect, useMemo } from 'react'
 import type { ExpressionSpecification, LayerSpecification } from 'maplibre-gl'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapImageLayer } from '@/components/ui/map-layers'
 import type { PlanLegendSection } from './planLegendModel'
 import { PX_PER_PT } from '@/lib/mapSheet/symbolRaster'
+import { ESTIMATE_DISPLAY_CELL_M } from '@/lib/geoPdf/classGrid'
+import { mosaicTileCorners } from '@/lib/geoPdf/imageMosaic'
 import { LINE_DASH_PRESETS, LINE_DASH_UNITS, LINE_MARKER_SPACING } from '@/lib/mapSheet/symbolStyle'
 import {
   referenceGeoJson,
@@ -226,7 +229,7 @@ export function referenceLegend(
               })),
               {
                 id: `${feature.id}-unknown`,
-                label: 'Unknown transparent; JPEG estimates faded',
+                label: `Unknown transparent; JPEG estimates faded, by ${ESTIMATE_DISPLAY_CELL_M} m cell`,
                 color: '#64748b',
                 shape: 'square' as const,
               },
@@ -264,22 +267,85 @@ export function ReferenceLabels({ features }: { features: readonly ReferenceFeat
   )
 }
 
-/** Source-sheet previews share their reference layer's visibility; no numerical raster is created. */
+/** A data URL this long is handed to the map as an object URL, so megabytes of text are not compared and fetched as a string. */
+const OBJECT_URL_FROM_CHARS = 200_000
+/** How long an object URL nobody uses is kept, so a remount in the same moment finds it alive. */
+const OBJECT_URL_LINGER_MS = 2_000
+const objectUrls = new Map<string, { url: string; users: number }>()
+/** The object URL for a long data URL, made once and shared by everything that shows that image. */
+function objectUrlFor(image: string) {
+  let entry = objectUrls.get(image)
+  if (!entry) {
+    const binary = atob(image.slice(image.indexOf(',') + 1))
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    entry = {
+      url: URL.createObjectURL(new Blob([bytes], { type: image.slice(5, image.indexOf(';')) })),
+      users: 0,
+    }
+    objectUrls.set(image, entry)
+  }
+  return entry
+}
+/**
+ * One stored picture on the plan. A long data URL (a native-pixel class display, an image layer's
+ * tile) is shown through an object URL, released a moment after its last user unmounts: an effect
+ * that revoked it at once would leave React's strict-mode remount holding a dead address.
+ */
+function SheetImage({
+  id,
+  image,
+  coordinates,
+}: {
+  id: string
+  image: string
+  coordinates: [[number, number], [number, number], [number, number], [number, number]]
+}) {
+  const long = image.length >= OBJECT_URL_FROM_CHARS && typeof URL.createObjectURL === 'function'
+  const url = useMemo(() => (long ? objectUrlFor(image).url : image), [image, long])
+  useEffect(() => {
+    if (!long) return
+    const entry = objectUrlFor(image)
+    entry.users++
+    return () => {
+      entry.users--
+      window.setTimeout(() => {
+        if (entry.users > 0 || objectUrls.get(image) !== entry) return
+        URL.revokeObjectURL(entry.url)
+        objectUrls.delete(image)
+      }, OBJECT_URL_LINGER_MS)
+    }
+  }, [image, long])
+  return <MapImageLayer id={id} url={url} coordinates={coordinates} opacity={0.8} beforeId="road-contours" />
+}
+
+/**
+ * Source-sheet previews, class displays and image layers share their reference layer's visibility;
+ * no numerical raster is created. An image layer is drawn tile by tile, as the PDF stores it.
+ */
 export function ReferenceSheets({ features }: { features: readonly ReferenceFeature[] }) {
   return (
     <>
-      {features
-        .filter((feature) => feature.sheet)
-        .map((feature) => (
-          <MapImageLayer
-            key={feature.id}
-            id={`road-source-sheet-${feature.id}`}
-            url={feature.sheet!.image}
-            coordinates={feature.sheet!.corners}
-            opacity={0.8}
-            beforeId="road-contours"
+      {features.flatMap((feature) => [
+        ...(feature.sheet
+          ? [
+              <SheetImage
+                key={feature.id}
+                id={`road-source-sheet-${feature.id}`}
+                image={feature.sheet.image}
+                coordinates={feature.sheet.corners}
+              />,
+            ]
+          : []),
+        ...(feature.imageMosaic?.tiles.map((tile, index) => (
+          <SheetImage
+            key={`${feature.id}-${index}`}
+            id={`road-source-image-${feature.id}-${index}`}
+            image={tile.image}
+            coordinates={mosaicTileCorners(feature.imageMosaic!, tile)}
           />
-        ))}
+        )) ?? []),
+      ])}
     </>
   )
 }

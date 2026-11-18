@@ -5,8 +5,9 @@
  * access.
  */
 import type { ContextFeature, Coordinate } from './types'
-import type { PdfSheet, PdfSource, SourceAttributes, PdfClassGrid } from '@/lib/geoPdf/types'
+import type { PdfImageMosaic, PdfSheet, PdfSource, SourceAttributes, PdfClassGrid } from '@/lib/geoPdf/types'
 import { parseClassGrid } from '@/lib/geoPdf/classGrid'
+import { parseImageMosaic } from '@/lib/geoPdf/imageMosaic'
 import { parsePdfSheet, parsePdfSource, sourceAttributes } from './sourceMetadata'
 
 export interface ReferenceFeature {
@@ -17,12 +18,18 @@ export interface ReferenceFeature {
   pdfSource?: PdfSource
   sheet?: PdfSheet
   classGrid?: PdfClassGrid
+  /** A sheet's image layer at its own pixels (hillshade, ortho imagery). */
+  imageMosaic?: PdfImageMosaic
   /** The file the feature was imported from. */
   source?: string
   /** A proposed centreline can be copied into an editable road from the Layers pane. */
   role?: 'proposed-road'
 }
 export type ReferenceShape = 'point' | 'line' | 'area'
+
+/** A sheet picture, class raster or image layer: its polygon is only the image's frame, never an area to use. */
+export const isImageFrame = (feature: Pick<ReferenceFeature, 'sheet' | 'classGrid' | 'imageMosaic'>) =>
+  !!(feature.sheet || feature.classGrid || feature.imageMosaic)
 
 export const MAX_REFERENCE_FEATURES = 500
 export const MAX_REFERENCE_VERTICES = 50_000
@@ -208,6 +215,7 @@ export function parseReferenceFeatures(raw: unknown): ReferenceFeature[] {
       ...(r.pdfSource === undefined ? {} : { pdfSource: parsePdfSource(r.pdfSource) }),
       ...(r.sheet === undefined ? {} : { sheet: parsePdfSheet(r.sheet) }),
       ...(r.classGrid === undefined ? {} : { classGrid: parseClassGrid(r.classGrid) }),
+      ...(r.imageMosaic === undefined ? {} : { imageMosaic: parseImageMosaic(r.imageMosaic) }),
     }
     if (feature.sheet && (!feature.pdfSource || feature.geometry.type !== 'Polygon'))
       fail(`${label} needs a PDF source and frame polygon for its sheet.`)
@@ -216,6 +224,8 @@ export function parseReferenceFeatures(raw: unknown): ReferenceFeature[] {
     vertices += referenceVertexCount(feature)
     if (feature.classGrid && (!feature.pdfSource || feature.geometry.type !== 'Polygon'))
       fail(`${label} needs a PDF source and frame polygon for its class raster.`)
+    if (feature.imageMosaic && (!feature.pdfSource || feature.geometry.type !== 'Polygon'))
+      fail(`${label} needs a PDF source and frame polygon for its image layer.`)
     return feature
   })
   if (vertices > MAX_REFERENCE_VERTICES)
@@ -244,7 +254,8 @@ export function referenceGeoJson(
         ...(includeSourceData && feature.pdfSource ? { pdfSource: feature.pdfSource } : {}),
         ...(includeSourceData && feature.sheet ? { pdfSheet: feature.sheet } : {}),
         ...(includeSourceData && feature.classGrid ? { pdfClassGrid: feature.classGrid } : {}),
-        ...(!includeSourceData && (feature.sheet || feature.classGrid) ? { imageFrame: true } : {}),
+        ...(includeSourceData && feature.imageMosaic ? { pdfImageMosaic: feature.imageMosaic } : {}),
+        ...(!includeSourceData && isImageFrame(feature) ? { imageFrame: true } : {}),
       },
       geometry: feature.geometry,
     })),

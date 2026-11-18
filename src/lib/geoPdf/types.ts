@@ -7,10 +7,23 @@ export const PDF_LIMITS = {
   /** Contour vertices collected for a terrain surface, separate from the drawing budget. */
   contourVertices: 3_000_000,
   previewSide: 1400,
+  /** Longer side of a class raster's display image: its native pixels up to this, sampled beyond it. */
+  classDisplaySide: 4096,
+  /** A stored sheet or class display image, as base64 characters. */
+  sheetImageChars: 12_000_000,
   registrationErrorM: 3,
+  /** A fit residual above this is named in the import notes: positions carry about that much doubt. */
+  registrationNoticeM: 0.5,
   rasterCells: 16_777_216,
   rasterImages: 32,
   rasterCompressedBytes: 8_000_000,
+  /** All the tiles of one native image layer, as stored bytes. */
+  mosaicBytes: 12_000_000,
+  /**
+   * Share of a losslessly stored tile's drawn pixels that may miss every legend colour before the
+   * tile is read as compressed-then-stored: its classes become colour-match estimates.
+   */
+  damagedTileShare: 0.25,
   losslessColorDistance: 2,
   lossyColorDistance: 24,
   colorSeparation: 12,
@@ -61,6 +74,31 @@ export interface PdfClassGrid {
   sourceImages: { reference: string; width: number; height: number; lossy: boolean; layer: string }[]
   notes: string[]
 }
+/**
+ * An image layer of the sheet at its own pixels: the tiles exactly as the PDF stores them (a JPEG
+ * file, or a PNG of lossless pixels), placed by their common pixel grid. A picture, never a measurement.
+ */
+export interface PdfImageMosaic {
+  version: 1
+  kind: 'hillshade' | 'imagery'
+  width: number
+  height: number
+  /** Native PDF image pixel corners to the declared projected CRS, in metres. */
+  transform: Matrix
+  wkt: string
+  tiles: PdfMosaicTile[]
+}
+export interface PdfMosaicTile {
+  /** `data:image/jpeg` or `data:image/png`, base64. */
+  image: string
+  col: number
+  row: number
+  width: number
+  height: number
+  reference: string
+  /** Stored as JPEG in the PDF; false for a PNG written from lossless pixels. */
+  lossy: boolean
+}
 export interface PdfLayer {
   name: string
   source: PdfSource
@@ -70,6 +108,14 @@ export interface PdfLayer {
   note: string
   sheet?: PdfSheet
   classGrid?: PdfClassGrid
+  /** An image layer at its native pixels (hillshade, ortho imagery). */
+  imageMosaic?: PdfImageMosaic
+  /**
+   * The image layer's decoded tiles in `imageMosaic.tiles` order, one grey byte a pixel, when the
+   * reader was asked for them (`PdfReadOptions.mosaicPixels`): scripts and tests, where no browser
+   * decodes the stored tiles. Never saved.
+   */
+  mosaicPixels?: Uint8Array[]
   /** Terrain grid built from the sheet's labelled contours; offered as terrain, never a reference drawing. */
   contourSurface?: import('./contours').PdfContourSurface
 }

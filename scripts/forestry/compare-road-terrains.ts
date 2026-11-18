@@ -5,7 +5,10 @@
  * the sheet's ranges and compared with the range the sheet prints there. Writes only to `output`.
  *
  * node --use-env-proxy --import tsx scripts/forestry/compare-road-terrains.ts \
- *   project.road.json Field_Layout.pdf [Slope_Map.pdf] /tmp/road-terrains.json
+ *   project.road.json Field_Layout.pdf [Slope_Map.pdf] /tmp/road-terrains.json [--hillshade Hillshade_Map.pdf]
+ *
+ * With `--hillshade`, the contour surface refined between its contours from that sheet
+ * (`hillshadeRelief.ts`) is run through the engine as a third terrain.
  *
  * The regional DEM is fetched like the app does (public Terrarium tiles); fast-png only stands in
  * for the browser's canvas decoder. The contour surface's vertical datum is not printed on the
@@ -23,20 +26,26 @@ import { parseProject } from '../../src/pages/dev-forestry-roads/project'
 import { loadRegionalTerrain, rasterSource, validateRoadRaster } from '../../src/pages/dev-forestry-roads/terrain'
 import { safeAnalyzeRoad } from '../../src/pages/dev-forestry-roads/analysisResult'
 import { contourTerrain } from '../../src/pages/dev-forestry-roads/contourTerrain'
+import { reliefSummary } from '../../src/pages/dev-forestry-roads/hillshadeReliefSummary'
+import { hillshadeOnGrid, refineWithHillshadeNow } from '../../src/lib/geoPdf/hillshadeRelief'
 import { slopeRangeIndex } from '../../src/pages/dev-forestry-roads/terrainSlopeClasses'
 import type { RoadAnalysis, TerrainSource } from '../../src/pages/dev-forestry-roads/types'
 
-const args = process.argv.slice(2)
+const all = process.argv.slice(2)
+const flag = all.indexOf('--hillshade')
+const hillshadePath = flag >= 0 ? all[flag + 1] : undefined
+const args = all.filter((_, i) => flag < 0 || (i !== flag && i !== flag + 1))
 if (args.length < 3)
   throw Error('Usage: compare-road-terrains.ts project.road.json field.pdf [slope.pdf] /tmp/out.json')
 const [projectPath, fieldPath] = args,
   output = args.at(-1)!,
   slopePath = args.length > 3 ? args[2] : undefined
 const project = parseProject(JSON.parse(await readFile(projectPath, 'utf8')))
-const readPdf = async (p: string) =>
+const readPdf = async (p: string, mosaicPixels = false) =>
   readGeoPdf(new Uint8Array(await readFile(p)), path.basename(p), runtime as never, {
     maxFeatures: 500,
     maxVertices: 50_000,
+    mosaicPixels,
     // CONTOUR_METHOD=nearest-contours builds the opt-in interpolation for comparison.
     contourMethod: process.env.CONTOUR_METHOD === 'nearest-contours' ? 'nearest-contours' : 'tin',
   })
@@ -67,6 +76,29 @@ const field = await readPdf(fieldPath)
 const contourLayer = field.layers.find((l) => l.contourSurface)
 if (!contourLayer) throw Error(`No contour surface in the field sheet: ${field.notices.join(' ')}`)
 const contours = contourTerrain(contourLayer.contourSurface!, contourLayer.source, 'not stated on the sheet')
+// The same contours with the ground between them read from the hillshade sheet.
+let refined: ReturnType<typeof contourTerrain> | undefined
+if (hillshadePath) {
+  const sheet = await readPdf(hillshadePath, true)
+  const layer = sheet.layers.find((l) => l.imageMosaic?.kind === 'hillshade')
+  if (!layer?.imageMosaic || !layer.mosaicPixels) throw Error(`No hillshade layer: ${sheet.notices.join(' ')}`)
+  const surface = contourLayer.contourSurface!
+  const relief = refineWithHillshadeNow({
+    width: surface.width,
+    height: surface.height,
+    cellM: surface.cellM,
+    prior: surface.values,
+    shade: hillshadeOnGrid(layer.imageMosaic, layer.mosaicPixels, surface),
+    anchors: surface.anchors!,
+    intervalM: surface.assignment.interval,
+  })
+  refined = contourTerrain(
+    { ...surface, values: relief.values },
+    contourLayer.source,
+    'not stated on the sheet',
+    reliefSummary(relief, path.basename(hillshadePath), surface.assignment.interval),
+  )
+}
 const slopeGrid = slopePath
   ? parseClassGrid((await readPdf(slopePath)).layers.find((l) => l.classGrid?.kind === 'slope')?.classGrid)
   : undefined
@@ -97,6 +129,7 @@ const summary = (a: RoadAnalysis) => ({
 const roads = project.alignments.map((alignment) => {
   const a = safeAnalyzeRoad(alignment, before.source, project.settings, project.context)
   const b = safeAnalyzeRoad(alignment, contours.source, project.settings, project.context)
+  const c = refined ? safeAnalyzeRoad(alignment, refined.source, project.settings, project.context) : null
   // Ground along the centreline at the same chainages (the alignment, not the terrain, sets them).
   const pairs = a.stations.flatMap((s, i) => {
     const t = b.stations[i]
@@ -125,6 +158,7 @@ const roads = project.alignments.map((alignment) => {
   let scored = 0,
     agreeBefore = 0,
     agreeContours = 0,
+    agreeRefined = 0,
     exact = 0
   if (slopeGrid)
     for (const p of pairs) {
@@ -140,6 +174,9 @@ const roads = project.alignments.map((alignment) => {
       const x = slopeAt(before.source, p.coordinate),
         y = slopeAt(contours.source, p.coordinate)
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+      const z = refined ? slopeAt(refined.source, p.coordinate) : NaN
+      if (refined && !Number.isFinite(z)) continue
+      if (refined && Math.abs(slopeRangeIndex(slopeGrid.legend, z) - sheetRange) <= 1) agreeRefined++
       scored++
       if (knownClass(sheet.code, slopeGrid) || sheet.code === 0) exact++
       // Within one printed range, as the sheet's own colours are read.
@@ -150,6 +187,27 @@ const roads = project.alignments.map((alignment) => {
     road: alignment.name,
     projectTerrain: summary(a),
     contourTerrain: summary(b),
+    ...(c
+      ? {
+          hillshadeTerrain: {
+            ...summary(c),
+            medianGroundGradePercent: quantile(c.stations, 0.5),
+            p90GroundGradePercent: quantile(c.stations, 0.9),
+            meanGradeChangePercent: roughness(c.stations),
+            // Ground at the centreline against the plain contour surface, station by station.
+            medianChangeFromContoursM: (() => {
+              const d = c.stations
+                .flatMap((s, i) =>
+                  s.groundElevation !== null && b.stations[i]?.groundElevation != null
+                    ? [Math.abs(s.groundElevation - b.stations[i].groundElevation!)]
+                    : [],
+                )
+                .sort((x, y) => x - y)
+              return d.length ? Math.round(d[Math.floor(d.length / 2)] * 100) / 100 : null
+            })(),
+          },
+        }
+      : {}),
     ground: {
       stationsCompared: pairs.length,
       meanOffsetM: Math.round(mean * 100) / 100,
@@ -171,6 +229,9 @@ const roads = project.alignments.map((alignment) => {
           stationsWithExactSheetClass: exact,
           projectTerrainWithinOneRange: scored ? Math.round((agreeBefore / scored) * 1000) / 10 : null,
           contourTerrainWithinOneRange: scored ? Math.round((agreeContours / scored) * 1000) / 10 : null,
+          ...(refined
+            ? { hillshadeTerrainWithinOneRange: scored ? Math.round((agreeRefined / scored) * 1000) / 10 : null }
+            : {}),
         }
       : null,
   }
@@ -178,6 +239,7 @@ const roads = project.alignments.map((alignment) => {
 const result = {
   projectTerrain: before.name,
   contourTerrain: contours.metadata.name,
+  ...(refined ? { hillshadeTerrain: refined.metadata.name, hillshadeSummary: refined.summary } : {}),
   contourAssignment: contourLayer.contourSurface!.assignment,
   roads,
 }

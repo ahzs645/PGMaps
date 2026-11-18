@@ -44,6 +44,12 @@ export interface PdfContourSurface {
   assignment: Omit<ContourAssignment, 'elevations'>
   /** Contour vertices after thinning along each line. */
   vertices: number
+  /**
+   * Points along the lines that carry a height, about a cell apart: column, row (fractions of a
+   * cell, cell centres at whole numbers) and height, three numbers a point. They hold the heights
+   * when the ground between contours is refined from a hillshade (`hillshadeRelief.ts`).
+   */
+  anchors?: Float32Array
   method: ContourMethod
   notes: string[]
 }
@@ -435,6 +441,8 @@ export function nearestSeeds(seed: Uint8Array, width: number, height: number): I
  * against 69%, 52% of road stations against 62%) and rougher along roads, so it is opt-in only.
  */
 export type ContourMethod = 'nearest-contours' | 'tin'
+/** Most numbers kept for a surface's contour points: three a point, 2,000,000 points. */
+const MAX_ANCHOR_NUMBERS = 6_000_000
 
 export function contourSurface(
   lines: XY[][],
@@ -482,6 +490,27 @@ export function contourSurface(
   })
   if (z.length > PDF_LIMITS.contourVertices) throw Error('The contours exceed the terrain vertex budget.')
   if (z.length < 3) throw Error('Too few contour lines carry an elevation to build a surface.')
+  // The same lines as points a cell apart, in cell coordinates, kept to the grid.
+  const anchors: number[] = []
+  lines.forEach((line, i) => {
+    const h = assignment.elevations[i]
+    if (h === null) return
+    let carried = 0
+    for (let k = 1; k < line.length; k++) {
+      const a = transform(frame.pageToProjected, line[k - 1]),
+        b = transform(frame.pageToProjected, line[k])
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1])
+      if (!(length > 0)) continue
+      for (let at = carried; at < length; at += cell) {
+        const col = (a[0] + ((b[0] - a[0]) * at) / length - ox) / cell,
+          row = (oy - (a[1] + ((b[1] - a[1]) * at) / length)) / cell
+        if (col >= 0 && row >= 0 && col <= width - 1 && row <= height - 1 && anchors.length < MAX_ANCHOR_NUMBERS)
+          anchors.push(col, row, h)
+      }
+      // Carry the spacing across the vertex, so points stay a cell apart along the whole line.
+      carried = (((carried - length) % cell) + cell) % cell
+    }
+  })
   const values = new Float32Array(width * height).fill(NaN)
   if (method === 'tin') {
     const tin = new Delaunator(coords)
@@ -582,6 +611,7 @@ export function contourSurface(
     values,
     assignment: summary,
     vertices: z.length,
+    anchors: Float32Array.from(anchors),
     method,
     notes: [
       method === 'tin'

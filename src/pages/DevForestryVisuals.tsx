@@ -431,12 +431,13 @@ import {
 import { groupLeadOf, groupMembers } from './dev-forestry/viewGroups'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
 import { bearingDegrees, lineLengthMeters, polygonAreaMeters, polygonBounds } from './dev-forestry/visibility'
-
-const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 import { useOfflineTool } from '@/lib/offline/offlineTools'
 import { keptCopySource } from '@/lib/offline/keptReads'
+
 /** The look a road view video's take starts each placement with: no yaw or tilt of the reviewer's on top. */
 const VIDEO_LOOK = { yaw: 0, tilt: 0 }
+
+const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 const NO_TARGETS: TargetPolygon[] = []
 const NO_CANDIDATES: ViewpointCandidate[] = []
 
@@ -644,11 +645,11 @@ function loadInitialScene(): ForestryScene {
 
 function DevForestryVisuals() {
   useDocumentTitle('Visual quality · PGMaps')
-  /** The 2D plan map; the eye-level road view has its own (`eyeMapRef`), mounted while it is open. */
-  const mapRef = useRef<MapRef>(null)
   // Opened once online, the page's code and everything it loads later stays available with no network.
   // Its inventory reads still need one unless *Keep inventory copies* is on: docs/app-updates-and-caching.md.
   useOfflineTool('visual-quality')
+  /** The 2D plan map; the eye-level road view has its own (`eyeMapRef`), mounted while it is open. */
+  const mapRef = useRef<MapRef>(null)
   const eyeMapRef = useRef<MapRef>(null)
   // The engine drawing the road view, while one is chosen and listening (`ExternalRoadRenderer`).
   const engineCaptureRef = useRef<EngineCaptureHandle | null>(null)

@@ -16,7 +16,7 @@ import {
   type SheetLayers,
   type SheetSymbols,
 } from './composeSheet'
-import { prepareSheetTerrain, type SheetTerrainSources } from './prepareSheet'
+import { prepareSheetTerrain, type PublishedBase, type SheetTerrainSources } from './prepareSheet'
 import { IMAGERY_BASEMAP, SHEET_PRESETS, type SheetFields, type SheetKind } from './sheets'
 
 /** Preview rasters are coarse: the preview is a thumbnail, not a proof. */
@@ -67,6 +67,8 @@ export interface BuiltSheet {
 /** Why a sheet type cannot be made from these sources, or null. A tool words its own remedy. */
 export function sheetNeeds(kind: SheetKind, sources: SheetTerrainSources): 'canopy' | 'terrain' | null {
   const base = SHEET_PRESETS[kind].base
+  // A published raster of the sheet's base stands in for the heights it would be worked out from.
+  if (sources.published?.[base as PublishedBase]) return null
   if (base === 'canopy-height' && !sources.canopy) return 'canopy'
   if ((base === 'slope' || base === 'hillshade') && !sources.terrain) return 'terrain'
   return null
@@ -95,14 +97,17 @@ export async function buildSheet(run: SheetBuild, deps: SheetBuildDeps): Promise
     }
   }
   const preset = frame.preset
+  const published = products.published
   const sourceParts = [
-    preset.base === 'slope'
-      ? `Slope % from ${run.terrainName}`
-      : preset.base === 'hillshade'
-        ? `Hillshade 315°/45° from ${run.terrainName}`
-        : preset.base === 'canopy-height'
-          ? 'Canopy height from the canopy surface'
-          : '',
+    published
+      ? published.source
+      : preset.base === 'slope'
+        ? `Slope % from ${run.terrainName}`
+        : preset.base === 'hillshade'
+          ? `Hillshade 315°/45° from ${run.terrainName}`
+          : preset.base === 'canopy-height'
+            ? 'Canopy height from the canopy surface'
+            : '',
     products.contours
       ? `contours ${products.contours.result.interval} m${products.contours.result.widened ? ' (widened to fit)' : ''}${run.contourNote ?? ''}`
       : '',

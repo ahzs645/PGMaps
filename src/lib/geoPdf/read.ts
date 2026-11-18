@@ -6,6 +6,7 @@ import { extractPaths } from './paths'
 import { PDF_DRAWING_NOTE, PDF_PROFILES } from './profiles'
 import { PDF_LIMITS, type PdfImport, type PdfLayer, type PdfSheet } from './types'
 import { extractClassRasters, type DecodedPdfImage } from './rasterRead'
+import { extractImageMosaics } from './imageMosaic'
 import type { PdfClassGrid } from './types'
 
 export interface PdfReadOptions {
@@ -17,6 +18,8 @@ export interface PdfReadOptions {
   renderClasses?: (grid: PdfClassGrid) => Promise<PdfSheet>
   /** Profiles to try, in order; the shipped list by default. A draft profile is tried here first. */
   profiles?: import('./profiles').PdfTemplateProfile[]
+  /** Also return each image layer's decoded tiles as grey bytes (`PdfLayer.mosaicPixels`). */
+  mosaicPixels?: boolean
   /** How a contour surface fills between lines; the TIN by default (see `ContourMethod`). */
   contourMethod?: import('./contours').ContourMethod
 }
@@ -32,7 +35,7 @@ export async function readGeoPdf(
   const sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>))]
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
-  const { creator, frames, notices, lossyImages, jpegBytes } = await readMapFrames(bytes)
+  const { creator, frames, notices, lossyImages, maskedImages, jpegBytes } = await readMapFrames(bytes)
   const task = runtime.getDocument({
     ...options.configure,
     data: bytes,
@@ -60,6 +63,10 @@ export async function readGeoPdf(
         profile: profile.label,
         registrationErrorM: frame.registrationErrorM,
       }
+      if (frame.registrationErrorM > PDF_LIMITS.registrationNoticeM)
+        notices.push(
+          `Page ${frame.page}: the sheet's registration points disagree by ${frame.registrationErrorM.toFixed(1)} m, so everything placed from it carries about that much doubt in position.`,
+        )
       const text = await page.getTextContent()
       const labels = [
         ...new Set(
@@ -110,6 +117,22 @@ export async function readGeoPdf(
           `Page ${frame.page}: class raster not recovered: ${error instanceof Error ? error.message : String(error)}`,
         )
       }
+      const pictures = await extractImageMosaics({
+        page,
+        list,
+        ops: runtime.OPS,
+        content,
+        frame,
+        source,
+        lossyImages,
+        maskedImages,
+        jpegBytes,
+        imagePixels: options.imagePixels,
+        keepPixels: options.mosaicPixels,
+        template: profile,
+      })
+      layers.push(...pictures.layers)
+      notices.push(...pictures.notices)
       const result = extractPaths(list, runtime.OPS, content, frame, profile.rules, options)
       for (const [name, { rule, features, overBudget }] of result.layers) {
         if (overBudget) {

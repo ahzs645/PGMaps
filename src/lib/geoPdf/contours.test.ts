@@ -72,6 +72,31 @@ describe('contour elevations', () => {
     expect(Number.isNaN(at(500_500, 6_000_400).value)).toBe(true)
     expect(surface.notes.join(' ')).toMatch(/left empty/)
   })
+
+  it('keeps the lines that carry a height as points a cell apart, for a hillshade to be tied to', () => {
+    const { heights, lines } = sheet()
+    const labels: ContourLabel[] = heights.map((z) => ({ at: [pageXFor(z), 200], value: z }))
+    const assignment = assignContourElevations(lines, labels, frame.bbox, { metresPerUnit: 2 })
+    const surface = contourSurface(lines, assignment, frame, 3005, { cellM: 5 })
+    const anchors = surface.anchors!
+    expect(anchors.length % 3).toBe(0)
+    expect(anchors.length).toBeGreaterThan(300)
+    const levels = new Set<number>()
+    for (let k = 0; k < anchors.length; k += 3) {
+      // Inside the grid, in cell coordinates, and exactly on the surface the contours make there.
+      expect(anchors[k]).toBeGreaterThanOrEqual(0)
+      expect(anchors[k]).toBeLessThanOrEqual(surface.width - 1)
+      expect(anchors[k + 1]).toBeGreaterThanOrEqual(0)
+      expect(anchors[k + 1]).toBeLessThanOrEqual(surface.height - 1)
+      expect(anchors[k + 2]).toBeCloseTo(heightAt(surface.origin[0] + anchors[k] * surface.cellM), 1)
+      levels.add(anchors[k + 2])
+    }
+    // Every level but one on the frame's edge, whose line lies outside the grid's cell centres.
+    expect(levels.size).toBeGreaterThanOrEqual(new Set(assignment.elevations.filter((z) => z !== null)).size - 1)
+    // About a cell apart along a line: neighbouring points of one line are 5 m apart on the ground.
+    const spacing = Math.hypot(anchors[3] - anchors[0], anchors[4] - anchors[1]) * surface.cellM
+    expect(spacing).toBeCloseTo(5, 0)
+  })
 })
 
 describe('sheet projections', () => {

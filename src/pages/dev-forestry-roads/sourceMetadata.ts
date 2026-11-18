@@ -44,13 +44,16 @@ export function parsePdfSource(raw: unknown): PdfSource | undefined {
   }
 }
 
+const checkedSheets = new WeakSet<object>()
 export function parsePdfSheet(raw: unknown): PdfSheet | undefined {
   if (raw === undefined) return undefined
   if (!raw || typeof raw !== 'object') throw Error('Invalid PDF sheet preview.')
+  // A native-pixel class display is megabytes of text: check it once, not on every project edit.
+  if (checkedSheets.has(raw)) return raw as PdfSheet
   const r = raw as Record<string, unknown>
   if (
     typeof r.image !== 'string' ||
-    r.image.length > 3_000_000 ||
+    r.image.length > PDF_LIMITS.sheetImageChars ||
     !/^data:image\/(?:jpeg|png);base64,[A-Za-z0-9+/]+=*$/.test(r.image)
   )
     throw Error('Invalid PDF sheet image.')
@@ -67,5 +70,7 @@ export function parsePdfSheet(raw: unknown): PdfSheet | undefined {
     )
   )
     throw Error('Invalid PDF sheet coordinates.')
-  return { image: r.image, corners: r.corners as PdfSheet['corners'] }
+  const sheet = { image: r.image, corners: r.corners as PdfSheet['corners'] }
+  checkedSheets.add(sheet)
+  return sheet
 }
