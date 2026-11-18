@@ -2831,6 +2831,7 @@ function DevForestryVisuals() {
     records: photoRecordsRef,
     onOriginalPhoto: (file, recordId) => addProjectAttachments([file], recordId),
     onRemoveOriginal: removeProjectAttachment,
+    originalOf: (recordId) => projectAttachments.find((entry) => entry.recordId === recordId)?.blob ?? null,
     setViewsOfInterest,
     // Standing at a view puts a pull-out in the scene's place; the road it was stood from is still the one assessed.
     assessedRoad: (standing?.previous ?? scene.viewpoint).coordinates,
@@ -5309,9 +5310,11 @@ function DevForestryVisuals() {
     onLineUpInOwnPhoto: (recordId, camera, checks) => {
       const record = tools.fieldRecord(recordId)
       if (!record || record.kind !== 'photo') return
-      fieldPhoto.openOwnRecord(record, null)
-      fieldPhoto.applyMatchedCamera(recordId, camera, 'Reference measurements', checks)
-      fieldPhoto.openOwnDialog('camera')
+      // The record's original is read first when one is kept; the camera is applied to the photo once it is open.
+      void fieldPhoto.openOwnRecord(record, null).then(() => {
+        fieldPhoto.applyMatchedCamera(recordId, camera, 'Reference measurements', checks)
+        fieldPhoto.openOwnDialog('camera')
+      })
     },
     onOriginalPhoto: (file, recordId) => addProjectAttachments([file], recordId),
     // A photo record goes through the photo set, so its original and any view's link to it go with it.
@@ -5372,6 +5375,7 @@ function DevForestryVisuals() {
     setPhotoJob: tools.setPhotoJob,
     removeFieldRecord: tools.removeFieldRecord,
     getRecord: tools.fieldRecord,
+    photoRecords: () => tools.photoRecords,
   }
   // Own photos across a reload (`useOwnPhotoPersistence`): the originals and each photo's camera, kept in this browser
   // beside the workspace and opened again once it has loaded.

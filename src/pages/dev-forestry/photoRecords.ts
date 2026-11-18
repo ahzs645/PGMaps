@@ -193,6 +193,51 @@ export function fieldRecordRoom(count: number, adding: number): string | null {
   return `The workspace holds at most ${MAX_FIELD_RECORDS} attachments and has ${count}: ${room} of these ${adding} fit. Remove some, or choose fewer.`
 }
 
+/**
+ * The photo record a picked file already is: the same file name and the same instant, both known. A photo chosen
+ * again is opened as that record, with its camera, acceptance and jobs, never filed a second time. A file with no
+ * recorded time matches nothing: two frames can share a name.
+ */
+export function recordOfPickedPhoto(
+  records: readonly FieldRecord[],
+  picked: { name: string; takenAtUtc: string | null },
+): FieldRecord | null {
+  if (!picked.takenAtUtc) return null
+  return (
+    records.find(
+      (record) =>
+        record.kind === 'photo' &&
+        record.takenAtUtc === picked.takenAtUtc &&
+        (record.originalName || record.name) === picked.name,
+    ) ?? null
+  )
+}
+
+/**
+ * What to say of a photo record that is not open in the set, beside its name: its date, whether its camera was
+ * accepted, and, only when it is so, that no original is kept and it will open as its stored copy.
+ */
+export function closedPhotoNotes(
+  record: Pick<FieldRecord, 'captured' | 'acceptance' | 'uses'>,
+  originalKept: boolean,
+): string[] {
+  const jobs = record.uses?.length ?? 0
+  return [
+    record.captured || null,
+    record.acceptance ? 'Camera accepted' : null,
+    jobs ? `${jobs} job${jobs === 1 ? '' : 's'}` : null,
+    originalKept ? null : 'Small copy only',
+  ].filter((note): note is string => !!note)
+}
+
+/** How many of these file names are not a photo record's already: the room a pick needs, at most. */
+export function unfiledPhotoCount(records: readonly FieldRecord[], names: readonly string[]): number {
+  const filed = new Set(
+    records.filter((record) => record.kind === 'photo').map((record) => record.originalName || record.name),
+  )
+  return names.filter((name) => !filed.has(name)).length
+}
+
 /** Every pose source, so a stored one can be checked; the record type keeps the list complete. */
 const POSE_SOURCES: Record<PoseSource, true> = {
   exif: true,

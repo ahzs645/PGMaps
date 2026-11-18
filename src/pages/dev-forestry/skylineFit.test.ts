@@ -3,11 +3,15 @@ import { describe, expect, it } from 'vitest'
 import type { PhotoPose } from './photoPose'
 import {
   SKYLINE_READERS,
+  SKY_BRIGHTER,
+  SKY_SMOOTHER,
+  believableSkyline,
   fitSkyline,
   photoSkyline,
   photoSkylineByBrightness,
   projectDirection,
   readPhotoSkyline,
+  skylineContrast,
   skylineReaderKey,
   terrainProfile,
   type Pixels,
@@ -217,5 +221,52 @@ describe('fitting the photo to the terrain', () => {
     expect(
       fitSkyline(pose(), [{ azimuth: 300, elevation: 1, distanceMeters: 5000 }], [null, null, { x: 1, y: 1 }]),
     ).toBeNull()
+  })
+})
+
+describe('whether a read line has sky above it', () => {
+  // A made-up picture: `above` and `below` give each side's brightness and how much it varies from row to row.
+  const picture = (above: [number, number], below: [number, number]) => {
+    const width = 40,
+      height = 80,
+      edge = 30
+    const data = new Uint8ClampedArray(width * height * 4)
+    for (let y = 0; y < height; y++)
+      for (let x = 0; x < width; x++) {
+        const [level, rough] = y < edge ? above : below
+        const value = level + (((x * 7 + y * 13) % 5) - 2) * rough
+        data.set([value, value, value, 255], (y * width + x) * 4)
+      }
+    const line = Array.from({ length: width }, (_, x) => ({ x, y: edge }))
+    return { pixels: { width, height, data }, line }
+  }
+
+  it('believes a smooth bright sky over rough dark ground', () => {
+    const { pixels, line } = picture([200, 1], [80, 10])
+    const contrast = skylineContrast(pixels, line)!
+    expect(contrast.brightness).toBeGreaterThan(SKY_BRIGHTER)
+    expect(contrast.texture).toBeLessThan(SKY_SMOOTHER)
+    expect(believableSkyline(pixels, line)).toBe(true)
+  })
+
+  it('believes a rough bright sky over dark ground: cloud lit from behind', () => {
+    const { pixels, line } = picture([150, 10], [50, 4])
+    expect(believableSkyline(pixels, line)).toBe(true)
+  })
+
+  it('does not believe a line across forest: as rough above as below, and hardly brighter', () => {
+    const { pixels, line } = picture([140, 10], [125, 10])
+    expect(believableSkyline(pixels, line)).toBe(false)
+  })
+
+  it('judges nothing when a line has no rows on one side', () => {
+    const { pixels } = picture([140, 10], [125, 10])
+    expect(
+      skylineContrast(
+        pixels,
+        Array.from({ length: 40 }, (_, x) => ({ x, y: 0 })),
+      ),
+    ).toBeNull()
+    expect(believableSkyline(pixels, [null, null])).toBe(true)
   })
 })

@@ -202,6 +202,69 @@ export function readPhotoSkyline(
   return reader.mode === 'auto' ? photoSkyline(pixels, columns) : photoSkylineByBrightness(pixels, reader.from, columns)
 }
 
+/**
+ * A read skyline is sky over ground only when the side above it is clearly brighter or clearly smoother than the side
+ * below. A reader will also find a line where there is no sky at all: a shadow's edge across a forest, a clearing's
+ * edge. Measured on the fourteen frames of the test flight, real skylines read 1.3 to 3 times brighter above, or
+ * 0.2 to 0.7 times as textured; the one frame of forest filling the picture read 1.1 to 1.2 and 0.8 to 1.1 by every
+ * reader, and its "best fit" was a camera 14° rolled against the phone's own tilt.
+ */
+export const SKY_BRIGHTER = 1.3
+export const SKY_SMOOTHER = 0.75
+/** Rows either side of the line left out: the edge itself is neither side. */
+const SKYLINE_MARGIN_SHARE = 0.01
+
+/** How the two sides of a read skyline differ: brightness above over below, and texture above over below. */
+export function skylineContrast(
+  pixels: Pixels,
+  line: ReadonlyArray<{ x: number; y: number } | null>,
+): { brightness: number; texture: number } | null {
+  const { width, height, data } = pixels
+  const luma = (x: number, y: number) => {
+    const i = (y * width + x) * 4
+    return 0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2]
+  }
+  const margin = Math.max(2, Math.round(height * SKYLINE_MARGIN_SHARE))
+  let skyLight = 0,
+    skySteps = 0,
+    sky = 0,
+    groundLight = 0,
+    groundSteps = 0,
+    ground = 0
+  for (const point of line) {
+    if (!point) continue
+    const x = Math.max(0, Math.min(width - 1, Math.round(point.x)))
+    const edge = Math.round(point.y)
+    let above = luma(x, 0)
+    for (let y = 1; y < height; y++) {
+      const here = luma(x, y)
+      const step = Math.abs(here - above)
+      above = here
+      if (y < edge - margin) {
+        skyLight += here
+        skySteps += step
+        sky++
+      } else if (y > edge + margin) {
+        groundLight += here
+        groundSteps += step
+        ground++
+      }
+    }
+  }
+  if (!sky || !ground) return null
+  return {
+    brightness: skyLight / sky / Math.max(1, groundLight / ground),
+    // A texture of nothing below (a flat fill) would divide by zero: any texture above then reads as rougher.
+    texture: skySteps / sky / Math.max(0.01, groundSteps / ground),
+  }
+}
+
+/** Whether a read skyline has sky above it (`skylineContrast`); a line with nothing on one side is not judged. */
+export function believableSkyline(pixels: Pixels, line: ReadonlyArray<{ x: number; y: number } | null>): boolean {
+  const contrast = skylineContrast(pixels, line)
+  return !contrast || contrast.brightness >= SKY_BRIGHTER || contrast.texture <= SKY_SMOOTHER
+}
+
 export type ProfilePoint = { azimuth: number; elevation: number; distanceMeters: number }
 
 /**

@@ -9,6 +9,7 @@ import {
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { ConfirmRemoveButton } from '@/components/ui/confirm-remove'
 import { FileButton } from '@/components/ui/file-button'
 import { TextButton } from '@/components/ui/text-button'
 import { DialogShell } from '@/components/ui/dialog-shell'
@@ -19,6 +20,7 @@ import { projectToPhoto, type PhotoPose } from './photoPose'
 import { maskAt } from './assessmentMasks'
 import { haversineMeters } from './visibility'
 import type { FieldRecord, ToolsDocument, ToolView } from './assessmentTools'
+import { PHOTO_REMOVE_DETAIL } from './photoOptions'
 import type { AnalysisResult, Viewpoint } from './types'
 
 /** The camera record's coordinates and angles; a blank pitch or roll means level (0). */
@@ -164,17 +166,16 @@ export function ToolFieldPanel({
                 {f.name} · {f.kind}
               </span>
             </TextButton>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() =>
+            <ConfirmRemoveButton
+              label={`Remove ${f.name}`}
+              question={`Remove ${f.name}?`}
+              detail={f.kind === 'photo' ? PHOTO_REMOVE_DETAIL : 'The record goes from the workspace.'}
+              onConfirm={() =>
                 f.kind === 'photo' && onRemovePhoto
                   ? onRemovePhoto(f.id)
                   : onChange((current) => ({ ...current, fields: current.fields.filter((x) => x.id !== f.id) }))
               }
-            >
-              Remove {f.name}
-            </Button>
+            />
           </div>
         ))}
         {error && <InlineAlert tone="error">{error}</InlineAlert>}

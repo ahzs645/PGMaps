@@ -181,9 +181,14 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
       })
   }
   const favoured = compared?.result.candidates[0]
+  const undecided = compared?.result.undecided ?? null
+  // A camera the ground favours is a start to take; headings it leaves open are only said.
   const groundSuggestion =
-    current && favoured && !sameHeading(favoured.pose.bearing, current.bearing) && entry?.status !== 'accepted'
-      ? { pose: favoured.pose, depth: !!favoured.cues.depth }
+    current &&
+    favoured &&
+    entry?.status !== 'accepted' &&
+    (undecided || !sameHeading(favoured.pose.bearing, current.bearing))
+      ? { pose: favoured.pose, depth: !!favoured.cues.depth, undecided }
       : null
   const viewpointId = own?.uses.find((use) => use.job === 'viewpoint')?.targetId ?? null
   const blocked = own ? lineUpBlocked(photo, actions.canLineUp) : null
@@ -408,7 +413,7 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                     photo={photo}
                     pageFeatures={actions.pageFeatures}
                     customLayers={sceneLayers}
-                    layersMenu="inline"
+                    layersMenu="corner"
                     align={align}
                     showPairs
                     readOnClick={!placing}
@@ -448,7 +453,7 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                     entry={entry}
                     suggestion={groundSuggestion}
                     onUseSuggestion={
-                      groundSuggestion
+                      groundSuggestion && !groundSuggestion.undecided
                         ? () => {
                             // The suggestion is a sector (the sweep is 30° apart), so the skyline is then searched
                             // inside it: the heading is held near the suggestion, shown under Adjust as a held angle.
@@ -562,7 +567,7 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                   pageFeatures={actions.pageFeatures}
                   customLayers={sceneLayers}
                   compact
-                  layersMenu="inline"
+                  layersMenu="corner"
                   imageClassName="max-h-[40dvh]"
                 />
               ) : (
@@ -609,7 +614,11 @@ function PhotoNeeds({
   depth,
 }: {
   entry: Parameters<typeof photoStripState>[0]
-  suggestion?: { pose: { bearing: number; pitch: number }; depth: boolean } | null
+  suggestion?: {
+    pose: { bearing: number; pitch: number }
+    depth: boolean
+    undecided?: { from: number; to: number } | null
+  } | null
   onUseSuggestion?: () => void
   /** Offered while the photo's cameras were compared without depth: depth is what tells two headings apart. */
   depth?: { busy: boolean; error: string | null; onCompare: () => void }
@@ -618,7 +627,19 @@ function PhotoNeeds({
   return (
     <div className="space-y-2">
       <NeedsLine state={state} />
-      {suggestion && onUseSuggestion && (
+      {suggestion?.undecided && (
+        <p
+          className="rounded-md border border-border bg-card p-2.5 text-xs leading-5"
+          data-testid="own-photo-ground-undecided"
+        >
+          Compared by {suggestion.depth ? 'depth and the look of the ground' : 'the look of the ground'}, cameras{' '}
+          {(suggestion.undecided.to - suggestion.undecided.from + 360) % 360 >= 300
+            ? 'in almost every direction'
+            : `heading anywhere from ${suggestion.undecided.from.toFixed(0)}° round to ${suggestion.undecided.to.toFixed(0)}°`}{' '}
+          fit about equally well: the ground in this photo does not single one out. Pair a landmark to place it.
+        </p>
+      )}
+      {suggestion && !suggestion.undecided && onUseSuggestion && (
         <div
           className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card p-2.5 text-xs leading-5"
           data-testid="own-photo-ground-suggestion"

@@ -3,6 +3,7 @@ import { emptyTools, MAX_FIELD_RECORDS, parseTools, serializeTools, type FieldRe
 import type { ExifReading, OwnPose, OwnPoseSources } from './exifPose'
 import type { PhotoAcceptance } from './photoAcceptance'
 import {
+  closedPhotoNotes,
   fieldRecordRoom,
   hasPhotoJob,
   linkPhotoJob,
@@ -13,7 +14,9 @@ import {
   photoRecordFromOwn,
   photoTakenAt,
   recordCameraPose,
+  recordOfPickedPhoto,
   searchSummaryFrom,
+  unfiledPhotoCount,
   unlinkPhotoJob,
   withFlights,
 } from './photoRecords'
@@ -182,6 +185,45 @@ describe('the workspace', () => {
       `The workspace holds at most ${MAX_FIELD_RECORDS} attachments and has 20: 4 of these 14 fit. Remove some, or choose fewer.`,
     )
     expect(fieldRecordRoom(MAX_FIELD_RECORDS, 1)).toContain('is full')
+  })
+})
+
+describe('a photo chosen again', () => {
+  const at = '2026-07-01T14:03:21.000Z'
+  const held = [record('a', at), record('b', '2026-07-01T14:03:24.000Z'), record('untimed', null)]
+
+  it('is the record with its name and its instant', () => {
+    expect(recordOfPickedPhoto(held, { name: 'a.HEIC', takenAtUtc: at })?.id).toBe('a')
+  })
+
+  it('is a new photo when the name or the instant differs, or the time is unknown', () => {
+    expect(recordOfPickedPhoto(held, { name: 'a.HEIC', takenAtUtc: '2026-07-01T14:03:22.000Z' })).toBeNull()
+    expect(recordOfPickedPhoto(held, { name: 'c.HEIC', takenAtUtc: at })).toBeNull()
+    expect(recordOfPickedPhoto(held, { name: 'untimed.HEIC', takenAtUtc: null })).toBeNull()
+  })
+
+  it('matches the name the file had, not the record renamed since', () => {
+    const renamed = [record('a', at, { name: 'North ridge' })]
+    expect(recordOfPickedPhoto(renamed, { name: 'a.HEIC', takenAtUtc: at })?.id).toBe('a')
+  })
+
+  it('never matches a record of another kind', () => {
+    expect(recordOfPickedPhoto([record('a', at, { kind: 'map' })], { name: 'a.HEIC', takenAtUtc: at })).toBeNull()
+  })
+
+  it('says of a closed record its date, its acceptance and jobs, and a missing original', () => {
+    expect(closedPhotoNotes(record('a', at), true)).toEqual(['2026-07-01'])
+    expect(closedPhotoNotes(record('a', at, { acceptance }), false)).toEqual([
+      '2026-07-01',
+      'Camera accepted',
+      'Small copy only',
+    ])
+    expect(closedPhotoNotes(record('a', null), true)).toEqual([])
+  })
+
+  it('needs room only for the names not filed yet', () => {
+    expect(unfiledPhotoCount(held, ['a.HEIC', 'b.HEIC', 'c.HEIC'])).toBe(1)
+    expect(unfiledPhotoCount([], ['a.HEIC', 'b.HEIC'])).toBe(2)
   })
 })
 

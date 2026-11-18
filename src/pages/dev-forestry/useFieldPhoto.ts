@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
 
-import { MAX_FIELD_RECORDS, type FieldRecord, type PhotoJob } from './assessmentTools'
+import type { FieldRecord, PhotoJob } from './assessmentTools'
 import { HeicDecodeError } from '@/lib/heic/heicDecode'
 import { heicDecodeConcurrency, showablePhoto } from '@/lib/heic/heicDecodeClient'
 import { loadElevationGrid } from '@/lib/forestry/terrain/demLoader'
@@ -52,6 +52,7 @@ import {
   SKYLINE_READERS,
   fitSkyline,
   photoSkyline,
+  believableSkyline,
   readPhotoSkyline,
   skylineReaderKey,
   terrainProfile,
@@ -127,7 +128,14 @@ import {
   type PhotoQueueEntry,
   type PhotoQueueState,
 } from './photoOptions'
-import { fieldRecordRoom, ownSourcesOnReopen, photoRecordFromOwn, type OwnSearchSummary } from './photoRecords'
+import {
+  fieldRecordRoom,
+  ownSourcesOnReopen,
+  photoRecordFromOwn,
+  recordOfPickedPhoto,
+  unfiledPhotoCount,
+  type OwnSearchSummary,
+} from './photoRecords'
 import {
   airborneAltitude,
   checkedPoseFor,
@@ -387,6 +395,23 @@ const EMPTY_WORK: OwnPhotoWork = Object.freeze({
 }) as OwnPhotoWork
 
 /**
+ * A record's starting camera with its eye where it was accepted. An accepted camera of an aircraft photo is up in the
+ * air; reopened on the ground it would read its own acceptance as lapsed.
+ */
+function fromAcceptedAltitude(
+  start: ReturnType<typeof startingPose>,
+  record: Pick<FieldRecord, 'acceptance'>,
+): ReturnType<typeof startingPose> {
+  const altitude = record.acceptance?.pose.altitudeMeters ?? null
+  if (altitude === null) return start
+  return {
+    ...start,
+    pose: { ...start.pose, altitudeMeters: altitude },
+    sources: { ...start.sources, eyeHeight: 'record' },
+  }
+}
+
+/**
  * The assessment tools' field records, as the photo set needs them. The page makes the tools after this hook, so it
  * passes a ref it fills once they exist (`useAssessmentTools`' `addPhotoRecords`, `updateFieldRecord`, `setPhotoJob`).
  */
@@ -404,6 +429,8 @@ export type OwnPhotoRecordsBridge = {
    * they live on the record, not in the photo's own entry in the file.
    */
   getRecord?: (id: string) => FieldRecord | null
+  /** Every photo record held now: a photo chosen again is opened as the record it already is. */
+  photoRecords?: () => readonly FieldRecord[]
 }
 
 /** A photo as a project file kept it: its original, pose, record, sources and search. */
@@ -448,11 +475,21 @@ const decodeImage = async (src: string) => {
 /** The depth model the queue uses by itself, when this browser already holds it: the small one. */
 const AUTO_DEPTH_MODEL: PhotoDepthModel = 'da2-small'
 
-/** A photo whose search came back without a camera to trust: its cameras are worth comparing by the ground. */
-const unsettled = (work: OwnPhotoWork) => work.search.status === 'done' && !work.search.result.trustworthy
+/**
+ * A photo whose search came back without a camera to trust, or with no skyline to search by over terrain that did
+ * load: its cameras are worth comparing by the ground, which is then the only evidence the page has by itself.
+ */
+const unsettled = (work: OwnPhotoWork) =>
+  work.search.status === 'done'
+    ? !work.search.result.trustworthy
+    : work.search.status === 'failed' && work.found?.terrain === true && work.found.skyline === false
 
 /** Whether everything that follows a photo's search is done: its features, and the comparison when it wants one. */
-const followedUp = (work: OwnPhotoWork) => work.features !== null && (!unsettled(work) || work.combined !== undefined)
+const followedUp = (work: OwnPhotoWork) =>
+  work.search.status === 'done'
+    ? work.features !== null && (!unsettled(work) || work.combined !== undefined)
+    : // No camera was found, so there is no seen ground to read features for: only the comparison follows.
+      work.combined !== undefined
 
 /** Drops every reader's skyline kept for a picture. */
 const forgetSkylines = (skylines: { delete(key: string): unknown }, src: string) => {
@@ -580,6 +617,7 @@ export function useFieldPhoto({
   records,
   onOriginalPhoto,
   onRemoveOriginal,
+  originalOf,
   setViewsOfInterest,
   assessedRoad,
 }: {
@@ -600,6 +638,8 @@ export function useFieldPhoto({
   onOriginalPhoto?: (file: File, recordId: string) => void
   /** Drops the attachment of a removed photo's record. */
   onRemoveOriginal?: (recordId: string) => void
+  /** The original kept for a photo's record, or null: a record opened again is read from it, at full size. */
+  originalOf?: (recordId: string) => Blob | null
   /** The scene's views of interest, for *Make a viewpoint* and for unlinking a removed photo. */
   setViewsOfInterest?: (update: (views: ViewOfInterest[]) => ViewOfInterest[]) => void
 }) {
@@ -617,8 +657,8 @@ export function useFieldPhoto({
   const activeRef = useRef(activeId)
   const sceneRef = useRef(scene)
   sceneRef.current = scene
-  const callbacks = useRef({ onOriginalPhoto, onRemoveOriginal, setViewsOfInterest })
-  callbacks.current = { onOriginalPhoto, onRemoveOriginal, setViewsOfInterest }
+  const callbacks = useRef({ onOriginalPhoto, onRemoveOriginal, originalOf, setViewsOfInterest })
+  callbacks.current = { onOriginalPhoto, onRemoveOriginal, originalOf, setViewsOfInterest }
   /** Bumped by `clear`: work begun before it is dropped when it ends. */
   const generation = useRef(0)
   /** Object URLs made for photos, by id, revoked when a photo goes. */
@@ -683,7 +723,13 @@ export function useFieldPhoto({
   const [terrainVersion, setTerrainVersion] = useState(0)
 
   const ownRequest = useRef(0)
-  const [ownStatus, setOwnStatus] = useState<{ loading: boolean; error: string | null; stage?: string }>({
+  const [ownStatus, setOwnStatus] = useState<{
+    loading: boolean
+    error: string | null
+    stage?: string
+    /** What the last add did that the reviewer did not ask for in so many words: photos opened from their records. */
+    note?: string
+  }>({
     loading: false,
     error: null,
   })
@@ -1300,13 +1346,18 @@ export function useFieldPhoto({
       return context.getImageData(0, 0, width, height)
     })
   /** The photo's own skyline by one reader, read once, in `pose`'s pixels. */
-  const skylineOf = (photo: OwnPhoto, pixels: ImageData, pose: PhotoPose, reader: SkylineReader = { mode: 'auto' }) => {
+  /** A photo's skyline as one reader reads it, in the working pixels' own coordinates; read once. */
+  const skylineRead = (photo: OwnPhoto, pixels: ImageData, reader: SkylineReader) => {
     const key = `${photo.src}|${skylineReaderKey(reader)}`
     let read = caches.skyline.get(key)
     if (!read) {
       read = readPhotoSkyline(pixels, reader, 200)
       caches.skyline.set(key, read)
     }
+    return read
+  }
+  const skylineOf = (photo: OwnPhoto, pixels: ImageData, pose: PhotoPose, reader: SkylineReader = { mode: 'auto' }) => {
+    const read = skylineRead(photo, pixels, reader)
     const sx = pose.width / pixels.width,
       sy = pose.height / pixels.height
     return read.map((point) => (point ? { x: point.x * sx, y: point.y * sy } : null))
@@ -1501,6 +1552,8 @@ export function useFieldPhoto({
     const tryReader = async (reader: SkylineReader, onProgress: (done: number) => void): Promise<Tried | null> => {
       const skyline = skylineOf(photo, pixels, base, reader)
       if (skyline.filter(Boolean).length < MIN_SKYLINE_COLUMNS) return null
+      // A line with no sky above it (a shadow's edge across forest) is not a skyline, however well a camera fits it.
+      if (!believableSkyline(pixels, skylineRead(photo, pixels, reader))) return null
       const result = await runSearch(photo, base, profile, skyline, searchPriors, signal, onProgress, reader)
       return result ? { result, skyline, reader } : null
     }
@@ -1836,7 +1889,7 @@ export function useFieldPhoto({
         takenAtUtc: photo.takenAtUtc,
         name: photo.name,
         positioned: positioned(photo),
-        searched: (work[photo.id] ?? EMPTY_WORK).search.status === 'done',
+        searched: (work[photo.id] ?? EMPTY_WORK).search.status === 'done' || unsettled(work[photo.id] ?? EMPTY_WORK),
         // Done once its features are read and, where the skyline did not settle it, its cameras are compared.
         read: followedUp(work[photo.id] ?? EMPTY_WORK),
       })),
@@ -1851,7 +1904,7 @@ export function useFieldPhoto({
     setFeaturesRunning(id)
     const before = work[id] ?? EMPTY_WORK
     const follow = async () => {
-      if (before.features === null)
+      if (before.features === null && before.search.status === 'done')
         await checkFeaturesRef.current(
           id,
           { bearing: photo.pose.bearing, pitch: photo.pose.pitch, roll: photo.pose.roll },
@@ -2374,13 +2427,18 @@ export function useFieldPhoto({
   // ---------------------------------------------------------------------------------------------------------------
   // Opening photos.
 
-  /** Reads one picked file: decoded, its tags, its lens and time, its starting pose and its record. */
+  /**
+   * Reads one picked file: decoded, its tags, its lens and time, its starting pose and its record. `recordFor` names
+   * the record the photo already is, once its name and time are read: it is then opened as that record (its id, the
+   * camera it holds, its acceptance and jobs) and `existing` says so, so no second record is filed.
+   */
   const readOwnFile = async (
     file: File,
     roadView: RoadViewPose | null,
     saved: SavedOwnPhoto | null,
     onDecoding: () => void,
-  ): Promise<{ photo: OwnPhoto; record: FieldRecord }> => {
+    recordFor?: (found: { name: string; takenAtUtc: string | null }) => FieldRecord | null,
+  ): Promise<{ photo: OwnPhoto; record: FieldRecord; existing: FieldRecord | null }> => {
     if (file.size > OWN_PHOTO_MAX_BYTES) throw new Error('Use a photo smaller than 25 MB.')
     let src: string | null = null
     try {
@@ -2399,10 +2457,13 @@ export function useFieldPhoto({
       }
       const size = await decodeImage(src)
       const exif = readExif(tags, size)
-      const start = startingPose({ exif, roadView, eyeHeightMeters })
       const lens = tags ? lensCheck({ exif: tags, decodedWidth: size.width, decodedHeight: size.height }) : null
       const taken = takenAtUtc(tags)
-      const id = saved?.recordId ?? createId('field')
+      const existing = saved ? null : (recordFor?.({ name: file.name, takenAtUtc: taken?.iso ?? null }) ?? null)
+      // A record's camera comes first, as it does for its stored copy; the EXIF fills what the record does not hold.
+      const read = startingPose({ exif, record: existing, roadView, eyeHeightMeters })
+      const start = existing ? fromAcceptedAltitude(read, existing) : read
+      const id = saved?.recordId ?? existing?.id ?? createId('field')
       const pose = saved?.pose ?? start.pose
       const sources = saved ? ownSourcesOnReopen(saved, start) : start.sources
       const recordImage = await fieldImageFromBlob(shown.blob)
@@ -2440,12 +2501,12 @@ export function useFieldPhoto({
         lens,
         flightId: null,
         frameIndex: null,
-        acceptance: saved?.acceptance ?? null,
-        uses: saved?.uses ?? [],
+        acceptance: saved?.acceptance ?? existing?.acceptance ?? null,
+        uses: saved?.uses ?? existing?.uses ?? [],
         chosen: null,
         savedSearch: saved?.search ?? null,
       }
-      return { photo, record }
+      return { photo, record, existing }
     } catch (error) {
       if (src) URL.revokeObjectURL(src)
       throw new Error(
@@ -2501,16 +2562,26 @@ export function useFieldPhoto({
     async (files: File[], roadView: RoadViewPose | null = null): Promise<AddOwnFilesResult> => {
       const started = generation.current
       const bridge = records?.current
-      const refused = fieldRecordRoom(bridge?.fieldCount?.() ?? 0, files.length)
-      if (refused || files.length > MAX_FIELD_RECORDS) {
-        const text = refused ?? fieldRecordRoom(0, files.length)!
-        setOwnStatus({ loading: false, error: text })
-        return { added: [], refused: text, errors: [] }
+      const filed = () => bridge?.photoRecords?.() ?? []
+      // A photo imported before is opened as its record and takes no new room. By name here, before any is read; a
+      // name that turns out to be another photo is counted when its record is added.
+      const refused = fieldRecordRoom(
+        bridge?.fieldCount?.() ?? 0,
+        unfiledPhotoCount(
+          filed(),
+          files.map((file) => file.name),
+        ),
+      )
+      if (refused) {
+        setOwnStatus({ loading: false, error: refused })
+        return { added: [], refused, errors: [] }
       }
       const added: OwnPhoto[] = []
       const errors: string[] = []
       let read = 0,
         decoding = 0,
+        reopened = 0,
+        already = 0,
         full: string | null = null
       /** The photo this add opened by itself; it gives way to an earlier one only while it is still the open photo. */
       let opened: string | null = null
@@ -2541,14 +2612,39 @@ export function useFieldPhoto({
         if (started !== generation.current || full) return
         let decodingThis = false
         try {
-          const made = await readOwnFile(file, roadView, null, () => {
-            decodingThis = true
-            decoding++
-            say()
-          })
+          const made = await readOwnFile(
+            file,
+            roadView,
+            null,
+            () => {
+              decodingThis = true
+              decoding++
+              say()
+            },
+            (found) => recordOfPickedPhoto(filed(), found),
+          )
           // The set was cleared, or the workspace filled, while this one was read.
           if (started !== generation.current || full) {
             URL.revokeObjectURL(made.photo.src)
+            return
+          }
+          if (made.existing) {
+            const earlier = photoById(made.existing.id)
+            // Open from its original already: the same photo twice is one photo.
+            if (earlier?.original) {
+              URL.revokeObjectURL(made.photo.src)
+              already++
+              return
+            }
+            if (!callbacks.current.originalOf?.(made.existing.id))
+              callbacks.current.onOriginalPhoto?.(file, made.existing.id)
+            // Open from its record's small copy: the camera worked on stays, the picture becomes the original.
+            take(
+              earlier
+                ? { ...made.photo, pose: earlier.pose, sources: earlier.sources, chosen: earlier.chosen }
+                : made.photo,
+            )
+            reopened++
             return
           }
           const noRoom = bridge ? bridge.addPhotoRecords([made.record]) : null
@@ -2570,7 +2666,21 @@ export function useFieldPhoto({
       })
       if (started !== generation.current) return { added: [], refused: null, errors }
       const failed = [full, ...errors].filter(Boolean).join(' ')
-      setOwnStatus({ loading: false, error: added.length ? failed || null : failed || 'No photo was read.' })
+      const note = [
+        reopened
+          ? `${reopened === 1 ? 'One photo was' : `${reopened} photos were`} imported before: ${
+              reopened === 1 ? 'its field record was' : 'their field records were'
+            } opened, with the camera, acceptance and jobs ${reopened === 1 ? 'it holds' : 'they hold'}, not filed again.`
+          : null,
+        already ? `${already === 1 ? 'One was' : `${already} were`} already open.` : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
+      setOwnStatus({
+        loading: false,
+        error: added.length || already ? failed || null : failed || 'No photo was read.',
+        ...(note ? { note } : {}),
+      })
       return { added: queueOrder(added), refused: full, errors }
     },
     // takePhotos and readOwnFile read refs and stable setters.
@@ -2650,52 +2760,99 @@ export function useFieldPhoto({
     [addOwnFiles, openSavedPhotos],
   )
 
-  /** Opens a field record's stored photo into the set, starting from the camera the record holds. */
-  const openOwnRecord = useCallback(
-    (record: FieldRecord, roadView: RoadViewPose | null) => {
+  /** A record's stored copy as a photo in the set, starting from the camera the record holds. */
+  const copyOfRecord = (record: FieldRecord, roadView: RoadViewPose | null): OwnPhoto => {
+    // The record's GPS altitude lifts an aircraft photo before its search, as the EXIF would.
+    const start = fromAcceptedAltitude(startingPose({ exif: null, record, roadView, eyeHeightMeters }), record)
+    return {
+      id: record.id,
+      name: record.name,
+      src: record.image,
+      objectUrl: false,
+      width: record.width,
+      height: record.height,
+      recordId: record.id,
+      exif: null,
+      pose: start.pose,
+      sources: start.sources,
+      start: { pose: start.pose, sources: start.sources },
+      headingReference: start.headingReference,
+      declinationEast: null,
+      takenAtUtc: record.takenAtUtc ?? null,
+      takenAt: null,
+      lens: null,
+      flightId: record.flightId ?? null,
+      frameIndex: record.frameIndex ?? null,
+      acceptance: record.acceptance ?? null,
+      uses: record.uses ?? [],
+      chosen: null,
+      recordAltitudeMeters: record.altitude ?? null,
+    }
+  }
+
+  /**
+   * Opens field records' photos into the set: the same records carried on with (their ids, the cameras they hold,
+   * their acceptances and jobs), never new ones. Each is read from its original where one is kept, so it comes back
+   * at full size with its EXIF, time and lens; a record with no original (filed before originals were kept, or from
+   * a workspace file, which carries none) opens as its stored 1,600-pixel copy. One record opens as the active
+   * photo; several open on the earliest.
+   */
+  const openOwnRecords = useCallback(
+    async (list: readonly FieldRecord[], roadView: RoadViewPose | null): Promise<void> => {
       ownRequest.current++
-      if (photosRef.current.some((photo) => photo.id === record.id)) {
-        activate(record.id)
+      const closed = list.filter((record) => !photosRef.current.some((photo) => photo.id === record.id))
+      if (!closed.length) {
+        if (list[0]) activate(list[0].id)
         return
       }
-      const start = startingPose({ exif: null, record, roadView, eyeHeightMeters })
-      // An accepted camera stands its eye where it was accepted (an aircraft photo up in the air), or the reopened
-      // photo would stand on the ground and read its acceptance as lapsed. Without one, the record's GPS altitude
-      // lifts an aircraft photo before its search, as the EXIF would.
-      const acceptedAltitude = record.acceptance?.pose.altitudeMeters ?? null
-      const pose = acceptedAltitude === null ? start.pose : { ...start.pose, altitudeMeters: acceptedAltitude }
-      const sources: OwnPoseSources =
-        acceptedAltitude === null ? start.sources : { ...start.sources, eyeHeight: 'record' }
-      setOwnStatus({ loading: false, error: null })
-      takePhotos([
-        {
-          id: record.id,
-          name: record.name,
-          src: record.image,
-          objectUrl: false,
-          width: record.width,
-          height: record.height,
-          recordId: record.id,
-          exif: null,
-          pose,
-          sources,
-          start: { pose, sources },
-          headingReference: start.headingReference,
-          declinationEast: null,
-          takenAtUtc: record.takenAtUtc ?? null,
-          takenAt: null,
-          lens: null,
-          flightId: record.flightId ?? null,
-          frameIndex: record.frameIndex ?? null,
-          acceptance: record.acceptance ?? null,
-          uses: record.uses ?? [],
-          chosen: null,
-          recordAltitudeMeters: record.altitude ?? null,
-        },
-      ])
+      const started = generation.current
+      const kept = closed.filter((record) => callbacks.current.originalOf?.(record.id)).length
+      const errors: string[] = []
+      let read = 0
+      const say = () =>
+        setOwnStatus({
+          loading: true,
+          error: null,
+          stage: kept > 1 ? `Reading photos: ${read} of ${kept} read…` : 'Reading the photo…',
+        })
+      if (kept) say()
+      const made = await inLanes(closed, heicDecodeConcurrency(), async (record) => {
+        const original = callbacks.current.originalOf?.(record.id) ?? null
+        if (!original || started !== generation.current) return copyOfRecord(record, roadView)
+        try {
+          const file = new File([original], record.originalName || record.name, { type: original.type })
+          const { photo } = await readOwnFile(
+            file,
+            roadView,
+            null,
+            () => undefined,
+            () => record,
+          )
+          return { ...photo, name: record.name, original }
+        } catch (error) {
+          errors.push(`${record.name}: ${reason(error)} Its stored copy was opened instead.`)
+          return copyOfRecord(record, roadView)
+        } finally {
+          read++
+          if (started === generation.current && read < kept) say()
+        }
+      })
+      if (started !== generation.current) {
+        for (const photo of made) if (photo.objectUrl) URL.revokeObjectURL(photo.src)
+        return
+      }
+      takePhotos(made, list.length === 1 ? list[0].id : null)
+      setOwnStatus({ loading: false, error: errors.length ? errors.join(' ') : null })
     },
+    // takePhotos, readOwnFile and copyOfRecord read refs and stable setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [eyeHeightMeters, activate],
+    [eyeHeightMeters, activate, enqueue],
+  )
+
+  /** Opens one field record's photo (`openOwnRecords`). */
+  const openOwnRecord = useCallback(
+    (record: FieldRecord, roadView: RoadViewPose | null) => openOwnRecords([record], roadView),
+    [openOwnRecords],
   )
 
   /**
@@ -3490,6 +3647,9 @@ export function useFieldPhoto({
     ownStand,
     openOwnFile,
     openOwnRecord,
+    openOwnRecords,
+    /** Whether a record's original is kept, so it opens at full size. */
+    originalKept: (recordId: string) => !!callbacks.current.originalOf?.(recordId),
     openSavedPhotos,
     setOwnPose,
     applyMatchedCamera,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { cameraCueContributions, cameraCueScore, compareDepthGrids } from './photoCombined'
+import { cameraCueContributions, cameraCueScore, compareDepthGrids, undecidedHeadings } from './photoCombined'
 import type { DepthGrid } from './photoDepth'
 
 const grid = (value: (x: number, y: number) => number) =>
@@ -42,5 +42,48 @@ describe('combined photo evidence', () => {
 
   it('allows measured geometry to support a camera when depth and skyline are unavailable', () => {
     expect(cameraCueScore({ geometry: 0.8, appearance: 0.1 })).toBeGreaterThan(cameraCueScore({ appearance: 0.6 }))
+  })
+})
+
+describe('headings the evidence leaves open', () => {
+  it('is nothing when one camera leads, or the leaders are neighbours in the sweep', () => {
+    expect(
+      undecidedHeadings([
+        { bearing: 139, score: 1.59 },
+        { bearing: 293, score: 0.49 },
+      ]),
+    ).toBeNull()
+    expect(
+      undecidedHeadings([
+        { bearing: 240, score: 0.8 },
+        { bearing: 270, score: 0.78 },
+        { bearing: 90, score: 0.1 },
+      ]),
+    ).toBeNull()
+    expect(undecidedHeadings([{ bearing: 10, score: 1 }])).toBeNull()
+  })
+
+  it('is the arc holding every camera that fits about as well as the best', () => {
+    const scored = [
+      { bearing: 270, score: 0.82 },
+      { bearing: 240, score: 0.8 },
+      { bearing: 330, score: 0.79 },
+      { bearing: 0, score: 0.76 },
+      { bearing: 120, score: -0.1 },
+    ]
+    expect(undecidedHeadings(scored)).toEqual({ from: 240, to: 0 })
+  })
+
+  it('runs clockwise through north, and leaves out a camera that fits clearly worse', () => {
+    expect(
+      undecidedHeadings([
+        { bearing: 350, score: 1 },
+        { bearing: 60, score: 0.95 },
+        { bearing: 180, score: 0.5 },
+      ]),
+    ).toEqual({
+      from: 350,
+      to: 60,
+    })
   })
 })

@@ -6,6 +6,7 @@ import {
   compareDepthGrids,
   groundAppearance,
   terrainInverseDepth,
+  undecidedHeadings,
   COMBINED_SAMPLE_WIDTH,
   type CameraCues,
 } from './photoCombined'
@@ -34,6 +35,12 @@ export type CombinedResult = {
   depthModel: PhotoDepthModel | null
   depthIssue: string | null
   coarse: boolean
+  /**
+   * Set when the cameras that fit about as well as the best (`TIED_SCORE`) look in directions more than
+   * `UNDECIDED_SPAN_DEGREES` apart: the headings the evidence leaves open, clockwise from `from` to `to`. The best
+   * candidate is then one of several, not a camera to start from.
+   */
+  undecided: { from: number; to: number } | null
 }
 
 const unit = (n: number) => Math.max(0, Math.min(1, n))
@@ -188,5 +195,6 @@ export async function comparePhotoCameras({
     depthModel: comparison ? model : null,
     depthIssue,
     coarse,
+    undecided: undecidedHeadings(results.map(({ pose, score }) => ({ bearing: pose.bearing, score }))),
   }
 }

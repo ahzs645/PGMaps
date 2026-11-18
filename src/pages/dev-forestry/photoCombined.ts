@@ -30,6 +30,39 @@ export function cameraCueScore(cues: CameraCues): number {
   return Object.values(cameraCueContributions(cues)).reduce<number>((sum, value) => sum + (value ?? 0), 0)
 }
 
+/** Scores this close to the best are the same fit: the sweep's own steps move a score about this much. */
+export const TIED_SCORE = 0.08
+/** Tied cameras further apart than this are different answers, not one answer's neighbours (the sweep is 30° apart). */
+export const UNDECIDED_SPAN_DEGREES = 45
+
+/**
+ * The headings left open by cameras that score within `TIED_SCORE` of the best: the smallest arc holding them all,
+ * clockwise, or null when they sit within `UNDECIDED_SPAN_DEGREES` of each other.
+ */
+export function undecidedHeadings(scored: ReadonlyArray<{ bearing: number; score: number }>) {
+  if (scored.length < 2) return null
+  const best = Math.max(...scored.map(({ score }) => score))
+  const tied = [
+    ...new Set(
+      scored.filter(({ score }) => score >= best - TIED_SCORE).map(({ bearing }) => ((bearing % 360) + 360) % 360),
+    ),
+  ].sort((a, b) => a - b)
+  if (tied.length < 2) return null
+  // The arc is everything but the widest gap between neighbours.
+  let widest = 0,
+    after = 0
+  for (let i = 0; i < tied.length; i++) {
+    const gap = (tied[(i + 1) % tied.length] - tied[i] + 360) % 360
+    if (gap > widest) {
+      widest = gap
+      after = (i + 1) % tied.length
+    }
+  }
+  const span = 360 - widest
+  if (span <= UNDECIDED_SPAN_DEGREES) return null
+  return { from: tied[after], to: tied[(after + tied.length - 1) % tied.length] }
+}
+
 /** First ground intersection as reciprocal distance along the camera's forward axis. */
 export function terrainInverseDepth(hits: HitBuffer, pose: PhotoPose): DepthGrid {
   const { width, height, distance } = hits

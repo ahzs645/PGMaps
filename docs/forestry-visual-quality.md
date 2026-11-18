@@ -2000,6 +2000,53 @@ street-level photo from Mapillary, or with a photo of your own.
     photos* empties the set and leaves the originals with their records;
     opening a project replaces both. Measured: fourteen photos back in the
     set 4.9 s after a reload.
+  - **A line that is not a skyline** is dropped before it is searched
+    (`believableSkyline`, `skylineFit.ts`). Every reader will find a line
+    in a frame with no sky at all: a shadow's edge across forest, a
+    clearing's edge. A read is kept only when the side above it is clearly
+    brighter than the side below (`SKY_BRIGHTER`, 1.3 times) or clearly
+    smoother (`SKY_SMOOTHER`, 0.75 times the row-to-row texture). On the
+    test flight's fourteen frames real skylines read 1.3 to 3 times
+    brighter or 0.2 to 0.7 times as textured; the one frame of forest
+    filling the picture read 1.1 to 1.2 and 0.8 to 1.1 by every reader,
+    and before the check its "best fit" was a camera rolled 14° at the
+    edge of the pitch the phone's tilt allows, with 74% of 89 columns
+    agreeing. The other thirteen frames' cameras did not change. The
+    thresholds rest on that one flight: widen the evidence before moving
+    them. A photo with no believable skyline reads *No skyline*, and the
+    queue then compares cameras by the ground for it too.
+  - **Headings the ground leaves open** (`undecidedHeadings`,
+    `photoCombined.ts`): when the cameras that score within `TIED_SCORE` of
+    the best look more than `UNDECIDED_SPAN_DEGREES` apart, the window
+    names the arc they span and offers no camera to start from. An even
+    slope of forest gives depth one fact, which side is nearer; on the
+    frame above depth narrowed the heading from every direction to the arc
+    from 240° round to 0° and could go no further. On a frame with relief
+    it does tell headings apart: the camera the bench solved scored 0.93
+    against 0.47 and 0.43 for the other two.
+  - **Where things are in the Camera tab**: the picture stands in the same
+    place whichever of *Layers on the photo* and *Against the model view*
+    is chosen. *Layers* is a button on the photo's corner whose list opens
+    over the photo and scrolls inside the window; how to compare (swipe,
+    blend, blink) and *Fine-tune camera* are under the picture.
+  - **Photos imported before** are listed under the set on the Photos tab:
+    every photo record that is not open. *Open* (and *Open all*) carries on
+    with that record, its id, the camera it holds, its acceptance and its
+    jobs; it never files a second one (`openOwnRecords`). The photo is read
+    from its original where one is kept, so it comes back at full size with
+    its EXIF, time and lens; a record with no original (filed before
+    originals were kept, or brought in by a workspace file, which carries
+    none) reads *Small copy only* and opens as its stored 1,600-pixel copy.
+    A file chosen again is the record it already is when its name and its
+    instant both match (`recordOfPickedPhoto`, `photoRecords.ts`): it opens
+    that record, gives it the original it lacked, takes no new room in the
+    workspace, and the window says how many were opened that way. A file
+    with no recorded time matches nothing. *Remove*, on a row, on the open
+    photo, on the Use tab and in *Field records*, asks once in a popover
+    (`ConfirmRemoveButton`) and then deletes the record and its original. Measured with fourteen
+    photos: one record opened from its original in 1.7 s at 4,284 pixels
+    wide, twelve at once in 4.0 s, the same fourteen files chosen again in
+    5 to 6 s with no record added.
   - **Layers on the photo** are listed by the shared `LayerList`
     (`src/components/ui/layer-list.tsx`): the switch and the symbol first,
     then the name and a word on its state, each group with its count and a

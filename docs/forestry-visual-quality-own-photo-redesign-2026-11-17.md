@@ -188,13 +188,13 @@ Asked for after the first pass, and done:
 - **Depth for a photo the skyline cannot settle**, with its estimate kept: IMG_9310 went from 207.6° to the 263–280° sector the bench's hand trace (275.7°) sits in. First depth run 3.0 s, later runs 0.9 s.
 - **Layers on the photo** in a shared list, with a way to add any map layer; the scene's road is the first.
 - **Folds** in the window are the application's own, not the browser's `<details>`.
+- **Photos imported before** (18 November): the list under the set says what it is, opens a record from its original at full size, opens all at once, and removes a record after asking once. A file chosen again opens the record it already is instead of filing a second; before, choosing the same fourteen files twice made twenty-eight records, or was refused for room.
 
 Queue time for the fourteen photos is now about 30 s (24 s before the brightness readers): eleven photos do not settle on the colour reader and try three more.
 
 Still open:
 
 - **The spinner cost did not reproduce.** Outside DevTools the page makes no style recalculations at rest and a spinning icon runs on the compositor (0 main-thread frames in 2 s). The 120 frames a second in the trace look like the profiler's own effect; nothing was changed.
-- **A photo reopened from its field record after *Close my photos*** is still its 1,600-pixel copy, although its original is now kept. `openOwnRecord` should open the original.
 - **Scene swaps leave photos behind.** *Start from* a sample, *New site* and *Open saved preview* replace the scene and keep the photo set, its records and originals. Whether those should go with the scene is a decision.
 - **The block note's plan map is the live plan**, so it can include the photo drape, cones and track; the VIA report's maps cannot.
 - **Twelve of fourteen photos still need a landmark** to be exact. Depth picks the sector; it does not fit the camera.

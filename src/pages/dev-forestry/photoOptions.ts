@@ -450,6 +450,10 @@ export const PHOTO_FAILURE_TEXT: Record<PhotoFailureReason, string> = {
   'disagrees-with-neighbour': 'Disagrees with the frame taken just before or after it.',
 }
 
+/** What goes with a removed photo, said under the question wherever a photo is removed. */
+export const PHOTO_REMOVE_DETAIL =
+  'Its field record and its original go from this browser. A viewpoint made from it stays, without the link.'
+
 /** What a photo's dot says: nothing yet, in hand, the reviewer's to confirm, wanting the reviewer's help, or done. */
 export type PhotoStripTone = 'idle' | 'waiting' | 'working' | 'ready' | 'help' | 'done' | 'failed'
 

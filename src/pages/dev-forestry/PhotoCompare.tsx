@@ -97,64 +97,28 @@ export function PhotoCompare({ photo, active }: { photo: FieldPhotoState; active
     if (event.key === 'ArrowRight') setSplit((value) => Math.min(100, value + 5))
   }
 
+  const fineTuneButton = (
+    <Button
+      type="button"
+      variant={fineTune ? 'secondary' : 'outline'}
+      size="sm"
+      className="ml-auto touch:h-10"
+      aria-expanded={!!fineTune}
+      disabled={own.pose.lng == null || own.pose.lat == null}
+      onClick={() => {
+        setPreviewFailure(null)
+        setFineTune(fineTune ? null : { pose: own.pose, sources: own.sources, chosen: own.chosen })
+      }}
+    >
+      <SlidersHorizontal className="size-3.5" />
+      {fineTune ? 'Finish fine-tuning' : 'Fine-tune camera'}
+    </Button>
+  )
+
   return (
     <section className="space-y-2" aria-label="Photo against the model view" data-testid="own-photo-compare">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold">Compare with the model view</h4>
-        <Button
-          type="button"
-          variant={fineTune ? 'secondary' : 'outline'}
-          size="sm"
-          className="touch:h-10"
-          aria-expanded={!!fineTune}
-          disabled={own.pose.lng == null || own.pose.lat == null}
-          onClick={() => {
-            setPreviewFailure(null)
-            setFineTune(fineTune ? null : { pose: own.pose, sources: own.sources, chosen: own.chosen })
-          }}
-        >
-          <SlidersHorizontal className="size-3.5" />
-          {fineTune ? 'Finish fine-tuning' : 'Fine-tune camera'}
-        </Button>
-      </div>
-      {fineTune && <PhotoFineTune own={own} photo={photo} start={fineTune} step={step} onStep={setStep} />}
-      {fineTune && !currentView && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
-          {failed ? (
-            <>
-              The preview could not be drawn.
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                onClick={() => {
-                  setPreviewFailure(null)
-                  setRetryPreview((count) => count + 1)
-                }}
-              >
-                Retry preview
-              </Button>
-            </>
-          ) : (
-            <>
-              <Loader2 className="size-3.5 animate-spin" />
-              {activePoseKey ? 'Updating the model preview…' : 'Waiting for terrain…'}
-            </>
-          )}
-        </div>
-      )}
-      <SegmentedControl<Mode>
-        label="How to compare"
-        size="sm"
-        fullWidth={false}
-        value={mode}
-        onChange={setMode}
-        options={[
-          { value: 'swipe', label: 'Swipe' },
-          { value: 'blend', label: 'Blend' },
-          { value: 'blink', label: 'Blink (hold B)' },
-        ]}
-      />
+      {/* The picture first, where the photo with its layers stands, so switching between the two moves nothing; how
+          to compare, and the camera's fine-tuning, are under it. */}
       {!view ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <p className="min-w-0 flex-1 leading-5">
@@ -173,6 +137,7 @@ export function PhotoCompare({ photo, active }: { photo: FieldPhotoState; active
               Draw the model view for this camera
             </Button>
           )}
+          {fineTuneButton}
         </div>
       ) : (
         <>
@@ -182,7 +147,7 @@ export function PhotoCompare({ photo, active }: { photo: FieldPhotoState; active
               'relative mx-auto w-full overflow-hidden rounded-sm',
               mode === 'swipe' && 'cursor-ew-resize touch-none',
             )}
-            // No taller than the photo's own viewer, so the caption and the agreement under it stay on screen.
+            // No taller than the photo's own viewer, so the controls under it stay on screen.
             style={{ maxWidth: `calc(${fineTune ? 42 : 52}dvh * ${own.width / own.height})` }}
             onPointerDown={(event) => {
               if (mode !== 'swipe') return
@@ -220,6 +185,18 @@ export function PhotoCompare({ photo, active }: { photo: FieldPhotoState; active
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-2xs text-muted-foreground">
+            <SegmentedControl<Mode>
+              label="How to compare"
+              size="sm"
+              fullWidth={false}
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: 'swipe', label: 'Swipe' },
+                { value: 'blend', label: 'Blend' },
+                { value: 'blink', label: 'Blink (hold B)' },
+              ]}
+            />
             {mode === 'blink' && (
               <Button
                 type="button"
@@ -245,6 +222,9 @@ export function PhotoCompare({ photo, active }: { photo: FieldPhotoState; active
                 />
               </label>
             )}
+            {fineTuneButton}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-2xs text-muted-foreground">
             <span className="tabular-nums">
               {!currentView
                 ? 'Preview for the previous camera'
@@ -262,11 +242,33 @@ export function PhotoCompare({ photo, active }: { photo: FieldPhotoState; active
               </Button>
             )}
           </div>
-          <p className="text-2xs leading-4 text-muted-foreground">
-            Agreement compares brightness and edges where the model has satellite imagery. Check where individual
-            landmarks line up before accepting a camera.
-          </p>
         </>
+      )}
+      {fineTune && <PhotoFineTune own={own} photo={photo} start={fineTune} step={step} onStep={setStep} />}
+      {fineTune && !currentView && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+          {failed ? (
+            <>
+              The preview could not be drawn.
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => {
+                  setPreviewFailure(null)
+                  setRetryPreview((count) => count + 1)
+                }}
+              >
+                Retry preview
+              </Button>
+            </>
+          ) : (
+            <>
+              <Loader2 className="size-3.5 animate-spin" />
+              {activePoseKey ? 'Updating the model preview…' : 'Waiting for terrain…'}
+            </>
+          )}
+        </div>
       )}
       {compareCandidates && (
         <div className="space-y-2 border-t border-border pt-2">

@@ -104,11 +104,13 @@ export function PhotoCombinedPanel({ photo }: { photo: FieldPhotoState }) {
       summary={
         progress
           ? 'Comparing…'
-          : best
-            ? `Best ${best.pose.bearing.toFixed(0)}° by ${best.cues.depth ? 'depth and ground' : 'ground'}${sameCamera(current, best.pose) ? ', in use' : ''}`
-            : result
-              ? `${result.tested} cameras compared`
-              : 'Ground features, skyline and depth together'
+          : best && result?.undecided
+            ? `No single heading by ${best.cues.depth ? 'depth and ground' : 'ground'}`
+            : best
+              ? `Best ${best.pose.bearing.toFixed(0)}° by ${best.cues.depth ? 'depth and ground' : 'ground'}${sameCamera(current, best.pose) ? ', in use' : ''}`
+              : result
+                ? `${result.tested} cameras compared`
+                : 'Ground features, skyline and depth together'
       }
     >
       <>

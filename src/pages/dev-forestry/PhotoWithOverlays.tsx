@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode }
 import { Layers, Loader2, RefreshCw, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { DisclosureCard } from '@/components/ui/disclosure'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useElementSize } from '@/hooks/useElementSize'
 import { ToolbarPopover } from '@/components/ui/toolbar-popover'
 import { DEFAULT_FIGURE_STYLE } from '@/lib/forestry/viaFigure/presets'
@@ -96,8 +96,8 @@ export type PhotoWithOverlaysProps = {
    * They are laid on the terrain and hidden behind nearer ground as the built-in layers are, and listed in the panel.
    */
   customLayers?: readonly PhotoCustomLayer[]
-  /** Where the layer list goes: a toolbar popover (default), or inline below the photo inside a modal window. */
-  layersMenu?: 'popover' | 'inline'
+  /** Where the layer list opens from: the toolbar under the photo (default), or a button on the photo's corner. */
+  layersMenu?: 'popover' | 'corner'
   /** Show the drag-to-align handles on the skyline. */
   align?: boolean
   /** Draw the paired points: each click, where the solved camera puts its spot, and the line between. */
@@ -505,6 +505,33 @@ export function PhotoWithOverlays({
               onAlign={(angles) => photo.setOwnPose(angles)}
             />
           )}
+          {layersMenu === 'corner' && (
+            // On the picture's corner, as a map keeps its layers: the list opens over the photo and scrolls inside
+            // what the window has room for, so the photo stays where it is while layers go on and off.
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className="absolute right-2 top-2 z-10 bg-background/90 shadow-sm backdrop-blur touch:h-10"
+                  aria-label={`Layers on the photo, ${layersOn} on`}
+                  data-testid="own-photo-layers-button"
+                >
+                  <Layers aria-hidden />
+                  Layers
+                  <span className="tabular-nums text-muted-foreground">{layersOn}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                aria-label="Layers on the photo"
+                className="max-h-[min(70dvh,var(--radix-popover-content-available-height))] w-[340px] max-w-[calc(100vw-16px)] overflow-y-auto p-0"
+              >
+                {layersPanel}
+              </PopoverContent>
+            </Popover>
+          )}
           {reading && (
             <ReadingCard
               compact={compact}
@@ -537,11 +564,6 @@ export function PhotoWithOverlays({
         {!pose && <span>Layers draw once the terrain round the photo has loaded.</span>}
         {toolbar}
       </div>
-      {layersMenu === 'inline' && (
-        <DisclosureCard title="Layers on the photo" summary={`${layersOn} on`} contentClassName="px-0 pb-0">
-          {layersPanel}
-        </DisclosureCard>
-      )}
       {!compact && <FeaturesCheck photo={photo} />}
     </div>
   )

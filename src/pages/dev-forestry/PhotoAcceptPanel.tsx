@@ -7,15 +7,17 @@
  * said plainly. One record holds the photo; every job is a link to it, never a copy.
  */
 import { useState } from 'react'
-import { Check, CircleAlert, MapPin, Trash2 } from 'lucide-react'
+import { Check, CircleAlert, MapPin } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { ConfirmRemoveButton } from '@/components/ui/confirm-remove'
 import { DisclosureRow } from '@/components/ui/disclosure'
 import { FORM_INPUT_CLASS, FormField } from '@/components/ui/form-field'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 
 import { PHOTO_JOBS, type PhotoJob } from './assessmentTools'
+import { PHOTO_REMOVE_DETAIL } from './photoOptions'
 import { METHOD_TEXT, type AcceptPreview } from './photoAcceptPreview'
 import type { FieldPhotoState } from './useFieldPhoto'
 
@@ -247,19 +249,18 @@ export function PhotoUsePanel({
           <MapPin className="h-4 w-4" />
           {viewId ? 'Update its viewpoint' : 'Make a viewpoint'}
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="touch:h-10"
-          onClick={() => {
+        <ConfirmRemoveButton
+          label={`Remove ${own.name}`}
+          question={`Remove ${own.name}?`}
+          detail={PHOTO_REMOVE_DETAIL}
+          className="ml-auto"
+          onConfirm={() => {
             photo.removePhoto(own.id)
             onRemoved?.()
           }}
         >
-          <Trash2 className="h-4 w-4" />
           Remove photo
-        </Button>
+        </ConfirmRemoveButton>
       </div>
       <p className="text-2xs leading-4 text-muted-foreground">
         Removing a photo drops its field record and its original; a view made from it stays, without the link.
