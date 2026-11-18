@@ -22,6 +22,7 @@ export function WorkbenchMapEvents({
   tool,
   onFinish,
   terrain,
+  hillshade,
 }: {
   onReady?: (m: MapLibreGL.Map | null) => void
   onCamera?: (c: Camera) => void
@@ -30,6 +31,7 @@ export function WorkbenchMapEvents({
   onInspect?: (ids: string[]) => void
   tool: Tool
   onFinish?: () => void
+  hillshade?: boolean
   terrain: boolean
 }) {
   const { map, isLoaded } = useMap()
@@ -100,7 +102,12 @@ export function WorkbenchMapEvents({
       map.getCanvas().style.cursor = ''
     }
   }, [map, tool])
-  return terrain ? <MapTerrain id="mmgis" dem={TERRAIN_DEM} terrainOnly terrain /> : null
+  return (
+    <>
+      {terrain && <MapTerrain id="mmgis" dem={TERRAIN_DEM} terrainOnly terrain />}
+      {hillshade && <MapTerrain id="mmgis-relief" dem={TERRAIN_DEM} reliefOnly />}
+    </>
+  )
 }
 /** Keep the alternate scene centered on the plan without copying its projection/pitch. */
 export function SyncScene({ source }: { source: MapLibreGL.Map | null }) {

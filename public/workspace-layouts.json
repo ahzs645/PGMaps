@@ -195,7 +195,7 @@
             {
               "label": "Map layers",
               "rows": 2,
-              "items": ["importReference", "contours", "stationLabels", "sentinel2", "earthworks"],
+              "items": ["importReference", "contours", "stationLabels", "sentinel2", "waybackTimeline", "earthworks"],
               "more": ["terrainDisplay", "mapSettings", "mapLegend"]
             },
             {
@@ -254,7 +254,7 @@
           "label": "View",
           "icon": "panels",
           "hint": "Change how the workspace is laid out.",
-          "commands": ["chooseInterface", "summarySettings", "fullscreen"]
+          "commands": ["waybackTimeline", "chooseInterface", "summarySettings", "fullscreen"]
         }
       ]
     }

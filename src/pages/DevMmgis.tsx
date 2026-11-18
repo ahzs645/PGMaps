@@ -296,7 +296,9 @@ export default function DevMmgis() {
             paintedLayers:
               map
                 ?.getStyle()
-                ?.layers?.filter((l) => /^((fill|line|circle)-layer-|fill-shared-mmgis)/.test(l.id))
+                ?.layers?.filter((l) =>
+                  /^((fill|line|circle|raster)-layer-|mmgis-relief-hillshade$|fill-shared-mmgis)/.test(l.id),
+                )
                 .map((l) => ({ id: l.id, type: l.type, paint: l.paint, visible: l.layout?.visibility !== 'none' })) ??
               [],
           },
@@ -931,6 +933,7 @@ export default function DevMmgis() {
         onFinish={finish}
         tool={tool}
         terrain={mission.terrain}
+        hillshade={mission.hillshade}
       />
       <ViewportTracker onChange={setBounds} />
       <MapTableBridge table={mapTable} />
@@ -947,7 +950,12 @@ export default function DevMmgis() {
       fallbackStyles={{ light: FALLBACK, dark: FALLBACK }}
       controls={<MapControls position="top-right" />}
     >
-      <WorkbenchMapEvents tool="inspect" terrain={mission.terrain} onInspect={editing ? undefined : inspect} />
+      <WorkbenchMapEvents
+        tool="inspect"
+        terrain={mission.terrain}
+        hillshade={mission.hillshade}
+        onInspect={editing ? undefined : inspect}
+      />
       <SyncScene source={map} />
       <MissionLayers
         mission={mission}

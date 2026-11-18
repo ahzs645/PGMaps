@@ -16,6 +16,8 @@ export interface MissionLayer extends DataLayer {
   editable: boolean
   hiddenFeatures?: string[]
 }
+export const MAX_TILE_OVERLAYS = 20
+
 export interface TileOverlay {
   id: string
   name: string
@@ -40,6 +42,7 @@ export interface Bookmark {
   tiles?: Array<Pick<TileOverlay, 'id' | 'visible' | 'opacity'>>
   time?: Mission['time']
   view?: Mission['view']
+  hillshade?: boolean
   terrain?: boolean
 }
 export interface Mission {
@@ -52,6 +55,7 @@ export interface Mission {
   bookmarks: Bookmark[]
   camera: Camera
   view: 'map' | 'split' | 'globe'
+  hillshade?: boolean
   terrain: boolean
   time: { enabled: boolean; start: string; end: string }
 }

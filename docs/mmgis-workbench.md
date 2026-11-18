@@ -117,3 +117,36 @@ PGMAPS_E2E_BASE_URL=http://127.0.0.1:5173 npx playwright test --config=playwrigh
 Browser tests stub basemaps, terrain and raster services to verify interactions
 and actual MapLibre state deterministically. They do not establish the
 availability of any remote deployment or the scientific accuracy of source data.
+
+## Terrain Viewer and historical imagery
+
+In **Rasters → Browse Wayback releases**, pick a date and add its imagery to the
+mission. Add a second release and adjust the upper layer's opacity to compare
+the same place. The mission stores each release's tile URL and attribution, so a
+saved mission reopens that release even if the catalog has since changed. Tiles
+are fetched from Esri each time they are needed. The catalog is fetched on
+request, with a 20-second timeout and a retry control.
+
+In **Terrain**, **Shade terrain relief** draws hillshade from the workbench's
+AWS Terrarium DEM, independently of 3D terrain. Either panel can open the
+current location in Iconem. The terrain link selects the same AWS source and
+carries zoom, bearing and pitch. The imagery link opens a plan view and passes
+the selected release date when available. Iconem resolves the date against its
+timeline. These are one-way links. Mission files, imported rasters, annotations
+and credentials stay in PGMaps.
+
+| Limit | Practical effect |
+| --- | --- |
+| Release date and coverage | A Wayback release dates the global mosaic. Adjacent dates may use identical pixels at a location. Use imagery metadata to establish capture date, resolution and local credits. |
+| Zoom and resolution | PGMaps requests 256 px imagery tiles through zoom 22 and overview DEM tiles through zoom 14. More screen magnification cannot recover detail. Terrain samples and imagery may have different dates and resolutions. |
+| Source compatibility | Direct tiles need browser-accessible Web Mercator URLs and CORS. The template adapter understands XYZ, ArcGIS level/row/col and numeric WMTS matrix/row/col. Other projections, matrix numbering and south-origin grids need an adapter or tile service. |
+| Network and capacity | Wayback uses Esri directly without an API key. The catalog and tile services publish no request allowance in the interfaces used here. No throughput is reserved and no tiles are archived by the workbench. The workbench allows 20 tile overlays total. Extra visible releases and split scenes increase tile traffic and GPU memory. |
+| Advanced analysis and exports | Iconem offers terrain derivatives, GeoTIFF exports and historical comparison grids up to 4 × 2 in its viewer. Its DEM export defaults to a 4,096 px longest edge, configurable in export settings. Historical batch export has a separate target resolution. Browser memory, source coverage and, for some workflows, TiTiler capacity constrain the result. PGMaps' mission export saves source references. |
+| Data rights | Both Iconem applications publish MIT-licensed code. Imagery and DEM terms come from the data providers. Each catalog item links to its release credits from the map attribution. Subscription sources such as Planet require their own access. A working tile URL alone does not establish bulk-download or redistribution rights. |
+
+Iconem is phasing out its standalone historical-satellite app. Both workbench
+links target Terrain Viewer, which exposes its state through URL parameters.
+See the [upstream migration notice](https://github.com/Iconem/historical-satellite),
+[Terrain Viewer URL contract](https://terrain-viewer.iconem.com/docs/dev/url-api/),
+[Esri Wayback](https://livingatlas.arcgis.com/wayback/) and
+[AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/).

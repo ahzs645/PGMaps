@@ -59,13 +59,14 @@ Nothing about a deployment is written into the code. The defaults are in
 `standalone/forestry-road-design/.env.production.local` (git-ignored) or in the build's
 environment, which wins over both.
 
-| Variable                        | Default                            | What it sets                                                                                                                   |
-| ------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `ROAD_DESIGN_BASE`              | `/`                                | The path the site is served from: `/` at a domain's root, `/road-design/` under a subpath                                      |
-| `VITE_ROAD_DESIGN_PATH`         | `/`                                | The designer's route below that path. The help is always at `help`                                                             |
-| `VITE_ROAD_DESIGN_GALLERY_URL`  | PGMaps' gallery                    | Where _Symbol gallery_ goes in the block sheet setup: a route, an https URL, or empty for no link                              |
-| `VITE_ROAD_DESIGN_LIDAR_MIRROR` | PGMaps' copy                       | Where the LiDAR sample terrain is read when the site has no copy below `<base>data/lidar-analysis/bc-093g086/`                 |
-| `VITE_DATA_HOSTS`               | PGMaps' data for `boundaries/BCNR` | The data folders the designer reads from another site, as `src/config/data-hosts.json`'s JSON ([data hosts](../data-hosts.md)) |
+| Variable                            | Default                            | What it sets                                                                                                                                          |
+| ----------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ROAD_DESIGN_BASE`                  | `/`                                | The path the site is served from: `/` at a domain's root, `/road-design/` under a subpath                                                             |
+| `VITE_ROAD_DESIGN_PATH`             | `/`                                | The designer's route below that path. The help is always at `help`                                                                                    |
+| `VITE_ROAD_DESIGN_GALLERY_URL`      | PGMaps' gallery                    | Where _Symbol gallery_ goes in the block sheet setup: a route, an https URL, or empty for no link                                                     |
+| `VITE_ROAD_DESIGN_LIDAR_MIRROR`     | PGMaps' copy                       | Where the LiDAR sample terrain is read when the site has no copy below `<base>data/lidar-analysis/bc-093g086/`                                        |
+| `VITE_ROAD_DESIGN_WAYBACK_TIMELINE` | `true`                             | `false` hides the plan's Esri Wayback historical imagery timeline ([Wayback release timeline](sentinel-imagery.md#optional-wayback-release-timeline)) |
+| `VITE_DATA_HOSTS`                   | PGMaps' data for `boundaries/BCNR` | The data folders the designer reads from another site, as `src/config/data-hosts.json`'s JSON ([data hosts](../data-hosts.md))                        |
 
 For example, under a subpath of another domain:
 

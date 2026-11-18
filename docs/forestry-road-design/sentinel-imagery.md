@@ -132,3 +132,36 @@ layer, never through a `styles` swap, so `setStyle` never runs.
   added to the map, the scene list renders, and the change view prints an interval.
 
 Catalogue and band caches are local to this map session. There is no polling or automatic failure retry. HTTP 429 without Retry-After holds new searches for 60 s; HTTP 503 without it keeps the normal 5 s spacing. Successful decoded bands survive cancellation of their originating effect. The public Earth Search service promises no guaranteed service: these application limits are conservative client budgets, not a published provider quota.
+
+## Optional Wayback release timeline
+
+In all four interfaces, open a georeferenced Plan and choose **Map display settings → Historical imagery timeline**.
+Ribbon also has **View → Map layers → Historical imagery timeline** and **Find tools**. In Guided map, use **View**.
+
+The timeline spans the width of the Plan pane directly below the map. On first open it shows Esri’s newest mosaic
+beneath the road linework. Drag the slider, use its arrow keys, or select **Play** to advance one release every
+two seconds until the newest. Closing the timeline removes the layer. Opening Sentinel-2 closes Wayback, and
+opening Wayback closes Sentinel-2. A release dates the mosaic. Imagery at a particular road can be older or
+identical across several releases. Like Sentinel-2, Wayback is evidence only: never a constraint, a route-search
+input or proof of a road. Tiles stop at zoom 18, as the satellite basemap's do, because Esri answers deeper rural
+BC requests with a grey placeholder; MapLibre stretches z18 beyond.
+
+On a design opened on the flat plane (no coordinate system), both imagery commands stay in place, disabled, until
+**Place on map**.
+
+The option is available by default. Set `VITE_ROAD_DESIGN_WAYBACK_TIMELINE=false` and restart Vite or rebuild the
+site to hide it; `deployment.ts` reads it with the designer's other deployment settings. Removing the variable or
+setting it to `true` restores the option. The standalone designer uses the same setting
+([standalone build](standalone-build.md)).
+
+| Limit             | Value                                                     | Where                                             |
+| ----------------- | --------------------------------------------------------- | ------------------------------------------------- |
+| Catalog request   | Gives up after 20 s; **Retry Wayback catalog** asks again | `src/lib/wayback.ts` `WAYBACK_CATALOG_TIMEOUT_MS` |
+| Playback          | One release every 2 s                                     | `WaybackTimeline.tsx` `WAYBACK_PLAYBACK_MS`       |
+| Deepest tile zoom | 18                                                        | `PlanView.tsx` (`maxZoom` on `road-wayback`)      |
+
+Opening Wayback requests the catalog. The plan then requests tiles for the selected release and visible area.
+Tile traffic varies with the viewport, zoom and playback. Esri publishes no numeric request allowance for these
+endpoints in the service information reviewed. Deployments need rights to use Esri imagery and must retain its
+attribution. The mission workbench uses the same catalog and credits for its manual release picker.
+See [workbench source limits](../mmgis-workbench.md) and [Esri’s terms summary](https://goto.arcgis.com/termsofuse/viewsummary).

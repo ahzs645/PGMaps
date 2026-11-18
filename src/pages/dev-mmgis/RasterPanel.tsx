@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { xyzTileTemplate } from '@pgmaps/geo-toolkit/map'
+import { WaybackPanel } from './WaybackPanel'
 import { Plus, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { httpUrl } from './missionCodec'
-import { clampText, uid, type Mission, type Coordinate } from './model'
+import { clampText, MAX_TILE_OVERLAYS, uid, type Mission, type Coordinate } from './model'
 import type { LocalRaster } from '../dev-forestry/types'
 import { importLocalRaster } from '../dev-forestry/toolImports'
 import { sampleRaster } from './raster'
@@ -39,7 +41,7 @@ export function RasterPanel({
     try {
       httpUrl(url)
       let tiles = [url]
-      const base = httpUrl(service).replace(/\/$/, '')
+      const base = kind === 'cog' ? httpUrl(service).replace(/\/$/, '') : ''
       if (kind === 'cog') {
         const response = await fetch(
           `${base}/cog/WebMercatorQuad/tilejson.json?url=${encodeURIComponent(url)}&bidx=${band}`,
@@ -54,23 +56,28 @@ export function RasterPanel({
           httpUrl(v)
           return v
         })
-      } else if (!['{z}', '{x}', '{y}'].every((part) => url.includes(part)))
-        throw new Error('An XYZ template must contain {z}, {x} and {y}.')
-      change((m) => ({
-        ...m,
-        tiles: [
-          ...m.tiles,
-          {
-            id: uid(),
-            name: clampText(name.trim()) || 'Raster overlay',
-            tiles,
-            visible: true,
-            opacity: 0.75,
-            attribution: clampText(attribution, 2000),
-            ...(kind === 'cog' ? { cog: { url, service: base, band } } : {}),
-          },
-        ],
-      }))
+      } else {
+        tiles = [xyzTileTemplate(url)]
+      }
+      change((m) =>
+        m.tiles.length >= MAX_TILE_OVERLAYS
+          ? m
+          : {
+              ...m,
+              tiles: [
+                ...m.tiles,
+                {
+                  id: uid(),
+                  name: clampText(name.trim()) || 'Raster overlay',
+                  tiles,
+                  visible: true,
+                  opacity: 0.75,
+                  attribution: clampText(attribution, 2000),
+                  ...(kind === 'cog' ? { cog: { url, service: base, band } } : {}),
+                },
+              ],
+            },
+      )
       setUrl('')
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Could not connect to this raster.')
@@ -80,12 +87,13 @@ export function RasterPanel({
   }
   return (
     <>
+      <WaybackPanel mission={mission} change={change} />
       <SidebarSection title="Raster sources">
         <p className="mm-help">Connect tiled imagery or a Cloud Optimized GeoTIFF through a TiTiler service.</p>
         <label className="mm-field">
           Source type
           <StyledSelect value={kind} onChange={(e) => setKind(e.target.value)}>
-            <option value="xyz">XYZ raster tiles</option>
+            <option value="xyz">XYZ or Web Mercator WMTS tiles</option>
             <option value="cog">COG through TiTiler</option>
           </StyledSelect>
         </label>
@@ -127,7 +135,11 @@ export function RasterPanel({
             placeholder="Data provider and license"
           />
         </label>
-        <Button size="sm" disabled={busy || !url.trim() || mission.tiles.length >= 20} onClick={() => void add()}>
+        <Button
+          size="sm"
+          disabled={busy || !url.trim() || mission.tiles.length >= MAX_TILE_OVERLAYS}
+          onClick={() => void add()}
+        >
           <Plus className="size-4" />
           {busy ? 'Connecting…' : 'Add raster'}
         </Button>

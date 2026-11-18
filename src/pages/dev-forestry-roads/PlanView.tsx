@@ -88,6 +88,12 @@ import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
 import { sectionCodePoints } from './sectionGeometry'
 import { safeAnalyzeRoad } from './analysisResult'
 import { TerrainRasterLayers } from './TerrainRasterLayers'
+import { MapRasterLayer } from '@/components/ui/map-layers'
+import { commandDef } from '@/components/interfaces/workspaceCommands'
+import { waybackCredit } from '@/lib/wayback'
+import { waybackTimelineAvailable, useWaybackTimeline, WaybackTimeline } from './WaybackTimeline'
+import { SENTINEL_ANCHOR_LAYER_ID } from './sentinel/planOrder'
+import { usePlanImageryOrder } from './usePlanImageryOrder'
 import { Sentinel2Layer } from './sentinel/Sentinel2Layer'
 import { Sentinel2Panel } from './sentinel/Sentinel2Panel'
 import { useSentinel2 } from './sentinel/useSentinel2'
@@ -2868,6 +2874,10 @@ export function PlanView(input: PlanProps) {
   // A project on the flat plane has no place on Earth: no basemap, online relief or imagery, and
   // a grid at round file coordinates instead.
   const plane = isLocalPlane(props.project.terrain) ? (props.project.terrain.localPlane ?? null) : null
+  const waybackAvailable = waybackTimelineAvailable(props.project.terrain)
+  const waybackActive = waybackAvailable && props.display.showWayback
+  const timeline = useWaybackTimeline(waybackActive)
+  usePlanImageryOrder(props.display.navigationMap, waybackActive && !!timeline.release, 'road-wayback')
   const planeGrid = useMemo(() => {
     if (!plane) return EMPTY_COLLECTION
     const b = terrainBounds(props.project.terrain)
@@ -3100,6 +3110,18 @@ export function PlanView(input: PlanProps) {
               </MapMarker>
             </>
           )}
+          {waybackActive && timeline.release && (
+            <MapRasterLayer
+              key={timeline.release.id}
+              id="road-wayback"
+              tiles={[timeline.release.tiles]}
+              beforeId={SENTINEL_ANCHOR_LAYER_ID}
+              attribution={waybackCredit(timeline.release)}
+              fadeDuration={0}
+              // As the satellite basemap (`map-satellite-imagery.tsx`): past z18 rural BC gets Esri's grey placeholder.
+              maxZoom={18}
+            />
+          )}
           {tools.mapLayer}
           <ReferenceLabels features={visibleReference} />
           <NotesLayer
@@ -3239,6 +3261,9 @@ export function PlanView(input: PlanProps) {
                   ['Contours', showContours, setShowContours],
                   ['Labels', showLabels, setShowLabels],
                   ['Sentinel-2 imagery', showSentinel, setShowSentinel],
+                  ...(waybackAvailable
+                    ? [[commandDef('waybackTimeline').label, waybackActive, props.display.setShowWayback] as const]
+                    : []),
                   ...(notes.length ? [['Map notes', notesVisible, setNotesVisible] as const] : []),
                   ...(reference.length && props.onReferenceVisibility
                     ? [
@@ -3455,6 +3480,7 @@ export function PlanView(input: PlanProps) {
             </Button>
           ))}
       </div>
+      {waybackActive && <WaybackTimeline timeline={timeline} onClose={() => props.display.setShowWayback(false)} />}
       <div
         ref={setLegendSlot}
         className="road-plan-legend-slot flex max-h-[45%] min-h-0 shrink-0 flex-col pb-2 empty:hidden"

@@ -9,8 +9,8 @@ export const SENTINEL_ANCHOR_LAYER_ID = 'road-contours'
  * raster (the plan's hillshade, imported backgrounds) and below the first engineering layer. A
  * hillshade picked after the imagery was added goes on top of the stack, which would cover it.
  */
-export function sentinelBeforeId(layers: ReadonlyArray<{ id: string; type: string }>): string | null {
-  const index = layers.findIndex((layer) => layer.id === SENTINEL_LAYER_ID)
+export function imageryBeforeId(layers: ReadonlyArray<{ id: string; type: string }>, id: string): string | null {
+  const index = layers.findIndex((layer) => layer.id === id)
   const anchor = layers.findIndex((layer) => layer.id === SENTINEL_ANCHOR_LAYER_ID)
   if (index < 0 || anchor < 0) return null
   if (index > anchor) return SENTINEL_ANCHOR_LAYER_ID

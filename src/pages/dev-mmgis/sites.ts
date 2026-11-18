@@ -12,6 +12,7 @@ export function captureSite(mission: Mission, name: string, camera: Camera, incl
           tiles: mission.tiles.map(({ id, visible, opacity }) => ({ id, visible, opacity })),
           time: { ...mission.time },
           view: mission.view,
+          hillshade: mission.hillshade === true,
           terrain: mission.terrain,
         }
       : {}),
@@ -31,6 +32,7 @@ export function restoreSite(mission: Mission, site: Bookmark): Mission {
     }),
     time: site.time ?? mission.time,
     view: site.view ?? mission.view,
+    hillshade: site.hillshade ?? mission.hillshade,
     terrain: site.terrain ?? mission.terrain,
   }
 }

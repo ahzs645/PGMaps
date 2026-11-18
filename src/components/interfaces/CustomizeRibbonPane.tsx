@@ -3,7 +3,7 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Pin, PinOff, Settings2, type
 import { Button } from '@/components/ui/button'
 import { AppSelect, compactSelectTriggerClass, workspaceSelectContentClass } from '@/components/ui/select'
 import { RibbonTaskPane, restorePaneFocus } from './RibbonTaskPane'
-import { workspaceCommands } from './workspaceCommands'
+import { workspaceCommands, type CommandState, type WorkspaceCommand } from './workspaceCommands'
 import { isRibbonCommand, ribbonToolLabel, type RibbonTool } from './ribbonToolCatalog'
 import { groupKey, type RibbonSection, type RibbonTab } from './ribbonPreferences'
 import type { WorkspaceToolbar } from './workspaceLayouts'
@@ -49,12 +49,14 @@ function Action({
 export function CustomizeRibbonPane({
   toolbar,
   defaults,
+  states,
   currentTab,
   onApply,
   onClose,
 }: {
   toolbar: WorkspaceToolbar
   defaults: WorkspaceToolbar
+  states: Partial<Record<WorkspaceCommand, CommandState>>
   currentTab?: string
   onApply: (toolbar: WorkspaceToolbar) => void
   onClose: () => void
@@ -109,16 +111,22 @@ export function CustomizeRibbonPane({
   }
   function toolList(area: 'items' | 'more') {
     const tools = section[area] ?? []
+    const visible = tools.filter((id) => !isRibbonCommand(id) || !states[id]?.hidden)
+    // Swap the two visible neighbours while retaining hidden commands in the saved arrangement.
+    function moveVisible(from: RibbonTool, to: RibbonTool) {
+      const index = tools.indexOf(from)
+      updateSection({ ...section, [area]: move(tools, index, tools.indexOf(to) - index) })
+    }
     const inline = area === 'items'
     const title = inline ? 'On the ribbon' : 'In group settings'
     return (
       <section className="lp-arrange-tools" aria-label={title}>
         <h3>{title}</h3>
-        {!tools.length && (
+        {!visible.length && (
           <p>{inline ? 'Use the group caption to open its tools.' : 'No tools in this group’s settings.'}</p>
         )}
         <ul>
-          {tools.map((id, index) => {
+          {visible.map((id, index) => {
             const caption = ribbonToolLabel(id)
             const Icon = isRibbonCommand(id) ? workspaceCommands[id].icon : Settings2
             return (
@@ -129,13 +137,13 @@ export function CustomizeRibbonPane({
                   label={`Move ${caption} up`}
                   icon={ArrowUp}
                   disabled={index === 0}
-                  onClick={() => updateSection({ ...section, [area]: move(tools, index, -1) })}
+                  onClick={() => moveVisible(id, visible[index - 1])}
                 />
                 <Action
                   label={`Move ${caption} down`}
                   icon={ArrowDown}
-                  disabled={index === tools.length - 1}
-                  onClick={() => updateSection({ ...section, [area]: move(tools, index, 1) })}
+                  disabled={index === visible.length - 1}
+                  onClick={() => moveVisible(id, visible[index + 1])}
                 />
                 <Action
                   label={inline ? `Move ${caption} to group settings` : `Show ${caption} on the ribbon`}

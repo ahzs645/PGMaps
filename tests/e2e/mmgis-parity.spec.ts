@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { writeArrayBuffer } from 'geotiff'
+import { encode } from 'fast-png'
 import { readFileSync } from 'node:fs'
 const overlapFeatures = JSON.parse(
   readFileSync(new URL('../fixtures/mmgis-overlap.geojson', import.meta.url), 'utf8'),
@@ -239,5 +240,80 @@ test('snaps a new point to an existing vertex and closes a polygon by its first 
   expect((await readMission(page)).draftVertices).toBe(0)
   await collapsePanel(page)
   await expectFits(page)
+  expect(errors).toEqual([])
+})
+
+test('connects Wayback tiles, restores a mission and opens the same location in Iconem', async ({ page }) => {
+  const catalog = 'https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json'
+  const tiles = 'https://wayback.maptiles.arcgis.com/test'
+  const headers = { 'Access-Control-Allow-Origin': '*' }
+  let requests = 0
+  await page.route(catalog, (route) => {
+    requests++
+    if (requests === 1) return route.fulfill({ status: 503, headers })
+    return route.fulfill({
+      headers,
+      json: {
+        10: { itemTitle: 'World Imagery (Wayback 2019-05-15)', itemURL: tiles + '/10/{level}/{row}/{col}' },
+        20: { itemTitle: 'World Imagery (Wayback 2024-03-21)', itemURL: tiles + '/20/{level}/{row}/{col}' },
+      },
+    })
+  })
+  const tile = Buffer.from(
+    encode({ width: 256, height: 256, channels: 3, data: new Uint8Array(256 * 256 * 3).fill(100) }),
+  )
+  await page.route(tiles + '/**', (route) => route.fulfill({ headers, contentType: 'image/png', body: tile }))
+  await page.route('https://s3.amazonaws.com/elevation-tiles-prod/terrarium/**', (route) =>
+    route.fulfill({ headers, contentType: 'image/png', body: tile }),
+  )
+  const errors = await openMission(page)
+  await panel(page, 'Rasters')
+  await button(page, 'Browse Wayback releases').click()
+  await expect(page.getByRole('alert').filter({ hasText: '503' })).toBeVisible()
+  await button(page, 'Retry Wayback catalog').click()
+  const picker = page.getByRole('combobox', { name: 'Wayback release' })
+  await choose(picker, { value: '10' })
+  const historical = new URL(
+    (await page.getByRole('link', { name: /Iconem historical imagery/ }).getAttribute('href'))!,
+  )
+  expect(historical.origin).toBe('https://terrain-viewer.iconem.com')
+  expect(historical.searchParams.get('appMode')).toBe('historical')
+  expect(historical.searchParams.get('dateA')).toBe(String(Date.parse('2019-05-15')))
+  const tileRequest = page.waitForRequest((request) => request.url().startsWith(tiles + '/10/'))
+  await button(page, 'Add Wayback layer').click()
+  await tileRequest
+  await expect(button(page, 'Release added')).toBeDisabled()
+  await expect
+    .poll(async () => (await readMission(page)).map.paintedLayers.some((l) => l.type === 'raster' && l.visible))
+    .toBe(true)
+  await choose(picker, { value: '20' })
+  await button(page, 'Add Wayback layer').click()
+  await page.getByRole('slider', { name: 'Wayback · 2024-03-21 opacity' }).press('ArrowLeft')
+  await expect.poll(async () => (await readMission(page)).map.loaded).toBe(true)
+  await page.reload()
+  await expect
+    .poll(async () =>
+      (await readMission(page)).map.paintedLayers
+        .filter((l) => l.type === 'raster')
+        .map((l) => l.paint['raster-opacity']),
+    )
+    .toEqual([1, 0.95])
+  expect(requests).toBe(2)
+  await panel(page, 'Terrain')
+  await page.getByLabel('Shade terrain relief').check()
+  await expect
+    .poll(async () => (await readMission(page)).map.paintedLayers.some((l) => l.type === 'hillshade'))
+    .toBe(true)
+  expect((await readMission(page)).map.terrain).toBeNull()
+  const terrain = new URL((await page.getByRole('link', { name: /Iconem Terrain Viewer/ }).getAttribute('href'))!)
+  const camera = (await readMission(page)).map.camera
+  expect([Number(terrain.searchParams.get('lng')), Number(terrain.searchParams.get('lat'))]).toEqual(camera.center)
+  expect(Number(terrain.searchParams.get('zoom'))).toBe(camera.zoom)
+  expect(terrain.searchParams.get('terrainSourceA')).toBe('aws')
+  await expect.poll(async () => (await readMission(page)).map.loaded).toBe(true)
+  await page.getByLabel('Shade terrain relief').uncheck()
+  await expect
+    .poll(async () => (await readMission(page)).map.sources.includes('mmgis-relief-dem-hillshade'))
+    .toBe(false)
   expect(errors).toEqual([])
 })

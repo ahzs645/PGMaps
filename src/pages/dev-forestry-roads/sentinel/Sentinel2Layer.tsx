@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import type { Map as MapLibreMap, MapSourceDataEvent } from 'maplibre-gl'
 import { useMap } from '@/components/ui/map'
 import { MapImageLayer } from '@/components/ui/map-layers'
-import { SENTINEL_ANCHOR_LAYER_ID, SENTINEL_LAYER_ID, sentinelBeforeId } from './planOrder'
+import { SENTINEL_ANCHOR_LAYER_ID, SENTINEL_LAYER_ID } from './planOrder'
+import { usePlanImageryOrder } from '../usePlanImageryOrder'
 import type { SentinelImage } from './useSentinel2'
 
 /** The picked pixels as an object URL, revoked a little after the image changes. */
@@ -58,30 +59,13 @@ function useSourceCredit(map: MapLibreMap | null, sourceId: string, credit: stri
   }, [map, sourceId, credit])
 }
 
-/** Keeps the imagery above the plan's hillshade and imported backgrounds and under every engineering layer. */
-function useImageryOrder(map: MapLibreMap | null, active: boolean) {
-  useEffect(() => {
-    if (!map || !active) return
-    const place = () => {
-      const layers = map.getStyle()?.layers
-      const before = layers && sentinelBeforeId(layers)
-      if (before) map.moveLayer(SENTINEL_LAYER_ID, before)
-    }
-    place()
-    map.on('styledata', place)
-    return () => {
-      map.off('styledata', place)
-    }
-  }, [map, active])
-}
-
 /** The Sentinel-2 image on the plan: a georeferenced quad in its UTM window, under the engineering layers. */
 export function Sentinel2Layer({ image, credit }: { image: SentinelImage | null; credit: string | null }) {
   const { map, isLoaded } = useMap()
   const url = useImageUrl(image)
   const ready = !!map && isLoaded && !!image && !!url
   useSourceCredit(ready ? map : null, SENTINEL_LAYER_ID, credit)
-  useImageryOrder(ready ? map : null, ready)
+  usePlanImageryOrder(map, ready, SENTINEL_LAYER_ID)
   if (!ready) return null
   return (
     <MapImageLayer

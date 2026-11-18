@@ -292,6 +292,7 @@ jobs:
       VITE_ROAD_DESIGN_PATH: \${{ vars.VITE_ROAD_DESIGN_PATH }}
       VITE_ROAD_DESIGN_GALLERY_URL: \${{ vars.VITE_ROAD_DESIGN_GALLERY_URL }}
       VITE_ROAD_DESIGN_LIDAR_MIRROR: \${{ vars.VITE_ROAD_DESIGN_LIDAR_MIRROR }}
+      VITE_ROAD_DESIGN_WAYBACK_TIMELINE: \${{ vars.VITE_ROAD_DESIGN_WAYBACK_TIMELINE }}
       VITE_DATA_HOSTS: \${{ vars.VITE_DATA_HOSTS }}
     steps:
       - uses: actions/checkout@v4
@@ -309,7 +310,7 @@ jobs:
       - name: Build
         # A repository variable left unset arrives empty, and an empty value would replace .env's default.
         run: |
-          for name in VITE_ROAD_DESIGN_PATH VITE_ROAD_DESIGN_GALLERY_URL VITE_ROAD_DESIGN_LIDAR_MIRROR VITE_DATA_HOSTS; do
+          for name in VITE_ROAD_DESIGN_PATH VITE_ROAD_DESIGN_GALLERY_URL VITE_ROAD_DESIGN_LIDAR_MIRROR VITE_ROAD_DESIGN_WAYBACK_TIMELINE VITE_DATA_HOSTS; do
             if [ -z "\${!name}" ]; then unset "$name"; fi
           done
           npm run build
@@ -392,6 +393,7 @@ or as repository variables for \`.github/workflows/build.yml\`:
 | \`VITE_ROAD_DESIGN_PATH\` | \`/\` | The designer's route below that path; the help is at \`help\` |
 | \`VITE_ROAD_DESIGN_GALLERY_URL\` | PGMaps' gallery | *Symbol gallery*'s link, or empty for none |
 | \`VITE_ROAD_DESIGN_LIDAR_MIRROR\` | PGMaps' copy | Where the LiDAR sample terrain is read when the site has none |
+| \`VITE_ROAD_DESIGN_WAYBACK_TIMELINE\` | \`true\` | \`false\` hides the plan's Esri Wayback imagery timeline |
 | \`VITE_DATA_HOSTS\` | PGMaps' data | Hosts for the data folders the designer reads |
 
 ## Deploying to Cloudflare
