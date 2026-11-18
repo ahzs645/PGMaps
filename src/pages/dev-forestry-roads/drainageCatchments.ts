@@ -16,6 +16,12 @@ import { parseSnapPolicy, type SnapPolicy } from './drainagePolicies'
 export const MAX_CATCHMENT_CELLS = 4_194_304
 export const MAX_CATCHMENT_BOUNDARY_EDGES = 200_000
 export const MAX_WATERSHEDS = 1_000
+/** The widest snap radius around a requested pour point, m (`snapPourPoint` refuses more). */
+export const MAX_POUR_POINT_SNAP_M = 2_000
+/** A new pour point's snap radius, m: the road check's and the existing-ground card's. */
+export const DEFAULT_POUR_POINT_SNAP_M = 25
+/** The smallest watershed kept when watershed polygons are first turned on, ha. */
+export const DEFAULT_WATERSHED_MIN_AREA_HA = 1
 /** With `tiles`, the cells the run held (see `GridTiles`); the budget then counts those, not the box. */
 export type DrainageGrid = Pick<SurfaceGrid, 'origin' | 'cellM' | 'width' | 'height' | 'tiles'>
 export interface CatchmentProperties {
@@ -89,7 +95,7 @@ export function snapPourPoint(
     !xy.every(Number.isFinite) ||
     !Number.isFinite(radiusM) ||
     radiusM < 0 ||
-    radiusM > 2_000
+    radiusM > MAX_POUR_POINT_SNAP_M
   )
     throw Error('Choose a finite pour point and a snap radius from 0 to 2,000 m.')
   if ((elevations && elevations.length !== n) || (snapPolicy === 'lowest-elevation' && !elevations))

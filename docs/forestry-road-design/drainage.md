@@ -13,6 +13,16 @@ entered in the sidebar under Engineering → Drainage. Each place has a button t
 [crossing register](review-and-standards.md#the-crossing-register) lists the modelled crossings
 beside the mapped ones.
 
+**Its inputs** sit in one folded section, **Inputs**, under **Run drainage check**, **Culvert
+inputs** and an InfoTip that says what the check does. The section starts open on a road with no
+run and folds when its first run starts (a re-run leaves it as it is); folded, its row reads the storm, the routing and whether a pour
+point or watersheds are set. Its rows are the design storm, the culvert intensity, **Routing**
+(stream threshold, upslope buffer, depression treatment, working grid) and **Catchments** (the
+pour point and watersheds). The routing, pour-point and watershed fields are the ones
+Existing-ground drainage draws (`DrainageFields.tsx`): one set of labels, options, defaults and
+ranges, while each tool keeps its own values. With no road, the Drainage command is off and its
+tooltip points to [Existing-ground drainage](#existing-ground-drainage-before-the-first-peg).
+
 ## Before you rely on it
 
 - **Run it on real ground.** On the training hillside the streams are synthetic. On the regional
@@ -91,7 +101,8 @@ you choose.
 | Draft barrel span            | Farther daylight on both ends at the skew, rounded up to 0.5 m; unresolved: road width + 4 m, at least 12 m                                                                                                                                                                  | `crossDrainBatch.ts` `draftCulvert`, `BATCH_SPAN_STEP_M`                             | —                                                                                                     |
 | Culverts per road            | 100; diameter 0.1–20 m; length 0.2–500 m; skew −80° to 80°                                                                                                                                                                                                                   | `engineeringProject.ts`, `parseEngineering`                                          | Project refused                                                                                       |
 | Culvert off the road or grid | Chainage outside 0 to road length, or no cell found                                                                                                                                                                                                                          | `designSurface.ts`, `burnRoad`; `hydrology.ts`                                       | Warning: "outside the road or the surface grid; not checked"                                          |
-| Pour-point snap radius       | 0–2,000 m                                                                                                                                                                                                                                                                    | `drainageCatchments.ts`, `snapPourPoint`                                             | Invalid requests reject; no supported cell reports an error                                           |
+| Pour-point snap radius       | 25 m for a new pour point; 0–2,000 m                                                                                                                                                                                                                                         | `drainageCatchments.ts`, `DEFAULT_POUR_POINT_SNAP_M`, `snapPourPoint`                | Invalid requests reject; no supported cell reports an error                                           |
+| Minimum watershed            | 1 ha when watershed polygons are turned on                                                                                                                                                                                                                                   | `drainageCatchments.ts`, `DEFAULT_WATERSHED_MIN_AREA_HA`                             | —                                                                                                     |
 | Catchment/watershed grid     | 4,194,304 stored cells (the held tiles on a run)                                                                                                                                                                                                                             | `drainageCatchments.ts`, `MAX_CATCHMENT_CELLS`                                       | Rejects rather than truncates cells                                                                   |
 | Polygon boundaries           | 200,000 raw edges per basin and 200,000 combined watershed vertices                                                                                                                                                                                                          | `MAX_CATCHMENT_BOUNDARY_EDGES`                                                       | Rejects; increase minimum basin area or coarsen the analysis                                          |
 | Watersheds                   | 1,000 qualifying outlet basins                                                                                                                                                                                                                                               | `MAX_WATERSHEDS`                                                                     | Rejects; increase the minimum area                                                                    |
@@ -137,24 +148,34 @@ area. Holes in a polygon stay out of the area. An optional **upslope margin** sa
 beyond the boundary, so catchments that drain into the area are not cut off at its line; the
 margin is a buffer all round, since which side is upslope is only known after routing.
 
+**The settings.** The card's **Routing** fields are the road check's own (`DrainageRoutingFields`):
+**Stream from**, **Upslope buffer** (here measured from the area's boundary; 0 m allowed),
+**Depression treatment** and **Working grid**, then **Delineate watershed polygons** and its
+**Minimum watershed**. They keep their own values, saved with the area; changing one makes the
+routed result stale.
+
 **What is routed.** The same tiled grid as the road's check (`GridTiles`, 32-cell tiles): only the
 tiles touching the area or its margin are sampled, and the routed-cell budget counts those, never
 the box. Cells outside the area and margin are never sampled and act as outlets, like the grid's
 edge; cells inside without ground stay gaps and act as outlets too. Routing is the road check's:
 the same depression filling, D8 directions, flow accumulation, stream lines (thinned by zoom as
-above) and, when **Watersheds** is on, the same watershed partition. The card lists the terrain,
+above) and, when watershed polygons are on, the same watershed partition. The card lists the terrain,
 the working cell (and whether it was coarsened to fit the budget), the routing extent, the cells
 routed, the area and margin in hectares and the gaps in each.
 
-**Outlets.** **Pick on plan** asks for one click; the outlet snaps to the cell with the largest
-contributing area within the snap radius. The card shows the picked and snapped points, the
+**Pour point.** The road check's pour-point fields (`PourPointFields`), without the surface
+choice: **Select pour point on plan** asks for one click, and stays off with its reason until
+flow is routed; the point snaps within **Pour-point snap** by the **Outlet snap policy**
+(greatest contributing area or lowest elevation, as in the road check); its longitude and
+latitude can be typed; **Remove pour point** clears it. The card shows the snap distance, the
 contributing area, how much of it lies in the margin, and whether the catchment reaches the edge
 of the area and margin or missing ground, either of which means its area may continue past it.
-The routed grid stays in the worker, so a new outlet or snap radius is answered without routing
-again.
+The routed grid stays in the worker, so a new pour point, snap radius or snap policy is answered
+without routing again. The card's last line says it is the road check's routing and, once a road
+exists, opens that check.
 
 **Current or stale.** The results are keyed to the terrain, the area and the routing settings
-(stream threshold, margin, working cell, depression policy, watershed size; `groundDrainageKey`).
+(stream threshold, upslope buffer, working cell, depression policy, watershed size; `groundDrainageKey`).
 Pegging, moving or deleting a road leaves them current, and they stay on the plan, under the
 roads, while you peg. A new terrain, area or routing setting makes them stale: the card says so
 and the plan stops drawing them until **Route flow** is run again. Closing the card hides them.
@@ -167,14 +188,15 @@ check keeps its own inputs, runs and evidence, and never reads these.
 **Where it runs.** Sampling reads the terrain on the page in slices (`cooperative.ts`), so the
 page stays usable and **Cancel** stops it; routing and outlets run in `groundDrainage.worker.ts`.
 
-| Limit              | Value                                                            | Enforced in                                                                               | What happens when exceeded                                        |
-| ------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Routed cells       | 4,194,304 cells held in the tiles touching the area or margin    | `drainageRun.ts` `MAX_DRAINAGE_ROUTED_CELLS`; `groundDrainage.ts` `sampleAreaGridSteps`   | Cell grows by 1.25× until the touched tiles fit; the card says so |
-| Finest cell        | Maximum of 1 m, the source spacing and the optional working cell | `groundDrainage.ts` `sampleAreaGridSteps`                                                 | A finer request never upsamples the source                        |
-| Upslope margin     | 0 m default; 0–2,000 m                                           | `groundDrainage.ts` `MAX_GROUND_DRAINAGE_MARGIN_M`                                        | Refused when read from a file; the field holds the range          |
-| Stream threshold   | 1 ha default; 0.05–500 ha                                        | `groundDrainage.ts` `DEFAULT_GROUND_DRAINAGE_SETTINGS`, `parseGroundDrainageSettings`     | Refused when read; the field holds the range                      |
-| Area vertices      | 50,000                                                           | `groundDrainage.ts` `MAX_GROUND_DRAINAGE_AREA_VERTICES`                                   | The area is refused: simplify it first                            |
-| Outlet snap radius | 25 m default; 0–2,000 m                                          | `groundDrainage.ts` `MAX_GROUND_DRAINAGE_SNAP_M`; `drainageCatchments.ts` `snapPourPoint` | No supported cell within the radius: the card says so             |
+| Limit                  | Value                                                            | Enforced in                                                                                          | What happens when exceeded                                        |
+| ---------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Routed cells           | 4,194,304 cells held in the tiles touching the area or margin    | `drainageRun.ts` `MAX_DRAINAGE_ROUTED_CELLS`; `groundDrainage.ts` `sampleAreaGridSteps`              | Cell grows by 1.25× until the touched tiles fit; the card says so |
+| Finest cell            | Maximum of 1 m, the source spacing and the optional working cell | `groundDrainage.ts` `sampleAreaGridSteps`                                                            | A finer request never upsamples the source                        |
+| Upslope buffer (area)  | 0 m default; 0–2,000 m beyond the area's boundary                | `groundDrainage.ts` `MAX_GROUND_DRAINAGE_MARGIN_M`                                                   | Refused when read from a file; the field holds the range          |
+| Stream threshold       | 1 ha default; 0.05–500 ha                                        | `groundDrainage.ts` `DEFAULT_GROUND_DRAINAGE_SETTINGS`, `parseGroundDrainageSettings`                | Refused when read; the field holds the range                      |
+| Area vertices          | 50,000                                                           | `groundDrainage.ts` `MAX_GROUND_DRAINAGE_AREA_VERTICES`                                              | The area is refused: simplify it first                            |
+| Pour-point snap radius | 25 m default; 0–2,000 m (the road check's)                       | `drainageCatchments.ts` `DEFAULT_POUR_POINT_SNAP_M`, `MAX_POUR_POINT_SNAP_M`, `snapPourPoint`        | No supported cell within the radius: the card says so             |
+| Minimum watershed      | 1 ha when turned on (the road check's)                           | `drainageCatchments.ts` `DEFAULT_WATERSHED_MIN_AREA_HA`                                              | —                                                                 |
 
 ## Where flow is routed
 
@@ -209,9 +231,10 @@ so runs saved before this change ask to be recomputed.
 
 ## Pour points, watersheds and portable review
 
-**Catchments & watersheds**, folded under the Drainage view, holds the pour point and watershed
-tools. A pour point selects an arbitrary location on the plan (tap on phones). Choose existing
-ground or the design surface and a snap radius. **Greatest contributing area** is the legacy
+The **Catchments** row of the Drainage view's **Inputs** holds the pour point and watershed
+tools, the same fields as Existing-ground drainage's card. A pour point selects an arbitrary
+location on the plan (tap on phones). Choose existing ground or the design surface and a snap
+radius (25 m for a new point). **Greatest contributing area** is the legacy
 snap policy. **Lowest elevation** instead selects the lowest supported cell on the chosen
 surface before depression conditioning. Both search within the same metric radius and use
 nearest distance, then cell index, to break equal-score ties.
@@ -222,7 +245,7 @@ the road/culvert-modified ground, not the original bare-earth surface or a fille
 
 The catchment is the exact union of cells whose D8 paths reach the selected cell. Polygonization
 retains holes and disconnected components touching at a diagonal; it removes only collinear
-vertices. **Delineate watershed polygons** partitions supported cells by their terminal D8 outlet,
+vertices. **Delineate watershed polygons** (1 ha minimum when turned on) partitions supported cells by their terminal D8 outlet,
 then keeps basins meeting the entered minimum area. These are disjoint raster basins, not a
 hierarchy of nested stream catchments. A catchment or basin touching the sample edge or missing
 terrain is labelled as potentially truncated. Absence of boundary contact does not establish

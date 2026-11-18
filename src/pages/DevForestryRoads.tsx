@@ -5395,6 +5395,12 @@ export default function DevForestryRoads({
     })),
     ...commandRecord(roadDetailViews, (view) => ({
       disabled: 'roadOnly' in view ? designResultsUnavailable : editLocked,
+      reason:
+        'roadOnly' in view
+          ? view.value === 'drainage' && noRoad && !editLocked
+            ? 'Peg or sketch a road first. To see where water runs before that, use Existing-ground drainage.'
+            : resultsReason
+          : lockedReason,
     })),
     zoomIn: { disabled: !planDisplay.zoom },
     zoomOut: { disabled: !planDisplay.zoom },
@@ -6924,7 +6930,7 @@ export default function DevForestryRoads({
                                         onPickOutlet={() =>
                                           planPick
                                             ? pickOnPlan(null)
-                                            : pickOnPlan('Click the plan where the drainage outlet is.', (coordinate) =>
+                                            : pickOnPlan('Click the plan where the pour point is.', (coordinate) =>
                                                 update((p) => ({
                                                   ...p,
                                                   groundDrainage: {
@@ -6939,6 +6945,7 @@ export default function DevForestryRoads({
                                         drainage={groundDrainage}
                                         sourceM={terrainGridCellM(project.terrain)}
                                         onClose={() => setGroundDrainageOpen(false)}
+                                        onOpenRoadCheck={noRoad ? undefined : () => showDetailPane('drainage')}
                                       />
                                     ) : undefined
                                   }

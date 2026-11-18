@@ -5,6 +5,7 @@ import { alignmentLength, positionAt } from '../../src/pages/dev-forestry-roads/
 import { DEFAULT_DRAINAGE_SETTINGS } from '../../src/pages/dev-forestry-roads/drainageRun'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import type { drainageComparisonsExport } from '../../src/pages/dev-forestry-roads/drainageSensitivity'
+import { openDrainageInputs } from './road-drainage-inputs'
 import { choose } from './styled-select'
 
 test.setTimeout(180_000)
@@ -88,6 +89,7 @@ for (const size of [
       await panel.getByRole('button', { name: 'Save comparison run', exact: true }).click()
       await expect(panel.getByRole('article', { name: 'Comparison Baseline', exact: true })).toBeVisible()
 
+      await openDrainageInputs(panel)
       await chooseOption(page, 'Depression treatment', 'Preserve depressions')
       await chooseOption(page, 'Outlet snap policy', 'Lowest elevation')
       await panel.getByLabel('Requested grid cell (m)', { exact: true }).fill('10')

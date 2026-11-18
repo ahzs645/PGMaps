@@ -7,6 +7,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { initTools, runTool } from 'whitebox-wasm/tools'
 import { lasFile } from './road-fixtures'
 import { expandRoadSection } from './road-sidebar'
+import { openDrainageInputs } from './road-drainage-inputs'
 import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
@@ -62,6 +63,7 @@ test('drainage compares flow on the existing and design surfaces and reaches the
   // Both surfaces' streams reach the map.
   await expect.poll(() => drainageRoles(page)).toEqual(expect.arrayContaining(['stream-existing', 'stream-design']))
   // A changed input stales the run and takes it off the plan until it is re-run.
+  await openDrainageInputs(panel)
   await panel.getByLabel('Rainfall (mm/h)', { exact: true }).fill('60')
   await panel.getByLabel('Rainfall (mm/h)', { exact: true }).press('Tab')
   await expect(panel.getByText('The road or these inputs changed')).toBeVisible()

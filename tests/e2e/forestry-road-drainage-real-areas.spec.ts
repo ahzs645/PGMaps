@@ -10,6 +10,7 @@ import {
 } from '../../src/pages/dev-forestry-roads/drainageRun'
 import { formatRoadStation } from '../../src/pages/dev-forestry-roads/Charts'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { openDrainageInputs } from './road-drainage-inputs'
 import { choose } from './styled-select'
 
 const root = process.env.PGMAPS_ROAD_DRAINAGE_PROJECT_DIR
@@ -127,6 +128,9 @@ async function detail(page: Page) {
 }
 
 async function field(page: Page, label: string, value: number) {
+  // The drainage inputs fold when the first run starts.
+  if (label === 'Upslope buffer (m)' || label === 'Rainfall (mm/h)')
+    await openDrainageInputs(page.getByTestId('road-drainage'))
   const input = page.getByLabel(label, { exact: true })
   await input.fill(String(value))
   await input.press('Tab')

@@ -1,15 +1,15 @@
 import { useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, CloudRain, Crosshair, FileUp, PenTool, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, CloudRain, FileUp, PenTool, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
-import { Field, NumberField, RoadSelect } from './Controls'
+import { RoadSelect } from './Controls'
+import { DrainageRoutingFields, PourPointFields, WatershedFields } from './DrainageFields'
 import { MAX_DRAINAGE_ROUTED_CELLS } from './drainageRun'
 import {
   DEFAULT_GROUND_DRAINAGE_SETTINGS,
   MAX_GROUND_DRAINAGE_MARGIN_M,
-  MAX_GROUND_DRAINAGE_SNAP_M,
   type GroundDrainageArea,
   type GroundDrainageSettings,
   type GroundDrainageState,
@@ -19,7 +19,6 @@ import type { useGroundDrainage } from './useGroundDrainage'
 
 const whole = new Intl.NumberFormat('en-CA', { maximumFractionDigits: 0 })
 const two = new Intl.NumberFormat('en-CA', { maximumFractionDigits: 2 })
-const coord = new Intl.NumberFormat('en-CA', { minimumFractionDigits: 5, maximumFractionDigits: 5 })
 const SOURCE_LABEL: Record<GroundDrainageArea['source'], string> = {
   drawn: 'Drawn',
   imported: 'Imported',
@@ -34,7 +33,8 @@ export interface AreaChoice {
 /**
  * The plan card for Existing-ground drainage: the analysis area (drawn, imported or a block's
  * boundary), the routing settings, what was routed (extent, terrain, cell size, gaps) and the
- * catchment above an outlet. Values here; explanations behind the InfoTips.
+ * catchment above a pour point. Values here; explanations behind the InfoTips. The routing,
+ * watershed and pour-point fields are the road check's own (`DrainageFields.tsx`).
  */
 export function GroundDrainagePanel({
   state,
@@ -50,6 +50,7 @@ export function GroundDrainagePanel({
   drainage,
   sourceM,
   onClose,
+  onOpenRoadCheck,
 }: {
   state: GroundDrainageState | undefined
   onChange: (next: GroundDrainageState) => void
@@ -66,6 +67,8 @@ export function GroundDrainagePanel({
   drainage: ReturnType<typeof useGroundDrainage>
   sourceM: number
   onClose: () => void
+  /** Opens the road's drainage check (the Drainage detail view); omitted while there is no road. */
+  onOpenRoadCheck?: () => void
 }) {
   const [folded, setFolded] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -95,7 +98,7 @@ export function GroundDrainagePanel({
         <InfoTip label="About existing-ground drainage" bubbleClassName="max-w-72">
           Routes rain over the terrain inside the analysis area and its upslope margin, before any road is pegged: D8
           flow with the depressions filled, contributing area, stream lines and, when asked, watersheds and the
-          catchment above an outlet. It is the same routing as the road&apos;s drainage check, on the ground alone.
+          catchment above a pour point. It is the same routing as the road&apos;s drainage check, on the ground alone.
           Cells without ground stay gaps and act as outlets, so a catchment that reaches a gap or the edge of what was
           sampled may continue past it. A planning screen, not a hydrotechnical design.
         </InfoTip>
@@ -204,76 +207,32 @@ export function GroundDrainagePanel({
             )}
           </div>
 
-          <div className="grid grid-cols-2 items-end gap-1.5">
-            <NumberField
-              label="Stream at (ha)"
-              value={settings.streamThresholdHa}
-              min={0.05}
-              max={500}
-              step={0.1}
-              updateOn="commit"
-              onChange={(streamThresholdHa) => set({ streamThresholdHa })}
-            />
-            <NumberField
-              label="Upslope margin (m)"
-              value={settings.marginM}
-              min={0}
-              max={MAX_GROUND_DRAINAGE_MARGIN_M}
-              step={10}
-              updateOn="commit"
-              hint="Ground sampled beyond the area's boundary, so catchments draining into it are not cut off at the line."
-              onChange={(marginM) => set({ marginM })}
-            />
-            <Field label="Working grid">
-              <RoadSelect
-                ariaLabel="Working grid"
-                className="h-8 w-full"
-                value={settings.workingResolutionM === undefined ? 'automatic' : 'custom'}
-                onValueChange={(value) =>
-                  set({
-                    workingResolutionM: value === 'automatic' ? undefined : Math.max(5, Math.ceil(sourceM)),
-                  })
-                }
-                options={[
-                  { value: 'automatic', label: 'Source spacing' },
-                  { value: 'custom', label: 'Coarser cell' },
-                ]}
-              />
-            </Field>
-            {settings.workingResolutionM !== undefined && (
-              <NumberField
-                label="Cell (m)"
-                value={settings.workingResolutionM}
-                min={1}
-                max={100_000}
-                step={1}
+          <div className="space-y-1" role="group" aria-label="Routing">
+            <div className="text-3xs font-semibold uppercase tracking-wide text-muted-foreground">Routing</div>
+            <div className="grid grid-cols-2 items-end gap-1.5">
+              <DrainageRoutingFields
+                value={{
+                  streamThresholdHa: settings.streamThresholdHa,
+                  reachM: settings.marginM,
+                  workingResolutionM: settings.workingResolutionM,
+                  depressionPolicy: settings.depressionPolicy,
+                }}
+                reach={{
+                  min: 0,
+                  max: MAX_GROUND_DRAINAGE_MARGIN_M,
+                  hint: "Ground sampled beyond the area's boundary, so catchments draining into it are not cut off at the line.",
+                }}
+                customCellM={Math.max(5, Math.ceil(sourceM))}
                 updateOn="commit"
-                onChange={(workingResolutionM) => set({ workingResolutionM })}
+                onChange={({ reachM, ...patch }) => set(reachM === undefined ? patch : { ...patch, marginM: reachM })}
               />
-            )}
-            <Field label="Watersheds">
-              <RoadSelect
-                ariaLabel="Watersheds"
-                className="h-8 w-full"
-                value={settings.watershedMinAreaHa === undefined ? 'off' : 'on'}
-                onValueChange={(value) => set({ watershedMinAreaHa: value === 'off' ? undefined : 1 })}
-                options={[
-                  { value: 'off', label: 'Not drawn' },
-                  { value: 'on', label: 'Drawn' },
-                ]}
-              />
-            </Field>
-            {settings.watershedMinAreaHa !== undefined && (
-              <NumberField
-                label="Smallest (ha)"
-                value={settings.watershedMinAreaHa}
-                min={0}
-                max={100_000}
-                step={0.5}
-                updateOn="commit"
-                onChange={(watershedMinAreaHa) => set({ watershedMinAreaHa })}
-              />
-            )}
+            </div>
+            <WatershedFields
+              minAreaHa={settings.watershedMinAreaHa}
+              onChange={(watershedMinAreaHa) => set({ watershedMinAreaHa })}
+              note="Splits the routed ground by its D8 outlets. Watersheds touching the edge of the area and margin or missing terrain may be incomplete."
+              updateOn="commit"
+            />
           </div>
 
           <div className="flex items-center gap-1">
@@ -355,87 +314,68 @@ export function GroundDrainagePanel({
             </InlineAlert>
           )}
 
-          {current && result && (
-            <div className="space-y-1" aria-label="Outlet">
-              <div className="flex items-center gap-1">
-                <span className="flex-1 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Outlet
-                </span>
-                {state?.outlet && (
-                  <Button
-                    size="2xs"
-                    variant="ghost"
-                    onClick={() => onChange({ ...state, settings, outlet: undefined })}
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 items-end gap-1.5">
-                <Button
-                  size="xs"
-                  variant={picking ? 'secondary' : 'outline'}
-                  aria-pressed={picking}
-                  onClick={onPickOutlet}
-                  data-testid="road-ground-drainage-pick"
-                >
-                  <Crosshair className="size-3" />
-                  {picking ? 'Click the plan…' : 'Pick on plan'}
-                </Button>
-                <NumberField
-                  label="Snap (m)"
-                  value={settings.snapRadiusM}
-                  min={0}
-                  max={MAX_GROUND_DRAINAGE_SNAP_M}
-                  step={5}
-                  updateOn="commit"
-                  hint="The outlet moves to the cell with the largest contributing area within this distance."
-                  onChange={(snapRadiusM) => set({ snapRadiusM })}
+          <div className="space-y-1" role="group" aria-label="Pour point">
+            <div className="text-3xs font-semibold uppercase tracking-wide text-muted-foreground">Pour point</div>
+            <PourPointFields
+              options={{ snapRadiusM: settings.snapRadiusM, snapPolicy: settings.snapPolicy ?? 'max-accumulation' }}
+              onOptions={({ snapRadiusM, snapPolicy }) =>
+                set({
+                  ...(snapRadiusM === undefined ? {} : { snapRadiusM }),
+                  ...(snapPolicy === undefined ? {} : { snapPolicy }),
+                })
+              }
+              point={state?.outlet}
+              onPoint={(point) => onChange({ ...state, settings, outlet: point })}
+              picking={picking}
+              onPick={onPickOutlet}
+              disabled={!current || !result}
+              disabledReason="Route flow first: the pour point is read from the routed ground."
+              updateOn="commit"
+            />
+            {outletError && <InlineAlert tone="error">{outletError}</InlineAlert>}
+            {outlet && current && (
+              <>
+                <ReadoutGrid
+                  minColumnWidth="7.5rem"
+                  className="text-xs leading-5"
+                  data-testid="road-ground-drainage-outlet"
+                  items={[
+                    { label: 'Snapped', value: `${two.format(outlet.result.snappedDistanceM)} m away` },
+                    { label: 'Contributing area', value: `${two.format(outlet.result.areaHa)} ha` },
+                    outlet.result.inMarginHa > 0 && {
+                      label: 'In the margin',
+                      value: `${two.format(outlet.result.inMarginHa)} ha`,
+                    },
+                  ]}
                 />
-              </div>
-              {outletError && <InlineAlert tone="error">{outletError}</InlineAlert>}
-              {outlet && (
-                <>
-                  <ReadoutGrid
-                    minColumnWidth="7.5rem"
-                    className="text-xs leading-5"
-                    data-testid="road-ground-drainage-outlet"
-                    items={[
-                      {
-                        label: 'Picked',
-                        value: `${coord.format(outlet.requested[1])}, ${coord.format(outlet.requested[0])}`,
-                      },
-                      {
-                        label: 'Snapped',
-                        value: `${two.format(outlet.result.snappedDistanceM)} m away`,
-                      },
-                      { label: 'Contributing area', value: `${two.format(outlet.result.areaHa)} ha` },
-                      outlet.result.inMarginHa > 0 && {
-                        label: 'In the margin',
-                        value: `${two.format(outlet.result.inMarginHa)} ha`,
-                      },
-                    ]}
-                  />
-                  {outlet.result.touchesBoundary || outlet.result.touchesMissingGround ? (
-                    <div data-testid="road-ground-drainage-truncated">
-                      <InlineAlert tone="warning">
-                        The catchment reaches{' '}
-                        {[
-                          outlet.result.touchesBoundary && 'the edge of the area and margin',
-                          outlet.result.touchesMissingGround && 'missing ground',
-                        ]
-                          .filter(Boolean)
-                          .join(' and ')}
-                        , so its area may continue past it. Widen the margin or load terrain that covers it.
-                      </InlineAlert>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">Inside the area and margin, on ground throughout.</p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+                {outlet.result.touchesBoundary || outlet.result.touchesMissingGround ? (
+                  <div data-testid="road-ground-drainage-truncated">
+                    <InlineAlert tone="warning">
+                      The catchment reaches{' '}
+                      {[
+                        outlet.result.touchesBoundary && 'the edge of the area and margin',
+                        outlet.result.touchesMissingGround && 'missing ground',
+                      ]
+                        .filter(Boolean)
+                        .join(' and ')}
+                      , so its area may continue past it. Widen the upslope buffer or load terrain that covers it.
+                    </InlineAlert>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">Inside the area and margin, on ground throughout.</p>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 border-t pt-2 text-muted-foreground">
+            <span className="min-w-0 flex-1">Same routing as the road&apos;s drainage check, on the ground alone.</span>
+            {onOpenRoadCheck && (
+              <Button size="2xs" variant="ghost" onClick={onOpenRoadCheck}>
+                Road check
+              </Button>
+            )}
+          </div>
         </div>
       )}
     </section>

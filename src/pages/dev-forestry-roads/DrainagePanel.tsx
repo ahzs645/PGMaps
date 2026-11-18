@@ -4,13 +4,15 @@ import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { StatGroup } from '@/components/ui/stat-group'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
-import { Field, NumberField, RoadSelect } from './Controls'
+import { InfoTip } from '@/components/ui/info-tip'
 import { DrainageSettingField } from './SharedRoadFields'
 import { DEFAULT_DRAINAGE_SETTINGS, type DrainageRun, type DrainageSettings } from './drainageRun'
 import { formatRoadStation } from './Charts'
 import { CROSS_DRAIN_SITE_M, DITCH_DETAIL_CELL_M, LOW_POINT_MIN_CELLS } from './hydrology'
 import { parseDrainageSettings, type DrainageComparisonSnapshot, type DrainageEvidence } from './drainageEvidence'
-import type { PourPoint } from './drainageCatchments'
+import { DEFAULT_POUR_POINT_SNAP_M, type PourPoint } from './drainageCatchments'
+import { DrainageRoutingFields, PourPointFields, routingSummary, WatershedFields } from './DrainageFields'
+import { DRAINAGE_FIELDS } from './roadFieldDefinitions'
 import { DrainageSensitivityPanel } from './DrainageSensitivityPanel'
 import { DrainageIntensityEditor } from './DrainageIntensityEditor'
 import type { CulvertTiming } from './timeOfConcentration'
@@ -55,7 +57,7 @@ const timingText = (t: CulvertTiming) =>
 const groupRow = 'grid gap-1.5 sm:grid-cols-[6.5rem_minmax(0,1fr)] sm:items-end sm:gap-2'
 const groupHeading = 'text-3xs font-semibold uppercase tracking-wide text-muted-foreground sm:pb-2.5'
 const groupGrid = 'grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] items-end gap-2'
-const selectGrid = 'grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-end gap-2'
+const selectGrid = 'grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] items-end gap-2'
 
 export function DrainagePanel({
   run,
@@ -111,17 +113,36 @@ export function DrainagePanel({
 }) {
   const [pointOptions, setPointOptions] = useState<PourPointOptions>({
     surface: 'design',
-    snapRadiusM: 10,
+    snapRadiusM: DEFAULT_POUR_POINT_SNAP_M,
     snapPolicy: 'max-accumulation',
   })
-  const pointSurface = pourPoint?.surface ?? pointOptions.surface
-  const pointRadius = pourPoint?.snapRadiusM ?? pointOptions.snapRadiusM
-  const pointPolicy = (pourPoint ? pourPoint.snapPolicy : pointOptions.snapPolicy) ?? 'max-accumulation'
+  // The inputs fold away once there is a run to read; their summary line keeps them in view.
+  const [inputsOpen, setInputsOpen] = useState(!run)
+  const pointOptionsNow: PourPointOptions = {
+    surface: pourPoint?.surface ?? pointOptions.surface,
+    snapRadiusM: pourPoint?.snapRadiusM ?? pointOptions.snapRadiusM,
+    snapPolicy: (pourPoint ? pourPoint.snapPolicy : pointOptions.snapPolicy) ?? 'max-accumulation',
+  }
   const setPointOptionsAndApply = (patch: Partial<PourPointOptions>) => {
-    setPointOptions({ surface: pointSurface, snapRadiusM: pointRadius, snapPolicy: pointPolicy, ...patch })
+    setPointOptions({ ...pointOptionsNow, ...patch })
     if (pourPoint) onPourPointChange?.({ ...pourPoint, ...patch })
   }
   const set = (patch: Partial<DrainageSettings>) => onSettings({ ...settings, ...patch })
+  const routing = {
+    streamThresholdHa: settings.streamThresholdHa,
+    reachM: settings.bufferM,
+    workingResolutionM: settings.workingResolutionM,
+    depressionPolicy: settings.depressionPolicy,
+  }
+  const inputsSummary = [
+    settings.concentration?.enabled ? 'intensity per culvert' : `${n(settings.rainfallMmPerHr)} mm/h`,
+    `C ${n(settings.runoffCoefficient, 2)}`,
+    routingSummary(routing),
+    pourPoint && 'pour point set',
+    watershedMinAreaHa !== undefined && 'watersheds',
+  ]
+    .filter(Boolean)
+    .join(' · ')
   const redirected = run?.crossings.filter((c) => c.redirected && !c.throughCulvertId) ?? []
   const uncovered = run?.lowPoints.filter((p) => !p.throughCulvert) ?? []
   const undersized = run?.culverts.filter((c) => !c.adequate) ?? []
@@ -132,30 +153,46 @@ export function DrainagePanel({
   )
   return (
     <div className="h-full space-y-3 overflow-auto overscroll-none text-xs" data-testid="road-drainage">
-      {/* Run first, then the inputs in three groups; each select's options say what they do. */}
-      <div className={cn(insetBox({ padding: 'lg', tone: 'muted' }), 'space-y-3')}>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Button size="xs" className="shrink-0" disabled={busy} onClick={onRun}>
-            {run ? 'Re-run drainage' : 'Run drainage check'}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="xs"
+          className="shrink-0"
+          disabled={busy}
+          onClick={() => {
+            // The first run folds the inputs; a re-run leaves them as they are, for changing one at a time.
+            if (!run) setInputsOpen(false)
+            onRun()
+          }}
+        >
+          {run ? 'Re-run drainage' : 'Run drainage check'}
+        </Button>
+        {/* The culverts this check routes through are entered in the sidebar, under Engineering → Drainage. */}
+        {onShowCulverts && (
+          <Button
+            size="xs"
+            variant="outline"
+            className="shrink-0"
+            data-testid="road-drainage-culvert-inputs"
+            onClick={() => onShowCulverts()}
+          >
+            Culvert inputs
           </Button>
-          {/* The culverts this check routes through are entered in the sidebar, under Engineering → Drainage. */}
-          {onShowCulverts && (
-            <Button
-              size="xs"
-              variant="outline"
-              className="shrink-0"
-              data-testid="road-drainage-culvert-inputs"
-              onClick={() => onShowCulverts()}
-            >
-              Culvert inputs
-            </Button>
-          )}
-          <p className="min-w-48 flex-1 text-muted-foreground">
-            Routes flow (D8) over the existing ground and over a design surface with the road and its culverts burned
-            in, then marks redirected streams, cross-drain candidates without a culvert and new ponding.
-          </p>
-        </div>
-        <div className="space-y-2.5">
+        )}
+        <InfoTip label="About the drainage check" bubbleClassName="max-w-80">
+          Routes flow (D8) over the existing ground and over a design surface with the road and its culverts burned in,
+          then marks redirected streams, cross-drain candidates without a culvert and new ponding. To route the ground
+          alone over an area, with or without a road, use Terrain → Existing-ground drainage: it shares these routing
+          settings&apos; labels and defaults but keeps its own.
+        </InfoTip>
+      </div>
+      <section className={insetBox({ padding: 'none' })} aria-label="Drainage inputs">
+        <CollapsibleSection
+          label="Inputs"
+          summary={inputsSummary}
+          open={inputsOpen}
+          onOpenChange={setInputsOpen}
+          contentClassName="space-y-2.5 p-3"
+        >
           <div role="group" aria-label="Design storm" className={groupRow}>
             <span className={groupHeading}>Design storm</span>
             <div className={groupGrid}>
@@ -168,102 +205,53 @@ export function DrainagePanel({
             <span className={groupHeading}>Intensity</span>
             <DrainageIntensityEditor settings={settings} onSettings={onSettings} />
           </div>
-          <div role="group" aria-label="Flow network" className={groupRow}>
-            <span className={groupHeading}>Flow network</span>
-            <div className={groupGrid}>
-              <DrainageSettingField field="streamThresholdHa" settings={settings} onSettings={onSettings} />
-              <DrainageSettingField field="bufferM" settings={settings} onSettings={onSettings} />
-            </div>
-          </div>
-          <div role="group" aria-label="Terrain" className={groupRow}>
-            <span className={groupHeading}>Terrain</span>
+          <div role="group" aria-label="Flow routing" className={groupRow}>
+            <span className={groupHeading}>Routing</span>
             <div className={selectGrid}>
-              <Field label="Depression treatment">
-                <RoadSelect
-                  value={settings.depressionPolicy?.mode ?? 'fill-all'}
-                  onValueChange={(mode) =>
-                    set({
-                      depressionPolicy:
-                        mode === 'depth-limited'
-                          ? {
-                              mode,
-                              maxDepthM:
-                                settings.depressionPolicy?.mode === 'depth-limited'
-                                  ? settings.depressionPolicy.maxDepthM
-                                  : 0.5,
-                            }
-                          : { mode: mode as 'fill-all' | 'preserve' },
-                    })
-                  }
-                  options={[
-                    {
-                      value: 'fill-all',
-                      label: 'Fill all depressions',
-                      title: 'Fill every depression before routing. Potential ponding is still reported.',
-                    },
-                    {
-                      value: 'preserve',
-                      label: 'Preserve depressions',
-                      title: 'Keep natural sinks: flow that reaches one stops there.',
-                    },
-                    {
-                      value: 'depth-limited',
-                      label: 'Fill shallow basins',
-                      title:
-                        'Fill a connected depression only when its spill depth is within the limit; deeper basins remain.',
-                    },
-                  ]}
-                  ariaLabel="Depression treatment"
-                  className="h-8 w-full"
-                />
-              </Field>
-              {settings.depressionPolicy?.mode === 'depth-limited' && (
-                <NumberField
-                  label="Maximum basin fill (m)"
-                  value={settings.depressionPolicy.maxDepthM}
-                  min={0}
-                  max={1000}
-                  step={0.05}
-                  onChange={(maxDepthM) => set({ depressionPolicy: { mode: 'depth-limited', maxDepthM } })}
-                />
-              )}
-              <Field label="Working grid">
-                <RoadSelect
-                  value={settings.workingResolutionM === undefined ? 'automatic' : 'custom'}
-                  onValueChange={(value) =>
-                    set({ workingResolutionM: value === 'automatic' ? undefined : (run?.cellM ?? 5) })
-                  }
-                  options={[
-                    {
-                      value: 'automatic',
-                      label: 'Use source resolution',
-                      title: 'The terrain source resolution, at least 1 m.',
-                    },
-                    {
-                      value: 'custom',
-                      label: 'Set working resolution',
-                      title:
-                        'A coarser cell size. It cannot add terrain detail, and the cell budget may coarsen it further.',
-                    },
-                  ]}
-                  ariaLabel="Working grid"
-                  className="h-8 w-full"
-                />
-              </Field>
-              {settings.workingResolutionM !== undefined && (
-                <NumberField
-                  label="Requested grid cell (m)"
-                  value={settings.workingResolutionM}
-                  min={1}
-                  max={100000}
-                  step={1}
-                  onChange={(workingResolutionM) => set({ workingResolutionM })}
-                />
-              )}
+              <DrainageRoutingFields
+                value={routing}
+                reach={{
+                  min: DRAINAGE_FIELDS.bufferM.min,
+                  max: DRAINAGE_FIELDS.bufferM.max,
+                  hint: "Ground sampled beyond the road's catch lines, so catchments upslope of it are not cut off.",
+                }}
+                customCellM={run?.cellM ?? 5}
+                onChange={({ reachM, ...patch }) => set(reachM === undefined ? patch : { ...patch, bufferM: reachM })}
+              />
             </div>
           </div>
-        </div>
-      </div>
+          {onPickPourPoint && (
+            <div role="group" aria-label="Catchments and watersheds" className={cn(groupRow, 'sm:items-start')}>
+              {/* A group of several rows: its name stands level with the first row's fields. */}
+              <span className={cn(groupHeading, 'sm:pb-0 sm:pt-7')}>Catchments</span>
+              <div className="space-y-2">
+                <PourPointFields
+                  surfaces
+                  options={pointOptionsNow}
+                  onOptions={setPointOptionsAndApply}
+                  point={pourPoint?.coordinate}
+                  onPoint={(coordinate) =>
+                    onPourPointChange?.(coordinate && pourPoint ? { ...pourPoint, coordinate } : undefined)
+                  }
+                  picking={pourPointPicking}
+                  onPick={() => onPickPourPoint(pointOptionsNow)}
+                  disabled={busy}
+                />
+                {onWatershedMinAreaChange && (
+                  <WatershedFields
+                    minAreaHa={watershedMinAreaHa}
+                    onChange={onWatershedMinAreaChange}
+                    note="Splits the pour-point surface, or the design surface without one, by its D8 outlets. Watersheds touching the sample edge or missing terrain may be incomplete."
+                  />
+                )}
+                <p className="text-muted-foreground">
+                  The catchment above the pour point and the watersheds are drawn by the next run.
+                </p>
+              </div>
+            </div>
+          )}
+        </CollapsibleSection>
+      </section>
       {evidence && !run && (
         <section className={cn(insetBox(), 'space-y-2')} aria-label="Saved drainage evidence">
           <h3 className="font-medium">Saved drainage evidence</h3>
@@ -622,143 +610,6 @@ export function DrainagePanel({
             , and pipes at full flow (headwater is checked with the culverts). * slope assumed 2 %.
           </p>
         </>
-      )}
-      {onPickPourPoint && (
-        <section className={insetBox({ padding: 'none' })} aria-label="Catchment and watershed tools">
-          <CollapsibleSection
-            label="Catchments & watersheds"
-            summary={pourPoint ? 'Pour point set' : watershedMinAreaHa !== undefined ? 'Watersheds on' : undefined}
-            defaultOpen={!!pourPoint || watershedMinAreaHa !== undefined}
-            contentClassName="space-y-2 p-2"
-          >
-            <p className="text-muted-foreground">
-              Pick a point on the plan to see what drains to it. It snaps to a cell within the snap distance.
-            </p>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] items-end gap-2">
-              <Field label="Catchment surface">
-                <RoadSelect
-                  value={pointSurface}
-                  onValueChange={(surface) => setPointOptionsAndApply({ surface: surface as PourPoint['surface'] })}
-                  options={[
-                    { value: 'existing', label: 'Existing ground' },
-                    { value: 'design', label: 'Design surface' },
-                  ]}
-                  ariaLabel="Catchment surface"
-                  className="h-8 w-full"
-                />
-              </Field>
-              <NumberField
-                label="Pour-point snap (m)"
-                value={pointRadius}
-                min={0}
-                max={2000}
-                step={1}
-                onChange={(snapRadiusM) => setPointOptionsAndApply({ snapRadiusM })}
-              />
-              <Field label="Outlet snap policy">
-                <RoadSelect
-                  value={pointPolicy}
-                  onValueChange={(snapPolicy) =>
-                    setPointOptionsAndApply({ snapPolicy: snapPolicy as PourPoint['snapPolicy'] })
-                  }
-                  options={[
-                    {
-                      value: 'max-accumulation',
-                      label: 'Greatest contributing area',
-                      title: 'The cell within the snap distance that drains the most area. Ties go to the nearest.',
-                    },
-                    {
-                      value: 'lowest-elevation',
-                      label: 'Lowest elevation',
-                      title:
-                        'The lowest cell within the snap distance, on the chosen surface before depression filling.',
-                    },
-                  ]}
-                  ariaLabel="Outlet snap policy"
-                  className="h-8 w-full"
-                />
-              </Field>
-              <Button
-                size="sm"
-                className="h-auto min-h-8 min-w-0 whitespace-normal py-1.5 touch:min-h-10"
-                variant={pourPointPicking ? 'default' : 'outline'}
-                disabled={busy}
-                onClick={() =>
-                  onPickPourPoint({ surface: pointSurface, snapRadiusM: pointRadius, snapPolicy: pointPolicy })
-                }
-              >
-                {pourPointPicking
-                  ? 'Cancel point selection'
-                  : pourPoint
-                    ? 'Move pour point on plan'
-                    : 'Select pour point on plan'}
-              </Button>
-            </div>
-            {pourPointPicking && <p role="status">Tap a terrain location on the plan to set the pour point.</p>}
-            {pourPoint && onPourPointChange && (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <NumberField
-                    label="Pour-point longitude"
-                    value={pourPoint.coordinate[0]}
-                    min={-180}
-                    max={180}
-                    step={0.00001}
-                    onChange={(lon) => onPourPointChange({ ...pourPoint, coordinate: [lon, pourPoint.coordinate[1]] })}
-                  />
-                  <NumberField
-                    label="Pour-point latitude"
-                    value={pourPoint.coordinate[1]}
-                    min={-84.99999}
-                    max={84.99999}
-                    step={0.00001}
-                    onChange={(lat) => onPourPointChange({ ...pourPoint, coordinate: [pourPoint.coordinate[0], lat] })}
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="touch:min-h-10"
-                  onClick={() => onPourPointChange(undefined)}
-                >
-                  Remove pour point
-                </Button>
-              </>
-            )}
-            {onWatershedMinAreaChange && (
-              <div className="space-y-2 border-t pt-2">
-                <label className="flex min-h-10 items-center gap-2">
-                  <input
-                    type="checkbox"
-                    aria-label="Delineate watershed polygons"
-                    checked={watershedMinAreaHa !== undefined}
-                    onChange={(event) => onWatershedMinAreaChange(event.target.checked ? 0.4 : undefined)}
-                  />
-                  Delineate watershed polygons
-                </label>
-                {watershedMinAreaHa !== undefined && (
-                  <p className="text-muted-foreground">
-                    Splits the pour-point surface, or the design surface without one, by its D8 outlets. Watersheds
-                    touching the sample edge or missing terrain may be incomplete.
-                  </p>
-                )}
-                {watershedMinAreaHa !== undefined && (
-                  <NumberField
-                    label="Minimum watershed (ha)"
-                    value={watershedMinAreaHa}
-                    min={0.01}
-                    max={100000}
-                    step={0.1}
-                    onChange={onWatershedMinAreaChange}
-                  />
-                )}
-              </div>
-            )}
-            {(pourPoint || watershedMinAreaHa !== undefined) && (
-              <p className="text-muted-foreground">Re-run after changing these.</p>
-            )}
-          </CollapsibleSection>
-        </section>
       )}
     </div>
   )

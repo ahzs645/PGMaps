@@ -17,6 +17,8 @@
 import { CORRIDOR_CELL_GROWTH, CORRIDOR_TILE_SHIFT } from './corridorGrid'
 import {
   catchmentPolygon,
+  DEFAULT_POUR_POINT_SNAP_M,
+  MAX_POUR_POINT_SNAP_M,
   delineateWatersheds,
   gridCellNumber,
   snapPourPoint,
@@ -53,7 +55,7 @@ export const MAX_GROUND_DRAINAGE_MARGIN_M = 2_000
 /** The most vertices an analysis area may have, as an imported spatial file. */
 export const MAX_GROUND_DRAINAGE_AREA_VERTICES = 50_000
 /** The widest snap radius around a requested outlet, m (`snapPourPoint`'s limit). */
-export const MAX_GROUND_DRAINAGE_SNAP_M = 2_000
+export const MAX_GROUND_DRAINAGE_SNAP_M = MAX_POUR_POINT_SNAP_M
 
 /** Zone of each stored cell. */
 export const ZONE_OUTSIDE = 0
@@ -81,14 +83,14 @@ export interface GroundDrainageSettings {
   depressionPolicy?: DepressionPolicy
   /** Omitted draws no watersheds. */
   watershedMinAreaHa?: number
-  /** Outlet snap radius, m. Not a routing setting: changing it reuses the routed grid. */
+  /** Pour-point snap radius, m. Not a routing setting: changing it reuses the routed grid. */
   snapRadiusM: number
   snapPolicy?: SnapPolicy
 }
 export const DEFAULT_GROUND_DRAINAGE_SETTINGS: GroundDrainageSettings = {
   streamThresholdHa: 1,
   marginM: 0,
-  snapRadiusM: 25,
+  snapRadiusM: DEFAULT_POUR_POINT_SNAP_M,
 }
 /** Saved with the project: the inputs only. Results are recomputed from the terrain. */
 export interface GroundDrainageState {
@@ -168,7 +170,7 @@ export function parseGroundDrainageSettings(value?: unknown): GroundDrainageSett
   const r = value === undefined ? DEFAULT_GROUND_DRAINAGE_SETTINGS : object(value, 'Existing-ground drainage settings')
   return {
     streamThresholdHa: number(r.streamThresholdHa, 0.05, 500, 'Stream threshold'),
-    marginM: number(r.marginM, 0, MAX_GROUND_DRAINAGE_MARGIN_M, 'Upslope margin'),
+    marginM: number(r.marginM, 0, MAX_GROUND_DRAINAGE_MARGIN_M, 'Upslope buffer'),
     ...(r.workingResolutionM === undefined
       ? {}
       : { workingResolutionM: number(r.workingResolutionM, 1, 100_000, 'Working grid resolution') }),
@@ -176,7 +178,7 @@ export function parseGroundDrainageSettings(value?: unknown): GroundDrainageSett
     ...(r.watershedMinAreaHa === undefined
       ? {}
       : { watershedMinAreaHa: number(r.watershedMinAreaHa, 0, 100_000, 'Minimum watershed area') }),
-    snapRadiusM: number(r.snapRadiusM, 0, MAX_GROUND_DRAINAGE_SNAP_M, 'Outlet snap radius'),
+    snapRadiusM: number(r.snapRadiusM, 0, MAX_GROUND_DRAINAGE_SNAP_M, 'Pour-point snap radius'),
     ...(r.snapPolicy === undefined ? {} : { snapPolicy: parseSnapPolicy(r.snapPolicy) }),
   }
 }
