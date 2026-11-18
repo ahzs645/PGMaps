@@ -9,6 +9,7 @@
  * gzipped one by one and written as base64, so a dozen views fit in a file a browser can read. No DOM access: the
  * gzip is the platform's `CompressionStream`, which Node has too.
  */
+import { MAX_SAVED_VIEWS } from './viewCapturePlan'
 import type { SavedDriveView } from './previewState'
 import { parseScene, serializeScene, type ForestryScene } from './scene'
 
@@ -17,8 +18,6 @@ export const PROJECT_VERSION = 1
 export const PROJECT_FILE_EXTENSION = '.pgvq.zip'
 /** The largest project file opened, bytes. */
 export const MAX_PROJECT_FILE_BYTES = 400 * 1024 * 1024
-/** Saved views kept per place, the page's own limit. */
-const MAX_VIEWS_PER_PLACE = 12
 /** Places with shelved views kept: a project is one assessment, not a library. */
 const MAX_PLACES = 64
 
@@ -94,6 +93,7 @@ export function fromBase64(text: string): Uint8Array {
 /** `value` as plain JSON: typed arrays gzipped, sets and maps spelled out, functions and `undefined` left out. */
 async function pack(value: unknown): Promise<unknown> {
   if (value === null || typeof value !== 'object') return typeof value === 'function' ? undefined : value
+  if (value instanceof Date) return { $date: value.toJSON() }
   const name = typedName(value)
   if (name) {
     const array = value as Typed
@@ -116,6 +116,7 @@ async function unpack(value: unknown): Promise<unknown> {
   if (value === null || typeof value !== 'object') return value
   if (Array.isArray(value)) return Promise.all(value.map(unpack))
   const record = value as Record<string, unknown>
+  if (typeof record.$date === 'string') return new Date(record.$date)
   if (typeof record.$typed === 'string' && typeof record.gz === 'string') {
     const make = TYPED[record.$typed as TypedName]
     if (!make) throw new Error(`an array of a kind this PGMaps does not read (${record.$typed})`)
@@ -184,7 +185,7 @@ function readView(entry: unknown): SavedDriveView | null {
   }
 }
 const readViews = (value: unknown) =>
-  (Array.isArray(value) ? value : []).slice(0, MAX_VIEWS_PER_PLACE).flatMap((entry) => readView(entry) ?? [])
+  (Array.isArray(value) ? value : []).slice(0, MAX_SAVED_VIEWS).flatMap((entry) => readView(entry) ?? [])
 
 const isPicture = (value: unknown): value is { dataUrl: string; width: number; height: number } => {
   const picture = value as { dataUrl?: unknown; width?: unknown; height?: unknown } | null

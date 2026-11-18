@@ -6,7 +6,7 @@ import { insetBox } from '@/components/ui/inset-box'
 import { formatMeasure } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-import type { ViewOfInterest } from './viewsOfInterest'
+import { MAX_VIEWS_OF_INTEREST, type ViewOfInterest } from './viewsOfInterest'
 
 const coordinate = (value: number) => formatMeasure(value, null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })
 
@@ -49,7 +49,7 @@ export function AssessFromView({
   onChoose: (viewId: string) => void
   onKeepSpot: () => void
 }) {
-  const full = views.length >= 12
+  const full = views.length >= MAX_VIEWS_OF_INTEREST
   return (
     <div className="space-y-2" data-assess-from="view">
       {views.length > 0 ? (
@@ -82,7 +82,9 @@ export function AssessFromView({
           aria-pressed={adding}
           disabled={(!adding && (full || !addBlockId)) || disabled}
           title={
-            full ? '12 views is the most' : 'Click the plan where the view stands; the assessment then runs from it'
+            full
+              ? `${MAX_VIEWS_OF_INTEREST} views is the most`
+              : 'Click the plan where the view stands; the assessment then runs from it'
           }
           onClick={() => (adding ? onCancelAdd() : onAdd())}
         >

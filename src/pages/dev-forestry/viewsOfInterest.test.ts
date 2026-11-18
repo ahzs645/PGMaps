@@ -93,6 +93,12 @@ describe('the list', () => {
     )
     expect(addViews([], many)).toMatchObject({ overLimit: 2 })
   })
+  it('keeps a study larger than one capture batch when its plan is reopened', () => {
+    const plan = Array.from({ length: 18 }, (_, index) =>
+      viewAtPoint({ lng: -122.7 + index * 0.01, lat: 53.9 }, block, []),
+    )
+    expect(parseViewsOfInterest(JSON.parse(JSON.stringify(plan)))).toEqual(plan)
+  })
   it('groups views standing at one place', () => {
     const views = viewsForCandidate(candidate([80, 100]), block)
     const other = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, [])

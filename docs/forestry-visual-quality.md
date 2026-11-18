@@ -127,7 +127,7 @@ arrows at the block*, the choice *Add to views* adds; a check's *Hidden* and
 under the row or bulk button it came from until the block changes or for
 `ADD_MESSAGE_MS` (8 s). A view that repeats one already listed (within 1 m, the same
 block and facing) is skipped, and the list holds at most
-`MAX_VIEWS_OF_INTEREST` (12), the saved-view limit, so every planned view can
+`MAX_VIEWS_OF_INTEREST` (24), the saved-view limit, so every planned view can
 be captured.
 
 **A photo viewpoint.** An own photo's accepted camera becomes a view of
@@ -266,7 +266,7 @@ set) and the save's caption as its name ("… (2)" when that name is taken). A
 save that repeats a listed view joins it. Its picture is framed exactly as
 before: the link only tags the saved view with `plannedViewId` and
 `plannedKey`. **Saved views** lists only saves that could not be listed (no
-cutblock, or 12 views already), and saves made before this.
+cutblock, or 24 views already), and saves made before this.
 
 **Field records file under the views.** The views of interest are the tools'
 viewpoints (`plannedToolViews`, by the view's id, standing on its 30 m pullout as
@@ -715,7 +715,7 @@ and saved comparisons travel in **Save & export → Project**.
   evidence hashes.
 - **Study exhibits** searches the figure catalogue by caption, document, page,
   viewpoint or recorded date and opens the selected exhibit and its source.
-  **Visit → Views of interest** captures pending included views 1, 3, 6 or all 12
+  **Visit → Views of interest** captures pending included views 1, 3, 6 or 12
   at a time (**Views per capture**). A saved project keeps completed captures so
   the remaining views can be captured later; the plan holds no more views than can
   be saved (`MAX_VIEWS_OF_INTEREST`).

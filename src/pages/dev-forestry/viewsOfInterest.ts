@@ -104,8 +104,8 @@ export const LENS_FOCAL_LENGTHS = [50, 35, 28, 24] as const
 export const DEFAULT_FOCAL_MM = 50
 /** A full-frame sensor's half width, millimetres, as `figureFraming.ts` reads focal lengths. */
 const HALF_FRAME_MM = 18
-/** No more views than the saved-view limit, so every planned view can be captured. */
-export const MAX_VIEWS_OF_INTEREST = 12
+/** Study capacity, independent of the number of views rendered in one batch. */
+export const MAX_VIEWS_OF_INTEREST = 24
 /** Inventory arrows aimed at the block that a viewpoint adds by default. */
 export const DEFAULT_ARROWS_PER_VIEWPOINT = 2
 

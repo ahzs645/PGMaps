@@ -4564,7 +4564,7 @@ function DevForestryVisuals() {
         : null
     const keptViews = replaced?.saved ?? savedViews
     if (keptViews.length >= MAX_SAVED_VIEWS) {
-      const reason = 'Twelve comparisons are saved. Remove one or download this preview before starting another.'
+      const reason = `${MAX_SAVED_VIEWS} comparisons are saved. Remove one or download this preview before starting another.`
       setPreviewMessage(reason)
       return Promise.resolve({ error: reason })
     }

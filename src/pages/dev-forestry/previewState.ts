@@ -1,6 +1,7 @@
 import { parseScene, serializeScene, type ForestryScene } from './scene'
 import { sceneFingerprint } from './sceneInput'
 import { lineLengthMeters } from './visibility'
+import { MAX_SAVED_VIEWS } from './viewCapturePlan'
 import type { AnalysisResult } from './types'
 
 export type SavedDriveView = {
@@ -119,7 +120,8 @@ export function parsePreview(input: unknown): { scene: ForestryScene; views: Sav
   if (!scene || previewInputError(scene) || !sceneFingerprint(scene))
     throw new Error('This preview does not contain a valid road and cutblock.')
   const length = lineLengthMeters(scene.viewpoint.coordinates)
-  const views = (Array.isArray(raw.views) ? raw.views : []).slice(0, 12).flatMap((entry, index): SavedDriveView[] => {
+  const saved = Array.isArray(raw.views) ? raw.views.slice(0, MAX_SAVED_VIEWS) : []
+  const views = saved.flatMap((entry, index): SavedDriveView[] => {
     if (!entry || typeof entry !== 'object') return []
     const v = entry as SavedDriveView
     if (![v.positionMeters, v.yaw, v.tilt, v.treeHeightMeters, v.roadClearWidthMeters].every(Number.isFinite)) return []

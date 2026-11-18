@@ -29,7 +29,6 @@ import {
   blockCentre,
   isIncluded,
   LENS_FOCAL_LENGTHS,
-  MAX_VIEWS_OF_INTEREST,
   needsCapture,
   lensLabel,
   normalizeBearing,
@@ -44,8 +43,9 @@ import {
   type ViewOfInterestFacing,
 } from './viewsOfInterest'
 
-/** How many views one *Capture* takes; the last is every view the plan can hold. */
-const CAPTURE_BATCH_SIZES = [1, 3, 6, MAX_VIEWS_OF_INTEREST] as const
+/** Number of planned views to capture in one batch. */
+const MAX_CAPTURE_BATCH = 12
+const CAPTURE_BATCH_SIZES = [1, 3, 6, MAX_CAPTURE_BATCH] as const
 
 type Block = { id: string; name: string; geometry: PolygonGeometry }
 
@@ -405,7 +405,7 @@ export function ViewsOfInterestList({
   const included = views.filter(isIncluded)
   // A view saved without its analysis sheet is taken again with the rest.
   const toCapture = included.filter((view) => needsCapture(states.get(view.id) ?? 'not-captured'))
-  const [batchSize, setBatchSize] = useState<number>(MAX_VIEWS_OF_INTEREST)
+  const [batchSize, setBatchSize] = useState<number>(MAX_CAPTURE_BATCH)
   const batch = toCapture.slice(0, batchSize)
   const running = capture.state.status === 'running'
   const [rowTab, setRowTab] = useState<RowTab>('view')
@@ -864,7 +864,7 @@ export function ViewsOfInterestList({
         >
           {CAPTURE_BATCH_SIZES.map((n) => (
             <option key={n} value={String(n)}>
-              {n === MAX_VIEWS_OF_INTEREST ? `All (${n})` : n}
+              {n}
             </option>
           ))}
         </SelectField>
