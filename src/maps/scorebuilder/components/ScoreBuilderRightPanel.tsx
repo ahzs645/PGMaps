@@ -1,5 +1,5 @@
 import { useClipboardText } from '@/hooks/useClipboardText'
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { InlineAlert, MapSidebarShell } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
@@ -39,6 +39,8 @@ interface ScoreBuilderRightPanelProps {
   baselineComparison: BaselineComparisonResult | null
   onPinBaseline: () => void
   onClearBaseline: () => void
+  /** The score's spatial pattern section (Moran's I and its clusters). */
+  spatialPattern?: ReactNode
 }
 
 /**
@@ -74,6 +76,7 @@ export function ScoreBuilderRightPanel({
   baselineComparison,
   onPinBaseline,
   onClearBaseline,
+  spatialPattern,
 }: ScoreBuilderRightPanelProps) {
   const { copy, status: shareStatus } = useClipboardText()
 
@@ -144,6 +147,8 @@ export function ScoreBuilderRightPanel({
           </p>
         </InlineAlert>
       )}
+
+      {hasActiveBoundarySurface && spatialPattern}
 
       {hasActiveBoundarySurface && (
         <RegionsTab

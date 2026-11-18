@@ -102,4 +102,13 @@ export const LAB_URL_PARAMS = {
   correlateMetricX: 'cx',
   correlateMetricY: 'cy',
   correlateVisStyle: 'cstyle',
+  correlateClusterVariable: 'ccv',
+  /** `map=clusters`: the Index and Density labs colour regions by local Moran cluster. */
+  clusterMap: 'map',
+  clusterFdr: 'cfdr',
 } as const
+
+/** How the Correlation Lab colours the map. */
+export type CorrelateVisStyle = 'bivariate' | 'residual' | 'clusters'
+/** What the Correlation Lab's clusters and Moran scatter are read from. */
+export type CorrelateClusterVariable = 'x' | 'y' | 'residual'

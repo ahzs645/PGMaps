@@ -35,7 +35,7 @@ import {
   type WalkabilitySurfaceTuning,
 } from '../lib/walkabilitySurface'
 import type { ScoreBuilderShareState } from '../lib/shareState'
-import { LAB_URL_PARAMS, type ScoreLabKind } from '../lib/labs'
+import { LAB_URL_PARAMS, type CorrelateClusterVariable, type CorrelateVisStyle, type ScoreLabKind } from '../lib/labs'
 import {
   getQuickIndexLabPresetKey,
   parseAccessMinimumHits,
@@ -119,7 +119,13 @@ export interface ScoreBuilderControlState {
   correlateMode: boolean
   correlateMetricX: ScoreMetricKey
   correlateMetricY: ScoreMetricKey
-  correlateVisStyle: 'bivariate' | 'residual'
+  correlateVisStyle: CorrelateVisStyle
+  /** Which variable the Correlation Lab's cluster map and Moran scatter read. */
+  correlateClusterVariable: CorrelateClusterVariable
+  /** The Index and Density labs' map shows local Moran clusters instead of values. */
+  clusterMap: boolean
+  /** Hold cluster maps to a false discovery rate instead of a per-region 5% level. */
+  clusterFdr: boolean
   scoreFilters: ScoreFilterState
   searchQuery: string
   selectedRegionId: string | null
@@ -158,7 +164,10 @@ export type ScoreBuilderAction =
   | { type: 'setDensityMetric'; metric: ScoreMetricKey; allNetworks: string[] }
   | { type: 'setCorrelateMetricX'; metric: ScoreMetricKey; allNetworks: string[] }
   | { type: 'setCorrelateMetricY'; metric: ScoreMetricKey; allNetworks: string[] }
-  | { type: 'setCorrelateVisStyle'; style: 'bivariate' | 'residual' }
+  | { type: 'setCorrelateVisStyle'; style: CorrelateVisStyle }
+  | { type: 'setCorrelateClusterVariable'; variable: CorrelateClusterVariable }
+  | { type: 'setClusterMap'; on: boolean }
+  | { type: 'setClusterFdr'; on: boolean }
   | { type: 'applyCorrelatePair'; metricX: ScoreMetricKey; metricY: ScoreMetricKey; allNetworks: string[] }
   | { type: 'toggleScoreFilter'; filter: ScoreFilterKey }
   | { type: 'setMethodSettings'; settings: ScoreMethodSettings }
@@ -625,6 +634,12 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       return enableDataForMetric({ ...state, correlateMetricY: action.metric }, action.metric, action.allNetworks)
     case 'setCorrelateVisStyle':
       return { ...state, correlateVisStyle: action.style }
+    case 'setCorrelateClusterVariable':
+      return { ...state, correlateClusterVariable: action.variable }
+    case 'setClusterMap':
+      return { ...state, clusterMap: action.on }
+    case 'setClusterFdr':
+      return { ...state, clusterFdr: action.on }
     case 'applyCorrelatePair': {
       const next = { ...state, correlateMetricX: action.metricX, correlateMetricY: action.metricY }
       return enableDataForMetric(
@@ -790,6 +805,9 @@ export function createInitialScoreBuilderState(
     correlateMetricX: 'populationDensity',
     correlateMetricY: 'crimeDensity',
     correlateVisStyle: 'bivariate',
+    correlateClusterVariable: 'y',
+    clusterMap: searchParams.get(LAB_URL_PARAMS.clusterMap) === 'clusters',
+    clusterFdr: searchParams.get(LAB_URL_PARAMS.clusterFdr) === '1',
     scoreFilters: { ...DEFAULT_SCORE_FILTERS },
     searchQuery: '',
     selectedRegionId: null,
@@ -849,11 +867,15 @@ function applyLensLab(
   }
   const correlateMetricX = parseScoreMetricKey(searchParams.get(LAB_URL_PARAMS.correlateMetricX), next.correlateMetricX)
   const correlateMetricY = parseScoreMetricKey(searchParams.get(LAB_URL_PARAMS.correlateMetricY), next.correlateMetricY)
-  const correlateVisStyle =
-    searchParams.get(LAB_URL_PARAMS.correlateVisStyle) === 'residual' ? 'residual' : next.correlateVisStyle
+  const requestedStyle = searchParams.get(LAB_URL_PARAMS.correlateVisStyle)
+  const correlateVisStyle: CorrelateVisStyle =
+    requestedStyle === 'residual' || requestedStyle === 'clusters' ? requestedStyle : next.correlateVisStyle
+  const requestedVariable = searchParams.get(LAB_URL_PARAMS.correlateClusterVariable)
+  const correlateClusterVariable: CorrelateClusterVariable =
+    requestedVariable === 'x' || requestedVariable === 'residual' ? requestedVariable : next.correlateClusterVariable
   return enableDataForMetric(
     enableDataForMetric(
-      { ...next, correlateMode: true, correlateMetricX, correlateMetricY, correlateVisStyle },
+      { ...next, correlateMode: true, correlateMetricX, correlateMetricY, correlateVisStyle, correlateClusterVariable },
       correlateMetricX,
       [],
     ),

@@ -3,6 +3,7 @@ import { toCsv } from '@pgmaps/geo-toolkit/export'
 import { downloadText } from '@/lib/download'
 import { captureMapImage } from '@/lib/mapImageCapture'
 import type { ScoredBoundaryRegion, ScoreMetricDefinition, ScoreMethodSettings } from '../types'
+import { CLUSTER_LABELS, type ClusterExportColumns } from './spatialPatternView'
 
 export type ScoreBuilderExportFormat = 'csv' | 'geojson' | 'png' | 'pdf'
 
@@ -10,6 +11,7 @@ export type ScoreBuilderExportFormat = 'csv' | 'geojson' | 'png' | 'pdf'
 export type MapImageLegend =
   | { kind: 'gradient'; title: string; colors: readonly string[]; minLabel: string; maxLabel: string }
   | { kind: 'bivariate'; title: string; palette: readonly (readonly string[])[]; xLabel: string; yLabel: string }
+  | { kind: 'categories'; title: string; items: ReadonlyArray<{ color: string; label: string }>; note?: string }
 
 export interface MapImageOptions {
   title: string
@@ -54,7 +56,13 @@ function drawLegend(
 ) {
   const px = (value: number) => Math.round(value * scale)
   const width = px(220)
-  const height = px(legend.kind === 'gradient' ? 66 : 92)
+  const height = px(
+    legend.kind === 'gradient'
+      ? 66
+      : legend.kind === 'categories'
+        ? 36 + legend.items.length * 17 + (legend.note ? 16 : 0)
+        : 92,
+  )
   const left = mapRight - width - px(12)
   const top = mapBottom - height - px(12)
   const padding = px(10)
@@ -76,6 +84,21 @@ function drawLegend(
     context.textAlign = 'right'
     context.fillText(legend.maxLabel, left + width - padding, barTop + px(13), (width - padding * 2) / 2)
     context.textAlign = 'left'
+    return
+  }
+
+  if (legend.kind === 'categories') {
+    const swatch = px(11)
+    legend.items.forEach((item, index) => {
+      const rowTop = top + px(30) + index * px(17)
+      context.fillStyle = item.color
+      context.fillRect(left + padding, rowTop, swatch, swatch)
+      context.fillStyle = '#475569'
+      context.fillText(item.label, left + padding + swatch + px(8), rowTop, width - padding * 2 - swatch - px(8))
+    })
+    if (legend.note) {
+      context.fillText(legend.note, left + padding, top + px(32) + legend.items.length * px(17), width - padding * 2)
+    }
     return
   }
 
@@ -145,12 +168,34 @@ export interface RegionExportOptions {
   /** The Density and Correlation labs export their lens metrics, not a score they do not show. */
   includeScores: boolean
   filenameStem: string
+  /** Local Moran clusters, carried only while the map shows them. */
+  clusters?: ClusterExportColumns | null
+}
+
+function clusterColumnNames(clusters: ClusterExportColumns): string[] {
+  return [
+    `Cluster of ${clusters.variableLabel} (PGMaps local Moran)`,
+    `Local Moran I of ${clusters.variableLabel}`,
+    `Local Moran pseudo p of ${clusters.variableLabel}`,
+  ]
+}
+
+function clusterCells(clusters: ClusterExportColumns, region: ScoredBoundaryRegion): Array<string | number> {
+  const entry = clusters.values.get(region.region.id)
+  if (!entry) return [CLUSTER_LABELS.none, '', '']
+  return [CLUSTER_LABELS[entry.cluster], entry.localI === null ? '' : metricCell(entry.localI), entry.p ?? '']
 }
 
 export function scoredRegionsCsv(regions: ScoredBoundaryRegion[], options: RegionExportOptions): string {
-  const metricColumns = options.metrics.map((metric) => metric.label)
-  const metricCells = (region: ScoredBoundaryRegion) =>
-    options.metrics.map((metric) => metricCell(region.metrics[metric.key]))
+  const clusters = options.clusters ?? null
+  const metricColumns = [
+    ...options.metrics.map((metric) => metric.label),
+    ...(clusters ? clusterColumnNames(clusters) : []),
+  ]
+  const metricCells = (region: ScoredBoundaryRegion) => [
+    ...options.metrics.map((metric) => metricCell(region.metrics[metric.key])),
+    ...(clusters ? clusterCells(clusters, region) : []),
+  ]
   const identity = (region: ScoredBoundaryRegion) => [
     region.region.name,
     region.region.code,
@@ -218,6 +263,18 @@ export function scoredRegionsCsv(regions: ScoredBoundaryRegion[], options: Regio
   return toCsv(header, rows)
 }
 
+function clusterProperties(clusters: ClusterExportColumns, region: ScoredBoundaryRegion) {
+  const entry = clusters.values.get(region.region.id)
+  return {
+    clusterVariable: clusters.variableLabel,
+    cluster: entry?.cluster ?? 'none',
+    clusterLabel: CLUSTER_LABELS[entry?.cluster ?? 'none'],
+    localMoranI: entry?.localI ?? null,
+    localMoranP: entry?.p ?? null,
+    clusterSource: 'PGMaps-derived local Moran (queen contiguity, 999 permutations)',
+  }
+}
+
 function regionGeoJson(regions: ScoredBoundaryRegion[], options: RegionExportOptions): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
@@ -251,6 +308,7 @@ function regionGeoJson(regions: ScoredBoundaryRegion[], options: RegionExportOpt
             return [metric.key, Number.isFinite(value) ? value : null]
           }),
         ),
+        ...(options.clusters ? clusterProperties(options.clusters, region) : {}),
       },
     })),
   }

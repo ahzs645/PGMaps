@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, MapGradientLegendItem } from '@/components/ui/map-panels'
 import { RoadSelect } from '../Controls'
-import { SENTINEL_CLEARING_NDVI_DROP, SENTINEL_FIRST_YEAR, SENTINEL_RECENT_DAYS, SENTINEL_MIN_ZOOM } from './limits'
-import { NDVI_CHANGE_STOPS, NDVI_STOPS } from './render'
-import type { RatedScene, Sentinel2State, SentinelMode } from './useSentinel2'
+import { SENTINEL_FIRST_YEAR, SENTINEL_RECENT_DAYS, SENTINEL_MIN_ZOOM } from './limits'
+import { NDVI_STOPS, SENTINEL_INDICES, type SentinelIndex } from './indices'
+import { Sentinel2AreaSeries, type AreaDrawing } from './Sentinel2AreaSeries'
+import { isChangeMode, modeIndex, type RatedScene, type Sentinel2State, type SentinelMode } from './useSentinel2'
 
 const percent = (share: number) => `${Math.round(share * 100)}%`
 const gradient = (stops: typeof NDVI_STOPS) => {
@@ -27,6 +28,13 @@ function sceneValues(scene: RatedScene) {
 
 const sceneOption = (scene: RatedScene) => ({ value: scene.id, label: `${scene.date} · ${sceneValues(scene)}` })
 
+const INDEX_IDS = Object.keys(SENTINEL_INDICES) as SentinelIndex[]
+const MODE_OPTIONS: { value: SentinelMode; label: string }[] = [
+  { value: 'true-colour', label: 'True colour' },
+  ...INDEX_IDS.map((id) => ({ value: id, label: SENTINEL_INDICES[id].label })),
+  ...INDEX_IDS.map((id) => ({ value: `${id}-change` as SentinelMode, label: SENTINEL_INDICES[id].changeLabel })),
+]
+
 /**
  * The Sentinel-2 layer's card on the plan: the scene list, display mode and, for a change view, the
  * two scenes and the interval a clearing appeared in. Values here; explanations behind the InfoTips.
@@ -36,19 +44,25 @@ export function Sentinel2Panel({
   paused,
   moving,
   onClose,
+  drawing,
 }: {
   state: Sentinel2State
   paused: boolean
   moving: boolean
   onClose: () => void
+  /** The plan's area sketch, for the area series. */
+  drawing: AreaDrawing
 }) {
   const [folded, setFolded] = useState(false)
   const thisYear = new Date().getFullYear()
   const years = Array.from({ length: thisYear - SENTINEL_FIRST_YEAR + 1 }, (_, i) => thisYear - i)
   const pickable = state.pickable
+  const index = modeIndex(state.mode)
+  const spec = index ? SENTINEL_INDICES[index] : null
+  const comparing = isChangeMode(state.mode)
   return (
     <section
-      className="w-64 max-w-full overflow-y-auto overscroll-none rounded-md border bg-background/95 p-2 text-xs shadow-sm"
+      className={`${state.area || drawing.active ? 'w-80' : 'w-64'} max-w-full overflow-y-auto overscroll-none rounded-md border bg-background/95 p-2 text-xs shadow-sm`}
       style={{ maxHeight: 'inherit' }}
       aria-label="Sentinel-2 imagery"
       data-testid="road-sentinel2-panel"
@@ -83,11 +97,7 @@ export function Sentinel2Panel({
               ariaLabel="Sentinel-2 display"
               value={state.mode}
               onValueChange={(value) => state.setMode(value as SentinelMode)}
-              options={[
-                { value: 'true-colour', label: 'True colour' },
-                { value: 'ndvi', label: 'NDVI' },
-                { value: 'change', label: 'NDVI change' },
-              ]}
+              options={MODE_OPTIONS}
             />
             <RoadSelect
               ariaLabel="Sentinel-2 scenes from"
@@ -113,7 +123,7 @@ export function Sentinel2Panel({
             </InlineAlert>
           )}
           {state.searching && !state.scenes.length && <InlineAlert loading>Searching scenes…</InlineAlert>}
-          {state.mode === 'change'
+          {comparing
             ? pickable.length >= 2 && (
                 <div className="space-y-1">
                   <div>
@@ -157,41 +167,58 @@ export function Sentinel2Panel({
                 </ul>
               )}
           {state.imageLoading && <InlineAlert loading>Reading imagery…</InlineAlert>}
-          {state.mode === 'ndvi' && state.image && (
-            <MapGradientLegendItem
-              aria-label="NDVI colours"
-              colors={gradient(NDVI_STOPS)}
-              minLabel={`NDVI ≤ ${NDVI_STOPS[0][0]}`}
-              maxLabel={`${NDVI_STOPS[NDVI_STOPS.length - 1][0]}+`}
-              labelClassName="text-2xs"
-            />
+          {spec && !comparing && state.image && (
+            <div className="flex items-start gap-1">
+              <MapGradientLegendItem
+                className="flex-1"
+                aria-label={`${spec.label} colours`}
+                colors={gradient(spec.stops)}
+                minLabel={`${spec.label} ≤ ${spec.stops[0][0]}`}
+                maxLabel={`${spec.stops[spec.stops.length - 1][0]}+`}
+                labelClassName="text-2xs"
+              />
+              <InfoTip label={`About ${spec.label}`} bubbleClassName="max-w-72">
+                {spec.about} Cloud, shadow, snow and no-data pixels are left clear.
+              </InfoTip>
+            </div>
           )}
-          {state.mode === 'change' && state.image && state.change && (
+          {spec && comparing && state.image && state.change && (
             <>
               <MapGradientLegendItem
-                aria-label="NDVI change colours"
-                colors={gradient(NDVI_CHANGE_STOPS)}
+                aria-label={`${spec.changeLabel} colours`}
+                colors={gradient(spec.changeStops)}
                 minLabel="Loss"
                 maxLabel="Gain"
                 labelClassName="text-2xs"
               />
               <p data-testid="road-sentinel2-change">
-                {state.change.clearedHa > 0 ? (
+                {state.change.changedHa > 0 ? (
                   <>
-                    Clearing on {state.change.clearedHa.toFixed(1)} ha: {state.change.label} (Sentinel-2)
+                    {spec.changed} on {state.change.changedHa.toFixed(1)} ha: {state.change.label} (Sentinel-2)
                   </>
                 ) : (
-                  <>No clearing between the two scenes</>
+                  <>{spec.unchanged}</>
                 )}
-                <InfoTip label="About the NDVI change" className="ml-1 align-middle" bubbleClassName="max-w-72">
-                  A clearing is a pixel whose NDVI fell by {SENTINEL_CLEARING_NDVI_DROP} or more between the two scenes,
+                <InfoTip
+                  label={`About the ${spec.changeLabel}`}
+                  className="ml-1 align-middle"
+                  bubbleClassName="max-w-72"
+                >
+                  {spec.about} A pixel counts when its {spec.label} fell by {spec.drop} or more between the two scenes,
                   where both see clear ground ({percent(state.change.comparedShare)} of the window). It means the ground
-                  was cleared some time in that interval, not that a road was built or is drivable, and a spur cannot be
+                  changed some time in that interval, not that a road was built or is drivable, and a spur cannot be
                   told apart from its block&apos;s own clearing. A bracket over November–April is marked as a snow gap.
                 </InfoTip>
               </p>
             </>
           )}
+          <Sentinel2AreaSeries
+            area={state.area}
+            series={state.series}
+            drawing={drawing}
+            selectedSceneId={comparing ? state.pair.after : state.sceneId}
+            onClear={() => state.setArea(null)}
+          />
           {state.credit && <p className="text-2xs text-muted-foreground">{state.credit}</p>}
         </div>
       )}

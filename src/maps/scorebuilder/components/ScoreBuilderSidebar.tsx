@@ -1,5 +1,5 @@
 import { useClipboardText } from '@/hooks/useClipboardText'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { BookOpen, Check, Copy, Hammer, Plus, Settings as SettingsIcon } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { CollapsibleSection, InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
@@ -75,6 +75,8 @@ interface ScoreBuilderSidebarProps {
   onOpenRecipes: () => void
   onOpenSettings: () => void
   onOpenBuild: () => void
+  /** The score's spatial pattern section (Moran's I and its clusters). */
+  spatialPattern?: ReactNode
 }
 
 /**
@@ -129,6 +131,7 @@ export function ScoreBuilderSidebar({
   onOpenRecipes,
   onOpenSettings,
   onOpenBuild,
+  spatialPattern,
 }: ScoreBuilderSidebarProps) {
   const { copy, status: shareStatus } = useClipboardText()
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -306,6 +309,8 @@ export function ScoreBuilderSidebar({
           />
         </CollapsibleSection>
       </div>
+
+      {spatialPattern}
 
       <SidebarSection className="border-b-0 px-4 py-3 pb-6" data-score-builder-section-id="regions" title="Regions">
         <RegionsTab

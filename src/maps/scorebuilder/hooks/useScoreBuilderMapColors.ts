@@ -8,6 +8,7 @@ import {
   type MetricCorrelation,
 } from '../lib/correlation'
 import { buildBivariateBreaks, getBivariateColor, getResidualColor } from '../lib/correlationColors'
+import type { CorrelateVisStyle } from '../lib/labs'
 import type { RegionMetricRow } from '../lib/scoring'
 import type { ScoreSpread } from '../lib/scoreSummaries'
 import type { ScoredBoundaryRegion, ScoreMethodSettings, ScoreMetricKey, ScoreMetricRangeMap } from '../types'
@@ -16,7 +17,7 @@ export interface ScoreBuilderMapColorsOptions {
   correlateMode: boolean
   correlateMetricX: ScoreMetricKey
   correlateMetricY: ScoreMetricKey
-  correlateVisStyle: 'bivariate' | 'residual'
+  correlateVisStyle: CorrelateVisStyle
   densityMode: boolean
   densityMetric: ScoreMetricKey
   regionMetricRows: RegionMetricRow[]

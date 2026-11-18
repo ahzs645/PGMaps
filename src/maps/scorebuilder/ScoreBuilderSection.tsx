@@ -38,6 +38,11 @@ import { useScoreBuilderResults } from './hooks/useScoreBuilderResults'
 import { useScoreBuilderState } from './hooks/useScoreBuilderState'
 import { useUserDatasets } from './hooks/useUserDatasets'
 import { useWalkabilityMiZonal } from './hooks/useWalkabilityMiZonal'
+import { useLabSpatialPattern } from './hooks/useLabSpatialPattern'
+import { SpatialPatternPanel } from './components/SpatialPatternPanel'
+import { CollapsibleSection } from '@/components/ui/map-panels'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { CLUSTER_LABELS } from './lib/spatialPatternView'
 import {
   exportMapImage,
   exportScoredRegions,
@@ -313,7 +318,28 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
         : null,
     [bcEnviroScreenColorBins, bcEnviroScreenMapActive, bcEnviroScreenMapVariable, results.unfilteredScoredRegions],
   )
-  const resolvedMapRegionFillColors = bcEnviroScreenMapView?.regionFillColors ?? mapRegionFillColors
+  // The spatial pattern of what the map shows. It runs only while its section is open or
+  // the map shows clusters, and never inside the scoring passes.
+  const [spatialPanelOpen, setSpatialPanelOpen] = useState(false)
+  const spatial = useLabSpatialPattern({
+    lab,
+    regions: datasets.regions,
+    regionMetricRows,
+    scoredRegions: results.scoredRegions,
+    correlationPoints: correlationResult.points,
+    densityMetric: state.densityMetric,
+    correlateMetricX: state.correlateMetricX,
+    correlateMetricY: state.correlateMetricY,
+    correlateVisStyle: state.correlateVisStyle,
+    correlateClusterVariable: state.correlateClusterVariable,
+    clusterMap: state.clusterMap,
+    clusterFdr: state.clusterFdr,
+    panelOpen: spatialPanelOpen,
+    boundarySurface: !sb.showWalkabilitySourceSurface,
+  })
+
+  const resolvedMapRegionFillColors =
+    spatial.fillColors ?? bcEnviroScreenMapView?.regionFillColors ?? mapRegionFillColors
 
   // Drop stale selection/insight ids once their regions leave the scored set.
   const { selectRegion, closeRegionInsight } = sb
@@ -452,6 +478,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
   }, [isIndexLab, lensMetrics, sb.activeMetricDefinitions, state.methodSettings, state.weights])
 
   const mapImageLegend = useMemo<MapImageLegend | null>(() => {
+    if (spatial.imageLegend) return spatial.imageLegend
     if (lab === 'correlate') {
       if (state.correlateVisStyle === 'residual') {
         return {
@@ -496,6 +523,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
     results.scorePaletteProfile,
     results.scoreSpread,
     sb.canUseWalkabilitySourceSurface,
+    spatial.imageLegend,
     state.correlateMetricX,
     state.correlateMetricY,
     state.correlateVisStyle,
@@ -542,6 +570,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
         aggregation: state.methodSettings.aggregation,
         includeScores: isIndexLab,
         filenameStem: `${stem}-regions`,
+        clusters: spatial.exportColumns,
       })
     },
     [
@@ -555,6 +584,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
       results.equationPreview,
       results.scoreSpread,
       results.scoredRegions,
+      spatial.exportColumns,
       state.methodSettings,
     ],
   )
@@ -578,10 +608,14 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
             (metric) =>
               `${escapeHtml(getMetricLabel(metric))}: ${escapeHtml(formatMetricValue(metric, entry.metrics[metric], true))}`,
           )
+      if (spatial.clusterShown) {
+        const cluster = spatial.summary?.clusterById.get(entry.region.id) ?? 'none'
+        lines.push(`Cluster: ${escapeHtml(CLUSTER_LABELS[cluster])}`)
+      }
       tooltips[entry.region.id] = [`<strong>${escapeHtml(entry.region.name)}</strong>`, ...lines].join('<br />')
     }
     return tooltips
-  }, [isIndexLab, lensMetrics, results.scoredRegions])
+  }, [isIndexLab, lensMetrics, results.scoredRegions, spatial.clusterShown, spatial.summary])
 
   const lensCoverage = useMemo(() => {
     if (isIndexLab || datasets.loading) return null
@@ -614,6 +648,57 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
   )
   const openRecipes = useCallback(() => setRecipesOpen(true), [])
   const openSettings = useCallback(() => setSettingsOpen(true), [])
+
+  const regionNames = useMemo(
+    () => new Map(datasets.regions.map((region) => [region.id, region.name])),
+    [datasets.regions],
+  )
+  const spatialGlobal = spatial.summary?.global
+  const spatialPatternSection = sb.showWalkabilitySourceSurface ? null : (
+    <div className="border-b border-border" data-score-builder-section-id="spatialPattern">
+      <CollapsibleSection
+        open={spatialPanelOpen}
+        onOpenChange={setSpatialPanelOpen}
+        label={<span className="text-sm font-semibold">Spatial pattern</span>}
+        summary={spatialGlobal ? `Moran's I ${spatialGlobal.I.toFixed(2)}` : "Moran's I"}
+        className="bg-transparent px-1"
+        contentClassName="px-3 pb-4"
+      >
+        <SpatialPatternPanel
+          variableLabel={spatial.variableLabel}
+          summary={spatial.summary}
+          regionNames={regionNames}
+          mapCounts={spatial.mapCounts}
+          fdr={state.clusterFdr}
+          onFdrChange={sb.setClusterFdr}
+          clusterMap={
+            lab === 'correlate'
+              ? undefined
+              : {
+                  on: state.clusterMap,
+                  onChange: sb.setClusterMap,
+                  valueLabel: lab === 'density' ? 'Density' : 'Score',
+                }
+          }
+          variablePicker={
+            lab === 'correlate' ? (
+              <SegmentedControl
+                label="Spatial pattern of"
+                size="sm"
+                value={state.correlateClusterVariable}
+                onChange={sb.setCorrelateClusterVariable}
+                options={[
+                  { value: 'y', label: 'Metric Y' },
+                  { value: 'x', label: 'Metric X' },
+                  { value: 'residual', label: 'Residuals' },
+                ]}
+              />
+            ) : undefined
+          }
+        />
+      </CollapsibleSection>
+    </div>
+  )
 
   const desktopLeftPanel = (
     <ScoreBuilderLeftPanel
@@ -678,6 +763,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
       baselineComparison={baselineComparison}
       onPinBaseline={pinBaseline}
       onClearBaseline={clearBaseline}
+      spatialPattern={spatialPatternSection}
     />
   )
 
@@ -728,6 +814,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
       onOpenRecipes={openRecipes}
       onOpenSettings={openSettings}
       onOpenBuild={() => setViewMode('build')}
+      spatialPattern={spatialPatternSection}
     />
   )
 
@@ -754,6 +841,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
     onClearRegionSelection: sb.clearRegionSelection,
     className: isDesktop ? 'border-r border-border shadow-xl' : 'border-0 shadow-none',
     showDescription: !isDesktop,
+    spatialPattern: spatialPatternSection,
   }
   const lensSidebar =
     lab === 'density' ? (
@@ -776,6 +864,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
         correlateVisStyle={state.correlateVisStyle}
         onCorrelateVisStyleChange={sb.setCorrelateVisStyle}
         correlationResult={correlationResult}
+        residualPattern={spatial.residualPattern}
         correlationTopPairs={correlationTopPairs}
         onApplyTopPair={sb.applyCorrelatePair}
       />
@@ -928,7 +1017,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
 
                   {isDesktop && table.button && <div className="absolute left-3 top-3 z-20">{table.button}</div>}
 
-                  {bcEnviroScreenMapActive && (
+                  {bcEnviroScreenMapActive && !spatial.clusterShown && (
                     <BcEnviroScreenMapControls
                       variable={bcEnviroScreenMapVariable}
                       onVariableChange={setBcEnviroScreenMapVariable}
@@ -1034,6 +1123,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
                     lowCoverageExcludedCount={results.lowCoverageExcludedCount}
                     bcEnviroScreenMapView={bcEnviroScreenMapView}
                     sensorDataDate={sensorDataDate}
+                    clusterLegend={spatial.legend}
                   />
                 </div>
               </div>
