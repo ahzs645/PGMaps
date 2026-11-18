@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { MASK_LABELS, MAX_ASSESSMENT_MASKS, nextWildlifeTreePatchName, parseMasks, withDrawnMask } from './assessmentMasks'
+import {
+  MASK_LABELS,
+  MAX_ASSESSMENT_MASKS,
+  nextWildlifeTreePatchName,
+  parseMasks,
+  withDrawnMask,
+} from './assessmentMasks'
 import type { AssessmentMask, TargetPolygon } from './types'
 import { assessVia, parseViaReview } from './via'
 import {
