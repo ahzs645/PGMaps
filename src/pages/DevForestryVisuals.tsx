@@ -5210,7 +5210,7 @@ function DevForestryVisuals() {
       const record = tools.fieldRecord(recordId)
       if (!record || record.kind !== 'photo') return
       fieldPhoto.openOwnRecord(record, null)
-      fieldPhoto.applyMatchedCamera(camera, 'Reference measurements', checks)
+      fieldPhoto.applyMatchedCamera(recordId, camera, 'Reference measurements', checks)
       fieldPhoto.openOwnDialog('camera')
     },
     onOriginalPhoto: (file, recordId) => addProjectAttachments([file], recordId),
