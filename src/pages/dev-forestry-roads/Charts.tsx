@@ -79,6 +79,8 @@ import type { ProfileJunction } from './profileJunctions'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { courseStack, type StationStructure } from './sectionStructures'
 import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
+import { haulDiagram, haulDirectionRuns, haulShading, type HaulDiagramRowKey } from './haulDiagram'
+import type { HaulMovement } from './engineeringTypes'
 import {
   gradeDiagram,
   groundGradeIntervals,
@@ -102,6 +104,8 @@ import {
 import { BalanceLineOverlay, BalanceWhatIfPanel, useBalanceWhatIf } from './MassHaulBalanceLine'
 import { MassHaulTables } from './MassHaulTables'
 import { ProfileGroundLayers } from './ProfileGroundLayers'
+import { ProfileSearchBandLayer, SEARCH_BAND_COLOR } from './ProfileSearchBandLayer'
+import type { SearchBandSample } from './profileSearchBand'
 import {
   CHART_MEASURE_HINT,
   ChartMeasurementBand,
@@ -512,13 +516,40 @@ function Grid({
   )
 }
 
-function Legend({ items }: { items: Array<{ label: string; color: string }> }) {
+/**
+ * A chart's key. Each swatch looks like what it names: a `line` (the default), a `dashed` line, or an
+ * `area` for a shaded region, drawn at the chart's own fill opacity with its edge. A `title` heads a
+ * group of items, and `detail` is quieter text after the label (a range or a volume).
+ */
+type LegendItem = { label: string; color: string; swatch?: 'line' | 'dashed' | 'area'; detail?: string }
+function Legend({ items, title, testId }: { items: LegendItem[]; title?: string; testId?: string }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-2xs text-muted-foreground">
+    <div
+      className="flex flex-wrap items-center gap-x-4 gap-y-1 text-2xs text-muted-foreground"
+      role={title ? 'group' : undefined}
+      aria-label={title}
+      data-testid={testId}
+    >
+      {title && <span className="font-medium text-foreground">{title}</span>}
       {items.map((item) => (
         <span className="inline-flex items-center gap-1.5" key={item.label}>
-          <span className="h-0.5 w-4" style={{ backgroundColor: item.color }} />
-          {item.label}
+          {item.swatch === 'area' ? (
+            <span
+              aria-hidden
+              className="size-2.5 shrink-0 border"
+              style={{ borderColor: item.color, backgroundColor: `color-mix(in srgb, ${item.color} 40%, transparent)` }}
+            />
+          ) : (
+            <span
+              aria-hidden
+              className="w-4 shrink-0 border-t-2"
+              style={{ borderColor: item.color, borderStyle: item.swatch === 'dashed' ? 'dashed' : 'solid' }}
+            />
+          )}
+          <span>
+            {item.label}
+            {item.detail && <span className="ml-1 tabular-nums opacity-80">{item.detail}</span>}
+          </span>
         </span>
       ))}
     </div>
@@ -724,7 +755,9 @@ function ChartSlot({
       {/* The plot keeps 160 px (half a short slot) however many bands are open. Neither it nor the bands' scroller
           reserves a scrollbar strip (the app's scrollbar is drawn over the content), so a station sits at the same x
           in both. */}
-      <div className={`relative flex min-h-[min(160px,50%)] flex-1 flex-col ${bandsShown ? 'overflow-hidden' : ''}`}>
+      <div
+        className={`group/chart relative flex min-h-[min(160px,50%)] flex-1 flex-col ${bandsShown ? 'overflow-hidden' : ''}`}
+      >
         <ChartViewport className="min-h-0 flex-1" minHeight={1} initialHeight={230}>
           {(height) => (
             <SizedChart height={height}>
@@ -818,6 +851,8 @@ export function ProfileChart({
   onEditGesture,
   sharedXAxis = false,
   sharedMeasurement,
+  searchBand,
+  onClearSearchBand,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
@@ -847,6 +882,9 @@ export function ProfileChart({
   sharedXAxis?: boolean
   /** One Shift-click measurement shared with the grade strip under the profile. */
   sharedMeasurement?: ReturnType<typeof useChartMeasurement>
+  /** The last profile search's band (`shownSearchBand`), drawn behind the ground and formation. */
+  searchBand?: readonly SearchBandSample[] | null
+  onClearSearchBand?: () => void
 }) {
   const id = useId().replace(/:/g, '')
   const editable = !terrainOnly && !!onVerticalChange
@@ -1284,9 +1322,20 @@ export function ProfileChart({
                       ...(ditches.some((ditch) => ditch.points.some((p) => finite(p.design)))
                         ? [{ label: 'L/R ditch bottoms', color: ROAD_CHART_COLORS.ditch }]
                         : []),
+                      ...(searchBand ? [{ label: 'Search band', color: SEARCH_BAND_COLOR }] : []),
                     ]
               }
             />
+            {!terrainOnly && searchBand && onClearSearchBand && (
+              <Button
+                size="2xs"
+                variant="ghost"
+                onClick={onClearSearchBand}
+                data-testid="road-profile-search-band-clear"
+              >
+                Clear search band
+              </Button>
+            )}
             <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-2xs tabular-nums text-muted-foreground">
               <span>
                 {formatRoadStation(active?.chainage ?? station)} · {format(active?.gradePercent)}% · ground{' '}
@@ -1549,17 +1598,19 @@ export function ProfileChart({
               ),
             })
           })
+        // Vertical-curve labels sit over their PVI outside this pass; culvert tags and the rotated
+        // BVC/EVC labels (`ProfileCurvePoints`) keep clear of them.
+        const vcLabelBoxes = curves.flatMap((curve) => {
+          if (!labelledCurves.has(curve.pviId)) return []
+          const p = sorted.find((item) => item.id === curve.pviId)
+          if (!p || p.chainage < displayedDomain[0] || p.chainage > displayedDomain[1]) return []
+          const text = `${curve.valid ? 'VC' : 'Unfitted VC'} ${format(curve.length, 0)}${curve.k === null ? '' : ` K=${format(curve.k)}`}`
+          return [textBox(f.x(p.chainage), Math.max(f.top + 10, f.y(p.elevation) - 13), text, 9, 'middle')]
+        })
         const placedLabels = placeLabels(labelCandidates, {
           bounds: plotBox,
           obstacles: [
-            // Vertical-curve labels sit over their PVI outside this pass; culvert tags keep clear of them.
-            ...curves.flatMap((curve) => {
-              if (!labelledCurves.has(curve.pviId)) return []
-              const p = sorted.find((item) => item.id === curve.pviId)
-              if (!p || p.chainage < displayedDomain[0] || p.chainage > displayedDomain[1]) return []
-              const text = `${curve.valid ? 'VC' : 'Unfitted VC'} ${format(curve.length, 0)}${curve.k === null ? '' : ` K=${format(curve.k)}`}`
-              return [textBox(f.x(p.chainage), Math.max(f.top + 10, f.y(p.elevation) - 13), text, 9, 'middle')]
-            }),
+            ...vcLabelBoxes,
             // The diamond's own extent: its label starts 8 px out, clear of it by the placement gap.
             ...junctionMarks.map(({ x, y }) => ({ left: x - 6, top: y - 6, right: x + 6, bottom: y + 6 })),
             ...sorted
@@ -1714,6 +1765,7 @@ export function ProfileChart({
                   height={f.plotHeight}
                 />
                 <SelectionBand range={selectedRange} frame={f} />
+                {!terrainOnly && searchBand && <ProfileSearchBandLayer samples={searchBand} x={f.x} y={f.y} id={id} />}
                 {rangePick?.range && (
                   <rect
                     data-testid="road-profile-range-pick"
@@ -2054,6 +2106,7 @@ export function ProfileChart({
                   domain={[displayedDomain[0], displayedDomain[1]]}
                   onStation={onStation}
                   plan={marks}
+                  obstacles={vcLabelBoxes}
                 />
                 {sorted
                   .filter((p) => calloutIds.has(p.id))
@@ -3326,8 +3379,13 @@ export function CrossSectionChart({
   )
 }
 
-const HAUL_CLASS_COLORS = { freehaul: '#0d9488', overhaul: '#d97706', endhaul: '#7c3aed' } as const
+// End haul is maroon, as RoadEng draws it, so it never reads as the violet mass curve.
+const HAUL_CLASS_COLORS = { freehaul: '#0d9488', overhaul: '#d97706', endhaul: '#9f1239' } as const
 const HAUL_CLASS_LABELS = { freehaul: 'Free haul', overhaul: 'Overhaul', endhaul: 'End haul' } as const
+/** Mass-curve shading where no movement crosses in the curve's direction (nothing allocated there). */
+const HAUL_UNASSIGNED_COLOR = 'hsl(var(--muted-foreground))'
+/** The haul diagram's rows: the haul classes, and sidecast in the waste colour. */
+const HAUL_DIAGRAM_COLORS: Record<HaulDiagramRowKey, string> = { ...HAUL_CLASS_COLORS, sidecast: '#64748b' }
 /** The balance after borrow and waste: the foreground colour, so it reads in both themes. */
 const AFTER_SITES_COLOR = 'hsl(var(--foreground))'
 /** A diagram that ends within this of zero has closed: every surplus and deficit found a site. */
@@ -3343,8 +3401,11 @@ export function MassHaulChart({
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
-  /** The road's entered haul settings and sites, which name the pits and give the classes their limits. */
-  engineeringInputs?: Pick<AlignmentEngineering, 'haul' | 'sites'>
+  /**
+   * The road's entered haul settings and sites, which name the pits and give the classes their limits,
+   * and its materials, which name the haul diagram's material filter.
+   */
+  engineeringInputs?: Pick<AlignmentEngineering, 'haul' | 'sites'> & Partial<Pick<AlignmentEngineering, 'materials'>>
   station: number
   onStation: (chainage: number) => void
   viewRange?: [number, number]
@@ -3369,15 +3430,15 @@ export function MassHaulChart({
   const afterHere = afterSites ? ordinateAt(afterSites, station) : null
   const unknownHere = diagram.unknown.some((span) => station > span.start + 1e-6 && station < span.end - 1e-6)
   const closed = !!haul && Math.abs(haul.closingM3) <= MASS_CLOSED_M3
-  const unplaced = [
-    (engineering?.haul.unallocatedBorrowM3 ?? 0) > MASS_CLOSED_M3 &&
-      `${format(engineering!.haul.unallocatedBorrowM3)} compacted m³ of fill has no borrow site with room`,
-    (engineering?.haul.unallocatedWasteM3 ?? 0) > MASS_CLOSED_M3 &&
-      `${format(engineering!.haul.unallocatedWasteM3)} bank m³ of cut has no waste site with room`,
-  ]
-    .filter(Boolean)
-    .join(' and ')
   const classBands = haul?.classes.some((band) => band.spans.length) ? haul.classes : []
+  // The curve the chart draws, shaded by the haul class of the material crossing each station
+  // (`haulDiagram.ts`) once the haul plan is allocated; before that it keeps surplus and deficit.
+  const shadeLine = afterSites ?? diagram.balance
+  const movements = engineering?.movements
+  const shading = useMemo(
+    () => (haul && movements?.length ? haulShading(shadeLine, movements) : null),
+    [haul, movements, shadeLine],
+  )
   const nearbyMovements = [...(engineering?.movements ?? [])]
     .filter(
       (movement) =>
@@ -3424,40 +3485,113 @@ export function MassHaulChart({
       measurement={{ reading: measurement, formatEndpoint: formatRoadStation }}
       footer={
         <>
-          <Legend
-            items={[
-              {
-                label: engineering ? 'Usable compacted cut − fill' : 'Cumulative cut × factor − fill',
-                color: ROAD_CHART_COLORS.mass,
-              },
-              ...(afterSites ? [{ label: 'After borrow and waste', color: AFTER_SITES_COLOR }] : []),
-              { label: 'Surplus', color: ROAD_CHART_COLORS.cut },
-              { label: 'Deficit', color: ROAD_CHART_COLORS.fill },
-              ...(diagram.unknown.length ? [{ label: 'Earthwork unknown (hatched)', color: '#b45309' }] : []),
-            ]}
-          />
-          <p className="text-3xs" data-testid="road-mass-cursor">
-            {formatRoadStation(station)} · balance {format(balanceHere)} m³
-            {afterHere !== null && ` · after borrow and waste ${format(afterHere)} m³`}
-            {unknownHere && ' · earthwork unknown here, so the balance is carried across'}
-          </p>
-          <p className="text-3xs" data-testid="road-mass-end">
-            End balance {format(diagram.endBalanceM3)} m³
-            {diagram.unknownLengthM > 0 &&
-              ` · excludes ${format(diagram.unknownLengthM)} m of road with unknown earthwork`}
-            {haul &&
-              ` · after borrow and waste ${closed ? 'the diagram closes at 0 m³' : `it ends at ${format(haul.closingM3)} m³`}`}
-            {haul && unplaced && ` · ${unplaced}`}
-          </p>
-          <BalanceWhatIfPanel
-            result={whatIf.result}
-            range={whatIf.range}
-            freeHaulM={engineeringInputs?.haul.freeHaulDistanceM ?? null}
-            onLevel={setWhatIfLevel}
-            onOpen={() => setWhatIfLevel(0)}
-            onClose={() => setWhatIfLevel(null)}
-            onStation={onStation}
-          />
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+            <Legend
+              title="Curve"
+              items={[
+                {
+                  label: engineering ? 'Usable compacted cut − fill' : 'Cumulative cut × factor − fill',
+                  color: ROAD_CHART_COLORS.mass,
+                },
+                ...(afterSites
+                  ? [{ label: 'After borrow and waste', color: AFTER_SITES_COLOR, swatch: 'dashed' as const }]
+                  : []),
+              ]}
+            />
+            {shading ? (
+              <Legend
+                title="Haul class"
+                testId="road-haul-classes"
+                items={[
+                  ...(haul?.classes ?? [])
+                    .filter((band) => shading.some((s) => s.parts.some((part) => part.category === band.category)))
+                    .map((band) => ({
+                      label: band.label,
+                      color: HAUL_CLASS_COLORS[band.category],
+                      swatch: 'area' as const,
+                      detail: `${classRange(band).trim()} · ${format(band.compactedM3, 0)} m³${band.bankM3 > 0 ? ` + ${format(band.bankM3, 0)} bank m³ waste` : ''}`,
+                    })),
+                  ...(shading.some((s) => s.parts.some((part) => part.category === 'unassigned'))
+                    ? [{ label: 'Not allocated', color: HAUL_UNASSIGNED_COLOR, swatch: 'area' as const }]
+                    : []),
+                ]}
+              />
+            ) : (
+              <Legend
+                title="Balance"
+                items={[
+                  { label: 'Surplus', color: ROAD_CHART_COLORS.cut, swatch: 'area' },
+                  { label: 'Deficit', color: ROAD_CHART_COLORS.fill, swatch: 'area' },
+                ]}
+              />
+            )}
+            {diagram.unknown.length > 0 && (
+              <Legend items={[{ label: 'Earthwork unknown (hatched)', color: '#b45309', swatch: 'area' }]} />
+            )}
+          </div>
+          {/* The what-if button ends the readouts' line; once open, its panel takes the width below. One
+              instance either way, so closing it hands focus back to its button. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <MassReadouts
+              items={[
+                {
+                  label: `At ${formatRoadStation(station)}`,
+                  value: `${format(balanceHere)} m³`,
+                  testId: 'road-mass-cursor',
+                  note: unknownHere
+                    ? 'earthwork unknown here, carried across'
+                    : afterHere !== null
+                      ? `${format(afterHere)} m³ after borrow and waste`
+                      : undefined,
+                },
+                {
+                  label: 'End',
+                  value: `${format(diagram.endBalanceM3)} m³`,
+                  testId: 'road-mass-end',
+                  note:
+                    [
+                      haul &&
+                        (closed
+                          ? 'closes at 0 m³ after borrow and waste'
+                          : `${format(haul.closingM3)} m³ after borrow and waste`),
+                      diagram.unknownLengthM > 0 &&
+                        `leaves out ${format(diagram.unknownLengthM)} m of unknown earthwork`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || undefined,
+                },
+                ...((engineering?.haul.unallocatedWasteM3 ?? 0) > MASS_CLOSED_M3
+                  ? [
+                      {
+                        label: 'No waste site with room',
+                        value: `${format(engineering!.haul.unallocatedWasteM3)} bank m³ cut`,
+                        tone: 'warning' as const,
+                      },
+                    ]
+                  : []),
+                ...((engineering?.haul.unallocatedBorrowM3 ?? 0) > MASS_CLOSED_M3
+                  ? [
+                      {
+                        label: 'No borrow site with room',
+                        value: `${format(engineering!.haul.unallocatedBorrowM3)} m³ fill`,
+                        tone: 'warning' as const,
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+            <div className={whatIf.result ? 'basis-full' : 'ml-auto'}>
+              <BalanceWhatIfPanel
+                result={whatIf.result}
+                range={whatIf.range}
+                freeHaulM={engineeringInputs?.haul.freeHaulDistanceM ?? null}
+                onLevel={setWhatIfLevel}
+                onOpen={() => setWhatIfLevel(0)}
+                onClose={() => setWhatIfLevel(null)}
+                onStation={onStation}
+              />
+            </div>
+          </div>
           <MassHaulTables
             diagram={diagram}
             sites={engineeringInputs?.sites}
@@ -3479,21 +3613,6 @@ export function MassHaulChart({
               ))}
             </p>
           )}
-          {haul && (
-            <p
-              className="flex flex-wrap gap-x-3 gap-y-0.5 text-3xs text-muted-foreground"
-              data-testid="road-haul-classes"
-            >
-              {haul.classes.map((band) => (
-                <span key={band.category} className="inline-flex items-center gap-1">
-                  <span className="h-1.5 w-3" style={{ backgroundColor: HAUL_CLASS_COLORS[band.category] }} />
-                  {band.label}
-                  {classRange(band)}: {format(band.compactedM3)} compacted m³
-                  {band.bankM3 > 0 && ` + ${format(band.bankM3)} bank m³ waste`}
-                </span>
-              ))}
-            </p>
-          )}
           <p className="text-3xs text-muted-foreground">
             {engineering
               ? 'Material reuse and compaction follow the entered assumptions. '
@@ -3501,9 +3620,20 @@ export function MassHaulChart({
             The balance counts known earthwork only.
             {afterSites &&
               ' Each site steps the dashed line at its road station; above zero the net haul runs up-station, below zero down-station.'}
+            {shading &&
+              ' The area under the curve is shaded by the haul class of the material crossing each station; arrows point the way it moves.'}
             {classBands.length > 0 &&
               ' The bars at the foot of the plot mark the road each haul class moves material over.'}
           </p>
+          {haul && engineering && engineering.movements.length > 0 && (
+            <HaulDiagramStrip
+              movements={engineering.movements}
+              materials={engineeringInputs?.materials}
+              domain={domain}
+              station={station}
+              onStation={onStation}
+            />
+          )}
           {engineering?.haul.enabled && nearbyMovements.length > 0 && (
             <div className="-mx-3 border-t" data-testid="road-haul-movements">
               <button
@@ -3692,9 +3822,32 @@ export function MassHaulChart({
                   }
                 />
               </g>
-              {differencePolygons(points, f.x, f.y).map((p, i) => (
-                <polygon key={i} points={p.points} fill={p.color} opacity={0.2} />
-              ))}
+              {shading ? (
+                <g data-testid="road-mass-haul-shading">
+                  {shading.flatMap((segment, i) =>
+                    segment.parts.map((part) => (
+                      <polygon
+                        key={`${i}-${part.category}`}
+                        data-class={part.category}
+                        points={[
+                          [segment.x0, segment.y0 * part.from],
+                          [segment.x1, segment.y1 * part.from],
+                          [segment.x1, segment.y1 * part.to],
+                          [segment.x0, segment.y0 * part.to],
+                        ]
+                          .map(([x, y]) => `${f.x(x).toFixed(2)},${f.y(y).toFixed(2)}`)
+                          .join(' ')}
+                        fill={part.category === 'unassigned' ? HAUL_UNASSIGNED_COLOR : HAUL_CLASS_COLORS[part.category]}
+                        opacity={part.category === 'unassigned' ? 0.15 : 0.32}
+                      />
+                    )),
+                  )}
+                </g>
+              ) : (
+                differencePolygons(points, f.x, f.y).map((p, i) => (
+                  <polygon key={i} points={p.points} fill={p.color} opacity={0.2} />
+                ))
+              )}
               <line
                 x1={f.left}
                 x2={width - f.right}
@@ -3703,6 +3856,7 @@ export function MassHaulChart({
                 stroke="hsl(var(--muted-foreground))"
                 strokeDasharray="4 4"
               />
+              <HaulDirectionArrows line={shadeLine} frame={f} minPeakM3={(high - valueLow) * 0.04} />
               <path
                 d={linePath(points, 'ground', f.x, f.y)}
                 stroke={ROAD_CHART_COLORS.mass}
@@ -4532,4 +4686,261 @@ function groundSide(template: RoadTemplate, which: 'cut' | 'fill', text: string)
   return (['left', 'right'] as const)
     .map((s, k) => (batterSource(template, s, which) === 'material' ? 'ground' : parts[k]))
     .join(' / ')
+}
+
+/**
+ * RoadEng's direction arrows on a mass-haul diagram: one per run of the curve on one side of zero,
+ * at the run's peak and half its height, pointing up-station above zero and down-station below.
+ */
+function HaulDirectionArrows({
+  line,
+  frame,
+  minPeakM3,
+}: {
+  line: readonly (readonly [number, number])[]
+  frame: ReturnType<typeof chartFrame>
+  minPeakM3: number
+}) {
+  const runs = useMemo(() => haulDirectionRuns(line, minPeakM3), [line, minPeakM3])
+  return (
+    <g data-testid="road-mass-haul-arrows" pointerEvents="none">
+      {runs.map((run) => {
+        const width = frame.x(run.end) - frame.x(run.start)
+        const length = Math.min(56, width * 0.5)
+        if (length < 14) return null
+        const cx = clamp(frame.x(run.peakChainage), frame.x(run.start) + length / 2, frame.x(run.end) - length / 2)
+        const y = frame.y(run.peakM3 / 2)
+        const tail = cx - (run.sign * length) / 2,
+          tip = cx + (run.sign * length) / 2
+        return (
+          <g key={run.start} data-direction={run.sign > 0 ? 'up-station' : 'down-station'}>
+            <line x1={tail} x2={tip - run.sign * 5} y1={y} y2={y} stroke="hsl(var(--foreground))" strokeWidth={1.4} />
+            <path
+              d={`M${tip},${y} L${tip - run.sign * 7},${y - 4} L${tip - run.sign * 7},${y + 4} z`}
+              fill="hsl(var(--foreground))"
+            />
+          </g>
+        )
+      })}
+    </g>
+  )
+}
+
+/** Height of one lane of the haul diagram, and the most a band's thickness takes of it. */
+const HAUL_LANE_PX = 11
+const HAUL_BAND_MAX_PX = 8
+
+/**
+ * The haul diagram under the mass-haul chart (RoadEng's Opti-Haul diagram): each movement the
+ * allocation made, from where it is dug to where it is placed, in the row of its haul class, as thick
+ * as its volume, with borrow and waste sites marked at their road stations. It reads the movements
+ * only (`haulDiagram.ts`), on the mass chart's own station scale.
+ */
+function HaulDiagramStrip({
+  movements,
+  materials,
+  domain,
+  station,
+  onStation,
+}: {
+  movements: readonly HaulMovement[]
+  materials?: readonly { id: string; name: string }[]
+  domain: Domain
+  station: number
+  onStation: (chainage: number) => void
+}) {
+  const id = useId().replace(/:/g, '')
+  const [open, setOpen] = useState(true)
+  const [material, setMaterial] = useState<string>('all')
+  const minLengthM = (domain[1] - domain[0]) / 120
+  const all = useMemo(() => haulDiagram(movements, { minLengthM }), [movements, minLengthM])
+  const materialId = material === 'all' ? undefined : material === 'none' ? null : material
+  const diagram = useMemo(
+    () => (materialId === undefined ? all : haulDiagram(movements, { materialId, minLengthM })),
+    [all, movements, materialId, minLengthM],
+  )
+  const materialName = (value: string | null) =>
+    value === null ? 'No material named' : (materials?.find((m) => m.id === value)?.name ?? value)
+  const pitsPx = diagram.pits.length ? 14 : 0
+  const rowTops: number[] = []
+  let height = 4 + pitsPx
+  for (const row of diagram.rows) {
+    rowTops.push(height)
+    height += row.lanes * HAUL_LANE_PX + 6
+  }
+  height += 2
+  return (
+    <div className="-mx-3 border-t" data-testid="road-haul-diagram">
+      <div className="flex items-center justify-between gap-2 px-3 py-1 text-3xs text-muted-foreground">
+        <button
+          className="flex-1 text-left hover:text-foreground"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          Haul diagram · {movements.length} movement{movements.length === 1 ? '' : 's'}
+        </button>
+        {open && all.materials.length > 1 && (
+          <RoadSelect
+            ariaLabel="Haul diagram material"
+            value={material}
+            onValueChange={setMaterial}
+            className="h-6 w-40 text-3xs"
+            options={[
+              { value: 'all', label: 'All materials' },
+              ...all.materials.map((m) => ({ value: m ?? 'none', label: materialName(m) })),
+            ]}
+          />
+        )}
+        <button className="hover:text-foreground" aria-hidden tabIndex={-1} onClick={() => setOpen((v) => !v)}>
+          {open ? 'Hide −' : 'Show +'}
+        </button>
+      </div>
+      {open && (
+        <div className="px-3 pb-1">
+          {diagram.rows.length === 0 ? (
+            <p className="text-3xs text-muted-foreground">No movement of this material.</p>
+          ) : (
+            <SizedChart height={height}>
+              {(width) => {
+                const f = chartFrame(width, height, domain, 0, 0)
+                return (
+                  <svg
+                    width={width}
+                    height={height}
+                    role="group"
+                    aria-label="Haul diagram: each movement from source to destination by haul class, as thick as its volume. Select a band for its source station."
+                  >
+                    <defs>
+                      <clipPath id={`haul-${id}`}>
+                        <rect x={f.left} y={0} width={f.plotWidth} height={height} />
+                      </clipPath>
+                    </defs>
+                    {diagram.rows.map((row, r) => (
+                      <g key={row.key} data-haul-row={row.key}>
+                        <rect
+                          x={f.left}
+                          y={rowTops[r]}
+                          width={f.plotWidth}
+                          height={row.lanes * HAUL_LANE_PX + 4}
+                          fill="hsl(var(--muted))"
+                          opacity={0.45}
+                        />
+                        <text
+                          x={f.left - 4}
+                          y={rowTops[r] + (row.lanes * HAUL_LANE_PX + 4) / 2 + 3}
+                          textAnchor="end"
+                          fontSize="9"
+                          fill="hsl(var(--muted-foreground))"
+                        >
+                          {row.label}
+                        </text>
+                      </g>
+                    ))}
+                    <g clipPath={`url(#haul-${id})`}>
+                      {diagram.pits.map((pit) => {
+                        const x = f.x(pit.chainage)
+                        return (
+                          <path
+                            key={`${pit.kind}-${pit.siteId}`}
+                            data-haul-pit={pit.kind}
+                            d={pit.kind === 'borrow' ? `M${x},4 A5,5 0 0 1 ${x},14 z` : `M${x},4 A5,5 0 0 0 ${x},14 z`}
+                            fill={pit.kind === 'borrow' ? 'hsl(var(--foreground))' : 'none'}
+                            stroke="hsl(var(--foreground))"
+                            strokeWidth={1.2}
+                          >
+                            <title>{`${pit.kind === 'borrow' ? 'Borrow' : 'Waste'} site at ${formatRoadStation(pit.chainage)}`}</title>
+                          </path>
+                        )
+                      })}
+                      {diagram.rows.map((row, r) =>
+                        row.bands.map((band) => {
+                          const color = HAUL_DIAGRAM_COLORS[row.key]
+                          const x0 = f.x(band.start),
+                            x1 = f.x(band.end)
+                          const mid = rowTops[r] + 2 + band.lane * HAUL_LANE_PX + HAUL_LANE_PX / 2
+                          const half = (2 + band.weight * (HAUL_BAND_MAX_PX - 2)) / 2
+                          const tip = band.direction > 0 ? x1 : x0
+                          const head = Math.min(6, (x1 - x0) / 2)
+                          const m = band.movement
+                          return (
+                            <g
+                              key={m.id}
+                              data-haul-band={m.id}
+                              className="cursor-pointer"
+                              onClick={() => onStation(m.fromChainage)}
+                            >
+                              <title>
+                                {`${HAUL_CLASS_LABELS[m.category]} · ${m.kind === 'cut-to-fill' ? 'cut to fill' : m.disposalMethod === 'sidecast' ? 'sidecast' : m.kind}${m.materialId !== null || materials?.length ? ` · ${materialName(m.materialId)}` : ''}: ${format(m.transportedVolumeM3, 0)} ${m.volumeBasis} m³ from ${formatRoadStation(m.fromChainage)} to ${formatRoadStation(m.toChainage)}, ${format(m.distanceM, 0)} m`}
+                              </title>
+                              <path
+                                d={
+                                  band.direction > 0
+                                    ? `M${x0},${mid - half} L${tip - head},${mid - half} L${tip},${mid} L${tip - head},${mid + half} L${x0},${mid + half} z`
+                                    : `M${x1},${mid - half} L${tip + head},${mid - half} L${tip},${mid} L${tip + head},${mid + half} L${x1},${mid + half} z`
+                                }
+                                fill={color}
+                                fillOpacity={0.55}
+                                stroke={color}
+                                strokeWidth={0.8}
+                              />
+                            </g>
+                          )
+                        }),
+                      )}
+                      <line
+                        x1={f.x(station)}
+                        x2={f.x(station)}
+                        y1={0}
+                        y2={height}
+                        stroke={ROAD_CHART_COLORS.selected}
+                        strokeWidth={1}
+                        pointerEvents="none"
+                      />
+                    </g>
+                  </svg>
+                )
+              }}
+            </SizedChart>
+          )}
+          <p className="mt-0.5 flex flex-wrap gap-x-3 text-3xs text-muted-foreground">
+            {diagram.rows.map((row) => (
+              <span key={row.key}>
+                {row.label}: {row.compactedM3 > 0 && `${format(row.compactedM3, 0)} compacted m³`}
+                {row.compactedM3 > 0 && row.bankM3 > 0 && ' + '}
+                {row.bankM3 > 0 && `${format(row.bankM3, 0)} bank m³`}
+              </span>
+            ))}
+            {diagram.pits.length > 0 && <span>◗ borrow site · ◖ waste site</span>}
+            {diagram.folded > 0 && <span>{diagram.folded} overlapping bands share a row's last lane</span>}
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The mass-haul chart's readouts on one line under its key: a quiet label and its value, wrapping on a
+ * narrow pane. A `warning` reads amber; a `note` follows its value in the muted colour.
+ */
+function MassReadouts({
+  items,
+}: {
+  items: { label: string; value: string; note?: string; tone?: 'warning' | 'success'; testId?: string }[]
+}) {
+  return (
+    <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-2xs" aria-label="Mass balance readouts">
+      {items.map((item) => (
+        <div key={item.label} className="inline-flex items-baseline gap-1" data-testid={item.testId}>
+          <dt className="text-muted-foreground">{item.label}</dt>
+          <dd
+            className={`font-medium tabular-nums ${item.tone === 'warning' ? 'text-warning' : item.tone === 'success' ? 'text-success' : 'text-foreground'}`}
+          >
+            {item.value}
+            {item.note && <span className="ml-1 font-normal text-muted-foreground">· {item.note}</span>}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
 }

@@ -36,6 +36,7 @@ import {
   type History,
 } from './undoHistory'
 import { describeProjectChange } from './projectChangeLabel'
+import type { ProfileSearchBand } from './profileSearchBand'
 
 const training = () => new URLSearchParams(location.search).get('example') === 'training'
 
@@ -63,6 +64,8 @@ export function useRoadWorkspace() {
   const [source, setSource] = useState<TerrainSource>(demoTerrain)
   const [station, setStation] = useState(0)
   const [featureSelection, setFeatureSelection] = useState<RoadFeatureSelection | null>(null)
+  // The last profile search's band, drawn on its road's profile (`shownSearchBand`). Session only.
+  const [profileSearchBand, setProfileSearchBand] = useState<ProfileSearchBand | null>(null)
   const [busyState, setBusyState] = useState({ message: 'Opening road workspace…', id: 1 })
   const [busyCancel, setBusyCancel] = useState<{ label: string; title?: string; onCancel: () => void } | null>(null)
   /** `text` replaces the "step of total" beside the message, for a job measured in something else. */
@@ -569,6 +572,9 @@ export function useRoadWorkspace() {
     setStation,
     featureSelection,
     setFeatureSelection,
+    /** The last profile search's band, never saved; `shownSearchBand` says whether it still fits the road. */
+    profileSearchBand,
+    setProfileSearchBand,
     commit,
     update,
     updateAlignment,

@@ -99,3 +99,75 @@ describe('design-file ground', () => {
     expect(groundAlong([], 10)).toBeNull()
   })
 })
+
+describe('haul volumes by class', () => {
+  const metrics = (analysis: RoadAnalysis) =>
+    roadSummaryMetrics({
+      analysis,
+      alignment,
+      settings: DEFAULT_ROAD_SETTINGS,
+      groundOnly: false,
+      preview: null,
+      record: undefined,
+      recordCurrent: false,
+      unpriced: 0,
+      incomplete: [],
+      costOpen: false,
+      onCost: () => {},
+      onIncomplete: () => {},
+    })
+  const withHaul = (haul: Record<string, unknown>) => {
+    const analysis = analyze()
+    return {
+      ...analysis,
+      engineering: { movements: [], ...analysis.engineering, haul: { ...analysis.engineering?.haul, ...haul } },
+    } as RoadAnalysis
+  }
+  const solved = {
+    enabled: true,
+    optimizationStatus: 'optimal',
+    complete: true,
+    freeHaulM3: 1200,
+    overhaulM3: 340,
+    endHaulM3: 0,
+    haulM3Km: 410.4,
+    borrowCompactedM3: 75,
+    wasteBankM3: 0,
+    wasteFreeHaulBankM3: 0,
+    wasteOverhaulBankM3: 0,
+    wasteEndHaulBankM3: 0,
+  }
+
+  it('lists free, over and end haul once the plan is solved, hidden until chosen', () => {
+    const haul = metrics(withHaul(solved)).find((m) => m.key === 'haul')
+    expect(haul?.value).toBe('1,200 / 340 / 0 m³')
+    expect(haul?.note).toContain('borrow 75 m³')
+    expect(haul?.defaultLevel).toBe('hidden')
+  })
+
+  it('never reads haul off or an unsolved plan as zero haul or nothing unplaced', () => {
+    const off = metrics(withHaul({ ...solved, enabled: false }))
+    expect(off.find((m) => m.key === 'haul')?.value).toBe('Haul off')
+    expect(off.find((m) => m.key === 'unplaced')?.value).toBe('Haul off')
+    const unsolved = metrics(withHaul({ ...solved, optimizationStatus: 'infeasible' }))
+    expect(unsolved.find((m) => m.key === 'haul')?.value).toBe('Plan not solved')
+  })
+
+  it('names what no site had room for, as a warning', () => {
+    const row = metrics(withHaul({ ...solved, unallocatedWasteM3: 5567.2, unallocatedBorrowM3: 0 })).find(
+      (m) => m.key === 'unplaced',
+    )
+    expect(row?.value).toBe('5,567 bank m³ cut')
+    expect(row?.tone).toBe('warning')
+    expect(
+      metrics(withHaul({ ...solved, unallocatedWasteM3: 0, unallocatedBorrowM3: 0 })).find((m) => m.key === 'unplaced')
+        ?.value,
+    ).toBe('None')
+  })
+
+  it('offers the end balance as a hidden row', () => {
+    const end = metrics(analyze()).find((m) => m.key === 'mass-end')
+    expect(end?.defaultLevel).toBe('hidden')
+    expect(end?.value).toMatch(/m³$/)
+  })
+})

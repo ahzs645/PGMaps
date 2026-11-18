@@ -60,8 +60,10 @@ test('vertical standards, control points and the profile optimizer', async ({ pa
   const before = await estimate(page)
   const count = await roadCount(page)
   await openRoadPanel(page, 'Optimize vertical profile')
-  await page.getByLabel('Search ± (m)', { exact: true }).fill('12')
-  await page.getByLabel('Search ± (m)', { exact: true }).press('Tab')
+  for (const side of ['Below (m)', 'Above (m)']) {
+    await page.getByLabel(side, { exact: true }).fill('12')
+    await page.getByLabel(side, { exact: true }).press('Tab')
+  }
   await page.getByLabel('Tie both ends to ground', { exact: true }).uncheck()
   await page.getByRole('button', { name: 'Optimize profile (K 4)', exact: true }).click()
   await expect.poll(() => roadCount(page)).toBe(count + 1)

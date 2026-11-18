@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { alignmentLength, analyzeRoad, designProfileAt, offsetCoordinate, verticalCurveSummary } from './engine'
+import {
+  alignmentLength,
+  analyzeRoad,
+  designProfileAt,
+  offsetCoordinate,
+  positionAt,
+  verticalCurveSummary,
+} from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import {
@@ -7,6 +14,7 @@ import {
   materialPlanNote,
   optimizeVerticalProfile,
   optimizeVerticalProfileAsync,
+  resolveStationRange,
   verticalOptimizationLog,
 } from './verticalOptimizer'
 import type { Alignment, Coordinate, RoadSettings, TerrainSource } from './types'
@@ -204,7 +212,7 @@ describe('profile optimizer controls', () => {
     // A 30 m bench drop between 200 m and 250 m: 60 % against an 18 % limit, with ±5 m to work in.
     const terrain = hillside((x) => -30 * Math.max(0, Math.min(1, (x - 200) / 50)))
     expect(() => optimizeVerticalProfile(road(600), 600, terrain, settings)).toThrow(
-      /No profile meets the limits between 0\+200\.0 and 0\+250\.0\. Every line within ±5 m of the ground would run at −\d+\.\d% to −\d+\.\d% there, outside the −18\.0% to 18\.0% grade limit\. Widen “Search ±”/,
+      /No profile meets the limits between 0\+200\.0 and 0\+250\.0\. Every line within ±5 m of the ground would run at −\d+\.\d% to −\d+\.\d% there, outside the −18\.0% to 18\.0% grade limit\. Widen the search band \(“Below”, “Above”\)/,
     )
   })
 
@@ -212,7 +220,7 @@ describe('profile optimizer controls', () => {
     // The last 50 m falls 15 m: the end is tied to the bottom of it.
     const terrain = hillside((x) => -15 * Math.max(0, Math.min(1, (x - 550) / 50)))
     expect(() => optimizeVerticalProfile(road(600), 600, terrain, settings)).toThrow(
-      /between 0\+550\.0 and 0\+600\.0\..*the road end is tied to ground at \d+\.\d\d m\. Widen “Search ±” so the line can cut or fill more, loosen what holds it/,
+      /between 0\+550\.0 and 0\+600\.0\..*the road end is tied to ground at \d+\.\d\d m\. Widen the search band \(“Below”, “Above”\) so the line can cut or fill more, loosen what holds it/,
     )
   })
 })
@@ -489,7 +497,17 @@ describe('profile optimizer result log', () => {
     const { report } = result
     expect(report.sections).toEqual({ count: 61, spacingM: 10, solves: result.sectionSolves })
     expect(report.pvis).toMatchObject({ searched: 13, spacingM: 50, kept: result.vertical.length })
-    expect(report.band).toEqual({ centre: 'ground', depthM: 5, levelStepM: 0.5, levelsPerPvi: 21 })
+    expect(report.band).toMatchObject({
+      centre: 'ground',
+      belowM: 5,
+      aboveM: 5,
+      levelStepM: 0.5,
+      levelsPerPvi: 21,
+      range: null,
+    })
+    // The centre the run searched around, at every station it priced: here the ground.
+    expect(report.band.line).toHaveLength(61)
+    expect(report.band.line[30].elevation).toBeCloseTo(terrain.elevationAt(...positionAt(alignment, 300).coordinate), 6)
     expect(report.limits).toMatchObject({ maxGradePercent: 18, gradeRanges: 1, curveK: 4, minSagK: 4, minCrestK: 3 })
     expect(report.result.cutM3).toBeCloseTo(checked.cutVolumeM3, 6)
     expect(report.result.fillM3).toBeCloseTo(checked.fillVolumeM3, 6)
@@ -693,4 +711,142 @@ describe('profile optimizer: minimum elevation at a crossing', () => {
     expect(curves.some((c) => c.valid && c.length > 0 && c.start <= 300 && c.end >= 300)).toBe(true)
     expect(analyzeRoad(designed, terrain, settings).verticalChecks ?? []).toEqual([])
   }, 30_000)
+})
+
+describe('profile optimizer band limits below and above the centre', () => {
+  // A hump on the hillside: with fill dear and cut cheap the line cuts deep through it.
+  const terrain = hillside((x) => 6 * Math.exp(-(((x - 300) / 60) ** 2)))
+  const rates = { ...settings, cutRate: 4, fillRate: 30 }
+  const run = (options: Parameters<typeof optimizeVerticalProfile>[4]) =>
+    optimizeVerticalProfile(road(600), 600, terrain, rates, { k: 4, tieEndsToGround: false, ...options })
+  const offsets = (vertical: { chainage: number; elevation: number }[]) =>
+    vertical.map((p) => p.elevation - terrain.elevationAt(...positionAt(road(600), p.chainage).coordinate))
+
+  it('keeps every PVI between the centre less “below” and the centre plus “above”', () => {
+    const symmetric = run({})
+    // Allowed 5 m on the low side the line goes more than half a metre under the hump.
+    expect(Math.min(...offsets(symmetric.vertical))).toBeLessThan(-0.5)
+    const shallow = run({ belowM: 0.5, aboveM: 4 })
+    for (const offset of offsets(shallow.vertical)) {
+      expect(offset).toBeGreaterThanOrEqual(-0.5 - 1e-3)
+      expect(offset).toBeLessThanOrEqual(4 + 1e-3)
+    }
+    // The ladder is 1 step under the centre, the centre and 8 steps over it.
+    expect(shallow.levelsPerPvi).toBe(10)
+    expect(shallow.report.band).toMatchObject({ belowM: 0.5, aboveM: 4, levelsPerPvi: 10 })
+    const log = Object.fromEntries(verticalOptimizationLog(shallow.report).map((row) => [row.label, row.value]))
+    expect(log['Search band']).toBe('0.5 m below to 4 m above ground, 0.5 m steps')
+  })
+
+  it('reads one depth as both limits, so a caller that sets only maxDepthM is unchanged', () => {
+    const one = run({ maxDepthM: 3 })
+    const both = run({ belowM: 3, aboveM: 3 })
+    expect(one.vertical).toEqual(both.vertical)
+    expect(one.report.band).toMatchObject({ belowM: 3, aboveM: 3, levelsPerPvi: 13 })
+  })
+
+  it('refuses a band side of zero or less', () => {
+    expect(() => run({ belowM: 0 })).toThrow(/positive band limits/)
+  })
+})
+
+describe('profile optimizer station range', () => {
+  const terrain = hillside((x) => 6 * Math.exp(-(((x - 300) / 60) ** 2)))
+  const level = (s: number) => terrain.elevationAt(...positionAt(road(600), s).coordinate)
+  // A designed profile to keep: straight from the ground at the start to the ground at the end.
+  const designed = road(600, {
+    vertical: [
+      { id: 'start', chainage: 0, elevation: level(0), curveLength: 0 },
+      { id: 'end', chainage: 600, elevation: level(600), curveLength: 0 },
+    ],
+  })
+
+  it('searches only inside the range and joins the kept profile at each end', () => {
+    const result = optimizeVerticalProfile(designed, 600, terrain, settings, {
+      k: 4,
+      stationRange: { from: 150, to: 450 },
+    })
+    const { vertical } = result
+    // The kept PVIs are the kept PVIs, untouched.
+    expect(vertical[0]).toEqual(designed.vertical[0])
+    expect(vertical[vertical.length - 1]).toEqual(designed.vertical[1])
+    const straight = (s: number) => level(0) + ((level(600) - level(0)) * s) / 600
+    // Each range end is a PVI at the kept profile's level.
+    const start = vertical.find((p) => Math.abs(p.chainage - 150) < 1e-6)!
+    const end = vertical.find((p) => Math.abs(p.chainage - 450) < 1e-6)!
+    expect(start.elevation).toBeCloseTo(straight(150), 9)
+    expect(end.elevation).toBeCloseTo(straight(450), 9)
+    // Every other searched PVI is inside the range, and the line inside has moved toward the hump.
+    expect(vertical.slice(1, -1).every((p) => p.chainage >= 150 - 1e-6 && p.chainage <= 450 + 1e-6)).toBe(true)
+    const shaped = { ...designed, vertical }
+    expect(designProfileAt(shaped, 300)!.elevation).toBeGreaterThan(straight(300) + 1)
+    // Outside the curves that round the joins, the kept profile is exactly as it was.
+    for (const s of [0, 50, 100, 150 - start.curveLength / 2, 450 + end.curveLength / 2, 550, 600])
+      expect(designProfileAt(shaped, s)!.elevation).toBeCloseTo(straight(s), 9)
+    expect(analyzeRoad(shaped, terrain, settings).verticalChecks ?? []).toEqual([])
+    expect(result.report.band.range).toEqual({ from: 150, to: 450, asked: { from: 150, to: 450 } })
+    expect(result.report.ends).toEqual({ start: 'kept', end: 'kept' })
+    // The band is drawn over the searched stretch only.
+    expect(result.report.band.line[0].chainage).toBe(150)
+    expect(result.report.band.line[result.report.band.line.length - 1].chainage).toBe(450)
+    const log = Object.fromEntries(verticalOptimizationLog(result.report).map((row) => [row.label, row.value]))
+    expect(log['Search range']).toBe('0+150.0 to 0+450.0')
+    expect(log['Range ends']).toBe('Start joined to the kept profile; end joined to the kept profile')
+    expect(result.report.notes.join(' ')).toMatch(/At 0\+150\.0 the new line meets the kept profile at its level/)
+  })
+
+  it('keeps a range that starts at the road start tied to ground there', () => {
+    const result = optimizeVerticalProfile(designed, 600, terrain, settings, {
+      k: 4,
+      stationRange: { from: 0, to: 400 },
+    })
+    expect(result.vertical[0].elevation).toBeCloseTo(level(0), 3)
+    expect(result.vertical[result.vertical.length - 1]).toEqual(designed.vertical[1])
+    expect(result.report.ends).toEqual({ start: 'ground', end: 'kept' })
+  })
+
+  it('moves a range end on a kept vertical curve out past it, so no curve is cut in two', () => {
+    const curved = road(600, {
+      vertical: [
+        { id: 'a', chainage: 0, elevation: level(0), curveLength: 0 },
+        { id: 'b', chainage: 150, elevation: level(0) - 6, curveLength: 40 },
+        { id: 'c', chainage: 600, elevation: level(600), curveLength: 0 },
+      ],
+    })
+    const range = resolveStationRange(curved, 600, { from: 160, to: 500 }, 50)!
+    expect(range.from).toBe(130)
+    expect(range.moved[0]).toMatch(/range start moved from 0\+160\.0 to 0\+130\.0/)
+    expect(range.keptBefore.map((p) => p.id)).toEqual(['a'])
+    expect(range.before).toEqual({ chainage: 0, elevation: level(0), half: 0 })
+    // On the kept tangent from 0+000 to the curve's start.
+    expect(range.startLevel).toBeCloseTo(level(0) - (6 * 130) / 150, 9)
+    const result = optimizeVerticalProfile(curved, 600, terrain, settings, {
+      k: 4,
+      stationRange: { from: 160, to: 500 },
+    })
+    expect(result.vertical[0]).toEqual(curved.vertical[0])
+    expect(result.vertical.some((p) => p.id === 'b')).toBe(false)
+    expect(result.report.band.range).toMatchObject({ from: 130, to: 500, asked: { from: 160, to: 500 } })
+    expect(result.report.notes.join(' ')).toMatch(/so that curve is searched with the range/)
+    expect(analyzeRoad({ ...curved, vertical: result.vertical }, terrain, settings).verticalChecks ?? []).toEqual([])
+  })
+
+  it('refuses a range shorter than two PVI spacings, or one with no profile to keep', () => {
+    expect(() =>
+      optimizeVerticalProfile(designed, 600, terrain, settings, { stationRange: { from: 200, to: 280 } }),
+    ).toThrow(/needs at least two PVI spacings \(100 m\)/)
+    expect(() =>
+      optimizeVerticalProfile(road(600), 600, terrain, settings, { stationRange: { from: 100, to: 400 } }),
+    ).toThrow(/no designed profile to keep/)
+  })
+
+  it('treats a range over the whole road as no range', () => {
+    const whole = optimizeVerticalProfile(designed, 600, terrain, settings, { k: 4 })
+    const ranged = optimizeVerticalProfile(designed, 600, terrain, settings, {
+      k: 4,
+      stationRange: { from: 0, to: 600 },
+    })
+    expect(ranged.vertical).toEqual(whole.vertical)
+    expect(ranged.report.band.range).toBeNull()
+  })
 })

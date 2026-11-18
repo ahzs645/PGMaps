@@ -88,7 +88,8 @@ async function compareOptions(page: Page, browser: Browser, info: TestInfo, inpu
       for (const [name, value] of [
         ['Curve K', '4'],
         ['PVI spacing (m)', '50'],
-        ['Search ± (m)', '5'],
+        ['Below (m)', '5'],
+        ['Above (m)', '5'],
         ['Level step (m)', '.5'],
       ]) {
         const input = page.getByRole('spinbutton', { name, exact: true })

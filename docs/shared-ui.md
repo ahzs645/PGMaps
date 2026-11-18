@@ -632,7 +632,9 @@ track grows to the longest cell in any column.
   (`RoadPaneLayout.tsx`, `LayoutPicker.tsx`) and the visual-quality tool (`visualsWorkspace.ts`) are
   the references.
 - Headline measurements beside a workspace: `MetricSummary` (`metric-summary.tsx`) is a titled stack
-  of keyed `StatItem` rows (`MetricSummaryItem`), each hidden, value, or value and detail; a
+  of keyed `StatItem` rows (`MetricSummaryItem`), each hidden, value, or value and detail (a row's
+  `defaultLevel: 'hidden'` offers it in the settings without showing it until chosen; read a row's
+  level through `metricLevel`, never the stored choice alone); a
   right-click or Shift+F10 on a row opens its settings, and on a small screen the heading collapses
   it. An optional `qualifier` ("perspective scale", "whole road") prints under the label and joins
   it in the row's name (`metricName`), so keep labels short; a row's tooltip carries its name and,
@@ -896,6 +898,11 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   equal outline buttons sharing a row, wrapping when the labels do not fit.
   The footer's rule reaches the card's edges inside `MapPopup`'s default
   padding. `actions` stays for a link or a text button under the content.
+- A popup that can grow taller than a short map pane (long warnings, many
+  rows) wraps its card in `MapPopupFit` (`map-popup-fit.tsx`, opt-in): the
+  body scrolls once it reaches half the map's height less the popup's offset,
+  instead of running off the map. `useMapPopupMaxHeight` gives that height
+  for a popup laid out by hand. The road designer's culvert card uses it.
 - `MapPopup`'s arrow is drawn by the toolkit's stylesheet (`.mapcn-popup` in
   `styles.css`) in the card's fill and border colour for all eight anchors.
   Do not restyle `.maplibregl-popup-tip` in a page: a popup with its own

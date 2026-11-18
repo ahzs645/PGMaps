@@ -124,6 +124,8 @@ export interface SidebarProps {
   ) => Promise<{ context: ContextFeature[]; scope: string } | undefined>
   /** Skid reach outlines, spur candidates and landing footprints for the plan; null clears them. */
   onPreviewSkidReach?: (features: GeoJSON.Feature[] | null) => void
+  /** Joint refinement's movement boxes for the plan, while its section is open or running; null clears them. */
+  onPreviewRefineBoxes?: (boxes: GeoJSON.FeatureCollection | null) => void
   /** Points the access review shows on the plan: its end and the junctions it would start from. */
   onPreviewAccessMarks?: (marks: import('./AccessReviewPanel').AccessMark[] | null) => void
   onShowCompare?: () => void

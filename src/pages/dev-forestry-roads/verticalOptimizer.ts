@@ -20,7 +20,14 @@
  * one go, `optimizeVerticalProfileAsync` hands the page a turn between slices and can be cancelled.
  */
 import { runCooperatively, runToCompletion, type CooperativeControl } from './cooperative'
-import { analyzeRoad, centrelineSamples, positionAt, sectionAreasAt, verticalCurveSummary } from './engine'
+import {
+  analyzeRoad,
+  centrelineSamples,
+  designProfileAt,
+  positionAt,
+  sectionAreasAt,
+  verticalCurveSummary,
+} from './engine'
 import {
   controlBand,
   controlLabel,
@@ -28,6 +35,7 @@ import {
   gradeWindowAt,
   curvatureRuleAt,
   formatStation,
+  type VerticalCheck,
   type VerticalCheckKind,
   type VerticalControl,
 } from './verticalStandards'
@@ -46,8 +54,20 @@ export interface VerticalOptimizationOptions {
   pviSpacingM: number
   /** Centre the permitted vertical band on ground or the existing fitted profile. */
   bandCenter: 'ground' | 'design'
-  /** Formation may move this far above or below the ground at a PVI. */
+  /**
+   * Formation may move this far above or below the band centre at a PVI: both limits at once, for
+   * callers that set one depth. `belowM` and `aboveM` set each side and take precedence.
+   */
   maxDepthM: number
+  /** How far below the band centre a PVI may go, m (RoadEng's Min. offset). Defaults to `maxDepthM`. */
+  belowM?: number
+  /** How far above the band centre a PVI may go, m (RoadEng's Max. offset). Defaults to `maxDepthM`. */
+  aboveM?: number
+  /**
+   * Search only the PVIs between these chainages and keep the profile outside them (RoadEng's
+   * Station Range). Each end joins the kept profile at its level. Null or absent searches the road.
+   */
+  stationRange?: { from: number; to: number } | null
   levelStepM: number
   /** K for the fitted curves; also the curvature limit during the search. */
   k: number
@@ -115,7 +135,21 @@ export interface VerticalOptimizationReport {
   /** Stations where section areas were solved, and the widest gap between two of them. */
   sections: { count: number; spacingM: number; solves: number }
   pvis: { searched: number; spacingM: number; kept: number; simplified: boolean; movedOffGaps: number }
-  band: { centre: 'ground' | 'design'; depthM: number; levelStepM: number; levelsPerPvi: number }
+  band: {
+    centre: 'ground' | 'design'
+    /** How far below and above the centre the PVI levels went, m. */
+    belowM: number
+    aboveM: number
+    levelStepM: number
+    levelsPerPvi: number
+    /** The stretch searched, when it was not the whole road; `asked` is as entered, before a range end moved off a curve. */
+    range: { from: number; to: number; asked: { from: number; to: number } } | null
+    /**
+     * The band centre the run used, at every station it priced over the searched stretch: the ground
+     * (read straight across a gap in the terrain) or the profile it started from.
+     */
+    line: { chainage: number; elevation: number }[]
+  }
   limits: {
     maxGradePercent: number
     /** The sustained limits as held, in words (`gradeRuleText`): "16% favourable, 9% adverse". */
@@ -128,8 +162,8 @@ export interface VerticalOptimizationReport {
     minTangentLengthM: number | null
     curvatureRanges: number
   }
-  /** How each end's level was set. */
-  ends: { start: 'ground' | 'control' | 'free'; end: 'ground' | 'control' | 'free' }
+  /** How each end's level was set: `kept` joins a range end to the profile kept outside the range. */
+  ends: { start: 'ground' | 'control' | 'free' | 'kept'; end: 'ground' | 'control' | 'free' | 'kept' }
   /** Every control point on the road, with what the returned line does there. */
   controls: {
     chainage: number
@@ -177,13 +211,16 @@ const REQUIRED_CLEARANCE = 0.2
 /** Shares of the simplification tolerance tried, widest first, until a line's curves all fit. */
 const SIMPLIFY_SHARES = [1, 0.5, 0.25]
 const pct = (value: number) => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`
+/** "±5 m of" a symmetric band, "2 m below and 5 m above" another, to stand before what it is around. */
+const bandWidthText = (belowM: number, aboveM: number) =>
+  belowM === aboveM ? `±${belowM} m of` : `${belowM} m below and ${aboveM} m above`
 
 /** No line inside the search band meets every limit over some interval; the message names it. */
 class NoProfileError extends Error {}
 /** Why a fitted line was not adopted, and what to change: the remedy always belongs to the cause. */
 type ProfileFailure = { message: string; remedy: string }
 const CHECK_REMEDY: Record<VerticalCheckKind, string> = {
-  grade: 'Relax that grade range, or widen “Search ±” so the line can cut or fill more.',
+  grade: 'Relax that grade range, or widen the search band (“Below”, “Above”) so the line can cut or fill more.',
   k: 'Lower the minimum sag or crest K, or widen the PVI spacing.',
   'curve-length': 'Shorten “Min curve”, or widen the PVI spacing.',
   tangent: 'Shorten “Min tangent”, lower “Curve K” or widen the PVI spacing.',
@@ -266,6 +303,107 @@ function memoTerrain(terrain: TerrainSource): TerrainSource {
   }
 }
 
+/** A range end this near a road end is that road end, m. */
+const RANGE_AT_ROAD_END_M = 0.001
+/** Where the kept profile meets a searched range: the kept PVI beside it and the half of its curve, m. */
+type RangeJoin = { chainage: number; elevation: number; half: number }
+export interface ResolvedStationRange {
+  from: number
+  to: number
+  /** The range as entered; an end on a vertical curve of the kept profile moves off it. */
+  asked: { from: number; to: number }
+  /** Where an end was moved off a curve, in words, for the run's notes. */
+  moved: string[]
+  /** The kept PVIs before and after the range, as they are. */
+  keptBefore: VerticalPoint[]
+  keptAfter: VerticalPoint[]
+  /** The kept PVI each searched end joins from, or null at a road end. */
+  before: RangeJoin | null
+  after: RangeJoin | null
+  /** The kept profile's level at each range end, the level the search holds there; null at a road end. */
+  startLevel: number | null
+  endLevel: number | null
+}
+
+/**
+ * The stretch a profile search with a station range covers, or null for the whole road. A range
+ * end that falls on a vertical curve the engine builds moves out to that curve's far side (the
+ * start to the curve's start, the end to its end), so the curve is searched with the range, every
+ * kept curve stays as it is, each range end sits on a kept tangent and the join has that tangent
+ * to round its own grade change on. Refused: a road with no profile to keep, a range that starts
+ * before the profile's first PVI or ends after its last, and a range shorter than two PVI spacings.
+ */
+export function resolveStationRange(
+  alignment: Alignment,
+  length: number,
+  range: { from: number; to: number } | null | undefined,
+  pviSpacingM: number,
+): ResolvedStationRange | null {
+  if (!range) return null
+  if (!Number.isFinite(range.from) || !Number.isFinite(range.to)) throw Error('Use finite range stations.')
+  const asked = { from: Math.max(0, range.from), to: Math.min(length, range.to) }
+  const startsAtRoad = asked.from <= RANGE_AT_ROAD_END_M,
+    endsAtRoad = asked.to >= length - RANGE_AT_ROAD_END_M
+  if (startsAtRoad && endsAtRoad) return null
+  if (!(asked.to > asked.from))
+    throw Error(
+      `The search range has to end after it starts (${formatStation(asked.from)} to ${formatStation(asked.to)}).`,
+    )
+  if (alignment.vertical.length < 2)
+    throw Error(
+      'A station range keeps the profile outside it, and this road has no designed profile to keep. Optimize the whole road first, or design a profile.',
+    )
+  let from = startsAtRoad ? 0 : asked.from,
+    to = endsAtRoad ? length : asked.to
+  const moved: string[] = []
+  const curves = verticalCurveSummary(alignment).filter((curve) => curve.valid && curve.length > 0)
+  for (const curve of curves) {
+    if (!startsAtRoad && from > curve.start + 1e-6 && from < curve.end - 1e-6) {
+      moved.push(
+        `The range start moved from ${formatStation(from)} to ${formatStation(curve.start)}, the start of the vertical curve at ${formatStation(curve.chainage)}, so that curve is searched with the range rather than cut in two.`,
+      )
+      from = curve.start
+    }
+    if (!endsAtRoad && to > curve.start + 1e-6 && to < curve.end - 1e-6) {
+      moved.push(
+        `The range end moved from ${formatStation(to)} to ${formatStation(curve.end)}, the end of the vertical curve at ${formatStation(curve.chainage)}, so that curve is searched with the range rather than cut in two.`,
+      )
+      to = curve.end
+    }
+  }
+  if (to - from < 2 * pviSpacingM - 1e-6)
+    throw Error(
+      `The search range ${formatStation(from)} to ${formatStation(to)} is ${Number((to - from).toFixed(1))} m long; it needs at least two PVI spacings (${2 * pviSpacingM} m). Widen the range or use a narrower PVI spacing.`,
+    )
+  const sorted = [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)
+  const keptBefore = from > 0 ? sorted.filter((p) => p.chainage < from - 1e-6) : []
+  const keptAfter = to < length ? sorted.filter((p) => p.chainage > to + 1e-6) : []
+  if (from > 0 && !keptBefore.length)
+    throw Error(
+      `The range starts at ${formatStation(from)}, before the profile's first PVI at ${formatStation(sorted[0].chainage)}, so there is no kept profile to join there. Start the range at the road start or after that PVI.`,
+    )
+  if (to < length && !keptAfter.length)
+    throw Error(
+      `The range ends at ${formatStation(to)}, after the profile's last PVI at ${formatStation(sorted[sorted.length - 1].chainage)}, so there is no kept profile to join there. End the range at the road end or before that PVI.`,
+    )
+  const built = new Map(curves.map((curve) => [curve.pviId, curve.length / 2]))
+  const join = (p: VerticalPoint | undefined): RangeJoin | null =>
+    p ? { chainage: p.chainage, elevation: p.elevation, half: built.get(p.id) ?? 0 } : null
+  const level = (s: number) => designProfileAt(alignment, s)!.elevation
+  return {
+    from,
+    to,
+    asked,
+    moved,
+    keptBefore,
+    keptAfter,
+    before: join(keptBefore[keptBefore.length - 1]),
+    after: join(keptAfter[0]),
+    startLevel: from > 0 ? level(from) : null,
+    endLevel: to < length ? level(to) : null,
+  }
+}
+
 export function optimizeVerticalProfile(
   alignment: Alignment,
   length: number,
@@ -300,12 +438,16 @@ function* profileSearch(
   options: Partial<VerticalOptimizationOptions>,
 ): Generator<VerticalOptimizationProgress, VerticalOptimizationResult> {
   const o = { ...DEFAULT_VERTICAL_OPTIMIZATION, ...options }
+  // RoadEng's Min. and Max. offset: each side of the band centre has its own limit.
+  const belowM = o.belowM ?? o.maxDepthM,
+    aboveM = o.aboveM ?? o.maxDepthM
   if (
     ![
       length,
       o.pviSpacingM,
       o.levelStepM,
-      o.maxDepthM,
+      belowM,
+      aboveM,
       o.k,
       o.incompletePenaltyPerM,
       o.maxSectionSolves,
@@ -315,8 +457,8 @@ function* profileSearch(
   )
     throw Error('Use finite profile search inputs.')
   if (!(length > 1)) throw Error('The road is too short to optimize.')
-  if (o.pviSpacingM < 10 || o.levelStepM <= 0 || o.maxDepthM <= 0)
-    throw Error('Use a PVI spacing of at least 10 m and positive depth and level steps.')
+  if (o.pviSpacingM < 10 || o.levelStepM <= 0 || belowM <= 0 || aboveM <= 0)
+    throw Error('Use a PVI spacing of at least 10 m and positive band limits and level steps.')
   if (!(o.k >= 0)) throw Error('Use a K of 0 or more; 0 fits no vertical curves.')
   if (
     !Number.isInteger(o.maxTransitions) ||
@@ -331,9 +473,22 @@ function* profileSearch(
   if (!['ground', 'design'].includes(o.bandCenter)) throw Error('Choose ground or current design for the profile band.')
   if (o.bandCenter === 'design' && alignment.vertical.length < 2)
     throw Error('A design-centred band needs at least two vertical controls.')
+  // The stretch searched: the whole road, or a station range whose ends join the profile kept outside it.
+  const range = resolveStationRange(alignment, length, o.stationRange, o.pviSpacingM)
+  const lo = range?.from ?? 0,
+    hi = range?.to ?? length
+  const joinBefore = range?.before ?? null,
+    joinAfter = range?.after ?? null
+  /** The level a range end is held at to join the kept profile; null at a road end. */
+  const joinLevel = (atStart: boolean) => (atStart ? (range?.startLevel ?? null) : (range?.endLevel ?? null))
+  /** A searched end held by the search: tied to ground, or joined to the kept profile. */
+  const endHeld = (atStart: boolean) => joinLevel(atStart) !== null || o.tieEndsToGround
+  const minTangentM = alignment.verticalStandards?.minTangentLengthM ?? 0
   const source = memoTerrain(terrain)
   const sample = Math.max(2, settings.stationInterval)
-  const controls = (alignment.verticalControls ?? []).filter((c) => c.chainage >= 0 && c.chainage <= length)
+  const controls = (alignment.verticalControls ?? []).filter(
+    (c) => c.chainage >= lo - (range ? 1e-6 : 0) && c.chainage <= hi + (range ? 1e-6 : 0),
+  )
 
   const groundAt = (s: number) => {
     const p = positionAt(alignment, s)
@@ -399,30 +554,30 @@ function* profileSearch(
     return level[from >= 0 ? from : to]
   }
   // PVI stations: the ends, every control point and every range boundary, then the regular spacing.
-  const required = new Set<number>([0, length])
+  const required = new Set<number>([lo, hi])
   for (const c of controls) required.add(c.chainage)
-  for (const range of [
+  for (const limits of [
     ...(alignment.verticalStandards?.gradeRanges ?? []),
     ...(alignment.verticalStandards?.curvatureRanges ?? []),
   ])
-    for (const s of [range.start, range.end]) if (s !== null && s > 0 && s < length) required.add(s)
-  const count = Math.max(1, Math.round(length / o.pviSpacingM))
+    for (const s of [limits.start, limits.end]) if (s !== null && s > lo && s < hi) required.add(s)
+  const count = Math.max(1, Math.round((hi - lo) / o.pviSpacingM))
   if (count + 1 + controls.length > 500)
     throw Error('The profile search needs too many PVIs; use wider spacing or fewer controls.')
   // Where a station at the regular spacing lands on a gap in the terrain, the PVI slides to the
   // nearest station with ground, up to half a spacing away. The spacing is a search setting, not a
   // design requirement, and a level ladder needs ground to stand on.
   let movedOffGaps = 0
-  const reach = length / count / 2
-  const clear = Math.min(reach, Math.max(MIN_PVI_INTERVAL_M, (length / count) * REQUIRED_CLEARANCE))
+  const reach = (hi - lo) / count / 2
+  const clear = Math.min(reach, Math.max(MIN_PVI_INTERVAL_M, ((hi - lo) / count) * REQUIRED_CLEARANCE))
   const marks = new Set<number>(required)
   for (let i = 1; i < count; i++) {
-    let s = Math.round(((length * i) / count) * 1000) / 1000
+    let s = Math.round((lo + ((hi - lo) * i) / count) * 1000) / 1000
     if (groundAt(s) === null) {
       const from = groundBefore[Math.floor(at(s))],
         to = groundAfter[Math.ceil(at(s))]
       const near = [from, to]
-        .filter((k) => k >= 0 && along[k] > 0 && along[k] < length && Math.abs(along[k] - s) < reach)
+        .filter((k) => k >= 0 && along[k] > lo && along[k] < hi && Math.abs(along[k] - s) < reach)
         .sort((a, b) => Math.abs(along[a] - s) - Math.abs(along[b] - s))[0]
       if (near !== undefined && groundAt(along[near]) !== null) {
         s = along[near]
@@ -439,7 +594,8 @@ function* profileSearch(
   // the control at that grade and bends there. Where a tied end or an elevation control is its
   // neighbour instead, a PVI goes in halfway.
   const heldAt = (s: number) =>
-    (o.tieEndsToGround && (s <= 0 || s >= length)) ||
+    (s <= lo && endHeld(true)) ||
+    (s >= hi && endHeld(false)) ||
     controls.some((c) => c.elevation !== null && Math.abs(c.chainage - s) < 1e-6)
   for (const c of controls) {
     if (c.gradePercent === null) continue
@@ -451,7 +607,7 @@ function* profileSearch(
   }
   if (marks.size > 500) throw Error('The profile search needs too many PVI/range events; split the road.')
   const pvis = [...marks].sort((a, b) => a - b).filter((s, i, all) => !i || s - all[i - 1] > 1e-6)
-  if (pvis[pvis.length - 1] !== length) pvis[pvis.length - 1] = length
+  if (pvis[pvis.length - 1] !== hi) pvis[pvis.length - 1] = hi
 
   const pviGround = pvis.map(groundAt)
   const elevationControlAt = (s: number) =>
@@ -459,18 +615,26 @@ function* profileSearch(
   // A tied end has to stand on ground. Every other station only needs a level to search around.
   if (o.tieEndsToGround)
     for (const i of [0, pvis.length - 1])
-      if (pviGround[i] === null && !elevationControlAt(pvis[i]))
+      if (pviGround[i] === null && !elevationControlAt(pvis[i]) && joinLevel(i === 0) === null)
         throw Error(
           `The road ${i === 0 ? 'start' : 'end'} (${formatStation(pvis[i])}) is on a gap in the terrain, so it cannot be tied to ground. Move that end onto mapped ground, set a control point there, or untick “Tie both ends to ground”.`,
         )
   const referenceAt = (s: number) =>
     o.bandCenter === 'design' ? designElevationAt(alignment.vertical, s) : groundAcrossGaps(s)
-  // Candidate levels per PVI: a ladder around ground, narrowed by any control or tied end.
-  const ladder = Math.round(o.maxDepthM / o.levelStepM)
-  if (2 * ladder + 1 > o.maxTransitions)
-    throw Error('Profile transition budget exceeded; use a coarser level step or a smaller search depth.')
-  const tied = (i: number) => o.tieEndsToGround && (i === 0 || i === pvis.length - 1)
+  // Candidate levels per PVI: a ladder around ground, narrowed by any control or tied end. The
+  // ladder runs `ladderBelow` steps under the centre and `ladderAbove` over it.
+  const ladderBelow = Math.round(belowM / o.levelStepM),
+    ladderAbove = Math.round(aboveM / o.levelStepM)
+  const ladderLevels = ladderBelow + ladderAbove + 1
+  if (ladderLevels > o.maxTransitions)
+    throw Error('Profile transition budget exceeded; use a coarser level step or a narrower search band.')
+  const tied = (i: number) => (i === 0 && endHeld(true)) || (i === pvis.length - 1 && endHeld(false))
+  /** The kept profile's level at a searched end that joins it; null elsewhere. */
+  const joinedAt = (i: number) => (i === 0 ? joinLevel(true) : i === pvis.length - 1 ? joinLevel(false) : null)
   const levels = pvis.map((s, i) => {
+    // A range end joins the kept profile at its level, whatever else stands there.
+    const joined = joinedAt(i)
+    if (joined !== null) return [joined]
     const control = elevationControlAt(s)
     if (control?.bound === 'minimum') {
       // A minimum is a floor, not a target: the ladder stands on the ground (or on the minimum where
@@ -479,7 +643,7 @@ function* profileSearch(
       const floor = control.elevation!
       const centre = Math.max(referenceAt(s), floor)
       const values = [floor]
-      for (let j = -ladder; j <= ladder; j++) {
+      for (let j = -ladderBelow; j <= ladderAbove; j++) {
         const z = centre + j * o.levelStepM
         if (z > floor + EPS) values.push(z)
       }
@@ -501,17 +665,22 @@ function* profileSearch(
     }
     if (tied(i)) return [pviGround[i]!]
     const centre = referenceAt(s)
-    return Array.from({ length: 2 * ladder + 1 }, (_, j) => centre + (j - ladder) * o.levelStepM)
+    return Array.from({ length: ladderLevels }, (_, j) => centre + (j - ladderBelow) * o.levelStepM)
   })
   // Steps of a fixed ladder almost never land on what a control asks for exactly, so the PVIs beside
   // a control also get the levels that do. Those PVIs, and every control's own, keep their levels
   // unrounded and stay in the returned line, so the line the search checked is the line returned.
   const exactAt = new Set<number>()
+  // The kept profile's level at a range end stays exactly as read.
+  for (const i of [0, pvis.length - 1]) if (joinedAt(i) !== null) exactAt.add(i)
   const isFree = (i: number) => i >= 0 && i < pvis.length && !elevationControlAt(pvis[i]) && !tied(i)
-  const inBand = (i: number, z: number) => Math.abs(z - referenceAt(pvis[i])) <= o.maxDepthM + EPS
+  const inBand = (i: number, z: number) => {
+    const offset = z - referenceAt(pvis[i])
+    return offset >= -belowM - EPS && offset <= aboveM + EPS
+  }
   const addLevels = (i: number, values: number[]) => {
     for (const z of values) {
-      if (levels[i].length - (2 * ladder + 1) >= MAX_EXACT_LEVELS) return
+      if (levels[i].length - ladderLevels >= MAX_EXACT_LEVELS) return
       // A level reflected back through a control lands a rounding error from the one it came from.
       if (!inBand(i, z) || levels[i].some((known) => Math.abs(known - z) < 1e-9)) continue
       exactAt.add(i)
@@ -575,8 +744,16 @@ function* profileSearch(
       return { s, t: j / n, weight: ((end - start) / n) * (j === 0 || j === n ? 0.5 : 1) }
     })
   })
-  // Area tables: at each sample, cut and fill area over a level grid relative to ground.
-  const rows = Math.ceil((o.maxDepthM + 2 * o.levelStepM) / o.levelStepM) + 2
+  // The band centre the run used, at every station it prices, for the report and the profile chart.
+  const bandLine = segments
+    .flat()
+    .filter((p, k, all) => !k || p.s - all[k - 1].s > 1e-6)
+    .map((p) => ({ chainage: p.s, elevation: referenceAt(p.s) }))
+  // Area tables: at each sample, cut and fill area over a level grid relative to ground, from
+  // `rowsBelow` steps under the centre to `rowsAbove` over it.
+  const rowsBelow = Math.ceil((belowM + 2 * o.levelStepM) / o.levelStepM) + 2,
+    rowsAbove = Math.ceil((aboveM + 2 * o.levelStepM) / o.levelStepM) + 2,
+    rowSpan = rowsBelow + rowsAbove
   let solves = 0
   const tables = new Map<
     number,
@@ -594,7 +771,7 @@ function* profileSearch(
     const cut: (number | null)[] = [],
       fill: (number | null)[] = []
     if (Number.isFinite(ground))
-      for (let r = -rows; r <= rows; r++) {
+      for (let r = -rowsBelow; r <= rowsAbove; r++) {
         if (++solves > o.maxSectionSolves)
           throw Error('The search needs too many section solves; use a wider PVI spacing or a coarser level step.')
         const areas = sectionAreasAt(
@@ -616,14 +793,14 @@ function* profileSearch(
   const areasAt = (s: number, z: number) => {
     const table = tableAt(s)
     if (table.ground === null) return null
-    const position = (z - table.centre) / o.levelStepM + rows
-    const lo = Math.max(0, Math.min(2 * rows - 1, Math.floor(position)))
-    const f = Math.max(0, Math.min(1, position - lo))
+    const position = (z - table.centre) / o.levelStepM + rowsBelow
+    const row = Math.max(0, Math.min(rowSpan - 1, Math.floor(position)))
+    const f = Math.max(0, Math.min(1, position - row))
     const pick = (values: (number | null)[]) =>
-      values[lo] === null || values[lo + 1] === null ? null : values[lo]! + (values[lo + 1]! - values[lo]!) * f
+      values[row] === null || values[row + 1] === null ? null : values[row]! + (values[row + 1]! - values[row]!) * f
     const cut = pick(table.cut),
       fill = pick(table.fill)
-    if (cut === null || fill === null || position < 0 || position > 2 * rows) return null
+    if (cut === null || fill === null || position < 0 || position > rowSpan) return null
     return { cut, fill }
   }
   // Per interval: earthwork cost, and the net reusable cut minus fill that would have to move elsewhere.
@@ -769,6 +946,9 @@ function* profileSearch(
       : `holds the line at ${controlLevelText(c)}`
   /** What holds the level at a PVI, when something does: the search cannot move it. */
   const heldBy = (i: number) => {
+    const joined = joinedAt(i)
+    if (joined !== null)
+      return `the range ${i === 0 ? 'start' : 'end'} joins the kept profile at ${joined.toFixed(2)} m`
     const control = elevationControlAt(pvis[i])
     if (control)
       return control.bound === 'minimum'
@@ -784,7 +964,7 @@ function* profileSearch(
     // Over a gap the band is not around ground: it is around the line between the ground at the gap's edges.
     const gap =
       o.bandCenter === 'ground' ? (gapAt((pvis[i] + pvis[i + 1]) / 2) ?? gapAt(pvis[i]) ?? gapAt(pvis[i + 1])) : null
-    const band = `±${o.maxDepthM} m of ${o.bandCenter !== 'ground' ? 'the current design' : gap ? 'the line across that gap' : 'the ground'}`
+    const band = `${bandWidthText(belowM, aboveM)} ${o.bandCenter !== 'ground' ? 'the current design' : gap ? 'the line across that gap' : 'the ground'}`
     const afterGrade = t.tried - t.grade
     const missed = [...t.controls].sort((a, b) => b[1] - a[1])[0]?.[0]
     const afterControls = afterGrade - [...t.controls.values()].reduce((sum, count) => sum + count, 0)
@@ -795,7 +975,7 @@ function* profileSearch(
       const held = [heldBy(i), heldBy(i + 1)].filter(Boolean)
       reason =
         `Every line within ${band} would run at ${pct(t.lowestGrade)} to ${pct(t.highestGrade)} there, outside the ${pct(low)} to ${pct(high)} grade limit` +
-        `${held.length ? `; ${held.join(' and ')}` : ''}. Widen “Search ±” so the line can cut or fill more, ${held.length ? 'loosen what holds it, ' : ''}or relax the grade limit over that stretch.`
+        `${held.length ? `; ${held.join(' and ')}` : ''}. Widen the search band (“Below”, “Above”) so the line can cut or fill more, ${held.length ? 'loosen what holds it, ' : ''}or relax the grade limit over that stretch.`
     } else if (!afterControls && missed) {
       const { low, high } = gradeLimits(i)
       const asked = missed.gradePercent,
@@ -803,19 +983,21 @@ function* profileSearch(
       if (asked === null && t.offCurve.has(missed))
         reason =
           missed.bound === 'minimum'
-            ? `${controlName(missed)} ${holds(missed)}. A sag curve there drops the line below it, and no line within ${band} clears it on the curve. Widen “Search ±” so the line can fill more there, or lower “Curve K”.`
-            : `${controlName(missed)} holds the line at ${controlLevelText(missed)}. A vertical curve there moves the line off it by more than that, and no line within ${band} runs straight through it. Widen that control's tolerance or “Search ±”, or lower “Curve K”.`
+            ? `${controlName(missed)} ${holds(missed)}. A sag curve there drops the line below it, and no line within ${band} clears it on the curve. Raise “Above” so the line can fill more there, or lower “Curve K”.`
+            : `${controlName(missed)} holds the line at ${controlLevelText(missed)}. A vertical curve there moves the line off it by more than that, and no line within ${band} runs straight through it. Widen that control's tolerance or the search band (“Below”, “Above”), or lower “Curve K”.`
       else if (asked === null)
         reason =
           missed.bound === 'minimum'
-            ? `${controlName(missed)} ${holds(missed)}, which no line within ${band} reaches inside the grade limits. Widen “Search ±” so the line can fill more, or check the minimum.`
-            : `${controlName(missed)} holds the line at ${controlLevelText(missed)}, which no line within ${band} reaches. Widen that control's tolerance or “Search ±”, or move the control.`
+            ? `${controlName(missed)} ${holds(missed)}, which no line within ${band} reaches inside the grade limits. Raise “Above” so the line can fill more, or check the minimum.`
+            : `${controlName(missed)} holds the line at ${controlLevelText(missed)}, which no line within ${band} reaches. Widen that control's tolerance or the search band (“Below”, “Above”), or move the control.`
       else if (asked + tolerance < low - EPS || asked - tolerance > high + EPS)
         reason = `${controlName(missed)} asks for a grade of ${pct(asked)} (±${tolerance.toFixed(1)}%), outside the ${pct(low)} to ${pct(high)} grade limit there. Change the control's grade or the limit.`
       else
-        reason = `${controlName(missed)} asks for a grade of ${pct(asked)} (±${tolerance.toFixed(1)}%), and no line within ${band} runs through it at that grade. Widen the control's grade tolerance or “Search ±”, or move the control.`
+        reason = `${controlName(missed)} asks for a grade of ${pct(asked)} (±${tolerance.toFixed(1)}%), and no line within ${band} runs through it at that grade. Widen the control's grade tolerance or the search band (“Below”, “Above”), or move the control.`
     } else if (!afterCurves && t.linear >= t.curve)
       reason = `The grade has to change at ${from}, which is inside a straight-grade-only range. Move that range or relax the limits around it.`
+    else if (!afterCurves && i === 0 && joinBefore)
+      reason = `Where the range joins the kept profile at ${from}, the grade change needs a vertical curve of at least ${t.shortestCurveM.toFixed(0)} m, and the kept tangent before it leaves ${Math.max(0, pvis[0] - joinBefore.chainage - joinBefore.half).toFixed(0)} m and the next PVI is ${(pvis[1] - pvis[0]).toFixed(0)} m away. Start the range elsewhere, lower “Curve K” or widen the PVI spacing.`
     else if (!afterCurves)
       reason = `The grade change at ${from} needs a vertical curve of at least ${t.shortestCurveM.toFixed(0)} m, and the PVIs either side are ${(pvis[i] - pvis[i - 1]).toFixed(0)} m and ${(pvis[i + 1] - pvis[i]).toFixed(0)} m away. Lower “Curve K” or the minimum sag and crest K, or widen the PVI spacing.`
     else if ((alignment.verticalStandards?.minTangentLengthM ?? 0) > 0)
@@ -870,7 +1052,25 @@ function* profileSearch(
           dropped.controls.set(missed, (dropped.controls.get(missed) ?? 0) + 1)
           continue
         }
-        frontier.set(`-1:${a}:${b}`, { cost: costOf(0, a, b), back: null, half: 0 })
+        // Where a range joins the kept profile, the grade change there needs its curve, between the
+        // kept PVI's curve and the next PVI.
+        let half = 0
+        if (joinBefore) {
+          const joining = (100 * (levels[0][a] - joinBefore.elevation)) / (pvis[0] - joinBefore.chainage)
+          half = curveLength(pvis[0], joining, g) / 2
+          if (!Number.isFinite(half)) {
+            dropped.linear++
+            continue
+          }
+          const room =
+            pvis[0] - joinBefore.chainage - joinBefore.half - (joinBefore.half > 0 && half > 0 ? minTangentM : 0)
+          if (half > room + 1e-6 || half > pvis[1] - pvis[0] + 1e-6) {
+            dropped.curve++
+            dropped.shortestCurveM = Math.min(dropped.shortestCurveM, half * 2)
+            continue
+          }
+        }
+        frontier.set(`-1:${a}:${b}`, { cost: costOf(0, a, b), back: null, half })
       }
       yield progress(0)
     }
@@ -942,7 +1142,8 @@ function* profileSearch(
               continue
             }
           }
-          const minimumTangent = i > 1 && half > 0 ? (alignment.verticalStandards?.minTangentLengthM ?? 0) : 0
+          // The first tangent runs to the road start and is exempt; one from a range's join is not.
+          const minimumTangent = (i > 1 || joinBefore) && half > 0 ? minTangentM : 0
           // A preceding straight grade (half=0) does not require an interior tangent.
           const limit = Math.max(0, before - half - minimumTangent) + 1e-6
           let low = 0,
@@ -988,7 +1189,37 @@ function* profileSearch(
       yield progress(i)
     }
     let best: { key: string; cell: Cell } | null = null
-    for (const [key, cell] of frontier) if (!best || cell.cost < best.cell.cost) best = { key, cell }
+    let joinShortestM = Infinity,
+      joinLinear = false
+    for (const [key, cell] of frontier) {
+      if (joinAfter) {
+        // The range end joins the kept profile too: its curve fits between the last curve and the kept PVI's.
+        const [, b, c] = key.split(':').map(Number)
+        const joining = (100 * (joinAfter.elevation - levels[n - 1][c])) / (joinAfter.chainage - pvis[n - 1])
+        const half = curveLength(pvis[n - 1], grade(n - 2, b, c), joining) / 2
+        if (!Number.isFinite(half)) {
+          joinLinear = true
+          continue
+        }
+        const back = pvis[n - 1] - pvis[n - 2] - cell.half - (cell.half > 0 && half > 0 ? minTangentM : 0),
+          ahead = joinAfter.chainage - pvis[n - 1] - joinAfter.half - (joinAfter.half > 0 && half > 0 ? minTangentM : 0)
+        if (half > back + 1e-6 || half > ahead + 1e-6) {
+          joinShortestM = Math.min(joinShortestM, half * 2)
+          continue
+        }
+      }
+      if (!best || cell.cost < best.cell.cost) best = { key, cell }
+    }
+    if (!best && joinAfter)
+      throw new NoProfileError(
+        `No profile in the range joins the kept profile at ${formatStation(hi)}: ${
+          joinShortestM < Infinity
+            ? `the grade change there needs a vertical curve of at least ${joinShortestM.toFixed(0)} m, more than the tangents either side leave`
+            : joinLinear
+              ? 'the grade would change there, inside a straight-grade-only range'
+              : 'no line reaches it inside the limits'
+        }. End the range elsewhere, lower “Curve K” or widen the PVI spacing. Nothing was changed.`,
+      )
     if (!best) throw Error('No profile meets the grade and control limits within the search range.')
 
     // Walk back: states[k] holds pairs (level at PVI k, level at PVI k + 1); `back` is PVI k − 1.
@@ -1073,17 +1304,68 @@ function* profileSearch(
     }
     return line
   }
-  const check = (v: VerticalPoint[]) =>
+  /** The kept PVIs whose curves the engine built before the run. */
+  const keptCurves = new Set(
+    range
+      ? verticalCurveSummary(alignment)
+          .filter((curve) => curve.valid && curve.length > 0)
+          .map((curve) => curve.pviId)
+      : [],
+  )
+  /**
+   * The road's whole profile: the searched line, spliced between the kept PVIs when a station range
+   * was searched. Kept PVIs keep their ids and curves; each range end gets the curve its grade
+   * change needs at K, as the search checked it. The searched PVIs take ids of their own so none can
+   * repeat a kept one.
+   */
+  const full = (line: VerticalPoint[]): VerticalPoint[] => {
+    if (!range) return line
+    const last = line.length - 1
+    const joinCurve = (p: VerticalPoint, back: { chainage: number; elevation: number }, ahead: typeof back) => {
+      const size = curveLength(
+        p.chainage,
+        (100 * (p.elevation - back.elevation)) / (p.chainage - back.chainage),
+        (100 * (ahead.elevation - p.elevation)) / (ahead.chainage - p.chainage),
+      )
+      return Number.isFinite(size) ? size : 0
+    }
+    const searched = line.map((p, i) => ({
+      ...p,
+      id: `${p.id}-range`,
+      curveLength:
+        i === 0 && joinBefore
+          ? joinCurve(p, joinBefore, line[1])
+          : i === last && joinAfter
+            ? joinCurve(p, line[last - 1], joinAfter)
+            : p.curveLength,
+    }))
+    return [...range.keptBefore, ...searched, ...range.keptAfter]
+  }
+  const analyzeProfile = (v: VerticalPoint[]) =>
     analyzeRoad({ ...alignment, vertical: v }, terrain, settings, o.context, {
       referenceSurfaces: o.referenceSurfaces,
       verticalReference: o.verticalReference,
       sharedCrossingCosts: o.sharedCrossingCosts,
       gradeStandards: o.gradeStandards,
     })
+  const check = (v: VerticalPoint[]) => analyzeProfile(full(v))
+  /**
+   * What a line breaks. Outside a searched range the profile is kept, so a check there that the
+   * road already had is not the run's to answer; a new one there (a kept curve squeezed by the
+   * join) still is.
+   */
+  const checkKey = (c: VerticalCheck) => `${c.kind}:${c.chainage.toFixed(6)}:${c.message}`
+  const keptFlags = new Set(range ? (analyzeProfile(alignment.vertical).verticalChecks ?? []).map(checkKey) : [])
+  const verticalFlags = (a: RoadAnalysis) =>
+    (a.verticalChecks ?? []).filter(
+      (c) => !range || (c.end > lo + 1e-6 && c.start < hi - 1e-6) || !keptFlags.has(checkKey(c)),
+    )
   /** The steepest station grade past the limit its direction is held to, or null when none is. */
   const overGrade = (a: RoadAnalysis) => {
     let worst: number | null = null
     for (const s of a.stations) {
+      // Outside a searched range the profile is kept, steep or not; the curve joining it runs between the two grades.
+      if (s.chainage < lo - 1e-6 || s.chainage > hi + 1e-6) continue
       const g = s.gradePercent
       if (g === null || !Number.isFinite(g) || Math.abs(g) <= sustainedLimit(rule, g) + 1e-6) continue
       if (worst === null || Math.abs(g) > Math.abs(worst)) worst = g
@@ -1100,11 +1382,24 @@ function* profileSearch(
    * their tangents, but dropping PVIs afterwards lengthens the curves that are left.
    */
   const curveFault = (line: VerticalPoint[]): { index: number; message: string } | null => {
-    const summary = verticalCurveSummary({ ...alignment, vertical: line })
-    for (let i = 1; i < line.length - 1; i++) {
-      const p = line[i]
-      const g1 = (100 * (p.elevation - line[i - 1].elevation)) / (p.chainage - line[i - 1].chainage),
-        g2 = (100 * (line[i + 1].elevation - p.elevation)) / (line[i + 1].chainage - p.chainage)
+    // With a station range the whole profile is read back; `index` stays the searched line's.
+    const whole = full(line),
+      offset = range ? range.keptBefore.length : 0
+    const summary = verticalCurveSummary({ ...alignment, vertical: whole })
+    for (let j = 1; j < whole.length - 1; j++) {
+      const i = j - offset
+      const p = whole[j]
+      if (i < 0 || i >= line.length) {
+        // A kept curve beside the range that the engine built before has to be built still.
+        if ((i !== -1 && i !== line.length) || !keptCurves.has(p.id)) continue
+        if (summary.find((curve) => curve.pviId === p.id)?.valid) continue
+        return {
+          index: i < 0 ? 0 : line.length - 1,
+          message: `The kept vertical curve at ${formatStation(p.chainage)} no longer fits beside the searched range.`,
+        }
+      }
+      const g1 = (100 * (p.elevation - whole[j - 1].elevation)) / (p.chainage - whole[j - 1].chainage),
+        g2 = (100 * (whole[j + 1].elevation - p.elevation)) / (whole[j + 1].chainage - p.chainage)
       const needed = curveLength(p.chainage, g1, g2)
       if (!(needed > 0)) continue
       const built = summary.find((curve) => curve.pviId === p.id)
@@ -1115,7 +1410,7 @@ function* profileSearch(
       const room =
         built?.reason === 'overlap'
           ? `the curves beside it leave ${Math.min(built.backM, built.aheadM).toFixed(1)} m of tangent for its ${(needed / 2).toFixed(1)} m half`
-          : `the PVIs either side are ${(p.chainage - line[i - 1].chainage).toFixed(0)} m and ${(line[i + 1].chainage - p.chainage).toFixed(0)} m away`
+          : `the PVIs either side are ${(p.chainage - whole[j - 1].chainage).toFixed(0)} m and ${(whole[j + 1].chainage - p.chainage).toFixed(0)} m away`
       return {
         index: i,
         message: `The grade change at ${at} needs a ${needed.toFixed(1)} m vertical curve, and ${room}.`,
@@ -1197,7 +1492,7 @@ function* profileSearch(
         if (curveFault(lighter)) continue
         const light = check(lighter)
         const ok =
-          !light.verticalChecks?.length &&
+          !verticalFlags(light).length &&
           overGrade(light) === null &&
           light.coveragePercent >= analysis.coveragePercent - 1e-6 &&
           score(light) <= score(analysis) * 1.01 + 1
@@ -1246,7 +1541,7 @@ function* profileSearch(
     // Fitting curves moves the line off its PVIs, and can shrink K/lengths or move it outside a
     // station-range limit. Only a rechecked candidate can be adopted. The material plan is not one
     // of these checks: a profile is a geometry result, and what its earthwork needs is reported.
-    const check = result.analysis.verticalChecks?.[0]
+    const check = verticalFlags(result.analysis)[0]
     const failure: ProfileFailure | null = result.unfitted
       ? {
           message: result.unfitted,
@@ -1267,8 +1562,8 @@ function* profileSearch(
                   message: `The fitted line reaches ${pct(Math.abs(worst))}${side === 'either' ? '' : ` loaded ${side === 'adverse' ? 'uphill' : 'downhill'}`}, over the ${sustainedLimit(rule, worst)}% ${side === 'either' ? 'grade' : side} limit.`,
                   remedy:
                     side === 'adverse'
-                      ? 'Widen “Search ±” so the line can cut or fill more, or raise the adverse limit under Design standards.'
-                      : 'Widen “Search ±” so the line can cut or fill more, or raise the grade limit.',
+                      ? 'Widen the search band (“Below”, “Above”) so the line can cut or fill more, or raise the adverse limit under Design standards.'
+                      : 'Widen the search band (“Below”, “Above”) so the line can cut or fill more, or raise the grade limit.',
                 }
               })()
             : null
@@ -1288,9 +1583,17 @@ function* profileSearch(
         `No profile passed its final check once curves were fitted. ${failed!.message} ${failed!.remedy} Nothing was changed.`,
       )
     )
-  const { vertical, simplified, analysis } = chosenResult
+  const { simplified, analysis } = chosenResult
+  // The road's whole profile: with a station range, the searched line between the kept PVIs.
+  const vertical = full(chosenResult.vertical)
   const endSetBy = (i: number) =>
-    elevationControlAt(pvis[i]) ? ('control' as const) : o.tieEndsToGround ? ('ground' as const) : ('free' as const)
+    joinedAt(i) !== null
+      ? ('kept' as const)
+      : elevationControlAt(pvis[i])
+        ? ('control' as const)
+        : o.tieEndsToGround
+          ? ('ground' as const)
+          : ('free' as const)
   const wasteBankM3 = settings.shrinkFactor > 0 ? Math.max(0, analysis.balanceM3) / settings.shrinkFactor : 0,
     borrowM3 = Math.max(0, -analysis.balanceM3)
   const incompleteLengthM = Math.max(0, analysis.length - analysis.completeLength)
@@ -1327,6 +1630,33 @@ function* profileSearch(
         `The road ${label} is not tied: the line is ${Math.abs(at - ground).toFixed(1)} m ${at > ground ? 'above' : 'below'} ground there.`,
       )
   }
+  if (range) {
+    notes.push(...range.moved)
+    // Each end meets the kept line at its level; where the grade changes, the curve that rounds the
+    // join reaches half its length outside the range, and the kept line moves only there.
+    const ends = [
+      joinBefore ? range.keptBefore.length : -1,
+      joinAfter ? range.keptBefore.length + chosenResult.vertical.length - 1 : -1,
+    ]
+    for (const index of ends.filter((index) => index > 0)) {
+      const p = vertical[index],
+        back = vertical[index - 1],
+        ahead = vertical[index + 1]
+      const g1 = (100 * (p.elevation - back.elevation)) / (p.chainage - back.chainage),
+        g2 = (100 * (ahead.elevation - p.elevation)) / (ahead.chainage - p.chainage)
+      notes.push(
+        `At ${formatStation(p.chainage)} the new line meets the kept profile at its level${
+          Math.abs(g2 - g1) <= 0.05
+            ? ' and grade.'
+            : `, from ${pct(g1)} to ${pct(g2)}; ${
+                p.curveLength > 0
+                  ? `its ${p.curveLength.toFixed(1)} m vertical curve reaches ${(p.curveLength / 2).toFixed(1)} m outside the range, the only stretch of the kept profile that moves.`
+                  : 'the grade breaks there with no vertical curve.'
+              }`
+        }`,
+      )
+    }
+  }
   if (chosenResult.repaired)
     notes.push(
       `${chosenResult.repaired} PVI${chosenResult.repaired === 1 ? ' was' : 's were'} taken out so that every vertical curve fits its tangents.`,
@@ -1346,9 +1676,9 @@ function* profileSearch(
     vertical,
     estimatedEarthworkCost: earthwork(analysis),
     pviCount: vertical.length,
-    levelsPerPvi: 2 * ladder + 1,
+    levelsPerPvi: ladderLevels,
     sectionSolves: solves,
-    message: `Optimized ${vertical.length} PVIs${simplified ? ` (simplified within ${Number(simplified.toFixed(3))} m)` : ''} from a ${o.pviSpacingM} m search, ±${o.maxDepthM} m around ${o.bandCenter} in ${o.levelStepM} m steps, K ≥ ${o.k} plus entered sag/crest/range rules${o.objective === 'total' ? `, lowest total cost with imbalance at $${chosenResult.price.toFixed(2)}/m³` : ''}.`,
+    message: `Optimized ${vertical.length} PVIs${simplified ? ` (simplified within ${Number(simplified.toFixed(3))} m)` : ''} from a ${o.pviSpacingM} m search${range ? ` from ${formatStation(lo)} to ${formatStation(hi)}` : ''}, ${belowM === aboveM ? `±${belowM} m around` : `${belowM} m below to ${aboveM} m above`} ${o.bandCenter} in ${o.levelStepM} m steps, K ≥ ${o.k} plus entered sag/crest/range rules${o.objective === 'total' ? `, lowest total cost with imbalance at $${chosenResult.price.toFixed(2)}/m³` : ''}.`,
     report: {
       roadLengthM: length,
       objective: o.objective,
@@ -1357,8 +1687,22 @@ function* profileSearch(
         spacingM: Math.max(...segments.map((segment) => segment[1].s - segment[0].s)),
         solves,
       },
-      pvis: { searched: n, spacingM: length / count, kept: vertical.length, simplified: simplified > 0, movedOffGaps },
-      band: { centre: o.bandCenter, depthM: o.maxDepthM, levelStepM: o.levelStepM, levelsPerPvi: 2 * ladder + 1 },
+      pvis: {
+        searched: n,
+        spacingM: (hi - lo) / count,
+        kept: vertical.length,
+        simplified: simplified > 0,
+        movedOffGaps,
+      },
+      band: {
+        centre: o.bandCenter,
+        belowM,
+        aboveM,
+        levelStepM: o.levelStepM,
+        levelsPerPvi: ladderLevels,
+        range: range ? { from: lo, to: hi, asked: range.asked } : null,
+        line: bandLine,
+      },
       limits: {
         maxGradePercent: settings.maxGradePercent,
         ...(rule.loadedDirection
@@ -1405,7 +1749,12 @@ export function verticalOptimizationLog(report: VerticalOptimizationReport): { l
   const whole = (value: number) => Math.round(value).toLocaleString('en-CA')
   const metres = (value: number) => `${Number(value.toFixed(1))} m`
   const { sections, pvis, band, limits, ends, result } = report
-  const end = { ground: 'tied to ground', control: 'held by a control point', free: 'free' }
+  const end = {
+    ground: 'tied to ground',
+    control: 'held by a control point',
+    free: 'free',
+    kept: 'joined to the kept profile',
+  }
   const curves = [
     `K ≥ ${limits.curveK}`,
     limits.minSagK !== null && `sag K ≥ ${limits.minSagK}`,
@@ -1422,14 +1771,17 @@ export function verticalOptimizationLog(report: VerticalOptimizationReport): { l
     },
     {
       label: 'Search band',
-      value: `±${band.depthM} m around ${band.centre === 'ground' ? 'ground' : 'the current design'}, ${band.levelStepM} m steps`,
+      value: `${band.belowM === band.aboveM ? `±${band.belowM} m around` : `${band.belowM} m below to ${band.aboveM} m above`} ${band.centre === 'ground' ? 'ground' : 'the current design'}, ${band.levelStepM} m steps`,
     },
+    ...(band.range
+      ? [{ label: 'Search range', value: `${formatStation(band.range.from)} to ${formatStation(band.range.to)}` }]
+      : []),
     {
       label: 'Grade limit',
       value: `${limits.gradeRule ?? `${limits.maxGradePercent}%`}${limits.gradeRanges ? ` and ${limits.gradeRanges} station range${limits.gradeRanges === 1 ? '' : 's'}` : ''}`,
     },
     { label: 'Vertical curves', value: curves.join(', ') },
-    { label: 'Road ends', value: `Start ${end[ends.start]}; end ${end[ends.end]}` },
+    { label: band.range ? 'Range ends' : 'Road ends', value: `Start ${end[ends.start]}; end ${end[ends.end]}` },
     ...report.controls.map((control) =>
       control.bound === 'minimum' && control.elevation !== null
         ? {

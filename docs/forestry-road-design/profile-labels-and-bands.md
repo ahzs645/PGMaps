@@ -65,6 +65,8 @@ readout) and `profileBands.ts` (band values and the curvature diagram). The scre
 | Cut/fill   | C cut or F fill depth at the centreline (m)                                                               | Terrain is missing                        |
 | Grade %    | Design grade at the station, positive climbing; it varies through vertical curves                         | The station has no grade                  |
 | X-fall L/R | The section's crossfall each side (%), positive falling away from the centreline; bold when superelevated | Never: it is a design value               |
+| Stake L/R  | Slope-stake offset each side (m), where the batter meets the ground; negative left; screen only          | That side of the section is incomplete    |
+| Clearing   | Clearing width across the road (m), catches plus preparation margin; only when the road computes one     | The station has no clearing width         |
 | Sidehill % | Ground cross slope across the road and its uphill side ("13 R"), from `sectionSideSlope.ts`; screen only  | Either side has under 5 m of known ground |
 | Curvature  | 1/R, right turns above the line and left below, ramping over spirals; each arc labelled R and side        | Never: it is the fitted geometry          |
 
@@ -77,6 +79,11 @@ one class join (`sidehillSpans`). Under 20 % is untinted, 20–40 % and 40–50 
 `INTERIOR_SIDESLOPE_LIMIT_PERCENT`) and 60 % or more red (the full-bench screen,
 `FULL_BENCH_SIDESLOPE_PERCENT`). The plot book's bands leave the row out: `profileValueBands` adds it
 only when given `sidehill`.
+
+The Stake and Clearing rows are RoadEng's `L-Ssl`/`L-Ssr` band and clearing width
+(`stakeRows`, `profileBands.ts`). Like Sidehill they are on screen only: `profileValueBands` adds them
+when given `stakes`, so the plot book's sheets keep their rows. Whether the Clearing row shows is
+decided over the whole road, never the window, so the bands keep their height while panning.
 
 Values are printed only at calculated
 stations, never interpolated between them. Stations on a round multiple of the spacing (1, 2, 2.5
@@ -92,6 +99,10 @@ that area reserves a scrollbar strip (the app's scrollbar is drawn over the cont
 plot and in every band.
 
 ## Curve-point labels never overlap each other
+
+The rotated BVC/EVC, high- and low-point labels also keep clear of the `VC 40 K=9.5` labels over the
+PVIs (`rotatedLabelSide`, `ProfileOverlays.tsx`): one that would cross a VC label reads below the
+line instead, and one blocked on both sides is left to its tooltip.
 
 Labels are placed by `placeLabels`: in order of importance (a flagged sag, then high and low
 points, then curve ends), each label is kept only if no label already kept is closer than the gap.
@@ -162,6 +173,7 @@ real gaps in a terrain that covers part of the road.
 | Curve ends shown                             | a curve 16 screen px wide or more                                               | `CURVE_ENDS_MIN_PX`, `profileAnnotations.ts`                                    |
 | Gap between curve-point markers              | 5 screen px                                                                     | `CURVE_MARK_GAP_PX`, `profileAnnotations.ts`                                    |
 | Design-file ground points                    | 10,000 a road                                                                   | `parseFileGround`, `project.ts`                                                 |
+| Screen band rows                             | 9 × 16 px, 10 with a Clearing row, + 30 px curvature + 34 px superelevation     | `bandsHeight`, `ProfileValueBands.tsx`                                          |
 | Sheet band rows and curvature diagram        | 6 × 17 px + 30 px; the profile is 232 px tall and the plan 320 px with bands on | `SHEET_BANDS_HEIGHT`, `plotBookProfile.ts`; `planProfileSheet`, `plotBook.ts`   |
 | Subview values in a saved file               | true or false; absent is off                                                    | `parseRoadReportSettings`                                                       |
 | Ground-grade pieces                          | about 1 per 110 px; at least 50 px each; at most 64 per road                    | `GROUND_GRADE_PIECE_PX`, `GROUND_GRADE_MIN_PIECE_PX`, `GROUND_GRADE_MAX_PIECES` |

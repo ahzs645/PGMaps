@@ -1,9 +1,12 @@
 import { formatRoadNumber as number } from './roadFormat'
 import type { StatItem } from '@/components/ui/stat-group'
+import type { MetricLevel } from '@/components/ui/metric-summary'
+import { massHaulDiagram } from './massHaul'
 import { hasCompleteCoverage } from './analysisResult'
 import { isGradeBreachFlag } from './designStandards'
 import type { FullCostPreview } from './FullCostPlanningDialog'
 import { incompleteReasonText, type IncompleteReason } from './sectionCompleteness'
+import { materialPlanMissing } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadProject } from './types'
 
 /** Keys stay stable when a road's values, warnings or available measurements change. */
@@ -12,6 +15,8 @@ export interface RoadSummaryMetric extends StatItem {
   label: string
   value: string
   note: string
+  /** `hidden` rows are offered in the summary's settings without taking room until chosen. */
+  defaultLevel?: MetricLevel
 }
 
 const money = (value: number) => `$${number(value, 0)}`
@@ -166,6 +171,7 @@ export function roadSummaryMetrics(source: SummarySource): RoadSummaryMetric[] {
       pressed: source.costOpen,
       toggleLabel: preview || record ? 'Review complete route costs' : 'Show how the covered estimate is calculated',
     },
+    ...massMetrics(analysis),
     {
       key: 'coverage',
       label: 'Complete sections',
@@ -182,6 +188,82 @@ export function roadSummaryMetrics(source: SummarySource): RoadSummaryMetric[] {
     },
   )
   return metrics
+}
+
+const MASS_CLOSED_M3 = 0.05
+
+/**
+ * The mass-haul chart's figures as optional summary rows, hidden until chosen (RoadEng's results
+ * panel lists them beside the costs): the end balance, the haul plan's volumes by class, and what no
+ * site had room for. A plan that allocated nothing never reads as zero haul or nothing unplaced.
+ * Cut-to-fill and borrow are compacted m³; waste stays in bank m³ apart.
+ */
+function massMetrics(analysis: RoadAnalysis): RoadSummaryMetric[] {
+  const diagram = massHaulDiagram(analysis)
+  const haul = analysis.engineering?.haul
+  const allocated = !!haul?.enabled && !materialPlanMissing(haul)
+  const notAllocated = !haul?.enabled ? 'Haul off' : 'Plan not solved'
+  const end: RoadSummaryMetric = {
+    key: 'mass-end',
+    label: 'End balance',
+    value: diagram.endBalanceM3 === null ? 'Unavailable' : `${number(diagram.endBalanceM3, 0)} m³`,
+    note: [
+      diagram.haul
+        ? Math.abs(diagram.haul.closingM3) <= MASS_CLOSED_M3
+          ? 'Closes at 0 m³ after borrow and waste'
+          : `${number(diagram.haul.closingM3, 0)} m³ after borrow and waste`
+        : 'Usable compacted cut less fill at the road end',
+      diagram.unknownLengthM > 0 ? `leaves out ${number(diagram.unknownLengthM, 0)} m of unknown earthwork` : '',
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    defaultLevel: 'hidden',
+  }
+  if (!haul || !allocated)
+    return [
+      end,
+      {
+        key: 'haul',
+        label: 'Free / over / end haul',
+        value: notAllocated,
+        note: 'Turn on material haul',
+        defaultLevel: 'hidden',
+      },
+      {
+        key: 'unplaced',
+        label: 'No site with room',
+        value: notAllocated,
+        note: 'Turn on material haul',
+        defaultLevel: 'hidden',
+      },
+    ]
+  const waste = haul.wasteFreeHaulBankM3 + haul.wasteOverhaulBankM3 + haul.wasteEndHaulBankM3
+  const unplaced = [
+    haul.unallocatedWasteM3 > MASS_CLOSED_M3 && `${number(haul.unallocatedWasteM3, 0)} bank m³ cut`,
+    haul.unallocatedBorrowM3 > MASS_CLOSED_M3 && `${number(haul.unallocatedBorrowM3, 0)} m³ fill`,
+  ].filter((part): part is string => !!part)
+  return [
+    end,
+    {
+      key: 'haul',
+      label: `Free / over / end haul${haul.complete ? '' : ' · covered'}`,
+      value: `${number(haul.freeHaulM3, 0)} / ${number(haul.overhaulM3, 0)} / ${number(haul.endHaulM3, 0)} m³`,
+      note: `Compacted m³ · ${number(haul.haulM3Km, 0)} m³·km${
+        haul.borrowCompactedM3 > 0 ? ` · borrow ${number(haul.borrowCompactedM3, 0)} m³` : ''
+      }${waste > 0 ? ` · waste ${number(waste, 0)} bank m³ hauled` : ''}`,
+      defaultLevel: 'hidden',
+    },
+    {
+      key: 'unplaced',
+      label: 'No site with room',
+      value: unplaced.length ? unplaced.join(' · ') : 'None',
+      note: unplaced.length
+        ? 'Cut no waste site can take, or fill no borrow site can supply'
+        : 'Every surplus and deficit found a site',
+      tone: unplaced.length ? 'warning' : 'default',
+      defaultLevel: 'hidden',
+    },
+  ]
 }
 
 /**
