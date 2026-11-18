@@ -2,6 +2,7 @@ import { LOGO_FILE_ACCEPT, LOGO_FILE_TYPES_TEXT } from '@/branding/logoFile'
 import { FileButton } from '@/components/ui/file-button'
 import { FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
+import { MapStyleField, type MapStyleChoice } from '@/components/ui/map-style-field'
 import { PAPER_SIZES, type PaperId } from '@/lib/mapSheet/layout'
 import { formatScale, SHEET_SCALES } from '@/lib/mapSheet/scale'
 
@@ -57,8 +58,11 @@ export function MapSheetSetup({
   area?: string
   onArea?: (value: string) => void
   fields: readonly MapSheetField[]
-  /** Looks the sheet's map features can be drawn with. Omit when a tool has one look. */
-  styles?: readonly { value: string; label: string }[]
+  /**
+   * Looks the sheet's map features can be drawn with. Omit when a tool has one look. Styles that carry a `sample`
+   * are listed with their sample maps (`MapStyleField`); without one the list is names only.
+   */
+  styles?: readonly MapStyleChoice[]
   style?: string
   onStyle?: (value: string) => void
   /** One line under the map style: what the chosen look changes. */
@@ -144,7 +148,9 @@ export function MapSheetSetup({
           </StyledSelect>
         </FormField>
       )}
-      {styles && onStyle && (
+      {styles && onStyle && styles.some((entry) => entry.sample) ? (
+        <MapStyleField styles={styles} value={style ?? styles[0]?.value ?? ''} onChange={onStyle} hint={styleHint} />
+      ) : styles && onStyle ? (
         <div className="grid gap-1">
           <FormField label="Map style" htmlFor="map-sheet-style">
             <StyledSelect
@@ -162,7 +168,7 @@ export function MapSheetSetup({
           </FormField>
           {styleHint && <p className="text-muted-foreground">{styleHint}</p>}
         </div>
-      )}
+      ) : null}
       <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
         {fields.map((field) =>
           field.origin === 'entered' ? (

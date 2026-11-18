@@ -10,7 +10,8 @@ import { layoutStageLabel, layoutStageOf } from './fieldChecklist'
 import type { SavedDriveView } from './previewState'
 import type { ForestryScene } from './scene'
 import { findSceneLandform } from './sceneInput'
-import type { AnalysisResult, HarvestSystem } from './types'
+import { landformAssignments } from './viewLandform'
+import type { AnalysisResult, HarvestSystem, TargetPolygon } from './types'
 import type { ViaAssessment, ViaStepId } from './via'
 import { lineLengthMeters, polygonAreaMeters } from './visibility'
 import { EVQO_CODE_FOR_CLASS, EVQO_NAMES } from './visualsNarrative'
@@ -270,6 +271,11 @@ export type ExportPlannedView = {
   include: boolean
   /** The saved view that is its current capture, or null. */
   savedViewId: string | null
+  /**
+   * The view's own landform by name (`ViewOfInterest.landformId`), which its capture and figure are made against.
+   * Null or absent: it is assessed against the site landform.
+   */
+  landform?: string | null
   /** Why its last capture under the current key failed, or null. Preview skips it; Download tries again. */
   failed: string | null
   /**
@@ -337,8 +343,14 @@ export type ExportContext = {
   ratingMissing: string[]
   ocularClass: string | null
   viewpoint: { name: string; kind: 'road' | 'spot'; lengthKm: number }
+  /** The landform the run measures: the site's, or a view's own while the page stands at that view. */
   landform: ExportLandform | null
   landformCount: number
+  /**
+   * How the scene's other landforms are used: the site landform by name when the run measures a view's own instead,
+   * how many views of interest have a landform of their own, and how many landforms nothing is assessed against.
+   */
+  landformUse: { site: string | null; viewsWithOwn: number; views: number; unused: number }
   blocks: Array<{ name: string; areaHa: number; system: string }>
   openings: number
   masks: Array<{ kind: string; name: string }>
@@ -354,6 +366,8 @@ export type ExportContext = {
   capture: ExportCapture
   /** The package's recipe by name, or null when none is chosen (the VIA document's format then chooses the report). */
   recipe: string | null
+  /** The recipe the VIA report follows whether or not the package chose one, with its reference documents. */
+  reportRecipe: { name: string; sources: string } | null
   settings: Row[]
   review: {
     visualsNote: 'yours' | 'draft'
@@ -809,11 +823,26 @@ export type ExportAction = { id: string; label: string }
 /** The dialog opens its *Package* entry for this action: the recipe, the renderer and the views, chosen once. */
 export const OPEN_PACKAGE_ACTION = 'open-package'
 const packageAction: ExportAction = { id: OPEN_PACKAGE_ACTION, label: 'Change in Package' }
+/** The final rating is made at the top of the package's entry, not in a step of the sidebar. */
+const rateAction: ExportAction = { id: OPEN_PACKAGE_ACTION, label: 'Rate in Package' }
+
+/**
+ * The piece of the page a part is edited with, shown under the part in the dialog rather than behind it: a section
+ * of the sidebar (a `Projectable` in `Sidebar.tsx`, moved into the dialog while it is edited there) or, for `views`,
+ * the views of interest already planned. The same controls with the same state as in the step, never a second form.
+ * Name one only for a part those controls really set: a saved view that is not a view of interest has none.
+ */
+export type ExportEditor = 'cutblocks' | 'landform' | 'viewpoint' | 'run' | 'assess' | 'views'
+
+/** The id a sidebar section and the dialog's slot for it share. */
+export const exportEditorId = (editor: ExportEditor) => `visuals-export-editor:${editor}`
 
 /** A part of an output, with the step where it is set. */
 export type ExportSection = {
   title: string
   step?: ViaStepId
+  /** What edits the part in the dialog; `step` is then where the same controls live, for work that needs the map. */
+  editor?: ExportEditor
   rows?: Row[]
   /** One entry per thing listed, such as a saved view with its settings. */
   items?: Array<{ title: string; subtitle?: string; rows?: Row[]; action?: ExportAction }>
@@ -856,6 +885,7 @@ function runSection(ctx: ExportContext): ExportSection {
   return {
     title: 'Run',
     step: 'design',
+    editor: 'run',
     rows: [
       { label: 'Status', value: status },
       ...(ctx.run === 'none'
@@ -874,6 +904,7 @@ function landformSection(ctx: ExportContext): ExportSection {
   return {
     title: 'Landform',
     step: 'identify',
+    editor: 'landform',
     rows: lf
       ? [
           { label: 'Name', value: lf.name },
@@ -882,8 +913,25 @@ function landformSection(ctx: ExportContext): ExportSection {
           { label: 'Area', value: hectares(lf.areaHa) },
           { label: 'Source', value: lf.source },
           ...(lf.inventoryUnit ? [{ label: 'Inventory unit', value: lf.inventoryUnit }] : []),
-          ...(ctx.landformCount > 1
-            ? [{ label: 'Other landforms', value: `${ctx.landformCount - 1} in the scene, not assessed` }]
+          // The run measures a view's own landform while the page stands there; the site's is the default again after.
+          ...(ctx.landformUse.site
+            ? [{ label: 'Site landform', value: `${ctx.landformUse.site}; this run is at a view with its own` }]
+            : []),
+          ...(ctx.landformUse.viewsWithOwn
+            ? [
+                {
+                  label: 'Views with their own',
+                  value: `${ctx.landformUse.viewsWithOwn} of ${plural(ctx.landformUse.views, 'view')} of interest, each assessed against its own landform`,
+                },
+              ]
+            : []),
+          ...(ctx.landformUse.unused
+            ? [
+                {
+                  label: 'Other landforms',
+                  value: `${ctx.landformUse.unused} in the scene that nothing uses, not assessed`,
+                },
+              ]
             : []),
         ]
       : undefined,
@@ -895,6 +943,7 @@ function viewpointSection(ctx: ExportContext): ExportSection {
   return {
     title: 'Viewpoint',
     step: 'identify',
+    editor: 'viewpoint',
     rows: [
       { label: 'Name', value: ctx.viewpoint.name || 'Unnamed' },
       {
@@ -969,10 +1018,17 @@ function plannedViewsSection(ctx: ExportContext, kind: VisualsExport): ExportSec
   return {
     title: 'Views of interest',
     step: 'visit',
+    editor: 'views',
     action: packageAction,
     items: ctx.planned.map((view) => ({
       title: view.name,
-      subtitle: [view.block, view.lens, plannedStatus(view, kind, ctx)].join(' · '),
+      subtitle: [
+        view.block,
+        view.lens,
+        // A view is assessed against the site landform unless it has its own: only the exception is named.
+        ...(view.landform ? [`its own landform, ${view.landform}`] : []),
+        plannedStatus(view, kind, ctx),
+      ].join(' · '),
     })),
     note: `${plural(taken.length - without, 'view')} of interest in the file${
       toCapture
@@ -991,6 +1047,19 @@ function unprintedSection(ctx: ExportContext, kind: VisualsExport): ExportSectio
     step: 'visit',
     items: undrawn.map((view) => ({ title: view.name, subtitle: `Not in the file: ${view.reason}` })),
     note: 'The file names each of them and why. Capture the view again, or leave it out under Package.',
+  }
+}
+
+/**
+ * Where views of interest come from when the package has none, for an output that is written from them. A view is
+ * placed on the plan map, so this part opens its step rather than an editor in the dialog.
+ */
+function noViewsSection(): ExportSection {
+  return {
+    title: 'Views of interest',
+    step: 'visit',
+    empty:
+      'None planned. A view of interest is placed on the plan map: in step 2, use the map’s Add a view of interest tool. It is then edited here.',
   }
 }
 
@@ -1098,6 +1167,7 @@ function blocksSection(ctx: ExportContext): ExportSection {
   return {
     title: 'Blocks',
     step: 'identify',
+    editor: 'cutblocks',
     rows: [
       ...ctx.blocks.map((block) => ({ label: block.name, value: `${hectares(block.areaHa)} · ${block.system}` })),
       ...(ctx.openings ? [{ label: 'Existing openings', value: String(ctx.openings) }] : []),
@@ -1128,7 +1198,7 @@ function settingsSection(ctx: ExportContext): ExportSection {
 function reviewSection(ctx: ExportContext): ExportSection {
   return {
     title: 'Review',
-    step: 'rate',
+    action: rateAction,
     rows: [
       { label: 'Rating', value: ctx.rating ?? 'Not rated yet' },
       ...(ctx.ocularClass ? [{ label: 'Ocular class', value: ctx.ocularClass }] : []),
@@ -1148,12 +1218,13 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
         {
           title: 'Block',
           step: 'identify',
+          editor: 'cutblocks',
           rows: note?.header,
           empty: 'No cutblock yet.',
         },
         {
+          // Written in this output's options, above: step 5 only opens Save & export.
           title: 'Visuals paragraph and measures',
-          step: 'rate',
           rows: [
             {
               label: 'Visuals paragraph',
@@ -1165,7 +1236,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
             },
           ],
         },
-        { title: 'Landform', step: 'identify', rows: note?.landform, empty: 'None adopted.' },
+        { title: 'Landform', step: 'identify', editor: 'landform', rows: note?.landform, empty: 'None adopted.' },
         ...withPlanned([plannedViewsSection(ctx, 'block-note')]),
         reportViewsSection(ctx, !!note?.figures),
         inventorySection(ctx),
@@ -1179,6 +1250,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
         {
           title: 'Stations in the PDF',
           step: 'assess',
+          editor: 'assess',
           items: ctx.fs1252Stations.map((station) => ({
             title: station.label,
             subtitle: station.assessment
@@ -1238,21 +1310,40 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
     }
     case 'via-report': {
       const report = ctx.report
+      // One Report part whether or not there is anything to draw yet: what the report follows, how many figures it
+      // has and who draws them. The logo and the map style are this output's options, shown live above it.
+      const recipe = report ? { name: report.recipe, sources: report.sources } : ctx.reportRecipe
+      const structure = recipe
+        ? [
+            {
+              label: 'Structure of',
+              value: `${recipe.name} (reference document ${recipe.sources})${
+                ctx.recipe ? ', the package’s recipe' : ', following the VIA document’s format'
+              }`,
+            },
+          ]
+        : ctx.recipe
+          ? [{ label: 'Structure of', value: ctx.recipe }]
+          : []
       if (!report)
         return withPlanned([
           {
             title: 'Report',
             action: packageAction,
             rows: [
-              ...(ctx.recipe ? [{ label: 'Structure of', value: ctx.recipe }] : []),
+              ...structure,
+              {
+                label: 'Figures',
+                value: capturesFirst(ctx) ? 'From the views of interest, once captured' : 'None yet',
+              },
               { label: 'Drawn by', value: rendererRow(ctx, 'via-report') },
             ],
             note: capturesFirst(ctx)
               ? 'The figures and calculations are drawn from the views of interest once they are captured.'
-              : 'No view in the package has a class pass yet.',
+              : 'Every figure and calculation in the report comes from a view in the package, and it has none yet. Add a view of interest in step 2, or save one from the road view’s bar.',
           },
           unprintedSection(ctx, 'via-report'),
-          plannedViewsSection(ctx, 'via-report'),
+          plannedViewsSection(ctx, 'via-report') ?? noViewsSection(),
         ])
       const undrawn = unprintedFor('via-report', ctx).length
       return withPlanned([
@@ -1260,7 +1351,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           title: 'Report',
           action: packageAction,
           rows: [
-            { label: 'Structure of', value: `${report.recipe} (reference document ${report.sources})` },
+            ...structure,
             { label: 'Logo', value: ctx.logo },
             ...(report.mapStyle ? [{ label: 'Map style', value: report.mapStyle }] : []),
             {
@@ -1274,6 +1365,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
         {
           title: 'To complete before signing',
           step: 'assess',
+          editor: 'assess',
           rows: [{ label: 'Items', value: report.toComplete ? plural(report.toComplete, 'item') : 'None' }],
           note: 'Judgements, office fields and signatures the run cannot give print blank and are listed at the end of the report.',
         },
@@ -1326,6 +1418,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
         {
           title: 'Reviewer to complete',
           step: 'assess',
+          editor: 'assess',
           rows: [{ label: 'Sentences and cells', value: doc.toComplete ? plural(doc.toComplete, 'item') : 'None' }],
           note: 'Judgements the run never makes (visibility term, lines of force, edges, the extent met) come from step 4 at the assessment station only, and are listed, never invented.',
         },
@@ -1381,6 +1474,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
         {
           title: 'On the map',
           step: 'identify',
+          editor: 'cutblocks',
           rows: sheet.drawn,
           note: 'A map of the scene: no figure from the run is printed on it.',
         },
@@ -1392,17 +1486,14 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
       return [
         {
           title: 'Package',
-          step: 'rate',
           rows: [
             { label: 'Recorded assessments', value: String(ctx.evidence.runs) },
-            { label: 'Field records', value: String(ctx.evidence.fields) },
             { label: 'Viewpoints', value: String(ctx.evidence.views) },
             { label: 'Field records', value: String(ctx.evidence.fields) },
           ],
         },
         {
           title: 'Evidence checklist',
-          step: 'rate',
           items: ctx.evidence.gaps.map((gap) => ({ title: gap })),
           empty: 'Expected evidence categories present. Check content and adequacy.',
         },
@@ -1486,7 +1577,6 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
       return [
         {
           title: 'Workspace',
-          step: 'rate',
           rows: [
             { label: 'Recorded assessments', value: String(ctx.evidence.runs) },
             { label: 'Viewpoints', value: String(ctx.evidence.views) },
@@ -1617,8 +1707,15 @@ export type ContextInput = {
   unprinted?: UnprintedView[]
   /** The capture's progress (`useViewCapture`). Absent: idle. */
   capture?: ExportCapture
+  /**
+   * The site landform (`siteLandformOf`): what a view with no landform of its own is assessed against. Absent: the
+   * run's landform, which differs only while the page stands at a view on its own landform.
+   */
+  siteLandform?: TargetPolygon | null
   /** The package's recipe by name, or null/absent for none. */
   recipe?: string | null
+  /** The recipe the VIA report follows, chosen or not. Absent: not known here. */
+  reportRecipe?: { name: string; sources: string } | null
   /** The block map sheet as chosen. Absent: the scene has no block. */
   blockSheet?: ExportBlockSheet
 }
@@ -1724,6 +1821,16 @@ export function buildExportContext(input: ContextInput): ExportContext {
         }
       : null,
     landformCount: scene.targets.filter((target) => target.role === 'landscape').length,
+    landformUse: (() => {
+      const site = input.siteLandform === undefined ? landform : input.siteLandform
+      const use = landformAssignments(scene, site)
+      return {
+        site: site && landform && site.id !== landform.id ? site.name : null,
+        viewsWithOwn: use.views.filter((entry) => entry.own).length,
+        views: use.views.length,
+        unused: use.unused.length,
+      }
+    })(),
     blocks: blocks.map((entry) => ({
       name: entry.name,
       areaHa: polygonAreaMeters(entry.geometry) / 10_000,
@@ -1758,6 +1865,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
     unprinted: input.unprinted ?? [],
     capture: input.capture ?? IDLE_CAPTURE,
     recipe: input.recipe ?? null,
+    reportRecipe: input.reportRecipe ?? null,
     settings: settingsRows(scene),
     review: {
       visualsNote: review.visualsNote ? 'yours' : 'draft',
@@ -1835,6 +1943,10 @@ export type PackageInput = {
   roadViewStyleId: string | null
   planned: readonly ViewOfInterest[]
   blocks: ReadonlyArray<{ id: string; name: string }>
+  /** The scene's landforms, to name a view's own. Absent: no view's landform is named. */
+  landforms?: ReadonlyArray<{ id: string; name: string }>
+  /** The site landform's id: a view that names it is assessed against the site's, like one that names none. */
+  siteLandformId?: string | null
   /** Every saved view, on this road and shelved, in the order the outputs list them. */
   savedViews: ReadonlyArray<{ id: string; name: string; plannedViewId?: string; plannedKey?: string }>
   /** Failed captures by view id, with the `viewCaptureKey` they failed under. */
@@ -1900,6 +2012,10 @@ export function resolvePackage(input: PackageInput): ResolvedPackage {
       state,
       include: isIncluded(view),
       savedViewId: capture?.id ?? null,
+      landform:
+        view.landformId && view.landformId !== input.siteLandformId
+          ? (input.landforms?.find((landform) => landform.id === view.landformId)?.name ?? null)
+          : null,
       failed: state !== 'captured' && failure && failure.key === key ? failure.reason : null,
       ...(owed
         ? {

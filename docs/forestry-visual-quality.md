@@ -425,42 +425,69 @@ not hold (added or changed since) reads *Not in this run*, never another
 block's figures, and when the view's own landform is not the one the run
 assessed, the alteration rows say whose figures they are and warn.
 
-**The landform seen from a view** (`viewLandform.ts`, DOM-free, and
-`ViewLandformControl.tsx`). An open row's *Landform seen from here* reads the
-visible face of the view's block from the view's place alone, exactly as *Find
-a landform from the terrain* reads its visible face from a chosen point
-(`visibleFaceLandform` with its default frame centred on the block, the finder's
-terrain zoom 12 and search box widened to take in the view, the scene's eye
-height, basemap water, *stop at the first crest* and *split at draws* off), and
-draws it on the plan with the finder's candidates. Like every terrain reading
-it is a candidate: only *Adopt for this view* takes it, and a reading that
-finds little beyond the block (`blockOnly`) cannot be adopted. The control says
-which case it is (`viewLandformVerdict`): a face round the block seen from here;
-a block seen with little hillside round it; or a block the terrain hides from
-here, when the reading is the land seen in front of it (`seededBy: 'in-front'`),
-titled and, if adopted, named "Face in front of …", never a face round the
-block, and adoptable only when it is more than `blockOnly`'s 2.5 × the block's
-area. A view such as VLI 145 at Tabor Mountain, which the run also reads as 0%
-of Test Block C in view, has nothing to adopt; VLI 150 at Purden Lake, which
-sees PL-1, reads a 460 ha face. Adopting adds a
+**Each view's landform** (`viewLandform.ts`, DOM-free, and `ViewLandforms.tsx`).
+The assessment has one **site landform**, the one the reviewer chose
+(`siteLandformOf`), and a view of interest is assessed against it unless it has
+a landform of its own. Both are set in one place, step 1's *Landform and
+objective*, which lists who is assessed against what (`landformAssignments`):
+the site landform first, then one row a view of interest (*The site landform*,
+or *Its own landform* with its area and its card), then *Other landforms*, the
+ones in the scene that nothing is assessed against. A view's own row in step 2
+keeps one line (`ViewLandformSummary`) and *Set in step 1*. *Make this the site
+landform* on any other landform changes the default; standing at a view on its
+own landform, it changes the landform put back afterwards and leaves that
+stand's run alone. The card of a view's landform reads *In use at this stand*
+while the page stands there.
+
+A view's *Read from this view* reads the visible face of the view's block from
+the view's place alone, exactly as *Find a landform from the terrain* reads its
+visible face from a chosen point (`visibleFaceLandform` with its default frame
+centred on the block, the finder's terrain zoom 12 and search box widened to
+take in the view, the scene's eye height, basemap water, *stop at the first
+crest* and *split at draws* off), and draws it on the plan with the finder's
+candidates. *Read for every view* reads them one after another and draws them
+together. Like every terrain reading it is a candidate: only *Adopt for this
+view*, or *Adopt each for its view* for the readings that can be adopted, takes
+one, and a reading that finds little beyond the block (`blockOnly`) cannot be
+adopted. The row says which case it is (`viewLandformVerdict`): a face round the
+block seen from here; a block seen with little hillside round it; or a block the
+terrain hides from here, when the reading is the land seen in front of it
+(`seededBy: 'in-front'`), titled and, if adopted, named "Face in front of …",
+never a face round the block, and adoptable only when it is more than
+`blockOnly`'s 2.5 × the block's area. A view such as VLI 145 at Tabor Mountain,
+which the run also reads as 0% of Test Block C in view, has nothing to adopt;
+VLI 150 at Purden Lake, which sees PL-1, reads a 460 ha face. A reading stays in
+the list only while its view and block are as they were read. Adopting adds a
 landform target (`role: 'landscape'`) built as the finder's *Use* builds one
-(`landformTargetFromCandidate`, inheriting the scene landform's objective and
-VAC, named "Visible face round … from" the view), or reuses a landform already
-in the scene with the same outline, and records it as the view's `landformId`
-(`adoptViewLandform`). Unlike the finder's *Use* it never replaces the landform
-the run assesses; each view keeps its own. The two exceptions follow from the
-denominator rule: a scene with no landform takes the adopted one as its
-landform, as any first landform is taken, and a scene with exactly one landform
-and none named active names that one active, since two landforms with none
-chosen cannot share a denominator (`activeLandform`). The new target is one of
-the scene's targets, so adopting one stales the run as adding any landform
-does. *Clear* takes the landform off the view and leaves the target in the
-scene. Standing at a view that has a landform (*Stand here*, the summary's
-arrows, a capture) makes it the run's active landform, so the run there, the
-summary and the saved view's figure read it. The reviewer's own landform is
-kept with the stand (`standing.landform`): a view with no landform of its own,
-stood at next, reads it again, *Back to the road* puts it back while the view's
-is still the active one, and a capture puts it back afterwards.
+(`landformTargetFromCandidate`, named "Visible face round … from" the view), or
+reuses a landform already in the scene with the same outline, and records it as
+the view's `landformId` (`adoptViewLandform`). Unlike the finder's *Use* it
+never replaces the site landform; each view keeps its own. The two exceptions
+follow from the denominator rule: a scene with no landform takes the adopted one
+as its landform, as any first landform is taken, and a scene with exactly one
+landform and none named active names that one active, since two landforms with
+none chosen cannot share a denominator (`activeLandform`). The new target is one
+of the scene's targets, so adopting one stales the run as adding any landform
+does. *Use the site's* takes the landform off the view and leaves the target in
+the scene, among *Other landforms*.
+
+An adopted face takes the site landform's objective and VAC and goes on
+following them (`followSiteLandform`): a change to the site landform's objective
+or VAC reaches every view's landform that still held the same value, and one the
+reviewer gave its own (a face in another sensitivity unit may have another
+objective) keeps it and says so in its row. Nothing is stored to say which
+follows: a face follows while its value equals the site's.
+
+Standing at a view that has a landform (*Stand here*, the summary's arrows, a
+capture) makes it the run's active landform, so the run there, the summary and
+the saved view's figure read it. The site landform is kept with the stand
+(`standing.landform`): a view with no landform of its own, stood at next, reads
+it again, *Back to the road* puts it back while the view's is still the active
+one, and a capture puts it back afterwards. In Save & export a view of interest
+with its own landform is listed with it, the *Landform* part counts the views
+that have one, names the site landform when the run is at such a view, and calls
+*not assessed* only the landforms nothing uses. The block note still prints one
+landform figure, the assessment view's.
 
 ### Save & export
 
@@ -501,7 +528,20 @@ file is written from, the parts it carries: the landform (name, objective, VAC,
 area, source), the viewpoint, every saved view with the settings it was saved
 with (position, facing, eye height, lens, timber, harvest phase, design), the
 blocks and masks, the run's status and figures, the run settings and the
-review — each with *Change in step N*, which closes the dialog on that step.
+review. A part that a section of the sidebar sets is changed where it is listed:
+*Edit here* opens that section under the part's rows (the block's cards under
+*Block*, *Landform and objective* under *Landform*, *Road or viewpoint*, the
+*Simulation* section under *Run*, step 4's judgements under the parts that
+print them, the views of interest under theirs). It is the section itself,
+moved into the dialog while it is edited there and back afterwards
+(`Projectable` in `Sidebar.tsx`, `ExportSection.editor` in `visualsExports.ts`),
+never a second form, so a change made in either place is the same change, and
+the rows above it update as it is made. Starting a drawing from one (*Draw
+landform*, *Place the viewpoint*) closes the dialog and opens the step that
+holds the drawing's controls. A part with no such section, or one a saved view
+or the package sets, keeps its link: *Change in step N* closes the dialog on
+that step, *Change in Package* and *Rate in Package* open the package's entry.
+No part points at step 5, which only opens Save & export.
 **Preview** builds the file itself and shows it (a PDF in the browser's viewer,
 an image, HTML in a sandboxed frame, an Excel workbook as its sheets read back
 from the file by `workbookPreview.ts`, text); *Download* saves that same file. An
@@ -3022,7 +3062,7 @@ of two ways (`EngineSurface.tsx`, `engineChannel.ts`):
 | `src/pages/dev-forestry/viewsOfInterest.ts`, `viewsOfInterestGeometry.ts`, `ViewsOfInterestPanel.tsx`, `ViewsOfInterestLayers.tsx` | Step 2's views of interest: the model, its plan geometry, the panel and the plan's points, cones and arrows |
 | `src/pages/dev-forestry/useViewCapture.ts`, `viewCapturePlan.ts` | Capturing planned views as saved views without driving, and its decisions (waits, place, replacement, single-frame framing) |
 | `src/pages/dev-forestry/summaryViewSwitch.ts` | The Viewpoint summary's planned-view switcher |
-| `src/pages/dev-forestry/viewLandform.ts`, `ViewLandformControl.tsx` | The landform seen from a planned view, a candidate adopted for that view alone |
+| `src/pages/dev-forestry/viewLandform.ts`, `ViewLandforms.tsx` | The site landform and each view's own: a view's visible face read from its place, a candidate adopted for that view only; who is assessed against what, and a view's landform following the site's objective and VAC |
 | `src/components/ui/map-satellite-imagery.tsx` | Satellite imagery under the page's layers (shared with the road-design plan) |
 | `src/components/ui/map-sketch.tsx`, `map-measure.tsx`, `src/lib/geo/mapSketch.ts` | The plan's Measure tool and the drawing of roads and areas (shared with `/dev/interact` and the road-design plan) |
 

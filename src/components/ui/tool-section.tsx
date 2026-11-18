@@ -2,6 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { FOLD_ROW_HOVER } from '@/components/ui/disclosure'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, SidebarSection } from '@/components/ui/map-panels'
+import { useProjected } from '@/components/ui/movable-content'
 import { cn } from '@/lib/utils'
 
 export type ToolSectionProps = {
@@ -29,7 +30,8 @@ export type ToolSectionProps = {
  * A flat sidebar section for a dense tool sidebar: a title, its explanation behind an (i), and
  * full-width rules between sections instead of cards inside cards. With `summary` it folds to
  * one row that states the section's live values, so a long sidebar reads as a list of what is
- * set. The forestry road designer and visual-quality sidebars are built from it.
+ * set. The forestry road designer and visual-quality sidebars are built from it. Shown away from its sidebar
+ * (a `Projectable` in its `ProjectionSlot`), a folding section is open and does not fold: it was asked for by name.
  */
 export function ToolSection({
   title,
@@ -44,6 +46,7 @@ export function ToolSection({
   children,
   ...props
 }: ToolSectionProps) {
+  const projected = useProjected()
   const heading = (help || actions) && (
     <>
       {actions}
@@ -59,7 +62,8 @@ export function ToolSection({
           summary={summary}
           summaryWhenCollapsedOnly
           defaultOpen={defaultOpen}
-          open={open}
+          // Held open where it is shown on its own; the same element either way, so its content keeps its state.
+          open={projected ? true : open}
           onOpenChange={onOpenChange}
           contentClassName="space-y-2 px-3 pb-3"
           toggleProps={toggleProps}

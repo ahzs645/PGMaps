@@ -20,7 +20,9 @@ import {
   viewsToCapture,
   type ExportPlannedView,
   exportContents,
+  exportEditorId,
   exportPreparation,
+  OPEN_PACKAGE_ACTION,
   READS_INVENTORY,
   rendererMissing,
   exportUnavailable,
@@ -242,6 +244,46 @@ describe('visual-quality exports', () => {
       'appendix 1',
     ])
     expect(rowValue(sections, 'To complete before signing', 'Items')).toBe('3 items')
+  })
+
+  it('says what the VIA report follows and where to add a view before there is anything to draw', () => {
+    const reportRecipe = { name: 'Design rationale with district summary table', sources: '02' }
+    const ctx = buildExportContext(input(createEmptyScene(), { reportRecipe }))
+    const sections = exportContents('via-report', ctx)
+    expect(rowValue(sections, 'Report', 'Structure of')).toBe(
+      'Design rationale with district summary table (reference document 02), following the VIA document’s format',
+    )
+    expect(rowValue(sections, 'Report', 'Figures')).toBe('None yet')
+    expect(sections.find((section) => section.title === 'Report')?.note).toMatch(/Add a view of interest in step 2/)
+    // A view is placed on the plan map, so with none planned the part opens its step, not an editor.
+    const views = sections.find((section) => section.title === 'Views of interest')
+    expect(views?.step).toBe('visit')
+    expect(views?.editor).toBeUndefined()
+    expect(views?.empty).toMatch(/None planned/)
+    // With the package's own recipe the row says so.
+    const chosen = buildExportContext(input(createEmptyScene(), { reportRecipe, recipe: reportRecipe.name }))
+    expect(rowValue(exportContents('via-report', chosen), 'Report', 'Structure of')).toMatch(/the package’s recipe$/)
+  })
+
+  it('names the editor of each part that a section of the sidebar sets', () => {
+    const ctx = buildExportContext(input(createSampleScene()))
+    const editorOf = (kind: Parameters<typeof exportContents>[0], title: string) =>
+      exportContents(kind, ctx).find((section) => section.title === title)?.editor
+    expect(editorOf('block-note', 'Block')).toBe('cutblocks')
+    expect(editorOf('block-note', 'Landform')).toBe('landform')
+    // Saved views that are not views of interest are chosen under Package; no sidebar section sets them.
+    expect(editorOf('block-note', 'Viewpoints in the report')).toBeUndefined()
+    expect(editorOf('scene', 'Viewpoint')).toBe('viewpoint')
+    expect(editorOf('scene', 'Blocks')).toBe('cutblocks')
+    expect(editorOf('worksheet', 'Run')).toBe('run')
+    expect(editorOf('fs1252', 'Stations in the PDF')).toBe('assess')
+    // Step 5 only opens Save & export: its parts are written in the dialog, so none points back at it.
+    for (const entry of VISUALS_EXPORTS)
+      for (const section of exportContents(entry.kind, ctx)) expect(section.step).not.toBe('rate')
+    // The final rating is made in the package's entry.
+    const review = exportContents('scene', ctx).find((section) => section.title === 'Review')
+    expect(review?.action).toEqual({ id: OPEN_PACKAGE_ACTION, label: 'Rate in Package' })
+    expect(exportEditorId('cutblocks')).not.toBe(exportEditorId('landform'))
   })
 
   it('withholds the FS1252 and the worksheet from a stale run', () => {
@@ -664,6 +706,53 @@ describe('views of interest in the exports', () => {
     expect(exportContents('fs1252', ctx).some((entry) => entry.title === 'Views of interest')).toBe(false)
     // Before any capture the report says where its figures will come from.
     expect(exportContents('via-report', ctx)[0].note).toMatch(/once they are captured/)
+  })
+
+  it('names a view’s own landform with the view, and counts only unused landforms as not assessed', () => {
+    const scene = createSampleScene()
+    const site = findSceneLandform(scene)!
+    const face = { ...site, id: 'face-a', name: 'Visible face round Block 1 from a' }
+    const spare = { ...site, id: 'spare', name: 'An earlier outline' }
+    const views = [planned('a', { landformId: 'face-a' }), planned('b'), planned('c', { landformId: site.id })]
+    const withFaces: ForestryScene = {
+      ...scene,
+      targets: [...scene.targets, face, spare],
+      activeLandformId: site.id,
+      viewsOfInterest: views,
+    }
+    const pkg = resolvePackage({
+      choice: { recipeId: null, documentFormatId: null, excludedViews: new Set<string>() },
+      recipes: REPORT_RECIPES,
+      formats: VIA_DOCUMENT_FORMATS,
+      roadViewStyleId: null,
+      planned: views,
+      blocks: [{ id: 'block-1', name: 'Block 1' }],
+      savedViews: [],
+      landforms: withFaces.targets.filter((target) => target.role === 'landscape'),
+      siteLandformId: site.id,
+    })
+    // A view that names the site's landform is assessed against the site's, like one that names none.
+    expect(pkg.planned.map((view) => view.landform)).toEqual(['Visible face round Block 1 from a', null, null])
+    const ctx = buildExportContext(input(withFaces, { planned: pkg.planned }))
+    expect(ctx.landformUse).toEqual({ site: null, viewsWithOwn: 1, views: 3, unused: 1 })
+    const subtitles = exportContents('analysis-sheet', ctx)
+      .find((entry) => entry.title === 'Views of interest')
+      ?.items?.map((item) => item.subtitle)
+    expect(subtitles?.[0]).toContain('its own landform, Visible face round Block 1 from a')
+    expect(subtitles?.[1]).not.toContain('landform')
+    const sections = exportContents('scene', ctx)
+    expect(rowValue(sections, 'Landform', 'Views with their own')).toMatch(/^1 of 3 views of interest/)
+    expect(rowValue(sections, 'Landform', 'Other landforms')).toBe('1 in the scene that nothing uses, not assessed')
+
+    // Standing at the view on its own landform, the run measures the face and the part names the site's beside it.
+    const standing = buildExportContext(
+      input({ ...withFaces, activeLandformId: 'face-a' }, { planned: pkg.planned, siteLandform: site }),
+    )
+    expect(standing.landform?.name).toBe('Visible face round Block 1 from a')
+    expect(standing.landformUse).toEqual({ site: site.name, viewsWithOwn: 1, views: 3, unused: 1 })
+    expect(rowValue(exportContents('scene', standing), 'Landform', 'Site landform')).toMatch(
+      new RegExp(`^${site.name}; this run is at a view`),
+    )
   })
 
   it('lists a capture with its view of interest, not again among the saved views', () => {

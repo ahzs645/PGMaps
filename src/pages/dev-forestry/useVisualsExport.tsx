@@ -8,6 +8,7 @@ import { brandedHtml } from '@/branding/presentation'
 import { exportBrand, printedLogo } from '@/branding/store'
 import { useBranding } from '@/branding/useBranding'
 import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
+import { MapStyleField } from '@/components/ui/map-style-field'
 import type { LabelStyleId } from '@/lib/mapSheet/callouts'
 import { LABEL_STYLES } from '@/lib/mapSheet/callouts'
 
@@ -56,6 +57,7 @@ import {
 } from './externalRenderers'
 import { formatRemaining, notQueuedMs, type RenderEngineId, type RenderHistory } from './renderEstimate'
 import { pairPictures, simulationPicture, type BeforePicture } from './reportPairs'
+import { reportMapStyleChoices } from './mapStyleSamples'
 import { DEFAULT_OVERVIEW_SHEET_STYLE, OVERVIEW_SHEET_STYLES, type OverviewSheetStyle } from './reportMaps'
 import { documentFacts } from './viaDocument/facts'
 import { runGreenUpBasis } from './greenUp'
@@ -218,6 +220,11 @@ export function useVisualsExport(input: {
   setScene: (update: (current: ForestryScene) => ForestryScene) => void
   /** Changes when the run's inputs do (`sceneFingerprint`). */
   sceneKey: string
+  /**
+   * The site landform (`siteLandformOf`): what a view with no landform of its own is assessed against. Absent: the
+   * run's landform.
+   */
+  siteLandform?: TargetPolygon | null
   /** The current run; null when there is none or it is stale. */
   result: AnalysisResult | null
   stale: boolean
@@ -473,6 +480,8 @@ export function useVisualsExport(input: {
     roadViewStyleId: roadView.styleId,
     planned: plannedViews,
     blocks: scene.targets.filter((target) => target.role === 'block'),
+    landforms: scene.targets.filter((target) => target.role === 'landscape'),
+    siteLandformId: (input.siteLandform === undefined ? findSceneLandform(scene) : input.siteLandform)?.id ?? null,
     savedViews: allViews,
     failures: captureFailures,
     beforeOwed,
@@ -824,7 +833,9 @@ export function useVisualsExport(input: {
           },
         }
       : {}),
+    ...(input.siteLandform === undefined ? {} : { siteLandform: input.siteLandform }),
     recipe: pkg.recipeChosen ? reportRecipe.name : null,
+    reportRecipe: { name: reportRecipe.name, sources: reportRecipe.sources.join(', ') },
     inventory: {
       status: inventoryStatus,
       error: inventoryState.error,
@@ -1624,11 +1635,6 @@ export function useVisualsExport(input: {
       : {}),
     'via-report': (
       <div className="grid gap-2">
-        <p className="text-xs text-muted-foreground">
-          Structure of {reportRecipe.name} ({reportRecipe.sources.join(', ')})
-          {pkg.recipeChosen ? ', the package’s recipe.' : ', which reads the VIA document’s format.'} The recipe, who
-          draws the figures and the views are chosen under Package.
-        </p>
         {reportRecipe.parts.includes('overview-sheet') && (
           <label className="grid gap-1 text-xs">
             <span className="text-muted-foreground">Overview sheet</span>
@@ -1646,26 +1652,18 @@ export function useVisualsExport(input: {
             </StyledSelect>
           </label>
         )}
-        <label className="grid gap-1 text-xs">
-          <span className="text-muted-foreground">Map style</span>
-          <StyledSelect
-            aria-label="Map style"
-            className="w-full rounded-md border bg-background p-1"
-            value={reportMapStyle}
-            onChange={(event) => setReportMapStyle(event.target.value)}
-          >
-            {reportMapStyles().map((style) => (
-              <option key={style.value} value={style.value}>
-                {style.label}
-              </option>
-            ))}
-          </StyledSelect>
-          <span className="text-muted-foreground">
-            {reportMapStyle === SHEET_SYMBOLS_STYLE
+        {/* Every style with its sample map, so the looks are compared in the open list before one is chosen. */}
+        <MapStyleField
+          styles={reportMapStyleChoices()}
+          value={reportMapStyle}
+          onChange={setReportMapStyle}
+          selectClassName="w-full rounded-md border bg-background p-1"
+          hint={
+            reportMapStyle === SHEET_SYMBOLS_STYLE
               ? 'Each map the report prints keeps its own symbols.'
-              : 'The maps the report prints draw the proposed blocks and existing openings with this figure style’s symbols, and list them so in their legends.'}
-          </span>
-        </label>
+              : 'The maps the report prints draw the proposed blocks and existing openings with this figure style’s symbols, and list them so in their legends.'
+          }
+        />
         <PrintedPreparer
           portalContainer={input.portalContainer}
           preparer={{

@@ -557,7 +557,9 @@ track grows to the longest cell in any column.
   (`src/branding/PersonInput.tsx`): a plain text box with *Use mine* under it, or *Use mine instead* when it
   holds someone else's name. Never a field that fills itself from the profile.
 - An output's options show what it prints with `PrintedPreparer`: the record's preparer line, *Use my
-  details* and the logo, with a link to Your details. The logo is changed there, once, for every sheet and
+  details* and the logo, with a link to Your details. With no details entered yet, *Enter your details…*
+  is the only link: it opens the same form *Edit your details* would, so the two are never shown
+  together. The logo is changed there, once, for every sheet and
   report; never put a second logo control in a page. A logo may be a PNG, JPEG or SVG (`LOGO_FILE_ACCEPT`,
   `LOGO_FILE_TYPES_TEXT`); an SVG is drawn once into a PNG with its longer side at 1,200 px (`svgLogo.ts`), so
   every printer keeps reading a PNG or JPEG.
@@ -844,6 +846,17 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   A panel whose state must outlive the place that shows it (a dialog pane mounted only while
   open) renders once through `MovableContent` (`movable-content.tsx`) and is moved into the
   pane's slot, rather than mounted in the pane.
+  A piece of a page that is also edited somewhere else (a sidebar section inside a dialog) is a
+  `Projectable` with an `id`, and the other place mounts a `ProjectionSlot` with the same id: the
+  piece's DOM moves into the slot while one is mounted and goes home when it unmounts. It is
+  rendered once, so both places show the same controls with the same state, and it keeps its
+  React parents (context, handlers) wherever it is shown. Never render a second copy of a form
+  to edit it in a dialog. `useProjectableMounted(id)` tells the other place whether the piece
+  is on the page, so it can fall back to a link; `away` is what the home shows meanwhile; and
+  `useProjected()` lets the piece adapt (`ToolSection` is held open while shown on its own). One
+  slot an id at a time. A control in a projected piece that needs the map behind a dialog is the
+  page's to handle: the visual-quality page closes Save & export when a drawing starts. Both
+  need a DOM, so their rules are covered by e2e, not unit tests.
   A tool started from the map's control stack is a `MapToolToggle` (`map-tool-toggle.tsx`,
   the button `MapMeasureControl` is built on): pressed while its card is open, with `on` for
   an effect that stays on the map after the card closes.
@@ -1007,6 +1020,26 @@ are never pickable.
   gamut mapping). Okhsv follows Björn Ottosson's published method (MIT, `NOTICE-OKHSV.md` in the
   toolkit). The picker's layout is the toolkit's own; do not port a third-party picker's design
   into it without checking its licence.
+
+### Map style previews
+
+- A dropdown that chooses how a printed map draws its features is `MapStyleField`
+  (`src/components/ui/map-style-field.tsx`): each option carries a sample map of its style, so the
+  styles are compared in the open list without choosing one, and the chosen style's sample sits
+  under the field beside a key of its symbols (`SheetSymbolSwatch`). Never preview a style by
+  rendering the real map or a capture of it.
+- A sample is `styleSampleSvg` (`src/lib/mapSheet/styleSample.ts`, DOM-free): one made-up hillside
+  with a block, an opening, private land and rock on the same contours and road every time, drawn
+  by the sheet's own `areaSymbolOps` through `sheetSvg`. It is a few hundred bytes of SVG in an
+  `<img>`, so a list of them costs nothing, and two styles differ in it exactly where they differ
+  on a sheet. Give it the symbols the style **really** draws there (`StyleSampleSymbols`): a role
+  the style leaves alone is left out, or drawn with the map's own symbol, never invented.
+- A style list is built once (`mapStyleSamples.ts` on the visual-quality page): the choices are a
+  fixed catalogue, and stable option objects keep the menu from re-rendering.
+- `MapSheetSetup` shows the field when its `styles` carry a `sample`, and a plain list when they
+  do not. In use: the VIA report's *Map style* and the visual-quality block sheet's. The road
+  designer's block sheet (*PGMaps symbols* / *My saved styles*) and the road view's *Figure style*
+  can adopt it by adding samples to their lists.
 
 ## Map essentials
 

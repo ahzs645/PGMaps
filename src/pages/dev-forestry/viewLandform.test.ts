@@ -6,7 +6,11 @@ import type { TargetPolygon } from './types'
 import {
   adoptViewLandform,
   clearViewLandform,
+  followSiteLandform,
+  followsSite,
+  landformAssignments,
   landformTargetFromCandidate,
+  siteLandformOf,
   viewLandformCandidate,
   viewLandformName,
   viewLandformTileRange,
@@ -173,5 +177,94 @@ describe('what the control says about a reading', () => {
     expect(viewLandformName({ ...candidate, seededBy: 'block' }, { name: 'VLI 145' })).toBe(
       'Visible face round Block A from VLI 145',
     )
+  })
+})
+
+describe('who is assessed against what', () => {
+  const landform = (id: string, patch: Partial<TargetPolygon> = {}): TargetPolygon => ({
+    ...BLOCK,
+    id,
+    name: `Landform ${id}`,
+    role: 'landscape',
+    geometry: box(-2000, 800, 2000, 3000),
+    ...patch,
+  })
+  const sceneWith = (patch: Partial<ForestryScene>): ForestryScene => ({ ...createEmptyScene(), ...patch })
+
+  it('takes the reviewer’s landform as the site’s, also while standing at a view on its own', () => {
+    const targets = [BLOCK, landform('site'), landform('face')]
+    const onTheRoad = sceneWith({ targets, activeLandformId: 'site' })
+    expect(siteLandformOf(onTheRoad)?.id).toBe('site')
+    // The stand made the view's landform the run's, and kept the reviewer's for the way back.
+    const atTheView = sceneWith({ targets, activeLandformId: 'face' })
+    expect(siteLandformOf(atTheView, { reviewer: 'site', set: 'face' })?.id).toBe('site')
+    // The reviewer chose another landform since: the stand's record no longer says which is the site's.
+    expect(
+      siteLandformOf(sceneWith({ targets, activeLandformId: 'site' }), { reviewer: 'face', set: 'face' })?.id,
+    ).toBe('site')
+    // One landform is the site's without being named; several with none named is none.
+    expect(siteLandformOf(sceneWith({ targets: [BLOCK, landform('only')] }))?.id).toBe('only')
+    expect(siteLandformOf(sceneWith({ targets }))).toBeNull()
+    expect(siteLandformOf(sceneWith({ targets, activeLandformId: 'gone' }))).toBeNull()
+  })
+
+  it('sorts the landforms into the site’s, each view’s own and the ones nothing uses', () => {
+    const site = landform('site')
+    const scene = sceneWith({
+      targets: [BLOCK, site, landform('face'), landform('spare')],
+      activeLandformId: 'site',
+      viewsOfInterest: [
+        view('a', { landformId: 'face' }),
+        view('b'),
+        view('c', { landformId: 'site' }),
+        view('d', { landformId: 'gone' }),
+        view('e', { blockId: 'gone' }),
+      ],
+    })
+    const use = landformAssignments(scene, site)
+    expect(use.views.map((entry) => entry.own?.id ?? null)).toEqual(['face', null, null, null, null])
+    // A view that names the site's landform is on the site's; one that names a missing landform says so.
+    expect(use.views.map((entry) => entry.missing)).toEqual([false, false, false, true, false])
+    expect(use.views.map((entry) => entry.block?.id ?? null)).toEqual(['b1', 'b1', 'b1', 'b1', null])
+    expect(use.unused.map((target) => target.id)).toEqual(['spare'])
+    // With no site landform chosen, the landform view c names is that view's own, and only the spare is unused.
+    const unchosen = landformAssignments(scene, null)
+    expect(unchosen.views[2].own?.id).toBe('site')
+    expect(unchosen.unused.map((target) => target.id)).toEqual(['spare'])
+  })
+
+  it('carries the site landform’s objective and VAC to the views’ landforms that still held them', () => {
+    const site = landform('site', { objectiveId: 'partial-retention', vac: 'medium' })
+    const targets = [
+      BLOCK,
+      site,
+      landform('following', { objectiveId: 'partial-retention', vac: 'medium' }),
+      landform('own-objective', { objectiveId: 'retention', vac: 'medium' }),
+      landform('spare', { objectiveId: 'partial-retention', vac: 'medium' }),
+    ]
+    const views = [view('a', { landformId: 'following' }), view('b', { landformId: 'own-objective' })]
+    const next = followSiteLandform(targets, views, site, { objectiveId: 'modification' })
+    const objective = (id: string) => next.find((target) => target.id === id)?.objectiveId
+    expect(objective('following')).toBe('modification')
+    // A face given its own objective keeps it; a landform no view uses, the block and the site itself are untouched.
+    expect(objective('own-objective')).toBe('retention')
+    expect(objective('spare')).toBe('partial-retention')
+    expect(objective('site')).toBe('partial-retention')
+    expect(next.find((target) => target.id === 'b1')).toBe(BLOCK)
+
+    // VAC follows on its own, cleared included; the face with its own objective still follows the VAC it shared.
+    const cleared = followSiteLandform(targets, views, site, { vac: null })
+    expect(cleared.find((target) => target.id === 'following')?.vac).toBeNull()
+    expect(cleared.find((target) => target.id === 'own-objective')?.vac).toBeNull()
+    expect(cleared.find((target) => target.id === 'own-objective')?.objectiveId).toBe('retention')
+
+    // Nothing to carry returns the same list, so an edit that changes nothing else stays one change.
+    expect(followSiteLandform(targets, [], site, { objectiveId: 'modification' })).toBe(targets)
+    expect(followSiteLandform(targets, views, site, { name: 'Renamed' } as never)).toBe(targets)
+
+    expect(followsSite({ objectiveId: 'partial-retention', vac: 'medium' }, site)).toBe(true)
+    expect(followsSite({ objectiveId: 'retention', vac: 'medium' }, site)).toBe(false)
+    expect(followsSite({ objectiveId: 'partial-retention', vac: null }, site)).toBe(false)
+    expect(followsSite({ objectiveId: 'partial-retention', vac: 'medium' }, null)).toBe(false)
   })
 })

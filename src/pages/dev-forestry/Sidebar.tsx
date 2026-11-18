@@ -42,7 +42,8 @@ import { Notification } from '@/components/ui/notification'
 import { BC_DESIGN_HANDBOOK } from './LandformDesignPanel'
 import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, MapSidebarShell } from '@/components/ui/map-panels'
-import { ToolSection } from '@/components/ui/tool-section'
+import { Projectable } from '@/components/ui/movable-content'
+import { ToolSection, ToolSubsection } from '@/components/ui/tool-section'
 import { StepMarker, stepStatusText } from '@/components/ui/step-section'
 import { TabBar } from '@/components/ui/tab-bar'
 import { cn } from '@/lib/utils'
@@ -70,8 +71,9 @@ import {
 } from './ViaPanels'
 import { layoutStageOf } from './fieldChecklist'
 import type { LabelStyleId } from '@/lib/mapSheet/callouts'
-import type { VisualsExport } from './visualsExports'
 import type { EngineEnvironmentChoice, RoadRendererId } from './externalRenderers'
+import { landformAssignments } from './viewLandform'
+import { exportEditorId, type VisualsExport } from './visualsExports'
 import { VIA_STEPS, type ViaAssessment, type ViaReview, type ViaStepId, type ViaStepStatus } from './via'
 import {
   ALTERATION_BASIS_LABELS,
@@ -570,8 +572,21 @@ export type SidebarProps = {
   onLoadHighwaySample: () => void
   /** A road from a GeoJSON or zipped shapefile, replacing the current one. */
   onImportRoad: (file: File) => void
-  /** Makes a landform the one the run assesses against. */
+  /**
+   * Makes a landform the site's: the one the assessment is made against, and every view without a landform of its
+   * own with it.
+   */
   onActivateLandform: (targetId: string) => void
+  /**
+   * The site landform (`siteLandformOf`). Absent: the run's landform, which differs only while the page stands at a
+   * view whose own landform it made the run's.
+   */
+  siteLandformId?: string | null
+  /**
+   * Step 1's landform of each view of interest (`ViewLandforms`), under the site landform. It is given the section's
+   * own landform card to draw a view's landform with.
+   */
+  viewLandforms?: (renderLandform: (target: TargetPolygon) => ReactNode) => ReactNode
   /** A road-view preview is being prepared or is open; the sidebar shows step 2, where it is. */
   roadViewOpening?: boolean
   onClearScene: () => void
@@ -702,6 +717,8 @@ export function Sidebar({
   onLoadHighwaySample,
   onImportRoad,
   onActivateLandform,
+  siteLandformId,
+  viewLandforms,
   roadViewOpening = false,
   onClearScene,
   onOpenProject,
@@ -856,9 +873,15 @@ export function Sidebar({
             title={
               <span className="flex items-center gap-1.5 text-xs">
                 <span className="min-w-0 truncate">{target.name}</span>
-                {target.role === 'landscape' && target.id === activeLandformId && (
+                {target.role === 'landscape' && target.id === siteId && (
                   <Badge tone="info" pill className="shrink-0">
-                    Active
+                    Site landform
+                  </Badge>
+                )}
+                {/* A view's own landform while the page stands there: the run measures it, the site's stays the site's. */}
+                {target.role === 'landscape' && target.id === activeLandformId && target.id !== siteId && (
+                  <Badge tone="info" pill className="shrink-0">
+                    In use at this stand
                   </Badge>
                 )}
               </span>
@@ -955,16 +978,17 @@ export function Sidebar({
               onOpenPrescription={onOpenPrescription ? () => onOpenPrescription(target.id) : undefined}
             />
           )}
-          {target.role === 'landscape' && target.id !== activeLandformId && (
+          {target.role === 'landscape' && target.id !== siteId && (
             <div className="mt-1.5">
               <Button
                 type="button"
                 variant="outline"
                 size="xs"
                 className="text-2xs"
+                title="The assessment, and every view without a landform of its own, is then made against this landform"
                 onClick={() => onActivateLandform(target.id)}
               >
-                Assess against this landform
+                Make this the site landform
               </Button>
             </div>
           )}
@@ -972,8 +996,18 @@ export function Sidebar({
       </li>
     )
   }
+  // Where a section stood while Save & export shows it under the part it sets (`Projectable`, `ContentsSection`).
+  const editedInExport = (
+    <p className="border-b border-border px-3 py-2 text-2xs text-muted-foreground">
+      Open in Save &amp; export, where it is being edited.
+    </p>
+  )
   const landforms = targets.filter((target) => target.role === 'landscape')
   const activeLandformId = findSceneLandform(scene)?.id ?? null
+  // The site landform, each view's own, and the ones nothing is assessed against (`landformAssignments`).
+  const siteId = siteLandformId === undefined ? activeLandformId : siteLandformId
+  const siteLandform = landforms.find((target) => target.id === siteId) ?? null
+  const landformUse = landformAssignments(scene, siteLandform)
   const openings = targets.filter((target) => target.role === 'harvested')
 
   return (
@@ -1077,102 +1111,104 @@ export function Sidebar({
           {projectAttachments}
         </ToolSection>
 
-        <ToolSection
-          title="Road or viewpoint"
-          help="Where the assessment is made from: one spot, or a length of road driven end to end. Snap replaces a drawn line with the road the basemap says it traces."
-        >
-          <div className="space-y-2">
-            {drawMode === 'spot' && setup}
-            <SegmentedControl
-              size="sm"
-              label="Assess from"
-              value={assessMode ?? viewpoint.mode}
-              options={[
-                { value: 'spot', label: assessFromView ? 'A view' : 'Spot', icon: MapPin },
-                { value: 'corridor', label: 'Length of road', icon: Route },
-              ]}
-              onChange={(mode) => {
-                if (mode === (assessMode ?? viewpoint.mode)) return
-                if (onAssessModeChange) onAssessModeChange(mode)
-                else onViewpointChange({ ...viewpoint, mode, coordinates: [] })
-              }}
-            />
-            {/* A view of interest is the one way to put a viewpoint on the map: chosen or added here, planned in step 2. */}
-            {assessFromView && (assessMode ?? viewpoint.mode) === 'spot' ? (
-              assessFromView
-            ) : (
-              <>
-                {/* The road is drawn with the plan map's *Draw the road* tool; a file comes in here. */}
-                {viewpoint.mode === 'spot' ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className={GRID_BUTTON}
-                    onClick={() => onDrawModeChange('spot')}
-                  >
-                    <Crosshair className="h-3.5 w-3.5" />
-                    Place the viewpoint
-                  </Button>
-                ) : (
-                  <FileButton
-                    label="Road file"
-                    accept=".zip,.geojson,.json"
-                    variant="outline"
-                    className={cn(GRID_BUTTON, 'w-full')}
-                    title="A road as GeoJSON or a zipped shapefile"
-                    onFiles={([file]) => onImportRoad(file)}
-                  >
-                    <FileUp className="h-3.5 w-3.5" />
-                    Import road
-                  </FileButton>
-                )}
-                {viewpoint.mode === 'corridor' && !hasViewpoint && (
-                  <p className="text-2xs text-muted-foreground">
-                    Draw it with the map&apos;s road tool, or import a file.
-                  </p>
-                )}
-                {hasViewpoint && (
-                  <div
-                    className={cn(
-                      insetBox({ padding: 'none', tone: 'muted' }),
-                      'flex items-center gap-1.5 py-1 pl-2.5 pr-1 text-xs',
-                    )}
-                  >
-                    <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                      {viewpoint.mode === 'spot'
-                        ? `${formatMeasure(viewpoint.coordinates[0][1], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}, ${formatMeasure(viewpoint.coordinates[0][0], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
-                        : `${viewpoint.coordinates.length} points · ${formatMeasure(corridorLength / 1000, 'km', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                    </span>
+        <Projectable id={exportEditorId('viewpoint')} away={editedInExport}>
+          <ToolSection
+            title="Road or viewpoint"
+            help="Where the assessment is made from: one spot, or a length of road driven end to end. Snap replaces a drawn line with the road the basemap says it traces."
+          >
+            <div className="space-y-2">
+              {drawMode === 'spot' && setup}
+              <SegmentedControl
+                size="sm"
+                label="Assess from"
+                value={assessMode ?? viewpoint.mode}
+                options={[
+                  { value: 'spot', label: assessFromView ? 'A view' : 'Spot', icon: MapPin },
+                  { value: 'corridor', label: 'Length of road', icon: Route },
+                ]}
+                onChange={(mode) => {
+                  if (mode === (assessMode ?? viewpoint.mode)) return
+                  if (onAssessModeChange) onAssessModeChange(mode)
+                  else onViewpointChange({ ...viewpoint, mode, coordinates: [] })
+                }}
+              />
+              {/* A view of interest is the one way to put a viewpoint on the map: chosen or added here, planned in step 2. */}
+              {assessFromView && (assessMode ?? viewpoint.mode) === 'spot' ? (
+                assessFromView
+              ) : (
+                <>
+                  {/* The road is drawn with the plan map's *Draw the road* tool; a file comes in here. */}
+                  {viewpoint.mode === 'spot' ? (
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
-                      onClick={onSnapToRoad}
-                      aria-label="Snap to the nearest road"
-                      title="Snap to the nearest road"
+                      variant="outline"
+                      size="sm"
+                      className={GRID_BUTTON}
+                      onClick={() => onDrawModeChange('spot')}
                     >
-                      <Magnet className="h-3.5 w-3.5" />
+                      <Crosshair className="h-3.5 w-3.5" />
+                      Place the viewpoint
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
-                      onClick={() => onViewpointChange({ ...viewpoint, coordinates: [] })}
-                      aria-label={viewpoint.mode === 'spot' ? 'Clear the viewpoint' : 'Clear the road'}
-                      title="Clear the viewpoint"
+                  ) : (
+                    <FileButton
+                      label="Road file"
+                      accept=".zip,.geojson,.json"
+                      variant="outline"
+                      className={cn(GRID_BUTTON, 'w-full')}
+                      title="A road as GeoJSON or a zipped shapefile"
+                      onFiles={([file]) => onImportRoad(file)}
                     >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-            {snapMessage && <p className="text-3xs leading-4 text-muted-foreground">{snapMessage}</p>}
-          </div>
-        </ToolSection>
+                      <FileUp className="h-3.5 w-3.5" />
+                      Import road
+                    </FileButton>
+                  )}
+                  {viewpoint.mode === 'corridor' && !hasViewpoint && (
+                    <p className="text-2xs text-muted-foreground">
+                      Draw it with the map&apos;s road tool, or import a file.
+                    </p>
+                  )}
+                  {hasViewpoint && (
+                    <div
+                      className={cn(
+                        insetBox({ padding: 'none', tone: 'muted' }),
+                        'flex items-center gap-1.5 py-1 pl-2.5 pr-1 text-xs',
+                      )}
+                    >
+                      <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                        {viewpoint.mode === 'spot'
+                          ? `${formatMeasure(viewpoint.coordinates[0][1], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}, ${formatMeasure(viewpoint.coordinates[0][0], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
+                          : `${viewpoint.coordinates.length} points · ${formatMeasure(corridorLength / 1000, 'km', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+                        onClick={onSnapToRoad}
+                        aria-label="Snap to the nearest road"
+                        title="Snap to the nearest road"
+                      >
+                        <Magnet className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+                        onClick={() => onViewpointChange({ ...viewpoint, coordinates: [] })}
+                        aria-label={viewpoint.mode === 'spot' ? 'Clear the viewpoint' : 'Clear the road'}
+                        title="Clear the viewpoint"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+              {snapMessage && <p className="text-3xs leading-4 text-muted-foreground">{snapMessage}</p>}
+            </div>
+          </ToolSection>
+        </Projectable>
 
         {/* The same question the other way round: rather than picking a road and
           asking what it sees, take the block and find the roads that see it. */}
@@ -1266,69 +1302,100 @@ export function Sidebar({
           )}
         </ToolSection>
 
-        <ToolSection
-          title="Cutblocks"
-          help="The proposed openings, traced on the map or imported as a zipped shapefile or GeoJSON. Each carries its objective and harvest system; retention feeds Table 5, and a partial cut is read from Table 6 rather than as cleared ground."
-        >
-          <div className="space-y-2">
-            {/* Blocks are drawn with the plan map's *Draw block* tool; files come in here. */}
-            <FileButton
-              label="Cutblock or landform file"
-              accept=".zip,.geojson,.json"
-              variant="outline"
-              className={cn(GRID_BUTTON, 'w-full')}
-              title="Cutblocks or landforms as GeoJSON or a zipped shapefile"
-              onFiles={([file]) => onImportFile(file)}
-            >
-              <FileUp className="h-3.5 w-3.5" />
-              Import
-            </FileButton>
-            {importMessage && (
-              <InlineAlert tone={importMessage.startsWith('Could not') ? 'error' : 'info'}>{importMessage}</InlineAlert>
-            )}
-            {blocks.length === 0 ? (
-              <p className="text-2xs text-muted-foreground">
-                None yet. Draw one with the map&apos;s block tool, or import a file.
-              </p>
-            ) : (
-              <ul className="space-y-1.5">{blocks.map(renderTarget)}</ul>
-            )}
-          </div>
-        </ToolSection>
+        <Projectable id={exportEditorId('cutblocks')} away={editedInExport}>
+          <ToolSection
+            title="Cutblocks"
+            help="The proposed openings, traced on the map or imported as a zipped shapefile or GeoJSON. Each carries its objective and harvest system; retention feeds Table 5, and a partial cut is read from Table 6 rather than as cleared ground."
+          >
+            <div className="space-y-2">
+              {/* Blocks are drawn with the plan map's *Draw block* tool; files come in here. */}
+              <FileButton
+                label="Cutblock or landform file"
+                accept=".zip,.geojson,.json"
+                variant="outline"
+                className={cn(GRID_BUTTON, 'w-full')}
+                title="Cutblocks or landforms as GeoJSON or a zipped shapefile"
+                onFiles={([file]) => onImportFile(file)}
+              >
+                <FileUp className="h-3.5 w-3.5" />
+                Import
+              </FileButton>
+              {importMessage && (
+                <InlineAlert tone={importMessage.startsWith('Could not') ? 'error' : 'info'}>
+                  {importMessage}
+                </InlineAlert>
+              )}
+              {blocks.length === 0 ? (
+                <p className="text-2xs text-muted-foreground">
+                  None yet. Draw one with the map&apos;s block tool, or import a file.
+                </p>
+              ) : (
+                <ul className="space-y-1.5">{blocks.map(renderTarget)}</ul>
+              )}
+            </div>
+          </ToolSection>
+        </Projectable>
 
-        <ToolSection
-          title="Landform and objective"
-          help="Handbook 3.1.1: the objective comes from the visual landscape inventory, and is judged against one landform. Suggest one from the terrain or the BC inventory below, or draw the hillside."
-        >
-          <div className="space-y-2">
-            <Button
-              type="button"
-              variant={drawMode === 'landscape' ? 'default' : 'outline'}
-              size="sm"
-              className={cn(GRID_BUTTON, 'w-full')}
-              aria-pressed={drawMode === 'landscape'}
-              onClick={() => onDrawModeChange(drawMode === 'landscape' ? 'none' : 'landscape')}
-            >
-              <Mountain className="h-3.5 w-3.5" />
-              Draw landform
-            </Button>
-            {drawMode === 'landscape' && setup}
-            {landforms.length === 0 ? (
-              <p className="text-2xs text-muted-foreground">
-                None yet. Find one from the terrain or the BC inventory below, or draw the hillside.
-              </p>
-            ) : (
-              <ul className="space-y-1.5">{landforms.map(renderTarget)}</ul>
-            )}
-            {landforms.length > 0 && (
-              <SubLandformFields
-                landforms={landforms.map((target) => target.name)}
-                review={via.review}
-                onReviewChange={via.onReviewChange}
-              />
-            )}
-          </div>
-        </ToolSection>
+        <Projectable id={exportEditorId('landform')} away={editedInExport}>
+          <ToolSection
+            title="Landform and objective"
+            data-landform-section=""
+            help="Handbook 3.1.1: the objective comes from the visual landscape inventory, and is judged against one landform. Suggest one from the terrain or the BC inventory below, or draw the hillside."
+          >
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant={drawMode === 'landscape' ? 'default' : 'outline'}
+                size="sm"
+                className={cn(GRID_BUTTON, 'w-full')}
+                aria-pressed={drawMode === 'landscape'}
+                onClick={() => onDrawModeChange(drawMode === 'landscape' ? 'none' : 'landscape')}
+              >
+                <Mountain className="h-3.5 w-3.5" />
+                Draw landform
+              </Button>
+              {drawMode === 'landscape' && setup}
+              {landforms.length === 0 ? (
+                <p className="text-2xs text-muted-foreground">
+                  None yet. Find one from the terrain or the BC inventory below, or draw the hillside.
+                </p>
+              ) : (
+                <>
+                  {/* Who is assessed against what: the site's landform, each view's own, then the ones nothing uses. */}
+                  <ToolSubsection
+                    title="Site landform"
+                    help="The landform the assessment is made against: the run on the road, and every view of interest that has no landform of its own."
+                  >
+                    {siteLandform ? (
+                      <ul className="space-y-1.5">{renderTarget(siteLandform)}</ul>
+                    ) : (
+                      <p className="text-2xs text-muted-foreground">
+                        None chosen: several landforms cannot share a denominator. Make one of those below the site
+                        landform.
+                      </p>
+                    )}
+                  </ToolSubsection>
+                  {viewLandforms?.(renderTarget)}
+                  {landformUse.unused.length > 0 && (
+                    <ToolSubsection
+                      title="Other landforms"
+                      help="In the scene, but nothing is assessed against them: neither the site landform nor a view's own. They stay out of every figure until one is made the site landform or adopted for a view."
+                    >
+                      <ul className="space-y-1.5">{landformUse.unused.map(renderTarget)}</ul>
+                    </ToolSubsection>
+                  )}
+                </>
+              )}
+              {landforms.length > 0 && (
+                <SubLandformFields
+                  landforms={landforms.map((target) => target.name)}
+                  review={via.review}
+                  onReviewChange={via.onReviewChange}
+                />
+              )}
+            </div>
+          </ToolSection>
+        </Projectable>
         {openings.length > 0 && (
           <ToolSection
             title="Existing openings"
@@ -1523,78 +1590,80 @@ export function Sidebar({
         >
           {landformScope}
         </ToolSection>
-        <ToolSection
-          title="Simulation"
-          help="Handbook 3.3.4: terrain sightlines from each station on the road to every point on every block. Add the on-screen roads as site disturbance (FS1252 line b): without them the alteration figure is a floor, and on steep ground a road can read as heavily as the block it serves."
-        >
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-1.5">
-              <Button
-                type="button"
-                size="sm"
-                className={GRID_BUTTON}
-                disabled={!hasViewpoint || blocks.length === 0 || running}
-                onClick={onRun}
-              >
-                {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                {running ? 'Working…' : 'Run visibility'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={GRID_BUTTON}
-                title="Adds the roads drawn on screen inside the landform as FS1252 line (b) site disturbance"
-                onClick={onAddRoadDisturbance}
-              >
-                <Waypoints className="h-4 w-4" />
-                Add on-screen roads as site disturbance
-              </Button>
-            </div>
+        <Projectable id={exportEditorId('run')} away={editedInExport}>
+          <ToolSection
+            title="Simulation"
+            help="Handbook 3.3.4: terrain sightlines from each station on the road to every point on every block. Add the on-screen roads as site disturbance (FS1252 line b): without them the alteration figure is a floor, and on steep ground a road can read as heavily as the block it serves."
+          >
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  className={GRID_BUTTON}
+                  disabled={!hasViewpoint || blocks.length === 0 || running}
+                  onClick={onRun}
+                >
+                  {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                  {running ? 'Working…' : 'Run visibility'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={GRID_BUTTON}
+                  title="Adds the roads drawn on screen inside the landform as FS1252 line (b) site disturbance"
+                  onClick={onAddRoadDisturbance}
+                >
+                  <Waypoints className="h-4 w-4" />
+                  Add on-screen roads as site disturbance
+                </Button>
+              </div>
 
-            {/* The run's progress joins the shared notification stack, with Stop beside it. */}
-            {running && analysis.progress && (
-              <Notification
-                id="visual-quality-run"
-                tone="loading"
-                title="Visibility run"
-                message={
-                  analysis.progress.phase === 'terrain'
-                    ? `Fetching terrain — ${analysis.progress.completed} of ${analysis.progress.total} tiles`
-                    : 'Tracing sightlines'
-                }
-                progress={{
-                  value: Math.round(progressPercent),
-                  max: 100,
-                  valueText: formatPercentValue(progressPercent, { maximumFractionDigits: 0 }),
-                }}
-                action={
-                  <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-                    Stop
-                  </Button>
-                }
-              />
-            )}
+              {/* The run's progress joins the shared notification stack, with Stop beside it. */}
+              {running && analysis.progress && (
+                <Notification
+                  id="visual-quality-run"
+                  tone="loading"
+                  title="Visibility run"
+                  message={
+                    analysis.progress.phase === 'terrain'
+                      ? `Fetching terrain — ${analysis.progress.completed} of ${analysis.progress.total} tiles`
+                      : 'Tracing sightlines'
+                  }
+                  progress={{
+                    value: Math.round(progressPercent),
+                    max: 100,
+                    valueText: formatPercentValue(progressPercent, { maximumFractionDigits: 0 }),
+                  }}
+                  action={
+                    <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+                      Stop
+                    </Button>
+                  }
+                />
+              )}
 
-            {!hasViewpoint && <p className="text-2xs text-muted-foreground">Place a viewpoint to run.</p>}
-            {hasViewpoint && blocks.length === 0 && (
-              <p className="text-2xs text-muted-foreground">Add at least one block to assess.</p>
-            )}
-            {analysis.error && <InlineAlert tone="error">{analysis.error}</InlineAlert>}
-            {/* Whether the run's numbers can be used, where the run was pressed
+              {!hasViewpoint && <p className="text-2xs text-muted-foreground">Place a viewpoint to run.</p>}
+              {hasViewpoint && blocks.length === 0 && (
+                <p className="text-2xs text-muted-foreground">Add at least one block to assess.</p>
+              )}
+              {analysis.error && <InlineAlert tone="error">{analysis.error}</InlineAlert>}
+              {/* Whether the run's numbers can be used, where the run was pressed
               rather than only in the package two steps on. */}
-            {result && !running && (
-              <InlineAlert tone={numericalReady ? 'success' : 'warning'}>
-                {numericalReady
-                  ? 'Scenario numerical fields available'
-                  : 'Provisional result — PDF numerical fields withheld'}
-                {!numericalReady && result.quality?.warnings.length ? (
-                  <span className="block">{result.quality.warnings[0]}</span>
-                ) : null}
-              </InlineAlert>
-            )}
-          </div>
-        </ToolSection>
+              {result && !running && (
+                <InlineAlert tone={numericalReady ? 'success' : 'warning'}>
+                  {numericalReady
+                    ? 'Scenario numerical fields available'
+                    : 'Provisional result — PDF numerical fields withheld'}
+                  {!numericalReady && result.quality?.warnings.length ? (
+                    <span className="block">{result.quality.warnings[0]}</span>
+                  ) : null}
+                </InlineAlert>
+              )}
+            </div>
+          </ToolSection>
+        </Projectable>
         {wildlifeTreePatches}
         {privateLand}
         {netFootprints}
@@ -1686,39 +1755,43 @@ export function Sidebar({
       {/* Step 4 — 3.4: the ocular class first, then the measured and adjusted figure. */}
       <div {...stepPanelProps('assess')}>
         <StepIntro id="assess" status={via.statuses.assess} summary={summaries.assess} />
-        {assessGroup && <AssessingFrom group={assessGroup} />}
-        {assessment ? (
-          <>
-            <ToolSection
-              title="Ocular assessment"
-              help="Handbook 3.4.1, Table 1. The primary measure. Look at the after-harvest road view at the scale a traveller sees it and describe the alteration — every existing opening not yet greened up included. The model does not fill these in."
-            >
-              <OcularAssessmentFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
-            </ToolSection>
-            <ToolSection
-              title="Percent alteration"
-              help="Handbook 3.4.2, Table 2. The share of the landform's visible green face, in perspective from the assessment station, read against Table 2. Estimated from terrain sightlines, not measured on a photograph."
-            >
-              <NumericalAssessmentSummary
-                assessment={assessment}
-                result={result}
-                blockNames={Object.fromEntries(
-                  scene.targets.filter((target) => target.role === 'block').map((target) => [target.id, target.name]),
-                )}
-              />
-            </ToolSection>
-            <ToolSection
-              title="Design adjustments"
-              help="Handbook 3.4.3, Tables 3–5. Table 3: Good −1, Moderate 0, Poor +1. Distance, and one or two openings, are measured from the run; override them if the view says otherwise."
-            >
-              <AdjustmentFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
-            </ToolSection>
-          </>
-        ) : (
-          <div className="px-3 py-3">
-            <InlineAlert>Set the landform in step 1 first — the assessment is made against its objective.</InlineAlert>
-          </div>
-        )}
+        <Projectable id={exportEditorId('assess')} away={editedInExport}>
+          {assessGroup && <AssessingFrom group={assessGroup} />}
+          {assessment ? (
+            <>
+              <ToolSection
+                title="Ocular assessment"
+                help="Handbook 3.4.1, Table 1. The primary measure. Look at the after-harvest road view at the scale a traveller sees it and describe the alteration — every existing opening not yet greened up included. The model does not fill these in."
+              >
+                <OcularAssessmentFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
+              </ToolSection>
+              <ToolSection
+                title="Percent alteration"
+                help="Handbook 3.4.2, Table 2. The share of the landform's visible green face, in perspective from the assessment station, read against Table 2. Estimated from terrain sightlines, not measured on a photograph."
+              >
+                <NumericalAssessmentSummary
+                  assessment={assessment}
+                  result={result}
+                  blockNames={Object.fromEntries(
+                    scene.targets.filter((target) => target.role === 'block').map((target) => [target.id, target.name]),
+                  )}
+                />
+              </ToolSection>
+              <ToolSection
+                title="Design adjustments"
+                help="Handbook 3.4.3, Tables 3–5. Table 3: Good −1, Moderate 0, Poor +1. Distance, and one or two openings, are measured from the run; override them if the view says otherwise."
+              >
+                <AdjustmentFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
+              </ToolSection>
+            </>
+          ) : (
+            <div className="px-3 py-3">
+              <InlineAlert>
+                Set the landform in step 1 first — the assessment is made against its objective.
+              </InlineAlert>
+            </div>
+          )}
+        </Projectable>
       </div>
 
       {/* Step 5 — 3.5 and 4.0: the rating, why, and the package. */}

@@ -385,11 +385,13 @@ import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
 import { useVisualQualityTable } from './dev-forestry/useVisualQualityTable'
 import { ViewpointSummary, useViewpointSummaryPreferences } from './dev-forestry/ViewpointSummary'
 import { currentPlannedView, steppedView, viewForBlockHere, viewPosition } from './dev-forestry/summaryViewSwitch'
-import { ViewLandformControl } from './dev-forestry/ViewLandformControl'
+import { ViewLandforms, ViewLandformSummary } from './dev-forestry/ViewLandforms'
 import {
   adoptViewLandform,
   clearViewLandform,
+  followSiteLandform,
   landformTargetFromCandidate,
+  siteLandformOf,
   viewLandformName,
 } from './dev-forestry/viewLandform'
 import { runResultMetrics, viewpointSummaryMetrics } from './dev-forestry/viewpointSummaryRows'
@@ -1652,6 +1654,22 @@ function DevForestryVisuals() {
   const [noteFigures, setNoteFigures] = useState(false)
   // Save & export: where it opens, the note's text from the Visuals panel, and the field brief's block.
   const exportOpener = useExportOpener()
+  // A section of the sidebar edited inside Save & export (`Projectable`) can start a drawing on the plan, which
+  // cannot be made behind the dialog: starting one closes it and brings forward the step that holds the drawing's
+  // own controls, which may not be the one the sidebar was left on. Opening the dialog mid-drawing is left alone.
+  const [exportDrawMode, setExportDrawMode] = useState(drawMode)
+  const [stepForDrawing, setStepForDrawing] = useState<{ step: 'identify' | 'visit' } | null>(null)
+  if (drawMode !== exportDrawMode) {
+    setExportDrawMode(drawMode)
+    if (drawMode !== 'none' && exportOpener.open) {
+      exportOpener.setOpen(false)
+      setStepForDrawing({ step: drawMode === 'view' || drawMode === 'tree-free' ? 'visit' : 'identify' })
+    }
+  }
+  useEffect(() => {
+    // The sidebar owns its step tabs; choosing one is a click on it, as a reader would.
+    if (stepForDrawing) document.querySelector<HTMLElement>(`[data-via-step="${stepForDrawing.step}"]`)?.click()
+  }, [stepForDrawing])
   const [blockNoteParts, setBlockNoteParts] = useState<BlockNoteParts | null>(null)
   // Where Save & export's block note shows the Visuals paragraph panel while that output is open.
   const [noteSlot, setNoteSlot] = useState<HTMLDivElement | null>(null)
@@ -1884,55 +1902,83 @@ function DevForestryVisuals() {
       { plannedKey: string | null; render: { dataUrl: string; width: number; height: number; caption: string } }
     >
   >({})
-  // "Landform seen from here" for one planned view (`ViewLandformControl`, `viewLandform.ts`): the finder's visible
-  // face read from the view's place, drawn with the finder's candidates, adopted only on the reviewer's click and then
-  // for that view alone; the run's landform stays as it was. Rendered by `ViewsOfInterestPanel`'s `landformControl`.
-  const showViewLandform = useCallback(
-    (candidate: TerrainCandidate) => {
-      setTerrainCandidates([candidate])
+  // The site landform (`siteLandformOf`): the one the reviewer chose, which every view without a landform of its own
+  // is assessed against. It is the run's landform, except while the page stands at a view whose own landform it made
+  // the run's, when it is the one the reviewer had before.
+  const siteLandform = useMemo(() => siteLandformOf(scene, standing?.landform), [scene, standing?.landform])
+  /** Makes a landform the site's. Standing at a view on its own landform, the run there keeps the view's. */
+  const setSiteLandform = useCallback(
+    (id: string) => {
+      const held = standing?.landform
+      if (held && (sceneRef.current.activeLandformId ?? null) === held.set)
+        setStanding((current) =>
+          current?.landform ? { ...current, landform: { ...current.landform, reviewer: id } } : current,
+        )
+      else setScene((current) => ({ ...current, activeLandformId: id }))
+    },
+    [standing?.landform, setScene],
+  )
+  // The landform of each view of interest (`ViewLandforms`, `viewLandform.ts`), set in step 1 under the site
+  // landform: the finder's visible face read from a view's own place, drawn with the finder's candidates, adopted
+  // only on the reviewer's click and then for that view alone; the site landform stays as it was.
+  const showViewLandforms = useCallback(
+    (shown: TerrainCandidate[], before: TerrainCandidate[], fit: TerrainCandidate[]) => {
+      // With readings to draw they are what the plan shows; with none, only this list's own are taken off.
+      setTerrainCandidates((current) => (shown.length ? shown : current.filter((entry) => !before.includes(entry))))
+      if (!shown.length) return
       setTerrainFocus('visible-face')
-      fitBounds(polygonBounds(candidate.geometry))
+      const boxes = fit.map((candidate) => polygonBounds(candidate.geometry))
+      if (boxes.length)
+        fitBounds([
+          Math.min(...boxes.map((box) => box[0])),
+          Math.min(...boxes.map((box) => box[1])),
+          Math.max(...boxes.map((box) => box[2])),
+          Math.max(...boxes.map((box) => box[3])),
+        ])
     },
     [fitBounds],
   )
-  const hideViewLandform = useCallback(
-    (candidate: TerrainCandidate) => setTerrainCandidates((current) => current.filter((entry) => entry !== candidate)),
-    [],
-  )
-  const adoptLandformForView = useCallback(
-    (view: ViewOfInterest, candidate: TerrainCandidate) => {
-      const id = createId('landform')
+  const adoptLandformsForViews = useCallback(
+    (adoptions: Array<{ view: ViewOfInterest; candidate: TerrainCandidate }>) => {
+      const ids = adoptions.map(() => createId('landform'))
       setScene((current) =>
-        adoptViewLandform(
+        adoptions.reduce(
+          (next, { view, candidate }, index) =>
+            adoptViewLandform(
+              next,
+              view.id,
+              landformTargetFromCandidate(candidate, {
+                id: ids[index],
+                // A face takes the site landform's objective and VAC, and goes on following them (`followSiteLandform`).
+                inherit: siteLandformOf(next, standing?.landform),
+                name: viewLandformName(candidate, view),
+              }),
+            ),
           current,
-          view.id,
-          landformTargetFromCandidate(candidate, {
-            id,
-            inherit: findSceneLandform(current),
-            name: viewLandformName(candidate, view),
-          }),
         ),
       )
     },
-    [setScene],
+    [setScene, standing?.landform],
   )
   const clearLandformForView = useCallback(
     (view: ViewOfInterest) => setViewsOfInterest((views) => clearViewLandform(views, view.id)),
     [setViewsOfInterest],
   )
+  /** Opens step 1's *Landform and objective*, where each view's landform is set; out of Save & export if open. */
+  const openLandforms = useCallback(() => {
+    exportOpener.setOpen(false)
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>('[data-via-step="identify"]')?.click()
+      requestAnimationFrame(() =>
+        document.querySelector('[data-landform-section]')?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
+      )
+    })
+  }, [exportOpener])
   const renderViewLandform = useCallback(
     (view: ViewOfInterest) => (
-      <ViewLandformControl
-        view={view}
-        scene={scene}
-        water={basemap.water}
-        onShowCandidate={showViewLandform}
-        onHideCandidate={hideViewLandform}
-        onAdopt={adoptLandformForView}
-        onClear={clearLandformForView}
-      />
+      <ViewLandformSummary view={view} scene={scene} site={siteLandform} onOpenLandforms={openLandforms} />
     ),
-    [scene, basemap.water, showViewLandform, hideViewLandform, adoptLandformForView, clearLandformForView],
+    [scene, siteLandform, openLandforms],
   )
   // ---------------------------------------------------------------------------------------------------------------
   /** The block note as Excel or PDF: the panel's text, every saved view's screenshot, and the plan map. */
@@ -3769,19 +3815,25 @@ function DevForestryVisuals() {
 
   const handleTargetChange = useCallback(
     (targetId: string, patch: Partial<TargetPolygon>) => {
-      setScene((current) => ({
-        ...current,
-        targets: current.targets.map((target) => (target.id === targetId ? { ...target, ...patch } : target)),
-        // A target re-roled to a landform becomes the active one; the active landform re-roled to anything else is dropped.
-        activeLandformId:
-          patch.role === 'landscape'
-            ? targetId
-            : current.activeLandformId === targetId && patch.role
-              ? null
-              : current.activeLandformId,
-      }))
+      setScene((current) => {
+        const targets = current.targets.map((target) => (target.id === targetId ? { ...target, ...patch } : target))
+        // The site landform's objective and VAC reach the views' own landforms that still held them.
+        const site = siteLandformOf(current, standing?.landform)
+        const follows = site?.id === targetId && (patch.objectiveId !== undefined || patch.vac !== undefined)
+        return {
+          ...current,
+          targets: follows ? [...followSiteLandform(targets, current.viewsOfInterest ?? [], site, patch)] : targets,
+          // A target re-roled to a landform becomes the active one; the active landform re-roled to anything else is dropped.
+          activeLandformId:
+            patch.role === 'landscape'
+              ? targetId
+              : current.activeLandformId === targetId && patch.role
+                ? null
+                : current.activeLandformId,
+        }
+      })
     },
-    [setScene],
+    [setScene, standing?.landform],
   )
 
   // A block's stand prescription: the dialog open on one block, and protecting trees from the plan.
@@ -5979,6 +6031,7 @@ function DevForestryVisuals() {
 
   const exportDialog = useVisualsExport({
     opener: exportOpener,
+    siteLandform,
     ownPhotos: {
       count: fieldPhoto.ownPhotos.length,
       accepted: fieldPhoto.ownPhotos.filter((photo) => fieldPhoto.acceptanceState(photo.id) === 'accepted').length,
@@ -6928,7 +6981,20 @@ function DevForestryVisuals() {
       onLoadDriveSample={() => handleLoadSample('roadside', true)}
       onLoadHighwaySample={() => handleLoadSample('purden')}
       onImportRoad={(file) => void importPreviewGeometry(file, 'road')}
-      onActivateLandform={(id) => setScene((current) => ({ ...current, activeLandformId: id }))}
+      onActivateLandform={setSiteLandform}
+      siteLandformId={siteLandform?.id ?? null}
+      viewLandforms={(renderLandform) => (
+        <ViewLandforms
+          scene={scene}
+          site={siteLandform}
+          inUseId={sceneLandform?.id ?? null}
+          water={basemap.water}
+          renderLandform={renderLandform}
+          onCandidates={showViewLandforms}
+          onAdopt={adoptLandformsForViews}
+          onClear={clearLandformForView}
+        />
+      )}
       roadViewOpening={!!pendingPreview || drive.active}
       onClearScene={handleClearScene}
       onOpenProject={(file) => void openProjectFile(file)}

@@ -332,7 +332,8 @@ export function UseMyDetailsButton<K extends string>({
 /**
  * What a document prints for its preparer and logo, in an output's options: the record's own preparer line (or
  * "not entered") with *Use my details*, and the logo with a link to *Your details*, where it is changed for every
- * sheet and report.
+ * sheet and report. With no details entered yet, *Enter your details…* is the one link: it opens the same form the
+ * logo's link would, so the two are never shown together.
  */
 export function PrintedPreparer<K extends string>({
   preparer,
@@ -352,6 +353,8 @@ export function PrintedPreparer<K extends string>({
   const branding = useBranding()
   const details = useOpenPreparerProfile(portalContainer)
   const logo = printedLogo(branding)
+  // *Enter your details…* under the preparer line already opens Your details: a second link to them would repeat it.
+  const entersDetails = !!preparer && profileIsEmpty(branding.profile)
   return (
     <div className="grid gap-1 text-xs" data-testid="printed-preparer">
       {preparer && (
@@ -371,10 +374,15 @@ export function PrintedPreparer<K extends string>({
           : logo?.source === 'brand'
             ? `the ${logo.name} brand’s (Branding)`
             : 'none; the slot stays empty'}
-        .{' '}
-        <TextButton className="text-xs" onClick={details.open}>
-          Edit your details
-        </TextButton>
+        .
+        {!entersDetails && (
+          <>
+            {' '}
+            <TextButton className="text-xs" onClick={details.open}>
+              Edit your details
+            </TextButton>
+          </>
+        )}
       </p>
       {details.dialog}
     </div>

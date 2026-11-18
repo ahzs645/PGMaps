@@ -15,7 +15,7 @@ vi.mock('@/components/ui/dialog-shell', () => ({
 }))
 
 const { PersonInput } = await import('./PersonInput')
-const { UseMyDetailsButton } = await import('./PreparerProfile')
+const { PrintedPreparer, UseMyDetailsButton } = await import('./PreparerProfile')
 
 const mine: PreparerProfile = { ...EMPTY_PROFILE, name: 'J. Smith', designation: 'RPF', registration: '4521' }
 const useMine = (tree: ReactTestRenderer) => tree.root.findAllByProps({ 'data-testid': 'person-input-use-mine' })
@@ -69,5 +69,19 @@ describe('Use my details', () => {
     act(() => button.props.onClick())
     expect(JSON.stringify(tree.root.findByProps({ 'data-testid': 'dialog-open' }).children)).toContain('Your details')
     expect(applied).toEqual([])
+  })
+
+  it('shows one link to Your details in an output’s options, never two that open the same form', () => {
+    const preparer = { printed: '', keptIn: 'FS1252 office information', patch: {}, onApply: () => {} }
+    const links = (tree: ReactTestRenderer) =>
+      tree.root.findAll((node) => node.type === 'button').map((node) => node.children.join(''))
+    profile = null
+    expect(links(create(<PrintedPreparer preparer={preparer} />))).toEqual(['Enter your details…'])
+    // With details entered, one link fills this record and the other changes the details and the logo.
+    profile = mine
+    expect(links(create(<PrintedPreparer preparer={preparer} />))).toEqual(['Use my details', 'Edit your details'])
+    // An output that prints only a logo keeps its link whether or not there are details.
+    profile = null
+    expect(links(create(<PrintedPreparer />))).toEqual(['Edit your details'])
   })
 })

@@ -15,6 +15,7 @@
 import { demTileRange, type DemTileRange, type ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { RIDGE_LAYER_DEFAULTS, VISIBLE_FACE_DEFAULTS, visibleFaceLandform } from './ridgeLayers'
 import { TERRAIN_LANDFORM_DEFAULTS } from './landformFromTerrain'
+import { activeLandform } from './integrity'
 import type { ForestryScene } from './scene'
 import type { TerrainCandidate } from './TerrainLandformFinder'
 import type { TargetPolygon } from './types'
@@ -214,4 +215,102 @@ export function clearViewLandform(views: readonly ViewOfInterest[], viewId: stri
     delete next.landformId
     return next
   })
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Who is assessed against what: the site's landform, and each view's own.
+
+/**
+ * A planned view's landform the stand made the run's (`set`), and the reviewer's own before it (`reviewer`), as the
+ * page keeps them while it stands at a view.
+ */
+export type HeldLandform = { reviewer: string | null | undefined; set: string | null }
+
+/**
+ * The site landform: the one the reviewer chose for the assessment, which every view without a landform of its own is
+ * assessed against. It is the run's landform, except while the page stands at a view whose own landform it made the
+ * run's (`held`), when it is the one the reviewer had before. Null when the scene has none, or several with none
+ * chosen.
+ */
+export function siteLandformOf(scene: ForestryScene, held?: HeldLandform | null): TargetPolygon | null {
+  const standingOnAView = !!held && (scene.activeLandformId ?? null) === held.set
+  try {
+    return activeLandform(scene.targets, standingOnAView ? held.reviewer : scene.activeLandformId)
+  } catch {
+    return null
+  }
+}
+
+/** A view of interest with the landform it is assessed against. */
+export type ViewLandformUse = {
+  view: ViewOfInterest
+  block: TargetPolygon | null
+  /** The view's own landform; null when it is assessed against the site's. */
+  own: TargetPolygon | null
+  /** The view names a landform that is no longer in the scene. */
+  missing: boolean
+}
+
+export type LandformAssignments = {
+  site: TargetPolygon | null
+  views: ViewLandformUse[]
+  /** Landforms that are neither the site's nor any view's: in the scene, assessed by nothing. */
+  unused: TargetPolygon[]
+}
+
+/** Every landform in the scene by who is assessed against it: the site, each view of interest, or nothing. */
+export function landformAssignments(scene: ForestryScene, site: TargetPolygon | null): LandformAssignments {
+  const landforms = scene.targets.filter((target) => target.role === 'landscape')
+  const blocks = scene.targets.filter((target) => target.role === 'block')
+  const views = (scene.viewsOfInterest ?? []).map((view) => {
+    const own = view.landformId ? (landforms.find((target) => target.id === view.landformId) ?? null) : null
+    return {
+      view,
+      block: blocks.find((target) => target.id === view.blockId) ?? null,
+      // A view that names the site's landform is assessed against the site's, like a view that names none.
+      own: own && own.id !== site?.id ? own : null,
+      missing: !!view.landformId && !own,
+    }
+  })
+  const used = new Set(views.flatMap((entry) => (entry.own ? [entry.own.id] : [])))
+  return {
+    site,
+    views,
+    unused: landforms.filter((target) => target.id !== site?.id && !used.has(target.id)),
+  }
+}
+
+/**
+ * A change to the site landform's objective or VAC, carried to the views' own landforms that still held the site's
+ * value: a face read from a view inherits both when it is adopted, and goes on following the site's until the
+ * reviewer gives it another (a face in another sensitivity unit may have its own objective). Returns `targets`
+ * itself when nothing follows.
+ */
+export function followSiteLandform(
+  targets: readonly TargetPolygon[],
+  views: readonly ViewOfInterest[],
+  before: Pick<TargetPolygon, 'id' | 'objectiveId' | 'vac'>,
+  patch: Partial<Pick<TargetPolygon, 'objectiveId' | 'vac'>>,
+): readonly TargetPolygon[] {
+  const own = new Set(views.flatMap((view) => (view.landformId ? [view.landformId] : [])))
+  let changed = false
+  const next = targets.map((target) => {
+    if (target.role !== 'landscape' || target.id === before.id || !own.has(target.id)) return target
+    const follows: Partial<Pick<TargetPolygon, 'objectiveId' | 'vac'>> = {}
+    if (patch.objectiveId !== undefined && target.objectiveId === before.objectiveId)
+      follows.objectiveId = patch.objectiveId
+    if (patch.vac !== undefined && (target.vac ?? null) === (before.vac ?? null)) follows.vac = patch.vac
+    if (!Object.keys(follows).length) return target
+    changed = true
+    return { ...target, ...follows }
+  })
+  return changed ? next : targets
+}
+
+/** Whether a view's own landform still holds the site's objective and VAC, so a change to the site's reaches it. */
+export function followsSite(
+  own: Pick<TargetPolygon, 'objectiveId' | 'vac'>,
+  site: Pick<TargetPolygon, 'objectiveId' | 'vac'> | null,
+): boolean {
+  return !!site && own.objectiveId === site.objectiveId && (own.vac ?? null) === (site.vac ?? null)
 }

@@ -7,6 +7,7 @@ import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { ProjectionSlot, useProjectableMounted } from '@/components/ui/movable-content'
 import { ResultRow } from '@/components/ui/result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TextButton } from '@/components/ui/text-button'
@@ -20,6 +21,7 @@ import type { ViewCaptureReport } from './useViewCapture'
 import { VIA_STEPS, type ViaStepId } from './via'
 import {
   exportContents,
+  exportEditorId,
   exportPreparation,
   OPEN_PACKAGE_ACTION,
   packageSummary,
@@ -146,30 +148,72 @@ const stepLabel = (id: ViaStepId) => {
   return step ? `Step ${step.number}` : id
 }
 
+/**
+ * One part of an output: what the file takes, and where it is changed. A part with an `editor` is changed under its
+ * own rows (*Edit here*): the sidebar section that sets it is shown there (`ProjectionSlot`, the same controls and
+ * state as in its step, moved rather than copied) or, for the views of interest, their list. Without one, or while
+ * the sidebar is not on the page, the link opens the step instead and closes the dialog.
+ */
 function ContentsSection({
   section,
   onGoToStep,
   onAction,
+  viewsEditor,
+  editing,
+  onEditing,
 }: {
   section: ExportSection
   onGoToStep?: (id: ViaStepId) => void
   onAction?: (action: ExportAction) => void
+  /** The views of interest, for a part whose editor is `views`. */
+  viewsEditor?: ReactNode
+  editing: boolean
+  onEditing: (on: boolean) => void
 }) {
   const empty = !section.rows?.length && !section.items?.length
+  const projected = useProjectableMounted(
+    section.editor && section.editor !== 'views' ? exportEditorId(section.editor) : null,
+  )
+  const editor =
+    section.editor === 'views' ? (
+      (viewsEditor ?? null)
+    ) : section.editor && projected ? (
+      <ProjectionSlot id={exportEditorId(section.editor)} />
+    ) : null
+  const part = useRef<HTMLElement>(null)
+  // The editor opens under the part's rows, often below the fold: bring the part to the top of the pane, so its
+  // rows and the controls that change them are read together.
+  useEffect(() => {
+    if (editing && editor) part.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    // Only when it opens: the editor's own changes must not scroll the pane.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing])
   return (
-    <section className="space-y-1.5" aria-label={section.title}>
+    <section ref={part} className="scroll-mt-1 space-y-1.5" aria-label={section.title}>
       <div className="flex items-baseline justify-between gap-2">
         <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{section.title}</h4>
-        <div className="flex shrink-0 items-baseline gap-3">
+        <div className="flex shrink-0 flex-wrap items-baseline justify-end gap-x-3">
           {section.action && onAction && (
             <TextButton className="text-2xs" onClick={() => onAction(section.action!)}>
               {section.action.label}
             </TextButton>
           )}
-          {section.step && onGoToStep && (
-            <TextButton className="text-2xs" onClick={() => onGoToStep(section.step!)}>
-              Change in {stepLabel(section.step)}
+          {editor ? (
+            <TextButton
+              className="text-2xs"
+              aria-expanded={editing}
+              aria-label={`${editing ? 'Done editing' : 'Edit here'}: ${section.title}`}
+              onClick={() => onEditing(!editing)}
+            >
+              {editing ? 'Done' : 'Edit here'}
             </TextButton>
+          ) : (
+            section.step &&
+            onGoToStep && (
+              <TextButton className="text-2xs" onClick={() => onGoToStep(section.step!)}>
+                Change in {stepLabel(section.step)}
+              </TextButton>
+            )
           )}
         </div>
       </div>
@@ -211,6 +255,28 @@ function ContentsSection({
       )}
       {empty && section.empty && <p className="text-2xs text-muted-foreground">{section.empty}</p>}
       {section.note && <p className="text-2xs text-muted-foreground">{section.note}</p>}
+      {editing && editor && (
+        <div
+          className={cn(insetBox({ padding: 'none' }), 'overflow-hidden border-primary/40')}
+          data-export-editor={section.editor}
+        >
+          {/* A sidebar section brings its own padding and bottom rule, which the line below sits on. */}
+          <div className={section.editor === 'views' ? 'p-2.5' : '-mb-px'}>{editor}</div>
+          <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-border bg-muted/40 px-2.5 py-1.5 text-2xs text-muted-foreground">
+            <span>
+              {section.step
+                ? `The same controls as ${stepLabel(section.step).toLowerCase()}: a change here is made there too.`
+                : 'A change here is made on the page too.'}{' '}
+              Drawing on the map closes this window.
+            </span>
+            {section.step && onGoToStep && (
+              <TextButton className="shrink-0 text-2xs" onClick={() => onGoToStep(section.step!)}>
+                Open {stepLabel(section.step).toLowerCase()}
+              </TextButton>
+            )}
+          </p>
+        </div>
+      )}
     </section>
   )
 }
@@ -493,6 +559,9 @@ export function VisualsExportDialog({
   const [formats, setFormats] = useState<Partial<Record<VisualsExport, string>>>({})
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<{ tone: 'info' | 'warning' | 'error'; text: string } | null>(null)
+  // The part being edited in place (`ContentsSection`), by its title: one at a time, since a part's editor is one
+  // element shown in one place.
+  const [editing, setEditing] = useState<string | null>(null)
   // Open on the requested output, including when the previous session used another.
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
@@ -504,6 +573,7 @@ export function VisualsExportDialog({
       setViewsOpen(false)
       setView('contents')
       setStatus(null)
+      setEditing(null)
     }
   }
   const item = findVisualsExport(selected)
@@ -810,6 +880,7 @@ export function VisualsExportDialog({
   const pane = useRef<HTMLElement>(null)
   const select = (kind: VisualsExport) => {
     setSelected(kind)
+    setEditing(null)
     setPackageOpen(false)
     setViewsOpen(false)
     setDetailsOpen(false)
@@ -1128,6 +1199,9 @@ export function VisualsExportDialog({
                         section={section}
                         onGoToStep={onGoToStep}
                         onAction={onAction || packagePane ? act : undefined}
+                        viewsEditor={viewsPane}
+                        editing={editing === section.title}
+                        onEditing={(on) => setEditing(on ? section.title : null)}
                       />
                     ))}
                   </div>

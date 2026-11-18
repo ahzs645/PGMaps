@@ -9,6 +9,7 @@ import {
   SHEET_PRESETS,
   type SheetFields,
 } from '@/lib/forestry/blockSheet/sheets'
+import { visualsSheetStyleChoices } from './mapStyleSamples'
 import {
   changeVisualsSheetSettings,
   DEFAULT_VISUALS_SHEET,
@@ -17,7 +18,6 @@ import {
   SHEET_SYMBOLS_STYLE,
   visualsSheetBlocks,
   visualsSheetLabel,
-  visualsSheetStyles,
   visualsSheetUnavailable,
   type VisualsSheetScene,
   type VisualsSheetSettings,
@@ -107,7 +107,7 @@ export function VisualsBlockSheetForm({
         area={settings.block}
         onArea={(value) => onChange({ ...settings, block: value })}
         fields={sheetSetupFields(settings.kind, facts, 'read when the sheet is written')}
-        styles={visualsSheetStyles()}
+        styles={visualsSheetStyleChoices()}
         style={settings.style}
         onStyle={(style) => onChange({ ...settings, style })}
         styleHint={
