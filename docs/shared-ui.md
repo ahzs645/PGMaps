@@ -60,7 +60,9 @@ brand colour or built-in theme. Map symbols and reports have their own settings.
   no white left). The rest of a map's chrome rebinds it too, so it is white beside a white
   sidebar: a right-hand sidebar, the legend, the timeline, the phone's sheets, and anything
   marked `data-map-chrome` (the table pane and toggle, status bar, scale bar, loading pill,
-  `MapOverlay`). A page's own floating panel or toolbar on a map takes `data-map-chrome`.
+  `MapOverlay`), and everything the toolkit's `Map` draws over itself (`.geo-map-chrome`: its
+  zoom and basemap controls and a page's own buttons placed on the map). A page's own floating
+  panel or toolbar on a map takes `data-map-chrome`.
   The page colour stays on the navigation, index pages and the map surround.
   A bordered panel on a page (a Projects pane, a Home tile) is `bg-card`, never
   `bg-background`, or it disappears into a themed page. A
