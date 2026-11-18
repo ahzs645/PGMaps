@@ -24,6 +24,7 @@ import {
 import type { MatchedCamera } from './matchedCamera'
 import { comparePhotoCameras, type CombinedResult, type CombinedSettings } from './photoCombinedSearch'
 import { depthModelStored, estimatePhotoDepth, type DepthGrid, type PhotoDepthModel } from './photoDepth'
+import type { PhotoMatcher } from './photoMatchers'
 import { openPhotoFeatureMatcher } from './photoFeatureClient'
 import {
   compareFlightProposals,
@@ -647,6 +648,8 @@ export function useFieldPhoto({
   const [activeId, setActiveId] = useState<string | null>(null)
   const [work, setWork] = useState<Record<string, OwnPhotoWork>>({})
   const [flightMatchProgress, setFlightMatchProgress] = useState<FlightMatchProgress | null>(null)
+  /** Which matcher the flight match pairs photos with: this session's choice, XFeat until the reviewer picks. */
+  const [flightMatcher, setFlightMatcher] = useState<PhotoMatcher>('xfeat')
   const flightMatchAbort = useRef<AbortController | null>(null)
   useEffect(() => () => flightMatchAbort.current?.abort(), [])
   const [queueRun, setQueueRun] = useState<QueueRun>({ pending: [], running: null, paused: false, cancelled: false })
@@ -1949,8 +1952,10 @@ export function useFieldPhoto({
     const controller = new AbortController()
     const { signal } = controller
     flightMatchAbort.current = controller
+    const pairedBy = flightMatcher
     let progress: FlightMatchProgress = {
       flightId,
+      matcher: pairedBy,
       phase: 'matching',
       total: pairs.length,
       attempted: 0,
@@ -1984,6 +1989,7 @@ export function useFieldPhoto({
             reference: requestFrame(reference, refPixels),
             target: requestFrame(target, targetPixels),
             focalRatio: Math.tan((accepted.pose.hfov * Math.PI) / 360) / Math.tan((targetPose.hfov * Math.PI) / 360),
+            matcher: pairedBy,
           })
           sent.add(referenceId)
           sent.add(targetId)
@@ -2035,6 +2041,7 @@ export function useFieldPhoto({
             controls: terrain?.controls ?? relative!.controls,
             medianPx: held.medianPx,
             p90Px: held.p90Px,
+            matcher: pairedBy,
           }
           const list = proposals.get(targetId) ?? []
           list.push(proposal)
@@ -3782,6 +3789,8 @@ export function useFieldPhoto({
       return result
     },
     flightMatchProgress,
+    flightMatcher,
+    setFlightMatcher,
     flightMatchFrames: ownPhotos.map(flightFrameOf),
     runFlightMatch,
     cancelFlightMatch: () => flightMatchAbort.current?.abort(),

@@ -1,6 +1,7 @@
 /** Shortlist nearby accepted cameras. Actual overlap and terrain holdouts decide which camera to offer. */
 import { acceptanceLapsed, type AcceptancePose, type PhotoAcceptance } from './photoAcceptance'
 import { instantOf, metresBetween } from './photoFlight'
+import type { PhotoMatcher } from './photoMatchers'
 
 export type FlightMatchFrame = {
   id: string
@@ -31,6 +32,8 @@ export type FlightCameraProposal = {
   controls: number
   medianPx: number
   p90Px: number
+  /** The matcher that paired the two photos; XFeat on proposals made before there was a choice. */
+  matcher?: PhotoMatcher
 }
 
 export const flightAnchor = (frame: Pick<FlightMatchFrame, 'acceptance' | 'pose'>) =>
@@ -85,6 +88,8 @@ export type FlightMatchProgress = {
   failed: number
   targetName?: string
   message?: string
+  /** The matcher this run pairs photos with. */
+  matcher?: PhotoMatcher
 }
 
 export function currentFlightProposal(

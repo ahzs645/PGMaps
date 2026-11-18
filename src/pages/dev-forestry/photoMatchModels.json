@@ -1,0 +1,16 @@
+{
+  "folder": "/models/photo-match/",
+  "source": "https://github.com/fdahle/websfm/releases/download/models-v1/",
+  "files": {
+    "detector": {
+      "path": "aliked.onnx",
+      "size": 2790763,
+      "sha256": "d2e9e51fc57c2dd79d1a259ce4620b8e0e51f83cbfc402fa2b0b2d8ae789aaa4"
+    },
+    "matcher": {
+      "path": "lightglue_aliked.onnx",
+      "size": 45613532,
+      "sha256": "8c6bebeee0852b63ef1e216118e3d9d2a352b367ad325153fa239ce370e75efe"
+    }
+  }
+}

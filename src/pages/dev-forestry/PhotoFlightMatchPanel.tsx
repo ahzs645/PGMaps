@@ -1,7 +1,9 @@
 import { Link2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DisclosureCard } from '@/components/ui/disclosure'
+import { SelectField } from '@/components/ui/form-field'
 import { planFlightMatches } from './photoFlightMatching'
+import { PHOTO_MATCHERS, isPhotoMatcher, type PhotoMatcher } from './photoMatchers'
 import type { FieldPhotoState } from './useFieldPhoto'
 
 export function PhotoFlightMatchPanel({ photo }: { photo: FieldPhotoState }) {
@@ -38,6 +40,30 @@ export function PhotoFlightMatchPanel({ photo }: { photo: FieldPhotoState }) {
           <p>No targets with a position close to an accepted reference.</p>
         )}
         {!targets.length && <p>Every camera in this flight is accepted.</p>}
+        <SelectField
+          label="Matcher"
+          value={photo.flightMatcher}
+          disabled={running}
+          onChange={(event) => {
+            const matcher = event.currentTarget.value
+            if (isPhotoMatcher(matcher)) photo.setFlightMatcher(matcher)
+          }}
+        >
+          {(Object.keys(PHOTO_MATCHERS) as PhotoMatcher[]).map((matcher) => (
+            <option key={matcher} value={matcher}>
+              {PHOTO_MATCHERS[matcher].label}
+              {PHOTO_MATCHERS[matcher].megabytes === null
+                ? ' · built in'
+                : ` · ${PHOTO_MATCHERS[matcher].megabytes} MB, trial`}
+            </option>
+          ))}
+        </SelectField>
+        {photo.flightMatcher === 'aliked-lightglue' && (
+          <p className="text-muted-foreground">
+            A learned matcher for pairs XFeat leaves unmatched: a change of lens between the two photos, or a wider gap.
+            The first run loads its models from this site; the photos stay on this device. It is slower.
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -65,9 +91,9 @@ export function PhotoFlightMatchPanel({ photo }: { photo: FieldPhotoState }) {
             {sameFlight.phase === 'done' && (
               <>
                 <p className="tabular-nums">
-                  {sameFlight.attempted} {sameFlight.attempted === 1 ? 'pair' : 'pairs'} tried ·{' '}
-                  {sameFlight.overlapping} with overlap · {options.length} {options.length === 1 ? 'photo' : 'photos'}{' '}
-                  with a camera suggestion
+                  {PHOTO_MATCHERS[sameFlight.matcher ?? 'xfeat'].label}: {sameFlight.attempted}{' '}
+                  {sameFlight.attempted === 1 ? 'pair' : 'pairs'} tried · {sameFlight.overlapping} with overlap ·{' '}
+                  {options.length} {options.length === 1 ? 'photo' : 'photos'} with a camera suggestion
                 </p>
                 {!!sameFlight.failed && <p>{sameFlight.failed} pairs could not be processed.</p>}
                 {!options.length && <p>Try another accepted reference from the flight, or pair landmarks by hand.</p>}

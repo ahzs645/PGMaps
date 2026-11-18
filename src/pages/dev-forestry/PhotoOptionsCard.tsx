@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 import { sameCamera, type AcceptancePose } from './photoAcceptance'
+import { PHOTO_MATCHERS } from './photoMatchers'
 import { NEIGHBOUR_AGREE_DEGREES } from './photoOptions'
 import type { FieldPhotoState, ModelViewImage, PhotoModelViewKind } from './useFieldPhoto'
 
@@ -160,7 +161,8 @@ export function PhotoOptionsCard({ photo, onAdjust }: { photo: FieldPhotoState; 
                   )}
                   {option.overlap && (
                     <p className="text-muted-foreground tabular-nums">
-                      {option.overlap.matches} shared features ·{' '}
+                      {option.overlap.matches} shared features by{' '}
+                      {PHOTO_MATCHERS[option.overlap.matcher ?? 'xfeat'].label} ·{' '}
                       {option.overlap.basis === 'terrain'
                         ? `${option.overlap.controls} terrain points`
                         : 'image geometry'}{' '}

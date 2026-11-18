@@ -174,3 +174,6 @@ scripts/lidar/__pycache__/
 
 # Road view engines built from their submodules (scripts/build-engines.mjs)
 public/engines/
+
+# Optional photo-matching models (npm run photo-match:fetch-models)
+public/models/

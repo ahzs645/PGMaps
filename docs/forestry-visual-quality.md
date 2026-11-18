@@ -2166,6 +2166,48 @@ street-level photo from Mapillary, or with a photo of your own.
     coordinates. *Adjust* opens the existing camera controls. Once a reviewer
     checks and accepts the result, rerun to include it as a reference for more
     photos. [Archive measurements and methods](research/photo-flight-matching-2026-11-17.md)
+    - **Matcher** (`photoMatchers.ts`): *XFeat*, built in, or *ALIKED +
+      LightGlue*, a trial. The second is a learned detector and matcher
+      (`NOTICE-PHOTO-MATCH-MODELS.md`) for pairs descriptors alone leave
+      unmatched. Its two files (48 MB) are not in the repository:
+      `npm run photo-match:fetch-models` puts them, checked by size and
+      SHA-256, in the git-ignored `public/models/photo-match/`, and a site
+      without them says so when the matcher is chosen. Nothing deploys them
+      yet. On the test flight (18 November 2026, two pairs, in the browser):
+      from IMG_9319's accepted camera XFeat offered IMG_9320 at 142.2°,
+      −3.2°, −1.4° on 229 shared features (held-out 2.2 px median) and the
+      learned pair at 139.5°, −5.9°, +0.2° on 584 (0.6 px), against a known
+      139.0°, −5.9°, +0.2°. Between two frames 3.6 s apart taken with a
+      26 mm and then a 52 mm lens XFeat found no overlap and the learned
+      pair 292 shared features. It took 16 s for the two pairs against 2 s.
+      Two pairs of one flight: widen the evidence before making it the
+      default. Every suggestion names the matcher that paired the photos.
+    - **Points too far to take sides** (`sidesOf`, `photoRelativePose.ts`):
+      a motion between two cameras is checked by which side of both cameras
+      the matched points fall on, and only a point with parallax can say. A
+      far ridge seen from two places a few hundred metres apart has none;
+      counted as behind the camera, such points threw out pairs matched
+      mostly on distant ground (the learned pair's 584 features on IMG_9320
+      gave no camera until they were left out of the count). A pair with
+      fewer than `MIN_JUDGED_RAYS` points to judge by, or under
+      `MIN_JUDGED_SHARE` of its matches, stands on its held-out error alone.
+    - **A reference whose camera is wrong is refused, not carried.** The
+      image-only orientation must move the camera the way the two GPS
+      positions say it moved (within 65° once they are 60 m apart). With
+      IMG_9310 accepted at the skyline's unsettled 207.6°, no camera was
+      offered for IMG_9311 although 292 features matched: run outside the
+      page over every heading, the pair fits the GPS only with IMG_9310
+      between 290° and 300° (held-out 0.9 px at 294°; 3.9 px at 282°,
+      4.4 px at 310°), which puts IMG_9311 near 275°. The page does not
+      search for that; it is a way to check an accepted reference that is
+      not built.
+    - **Left open** (18 November 2026): XFeat against the model view, which
+      picked the true camera sharply in a trial but needs an ONNX export of
+      its LighterGlue matcher that nobody publishes; serving the learned
+      matcher's 48 MB of models from the deploy, without which the live
+      site reports them missing; and the default, which stays XFeat on
+      two pairs' evidence.
+      [Trials and measurements](research/photo-camera-model-trials-2026-11-18.md)
   - **Combined camera search.** Compares ground appearance with available
     skyline, paired points, and terrain-checked overlap from flight matching or the bench.
     A weak skyline opens a coarse search around the photo's position. Turn

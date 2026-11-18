@@ -3,8 +3,17 @@ import * as ort from 'onnxruntime-web/wasm'
 import wasm from '../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm?url'
 import extractorUrl from '../../assets/forestry/photo-matching/xfeat.onnx?url'
 import matcherUrl from '../../assets/forestry/photo-matching/matching.onnx?url'
+import { withBase } from '@/lib/dataUrl'
 import type { FeatureFrame, FeatureReply, FeatureRequest } from './photoFeatureClient'
 import { overlapStrength, verifyFeatureOverlap, type FeatureOverlap } from './photoFeatureGeometry'
+import {
+  LEARNED_DESCRIPTOR_LENGTH,
+  LEARNED_LONG_EDGE,
+  LEARNED_MATCH_FILES,
+  lightGlueKeypoints,
+  selectRows,
+  strongestKeypoints,
+} from './photoMatchers'
 import type { ImageMatch } from './photoOverlap'
 import type { Rgba } from './photoViews'
 
@@ -19,8 +28,32 @@ const models = () =>
     ort.InferenceSession.create(matcherUrl, options),
   ]))
 
+/**
+ * The optional ALIKED detector and its LightGlue matcher, read whole and checked by size: a site without the files
+ * answers with its own page, which the runtime would report as a model it cannot parse.
+ */
+export const LEARNED_MODELS_MISSING =
+  'The ALIKED and LightGlue models are not on this site. Choose XFeat, or add them with npm run photo-match:fetch-models.'
+async function modelBytes({ path, size }: { path: string; size: number }): Promise<Uint8Array> {
+  const response = await fetch(withBase(path)).catch(() => null)
+  const bytes = response?.ok ? await response.arrayBuffer() : null
+  if (bytes?.byteLength !== size) throw Error(LEARNED_MODELS_MISSING)
+  return new Uint8Array(bytes)
+}
+let learnedSessions: Promise<[ort.InferenceSession, ort.InferenceSession]> | undefined
+const learnedModels = () =>
+  (learnedSessions ??= Promise.all([
+    modelBytes(LEARNED_MATCH_FILES.detector).then((bytes) => ort.InferenceSession.create(bytes, options)),
+    modelBytes(LEARNED_MATCH_FILES.matcher).then((bytes) => ort.InferenceSession.create(bytes, options)),
+  ]).catch((error: unknown) => {
+    learnedSessions = undefined
+    throw error
+  }))
+
 type Features = { count: number; keypoints: Float32Array; descriptors: ort.Tensor }
-type Frame = { pixels: Rgba; scales: Map<number, Features> }
+/** Keypoints in the photo's pixels and as LightGlue reads them, strongest first, with their descriptors row by row. */
+type LearnedFeatures = { count: number; keypoints: Float32Array; normalized: Float32Array; descriptors: Float32Array }
+type Frame = { pixels: Rgba; scales: Map<number, Features>; learned?: LearnedFeatures }
 const frames = new Map<string, Frame>()
 const mainWidth = 832
 const altWidth = 560
@@ -94,9 +127,78 @@ async function reciprocal(a: Features, b: Features): Promise<ImageMatch[]> {
   return rows.sort((a, b) => b.strength - a.strength).map((row) => row.match)
 }
 
-async function overlap({ reference, target, focalRatio = 1 }: FeatureRequest): Promise<FeatureOverlap> {
+async function describeLearned(frame: Frame): Promise<LearnedFeatures> {
+  if (frame.learned) return frame.learned
+  const [detect] = await learnedModels()
+  const { image, width, height } = toTensor(frame.pixels, LEARNED_LONG_EDGE)
+  const outputs = Object.values(await detect.run({ [detect.inputNames[0]]: image }))
+  // The exports name their outputs differently; their shapes do not differ.
+  const points = outputs.find(({ dims }) => dims.length === 3 && dims[2] === 2)
+  const described = outputs.find(({ dims }) => dims.length === 3 && dims[2] === LEARNED_DESCRIPTOR_LENGTH)
+  const scores = outputs.find(({ dims }) => dims.length === 2)
+  if (!points || !described) throw Error('The ALIKED model returned no keypoints.')
+  const found = Number(points.dims[1])
+  const order = scores
+    ? strongestKeypoints(scores.data as Float32Array)
+    : strongestKeypoints(Float32Array.from({ length: found }, (_, index) => -index))
+  const inInput = selectRows(Array.from(points.data as ArrayLike<number | bigint>, Number), order, 2)
+  frame.learned = {
+    count: order.length,
+    keypoints: Float32Array.from(inInput, (value, i) =>
+      i % 2 === 0 ? (value * frame.pixels.width) / width : (value * frame.pixels.height) / height,
+    ),
+    normalized: lightGlueKeypoints(inInput, width, height),
+    descriptors: selectRows(described.data as Float32Array, order, LEARNED_DESCRIPTOR_LENGTH),
+  }
+  return frame.learned
+}
+
+/** LightGlue's matches for two described photos, most confident first, in each photo's pixels. */
+async function learnedMatches(a: LearnedFeatures, b: LearnedFeatures): Promise<ImageMatch[]> {
+  if (Math.min(a.count, b.count) < 8) return []
+  const [, match] = await learnedModels()
+  const result = await match.run({
+    kpts0: new ort.Tensor('float32', a.normalized, [1, a.count, 2]),
+    kpts1: new ort.Tensor('float32', b.normalized, [1, b.count, 2]),
+    desc0: new ort.Tensor('float32', a.descriptors, [1, a.count, LEARNED_DESCRIPTOR_LENGTH]),
+    desc1: new ort.Tensor('float32', b.descriptors, [1, b.count, LEARNED_DESCRIPTOR_LENGTH]),
+  })
+  const names = Object.keys(result)
+  const pairs = result[names.find((name) => /matches0/i.test(name)) ?? names[0]]
+  const confidence = names.find((name) => /scores0/i.test(name))
+  const indices = Array.from(pairs.data as ArrayLike<number | bigint>, Number)
+  const scores = confidence ? (result[confidence].data as Float32Array) : null
+  const rows: Array<{ strength: number; match: ImageMatch }> = []
+  for (let i = 0; i + 1 < indices.length; i += 2) {
+    const from = indices[i]
+    const to = indices[i + 1]
+    if (!(from >= 0 && from < a.count && to >= 0 && to < b.count)) continue
+    rows.push({
+      strength: scores ? scores[i / 2] : 1,
+      match: [
+        [a.keypoints[from * 2], a.keypoints[from * 2 + 1]],
+        [b.keypoints[to * 2], b.keypoints[to * 2 + 1]],
+      ],
+    })
+  }
+  return rows.sort((first, second) => second.strength - first.strength).map((row) => row.match)
+}
+
+async function overlap({
+  reference,
+  target,
+  focalRatio = 1,
+  matcher = 'xfeat',
+}: FeatureRequest): Promise<FeatureOverlap> {
   const a = frameFor(reference)
   const b = frameFor(target)
+  // LightGlue is trained across scale and viewpoint, so one look at each photo is enough.
+  if (matcher === 'aliked-lightglue')
+    return verifyFeatureOverlap(
+      await learnedMatches(await describeLearned(a), await describeLearned(b)),
+      a.pixels,
+      b.pixels,
+    )
   const check = async (first: number, second: number) => {
     const matches = await reciprocal(await describe(a, first), await describe(b, second))
     return verifyFeatureOverlap(matches, a.pixels, b.pixels)

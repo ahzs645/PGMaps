@@ -11,6 +11,9 @@ type Motion = { rotation: Rotation; shift: Vec }
 export type RelativePose = { pose: OverlapCamera; medianPx: number; p90Px: number; controls: number }
 
 const RAD = Math.PI / 180
+/** The fewest matched points with parallax, and the least share of all, for their sides to judge a motion by. */
+const MIN_JUDGED_RAYS = 12
+const MIN_JUDGED_SHARE = 0.1
 const dot = (a: Vec, b: Vec) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 const cross = ([x, y, z]: Vec, [u, v, w]: Vec): Vec => [y * w - z * v, z * u - x * w, x * v - y * u]
 const unit = (v: Vec) => v.map((value) => value / Math.hypot(...v)) as Vec
@@ -34,16 +37,42 @@ function signedResidual({ a, b }: Rays, { rotation, shift }: Motion): number {
   return denominator > 1e-8 ? dot(b, ea) / denominator : 1
 }
 
-function positiveDepth({ a, b }: Rays, { rotation, shift }: Motion): boolean {
+/**
+ * Which side of both cameras a matched point falls on for a motion; null when its two rays are too nearly parallel
+ * to say. A far ridge seen from two places a few tens of metres apart is such a point.
+ */
+function depthSide({ a, b }: Rays, { rotation, shift }: Motion): 'front' | 'behind' | 'split' | null {
   const u = apply(rotation, a)
   const uu = dot(u, u)
   const vv = dot(b, b)
   const uv = dot(u, b)
   const det = uu * vv - uv ** 2
-  if (det / (uu * vv) < 0.00002) return false
+  if (det / (uu * vv) < 0.00002) return null
   const rhsA = -dot(u, shift)
   const rhsB = dot(b, shift)
-  return rhsA * vv + uv * rhsB > 0 && uu * rhsB + uv * rhsA > 0
+  const first = rhsA * vv + uv * rhsB
+  const second = uu * rhsB + uv * rhsA
+  return first > 0 && second > 0 ? 'front' : first < 0 && second < 0 ? 'behind' : 'split'
+}
+
+/**
+ * How the matched points take sides for a motion. Only points with parallax can say which way the camera moved:
+ * counting the rest as behind the camera threw out pairs matched mostly on distant ground. `share` is the larger
+ * side's part of the points that could be judged, or 1 when too few could: such a pair stands on its held-out error.
+ */
+function sidesOf(rays: Rays[], motion: Motion): { front: number; behind: number; share: number } {
+  let front = 0
+  let behind = 0
+  let judged = 0
+  for (const ray of rays) {
+    const side = depthSide(ray, motion)
+    if (side === null) continue
+    judged++
+    if (side === 'front') front++
+    else if (side === 'behind') behind++
+  }
+  const enough = judged >= Math.max(MIN_JUDGED_RAYS, rays.length * MIN_JUDGED_SHARE)
+  return { front, behind, share: enough ? Math.max(front, behind) / judged : 1 }
 }
 
 function perturb(motion: Motion, step: number[], baseline: Vec | null): Motion {
@@ -132,9 +161,9 @@ function linearMotion(rays: Rays[], rows: Coefficients[], count: number): Motion
       { rotation, shift: shift.map((value) => -value) as Vec },
     ]
   })
-  const ranked = motions.map((motion) => ({ motion, count: rays.filter((ray) => positiveDepth(ray, motion)).length }))
-  const best = ranked.sort((a, b) => b.count - a.count)[0]
-  return best.count >= rays.length * 0.4 ? best.motion : null
+  const ranked = motions.map((motion) => ({ motion, ...sidesOf(rays, motion) }))
+  const best = ranked.sort((a, b) => b.front - a.front)[0]
+  return best.share === 1 || best.front >= (best.front + best.behind) * 0.4 ? best.motion : null
 }
 
 function estimateMotion(rays: Rays[], baseline: Vec, scale: number): Motion | null {
@@ -150,15 +179,14 @@ function estimateMotion(rays: Rays[], baseline: Vec, scale: number): Motion | nu
     if (!start) continue
     for (const fixed of [null, ...(displacement ? [displacement] : [])]) {
       const fitted = improveMotion(start, rays, scale, fixed)
-      const front = rays.filter((ray) => positiveDepth(ray, fitted)).length
-      const motion = front >= rays.length / 2 ? fitted : { ...fitted, shift: fitted.shift.map((v) => -v) as Vec }
-      const visible = Math.max(front, rays.filter((ray) => positiveDepth(ray, motion)).length)
-      if (visible < rays.length * 0.58) continue
+      const { front, behind, share } = sidesOf(rays, fitted)
+      const motion = front >= behind ? fitted : { ...fitted, shift: fitted.shift.map((v) => -v) as Vec }
+      if (share < 0.58) continue
       const direction = apply(transpose(motion.rotation), motion.shift).map((value) => -value) as Vec
       if (distance >= 60 && angle(direction, baseline) > 65) continue
       const errors = rays.map((ray) => Math.abs(signedResidual(ray, motion)) * scale)
       const clippedError = errors.reduce((sum, error) => sum + Math.min(error, 18), 0) / errors.length
-      const score = clippedError + 2 * (1 - visible / rays.length)
+      const score = clippedError + 2 * (1 - share)
       if (!best || score < best.score) best = { motion, score }
     }
   }

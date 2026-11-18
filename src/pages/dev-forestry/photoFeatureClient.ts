@@ -1,4 +1,5 @@
 import type { FeatureOverlap } from './photoFeatureGeometry'
+import type { PhotoMatcher } from './photoMatchers'
 import type { Rgba } from './photoViews'
 
 /** Omit pixels after a frame has been sent successfully to this worker. */
@@ -8,6 +9,8 @@ export type FeatureRequest = {
   target: FeatureFrame
   /** Target to reference normalized focal length, when the recorded lens is known. */
   focalRatio?: number
+  /** Which matcher pairs the two photos; XFeat when left out. */
+  matcher?: PhotoMatcher
 }
 export type FeatureReply = FeatureOverlap | { error: string }
 

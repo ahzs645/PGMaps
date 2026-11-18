@@ -40,7 +40,7 @@ export type PhotoOption = {
   pose: AcceptancePose
   evidence: AcceptanceEvidence
   warnings: string[]
-  overlap?: Pick<FlightCameraProposal, 'basis' | 'matches' | 'controls' | 'medianPx' | 'p90Px'>
+  overlap?: Pick<FlightCameraProposal, 'basis' | 'matches' | 'controls' | 'medianPx' | 'p90Px' | 'matcher'>
 }
 
 export interface PhotoOptionsInput {
@@ -333,13 +333,13 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
   }
 
   for (const proposal of input.flightProposals ?? []) {
-    const { pose, basis, matches, controls, medianPx, p90Px } = proposal
+    const { pose, basis, matches, controls, medianPx, p90Px, matcher } = proposal
     rows.push({
       id: `flight:${proposal.referenceId}`,
       kind: 'matched',
       label: `Flight match from ${proposal.referenceName}`,
       pose,
-      overlap: { basis, matches, controls, medianPx, p90Px },
+      overlap: { basis, matches, controls, medianPx, p90Px, matcher },
       evidence: {
         settled: false,
         neighbourId: proposal.referenceId,
