@@ -1,3 +1,4 @@
+import { masksForLandform } from './assessmentMasks'
 import type { ForestryScene } from './scene'
 import type { AnalysisInput, TargetPolygon } from './types'
 import { activeLandform, canonicalInput } from './integrity'
@@ -5,6 +6,7 @@ import { fieldGreenUpInput } from './greenUp'
 import { surveyedEyeElevation } from './viewpointStand'
 /** The same builder is used for the worker request and stale-result checks. */
 export function buildSceneInput(scene: ForestryScene): AnalysisInput {
+  const masks = masksForLandform(scene.masks, findSceneLandform(scene)?.id)
   const forms = scene.targets.filter((t) => t.role === 'landscape')
   // A surveyed eye elevation is a run input only while it applies to where the eye stands.
   const eyeElevationMeters = surveyedEyeElevation(scene.viewpoint)
@@ -47,7 +49,7 @@ export function buildSceneInput(scene: ForestryScene): AnalysisInput {
     assessmentYear: scene.assessmentYear ?? new Date().getFullYear(),
     activeLandformId: scene.activeLandformId ?? (forms.length === 1 ? forms[0].id : null),
     harvestInventory: scene.harvestInventory,
-    ...(scene.masks?.length ? { masks: scene.masks } : {}),
+    ...(masks.length ? { masks } : {}),
     ...(scene.localRasters?.length ? { localRasters: scene.localRasters } : {}),
   }
 }

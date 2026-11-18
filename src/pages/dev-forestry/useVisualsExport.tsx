@@ -223,6 +223,8 @@ export function useVisualsExport(input: {
   roadView: { styleId: string | null; labelStyle: LabelStyleId | null }
   /** The blocks with a stand prescription, read (`stand/standExport.ts`). */
   prescribedStands: ReadonlyArray<PrescribedStandFile>
+  /** The run retained this session in Reference measurements (`useAssessmentTools`); never in the project. */
+  sightlineArchive: { name: string; rowId: string; blob: Blob } | null
   currentStation: number
   blockNoteParts: BlockNoteParts | null
   noteFigures: boolean
@@ -761,6 +763,13 @@ export function useVisualsExport(input: {
     ownPhotos: input.ownPhotos,
     roadViewReady: input.scenePackage.ready,
     prescribedStands: standFileSummary(input.prescribedStands),
+    sightlineArchive: input.sightlineArchive
+      ? {
+          name: input.sightlineArchive.name,
+          rowId: input.sightlineArchive.rowId,
+          bytes: input.sightlineArchive.blob.size,
+        }
+      : null,
     officeFieldCount: FS1252_OFFICE_FIELDS.length,
     autoRun,
     landChecks: {
@@ -1470,6 +1479,9 @@ export function useVisualsExport(input: {
         return format === 'geojson'
           ? textFile(standTreeGeoJson(input.prescribedStands), 'prescribed-trees.geojson', 'application/geo+json')
           : textFile(standTreeCsv(input.prescribedStands), 'prescribed-trees.csv', 'text/csv')
+      case 'sightline-archive':
+        if (!input.sightlineArchive) throw new Error('Retain a run in Reference measurements first.')
+        return { blob: input.sightlineArchive.blob, fileName: input.sightlineArchive.name }
       case 'castor-constraint': {
         const constraint = castorVqoConstraint(scene, result)
         if (!constraint)

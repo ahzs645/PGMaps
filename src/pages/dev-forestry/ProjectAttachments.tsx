@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { StyledSelect } from '@/components/ui/styled-select'
 import { FileButton } from '@/components/ui/file-button'
 import { TextButton } from '@/components/ui/text-button'
 import { downloadBlob } from '@/lib/download'
@@ -13,7 +14,7 @@ function previewType(name: string) {
   return null
 }
 
-function AttachmentPreview({ file }: { file: ProjectAttachment }) {
+export function AttachmentPreview({ file, page }: { file: ProjectAttachment; page?: string }) {
   const type = previewType(file.name)
   const image = useRef<HTMLImageElement>(null)
   const link = useRef<HTMLAnchorElement>(null)
@@ -21,9 +22,10 @@ function AttachmentPreview({ file }: { file: ProjectAttachment }) {
     if (!type) return
     const url = URL.createObjectURL(file.blob.slice(0, file.blob.size, type))
     if (image.current) image.current.src = url
-    if (link.current) link.current.href = url
+    if (link.current)
+      link.current.href = type === 'application/pdf' && page && /^[1-9]\d*$/.test(page) ? url + '#page=' + page : url
     return () => URL.revokeObjectURL(url)
-  }, [file, type])
+  }, [file, type, page])
   if (!type) return null
   return (
     <div className="space-y-2">
@@ -31,7 +33,8 @@ function AttachmentPreview({ file }: { file: ProjectAttachment }) {
         <img ref={image} alt={file.name} className="w-full rounded-md border border-border" />
       )}
       <a ref={link} className="text-xs underline" target="_blank" rel="noopener noreferrer">
-        Open {file.name} in a new tab
+        Open {file.name}
+        {page ? ` (page ${page})` : ''} in a new tab
       </a>
     </div>
   )
@@ -59,7 +62,7 @@ export function ProjectAttachments({
           Attach files…
         </FileButton>
         {!!files.length && (
-          <select
+          <StyledSelect
             className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
             aria-label="Project attachment"
             value={index < 0 ? '' : index}
@@ -73,7 +76,7 @@ export function ProjectAttachments({
                 {file.name}
               </option>
             ))}
-          </select>
+          </StyledSelect>
         )}
         {selected && index >= 0 && (
           <>

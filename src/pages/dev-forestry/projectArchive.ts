@@ -1,5 +1,7 @@
 /** The portable project: project.json plus ordinary files for photographs, captures and supporting evidence. */
 import { unzip, zip, type Unzipped, type Zippable } from 'fflate'
+import { emptyTools } from './assessmentTools'
+import { parseReferenceRows, importReferenceCase, mergeReferences, readReferenceCase } from './referenceMeasurements'
 import type { OwnPose, OwnPoseSources } from './exifPose'
 import { parseOwnPoseSources, parseOwnSearchSummary, type OwnSearchSummary } from './photoRecords'
 import {
@@ -177,11 +179,28 @@ export async function writeProjectArchive(
     photo: null,
   }
   const attachmentPaths = new Map<Blob, string>()
+  const sameName = new Map<string, Array<{ path: string; bytes: Uint8Array }>>()
   for (const [index, file] of media.attachments.entries()) {
     const name = projectAttachmentName(file.name)
+    const known = attachmentPaths.get(file.blob)
+    if (known) {
+      manifest.attachments.push({ name, path: known })
+      continue
+    }
+    if (file.blob.size > MAX_PROJECT_FILE_BYTES) throw Error('Attachment exceeds the project size limit.')
+    const bytes = new Uint8Array(await file.blob.arrayBuffer())
+    const candidates = sameName.get(name) ?? []
+    const duplicate = candidates.find((v) => v.bytes.length === bytes.length && v.bytes.every((b, i) => b === bytes[i]))
+    if (duplicate) {
+      manifest.attachments.push({ name, path: duplicate.path })
+      attachmentPaths.set(file.blob, duplicate.path)
+      continue
+    }
     const path = `attachments/${index + 1}/${name}`
+    candidates.push({ path, bytes })
+    sameName.set(name, candidates)
     checkBytes(total + file.blob.size)
-    put(path, new Uint8Array(await file.blob.arrayBuffer()), /\.(txt|md|csv|json|geojson)$/i.test(name) ? 6 : 0)
+    put(path, bytes, /\.(txt|md|csv|json|geojson)$/i.test(name) ? 6 : 0)
     attachmentPaths.set(file.blob, path)
     manifest.attachments.push({ name, path, ...(file.recordId ? { recordId: file.recordId } : {}) })
   }
@@ -267,20 +286,6 @@ export async function openProjectArchive(file: Blob) {
       restored.set(path, url)
       return url
     })
-  const project = await readProject({
-    ...doc,
-    workspace:
-      doc.workspace && typeof doc.workspace === 'object'
-        ? JSON.stringify({
-            ...doc.workspace,
-            ...('fields' in doc.workspace ? { fields: restore(doc.workspace.fields) } : {}),
-          })
-        : null,
-    images: restore(doc.images),
-    capturedBefore: restore(doc.capturedBefore),
-    engineFigures: restore(doc.engineFigures),
-  })
-
   const blobs = new Map<string, Blob>()
   const attachment = (
     asset: { path: string; name: string; recordId?: unknown },
@@ -313,6 +318,51 @@ export async function openProjectArchive(file: Blob) {
       search: search === undefined ? null : parseOwnSearchSummary(search),
     }
   }
+  let workspace = doc.workspace && typeof doc.workspace === 'object' ? (doc.workspace as Record<string, unknown>) : null
+  const importErrors: string[] = []
+  // Older saved tables may already have reviewer choices. Enrich their missing fields and append newly supported assessments.
+  {
+    const droppedFields: string[] = []
+    let rows = parseReferenceRows(workspace?.referenceMeasurements, droppedFields)
+    if (droppedFields.length)
+      importErrors.push(
+        `reference measurement fields this version does not read (${[...new Set(droppedFields)].join(', ')})`,
+      )
+    const scene = doc.scene as { viewsOfInterest?: unknown; targets?: unknown } | null
+    const named = (v: unknown): Array<{ id: string; name: string; role?: string }> =>
+      Array.isArray(v) ? v.filter((r) => r && typeof r.id === 'string' && typeof r.name === 'string') : []
+    const context = {
+      views: [
+        ...new Map([...named(workspace?.views), ...named(scene?.viewsOfInterest)].map((v) => [v.id, v])).values(),
+      ],
+      landforms: named(scene?.targets).filter((t) => t.role === 'landscape'),
+      attachments: attachments.map((a) => a.name),
+    }
+    for (const file of attachments.filter((a) => /^case\.json$/i.test(a.name))) {
+      try {
+        rows = mergeReferences(rows, importReferenceCase(await readReferenceCase(file.blob), context))
+      } catch (error) {
+        importErrors.push(
+          `case.json reference measurements (${error instanceof Error ? error.message : 'invalid case'})`,
+        )
+      }
+    }
+    if (rows.length) workspace = { ...(workspace ?? emptyTools()), referenceMeasurements: rows }
+  }
+  const project = await readProject({
+    ...doc,
+    workspace: workspace
+      ? JSON.stringify({
+          ...workspace,
+          ...('fields' in workspace ? { fields: restore(workspace.fields) } : {}),
+        })
+      : null,
+    images: restore(doc.images),
+    capturedBefore: restore(doc.capturedBefore),
+    engineFigures: restore(doc.engineFigures),
+  })
+
+  project.summary.dropped.push(...importErrors)
   const photo = manifest.photo ? readPhoto(manifest.photo) : null
   const photos = Array.isArray(manifest.photos) ? manifest.photos.slice(0, MAX_PROJECT_PHOTOS).map(readPhoto) : []
   return {

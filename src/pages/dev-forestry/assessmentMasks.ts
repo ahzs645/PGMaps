@@ -17,6 +17,11 @@ export const MASK_LABELS = {
 /** The most masks a scene keeps (`parseMasks`). */
 export const MAX_ASSESSMENT_MASKS = 100
 
+/** A stored historical exclusion applies only to the adopted face it was traced on. */
+export function masksForLandform(masks: AssessmentMask[] | undefined, landformId: string | null | undefined) {
+  return (masks ?? []).filter((m) => !m.landformId || m.landformId === landformId)
+}
+
 export function maskAt(masks: AssessmentMask[], lng: number, lat: number) {
   const present = masks.filter((m) => pointInPolygon(m.geometry, lng, lat))
   return {
@@ -50,6 +55,8 @@ export function parseMasks(raw: unknown): AssessmentMask[] {
       name: m.name.slice(0, 200),
       kind: m.kind,
       geometry: m.geometry,
+      ...(typeof m.landformId === 'string' && m.landformId ? { landformId: m.landformId } : {}),
+      ...(m.kind === 'natural' && m.mappedRock === true ? { mappedRock: true } : {}),
       source: typeof m.source === 'string' ? m.source.slice(0, 1000) : '',
     }
   })
@@ -70,7 +77,10 @@ export function nextWildlifeTreePatchName(masks: ReadonlyArray<AssessmentMask>):
  */
 export function withDrawnMask(
   masks: ReadonlyArray<AssessmentMask>,
-  mask: Pick<AssessmentMask, 'id' | 'kind' | 'geometry'> & { name?: string; source?: string },
+  mask: Pick<AssessmentMask, 'id' | 'kind' | 'geometry' | 'landformId' | 'mappedRock'> & {
+    name?: string
+    source?: string
+  },
 ): AssessmentMask[] {
   const name = mask.name ?? (mask.kind === 'retained' ? nextWildlifeTreePatchName(masks) : MASK_LABELS[mask.kind])
   return parseMasks([...masks, { ...mask, name, source: mask.source ?? 'Drawn on the plan map' }])

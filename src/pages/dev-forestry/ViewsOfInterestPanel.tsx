@@ -29,6 +29,7 @@ import {
   blockCentre,
   isIncluded,
   LENS_FOCAL_LENGTHS,
+  MAX_VIEWS_OF_INTEREST,
   needsCapture,
   lensLabel,
   normalizeBearing,
@@ -42,6 +43,9 @@ import {
   type ViewOfInterest,
   type ViewOfInterestFacing,
 } from './viewsOfInterest'
+
+/** How many views one *Capture* takes; the last is every view the plan can hold. */
+const CAPTURE_BATCH_SIZES = [1, 3, 6, MAX_VIEWS_OF_INTEREST] as const
 
 type Block = { id: string; name: string; geometry: PolygonGeometry }
 
@@ -401,6 +405,8 @@ export function ViewsOfInterestList({
   const included = views.filter(isIncluded)
   // A view saved without its analysis sheet is taken again with the rest.
   const toCapture = included.filter((view) => needsCapture(states.get(view.id) ?? 'not-captured'))
+  const [batchSize, setBatchSize] = useState<number>(MAX_VIEWS_OF_INTEREST)
+  const batch = toCapture.slice(0, batchSize)
   const running = capture.state.status === 'running'
   const [rowTab, setRowTab] = useState<RowTab>('view')
   // The last batch's word on each view: why it was not captured, or what its save is missing (`warning`). Several
@@ -847,6 +853,22 @@ export function ViewsOfInterestList({
         )
       )}
 
+      {toCapture.length > 1 && (
+        <SelectField
+          label="Views per capture"
+          labelClassName="text-2xs text-muted-foreground"
+          className={cn(FORM_INPUT_CLASS, 'py-1 text-xs')}
+          value={String(batchSize)}
+          disabled={running}
+          onValueChange={(value) => setBatchSize(Number(value))}
+        >
+          {CAPTURE_BATCH_SIZES.map((n) => (
+            <option key={n} value={String(n)}>
+              {n === MAX_VIEWS_OF_INTEREST ? `All (${n})` : n}
+            </option>
+          ))}
+        </SelectField>
+      )}
       {views.length > 0 && (
         <div className={cn('grid gap-1.5', onOpenExport ? 'grid-cols-2' : 'grid-cols-1')}>
           <Button
@@ -854,11 +876,11 @@ export function ViewsOfInterestList({
             size="xs"
             disabled={running || placing || toCapture.length === 0}
             title="Stand at each view, run and save it, without driving the road view"
-            onClick={() => void capture.capture(toCapture.map((view) => view.id))}
+            onClick={() => void capture.capture(batch.map((view) => view.id))}
           >
             <Camera className="h-3.5 w-3.5" />
             {toCapture.length
-              ? `Capture ${toCapture.length} view${toCapture.length === 1 ? '' : 's'}`
+              ? `Capture ${batch.length} view${batch.length === 1 ? '' : 's'}${batch.length < toCapture.length ? ' of ' + toCapture.length + ' pending' : ''}`
               : included.length
                 ? 'All captured'
                 : 'None included'}
