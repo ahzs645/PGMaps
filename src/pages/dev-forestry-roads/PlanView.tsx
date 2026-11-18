@@ -12,7 +12,18 @@ import type {
   MapMouseEvent,
   MapTouchEvent,
 } from 'maplibre-gl'
-import { CircleHelp, LocateFixed, MessageSquarePlus, Mountain, Plus, Settings2, Table2, Waves, X } from 'lucide-react'
+import {
+  CircleHelp,
+  LocateFixed,
+  MessageSquarePlus,
+  Mountain,
+  Plus,
+  Radius,
+  Settings2,
+  Table2,
+  Waves,
+  X,
+} from 'lucide-react'
 import { Map, MapControls, MapLayersControl, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { IMAGERY_BASEMAPS, SatelliteImagery, useStoredImageryBasemap } from '@/components/ui/map-satellite-imagery'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
@@ -68,6 +79,7 @@ import {
   positionAt,
 } from './engine'
 import { checkPlanEdit } from './planEditCheck'
+import { bendThrough, curveGrip, curveThrough, type CurveThrough } from './bendArc'
 import {
   horizontalCurveEvents,
   labelChainages,
@@ -115,14 +127,9 @@ import { cutblockBufferSymbol } from './cutblockBufferStyle'
 import { keepAttributionFolded } from '@/components/ui/map-attribution'
 import { CULVERTS_TOGETHER_M, CulvertCard } from './CulvertCard'
 import { culvertFlowArrow } from './culvertFlowArrow'
-import {
-  PLAN_SHEET_LAYER_IDS,
-  PLAN_SHEET_ROAD_HIT_LAYER_IDS,
-  PLAN_SHEET_SYMBOLS,
-  planSheetLayers,
-  riparianSheetKey,
-  sheetProperties,
-} from './planSheetSymbols'
+import { planSheetLayerSet, riparianSheetKey, sheetProperties, type PlanSheetLayerSet } from './planSheetSymbols'
+import { roleOverrides } from './styleLibrary'
+import { readStoredStyleLibrary, STYLE_LIBRARY_CHANGED } from './StyleLibraryPanel'
 import { CLEARING_LINE_COLOR, clearingLineFeatures, preparationMarginFeatures } from './preparationFootprint'
 import { ROAD_COLOUR_OPTIONS, usePlanTools, type RoadColourMode } from './PlanTools'
 import { crossDrainMarks } from './crossDrainMarks'
@@ -204,6 +211,8 @@ interface PlanProps {
   onInsertPoint?: (afterId: string, coordinate: Coordinate) => void
   /** A bend handle was clicked or barely moved, so nothing changed. */
   onBendHint?: () => void
+  /** The selected point's curve handle was let go: the radius whose arc passes where it was dragged to. */
+  onCurveRadius?: (id: string, radiusM: number, limitedBy: CurveThrough['limitedBy']) => void
   onHover: (coordinate: Coordinate | null) => void
   onSelectPoint: (id: string) => void
   selectedPoint: string | null
@@ -272,7 +281,12 @@ export interface PlanCostColours {
   onWholeEstimate?: () => void
 }
 const ROAD_HISTORY_LAYER_IDS = Object.keys(ROAD_HISTORY_STYLES).map((key) => `road-history-${key}`)
-const PLAN_SHEET_LAYERS = planSheetLayers('road-context')
+/** What the plan's context draws with (Map settings, *Legend and map symbols*), kept in this browser. */
+type PlanSymbolStyle = 'road-plan' | 'block-sheet' | 'saved-styles'
+const planSymbolStyle = (value: string | null): PlanSymbolStyle =>
+  value === 'road-plan' || value === 'saved-styles' ? value : 'block-sheet'
+/** The sheet symbols as PGMaps defines them: what the plan draws unless saved styles are asked for. */
+const PLAN_SHEET_SET = planSheetLayerSet('road-context')
 /** The plan's own context colours, hidden while the block sheet's symbols draw the context. */
 const PLAN_CONTEXT_LINE_LAYER_IDS = ['road-context-line', ...ROAD_HISTORY_LAYER_IDS]
 const CONTEXT_FILL_OPACITY = 0.18
@@ -368,6 +382,8 @@ function Layers(
     showEarthwork: boolean
     /** Draw the context with the block sheet's symbols (`planSheetSymbols.ts`). */
     sheetSymbols: boolean
+    /** The sheet layers to draw: PGMaps' symbols, or this browser's saved styles over them. */
+    sheetLayerSet: PlanSheetLayerSet
     hiddenContextKinds: ContextFeature['kind'][]
     visibleContext: ContextFeature[]
     visibleBufferData: GeoJSON.FeatureCollection
@@ -378,6 +394,8 @@ function Layers(
     referenceSymbols: readonly SheetSymbol[]
     onPointDragStart: (id: string) => void
     onBendPreview: (afterId: string, coordinate: Coordinate | null) => void
+    /** The curve handle of point `id` is at `coordinate`; `commit` when it was let go there. */
+    onCurvePull: (id: string, coordinate: Coordinate, commit: boolean) => void
     /** The road with a point drag but without a bend preview. A handle in use has to stay mounted, so handles follow this. */
     savedAlignment: Alignment
     onPointDragEnd: (id: string, coordinate: Coordinate) => void
@@ -618,6 +636,13 @@ function Layers(
   const bendRoom = (legStart: number, length: number) =>
     length - (bendTangents.get(legStart) ?? 0) - (bendTangents.get(legStart + 1) ?? 0) >=
     MIN_BEND_ROOM_RADII * props.project.settings.minRadius
+  // Where the selected point's curve is taken hold of. It follows a point drag, like the bend
+  // handles, but not its own pull: the handle in use has to stay mounted.
+  const curveHandle = useMemo(() => {
+    if (props.mode !== 'edit' || !props.onCurveRadius || !props.selectedPoint) return null
+    const grip = curveGrip(props.savedAlignment, props.selectedPoint)
+    return grip ? { id: props.selectedPoint, ...grip } : null
+  }, [props.mode, props.onCurveRadius, props.selectedPoint, props.savedAlignment])
   const pixelMetres =
     view && analysis.stations.length ? metresPerPixel(view.zoom, analysis.stations[0].coordinate[1]) : null
   const labelInterval = pixelMetres === null ? null : stationLabelInterval(pixelMetres)
@@ -960,6 +985,8 @@ function Layers(
     [chosen, props.project.settings.crossSectionHalfWidth],
   )
   const latestSection = useRef(section)
+  // The sheet layers on the map now, so another set of symbols can take their place.
+  const drawnSheetSet = useRef<PlanSheetLayerSet | null>(null)
   useLayoutEffect(() => {
     latestSection.current = section
   }, [section])
@@ -1106,10 +1133,10 @@ function Layers(
     if (!map || !isLoaded) return
     return keepSymbolImages(
       map as unknown as SymbolImageMap,
-      Object.values(PLAN_SHEET_SYMBOLS),
+      Object.values(props.sheetLayerSet.symbols),
       window.devicePixelRatio || 1,
     )
-  }, [map, isLoaded])
+  }, [map, isLoaded, props.sheetLayerSet])
 
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -1252,7 +1279,13 @@ function Layers(
         filter: ['all', ['==', ['get', 'kind'], 'existing-road'], ['==', ['get', 'historyKey'], key]],
         paint: { 'line-color': style.color, 'line-width': 2.5, 'line-dasharray': style.dasharray },
       })
-    for (const layer of PLAN_SHEET_LAYERS) add(layer)
+    // Another set of sheet symbols replaces the layers: the same ids can carry a different paint.
+    const sheetSet = props.sheetLayerSet
+    if (drawnSheetSet.current !== sheetSet) {
+      for (const id of drawnSheetSet.current?.ids ?? []) if (map.getLayer(id)) map.removeLayer(id)
+      drawnSheetSet.current = sheetSet
+    }
+    for (const layer of sheetSet.layers) add(layer)
     add({
       id: 'road-corridor',
       type: 'fill',
@@ -1727,8 +1760,7 @@ function Layers(
     map.setPaintProperty('road-contours', 'line-opacity', contourPaint.opacity)
     // Sheet symbols replace the plan's context colours. The context fill stays, transparent, so a
     // click on a harvest area still finds it.
-    for (const id of PLAN_SHEET_LAYER_IDS)
-      map.setLayoutProperty(id, 'visibility', props.sheetSymbols ? 'visible' : 'none')
+    for (const id of sheetSet.ids) map.setLayoutProperty(id, 'visibility', props.sheetSymbols ? 'visible' : 'none')
     for (const id of PLAN_CONTEXT_LINE_LAYER_IDS)
       map.setLayoutProperty(id, 'visibility', props.sheetSymbols ? 'none' : 'visible')
     map.setPaintProperty('road-context-fill', 'fill-opacity', props.sheetSymbols ? 0 : CONTEXT_FILL_OPACITY)
@@ -1751,7 +1783,7 @@ function Layers(
       'road-context-fill',
       'road-context-line',
       ...ROAD_HISTORY_LAYER_IDS,
-      ...PLAN_SHEET_LAYER_IDS,
+      ...sheetSet.ids,
       // Ground drainage is evidence under the roads, so pegging over it keeps the road on top.
       'road-ground-drainage-watershed-fill',
       'road-ground-drainage-watershed-line',
@@ -1827,6 +1859,7 @@ function Layers(
     props.groundDrainage,
     props.swept,
     props.sheetSymbols,
+    props.sheetLayerSet,
   ])
 
   // The selected station changes on every frame of a scrub. Each setData is a trip through
@@ -1981,7 +2014,7 @@ function Layers(
         if (onContextSelect) {
           const contextHit = map
             .queryRenderedFeatures(e.point, {
-              layers: [...ROAD_HISTORY_LAYER_IDS, ...PLAN_SHEET_ROAD_HIT_LAYER_IDS, 'road-context-fill'],
+              layers: [...ROAD_HISTORY_LAYER_IDS, ...props.sheetLayerSet.roadHitIds, 'road-context-fill'],
             })
             .find((feature) => ['existing-road', 'harvest'].includes(String(feature.properties?.kind)))
           const feature = props.project.context.find((candidate) => candidate.id === contextHit?.properties?.id)
@@ -2107,6 +2140,7 @@ function Layers(
     noteTool,
     planToolActive,
     props.stationHover,
+    props.sheetLayerSet.roadHitIds,
   ])
 
   return (
@@ -2343,6 +2377,35 @@ function Layers(
             </MapMarker>
           )
         })}
+      {curveHandle &&
+        (() => {
+          // Drawn a little inside the curve, so it never sits under the point's own handle.
+          const turned = ((curveHandle.inwardBearing - (view?.bearing ?? 0)) * Math.PI) / 180
+          const { id, coordinate } = curveHandle
+          return (
+            <MapMarker
+              className="z-10"
+              key={`curve-${id}`}
+              longitude={coordinate[0]}
+              latitude={coordinate[1]}
+              offset={[Math.sin(turned) * CURVE_HANDLE_OFFSET_PX, -Math.cos(turned) * CURVE_HANDLE_OFFSET_PX]}
+              draggable
+              onDrag={({ lng, lat }) => props.onCurvePull(id, [lng, lat], false)}
+              onDragEnd={({ lng, lat }) => props.onCurvePull(id, [lng, lat], true)}
+            >
+              <MarkerContent>
+                <span
+                  data-testid="road-curve-handle"
+                  data-radius={curveHandle.radiusM}
+                  title="Drag toward the inside of the curve to widen it, toward the point to tighten it"
+                  className="flex size-5 cursor-grab touch-none items-center justify-center rounded-full border border-violet-700 bg-violet-50 text-violet-800 shadow-sm active:cursor-grabbing [&_svg]:size-3"
+                >
+                  <Radius aria-hidden="true" />
+                </span>
+              </MarkerContent>
+            </MapMarker>
+          )
+        })()}
       {chosen && (
         <MapMarker className="pointer-events-none" longitude={chosen.coordinate[0]} latitude={chosen.coordinate[1]}>
           <MarkerContent>
@@ -2493,6 +2556,7 @@ function Layers(
             terrainOnly: !!props.terrainOnly,
             showEarthwork: props.showEarthwork,
             sheetSymbols: props.sheetSymbols,
+            sheetSymbolSet: props.sheetLayerSet,
             selection:
               !!props.selectedRange &&
               !!placeOn(props.alignment, props.selectedRange.start) &&
@@ -2509,6 +2573,7 @@ function Layers(
               !props.hiddenContextKinds.includes('stream') &&
               analysis.crossings.some((crossing) => crossing.kind === 'stream'),
             curveLabels: props.showLabels && radiusLabels.length > 0,
+            curveHandle: !!curveHandle,
             cableCursor: !!cableCursor,
             cableSupports: !!activeCable,
             roadsHeading: costHeading,
@@ -2582,6 +2647,8 @@ const REFUSED_EDIT_COLOR = '#e11d48'
 const MIN_HANDLE_SPACING_PX = 34
 /** A handle moved less than this was a slip, so no point is added. */
 const MIN_BEND_DRAG_PX = 10
+/** How far inside its arc the selected point's curve handle is drawn, clear of the point's own handle. */
+const CURVE_HANDLE_OFFSET_PX = 26
 
 /** A shared empty list, so a project without notes does not re-send the notes source every render. */
 const NO_NOTES: MapNote[] = []
@@ -2615,6 +2682,7 @@ export function PlanView(input: PlanProps) {
     : input
   const [drag, setDrag] = useState<{ original: Alignment; id: string; coordinate: Coordinate } | null>(null)
   const [bend, setBend] = useState<{ original: Alignment; afterId: string; coordinate: Coordinate } | null>(null)
+  const [pull, setPull] = useState<{ original: Alignment; id: string; radiusM: number; at: Coordinate } | null>(null)
   const newPointRadius = props.project.settings.minRadius
   const previewAlignment = useMemo(() => {
     if (props.mode !== 'edit') return null
@@ -2625,17 +2693,25 @@ export function PlanView(input: PlanProps) {
           point.id === drag.id ? { ...point, coordinate: drag.coordinate } : point,
         ),
       }
-    if (bend && bend.original === props.alignment)
+    if (bend && bend.original === props.alignment) {
+      // The road is drawn through the handle: the new point goes beyond it, with the curve that fits.
+      const { coordinate, radiusM } = bendThrough(props.alignment, bend.afterId, bend.coordinate, newPointRadius)
       return {
         ...props.alignment,
         points: props.alignment.points.flatMap((point) =>
-          point.id === bend.afterId
-            ? [point, { id: 'bend-preview', coordinate: bend.coordinate, radiusM: newPointRadius }]
-            : [point],
+          point.id === bend.afterId ? [point, { id: 'bend-preview', coordinate, radiusM }] : [point],
+        ),
+      }
+    }
+    if (pull && pull.original === props.alignment)
+      return {
+        ...props.alignment,
+        points: props.alignment.points.map((point) =>
+          point.id === pull.id ? { ...point, radiusM: pull.radiusM } : point,
         ),
       }
     return null
-  }, [drag, bend, props.alignment, props.mode, newPointRadius])
+  }, [drag, bend, pull, props.alignment, props.mode, newPointRadius])
   // The edit the drag would make is checked as it moves, so a refusal shows before the drop.
   const previewRefusal = useMemo(
     () =>
@@ -2644,7 +2720,7 @@ export function PlanView(input: PlanProps) {
         : null,
     [previewAlignment, props.alignment, newPointRadius, props.project.context],
   )
-  const dragAt = drag?.coordinate ?? bend?.coordinate
+  const dragAt = drag?.coordinate ?? bend?.coordinate ?? pull?.at
   // Bend handles follow a point drag, which keeps every point id and so every handle's key, but
   // never a bend preview: its extra point re-keys the handle in use, and remounting it loses the drop.
   const handleAlignment = (drag && previewAlignment) || props.alignment
@@ -2673,16 +2749,33 @@ export function PlanView(input: PlanProps) {
     props.display
   // Block-sheet symbols by default, as printed block-map sheets draw them; a saved choice of
   // the standard road plan stays this browser's choice.
-  const [symbolStyle, setSymbolStyle] = useState<'road-plan' | 'block-sheet'>(() => {
+  const [symbolStyle, setSymbolStyle] = useState<PlanSymbolStyle>(() => {
     try {
-      return localStorage.getItem('pgmaps-road-symbol-style') === 'road-plan' ? 'road-plan' : 'block-sheet'
+      return planSymbolStyle(localStorage.getItem('pgmaps-road-symbol-style'))
     } catch {
       return 'block-sheet'
     }
   })
-  const sheetSymbols = symbolStyle === 'block-sheet'
+  const sheetSymbols = symbolStyle !== 'road-plan'
+  // Saved styles: the block sheet's symbols with this browser's style library over the features it
+  // names, read again whenever the library is edited (Save & export, Styles).
+  const [styleLibraryRevision, setStyleLibraryRevision] = useState(0)
+  useEffect(() => {
+    const changed = () => setStyleLibraryRevision((n) => n + 1)
+    window.addEventListener(STYLE_LIBRARY_CHANGED, changed)
+    return () => window.removeEventListener(STYLE_LIBRARY_CHANGED, changed)
+  }, [])
+  const sheetLayerSet = useMemo(
+    () =>
+      symbolStyle === 'saved-styles'
+        ? planSheetLayerSet('road-context', roleOverrides(readStoredStyleLibrary()))
+        : PLAN_SHEET_SET,
+    // The revision is the library's: the memo reads storage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [symbolStyle, styleLibraryRevision],
+  )
   const chooseSymbolStyle = (value: string) => {
-    const style = value === 'block-sheet' ? 'block-sheet' : 'road-plan'
+    const style = planSymbolStyle(value)
     setSymbolStyle(style)
     try {
       localStorage.setItem('pgmaps-road-symbol-style', style)
@@ -3056,6 +3149,13 @@ export function PlanView(input: PlanProps) {
             onBendPreview={(afterId, coordinate) =>
               setBend(coordinate ? { original: props.alignment, afterId, coordinate } : null)
             }
+            onCurvePull={(id, coordinate, commit) => {
+              const through = curveThrough(props.alignment, id, coordinate, newPointRadius)
+              if (!commit)
+                return setPull(through && { original: props.alignment, id, radiusM: through.radiusM, at: coordinate })
+              setPull(null)
+              if (through) props.onCurveRadius?.(id, through.radiusM, through.limitedBy)
+            }}
             onMovePoint={(id, coordinate) => setDrag({ original: props.alignment, id, coordinate })}
             onPointDragEnd={(id, coordinate) => {
               setDrag(null)
@@ -3068,6 +3168,7 @@ export function PlanView(input: PlanProps) {
             showLabels={showLabels}
             showEarthwork={showEarthwork}
             sheetSymbols={sheetSymbols}
+            sheetLayerSet={sheetLayerSet}
             hiddenContextKinds={hiddenContextKinds}
             visibleContext={visibleContext}
             visibleBufferData={bufferData.data}
@@ -3317,9 +3418,12 @@ export function PlanView(input: PlanProps) {
                 >
                   <option value="road-plan">Standard road plan</option>
                   <option value="block-sheet">Block sheet forestry</option>
+                  <option value="saved-styles">Block sheet, my saved styles</option>
                 </StyledSelect>
                 <span className="text-2xs text-muted-foreground">
-                  The map and legend use the same symbols. Choice saved in this browser.
+                  {symbolStyle === 'saved-styles'
+                    ? 'Block sheet symbols, with the styles saved in this browser for the features they are chosen for (Save & export, a GIS output or the block sheet, Styles). The Map PDF prints the plan as shown.'
+                    : 'The map and legend use the same symbols, and the Map PDF prints them. Choice saved in this browser.'}
                 </span>
               </label>
               <fieldset className="mt-2 grid gap-2 border-t pt-2" data-testid="road-plan-layout">

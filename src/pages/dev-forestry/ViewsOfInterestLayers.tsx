@@ -3,13 +3,13 @@ import { useMemo, useState } from 'react'
 import { MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { MapTurnHandle } from '@/components/ui/map-turn-handle'
 import { cn } from '@/lib/utils'
 
 import type { PlanShow } from './planLayers'
 import { VIEW_OF_INTEREST_COLORS } from './planMapStyle'
 import type { PolygonGeometry } from './visibility'
 import type { ViewOfInterest } from './viewsOfInterest'
-import { bearingBetween, pointAlongBearing } from './driveMath'
 import {
   chosenArrowCollection,
   groupMarks,
@@ -22,7 +22,8 @@ import {
  * The plan map's views of interest: each view's lens cone along its facing and a numbered point, the open one drawn
  * heavier; and the inventory arrows the views face along (and those the finder's open row would add, fainter). The
  * cones and arrows take no clicks. A point opens its row in step 2 (`onSelect`) and a card to stand there
- * (`onStand`), as an inventory viewpoint's does; a view placed on the map can be dragged (`onMove`). The page passes
+ * (`onStand`), as an inventory viewpoint's does; a view placed on the map can be dragged (`onMove`). The open
+ * view's handle rides its cone's arc and the cone turns with it as it is dragged (`MapTurnHandle`). The page passes
  * no `onSelect` or `onMove` while the road view is open, when a plan click moves the road view, and none of the three
  * while something else is being drawn or picked.
  */
@@ -61,28 +62,39 @@ export function ViewsOfInterestLayers({
    */
   standingViewId?: string | null
 }) {
+  // The bearing the open view's handle is being turned to. The cone follows it here, on the plan
+  // alone; the view itself turns once, when the handle is let go (`onTurn`).
+  const [turn, setTurn] = useState<{ id: string; bearing: number } | null>(null)
+  const drawnViews = useMemo(
+    () =>
+      turn
+        ? views.map((view) =>
+            view.id === turn.id ? { ...view, facing: { kind: 'bearing' as const, degrees: turn.bearing } } : view,
+          )
+        : views,
+    [views, turn],
+  )
   const shownViews = useMemo(
     () => (standingViewId ? views.filter((view) => view.id !== standingViewId) : views),
     [views, standingViewId],
   )
   // Numbers stay the list's: a view left out here keeps the others' numbers.
   const plan = useMemo(() => {
-    const full = viewsOfInterestPlan(views, blocks, openViewId)
+    const full = viewsOfInterestPlan(drawnViews, blocks, openViewId)
     if (!standingViewId) return full
     return {
       marks: full.marks.filter((mark) => mark.id !== standingViewId),
       cones: { ...full.cones, features: full.cones.features.filter((feature) => feature.id !== standingViewId) },
     }
-  }, [views, blocks, openViewId, standingViewId])
-  // The open view's turn handle, at its cone's tip.
+  }, [drawnViews, blocks, openViewId, standingViewId])
+  // The open view's turn handle, on the middle of its cone's arc.
   const turning = useMemo(() => {
     if (!onTurn || !openViewId) return null
     const view = shownViews.find((entry) => entry.id === openViewId)
     const mark = plan.marks.find((entry) => entry.id === openViewId)
     if (!view || !mark || mark.bearing === null) return null
     const block = blocks.find((entry) => entry.id === view.blockId) ?? null
-    const tip = pointAlongBearing(view, mark.bearing, viewConeLengthMeters(view, block))
-    return { view, tip }
+    return { view, bearing: mark.bearing, lengthMeters: viewConeLengthMeters(view, block) }
   }, [onTurn, openViewId, shownViews, plan.marks, blocks])
   const chosenArrows = useMemo(
     () => chosenArrowCollection(arrows, views, previewArrowIds, openViewId),
@@ -130,26 +142,26 @@ export function ViewsOfInterestLayers({
         sourceKey="forestry-views-of-interest-cones"
       />
       {viewsShown && turning && onTurn && (
-        <MapMarker
+        <MapTurnHandle
           key={`turn-${turning.view.id}`}
-          longitude={turning.tip.lng}
-          latitude={turning.tip.lat}
-          draggable
+          origin={turning.view}
+          bearing={turning.bearing}
+          lengthMeters={turning.lengthMeters}
           // Turning the view is the job now: its click card would only sit over the cone being turned.
-          onDragStart={() => setCardId(null)}
-          onDragEnd={(point) => onTurn(turning.view.id, bearingBetween(turning.view, point))}
+          onTurnStart={() => setCardId(null)}
+          onTurning={(bearing) => setTurn(bearing === null ? null : { id: turning.view.id, bearing })}
+          onTurn={(bearing) => onTurn(turning.view.id, bearing)}
         >
-          <MarkerContent>
-            <span
-              role="img"
-              aria-label={`${turning.view.name}: drag to turn`}
-              title="Drag to turn this view"
-              data-testid="view-of-interest-turn"
-              className="fixed-palette block h-3.5 w-3.5 cursor-grab rounded-full border-2 bg-white shadow active:cursor-grabbing"
-              style={{ borderColor: VIEW_OF_INTEREST_COLORS.view }}
-            />
-          </MarkerContent>
-        </MapMarker>
+          <span
+            role="img"
+            aria-label={`${turning.view.name}: drag to turn`}
+            title="Drag to turn this view"
+            data-testid="view-of-interest-turn"
+            data-bearing={Math.round(turning.bearing)}
+            className="fixed-palette block h-3.5 w-3.5 cursor-grab rounded-full border-2 bg-white shadow active:cursor-grabbing"
+            style={{ borderColor: VIEW_OF_INTEREST_COLORS.view }}
+          />
+        </MapTurnHandle>
       )}
       {viewsShown &&
         markers.map((marker) => {

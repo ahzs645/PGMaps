@@ -215,7 +215,8 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     group: 'documents',
     label: 'Map PDF',
     extension: '.pdf',
-    description: 'The plan map as it is shown now, on an A4 page with the terrain source and datum.',
+    description:
+      'The plan map as it is shown now, on an A4 page with the terrain source and datum. Its symbols are the plan’s: choose them under Map settings → Legend and map symbols.',
   },
   {
     kind: 'block-sheet-pdf',
@@ -223,7 +224,7 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     label: 'Block map sheet',
     extension: '.pdf',
     description:
-      'A printed block map with information, legend and roads. Choose field, LiDAR, access, imagery or Ministry-style operating plan layouts.',
+      'A printed block map with information, legend and roads. Choose field, LiDAR, access, imagery or Ministry-style operating plan layouts, and a map style: PGMaps’ sheet symbols or your saved styles.',
   },
   {
     kind: 'dline-sheet-pdf',

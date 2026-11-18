@@ -24,7 +24,7 @@ describe('the camera information block', () => {
       elevationM: 702.4,
       azimuthDeg: -248.6,
       maxTreeHeightM: null,
-      renderedOn: new Date('2026-11-12T10:00:00Z'),
+      renderedOn: '2026-11-12T10:00:00Z',
     })
     expect(lines).toHaveLength(6)
     expect(lines[0]).toBe('Composite of 2 simulated 50 mm camera images: FOV 79.2 degrees')

@@ -25,6 +25,8 @@ import {
 } from './styleLibrary'
 
 export const STYLE_LIBRARY_STORAGE_KEY = 'pgmaps.forestryRoads.styleLibrary'
+/** Sent on `window` after the library is stored, so the plan can redraw with it. */
+export const STYLE_LIBRARY_CHANGED = 'pgmaps:road-style-library-changed'
 
 type LibraryStorage = Pick<Storage, 'getItem' | 'setItem'>
 const browserStorage = (): LibraryStorage | null => {
@@ -126,6 +128,7 @@ export function StyleLibraryPanel({
     }
     setLibrary(next)
     onChange?.()
+    window.dispatchEvent(new Event(STYLE_LIBRARY_CHANGED))
     return true
   }
   const attempt = (action: () => void) => {
@@ -210,8 +213,10 @@ export function StyleLibraryPanel({
         <InfoTip label="About map styles">
           Styles read from QGIS (.qml, .qgz, style library .xml), ArcGIS Pro (.lyrx, .mapx, .stylx), SLD, MapLibre or
           GeoLibre files, kept in this browser. Choose one for a feature and the styled GIS exports draw that feature
-          with it instead of PGMaps&apos; own symbol; the plan, its legend and the block sheets keep PGMaps&apos;
-          symbols. Symbols drawn from a font or a picture are not read: choose a PGMaps icon instead.
+          with it instead of PGMaps&apos; own symbol. The block map sheet draws it too when its Map style is My saved
+          styles, and the plan, its legend and the Map PDF when Map settings → Legend and map symbols is Block sheet, my
+          saved styles; otherwise they keep PGMaps&apos; symbols. Symbols drawn from a font or a picture are not read:
+          choose a PGMaps icon instead.
         </InfoTip>
       </div>
 

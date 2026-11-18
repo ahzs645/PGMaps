@@ -98,3 +98,27 @@ export async function fetchPrivateParcels(
   if ((payload as { exceptions?: unknown })?.exceptions) throw new Error('ParcelMap BC refused that query.')
   return parsePrivateParcels(payload)
 }
+
+/**
+ * The parcels not yet added, as the plan draws them: each one's `id`, its mask `name`, its area in hectares and
+ * `selected` (1 when the reviewer has ticked it to add). Display only: the plan's click ticks a parcel, and only
+ * the panel's Add makes it a mask.
+ */
+export function privateParcelCandidateCollection(
+  parcels: ReadonlyArray<PrivateParcel>,
+  selected: ReadonlySet<string>,
+): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: parcels.map((parcel) => ({
+      type: 'Feature',
+      geometry: parcel.geometry,
+      properties: {
+        id: parcel.id,
+        name: parcelMaskFields(parcel).name,
+        areaHa: parcel.areaMeters / 10_000,
+        selected: selected.has(parcel.id) ? 1 : 0,
+      },
+    })),
+  }
+}

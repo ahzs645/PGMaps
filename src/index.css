@@ -538,6 +538,15 @@ a,
 
 /* MapPopup's arrow (.mapcn-popup / .mapcn-tooltip) is styled by @pgmaps/geo-toolkit/styles.css. */
 
+/* A handle is being dragged round on this map (`MapTurnHandle`): the layers' hover cards stand aside,
+   and the cursor stays the hand's although the pointer has left the handle. */
+.map-handle-dragging .mapcn-tooltip {
+  display: none;
+}
+.map-handle-dragging .maplibregl-canvas {
+  cursor: grabbing !important;
+}
+
 /* Hover popup styling - more subtle and lightweight */
 .hover-popup .maplibregl-popup-content {
   padding: 0;

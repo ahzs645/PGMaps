@@ -20,8 +20,11 @@ export const MAX_SHEET_SETUP_NAME = 80
 /** Largest file read as a setup: the project-file limit, since a project file's plot-book settings can be read. */
 export const MAX_SHEET_SETUP_FILE_BYTES = 120_000_000
 
-/** The block sheet's settings a setup keeps: everything except the block and its comments. */
-export type BlockSheetSetup = Omit<BlockSheetSettings, 'block' | 'comments'>
+/**
+ * The block sheet's settings a setup keeps: everything except the block and its comments, which are
+ * the project's, and the symbol choice, which names this browser's style library.
+ */
+export type BlockSheetSetup = Omit<BlockSheetSettings, 'block' | 'comments' | 'symbols'>
 
 export interface SheetSetup {
   schema: typeof SHEET_SETUP_SCHEMA
@@ -164,7 +167,7 @@ export function sheetSetupFromFile(text: string, today = new Date()): SheetSetup
 
 /**
  * The settings after applying `setup`. Each part it holds replaces that part; the block sheet keeps
- * its block and comments, which belong to the project.
+ * its block and comments, which belong to the project, and its symbol choice.
  */
 export function applySheetSetup(
   setup: SheetSetup,
@@ -178,6 +181,7 @@ export function applySheetSetup(
             ...setup.blockSheet,
             block: current.blockSheet.block,
             comments: current.blockSheet.comments,
+            symbols: current.blockSheet.symbols,
           }),
         }
       : {}),

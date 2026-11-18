@@ -328,6 +328,7 @@ import type { PourPoint } from './dev-forestry-roads/drainageCatchments'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
 import { analyzeCable, createRoadStationSampler, distance, offsetCoordinate } from './dev-forestry-roads/engine'
 import { checkPlanEdit } from './dev-forestry-roads/planEditCheck'
+import { bendThrough } from './dev-forestry-roads/bendArc'
 import { roadStationAt, typedStationNote } from './dev-forestry-roads/stationAt'
 import {
   hasStationing,
@@ -563,7 +564,7 @@ export default function DevForestryRoads({
   const detailChart = useRef<ChartHeaderHandle | null>(null)
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
   const investigation = isAccessInvestigation(project)
-  const blockSheet = useBlockSheet(project, source)
+  const blockSheet = useBlockSheet(project, source, () => setStyleLibraryRevision((n) => n + 1))
   const { ref, fullscreen, toggle } = useElementFullscreen<HTMLDivElement>()
   const compact = useMediaQuery('(max-width: 767px), (max-height: 760px)')
   const dockLayers = useMediaQuery('(min-width: 900px)')
@@ -1732,6 +1733,29 @@ export default function DevForestryRoads({
       updateAlignment(moved)
       const kept = profileKeptNotice(alignment.vertical.length)
       if (kept) setNotice(kept)
+    },
+    [updateAlignment, busy, alignment, refusedPlanEdit, setNotice],
+  )
+  /** The plan's curve handle was let go: one point's radius, checked as a plan edit because it moves the road. */
+  const setCurveRadius = useCallback(
+    (id: string, radiusM: number, limitedBy: 'min' | 'max' | null) => {
+      if (busy) return
+      const index = alignment.points.findIndex((p) => p.id === id)
+      if (index < 0 || alignment.points[index].radiusM === radiusM) return
+      const curved = (a: Alignment) => ({
+        ...a,
+        points: a.points.map((p) => (p.id === id ? { ...p, radiusM } : p)),
+      })
+      if (refusedPlanEdit(curved(alignment))) return
+      updateAlignment(curved)
+      const edit = `Point ${index + 1}'s curve set to ${radiusM.toFixed(1)} m${
+        limitedBy === 'max'
+          ? ', the largest its legs carry as the neighbouring curves stand'
+          : limitedBy === 'min'
+            ? ', the minimum radius'
+            : ''
+      }`
+      setNotice(profileKeptNotice(alignment.vertical.length, edit) ?? `${edit}.`)
     },
     [updateAlignment, busy, alignment, refusedPlanEdit, setNotice],
   )
@@ -4006,6 +4030,8 @@ export default function DevForestryRoads({
       logo: blockSheet.logo,
       stamp: invalid ? `NOT CURRENT: ${invalidInputNotice(invalid)}` : undefined,
       caveat: PLANNING_CAVEAT,
+      // Read when the sheet is built, so a style chosen a moment ago is the one printed.
+      librarySymbols: blockSheet.settings.symbols === 'library' ? roleOverrides(readStoredStyleLibrary()) : undefined,
     }
   }
   /** What the package's summary page is drawn from: each road's analysis and readiness rows. */
@@ -6868,7 +6894,10 @@ export default function DevForestryRoads({
                                     if (busy || costPreview || alignment.points.length >= 2000) return
                                     const index = alignment.points.findIndex((point) => point.id === afterId)
                                     if (index < 0 || index === alignment.points.length - 1) return
-                                    const point = { id: uid(), coordinate, radiusM: project.settings.minRadius }
+                                    // The same reading the drag preview drew: the road passes
+                                    // through the place the handle was let go at.
+                                    const made = bendThrough(alignment, afterId, coordinate, project.settings.minRadius)
+                                    const point = { id: uid(), coordinate: made.coordinate, radiusM: made.radiusM }
                                     const bent = (road: Alignment) => ({
                                       ...road,
                                       points: [
@@ -6881,9 +6910,14 @@ export default function DevForestryRoads({
                                     updateAlignment(bent)
                                     setSelectedPoint(point.id)
                                     setMode('edit')
-                                    w.setNotice('Bend added. Drag its number to adjust it, or Undo to remove it.')
+                                    w.setNotice(
+                                      made.through
+                                        ? `Bend added with a ${made.radiusM.toFixed(1)} m curve. Drag its number to move it, or Undo to remove it.`
+                                        : 'Bend added. Drag its number to adjust it, or Undo to remove it.',
+                                    )
                                   }}
                                   onBendHint={() => w.setNotice('Drag the + off the road to bend it there.')}
+                                  onCurveRadius={busy || costPreview ? undefined : setCurveRadius}
                                   onPeg={pegOnPlan}
                                   onTypeStation={terrainProfile ? undefined : selectTypedStation}
                                   onHover={setHover}

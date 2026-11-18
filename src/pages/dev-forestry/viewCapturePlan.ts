@@ -15,10 +15,16 @@ import {
   type FramingPlan,
 } from './figureFraming'
 import { verticalFovFromHorizontal } from './exifPose'
-import { groupByPlace, lensHfovDeg, normalizeBearing, type ViewOfInterest } from './viewsOfInterest'
+import {
+  MAX_VIEWS_OF_INTEREST,
+  groupByPlace,
+  lensHfovDeg,
+  normalizeBearing,
+  type ViewOfInterest,
+} from './viewsOfInterest'
 
-/** The saved-view limit at one place (`saveView`): the road view keeps twelve comparisons. */
-export const MAX_SAVED_VIEWS = 12
+/** Every view in a study can have a saved capture, including views sharing one place. */
+export const MAX_SAVED_VIEWS = MAX_VIEWS_OF_INTEREST
 
 /** Longest each step of a capture waits before the view is reported as not captured. */
 export const CAPTURE_TIMEOUTS = {

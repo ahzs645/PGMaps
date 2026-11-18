@@ -78,21 +78,53 @@ export function sheetProperties(feature: ContextFeature) {
   }
 }
 
+/** Symbols a person chose for some of the plan's sheet keys (`roleOverrides`, `styleLibrary.ts`). */
+export type PlanSheetOverrides = Partial<Record<PlanSheetKey, SheetSymbol>>
+
+/**
+ * The sheet symbols with a person's own in place of those they chose; one of the wrong kind for its
+ * feature is left out. `wholeDeactivated`: a chosen `deactivated` style is the whole deactivated road,
+ * as the styled GIS exports and the block sheet draw it, so that road draws with it alone rather than
+ * with crosses over its own symbol.
+ */
+export function planSheetSymbolSet(own: PlanSheetOverrides = {}): {
+  symbols: Record<PlanSheetKey, SheetSymbol>
+  wholeDeactivated: boolean
+} {
+  const symbols = { ...PLAN_SHEET_SYMBOLS }
+  for (const key of PLAN_SHEET_KEYS) {
+    const chosen = own[key]
+    if (chosen && chosen.kind === PLAN_SHEET_SYMBOLS[key].kind) symbols[key] = chosen
+  }
+  return { symbols, wholeDeactivated: symbols.deactivated !== PLAN_SHEET_SYMBOLS.deactivated }
+}
+
 const POLYGON: ExpressionSpecification = ['==', ['geometry-type'], 'Polygon']
 const LINE: ExpressionSpecification = ['==', ['geometry-type'], 'LineString']
 
 /**
  * MapLibre layers drawing `source`'s features with the sheet symbols, bottom first. Paints, dashes,
- * pattern tiles and marker icons all come from `PLAN_SHEET_SYMBOLS` through `mapSymbols.ts`; the
- * images are added with `keepSymbolImages`.
+ * pattern tiles and marker icons all come from the symbols (`PLAN_SHEET_SYMBOLS` unless a set from
+ * `planSheetSymbolSet` is given) through `mapSymbols.ts`; the images are added with `keepSymbolImages`.
  */
-export function planSheetLayers(source: string): LayerSpecification[] {
+export function planSheetLayers(
+  source: string,
+  symbols: Record<PlanSheetKey, SheetSymbol> = PLAN_SHEET_SYMBOLS,
+  wholeDeactivated = false,
+): LayerSpecification[] {
   const layers: LayerSpecification[] = []
+  const DEACTIVATED: ExpressionSpecification = ['==', ['get', 'sheetDeactivated'], true]
   for (const key of PLAN_SHEET_KEYS) {
-    const symbol = PLAN_SHEET_SYMBOLS[key]
+    const symbol = symbols[key]
     const id = `road-sheet-${key}`
+    const ofKey: ExpressionSpecification = ['==', ['get', 'sheetKey'], key]
     const match: ExpressionSpecification =
-      key === 'deactivated' ? ['==', ['get', 'sheetDeactivated'], true] : ['==', ['get', 'sheetKey'], key]
+      key === 'deactivated'
+        ? DEACTIVATED
+        : // A deactivated road with a style of its own is drawn by that style's layers alone.
+          wholeDeactivated && (key === 'fsr' || key === 'existingRoad')
+          ? ['all', ofKey, ['!', DEACTIVATED]]
+          : ofKey
     if (symbol.kind === 'area') {
       const paint = areaSymbolPaint(symbol)
       const filter: FilterSpecification = ['all', POLYGON, match]
@@ -119,3 +151,22 @@ export function planSheetLayers(source: string): LayerSpecification[] {
 export const PLAN_SHEET_LAYER_IDS = planSheetLayers('road-context').map((layer) => layer.id)
 /** Layers a click on a mapped road can hit while the sheet symbols are on: each road's base stroke. */
 export const PLAN_SHEET_ROAD_HIT_LAYER_IDS = ['road-sheet-fsr-0', 'road-sheet-existingRoad-0']
+
+/** The plan's sheet layers for one set of symbols: what the plan adds, orders, hides and queries. */
+export interface PlanSheetLayerSet {
+  symbols: Record<PlanSheetKey, SheetSymbol>
+  wholeDeactivated: boolean
+  layers: LayerSpecification[]
+  ids: string[]
+  /** The layers a click on a mapped road can hit: each road's base stroke that this set draws. */
+  roadHitIds: string[]
+}
+
+/** The sheet layers of `source` with a person's chosen symbols; without any, the sheet's own. */
+export function planSheetLayerSet(source: string, own: PlanSheetOverrides = {}): PlanSheetLayerSet {
+  const { symbols, wholeDeactivated } = planSheetSymbolSet(own)
+  const layers = planSheetLayers(source, symbols, wholeDeactivated)
+  const ids = layers.map((layer) => layer.id)
+  const hit = [...PLAN_SHEET_ROAD_HIT_LAYER_IDS, ...(wholeDeactivated ? ['road-sheet-deactivated-0'] : [])]
+  return { symbols, wholeDeactivated, layers, ids, roadHitIds: hit.filter((id) => ids.includes(id)) }
+}

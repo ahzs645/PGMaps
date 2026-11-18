@@ -29,7 +29,7 @@ export type CameraInfo = {
   azimuthDeg: number
   /** Tallest tree the figure draws, metres; null when trees are not modelled. */
   maxTreeHeightM: number | null
-  renderedOn: Date
+  renderedOn: Date | string
 }
 
 /** WGS84 / UTM position: zone, easting, northing. */
@@ -48,7 +48,12 @@ const whole = (value: number) => Math.round(value).toLocaleString('en-CA')
 /** The lines of the camera information block, in print order. */
 export function cameraInfoLines(info: CameraInfo): string[] {
   const utm = utmPosition(info.lng, info.lat)
-  const date = info.renderedOn.toISOString().slice(0, 10)
+  // Early project ZIPs serialized the date as an empty object.
+  const renderedOn = typeof info.renderedOn === 'string' ? new Date(info.renderedOn) : info.renderedOn
+  const date =
+    renderedOn instanceof Date && Number.isFinite(renderedOn.getTime())
+      ? renderedOn.toISOString().slice(0, 10)
+      : 'unavailable'
   return [
     `Composite of ${info.frames} simulated ${Math.round(info.focalMm)} mm camera image${info.frames === 1 ? '' : 's'}: FOV ${info.fovDeg.toFixed(1)} degrees`,
     `Observer height: ${info.observerHeightM.toFixed(1)} metres above ${info.above}`,

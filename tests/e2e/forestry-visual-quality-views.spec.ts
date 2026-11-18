@@ -711,3 +711,82 @@ test('drafts the VIA report without capturing, draws its pictures one group at a
     expect(html).toMatch(/<img src="data:image\/(png|jpeg)/)
   })
 })
+
+test("a view's turn handle rides its cone's arc, and the cone turns with it before it is let go", async ({ page }) => {
+  test.setTimeout(5 * 60_000)
+  await page.goto(PAGE_PATH)
+  await expect(page.getByRole('heading', { name: 'Visual quality' })).toBeVisible()
+  await unfold(page, 'visit', 'views-of-interest')
+  await page.getByRole('button', { name: 'Add a view of interest', exact: true }).click()
+  await clickPlanAt(page, MAP_VIEW)
+  await openViewRow(page, 'Viewpoint 1, toward Block A — west face')
+  await expect.poll(async () => (await viewCones(page))?.cones.length, { timeout: 30_000 }).toBe(1)
+
+  /** The cone as drawn: where it stands, on the page, and the compass bearing down its middle. */
+  const cone = async () => {
+    const [apex, ...rest] = (await viewCones(page))!.cones[0].ring
+    const arc = rest.slice(0, -1)
+    const eye = { lng: apex[0], lat: apex[1] }
+    const middle = {
+      lng: arc.reduce((sum, point) => sum + point[0], 0) / arc.length,
+      lat: arc.reduce((sum, point) => sum + point[1], 0) / arc.length,
+    }
+    const screen = await page.evaluate((eye) => {
+      const map = (window as unknown as { __pgmapsMap: (which: string) => PlanMap | null }).__pgmapsMap('plan')!
+      const projected = map.project([eye.lng, eye.lat])
+      const box = map.getContainer().getBoundingClientRect()
+      return { x: box.left + projected.x, y: box.top + projected.y }
+    }, eye)
+    return { screen, facing: bearing(eye, middle) }
+  }
+  const handle = page.getByTestId('view-of-interest-turn')
+  const handleAt = async () => {
+    const box = (await handle.boundingBox())!
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  }
+  await expect(handle).toBeVisible()
+  const before = await cone()
+  const grip = await handleAt()
+  const radius = Math.hypot(grip.x - before.screen.x, grip.y - before.screen.y)
+  // The handle starts on the middle of the arc: the way the cone faces, at its far edge.
+  const screenBearing = (point: { x: number; y: number }) =>
+    ((Math.atan2(point.x - before.screen.x, before.screen.y - point.y) * 180) / Math.PI + 360) % 360
+  expect(angleBetween(screenBearing(grip), before.facing)).toBeLessThan(2)
+
+  // Pull it 70° round and well inside the arc. The pointer only gives the direction.
+  const turned = toRadians(screenBearing(grip) + 70)
+  const pointer = {
+    x: before.screen.x + Math.sin(turned) * radius * 0.45,
+    y: before.screen.y - Math.cos(turned) * radius * 0.45,
+  }
+  await page.mouse.move(grip.x, grip.y)
+  await page.mouse.down()
+  await page.mouse.move(pointer.x, pointer.y, { steps: 12 })
+  // Still held: the cone has turned to the pointer's direction, and the handle is on its arc, not under the pointer.
+  await expect
+    .poll(async () => angleBetween((await cone()).facing, before.facing + 70), { timeout: 15_000 })
+    .toBeLessThan(2)
+  const held = await handleAt()
+  expect(Math.abs(Math.hypot(held.x - before.screen.x, held.y - before.screen.y) - radius)).toBeLessThan(3)
+  expect(angleBetween(screenBearing(held), before.facing + 70)).toBeLessThan(2)
+  // The pointer is off the handle and over the landform: no hover card comes up while it is held.
+  const cardsShown = () =>
+    page
+      .locator('.mapcn-tooltip')
+      .evaluateAll((cards) => cards.filter((card) => getComputedStyle(card).display !== 'none').length)
+  const planMap = page.getByTestId('visuals-plan-map').locator('.maplibregl-map')
+  await expect(planMap).toHaveClass(/map-handle-dragging/)
+  expect(await cardsShown()).toBe(0)
+  // The landform's card is there, held back: it is the handle's drag that hides it, not an empty map.
+  expect(await page.locator('.mapcn-tooltip').count()).toBeGreaterThan(0)
+  await page.mouse.up()
+  await expect(planMap).not.toHaveClass(/map-handle-dragging/)
+
+  // Let go, the view takes the bearing, to the degree, and the cone stays where it was drawn.
+  await expect
+    .poll(async () => angleBetween(Number(await handle.getAttribute('data-bearing')), before.facing + 70))
+    .toBeLessThan(1.5)
+  expect(angleBetween((await cone()).facing, before.facing + 70)).toBeLessThan(1.5)
+  const settled = await handleAt()
+  expect(Math.abs(Math.hypot(settled.x - before.screen.x, settled.y - before.screen.y) - radius)).toBeLessThan(3)
+})

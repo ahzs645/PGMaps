@@ -56,7 +56,8 @@ test('styled GIS exports carry the plan’s symbols, and an imported style repla
   expect(qgisFiles).toEqual(
     expect.arrayContaining(['data/road_centrelines.shp', 'data/road_centrelines.qml', 'README.txt']),
   )
-  expect(qgisFiles.filter((name) => name.startsWith('layouts/') && name.endsWith('.qpt'))).toHaveLength(4)
+  // One layout template a sheet layout, the operating plan among them (`SHEET_TEMPLATES`).
+  expect(qgisFiles.filter((name) => name.startsWith('layouts/') && name.endsWith('.qpt'))).toHaveLength(5)
 
   const arcgis = await download(page, await chooseExport(page, 'ArcGIS Pro map'))
   const arcgisFiles = names(arcgis.zip)

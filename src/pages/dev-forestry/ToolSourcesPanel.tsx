@@ -1,23 +1,43 @@
 import { FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-field'
 import { useRef, useState } from 'react'
-import { ToolSection, ToolSubsection } from '@/components/ui/tool-section'
+import { FileUp } from 'lucide-react'
+import { ToolSubsection } from '@/components/ui/tool-section'
 import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { MapToolPanel } from '@/components/ui/map-tool-panel'
 import { createId, type ForestryScene } from './scene'
-import { MASK_LABELS } from './assessmentMasks'
+import { MASK_LABELS, MAX_ASSESSMENT_MASKS } from './assessmentMasks'
 import { readShapeFile } from './shapeImport'
 import { importLocalRaster } from './toolImports'
 import type { AssessmentMaskKind, LocalRaster } from './types'
 
+export const TOOL_SOURCES_TITLE = 'Masks and local surfaces'
+
+/** What the scene holds, for the card's hint and its map button's hover bubble. */
+export function toolSourcesSummary(scene: Pick<ForestryScene, 'masks' | 'localRasters'>): string {
+  const masks = scene.masks?.length ?? 0,
+    surfaces = scene.localRasters?.length ?? 0
+  return masks + surfaces
+    ? `${masks} ${masks === 1 ? 'mask' : 'masks'} · ${surfaces} ${surfaces === 1 ? 'surface' : 'surfaces'}`
+    : 'None · AWS terrain'
+}
+
+/**
+ * Assessment masks and local terrain or canopy surfaces, as a card the plan map opens from its control stack
+ * (`MapToolToggle`) and floats beside it on the right. It stays open while the plan is clicked, so a polygon selected
+ * there can be copied in with *Use selected polygon as mask*.
+ */
 export function ToolSourcesPanel({
   scene,
   onChange,
   selectedTargetId,
+  onClose,
 }: {
   scene: ForestryScene
   onChange: (scene: ForestryScene) => void
   selectedTargetId: string | null
+  onClose: () => void
 }) {
   const [kind, setKind] = useState<AssessmentMaskKind>('natural'),
     [rasterKind, setRasterKind] = useState<LocalRaster['kind']>('terrain'),
@@ -35,7 +55,8 @@ export function ToolSourcesPanel({
       const parsed = await readShapeFile(file)
       const scene = sceneRef.current
       if (!parsed.polygons.length) throw new Error('The file contains no polygons.')
-      if ((scene.masks?.length ?? 0) + parsed.polygons.length > 100) throw new Error('Use at most 100 masks.')
+      if ((scene.masks?.length ?? 0) + parsed.polygons.length > MAX_ASSESSMENT_MASKS)
+        throw new Error(`Use at most ${MAX_ASSESSMENT_MASKS} masks.`)
       onChange({
         ...scene,
         masks: [
@@ -73,15 +94,17 @@ export function ToolSourcesPanel({
     }
   }
   return (
-    <ToolSection
-      title="Masks and local surfaces"
-      summary={
-        (scene.masks?.length ?? 0) + (scene.localRasters?.length ?? 0)
-          ? `${scene.masks?.length ?? 0} masks · ${scene.localRasters?.length ?? 0} surfaces`
-          : 'None · AWS terrain'
-      }
-      toggleProps={{ 'data-forestry-disclosure': 'masks-surfaces' }}
+    <MapToolPanel
+      title={TOOL_SOURCES_TITLE}
+      icon={FileUp}
+      aria-label={TOOL_SOURCES_TITLE}
+      data-testid="tool-sources-card"
       help="Classify parts of the landform (natural non-green ground, private land, retained patches) and bring in a local terrain or canopy-height GeoTIFF in place of the AWS terrain."
+      helpLabel="About masks and local surfaces"
+      closeLabel="Close masks and local surfaces"
+      closeKeys=""
+      onClose={onClose}
+      hint={toolSourcesSummary(scene)}
     >
       <ToolSubsection
         title="Classify assessment areas"
@@ -122,7 +145,7 @@ export function ToolSourcesPanel({
             <Button
               size="sm"
               variant="outline"
-              disabled={!selected || busy || (scene.masks?.length ?? 0) >= 100}
+              disabled={!selected || busy || (scene.masks?.length ?? 0) >= MAX_ASSESSMENT_MASKS}
               onClick={() => {
                 if (selected)
                   onChange({
@@ -245,6 +268,6 @@ export function ToolSourcesPanel({
         </div>
       </ToolSubsection>
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
-    </ToolSection>
+    </MapToolPanel>
   )
 }

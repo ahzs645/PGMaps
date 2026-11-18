@@ -34,7 +34,7 @@ import { FileButton } from '@/components/ui/file-button'
 import { TextButton } from '@/components/ui/text-button'
 import { PG_CENTER } from '@/components/ui/map-styles'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { Bookmark, Crosshair, Download, ImageDown, Loader2 } from 'lucide-react'
+import { Bookmark, Crosshair, Download, FileUp, ImageDown, Loader2 } from 'lucide-react'
 import { InfoTip } from '@/components/ui/info-tip'
 
 import {
@@ -50,7 +50,8 @@ import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
 import { ProjectAttachments } from './dev-forestry/ProjectAttachments'
 import type { ProjectAttachment } from './dev-forestry/projectArchive'
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
-import { ToolSourcesPanel } from './dev-forestry/ToolSourcesPanel'
+import { ToolSourcesPanel, TOOL_SOURCES_TITLE, toolSourcesSummary } from './dev-forestry/ToolSourcesPanel'
+import { MapToolToggle } from '@/components/ui/map-tool-toggle'
 import { WildlifeTreePatchPanel } from './dev-forestry/WildlifeTreePatchPanel'
 import { MAX_ASSESSMENT_MASKS, withDrawnMask, masksForLandform } from './dev-forestry/assessmentMasks'
 import { LandformDesignPanel } from './dev-forestry/LandformDesignPanel'
@@ -79,7 +80,7 @@ import {
   withoutPlannedView,
   type CaptureFacts,
 } from './dev-forestry/viewCapturePlan'
-import { PreviewWorkflow } from './dev-forestry/PreviewWorkflow'
+import { PreviewWorkflow, UnlistedSavedViews } from './dev-forestry/PreviewWorkflow'
 import {
   candidateDriveViews,
   parsePreview,
@@ -232,7 +233,7 @@ import {
   type ViewpointInventoryState,
 } from './dev-forestry/ViewpointFinderPanel'
 import { VisualsParagraphPanel, type BlockNoteParts } from './dev-forestry/VisualsParagraphPanel'
-import { FieldBriefPanel, viewFieldCheck } from './dev-forestry/FieldBriefPanel'
+import { CheckedByField, FieldBriefPanel, RoadFieldCheck, viewFieldCheck } from './dev-forestry/FieldBriefPanel'
 import { KeyViewpointFields, renamedViewpointRecords, ViewpointRecordFields } from './dev-forestry/ReviewRecordFields'
 import { FinalRatingFields, viewpointTypeEstimate } from './dev-forestry/ViaPanels'
 import { MovableContent } from '@/components/ui/movable-content'
@@ -272,6 +273,7 @@ import {
   type ReportMapPlan,
   type ReportViewpoint,
 } from './dev-forestry/reportMaps'
+import { figureMapStyle } from './dev-forestry/visualsBlockSheet'
 import { captureReportMap, waitUntil } from './dev-forestry/reportMapCapture'
 import type { ReportImages } from './dev-forestry/viaReport/parts'
 import { DEFAULT_OBLIQUE_PITCH } from './dev-forestry/viaReport/recipes'
@@ -392,6 +394,7 @@ import {
 import { runResultMetrics, viewpointSummaryMetrics } from './dev-forestry/viewpointSummaryRows'
 import { landCheckMetrics } from './dev-forestry/landStatusChecks'
 import { useLandChecks } from './dev-forestry/useLandChecks'
+import { usePrivateParcels } from './dev-forestry/usePrivateParcels'
 import { VisualQualityLayers, type SceneLayerData } from './dev-forestry/VisualQualityLayers'
 import {
   VISUALS_COLUMNS,
@@ -652,6 +655,8 @@ function DevForestryVisuals() {
   // route preview's card is open (the viewshed itself stays on the map once its card is closed).
   const [viewAddBlockChoice, setViewAddBlockChoice] = useState<string | null>(null)
   const [routePreviewOpen, setRoutePreviewOpen] = useState(false)
+  /** The plan's *Masks and local surfaces* card, opened from its control stack. */
+  const [sourcesOpen, setSourcesOpen] = useState(false)
   // The shared measure tool (`map-measure.tsx`) on the plan map; drawing a shape puts it down.
   const measure = useMapSketch()
   const measuring = measure.state.mode !== 'idle'
@@ -796,6 +801,8 @@ function DevForestryVisuals() {
     () => masksForLandform(scene.masks, sceneLandform?.id),
     [scene.masks, sceneLandform?.id],
   )
+  // ParcelMap BC's private parcels round the landform: listed in step 3, drawn on the plan, ticked in either.
+  const privateParcels = usePrivateParcels(sceneLandform?.geometry ?? null, scene.masks)
   const updateViaReview = useCallback(
     (patch: Partial<ViaReview>) => {
       setScene((current) => ({ ...current, viaReview: { ...current.viaReview, ...patch } }))
@@ -808,7 +815,7 @@ function DevForestryVisuals() {
       localStorage.setItem(PREVIEW_STORAGE_KEY, serializePreview(scene, saved.views))
       setStorageWarning(null)
     } catch {
-      setStorageWarning('Browser storage is unavailable. Download the preview to keep your comparisons.')
+      setStorageWarning('Browser storage is unavailable: save a Project from Save & export to keep your saved views.')
     }
   }, [key, saved, scene])
   useEffect(() => {
@@ -2169,24 +2176,25 @@ function DevForestryVisuals() {
     }
   }, [result, scene])
 
+  // A Saved views file (Save & export → *Saved views*, or this browser's last site): the scene and its saved views,
+  // without their pictures. It opens through step 1's *Open a project…* and *Reopen previous site*.
+  const restoreSavedViews = useCallback(
+    (restored: NonNullable<ReturnType<typeof parsePreview>>) => {
+      cancelPreview()
+      setDrive(DEFAULT_DRIVE)
+      setCameraEye(null)
+      setScene(restored.scene)
+      setSaved({ key: sceneFingerprint(restored.scene), views: restored.views })
+      setSelectedTargetId(restored.scene.targets.find((t) => t.role === 'block')?.id ?? null)
+      window.setTimeout(() => fitBounds(sceneBounds(restored.scene)), 50)
+    },
+    [cancelPreview, setScene, fitBounds],
+  )
   const importPreviewGeometry = useCallback(
-    async (file: File, kind: 'road' | 'blocks' | 'preview') => {
+    async (file: File, kind: 'road' | 'blocks') => {
       setImportMessage('Reading file…')
       try {
         if (file.size > 30 * 1024 * 1024) throw new Error('Use a file smaller than 30 MB.')
-        if (kind === 'preview') {
-          const restored = parsePreview(JSON.parse(await file.text()))
-          if (!restored) throw new Error('Choose a file saved as Saved views in Save & export.')
-          cancelPreview()
-          setDrive(DEFAULT_DRIVE)
-          setCameraEye(null)
-          setScene(restored.scene)
-          setSaved({ key: sceneFingerprint(restored.scene), views: restored.views })
-          setSelectedTargetId(restored.scene.targets.find((t) => t.role === 'block')?.id ?? null)
-          setImportMessage(`Opened ${file.name}. Choose Preview drive or a saved comparison.`)
-          window.setTimeout(() => fitBounds(sceneBounds(restored.scene)), 50)
-          return
-        }
         const imported = await readShapeFile(file)
         const road = imported.lines.reduce<(typeof imported.lines)[number] | null>(
           (best, line) =>
@@ -2241,6 +2249,9 @@ function DevForestryVisuals() {
     [scene, cancelPreview, setScene, fitBounds],
   )
 
+  // What a new site leaves behind besides the scene: the photo set, the field records and the rest of the workspace's
+  // site records, the originals and the stand. Filled once the photo set and the tools exist, below.
+  const resetSiteRecordsRef = useRef<() => void>(() => {})
   const handleLoadSample = useCallback(
     (kind: 'tabor' | 'roadside' | 'purden' = 'tabor', preview = false) => {
       const roadside = kind === 'roadside'
@@ -2251,6 +2262,7 @@ function DevForestryVisuals() {
             ? createPurdenLakeScene()
             : createSampleScene()
       analysis.reset()
+      resetSiteRecordsRef.current()
       setTerrainCandidates([])
       setReplacedLandform(null)
       setPendingPreview(null)
@@ -2271,6 +2283,7 @@ function DevForestryVisuals() {
 
   const handleClearScene = useCallback(() => {
     analysis.reset()
+    resetSiteRecordsRef.current()
     setTerrainCandidates([])
     setReplacedLandform(null)
     setPendingPreview(null)
@@ -4564,7 +4577,7 @@ function DevForestryVisuals() {
         : null
     const keptViews = replaced?.saved ?? savedViews
     if (keptViews.length >= MAX_SAVED_VIEWS) {
-      const reason = 'Twelve comparisons are saved. Remove one or download this preview before starting another.'
+      const reason = `${MAX_SAVED_VIEWS} comparisons are saved. Remove one or download this preview before starting another.`
       setPreviewMessage(reason)
       return Promise.resolve({ error: reason })
     }
@@ -4999,12 +5012,19 @@ function DevForestryVisuals() {
     }
   }
   const reopenPreviousPreview = () => {
+    projectRequest.current += 1
     try {
-      const previous = localStorage.getItem(PREVIEW_STORAGE_KEY)
-      if (!previous) throw new Error('No saved preview is available in this browser.')
-      void importPreviewGeometry(new File([previous], 'saved-preview.json', { type: 'application/json' }), 'preview')
+      const previous = parsePreview(JSON.parse(localStorage.getItem(PREVIEW_STORAGE_KEY) ?? 'null'))
+      if (!previous) throw new Error('No previous site is kept in this browser.')
+      restoreSavedViews(previous)
+      setProjectMessage({
+        text: `Reopened the previous site with ${previous.views.length === 1 ? 'its saved view' : `its ${previous.views.length} saved views`}.`,
+      })
     } catch {
-      setPreviewMessage('The previous preview could not be read. Open a downloaded preview file instead.')
+      setProjectMessage({
+        text: 'The previous site could not be read. Open a project or Saved views file instead.',
+        error: true,
+      })
     }
   }
   const saveImage = () => {
@@ -5066,25 +5086,17 @@ function DevForestryVisuals() {
     onCancel: cancelPreview,
     onSample: () => handleLoadSample('roadside', true),
     onNew: handleClearScene,
-    onImport: importPreviewGeometry,
     onDraw: handleDrawModeChange,
     drawMode,
     pointCount: draftCoordinates.length,
     onFinish: finishDraft,
-    onReopenPrevious: saved.key !== key && saved.views.length ? reopenPreviousPreview : undefined,
     message: previewMessage ?? importMessage,
-    // A view listed with the views of interest is reopened from its row there; this lists only the rest.
-    views: savedViews.filter(
-      (view) => !view.plannedViewId || !viewsOfInterest.some((planned) => planned.id === view.plannedViewId),
-    ),
-    listedWithViews: savedViews.filter(
-      (view) => view.plannedViewId && viewsOfInterest.some((planned) => planned.id === view.plannedViewId),
-    ).length,
-    onRestore: openPreview,
-    onExport: () => exportOpener.openExport('views'),
-    storageWarning: sceneStorageWarning ?? storageWarning,
-    onRemoveView: (id: string) => setSaved({ key, views: savedViews.filter((v) => v.id !== id) }),
   }
+  // Under the views of interest: the saved views that are no listed view's capture. Every other one is reopened from
+  // its view's row.
+  const unlistedSavedViews = savedViews.filter(
+    (view) => !view.plannedViewId || !viewsOfInterest.some((planned) => planned.id === view.plannedViewId),
+  )
   const assessmentProps = { scene, onChange: setScene }
   // The road view's View options (`RoadViewOptions.tsx`): the jump to a view of the block and the
   // arrows of the viewpoint stood at.
@@ -5252,6 +5264,18 @@ function DevForestryVisuals() {
     },
     analysisRunning: analysis.state.status === 'running' || analysis.reverseState.status === 'running',
   })
+  resetSiteRecordsRef.current = () => {
+    cancelPreview()
+    runSnapshotRef.current = null
+    setStanding(null)
+    setOpenViewId(null)
+    setMapPick(null)
+    fieldPhoto.clear()
+    setProjectAttachments([])
+    setProjectTitle(null)
+    setProjectMessage(null)
+    tools.startNewSite()
+  }
   // The photo set's way to the field records (`useFieldPhoto`'s `records`), filled now the tools exist.
   photoRecordsRef.current = {
     fieldCount: tools.fieldCount,
@@ -5330,6 +5354,18 @@ function DevForestryVisuals() {
     const request = ++projectRequest.current
     setProjectMessage({ text: 'Reading the project…' })
     try {
+      // A Saved views file (Save & export → *Saved views*) opens here too: its scene and saved views, no pictures.
+      if (/"type"\s*:\s*"pgmaps-driving-preview"/.test(await file.slice(0, 512).text())) {
+        if (file.size > 30 * 1024 * 1024) throw new Error('Use a Saved views file smaller than 30 MB.')
+        const restored = parsePreview(JSON.parse(await file.text()))
+        if (request !== projectRequest.current) return
+        if (!restored) throw new Error('This Saved views file was written by another version and could not be read.')
+        restoreSavedViews(restored)
+        setProjectMessage({
+          text: `Opened ${file.name}: the scene and ${restored.views.length === 1 ? 'one saved view' : `${restored.views.length} saved views`}. A Saved views file keeps no pictures; save a Project to keep them.`,
+        })
+        return
+      }
       const [{ openProjectArchive }, { projectOpenedLine }] = await Promise.all([
         import('./dev-forestry/projectArchive'),
         import('./dev-forestry/projectFile'),
@@ -5561,6 +5597,8 @@ function DevForestryVisuals() {
     obliquePitch?: number
     /** The report prints 26's figure page: also capture its own location and regional maps (`planFigurePageMaps`). */
     figurePageMaps?: boolean
+    /** A figure style whose block and opening symbols the maps draw (`figureMapStyle`); the maps' own when absent. */
+    mapStyle?: string
     /**
      * Which groups to capture, when not all (the draft draws one at a time, and a build captures only the groups it
      * has not kept): the plan map's maps, each view's before picture, the overhead and oblique renders.
@@ -5611,6 +5649,7 @@ function DevForestryVisuals() {
       road: scene.viewpoint.mode === 'corridor' ? (scene.viewpoint.coordinates as Array<[number, number]>) : null,
       viewpoints,
       masks: assessmentMasks,
+      ...(request.mapStyle ? { symbols: figureMapStyle(request.mapStyle) } : {}),
     })
     const sheetStyle = request.overviewSheet?.style ?? DEFAULT_OVERVIEW_SHEET_STYLE
     const wants = (group: 'maps' | 'before' | 'renders') => !request.only || !!request.only[group]
@@ -5997,6 +6036,7 @@ function DevForestryVisuals() {
       'block-note': <div ref={setNoteSlot} data-visuals-paragraph-slot="" />,
       evidence: tools.report,
       workspace: tools.workspaceImport,
+      'field-brief': <CheckedByField review={scene.viaReview ?? {}} onReviewChange={updateViaReview} />,
     },
     viewsPane: <div ref={setViewsSlot} data-views-slot="" />,
     viewsSummary: viewsOfInterest.length
@@ -6235,6 +6275,8 @@ function DevForestryVisuals() {
     standTreeCollection,
     standStripCollection,
     onToggleProtectedTree: handleToggleProtectedTree,
+    privateParcelCollection: privateParcels.collection,
+    onTogglePrivateParcel: privateParcels.toggle,
   }
   // How tall a screen of timber must be to hide a block from the station (`screenHeight.ts`): a
   // design aid run on the road view's terrain, never a run figure.
@@ -6509,6 +6551,17 @@ function DevForestryVisuals() {
         if (moved) updateViaReview(moved)
       }}
       message={viewsMessage}
+      unlistedSaves={
+        inDialog ? undefined : (
+          <UnlistedSavedViews
+            views={unlistedSavedViews}
+            busy={!!pendingPreview || analysis.state.status === 'running'}
+            onRestore={openPreview}
+            onRemove={(id) => setSaved({ key, views: savedViews.filter((v) => v.id !== id) })}
+            storageWarning={sceneStorageWarning ?? storageWarning}
+          />
+        )
+      }
     />
   )
 
@@ -6578,7 +6631,6 @@ function DevForestryVisuals() {
         </>
       }
       landformScope={<AssessmentPanel part="scope" {...assessmentProps} />}
-      localSources={<ToolSourcesPanel scene={scene} onChange={setScene} selectedTargetId={selectedTargetId} />}
       wildlifeTreePatches={
         <WildlifeTreePatchPanel
           masks={scene.masks ?? []}
@@ -6590,7 +6642,8 @@ function DevForestryVisuals() {
       }
       privateLand={
         <PrivateLandPanel
-          landform={sceneLandform?.geometry ?? null}
+          hasLandform={!!sceneLandform}
+          parcels={privateParcels}
           masks={scene.masks ?? []}
           onAdd={(parcels) =>
             setScene((current) => {
@@ -6663,15 +6716,28 @@ function DevForestryVisuals() {
         </>
       }
       designComparisons={tools.design}
-      fieldPhoto={
-        <>
-          {summaryView ? null : streetPhotoPanel}
+      fieldPhoto={summaryView || !fieldPhoto.token ? null : streetPhotoPanel}
+      // One block for the reviewer's own pictures: photos go through the line-up window, other evidence is attached below.
+      fieldRecords={
+        <div className="space-y-3 text-xs">
           {ownPhotoPanel}
-        </>
+          {tools.field}
+        </div>
       }
-      fieldRecords={tools.field}
       showViewpointType={!summaryView}
-      roadStand={summaryView ? undefined : stoodViewpointPanel(true)}
+      roadStand={
+        summaryView ? undefined : (
+          <>
+            <RoadFieldCheck
+              scene={scene}
+              result={result}
+              review={scene.viaReview ?? {}}
+              onReviewChange={updateViaReview}
+            />
+            {stoodViewpointPanel(true)}
+          </>
+        )
+      }
       fieldBrief={
         <FieldBriefPanel
           scene={scene}
@@ -6840,6 +6906,7 @@ function DevForestryVisuals() {
       roadViewOpening={!!pendingPreview || drive.active}
       onClearScene={handleClearScene}
       onOpenProject={(file) => void openProjectFile(file)}
+      onReopenPrevious={saved.key !== key && saved.views.length ? reopenPreviousPreview : undefined}
       projectAttachments={
         <>
           {projectMessage && (
@@ -7092,6 +7159,14 @@ function DevForestryVisuals() {
                                   },
                                 ]}
                               />
+                              <MapToolToggle
+                                icon={FileUp}
+                                label={TOOL_SOURCES_TITLE}
+                                title={`${TOOL_SOURCES_TITLE} · ${toolSourcesSummary(scene)}`}
+                                active={sourcesOpen}
+                                on={!!(scene.masks?.length || scene.localRasters?.length)}
+                                onToggle={() => setSourcesOpen((open) => !open)}
+                              />
                             </MapControls>
                           }
                           deferResize={table.deferResize}
@@ -7267,6 +7342,21 @@ function DevForestryVisuals() {
                               />
                             </MapOverlay>
                           )}
+                          {sourcesOpen && (
+                            // Beside the control stack rather than over it, so the plan's tools stay in reach.
+                            <MapOverlay
+                              position="top-right"
+                              clearChrome
+                              className="right-16 max-h-[calc(100%-1rem)] w-80 max-w-[calc(100%-5rem)] overflow-y-auto overscroll-none border-0 bg-transparent shadow-none backdrop-blur-none workspace-desktop:right-14"
+                            >
+                              <ToolSourcesPanel
+                                scene={scene}
+                                onChange={setScene}
+                                selectedTargetId={selectedTargetId}
+                                onClose={() => setSourcesOpen(false)}
+                              />
+                            </MapOverlay>
+                          )}
                           <PlanClickToMove
                             onMove={
                               drive.active && seekFromPlan && drawMode === 'none' && !mapPick && !measuring
@@ -7278,6 +7368,7 @@ function DevForestryVisuals() {
                             <PlanViewerHandles
                               eye={cameraEye}
                               bearing={lookBearing}
+                              fovDegrees={viewerFov}
                               onMove={seekFromPlan ? (point) => seekFromPlan([point.lng, point.lat]) : null}
                               onLook={(bearing) => {
                                 const degrees = Math.round(bearing) % 360
@@ -7388,6 +7479,7 @@ function DevForestryVisuals() {
                                 : null
                             }
                             masks={[...new Set((scene.masks ?? []).map((mask) => mask.kind))]}
+                            privateParcels={privateParcels.collection.features.length > 0}
                             treeFreeAreas={(scene.treeFreeAreas ?? []).length > 0 || !!viewpointClearing}
                             standTrees={standTreeCollection.features.length > 0}
                             standStrip={standStripCollection.features.length > 0}

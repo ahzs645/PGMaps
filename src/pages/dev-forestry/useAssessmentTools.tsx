@@ -973,8 +973,19 @@ export function useAssessmentTools({
     storedWorkspaceJson: () => serializeTools({ ...documentRef.current, currentScene: undefined }),
   }
   /** Replaces the stored workspace with a project file's (`projectFile.ts`); the page sets the scene itself. */
-  const restoreWorkspace = (text: string | null) => {
-    const parsed = text === null ? emptyTools() : parseTools(JSON.parse(text))
+  const restoreWorkspace = (text: string | null) =>
+    replaceWorkspace(text === null ? emptyTools() : parseTools(JSON.parse(text)))
+  /**
+   * Starts a new site (*New site* or a sample): the last site's photographs and evidence images, design options,
+   * runs, earlier viewpoints, block curve assignments and reference measurements go, and with them the stored copy.
+   * The growth curve and the Castor curve library stay: they are the reviewer's inputs, not the site's records.
+   */
+  const startNewSite = () => {
+    const { growthCurve, growthSource, curveLibrary } = documentRef.current
+    setSightlineArchive(null)
+    replaceWorkspace({ ...emptyTools(), growthCurve, growthSource, curveLibrary })
+  }
+  function replaceWorkspace(parsed: ToolsDocument) {
     workspaceGeneration.current++
     runner.cancel()
     change(parsed)
@@ -987,6 +998,7 @@ export function useAssessmentTools({
   }
   return {
     restoreWorkspace,
+    startNewSite,
     sightlineArchive,
     referencePanel: (
       <ReferenceMeasurements

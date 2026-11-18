@@ -192,6 +192,27 @@ test('dragging a handle bends the road with a curve, and a small slip adds nothi
   await expect(points).toHaveCount(before + 1)
   const added = pointsOf(await save(page)).find((point) => !original.has(point.id))!
   expect(added.radiusM).toBeGreaterThan(0)
+  // The bend is the selected point, so its curve handle is on the plan, drawn inside the curve.
+  // Pulled farther in, the arc widens; the points stay where they are.
+  const grip = page.getByTestId('road-curve-handle')
+  await expect(grip).toHaveAttribute('data-radius', String(added.radiusM))
+  const [point, held] = [
+    await centre(page.getByRole('button', { name: 'Horizontal point 2', exact: true })),
+    await centre(grip),
+  ]
+  const inward = Math.hypot(held.x - point.x, held.y - point.y)
+  await page.mouse.move(held.x, held.y)
+  await page.mouse.down()
+  await page.mouse.move(held.x + ((held.x - point.x) / inward) * 12, held.y + ((held.y - point.y) / inward) * 12, {
+    steps: 6,
+  })
+  await page.mouse.up()
+  await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText('curve set to')
+  const widened = pointsOf(await save(page)).find((p) => p.id === added.id)!
+  expect(widened.radiusM).toBeGreaterThan(added.radiusM)
+  expect(widened.coordinate).toEqual(added.coordinate)
+  await page.getByRole('button', { name: 'Undo road edit', exact: true }).click()
+  await expect(grip).toHaveAttribute('data-radius', String(added.radiusM))
   await page.getByRole('button', { name: 'Undo road edit', exact: true }).click()
   await expect(points).toHaveCount(before)
 })

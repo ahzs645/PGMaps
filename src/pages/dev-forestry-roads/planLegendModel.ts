@@ -150,12 +150,14 @@ export function buildPlanLegend({
   terrainOnly,
   showEarthwork,
   sheetSymbols = false,
+  sheetSymbolSet,
   selection = false,
   draftPoints = false,
   editing = false,
   insertControls = false,
   crossingMarkers = false,
   curveLabels = false,
+  curveHandle = false,
   cableCursor = false,
   cableSupports = false,
   roadsHeading,
@@ -167,12 +169,16 @@ export function buildPlanLegend({
   showEarthwork: boolean
   /** The context is drawn with the block sheet's symbols, so the legend lists those. */
   sheetSymbols?: boolean
+  /** The sheet symbols the plan draws, when a person's saved styles replace some (`planSheetSymbolSet`). */
+  sheetSymbolSet?: { symbols: Record<PlanSheetKey, SheetSymbol>; wholeDeactivated: boolean }
   selection?: boolean
   draftPoints?: boolean
   editing?: boolean
   insertControls?: boolean
   crossingMarkers?: boolean
   curveLabels?: boolean
+  /** The selected point's curve handle is on the plan. */
+  curveHandle?: boolean
   cableCursor?: boolean
   cableSupports?: boolean
   /**
@@ -255,8 +261,9 @@ export function buildPlanLegend({
   roads.finish()
   otherRoads.finish()
   const context = section('context', 'Map context')
+  const sheetSet = sheetSymbolSet?.symbols ?? PLAN_SHEET_SYMBOLS
   const sheetEntry = (key: PlanSheetKey) => {
-    const symbol = PLAN_SHEET_SYMBOLS[key]
+    const symbol = sheetSet[key]
     context.add({
       id: `sheet-${key}`,
       label: symbol.label,
@@ -268,8 +275,10 @@ export function buildPlanLegend({
   for (const feature of sources.context.features) {
     const sheetKey = feature.properties?.sheetKey as PlanSheetKey | null | undefined
     if (sheetSymbols && sheetKey && PLAN_SHEET_SYMBOLS[sheetKey]) {
-      sheetEntry(sheetKey)
-      if (feature.properties?.sheetDeactivated === true) sheetEntry('deactivated')
+      const deactivated = feature.properties?.sheetDeactivated === true
+      // A deactivated road with a style of its own draws with that alone, so only it is listed.
+      if (!(deactivated && sheetSymbolSet?.wholeDeactivated)) sheetEntry(sheetKey)
+      if (deactivated) sheetEntry('deactivated')
       continue
     }
     const band = feature.properties?.riparianBand as keyof typeof RIPARIAN_MAP_COLORS | undefined
@@ -465,6 +474,8 @@ export function buildPlanLegend({
     controls.add({ id: 'controls', label: 'Horizontal control points', color: '#d97706', shape: 'circle', symbol: '1' })
   if (insertControls)
     controls.add({ id: 'insert', label: 'Drag to bend the road', color: '#2563eb', shape: 'circle', symbol: '+' })
+  if (curveHandle)
+    controls.add({ id: 'curve-handle', label: "Drag to change the curve's radius", color: '#7c3aed', shape: 'circle' })
   if (draftPoints || sources.draft.features.length)
     controls.add({
       id: 'draft',

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { MASK_LABELS, nextWildlifeTreePatchName, parseMasks, withDrawnMask } from './assessmentMasks'
+import {
+  MASK_LABELS,
+  MAX_ASSESSMENT_MASKS,
+  nextWildlifeTreePatchName,
+  parseMasks,
+  withDrawnMask,
+} from './assessmentMasks'
 import type { AssessmentMask, TargetPolygon } from './types'
 import { assessVia, parseViaReview } from './via'
 import {
@@ -273,9 +279,9 @@ describe('drawing a wildlife tree patch', () => {
     expect(nextWildlifeTreePatchName(drawn)).toBe('Wildlife tree patch 2')
     // A renamed earlier patch does not make the next name collide.
     expect(nextWildlifeTreePatchName([{ ...drawn[0], name: 'Wildlife tree patch 2' }])).toBe('Wildlife tree patch 3')
-    const full = Array.from({ length: 100 }, (_, i) => ({ ...drawn[0], id: `m${i}` }))
+    const full = Array.from({ length: MAX_ASSESSMENT_MASKS }, (_, i) => ({ ...drawn[0], id: `m${i}` }))
     expect(() => withDrawnMask(full, { id: 'new', kind: 'retained', geometry: square(-122.5, 54, 0.001) })).toThrow(
-      'Use at most 100 assessment masks.',
+      `Use at most ${MAX_ASSESSMENT_MASKS} assessment masks.`,
     )
     const flat: GeoJSON.Polygon = {
       type: 'Polygon',

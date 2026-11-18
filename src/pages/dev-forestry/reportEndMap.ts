@@ -293,6 +293,11 @@ export function composeEndMap(input: EndMapInput): ComposedReportMap {
     const h = (map.w * input.mapImage.height) / input.mapImage.width
     ops.push({ op: 'image', x: map.x, y: map.y + (map.h - h) / 2, w: map.w, h, image: input.mapImage })
   }
+  // A chosen map style's blocks and openings, on the map and in the legend; the end map's own otherwise.
+  const styled: { block: AreaSymbol; harvested: AreaSymbol } = {
+    block: features.symbols?.block ?? S.block,
+    harvested: features.symbols?.opening ?? S.harvested,
+  }
   const area = (geometries: readonly PolygonGeometry[], symbol: AreaSymbol, key: EndMapLegendKey | null) => {
     let any = false
     for (const geometry of geometries) {
@@ -311,7 +316,7 @@ export function composeEndMap(input: EndMapInput): ComposedReportMap {
   if (basemap) area(basemap.parks, S.parks, 'parks')
   area(
     features.openings.map((opening) => opening.geometry),
-    S.harvested,
+    styled.harvested,
     'harvested',
   )
 
@@ -381,7 +386,7 @@ export function composeEndMap(input: EndMapInput): ComposedReportMap {
   const blocks = features.blocks.filter((block) => visible(block.geometry))
   area(
     blocks.map((block) => block.geometry),
-    S.block,
+    styled.block,
     'block',
   )
   const placed = features.viewpoints
@@ -391,7 +396,10 @@ export function composeEndMap(input: EndMapInput): ComposedReportMap {
   if (placed.length) drawn.add('viewpoint')
 
   // ---- Labels: viewpoints, blocks, VQO classes, water names; none over another or the legend ----
-  const rows = endMapLegendKeys(drawn).map((key) => ({ key, symbol: S[key] as AreaSymbol | LineSymbol | PointSymbol }))
+  const rows = endMapLegendKeys(drawn).map((key) => ({
+    key,
+    symbol: (key === 'block' || key === 'harvested' ? styled[key] : S[key]) as AreaSymbol | LineSymbol | PointSymbol,
+  }))
   const legend = legendLayout(rows, map)
   const taken: Box[] = [legend.box, ...placed.map(({ at }) => ({ x: at[0] - 5, y: at[1] - 5, w: 10, h: 10 }))]
   const labels: string[] = []

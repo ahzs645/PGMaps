@@ -715,8 +715,10 @@ A profile's PVIs are stored by station, so a plan edit leaves the grade line whe
 puts different ground under it. Moving or removing a point on a road with PVIs says so in the
 header notice (`profileKeptNotice`, `horizontalTools.ts`).
 
-In edit mode, drag a **+** off the road to add a middle control where you drop it, with a curve at the
-minimum radius. A click adds nothing, so a point always changes the road; Enter on a focused **+** adds one at
+In edit mode, drag a **+** off the road to bend it there: the road is drawn through the handle as a
+circular arc, and letting go adds the middle control that arc belongs to, beyond the handle, with the
+radius its legs carry (`bendArc.ts`; [Bending a leg into an arc](forestry-road-design/plan-edit-limits.md#bending-a-leg-into-an-arc)).
+The selected point's round violet handle, inside its curve, changes that curve's radius by dragging. A click adds nothing, so a point always changes the road; Enter on a focused **+** adds one at
 the segment's middle for keyboard use. Handles show only where a segment has 48 px on screen, so zoom in to bend a
 short one. **Remove straight points** under Horizontal points clears points that do not turn the road. Then drag it
 to shape the pathway. The + sits on the control leg; changing controls can alter fitted curves,

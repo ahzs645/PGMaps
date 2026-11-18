@@ -36,6 +36,8 @@ export type PlanLegendKey =
   | 'candidate:ridge-layer'
   | 'candidate:facing'
   | 'candidate:visible-face'
+  /** ParcelMap BC's private parcels found round the landform and not yet added (`usePrivateParcels`). */
+  | 'candidate:private'
   | 'other-ridge-layers'
   | `clue:${LandformCluePosition}`
   | `unit:${VisualQualityClassId | 'none'}`

@@ -29,7 +29,6 @@ import {
   blockCentre,
   isIncluded,
   LENS_FOCAL_LENGTHS,
-  MAX_VIEWS_OF_INTEREST,
   needsCapture,
   lensLabel,
   normalizeBearing,
@@ -44,8 +43,9 @@ import {
   type ViewOfInterestFacing,
 } from './viewsOfInterest'
 
-/** How many views one *Capture* takes; the last is every view the plan can hold. */
-const CAPTURE_BATCH_SIZES = [1, 3, 6, MAX_VIEWS_OF_INTEREST] as const
+/** Number of planned views to capture in one batch. */
+const MAX_CAPTURE_BATCH = 12
+const CAPTURE_BATCH_SIZES = [1, 3, 6, MAX_CAPTURE_BATCH] as const
 
 type Block = { id: string; name: string; geometry: PolygonGeometry }
 
@@ -120,6 +120,11 @@ export type ViewsOfInterestPanelProps = {
    * image is null when the record is no longer in the workspace.
    */
   photoOf?: (view: ViewOfInterest) => { name: string; thumbUrl: string | null } | null
+  /**
+   * Step 2's section only: below the list, the saved views that are no view's capture (`UnlistedSavedViews`) and any
+   * storage warning. Save & export's copy of the list leaves it out.
+   */
+  unlistedSaves?: ReactNode
 }
 
 const SOURCE_LABELS: Record<ViewOfInterest['source']['kind'], string> = {
@@ -329,7 +334,7 @@ function NameField({ view, onCommit }: { view: ViewOfInterest; onCommit: (name: 
  * writes from those. How many are captured shows in the headline's *Views captured* tile.
  */
 export function ViewsOfInterestPanel(props: ViewsOfInterestPanelProps) {
-  const { views, savedViews, hasFigure } = props
+  const { views, savedViews, hasFigure, unlistedSaves, ...listProps } = props
   const included = views.filter(isIncluded)
   const captured = included.filter((view) => viewCaptureState(view, savedViews, hasFigure) === 'captured').length
   return (
@@ -345,7 +350,8 @@ export function ViewsOfInterestPanel(props: ViewsOfInterestPanelProps) {
           the list below (a viewpoint adds up to two of its arrows aimed at the block, else one view facing it). Each
           view faces its block or a bearing, through a lens. Open a row for everything about that view: its record and
           3.2.1 type, its field photos, whether it is a key viewpoint and, at the view you stand at, the surveyed eye
-          and the field photo to line up with. A view saved from the road view&apos;s bar is listed here too.
+          and the field photo to line up with. A view saved from the road view&apos;s bar is listed here too, and its
+          row reopens it.
           <br />
           <em>Capture</em> stands at each view, runs the assessment there and saves the view as <em>Save viewpoint</em>{' '}
           does, without your driving; Save &amp; export then writes from those saved views. A view changed since its
@@ -354,7 +360,8 @@ export function ViewsOfInterestPanel(props: ViewsOfInterestPanelProps) {
         </>
       }
     >
-      <ViewsOfInterestList {...props} />
+      <ViewsOfInterestList views={views} savedViews={savedViews} hasFigure={hasFigure} {...listProps} />
+      {unlistedSaves}
     </ToolSection>
   )
 }
@@ -405,7 +412,7 @@ export function ViewsOfInterestList({
   const included = views.filter(isIncluded)
   // A view saved without its analysis sheet is taken again with the rest.
   const toCapture = included.filter((view) => needsCapture(states.get(view.id) ?? 'not-captured'))
-  const [batchSize, setBatchSize] = useState<number>(MAX_VIEWS_OF_INTEREST)
+  const [batchSize, setBatchSize] = useState<number>(MAX_CAPTURE_BATCH)
   const batch = toCapture.slice(0, batchSize)
   const running = capture.state.status === 'running'
   const [rowTab, setRowTab] = useState<RowTab>('view')
@@ -864,7 +871,7 @@ export function ViewsOfInterestList({
         >
           {CAPTURE_BATCH_SIZES.map((n) => (
             <option key={n} value={String(n)}>
-              {n === MAX_VIEWS_OF_INTEREST ? `All (${n})` : n}
+              {n}
             </option>
           ))}
         </SelectField>

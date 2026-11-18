@@ -112,15 +112,17 @@ test('Your details fill the VIA preparer, and person fields offer your name', as
   await expect(dialog.getByLabel('Evaluator’s designation, e.g. RPF #4521')).toHaveValue('RPF #4521')
   await expect(dialog.getByLabel('Licensee', { exact: true })).toHaveValue('')
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(dialog).toBeHidden()
 
-  // Field brief's Checked by: a person field fills your name on a click, and can be someone else's.
-  await page.getByRole('button', { name: /^Field brief and crew checklist/ }).click()
-  const checkedBy = page.getByRole('textbox', { name: 'Checked by' })
+  // Field brief's Checked by, in its Save & export options: a person field fills your name on a click, and can be
+  // someone else's.
+  await openVisualsExport(page, 'Field brief')
+  const checkedBy = dialog.getByRole('textbox', { name: 'Checked by' })
   await expect(checkedBy).toBeVisible()
-  await page.getByRole('button', { name: 'Fill in your name, J. Smith' }).click()
+  await dialog.getByRole('button', { name: 'Fill in your name, J. Smith' }).click()
   await expect(checkedBy).toHaveValue('J. Smith')
   await checkedBy.fill('Crew lead B.')
-  await expect(page.getByRole('button', { name: 'Replace with your name, J. Smith' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Replace with your name, J. Smith' })).toBeVisible()
 })
 
 test('a logo may be an SVG, kept as a PNG drawn from it', async ({ page }) => {

@@ -39,12 +39,12 @@ export function StoodViewpointPanel({
       : null
   const body = (
     <div className="space-y-1.5" data-testid="stood-viewpoint">
-      <p className="text-2xs text-muted-foreground">
-        {bare ? 'Where you stand' : viewpoint.name || 'Viewpoint'}
-        {modelEye !== null
-          ? ` · terrain model ground ${metres(terrainGroundMeters!)}, eye ${metres(modelEye)} at ${formatMeasure(observerHeightMeters, 'm', { maximumFractionDigits: 1 })} up`
-          : ' · terrain model ground loads with the road view'}
-      </p>
+      {modelEye !== null && (
+        <p className="text-2xs text-muted-foreground">
+          {bare ? 'Where you stand' : viewpoint.name || 'Viewpoint'}
+          {` · terrain model ground ${metres(terrainGroundMeters!)}, eye ${metres(modelEye)} at ${formatMeasure(observerHeightMeters, 'm', { maximumFractionDigits: 1 })} up`}
+        </p>
+      )}
       <NullableNumberField
         label="Surveyed eye elevation"
         aria-label="Surveyed eye elevation, metres above sea level"

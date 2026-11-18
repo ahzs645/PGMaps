@@ -651,6 +651,14 @@ track grows to the longest cell in any column.
   field-of-view wedge from one GeoJSON source, so a moving viewer is one `setData`; the geometry is
   `viewerConeFeatures` and `horizontalFov` in `src/lib/geo/viewerCone.ts`. Round the viewer before
   passing it so the plan does not redraw every frame.
+- Turning a viewer by hand: `MapTurnHandle` (`map-turn-handle.tsx`) is the handle on the wedge's far
+  edge. A drag carries it round the arc, never off it (the pointer only gives the direction), and
+  reports each bearing through `onTurning` so the caller turns its wedge with the handle, then the
+  final one through `onTurn`. Keep `onTurning` to what the plan draws and write page state in
+  `onTurn`: the visual-quality views of interest and the road view's look handle are the references.
+  While it is dragged the map's container carries `map-handle-dragging` (`MAP_HANDLE_DRAGGING_CLASS`),
+  and `src/index.css` hides the layers' hover cards and holds the grabbing cursor under it, because
+  the pointer is then off the handle and over other features.
 
 ## Mobile sheets
 

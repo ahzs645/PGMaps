@@ -5,6 +5,7 @@ import { findSceneLandform } from './sceneInput'
 import { createViewOfInterestId, viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
 import { REPORT_RECIPES, recipeFormat } from './viaReport/recipes'
 import { VIA_DOCUMENT_FORMATS } from './viaDocument/formats'
+import { DEFAULT_VISUALS_SHEET, visualsSheetSummary } from './visualsBlockSheet'
 import {
   beforeToCapture,
   buildExportContext,
@@ -94,6 +95,33 @@ describe('visual-quality exports', () => {
     const kinds = VISUALS_EXPORTS.map((item) => item.kind)
     expect(new Set(kinds).size).toBe(kinds.length)
     for (const item of VISUALS_EXPORTS) expect(item.formats.length).toBeGreaterThan(0)
+  })
+
+  it('lists the block map sheet from the sheet as chosen, and waits for nothing before writing it', () => {
+    const empty = buildExportContext(input(createEmptyScene()))
+    expect(exportUnavailable('block-sheet', empty)).toMatch(/Add a cutblock/)
+    const scene = createSampleScene()
+    const sheetScene = {
+      targets: scene.targets,
+      masks: scene.masks ?? [],
+      viewpoint: scene.viewpoint,
+      views: [],
+    }
+    const summary = visualsSheetSummary(sheetScene, { ...DEFAULT_VISUALS_SHEET, kind: 'lidar-hillshade' })!
+    const ctx = buildExportContext(input(scene, { blockSheet: summary, logo: 'Your logo, mark.png' }))
+    expect(exportUnavailable('block-sheet', ctx)).toBeNull()
+    const sections = exportContents('block-sheet', ctx)
+    expect(rowValue(sections, 'Sheet', 'Sheet')).toBe('Design Hillshade')
+    expect(rowValue(sections, 'Sheet', 'Map style')).toBe('PGMaps sheet symbols')
+    expect(rowValue(sections, 'Sheet', 'Logo')).toBe('Your logo, mark.png')
+    expect(sections.find((section) => section.title === 'On the map')?.rows?.[0].label).toBe('Block of interest')
+    // A map of the scene: it neither runs the assessment nor captures a view first.
+    expect(exportPreparation('block-sheet', ctx)).toMatchObject({ run: false, capture: [], render: false, note: null })
+    // The canopy height sheet needs a grid this page does not load.
+    const canopy = visualsSheetSummary(sheetScene, { ...DEFAULT_VISUALS_SHEET, kind: 'lidar-canopy-height' })!
+    expect(exportUnavailable('block-sheet', buildExportContext(input(scene, { blockSheet: canopy })))).toMatch(
+      /canopy height grid/,
+    )
   })
 
   it('says why a document cannot be written before there is a block, a run or a saved view', () => {

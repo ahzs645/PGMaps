@@ -14,6 +14,26 @@ function offset(origin: { lng: number; lat: number }, bearing: number, distance:
 }
 
 /**
+ * The point on a viewer's arc: `meters` out from `origin` along a compass bearing, by the same flat
+ * approximation the wedge is drawn with, so a handle placed here sits on the wedge's far edge.
+ */
+export function viewerArcPoint(
+  origin: { lng: number; lat: number },
+  bearing: number,
+  meters: number,
+): { lng: number; lat: number } {
+  const [lng, lat] = offset(origin, bearing, meters)
+  return { lng, lat }
+}
+
+/** The compass bearing from `origin` to `point`, 0–360, the inverse of `viewerArcPoint`. */
+export function viewerBearingTo(origin: { lng: number; lat: number }, point: { lng: number; lat: number }): number {
+  const north = point.lat - origin.lat
+  const east = (point.lng - origin.lng) * Math.cos((origin.lat * Math.PI) / 180)
+  return ((Math.atan2(east, north) * 180) / Math.PI + 360) % 360
+}
+
+/**
  * A plan-view marker for a viewer: the wedge it sees out to `lengthMeters` (`kind: 'cone'`) and the
  * point it stands on (`kind: 'eye'`), as one collection so a map updates both with a single setData.
  * A field of view is clamped to 1–179°; a viewer that is not finite draws nothing.

@@ -1,10 +1,10 @@
 # Plan edits that are refused
 
 A plan edit has to leave a road that can be built. Dragging a horizontal point, dragging a **+**
-bend handle off the road, **Shift section**, pegging legs and typing a point's coordinates all go
-through one check, `planEditCheck.ts` (`checkPlanEdit`), in every interface: Ribbon, Guided map,
-Workbench and Dashboard. The check has no DOM access and carries the unit tests
-(`planEditCheck.test.ts`).
+bend handle off the road, pulling a curve's radius handle, **Shift section**, pegging legs and
+typing a point's coordinates all go through one check, `planEditCheck.ts` (`checkPlanEdit`), in
+every interface: Ribbon, Guided map, Workbench and Dashboard. The check has no DOM access and
+carries the unit tests (`planEditCheck.test.ts`).
 
 An edit is refused, and the road is left exactly as it was, when it would:
 
@@ -57,6 +57,53 @@ go there leaves the handle where the road still has it.
 Deleting a point and route searches are not checked here: a search's own rules already keep its
 roads open and fitted.
 
+## Bending a leg into an arc
+
+A **+** dragged off a leg adds one point with a circular curve, and the road is drawn through the
+handle as it moves (`bendThrough`, `bendArc.ts`). The new point is not put under the handle: it
+goes beyond it, on the corner's bisector, by the curve's external distance E = R (sec(Δ/2) − 1),
+so the middle of the fitted arc is where the handle is. Its numbered handle shows there during the
+drag.
+
+The radius is the one whose tangent takes half of the straight the two new legs have left, once
+the curves at the neighbouring points have taken theirs at their new deflections. A small pull
+therefore opens a long flat arc, and a longer one tightens it, down to the minimum radius and no
+further. The other half of each leg stays straight, so the point can be moved afterwards, and the
+legs either side bent again, before its curve stops fitting. The radius is kept to 0.1 m, rounded
+down. The header notice gives it when the bend is added.
+
+Where no curve through the place fits (the turn is too tight for the minimum radius on the legs
+it has, or the place is on the leg itself, as with Enter on a focused **+**), the point is added
+at the place with the minimum radius, as a bend always was, and the check above judges it. The
+preview and the drop read the same function, so the road that was drawn is the road that is added.
+
+### Pulling a curve's radius
+
+The selected point shows a round violet handle a little inside its curve. Dragging it toward the
+inside of the curve widens the curve, and toward the point tightens it: the radius becomes the one
+whose arc passes through the handle's place on the bisector, R = E ÷ (sec(Δ/2) − 1)
+(`curveThrough`). Neither the point nor its neighbours move. The radius stops at the minimum
+radius and at the largest the legs carry as the neighbouring curves stand, and the notice says
+which when it stops. A corner left sharp because its entered radius does not fit takes the handle
+at the point itself, and pulling it gives a radius that does fit. The change goes through the
+same check as a moved point, because a wider curve moves the road. A curve with spirals keeps its
+typed radius and has no handle; the radius field in **Horizontal points** is the keyboard route.
+
+Dragging a numbered point never changes a radius. The curve keeps the radius it has and follows
+the point; when it no longer fits, the corner is left sharp with its note, as before
+([What is not refused](#what-is-not-refused)).
+
+### What other tools do
+
+- Autodesk Civil 3D gives an alignment a grip at each intersection point, which moves where two
+  tangents meet; a triangular grip that changes only a curve's radius; and a circular pass-through
+  grip that moves the place a curve passes through and its radius with it. The curve handle here is
+  the pass-through grip, and a bend is a new intersection point placed from one.
+- Bentley OpenRoads draws a radius manipulator on each curve of an alignment built by PI, dragged
+  or typed, beside the handle at the PI.
+- Softree RoadEng edits the radius in its Horizontal Curves panel and does not apply a curve that
+  will not fit its tangents. A point drag here leaves an entered radius alone for the same reason.
+
 ## Assumptions
 
 - Crossings are read on the control line, the straight legs between points, not on the fitted
@@ -82,6 +129,9 @@ roads open and fitted.
   (switchback radius typically 15–25 m on lower-speed roads).
 - Softree RoadEng 11 help, _Horizontal Curves Panel_: a curve that does not fit its tangents is not
   applied, and adjacent curves may not overlap. This check applies the same rule to every corner.
+- Autodesk, _Civil 3D User Guide_, "About Editing Alignments Using Grips" and tutorial "Grip
+  Editing an Alignment" (read 17 November 2026): the intersection-point, radius and pass-through
+  grips. Bentley, _OpenRoads Designer Help_, "Complex by PI": radius manipulators on each curve.
 - FPPR s. 50(1): road construction in a riparian management area only in the stated cases.
 
 ## Limits and budgets
@@ -91,5 +141,10 @@ roads open and fitted.
 | Straight left on a leg for a bend handle | 1 × the minimum radius | `PlanView.tsx` `MIN_BEND_ROOM_RADII`                                | No **+** handle on that leg                                            |
 | Bend handle spacing on screen            | 48 px                  | `PlanView.tsx` `MIN_BEND_SEGMENT_PX`                                | No **+** handle until you zoom in                                      |
 | Drag before a bend is added              | 10 px                  | `PlanView.tsx` `MIN_BEND_DRAG_PX`                                   | Nothing added; the hint says to drag                                   |
+| A new bend's tangent                     | 0.5 of the free leg    | `bendArc.ts` `BEND_TANGENT_SHARE`                                   | Never more: the rest of each leg stays straight                        |
+| Bend offset that takes a fitted arc      | 0.05 m off the leg     | `bendArc.ts` `MIN_BEND_OFFSET_M`                                    | Nearer, the point is added on the leg at the minimum radius            |
+| Arc to the dragged place                 | 0.05 m                 | `bendArc.ts` `BEND_THROUGH_TOLERANCE_M`                             | Farther, the point is added at the place at the minimum radius         |
+| Radius set from the plan                 | 0.1 m steps            | `bendArc.ts` `BEND_RADIUS_STEP_M`                                   | Rounded down, so the curve still fits                                  |
+| Curve handle inside its arc              | 26 px                  | `PlanView.tsx` `CURVE_HANDLE_OFFSET_PX`                             | Drawn clear of the point's numbered handle                             |
 | Sample step on the fitted road           | 1–5 m                  | `planEditCheck.ts` `MIN_PLAN_CHECK_STEP_M`, `MAX_PLAN_CHECK_STEP_M` | Never finer than 1 m or coarser than 5 m                               |
 | Samples on the fitted road               | 6,000                  | `planEditCheck.ts` `MAX_PLAN_CHECK_SAMPLES`                         | Past 6 km the step grows; past 30 km it stays 5 m and the samples grow |

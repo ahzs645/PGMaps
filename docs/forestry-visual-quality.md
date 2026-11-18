@@ -36,9 +36,9 @@ is typed survives switching.
 
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
-| 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site; each button's tooltip describes the scenario and lists what its scene holds, counted by `scenarioSummary.ts`); **Road or viewpoint** (*Assess from*: a view of interest, or a length of road drawn, imported or snapped); folded *Which roads see the block*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
-| 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving; each row holds everything about that view: its record with significance and 3.2.1 type, its field photos, the crew's *Real and reachable* check, its key-viewpoint choice and, at the view stood at, the surveyed eye and the field photo line-up; see **Views of interest** below) and under it *Add from viewpoints and rec sites*; *Look from the road*, and while in the road view the stand (folded *Block colours*, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*, the timber it is drawn with its *Drawn timber* popover); **Saved views** (only saves not listed with the views); on the road only, **Road viewpoint** (its 3.2.1 type and, at a stand, the surveyed eye; a view keeps both in its row); folded *Field photos* (the road's photo line-up, then the attachments); folded *Field brief and crew checklist* (its file comes from *Save & export*) |
-| 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Planning thresholds*, *Masks and local surfaces*, the design alternatives and the diagnostics (each its own fold, never a fold inside a fold). *Simulation settings* are the settings icon right of the sidebar's title (`SimulationSettings.tsx`), compact rows grouped Viewer, Detail, Timber and Landform; every one is a run input |
+| 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site; each button's tooltip describes the scenario and lists what its scene holds, counted by `scenarioSummary.ts`; under them *Open a project…* and, when this browser kept another site, *Reopen previous site*); **Road or viewpoint** (*Assess from*: a view of interest, or a length of road drawn, imported or snapped); folded *Which roads see the block*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
+| 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving; each row holds everything about that view: its record with significance and 3.2.1 type, its field photos, the crew's *Real and reachable* check, its key-viewpoint choice and, at the view stood at, the surveyed eye and the field photo line-up; see **Views of interest** below) and under it *Add from viewpoints and rec sites*; *Look from the road*, and while in the road view the stand (folded *Block colours*, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*, the timber it is drawn with its *Drawn timber* popover); on the road only, **Road viewpoint** (its 3.2.1 type and, at a stand, the surveyed eye; a view keeps both in its row); folded *Field photos* (the road's photo line-up, then the attachments); folded *Field brief and crew checklist* (its file comes from *Save & export*) |
+| 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Planning thresholds*, the design alternatives and the diagnostics (each its own fold, never a fold inside a fold). *Simulation settings* are the settings icon right of the sidebar's title (`SimulationSettings.tsx`), compact rows grouped Viewer, Detail, Timber and Landform; every one is a run input |
 | 4 · Assess against the VQO | 3.4 | *Assessing from* (the group of views of interest the judgements are for; see **Step 4 per group of views** below), **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
 | 5 · Final rating and package | 3.5, 4.0 | **Rate and write up in Save & export**: *Rate and package…* opens the dialog's Package entry, whose top holds the **Final rating** (Table 7) and its rationale; *Visuals note…* opens **Block note**, whose options hold the Visuals paragraph and visual measures. The evidence record and checklist are *VIA evidence package*'s options, and *Import assessment workspace* is *Assessment workspace*'s |
 
@@ -100,7 +100,11 @@ plan's top-left corner (`MapToolPanel`) with the drawing's Finish and Cancel,
 and Esc puts a drawing down. Importing a road or a cutblock file stays in step
 1's sidebar sections, and *Route preview*'s road viewshed stays on the plan
 after its card closes (a dot on its icon says so). Each icon names itself in a
-`HoverTip` bubble. Steps 2 and 3 show no intro line (their tabs name them), and
+`HoverTip` bubble. Under the plan's Layers button, *Masks and local surfaces*
+(`ToolSourcesPanel.tsx`) opens a card beside the control stack on the plan's
+right: classify mask polygons, copy a selected polygon in as a mask, and import
+a local terrain or canopy GeoTIFF. It stays open while the plan is clicked, and
+a dot on its icon says the scene holds masks or surfaces. Steps 2 and 3 show no intro line (their tabs name them), and
 the headline's *Views captured* tile carries step 2's progress.
 
 **Adding views.** The plan map's *Add a view of interest* tool (its icon in
@@ -127,7 +131,7 @@ arrows at the block*, the choice *Add to views* adds; a check's *Hidden* and
 under the row or bulk button it came from until the block changes or for
 `ADD_MESSAGE_MS` (8 s). A view that repeats one already listed (within 1 m, the same
 block and facing) is skipped, and the list holds at most
-`MAX_VIEWS_OF_INTEREST` (12), the saved-view limit, so every planned view can
+`MAX_VIEWS_OF_INTEREST` (24), the saved-view limit, so every planned view can
 be captured.
 
 **A photo viewpoint.** An own photo's accepted camera becomes a view of
@@ -159,7 +163,10 @@ while standing at a view goes back to the road the stand left.
 
 **Turning a view.** The open view's cone tip on the plan is a handle, like the
 road view's own: dragging it sets the view's facing to that bearing (an arrow's
-id is dropped). While the road view stands at a planned view it *is* that view:
+id is dropped). The handle rides the cone's arc as it is dragged, wherever the
+pointer is, and the cone turns with it (`MapTurnHandle`); the view itself takes
+the bearing once, to the degree, when the handle is let go. Hover cards for
+what the pointer crosses stand aside until then. While the road view stands at a planned view it *is* that view:
 the plan draws it once, as the road view's viewer (the view's own point and cone
 are left out, `standingViewId`), and turning the road view's look handle turns
 the planned view too. Either way the view reads *Changed since captured* until
@@ -265,8 +272,10 @@ or the bearing it looks along, with the road view's lens (50 mm when none is
 set) and the save's caption as its name ("… (2)" when that name is taken). A
 save that repeats a listed view joins it. Its picture is framed exactly as
 before: the link only tags the saved view with `plannedViewId` and
-`plannedKey`. **Saved views** lists only saves that could not be listed (no
-cutblock, or 12 views already), and saves made before this.
+`plannedKey`. A save that could not be listed (no cutblock, or 24 views
+already), one whose view was removed and one made before this show under the
+list as *Saved, not listed as a view* (`UnlistedSavedViews`), reopened or
+removed there; step 2 has no separate *Saved views* section.
 
 **Field records file under the views.** The views of interest are the tools'
 viewpoints (`plannedToolViews`, by the view's id, standing on its 30 m pullout as
@@ -477,8 +486,9 @@ interest's *Export…*).
 | | FS1252 form | PDF | Stations, each one's reviewer inputs, run diagnostics, office fields |
 | | Analysis sheet | PDF, PNG | Which of the package's views, figure style, label style, camera block, logo |
 | | VIA document | Markdown, JSON | The format, only while the package has no recipe |
-| | VIA report | PDF, Printable HTML, Markdown | The overview sheet's style when the recipe prints one; logo. A *Draft* view lays it out with stand-ins and draws its pictures one group at a time (**VIA reports**) |
+| | VIA report | PDF, Printable HTML, Markdown | The overview sheet's style when the recipe prints one; the maps' style; logo. A *Draft* view lays it out with stand-ins and draws its pictures one group at a time (**VIA reports**) |
 | | Field brief | PDF | Block, when there are several (shared with step 2's checklist) |
+| | Block map sheet | PDF | Sheet type, paper, scale, block, map style, the fields the sheet prints; logo (below) |
 | | Worksheet | Markdown | — |
 | | VIA evidence package | PDF, printable HTML | — |
 | Save and reopen | Project | `.pgvq.zip` | — (scene, photos, captures and attachments; below) |
@@ -497,6 +507,30 @@ an image, HTML in a sandboxed frame, an Excel workbook as its sheets read back
 from the file by `workbookPreview.ts`, text); *Download* saves that same file. An
 output that cannot be written yet says why in the list (no block, no view in
 the package, the road view closed, a scene that cannot run).
+
+**Block map sheet.** A printed map of one proposed block in the sheet types the
+road designer prints (field layout, slope, hillshade, 1:50,000 access, imagery,
+the operating plan; `docs/forestry-block-map-sheets.md`, **On the visual quality
+page**), drawn from the scene by `visualsBlockSheet.ts` through the shared sheet
+builder and written by `visualsBlockSheetPdf.ts`. It is a map of the scene: it
+reads nothing but the terrain tiles for its frame, prints no figure from the run,
+and so waits for no run, capture or render. Its *Map style* is PGMaps' sheet
+symbols or a figure style (`visualsSheetSymbols`), whose landform, block,
+opening, private-land and rock symbols then draw those features on the map and
+in its legend. Its sheet type, paper, scale, typed fields and style are kept in
+this browser (`VISUALS_SHEET_STORAGE_KEY`), never in the scene or the project
+file, as the road designer keeps its own; a blank F.L., CP or Forest District
+prints the FS1252 office field. What a sheet was written without (terrain that
+did not load) is said over the preview and beside the save line
+(`BuiltFile.notes`).
+
+**The VIA report's map style.** The report's maps keep their own symbols unless
+its options name a figure style (*Map style*): the overview map, the 11 × 17
+sheet in either style and the figure page's location map then draw the proposed
+blocks and existing openings with that style's symbols and list them so in their
+legends (`figureMapStyle`, carried on `ReportMapFeatures.symbols`; a role the
+style does not draw keeps the map's own). The choice is part of the maps'
+picture key, so changing it draws the maps again and nothing else.
 
 **Package, chosen once.** First in the dialog's list, under *Chosen once*,
 **Package** (`ExportPackagePane` in `VisualsExportDialog.tsx`, resolved by
@@ -634,9 +668,15 @@ says its analysis sheet was not read. A file from a newer PGMaps is refused.
 Views keep their ids, so each finds its picture; *Saved views* renumbers them,
 needs a road and keeps no pictures, which is why it could not serve. The other
 three files stay for their own uses: *Scene* for the scene alone, *Saved views*
-for *Open saved preview*, *Assessment workspace* as the browser store's backup.
+for the scene and views without pictures (step 1's *Open a project…* reads one,
+`openProjectFile`), *Assessment workspace* as the browser store's backup.
 Opening a project replaces what is on the map and the saved views without
-asking, as the *Start from* samples do.
+asking, as the *Start from* samples do. *New site* and each sample also start
+the workspace clean (`startNewSite`, `useAssessmentTools.tsx`): the own photo
+set, every field record and its original, design options, runs, earlier
+viewpoints, block curve assignments and reference measurements go; the growth
+curve and the Castor curve library stay, as the reviewer's inputs rather than
+the site's records.
 
 **Reviewing a historical VIA.** Open the project ZIP in **Step 1 → Start from**,
 then choose **Reference measurements**. Earlier converted projects import their
@@ -715,7 +755,7 @@ and saved comparisons travel in **Save & export → Project**.
   evidence hashes.
 - **Study exhibits** searches the figure catalogue by caption, document, page,
   viewpoint or recorded date and opens the selected exhibit and its source.
-  **Visit → Views of interest** captures pending included views 1, 3, 6 or all 12
+  **Visit → Views of interest** captures pending included views 1, 3, 6 or 12
   at a time (**Views per capture**). A saved project keeps completed captures so
   the remaining views can be captured later; the plan holds no more views than can
   be saved (`MAX_VIEWS_OF_INTEREST`).
@@ -1283,7 +1323,8 @@ two handles (`PlanViewerHandles`): drag the dot along the road to move the road
 view there (snapped by `distanceAlongRoad`, seeking at most every 120 ms), and
 drag the tip of the view cone to turn it, which sets `drive.lookBearing` exactly
 as facing an inventory arrow does (*Where to look* then reads "Turned on the
-map"). A plain click anywhere on the plan moves the road view to the nearest
+map"). The tip rides the cone's arc, and a second wedge shows where the view
+will face; the road view turns once, when the tip is let go. A plain click anywhere on the plan moves the road view to the nearest
 point on the road (`PlanClickToMove`), so you can look at one area, click the
 next and look again. A click on an inventory viewpoint, rec site or arrow still
 opens its card (an arrow clicked, or one aimed at the block, leads; *facing the
@@ -1458,7 +1499,9 @@ street-level photo from Mapillary, or with a photo of your own.
   jumps to it. It stays hidden while a photo is lined up.
 
 - **A photo of your own.** *Line up photos of my own…* (under the Mapillary
-  part, and available without a Mapillary token) opens one window
+  part, and available without a Mapillary token, at the head of the one block
+  that also attaches simulation, map and design images and lists every field
+  record; photographs come in only through this window) opens one window
   (`OwnPhotoDialog.tsx`) in three tabs: *Photos*, *Camera* and *Use*. Photos
   are read in the browser; nothing is uploaded.
   - **Photos** (`PhotoStrip.tsx`) takes many JPEG, PNG, WebP or HEIC files at
@@ -1848,7 +1891,8 @@ beyond 60 m); an own photo's lens is assumed distortion-free, and a cropped one'
 says January 2016 on a 2020 camera, in summer). Photos are CC BY-SA 4.0 and
 every view credits the photographer. The client token lives in `.env.local` as
 `VITE_MAPILLARY_TOKEN` — a client token is built for browsers. No client
-secret is used or needed.
+secret is used or needed. Without one the street-level part is left out of
+*Field photos* with no notice; your own photos and evidence stay.
 
 Still open for own photos (`docs/forestry-visual-quality-own-photo-redesign-2026-11-17.md`, section 6): the
 overlay is heavy with every layer on (about 1.8 MB against 155 KB for the usual layers); the own-photo panel
@@ -2872,6 +2916,7 @@ of two ways (`EngineSurface.tsx`, `engineChannel.ts`):
 | `src/pages/dev-forestry/ForestOverlay.tsx` | Which ground to grow, and when to regrow it |
 | `src/pages/dev-forestry/visualsNarrative.ts`, `VisualsParagraphPanel.tsx` | Step 5's planning-note summary and the drafted Visuals paragraph |
 | `src/pages/dev-forestry/fieldChecklist.ts`, `fieldBrief.ts`, `FieldBriefPanel.tsx` | The VIA stage, the crew checklist, and step 2's one-page field brief |
+| `src/pages/dev-forestry/visualsBlockSheet.ts`, `visualsBlockSheetPdf.ts`, `VisualsBlockSheetSetup.tsx` | Save & export's block map sheet: its layers and map style from the scene (DOM-free), the PDF writer that reads the terrain tiles, and its options form |
 | `src/pages/dev-forestry/visualMeasures.ts` | The drafted visual measures for the Site Plan and Logging Plan (pure) |
 | `src/pages/dev-forestry/WildlifeTreePatchPanel.tsx` | Step 3's *Draw a wildlife tree patch* and the patches in the scene |
 | `src/pages/dev-forestry/viewpointInventory.ts`, `ViewpointFinderPanel.tsx` | VLI viewpoints and arrows, rec sites, screenings and tenure road names around a block |
@@ -3273,12 +3318,16 @@ viewpoints — which saves a second trip to the field.
   added only if notes overflow.
 - **The checklist** (`viaReview.fieldChecklist`): per viewpoint (keys
   `station:<viewpoint id>`, `voi:<view of interest id>`, `view:<saved view
-  id>`) and per opening (target id) a yes/no and a note; a view of interest is
-  answered in its own row (*Real and reachable*, `viewFieldCheck`) and only
-  counted in this panel, keyed by the view so a recapture keeps it, and an
-  answer recorded on its capture before (`view:<saved view id>`) still reads
-  (`viewOfInterestCheck`); one boundary note. Each answer is stamped with the
-  panel's *Checked by* and the local date (`updateFieldCheck`), and an entry
+  id>`) and per opening (target id) a yes/no and a note; every viewpoint is
+  answered with its own record, never in a list here: a view of interest in its
+  row (*Real and reachable*, `viewFieldCheck`), the road in step 2's *Road
+  viewpoint* (`RoadFieldCheck`), and this panel only counts them (a saved view
+  of no planned view has no row, so it is printed but not counted); a view is
+  keyed by the view so a recapture keeps it, and an answer recorded on its
+  capture before (`view:<saved view id>`) still reads
+  (`viewOfInterestCheck`); one boundary note. Each answer is stamped with
+  *Checked by* (`CheckedByField`, in Save & export's Field brief options, where
+  the brief prints it) and the local date (`updateFieldCheck`), and an entry
   with neither answer nor note is removed. Answers for viewpoints no longer
   listed are kept but not counted. Filled answers are printed in the brief's
   boxes with their stamps. Green-up here is only confirmed / not and a note;
@@ -3729,10 +3778,15 @@ a sheet with only its traced outlines.
 **Private land** (`parcelMapPrivateLand.ts`) is read live from the ParcelMap BC
 parcel fabric (`WHSE_CADASTRE.PMBC_PARCEL_FABRIC_POLY_SVW`, `OWNER_TYPE =
 'Private'`) round the landform, with the box in `CQL_FILTER` longitude first and
-a narrow `propertyName`, like the vegetation read. Parcels are candidates: each
-one the reviewer adds becomes a `private` assessment mask, which the run already
-keeps out of the alteration, so adding one stales the run. A failed lookup is an
-error with a retry, never "no private land".
+a narrow `propertyName`, like the vegetation read. Parcels are candidates: the
+plan draws the ones not yet added dashed (legend row *Private parcel found*,
+`candidate:private`), and the reviewer ticks the ones to add in the panel's list
+or by clicking them on the plan, where a ticked parcel is filled. A tick is only
+a selection (`usePrivateParcels`, shared by the panel and the plan); *Add N
+ticked as private land* makes each a `private` assessment mask, which the run
+already keeps out of the alteration, so adding one stales the run. With the road
+view open a plan click moves it, so the parcels take no click then. A failed
+lookup is an error with a retry, never "no private land".
 
 **Rock** is VRI non-vegetated land (rock, rubble, exposed soil, not water). It
 is display and figure only: no number in the run reads it, and the pixel

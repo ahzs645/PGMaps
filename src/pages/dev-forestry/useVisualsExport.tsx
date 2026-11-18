@@ -86,7 +86,16 @@ import { useOwnRecipes } from './userRecipeStore'
 import { timed } from './exportTiming'
 import { ExportPackagePane, VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
 import type { ViewCaptureApi, ViewCaptureReport } from './useViewCapture'
-import { viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
+import { isIncluded, viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
+import { useVisualsSheetSettings, VisualsBlockSheetForm } from './VisualsBlockSheetSetup'
+import {
+  officeSheetFields,
+  reportMapStyles,
+  SHEET_SYMBOLS_STYLE,
+  visualsSheetBlockId,
+  visualsSheetSummary,
+  type VisualsSheetScene,
+} from './visualsBlockSheet'
 import {
   castorConstraintCsv,
   castorConstraintProblem,
@@ -300,6 +309,8 @@ export function useVisualsExport(input: {
     obliquePitch?: number
     /** The report prints 26's figure page, which takes location and regional maps of its own. */
     figurePageMaps?: boolean
+    /** A figure style whose block and opening symbols the maps draw (`figureMapStyle`); absent, the maps' own. */
+    mapStyle?: string
     /** Only these groups (the draft draws one at a time; a file captures only those it has not kept). */
     only?: { maps?: boolean; before?: boolean; renders?: boolean }
   }) => Promise<{ images: ReportImages; notes: string[]; beforeRenders?: BeforeRenders }>
@@ -375,8 +386,12 @@ export function useVisualsExport(input: {
   const { packageRecipeId, setPackageRecipeId } = input.opener
   // The 11 × 17 overview sheet's style; until chosen, the recipe's (`overviewSheetStyle`), else landscape topographic.
   const [overviewSheetChoice, setOverviewSheetChoice] = useState<OverviewSheetStyle | null>(null)
+  // The VIA report's map style: the maps' own symbols, or a figure style's blocks and openings on them.
+  const [reportMapStyle, setReportMapStyle] = useState<string>(SHEET_SYMBOLS_STYLE)
   // The logo printed sheets and reports carry (the user's own, else the brand's), kept in IndexedDB.
   const branding = useBranding()
+  // The block map sheet's sheet type, paper, scale, typed fields and map style, kept in this browser.
+  const [sheetSettings, setSheetSettings] = useVisualsSheetSettings()
   // The package's saved views left out by hand, read by every output that draws views; and the block note's land
   // checks in or out. Both last as long as the page.
   const [excludedViews, setExcludedViews] = useState<ReadonlySet<string>>(() => new Set())
@@ -581,6 +596,19 @@ export function useVisualsExport(input: {
   const landform = findSceneLandform(scene)
   const blocks = scene.targets.filter((target) => target.role === 'block')
 
+  // The block map sheet: the scene's shapes, the views of interest in the package and, when the page has read
+  // the inventory, its polygons with an established objective. The sheet reads nothing of its own.
+  const sheetScene: VisualsSheetScene = {
+    targets: scene.targets,
+    masks: scene.masks ?? [],
+    viewpoint: scene.viewpoint,
+    views: plannedViews.filter(isIncluded).map(({ name, lng, lat }) => ({ name, lng, lat })),
+    vqo: (input.visualInventory?.units ?? []).filter((unit) => unit.objectiveId !== null),
+  }
+  const sheetOffice = officeSheetFields(scene.reportMetadata ?? {})
+  const sheet = { ...sheetSettings, block: visualsSheetBlockId(sheetScene, sheetSettings.block) }
+  const sheetSummary = visualsSheetSummary(sheetScene, sheet)
+
   // One resolved document feeds the dialog's contents, its preview and the file.
   // The package's recipe names it; with none, the document's own choice, else the road view's figure style.
   const documentFormat = findDocumentFormat(pkg.documentFormatId) ?? VIA_DOCUMENT_FORMATS[0]
@@ -693,6 +721,7 @@ export function useVisualsExport(input: {
     stale,
     assessment,
     views: contextViews,
+    ...(sheetSummary ? { blockSheet: sheetSummary } : {}),
     fs1252,
     blockNote: blockNoteParts
       ? {
@@ -717,6 +746,9 @@ export function useVisualsExport(input: {
           parts: reportRecipe.parts.map((id) => id.replace(/-/g, ' ')),
           figures: reportViews.length,
           toComplete: draftReport.toComplete.length,
+          ...(reportMapStyle !== SHEET_SYMBOLS_STYLE
+            ? { mapStyle: reportMapStyles().find((style) => style.value === reportMapStyle)?.label ?? reportMapStyle }
+            : {}),
         }
       : null,
     renderer: {
@@ -858,6 +890,8 @@ export function useVisualsExport(input: {
       // A picture group drawn in the draft changes what the files are written from.
       pictureTick,
       chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo',
+      // The sheet's typed fields and comments are not in the context's summary of it.
+      kind === 'block-sheet' ? JSON.stringify(sheet) : '',
     ].join('|')
 
   // The export context under another name: the report's build names its own `context`.
@@ -899,6 +933,8 @@ export function useVisualsExport(input: {
         ? `${chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo'}|${draftReport?.subtitle ?? ''}`
         : '',
       reportRecipe.parts.includes('ea-figure-pages') ? 'figure-page-maps' : '',
+      // The maps draw their blocks and openings in the chosen style.
+      reportMapStyle,
     ].join('|'),
     renders: [
       input.sceneKey,
@@ -926,6 +962,7 @@ export function useVisualsExport(input: {
           views: named,
           overviewSheet: { style: overviewSheetStyle, logo: endMapLogo, project: draftReport?.subtitle ?? null },
           ...(reportRecipe.parts.includes('ea-figure-pages') ? { figurePageMaps: true } : {}),
+          ...(reportMapStyle !== SHEET_SYMBOLS_STYLE ? { mapStyle: reportMapStyle } : {}),
           only: { maps: true },
         }),
       )
@@ -1366,7 +1403,7 @@ export function useVisualsExport(input: {
     else if (id === 'maps' || id === 'renders') await captureGroup(id, named)
     setPictureTick((tick) => tick + 1)
   }
-  const build = async (kind: VisualsExport, format: string): Promise<BuiltFile> => {
+  const build = async (kind: VisualsExport, format: string, signal?: AbortSignal): Promise<BuiltFile> => {
     switch (kind) {
       case 'block-note':
         if (!blockNoteParts) throw new Error('Add a cutblock to write its note.')
@@ -1454,6 +1491,29 @@ export function useVisualsExport(input: {
           blob: new Blob([fieldBriefPdf(brief, jspdf)], { type: 'application/pdf' }),
           fileName: fieldBriefFileName(brief),
         }
+      }
+      case 'block-sheet': {
+        const [{ visualsSheetPdf }, { printedLogoRaster }] = await Promise.all([
+          import('./visualsBlockSheetPdf'),
+          import('@/branding/raster'),
+        ])
+        const metadata = scene.reportMetadata ?? {}
+        return visualsSheetPdf({
+          settings: sheet,
+          scene: sheetScene,
+          office: sheetOffice,
+          issue: {
+            date: new Date().toLocaleDateString('en-CA'),
+            preparedBy: [metadata.evaluator, metadata.evaluatorDesignation]
+              .map((part) => part?.trim())
+              .filter(Boolean)
+              .join(', '),
+            organisation: metadata.evaluatorOrganisation?.trim() ?? '',
+            revision: '',
+          },
+          logo: (await printedLogoRaster(branding)) ?? undefined,
+          signal,
+        })
       }
       case 'worksheet': {
         const file = input.worksheet()
@@ -1586,6 +1646,26 @@ export function useVisualsExport(input: {
             </StyledSelect>
           </label>
         )}
+        <label className="grid gap-1 text-xs">
+          <span className="text-muted-foreground">Map style</span>
+          <StyledSelect
+            aria-label="Map style"
+            className="w-full rounded-md border bg-background p-1"
+            value={reportMapStyle}
+            onChange={(event) => setReportMapStyle(event.target.value)}
+          >
+            {reportMapStyles().map((style) => (
+              <option key={style.value} value={style.value}>
+                {style.label}
+              </option>
+            ))}
+          </StyledSelect>
+          <span className="text-muted-foreground">
+            {reportMapStyle === SHEET_SYMBOLS_STYLE
+              ? 'Each map the report prints keeps its own symbols.'
+              : 'The maps the report prints draw the proposed blocks and existing openings with this figure style’s symbols, and list them so in their legends.'}
+          </span>
+        </label>
         <PrintedPreparer
           portalContainer={input.portalContainer}
           preparer={{
@@ -1618,6 +1698,19 @@ export function useVisualsExport(input: {
         ))}
       </StyledSelect>
     ),
+    ...(blocks.length
+      ? {
+          'block-sheet': (
+            <VisualsBlockSheetForm
+              scene={sheetScene}
+              office={sheetOffice}
+              settings={sheet}
+              onChange={setSheetSettings}
+              portalContainer={input.portalContainer}
+            />
+          ),
+        }
+      : {}),
     ...(blocks.length > 1
       ? {
           'field-brief': (

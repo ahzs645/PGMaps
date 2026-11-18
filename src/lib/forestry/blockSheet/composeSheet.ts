@@ -102,6 +102,36 @@ export interface SheetLayers {
   extras?: SheetExtra[]
 }
 
+/**
+ * Features whose symbol a tool may replace with one of its own: a style saved in the browser's style
+ * library, or a figure style's. `deactivated` is the whole deactivated road, as the styled GIS
+ * exports draw it: with one given, the road draws with it alone, without the crosses over its own symbol.
+ */
+export type SheetSymbolRole =
+  | 'block'
+  | 'otherBlock'
+  | 'constraint'
+  | 'riparianReserve'
+  | 'riparianManagement'
+  | 'stream'
+  | 'ncd'
+  | 'fsr'
+  | 'existingRoad'
+  | 'deactivated'
+export type SheetSymbols = Partial<Record<SheetSymbolRole, SheetSymbol>>
+export const SHEET_SYMBOL_ROLES: readonly SheetSymbolRole[] = [
+  'block',
+  'otherBlock',
+  'constraint',
+  'riparianReserve',
+  'riparianManagement',
+  'stream',
+  'ncd',
+  'fsr',
+  'existingRoad',
+  'deactivated',
+]
+
 export interface SheetIssue {
   date: string
   preparedBy: string
@@ -172,6 +202,11 @@ export interface ComposeInput {
   /** A notice printed in red over the map, e.g. results that leave out an invalid input. */
   stamp?: string
   caveat?: string
+  /**
+   * Symbols that replace the sheet's own for the features they name. The map and the legend draw the
+   * same object, so they cannot disagree; one of the wrong kind for its feature is left out.
+   */
+  symbols?: SheetSymbols
 }
 
 export interface LegendItem {
@@ -267,6 +302,11 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
   const fillArea = (parts: Point[][], symbol: AreaSymbol) => ops.push(...areaSymbolOps(parts, symbol, k))
   const placePoint = (at: Point, symbol: PointSymbol) => ops.push(...pointSymbolOps(symbol, at[0], at[1], k))
   const halo = { color: LABEL_HALO.color, width: LABEL_HALO.width * k }
+  /** The tool's own symbol for a feature when it gave one of the right kind, else the sheet's. */
+  const chosen = <S extends SheetSymbol>(role: SheetSymbolRole, own: S): S => {
+    const symbol = input.symbols?.[role]
+    return symbol && symbol.kind === own.kind ? (symbol as S) : own
+  }
   const polygonParts = (geometry: BlockGeometry | GeoJSON.Polygon): Point[][] =>
     (geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates).flatMap((polygon) =>
       polygon.map((ring) => project(ring as LngLat[])),
@@ -356,26 +396,32 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
   for (const constraint of input.layers.constraints ?? []) {
     const parts = polygonParts(constraint.geometry)
     if (!visible(parts)) continue
-    fillArea(parts, CONSTRAINT_AREA)
-    mark('constraints', CONSTRAINT_AREA)
+    const symbol = chosen('constraint', CONSTRAINT_AREA)
+    fillArea(parts, symbol)
+    mark('constraints', symbol)
   }
   for (const zone of input.layers.riparian ?? []) {
     const parts = polygonParts(zone.geometry)
     if (!visible(parts)) continue
-    fillArea(parts, RIPARIAN_SCREEN[zone.band])
-    mark('riparian', RIPARIAN_SCREEN[zone.band])
+    const symbol = chosen(
+      zone.band === 'reserve' ? 'riparianReserve' : 'riparianManagement',
+      RIPARIAN_SCREEN[zone.band],
+    )
+    fillArea(parts, symbol)
+    mark('riparian', symbol)
   }
   drawExtras('area')
   for (const block of input.layers.otherBlocks ?? []) {
     const parts = polygonParts(block.geometry)
     if (!visible(parts)) continue
-    fillArea(parts, OTHER_BLOCK)
-    mark('otherBlocks', OTHER_BLOCK)
+    const symbol = chosen('otherBlock', OTHER_BLOCK)
+    fillArea(parts, symbol)
+    mark('otherBlocks', symbol)
   }
   for (const stream of input.layers.streams ?? []) {
     const parts = [project(stream.line)]
     if (!visible(parts)) continue
-    const symbol = (stream.ncd ? NCD_STREAM : STREAM)[band]
+    const symbol = chosen(stream.ncd ? 'ncd' : 'stream', (stream.ncd ? NCD_STREAM : STREAM)[band])
     strokeLine(parts, symbol)
     mark(stream.ncd ? 'ncd' : 'streams', symbol)
   }
@@ -404,12 +450,22 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
   for (const road of input.layers.existingRoads ?? []) {
     const parts = [project(road.line)]
     if (!visible(parts)) continue
-    const symbol = (road.forestService ? FOREST_SERVICE_ROAD : EXISTING_ROAD)[band]
-    strokeLine(parts, symbol)
-    mark(road.forestService ? 'forestService' : 'existingRoads', symbol)
-    if (road.deactivated) {
-      strokeLine(parts, ROAD_DEACTIVATION)
-      mark('deactivated', ROAD_DEACTIVATION)
+    const whole = road.deactivated ? input.symbols?.deactivated : undefined
+    if (whole?.kind === 'line') {
+      // A deactivated road with a symbol of its own draws with that alone (`SheetSymbolRole`).
+      strokeLine(parts, whole)
+      mark('deactivated', whole)
+    } else {
+      const symbol = chosen(
+        road.forestService ? 'fsr' : 'existingRoad',
+        (road.forestService ? FOREST_SERVICE_ROAD : EXISTING_ROAD)[band],
+      )
+      strokeLine(parts, symbol)
+      mark(road.forestService ? 'forestService' : 'existingRoads', symbol)
+      if (road.deactivated) {
+        strokeLine(parts, ROAD_DEACTIVATION)
+        mark('deactivated', ROAD_DEACTIVATION)
+      }
     }
     if (road.name && road.forestService) labelLine(parts[0], road.name)
   }
@@ -426,7 +482,7 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
   ops.push(...roadLabels)
 
   if (input.layers.block) {
-    const symbol = BLOCK_OF_INTEREST[preset.blockStyle]
+    const symbol = chosen('block', BLOCK_OF_INTEREST[preset.blockStyle])
     const parts = polygonParts(input.layers.block.geometry)
     if (visible(parts)) {
       fillArea(parts, symbol)
@@ -673,7 +729,16 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
   titleBar(ops, sheet, preset, input)
 
   // ---- Panels ----
-  const legend = LEGEND_ORDER.flatMap((key) => (drawn.get(key) ?? []).map((symbol) => ({ key, symbol })))
+  // One row a symbol: two layers a tool gave the same symbol (a figure style's block) share it.
+  const listed = new Set<string>()
+  const legend = LEGEND_ORDER.flatMap((key) =>
+    (drawn.get(key) ?? []).flatMap((symbol) => {
+      const id = JSON.stringify(symbol)
+      if (listed.has(id)) return []
+      listed.add(id)
+      return [{ key, symbol }]
+    }),
+  )
   const classLegend = input.base?.legend ?? []
   for (const panel of sheet.panels) {
     const body = panel.bare ? panel.rect : sectionBox(ops, sheet, panel.rect, panel.title ?? '', preset)

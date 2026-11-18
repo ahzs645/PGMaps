@@ -3,6 +3,7 @@ import {
   fetchPrivateParcels,
   parcelMaskFields,
   parsePrivateParcels,
+  privateParcelCandidateCollection,
   privateParcelQueryUrl,
 } from './parcelMapPrivateLand'
 
@@ -66,5 +67,23 @@ describe('private land from ParcelMap BC', () => {
     await expect(fetchPrivateParcels([-122.65, 53.86, -122.45, 53.95], refuse)).rejects.toThrow(/refused/)
     const down = vi.fn(async () => new Response('', { status: 503 }))
     await expect(fetchPrivateParcels([-122.65, 53.86, -122.45, 53.95], down)).rejects.toThrow(/503/)
+  })
+})
+
+describe('private parcel candidates on the plan', () => {
+  it('draws each parcel with its name, area and whether it is ticked', () => {
+    const { parcels } = parsePrivateParcels({
+      type: 'FeatureCollection',
+      features: [
+        feature({ PARCEL_FABRIC_POLY_ID: 7, PID_FORMATTED: '000-000-007', OWNER_TYPE: 'Private' }),
+        feature({ PARCEL_FABRIC_POLY_ID: 8, PID_FORMATTED: '000-000-008', OWNER_TYPE: 'Private' }),
+      ],
+    })
+    const collection = privateParcelCandidateCollection(parcels, new Set(['8']))
+    expect(collection.features.map((entry) => entry.properties)).toEqual([
+      { id: '7', name: 'Private land, PID 000-000-007', areaHa: parcels[0].areaMeters / 10_000, selected: 0 },
+      { id: '8', name: 'Private land, PID 000-000-008', areaHa: parcels[1].areaMeters / 10_000, selected: 1 },
+    ])
+    expect(collection.features[0].geometry).toBe(parcels[0].geometry)
   })
 })

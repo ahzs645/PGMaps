@@ -184,7 +184,7 @@ export function ViewpointRecordFields({
    * The run's 3.2.1 estimate, offered only for the view the run stands at (`viewpointImportance`); the hint says how
    * it was read, or why there is none.
    */
-  typeEstimate?: { rating: ViewpointTypeId | null; hint: string }
+  typeEstimate?: { rating: ViewpointTypeId | null; hint: string | null }
 }) {
   const records = review.viewpointRecords ?? {}
   const record = records[name] ?? {}
@@ -226,7 +226,7 @@ export function ViewpointRecordFields({
           </option>
         ))}
       </SelectField>
-      {typeEstimate && <p className="text-2xs text-muted-foreground">{typeEstimate.hint}</p>}
+      {typeEstimate?.hint && <p className="text-2xs text-muted-foreground">{typeEstimate.hint}</p>}
       <FormField label="Why it was chosen">
         <textarea
           className={FORM_INPUT_CLASS}

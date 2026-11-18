@@ -8,7 +8,7 @@ import type { LocalRaster } from './types'
 import type { AnalysisResult, Viewpoint } from './types'
 import { assessVia, type ViaAssessment, type ViaReview } from './via'
 import { pulloutThrough } from './viewpointInventory'
-import { blockCentre, type ViewOfInterest } from './viewsOfInterest'
+import { MAX_VIEWS_OF_INTEREST, blockCentre, type ViewOfInterest } from './viewsOfInterest'
 import type { PolygonGeometry } from './visibility'
 import { heightCurveProblem, MAX_LIBRARY_CURVES, type LibraryCurve } from './castorCurves'
 import { greenUpReading } from './greenUp'
@@ -24,9 +24,8 @@ export type ToolOption = { id: string; name: string; scene: ForestryScene }
  */
 export type ToolView = { id: string; name: string; viewpoint: Viewpoint; landformId: string | null; notes: string }
 
-/** At most this many viewpoints in a document: the twelve views of interest and twelve recorded before them. */
-/** At most this many viewpoints in a document: the twelve views of interest and twelve recorded before them. */
-export const MAX_TOOL_VIEWS = 24
+/** One full study plus the twelve viewpoints recorded by earlier versions. */
+export const MAX_TOOL_VIEWS = MAX_VIEWS_OF_INTEREST + 12
 
 /**
  * The views of interest as the tools' viewpoints, by the view's own id, so a photograph or a run filed under one

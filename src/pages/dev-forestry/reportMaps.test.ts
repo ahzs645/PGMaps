@@ -61,6 +61,8 @@ import {
   type EndMapBasemap,
 } from './reportEndMap'
 import { demTileRange } from '@/lib/forestry/terrain/terrain'
+import { DEFAULT_FIGURE_STYLE } from '@/lib/forestry/viaFigure/presets'
+import { figureMapStyle, reportMapStyles, SHEET_SYMBOLS_STYLE } from './visualsBlockSheet'
 import { bearingDegrees, haversineMeters } from './visibility'
 
 const square = (lng: number, lat: number, d: number): GeoJSON.Polygon => ({
@@ -200,6 +202,31 @@ describe('report map planning', () => {
 
 describe('report map figure', () => {
   const frame = { width: 800, height: 600 }
+
+  it('draws the blocks and openings in a chosen map style, and keeps its own symbol for a role the style lacks', () => {
+    const [overview] = planReportMaps(features, frame)
+    const style = figureMapStyle(DEFAULT_FIGURE_STYLE)!
+    expect(style.block?.label).toBe('Proposed Block')
+    const strokes = (map: ReturnType<typeof composeReportMap>) =>
+      map.ops.flatMap((op) => (op.op === 'path' && op.stroke ? [op.stroke.color] : []))
+    const own = composeReportMap(overview, features, frame, null, null)
+    const styled = composeReportMap(overview, { ...features, symbols: style }, frame, null, null)
+    const blockColour = style.block!.outline![0].color
+    expect(strokes(own)).not.toContain(blockColour)
+    expect(strokes(styled)).toContain(blockColour)
+    expect(styled.legend).toContain('Proposed Block')
+    expect(styled.legend).not.toContain('Proposed block')
+    // A style with a block symbol only leaves the opening the map's own.
+    const blockOnly = composeReportMap(overview, { ...features, symbols: { block: style.block } }, frame, null, null)
+    expect(blockOnly.legend).toEqual(expect.arrayContaining(['Existing opening', 'Proposed Block']))
+    // The maps' own symbols: no style is carried at all.
+    expect(figureMapStyle(SHEET_SYMBOLS_STYLE)).toBeUndefined()
+    const source = { targets: [], units: [], evqo: null, road: null, viewpoints: [] }
+    expect(reportMapFeatures(source).symbols).toBeUndefined()
+    expect(reportMapFeatures({ ...source, symbols: {} }).symbols).toBeUndefined()
+    expect(reportMapFeatures({ ...source, symbols: style }).symbols).toBe(style)
+    expect(reportMapStyles()[0].value).toBe(SHEET_SYMBOLS_STYLE)
+  })
 
   it('draws the inventory, openings, road, blocks and viewpoints with a legend of what was drawn', () => {
     const [overview] = planReportMaps(features, frame)
@@ -848,6 +875,19 @@ describe('portrait end map', () => {
       attribution: null,
     })
     expect(bare.legend).toEqual(['Viewpoints', 'Proposed block', 'VQO linework'])
+    // A chosen map style draws the blocks, and lists them, with its own symbol.
+    const styled = composeEndMap({
+      plan,
+      features: { ...twoViewpoints, retention: [], openings: [], symbols: figureMapStyle(DEFAULT_FIGURE_STYLE) },
+      basemap: null,
+      contours: null,
+      mapImage: null,
+      keyMapImage: null,
+      logo: null,
+      project: null,
+      attribution: null,
+    })
+    expect(styled.legend).toEqual(['Viewpoints', 'Proposed Block', 'VQO linework'])
     // The user's logo fills the slot at its own proportions; the project line falls back to the blocks.
     const logo = bare.ops.find((op) => op.op === 'image')
     expect(logo && logo.op === 'image' ? [logo.x, logo.w / logo.h] : null).toEqual([layout.logo.x, 2])

@@ -28,7 +28,8 @@ const ORIGIN_LABELS = { geometry: 'from the block', terrain: 'from the terrain' 
 /**
  * Sheet setup for a printed map sheet: which sheet, paper and scale, which area it shows, and the
  * fields its title bar and information panel print. Values a tool works out are shown with where
- * they came from; the rest are typed. A tool supplies the lists, so any map can offer its own sheets.
+ * they came from; the rest are typed. A tool supplies the lists, so any map can offer its own sheets,
+ * and the map styles it can draw them in.
  */
 export function MapSheetSetup({
   value,
@@ -38,6 +39,10 @@ export function MapSheetSetup({
   area,
   onArea,
   fields,
+  styles,
+  style,
+  onStyle,
+  styleHint,
   commentsLabel,
   commentsMaxLength = 2000,
   logoName,
@@ -52,6 +57,12 @@ export function MapSheetSetup({
   area?: string
   onArea?: (value: string) => void
   fields: readonly MapSheetField[]
+  /** Looks the sheet's map features can be drawn with. Omit when a tool has one look. */
+  styles?: readonly { value: string; label: string }[]
+  style?: string
+  onStyle?: (value: string) => void
+  /** One line under the map style: what the chosen look changes. */
+  styleHint?: string
   /** Shown when the chosen sheet has a free-text comments box. */
   commentsLabel?: string
   commentsMaxLength?: number
@@ -132,6 +143,25 @@ export function MapSheetSetup({
             ))}
           </StyledSelect>
         </FormField>
+      )}
+      {styles && onStyle && (
+        <div className="grid gap-1">
+          <FormField label="Map style" htmlFor="map-sheet-style">
+            <StyledSelect
+              id="map-sheet-style"
+              className={FORM_INPUT_CLASS}
+              value={style ?? styles[0]?.value ?? ''}
+              onChange={(event) => onStyle(event.target.value)}
+            >
+              {styles.map((entry) => (
+                <option key={entry.value} value={entry.value}>
+                  {entry.label}
+                </option>
+              ))}
+            </StyledSelect>
+          </FormField>
+          {styleHint && <p className="text-muted-foreground">{styleHint}</p>}
+        </div>
       )}
       <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
         {fields.map((field) =>

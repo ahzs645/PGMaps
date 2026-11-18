@@ -12,6 +12,7 @@ import {
   Download,
   FileText,
   FileUp,
+  History,
   Waypoints,
   Landmark,
   Loader2,
@@ -576,6 +577,11 @@ export type SidebarProps = {
   onClearScene: () => void
   /** Opens a project file saved from Save & export: it replaces what is on the map and the saved views. */
   onOpenProject: (file: File) => void
+  /**
+   * Brings back the site this browser last kept, with its saved views, when the map now shows another (it is kept
+   * until a view is saved on the new one). Absent: nothing else is kept.
+   */
+  onReopenPrevious?: () => void
   /** Opens Save & export, on one output or the first. */
   onOpenExport: (kind?: VisualsExport) => void
   /** Adds the on-screen roads inside the landform as FS1252 line (b) disturbance. */
@@ -597,7 +603,7 @@ export type SidebarProps = {
   visit: ReactNode
   /** Step 2: a street-level field photo to line the road view up with. */
   fieldPhoto?: ReactNode
-  /** Step 2: the assessment's photographs and evidence images (`ToolFieldPanel`), in *Field photos* under the line-up. */
+  /** Step 2: the reviewer's own photos (`OwnFieldPhoto`) and the evidence images (`ToolFieldPanel`), as one block. */
   fieldRecords?: ReactNode
   /** Step 2: the pre-layout field brief for the layout crew, and the crew's checklist answered back. */
   fieldBrief?: ReactNode
@@ -610,8 +616,6 @@ export type SidebarProps = {
   roadStand?: ReactNode
   /** Step 3: which landform the run measures, and its green area. */
   landformScope: ReactNode
-  /** Step 3: assessment masks and local terrain or canopy surfaces, a folded section of its own. */
-  localSources?: ReactNode
   /** Step 3: draw wildlife tree patches (retained masks), under the run. */
   wildlifeTreePatches?: ReactNode
   /** Step 3: private land from ParcelMap BC, added by the reviewer as private-land masks. */
@@ -701,6 +705,7 @@ export function Sidebar({
   roadViewOpening = false,
   onClearScene,
   onOpenProject,
+  onReopenPrevious,
   onOpenExport,
   onAddRoadDisturbance,
   setup,
@@ -713,7 +718,6 @@ export function Sidebar({
   showViewpointType = true,
   roadStand,
   landformScope,
-  localSources,
   wildlifeTreePatches,
   privateLand,
   netFootprints,
@@ -1052,12 +1056,24 @@ export function Sidebar({
             accept=".json,.zip"
             variant="outline"
             className={cn(GRID_BUTTON, 'mt-1.5 w-full')}
-            title="Open a PGMaps project ZIP or an earlier project JSON file"
+            title="Open a PGMaps project ZIP, an earlier project JSON file, or a Saved views file from Save & export"
             onFiles={([file]) => onOpenProject(file)}
           >
             <FileUp className="h-3.5 w-3.5" />
             Open a project…
           </FileButton>
+          {onReopenPrevious && (
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(GRID_BUTTON, 'mt-1.5 w-full')}
+              title="Bring back the site this browser kept before this one, with its saved views"
+              onClick={onReopenPrevious}
+            >
+              <History className="h-3.5 w-3.5" />
+              Reopen previous site
+            </Button>
+          )}
           {projectAttachments}
         </ToolSection>
 
@@ -1467,9 +1483,9 @@ export function Sidebar({
         {(fieldPhoto || fieldRecords) && (
           <ToolSection
             title="Field photos"
-            summary={fieldPhoto ? 'Line up a photo · attachments' : 'Attachments'}
+            summary={fieldPhoto ? 'Street photos · your photos · evidence' : 'Your photos · evidence'}
             toggleProps={{ 'data-forestry-disclosure': 'field-records' }}
-            help="Handbook 3.2 photographs each viewpoint and 3.3.4 checks the simulation against the photo. On the road, line the road view up with a street-level photo from Mapillary or a photo of your own (read in this browser, never uploaded). Below, the assessment's photographs and evidence images: file each under a view of interest, whose row lists and adds them. They stay on this device and travel in the workspace export."
+            help="Handbook 3.2 photographs each viewpoint and 3.3.4 checks the simulation against the photo. On the road, line the road view up with a street-level photo from Mapillary. Below, your own photos and evidence images in one list: photos go in through the line-up window (read in this browser, never uploaded) whether or not you line them up, and simulation, map and design images are attached beside them. File each under a view of interest, whose row lists and adds them. They stay on this device, travel in the workspace export and the project file, and a new site or sample starts without them."
           >
             <div className="space-y-3">
               {fieldPhoto}
@@ -1664,7 +1680,6 @@ export function Sidebar({
             Reset to guidebook defaults
           </Button>
         </ToolSection>
-        {localSources}
         {designComparisons}
       </div>
 

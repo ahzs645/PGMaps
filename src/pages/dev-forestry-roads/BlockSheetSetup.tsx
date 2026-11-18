@@ -5,16 +5,8 @@ import { saveUploadedLogo } from '@/branding/store'
 import { useBranding } from '@/branding/useBranding'
 import { MapSheetSetup, type MapSheetField } from '@/components/ui/map-sheet-setup'
 import { blockFacts } from '@/lib/forestry/blockSheet/blockFacts'
-import {
-  ENTERED_FIELD_LABELS,
-  infoFieldLabel,
-  MAX_SHEET_COMMENTS_LENGTH,
-  MAX_SHEET_FIELD_LENGTH,
-  SHEET_KINDS,
-  SHEET_PRESETS,
-  type EnteredFieldId,
-  type SheetKind,
-} from '@/lib/forestry/blockSheet/sheets'
+import { sheetSetupFields } from '@/lib/forestry/blockSheet/setupFields'
+import { MAX_SHEET_COMMENTS_LENGTH, SHEET_KINDS, SHEET_PRESETS, type SheetKind } from '@/lib/forestry/blockSheet/sheets'
 import type { RasterImage } from '@/lib/mapSheet/drawOps'
 import {
   blockChoices,
@@ -23,9 +15,11 @@ import {
   changeBlockSheetSettings,
   DEFAULT_BLOCK_SHEET,
   parseBlockSheetSettings,
+  SHEET_SYMBOL_CHOICES,
   type BlockSheetSettings,
 } from './blockSheet'
 import { ROAD_DESIGN_DEPLOYMENT } from './deployment'
+import { StyleLibraryPanel } from './StyleLibraryPanel'
 import { terrainReferenceSurfaces } from './terrain'
 import type { RoadProject, TerrainSource } from './types'
 
@@ -43,14 +37,14 @@ function stored(): BlockSheetSettings {
   }
 }
 
-const TITLE_FIELDS: EnteredFieldId[] = ['forestLicence', 'cuttingPermit', 'blockId']
-
 /**
  * The block sheet's settings for the road tool: kept per browser, so the typed fields survive a
  * reload. The logo is the user's own, kept in the browser's branding store and shared with every sheet
  * and report (`saveUploadedLogo`), never in the project file. Returns the settings, the canopy surface and the setup form.
+ * With *Map style* on *My saved styles* the form also holds the style library, where each feature's
+ * style is chosen; `onStyleLibraryChange` lets the page rebuild the sheet's preview after an edit there.
  */
-export function useBlockSheet(project: RoadProject, terrain: TerrainSource | null) {
+export function useBlockSheet(project: RoadProject, terrain: TerrainSource | null, onStyleLibraryChange?: () => void) {
   const [settings, setSettings] = useState<BlockSheetSettings>(stored)
   const keptLogo = useBranding().logo
   const logo: { name: string; image: RasterImage } | null = useMemo(
@@ -103,26 +97,7 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
     }
   }, [blocks, block, terrain, project.terrain.resolutionM])
   const preset = SHEET_PRESETS[effective.kind]
-  const shown = new Set(preset.info.columns.flat())
-  const fields: MapSheetField[] = [
-    ...TITLE_FIELDS.map((id) => ({ id, label: ENTERED_FIELD_LABELS[id], origin: 'entered' as const })),
-    ...[...shown].map((id): MapSheetField => {
-      const label = infoFieldLabel(id, effective.kind)
-      if (id === 'mapsheet') return { id, label, origin: 'geometry', computed: facts?.mapsheet ?? null }
-      if (id === 'grossArea')
-        return { id, label, origin: 'geometry', computed: facts ? `${facts.areaHa.toFixed(1)} (BC Albers)` : null }
-      if (id === 'minElev' || id === 'maxElev')
-        return {
-          id,
-          label,
-          origin: 'terrain',
-          computed: facts?.elevation
-            ? String(Math.round(id === 'minElev' ? facts.elevation.min : facts.elevation.max))
-            : null,
-        }
-      return { id, label, origin: 'entered', maxLength: MAX_SHEET_FIELD_LENGTH }
-    }),
-  ]
+  const fields: MapSheetField[] = sheetSetupFields(effective.kind, facts)
   const chooseLogo = (file: File | null) => {
     setLogoError('')
     const saving = file ? readLogoFile(file).then(saveUploadedLogo) : saveUploadedLogo(null)
@@ -154,6 +129,14 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
         area={block}
         onArea={(value) => setSettings({ ...effective, block: value })}
         fields={fields}
+        styles={SHEET_SYMBOL_CHOICES}
+        style={effective.symbols}
+        onStyle={(value) => setSettings({ ...effective, symbols: value === 'library' ? 'library' : 'pgmaps' })}
+        styleHint={
+          effective.symbols === 'library'
+            ? 'Each feature below draws with the style chosen for it, on the map and in the legend; the rest keep PGMaps’ symbols.'
+            : 'The sheet’s own symbols, as the Symbol gallery shows them.'
+        }
         commentsLabel={preset.comments ? 'Block access comments' : undefined}
         commentsMaxLength={MAX_SHEET_COMMENTS_LENGTH}
         logoName={logo?.name ?? null}
@@ -164,6 +147,7 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
           {logoError}
         </p>
       )}
+      {effective.symbols === 'library' && <StyleLibraryPanel onChange={onStyleLibraryChange} />}
       {gallery &&
         (gallery.startsWith('/') ? (
           <Link

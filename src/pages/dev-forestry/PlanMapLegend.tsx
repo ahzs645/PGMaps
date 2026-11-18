@@ -150,6 +150,8 @@ export type PlanMapLegendProps = {
   landformClues: boolean
   inventory: { viewpoints: boolean; arrows: boolean; recSites: boolean; screenings: boolean } | null
   masks: ReadonlyArray<AssessmentMaskKind>
+  /** ParcelMap BC's private parcels found round the landform and not yet added. */
+  privateParcels?: boolean
   /** Tree-free areas drawn for the road view's timber. */
   treeFreeAreas?: boolean
   /** A stand prescription's trees drawn: kept, taken and protected (`stand/`). */
@@ -181,6 +183,7 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
   const graded = run || reverseRoads
   const terrain = props.terrainCandidates.length > 0 || props.otherRidgeLayers || props.landformClues
   const bc =
+    props.privateParcels ||
     props.sensitivityUnits.length > 0 ||
     (inventory && (inventory.viewpoints || inventory.arrows || inventory.recSites || inventory.screenings))
   const evqo = EVQO_ORDER.filter((code) => props.evqo.includes(code))
@@ -193,6 +196,7 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
     !terrain &&
     !bc &&
     !masks.length &&
+    !props.privateParcels &&
     !evqo.length &&
     !props.treeFreeAreas &&
     !props.standTrees &&
@@ -392,6 +396,14 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
 
           {bc && (
             <MapLegendSection title="BC inventories" data-legend-section="inventory">
+              {props.privateParcels && (
+                <Row
+                  id="candidate:private"
+                  color={MASK_COLORS.private}
+                  swatch={<AreaSwatch color={MASK_COLORS.private} dashed />}
+                  label="Private parcel found · filled when ticked to add"
+                />
+              )}
               {VISUAL_QUALITY_CLASSES.filter((entry) => props.sensitivityUnits.includes(entry.id)).map((entry) => (
                 <Row
                   key={entry.id}

@@ -40,8 +40,15 @@ import {
   type VisualsExportGroup,
 } from './visualsExports'
 
-/** A written file: what the download saves and the preview shows. */
-export type BuiltFile = { blob: Blob; fileName: string }
+/**
+ * A written file: what the download saves and the preview shows. `notes` says what it was written without (terrain
+ * that did not load, say), shown over the preview and beside the save line.
+ */
+export type BuiltFile = { blob: Blob; fileName: string; notes?: string }
+
+/** What a file is missing: what its preparation left out, then what its own writing did. */
+const withFileNotes = (missing: string | null, file: BuiltFile) =>
+  [missing, file.notes].filter(Boolean).join(' ') || null
 
 /**
  * An output's draft (the VIA report's): laid out at once without capturing anything, with stand-ins for pictures not
@@ -727,8 +734,8 @@ export function VisualsExportDialog({
             // The current one already shown: this one is not needed.
             if (resultRef.current?.request === latestRequest.current) {
               if ('url' in preview) URL.revokeObjectURL(preview.url)
-            } else setResult({ request, file, preview, missing, outdated: true })
-          } else setResult({ request, file, preview, missing })
+            } else setResult({ request, file, preview, missing: withFileNotes(missing, file), outdated: true })
+          } else setResult({ request, file, preview, missing: withFileNotes(missing, file) })
         })
         .catch((error: unknown) => {
           if (!controller.signal.aborted)
@@ -833,6 +840,7 @@ export function VisualsExportDialog({
       if (!file) {
         missing = await prepare(item.kind, controller.signal, true)
         file = await writeFile(item.kind, format.id, controller.signal)
+        missing = withFileNotes(missing, file)
       }
       if (controller.signal.aborted) return
       downloadBlob(file.blob, file.fileName)

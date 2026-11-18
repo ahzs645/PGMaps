@@ -5,17 +5,16 @@
  * docs/forestry-block-map-sheets.md. Module scope has no DOM or network access; the run loads the
  * imagery capture and jsPDF on demand.
  */
-import { blockFacts, type BlockFacts } from '@/lib/forestry/blockSheet/blockFacts'
+import { buildSheet, sheetNeeds, type BuiltSheet } from '@/lib/forestry/blockSheet/buildSheet'
 import {
-  composeSheet,
   sheetFocus,
   sheetFrame,
-  type ComposedSheet,
   type SheetIssue,
   type SheetLayers,
   type SheetNote,
+  type SheetSymbols,
 } from '@/lib/forestry/blockSheet/composeSheet'
-import { prepareSheetTerrain, type SheetTerrainSources } from '@/lib/forestry/blockSheet/prepareSheet'
+import type { SheetTerrainSources } from '@/lib/forestry/blockSheet/prepareSheet'
 import {
   IMAGERY_BASEMAP,
   MAX_SHEET_COMMENTS_LENGTH,
@@ -45,7 +44,18 @@ export interface BlockSheetSettings {
   block: string
   fields: SheetFields
   comments: string
+  /**
+   * What the map's features draw with: PGMaps' sheet symbols, or the styles this browser's style
+   * library assigns to them (`styleLibrary.ts`), with PGMaps' symbol for every feature it leaves alone.
+   */
+  symbols: SheetSymbolChoice
 }
+
+export type SheetSymbolChoice = 'pgmaps' | 'library'
+export const SHEET_SYMBOL_CHOICES: readonly { value: SheetSymbolChoice; label: string }[] = [
+  { value: 'pgmaps', label: 'PGMaps sheet symbols' },
+  { value: 'library', label: 'My saved styles' },
+]
 
 export const DEFAULT_BLOCK_SHEET: BlockSheetSettings = {
   kind: 'field-layout',
@@ -54,6 +64,7 @@ export const DEFAULT_BLOCK_SHEET: BlockSheetSettings = {
   block: '',
   fields: {},
   comments: '',
+  symbols: 'pgmaps',
 }
 
 /** Validates settings read back from browser storage; anything unknown falls back to the default. */
@@ -73,6 +84,7 @@ export function parseBlockSheetSettings(raw: unknown): BlockSheetSettings {
     block: typeof r.block === 'string' ? r.block.slice(0, 200) : '',
     fields: parseSheetFields(r.fields),
     comments: typeof r.comments === 'string' ? r.comments.slice(0, MAX_SHEET_COMMENTS_LENGTH) : '',
+    symbols: r.symbols === 'library' ? 'library' : 'pgmaps',
   }
 }
 
@@ -183,10 +195,10 @@ export function blockSheetLayers(
 
 /** Why a sheet kind cannot be made for this project, or null. */
 export function blockSheetUnavailable(kind: SheetKind, sources: SheetTerrainSources): string | null {
-  const base = SHEET_PRESETS[kind].base
-  if (base === 'canopy-height' && !sources.canopy)
+  const needs = sheetNeeds(kind, sources)
+  if (needs === 'canopy')
     return 'Needs a canopy height grid. Add one as a named reference surface whose name includes "canopy" or "CHM".'
-  if ((base === 'slope' || base === 'hillshade') && !sources.terrain) return 'Needs terrain under the block.'
+  if (needs === 'terrain') return 'Needs terrain under the block.'
   return null
 }
 
@@ -211,13 +223,14 @@ export interface BlockSheetRun {
   signal?: AbortSignal
   /** Lower resolution for the on-screen preview. */
   preview?: boolean
+  /**
+   * The style library's symbols by feature (`roleOverrides`), read by the page. Drawn only when
+   * `settings.symbols` is `library`; the map and the sheet's legend then both draw them.
+   */
+  librarySymbols?: SheetSymbols
 }
 
-export interface BuiltBlockSheet {
-  sheet: ComposedSheet
-  facts: BlockFacts | null
-  missing: string[]
-}
+export type BuiltBlockSheet = BuiltSheet
 
 /** Scale at and beyond which a sheet is an overview whose contours may come from regional terrain. */
 export const OVERVIEW_SHEET_SCALE = 50000
@@ -247,9 +260,6 @@ export function sheetContourSource(
   return terrain?.kind === 'regional' || scale >= OVERVIEW_SHEET_SCALE ? 'regional-frame' : 'project'
 }
 
-/** Preview rasters are coarse: the preview is a thumbnail, not a proof. */
-const PREVIEW_DPI = 40
-
 /** Frames, samples and composes the sheet. Imagery is captured only for the full PDF. */
 export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockSheet> {
   const { settings } = run
@@ -260,12 +270,6 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
   const sources: SheetTerrainSources = { terrain: run.terrain ?? undefined, canopy: run.canopy ?? undefined }
   const unavailable = blockSheetUnavailable(settings.kind, sources)
   if (unavailable) throw Error(unavailable)
-  const facts = layers.block
-    ? blockFacts(
-        layers.block.geometry,
-        run.terrain ? { source: run.terrain, spacingM: Math.max(1, run.terrainResolutionM) } : undefined,
-      )
-    : null
   // Contours over the whole frame (`sheetContourSource`). The preview keeps the loaded terrain, as it
   // keeps a flat colour for imagery: a thumbnail should not fetch tiles on every setting change.
   let frameContours = false
@@ -288,55 +292,34 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
       )
     }
   }
-  const products = await runCooperatively(
-    prepareSheetTerrain(frame, sources, run.preview ? PREVIEW_DPI : undefined),
-    { signal: run.signal },
-    'Block sheet cancelled.',
-  )
-  let base = products.base
-  if (frame.preset.base === 'imagery') {
-    if (run.preview)
-      base = {
-        image: { kind: 'rgba', data: new Uint8ClampedArray([62, 84, 58, 255]), width: 1, height: 1 },
-        attribution: `${IMAGERY_BASEMAP.attribution} (preview: imagery loads in the PDF)`,
-      }
-    else {
-      const { captureBasemap } = await import('@/lib/mapSheet/printCapture')
-      const captured = await captureBasemap(IMAGERY_BASEMAP, frame.projection, run.signal)
-      base = { image: captured.image, attribution: captured.attribution }
-    }
-  }
-  const preset = frame.preset
-  const sourceParts = [
-    preset.base === 'slope'
-      ? `Slope % from ${run.terrainName}`
-      : preset.base === 'hillshade'
-        ? `Hillshade 315°/45° from ${run.terrainName}`
-        : preset.base === 'canopy-height'
-          ? 'Canopy height from the canopy surface'
-          : '',
-    products.contours
-      ? `contours ${products.contours.result.interval} m${products.contours.result.widened ? ' (widened to fit)' : ''}${frameContours ? ' from the regional DEM over the whole frame' : ''}`
-      : '',
-  ].filter(Boolean)
   const logo =
     run.logo ??
     (run.branding ? await (await import('@/branding/raster')).brandLogoRaster(run.branding.brand) : undefined)
-  const sheet = composeSheet({
-    frame,
-    layers,
-    base,
-    contours: products.contours,
-    facts,
-    terrainName: run.terrainName,
-    fields: settings.fields,
-    issue: run.issue,
-    logo,
-    comments: settings.comments,
-    sourceLine: sourceParts.join('; '),
-    stamp: run.stamp,
-    caveat: run.caveat,
-  })
+  const built = await buildSheet(
+    {
+      frame,
+      layers,
+      symbols: settings.symbols === 'library' ? run.librarySymbols : undefined,
+      sources,
+      terrainName: run.terrainName,
+      terrainSpacingM: run.terrainResolutionM,
+      contourNote: frameContours ? ' from the regional DEM over the whole frame' : '',
+      fields: settings.fields,
+      comments: settings.comments,
+      issue: run.issue,
+      logo,
+      stamp: run.stamp,
+      caveat: run.caveat,
+      signal: run.signal,
+      preview: run.preview,
+    },
+    {
+      drive: (steps) => runCooperatively(steps, { signal: run.signal }, 'Block sheet cancelled.'),
+      captureImagery: async (projection, signal) =>
+        (await import('@/lib/mapSheet/printCapture')).captureBasemap(IMAGERY_BASEMAP, projection, signal),
+    },
+  )
+  const { sheet } = built
   if (run.branding && !run.logo && logo) {
     const placement = sheet.ops.find((op) => op.op === 'image' && op.image === logo)
     const minimum = run.branding.brand.profile.identity?.minimumLogoWidthMm ?? 0
@@ -346,7 +329,7 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
         'This sheet has insufficient room for the selected brand logo. Choose a larger sheet or turn export branding off.',
       )
   }
-  return { sheet, facts, missing: [...contourMissing, ...products.missing] }
+  return { ...built, missing: [...contourMissing, ...built.missing] }
 }
 
 /** Builds the sheet and returns its PDF. */

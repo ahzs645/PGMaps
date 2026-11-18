@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { Button, type ButtonProps } from '@/components/ui/button'
-import { FileButton } from '@/components/ui/file-button'
-import { ToolSection } from '@/components/ui/tool-section'
+import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 import { formatKm } from './measureFormat'
@@ -26,8 +25,9 @@ function ActionButton({ className, ...props }: ButtonProps) {
 }
 type Props = {
   /**
-   * `setup` is handbook step 1's half — the road and the proposal. `visit` is
-   * step 2's — preparing the eye-level view and keeping the views taken from it.
+   * `setup` is handbook step 1's half — the tracing in progress. `visit` is
+   * step 2's — preparing the eye-level view. The views saved from it are listed
+   * with the views of interest (`ViewsOfInterestPanel`, `UnlistedSavedViews`).
    */
   part: 'setup' | 'visit'
   scene: ForestryScene
@@ -38,20 +38,11 @@ type Props = {
   onCancel: () => void
   onSample: () => void
   onNew: () => void
-  onImport: (file: File, kind: 'road' | 'blocks' | 'preview') => void
   onDraw: (mode: DrawMode) => void
   drawMode: DrawMode
   pointCount: number
   onFinish: () => void
   message: string | null
-  views: SavedDriveView[]
-  /** Saved views listed with the views of interest instead, each reopened from its row there. */
-  listedWithViews?: number
-  onRestore: (view: SavedDriveView) => void
-  onRemoveView: (id: string) => void
-  onExport: () => void
-  storageWarning: string | null
-  onReopenPrevious?: () => void
   children?: ReactNode
 }
 export function PreviewWorkflow(props: Props) {
@@ -135,66 +126,58 @@ export function PreviewWorkflow(props: Props) {
           {props.children}
         </section>
       )}
-      <ToolSection
-        title="Saved views"
-        className="space-y-2 text-xs"
-        help={
-          <>
-            Your record of each viewpoint (handbook 3.2). Save a view from the road view&rsquo;s bar; it is named with
-            its planning-note caption and listed with the views of interest, where its row reopens it and keeps its
-            record. A view is listed here only when it could not be (no cutblock, or the list full). The downloaded
-            preview holds the geometry and views; terrain and inventory need a connection when it is reopened.
-          </>
-        }
-      >
-        {!props.views.length && !props.listedWithViews && (
-          <p className="text-2xs text-muted-foreground">None yet. Save one from the road view&rsquo;s bar.</p>
-        )}
-        {!!props.listedWithViews && (
-          <p className="text-2xs text-muted-foreground">
-            {props.listedWithViews === 1 ? 'One saved view is' : `${props.listedWithViews} saved views are`} listed with
-            the views of interest above: <em>Reopen saved</em> in its row opens it.
-          </p>
-        )}
-        {props.onReopenPrevious && (
-          <ActionButton onClick={props.onReopenPrevious}>Reopen previous saved preview</ActionButton>
-        )}
-        {props.views.map((view) => (
-          <div key={view.id} className="flex items-center gap-2">
-            <ActionButton
-              className="h-auto min-h-9 flex-1 justify-start whitespace-normal py-2 text-left touch:h-auto touch:min-h-10"
-              disabled={busy}
-              onClick={() => props.onRestore(view)}
-            >
-              {view.name} · {formatKm(view.positionMeters)}
-            </ActionButton>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-9 shrink-0 touch:size-10"
-              aria-label={`Remove ${view.name}`}
-              onClick={() => props.onRemoveView(view.id)}
-            >
-              <X aria-hidden="true" />
-            </Button>
-          </div>
-        ))}
-        <div className="grid grid-cols-2 gap-1.5">
-          <ActionButton disabled={!!error} onClick={props.onExport}>
-            Save views…
-          </ActionButton>
-          <FileButton
-            label="Import preview geometry"
-            accept=".json,.geojson,.zip"
-            className="touch:h-10"
-            disabled={busy}
-            onFiles={([file]) => props.onImport(file, 'preview')}
-          >
-            Open saved preview
-          </FileButton>
-        </div>
-        {props.storageWarning && <InlineAlert tone="warning">{props.storageWarning}</InlineAlert>}
-      </ToolSection>
     </>
+  )
+}
+
+/**
+ * Saved views that are not a view of interest's capture, shown under the views of interest in step 2: a save made with
+ * no cutblock to face or with the list full (`handSaveLink`), or one whose view has since been removed. Every other
+ * saved view is reopened from its view's row. Also where the page says browser storage cannot keep the views.
+ */
+export function UnlistedSavedViews(props: {
+  views: readonly SavedDriveView[]
+  busy: boolean
+  onRestore: (view: SavedDriveView) => void
+  onRemove: (id: string) => void
+  storageWarning: string | null
+}) {
+  if (!props.views.length && !props.storageWarning) return null
+  return (
+    <section className="space-y-1.5 border-t border-border/60 pt-2" aria-label="Saved views not listed">
+      {props.views.length > 0 && (
+        <>
+          <p className="flex items-center gap-1 text-2xs font-medium text-foreground">
+            Saved, not listed as a view
+            <InfoTip label="About saved views not listed">
+              A view saved from the road view&rsquo;s bar is listed above as a view of interest, and its row reopens it.
+              These could not be listed: there was no cutblock to face, the list was full, or the view they were saved
+              for has been removed. Reopen one to look again; saved there once a cutblock is in place, it is listed.
+            </InfoTip>
+          </p>
+          {props.views.map((view) => (
+            <div key={view.id} className="flex items-center gap-2">
+              <ActionButton
+                className="h-auto min-h-9 flex-1 justify-start whitespace-normal py-2 text-left touch:h-auto touch:min-h-10"
+                disabled={props.busy}
+                onClick={() => props.onRestore(view)}
+              >
+                {view.name} · {formatKm(view.positionMeters)}
+              </ActionButton>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-9 shrink-0 touch:size-10"
+                aria-label={`Remove ${view.name}`}
+                onClick={() => props.onRemove(view.id)}
+              >
+                <X aria-hidden="true" />
+              </Button>
+            </div>
+          ))}
+        </>
+      )}
+      {props.storageWarning && <InlineAlert tone="warning">{props.storageWarning}</InlineAlert>}
+    </section>
   )
 }

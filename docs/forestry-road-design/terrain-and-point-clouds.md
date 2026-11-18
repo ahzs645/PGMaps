@@ -62,7 +62,10 @@ cables, drainage results, station controls and temporary planning overlays. Reus
 loaded material haul and empty return paths have separate entries when those paths are drawn.
 Under **Map settings → Legend and map symbols**, choose **Standard road plan** or **Block sheet
 forestry**. The plan starts on **Block sheet forestry**, the symbols of printed block-map sheets;
-both sets remain available, and the map context and its legend change together.
+both sets remain available, and the map context and its legend change together. A third choice,
+**Block sheet, my saved styles**, draws the block sheet symbols with the styles saved in this
+browser over the features they were chosen for (Save & export, a GIS output or the block map sheet,
+**Styles**); it redraws as the library changes.
 The choice is remembered in this browser across reloads and interface changes, independently of
 branding. Map PDFs capture the selected symbols and any visible legend.
 The list follows the displayed layer data and visibility switches; it does not filter entries

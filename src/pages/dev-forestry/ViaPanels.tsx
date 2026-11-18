@@ -293,9 +293,9 @@ export function ViaHeadline({
 export function viewpointTypeEstimate(
   result: AnalysisResult | null,
   speedKmh: number,
-): { rating: ViewpointTypeId | null; hint: string } {
+): { rating: ViewpointTypeId | null; hint: string | null } {
   const computed = result && result.stations.length > 1 ? viewpointImportance(result, { speedKmh }) : null
-  if (!computed) return { rating: null, hint: 'Run the simulation to estimate how long the proposal is in view.' }
+  if (!computed) return { rating: null, hint: null }
   if (!computed.rating) return { rating: null, hint: 'Nothing proposed is in view from the road in this run.' }
   return {
     rating: computed.rating,

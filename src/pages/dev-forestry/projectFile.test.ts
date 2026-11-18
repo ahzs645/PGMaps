@@ -44,7 +44,12 @@ const state = (): ProjectState => {
         height: 1,
         caption: 'Elsewhere.',
         savedAt: 6,
-        figure: { classes: classes(), frameImage: { dataUrl: PIXEL, width: 6, height: 4, caption: '' }, facts: [] },
+        figure: {
+          classes: classes(),
+          frameImage: { dataUrl: PIXEL, width: 6, height: 4, caption: '' },
+          facts: [],
+          camera: { renderedOn: new Date('2026-11-12T10:00:00Z') },
+        },
         figureAt: { pose: { lng: -121.9, lat: 53.9, bearing: 343 } },
       },
       orphan: { dataUrl: PIXEL, width: 1, height: 1, caption: 'No view holds it.' },
@@ -66,6 +71,7 @@ describe('the project file', () => {
     expect(read.shelved).toEqual(written.shelved)
     expect(read.scene.viaReview?.reportEdits).toEqual({ 'cover||field|Licence': 'A12345' })
     const figure = read.images['view-b'].figure as { classes: { codes: Uint8Array } }
+    expect(figure).toMatchObject({ camera: { renderedOn: new Date('2026-11-12T10:00:00.000Z') } })
     expect(figure.classes.codes).toBeInstanceOf(Uint8Array)
     expect([...figure.classes.codes]).toEqual([...classes().codes])
     expect(read.images['view-b'].figureAt).toEqual({ pose: { lng: -121.9, lat: 53.9, bearing: 343 } })

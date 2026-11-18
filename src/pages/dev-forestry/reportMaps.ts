@@ -82,7 +82,19 @@ export interface ReportMapFeatures {
   /** The road the viewpoints are on, when the scene has one. */
   road: readonly LngLat[] | null
   viewpoints: readonly ReportViewpoint[]
+  /**
+   * The symbols a chosen map style draws the blocks and the existing openings with, in place of each map's own
+   * (`ReportMapStyle`). Absent: every map keeps its own.
+   */
+  symbols?: ReportMapStyle
 }
+
+/**
+ * A map style for the report's maps: a figure style's block and opening symbols (`visualsSheetSymbols`), drawn on the
+ * overview map, the 11 × 17 sheet in either style and the figure page's location map, and listed in their legends.
+ * A role the style does not draw keeps the map's own symbol.
+ */
+export type ReportMapStyle = { block?: AreaSymbol; opening?: AreaSymbol }
 
 export type ReportMapKind = 'overview' | 'location' | 'regional' | 'sheet'
 
@@ -249,6 +261,8 @@ export function reportMapFeatures(input: {
   viewpoints: readonly ReportViewpoint[]
   /** The scene's assessment masks; only wildlife tree patches / retention (`retained`) are drawn. */
   masks?: ReadonlyArray<{ name: string; kind: string; geometry: PolygonGeometry }>
+  /** A chosen map style's symbols for the blocks and openings; absent, each map's own. */
+  symbols?: ReportMapStyle
 }): ReportMapFeatures {
   const inventory: Array<ReportMapFeatures['inventory'][number]> = input.units.map((unit) => ({
     id: unit.id,
@@ -276,6 +290,7 @@ export function reportMapFeatures(input: {
     inventory,
     road: input.road && input.road.length > 1 ? input.road : null,
     viewpoints: input.viewpoints.filter((vp) => Number.isFinite(vp.lng) && Number.isFinite(vp.lat)),
+    ...(input.symbols?.block || input.symbols?.opening ? { symbols: input.symbols } : {}),
   }
 }
 
@@ -1525,8 +1540,9 @@ export function composeReportMap(
   if (unrated) legend.push(areaRow(REPORT_MAP_SYMBOLS.unrated))
 
   const openings = plan.projectArea ? [] : features.openings.filter((opening) => visible(opening.geometry))
-  for (const opening of openings) ops.push(...areaSymbolOps(partsOf(opening.geometry), REPORT_MAP_SYMBOLS.opening, k))
-  if (openings.length) legend.push(areaRow(REPORT_MAP_SYMBOLS.opening))
+  const openingSymbol: AreaSymbol = features.symbols?.opening ?? REPORT_MAP_SYMBOLS.opening
+  for (const opening of openings) ops.push(...areaSymbolOps(partsOf(opening.geometry), openingSymbol, k))
+  if (openings.length) legend.push(areaRow(openingSymbol))
 
   // A road shorter on the map than a star (a stood-at viewpoint's pullout) is the viewpoint, not a road to key.
   const road = plan.projectArea ? [] : (features.road?.map(project) ?? [])
@@ -1544,8 +1560,9 @@ export function composeReportMap(
   }
   // On the regional map the project area stands for the blocks too: at that scale they are specks under labels.
   const blocks = plan.projectArea ? [] : features.blocks.filter((block) => visible(block.geometry))
-  for (const block of blocks) ops.push(...areaSymbolOps(partsOf(block.geometry), REPORT_MAP_SYMBOLS.block, k))
-  if (blocks.length) legend.push(areaRow(REPORT_MAP_SYMBOLS.block))
+  const blockSymbol: AreaSymbol = features.symbols?.block ?? REPORT_MAP_SYMBOLS.block
+  for (const block of blocks) ops.push(...areaSymbolOps(partsOf(block.geometry), blockSymbol, k))
+  if (blocks.length) legend.push(areaRow(blockSymbol))
   if (plan.projectArea) {
     const [w, s, e, n] = plan.projectArea
     const ring: LngLat[] = [
@@ -1763,7 +1780,7 @@ function composeFigurePageMap(
       row(VIA_FIGURE_MAP.viewWedge)
     }
     const blocks = features.blocks.filter((block) => visible(block.geometry))
-    const blockSymbol = { ...BLOCK_OF_INTEREST.default, label: 'Proposed block' }
+    const blockSymbol = features.symbols?.block ?? { ...BLOCK_OF_INTEREST.default, label: 'Proposed block' }
     for (const block of blocks)
       ops.push(...areaSymbolOps(partsOf(block.geometry), blockSymbol, k * FIGURE_PAGE_BLOCK_WEIGHT))
     if (blocks.length) row(blockSymbol)

@@ -8,6 +8,8 @@ import {
   PLAN_SHEET_ROAD_HIT_LAYER_IDS,
   PLAN_SHEET_SYMBOLS,
   planSheetLayers,
+  planSheetLayerSet,
+  planSheetSymbolSet,
   riparianSheetKey,
   sheetProperties,
 } from './planSheetSymbols'
@@ -77,6 +79,70 @@ describe('road tool context with block sheet symbols', () => {
     expect(fsr.map((layer) => layer.type)).toEqual(['line', 'line'])
     expect(new Set(PLAN_SHEET_LAYER_IDS).size).toBe(PLAN_SHEET_LAYER_IDS.length)
     for (const id of PLAN_SHEET_ROAD_HIT_LAYER_IDS) expect(PLAN_SHEET_LAYER_IDS).toContain(id)
+  })
+
+  it('draws a saved style in place of the sheet symbol it was chosen for, and leaves the rest alone', () => {
+    const creek = { kind: 'line' as const, label: 'Office creek', layers: [{ color: '#0044aa', width: 1.4 }] }
+    // A point style cannot draw a road, and a culvert is not a plan sheet key: both are left out.
+    const dot = { kind: 'point' as const, label: 'Dot', icon: 'dot' as const, size: 3, color: '#000000' }
+    const set = planSheetLayerSet('road-context', { stream: creek, fsr: dot, culvert: creek } as never)
+    expect(set.symbols.stream).toBe(creek)
+    expect(set.symbols.fsr).toBe(PLAN_SHEET_SYMBOLS.fsr)
+    expect(set.wholeDeactivated).toBe(false)
+    expect(set.layers.find((layer) => layer.id === 'road-sheet-stream-0')).toMatchObject({
+      type: 'line',
+      paint: { 'line-color': '#0044aa' },
+    })
+    // Without a style the set is the sheet's own, layer for layer.
+    const own = planSheetLayerSet('road-context')
+    expect(own.layers).toEqual(planSheetLayers('road-context'))
+    expect(own.ids).toEqual(PLAN_SHEET_LAYER_IDS)
+    expect(own.roadHitIds).toEqual(PLAN_SHEET_ROAD_HIT_LAYER_IDS)
+    expect(planSheetSymbolSet().symbols).toEqual(PLAN_SHEET_SYMBOLS)
+  })
+
+  it('draws a deactivated road with its saved style alone, on the map, in a click and in the legend', () => {
+    const closed = { kind: 'line' as const, label: 'Closed road', layers: [{ color: '#654321', width: 2 }] }
+    const set = planSheetLayerSet('road-context', { deactivated: closed })
+    expect(set.wholeDeactivated).toBe(true)
+    const not = ['!', ['==', ['get', 'sheetDeactivated'], true]]
+    for (const key of ['fsr', 'existingRoad'])
+      expect(set.layers.find((layer) => layer.id === `road-sheet-${key}-0`)).toMatchObject({
+        filter: ['all', ['==', ['geometry-type'], 'LineString'], ['all', ['==', ['get', 'sheetKey'], key], not]],
+      })
+    expect(set.roadHitIds).toEqual([...PLAN_SHEET_ROAD_HIT_LAYER_IDS, 'road-sheet-deactivated-0'])
+    const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+    const entries = buildPlanLegend({
+      sources: {
+        roads: empty,
+        corridor: empty,
+        formation: empty,
+        edges: empty,
+        ditches: empty,
+        cable: empty,
+        structures: empty,
+        draft: empty,
+        section: empty,
+        ticks: empty,
+        context: {
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: road().geometry,
+              properties: { kind: 'existing-road', sheetKey: 'existingRoad', sheetDeactivated: true },
+            },
+          ],
+        },
+      },
+      alignments: createDemoProject().alignments,
+      maxGradePercent: 12,
+      terrainOnly: false,
+      showEarthwork: true,
+      sheetSymbols: true,
+      sheetSymbolSet: set,
+    }).find((section) => section.id === 'context')!.entries
+    expect(entries.map((entry) => entry.sheetSymbol)).toEqual([closed])
   })
 
   it('lists the sheet symbols in the legend only for what is drawn, and only while they are on', () => {

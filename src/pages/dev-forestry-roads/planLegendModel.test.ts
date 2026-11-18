@@ -193,6 +193,7 @@ describe('plan legend follows rendered data', () => {
         insertControls: true,
         crossingMarkers: true,
         curveLabels: true,
+        curveHandle: true,
       }),
     ).map((entry) => entry.label)
     expect(labels).toEqual(
@@ -204,6 +205,7 @@ describe('plan legend follows rendered data', () => {
         'Horizontal curve radius',
         'Horizontal control points',
         'Drag to bend the road',
+        "Drag to change the curve's radius",
         'Drawing preview',
         'Landing',
         'Selected spoke position',

@@ -31,6 +31,7 @@ export type VisualsExport =
   | 'via-document'
   | 'via-report'
   | 'field-brief'
+  | 'block-sheet'
   | 'worksheet'
   | 'evidence'
   | 'project'
@@ -121,6 +122,14 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     formats: [PDF],
   },
   {
+    kind: 'block-sheet',
+    group: 'documents',
+    label: 'Block map sheet',
+    description:
+      'A printed map of one block at a stated scale, in the road designer’s sheet types: field layout, slope and hillshade, 1:50,000 access, imagery and the operating plan. The landform, openings, masks and viewpoints are drawn on it, in PGMaps’ sheet symbols or a figure style.',
+    formats: [PDF],
+  },
+  {
     kind: 'worksheet',
     group: 'documents',
     label: 'Worksheet',
@@ -164,7 +173,7 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     group: 'files',
     label: 'Saved views',
     description:
-      'The scene with every saved view, to reopen with Open saved preview. Screenshots are not kept in the file.',
+      'The scene with every saved view, to reopen with step 1’s Open a project…. Screenshots are not kept in the file; the Project keeps them.',
     formats: [JSON_FILE],
   },
   {
@@ -287,6 +296,18 @@ export type ExportCapture = {
 const IDLE_CAPTURE: ExportCapture = { status: 'idle', message: null, done: 0, total: 0 }
 
 /** The visibility run the export starts on its own when a file needs it. */
+/** The block map sheet as the dialog lists it: its choices in words, and what the scene puts on its map. */
+export type ExportBlockSheet = {
+  block: string
+  sheet: string
+  paper: string
+  scale: string
+  style: string
+  /** Why the chosen sheet type cannot be made here, or null. */
+  unavailable: string | null
+  drawn: Row[]
+}
+
 export type ExportAutoRun = {
   /** Why the scene cannot run, or null when it can. */
   blocker: string | null
@@ -370,6 +391,8 @@ export type ExportContext = {
     parts: string[]
     figures: number
     toComplete: number
+    /** The figure style the maps' blocks and openings are drawn in, when one was chosen over the maps' own. */
+    mapStyle?: string
   } | null
   /** The logo printed sheets and reports carry, in words ("Your logo, x.png" / "Brand: y" / "None"). */
   logo: string
@@ -411,6 +434,11 @@ export type ExportContext = {
      */
     elsewhere?: number
   }
+  /**
+   * The block map sheet's choices and what its map draws (`visualsBlockSheet.ts`, `visualsSheetSummary`). Absent:
+   * the scene has no block to print.
+   */
+  blockSheet?: ExportBlockSheet
   /** Analysis sheet: the view and the look chosen. */
   figure: { viewId: string | null; style: string; labelStyle: string; cameraInfo: boolean; paintBlocks: boolean }
   /** The field brief's block, by name and id (views of interest planned for another block are left out), and its counts. */
@@ -733,6 +761,8 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
         : noPackageViews(ctx, 'the document’s figures come from each view’s class pass.')
     case 'field-brief':
       return ctx.brief.block ? null : 'Add a cutblock in step 1 to brief the crew on it.'
+    case 'block-sheet':
+      return ctx.blockSheet ? ctx.blockSheet.unavailable : 'Add a cutblock in step 1 to print its map sheet.'
     case 'worksheet':
       return ctx.run === 'current' || !ctx.autoRun.blocker
         ? null
@@ -1232,6 +1262,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           rows: [
             { label: 'Structure of', value: `${report.recipe} (reference document ${report.sources})` },
             { label: 'Logo', value: ctx.logo },
+            ...(report.mapStyle ? [{ label: 'Map style', value: report.mapStyle }] : []),
             {
               label: 'Figures',
               value: `${plural(report.figures, 'saved view')}${undrawn ? `; ${undrawn} more in the package not drawn (below)` : ''}`,
@@ -1331,6 +1362,30 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           note: 'The brief takes the package’s views, as the other documents do; choose which under Package.',
         },
       ]
+    case 'block-sheet': {
+      const sheet = ctx.blockSheet
+      if (!sheet) return [blocksSection(ctx)]
+      return [
+        {
+          title: 'Sheet',
+          rows: [
+            { label: 'Block', value: sheet.block },
+            { label: 'Sheet', value: sheet.sheet },
+            { label: 'Paper', value: sheet.paper },
+            { label: 'Scale', value: sheet.scale },
+            { label: 'Map style', value: sheet.style },
+            { label: 'Logo', value: ctx.logo },
+          ],
+          note: 'The legend lists only what falls inside the map frame. Terrain for the contours, slope or hillshade is read from the terrain tiles when the sheet is written; the block’s elevations come from the same tiles.',
+        },
+        {
+          title: 'On the map',
+          step: 'identify',
+          rows: sheet.drawn,
+          note: 'A map of the scene: no figure from the run is printed on it.',
+        },
+      ]
+    }
     case 'worksheet':
       return [runSection(ctx), landformSection(ctx), viewpointSection(ctx), blocksSection(ctx), settingsSection(ctx)]
     case 'evidence':
@@ -1564,6 +1619,8 @@ export type ContextInput = {
   capture?: ExportCapture
   /** The package's recipe by name, or null/absent for none. */
   recipe?: string | null
+  /** The block map sheet as chosen. Absent: the scene has no block. */
+  blockSheet?: ExportBlockSheet
 }
 
 const objectiveName = (id: VisualQualityClassId) => {
@@ -1726,6 +1783,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
       ? { ...input.blockNote, blockId: input.blockNote.blockId ?? '', figures: input.noteFigures }
       : null,
     figure: input.figure,
+    ...(input.blockSheet ? { blockSheet: input.blockSheet } : {}),
     document: input.document,
     report: input.report,
     logo: input.logo,

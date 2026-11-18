@@ -1586,7 +1586,9 @@ The plot book's and the block map sheet's Sheet setup panes start with **Saved s
 
 - **A setup is an office standard, not a project's sheet.** It keeps the plot book's paper,
   chapters, ranges, scales, subviews, labels and report contents, and the block sheet's sheet,
-  paper, scale and typed fields. It never keeps the block a sheet shows or its access comments.
+  paper, scale and typed fields. It never keeps the block a sheet shows or its access comments, nor
+  the sheet's **Map style** (PGMaps' symbols or this browser's saved styles), which names a style
+  library another browser does not have.
 - **Save current setup as** stores both parts under a name in this browser's `localStorage`
   (`pgmaps.forestryRoads.sheetSetups`); a name already used (ignoring case) is replaced.
   **Apply** sets every part the setup holds on the open project, keeping its block and comments,

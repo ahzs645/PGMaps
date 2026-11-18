@@ -66,17 +66,9 @@ export function FieldPhotoPanel({
       <OwnFieldPhoto photo={photo} actions={own} />
     </div>
   ) : null
-  if (!photo.token) {
-    return (
-      <div className="space-y-3 text-xs">
-        <InlineAlert title="Street-level photos are off">
-          Add a Mapillary client token as <code>VITE_MAPILLARY_TOKEN</code> in <code>.env.local</code> and restart the
-          dev server to compare the road view with real photos.
-        </InlineAlert>
-        {ownPhoto}
-      </div>
-    )
-  }
+  // Without a Mapillary client token there is nothing street-level to offer: the part stays out of the sidebar
+  // rather than asking the reviewer to configure the build (`VITE_MAPILLARY_TOKEN`, see the guide).
+  if (!photo.token) return ownPhoto
   const { image, fov, onRoad, search } = photo
   return (
     <div className="space-y-3">

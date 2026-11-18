@@ -7,6 +7,7 @@ import {
   NumberField,
 } from '@/components/ui/form-field'
 import { useState } from 'react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
 import { TextButton } from '@/components/ui/text-button'
@@ -69,7 +70,9 @@ export function ToolFieldPanel({
   onListView,
   onRemovePhoto,
 }: Props) {
-  const [kind, setKind] = useState<FieldRecord['kind']>('photo')
+  // Photographs come in through the own photo window above (`OwnFieldPhoto`), which makes the same field record and
+  // can line it up; this attaches the other evidence.
+  const [kind, setKind] = useState<Exclude<FieldRecord['kind'], 'photo'>>('simulation')
   const [listError, setListError] = useState<string | null>(null)
   return (
     <div className="space-y-2" role="group" aria-label="Field records">
@@ -126,26 +129,33 @@ export function ToolFieldPanel({
             {listError && <InlineAlert tone="warning">{listError}</InlineAlert>}
           </div>
         )}
-        <FormField label="Attachment type">
-          <StyledSelect value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
-            <option value="photo">Reference field photo</option>
-            <option value="simulation">Simulation image</option>
-            <option value="map">Topographic map</option>
-            <option value="design">Design analysis</option>
-          </StyledSelect>
+        <FormField label="Other evidence" group>
+          <div className="flex gap-1.5">
+            <StyledSelect
+              aria-label="Evidence type"
+              className={cn(FORM_INPUT_CLASS, 'min-w-0 flex-1')}
+              value={kind}
+              onChange={(e) => setKind(e.target.value as typeof kind)}
+            >
+              <option value="simulation">Simulation image</option>
+              <option value="map">Topographic map</option>
+              <option value="design">Design analysis</option>
+            </StyledSelect>
+            <FileButton
+              label="Attach evidence image"
+              accept={PHOTO_FILE_ACCEPT}
+              variant="outline"
+              disabled={busy}
+              onFiles={([file]) => onImport(file, kind)}
+            >
+              {busy ? 'Reading…' : 'Attach…'}
+            </FileButton>
+          </div>
         </FormField>
-        <FileButton
-          label="Import field attachment"
-          accept={PHOTO_FILE_ACCEPT}
-          disabled={busy}
-          onFiles={([file]) => onImport(file, kind)}
-        >
-          {busy ? 'Reading image…' : 'Import photograph or evidence image'}
-        </FileButton>
-        <InfoTip label="About imported photographs" showLabel>
-          A resized evidence copy is stored; keep the original high-resolution photographs. EXIF values are suggestions.
-          Verify position, date, true-north heading and field of view; panoramas and edited or cropped photos need
-          manual calibration.
+        <InfoTip label="About photos and attachments" showLabel>
+          Field photographs go in through <em>Line up photos of my own…</em>, which files each as a photo record here
+          whether or not it is lined up. A resized copy of every image is stored; keep the high-resolution originals. A
+          photo&apos;s EXIF values are suggestions: verify position, date, true-north heading and field of view.
         </InfoTip>
         {d.fields.map((f) => (
           <div key={f.id} className="flex items-center justify-between gap-2">

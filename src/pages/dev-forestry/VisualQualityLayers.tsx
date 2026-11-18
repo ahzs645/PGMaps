@@ -167,6 +167,10 @@ export type SceneLayerData = {
   onRoadClick?: (lngLat: [number, number]) => void
   /** Protects or frees a prescribed tree (`StandPrescription.protectedKeys`). */
   onToggleProtectedTree?: (targetId: string, key: number) => void
+  /** ParcelMap BC's private parcels not yet added, `selected` 1 when ticked (`privateParcelCandidateCollection`). */
+  privateParcelCollection?: Collection
+  /** Ticks or unticks a private parcel to add; never adds it. */
+  onTogglePrivateParcel?: (id: string) => void
 }
 
 const STAND_TREE_STATUS: Record<string, string> = {
@@ -267,6 +271,8 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     onToggleProtectedTree,
     standTreeCollection,
     standStripCollection,
+    privateParcelCollection = EMPTY_COLLECTION,
+    onTogglePrivateParcel,
   } = data
   // While a shape is being drawn or measured, a click on the plan is a vertex: nothing under it is
   // selected, adopted or inspected.
@@ -722,6 +728,44 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         onFeatureClick={whenFree((id) => setSelectedTargetId(id))}
         hoverHtml={targetHoverHtml}
       />
+      {/* Private parcels found round the landform (step 3): candidates, dashed until ticked. A click ticks or
+        unticks one; with the road view open a plan click moves it, so the parcels stand aside then. */}
+      {!eye && (
+        <>
+          <MapFillLayer
+            data={privateParcelCollection}
+            visible={shown('candidate:private')}
+            fillColor={MASK_COLORS.private}
+            fillOpacity={['case', ['==', ['get', 'selected'], 1], 0.4, 0.06] as never}
+            lineWidth={0}
+            idProperty="id"
+            hoverHtml={(properties) => {
+              const area = Number(properties.areaHa)
+              return mapTooltipHtml({
+                title: String(properties.name ?? 'Private parcel'),
+                subtitle: `ParcelMap BC · ${Number.isFinite(area) ? `${area.toFixed(1)} ha` : 'private'}`,
+                footer: drive.active
+                  ? 'Tick it in step 3 while the road view is open'
+                  : properties.selected === 1
+                    ? 'Ticked to add · click to untick'
+                    : 'Click to tick it to add as private land',
+              })
+            }}
+            onFeatureClick={whenFree((id) => {
+              if (!drive.active) onTogglePrivateParcel?.(String(id))
+            })}
+          />
+          <MapLineLayer
+            data={privateParcelCollection}
+            visible={shown('candidate:private')}
+            color={MASK_COLORS.private}
+            width={['case', ['==', ['get', 'selected'], 1], 2.4, 1.3] as never}
+            dashArray={[2, 1.5]}
+            opacity={0.95}
+            interactive={false}
+          />
+        </>
+      )}
       {/* The established VQO polygons draped under everything else in the road view. */}
       <MapFillLayer
         data={eye ? evqoCollection : planEvqo}

@@ -51,6 +51,45 @@ describe('composeSheet', () => {
     expect(compose(far).legend.map((item) => item.key)).toEqual(['block', 'roads'])
   })
 
+  it('draws a feature with the symbol a tool gives it, on the map and in the legend', () => {
+    const stream = sampleLayers.streams!.find((entry) => !entry.ncd) ?? sampleLayers.streams![0]
+    const layers: SheetLayers = { block, streams: [{ line: stream.line }] }
+    const mine = { kind: 'line' as const, label: 'My creek', layers: [{ color: '#123456', width: 1.7 }] }
+    const own = compose(layers).legend.find((item) => item.key === 'streams')!
+    expect(own.symbol.label).not.toBe('My creek')
+    const sheet = compose(layers, { symbols: { stream: mine } })
+    expect(sheet.legend.find((item) => item.key === 'streams')!.symbol).toEqual(mine)
+    const strokes = (ops: DrawOp[]) => ops.flatMap((op) => (op.op === 'path' && op.stroke ? [op.stroke.color] : []))
+    expect(strokes(sheet.ops)).toContain('#123456')
+    expect(strokes(compose(layers).ops)).not.toContain('#123456')
+    // A symbol of the wrong kind for its feature is left out, not drawn as something else.
+    const wrong = { kind: 'point' as const, label: 'Dot', icon: 'dot' as const, size: 3, color: '#123456' }
+    expect(compose(layers, { symbols: { stream: wrong } }).legend).toEqual(compose(layers).legend)
+  })
+
+  it('draws a deactivated road with its own symbol alone when a tool gives one', () => {
+    const line = sampleLayers.roads![0].line
+    const layers: SheetLayers = { block, existingRoads: [{ line, forestService: false, deactivated: true }] }
+    expect(compose(layers).legend.map((item) => item.key)).toEqual(['block', 'existingRoads', 'deactivated'])
+    const whole = { kind: 'line' as const, label: 'Closed road', layers: [{ color: '#654321', width: 2 }] }
+    const sheet = compose(layers, { symbols: { deactivated: whole } })
+    expect(sheet.legend.map((item) => item.key)).toEqual(['block', 'deactivated'])
+    expect(sheet.legend[1].symbol).toEqual(whole)
+  })
+
+  it('lists a symbol two layers share once', () => {
+    const other = { geometry: sampleLayers.otherBlocks![0].geometry }
+    const layers: SheetLayers = { block, otherBlocks: [other] }
+    expect(compose(layers).legend.map((item) => item.key)).toEqual(['block', 'otherBlocks'])
+    const shared = {
+      kind: 'area' as const,
+      label: 'Proposed Block',
+      outline: [{ color: '#00a000', width: 1.2 }],
+    }
+    const sheet = compose(layers, { symbols: { block: shared, otherBlock: shared } })
+    expect(sheet.legend.map((item) => item.symbol.label)).toEqual(['Proposed Block'])
+  })
+
   it('names each designed road in the legend and the road table', () => {
     const sheet = compose(sampleLayers)
     expect(sheet.legend.filter((item) => item.key === 'roads').map((item) => item.symbol.label)).toEqual([

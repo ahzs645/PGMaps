@@ -169,6 +169,31 @@ describe('road tool block sheet', () => {
     })
   })
 
+  it('draws the style library’s symbols only when the sheet’s map style asks for them', async () => {
+    const creek = { kind: 'line' as const, label: 'Office creek', layers: [{ color: '#0044aa', width: 1.4 }] }
+    const run = {
+      settings: { ...DEFAULT_BLOCK_SHEET, block: 'context:b1' },
+      project: project(),
+      analyses: new Map(),
+      terrain: null,
+      terrainName: 'none',
+      terrainResolutionM: 1,
+      canopy: null,
+      issue: { date: '2026-11-10', preparedBy: '', organisation: '', revision: '' },
+      caveat: 'Preliminary',
+      preview: true,
+      // The project's stream is an NCD reach, so the library's NCD style is the one that applies.
+      librarySymbols: { ncd: creek, culvert: creek },
+    }
+    const labels = async (settings: typeof run.settings) =>
+      (await buildBlockSheet({ ...run, settings })).sheet.legend.map((item) => item.symbol.label)
+    expect(await labels(run.settings)).not.toContain('Office creek')
+    expect(await labels({ ...run.settings, symbols: 'library' })).toContain('Office creek')
+    expect(parseBlockSheetSettings({ symbols: 'library' }).symbols).toBe('library')
+    expect(parseBlockSheetSettings({ symbols: 'other' }).symbols).toBe('pgmaps')
+    expect(parseBlockSheetSettings({}).symbols).toBe('pgmaps')
+  })
+
   it('builds a field layout sheet for the demo project', async () => {
     const p = project()
     const built = await buildBlockSheet({

@@ -1082,8 +1082,9 @@ test.describe('forestry visual quality', () => {
     const imageBytes = await readFile((await downloadedImage.path())!)
     expect(imageBytes.subarray(1, 4).toString()).toBe('PNG')
     await showStep(page, 'visit')
-    // The saved views' Save button opens Save & export on them.
-    await page.getByRole('button', { name: 'Save views…', exact: true }).click()
+    // A save listed with the views leaves nothing beside them: step 2 has no Saved views section of its own.
+    await expect(page.getByRole('region', { name: 'Saved views not listed' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Open saved preview', exact: true })).toHaveCount(0)
     // What goes in: the view, with the settings it was saved with, and the landform it is read against.
     const dialog = await openVisualsExport(page, 'Saved views')
     const views = dialog.getByRole('region', { name: 'Saved views' })
@@ -1108,13 +1109,15 @@ test.describe('forestry visual quality', () => {
     await controls.getByRole('button', { name: 'Return to map' }).click()
     await showStep(page, 'identify')
     await page.getByRole('button', { name: 'New site', exact: true }).click()
-    await showStep(page, 'visit')
-    await expect(page.getByRole('button', { name: 'Reopen previous saved preview' })).toBeVisible()
+    // The site this browser kept comes back from step 1, beside Open a project…, which reads a Saved views file too.
+    await expect(page.getByRole('button', { name: 'Reopen previous site', exact: true })).toBeVisible()
     const chooser = page.waitForEvent('filechooser')
-    await page.getByRole('button', { name: 'Open saved preview', exact: true }).click()
+    await page.getByRole('button', { name: 'Open a project…', exact: true }).click()
     await (
       await chooser
     ).setFiles({ name: 'preview.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(json)) })
+    await expect(page.getByText(/Opened preview\.json: the scene and one saved view\./)).toBeVisible()
+    await showStep(page, 'visit')
     await reopenSaved()
     await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
     await expect(controls.getByLabel('Route position', { exact: true })).toHaveValue('600')
@@ -1701,6 +1704,17 @@ test.describe('forestry assessment workspace tools', () => {
   test('imports local GeoTIFF terrain, survives reload and classifies retained patches', async ({ page }) => {
     test.setTimeout(180_000)
     await openToolScene(page)
+    // Masks and local surfaces are a card the plan map opens from its control stack. On a short plan an open legend
+    // reaches over the stack's lower buttons, so fold it first.
+    const openSources = async () => {
+      const plan = page.getByTestId('visuals-plan-map')
+      const fold = page
+        .getByTestId('visual-quality-legend')
+        .getByRole('button', { name: 'Collapse legend', exact: true })
+      if (await fold.isVisible()) await fold.click()
+      await plan.getByRole('button', { name: 'Masks and local surfaces', exact: true }).click()
+    }
+    await openSources()
     await page.getByLabel('Vertical reference and units', { exact: true }).fill('CGVD2013, metres')
     const { writeArrayBuffer } = await import('geotiff')
     const bytes = writeArrayBuffer(Array(64).fill(900), {
@@ -1729,6 +1743,7 @@ test.describe('forestry assessment workspace tools', () => {
     await expect(page.getByText('Scenario numerical fields available')).toBeVisible({ timeout: 60_000 })
     await page.reload()
     await openAllSteps(page)
+    await openSources()
     await expect(page.getByText('survey-dem.tif · terrain', { exact: true })).toBeVisible()
     await choose(page.getByRole('combobox', { name: /^Assessment mask classification/ }), 'retained')
     const mask = {

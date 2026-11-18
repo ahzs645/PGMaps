@@ -15,8 +15,12 @@ how the files were checked.
   format could not carry exactly. The Save & export preview shows the same list.
 - **Keep the folder together.** QGIS and ArcGIS Pro files find their data by relative path
   (`data/…`).
-- **An imported style changes the exports only.** The plan, its legend and the block sheets keep
-  PGMaps' symbols (AGENTS.md: the three classify context the same way and must agree).
+- **An imported style draws only where it is asked for.** The styled GIS exports always draw it.
+  The block map sheet draws it when its **Map style** is _My saved styles_, and the plan, its legend
+  and the Map PDF when Map settings → **Legend and map symbols** is _Block sheet, my saved styles_
+  ([block map sheets](../forestry-block-map-sheets.md#choosing-a-map-style)). Otherwise all three keep
+  PGMaps' symbols, which stay the default; whichever is drawn, the three classify context the same
+  way (`contextSheetKey`) and agree.
 - **Fonts and pictures are not imported.** A symbol drawn from a font glyph (ArcGIS character
   markers, QGIS font markers) or from a picture is reported, not traced: choose a PGMaps icon.
 
@@ -52,7 +56,9 @@ Save & export → a styled output → **Styles**. Import a `.qml`, `.qgs`/`.qgz`
 `.xml`, `.sld`, MapLibre `style.json`, `.lyrx`, `.mapx`, `.pagx`, `.stylx`, `.geolibre` or
 `.geolibre.style.json`, or a `.zip` of them (an exported bundle reads back whole). Every symbol
 found is listed with a swatch and what was approximated; tick the ones to keep and **Save to
-library**. Then choose a saved style for a feature under **Exported features draw with**. The
+library**. Then choose a saved style for a feature under **Exported features draw with**. The same
+panel sits under the block map sheet's setup once its **Map style** is _My saved styles_, and the
+plan redraws as the library changes while it shows the saved styles. The
 library is kept in this browser (`styleLibrary.ts`, storage key
 `pgmaps.forestryRoads.styleLibrary`), never in the project file; the README of an export that used
 one names it.

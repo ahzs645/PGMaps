@@ -10,8 +10,10 @@ No licensee names or logos come with them; a user can add one logo of their own.
 branding store (IndexedDB) and used by every sheet and report, never in a project file; without one, the brand
 selected in Branding supplies its logo.
 
-The road design tool offers it as **Files → Project & exports → Block map sheet**. The engine is
-generic and other tools can adopt it; see [Adopting it in another tool](#adopting-it-in-another-tool).
+The road design tool offers it as **Files → Project & exports → Block map sheet**, and the visual
+quality page as **Save & export → Block map sheet** ([On the visual quality page](#on-the-visual-quality-page)).
+Both print through one builder, so a sheet type is the same sheet in either. The engine is generic and
+other tools can adopt it; see [Adopting it in another tool](#adopting-it-in-another-tool).
 
 | Part                     | Where                                                                   | DOM / network                               |
 | ------------------------ | ----------------------------------------------------------------------- | ------------------------------------------- |
@@ -32,9 +34,11 @@ generic and other tools can adopt it; see [Adopting it in another tool](#adoptin
 | Classed rasters          | `src/lib/forestry/blockSheet/classedRasters.ts`                         | None                                        |
 | Block facts, BCGS        | `src/lib/forestry/blockSheet/blockFacts.ts`, `bcgs.ts`                  | None                                        |
 | Sheet composer           | `src/lib/forestry/blockSheet/composeSheet.ts`, `prepareSheet.ts`        | None                                        |
+| Shared sheet run         | `src/lib/forestry/blockSheet/buildSheet.ts`, `setupFields.ts`           | None (slice runner and imagery passed in)   |
 | Operating-plan panels    | `src/lib/forestry/blockSheet/operatingPlanPanels.ts`                    | None                                        |
 | Setup form               | `src/components/ui/map-sheet-setup.tsx`                                 | React                                       |
 | Road tool adapter        | `src/pages/dev-forestry-roads/blockSheet.ts`, `BlockSheetSetup.tsx`     | Loads capture and jsPDF on demand           |
+| Visual quality adapter   | `src/pages/dev-forestry/visualsBlockSheet.ts`, `visualsBlockSheetPdf.ts`, `VisualsBlockSheetSetup.tsx` | Module none; the PDF writer reads terrain tiles |
 | Road plan sheet symbols  | `src/pages/dev-forestry-roads/planSheetSymbols.ts`, `PlanView.tsx`      | Module none; the plan adds the layers       |
 | Legend swatch            | `src/components/ui/sheet-symbol-swatch.tsx`                             | React                                       |
 | Symbol gallery           | `src/pages/DevForestryBlockSheets.tsx`, `dev-forestry-block-sheets/`    | React, `/dev/forestry/block-sheets`         |
@@ -263,8 +267,10 @@ with **Standard road plan** and **Block sheet forestry** choices saved in this b
 **Block sheet forestry** means the context (avoid areas, harvest areas, the riparian screen, streams and mapped roads)
 then draws with the sheet symbols, classed by `contextSheetKey` exactly as the sheet classes it, and
 the legend lists those symbols with swatches drawn by `SheetSymbolSwatch`. The plan's own context
-colours come back with **Standard road plan**. The active map and any visible legend are captured
-in map PDFs. Printed block-map sheets keep their sheet symbols.
+colours come back with **Standard road plan**. A third choice, **Block sheet, my saved styles**,
+draws the sheet symbols with this browser's saved styles over the features they were chosen for
+([Choosing a map style](#choosing-a-map-style)). The active map and any visible legend are captured
+in map PDFs, so the Map PDF prints whichever of the three the plan shows.
 
 Where the map cannot match the print:
 
@@ -283,6 +289,60 @@ Where the map cannot match the print:
   polygon.
 - **The tile's colours are blended once.** A hatched area with a fill draws as one pattern layer, so
   the fill's opacity is in the tile and the layer is opaque.
+
+## Choosing a map style
+
+A sheet's map draws PGMaps' sheet symbols unless a tool hands the composer symbols of its own
+(`ComposeInput.symbols`, keyed by `SheetSymbolRole`: block, other block, constraint, the two
+riparian zones, stream, NCD stream, forest service road, existing road, deactivated road). The map
+and the legend draw the same object, so they cannot disagree. A symbol of the wrong kind for its
+feature (a point style for a stream) is left out, and two layers given the same symbol share one
+legend row. `deactivated` is the whole deactivated road, as the styled GIS exports draw it: with a
+style of its own that road draws with it alone, without crosses over its own symbol.
+
+| Where                                   | The choice                                                                                  | What the other choice draws with                                                                                              |
+| --------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Road designer, Block map sheet          | Sheet setup → **Map style**: _PGMaps sheet symbols_ (default) or _My saved styles_          | The styles this browser's style library assigns to features (`styleLibrary.ts`); the library panel sits under the form        |
+| Road designer, plan, legend and Map PDF | Map settings → **Legend and map symbols** → _Block sheet, my saved styles_                  | The same library, over the block sheet symbols; the Map PDF prints the plan as shown                                          |
+| Visual quality, Block map sheet         | Options → **Map style**: _PGMaps sheet symbols_ (default) or a figure style                 | That figure style's landform, block, opening, private-land and rock symbols (`presets.ts`), where it has one                  |
+| Visual quality, VIA report maps         | VIA report options → **Map style**: _The report's own map symbols_ (default) or a figure style | That figure style's block and opening symbols on the overview map, the 11 × 17 sheet and the figure page's location map       |
+
+- **PGMaps' symbols stay the default everywhere.** Nothing changes for a sheet, a plan or a report
+  until a style is asked for.
+- **A saved style is this browser's.** It is never written to a project file, a saved sheet setup
+  (`sheetSetups.ts` leaves the choice out) or the catalogue; another browser prints PGMaps' symbols.
+- **Roads keep their own colours.** Designed roads draw the proposed-road symbol in each road's
+  colour under every style, so the Road Information table's colour keys still tell them apart.
+- **A saved style has one width.** PGMaps' own line symbols are thinner beyond 1:25,000
+  (`DETAIL_SCALE_LIMIT`); a saved style draws at the width it was saved with at every scale.
+- **A figure style was measured on a perspective figure.** Its strokes are the widths printed on
+  that figure (about 1 pt), thinner than the sheet's own 2.5 pt block outline; the block of interest
+  then reads lighter than on a sheet in PGMaps' symbols.
+
+## On the visual quality page
+
+**Save & export → Block map sheet** prints every sheet type from the assessment's scene
+(`visualsBlockSheet.ts`): the chosen proposed block as the block of interest, the other proposed
+blocks as other blocks, each landform's outline, existing openings, private-land, natural
+non-green and wildlife-tree-patch masks, the assessed road (or the viewpoint, for a spot), the
+views of interest in the package and, when the page has already read the inventory, its polygons
+with an established VQO. Nothing is read for the sheet except terrain, and no figure from the run
+is printed on it.
+
+- **Terrain is the terrain tiles.** Contours, slope, hillshade and the block's elevations are read
+  from the Terrarium tiles (SRTM/CDEM) over the frame when the sheet is written, at the finest zoom
+  whose tiles stay within `SHEET_DEM_TILE_BUDGET`. The source bar names the tiles and their zoom,
+  not a resolution: the ground is coarser than a tile's pixel.
+- **The terrain sheets drop "LiDAR" from their names here** (_Design Slope_, _Design Hillshade_;
+  `visualsSheetTitle`), because their ground is not LiDAR on this page.
+- **Canopy height is unavailable.** The page loads no canopy height grid; the road designer prints
+  that sheet from a canopy surface.
+- **A permanent non-forestry disturbance is not drawn.** No catalogue has a symbol for it; _What
+  goes in_ says so.
+- **Typed fields are kept in this browser**, as the road designer keeps its own. A blank F.L., CP or
+  Forest District prints the FS1252 office field.
+- **Terrain that does not load** leaves a contour sheet without contours or block elevations, said
+  beside the saved file; a slope or hillshade sheet is refused, since the terrain is the sheet.
 
 ## Symbol gallery
 
@@ -345,6 +405,7 @@ falls in the cell north or east of it.
 | Map pattern spacing error   | 2 %                                            | `symbolRaster.ts`, `PATTERN_TILE_TOLERANCE`                                     | A larger tile with more periods is tried                   |
 | Points to screen pixels     | 96/72                                          | `symbolRaster.ts`, `PX_PER_PT`                                                  | —                                                          |
 | PNG sheet                   | 8,192 pixels on the longest side               | `sheetPng.ts`, `MAX_SHEET_PNG_SIDE`                                             | Pixels per point lowered to fit                            |
+| Terrain tiles (visual quality sheet) | 64 a sheet                            | `src/pages/dev-forestry/visualsBlockSheet.ts`, `SHEET_DEM_TILE_BUDGET`          | A coarser zoom is read, down to zoom 10                    |
 
 ## Built-in assumptions
 
@@ -388,14 +449,20 @@ falls in the cell north or east of it.
 
 ## Adopting it in another tool
 
-1. Build `SheetLayers` from the tool's own data: the block polygon, roads, streams, notes.
+1. Build `SheetLayers` from the tool's own data: the block polygon, roads, streams, notes, and
+   anything else as `extras` with a catalogue symbol.
 2. Call `sheetFrame(kind, paper, scale, { bounds: sheetFocus(layers) })`.
-3. Run `prepareSheetTerrain(frame, { terrain, canopy })` in slices (it is a generator) with any
-   `ElevationSource`: a LiDAR DTM for slope, hillshade and contours; a CHM for canopy height.
-4. For the imagery preset call `captureBasemap(IMAGERY_BASEMAP, frame.projection, signal)`.
-5. `composeSheet({...})`, then `encodeSheetImages(ops)` and `drawSheetPdf` (or `sheetSvg` for a
-   preview).
-6. Offer `MapSheetSetup` for the choices, with the tool's own `kinds`, `areas` and `fields`.
+3. Call `buildSheet({ frame, layers, sources: { terrain, canopy }, symbols, … }, { drive, captureImagery })`
+   (`buildSheet.ts`). It works out the block's facts, runs `prepareSheetTerrain` through `drive` (a
+   slice runner, so Cancel works) with any `ElevationSource`, takes the imagery through
+   `captureImagery` (`captureBasemap(IMAGERY_BASEMAP, …)`) for the imagery preset, and composes the
+   sheet. `symbols` is the tool's map style, when it has one ([Choosing a map style](#choosing-a-map-style)).
+4. `encodeSheetImages(ops)` and `drawSheetPdf` (or `sheetSvg` for a preview).
+5. Offer `MapSheetSetup` for the choices, with the tool's own `kinds` and `areas`, the fields from
+   `sheetSetupFields(kind, facts)` and, when the tool has more than one look, `styles`.
+
+The road designer (`blockSheet.ts`) and the visual quality page (`visualsBlockSheet.ts`) are the two
+adapters to read.
 
 A LiDAR tool that already has `slope.tif` or a CHM grid can wrap it as an `ElevationSource`
 (`elevationAt(lng, lat)`) and pass it straight in. Keep the presets' colours in `styles.ts` and

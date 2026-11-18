@@ -1,9 +1,9 @@
 import type * as MapLibreGL from 'maplibre-gl'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
-
-import { bearingBetween, pointAlongBearing } from './driveMath'
+import { MapTurnHandle } from '@/components/ui/map-turn-handle'
+import { MapViewerCone, type MapViewer } from '@/components/ui/map-viewer-cone'
 
 /** How far out the turn handle sits: the plan's view cone is 2 km long, and the handle is its tip. */
 const LOOK_HANDLE_METERS = 2000
@@ -16,25 +16,38 @@ const MOVE_THROTTLE_MS = 120
  * Every other click on the plan keeps its own job (selecting a polygon,
  * seeking by clicking the road line).
  *
+ * The tip rides the cone's arc as it is dragged (`MapTurnHandle`), with a
+ * second wedge showing where the view will face; the road view itself turns
+ * once, when the tip is let go.
+ *
  * The eye snaps to the road on release, because the view is always taken from
  * the road; the page decides where on the road a point lands.
  */
 export function PlanViewerHandles({
   eye,
   bearing,
+  fovDegrees,
   onMove,
   onLook,
 }: {
   /** The viewing station (the pose's ground position), not the eye map's centre. */
   eye: { lng: number; lat: number }
   bearing: number
+  /** The road view's horizontal field of view: the width of the wedge drawn while the tip is turned. */
+  fovDegrees?: number
   /** A point on the plan to move the viewer to; the page snaps it to the road. */
   onMove: ((point: { lng: number; lat: number }) => void) | null
   /** A compass bearing to face. */
   onLook: (bearing: number) => void
 }) {
   const lastMove = useRef(0)
-  const tip = pointAlongBearing(eye, bearing, LOOK_HANDLE_METERS)
+  // The bearing the tip is being turned to, until it is let go.
+  const [turning, setTurning] = useState<number | null>(null)
+  const { lng, lat } = eye
+  const facing = useMemo<MapViewer | null>(
+    () => (turning === null || fovDegrees === undefined ? null : { lng, lat, bearing: turning, fovDegrees }),
+    [turning, fovDegrees, lng, lat],
+  )
   return (
     <>
       {onMove && (
@@ -61,22 +74,22 @@ export function PlanViewerHandles({
           </MarkerContent>
         </MapMarker>
       )}
-      <MapMarker
-        longitude={tip.lng}
-        latitude={tip.lat}
-        draggable
-        onDragEnd={(point) => onLook(bearingBetween(eye, point))}
+      <MapViewerCone viewer={facing} lengthMeters={LOOK_HANDLE_METERS} />
+      <MapTurnHandle
+        origin={eye}
+        bearing={bearing}
+        lengthMeters={LOOK_HANDLE_METERS}
+        onTurning={setTurning}
+        onTurn={onLook}
       >
-        <MarkerContent>
-          <span
-            role="img"
-            aria-label="Road view direction: drag to turn"
-            title="Drag to turn the road view"
-            data-testid="plan-viewer-look"
-            className="block h-3.5 w-3.5 cursor-grab rounded-full border-2 border-rose-600 bg-white shadow active:cursor-grabbing"
-          />
-        </MarkerContent>
-      </MapMarker>
+        <span
+          role="img"
+          aria-label="Road view direction: drag to turn"
+          title="Drag to turn the road view"
+          data-testid="plan-viewer-look"
+          className="block h-3.5 w-3.5 cursor-grab rounded-full border-2 border-rose-600 bg-white shadow active:cursor-grabbing"
+        />
+      </MapTurnHandle>
     </>
   )
 }

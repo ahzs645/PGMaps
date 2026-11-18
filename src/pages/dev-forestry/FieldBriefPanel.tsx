@@ -147,12 +147,101 @@ export function viewFieldCheck({
         />
         {!checklist.checkedBy.trim() && (
           <p className="text-3xs text-muted-foreground">
-            Stamped with the date and <em>Checked by</em> from step 2&apos;s crew checklist.
+            Stamped with the date and <em>Checked by</em> from Save &amp; export&apos;s Field brief.
           </p>
         )}
       </div>
     ),
   }
+}
+
+/**
+ * The road's crew check, in step 2's *Road viewpoint* section: is the road's assessment station real and reachable.
+ * Kept under `station:<viewpoint id>`, the key the field brief prints it from. Null when the brief does not list the
+ * road (no road yet, or standing at a view of interest, whose own row holds the check).
+ */
+export function RoadFieldCheck({
+  scene,
+  result,
+  review,
+  onReviewChange,
+  standingViewId,
+}: {
+  scene: ForestryScene
+  result: AnalysisResult | null
+  review: ViaReview
+  onReviewChange: (patch: Partial<ViaReview>) => void
+  standingViewId?: string | null
+}) {
+  const road = useMemo(
+    () =>
+      briefViewpoints({
+        viewpoint: scene.viewpoint,
+        block: null,
+        targets: scene.targets,
+        result,
+        savedViews: [],
+        viewsOfInterest: scene.viewsOfInterest,
+        standingViewId,
+      }).find((point) => point.key.startsWith('station:')) ?? null,
+    [scene.viewpoint, scene.targets, scene.viewsOfInterest, result, standingViewId],
+  )
+  if (!road) return null
+  const checklist = review.fieldChecklist ?? EMPTY_FIELD_CHECKLIST
+  const write = (patch: { answer?: FieldCheckAnswer | null; note?: string }) =>
+    onReviewChange({
+      fieldChecklist: updateFieldCheck(checklist, 'viewpoints', road.key, patch, localIsoDate(new Date())),
+    })
+  return (
+    <div className="space-y-1" data-field-check="road">
+      <p className="text-2xs font-semibold text-foreground">Real and reachable</p>
+      <p className="text-3xs leading-4 text-muted-foreground">
+        {[road.where, road.location ? formatLatLng(road.location) : null].filter(Boolean).join(' · ')}
+      </p>
+      <CheckFields
+        group="viewpoints"
+        title={road.name}
+        entry={checklist.viewpoints[road.key] ?? null}
+        onAnswer={(answer) => write({ answer })}
+        onNote={(note) => write({ note })}
+      />
+    </div>
+  )
+}
+
+/**
+ * *Checked by*, in Save & export's Field brief options: the name stamped on each crew answer as it is recorded and
+ * printed in the brief's *Checked by* box.
+ */
+export function CheckedByField({
+  review,
+  onReviewChange,
+}: {
+  review: ViaReview
+  onReviewChange: (patch: Partial<ViaReview>) => void
+}) {
+  const checklist = review.fieldChecklist ?? EMPTY_FIELD_CHECKLIST
+  return (
+    <FormField
+      label="Checked by"
+      hintAction={
+        <InfoTip label="About checked by" className="absolute -top-1 right-0">
+          Printed in the brief&apos;s <em>Checked by</em> box, and stamped with today&apos;s date on each crew answer
+          recorded while it is set.
+        </InfoTip>
+      }
+    >
+      <PersonInput
+        className={FORM_INPUT_CLASS}
+        value={checklist.checkedBy}
+        placeholder="Crew lead"
+        maxLength={120}
+        onValueChange={(checkedBy) =>
+          onReviewChange({ fieldChecklist: { ...checklist, checkedBy: checkedBy.slice(0, 120) } })
+        }
+      />
+    </FormField>
+  )
 }
 
 /** Opens the Field records section above and scrolls to it, where a visit's photos are added. */
@@ -227,17 +316,13 @@ export function FieldBriefPanel({
         savedViews: briefViews,
         viewsOfInterest,
         standingViewId,
-      }),
+        // A saved view of no planned view has no row to answer in; the brief still prints it.
+      }).filter((point) => !point.key.startsWith('view:')),
     [scene.viewpoint, block, scene.targets, result, briefViews, viewsOfInterest, standingViewId],
   )
-  // Views of interest are answered in their own rows; the rest (the road, saved views of no planned view) here.
-  const plannedPoints = viewpoints.filter((point) => point.key.startsWith('voi:'))
-  const listedPoints = viewpoints.filter((point) => !point.key.startsWith('voi:'))
+  // Each viewpoint is answered where its record is (a view's row, the road's section), and only counted here.
   const openings = useMemo(() => briefOpenings(block, scene.targets), [block, scene.targets])
   const checklist = review.fieldChecklist ?? EMPTY_FIELD_CHECKLIST
-  const plannedAnswered = plannedPoints.filter(
-    (point) => viewOfInterestCheck(checklist.viewpoints, point.key.slice(4), briefViews)?.answer,
-  ).length
   const progress = fieldChecklistProgress(checklist, {
     viewpoints: viewpoints.map((point) => point.key),
     openings: openings.map((opening) => opening.id),
@@ -263,8 +348,9 @@ export function FieldBriefPanel({
           trees and the boundary are placed for the view, and nobody returns for a second trip. The brief is one page:
           the block, landform and objective, each viewpoint with where to stand and which way to face, up to three saved
           views&apos; screenshots, the measured figure, what to look for, and this checklist with tick boxes. Record the
-          crew&apos;s answers here; each is stamped with the name below and the date, and printed in the brief&apos;s
-          boxes. They are part of the review, so they never stale the run. Download the brief from Save &amp; export.
+          crew&apos;s answers with each viewpoint and here; each is stamped with <em>Checked by</em> (set in Save &amp;
+          export&apos;s Field brief) and the date, and printed in the brief&apos;s boxes. They are part of the review,
+          so they never stale the run. Download the brief from Save &amp; export.
         </>
       }
     >
@@ -288,62 +374,9 @@ export function FieldBriefPanel({
               </StyledSelect>
             )}
 
-            <FormField
-              label="Checked by"
-              hintAction={
-                <InfoTip label="About checked by" className="absolute -top-1 right-0">
-                  Stamped on each answer you record, with today’s date.
-                </InfoTip>
-              }
-            >
-              <PersonInput
-                className={FORM_INPUT_CLASS}
-                value={checklist.checkedBy}
-                placeholder="Crew lead"
-                maxLength={120}
-                onValueChange={(checkedBy) =>
-                  onReviewChange({ fieldChecklist: { ...checklist, checkedBy: checkedBy.slice(0, 120) } })
-                }
-              />
-            </FormField>
-
-            <div>
-              <p className="text-2xs font-semibold text-foreground">Each viewpoint is real and reachable</p>
-              {plannedPoints.length > 0 && (
-                <p className="py-1 text-2xs leading-4 text-muted-foreground" data-field-check-views="">
-                  {plannedPoints.length === 1
-                    ? 'The view of interest is'
-                    : `The ${plannedPoints.length} views of interest are`}{' '}
-                  checked in {plannedPoints.length === 1 ? 'its' : 'each'} row under <em>Views of interest</em> (
-                  {plannedAnswered} of {plannedPoints.length} answered).
-                </p>
-              )}
-              {listedPoints.length ? (
-                <ul aria-label="Viewpoints to ground-truth">
-                  {listedPoints.map((point) => (
-                    <CheckRow
-                      key={point.key}
-                      group="viewpoints"
-                      title={point.name}
-                      detail={[point.where, point.location ? formatLatLng(point.location) : null]
-                        .filter(Boolean)
-                        .join(' · ')}
-                      entry={checklist.viewpoints[point.key] ?? null}
-                      onAnswer={(value) => answer('viewpoints', point.key, { answer: value })}
-                      onNote={(note) => answer('viewpoints', point.key, { note })}
-                    />
-                  ))}
-                </ul>
-              ) : (
-                !plannedPoints.length && (
-                  <p className="text-2xs text-muted-foreground">No viewpoint yet: draw or import the road in step 1.</p>
-                )
-              )}
-            </div>
-
-            <div>
-              <p className="text-2xs font-semibold text-foreground">Adjacent openings have visually greened up</p>
-              {openings.length ? (
+            {openings.length > 0 && (
+              <div>
+                <p className="text-2xs font-semibold text-foreground">Adjacent openings have visually greened up</p>
                 <ul aria-label="Existing openings to check">
                   {openings.slice(0, PANEL_OPENINGS).map((opening) => (
                     <CheckRow
@@ -369,12 +402,8 @@ export function FieldBriefPanel({
                     </li>
                   )}
                 </ul>
-              ) : (
-                <p className="text-2xs text-muted-foreground">
-                  No existing openings in the scene. Look up the BC inventory in step 1 to list them.
-                </p>
-              )}
-            </div>
+              </div>
+            )}
 
             <FormField
               label="Where the boundary can follow natural features"
