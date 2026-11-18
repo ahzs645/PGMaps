@@ -21,6 +21,10 @@
 - bcdatamapper's Pages site is 541 MB of its 1 GB limit. Publish only what the app loads: `canada-admin` (202 MB) sat there unread until it was removed, because the story reads PMTiles on R2. Check for a reference in `src` before adding a folder, and leave full-detail sources (the `BCMoH` originals, province-wide `BCFWA` files) out.
 - Resolve every data URL with `withBase` (`src/lib/dataUrl.ts`), directly or through `fetchJson`/`fetchBytes`. A bare `'/data/...'` handed to MapLibre, deck.gl, a worker or a link, or a URL built from `import.meta.env.BASE_URL`, always loads from this site and breaks once its folder moves.
 
+## Page icons
+
+- A page's browser-tab icon is a row in `src/config/page-icons.json` (`docs/page-icons.md`), read by the shell's `usePageIcon` and by `scripts/write-spa-fallback.mjs` for each route's entry page. Never set a favicon from a page.
+
 ## Offline and caching
 
 - `docs/app-updates-and-caching.md` is the contract for `public/sw.js`: the cache rules, the offline tools, the kept tile hosts and their limits. Change its limits tables in the same commit as the constant.

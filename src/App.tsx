@@ -7,6 +7,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Button } from '@/components/ui/button'
 import { MapLoader } from '@/components/ui/map-loader'
 import { useSiteWebMCP } from '@/lib/siteWebMCP'
+import { usePageIcon } from '@/hooks/usePageIcon'
 import Home from '@/pages/Home'
 
 const SharedMapLayout = lazy(() =>
@@ -110,6 +111,7 @@ function NotFound() {
 
 function App() {
   useSiteWebMCP()
+  usePageIcon()
 
   return (
     <Shell>

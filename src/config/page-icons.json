@@ -1,0 +1,8 @@
+{
+  "default": "favicon.svg",
+  "routes": [
+    { "path": "/dev/forestry/road-design", "icon": "brand/access.svg" },
+    { "path": "/dev/forestry/roads", "icon": "brand/access.svg" },
+    { "path": "/help", "icon": "brand/access.svg" }
+  ]
+}

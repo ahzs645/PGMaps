@@ -1,6 +1,7 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { iconType, pageIconFor, parsePageIcons } from '../src/lib/pageIcons.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const indexPath = join(root, 'dist', 'index.html')
@@ -96,11 +97,28 @@ if (!existsSync(indexPath)) {
 copyFileSync(indexPath, fallbackPath)
 console.log('[spa] copied dist/index.html -> dist/404.html')
 
-for (const route of spaRoutes) {
-  const routeIndexPath = join(root, 'dist', route, 'index.html')
-  mkdirSync(dirname(routeIndexPath), { recursive: true })
-  copyFileSync(indexPath, routeIndexPath)
+// Each entry page names its route's tab icon (src/config/page-icons.json, docs/page-icons.md), so the
+// tab is right before the app's script runs; the shell's `usePageIcon` keeps it right after that.
+const indexHtml = readFileSync(indexPath, 'utf8')
+const pageIcons = parsePageIcons(JSON.parse(readFileSync(join(root, 'src', 'config', 'page-icons.json'), 'utf8')))
+const iconLink = /<link rel="icon" type="[^"]*" href="([^"]*)"\s*\/?>/
+const shellIcon = indexHtml.match(iconLink)
+if (!shellIcon || !shellIcon[1].endsWith(`/${pageIcons.default}`)) {
+  console.error(`[spa] dist/index.html has no <link rel="icon"> naming ${pageIcons.default}`)
+  process.exit(1)
 }
+const iconBase = shellIcon[1].slice(0, -pageIcons.default.length)
+const writeEntry = (target, route) => {
+  const icon = pageIconFor(pageIcons, `/${route}`)
+  mkdirSync(dirname(target), { recursive: true })
+  if (icon === pageIcons.default) return copyFileSync(indexPath, target)
+  writeFileSync(
+    target,
+    indexHtml.replace(iconLink, `<link rel="icon" type="${iconType(icon)}" href="${iconBase}${icon}" />`),
+  )
+}
+
+for (const route of spaRoutes) writeEntry(join(root, 'dist', route, 'index.html'), route)
 // Give static hosts real entry points for the registered project deep routes.
 const projectsRoot = join(root, 'public', 'data', 'projects')
 if (existsSync(projectsRoot)) {
@@ -125,9 +143,5 @@ for (const filename of readdirSync(lessonsRoot)) {
   const lesson = filename.slice(0, -5)
   helpEntries.push(`help/${lesson}/index.html`, `help/${lesson}/tour.html`)
 }
-for (const entry of helpEntries) {
-  const target = join(root, 'dist', ...entry.split('/'))
-  mkdirSync(dirname(target), { recursive: true })
-  copyFileSync(indexPath, target)
-}
+for (const entry of helpEntries) writeEntry(join(root, 'dist', ...entry.split('/')), dirname(entry))
 console.log(`[spa] copied route and project entry points`)
