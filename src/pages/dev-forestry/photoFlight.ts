@@ -21,8 +21,13 @@ import type { WideSearchInput } from './wideOrientation'
 
 const RAD = Math.PI / 180
 
-/** A gap longer than this between photos in time order starts a new flight. */
-export const FLIGHT_GAP_SECONDS = 5 * 60
+/**
+ * A gap longer than this between photos in time order starts a new flight. Half an hour: a reviewer in a helicopter
+ * photographs in bursts with long quiet stretches between them, and at five minutes one 45-minute flight (bursts 16 and
+ * 20 minutes apart) was listed as three. Flight matching pairs photos by their own closeness in time and place, so a
+ * longer flight gives it nothing new to try.
+ */
+export const FLIGHT_GAP_SECONDS = 30 * 60
 /** A burst neighbour is at most this far apart in time … */
 export const BURST_MAX_SECONDS = 20
 /** … and this far apart on the ground (a helicopter covers about 500 m in 20 s). */
@@ -107,6 +112,15 @@ export function takenAtUtc(tags: Tags): TakenAt | null {
   return null
 }
 
+/**
+ * The camera's own clock time ("09:04:29"), the time of day where the photo was taken: what a reviewer who was there
+ * remembers. `takenAtUtc`'s instant orders photos; printed, its clock reads seven or eight hours off in BC.
+ */
+export function cameraClockTime(tags: Tags): string | null {
+  if (!tags) return null
+  return clockFields(tags.DateTimeOriginal ?? tags.CreateDate ?? tags.DateTime, tags.SubSecTimeOriginal)?.time ?? null
+}
+
 export type FlightPhoto = {
   id: string
   takenAtUtc: string | null
@@ -129,7 +143,7 @@ export type Flight<P extends FlightPhoto> = {
 const flightIdFor = (iso: string) => `flight:${iso.replace(/\.\d+/, '').replace(/[^0-9TZ]/g, '')}`
 
 /**
- * Photos grouped into flights: sorted by time, a gap over `FLIGHT_GAP_SECONDS` starts a new one. A flight keeps the
+ * Photos grouped into flights: sorted by time, a gap over `FLIGHT_GAP_SECONDS` (half an hour) starts a new one. A flight keeps the
  * id most of its photos already carry, so adding or removing a photo does not rename it; otherwise its id comes from
  * its first photo's time, the same on every machine. Photos with no time each stand alone, last, by name.
  */

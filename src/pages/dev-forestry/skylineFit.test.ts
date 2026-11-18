@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PhotoPose } from './photoPose'
-import { fitSkyline, photoSkyline, projectDirection, terrainProfile, type Pixels } from './skylineFit'
+import {
+  SKYLINE_READERS,
+  fitSkyline,
+  photoSkyline,
+  photoSkylineByBrightness,
+  projectDirection,
+  readPhotoSkyline,
+  skylineReaderKey,
+  terrainProfile,
+  type Pixels,
+} from './skylineFit'
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 
 const SKY = [120, 170, 230]
@@ -90,6 +100,45 @@ describe('where the sky ends in a photo', () => {
     const skyline = photoSkyline(pixels, 10)
     expect(skyline.slice(0, 8).every(Boolean)).toBe(true)
     expect(skyline[9]).toBeNull()
+  })
+})
+
+describe('where a backlit sky ends', () => {
+  // A sunset: dark cloud at the top, an orange band, then the land as a silhouette. No part of it is sky by colour.
+  const ridge = (x: number) => 300 + Math.round(40 * Math.sin(x / 60))
+  const sunset = image(400, 500, ridge, (x, y) =>
+    y >= ridge(x) ? [18, 26, 22] : y < 120 ? [70, 72, 80] : [235, 190, 120],
+  )
+
+  it('reads the silhouette by its drop in brightness where the colour reader finds no sky', () => {
+    const byColour = photoSkyline(sunset, 40).filter(Boolean)
+    expect(byColour.every((point) => Math.abs(point!.y - ridge(Math.floor(point!.x))) > 20)).toBe(true)
+    const byBrightness = photoSkylineByBrightness(sunset, 0.3, 40)
+    expect(byBrightness.every(Boolean)).toBe(true)
+    for (const point of byBrightness) expect(Math.abs(point!.y - ridge(Math.floor(point!.x)))).toBeLessThanOrEqual(1)
+  })
+
+  it('does not stop at dark cloud above the row it starts from, or in a sky that only grades darker', () => {
+    // Started below the cloud, it follows the band down to the land; a slow fade to half brightness is not a drop.
+    const graded = image(
+      20,
+      400,
+      () => 400,
+      (_x, y) => (y < 300 ? [220 - y * 0.35, 200 - y * 0.3, 180 - y * 0.25] : [15, 20, 18]),
+    )
+    for (const point of photoSkylineByBrightness(graded, 0.2, 4)) expect(point!.y).toBe(300)
+  })
+
+  it('gives no point for a column that never darkens', () => {
+    const allSky = image(20, 200, () => 200)
+    expect(photoSkylineByBrightness(allSky, 0.2, 4).every((point) => point === null)).toBe(true)
+  })
+
+  it('tries the colour reader first and names each reader apart', () => {
+    expect(SKYLINE_READERS[0]).toEqual({ mode: 'auto' })
+    expect(new Set(SKYLINE_READERS.map(skylineReaderKey)).size).toBe(SKYLINE_READERS.length)
+    expect(readPhotoSkyline(sunset, { mode: 'luma', from: 0.3 }, 40)).toEqual(photoSkylineByBrightness(sunset, 0.3, 40))
+    expect(readPhotoSkyline(sunset, { mode: 'auto' }, 40)).toEqual(photoSkyline(sunset, 40))
   })
 })
 

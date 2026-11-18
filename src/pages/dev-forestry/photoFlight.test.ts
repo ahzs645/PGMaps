@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  cameraClockTime,
   burstNeighbour,
   groupFlights,
   instantOf,
@@ -81,6 +82,19 @@ describe('takenAtUtc', () => {
   })
 })
 
+describe('cameraClockTime', () => {
+  it('gives the time of day where the photo was taken, not the UTC instant', () => {
+    expect(cameraClockTime(iphone)).toBe('10:22:33')
+    expect(takenAtUtc(iphone)!.iso).toContain('T17:22:33')
+  })
+
+  it('reads a revived Date by its own fields, and gives nothing without a clock', () => {
+    expect(cameraClockTime({ DateTimeOriginal: new Date(2026, 8, 14, 9, 4, 29) })).toBe('09:04:29')
+    expect(cameraClockTime({ GPSDateStamp: '2026:09:14', GPSTimeStamp: [17, 22, 31.5] })).toBeNull()
+    expect(cameraClockTime(null)).toBeNull()
+  })
+})
+
 describe('groupFlights', () => {
   const at = (id: string, iso: string | null, flightId?: string): FlightPhoto => ({
     id,
@@ -93,12 +107,12 @@ describe('groupFlights', () => {
     at('a', '2026-09-14T17:22:31Z'),
     at('x', null),
     at('b', '2026-09-14T17:26:00Z'),
-    // Over five minutes after c: a new flight.
-    at('d', '2026-09-14T17:35:11Z'),
-    at('e', '2026-09-14T17:35:11Z'),
+    // Over half an hour after c: a new flight.
+    at('d', '2026-09-14T18:00:11Z'),
+    at('e', '2026-09-14T18:00:11Z'),
   ]
 
-  it('sorts by time and starts a flight after a gap over five minutes', () => {
+  it('sorts by time and starts a flight after a gap over half an hour', () => {
     const flights = groupFlights(photos)
     expect(flights.map((f) => f.photos.map((p) => p.id))).toEqual([['a', 'b', 'c'], ['d', 'e'], ['x']])
     expect(flights[0]).toMatchObject({
@@ -108,6 +122,18 @@ describe('groupFlights', () => {
       timed: true,
     })
     expect(flights[2]).toMatchObject({ id: 'untimed:x', timed: false, start: null })
+  })
+
+  it('keeps bursts of one flight together across quiet stretches of many minutes', () => {
+    // A burst, 16 minutes of flying, two frames, 20 minutes, a last burst: one flight, as it was flown.
+    const flown = [
+      at('p', '2026-09-14T16:04:29Z'),
+      at('q', '2026-09-14T16:20:22Z'),
+      at('r', '2026-09-14T16:20:32Z'),
+      at('s', '2026-09-14T16:40:17Z'),
+      at('t', '2026-09-14T16:46:44Z'),
+    ]
+    expect(groupFlights(flown).map((f) => f.photos.map((p) => p.id))).toEqual([['p', 'q', 'r', 's', 't']])
   })
 
   it('gives the same flights whatever order the photos come in', () => {

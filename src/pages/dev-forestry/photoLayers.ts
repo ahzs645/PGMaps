@@ -376,6 +376,51 @@ export function photoLayerVisibility(saved?: unknown): Record<PhotoLayerId, bool
 }
 
 /**
+ * A layer a caller adds over a photo, beside the ones the photo tools read themselves: anything with map geometry and
+ * a symbol. Its features are laid on the terrain, projected into the photo and hidden where nearer ground covers
+ * them, exactly as the built-in layers are, and it is listed in the layers panel under its own heading. This is how a
+ * new kind of thing is put on a photo without a new case in every switch here.
+ */
+export type PhotoCustomLayer = {
+  /** Its own name, unique among the caller's layers; listed and stored as `customLayerKey(id)`. */
+  id: string
+  label: string
+  /** The heading it is listed under; "Added layers" when absent. */
+  group?: string
+  /** Where its features come from, for the (i) on its row. */
+  source: string
+  symbol: SheetSymbol
+  /** WGS84 geometry; any Z is ignored and the terrain read instead. */
+  features: ReadonlyArray<{
+    id?: string | number
+    label?: string
+    properties?: Record<string, unknown>
+    geometry: GeoJSON.Geometry
+  }>
+  defaultOn?: boolean
+}
+
+const CUSTOM_LAYER_PREFIX = 'custom:'
+/** The key an added layer is drawn, switched and stored under: never a built-in layer's id. */
+export const customLayerKey = (id: string) => `${CUSTOM_LAYER_PREFIX}${id}`
+export const CUSTOM_LAYER_GROUP = 'Added layers'
+
+/** Whether each added layer is shown: the saved choice, else how the layer starts. Layers no longer added are dropped. */
+export function customLayerVisibility(
+  layers: readonly Pick<PhotoCustomLayer, 'id' | 'defaultOn'>[],
+  saved?: unknown,
+): Record<string, boolean> {
+  const stored = saved && typeof saved === 'object' ? (saved as Record<string, unknown>) : {}
+  return Object.fromEntries(
+    layers.map((layer) => {
+      const key = customLayerKey(layer.id)
+      const kept = stored[key]
+      return [key, typeof kept === 'boolean' ? kept : (layer.defaultOn ?? true)]
+    }),
+  )
+}
+
+/**
  * Symbol sizes are points at print, measured on figures whose image was 900 pt wide (`presets.ts`). Scaling them by
  * the photo's width over that keeps a stroke the same share of the picture on the photo as on the sheet.
  */

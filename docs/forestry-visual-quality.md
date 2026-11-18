@@ -1513,15 +1513,41 @@ street-level photo from Mapillary, or with a photo of your own.
     project attachment, linked by the record's id. A workspace holds at most
     `MAX_FIELD_RECORDS` (24) records, and a set that would pass it is refused
     before anything is read. Photos are grouped into **flights**
-    (`photoFlight.ts`: a gap over 5 minutes starts one) and ordered by the
+    (`photoFlight.ts`: a gap over half an hour starts one) and ordered by the
     camera clock where its time zone is recorded, else by GPS time: on the
     test flight an iPhone's GPS stamp lagged the shutter by 0.5–22 s. Each
-    frame shows where the queue has it as a dot and in words.
+    frame shows what it needs as a dot and a word or two
+    (`photoStripState`, `photoOptions.ts`): *Check it* for a camera the
+    skyline settled, *Needs a landmark* where more than one heading fits,
+    *No skyline*, *Ready to accept*, *Accepted*. A status alone does not
+    sort a set, since every searched photo is *options ready*. Times are the
+    camera's own clock (`cameraClockTime`), the time of day where the photo
+    was taken; a photo with only a GPS stamp shows it marked UTC.
+    - **Reading a set.** Photos are read several at a time
+      (`heicDecodeConcurrency`: one fewer than the cores, at most four, two
+      where the browser reports under 8 GB) and each joins the set and the
+      queue as soon as it is read, so the first photo's search starts while
+      the rest decode. HEIC photos decode in workers kept between photos
+      (`heicDecodePool.ts`), each compiling the decoder once and ending
+      after eight idle seconds. The set opens on the first photo read, then
+      on an earlier one in time when it arrives, unless the reviewer has
+      opened another. The strip shows a 320-pixel thumbnail made with the
+      record's image, never the full photo. A first set stays on *Photos*;
+      a single first photo opens on *Camera*.
+    - **On the other tabs** the set stays in reach as one row of small
+      pictures under the tabs (`PhotoFilmstrip`), each with its dot, beside
+      the queue's place and its pause and cancel. A click opens that photo
+      on the tab the reviewer is on.
   - **The automatic queue** (`useFieldPhoto`, rules in `photoQueue.ts`) works
     through the set one photo at a time, in time order, and can be paused,
     resumed or cancelled: terrain round the photo, the 360° horizon, the
-    photo's skyline, the search over every heading, model views for the
-    winner and the runner-up, and the features check. It applies the winner
+    photo's skyline, the search over every heading, and model views for the
+    winner and the runner-up. The features check is read after the searches
+    (`featuresNext`): the open photo's as soon as its search is done, the
+    others' in time order once no search is running or waiting, and only the
+    open photo's while the queue is paused or cancelled. A read is six
+    requests and megabytes of shapes from DataBC, and inside the queue it
+    held each next search back about three seconds. It applies the winner
     only while the heading is still the phone's, the road view's or a
     default; it never overwrites a pose the reviewer set, typed or matched,
     and never accepts one. Each frame ends *options ready* or *failed*, with
@@ -1530,6 +1556,17 @@ street-level photo from Mapillary, or with a photo of your own.
     is a note, not a block. The horizon, the hit buffer, the model views and
     the drape run in one worker (`photoWork.worker.ts`), never on the page's
     thread.
+    - **The model view is coloured from the hit buffer** (`colourHits`,
+      `photoViews.ts`), one walk outward along each azimuth, never a ray cast
+      through every pixel. Cast per pixel a 320-pixel view took several
+      seconds (7.9 s in a benchmark) and was nearly all of the queue's time;
+      from the hit buffer it takes about a tenth of a second and is the same
+      picture but for a pixel here and there along a ridge
+      (`photoViews.test.ts` pins it against `castRay`). Measured on the
+      fourteen-photo flight, 17 November 2026, same machine and browser:
+      every photo in the strip after 4.9 s (18.7 s before) and every camera
+      searched after 23.8 s (152 s before); about 30 s since the brightness
+      readers were added, which most of these photos go on to try.
     - **Caches.** Terrain, imagery, horizons, pixels, read skylines, search
       results, hit buffers and feature reads are kept in small
       least-recently-used caches (`PhotoCache`), each held to a count and a
@@ -1577,8 +1614,9 @@ street-level photo from Mapillary, or with a photo of your own.
     to its jobs (below).
   - **The footer's primary action follows the photo's state**
     (`ownPhotoTabs.ts`, DOM-free): *Add photos*, *Searching 3 of 14* with
-    Cancel, *Check this camera*, *Accept camera*, *Make a viewpoint*, *Stand
-    here*, then *Next photo*. A disabled one says why. The step states
+    Cancel, *Accept camera*, *Make a viewpoint*, *Stand here*, then *Next
+    photo*. There is no separate check step: the check images are drawn
+    whenever a photo's camera is on screen. A disabled one says why. The step states
     (`ownPhotoSteps.ts`, DOM-free) say what a camera rests on, never that it
     is right; the phone's own heading counts as still to find.
   - **The sidebar keeps a summary** (`OwnFieldPhoto.tsx`): the set at a
@@ -1628,6 +1666,41 @@ street-level photo from Mapillary, or with a photo of your own.
       kilometres past the scene's data. Lakes should sit on water, roads on
       roads and recent cutblocks on clearings. Each source says what it read
       or *Not read*, and *Read again for this camera* follows a moved camera.
+  - **A sky the colour reader cannot read.** The search tries the colour
+    reader first and, when its fit does not settle the camera, three
+    brightness readers side by side (`SKYLINE_READERS`, `skylineFit.ts`):
+    from a row known to be sky, the first run of pixels well darker than the
+    sky above. They read a sky lit from behind, under dark cloud or in haze,
+    where the land is a silhouette, and the result that fits best is kept
+    (`searchRank`). Two frames of the test flight shot toward a low sun gave
+    the colour reader 0 and 27 agreeing columns, 140° and 95° from the
+    camera; with the brightness reader they read 140.7° and 138.9°, the
+    second the camera the photo-matching bench had solved. A best heading
+    with fewer than 12 agreeing columns is now *no skyline*, never a best
+    fit.
+  - **When the skyline does not settle a photo**, the queue compares its
+    cameras by the ground as *Combined camera search* does on a click
+    (`compareUnsettled`), after the searches, and keeps the result on the
+    photo. Depth is used only where this browser already holds the small
+    model: the queue never starts a download. Until then an unsettled photo
+    offers *Compare with depth* (27 MB, once), after which every unsettled
+    photo is compared with it. A photo's depth estimate is kept by record
+    and model, in memory and in this browser's database
+    (`photoDepthFor`), so it is worked out once. Where the comparison
+    favours a camera more than 15° from the one in use, the window says so
+    above the options with *Start from it*, which takes that camera and then
+    searches the skyline within 20° of its heading. On the frame whose
+    skyline is one straight ridge the automatic pick was 207.6°; depth
+    favoured 270° (correlation 0.99), and the search inside that sector gave
+    263.5° with 280.0° as runner-up, either side of the 275.7° the bench's
+    hand-traced skyline gave. It is a start to check, never an acceptance.
+  - **One picture at a time.** The *Camera* tab shows either *Layers on the
+    photo* or *Against the model view*, switched above the picture, never
+    both stacked: stacked they were taller than the window and the second
+    could not be seen beside the options. Pairing a landmark or dragging the
+    skyline brings the photo back. Above the options one sentence says what
+    the open photo needs, and the options card comes before the ways to
+    help it (landmarks, flight matching, the combined search).
   - **The comparison** (`PhotoCompare.tsx`): the photo against the model view
     for its camera at the same size, blinked (hold B) or swiped, with the
     agreement score and imagery coverage beside it. For an ambiguous skyline,
@@ -1636,16 +1709,23 @@ street-level photo from Mapillary, or with a photo of your own.
     picking one. Use *Field photos* in *Visit* to reopen the comparison while
     standing at a saved viewpoint.
   - **Accept** (`photoAcceptance.ts`, DOM-free) is the reviewer's, never
-    automatic. It is on only once the checks have been drawn for this exact
-    camera (within 0.5°, 5 m and 1 m of altitude), a point-solved camera's
-    held-out pairs land within 40 px of a 1,050-pixel-wide frame, a *not
-    settled* fit carries a written note, and initials are typed; otherwise
-    it says why. The acceptance goes on the photo's field record: who, when,
-    how the camera was found (skyline, points, matched, neighbour, phone or
-    typed), the pose, and the evidence (agreeing columns and span, settled
-    or not, the runner-up's heading and score, the model-view scores, the
-    sun, held-out metres, a neighbour's agreement). Moving the camera
-    afterwards lapses it, and the window says so.
+    automatic, and it is one click with nothing asked first. Initials and a
+    note are behind a fold, theirs to add or leave out. The gate
+    (`acceptGate`) refuses one thing: a point-solved camera whose held-out
+    pair lands more than 40 px off in a 1,050-pixel-wide frame, a measured
+    failure. Putting a photo to a job that draws from its camera (a
+    viewpoint, the before image, a check of the drawn forest) accepts the
+    camera in the same click (`ensureAccepted`). The acceptance goes on the
+    photo's field record: when, how the camera was found (skyline, points,
+    matched, neighbour, phone or typed), the pose, the evidence (agreeing
+    columns and span, settled or not, the runner-up's heading and score, the
+    model-view scores, the sun, held-out metres, a neighbour's agreement)
+    and whether the check images had been drawn for that exact camera
+    (`checksDrawn`), with initials and a note when given. Moving the camera
+    afterwards lapses it, and the window says so. Until 18 November 2026
+    the gate also asked for the checks to be drawn, initials, and a note for
+    a fit that was not settled; a form before every use of a photo was not
+    how a reviewer works through a flight.
   - **Jobs.** One record holds the photo and its acceptance; every job is a
     link to it, never a copy (`uses`): a viewpoint, the before image of a
     pair, ground conditions (no accepted camera needed), a check of the drawn
@@ -1656,6 +1736,24 @@ street-level photo from Mapillary, or with a photo of your own.
   - **The project file** keeps each value's source and the last skyline
     search's summary beside the open photo's pose, so a reopened photo says
     where its values came from.
+  - **Across a reload** (`useOwnPhotoPersistence.ts`, `toolsStorage.ts`) the
+    set comes back by itself: every project attachment's bytes, each
+    photo's order and camera, and its depth estimate are kept in this
+    browser's database beside the workspace, and the set is opened again
+    from the originals once the workspace has loaded, as a project file's
+    photos are. Removing a photo removes its original and its row; *Close my
+    photos* empties the set and leaves the originals with their records;
+    opening a project replaces both. Measured: fourteen photos back in the
+    set 4.9 s after a reload.
+  - **Layers on the photo** are listed by the shared `LayerList`
+    (`src/components/ui/layer-list.tsx`): the switch and the symbol first,
+    then the name and a word on its state, each group with its count and a
+    switch for the whole group, and *Back to the usual layers*. Anything
+    with map geometry and a symbol can be added beside the built-in layers
+    as a `PhotoCustomLayer` (`photoLayers.ts`), with no new case in the
+    photo tools: its features are laid on the terrain and hidden behind
+    nearer ground as theirs are. The scene's road to assess is the first
+    (`scenePhotoLayers`, `photoPageFeatures.ts`).
   The starting pose (`exifPose.ts`, DOM-free, unit-tested) comes from the
   field record's camera first, then EXIF (read with `exifr`, already used by
   Field records), then the road view as it stands, then defaults:

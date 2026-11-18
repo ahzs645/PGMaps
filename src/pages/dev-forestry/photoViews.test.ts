@@ -4,6 +4,7 @@ import {
   castRay,
   DRAPE_MAX_METERS,
   drapePhoto,
+  imageryTileRange,
   modelAgreement,
   modelViewHeight,
   mosaicSampler,
@@ -91,16 +92,38 @@ describe('a camera checked against the map', () => {
     expect(modelAgreement(photo, model)).toMatchObject({ coverage: 0, score: Number.NaN })
   })
 
-  it('renders a strip at a time into the same image as a whole render', () => {
-    const whole = renderModelView(truth, terrain, stripes, 80)
-    const into = {
-      width: 80,
-      height: modelViewHeight(truth, 80),
-      data: new Uint8ClampedArray(80 * modelViewHeight(truth, 80) * 4),
-    }
-    for (let from = 0; from < into.height; from += 7)
-      renderModelView(truth, terrain, stripes, 80, 60000, { from, to: from + 7, into })
-    expect(Array.from(into.data)).toEqual(Array.from(whole.data))
+  it('draws the picture a ray cast through every pixel draws', () => {
+    // The model view comes from the hit buffer's one walk per azimuth; this is the slow way it replaced.
+    const width = 90
+    // Pitched up from the other tests' camera, so the frame's upper part is sky.
+    const level = { ...truth, pitch: -10 }
+    const view = renderModelView(level, terrain, stripes, width)
+    const scale = width / level.width
+    expect(view.height).toBe(modelViewHeight(level, width))
+    let skyDiffers = 0,
+      colourDiffers = 0,
+      sky = 0
+    for (let y = 0; y < view.height; y++)
+      for (let x = 0; x < width; x++) {
+        const hit = castRay(level, terrain, (x + 0.5) / scale, (y + 0.5) / scale)
+        const i = (y * width + x) * 4
+        const drawnSky = view.data[i] === 170 && view.data[i + 1] === 200 && view.data[i + 2] === 235
+        if (!hit) sky++
+        if (!hit !== drawnSky) {
+          skyDiffers++
+          continue
+        }
+        if (!hit) continue
+        const haze = Math.min(0.6, hit.distanceMeters / 60000)
+        const expected = stripes(hit.lng, hit.lat)!.map((v, k) => v * (1 - haze) + [175, 190, 215][k] * haze)
+        if (expected.some((v, k) => Math.abs(v - view.data[i + k]) > 2)) colourDiffers++
+      }
+    const pixels = width * view.height
+    expect(sky).toBeGreaterThan(pixels * 0.05)
+    expect(sky).toBeLessThan(pixels * 0.95)
+    expect(skyDiffers / pixels).toBeLessThan(0.005)
+    // A stripe edge is a pixel wide here: a hit a metre apart can land on the other colour.
+    expect(colourDiffers / pixels).toBeLessThan(0.02)
   })
 
   it('samples a tile mosaic by slippy-map position', () => {
@@ -222,5 +245,27 @@ describe('a camera checked against the map', () => {
     // Flat colour has no edges.
     const flat = { width: 40, height: 30, data: new Uint8ClampedArray(40 * 30 * 4).fill(128) }
     expect(photoEdges(flat).every((v) => v === 0)).toBe(true)
+  })
+})
+
+describe('imageryTileRange', () => {
+  // About 12 km square round a made-up place.
+  const box: [number, number, number, number] = [-122.59, 53.85, -122.41, 53.95]
+
+  it('takes the tiles the box touches at the zoom asked for when they are few enough', () => {
+    const range = imageryTileRange(box, 11)
+    expect(range.zoom).toBe(11)
+    const [x0, y0] = tileXY(box[0], box[3], 11)
+    expect([range.minX, range.minY]).toEqual([Math.floor(x0), Math.floor(y0)])
+    expect(range.maxX).toBeGreaterThanOrEqual(range.minX)
+  })
+
+  it('drops the zoom until the box fits the tile budget', () => {
+    const fine = imageryTileRange(box, 16, 64)
+    expect(fine.zoom).toBeLessThan(16)
+    expect((fine.maxX - fine.minX + 1) * (fine.maxY - fine.minY + 1)).toBeLessThanOrEqual(64)
+    // One zoom finer would not have fitted.
+    const finer = imageryTileRange(box, fine.zoom + 1, Infinity)
+    expect((finer.maxX - finer.minX + 1) * (finer.maxY - finer.minY + 1)).toBeGreaterThan(64)
   })
 })

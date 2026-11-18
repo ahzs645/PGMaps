@@ -2,23 +2,10 @@
 import * as ort from 'onnxruntime-web/wasm'
 import wasm from '../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm?url'
 import type { PhotoDepthReply, PhotoDepthRequest } from './photoDepth'
+import { PHOTO_DEPTH_CACHE, PHOTO_DEPTH_MODELS } from './photoDepthModels'
 
-const CACHE = 'pgmaps-photo-depth-v1'
-const MODELS = {
-  'da2-small': {
-    root: 'https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/4472b7362082ad9968fee890ca0f1e5aca36b93d/onnx/',
-    files: [{ path: 'model_quantized.onnx', size: 27_258_801 }],
-    longEdge: 504,
-  },
-  'da3-small': {
-    root: 'https://huggingface.co/onnx-community/depth-anything-v3-small/resolve/0b6a7f3bf5595f9950b91389e0da3a0de130324c/onnx/',
-    files: [
-      { path: 'model.onnx', size: 640_691 },
-      { path: 'model.onnx_data', size: 104_702_464 },
-    ],
-    longEdge: 378,
-  },
-}
+const CACHE = PHOTO_DEPTH_CACHE
+const MODELS = PHOTO_DEPTH_MODELS
 const scope = self as unknown as DedicatedWorkerGlobalScope
 
 ort.env.wasm.numThreads = 1

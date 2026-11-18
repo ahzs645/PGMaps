@@ -22,11 +22,10 @@ import { transferCamera, type ImageMatch, type TransferResult } from './photoOve
 import { relativePhotoPose, type RelativePose } from './photoRelativePose'
 import { airborneAltitude } from './photoQueue'
 import {
+  colourHits,
   drapePhoto,
   modelAgreement,
-  modelViewHeight,
   mosaicSampler,
-  renderModelView,
   type Drape,
   type DrapeOptions,
   type ImagerySampler,
@@ -166,8 +165,6 @@ export type PhotoWorkResponse =
 
 /** How long a job runs before it lets the worker read its messages (a cancel, a newer job). */
 const SLICE_MS = 30
-/** Model-view rows drawn between checks of the clock. */
-const MODEL_ROWS = 4
 /** Horizon azimuths read between checks of the clock. */
 const HORIZON_AZIMUTHS = 60
 
@@ -292,19 +289,14 @@ export function createPhotoWorkHost({
       return
     }
     if (job.kind === 'modelView') {
-      const width = job.width ?? 320
-      const height = modelViewHeight(job.pose, width)
-      const into: Rgba = { width, height, data: new Uint8ClampedArray(width * height * 4) }
-      const sampler = imagerySampler(layers!)
-      for (let from = 0; from < height; from += MODEL_ROWS) {
-        renderModelView(job.pose, terrain, sampler, width, job.maxMeters ?? 60000, {
-          from,
-          to: from + MODEL_ROWS,
-          into,
-        })
-        post({ type: 'progress', id, stage: 'work', done: Math.min(1, (from + MODEL_ROWS) / height) })
-        await checkpoint()
-      }
+      const maxMeters = job.maxMeters ?? 60000
+      // One walk per azimuth (`buildHitBuffer`), a fraction of a second: it gives way before and after, not per row.
+      const hits = buildHitBuffer(job.pose, terrain, { width: job.width ?? 320, maxMeters })
+      post({ type: 'progress', id, stage: 'work', done: 0.7 })
+      await checkpoint()
+      const into = colourHits(hits, job.pose, imagerySampler(layers!), maxMeters)
+      post({ type: 'progress', id, stage: 'work', done: 1 })
+      await checkpoint()
       const agreement = photo ? modelAgreement(photo, into) : null
       post({ type: 'done', id, result: { kind: 'modelView', image: into, agreement } }, [
         into.data.buffer as ArrayBuffer,

@@ -98,7 +98,7 @@ export type FieldRecord = {
   alignmentChecked: boolean
   annotations: Array<{ x: number; y: number; label: string }>
   /**
-   * The photos taken on one flight or walk share this (`withFlights`, `photoRecords.ts`): a gap over five minutes
+   * The photos taken on one flight or walk share this (`withFlights`, `photoRecords.ts`): a gap over half an hour
    * starts another. Absent on records made before photos were grouped.
    */
   flightId?: string | null

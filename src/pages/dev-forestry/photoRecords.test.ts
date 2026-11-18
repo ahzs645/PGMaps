@@ -188,19 +188,19 @@ describe('the workspace', () => {
 describe('flights', () => {
   const at = (minutes: number, seconds = 0) => new Date(Date.UTC(2026, 6, 1, 14, minutes, seconds)).toISOString()
 
-  it('groups photos by time, a gap over five minutes starting another, numbered in time order', () => {
+  it('groups photos by time, a gap over half an hour starting another, numbered in time order', () => {
     const fields = [
-      record('c', at(10, 5)),
+      record('c', at(40, 5)),
       record('a', at(0)),
       record('b', at(0, 3)),
-      record('d', at(30)),
+      record('d', at(120)),
       record('none', null),
       { ...record('map', at(0, 1)), kind: 'map' as const },
     ]
     const grouped = withFlights(fields)
     expect(grouped.map((r) => r.id)).toEqual(fields.map((r) => r.id))
     const byId = Object.fromEntries(grouped.map((r) => [r.id, r]))
-    // a and b 3 s apart; c 10 min later; d 20 min after that.
+    // a and b 3 s apart; c 40 min later; d 80 min after that.
     expect(byId.a.flightId).toBe(byId.b.flightId)
     expect([byId.a.frameIndex, byId.b.frameIndex]).toEqual([0, 1])
     expect(new Set([byId.a.flightId, byId.c.flightId, byId.d.flightId]).size).toBe(3)

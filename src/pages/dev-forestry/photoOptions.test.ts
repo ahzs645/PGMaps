@@ -8,6 +8,7 @@ import {
   photoFailureText,
   photoOptions,
   photoReasons,
+  photoStripState,
   sunNote,
   type PhotoOptionsInput,
 } from './photoOptions'
@@ -306,5 +307,44 @@ describe('queue states', () => {
       'phone-heading-only',
       'disagrees-with-neighbour',
     ])
+  })
+})
+
+describe('what a photo in the strip needs', () => {
+  it('tells a camera that only wants a look from one that wants a landmark', () => {
+    expect(photoStripState({ status: 'options', reasons: [] })).toMatchObject({ tone: 'ready', short: 'Check it' })
+    expect(photoStripState({ status: 'options', reasons: ['not-settled'] })).toMatchObject({
+      tone: 'help',
+      short: 'Needs a landmark',
+    })
+    expect(photoStripState({ status: 'options', reasons: ['phone-heading-only'] }).tone).toBe('help')
+    // A disagreement with a neighbour is said before an unsettled skyline: it is the more specific thing to look at.
+    expect(photoStripState({ status: 'options', reasons: ['not-settled', 'disagrees-with-neighbour'] }).short).toBe(
+      'Disagrees with a neighbour',
+    )
+  })
+
+  it('says why a camera was not found', () => {
+    expect(photoStripState({ status: 'failed', reasons: ['no-skyline'] })).toMatchObject({
+      tone: 'failed',
+      short: 'No skyline',
+    })
+    expect(photoStripState({ status: 'failed', reasons: ['outside-terrain'] }).short).toBe('No terrain')
+    expect(photoStripState({ status: 'failed', reasons: [] }).short).toBe('Not found')
+  })
+
+  it('keeps the queue and the acceptance states apart, and reads a photo with no entry as waiting', () => {
+    expect(photoStripState(undefined).tone).toBe('waiting')
+    expect(photoStripState({ status: 'searching', reasons: [] }).tone).toBe('working')
+    // Looked at is not settled: a photo keeps saying what it needs until its camera is accepted.
+    expect(photoStripState({ status: 'checked', reasons: ['not-settled'] }).short).toBe('Needs a landmark')
+    expect(photoStripState({ status: 'checked', reasons: [] })).toMatchObject({ tone: 'ready', short: 'Check it' })
+    expect(photoStripState({ status: 'accepted', reasons: ['not-settled'] }).tone).toBe('done')
+    expect(photoStripState({ status: 'unsearched', reasons: [] }).tone).toBe('idle')
+  })
+
+  it('gives every state a sentence that ends', () => {
+    for (const status of ['unsearched', 'queued', 'searching', 'options', 'checked', 'accepted', 'failed'] as const)
+      expect(photoStripState({ status, reasons: [] }).text.length).toBeGreaterThan(5)
   })
 })

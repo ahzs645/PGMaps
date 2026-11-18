@@ -40,7 +40,6 @@ export type OwnPhotoPrimary =
   | { kind: 'add'; label: string }
   | { kind: 'searching'; label: string }
   | { kind: 'search'; label: string }
-  | { kind: 'check'; label: string }
   | { kind: 'accept'; label: string; reason: string | null }
   | { kind: 'viewpoint'; label: string; reason: string | null }
   | { kind: 'stand'; label: string; reason: string | null }
@@ -58,8 +57,6 @@ export interface OwnPhotoPrimaryInput {
   status: PhotoQueueStatus | null
   /** The active photo's acceptance as it stands. */
   acceptance: 'none' | 'accepted' | 'lapsed'
-  /** Whether the checks were drawn for the camera as it stands. */
-  checked: boolean
   /** Why Accept is refused now, from the gate (`acceptGate`); null when it may be pressed. */
   acceptReason: string | null
   /** The view of interest this photo is already a viewpoint for, when it is one. */
@@ -72,8 +69,8 @@ export interface OwnPhotoPrimaryInput {
 
 /**
  * The footer's primary action: no photos, add some; while the active photo is being searched, the queue's place in
- * it; options ready, check the camera; checked, accept it; accepted, make it a viewpoint, then stand there; then the
- * next photo. A lapsed acceptance is the same as none: the camera moved, so it is checked again.
+ * it; options ready, accept the camera (one click, nothing asked first); accepted, make it a viewpoint, then stand
+ * there; then the next photo. A lapsed acceptance is the same as none: the camera moved, so it is accepted again.
  */
 export function ownPhotoPrimary(input: OwnPhotoPrimaryInput): OwnPhotoPrimary {
   if (!input.count || !input.activeId) return { kind: 'add', label: 'Add photos' }
@@ -91,6 +88,5 @@ export function ownPhotoPrimary(input: OwnPhotoPrimaryInput): OwnPhotoPrimary {
     if (input.nextId) return { kind: 'next', label: 'Next photo', nextId: input.nextId }
     return { kind: 'stand', label: 'Stand here', reason: input.standReason }
   }
-  if (!input.checked) return { kind: 'check', label: 'Check this camera' }
   return { kind: 'accept', label: 'Accept camera', reason: input.acceptReason }
 }

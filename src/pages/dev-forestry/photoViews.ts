@@ -5,7 +5,8 @@
  *   it, with ground the camera could not see left clear. Laid over satellite imagery and cutblocks on the plan, a wrong
  *   heading puts the photographed roads, openings and lakes visibly in the wrong place. It needs no road view.
  * - **The map in the photo** (`renderModelView`): satellite imagery draped on the terrain and seen from the camera,
- *   with distance haze, to set beside or over the photo where the skyline is one smooth ridge.
+ *   with distance haze, to set beside or over the photo where the skyline is one smooth ridge. It is coloured from the
+ *   hit buffer (`photoHitBuffer.ts`), never from a ray cast per pixel.
  *
  * Provenance: rebuilt for the browser from PGMaps' photo-matching bench (`scripts/forestry/photo-matching/lib/geo.ts`,
  * `castRay` and `render`). The options follow functional specifications of Pic2Map (orthorectifying a photo for a
@@ -14,6 +15,7 @@
  * Free of DOM and network access: terrain and imagery are passed in.
  */
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
+import { buildHitBuffer, type HitBuffer } from './photoHitBuffer'
 import { cameraAxes, projectToPhoto, type PhotoPose } from './photoPose'
 import { earthCurvatureDropMeters } from './visibility'
 
@@ -94,8 +96,12 @@ const SKY: [number, number, number] = [170, 200, 235]
 const HAZE: [number, number, number] = [175, 190, 215]
 
 /**
- * Imagery seen from the camera, `width` pixels across, at the camera's own aspect. `rows` renders a strip into `into`,
- * so a page can draw it a strip at a time without freezing.
+ * Imagery seen from the camera, `width` pixels across, at the camera's own aspect.
+ *
+ * Drawn from the hit buffer (`buildHitBuffer`): one walk outward along each azimuth finds every pixel's ground, where a
+ * ray cast per pixel walked the same ground once for every pixel above it. At 320 pixels across and 90 km that was
+ * several seconds a view (7.9 s in a benchmark); this is about a tenth of a second, and the picture is the same but
+ * for a pixel here and there along a ridge (`photoViews.test.ts` pins it against `castRay`).
  */
 export function renderModelView(
   pose: PhotoPose,
@@ -103,26 +109,37 @@ export function renderModelView(
   imagery: ImagerySampler,
   width = 360,
   maxMeters = 60000,
-  rows?: { from: number; to: number; into: Rgba },
 ): Rgba {
-  const scale = width / pose.width
-  const height = rows?.into.height ?? Math.round(pose.height * scale)
-  const data = rows?.into.data ?? new Uint8ClampedArray(width * height * 4)
-  for (let y = rows?.from ?? 0; y < Math.min(height, rows?.to ?? height); y++)
-    for (let x = 0; x < width; x++) {
-      const hit = castRay(pose, source, (x + 0.5) / scale, (y + 0.5) / scale, maxMeters)
-      const sample = hit ? imagery(hit.lng, hit.lat) : SKY
-      const i = (y * width + x) * 4
-      if (!sample) {
-        data.fill(0, i, i + 4)
-        continue
-      }
-      const haze = hit ? Math.min(0.6, hit.distanceMeters / maxMeters) : 0
-      data[i] = sample[0] * (1 - haze) + HAZE[0] * haze
-      data[i + 1] = sample[1] * (1 - haze) + HAZE[1] * haze
-      data[i + 2] = sample[2] * (1 - haze) + HAZE[2] * haze
-      data[i + 3] = 255
-    }
+  return colourHits(buildHitBuffer(pose, source, { width, maxMeters }), pose, imagery, maxMeters)
+}
+
+/** A hit buffer coloured from imagery: sky where a ray met none, clear where the imagery has nothing, hazed by distance. */
+export function colourHits(
+  buffer: Pick<HitBuffer, 'width' | 'height' | 'lng' | 'lat'>,
+  pose: Pick<PhotoPose, 'lng' | 'lat'>,
+  imagery: ImagerySampler,
+  maxMeters = 60000,
+): Rgba {
+  const { width, height } = buffer
+  const data = new Uint8ClampedArray(width * height * 4)
+  const mx = metresPerDegreeLng(pose.lat)
+  for (let k = 0; k < width * height; k++) {
+    const lng = buffer.lng[k],
+      lat = buffer.lat[k]
+    const hit = !Number.isNaN(lng)
+    const sample = hit ? imagery(lng, lat) : SKY
+    const i = k * 4
+    // Left clear (the array starts at zero) where the ground has no imagery.
+    if (!sample) continue
+    // Haze by distance over the ground, as a ray's own `distanceMeters` measures it.
+    const haze = hit
+      ? Math.min(0.6, Math.hypot((lng - pose.lng) * mx, (lat - pose.lat) * METRES_PER_DEGREE_LAT) / maxMeters)
+      : 0
+    data[i] = sample[0] * (1 - haze) + HAZE[0] * haze
+    data[i + 1] = sample[1] * (1 - haze) + HAZE[1] * haze
+    data[i + 2] = sample[2] * (1 - haze) + HAZE[2] * haze
+    data[i + 3] = 255
+  }
   return { width, height, data }
 }
 
@@ -345,6 +362,28 @@ export function tileXY(lng: number, lat: number, zoom: number): [number, number]
   const n = 2 ** zoom,
     s = Math.sin(lat * RAD)
   return [((lng + 180) / 360) * n, (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n]
+}
+
+export type ImageryTileRange = { zoom: number; minX: number; minY: number; maxX: number; maxY: number }
+
+/**
+ * The tiles a box (west, south, east, north) takes, at the finest zoom up to `maxZoom` that stays within `maxTiles`.
+ * A mosaic holds every tile of its range, so two places whose boxes take the same tiles can share one mosaic.
+ */
+export function imageryTileRange(
+  bounds: readonly [number, number, number, number],
+  maxZoom: number,
+  maxTiles = 64,
+): ImageryTileRange {
+  const at = (zoom: number): ImageryTileRange => {
+    const [x0, y0] = tileXY(bounds[0], bounds[3], zoom),
+      [x1, y1] = tileXY(bounds[2], bounds[1], zoom)
+    return { zoom, minX: Math.floor(x0), minY: Math.floor(y0), maxX: Math.floor(x1), maxY: Math.floor(y1) }
+  }
+  let range = at(maxZoom)
+  while ((range.maxX - range.minX + 1) * (range.maxY - range.minY + 1) > maxTiles && range.zoom > 3)
+    range = at(range.zoom - 1)
+  return range
 }
 
 /** A sampler over a mosaic of 256-px tiles whose top-left tile is (minX, minY) at `zoom`. */

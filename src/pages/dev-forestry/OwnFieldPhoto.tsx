@@ -9,7 +9,7 @@ import type { FieldRecord } from './assessmentTools'
 import type { RoadViewPose } from './exifPose'
 import { OwnPhotoDialog, lineUpBlocked, ownCameraLine, readOwnPhotoSteps } from './OwnPhotoDialog'
 import { OWN_PHOTO_STEPS } from './ownPhotoSteps'
-import { PHOTO_STATUS_TEXT } from './photoOptions'
+import { photoStripState } from './photoOptions'
 import type { PhotoPageFeatures } from './photoPageFeatures'
 import type { FieldPhotoState } from './useFieldPhoto'
 
@@ -115,7 +115,7 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
               {activeEntry && (
                 <p className="text-3xs leading-4 text-muted-foreground">
                   {count > 1 && own.frameIndex !== null ? `Frame ${own.frameIndex + 1}: ` : ''}
-                  {PHOTO_STATUS_TEXT[activeEntry.status]}
+                  {photoStripState(activeEntry).short}
                 </p>
               )}
             </div>

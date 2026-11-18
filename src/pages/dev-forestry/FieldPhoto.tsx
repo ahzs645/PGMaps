@@ -204,7 +204,7 @@ export function FieldPhotoPanel({
                 size="sm"
                 className="touch:h-10"
                 aria-label="Clear photo"
-                onClick={photo.clear}
+                onClick={photo.clearStreetPhoto}
               >
                 <X className="h-4 w-4" />
               </Button>

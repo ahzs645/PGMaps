@@ -156,6 +156,60 @@ describe('photoDrawOps', () => {
   })
 })
 
+describe('a layer a caller adds', () => {
+  const haul: DrawnFeature = {
+    paths: paths('custom:haul', {
+      visibleParts: [
+        [
+          [100, 700],
+          [900, 760],
+        ],
+      ],
+    }),
+  }
+  const symbol = catalogueEntry('road-gravel-main').symbol
+  const input = { photoWidth: 1800, photoHeight: 1200, features: [haul] }
+
+  it('is drawn with its own symbol when it is on', () => {
+    const draw = photoDrawOps({
+      ...input,
+      visibility: { ...photoLayerVisibility(), skyline: false, 'custom:haul': true },
+      symbols: { 'custom:haul': symbol },
+    })
+    expect(strokesOf(draw.ops)).toContainEqual(photoStrokes(symbol, 1)[0])
+  })
+
+  it('is left out when it is off, and when it comes with no symbol to draw it by', () => {
+    const off = photoDrawOps({
+      ...input,
+      visibility: { ...photoLayerVisibility(), skyline: false, 'custom:haul': false },
+      symbols: { 'custom:haul': symbol },
+    })
+    expect(off.ops).toHaveLength(0)
+    const unknown = photoDrawOps({
+      ...input,
+      visibility: { ...photoLayerVisibility(), skyline: false, 'custom:haul': true },
+    })
+    expect(unknown.ops).toHaveLength(0)
+  })
+
+  it('is never read under a click', () => {
+    const square: GeoJSON.Polygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [-123, 54],
+          [-122.9, 54],
+          [-122.9, 54.1],
+          [-123, 54.1],
+          [-123, 54],
+        ],
+      ],
+    }
+    expect(photoPickLayers([{ layer: 'custom:haul', geometry: square }])).toHaveLength(0)
+  })
+})
+
 describe('simplifyPart', () => {
   it('keeps a line within about a pixel and drops segments shorter than one', () => {
     // A wavy line traced every 0.1 point: far finer than a screen shows.

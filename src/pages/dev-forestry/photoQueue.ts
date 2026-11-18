@@ -10,6 +10,7 @@ import type { ExifReading, OwnPoseSources, PoseSource } from './exifPose'
 import { sameCamera, type AcceptancePose, type PhotoAcceptance, type PhotoCameraMethod } from './photoAcceptance'
 import { groupFlights, type LensCheck } from './photoFlight'
 import { photoReasons, type PhotoFailureReason, type PhotoOptionKind, type PhotoQueueStatus } from './photoOptions'
+import { imageryTileRange } from './photoViews'
 import type { WideSearchInput, WideSearchResult } from './wideOrientation'
 
 /** The overlay's terrain: zoom 11 out to 25 km, as many tiles as that takes up to 160. */
@@ -104,9 +105,35 @@ export function horizonKey(eye: { lng: number; lat: number; altitudeMeters: numb
   return `${eye.lng.toFixed(4)},${eye.lat.toFixed(4)},${Math.round(eye.altitudeMeters)}`
 }
 
-/** Imagery round a place, to about 100 m: the frames of a burst share it. */
+/** Imagery round a place, finest first: near (zoom 14 to 6 km), middle (zoom 11 to 25 km) and far (zoom 9 to 90 km). */
+export const IMAGERY_RINGS = [
+  { radiusMeters: 6000, maxZoom: 14 },
+  { radiusMeters: 25000, maxZoom: 11 },
+  { radiusMeters: WIDE_RADIUS_METERS, maxZoom: 9 },
+] as const
+
+/** A ring's box round a place: west, south, east, north. */
+export function imageryBox(lng: number, lat: number, radiusMeters: number): [number, number, number, number] {
+  const degLat = radiusMeters / 110574,
+    degLng = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180))
+  return [lng - degLng, lat - degLat, lng + degLng, lat + degLat]
+}
+
+/**
+ * Each ring's key for a place: the tiles its mosaic holds. Photos of one flight are hundreds of metres to kilometres
+ * apart, and keyed by place (to 100 m, as this once was) every one of them loaded all three mosaics again; by tiles,
+ * the far and middle rings are shared by a whole flight and the near ring by every photo over the same few tiles.
+ */
+export function imageryRingKeys(lng: number, lat: number): string[] {
+  return IMAGERY_RINGS.map(({ radiusMeters, maxZoom }) => {
+    const r = imageryTileRange(imageryBox(lng, lat, radiusMeters), maxZoom)
+    return `${r.zoom}/${r.minX}-${r.maxX}/${r.minY}-${r.maxY}`
+  })
+}
+
+/** The three rings' imagery round a place, as one key: the same tiles, the same key. */
 export function imageryKey(lng: number, lat: number): string {
-  return `${lng.toFixed(3)},${lat.toFixed(3)}`
+  return imageryRingKeys(lng, lat).join('|')
 }
 
 /** A search's result is the same for the same photo, camera start, ranges and priors. */
@@ -142,6 +169,27 @@ export function featuresKey(box: readonly [number, number, number, number]): str
   return box.map((value) => value.toFixed(3)).join(',')
 }
 
+/**
+ * Runs `work` over `items`, at most `lanes` at a time, and gives the results in the items' order. A flight's photos
+ * are read this way: side by side, but never more at once than the browser decodes together.
+ */
+export async function inLanes<T, R>(
+  items: readonly T[],
+  lanes: number,
+  work: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const lane = async () => {
+    while (next < items.length) {
+      const index = next++
+      results[index] = await work(items[index], index)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(Math.floor(lanes) || 1, items.length)) }, lane))
+  return results
+}
+
 type Timed = { id: string; takenAtUtc: string | null; name?: string; flightId?: string | null }
 
 /** Photo ids in time order: flights in order, each frame in its flight's order; photos with no time last, by name. */
@@ -154,6 +202,27 @@ export function nextInQueue(pending: readonly string[], photos: readonly Timed[]
   if (!pending.length) return null
   const waiting = new Set(pending)
   return queueOrder(photos).find((id) => waiting.has(id)) ?? null
+}
+
+/**
+ * The photo whose features are read next, or null when none is due. The open photo's are read as soon as its search is
+ * done, because its layers are what the reviewer is looking at. The others' wait until no search is running or
+ * waiting, then go in time order; a paused or cancelled queue reads none of them, only the open photo's.
+ */
+export function featuresNext(input: {
+  photos: ReadonlyArray<Timed & { positioned: boolean; searched: boolean; read: boolean }>
+  activeId: string | null
+  /** A search is running or waiting its turn. */
+  searching: boolean
+  /** The queue is paused or was cancelled. */
+  held: boolean
+}): string | null {
+  const due = input.photos.filter((photo) => photo.positioned && photo.searched && !photo.read)
+  if (!due.length) return null
+  if (input.activeId && due.some((photo) => photo.id === input.activeId)) return input.activeId
+  if (input.searching || input.held) return null
+  const waiting = new Set(due.map((photo) => photo.id))
+  return queueOrder(input.photos).find((id) => waiting.has(id)) ?? null
 }
 
 /** Each photo's flight and its place in it (`groupFlights`); a photo with no time is in none. */

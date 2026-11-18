@@ -13,6 +13,7 @@ import {
   visualInventoryFeatures,
   vriFeatures,
   type PhotoPageFeatures,
+  scenePhotoLayers,
 } from './photoPageFeatures'
 import type { PhotoFeature } from './photoOverlay'
 
@@ -203,5 +204,38 @@ describe('resolvePhotoExtras', () => {
     )
     expect(extras.features.subLandforms).toHaveLength(1)
     expect(extras.notes.subLandforms).toBe('Landform only')
+  })
+})
+
+describe('scenePhotoLayers', () => {
+  it('adds the road the assessment views from as a line, off until the reviewer shows it', () => {
+    const [road] = scenePhotoLayers({
+      viewpoint: {
+        mode: 'corridor',
+        coordinates: [
+          [-122.5, 53.9],
+          [-122.4, 53.95],
+        ],
+      },
+    })
+    expect(road).toMatchObject({ id: 'scene-road', group: 'The scene', defaultOn: false })
+    expect(road.symbol.kind).toBe('line')
+    expect(road.features).toEqual([
+      {
+        id: 'road',
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [-122.5, 53.9],
+            [-122.4, 53.95],
+          ],
+        },
+      },
+    ])
+  })
+
+  it('keeps the row with nothing to draw for a single viewpoint or no scene', () => {
+    expect(scenePhotoLayers({ viewpoint: { mode: 'spot', coordinates: [[-122.5, 53.9]] } })[0].features).toEqual([])
+    expect(scenePhotoLayers(null)[0].features).toEqual([])
   })
 })

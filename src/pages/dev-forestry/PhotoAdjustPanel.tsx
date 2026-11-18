@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { Crosshair, FileInput, Move } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { FileButton } from '@/components/ui/file-button'
 import { CheckboxField, NullableNumberField, NumberField } from '@/components/ui/form-field'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
@@ -278,17 +279,12 @@ export function PhotoAdjustPanel({
         <>
           <Section title="Skyline search">
             <SkylineSearch photo={photo} />
-            <details className="group">
-              <summary className="cursor-pointer text-xs font-medium text-foreground select-none">
-                Hold an angle near a value
-                {heldAngleCount(photo.priors) > 0 && (
-                  <span className="ml-1 font-normal text-muted-foreground">· {heldAngleCount(photo.priors)} held</span>
-                )}
-              </summary>
-              <div className="pt-2">
-                <HeldAngles photo={photo} onPick={startPick} />
-              </div>
-            </details>
+            <DisclosureRow
+              title="Hold an angle near a value"
+              summary={heldAngleCount(photo.priors) > 0 ? `${heldAngleCount(photo.priors)} held` : undefined}
+            >
+              <HeldAngles photo={photo} onPick={startPick} />
+            </DisclosureRow>
           </Section>
 
           <Section title="Paired points">

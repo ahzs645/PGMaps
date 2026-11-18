@@ -1,14 +1,16 @@
 /**
  * The own-photo window's *Use* tab (docs/forestry-visual-quality-own-photo-redesign-2026-11-17.md, §2.6, §2.7):
- * accepting the camera, then the jobs the photo does. *Accept* is the reviewer's, never automatic: it is on only when
- * the gate passes (`acceptGate`: checks drawn for this exact camera, a point solve's held-out pair landing, a note for
- * a fit that is not settled, initials typed), and says why when it is off. A camera moved after it was accepted lapses
- * the acceptance, said plainly. One record holds the photo; every job is a link to it, never a copy.
+ * accepting the camera, then the jobs the photo does. *Accept* is the reviewer's, never automatic, and it is one
+ * click: initials and a note are theirs to add behind a fold, never asked first. Putting the photo to a job that draws
+ * from its camera (a viewpoint, the before image) accepts the camera in the same click. The gate (`acceptGate`)
+ * refuses only a point solve whose held-out pair misses. A camera moved after it was accepted lapses the acceptance,
+ * said plainly. One record holds the photo; every job is a link to it, never a copy.
  */
 import { useState } from 'react'
 import { Check, CircleAlert, MapPin, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { FORM_INPUT_CLASS, FormField } from '@/components/ui/form-field'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
@@ -61,7 +63,6 @@ export function PhotoAcceptPanel({
   if (!own) return null
   const state = photo.acceptanceState(own.id)
   const acceptance = own.acceptance
-  const notSettled = preview.evidence.settled === false
   return (
     <section className="space-y-3" aria-label="Accept the camera">
       <h4 className="text-sm font-semibold">Accept the camera</h4>
@@ -80,8 +81,10 @@ export function PhotoAcceptPanel({
               <CircleAlert className="h-3.5 w-3.5 text-warning" aria-hidden />
             )}
             {state === 'accepted'
-              ? `Accepted by ${acceptance.acceptedBy}`
-              : `Lapsed: the camera has moved since ${acceptance.acceptedBy} accepted it`}
+              ? acceptance.acceptedBy
+                ? `Accepted by ${acceptance.acceptedBy}`
+                : 'Accepted'
+              : `Lapsed: the camera has moved since ${acceptance.acceptedBy || 'it was'} accepted${acceptance.acceptedBy ? ' it' : ''}`}
           </p>
           <KeyValueRows
             variant="divided"
@@ -115,28 +118,9 @@ export function PhotoAcceptPanel({
       {state !== 'accepted' && (
         <div className="space-y-2">
           <p className="text-xs leading-5 text-muted-foreground">
-            Camera source {preview.evidence.overlapBasis ? 'flight photo match' : METHOD_TEXT[preview.method]}.
-            Accepting records your initials, the time, the camera and the evidence you saw.
+            Camera {preview.evidence.overlapBasis ? 'from a flight photo match' : METHOD_TEXT[preview.method]}.
+            Accepting keeps this camera with the photo: the time, how it was found and the evidence behind it.
           </p>
-          <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
-            <FormField label="Your initials">
-              <input
-                className={cn(FORM_INPUT_CLASS, 'h-9 touch:h-10')}
-                value={initials}
-                maxLength={12}
-                autoComplete="off"
-                onChange={(event) => onInitials(event.target.value)}
-              />
-            </FormField>
-            <FormField label={notSettled ? 'Why this camera (needed: not settled)' : 'Note (optional)'}>
-              <textarea
-                className={cn(FORM_INPUT_CLASS, 'min-h-9 py-1.5')}
-                rows={2}
-                value={note}
-                onChange={(event) => onNote(event.target.value)}
-              />
-            </FormField>
-          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" size="sm" className="touch:h-10" disabled={!preview.gate.ok} onClick={onAccept}>
               <Check className="h-4 w-4" />
@@ -144,6 +128,30 @@ export function PhotoAcceptPanel({
             </Button>
             {!preview.gate.ok && <p className="text-xs text-muted-foreground">{preview.gate.reason}</p>}
           </div>
+          <DisclosureRow
+            title="Add your initials or a note"
+            summary={[initials.trim(), note.trim() ? 'note written' : ''].filter(Boolean).join(' · ') || 'optional'}
+          >
+            <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
+              <FormField label="Your initials">
+                <input
+                  className={cn(FORM_INPUT_CLASS, 'h-9 touch:h-10')}
+                  value={initials}
+                  maxLength={12}
+                  autoComplete="off"
+                  onChange={(event) => onInitials(event.target.value)}
+                />
+              </FormField>
+              <FormField label="Why this camera">
+                <textarea
+                  className={cn(FORM_INPUT_CLASS, 'min-h-9 py-1.5')}
+                  rows={2}
+                  value={note}
+                  onChange={(event) => onNote(event.target.value)}
+                />
+              </FormField>
+            </div>
+          </DisclosureRow>
           {acceptError && <InlineAlert tone="warning">{acceptError}</InlineAlert>}
         </div>
       )}
@@ -154,9 +162,14 @@ export function PhotoAcceptPanel({
 /** The jobs the photo does, a viewpoint first, and removing it from the set. */
 export function PhotoUsePanel({
   photo,
+  initials = '',
+  note = '',
   onRemoved,
 }: {
   photo: FieldPhotoState
+  /** What the reviewer typed beside *Accept*, kept with an acceptance a job makes. */
+  initials?: string
+  note?: string
   /** Called after the photo is removed, so the window can move on. */
   onRemoved?: () => void
 }) {
@@ -165,7 +178,7 @@ export function PhotoUsePanel({
   if (!own) return null
   const accepted = photo.acceptanceState(own.id) === 'accepted'
   const makeViewpoint = () => {
-    const made = photo.makeViewpoint(own.id)
+    const made = photo.makeViewpoint(own.id, { initials, note })
     setMessage(
       made.ok
         ? {
@@ -185,25 +198,30 @@ export function PhotoUsePanel({
       <ul className="space-y-1.5">
         {PHOTO_JOBS.map((job) => {
           const text = PHOTO_JOB_TEXT[job]
-          const blocked = NEEDS_ACCEPTED.has(job) && !accepted && !has(job)
+          const accepts = NEEDS_ACCEPTED.has(job) && !accepted && !has(job)
           return (
             <li key={job}>
-              <label className={cn('flex items-start gap-2 text-xs', blocked && 'opacity-60')}>
+              <label className="flex items-start gap-2 text-xs">
                 <input
                   type="checkbox"
                   className="mt-0.5"
                   checked={has(job)}
-                  disabled={blocked || !own.recordId}
+                  disabled={!own.recordId}
                   onChange={(event) => {
-                    if (job === 'viewpoint' && event.target.checked) makeViewpoint()
-                    else photo.setJob(own.id, job, event.target.checked, job === 'viewpoint' ? viewId : null)
+                    if (job === 'viewpoint' && event.target.checked) return makeViewpoint()
+                    // A job that draws from the camera accepts it in the same click.
+                    if (event.target.checked && accepts) {
+                      const made = photo.ensureAccepted(own.id, { initials, note })
+                      if (!made.ok) return setMessage({ tone: 'warning', text: made.reason })
+                    }
+                    photo.setJob(own.id, job, event.target.checked, job === 'viewpoint' ? viewId : null)
                   }}
                 />
                 <span className="min-w-0">
                   <span className="font-medium">{text.label}</span>{' '}
                   <span className="text-muted-foreground">
                     {text.note}
-                    {blocked ? ' Accept the camera first.' : ''}
+                    {accepts ? ' Accepts this camera.' : ''}
                   </span>
                 </span>
               </label>
@@ -223,7 +241,7 @@ export function PhotoUsePanel({
           variant="outline"
           size="sm"
           className="touch:h-10"
-          disabled={!accepted}
+          disabled={!own.recordId}
           onClick={makeViewpoint}
         >
           <MapPin className="h-4 w-4" />

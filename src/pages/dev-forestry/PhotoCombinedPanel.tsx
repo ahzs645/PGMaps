@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Layers, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { DisclosureCard, DisclosureRow } from '@/components/ui/disclosure'
 import { CheckboxField, SelectField } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 
@@ -21,9 +22,13 @@ function CameraScoreDetails({ candidate }: { candidate: CombinedCandidate }) {
   ] as const
   const check = candidate.geometryCheck
   return (
-    <details className="w-full border-t border-border pt-1.5">
-      <summary className="cursor-pointer font-medium">Score {candidate.score.toFixed(3)} · evidence breakdown</summary>
-      <dl className="mt-1 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-muted-foreground">
+    <DisclosureRow
+      title={`Score ${candidate.score.toFixed(3)}`}
+      summary="evidence breakdown"
+      className="w-full border-t border-border/60"
+      contentClassName="space-y-1"
+    >
+      <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-muted-foreground">
         {rows.map(([label, value]) => (
           <div key={label} className="contents">
             <dt>{label}</dt>
@@ -32,18 +37,18 @@ function CameraScoreDetails({ candidate }: { candidate: CombinedCandidate }) {
         ))}
       </dl>
       {candidate.cues.depth && (
-        <p className="mt-2 text-muted-foreground">
+        <p className="text-muted-foreground">
           Depth correlation · overall {candidate.cues.depth.global.toFixed(3)} · side to side{' '}
           {candidate.cues.depth.lateral.toFixed(3)}
         </p>
       )}
       {check && (
-        <p className="mt-1 text-muted-foreground">
+        <p className="text-muted-foreground">
           {check.kind === 'overlap' ? 'Photo overlap p90' : 'Worst held-out paired point'} {check.errorPx.toFixed(1)} px
           at 1,050 px image width
         </p>
       )}
-    </details>
+    </DisclosureRow>
   )
 }
 
@@ -51,12 +56,16 @@ export function PhotoCombinedPanel({ photo }: { photo: FieldPhotoState }) {
   const [settings, setSettings] = useState<CombinedSettings>({ useSkyline: true, depthModel: null })
   const [progress, setProgress] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<CombinedResult | null>(null)
+  const [ownResult, setResult] = useState<CombinedResult | null>(null)
   const request = useRef<AbortController | null>(null)
   useEffect(() => () => request.current?.abort(), [])
   const own = photo.own
   const current = ownAcceptancePose(own)
   if (!current || !own) return null
+  // The queue's own comparison for a photo the skyline did not settle, until the reviewer runs one of their own.
+  const queued = photo.workFor(own.id).combined?.result ?? null
+  const result = ownResult ?? (progress ? null : queued)
+  const best = result?.candidates[0]
 
   const run = async () => {
     if (request.current) return
@@ -67,7 +76,10 @@ export function PhotoCombinedPanel({ photo }: { photo: FieldPhotoState }) {
     setProgress('Starting camera comparison…')
     try {
       const next = await photo.runCombinedCameraSearch(own.id, settings, controller.signal, setProgress)
-      if (!controller.signal.aborted) setResult(next)
+      if (!controller.signal.aborted) {
+        setResult(next)
+        photo.keepCombined(own.id, next)
+      }
     } catch (failure) {
       if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : String(failure))
     } finally {
@@ -87,9 +99,19 @@ export function PhotoCombinedPanel({ photo }: { photo: FieldPhotoState }) {
   }
 
   return (
-    <details className="rounded-md border border-border p-3">
-      <summary className="cursor-pointer text-sm font-semibold">Combined camera search</summary>
-      <div className="mt-3 space-y-3 text-xs">
+    <DisclosureCard
+      title="Combined camera search"
+      summary={
+        progress
+          ? 'Comparing…'
+          : best
+            ? `Best ${best.pose.bearing.toFixed(0)}° by ${best.cues.depth ? 'depth and ground' : 'ground'}${sameCamera(current, best.pose) ? ', in use' : ''}`
+            : result
+              ? `${result.tested} cameras compared`
+              : 'Ground features, skyline and depth together'
+      }
+    >
+      <>
         <p className="text-muted-foreground">
           Compare ground features and available camera evidence. When the skyline is weak, try coarse headings around
           the photo's position.
@@ -148,6 +170,12 @@ export function PhotoCombinedPanel({ photo }: { photo: FieldPhotoState }) {
         {error && <InlineAlert tone="warning">{error}</InlineAlert>}
         {result && (
           <div className="space-y-2" aria-label="Combined camera results">
+            {!ownResult && (
+              <p className="text-muted-foreground">
+                Compared by itself when the skyline did not settle this photo
+                {result.depthModel ? '' : ', without depth: choose a depth model and compare again to add it'}.
+              </p>
+            )}
             <p className="text-muted-foreground" role="status">
               Compared {result.tested} cameras
               {result.depthSamples ? ` with ${result.depthSamples.toLocaleString()} common depth samples` : ''}.
@@ -214,7 +242,7 @@ export function PhotoCombinedPanel({ photo }: { photo: FieldPhotoState }) {
             )}
           </div>
         )}
-      </div>
-    </details>
+      </>
+    </DisclosureCard>
   )
 }

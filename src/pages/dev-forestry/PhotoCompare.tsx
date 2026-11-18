@@ -182,7 +182,8 @@ export function PhotoCompare({ photo, active }: { photo: FieldPhotoState; active
               'relative mx-auto w-full overflow-hidden rounded-sm',
               mode === 'swipe' && 'cursor-ew-resize touch-none',
             )}
-            style={fineTune ? { maxWidth: `calc(42dvh * ${own.width / own.height})` } : undefined}
+            // No taller than the photo's own viewer, so the caption and the agreement under it stay on screen.
+            style={{ maxWidth: `calc(${fineTune ? 42 : 52}dvh * ${own.width / own.height})` }}
             onPointerDown={(event) => {
               if (mode !== 'swipe') return
               dragging.current = true

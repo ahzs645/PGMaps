@@ -8,6 +8,9 @@ import { findPreset, VQO_ZONE_ROLES } from '@/lib/forestry/viaFigure/presets'
 import {
   PHOTO_LAYER_GROUPS,
   PHOTO_LAYERS,
+  customLayerKey,
+  customLayerVisibility,
+  isPhotoLayerId,
   photoLayerLegend,
   photoLayerSymbol,
   photoLayerVisibility,
@@ -86,6 +89,30 @@ describe('photo layers', () => {
     expect(visibility.skyline).toBe(false)
     expect(visibility.lakes).toBe(true)
     expect('gone' in visibility).toBe(false)
+  })
+})
+
+describe('layers a caller adds', () => {
+  const added = [{ id: 'haul' }, { id: 'reserves', defaultOn: false }]
+
+  it('keys them apart from every built-in layer', () => {
+    expect(customLayerKey('skyline')).not.toBe('skyline')
+    expect(isPhotoLayerId(customLayerKey('skyline'))).toBe(false)
+  })
+
+  it('starts each as it says, on unless told otherwise, and keeps a saved choice', () => {
+    expect(customLayerVisibility(added)).toEqual({ 'custom:haul': true, 'custom:reserves': false })
+    expect(customLayerVisibility(added, { 'custom:haul': false, 'custom:reserves': true })).toEqual({
+      'custom:haul': false,
+      'custom:reserves': true,
+    })
+  })
+
+  it('drops a saved choice for a layer no longer added, and anything that is not a choice', () => {
+    expect(customLayerVisibility([{ id: 'haul' }], { 'custom:gone': false, 'custom:haul': 'yes' })).toEqual({
+      'custom:haul': true,
+    })
+    expect(customLayerVisibility(added, null)).toEqual({ 'custom:haul': true, 'custom:reserves': false })
   })
 })
 

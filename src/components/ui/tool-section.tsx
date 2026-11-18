@@ -1,10 +1,8 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { FOLD_ROW_HOVER } from '@/components/ui/disclosure'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, SidebarSection } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
-
-/** A fold's header row answers the pointer with a wash of the text colour, light or dark. */
-const FOLD_ROW_HOVER = '[&>div:first-child]:transition-colors [&>div:first-child:hover]:bg-foreground/[0.05]'
 
 export type ToolSectionProps = {
   title: string

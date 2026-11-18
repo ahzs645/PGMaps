@@ -137,6 +137,71 @@ export function photoSkyline(
   return out
 }
 
+/**
+ * How a photo's skyline is read. `auto` is the colour reader (`photoSkyline`), which follows blue or white sky down
+ * to where it stops. `luma` is a brightness drop: from a row known to be sky (`from`, a share of the height), the
+ * first run of pixels well darker than the sky just above. It reads a sky the colour reader cannot: lit from behind,
+ * under dark cloud, at sunset or in haze, where the ground is a silhouette.
+ */
+export type SkylineReader = { mode: 'auto' } | { mode: 'luma'; from: number }
+
+/**
+ * The readers a search tries, in turn: the photo-matching bench's order (`orient.ts`). Two frames of the test flight
+ * shot toward a low sun under cloud gave the colour reader nothing (0 and 27 agreeing columns, headings 140° and 95°
+ * out); the bench had solved one of them with the brightness reader.
+ */
+export const SKYLINE_READERS: readonly SkylineReader[] = [
+  { mode: 'auto' },
+  { mode: 'luma', from: 0.2 },
+  { mode: 'luma', from: 0.3 },
+  { mode: 'luma', from: 0.4 },
+]
+
+export const skylineReaderKey = (reader: SkylineReader) => (reader.mode === 'auto' ? 'auto' : `luma${reader.from}`)
+
+/** The share of the sky's brightness a pixel must fall under to count as ground, and how many in a row. */
+const LUMA_DROP_SHARE = 0.7
+const LUMA_DROP_RUN = 6
+
+/** The photo's skyline by brightness drop, one point a column or null where the column never darkens. */
+export function photoSkylineByBrightness(
+  pixels: Pixels,
+  from: number,
+  columns = 200,
+): Array<{ x: number; y: number } | null> {
+  const { width, height, data } = pixels
+  const start = Math.max(0, Math.min(height - 1, Math.round(from * height)))
+  const luma = (x: number, y: number) => {
+    const i = (Math.min(height - 1, y) * width + x) * 4
+    return 0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2]
+  }
+  return Array.from({ length: columns }, (_, col) => {
+    const x = Math.min(width - 1, Math.floor(((col + 0.5) / columns) * width))
+    // The sky just above, followed down slowly so a graded sky is not read as a drop.
+    let sky = luma(x, start)
+    for (let y = start + 1; y < height * 0.85; y++) {
+      let dark = true
+      for (let k = 0; k < LUMA_DROP_RUN; k++)
+        if (luma(x, y + k) > LUMA_DROP_SHARE * sky) {
+          dark = false
+          break
+        }
+      if (dark) return { x: x + 0.5, y }
+      sky = 0.9 * sky + 0.1 * luma(x, y)
+    }
+    return null
+  })
+}
+
+/** The photo's skyline by one reader. */
+export function readPhotoSkyline(
+  pixels: Pixels,
+  reader: SkylineReader,
+  columns = 200,
+): Array<{ x: number; y: number } | null> {
+  return reader.mode === 'auto' ? photoSkyline(pixels, columns) : photoSkylineByBrightness(pixels, reader.from, columns)
+}
+
 export type ProfilePoint = { azimuth: number; elevation: number; distanceMeters: number }
 
 /**

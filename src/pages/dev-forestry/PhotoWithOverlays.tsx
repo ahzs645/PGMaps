@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode }
 import { Layers, Loader2, RefreshCw, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { DisclosureCard } from '@/components/ui/disclosure'
 import { useElementSize } from '@/hooks/useElementSize'
 import { ToolbarPopover } from '@/components/ui/toolbar-popover'
 import { DEFAULT_FIGURE_STYLE } from '@/lib/forestry/viaFigure/presets'
@@ -25,11 +26,15 @@ import { pairResiduals } from './pairResiduals'
 import { PHOTO_FEATURE_SOURCES, photoFeatureSummary, photoSeenBounds } from './photoFeatures'
 import { hitAt } from './photoHitBuffer'
 import {
+  customLayerKey,
+  customLayerVisibility,
+  isPhotoLayerId,
   photoLayer,
   photoLayerSymbol,
   photoLayerVisibility,
   PHOTO_LAYERS,
   PHOTO_SYMBOL_REFERENCE_WIDTH_POINTS,
+  type PhotoCustomLayer,
   type PhotoLayerId,
 } from './photoLayers'
 import { PhotoLayersPanel, type PhotoLayerAvailability } from './PhotoLayersPanel'
@@ -52,7 +57,19 @@ function storedVisibility() {
   }
 }
 
+/** The choices for layers a caller added, by key; read against the layers added now (`customLayerVisibility`). */
+const CUSTOM_LAYERS_KEY = 'pgmaps.forestry-visual-quality.own-photo-added-layers'
+function storedCustomVisibility(): Record<string, unknown> {
+  try {
+    const saved: unknown = JSON.parse(window.localStorage.getItem(CUSTOM_LAYERS_KEY) ?? 'null')
+    return saved && typeof saved === 'object' ? (saved as Record<string, unknown>) : {}
+  } catch {
+    return {}
+  }
+}
+
 const NO_PAGE_FEATURES: PhotoPageFeatures = {}
+const NO_CUSTOM_LAYERS: readonly PhotoCustomLayer[] = []
 
 const km = (meters: number) => (meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`)
 
@@ -74,6 +91,11 @@ export type PhotoWithOverlaysProps = {
   pageFeatures?: PhotoPageFeatures
   /** The figure style the scene's roles are drawn in; the default figure style when absent. */
   styleId?: string | null
+  /**
+   * Layers added beside the ones the photo reads itself (`PhotoCustomLayer`): anything with map geometry and a symbol.
+   * They are laid on the terrain and hidden behind nearer ground as the built-in layers are, and listed in the panel.
+   */
+  customLayers?: readonly PhotoCustomLayer[]
   /** Where the layer list goes: a toolbar popover (default), or inline below the photo inside a modal window. */
   layersMenu?: 'popover' | 'inline'
   /** Show the drag-to-align handles on the skyline. */
@@ -99,6 +121,7 @@ export function PhotoWithOverlays({
   onPickPixel,
   pageFeatures = NO_PAGE_FEATURES,
   styleId = DEFAULT_FIGURE_STYLE,
+  customLayers = NO_CUSTOM_LAYERS,
   layersMenu = 'popover',
   align = false,
   showPairs = false,
@@ -111,8 +134,17 @@ export function PhotoWithOverlays({
   const own = photo.own
   const frame = useRef<HTMLDivElement>(null)
   const tintCanvas = useRef<HTMLCanvasElement>(null)
-  const [visibility, setVisibility] = useState(storedVisibility)
-  const [hoverLayer, setHoverLayer] = useState<PhotoLayerId | null>(null)
+  const [builtIn, setBuiltIn] = useState(storedVisibility)
+  const [customSaved, setCustomSaved] = useState(storedCustomVisibility)
+  // One record for every layer: the built-in ones by id, added ones by their key.
+  const visibility = useMemo(
+    (): Record<PhotoLayerId, boolean> & Record<string, boolean> => ({
+      ...customLayerVisibility(customLayers, customSaved),
+      ...builtIn,
+    }),
+    [builtIn, customLayers, customSaved],
+  )
+  const [hoverLayer, setHoverLayer] = useState<string | null>(null)
   const [hoverFeature, setHoverFeature] = useState<{ layer: string; index: number } | null>(null)
   const [reading, setReading] = useState<{ x: number; y: number; reading: PhotoPixelReading | null } | null>(null)
   const [preview, setPreview] = useState<{ transform: string; origin: string } | null>(null)
@@ -141,16 +173,34 @@ export function PhotoWithOverlays({
     return () => window.removeEventListener('keydown', close, { capture: true })
   }, [cardOpen])
 
-  const setLayer = (id: PhotoLayerId, on: boolean) =>
-    setVisibility((current) => {
-      const next = { ...current, [id]: on }
-      try {
-        window.localStorage.setItem(LAYERS_KEY, JSON.stringify(next))
-      } catch {
-        /* A private window: the choice lasts this visit. */
-      }
-      return next
-    })
+  const keep = (key: string, value: unknown) => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value))
+    } catch {
+      /* A private window: the choice lasts this visit. */
+    }
+  }
+  const setLayer = (id: string, on: boolean) => {
+    if (isPhotoLayerId(id))
+      setBuiltIn((current) => {
+        const next = { ...current, [id]: on }
+        keep(LAYERS_KEY, next)
+        return next
+      })
+    else
+      setCustomSaved((current) => {
+        const next = { ...current, [id]: on }
+        keep(CUSTOM_LAYERS_KEY, next)
+        return next
+      })
+  }
+  const resetLayers = () => {
+    const usual = photoLayerVisibility()
+    setBuiltIn(usual)
+    keep(LAYERS_KEY, usual)
+    setCustomSaved({})
+    keep(CUSTOM_LAYERS_KEY, {})
+  }
 
   const pose = photo.activePose
   const buffer = photo.hitBuffer && photo.hitBuffer.poseKey === photo.activePoseKey ? photo.hitBuffer : null
@@ -162,17 +212,25 @@ export function PhotoWithOverlays({
   const extras = useMemo(() => resolvePhotoExtras(pageFeatures, ownReads, seen), [pageFeatures, ownReads, seen])
 
   const features = useMemo(
-    () => photoOverlayFeatures(photo.ownScene, reads, extras.features),
-    [photo.ownScene, reads, extras.features],
+    () => [
+      ...photoOverlayFeatures(photo.ownScene, reads, extras.features),
+      // Added layers' features, each under its layer's key.
+      ...customLayers.flatMap((layer) =>
+        layer.features.map((feature) => ({ ...feature, layer: customLayerKey(layer.id) })),
+      ),
+    ],
+    [photo.ownScene, reads, extras.features, customLayers],
+  )
+  const customSymbols = useMemo(
+    () => Object.fromEntries(customLayers.map((layer) => [customLayerKey(layer.id), layer.symbol])),
+    [customLayers],
   )
   const unavailable: PhotoLayerAvailability = extras.unavailable
 
   // Features laid on the ground and projected, for the layers turned on.
   const drawn = useMemo((): DrawnFeature[] => {
     if (!pose || !buffer || !ground) return []
-    const shown = features.filter(
-      (feature) => visibility[feature.layer as PhotoLayerId] && !unavailable[feature.layer as PhotoLayerId],
-    )
+    const shown = features.filter((feature) => visibility[feature.layer] && !unavailable[feature.layer as PhotoLayerId])
     const paths = photoOverlay(pose, buffer, shown, { ground })
     return paths.map((entry, i) => ({ paths: entry, properties: shown[i].properties }))
   }, [pose, buffer, ground, features, visibility, unavailable])
@@ -200,6 +258,7 @@ export function PhotoWithOverlays({
       photoWidth: own.width,
       photoHeight: own.height,
       visibility,
+      symbols: customSymbols,
       styleId,
       skyline: photo.ownSkyline,
       features: drawn,
@@ -209,7 +268,7 @@ export function PhotoWithOverlays({
       pixelPoints,
     })
     return draw.ops.length ? svgDataUrl(sheetSvg(draw.ops, draw.width, draw.height, undefined, null)) : null
-  }, [own, visibility, styleId, photo.ownSkyline, drawn, aids, compact, pixelPoints])
+  }, [own, visibility, customSymbols, styleId, photo.ownSkyline, drawn, aids, compact, pixelPoints])
 
   // Polygons a pixel is read against, prepared once for the ground the camera sees.
   const pickLayers = useMemo(() => (buffer ? photoPickLayers(features, seen) : []), [features, buffer, seen])
@@ -296,12 +355,16 @@ export function PhotoWithOverlays({
       visibility={visibility}
       onChange={setLayer}
       onHover={setHoverLayer}
+      onReset={resetLayers}
       unavailable={unavailable}
       notes={extras.notes}
       styleId={styleId}
+      custom={customLayers}
     />
   )
-  const layersOn = PHOTO_LAYERS.filter((layer) => visibility[layer.id] && !unavailable[layer.id]).length
+  const layersOn =
+    PHOTO_LAYERS.filter((layer) => visibility[layer.id] && !unavailable[layer.id]).length +
+    customLayers.filter((layer) => layer.features.length && visibility[customLayerKey(layer.id)]).length
   const drawing = !!pose && !buffer
 
   return (
@@ -475,12 +538,9 @@ export function PhotoWithOverlays({
         {toolbar}
       </div>
       {layersMenu === 'inline' && (
-        <details className="rounded-md border border-border text-xs">
-          <summary className="cursor-pointer px-3 py-2 font-medium select-none">
-            Layers on the photo <span className="font-normal text-muted-foreground">· {layersOn} on</span>
-          </summary>
+        <DisclosureCard title="Layers on the photo" summary={`${layersOn} on`} contentClassName="px-0 pb-0">
           {layersPanel}
-        </details>
+        </DisclosureCard>
       )}
       {!compact && <FeaturesCheck photo={photo} />}
     </div>
