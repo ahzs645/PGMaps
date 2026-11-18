@@ -38,8 +38,8 @@ export function PairedPointsTable({
   return (
     <div className="space-y-2" aria-label="Pair points">
       <p className={NOTE}>
-        Click a spot in the photo, then the same spot on the plan: a road bend, a pond, a block corner. With{' '}
-        {photo.pairsNeeded} or more the camera is solved from them alone. Turn a pair off to keep it as a check point.
+        Pair the same spot in the photo and on the plan. One landmark offers a starting camera. With {photo.pairsNeeded}{' '}
+        or more, solve the angles together. Turn a pair off to keep it as a check point.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button

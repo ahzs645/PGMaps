@@ -352,3 +352,31 @@ export function landmarkAngles(
     distanceMeters: Math.hypot(ground, up),
   }
 }
+
+/**
+ * Lines up an off-centre landmark while retaining the camera's position, lens and roll.
+ * One ray constrains heading and pitch when those quantities are held.
+ */
+export function orientFromLandmark(camera: PhotoPose, point: ControlPair): Pick<PhotoPose, 'bearing' | 'pitch'> | null {
+  const look = landmarkAngles(camera, point)
+  if (look.distanceMeters < 1 || Math.abs(look.pitch) > 89.9 || !(camera.focalPx > 0) || camera.k1 || camera.k2)
+    return null
+  const x = (point.pixel[0] - camera.width / 2) / camera.focalPx
+  const y = (point.pixel[1] - camera.height / 2) / camera.focalPx
+  const roll = camera.roll * RAD
+  // Components along the level right and the camera's unrolled up axes.
+  const side = x * Math.cos(roll) + y * Math.sin(roll)
+  const up = x * Math.sin(roll) - y * Math.cos(roll)
+  const vertical = (Math.sin(look.pitch * RAD) * Math.hypot(1, x, y)) / Math.hypot(1, up)
+  if (!Number.isFinite(vertical) || Math.abs(vertical) > 1) return null
+  const elevation = Math.asin(vertical)
+  const offset = Math.atan(up)
+  const options = [elevation, Math.PI - elevation].flatMap((angle) => {
+    const pitch = (((angle - offset + Math.PI) % (2 * Math.PI)) - Math.PI) / RAD
+    if (Math.abs(pitch) >= 89.9) return []
+    const ahead = Math.cos(pitch * RAD) - up * Math.sin(pitch * RAD)
+    const bearing = (look.bearing - Math.atan2(side, ahead) / RAD + 360) % 360
+    return [{ bearing, pitch }]
+  })
+  return options.sort((a, b) => Math.abs(a.pitch - camera.pitch) - Math.abs(b.pitch - camera.pitch))[0] ?? null
+}

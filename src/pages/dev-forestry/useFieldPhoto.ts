@@ -58,6 +58,7 @@ import {
 } from './wideOrientation'
 import {
   landmarkAngles,
+  orientFromLandmark,
   pairsNeeded,
   solveFromControls,
   type ControlPair,
@@ -335,6 +336,8 @@ export type OwnPhotoWork = {
   priors: CameraPriors
   landmark: Landmark | null
   pairs: ControlPair[]
+  /** Terrain under the camera when a pair was placed, for the one-landmark starting camera. */
+  pairGround?: { lng: number; lat: number; elevation: number }
   /** Paired points the reviewer left out of the solve: still drawn, as check points. Absent: all are in. */
   pairsOff?: string[]
   controlSolve: ControlSolveResult | null
@@ -441,6 +444,14 @@ const flightFrameOf = (photo: OwnPhoto): FlightMatchFrame => ({
   acceptance: photo.acceptance,
   eyeHeightMeters: photo.pose.eyeHeightMeters,
 })
+
+const CONTROL_FREE_POSITION = { east: { mode: 'free' }, north: { mode: 'free' } } as const
+const CONTROL_FIXED_POSITION = { east: { mode: 'fixed' }, north: { mode: 'fixed' }, up: { mode: 'fixed' } } as const
+
+function hasControlPositionPrior(photo: OwnPhoto) {
+  const source = photo.sources.position === 'controls' ? photo.start.sources.position : photo.sources.position
+  return source === 'exif' || source === 'record' || source === 'matched'
+}
 
 /** The terrain tiles round a photo's place, finest first. */
 const specOf = (photo: { pose: { lng: number | null; lat: number | null } }): PhotoTerrainSpec =>
@@ -671,6 +682,8 @@ export function useFieldPhoto({
   const landmark = activeWork.landmark
   const pairs = activeWork.pairs
   const controlSolve = activeWork.controlSolve
+  const freeControlPosition = !!own && !hasControlPositionPrior(own)
+  const controlCheckCount = pairsNeeded(freeControlPosition ? CONTROL_FREE_POSITION : undefined) + 1
   const modelViews = activeWork.modelViews
   const setPriors = useCallback(
     (action: SetStateAction<CameraPriors>) => {
@@ -1899,6 +1912,12 @@ export function useFieldPhoto({
       const solve = w.controlSolve
       const heldOut = solve?.pairs.flatMap((pair) => (pair.heldOutPx === null ? [] : [pair.heldOutPx])) ?? []
       const matched = photo.matched?.camera
+      const enabled = w.pairs.filter((pair) => !w.pairsOff?.includes(pair.id))
+      const ground = w.pairGround
+      const landmark =
+        enabled.length === 1 && ground?.lng === photo.pose.lng && ground.lat === photo.pose.lat
+          ? orientFromLandmark(ownPhotoPose(photo.pose, ground.elevation, photo.width, photo.height), enabled[0])
+          : null
       const input: PhotoOptionsInput = {
         base: {
           lng: photo.pose.lng,
@@ -1933,6 +1952,7 @@ export function useFieldPhoto({
               skySpanShare: search.neighbour.narrow.skySpanShare,
             }
           : null,
+        landmark: landmark && { ...landmark, roll: photo.pose.roll },
         points: solve
           ? {
               pose: {
@@ -2025,7 +2045,7 @@ export function useFieldPhoto({
             ...photo.sources,
             heading: sources.heading,
             pitch: sources.pitch,
-            roll: sources.roll,
+            roll: sources.roll ?? photo.sources.roll,
             ...(moves ? { position: sources.position!, fov: sources.position!, eyeHeight: sources.position! } : {}),
             ...(!moves && photo.pose.hfov !== row.pose.hfov ? { fov: sources.heading } : {}),
           },
@@ -2541,6 +2561,11 @@ export function useFieldPhoto({
         patchWork(own.id, (current) => ({
           ...current,
           pairs: [...current.pairs, { id: `pair-${Date.now().toString(36)}`, pixel, lng, lat, elevation }],
+          pairGround: {
+            lng: own.pose.lng,
+            lat: own.pose.lat,
+            elevation: terrain.elevationAt(own.pose.lng, own.pose.lat),
+          },
         }))
         setPendingPixel(null)
         setToolsError(null)
@@ -2561,22 +2586,24 @@ export function useFieldPhoto({
       const start = { ...ownCamera(own, terrain), hfov: own.pose.hfov }
       const angle = (key: 'heading' | 'pitch' | 'roll'): UnknownSpec =>
         priors[key] ? { mode: 'prior', ...priors[key]! } : { mode: 'free' }
-      const known = own.sources.position === 'exif' || own.sources.position === 'record'
       const off = new Set(activeWork.pairsOff ?? [])
+      const enabled = pairs.filter((pair) => !off.has(pair.id))
+      const holdPosition = enabled.length === 2
+      const positionUnknowns = holdPosition ? CONTROL_FIXED_POSITION : freeControlPosition ? CONTROL_FREE_POSITION : {}
       const solved = solveFromControls({
         start,
-        pairs: pairs.filter((pair) => !off.has(pair.id)),
+        pairs: enabled,
         unknowns: {
           heading: angle('heading'),
           pitch: angle('pitch'),
           roll: angle('roll'),
-          // A picked position is a guess: free it, unless the photo's own fix or a record gave it.
-          ...(known ? {} : { east: { mode: 'free' }, north: { mode: 'free' } }),
+          // Two pairs constrain the angles. More pairs let the solve adjust the camera's position.
+          ...positionUnknowns,
         },
       })
       if (!solved) {
         setToolsError(
-          `Pair at least ${pairsNeeded()} points: click a spot in the photo, then the same spot on the plan.`,
+          `Pair at least ${pairsNeeded(positionUnknowns)} points: click a spot in the photo, then the same spot on the plan.`,
         )
         return
       }
@@ -2597,7 +2624,7 @@ export function useFieldPhoto({
         },
         sources: {
           ...current.sources,
-          position: 'controls',
+          position: holdPosition ? current.sources.position : 'controls',
           heading: 'controls',
           pitch: 'controls',
           roll: 'controls',
@@ -2610,7 +2637,7 @@ export function useFieldPhoto({
       setToolsBusy(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [own, pairs, activeWork.pairsOff, priors, loadOwnTerrain, patchWork, patchPhoto])
+  }, [own, pairs, activeWork.pairsOff, priors, freeControlPosition, loadOwnTerrain, patchWork, patchPhoto])
 
   /** The angles and lens of the current camera or a skyline candidate. */
   const candidateAngles = (which: PhotoModelViewKind) => {
@@ -3071,7 +3098,7 @@ export function useFieldPhoto({
         checked: w.checked,
         search: w.search.status,
         found: w.found,
-        hasMatchedOption: options.some((option) => option.kind === 'matched'),
+        hasCameraOption: options.some((option) => option.kind === 'matched' || option.kind === 'landmark'),
       })
       const notes = [...(w.found?.notes ?? [])]
       if (w.found?.stopped) notes.unshift(w.found.stopped)
@@ -3136,6 +3163,7 @@ export function useFieldPhoto({
       if (id) patchWork(id, (current) => ({ ...current, controlSolve: null }))
     },
     pairsNeeded: pairsNeeded(),
+    controlCheckCount,
     /** Ids of the active photo's pairs left out of the solve (check points). */
     pairsOff: activeWork.pairsOff ?? [],
     /** Puts a pair into the solve, or leaves it out as a check point; the next solve follows. */

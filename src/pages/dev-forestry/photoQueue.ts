@@ -193,6 +193,8 @@ export function methodForOption(kind: PhotoOptionKind): PhotoCameraMethod {
       return 'phone'
     case 'neighbour':
       return 'neighbour'
+    case 'landmark':
+      return 'landmark'
     case 'points':
       return 'points'
     case 'matched':
@@ -220,7 +222,7 @@ export function methodForSource(heading: PoseSource): PhotoCameraMethod {
 export function sourcesForOption(kind: PhotoOptionKind): {
   heading: PoseSource
   pitch: PoseSource
-  roll: PoseSource
+  roll?: PoseSource
   /** Set too when the row moves the camera's place or lens (a point solve, a matched camera). */
   position?: PoseSource
 } {
@@ -233,6 +235,8 @@ export function sourcesForOption(kind: PhotoOptionKind): {
     // Another frame's camera, taken by the reviewer for this one: theirs, as a typed value would be.
     case 'neighbour':
       return { heading: 'reviewer', pitch: 'reviewer', roll: 'reviewer' }
+    case 'landmark':
+      return { heading: 'landmark', pitch: 'landmark' }
     case 'points':
       return { heading: 'controls', pitch: 'controls', roll: 'controls', position: 'controls' }
     case 'matched':
@@ -282,14 +286,14 @@ export function photoQueueStatus(input: {
   checked: readonly AcceptancePose[]
   search: 'idle' | 'working' | 'done' | 'failed'
   found: PhotoFound | null
-  hasMatchedOption?: boolean
+  hasCameraOption?: boolean
 }): PhotoQueueStatus {
   if (input.running || input.search === 'working') return 'searching'
   const current = input.pose
   if (input.acceptance && current && sameCamera(input.acceptance.pose, current)) return 'accepted'
   if (current && input.checked.some((pose) => sameCamera(pose, current))) return 'checked'
   if (input.queued) return 'queued'
-  if (input.search === 'done' || input.hasMatchedOption) return 'options'
+  if (input.search === 'done' || input.hasCameraOption) return 'options'
   if (
     input.search === 'failed' ||
     input.found?.stopped ||

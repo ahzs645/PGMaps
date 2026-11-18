@@ -31,7 +31,7 @@ export const MODEL_SCORE_REVERSAL = 0.1
 export const NARROW_AGREE_DEGREES = 2
 export const NARROW_AGREE_SHARE = 0.8
 
-export type PhotoOptionKind = 'winner' | 'runner-up' | 'phone' | 'neighbour' | 'points' | 'matched'
+export type PhotoOptionKind = 'winner' | 'runner-up' | 'phone' | 'neighbour' | 'points' | 'matched' | 'landmark'
 
 export type PhotoOption = {
   id: string
@@ -76,6 +76,7 @@ export interface PhotoOptionsInput {
     skyColumns: number
     skySpanShare: number
   } | null
+  landmark?: Pick<AcceptancePose, 'bearing' | 'pitch' | 'roll'> | null
   /** A camera solved from paired points. */
   points?: {
     pose: AcceptancePose
@@ -122,7 +123,15 @@ function scoreFor(input: PhotoOptionsInput, pose: AcceptancePose): number | null
  * 3. The phone's own heading, which from an aircraft can be 50–140° out.
  * Agreement between two candidates (within `NEIGHBOUR_AGREE_DEGREES`) is noted on both and never moves a tier.
  */
-const KIND_ORDER: readonly PhotoOptionKind[] = ['points', 'winner', 'matched', 'neighbour', 'runner-up', 'phone']
+const KIND_ORDER: readonly PhotoOptionKind[] = [
+  'points',
+  'winner',
+  'landmark',
+  'matched',
+  'neighbour',
+  'runner-up',
+  'phone',
+]
 
 /** The candidate cameras for the options card, ranked by the evidence behind each (see the tiers above). */
 export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
@@ -228,6 +237,21 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
       warnings: [`accepted for another frame, ${Math.round(neighbour.distanceMeters)} m away: the camera moved`],
       tier: 1,
       score: scoreFor(input, pose),
+    })
+  }
+
+  if (input.landmark) {
+    const pose = at(input.landmark)
+    const score = scoreFor(input, pose)
+    rows.push({
+      id: 'landmark',
+      kind: 'landmark',
+      label: 'One-landmark starting camera',
+      pose,
+      evidence: { settled: false, modelScore: score },
+      warnings: ['Position, lens and roll come from the current camera. Check a different feature'],
+      tier: 1,
+      score,
     })
   }
 

@@ -1706,6 +1706,13 @@ street-level photo from Mapillary, or with a photo of your own.
       see both views. The small preview redraws after edits pause. *Restore
       starting camera* returns to the pose and sources held when fine-tuning
       opened. A preview alone does not record a camera check.
+  - **Guide with landmarks.** Pair one visible spot in the photo and on the
+    plan to get a starting heading and pitch. With two spread landmarks, solve
+    the roll as well. With three and a recorded position, the solve can adjust
+    the position and report held-out error. A guessed position needs four
+    landmarks to hold one out while freeing horizontal position. Check a
+    different mapped feature before accepting a one-landmark camera.
+    [Input experiments](research/photo-landmark-input-2026-11-18.md)
   - **Match flight photos.** Check and accept one reference camera in the
     *Use* tab, then choose *Find shared features* in the *Camera* tab. For each
     unaccepted photo in the flight, the tool tries up to six accepted references

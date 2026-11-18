@@ -15,10 +15,11 @@
 
 const RAD = Math.PI / 180
 
-export type PhotoCameraMethod = 'skyline' | 'points' | 'matched' | 'neighbour' | 'phone' | 'typed'
+export type PhotoCameraMethod = 'skyline' | 'landmark' | 'points' | 'matched' | 'neighbour' | 'phone' | 'typed'
 
 export const PHOTO_CAMERA_METHODS: readonly PhotoCameraMethod[] = [
   'skyline',
+  'landmark',
   'points',
   'matched',
   'neighbour',

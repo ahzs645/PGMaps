@@ -169,12 +169,8 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
       }
     : undefined
   const moveTo = (point: { lng: number; lat: number }) => photo.setOwnPose(point)
-  const needsLandmarks =
-    own?.pose.lng != null &&
-    own?.pose.lat != null &&
-    !!startPick &&
-    (options.some((option) => option.kind === 'winner' && option.evidence.settled === false) ||
-      photo.workFor(own.id).found?.skyline === false)
+  const landmarkCount = photo.pairs.filter((pair) => !photo.pairsOff.includes(pair.id)).length
+  const guideWithLandmarks = !!current && !!startPick && (entry?.status !== 'accepted' || landmarkCount > 0)
   const placePoint = (x: number, y: number) => {
     if (!startPick) return
     const pixel: [number, number] = [x, y]
@@ -387,28 +383,49 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
               </div>
               <div className="min-w-0 space-y-4 text-sm">
                 {photo.ownStatus.error && <InlineAlert tone="error">{photo.ownStatus.error}</InlineAlert>}
-                {needsLandmarks && !options.some((option) => option.kind === 'points' && !option.warnings.length) && (
-                  <div className="space-y-2 rounded-md border border-border p-3">
+                {guideWithLandmarks && (
+                  <section className="space-y-2 rounded-md border border-border p-3" aria-label="Guide with landmarks">
+                    <h4 className="text-sm font-semibold">Guide with landmarks</h4>
                     <p className="text-xs leading-5 text-muted-foreground">
-                      Use landmarks to check the heading. Pick a distinct shoreline bend, road junction or peak in the
-                      photo and on the plan. Spread the pairs across the frame and use different distances.
+                      {landmarkCount === 0
+                        ? 'Click one distinct road bend, shoreline corner or peak in the photo and on the plan to get a starting camera.'
+                        : landmarkCount === 1 && options.some((option) => option.kind === 'landmark')
+                          ? 'Try the one-landmark starting camera below. Pair another landmark far from the first to refine roll.'
+                          : landmarkCount < photo.pairsNeeded
+                            ? 'Pair another landmark well away from the first, preferably at a different distance.'
+                            : landmarkCount < photo.controlCheckCount
+                              ? `You can solve now. Use ${photo.controlCheckCount} landmarks to measure error on a point left out of the fit.`
+                              : 'Solve from the paired landmarks, then check the held-out error.'}
                     </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="touch:h-10"
-                      aria-pressed={placing}
-                      onClick={() => {
-                        setAdjust(true)
-                        setAlign(false)
-                        setPlacing(!placing)
-                      }}
-                    >
-                      <Crosshair className="h-4 w-4" />
-                      {placing ? 'Cancel landmark pick' : 'Pair a landmark'}
-                    </Button>
-                  </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="touch:h-10"
+                        aria-pressed={placing}
+                        onClick={() => {
+                          setAlign(false)
+                          setPlacing(!placing)
+                        }}
+                      >
+                        <Crosshair className="h-4 w-4" />
+                        {placing ? 'Cancel landmark pick' : landmarkCount ? 'Pair another landmark' : 'Pair a landmark'}
+                      </Button>
+                      {landmarkCount >= photo.pairsNeeded && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="touch:h-10"
+                          disabled={!!photo.toolsBusy}
+                          onClick={() => void photo.solveFromPoints()}
+                        >
+                          Solve from {landmarkCount} landmarks
+                        </Button>
+                      )}
+                    </div>
+                  </section>
                 )}
                 {tab === 'camera' && <PhotoFlightMatchPanel photo={photo} />}
                 <PhotoOptionsCard photo={photo} onAdjust={() => setAdjust(true)} />
