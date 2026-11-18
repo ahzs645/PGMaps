@@ -29,6 +29,8 @@ import { projectReadiness, type ReadinessRow } from '../readiness'
 import { HaulPanel } from '../HaulPanel'
 import { FieldReviewSection } from '../FieldReviewSection'
 import { CrossDrainGuideSection } from '../CrossDrainGuideSection'
+import { Icesat2Section } from '../canopy/Icesat2Section'
+import { icesat2Key, useIcesat2Run } from '../canopy/icesat2Store'
 
 /** The settings with the curvature correction applied, or back to report only (the field left out). */
 const withCurvatureCorrection = (settings: RoadSettings, apply: boolean): RoadSettings => {
@@ -47,9 +49,16 @@ export function ReviewTab(
   const aggregateSource = alignment.engineering?.surfacingSupply
   const aggregate = surfacingSupplyCost(analysis.surfaceVolumeM3, project.settings.surfacingRate, aggregateSource)
   const settings = project.settings
+  const laserRun = useIcesat2Run(icesat2Key(project.terrain, alignment.id))
+  const icesat2 = laserRun?.status === 'done' ? laserRun.result : null
   const { rows, register } = useMemo(
-    () => projectReadiness(project, alignment, analysis, { drainageStale: !!p.drainageStale, vehicle: p.vehicleFit }),
-    [project, alignment, analysis, p.drainageStale, p.vehicleFit],
+    () =>
+      projectReadiness(project, alignment, analysis, {
+        drainageStale: !!p.drainageStale,
+        vehicle: p.vehicleFit,
+        icesat2,
+      }),
+    [project, alignment, analysis, p.drainageStale, p.vehicleFit, icesat2],
   )
   const [ratesOpen, setRatesOpen] = useState(false)
   const [standardsOpen, setStandardsOpen] = useState(false)
@@ -124,6 +133,7 @@ export function ReviewTab(
           Review connected access & complete route costs
         </Button>
       </ReadinessList>
+      <Icesat2Section terrain={project.terrain} alignment={alignment} analysis={analysis} />
       <RoadSection
         title="Crossing register"
         summary={crossingRegisterSummary(register)}

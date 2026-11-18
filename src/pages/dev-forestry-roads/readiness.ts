@@ -57,6 +57,7 @@ import type {
 } from './types'
 import { readMinimumElevations, type VerticalCurveInfo } from './verticalStandards'
 import { bestSlopeSheetCheck, SLOPE_SHEET_CHECK, slopeSheets, type SlopeSheetCheck } from './slopeSheetCheck'
+import { ICESAT2_CHECK, icesat2Measured, type Icesat2CheckResult } from './canopy/icesat2Check'
 
 export type ReadinessState = 'met' | 'attention' | 'not-assessed'
 export type ReadinessGroup = 'inputs' | 'terrain' | 'alignment' | 'earthwork' | 'water' | 'cost'
@@ -180,7 +181,14 @@ export interface ReadinessInput {
    * project has no slope sheet; null when it has one that does not reach this road.
    */
   slopeSheet?: SlopeSheetCheck | null
+  /**
+   * The terrain against ICESat-2 ground photons (`canopy/icesat2Check.ts`), when one has been run this
+   * session on this terrain. Absent leaves the row out.
+   */
+  icesat2?: Icesat2CheckResult | null
 }
+
+const ICESAT2_JUDGED_ON = `The median of terrain − ICESat-2 ground over ${ICESAT2_CHECK.binM} m bins of snow-free passes, flagged past ±${ICESAT2_CHECK.offsetFlagM} m, from ${ICESAT2_CHECK.minBins} bins. A screen of the terrain's datum and source, not of any station: ICESat-2 ground matched airborne LiDAR to 0.05 m (spread 0.3 m) near Prince George, and its heights are on EGM2008, within a few centimetres of CGVD2013 there`
 
 const SLOPE_SHEET_JUDGED_ON = `The sheet's share of ground at ${SLOPE_SHEET_CHECK.steepPercent}% or steeper in a ±${SLOPE_SHEET_CHECK.stripHalfWidthM} m strip, per ${SLOPE_SHEET_CHECK.intervalM} m, within ${SLOPE_SHEET_CHECK.flagPoints} points of the terrain's. The sheet's JPEG classes are area estimates (about 9–12%); it is evidence beside the estimate, never an input to it`
 const EPS = 1e-6
@@ -625,6 +633,44 @@ function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
             judgedOn: SLOPE_SHEET_JUDGED_ON,
           },
     )
+  }
+
+  const laser = input.icesat2
+  if (laser) {
+    const all = laser.summary.all
+    const measured = icesat2Measured(laser)
+    if (!all || all.bins < ICESAT2_CHECK.minBins)
+      add({
+        id: 'icesat2-ground',
+        group: 'terrain',
+        check: 'Terrain at the height ICESat-2 measures',
+        state: 'not-assessed',
+        result: `Too few ICESat-2 ground bins on the terrain (${all?.bins ?? 0}) to judge${laser.unreadPasses.length ? `: SlideRule could not read ${laser.unreadPasses.length} of the ${laser.passesAsked} snow-free passes, so check again later` : ''}`,
+        measured,
+        judgedOn: ICESAT2_JUDGED_ON,
+      })
+    else if (Math.abs(all.medianM) > ICESAT2_CHECK.offsetFlagM)
+      add({
+        id: 'icesat2-ground',
+        group: 'terrain',
+        check: 'Terrain at the height ICESat-2 measures',
+        state: 'attention',
+        severity: 'todo',
+        result: `The terrain reads ${trim(Math.abs(all.medianM), 1)} m ${all.medianM > 0 ? 'above' : 'below'} ICESat-2 ground: check its vertical datum and source before trusting cut and fill depths`,
+        measured,
+        judgedOn: ICESAT2_JUDGED_ON,
+        action: { label: 'Terrain', target: 'terrain' },
+      })
+    else
+      add({
+        id: 'icesat2-ground',
+        group: 'terrain',
+        check: 'Terrain at the height ICESat-2 measures',
+        state: 'met',
+        result: `The terrain sits within ${ICESAT2_CHECK.offsetFlagM} m of ICESat-2 ground`,
+        measured,
+        judgedOn: ICESAT2_JUDGED_ON,
+      })
   }
 
   // ---- Alignment -----------------------------------------------------------------------------
@@ -2549,7 +2595,7 @@ export function projectReadiness(
     Partial<Pick<RoadProject, 'alignments' | 'haulDestination' | 'reference'>>,
   alignment: Alignment,
   analysis: RoadAnalysis,
-  options: { drainageStale: boolean; vehicle?: VehicleFit | null },
+  options: { drainageStale: boolean; vehicle?: VehicleFit | null; icesat2?: Icesat2CheckResult | null },
 ): { rows: ReadinessRow[]; register: CrossingRegister } {
   const drainage = {
     record: project.drainage?.records.find((record) => record.alignmentId === alignment.id),
@@ -2582,6 +2628,7 @@ export function projectReadiness(
         analysis.stations.map((s) => s.coordinate),
       ),
       ...(sheets.length ? { slopeSheet: bestSlopeSheetCheck(analysis.stations, sheets) } : {}),
+      ...(options.icesat2 ? { icesat2: options.icesat2 } : {}),
     }),
   }
 }

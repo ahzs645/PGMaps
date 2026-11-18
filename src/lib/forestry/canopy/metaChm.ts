@@ -81,12 +81,28 @@ export interface ChmTiff {
   getImageCount(): Promise<number>
   getImage(index: number): Promise<{
     getWidth(): number
+    /** geotiff.js's parsed IFD; `NewSubfileType` bit 4 marks a transparency mask. */
+    fileDirectory?: { NewSubfileType?: number }
     readRasters(options: {
       window: [number, number, number, number]
       samples: number[]
       interleave: true
     }): Promise<ArrayLike<number>>
   }>
+}
+
+/**
+ * The image `width` pixels wide that is not a mask. The COGs interleave a transparency mask after the
+ * full-resolution image (IFD 1) and keep the overviews' masks after the overviews, so an overview's
+ * IFD number is not its level.
+ */
+async function overviewImage(tiff: ChmTiff, width: number) {
+  const count = await tiff.getImageCount()
+  for (let i = 0; i < count; i++) {
+    const image = await tiff.getImage(i)
+    if (image.getWidth() === width && !((image.fileDirectory?.NewSubfileType ?? 0) & 4)) return image
+  }
+  return null
 }
 
 /**
@@ -117,9 +133,8 @@ export async function readMetaChm(
   for (const tile of metaChmTiles(bounds)) {
     const url = metaChmTileUrl(tile.key, options.base)
     const tiff = await openTiff(url)
-    if (overview >= (await tiff.getImageCount())) throw Error(`${url} has no overview ${overview}.`)
-    const image = await tiff.getImage(overview)
-    if (image.getWidth() !== tilePixels) throw Error(`${url} overview ${overview} is not ${tilePixels} px wide.`)
+    const image = await overviewImage(tiff, tilePixels)
+    if (!image) throw Error(`${url} has no ${tilePixels} px image (overview ${overview}).`)
     const tx0 = tile.x * tilePixels,
       ty0 = tile.y * tilePixels
     const cx0 = Math.max(x0, tx0),

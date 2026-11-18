@@ -110,6 +110,10 @@ import { Sentinel2Layer } from './sentinel/Sentinel2Layer'
 import { Sentinel2Panel } from './sentinel/Sentinel2Panel'
 import { useSentinel2 } from './sentinel/useSentinel2'
 import { useSentinelViewport } from './sentinel/useSentinelViewport'
+import { CanopyHeightLayer } from './canopy/CanopyHeightLayer'
+import { CanopyHeightPanel } from './canopy/CanopyHeightPanel'
+import { useCanopyHeight } from './canopy/useCanopyHeight'
+import { META_CHM_CREDIT } from '@/lib/forestry/canopy/metaChm'
 import { RegionalDemLayer } from './RegionalDemLayer'
 import { RegionalContourLayer } from './RegionalContourLayer'
 import { HrdemReliefLayer } from './HrdemReliefLayer'
@@ -2856,11 +2860,20 @@ export function PlanView(input: PlanProps) {
     })
     return { data: fc(features), symbols }
   }, [bufferSettings, hiddenContextKinds, props.hiddenReferenceLayers, props.project.context, reference])
-  const { notesOpen, setNotesOpen, showSentinel, setShowSentinel } = props.display
+  const { notesOpen, setNotesOpen, showSentinel, setShowSentinel, showCanopy, setShowCanopy } = props.display
   const sentinelView = useSentinelViewport(props.display.navigationMap, showSentinel)
   const sentinel = useSentinel2({
     visible: showSentinel && !sentinelView.paused && !sentinelView.moving,
     bounds: sentinelView.bounds,
+  })
+  const canopyView = useSentinelViewport(props.display.navigationMap, showCanopy)
+  const canopyAnalysis = props.analyses.get(props.alignment.id)
+  const canopyStations = useMemo(() => canopyAnalysis?.stations ?? [], [canopyAnalysis])
+  const canopy = useCanopyHeight({
+    visible: showCanopy && !canopyView.paused && !canopyView.moving,
+    bounds: canopyView.bounds,
+    stations: canopyStations,
+    roadKey: `${props.alignment.id}:${canopyStations.length}:${canopyAnalysis?.length ?? 0}`,
   })
   const [noteTool, setNoteTool] = useState<NoteTool>(null)
   const [noteColor, setNoteColor] = useState<string>(MAP_NOTE_COLORS[0])
@@ -3136,6 +3149,7 @@ export function PlanView(input: PlanProps) {
             />
           )}
           {showSentinel && !plane && <Sentinel2Layer image={sentinel.image} credit={sentinel.credit} />}
+          {showCanopy && !plane && <CanopyHeightLayer image={canopy.image} credit={META_CHM_CREDIT} />}
           <Layers
             {...props}
             legendSlot={legendSlot}
@@ -3362,6 +3376,7 @@ export function PlanView(input: PlanProps) {
                   ['Contours', showContours, setShowContours],
                   ['Labels', showLabels, setShowLabels],
                   ['Sentinel-2 imagery', showSentinel, setShowSentinel],
+                  ['Canopy height (CHM v2)', showCanopy, setShowCanopy],
                   ...(waybackAvailable
                     ? [[commandDef('waybackTimeline').label, waybackActive, props.display.setShowWayback] as const]
                     : []),
@@ -3526,7 +3541,7 @@ export function PlanView(input: PlanProps) {
             />
           </div>
         )}
-        {(showSentinel || props.cornerPanel) && (
+        {(showSentinel || showCanopy || props.cornerPanel) && (
           <div className="absolute right-12 top-12 z-30 flex max-h-[calc(100%-6rem)] max-w-[calc(100%-4rem)] flex-col items-end gap-2 overflow-hidden">
             {props.cornerPanel && (
               <div className="flex min-h-0 max-w-full shrink" style={{ maxHeight: 'inherit' }}>
@@ -3539,6 +3554,15 @@ export function PlanView(input: PlanProps) {
                 paused={sentinelView.paused}
                 moving={sentinelView.moving}
                 onClose={() => setShowSentinel(false)}
+              />
+            )}
+            {showCanopy && (
+              <CanopyHeightPanel
+                state={canopy}
+                paused={canopyView.paused}
+                moving={canopyView.moving}
+                roadName={props.alignment.name || 'the road'}
+                onClose={() => setShowCanopy(false)}
               />
             )}
           </div>

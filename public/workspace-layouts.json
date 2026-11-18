@@ -195,7 +195,15 @@
             {
               "label": "Map layers",
               "rows": 2,
-              "items": ["importReference", "contours", "stationLabels", "sentinel2", "waybackTimeline", "earthworks"],
+              "items": [
+                "importReference",
+                "contours",
+                "stationLabels",
+                "sentinel2",
+                "canopyHeight",
+                "waybackTimeline",
+                "earthworks"
+              ],
               "more": ["terrainDisplay", "mapSettings", "mapLegend"]
             },
             {

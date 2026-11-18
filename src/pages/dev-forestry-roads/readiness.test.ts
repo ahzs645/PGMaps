@@ -18,6 +18,7 @@ import {
   type ReadinessInput,
   type ReadinessRow,
 } from './readiness'
+import { icesat2Check } from './canopy/icesat2Check'
 import { assessmentFingerprint, RIPARIAN_RULES } from './streamClass'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, ContextFeature, Coordinate, Culvert, RoadAnalysis, RoadSettings, TerrainSource } from './types'
@@ -127,6 +128,7 @@ function assess(
     terrain?: ReadinessInput['terrain']
     source?: TerrainSource
     slopeSheet?: ReadinessInput['slopeSheet']
+    icesat2?: ReadinessInput['icesat2']
   } = {},
 ) {
   const alignment = options.alignment ?? road()
@@ -145,6 +147,7 @@ function assess(
     drainage: options.drainage,
     vehicle: options.vehicle,
     ...(options.slopeSheet === undefined ? {} : { slopeSheet: options.slopeSheet }),
+    ...(options.icesat2 === undefined ? {} : { icesat2: options.icesat2 }),
   })
   const row = (id: string) => {
     const found = rows.find((item) => item.id === id)
@@ -1393,6 +1396,64 @@ describe('the slope sheet row', () => {
   })
   it('is met when no stretch differs', () => {
     expect(assess({ slopeSheet: check([]) }).row('slope-sheet').state).toBe('met')
+  })
+})
+
+describe('the ICESat-2 ground row', () => {
+  // Bins along two passes near Prince George, the terrain reading `offset` above every one.
+  const laser = (offset: number, bins = 40, unreadDates: string[] = []) => {
+    const ground = Array.from({ length: bins }, (_, i) => ({
+      lon: -122.81,
+      lat: 53.89 + i * 0.0002,
+      h: 600 + i,
+      group: i % 2 ? '2023-07-01 spot 1' : '2024-06-28 spot 5',
+    }))
+    return icesat2Check({
+      photons: ground.flatMap((g) =>
+        [0, 1, 2].map(() => ({
+          lon: g.lon,
+          lat: g.lat,
+          ellipsoidH: g.h - 13.7,
+          date: g.group.slice(0, 10),
+          spot: 1,
+          rgt: 1,
+        })),
+      ),
+      allDates: ['2023-07-01', '2023-12-29', '2024-06-28'],
+      geoidAt: () => -13.7,
+      elevationAt: (_lon, lat) => 600 + Math.round((lat - 53.89) / 0.0002) + offset,
+      terrainName: 'Regional DEM',
+      terrainDatum: 'CGVD2013',
+      box: [-122.82, 53.88, -122.8, 53.9],
+      checkedOn: '2026-11-18',
+      seconds: 60,
+      unreadDates,
+      passesAsked: 2 + unreadDates.length,
+    })
+  }
+  it('is left out until a check has been run', () => {
+    expect(assess().rows.some((r) => r.id === 'icesat2-ground')).toBe(false)
+  })
+  it('is met within a metre and flags the datum past it', () => {
+    expect(assess({ icesat2: laser(0.4) }).row('icesat2-ground').state).toBe('met')
+    const flagged = assess({ icesat2: laser(-2.3) }).row('icesat2-ground')
+    expect(flagged).toMatchObject({ state: 'attention', severity: 'todo', action: { target: 'terrain' } })
+    expect(flagged.result).toMatch(/^The terrain reads 2\.3 m below ICESat-2 ground/)
+    expect(flagged.measured).toMatch(/median −2\.30 m, spread 0\.00 m over 40 bins of 20 m from 2 snow-free passes/)
+  })
+  it('is not assessed on too few bins', () => {
+    expect(assess({ icesat2: laser(0, 4) }).row('icesat2-ground').state).toBe('not-assessed')
+  })
+  it('names the passes SlideRule could not read, never reading them as passes with no ground', () => {
+    const row = assess({ icesat2: laser(0, 0, ['2025-09-21', '2026-07-19']) }).row('icesat2-ground')
+    expect(row.state).toBe('not-assessed')
+    expect(row.result).toBe(
+      'Too few ICESat-2 ground bins on the terrain (0) to judge: SlideRule could not read 2 of the 4 snow-free passes, so check again later',
+    )
+    expect(row.measured).toMatch(/4 snow-free passes asked for, 2 SlideRule could not read \(2025-09-21, 2026-07-19\)/)
+    expect(assess({ icesat2: laser(0.2, 40, ['2026-07-30']) }).row('icesat2-ground').measured).toMatch(
+      /from 2 snow-free passes, 1 more unread by SlideRule/,
+    )
   })
 })
 

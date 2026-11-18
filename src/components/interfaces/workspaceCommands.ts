@@ -79,6 +79,7 @@ import {
   Shovel,
   Tags,
   Trees,
+  TreePine,
   Truck,
   WavesLadder,
   ClipboardCheck,
@@ -302,6 +303,12 @@ export const workspaceCommands = {
     investigation: true,
   },
   sentinel2: { label: 'Sentinel-2 imagery', icon: Satellite, investigation: true },
+  canopyHeight: {
+    label: 'Canopy height (CHM v2)',
+    icon: TreePine,
+    description: "Meta's modelled canopy height over the plan, and what the active road's corridor reads off it.",
+    investigation: true,
+  },
   earthworks: { label: 'Earthworks', icon: Layers2 },
   lidar: {
     label: 'BC LiDAR sample',

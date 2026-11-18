@@ -108,4 +108,38 @@ describe('readMetaChm', () => {
     expect(cells.length).toBeLessThan(680)
     expect(new Set(cells)).toEqual(new Set([20]))
   })
+
+  it('finds an overview past the masks the COGs interleave', async () => {
+    // As 0212102012.tif lists them: full, its mask, six overviews, then the overviews' masks.
+    const layout = [
+      [32768, 0],
+      [32768, 4],
+      [16384, 1],
+      [8192, 1],
+      [4096, 1],
+      [2048, 1],
+      [1024, 1],
+      [512, 1],
+      [16384, 5],
+      [8192, 5],
+    ]
+    const read: number[] = []
+    const tiff = async (): Promise<ChmTiff> => ({
+      getImageCount: async () => layout.length,
+      getImage: async (i: number) => ({
+        getWidth: () => layout[i][0],
+        fileDirectory: { NewSubfileType: layout[i][1] },
+        readRasters: async ({ window: [x0, y0, x1, y1] }) => {
+          read.push(i)
+          return new Uint8Array((x1 - x0) * (y1 - y0)).fill(layout[i][1] & 4 ? 255 : 9)
+        },
+      }),
+    })
+    const grid = await readMetaChm([-122.82, 53.88, -122.81, 53.89], tiff, { overview: 1 })
+    expect(read).toEqual([2])
+    expect(new Set(grid.data)).toEqual(new Set([9]))
+    await expect(readMetaChm([-122.82, 53.88, -122.81, 53.89], tiff, { overview: 7 })).rejects.toThrow(
+      /no 256 px image/,
+    )
+  })
 })
