@@ -1,0 +1,28 @@
+{
+  "kind": "component",
+  "id": "cover",
+  "title": "Cover",
+  "description": "The cover's facts: who the report is for and by, the licence, cutting permit and blocks, the district, where, and the date.",
+  "meta": { "reportPart": true, "sources": ["01", "02", "03", "05", "06", "22", "23", "26"] },
+  "blocks": [
+    {
+      "use": "via-fields",
+      "with": {
+        "rows": [
+          { "label": "Prepared for", "value": "{{ facts.office.licensee }}", "source": "scene" },
+          { "label": "Prepared by", "value": "{{ facts.preparer }}", "source": "scene" },
+          { "label": "Licence", "value": "{{ facts.office.licence }}", "source": "scene" },
+          { "label": "Cutting permit", "value": "{{ facts.office.cuttingPermit }}", "source": "scene" },
+          { "label": "Blocks", "value": "{{ facts.blocks.listed }}", "source": "scene" },
+          { "label": "Natural resource district", "value": "{{ facts.office.district }}", "source": "scene" },
+          {
+            "label": "General location",
+            "value": "{{ facts.generalLocation.value }}",
+            "source": "{{ facts.generalLocation.source }}"
+          },
+          { "label": "Date", "value": "{{ facts.date }}", "source": "run" }
+        ]
+      }
+    }
+  ]
+}

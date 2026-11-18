@@ -1,0 +1,24 @@
+{
+  "kind": "recipe",
+  "id": "consultant-gross",
+  "name": "Consultant VIA, gross landform",
+  "extends": "consultant-net-private",
+  "meta": {
+    "title": "Visual Impact Assessment",
+    "sources": ["23"],
+    "format": "perspective-report-gross",
+    "purpose": "As the net-of-private report, on the gross landform with private land left standing."
+  },
+  "options": {
+    "plainViewSheets": false
+  },
+  "changes": [
+    {
+      "replace": "sign-off-peer",
+      "by": {
+        "use": "sign-off-certified",
+        "id": "sign-off-certified"
+      }
+    }
+  ]
+}

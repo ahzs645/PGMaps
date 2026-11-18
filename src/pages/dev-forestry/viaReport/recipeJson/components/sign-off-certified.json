@@ -1,0 +1,32 @@
+{
+  "kind": "component",
+  "id": "sign-off-certified",
+  "title": "Sign-off",
+  "description": "The preparer's sign-off with the certification statement (23): one professional, who did or supervised the work. The designation is the evaluator's entry; the seal is always applied by hand.",
+  "meta": { "reportPart": true, "sources": ["23"] },
+  "blocks": [
+    {
+      "use": "via-sign-off",
+      "with": {
+        "rows": [
+          { "label": "Visual impact assessment prepared by", "value": "{{ facts.evaluator.name }}", "source": "scene" },
+          {
+            "label": "Professional designation and seal",
+            "value": "{{ facts.evaluator.designation.value }}",
+            "source": "{{ facts.evaluator.designation.source }}"
+          }
+        ],
+        "statement": "{{ facts.wording.certification.supervised }}",
+        "lines": ["Signature", "Date"],
+        "toComplete": [
+          { "if": "not facts.evaluator.name", "then": ["Prepared by: name"] },
+          {
+            "if": "facts.evaluator.designation.value",
+            "then": ["Prepared by: seal, signature and date"],
+            "else": ["Prepared by: designation, seal, signature and date"]
+          }
+        ]
+      }
+    }
+  ]
+}

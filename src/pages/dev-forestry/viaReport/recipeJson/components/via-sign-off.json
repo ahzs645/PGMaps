@@ -1,0 +1,38 @@
+{
+  "kind": "component",
+  "id": "via-sign-off",
+  "title": "Sign-off",
+  "description": "The professional's sign-off: who prepared the report, the certification (a tick-box choice or one statement), and the lines signed by hand. Never fills a seal, a signature or a date.",
+  "params": {
+    "heading": { "default": "Sign-off" },
+    "rows": { "required": true, "description": "The preparer's rows, as via-fields takes them." },
+    "choices": { "default": null, "description": "Certification as tick boxes: the options, none ticked; or null." },
+    "statement": { "default": null, "description": "Certification as one fixed statement; or null." },
+    "lines": { "required": true, "description": "The lines signed by hand, in order." },
+    "toComplete": { "default": [], "description": "What the sign-off leaves to complete, in its own words." }
+  },
+  "blocks": [
+    { "type": "heading", "level": 2, "content": "{{ params.heading }}" },
+    {
+      "use": "via-fields",
+      "with": { "rows": "{{ params.rows }}", "listBlanks": false, "toComplete": "{{ params.toComplete }}" }
+    },
+    {
+      "if": "params.choices",
+      "then": [
+        {
+          "type": "choices",
+          "label": "Certification:",
+          "options": "{{ params.choices }}",
+          "chosen": null,
+          "source": "reviewer"
+        }
+      ]
+    },
+    {
+      "if": "params.statement",
+      "then": [{ "type": "paragraph", "source": "fixed", "content": "{{ params.statement }}" }]
+    },
+    { "type": "custom", "kind": "via.signature", "data": { "lines": "{{ params.lines }}" } }
+  ]
+}

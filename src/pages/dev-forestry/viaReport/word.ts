@@ -1374,6 +1374,55 @@ function blocksOf(block: ReportBlock, flow: Flow, pics: Pictures): Block[] {
 
 type Paper = AssembledReport['layout']['paper']
 
+/** Every page kind a report prints on, in `pageSpec`'s order. */
+export const PAGE_KINDS: readonly PageKind[] = [
+  'portrait',
+  'landscape',
+  'cover',
+  'sheet',
+  'sheetFull',
+  'sheetPortrait',
+  'figure',
+]
+
+/** A page kind's Word page set-up from `pageSpec`: its paper given portrait, its turn, margins and header room. */
+export function pageSetup(kind: PageKind, paper: Paper): PageSetup {
+  const spec = pageSpec(kind, paper)
+  const [w, h] = spec.size
+  const [t, r, b, l] = spec.margin
+  return {
+    paper: { width: Math.min(w, h), height: Math.max(w, h) },
+    orientation: w > h ? 'landscape' : 'portrait',
+    margins: {
+      top: t,
+      right: r,
+      bottom: b,
+      left: l,
+      header: spec.header ? Math.max(4, t / 2 - 6) : 0,
+      footer: spec.number ? Math.max(4, b / 2 - 6) : 0,
+    },
+  }
+}
+
+/**
+ * What frames a report's pages beyond its own blocks: each page kind's set-up, header and footer; the title block or
+ * the cover's head; the contents; and the closing (the to-complete box and the last line). The direct route builds
+ * them here (`codeFurniture`); the recipe route takes them from the recipe's JSON (`recipeRoute.ts`). Either way the
+ * same `layoutReport` places them and the report's blocks on the same pages.
+ */
+export interface WordFurniture {
+  /** A page kind's page set-up, header and footer. */
+  section(kind: PageKind): Pick<Section, 'page' | 'header' | 'footer'>
+  /** The first page's head when the report has no cover: the title, the project and the logo. */
+  title: readonly Block[]
+  /** The cover's head (logo, title, project), when the report has a cover; its cover blocks follow on the page. */
+  cover: readonly Block[]
+  /** The contents page, or nothing when the report prints none. */
+  contents: readonly Block[]
+  /** After the body: the to-complete box when anything is left, then the report's last line. */
+  closing: readonly Block[]
+}
+
 /** The report's Word sections, one per run of pages of one kind, opened as the PDF opens its pages. */
 class ReportPages {
   readonly sections: Section[] = []
@@ -1383,7 +1432,7 @@ class ReportPages {
 
   constructor(
     private paper: Paper,
-    private header: string,
+    private furniture: Pick<WordFurniture, 'section'>,
   ) {}
 
   /** The flow box of a page kind: its text width and height, points. */
@@ -1394,39 +1443,12 @@ class ReportPages {
   }
 
   private open(kind: PageKind, align?: PageSetup['verticalAlign']) {
-    const spec = pageSpec(kind, this.paper)
-    const [w, h] = spec.size
-    const [t, r, b, l] = spec.margin
-    const page: PageSetup = {
-      paper: { width: Math.min(w, h), height: Math.max(w, h) },
-      orientation: w > h ? 'landscape' : 'portrait',
-      margins: {
-        top: t,
-        right: r,
-        bottom: b,
-        left: l,
-        header: spec.header ? Math.max(4, t / 2 - 6) : 0,
-        footer: spec.number ? Math.max(4, b / 2 - 6) : 0,
-      },
-      ...(align ? { verticalAlign: align } : {}),
-    }
+    const frame = this.furniture.section(kind)
     const body: Block[] = []
     this.sections.push({
-      page,
-      header: spec.header ? [paragraph(run(this.header, { size: 8, color: GREY }))] : [],
-      footer: spec.number
-        ? [
-            paragraph(
-              [
-                run('Page ', { size: 8, color: GREY }),
-                { type: 'field', field: 'page', size: 8, color: GREY },
-                run(' of ', { size: 8, color: GREY }),
-                { type: 'field', field: 'pages', size: 8, color: GREY },
-              ],
-              { align: 'right' },
-            ),
-          ]
-        : [],
+      page: { ...frame.page, ...(align ? { verticalAlign: align } : {}) },
+      header: [...(frame.header ?? [])],
+      footer: [...(frame.footer ?? [])],
       body,
     })
     this.current = { kind, body, closed: false }
@@ -1510,10 +1532,15 @@ function logoBlocks(
   return [{ ...emptyBox(logo ? `Logo (your own): ${logo.name}` : 'Logo (your own)', w, h, flow), align }]
 }
 
-/** "To complete before signing": a bullet per part, its items run on, in a ruled box. */
-function toCompleteBox(items: AssembledReport['toComplete']): Block {
+/** The to-complete list by part, in the report's order: each part once, its items run on. */
+export function toCompleteByPart(items: AssembledReport['toComplete']): Array<{ part: string; what: string }> {
   const byPart = new Map<string, string[]>()
   for (const item of items) byPart.set(item.part, [...(byPart.get(item.part) ?? []), item.what])
+  return [...byPart].map(([part, what]) => ({ part, what: what.join('; ') }))
+}
+
+/** "To complete before signing": a bullet per part, its items run on, in a ruled box. */
+function toCompleteBox(items: AssembledReport['toComplete']): Block {
   return {
     type: 'table',
     borders: box(line(0.75, 'b7791f')),
@@ -1528,9 +1555,9 @@ function toCompleteBox(items: AssembledReport['toComplete']): Block {
               { type: 'heading', level: 1, content: 'To complete before signing' },
               {
                 type: 'list',
-                items: [...byPart].map(([part, what]) => [
+                items: toCompleteByPart(items).map(({ part, what }) => [
                   run(`${part}:`, { bold: true, size: 7.5 }),
-                  run(` ${what.join('; ')}`, { size: 7.5 }),
+                  run(` ${what}`, { size: 7.5 }),
                 ]),
               },
             ],
@@ -1541,54 +1568,120 @@ function toCompleteBox(items: AssembledReport['toComplete']): Block {
   }
 }
 
-/**
- * The report as a kit document: the PDF's pages as Word sections, every block as the kit's blocks. Async only for the
- * tick boxes it draws.
- */
-export async function reportDocument(
-  report: AssembledReport,
-  logo: ReportLogo | null,
-  kit: Pick<WordKit, 'imageInfo'>,
-  options: WordReportOptions = {},
-): Promise<Document> {
+/** The pictures of a report, read once each, and the tick boxes the Word file draws. */
+export async function reportPictures(kit: Pick<WordKit, 'imageInfo'>): Promise<Pictures> {
   const [empty, crossed, marked] = await Promise.all([
     tickPicture('empty'),
     tickPicture('crossed'),
     tickPicture('marked'),
   ])
-  const pics = new Pictures(kit, { empty, crossed, marked })
-  const paper = report.layout.paper
-  const pages = new ReportPages(paper, runningHeader(report))
-  const flowOf = (kind: PageKind, look: Look = NORMAL): Flow => ({ look, ...pages.box(kind) })
+  return new Pictures(kit, { empty, crossed, marked })
+}
+export type { Pictures as ReportPictures }
 
+/** The report's title (its first heading) and its blocks after it; the cover's blocks and the body after them. */
+function reportParts(report: AssembledReport) {
   const [first, ...rest] = report.blocks
-  const docTitle = first?.kind === 'heading' ? first.text : report.title
+  const title = first?.kind === 'heading' ? first.text : report.title
   const blocks = first?.kind === 'heading' ? rest : report.blocks
   // The cover takes the fields that come before the first section heading (the cover part's).
   const coverEnd = report.layout.cover ? blocks.findIndex((block) => block.kind === 'heading') : 0
   const coverBlocks = report.layout.cover ? blocks.slice(0, Math.max(0, coverEnd)) : []
   const body = blocks.slice(coverBlocks.length)
+  // The contents: the sections (and the to-complete list) Word lists, then the pictures by their labels.
+  const sections = body.filter((b) => b.kind === 'heading' && b.level === 2)
+  const images = body.flatMap((b) => {
+    const label = imageLabel(b)
+    return label ? [label] : []
+  })
+  return { title, coverBlocks, body, contents: report.layout.contents && sections.length > 0, images }
+}
 
-  if (report.layout.cover) {
-    const flow = flowOf('cover')
-    pages.own(
-      'cover',
-      [
-        ...logoBlocks(logo, 260 * PX, 110 * PX, flow, pics, 'left'),
-        paragraph(run(docTitle, { bold: true, size: 25.5 }), { spacing: { before: 13.5, after: 13.5, line: 1 } }),
-        paragraph(run(report.subtitle, { size: 13.5, color: '334155' }), { spacing: { before: 0, after: 13.5 } }),
-        ...coverBlocks.flatMap((b) => blocksOf(b, flow, pics)),
-      ],
-      'center',
-    )
-  } else {
-    const flow = flowOf('portrait')
-    const logoW = 180 * PX
-    pages.flow('portrait')
-    pages.add([
+/** The text box of a page kind on the report's paper, points. */
+function textBox(kind: PageKind, paper: Paper) {
+  const spec = pageSpec(kind, paper)
+  const [t, r, b, l] = spec.margin
+  return { width: spec.size[0] - l - r, height: spec.size[1] - t - b }
+}
+
+/** The title block's logo box and the cover's, points. */
+const TITLE_LOGO = { w: 180 * PX, h: 64 * PX, gutter: 18 }
+const COVER_LOGO = { w: 260 * PX, h: 110 * PX }
+
+/**
+ * The values the recipe route's JSON furniture prints (`recipeJson/components/via-*.json`), computed here by the
+ * rules the direct route draws by: the report's title and lines, the logo as the Word file takes it, the boxes'
+ * widths, the contents' pictures, the to-complete list by part and each page kind's set-up.
+ */
+export function wordFacts(report: AssembledReport, logo: ReportLogo | null, pics: Pictures) {
+  const paper = report.layout.paper
+  const parts = reportParts(report)
+  const portrait = textBox('portrait', paper)
+  return {
+    report: {
+      title: parts.title,
+      subtitle: report.subtitle,
+      footer: report.footer,
+      runningHeader: runningHeader(report),
+    },
+    logo: {
+      name: logo?.name ?? null,
+      image: logo ? pics.get(logo.dataUrl) : null,
+      // An empty logo box's width as a share of what holds it (`emptyBox`).
+      coverBoxWidth: Math.min(100, (COVER_LOGO.w / textBox('cover', paper).width) * 100),
+      titleBoxWidth: Math.min(100, (TITLE_LOGO.w / (TITLE_LOGO.w + TITLE_LOGO.gutter)) * 100),
+    },
+    titleBlock: {
+      columnWidths: [portrait.width - TITLE_LOGO.w - TITLE_LOGO.gutter, TITLE_LOGO.w + TITLE_LOGO.gutter],
+    },
+    contents: { show: parts.contents, images: parts.images },
+    closing: { toComplete: toCompleteByPart(report.toComplete) },
+    pages: Object.fromEntries(PAGE_KINDS.map((kind) => [kind, pageSetup(kind, paper)])) as Record<PageKind, PageSetup>,
+  }
+}
+
+/**
+ * The direct route's furniture, drawn here: the running header and "Page n of N" by `pageSpec`, the title block or
+ * the cover's head with the logo, Word's own contents and the pictures' list, the to-complete box and the last line.
+ * It is the test oracle for the recipe route's JSON furniture, which must give the very same blocks.
+ */
+export function codeFurniture(report: AssembledReport, logo: ReportLogo | null, pics: Pictures): WordFurniture {
+  const paper = report.layout.paper
+  const header = runningHeader(report)
+  const parts = reportParts(report)
+  const flowOf = (kind: PageKind): Flow => ({ look: NORMAL, ...textBox(kind, paper) })
+  const flow = flowOf('portrait')
+  const logoW = TITLE_LOGO.w
+  return {
+    section: (kind) => {
+      const spec = pageSpec(kind, paper)
+      return {
+        page: pageSetup(kind, paper),
+        header: spec.header ? [paragraph(run(header, { size: 8, color: GREY }))] : [],
+        footer: spec.number
+          ? [
+              paragraph(
+                [
+                  run('Page ', { size: 8, color: GREY }),
+                  { type: 'field', field: 'page', size: 8, color: GREY },
+                  run(' of ', { size: 8, color: GREY }),
+                  { type: 'field', field: 'pages', size: 8, color: GREY },
+                ],
+                { align: 'right' },
+              ),
+            ]
+          : [],
+      }
+    },
+    cover: [
+      ...logoBlocks(logo, COVER_LOGO.w, COVER_LOGO.h, flowOf('cover'), pics, 'left'),
+      paragraph(run(parts.title, { bold: true, size: 25.5 }), { spacing: { before: 13.5, after: 13.5, line: 1 } }),
+      paragraph(run(report.subtitle, { size: 13.5, color: '334155' }), { spacing: { before: 0, after: 13.5 } }),
+    ],
+    title: [
       {
         type: 'table',
-        columnWidths: [flow.width - logoW - 18, logoW + 18],
+        columnWidths: [flow.width - logoW - TITLE_LOGO.gutter, logoW + TITLE_LOGO.gutter],
         borders: { ...ALL_NONE, bottom: line(1.5, INK) },
         cellPadding: { top: 0, bottom: 9, left: 0, right: 0 },
         rows: [
@@ -1596,13 +1689,20 @@ export async function reportDocument(
             cells: [
               {
                 blocks: [
-                  paragraph(run(docTitle), { style: 'title' }),
+                  paragraph(run(parts.title), { style: 'title' }),
                   paragraph(run(report.subtitle), { style: 'subtitle', spacing: { before: 0, after: 0 } }),
                 ],
                 verticalAlign: 'top',
               },
               {
-                blocks: logoBlocks(logo, logoW, 64 * PX, { ...flow, width: logoW + 18 }, pics, 'right'),
+                blocks: logoBlocks(
+                  logo,
+                  logoW,
+                  TITLE_LOGO.h,
+                  { ...flow, width: logoW + TITLE_LOGO.gutter },
+                  pics,
+                  'right',
+                ),
                 verticalAlign: 'top',
               },
             ],
@@ -1610,29 +1710,53 @@ export async function reportDocument(
         ],
       },
       { type: 'spacer', height: 12 },
-    ])
+    ],
+    contents: parts.contents
+      ? [
+          { type: 'toc', title: 'Contents', levels: 1 },
+          ...(parts.images.length
+            ? [
+                paragraph(run('Images', { bold: true, size: 10 }), {
+                  keepWithNext: true,
+                  spacing: { before: 9, after: 3 },
+                }),
+                ...parts.images.map((text) => paragraph(run(text), { spacing: { before: 0, after: 2 } })),
+              ]
+            : []),
+        ]
+      : [],
+    closing: [
+      ...(report.toComplete.length ? [{ type: 'spacer', height: 10 } as Block, toCompleteBox(report.toComplete)] : []),
+      paragraph(run(report.footer, { size: 8.25, color: GREY }), {
+        borders: { top: line(0.75) },
+        spacing: { before: 12, after: 0 },
+      }),
+    ],
+  }
+}
+
+/**
+ * The report's pages as Word sections: its blocks placed by the PDF's page rules (`bodyParts`, `completeAt`) and
+ * written by the block writers above, framed by `furniture`. Both routes draw through this.
+ */
+export function layoutReport(report: AssembledReport, pics: Pictures, furniture: WordFurniture): Section[] {
+  const paper = report.layout.paper
+  const pages = new ReportPages(paper, furniture)
+  const flowOf = (kind: PageKind, look: Look = NORMAL): Flow => ({ look, ...pages.box(kind) })
+  const { coverBlocks, body } = reportParts(report)
+
+  if (report.layout.cover) {
+    const flow = flowOf('cover')
+    pages.own('cover', [...furniture.cover, ...coverBlocks.flatMap((b) => blocksOf(b, flow, pics))], 'center')
+  } else {
+    pages.flow('portrait')
+    pages.add(furniture.title)
   }
 
   // The contents: Word's own table of contents over the sections (and the to-complete list), then the pictures.
-  const sections = body.filter((b) => b.kind === 'heading' && b.level === 2)
-  const images = body.flatMap((b) => {
-    const text = imageLabel(b)
-    return text ? [text] : []
-  })
-  if (report.layout.contents && sections.length) {
+  if (furniture.contents.length) {
     pages.flow('portrait')
-    pages.add([
-      { type: 'toc', title: 'Contents', levels: 1 },
-      ...(images.length
-        ? [
-            paragraph(run('Images', { bold: true, size: 10 }), {
-              keepWithNext: true,
-              spacing: { before: 9, after: 3 },
-            }),
-            ...images.map((text) => paragraph(run(text), { spacing: { before: 0, after: 2 } })),
-          ]
-        : []),
-    ])
+    pages.add(furniture.contents)
     pages.breakNext = true
   }
 
@@ -1706,24 +1830,38 @@ export async function reportDocument(
 
   // The reviewer's list, then the report's last line: what it is and is not.
   pages.flow('portrait')
-  if (report.toComplete.length) pages.add([{ type: 'spacer', height: 10 }, toCompleteBox(report.toComplete)])
-  pages.add([
-    paragraph(run(report.footer, { size: 8.25, color: GREY }), {
-      borders: { top: line(0.75) },
-      spacing: { before: 12, after: 0 },
-    }),
-  ])
+  pages.add(furniture.closing)
 
   for (let i = at; i < parts.length; i++) drawPart(parts[i])
 
+  return pages.sections.filter((section) => section.body.length)
+}
+
+/** The report's title and lines as the file's properties. */
+export function reportMetadata(report: AssembledReport, options: WordReportOptions = {}): Document['metadata'] {
   return {
-    metadata: {
-      title: `${docTitle} - ${report.subtitle}`,
-      subject: report.footer,
-      ...(options.created ? { created: options.created } : {}),
-    },
+    title: `${reportParts(report).title} - ${report.subtitle}`,
+    subject: report.footer,
+    ...(options.created ? { created: options.created } : {}),
+  }
+}
+
+/**
+ * The report as a kit document by the direct route: the PDF's pages as Word sections, every block as the kit's
+ * blocks, framed by `codeFurniture`. Async only for the tick boxes it draws. The Word file itself is built through
+ * the recipe engine (`recipeRoute.ts`); this is its oracle, and the two are pinned equal (`recipeRoute.test.ts`).
+ */
+export async function reportDocument(
+  report: AssembledReport,
+  logo: ReportLogo | null,
+  kit: Pick<WordKit, 'imageInfo'>,
+  options: WordReportOptions = {},
+): Promise<Document> {
+  const pics = await reportPictures(kit)
+  return {
+    metadata: reportMetadata(report, options),
     theme: THEME,
-    sections: pages.sections.filter((section) => section.body.length),
+    sections: layoutReport(report, pics, codeFurniture(report, logo, pics)),
   }
 }
 

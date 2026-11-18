@@ -1,0 +1,44 @@
+{
+  "kind": "recipe",
+  "id": "ea-visual-memo",
+  "name": "Environmental assessment visual memo (no VQO)",
+  "extends": "via-report",
+  "meta": {
+    "title": "Visual Aesthetics",
+    "sources": ["26"],
+    "format": "referral-panoramas",
+    "purpose": "Existing conditions, observer viewpoints, visibility per viewpoint and the effect characterization."
+  },
+  "options": {
+    "paper": "letter",
+    "cover": false,
+    "contents": false,
+    "figurePanorama": 2.4
+  },
+  "changes": [
+    {
+      "add": {
+        "use": "ea-visual-memo"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "overview-map"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "ea-figure-pages"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "references"
+      },
+      "before": "closing"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "kind": "component",
+  "id": "via-closing",
+  "title": "To complete, and the last line",
+  "description": "What is still to complete before signing, a line per part in a ruled box, then the report's last line: what it is and is not, and how many values the reviewer changed by hand.",
+  "blocks": [
+    {
+      "if": "closing.toComplete",
+      "then": [
+        { "type": "spacer", "height": 10 },
+        {
+          "type": "table",
+          "borders": {
+            "top": { "style": "single", "width": 0.75, "color": "b7791f" },
+            "bottom": { "style": "single", "width": 0.75, "color": "b7791f" },
+            "left": { "style": "single", "width": 0.75, "color": "b7791f" },
+            "right": { "style": "single", "width": 0.75, "color": "b7791f" }
+          },
+          "cellPadding": { "top": 6, "bottom": 6, "left": 6, "right": 6 },
+          "rows": [
+            {
+              "cantSplit": true,
+              "cells": [
+                {
+                  "shading": "fffaf0",
+                  "blocks": [
+                    { "type": "heading", "level": 1, "content": "To complete before signing" },
+                    {
+                      "type": "list",
+                      "items": [
+                        {
+                          "for": "entry in closing.toComplete",
+                          "do": [
+                            [
+                              { "type": "text", "text": "{{ entry.part }}:", "bold": true, "size": 7.5 },
+                              { "type": "text", "text": " {{ entry.what }}", "size": 7.5 }
+                            ]
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": { "type": "text", "text": "{{ report.footer }}", "size": 8.25, "color": "64748b" },
+      "borders": { "top": { "style": "single", "width": 0.75, "color": "cbd5e1" } },
+      "spacing": { "before": 12, "after": 0 }
+    }
+  ]
+}

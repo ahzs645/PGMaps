@@ -9,6 +9,7 @@
  * fields come from the FS1252 office information. Anything else prints blank and is listed as to complete. No DOM or
  * network access.
  */
+import { jsonPart } from './reportEngine'
 import type { AlterationBreakdown } from '../types'
 import { settingLocation, type ReportSetting } from './setting'
 import type { DocumentFacts, DocumentViewpoint, ResolvedDocument, ResolvedViewpoint } from '../viaDocument/resolve'
@@ -64,6 +65,7 @@ import {
   type ReportFigure,
   type ReportItemToComplete,
 } from './model'
+import wording from './recipeJson/wording.json'
 
 /** The FS1252 office information, as the scene keeps it (`FormMetadata`). */
 export type OfficeFields = Partial<
@@ -305,12 +307,7 @@ export function rangeStanding(code: ClassCode | null, objective: ClassCode, rang
  * professional who did or supervised the work, and a peer who reviewed it without supervising it. PGMaps' wording,
  * naming no association.
  */
-export const CERTIFICATION_STATEMENTS = {
-  supervised:
-    'I certify that the work described herein fulfills the standards expected of a registered forest professional and that I did personally supervise the work.',
-  reviewed:
-    'I certify that I have reviewed this document and, while I did not personally supervise the work, have determined that it has been done to the standards expected of a registered forest professional.',
-} as const
+export const CERTIFICATION_STATEMENTS: Readonly<{ supervised: string; reviewed: string }> = wording.certification
 
 export const paragraph = (sentences: Sentence[]): ReportBlock[] =>
   sentences.some((s) => s.text) ? [{ kind: 'paragraph', sentences: sentences.filter((s) => s.text) }] : []
@@ -545,31 +542,8 @@ export function viewpointInventory(
 
 // ------------------------------------------------------------------ parts
 
-const cover: ReportPart = {
-  id: 'cover',
-  title: 'Cover',
-  sources: ['01', '02', '03', '05', '06', '22', '23', '26'],
-  build: (ctx) => {
-    const rows = [
-      officeRow(ctx, 'licensee', 'Prepared for'),
-      preparerRow(ctx, 'Prepared by'),
-      officeRow(ctx, 'licence', 'Licence'),
-      officeRow(ctx, 'cuttingPermit', 'Cutting permit'),
-      field(
-        'Blocks',
-        ctx.office.blockIds ||
-          proposedBlocks(ctx)
-            .map((block) => block.name)
-            .join(', '),
-        'scene',
-      ),
-      officeRow(ctx, 'district', 'Natural resource district'),
-      generalLocationRow(ctx),
-      field('Date', ctx.date.toISOString().slice(0, 10), 'run'),
-    ]
-    return { blocks: [fields(rows)], toComplete: missingFields(rows) }
-  },
-}
+/** cover: defined once in JSON (`recipeJson/components/cover.json`), read by `kitBlocks.ts`. */
+const cover = jsonPart('cover')
 
 /**
  * A block's net area, hectares, for `grossHa` of it (the whole block, or its part in one inventory unit): less its
@@ -914,28 +888,8 @@ const regulatoryFrame: ReportPart = {
   }),
 }
 
-const threeElements: ReportPart = {
-  id: 'three-elements',
-  title: 'The three elements of the definition',
-  sources: ['22', '23'],
-  build: () => ({
-    blocks: [
-      heading('Assessing the definition'),
-      {
-        kind: 'list',
-        items: [
-          'Visibility: how easy the alteration is to see, given where it sits, where the viewpoints are, its size, how distinct it is from the landscape around it, screening in front of it, and how long and how directly it is viewed.',
-          'Size and scale: the alteration against the visible area of the landform, judged by eye and measured as the percent of the landform altered in perspective view.',
-          'Design: the shape and position of the alteration on the landform, its response to the lines of force of the terrain, and whether it borrows from the natural character of the landscape.',
-        ],
-        source: 'fixed',
-      },
-      text(
-        'The three are considered together, and the extent the objective is met is a judgement on all three; the percent alteration is a measure of one of them.',
-      ),
-    ],
-  }),
-}
+/** three-elements: defined once in JSON (`recipeJson/components/three-elements.json`), read by `kitBlocks.ts`. */
+const threeElements = jsonPart('three-elements')
 
 const extentScale: ReportPart = {
   id: 'extent-scale',
@@ -2212,66 +2166,14 @@ export function runConclusion(ctx: ReportContext): Sentence[] {
   return out
 }
 
-const limitations: ReportPart = {
-  id: 'limitations',
-  title: 'Limitations',
-  sources: ['02', '22', '23'],
-  build: (ctx) => ({
-    blocks: [
-      heading('Limitations'),
-      text(
-        `The simulations are drawn on ${ctx.method.terrain}; timber is drawn from the inventory, not surveyed. Operational changes to the harvest area or retention, and windthrow after harvest, are not modelled. Pixel figures count what each picture shows at its lens; the sightline figure is the assessment's. A field visit confirms the viewpoints and the figures.`,
-        'run',
-      ),
-    ],
-  }),
-}
+/** limitations: defined once in JSON (`recipeJson/components/limitations.json`), read by `kitBlocks.ts`. */
+const limitations = jsonPart('limitations')
 
-const signOff: ReportPart = {
-  id: 'sign-off',
-  title: 'Sign-off',
-  sources: ['01', '02', '03', '05', '22', '23'],
-  build: (ctx) => ({
-    blocks: [
-      heading('Sign-off'),
-      fields([preparerRow(ctx, 'Prepared by')]),
-      {
-        kind: 'choices',
-        label: 'Certification:',
-        options: [
-          'I carried out or directly supervised this assessment',
-          'I reviewed this assessment and judge it to meet the standard of my profession',
-        ],
-        chosen: null,
-        source: 'reviewer',
-      },
-      { kind: 'signature', lines: ['Signature', 'Professional designation and seal', 'Date'] },
-    ],
-  }),
-}
+/** sign-off: defined once in JSON (`recipeJson/components/sign-off.json`), read by `kitBlocks.ts`. */
+const signOff = jsonPart('sign-off')
 
-const references: ReportPart = {
-  id: 'references',
-  title: 'References',
-  sources: ['22', '23', '26'],
-  build: (ctx) => ({
-    blocks: [
-      heading('References'),
-      {
-        kind: 'list',
-        items: [
-          'BC Ministry of Forests. Visual Impact Assessment Handbook (May 2022).',
-          'Forest Planning and Practices Regulation, s. 1.1 (visual quality objective definitions).',
-          ctx.inventoryRead
-            ? 'BC Geographic Warehouse: Visual Landscape Inventory (REC_VISUAL_LANDSCAPE_INVENTORY), read live from DataBC for this report.'
-            : 'BC Geographic Warehouse: Visual Landscape Inventory (REC_VISUAL_LANDSCAPE_INVENTORY): not read for this report; inventory values are the office fields.',
-          `Terrain: ${ctx.method.terrain}. Timber: ${ctx.method.vegetation}.`,
-        ],
-        source: 'fixed',
-      },
-    ],
-  }),
-}
+/** references: defined once in JSON (`recipeJson/components/references.json`), read by `kitBlocks.ts`. */
+const references = jsonPart('references')
 
 const figuresAppendix: ReportPart = {
   id: 'figures',

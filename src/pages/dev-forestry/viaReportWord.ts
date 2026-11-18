@@ -1,26 +1,28 @@
 /**
  * The VIA report's Word outputs in the browser (Save & export's *Word* and *PDF from the Word layout*, and the Word
- * file's preview): the report written by `viaReport/word.ts` through document-kit's Word writer, and that same file
- * laid out by the kit to a PDF or to page pictures. Every part of the kit, and its fonts, is loaded here on demand,
- * never with the page. The layout reaches the network only for the fonts this build serves (`viaReportWordFonts.ts`).
+ * file's preview): the report built through document-kit's recipe engine from its JSON recipe
+ * (`viaReport/recipeRoute.ts`), placed on the PDF's pages by `viaReport/word.ts` and written by the kit's Word writer,
+ * and that same file laid out by the kit to a PDF or to page pictures. Every part of the kit, the recipes and the
+ * fonts is loaded here on demand, never with the page. The layout reaches the network only for the fonts this build
+ * serves (`viaReportWordFonts.ts`).
  */
-import type { ReportLogo } from './viaReport/html'
-import type { AssembledReport } from './viaReport/model'
+import type { RecipeRouteInput } from './viaReport/recipeRoute'
 
 export const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
-/** The report as a Word file. `created` pins the file's dates, so the same report writes the same bytes. */
-export async function viaReportDocx(
-  report: AssembledReport,
-  logo: ReportLogo | null,
-  created: string,
-): Promise<Uint8Array> {
-  const [kit, { writeDocx }, { reportDocx }] = await Promise.all([
+/**
+ * The report as a Word file, through the recipe engine. `created` pins the file's dates, so the same report writes
+ * the same bytes. The direct route (`reportDocx`) writes the same bytes and stays as the test oracle
+ * (`viaReport/recipeRoute.test.ts`).
+ */
+export async function viaReportDocx(input: Omit<RecipeRouteInput, 'options'>, created: string): Promise<Uint8Array> {
+  const [kit, { writeDocx }, recipe, { recipeReportDocx }] = await Promise.all([
     import('document-kit'),
     import('document-kit/docx'),
-    import('./viaReport/word'),
+    import('document-kit/recipe'),
+    import('./viaReport/recipeRoute'),
   ])
-  return reportDocx(report, logo, { imageInfo: kit.imageInfo, writeDocx }, { created })
+  return recipeReportDocx({ recipe, imageInfo: kit.imageInfo, writeDocx }, { ...input, options: { created } })
 }
 
 /** Each font file's bytes, fetched once a session. */

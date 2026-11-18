@@ -7,6 +7,7 @@
  * of another sale or permit are marked * wherever a table lists them and named once, in the method. Registered in
  * `registry.ts`. No DOM or network access.
  */
+import { jsonPart } from './reportEngine'
 import { T1, TABLE_1, TABLE_2, TABLE_3, type DocumentTable } from '../viaDocument/formats'
 import {
   andList,
@@ -37,6 +38,7 @@ import {
   type ReportPart,
 } from './parts'
 import type { ReportSetting } from './setting'
+import generatedRecipes from './recipeJson/recipes.generated.json'
 
 const seen = (block: BlockAtStation) => block.status === 'visible' || block.status === 'possible glimpses'
 const marked = (block: BlockAtStation) => `${block.id}${isOtherPlanned(block) ? '*' : ''}`
@@ -815,38 +817,13 @@ const signOffPeer: ReportPart = {
   },
 }
 
-/** The preparer's sign-off with the certification statement (23): one professional, who did or supervised the work. */
-const signOffCertified: ReportPart = {
-  id: 'sign-off-certified',
-  title: 'Sign-off',
-  sources: ['23'],
-  build: (ctx) => {
-    const preparer = blank(ctx.office.evaluator)
-    const designation = blank(ctx.office.evaluatorDesignation)
-    return {
-      blocks: [
-        heading('Sign-off'),
-        {
-          kind: 'fields',
-          rows: [
-            { label: 'Visual impact assessment prepared by', value: preparer, source: 'scene' },
-            // The designation is the evaluator's entry; the seal is always applied by hand.
-            {
-              label: 'Professional designation and seal',
-              value: designation,
-              source: designation ? 'scene' : 'reviewer',
-            },
-          ],
-        },
-        text(CERTIFICATION_STATEMENTS.supervised, 'fixed'),
-        { kind: 'signature', lines: ['Signature', 'Date'] },
-      ],
-      toComplete: [
-        ...(preparer ? [] : ['Prepared by: name']),
-        designation ? 'Prepared by: seal, signature and date' : 'Prepared by: designation, seal, signature and date',
-      ],
-    }
-  },
+/** sign-off-certified: defined once in JSON (`recipeJson/components/sign-off-certified.json`), read by `kitBlocks.ts`. */
+const signOffCertified = jsonPart('sign-off-certified')
+
+function consultantParts(id: string): readonly string[] {
+  const recipe = generatedRecipes.recipes.find((entry) => entry.id === id)
+  if (!recipe) throw new Error(`No shipped recipe ${id}`)
+  return recipe.parts
 }
 
 export const CONSULTANT_PARTS: readonly ReportPart[] = [
@@ -866,56 +843,11 @@ export const CONSULTANT_PARTS: readonly ReportPart[] = [
  * The consultant reports' parts in the references' order (22, 23): summary, background, method, the landscape, Tables
  * 1-5, the discussion, conclusion and sign-off, then the appendix: its list, the viewpoint map (A1) and each
  * viewpoint's pages. 22 signs with a peer reviewer; 23 with the preparer alone, its limitations under the conclusion.
+ * Read from the recipes themselves (`recipeJson/consultant-*.json`, compiled into `recipes.generated.json`).
  */
 export const CONSULTANT_RECIPE_PARTS: Readonly<
   Record<'consultant-net-private' | 'consultant-gross', readonly string[]>
 > = {
-  'consultant-net-private': [
-    'cover',
-    'summary',
-    'regulatory-frame',
-    'three-elements',
-    'extent-scale',
-    'vocabulary',
-    'methodology',
-    'assessment-method',
-    'landforms-and-viewpoints',
-    'table-1-vsu',
-    'table-2-landforms',
-    'table-3-viewpoints',
-    'assessment-tables',
-    'block-discussion',
-    'recommendations',
-    'conclusion',
-    'limitations',
-    'sign-off-peer',
-    'references',
-    'appendix-list',
-    'overview-sheet',
-    'appendix-sheets',
-  ],
-  'consultant-gross': [
-    'cover',
-    'summary',
-    'regulatory-frame',
-    'three-elements',
-    'extent-scale',
-    'vocabulary',
-    'methodology',
-    'assessment-method',
-    'landforms-and-viewpoints',
-    'table-1-vsu',
-    'table-2-landforms',
-    'table-3-viewpoints',
-    'assessment-tables',
-    'block-discussion',
-    'recommendations',
-    'conclusion',
-    'limitations',
-    'sign-off-certified',
-    'references',
-    'appendix-list',
-    'overview-sheet',
-    'appendix-sheets',
-  ],
+  'consultant-net-private': consultantParts('consultant-net-private'),
+  'consultant-gross': consultantParts('consultant-gross'),
 }

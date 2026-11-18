@@ -1,0 +1,22 @@
+{
+  "kind": "component",
+  "id": "via-cover",
+  "title": "Cover page",
+  "description": "The cover's head: the logo, the title and the project. The report's cover fields follow it on the same page.",
+  "blocks": [
+    {
+      "use": "via-logo",
+      "with": { "width": 195, "height": 82.5, "align": "left", "boxWidth": "{{ logo.coverBoxWidth }}" }
+    },
+    {
+      "type": "paragraph",
+      "content": { "type": "text", "text": "{{ report.title }}", "bold": true, "size": 25.5 },
+      "spacing": { "before": 13.5, "after": 13.5, "line": 1 }
+    },
+    {
+      "type": "paragraph",
+      "content": { "type": "text", "text": "{{ report.subtitle }}", "size": 13.5, "color": "334155" },
+      "spacing": { "before": 0, "after": 13.5 }
+    }
+  ]
+}

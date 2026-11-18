@@ -1,0 +1,59 @@
+{
+  "kind": "component",
+  "id": "via-logo",
+  "title": "Logo",
+  "description": "The user's own logo fitted in its box, or a dashed box saying the place is theirs. Never a brand's artwork of its own.",
+  "params": {
+    "width": { "required": true },
+    "height": { "required": true },
+    "align": { "required": true },
+    "boxWidth": { "required": true, "description": "The empty box's width, as a share of the text width (per cent)." }
+  },
+  "blocks": [
+    {
+      "if": "logo.image",
+      "then": [
+        {
+          "type": "figure",
+          "image": "{{ logo.image }}",
+          "fit": { "width": "{{ params.width }}", "height": "{{ params.height }}", "upscale": true },
+          "align": "{{ params.align }}",
+          "alt": "{{ logo.name }}"
+        }
+      ],
+      "else": [
+        {
+          "type": "table",
+          "width": "{{ params.boxWidth }}",
+          "align": "{{ params.align }}",
+          "borders": {
+            "top": { "style": "dashed", "width": 0.75, "color": "94a3b8" },
+            "bottom": { "style": "dashed", "width": 0.75, "color": "94a3b8" },
+            "left": { "style": "dashed", "width": 0.75, "color": "94a3b8" },
+            "right": { "style": "dashed", "width": 0.75, "color": "94a3b8" },
+            "insideHorizontal": { "style": "none" },
+            "insideVertical": { "style": "none" }
+          },
+          "rows": [
+            {
+              "height": "{{ params.height }}",
+              "cantSplit": true,
+              "cells": [
+                {
+                  "content": {
+                    "type": "text",
+                    "text": "Logo (your own){{ if logo.name }}: {{ logo.name }}{{ endif }}",
+                    "size": 8.25,
+                    "color": "64748b"
+                  },
+                  "align": "center",
+                  "verticalAlign": "center"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

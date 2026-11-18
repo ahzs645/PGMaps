@@ -1,0 +1,57 @@
+{
+  "kind": "recipe",
+  "id": "design-rationale",
+  "name": "Design rationale with district summary table",
+  "extends": "via-report",
+  "meta": {
+    "title": "Visual Landscape Design Rationale",
+    "sources": ["02"],
+    "format": "district-summary",
+    "purpose": "A narrative rationale, the recommendations, then the district summary table against strict % guidelines.",
+    "figureStyle": "arrows-no-outlines",
+    "obliquePitch": 75
+  },
+  "options": {
+    "paper": "letter",
+    "cover": false,
+    "contents": false
+  },
+  "changes": [
+    {
+      "add": {
+        "use": "cover"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "design-rationale"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "recommendations"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "certification-2001"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "simulation-pages"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "district-summary-form"
+      },
+      "before": "closing"
+    }
+  ]
+}

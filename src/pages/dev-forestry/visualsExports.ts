@@ -493,7 +493,8 @@ export type ExportContext = {
     sources: string
     parts: string[]
     figures: number
-    toComplete: number
+    /** Null while the report's parts load with the dialog (`viaReportEngine.ts`). */
+    toComplete: number | null
     /** The figure style the maps' blocks and openings are drawn in, when one was chosen over the maps' own. */
     mapStyle?: string
   } | null
@@ -1477,7 +1478,17 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           title: 'To complete before signing',
           step: 'assess',
           editor: 'assess',
-          rows: [{ label: 'Items', value: report.toComplete ? plural(report.toComplete, 'item') : 'None' }],
+          rows: [
+            {
+              label: 'Items',
+              value:
+                report.toComplete === null
+                  ? 'Counted once the report’s parts have loaded'
+                  : report.toComplete
+                    ? plural(report.toComplete, 'item')
+                    : 'None',
+            },
+          ],
           note: 'Judgements, office fields and signatures the run cannot give print blank and are listed at the end of the report.',
         },
         unprintedSection(ctx, 'via-report'),
