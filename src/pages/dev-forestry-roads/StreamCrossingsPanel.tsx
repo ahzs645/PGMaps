@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
 import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
+import { ToolSubsection } from '@/components/ui/tool-section'
 import { RoadSection } from './SidebarParts'
 import {
   CROSSING_STRUCTURES,
@@ -321,9 +322,11 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
         ))}
       </RoadSection>
       {retired && (
-        <details className="text-xs">
-          <summary>{estimate.retired.length} earlier records retained outside this estimate</summary>
-          <div className="space-y-2 pt-2">
+        <ToolSubsection
+          title={`Earlier crossing records (${estimate.retired.length})`}
+          help="Crossing records that no longer match a current physical crossing. Their evidence stays in the saved project, outside this estimate."
+        >
+          <div className="space-y-2 text-xs">
             <Field label="Earlier crossing record">
               <RoadSelect
                 className={roadFieldClass}
@@ -347,7 +350,7 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
               in the saved project.
             </p>
           </div>
-        </details>
+        </ToolSubsection>
       )}
     </RoadSection>
   )

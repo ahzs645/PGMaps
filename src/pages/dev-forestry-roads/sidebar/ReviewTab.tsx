@@ -5,6 +5,7 @@ import type { RoadSettings } from '../types'
 import { useMemo, useRef, useState } from 'react'
 import { ArrowRight, Trash2 } from 'lucide-react'
 import { insetBox } from '@/components/ui/inset-box'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass, RoadSelect } from '../Controls'
@@ -361,9 +362,11 @@ function CableLines(p: SidebarProps) {
               />
             ))}
           </div>
-          <details className={insetBox()}>
-            <summary className="cursor-pointer text-xs">Edit original endpoints</summary>
-            <div className="mt-2 grid grid-cols-2 gap-1">
+          <DisclosureRow
+            title="Original endpoints"
+            summary={`${c.start.map((n) => n.toFixed(5)).join(', ')} → ${c.end.map((n) => n.toFixed(5)).join(', ')}`}
+          >
+            <div className="grid grid-cols-2 gap-1">
               {(['start', 'end'] as const).flatMap((endpoint) =>
                 ([0, 1] as const).map((axis) => (
                   <NumberField
@@ -380,7 +383,7 @@ function CableLines(p: SidebarProps) {
                 )),
               )}
             </div>
-          </details>
+          </DisclosureRow>
           <Button
             size="sm"
             variant="outline"

@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type Ref } from 'react'
 import { LocateFixed } from 'lucide-react'
 import { PersonInput } from '@/branding/PersonInput'
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { FileDropField } from '@/components/ui/file-drop-field'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { ToolDisclosure, ToolSubsection } from '@/components/ui/tool-section'
 import { downloadText } from '@/lib/download'
 import {
   MAX_HISTORY_IMPORT_BYTES,
@@ -57,6 +59,13 @@ const today = () => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 const newId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
+/** The section's folds and forms its next-step button opens. */
+type Fold = 'sources' | 'anchors' | 'evidence' | 'review'
+const CLOSED_FOLDS: Record<Fold, boolean> = { sources: false, anchors: false, evidence: false, review: false }
+const structureSummary = (structures: HistoricalTraceResult['structures']) => {
+  const conflicts = structures.filter((item) => item.status === 'conflict').length
+  return `${structures.length} structure${structures.length === 1 ? '' : 's'}${conflicts ? ` · ${conflicts} conflicting` : ''}`
+}
 const dateWindow = (when: { earliest: string | null; latest: string | null } | null) =>
   when ? `${when.earliest ?? 'unknown'} – ${when.latest ?? 'unknown'}` : 'unknown'
 
@@ -114,10 +123,13 @@ export function AccessHistoryPanel({
   const [importing, setImporting] = useState(false)
   const latest = useRef(w)
   latest.current = w
-  const sourcesRef = useRef<HTMLDetailsElement>(null)
-  const anchorsRef = useRef<HTMLDetailsElement>(null)
-  const evidenceRef = useRef<HTMLDetailsElement>(null)
-  const reviewRef = useRef<HTMLDetailsElement>(null)
+  const [folds, setFolds] = useState(CLOSED_FOLDS)
+  const foldNodes = useRef<Partial<Record<Fold, HTMLDivElement | null>>>({})
+  const [revealed, setRevealed] = useState<{ fold: Fold; count: number } | null>(null)
+  const foldOpen = (fold: Fold) => (open: boolean) => setFolds((current) => ({ ...current, [fold]: open }))
+  const foldRef = (fold: Fold) => (node: HTMLDivElement | null) => {
+    foldNodes.current[fold] = node
+  }
   const recordRef = useRef<HTMLDivElement>(null)
   const blocks = w.project.context.filter(
     (feature) => feature.kind === 'harvest' && feature.geometry.type === 'Polygon',
@@ -195,6 +207,10 @@ export function AccessHistoryPanel({
       }))
   }, [incoming, selectedPath?.id, fallback])
   useEffect(() => {
+    // After the render that opened it, so the fold's content is laid out.
+    if (revealed) foldNodes.current[revealed.fold]?.scrollIntoView?.({ block: 'nearest' })
+  }, [revealed])
+  useEffect(() => {
     if (incoming?.kind === 'road' || incoming?.kind === 'structure')
       recordRef.current?.scrollIntoView?.({ block: 'nearest' })
   }, [incoming])
@@ -217,17 +233,16 @@ export function AccessHistoryPanel({
         )
       }
     })
-  const reveal = (ref: RefObject<HTMLDetailsElement>) => {
-    if (!ref.current) return
-    ref.current.open = true
-    ref.current.scrollIntoView?.({ block: 'nearest' })
+  const reveal = (fold: Fold) => {
+    setFolds((current) => ({ ...current, [fold]: true }))
+    setRevealed((current) => ({ fold, count: (current?.count ?? 0) + 1 }))
   }
   const nextStep = (step: HistoricalCoverageNextStep) => {
     if (step === 'trace') traceRoutes()
-    else if (step === 'load-block' || step === 'load-roads') reveal(sourcesRef)
-    else if (step === 'place-entrance' || step === 'place-outlet') reveal(anchorsRef)
-    else if (step === 'review') reveal(reviewRef)
-    else reveal(evidenceRef)
+    else if (step === 'load-block' || step === 'load-roads') reveal('sources')
+    else if (step === 'place-entrance' || step === 'place-outlet') reveal('anchors')
+    else if (step === 'review') reveal('review')
+    else reveal('evidence')
   }
 
   return (
@@ -308,7 +323,9 @@ export function AccessHistoryPanel({
           workspace={w}
           block={block}
           disabled={disabled}
-          detailsRef={sourcesRef}
+          toolsOpen={folds.sources}
+          onToolsOpenChange={foldOpen('sources')}
+          toolsRef={foldRef('sources')}
           onStatus={setQueryStatus}
           onPilotAdded={(blockId, coordinates) => {
             setDismissedSelection(selection?.revision ?? null)
@@ -350,8 +367,12 @@ export function AccessHistoryPanel({
           />
           <span>Include roads and structures with unknown historical timing</span>
         </label>
-        <details className="space-y-2 text-xs">
-          <summary className="cursor-pointer font-medium">Connection assumptions</summary>
+        <ToolDisclosure
+          label="Connection assumptions"
+          summary={`${history.settings.allowUnverifiedEndpointSnaps ? `Unverified joins within ${history.settings.snapToleranceM} m` : 'Verified joins only'} · anchors within ${history.settings.attachmentToleranceM} m`}
+          help="A crossing of two lines is not automatically a junction. Review gaps and road levels before accepting a connection."
+          contentClassName="text-xs"
+        >
           <label className="flex items-start gap-2 text-xs">
             <input
               type="checkbox"
@@ -389,11 +410,7 @@ export function AccessHistoryPanel({
               }
             />
           </div>
-          <p className="text-2xs text-muted-foreground">
-            A crossing of two lines is not automatically a junction. Review gaps and road levels before accepting a
-            connection.
-          </p>
-        </details>
+        </ToolDisclosure>
         <AnchorEditor
           key={`anchors:${scope}:${block?.id ?? ''}`}
           block={block}
@@ -404,7 +421,9 @@ export function AccessHistoryPanel({
           onChange={change}
           onError={setError}
           onLocate={onLocate}
-          detailsRef={anchorsRef}
+          open={folds.anchors}
+          onOpenChange={foldOpen('anchors')}
+          containerRef={foldRef('anchors')}
         />
         <Button size="sm" variant="outline" className="w-full" disabled={disabled || !block} onClick={traceRoutes}>
           Trace historical access
@@ -430,21 +449,22 @@ export function AccessHistoryPanel({
               </InlineAlert>
             )}
             {trace.excludedRoads.length > 0 && (
-              <details>
-                <summary className="cursor-pointer">Why roads were excluded</summary>
-                <ul className="mt-2 list-disc space-y-1 pl-4">
+              <DisclosureRow
+                title="Why roads were excluded"
+                summary={`${trace.excludedRoads.length} road${trace.excludedRoads.length === 1 ? '' : 's'}`}
+              >
+                <ul className="list-disc space-y-1 pl-4">
                   {trace.excludedRoads.map((road) => (
                     <li key={road.roadId}>
                       {road.name}: {road.reasons.join(' ')}
                     </li>
                   ))}
                 </ul>
-              </details>
+              </DisclosureRow>
             )}
             {trace.structures.length > 0 && (
-              <details>
-                <summary className="cursor-pointer">Structure evidence and conflicts</summary>
-                <ul className="mt-2 list-disc space-y-1 pl-4">
+              <DisclosureRow title="Structure evidence and conflicts" summary={structureSummary(trace.structures)}>
+                <ul className="list-disc space-y-1 pl-4">
                   {trace.structures.map((item) => (
                     <li key={item.structureId}>
                       {history.structures.find((structure) => structure.id === item.structureId)?.name ??
@@ -453,7 +473,7 @@ export function AccessHistoryPanel({
                     </li>
                   ))}
                 </ul>
-              </details>
+              </DisclosureRow>
             )}
           </div>
         )}
@@ -564,7 +584,9 @@ export function AccessHistoryPanel({
               path={selectedPath}
               history={history}
               disabled={disabled}
-              detailsRef={reviewRef}
+              open={folds.review}
+              onOpenChange={foldOpen('review')}
+              containerRef={foldRef('review')}
               onReview={(relationship, review, sourceIds) =>
                 change((state) =>
                   reviewHistoricalPath(state, selectedPath.id, relationship, review, sourceIds, w.project.context),
@@ -577,26 +599,75 @@ export function AccessHistoryPanel({
           history={history}
           context={w.project.context}
           onLocate={onLocate}
-          detailsRef={evidenceRef}
+          open={folds.evidence}
+          onOpenChange={foldOpen('evidence')}
+          containerRef={foldRef('evidence')}
         />
-        <SourceEditor key={`source:${scope}`} disabled={disabled} onChange={change} />
-        <HistoryJsonEditor
-          key={`json:${scope}`}
-          history={history}
-          context={w.project.context}
-          disabled={disabled}
-          onSave={(next, baseline) =>
-            change((current) => {
-              if (JSON.stringify(current) !== baseline)
-                throw Error(
-                  'Saved history changed while you were editing. Download your draft, then load the saved history and reconcile your edits.',
-                )
-              return next
-            })
+        <ToolSubsection
+          title="Evidence ledger"
+          className="text-xs"
+          help={
+            <>
+              Add the surveys, construction records, image observations, closure notices and haul plans the review rests
+              on, or edit the saved ledger as JSON to record road events and structure evidence; add a source reference
+              first. Physical event dates, observed dates and conflicting structure reports stay separate. Saved history
+              travels with the road project. Export a bundle to retain its roads, blocks and source references outside
+              this browser.
+            </>
           }
-        />
-        <details className="space-y-2 text-xs">
-          <summary className="cursor-pointer font-medium">Import, export and restore</summary>
+        >
+          <div className="flex flex-wrap gap-2">
+            <SourceEditor key={`source:${scope}`} disabled={disabled} onChange={change} />
+            <HistoryJsonEditor
+              key={`json:${scope}`}
+              history={history}
+              context={w.project.context}
+              disabled={disabled}
+              onSave={(next, baseline) =>
+                change((current) => {
+                  if (JSON.stringify(current) !== baseline)
+                    throw Error(
+                      'Saved history changed while you were editing. Download your draft, then load the saved history and reconcile your edits.',
+                    )
+                  return next
+                })
+              }
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={disabled}
+              onClick={() =>
+                guarded(() =>
+                  downloadText(
+                    accessHistoryBundle(w.project.context, history),
+                    'forestry-access-history.json',
+                    'application/json',
+                  ),
+                )
+              }
+            >
+              Export history bundle
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={disabled}
+              onClick={() =>
+                guarded(() =>
+                  downloadText(
+                    accessHistoryReport(w.project.name, w.project.context, history),
+                    'forestry-access-history-report.md',
+                    'text/markdown',
+                  ),
+                )
+              }
+            >
+              Export review report
+            </Button>
+          </div>
           <FileDropField
             label="Access history bundle"
             filesLabel="Import history bundle"
@@ -662,48 +733,10 @@ export function AccessHistoryPanel({
               </div>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={disabled}
-              onClick={() =>
-                guarded(() =>
-                  downloadText(
-                    accessHistoryBundle(w.project.context, history),
-                    'forestry-access-history.json',
-                    'application/json',
-                  ),
-                )
-              }
-            >
-              Export history bundle
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={disabled}
-              onClick={() =>
-                guarded(() =>
-                  downloadText(
-                    accessHistoryReport(w.project.name, w.project.context, history),
-                    'forestry-access-history-report.md',
-                    'text/markdown',
-                  ),
-                )
-              }
-            >
-              Export review report
-            </Button>
-          </div>
           <Button size="sm" variant="ghost" disabled={disabled || !w.canUndo} onClick={() => w.undo()}>
             Undo last project change
           </Button>
-          <p className="text-2xs text-muted-foreground">
-            Saved history travels with the road project. Export a bundle to retain its roads, blocks and source
-            references outside this browser.
-          </p>
-        </details>
+        </ToolSubsection>
       </div>
     </RoadSection>
   )
@@ -718,7 +751,9 @@ function AnchorEditor({
   onChange,
   onError,
   onLocate,
-  detailsRef,
+  open,
+  onOpenChange,
+  containerRef,
 }: {
   block?: ContextFeature
   history: HistoricalAccessState
@@ -728,7 +763,9 @@ function AnchorEditor({
   onChange: (edit: (state: HistoricalAccessState) => HistoricalAccessState) => boolean
   onError: (message: string) => void
   onLocate?: (coordinates: Coordinate[]) => void
-  detailsRef?: RefObject<HTMLDetailsElement>
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  containerRef?: Ref<HTMLDivElement>
 }) {
   const [editing, setEditing] = useState('new')
   const [role, setRole] = useState<HistoricalAnchor['role']>('entrance')
@@ -765,188 +802,194 @@ function AnchorEditor({
     setSourceId(anchor.sourceIds[0] ?? 'none')
     setOutletScope(anchor.blockId ? 'block' : 'shared')
   }
+  const entrances = anchors.filter((anchor) => anchor.role === 'entrance').length
+  const outlets = anchors.filter((anchor) => anchor.role === 'outlet').length
   return (
-    <details ref={detailsRef} className="space-y-2 text-xs">
-      <summary className="cursor-pointer font-medium">
-        Entrances &amp; outlets · {anchors.filter((anchor) => anchor.role === 'entrance').length} /{' '}
-        {anchors.filter((anchor) => anchor.role === 'outlet').length}
-      </summary>
-      <p className="text-2xs text-muted-foreground">
-        Choose the block boundary or landing used for access, and the road-network outlet. No block centre is
-        substituted.
-      </p>
-      <Field label="Edit access anchor">
-        <RoadSelect
-          ariaLabel="Edit access anchor"
-          value={editing}
-          disabled={disabled}
-          onValueChange={select}
-          options={[
-            { value: 'new', label: 'Add an entrance or outlet' },
-            ...anchors.map((anchor) => ({ value: anchor.id, label: `${anchor.name} · ${anchor.role}` })),
-          ]}
-        />
-      </Field>
-      {role === 'outlet' && (
-        <Field
-          label="Outlet applies to"
-          hint="An outlet assigned to this block remains part of its study corridor even outside the nearby road-query area. Shared outlets can be reused by nearby blocks."
-        >
+    <div ref={containerRef}>
+      <ToolDisclosure
+        label="Entrances & outlets"
+        summary={`${entrances} entrance${entrances === 1 ? '' : 's'} · ${outlets} outlet${outlets === 1 ? '' : 's'}`}
+        open={open}
+        onOpenChange={onOpenChange}
+        help="Choose the block boundary or landing used for access, and the road-network outlet. No block centre is substituted."
+        contentClassName="text-xs"
+      >
+        <Field label="Edit access anchor">
           <RoadSelect
-            ariaLabel="Outlet applies to"
-            value={block ? outletScope : 'shared'}
+            ariaLabel="Edit access anchor"
+            value={editing}
             disabled={disabled}
-            onValueChange={(value) => setOutletScope(value as 'block' | 'shared')}
+            onValueChange={select}
             options={[
-              { value: 'block', label: 'This block', disabled: !block },
-              { value: 'shared', label: 'Shared nearby outlet' },
+              { value: 'new', label: 'Add an entrance or outlet' },
+              ...anchors.map((anchor) => ({ value: anchor.id, label: `${anchor.name} · ${anchor.role}` })),
             ]}
           />
         </Field>
-      )}
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Anchor role">
-          <RoadSelect
-            ariaLabel="Anchor role"
-            value={role}
-            disabled={disabled}
-            onValueChange={(value) => setRole(value as HistoricalAnchor['role'])}
+        {role === 'outlet' && (
+          <Field
+            label="Outlet applies to"
+            hint="An outlet assigned to this block remains part of its study corridor even outside the nearby road-query area. Shared outlets can be reused by nearby blocks."
           >
-            <option value="entrance">Block entrance</option>
-            <option value="outlet">Network outlet</option>
-          </RoadSelect>
-        </Field>
-        <Field label="Anchor name">
-          <input
-            className={roadFieldClass}
-            value={name}
-            disabled={disabled}
-            maxLength={200}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </Field>
-        <Field label="Anchor longitude">
-          <input
-            className={roadFieldClass}
-            inputMode="decimal"
-            value={longitude}
-            disabled={disabled}
-            placeholder="-122.7"
-            onChange={(event) => setLongitude(event.target.value)}
-          />
-        </Field>
-        <Field label="Anchor latitude">
-          <input
-            className={roadFieldClass}
-            inputMode="decimal"
-            value={latitude}
-            disabled={disabled}
-            placeholder="53.9"
-            onChange={(event) => setLatitude(event.target.value)}
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={disabled || !alignmentPoints.length}
-          onClick={() => pickCoordinate(alignmentPoints[0])}
-        >
-          Use alignment start
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={disabled || !alignmentPoints.length}
-          onClick={() => pickCoordinate(alignmentPoints.at(-1))}
-        >
-          Use alignment end
-        </Button>
-      </div>
-      <Field label="Anchor road">
-        <RoadSelect
-          ariaLabel="Anchor road"
-          value={roadId}
-          disabled={disabled}
-          onValueChange={setRoadId}
-          options={[
-            { value: 'none', label: 'Find nearby road within tolerance' },
-            ...roads.map((road) => ({ value: road.id, label: road.name })),
-          ]}
-        />
-      </Field>
-      <Field label="Anchor source">
-        <RoadSelect
-          ariaLabel="Anchor source"
-          value={sourceId}
-          disabled={disabled}
-          onValueChange={setSourceId}
-          options={[
-            { value: 'none', label: 'User placement; no source asserted' },
-            ...history.sources.map((source) => ({ value: source.id, label: `${source.dataset} · ${source.recordId}` })),
-          ]}
-        />
-      </Field>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={disabled || (role === 'entrance' && !block)}
-          onClick={() => {
-            if (
-              !longitude.trim() ||
-              !latitude.trim() ||
-              !Number.isFinite(Number(longitude)) ||
-              !Number.isFinite(Number(latitude))
-            ) {
-              onError('Enter both longitude and latitude for the anchor.')
-              return
-            }
-            const existing = history.anchors.find((anchor) => anchor.id === editing)
-            const anchor: HistoricalAnchor = {
-              id: existing?.id ?? newId('anchor'),
-              name: name.trim(),
-              role,
-              coordinate: [Number(longitude), Number(latitude)],
-              roadId: roadId === 'none' ? null : roadId,
-              blockId: role === 'entrance' ? block!.id : outletScope === 'block' && block ? block.id : null,
-              sourceIds: [
-                ...new Set([...(sourceId === 'none' ? [] : [sourceId]), ...(existing?.sourceIds.slice(1) ?? [])]),
-              ],
-            }
-            if (
-              onChange((state) => ({
-                ...state,
-                anchors: existing
-                  ? state.anchors.map((item) => (item.id === existing.id ? anchor : item))
-                  : [...state.anchors, anchor],
-              }))
-            )
-              setEditing(anchor.id)
-          }}
-        >
-          {editing === 'new' ? 'Add anchor' : 'Save anchor'}
-        </Button>
-        {(history.anchors.find((anchor) => anchor.id === editing)?.sourceIds.length ?? 0) > 1 && (
-          <p className="text-2xs text-muted-foreground">
-            Additional source references are retained. Edit the saved ledger to change them.
-          </p>
+            <RoadSelect
+              ariaLabel="Outlet applies to"
+              value={block ? outletScope : 'shared'}
+              disabled={disabled}
+              onValueChange={(value) => setOutletScope(value as 'block' | 'shared')}
+              options={[
+                { value: 'block', label: 'This block', disabled: !block },
+                { value: 'shared', label: 'Shared nearby outlet' },
+              ]}
+            />
+          </Field>
         )}
-        {editing !== 'new' && onLocate && (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Anchor role">
+            <RoadSelect
+              ariaLabel="Anchor role"
+              value={role}
+              disabled={disabled}
+              onValueChange={(value) => setRole(value as HistoricalAnchor['role'])}
+            >
+              <option value="entrance">Block entrance</option>
+              <option value="outlet">Network outlet</option>
+            </RoadSelect>
+          </Field>
+          <Field label="Anchor name">
+            <input
+              className={roadFieldClass}
+              value={name}
+              disabled={disabled}
+              maxLength={200}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </Field>
+          <Field label="Anchor longitude">
+            <input
+              className={roadFieldClass}
+              inputMode="decimal"
+              value={longitude}
+              disabled={disabled}
+              placeholder="-122.7"
+              onChange={(event) => setLongitude(event.target.value)}
+            />
+          </Field>
+          <Field label="Anchor latitude">
+            <input
+              className={roadFieldClass}
+              inputMode="decimal"
+              value={latitude}
+              disabled={disabled}
+              placeholder="53.9"
+              onChange={(event) => setLatitude(event.target.value)}
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
           <Button
             size="sm"
             variant="ghost"
+            disabled={disabled || !alignmentPoints.length}
+            onClick={() => pickCoordinate(alignmentPoints[0])}
+          >
+            Use alignment start
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={disabled || !alignmentPoints.length}
+            onClick={() => pickCoordinate(alignmentPoints.at(-1))}
+          >
+            Use alignment end
+          </Button>
+        </div>
+        <Field label="Anchor road">
+          <RoadSelect
+            ariaLabel="Anchor road"
+            value={roadId}
+            disabled={disabled}
+            onValueChange={setRoadId}
+            options={[
+              { value: 'none', label: 'Find nearby road within tolerance' },
+              ...roads.map((road) => ({ value: road.id, label: road.name })),
+            ]}
+          />
+        </Field>
+        <Field label="Anchor source">
+          <RoadSelect
+            ariaLabel="Anchor source"
+            value={sourceId}
+            disabled={disabled}
+            onValueChange={setSourceId}
+            options={[
+              { value: 'none', label: 'User placement; no source asserted' },
+              ...history.sources.map((source) => ({
+                value: source.id,
+                label: `${source.dataset} · ${source.recordId}`,
+              })),
+            ]}
+          />
+        </Field>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={disabled || (role === 'entrance' && !block)}
             onClick={() => {
-              const anchor = history.anchors.find((item) => item.id === editing)
-              if (anchor) onLocate([anchor.coordinate])
+              if (
+                !longitude.trim() ||
+                !latitude.trim() ||
+                !Number.isFinite(Number(longitude)) ||
+                !Number.isFinite(Number(latitude))
+              ) {
+                onError('Enter both longitude and latitude for the anchor.')
+                return
+              }
+              const existing = history.anchors.find((anchor) => anchor.id === editing)
+              const anchor: HistoricalAnchor = {
+                id: existing?.id ?? newId('anchor'),
+                name: name.trim(),
+                role,
+                coordinate: [Number(longitude), Number(latitude)],
+                roadId: roadId === 'none' ? null : roadId,
+                blockId: role === 'entrance' ? block!.id : outletScope === 'block' && block ? block.id : null,
+                sourceIds: [
+                  ...new Set([...(sourceId === 'none' ? [] : [sourceId]), ...(existing?.sourceIds.slice(1) ?? [])]),
+                ],
+              }
+              if (
+                onChange((state) => ({
+                  ...state,
+                  anchors: existing
+                    ? state.anchors.map((item) => (item.id === existing.id ? anchor : item))
+                    : [...state.anchors, anchor],
+                }))
+              )
+                setEditing(anchor.id)
             }}
           >
-            Locate saved anchor
+            {editing === 'new' ? 'Add anchor' : 'Save anchor'}
           </Button>
-        )}
-      </div>
-    </details>
+          {(history.anchors.find((anchor) => anchor.id === editing)?.sourceIds.length ?? 0) > 1 && (
+            <p className="text-2xs text-muted-foreground">
+              Additional source references are retained. Edit the saved ledger to change them.
+            </p>
+          )}
+          {editing !== 'new' && onLocate && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                const anchor = history.anchors.find((item) => item.id === editing)
+                if (anchor) onLocate([anchor.coordinate])
+              }}
+            >
+              Locate saved anchor
+            </Button>
+          )}
+        </div>
+      </ToolDisclosure>
+    </div>
   )
 }
 
@@ -955,7 +998,9 @@ function PathReviewEditor({
   history,
   disabled,
   onReview,
-  detailsRef,
+  open = false,
+  onOpenChange,
+  containerRef,
 }: {
   path: HistoricalAccessPath
   history: HistoricalAccessState
@@ -965,16 +1010,32 @@ function PathReviewEditor({
     review: NonNullable<HistoricalAccessPath['review']>,
     sourceIds: string[],
   ) => boolean
-  detailsRef?: RefObject<HTMLDetailsElement>
+  /** Held by the panel, so its next step can open the form. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  containerRef?: Ref<HTMLDivElement>
 }) {
   const [relationship, setRelationship] = useState<HistoricalRelationship>(path.relationship)
   const [reviewer, setReviewer] = useState(path.review?.reviewer ?? '')
   const [reference, setReference] = useState(path.review?.reference ?? '')
   const [reviewedOn, setReviewedOn] = useState(today())
   const [sourceId, setSourceId] = useState(path.sourceIds[0] ?? '')
+  if (!open)
+    return (
+      <div ref={containerRef}>
+        <Button size="sm" variant="outline" disabled={disabled} onClick={() => onOpenChange?.(true)}>
+          Review this association
+        </Button>
+      </div>
+    )
   return (
-    <details ref={detailsRef} className="space-y-2 text-xs">
-      <summary className="cursor-pointer font-medium">Review this association</summary>
+    <div
+      ref={containerRef}
+      className="space-y-2 border-t pt-2 text-xs"
+      aria-label="Review this association"
+      role="group"
+    >
+      <p className="font-medium">Review this association</p>
       <Field label="Reviewed relationship">
         <RoadSelect
           ariaLabel="Reviewed relationship"
@@ -1028,15 +1089,21 @@ function PathReviewEditor({
           onChange={(event) => setReference(event.target.value)}
         />
       </Field>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={disabled || !sourceId || !reviewer.trim() || !reference.trim()}
-        onClick={() => onReview(relationship, { reviewer, reviewedOn, reference }, [sourceId])}
-      >
-        Save reviewed assertion
-      </Button>
-    </details>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          disabled={disabled || !sourceId || !reviewer.trim() || !reference.trim()}
+          onClick={() => {
+            if (onReview(relationship, { reviewer, reviewedOn, reference }, [sourceId])) onOpenChange?.(false)
+          }}
+        >
+          Save reviewed assertion
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => onOpenChange?.(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -1052,9 +1119,23 @@ function SourceEditor({
   const [url, setUrl] = useState('')
   const [publishedOn, setPublishedOn] = useState('')
   const [description, setDescription] = useState('')
+  const [adding, setAdding] = useState(false)
+  const clear = () => {
+    setDataset('')
+    setRecordId('')
+    setUrl('')
+    setPublishedOn('')
+    setDescription('')
+  }
+  if (!adding)
+    return (
+      <Button size="sm" variant="outline" disabled={disabled} onClick={() => setAdding(true)}>
+        Add a source reference
+      </Button>
+    )
   return (
-    <details className="space-y-2 text-xs">
-      <summary className="cursor-pointer font-medium">Add a source reference</summary>
+    <div className="w-full space-y-2 text-xs" role="group" aria-label="Add a source reference">
+      <p className="font-medium">Add a source reference</p>
       <Field label="Source title">
         <input
           className={roadFieldClass}
@@ -1103,33 +1184,41 @@ function SourceEditor({
           onChange={(event) => setDescription(event.target.value)}
         />
       </Field>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={disabled || !dataset.trim() || !recordId.trim() || !description.trim()}
-        onClick={() => {
-          const source: HistoricalSource = {
-            id: newId('source'),
-            dataset,
-            recordId,
-            url,
-            publishedOn: publishedOn || null,
-            retrievedAt: new Date().toISOString(),
-            description,
-            synthetic: false,
-          }
-          if (onChange((state) => ({ ...state, sources: [...state.sources, source] }))) {
-            setDataset('')
-            setRecordId('')
-            setUrl('')
-            setPublishedOn('')
-            setDescription('')
-          }
-        }}
-      >
-        Add source reference
-      </Button>
-    </details>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          disabled={disabled || !dataset.trim() || !recordId.trim() || !description.trim()}
+          onClick={() => {
+            const source: HistoricalSource = {
+              id: newId('source'),
+              dataset,
+              recordId,
+              url,
+              publishedOn: publishedOn || null,
+              retrievedAt: new Date().toISOString(),
+              description,
+              synthetic: false,
+            }
+            if (onChange((state) => ({ ...state, sources: [...state.sources, source] }))) {
+              clear()
+              setAdding(false)
+            }
+          }}
+        >
+          Add source reference
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            clear()
+            setAdding(false)
+          }}
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -1195,16 +1284,18 @@ function HistoryJsonEditor({
       setError(errorMessage(cause))
     }
   }
+  if (draft === null)
+    return (
+      <Button size="sm" variant="outline" disabled={disabled} onClick={load}>
+        Edit saved ledger
+      </Button>
+    )
   return (
-    <details className="space-y-2 text-xs">
-      <summary className="cursor-pointer font-medium">Edit events and structure evidence</summary>
-      <p className="text-2xs text-muted-foreground">
-        Edit the saved ledger as JSON. Add a source reference first. Physical event dates, observed dates and
-        conflicting structure reports stay separate.
-      </p>
+    <div className="w-full space-y-2 text-xs" role="group" aria-label="Edit events and structure evidence">
+      <p className="font-medium">Edit events and structure evidence</p>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" disabled={disabled} onClick={load}>
-          {draft === null ? 'Edit saved ledger' : 'Replace draft with saved ledger'}
+          Replace draft with saved ledger
         </Button>
         <Button size="sm" variant="ghost" disabled={disabled} onClick={() => insert('event')}>
           Add event template
@@ -1213,68 +1304,64 @@ function HistoryJsonEditor({
           Add structure template
         </Button>
       </div>
-      {draft !== null && (
-        <>
-          {baseline !== current && (
-            <InlineAlert tone="warning">
-              Saved history changed while this draft was open. Download the draft before loading the saved ledger to
-              reconcile changes.
-            </InlineAlert>
-          )}
-          <Field label="Access history JSON draft">
-            <textarea
-              className={`${roadFieldClass} font-mono`}
-              rows={14}
-              value={draft}
-              spellCheck={false}
-              disabled={disabled}
-              onChange={(event) => setDraft(event.target.value)}
-            />
-          </Field>
-          {error && <InlineAlert tone="warning">{error}</InlineAlert>}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              disabled={disabled || baseline !== current}
-              onClick={() => {
-                setError('')
-                try {
-                  if (new TextEncoder().encode(draft).byteLength > MAX_HISTORY_IMPORT_BYTES)
-                    throw Error('Keep the history ledger below 10 MB.')
-                  const next = parseAccessHistoryState(JSON.parse(draft), context)
-                  if (onSave(next, baseline)) {
-                    setDraft(null)
-                    setBaseline('')
-                  }
-                } catch (cause) {
-                  setError(errorMessage(cause))
-                }
-              }}
-            >
-              Validate and save ledger
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={disabled}
-              onClick={() => downloadText(draft, 'forestry-access-history-draft.txt', 'text/plain')}
-            >
-              Download draft
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={disabled}
-              onClick={() => {
-                setDraft(null)
-                setError('')
-              }}
-            >
-              Discard draft
-            </Button>
-          </div>
-        </>
+      {baseline !== current && (
+        <InlineAlert tone="warning">
+          Saved history changed while this draft was open. Download the draft before loading the saved ledger to
+          reconcile changes.
+        </InlineAlert>
       )}
-    </details>
+      <Field label="Access history JSON draft">
+        <textarea
+          className={`${roadFieldClass} font-mono`}
+          rows={14}
+          value={draft}
+          spellCheck={false}
+          disabled={disabled}
+          onChange={(event) => setDraft(event.target.value)}
+        />
+      </Field>
+      {error && <InlineAlert tone="warning">{error}</InlineAlert>}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          disabled={disabled || baseline !== current}
+          onClick={() => {
+            setError('')
+            try {
+              if (new TextEncoder().encode(draft).byteLength > MAX_HISTORY_IMPORT_BYTES)
+                throw Error('Keep the history ledger below 10 MB.')
+              const next = parseAccessHistoryState(JSON.parse(draft), context)
+              if (onSave(next, baseline)) {
+                setDraft(null)
+                setBaseline('')
+              }
+            } catch (cause) {
+              setError(errorMessage(cause))
+            }
+          }}
+        >
+          Validate and save ledger
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={disabled}
+          onClick={() => downloadText(draft, 'forestry-access-history-draft.txt', 'text/plain')}
+        >
+          Download draft
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={disabled}
+          onClick={() => {
+            setDraft(null)
+            setError('')
+          }}
+        >
+          Discard draft
+        </Button>
+      </div>
+    </div>
   )
 }

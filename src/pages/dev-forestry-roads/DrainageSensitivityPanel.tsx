@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { EngineeringTable } from '@/components/ui/engineering-table'
 import {
@@ -188,8 +189,11 @@ export function DrainageSensitivityPanel({
                         {caution}
                       </p>
                     ))}
-                  <details className="min-w-0">
-                    <summary className="cursor-pointer py-1">Outlet and crossing evidence</summary>
+                  <DisclosureRow
+                    title="Outlet and crossing evidence"
+                    summary={`${record.summary.crossings} crossings · ${record.summary.redirected} diversions`}
+                    className="min-w-0"
+                  >
                     <p className="break-words">Calculation: {record.algorithmVersion ?? 'Legacy / unknown'}.</p>
                     {!catchment && record.pourPoint && (
                       <p className="break-words py-2">
@@ -241,7 +245,7 @@ export function DrainageSensitivityPanel({
                         </tbody>
                       </EngineeringTable>
                     )}
-                  </details>
+                  </DisclosureRow>
                 </article>
               )
             })}

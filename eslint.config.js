@@ -21,9 +21,16 @@ function designTokenSelectors() {
     ["JSXAttribute[name.name='className'] TemplateElement", 'value.raw'],
     ["CallExpression[callee.name='cn'] Literal", 'value'],
   ]
-  return checks.flatMap(([pattern, message]) =>
-    sources.map(([node, field]) => ({ selector: `${node}[${field}=/${pattern}/]`, message })),
-  )
+  return [
+    ...checks.flatMap(([pattern, message]) =>
+      sources.map(([node, field]) => ({ selector: `${node}[${field}=/${pattern}/]`, message })),
+    ),
+    {
+      selector: "JSXOpeningElement[name.name='details']",
+      message:
+        'Fold with the shared pieces, not a native <details>: ToolSection summary / ToolDisclosure / ToolSubsection in a tool sidebar, DisclosureCard / DisclosureRow elsewhere, an InfoTip for an explanation, a button for an action (docs/shared-ui.md).',
+    },
+  ]
 }
 
 export default tseslint.config(

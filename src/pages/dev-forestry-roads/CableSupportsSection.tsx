@@ -3,6 +3,7 @@ import { CheckCircle2, CircleDashed, OctagonAlert, Plus, Trash2 } from 'lucide-r
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { ToolSubsection } from '@/components/ui/tool-section'
 import { downloadText } from '@/lib/download'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { CableLayoutEditButtons, CableLayoutEditor, LocateRow, SpanColumns } from './CableLayoutEditor'
@@ -202,23 +203,17 @@ export function CableSupportsSection({
           </RoadSelect>
         </Field>
       </div>
-      <details className={insetBox()}>
-        <summary className="cursor-pointer text-xs">
-          Search · {settings.minSupportHeightM}–{settings.maxSupportHeightM} m every {settings.candidateSpacingM} m
-        </summary>
-        <div className="mt-2 grid grid-cols-2 gap-1">{SEARCH.map(field)}</div>
-      </details>
-      <details className={insetBox()}>
-        <summary className="cursor-pointer text-xs">
-          Limits · clearance zones {settings.clearanceFromStartM}/{settings.clearanceBeforeEndM} m · loaded{' '}
-          {settings.maxLoadedDeg}°/{settings.maxLoadedEndDeg}°
-        </summary>
-        <div className="mt-2 grid grid-cols-2 gap-1">
+      {/* The section folds already, so its groups of settings are headed, never folded again. */}
+      <ToolSubsection title="Search">
+        <div className="grid grid-cols-2 gap-1">{SEARCH.map(field)}</div>
+      </ToolSubsection>
+      <ToolSubsection title="Limits">
+        <div className="grid grid-cols-2 gap-1">
           {ZONES.map(field)}
           {ANGLES.map(field)}
           {settings.cableSystem === 'two-cable' && GRAVITY.map(field)}
         </div>
-      </details>
+      </ToolSubsection>
       <div className="space-y-1" data-testid="cable-fixed-supports">
         <div className="flex items-center justify-between text-xs">
           <span>Fixed supports · {settings.fixedSupports.length}</span>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { insetBox } from '@/components/ui/inset-box'
@@ -74,6 +75,20 @@ export function RoadConditionEditor({
   const estimate = assessment
   // A record counts only once its source has an age limit, so that setting cannot stay folded away.
   const needsAgeLimit = !!estimate?.records.some(({ status }) => status === 'policy-unset')
+  // It opens itself when a record starts needing a limit; the reader can fold it again.
+  const [ageOpen, setAgeOpen] = useState(needsAgeLimit)
+  const [ageNeeded, setAgeNeeded] = useState(needsAgeLimit)
+  if (needsAgeLimit !== ageNeeded) {
+    setAgeNeeded(needsAgeLimit)
+    if (needsAgeLimit) setAgeOpen(true)
+  }
+  // The add form opens from its button; Cancel drops the draft, and adding a record closes it.
+  const [adding, setAdding] = useState(false)
+  const cancelAdd = () => {
+    setDraft(emptyObservation(asOf))
+    setEntryError('')
+    setAdding(false)
+  }
   const add = () => {
     try {
       const observation: RoadConditionObservation = {
@@ -91,6 +106,7 @@ export function RoadConditionEditor({
       onChangeObservations(parseRoadConditionObservations([...observations, observation]))
       setDraft(emptyObservation(asOf))
       setEntryError('')
+      setAdding(false)
     } catch (cause) {
       setEntryError(cause instanceof Error ? cause.message : 'Could not add condition evidence.')
     }
@@ -227,9 +243,14 @@ export function RoadConditionEditor({
             ))}
           </ul>
         )}
-        <details className={insetBox({ padding: 'none' })}>
-          <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Add an inspection or imagery</summary>
-          <div className="space-y-2 border-t p-2">
+        {!adding && (
+          <Button size="sm" variant="outline" className="w-full" onClick={() => setAdding(true)}>
+            Add an inspection or imagery
+          </Button>
+        )}
+        {adding && (
+          <div className={cn(insetBox(), 'space-y-2')} role="group" aria-label="Add an inspection or imagery">
+            <h5 className="text-xs font-medium">Add an inspection or imagery</h5>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Evidence source">
                 <RoadSelect
@@ -362,6 +383,9 @@ export function RoadConditionEditor({
               >
                 Add dated evidence
               </Button>
+              <Button size="sm" variant="ghost" onClick={cancelAdd}>
+                Cancel
+              </Button>
               <InfoTip label="About adding evidence">
                 A newer date alone does not replace conflicting evidence. Replacements apply to the same component and
                 asset and take effect only when the new record is applicable and reviewed. Imagery cannot clear a bridge
@@ -374,13 +398,23 @@ export function RoadConditionEditor({
               </p>
             )}
           </div>
-        </details>
+        )}
         {needsAgeLimit && (
           <InlineAlert tone="warning">Set a maximum age below so your records count towards the estimate.</InlineAlert>
         )}
-        <details className={insetBox({ padding: 'none' })} open={needsAgeLimit || undefined}>
-          <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Assessment date & evidence age</summary>
-          <div className="space-y-2 border-t p-2">
+        <DisclosureRow
+          title="Assessment date & evidence age"
+          summary={`${asOf} · ${[
+            ['inspection', policy.maxInspectionAgeDays],
+            ['imagery', policy.maxImageryAgeDays],
+            ['LiDAR', policy.maxLidarAgeDays ?? null],
+          ]
+            .map(([source, days]) => `${source} ${days === null ? 'not set' : `${days} d`}`)
+            .join(' · ')}`}
+          open={ageOpen}
+          onOpenChange={setAgeOpen}
+        >
+          <div className="space-y-2">
             <Field label="Assess condition as of">
               <input
                 className={roadFieldClass}
@@ -430,7 +464,7 @@ export function RoadConditionEditor({
               />
             </div>
           </div>
-        </details>
+        </DisclosureRow>
       </fieldset>
     </section>
   )

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { CURVE_LABELS, type CurveFieldId } from './roadFieldDefinitions'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
@@ -26,6 +26,7 @@ import {
 } from './superelevationTables'
 import { CheckboxField } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
+import { ToolSubsection } from '@/components/ui/tool-section'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
 
@@ -241,9 +242,47 @@ export function CurveDesignField({
   )
 }
 
+/**
+ * One lookup table of the curve design as a row: its name, what it holds now and an Edit button that opens its editor
+ * in place. The editor stays mounted while closed, so text typed and not yet applied survives closing it.
+ */
+function LookupTableRow({
+  name,
+  value,
+  help,
+  testId,
+  children,
+}: {
+  name: string
+  /** What the table holds now, e.g. "2 radii × 2 speeds" or "none". */
+  value: string
+  help: ReactNode
+  testId: string
+  children: ReactNode
+}) {
+  const [editing, setEditing] = useState(false)
+  return (
+    <div className="space-y-1 text-xs" data-testid={testId}>
+      <div className="flex min-h-6 items-center gap-1">
+        <span className="shrink-0">{name}</span>
+        <InfoTip label={`About the ${name.toLowerCase()}`}>{help}</InfoTip>
+        <span className="min-w-0 flex-1 truncate text-muted-foreground">{value}</span>
+        <Button size="2xs" variant="outline" aria-expanded={editing} onClick={() => setEditing(!editing)}>
+          {editing ? 'Done' : 'Edit'}
+          <span className="sr-only"> {name.toLowerCase()}</span>
+        </Button>
+      </div>
+      <div hidden={!editing} className="space-y-1">
+        {children}
+      </div>
+    </div>
+  )
+}
+
 /** A lookup table edited as RoadEng `.tbl` text: apply it, load the current one or a file, or drop it. */
 function CurveTableEditor({
-  title,
+  name,
+  value,
   testId,
   current,
   help,
@@ -252,7 +291,8 @@ function CurveTableEditor({
   onClear,
   clearLabel,
 }: {
-  title: string
+  name: string
+  value: string
   testId: string
   /** The table as text now, or null when there is none. */
   current: string | null
@@ -275,12 +315,10 @@ function CurveTableEditor({
     }
   }
   return (
-    <details className="text-xs" data-testid={testId}>
-      <summary className="cursor-pointer">{title}</summary>
-      <p className="my-1 text-muted-foreground">{help}</p>
+    <LookupTableRow name={name} value={value} help={help} testId={testId}>
       <textarea
         className={`${roadFieldClass} min-h-24 w-full font-mono`}
-        aria-label={`${title} text`}
+        aria-label={`${name} text`}
         value={text}
         placeholder={'# comments\n,40,60\n200,0.03,0.05'}
         onChange={(e) => setText(e.target.value)}
@@ -308,7 +346,7 @@ function CurveTableEditor({
           type="file"
           className="hidden"
           accept=".tbl,.txt,.csv,text/plain"
-          aria-label={`Open ${title.split(' · ')[0]} file`}
+          aria-label={`Open ${name} file`}
           onChange={async (e) => {
             const chosen = e.target.files?.[0]
             e.target.value = ''
@@ -325,7 +363,7 @@ function CurveTableEditor({
         )}
       </div>
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
-    </details>
+    </LookupTableRow>
   )
 }
 
@@ -636,6 +674,8 @@ const CLEAR_CURVE_SETTINGS: Partial<Record<keyof CurveSettings, null>> = {
 
 const tableSize = (table: CurveLookupTable | undefined) =>
   table ? `${table.rows.length} radii × ${table.speedsKmh.length} speeds` : 'none'
+const wideningTableSize = (table: CurveDesign['wideningTable']) =>
+  table?.length ? `${table.length} ${table.length === 1 ? 'entry' : 'entries'}` : 'none'
 
 /** Design-speed superelevation and curve widening for the active road; an empty speed turns it off. */
 export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace }) {
@@ -790,91 +830,99 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
       </div>
       {design && (
         <>
-          <CurveTableEditor
-            title={`Superelevation table · ${tableSize(design.superelevationTable)}`}
-            testId="road-superelevation-table"
-            current={design.superelevationTable ? curveTableText(design.superelevationTable, 'superelevation') : null}
-            help="RoadEng's .tbl layout: # comments, a first line of design speeds (km/h), then a radius (m) and one superelevation per speed as rise over run (0.054 is 5.4 %); a blank cell is an unsafe combination. Applying it reads superelevation from the table."
-            parse={(text) => curveTableFromText(text, 'superelevation')}
-            onApply={(text) =>
-              set({ superelevationTable: curveTableFromText(text, 'superelevation'), superelevationMode: 'table' })
-            }
-            onClear={() => drop('superelevationTable')}
-            clearLabel={mode === 'table' ? 'Use the formula' : undefined}
-          />
-          <CurveTableEditor
-            title={`Runoff table · ${tableSize(design.runoffTable)}`}
-            testId="road-runoff-table"
-            current={design.runoffTable ? curveTableText(design.runoffTable, 'runoff') : null}
-            help="Runoff length (m) by radius and design speed, in the same layout. Used in table mode; where it is blank, the road's runoff applies."
-            parse={(text) => curveTableFromText(text, 'runoff')}
-            onApply={(text) => set({ runoffTable: curveTableFromText(text, 'runoff') })}
-            onClear={() => drop('runoffTable')}
-          />
-          <CurveTableEditor
-            title={`Side friction table · ${design.sideFrictionTable ? `${design.sideFrictionTable.speedsKmh.length} speeds` : 'none'}`}
-            testId="road-side-friction-table"
-            current={design.sideFrictionTable ? sideFrictionText(design.sideFrictionTable) : null}
-            help="The largest side friction by design speed: a first line of speeds (km/h) and one row of values, its first cell unused. Review flags a curve that needs more."
-            parse={(text) => sideFrictionFromText(text)}
-            onApply={(text) => set({ sideFrictionTable: sideFrictionFromText(text) })}
-            onClear={() => drop('sideFrictionTable')}
-          />
-          <details className="text-xs">
-            <summary className="cursor-pointer">Widening table · {design.wideningTable?.length ?? 0} entries</summary>
-            <p className="my-1 text-muted-foreground">
-              CSV rows: radius m, deflection degrees, inside m, outside m. Include every combination. The table replaces
-              vehicle-formula widening; extra widths are added.
-            </p>
-            <textarea
-              className={`${roadFieldClass} min-h-24 w-full`}
-              aria-label="Curve widening table CSV"
-              value={tableText}
-              placeholder="50,90,2,0"
-              onChange={(e) => setTableText(e.target.value)}
+          <ToolSubsection
+            title="Lookup tables"
+            help="Tables in RoadEng's .tbl layout, read by radius and design speed. Edit opens a table's text: type or paste it, load the current one or open a file, then apply it."
+          >
+            <CurveTableEditor
+              name="Superelevation table"
+              value={tableSize(design.superelevationTable)}
+              testId="road-superelevation-table"
+              current={design.superelevationTable ? curveTableText(design.superelevationTable, 'superelevation') : null}
+              help="RoadEng's .tbl layout: # comments, a first line of design speeds (km/h), then a radius (m) and one superelevation per speed as rise over run (0.054 is 5.4 %); a blank cell is an unsafe combination. Applying it reads superelevation from the table."
+              parse={(text) => curveTableFromText(text, 'superelevation')}
+              onApply={(text) =>
+                set({ superelevationTable: curveTableFromText(text, 'superelevation'), superelevationMode: 'table' })
+              }
+              onClear={() => drop('superelevationTable')}
+              clearLabel={mode === 'table' ? 'Use the formula' : undefined}
             />
-            <div className="mt-1 flex flex-wrap gap-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  try {
-                    set({ wideningTable: parseWideningTableCsv(tableText) })
+            <CurveTableEditor
+              name="Runoff table"
+              value={tableSize(design.runoffTable)}
+              testId="road-runoff-table"
+              current={design.runoffTable ? curveTableText(design.runoffTable, 'runoff') : null}
+              help="Runoff length (m) by radius and design speed, in the same layout. Used in table mode; where it is blank, the road's runoff applies."
+              parse={(text) => curveTableFromText(text, 'runoff')}
+              onApply={(text) => set({ runoffTable: curveTableFromText(text, 'runoff') })}
+              onClear={() => drop('runoffTable')}
+            />
+            <CurveTableEditor
+              name="Side friction table"
+              value={design.sideFrictionTable ? `${design.sideFrictionTable.speedsKmh.length} speeds` : 'none'}
+              testId="road-side-friction-table"
+              current={design.sideFrictionTable ? sideFrictionText(design.sideFrictionTable) : null}
+              help="The largest side friction by design speed: a first line of speeds (km/h) and one row of values, its first cell unused. Review flags a curve that needs more."
+              parse={(text) => sideFrictionFromText(text)}
+              onApply={(text) => set({ sideFrictionTable: sideFrictionFromText(text) })}
+              onClear={() => drop('sideFrictionTable')}
+            />
+            <LookupTableRow
+              name="Widening table"
+              value={wideningTableSize(design.wideningTable)}
+              testId="road-widening-table"
+              help="CSV rows: radius m, deflection degrees, inside m, outside m. Include every combination. The table replaces vehicle-formula widening; extra widths are added."
+            >
+              <textarea
+                className={`${roadFieldClass} min-h-24 w-full`}
+                aria-label="Curve widening table CSV"
+                value={tableText}
+                placeholder="50,90,2,0"
+                onChange={(e) => setTableText(e.target.value)}
+              />
+              <div className="mt-1 flex flex-wrap gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    try {
+                      set({ wideningTable: parseWideningTableCsv(tableText) })
+                      setTableError('')
+                    } catch (e) {
+                      setTableError(e instanceof Error ? e.message : 'Invalid table')
+                    }
+                  }}
+                >
+                  Apply widening table
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setTableText(
+                      (design.wideningTable ?? [])
+                        .map((r) => [r.radiusM, r.deflectionDegrees, r.insideM, r.outsideM].join(','))
+                        .join('\n'),
+                    )
                     setTableError('')
-                  } catch (e) {
-                    setTableError(e instanceof Error ? e.message : 'Invalid table')
-                  }
-                }}
-              >
-                Apply widening table
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setTableText(
-                    (design.wideningTable ?? [])
-                      .map((r) => [r.radiusM, r.deflectionDegrees, r.insideM, r.outsideM].join(','))
-                      .join('\n'),
-                  )
-                  setTableError('')
-                }}
-              >
-                Load current table
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  set({ wideningTable: undefined })
-                  setTableError('')
-                }}
-              >
-                Use vehicle formula
-              </Button>
-            </div>
-            {tableError && <InlineAlert tone="error">{tableError}</InlineAlert>}
-          </details>
+                  }}
+                >
+                  Load current table
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    set({ wideningTable: undefined })
+                    setTableError('')
+                  }}
+                >
+                  Use vehicle formula
+                </Button>
+              </div>
+              {tableError && <InlineAlert tone="error">{tableError}</InlineAlert>}
+            </LookupTableRow>
+          </ToolSubsection>
           <CurveRows workspace={workspace} design={design} />
           <p className="mt-1 text-2xs text-muted-foreground">
             Speed requires radius ≥ {evaluateCurveCriteria(design, 100).minimumSpeedRadiusM.toFixed(1)} m. Criteria are

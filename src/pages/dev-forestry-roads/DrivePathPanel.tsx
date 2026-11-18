@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DisclosureCard } from '@/components/ui/disclosure'
 import { InfoTip } from '@/components/ui/info-tip'
 import { downloadText } from '@/lib/download'
 import { NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
@@ -195,22 +196,19 @@ export function DrivePathPanel({
   const position = result?.positions[Math.min(index, result.positions.length - 1)]
   const fp = result?.footprint
   return (
-    <details
-      className={insetBox({ padding: 'none' })}
-      data-testid="road-drive-path"
-      open={open}
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary className="cursor-pointer p-2 font-medium">
-        Drive a path & turnarounds{' '}
-        <span className="font-normal text-muted-foreground">
-          ·{' '}
-          {result
+    <div data-testid="road-drive-path">
+      <DisclosureCard
+        title="Drive a path & turnarounds"
+        summary={
+          result
             ? `${m2(result.sweptAreaM2)} swept${fp ? (fp.wheelsFit ? ' · wheels fit' : ' · wheels off') : ''}${result.lockExceeded ? ' · beyond lock' : ''}`
-            : 'landings, pull-outs, junctions'}
-        </span>
-      </summary>
-      <div className="space-y-2 border-t p-2">
+            : 'landings, pull-outs, junctions'
+        }
+        // The driven path and template are drawn on the plan only while this is open.
+        open={open}
+        onOpenChange={setOpen}
+        contentClassName="space-y-2"
+      >
         <RoadSelect
           className={roadFieldClass}
           ariaLabel="Path to drive"
@@ -438,8 +436,8 @@ export function DrivePathPanel({
         <InfoTip label="How a path is driven" showLabel bubbleClassName="w-96">
           {DRIVE_PATH_BASIS}
         </InfoTip>
-      </div>
-    </details>
+      </DisclosureCard>
+    </div>
   )
 }
 

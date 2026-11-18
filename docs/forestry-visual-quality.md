@@ -654,8 +654,11 @@ workspace, and the package's renderer and recipe. Terrain and inventories are
 read again, and the first output that needs the run makes it again. The ZIP
 contains `project.json` with references to image files under `photos/` and
 `captures/` and an `archive.json` manifest. Successful local photo imports
-also keep the original file under **Project attachments**, where other
-source files can be attached. The open local photo comes back with its edited
+also keep the original file under **Project attachments** (the paperclip
+beside *Save & export*, `ProjectAttachments.tsx`), where other source files can
+be attached; a file that is a field record's original is removed only with its
+record (`removePhoto`). The project file's *What goes in* lists them with a
+*Manage…* button to the same dialog. The open local photo comes back with its edited
 camera. ZIPs can be up to 400 MB, including their expanded contents.
 A figure's rasters are gzipped one by one
 (`CompressionStream`) and written as base64, since a class pass is tens of
@@ -679,9 +682,13 @@ curve and the Castor curve library stay, as the reviewer's inputs rather than
 the site's records.
 
 **Reviewing a historical VIA.** Open the project ZIP in **Step 1 → Start from**,
-then choose **Reference measurements**. Earlier converted projects import their
-attached `case.json` on open. A standalone case can be imported in the same
-dialog. Choose a viewpoint and landform to open its original sheet, inspect the
+then open **Project attachments** (the paperclip) and choose **Reference
+measurements**. Earlier converted projects import their attached `case.json` on
+open. A standalone case can be imported from the dialog's header, beside the
+row picker and *Add measurement*. Each row's work is a tab (*Measurements*,
+*Geometry*, *Image trace*, *Run*, *Compare*, and *Exhibits* when the project
+carries a figure catalogue), mounted when first shown and kept while another is
+chosen. Choose a viewpoint and landform to open its original sheet, inspect the
 transcribed measurements and enter corrections. Tab out of an edited field or
 press Enter to apply it. Clear **Use reviewer value** to use the transcription again. The alternative value and its evidence note remain available.
 

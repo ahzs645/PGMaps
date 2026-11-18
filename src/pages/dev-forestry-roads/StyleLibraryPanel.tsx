@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { FileButton } from '@/components/ui/file-button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { insetBox } from '@/components/ui/inset-box'
@@ -310,17 +311,18 @@ export function StyleLibraryPanel({
           </>
         )}
         {problems.length > 0 && (
-          <details className="text-muted-foreground">
-            <summary>
-              {problems.length} part{problems.length === 1 ? '' : 's'} not read
-            </summary>
-            <ul className="mt-1 list-disc pl-4">
+          <DisclosureRow
+            title="Parts not read"
+            summary={`${problems.length} part${problems.length === 1 ? '' : 's'}`}
+            contentClassName="text-muted-foreground"
+          >
+            <ul className="list-disc pl-4">
               {problems.slice(0, 40).map((problem, i) => (
                 <li key={i}>{problem}</li>
               ))}
               {problems.length > 40 && <li>…and {problems.length - 40} more.</li>}
             </ul>
-          </details>
+          </DisclosureRow>
         )}
       </div>
 

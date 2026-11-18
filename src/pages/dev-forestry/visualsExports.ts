@@ -5,6 +5,7 @@
  * the file is written from. No DOM or network access.
  */
 
+import { formatBytes } from '@/lib/format'
 import { CASTOR_DENOMINATOR_NOTE, castorConstraintProblem, castorVqoConstraint } from './castorConstraint'
 import { layoutStageLabel, layoutStageOf } from './fieldChecklist'
 import type { SavedDriveView } from './previewState'
@@ -446,6 +447,8 @@ export type ExportContext = {
   evidence: { loaded: boolean; gaps: string[]; views: number; runs: number; fields: number }
   /** The own photos open in the set, which the project file keeps with their originals. Absent: none open. */
   ownPhotos?: { count: number; accepted: number; flights: number }
+  /** The project's attachments, which the project file carries as they are. Absent: none. */
+  attachments?: Array<{ name: string; bytes: number; linked: string | null }>
   /** The road view is open with its terrain loaded, so the 3D scene can be written. */
   roadViewReady: boolean
   /** The Castor constraint as the current run gives it (`castorConstraint.ts`), or why it cannot be written yet. */
@@ -1443,6 +1446,15 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           empty: 'No own photos open.',
         },
         {
+          title: 'Project attachments',
+          action: { id: 'manage-attachments', label: 'Manage…' },
+          items: ctx.attachments?.map((file) => ({
+            title: file.name,
+            subtitle: [formatBytes(file.bytes), file.linked].filter(Boolean).join(' · '),
+          })),
+          empty: 'No files attached. Attach the original VIA sheets, a case.json or other evidence with the paperclip.',
+        },
+        {
           title: 'Workspace and package',
           rows: [
             { label: 'Recorded assessments', value: String(ctx.evidence.runs) },
@@ -1601,6 +1613,7 @@ export type ContextInput = {
   brief: { blockId: string | null; viewpoints: number; screenshots?: number }
   evidence: { loaded: boolean; gaps: string[]; counts: { views: number; runs: number; fields: number } }
   ownPhotos?: ExportContext['ownPhotos']
+  attachments?: ExportContext['attachments']
   roadViewReady: boolean
   /** Absent: no block has a stand prescription. */
   prescribedStands?: Row[]
@@ -1796,6 +1809,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
     },
     evidence: { loaded: input.evidence.loaded, gaps: input.evidence.gaps, ...input.evidence.counts },
     ...(input.ownPhotos?.count ? { ownPhotos: input.ownPhotos } : {}),
+    ...(input.attachments?.length ? { attachments: input.attachments } : {}),
     roadViewReady: input.roadViewReady,
     prescribedStands: input.prescribedStands ?? [],
     sightlineArchive: input.sightlineArchive ?? null,

@@ -6,6 +6,7 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { insetBox } from '@/components/ui/inset-box'
+import { ToolSubsection } from '@/components/ui/tool-section'
 import { cn } from '@/lib/utils'
 import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
@@ -233,6 +234,8 @@ function StreamDetails({
   const status = streamStatus(stream.streamAssessment, stream.geometry.coordinates)
   // Empty follows the evidence, so the class on offer keeps up with what has been entered.
   const [choice, setChoice] = useState<RiparianClass | ''>('')
+  // The review form opens from its button; the assessor, link and notes it holds are saved as typed.
+  const [reviewing, setReviewing] = useState(false)
   const decision = choice || assessment.reviewedClass || suggestion.riparianClass || ''
   const shown = effectiveClass(stream.streamAssessment)
   const widths = shown ? RIPARIAN_WIDTHS[shown] : null
@@ -362,18 +365,19 @@ function StreamDetails({
         />
       </div>
       {channelReading}
-      <details className={insetBox({ padding: 'none' })} data-testid="stream-riparian-policy">
-        <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Riparian map & route treatment</summary>
-        <div className="space-y-2 border-t p-2">
-          <p className="text-2xs text-muted-foreground">
-            {screening?.note} These areas are preliminary horizontal screening buffers, not surveyed legal boundaries.
-          </p>
-          <ConstraintPolicyEditor feature={stream} onChange={onPolicyChange} />
-        </div>
-      </details>
-      <details className={insetBox({ padding: 'none' })}>
-        <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Record a review</summary>
-        <div className="space-y-2 border-t p-2">
+      {assessment.reviewedClass && assessment.assessedOn && (
+        <p className="text-2xs text-muted-foreground">
+          Reviewed as {assessment.reviewedClass} by {assessment.assessor} on {assessment.assessedOn}
+        </p>
+      )}
+      {!reviewing && (
+        <Button size="sm" variant="outline" className="w-full" onClick={() => setReviewing(true)}>
+          {assessment.reviewedClass ? 'Review again' : 'Record a review'}
+        </Button>
+      )}
+      {reviewing && (
+        <div className={cn(insetBox(), 'space-y-2')} role="group" aria-label="Record a review">
+          <h4 className="text-xs font-medium">Record a review</h4>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Reviewed class">
               <RoadSelect
@@ -424,14 +428,15 @@ function StreamDetails({
               size="sm"
               className="min-w-0 flex-1"
               disabled={!decision || !assessment.assessor?.trim()}
-              onClick={() =>
+              onClick={() => {
                 onChange({
                   reviewedClass: decision as RiparianClass,
                   reviewedFingerprint: assessmentFingerprint(assessment, stream.geometry.coordinates),
                   reviewedRules: `${RIPARIAN_RULES.id}@${RIPARIAN_RULES.consolidatedTo}`,
                   assessedOn: today(),
                 })
-              }
+                setReviewing(false)
+              }}
             >
               Record review
             </Button>
@@ -451,15 +456,22 @@ function StreamDetails({
                 Clear
               </Button>
             )}
+            <Button size="sm" variant="ghost" onClick={() => setReviewing(false)}>
+              Close
+            </Button>
           </div>
-          {assessment.reviewedClass && assessment.assessedOn && (
-            <p className="text-2xs text-muted-foreground">
-              Reviewed as {assessment.reviewedClass} by {assessment.assessor} on {assessment.assessedOn}
-            </p>
-          )}
         </div>
-      </details>
-      <div className="flex items-center gap-1">
+      )}
+      {/* A hairline of its own: the subsection is this wrapper's first child, where it drops its rule. */}
+      <div className="border-t border-border/60 pt-2.5" data-testid="stream-riparian-policy">
+        <ToolSubsection title="Riparian map & route treatment">
+          <p className="text-2xs text-muted-foreground">
+            {screening?.note} These areas are preliminary horizontal screening buffers, not surveyed legal boundaries.
+          </p>
+          <ConstraintPolicyEditor feature={stream} onChange={onPolicyChange} />
+        </ToolSubsection>
+      </div>
+      <div className="flex items-center gap-1 border-t border-border/60 pt-2">
         <Button
           size="sm"
           variant="ghost"

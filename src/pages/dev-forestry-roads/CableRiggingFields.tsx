@@ -1,9 +1,8 @@
-import { InfoTip } from '@/components/ui/info-tip'
+import { ToolSubsection } from '@/components/ui/tool-section'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { EXAMPLE_RIGGING, RIGGING_LABELS, RIGGING_LIMITS, riggingErrors } from './cableMechanics'
 import type { CableRigging } from './cableMechanics'
 import type { CableLine } from './types'
-import { insetBox } from '@/components/ui/inset-box'
 
 type NumericField = keyof typeof RIGGING_LIMITS
 const ROPE: NumericField[] = [
@@ -77,17 +76,13 @@ export function CableRiggingFields({
         </RoadSelect>
       </Field>
       {mechanics && (
-        <details className={insetBox()} data-testid="cable-rigging">
-          <summary className="flex cursor-pointer items-center justify-between gap-1 text-xs">
-            <span>
-              Rigging · {rigging.ropeDiameterMm} mm · {rigging.payloadKg + rigging.carriageKg} kg
-            </span>
-            <InfoTip label="About the rigging">
-              Starting values are an example 22 mm skyline, not a recommendation. Replace each with the rope, carriage
-              and turn you will use. Not a rigging, anchor or WorkSafeBC compliance check.
-            </InfoTip>
-          </summary>
-          <div className="mt-2 space-y-2">
+        // Shown whole once Rope and load is chosen: it sits in a section that already folds, and its values are the
+        // model's inputs.
+        <div data-testid="cable-rigging">
+          <ToolSubsection
+            title="Rigging"
+            help="Starting values are an example 22 mm skyline, not a recommendation. Replace each with the rope, carriage and turn you will use. Not a rigging, anchor or WorkSafeBC compliance check."
+          >
             <Field label="Tension set by">
               <RoadSelect
                 ariaLabel="Tension set by"
@@ -107,8 +102,8 @@ export function CableRiggingFields({
                 {error}
               </p>
             ))}
-          </div>
-        </details>
+          </ToolSubsection>
+        </div>
       )}
     </div>
   )

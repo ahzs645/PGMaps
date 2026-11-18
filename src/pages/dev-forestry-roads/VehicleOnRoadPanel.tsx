@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DisclosureCard } from '@/components/ui/disclosure'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
 import { formatRoadStation } from './Charts'
@@ -123,15 +124,15 @@ export function VehicleOnRoadPanel({
     setStation((s) => Math.max(0, s + by))
   }
   return (
-    <details className={insetBox({ padding: 'none' })} data-testid="road-vehicle-at-station">
-      <summary className="cursor-pointer p-2 font-medium">
-        Vehicle at a station{' '}
-        <span className="font-normal text-muted-foreground">
-          · {at.value ? `${formatRoadStation(at.value.station)} · ${vehicleLabel(at.value)}` : 'hidden'}
-          {active.length ? ` · ${active.length} trace${active.length === 1 ? '' : 's'}` : ''}
-        </span>
-      </summary>
-      <div className="space-y-2 border-t p-2">
+    <div data-testid="road-vehicle-at-station">
+      <DisclosureCard
+        title="Vehicle at a station"
+        summary={`${at.value ? `${formatRoadStation(at.value.station)} · ${vehicleLabel(at.value)}` : 'hidden'}${
+          active.length ? ` · ${active.length} trace${active.length === 1 ? '' : 's'}` : ''
+        }`}
+        help="Pinned footprints and traces are view settings and are not saved. A trace past the formation edge is reported, not required to fit: a mirror or log tip may pass over a fill shoulder but strike a cut bank or a tree."
+        contentClassName="space-y-2"
+      >
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} />
           Show the vehicle
@@ -215,11 +216,7 @@ export function VehicleOnRoadPanel({
             ))}
           </ul>
         )}
-        <p className="text-2xs text-muted-foreground">
-          Pinned footprints and traces are view settings and are not saved. A trace past the formation edge is reported,
-          not required to fit: a mirror or log tip may pass over a fill shoulder but strike a cut bank or a tree.
-        </p>
-      </div>
-    </details>
+      </DisclosureCard>
+    </div>
   )
 }

@@ -4,7 +4,6 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { downloadText } from '@/lib/download'
 import { parseSectionComponents } from './sectionAssembly'
 import type { SectionComponent } from './types'
-import { insetBox } from '@/components/ui/inset-box'
 
 const KEY = 'pgmaps-road-components-v1'
 function readLibrary(): SectionComponent[] {
@@ -31,15 +30,18 @@ export function ComponentLibrary({
     setError('')
   }
   return (
-    <details className={insetBox()}>
-      <summary className="cursor-pointer text-xs font-medium">
-        Component library{library.length ? ` · ${library.length} saved` : ''}
-      </summary>
-      <div className="mt-2 flex flex-wrap items-center gap-1">
+    <div className="space-y-2" data-testid="road-component-library">
+      <div className="flex items-center gap-1">
+        <p className="text-xs font-semibold">Component library</p>
+        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+          {library.length ? `${library.length} saved` : 'none saved'}
+        </span>
         <InfoTip label="About the component library">
           Keep individual components on this device or transfer their definitions as JSON. Material and reference IDs
           must exist in the receiving project.
         </InfoTip>
+      </div>
+      <div className="flex flex-wrap items-center gap-1">
         <Button
           size="sm"
           variant="outline"
@@ -93,35 +95,37 @@ export function ComponentLibrary({
         }}
       />
       {error && (
-        <p role="alert" className="mt-2 text-xs text-danger">
+        <p role="alert" className="text-xs text-danger">
           {error}
         </p>
       )}
-      <ul className="mt-2 space-y-1">
-        {library.map((c) => (
-          <li key={c.id} className="flex items-center justify-between gap-1 text-xs">
-            <span className="min-w-0 truncate">
-              {c.name} · {c.side}
-            </span>
-            <Button size="sm" variant="ghost" disabled={components.length >= 40} onClick={() => onInsert(c)}>
-              Insert {c.name}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                try {
-                  save(library.filter((r) => r.id !== c.id))
-                } catch (e) {
-                  setError(String(e))
-                }
-              }}
-            >
-              Remove {c.name}
-            </Button>
-          </li>
-        ))}
-      </ul>
-    </details>
+      {library.length > 0 && (
+        <ul className="space-y-1">
+          {library.map((c) => (
+            <li key={c.id} className="flex items-center justify-between gap-1 text-xs">
+              <span className="min-w-0 truncate">
+                {c.name} · {c.side}
+              </span>
+              <Button size="sm" variant="ghost" disabled={components.length >= 40} onClick={() => onInsert(c)}>
+                Insert {c.name}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  try {
+                    save(library.filter((r) => r.id !== c.id))
+                  } catch (e) {
+                    setError(String(e))
+                  }
+                }}
+              >
+                Remove {c.name}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }

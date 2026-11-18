@@ -250,6 +250,10 @@ export function useVisualsExport(input: {
   }
   /** The own photos open in the set, for the project file's *What goes in*. Absent: none. */
   ownPhotos?: { count: number; accepted: number; flights: number }
+  /** The project's attachments, for the project file's *What goes in*. */
+  attachments?: Array<{ name: string; bytes: number; linked: string | null }>
+  /** Opens Project attachments, the one place they are added and removed. */
+  onManageAttachments?: () => void
   /** The land status checks the summary cards read (`useLandChecks`). */
   landChecks: { states: Partial<Record<LandCheckId, LandCheckState>>; unchecked: string | null }
   /**
@@ -793,6 +797,7 @@ export function useVisualsExport(input: {
     },
     evidence,
     ownPhotos: input.ownPhotos,
+    attachments: input.attachments,
     roadViewReady: input.scenePackage.ready,
     prescribedStands: standFileSummary(input.prescribedStands),
     sightlineArchive: input.sightlineArchive
@@ -1564,6 +1569,11 @@ export function useVisualsExport(input: {
   }
 
   const onAction = (action: ExportAction) => {
+    if (action.id === 'manage-attachments') {
+      setOpen(false)
+      input.onManageAttachments?.()
+      return
+    }
     if (action.id === 'load-inventory') {
       askedFor.current = noteBlock?.id ?? null
       if (noteBlock) onLoadInventory(noteBlock, { show: false })

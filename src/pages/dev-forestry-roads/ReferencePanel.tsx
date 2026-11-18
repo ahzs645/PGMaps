@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { RibbonTaskPane } from '@/components/interfaces/RibbonTaskPane'
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { FileDropField } from '@/components/ui/file-drop-field'
 import type { PickedFile } from '@/components/ui/picked-files'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
@@ -93,8 +94,6 @@ const rowActionClass = 'text-muted-foreground hover:bg-foreground/10 hover:text-
 /** Rename and remove wait for the pointer, the keyboard or an open row; a touch screen always shows them. */
 const quietActionClass =
   'opacity-0 focus-visible:opacity-100 group-focus-within/row:opacity-100 group-hover/row:opacity-100 touch:opacity-100'
-
-const summaryClass = 'cursor-pointer select-none text-muted-foreground hover:text-foreground'
 
 /**
  * A disclosure row with its actions beside the toggle so each action has its own focus target.
@@ -604,16 +603,21 @@ export function ReferencePanel({
                                 ; registration fit {feature.pdfSource.registrationErrorM.toFixed(2)} m. This is a
                                 control-point fit, not source accuracy.
                               </p>
-                              <details>
-                                <summary className={summaryClass}>Source fingerprint</summary>
+                              <DisclosureRow
+                                title="Source fingerprint"
+                                summary={`SHA-256 ${feature.pdfSource.sha256.slice(0, 12)}…`}
+                              >
                                 <p className="break-all">SHA-256 {feature.pdfSource.sha256}</p>
-                              </details>
+                              </DisclosureRow>
                             </div>
                           )}
                           {feature.attributes && (
-                            <details className="text-2xs">
-                              <summary className={summaryClass}>Source attributes</summary>
-                              <dl className="mt-1 grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-2 gap-y-0.5 break-words">
+                            <DisclosureRow
+                              title="Source attributes"
+                              summary={`${Object.keys(feature.attributes).length} fields`}
+                              contentClassName="text-2xs"
+                            >
+                              <dl className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-2 gap-y-0.5 break-words">
                                 {Object.entries(feature.attributes).map(([key, value]) => (
                                   <Fragment key={key}>
                                     <dt className="text-muted-foreground">{key}</dt>
@@ -621,7 +625,7 @@ export function ReferencePanel({
                                   </Fragment>
                                 ))}
                               </dl>
-                            </details>
+                            </DisclosureRow>
                           )}
                         </div>
                       )}

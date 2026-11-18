@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { CheckboxField } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { insetBox } from '@/components/ui/inset-box'
@@ -383,14 +384,17 @@ export function RateSources({
               <span className="text-foreground">Adjustment:</span> {line.reason}
             </p>
             {line.terms.length > 0 && (
-              <details className="text-muted-foreground">
-                <summary className="cursor-pointer">Terms as read ({line.terms.length})</summary>
+              <DisclosureRow
+                title="Terms as read"
+                summary={`${line.terms.length} term${line.terms.length === 1 ? '' : 's'}`}
+                contentClassName="text-muted-foreground"
+              >
                 <ul className="list-disc pl-4">
                   {line.terms.map((term) => (
                     <li key={term}>{term}</li>
                   ))}
                 </ul>
-              </details>
+              </DisclosureRow>
             )}
             {line.overlaps.map((overlap) => (
               <p key={overlap} className="text-warning">
