@@ -550,6 +550,8 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         lineWidth={['case', ['==', ['get', 'rated'], 1], 1.6, 0.7]}
         lineOpacity={0.9}
         idProperty="id"
+        // A unit is a large area holding the scene's blocks, viewpoints and arrows: they answer the pointer first.
+        pickPriority={-1}
         visible={showInventory && inventory.units.length > 0 && (!eye || drive.showAnalysis)}
         // With the road view open a click on the plan moves it; adopting a unit is step 1's job.
         onFeatureClick={whenFree((id) => {
@@ -658,45 +660,6 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       {!eye && (
         <>
           <MapCircleLayer
-            data={planInventoryPoints}
-            visible={showInventory}
-            radius={5}
-            color={['case', ['==', ['get', 'kind'], 'rec-site'], INVENTORY_COLORS.recSite, INVENTORY_COLORS.viewpoint]}
-            strokeColor="#ffffff"
-            strokeWidth={1.5}
-            idProperty="id"
-            hoverHtml={viewpointCard ? noTooltip : viewpointHoverHtml}
-            onFeatureClick={whenFree((id: string, event: { lngLat: [number, number] | null }) => {
-              if (!viewpointCandidates.some((entry) => entry.key === id)) return
-              setViewpointCardKey({ key: String(id), pointClick: event.lngLat })
-            })}
-          />
-          {viewpointCard && (
-            <MapPopup
-              key={`${viewpointCard.key}:${viewpointCardOpen?.arrowId ?? ''}`}
-              longitude={viewpointCardOpen?.at?.[0] ?? viewpointCard.lng}
-              latitude={viewpointCardOpen?.at?.[1] ?? viewpointCard.lat}
-              offset={10}
-              onClose={() => setViewpointCardKey(null)}
-            >
-              <MapPopupCard
-                className="w-48"
-                eyebrow={viewpointCard.kind === 'rec-site' ? 'Recreation site' : 'VLI viewpoint'}
-                title={viewpointCard.name}
-                subtitle={viewpointCandidateSummary(viewpointCard).split(' · ').slice(1).join(' · ')}
-                onClose={() => setViewpointCardKey(null)}
-                footerActions={viewpointStandChoices(viewpointCard, viewpointCardOpen?.arrowId).map((choice) => ({
-                  label: choice.label,
-                  primary: choice.primary,
-                  onClick: () => {
-                    setViewpointCardKey(null)
-                    handleUseViewpoint(viewpointCard, choice.arrow)
-                  },
-                }))}
-              />
-            </MapPopup>
-          )}
-          <MapCircleLayer
             data={planClues}
             // Up to 2,048 clues a landform, one per terrain sample: small and unringed until zoomed in, like the
             // sample points, or they cover the landform.
@@ -715,8 +678,11 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
           />
         </>
       )}
+      {/* The landform holds the blocks, roads, sample points and the inventory's viewpoints and arrows: each of those
+        answers a hover or click inside it first, rather than the landform as well (`pickPriority`). */}
       <MapFillLayer
         data={landscapeCollection}
+        pickPriority={-1}
         visible={eye ? drive.showAnalysis || drive.showLandform : shown('landform')}
         fillColor={ROLE_COLORS.landscape}
         fillOpacity={eye && drive.showLandform ? 0.18 : 0.08}
@@ -977,6 +943,48 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             width={5}
             opacity={0.95}
           />
+          {/* BC's viewpoints and rec sites sit over every area drawn under them, so the point under the pointer is the
+        one hovered and clicked rather than the landform or block it stands in. */}
+          <MapCircleLayer
+            data={planInventoryPoints}
+            visible={showInventory}
+            radius={5}
+            color={['case', ['==', ['get', 'kind'], 'rec-site'], INVENTORY_COLORS.recSite, INVENTORY_COLORS.viewpoint]}
+            strokeColor="#ffffff"
+            strokeWidth={1.5}
+            idProperty="id"
+            hoverHtml={viewpointCard ? noTooltip : viewpointHoverHtml}
+            onFeatureClick={whenFree((id: string, event: { lngLat: [number, number] | null }) => {
+              if (!viewpointCandidates.some((entry) => entry.key === id)) return
+              setViewpointCardKey({ key: String(id), pointClick: event.lngLat })
+            })}
+          />
+          {viewpointCard && (
+            <MapPopup
+              key={`${viewpointCard.key}:${viewpointCardOpen?.arrowId ?? ''}`}
+              longitude={viewpointCardOpen?.at?.[0] ?? viewpointCard.lng}
+              latitude={viewpointCardOpen?.at?.[1] ?? viewpointCard.lat}
+              offset={10}
+              onClose={() => setViewpointCardKey(null)}
+            >
+              <MapPopupCard
+                // Wide enough for the longest stand choice, "Stand here, facing northwest, at the block", on one line.
+                className="w-64"
+                eyebrow={viewpointCard.kind === 'rec-site' ? 'Recreation site' : 'VLI viewpoint'}
+                title={viewpointCard.name}
+                subtitle={viewpointCandidateSummary(viewpointCard).split(' · ').slice(1).join(' · ')}
+                onClose={() => setViewpointCardKey(null)}
+                footerActions={viewpointStandChoices(viewpointCard, viewpointCardOpen?.arrowId).map((choice) => ({
+                  label: choice.label,
+                  primary: choice.primary,
+                  onClick: () => {
+                    setViewpointCardKey(null)
+                    handleUseViewpoint(viewpointCard, choice.arrow)
+                  },
+                }))}
+              />
+            </MapPopup>
+          )}
           {/* Only the assessment viewpoint keeps a marker — it is a single place,
         not a sample of a continuum. */}
           <MapCircleLayer
