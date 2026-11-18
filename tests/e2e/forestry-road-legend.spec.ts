@@ -1,5 +1,6 @@
 import { openWorkbench, selectWorkbench, startOnStandardPlanSymbols } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
+import { openDrainageInputs } from './road-drainage-inputs'
 import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 20000 })
@@ -186,6 +187,7 @@ test('drainage legend follows the actual analysis and drops stale flow overlays'
   const content = await expandLegend(page)
   await expect(content).toContainText('Existing-ground drainage')
   await expect(content).toContainText('Design-surface drainage')
+  await openDrainageInputs(panel)
   await panel.getByLabel('Rainfall (mm/h)', { exact: true }).fill('60')
   await expect.poll(async () => (await mapData(page))?.drainage).toEqual([])
   await expect(content.locator('[data-legend-section="drainage"]')).toHaveCount(0)

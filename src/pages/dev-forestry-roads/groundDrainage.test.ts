@@ -180,7 +180,7 @@ describe('saving and keying', () => {
   })
   it('refuses a margin past the limit and an area that is not a polygon', () => {
     expect(() => parseGroundDrainage({ settings: { ...DEFAULT_GROUND_DRAINAGE_SETTINGS, marginM: 5000 } })).toThrow(
-      /margin/,
+      /Upslope buffer/,
     )
     expect(() =>
       parseGroundDrainage({
