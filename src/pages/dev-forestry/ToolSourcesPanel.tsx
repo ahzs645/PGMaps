@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { createId, type ForestryScene } from './scene'
-import { MASK_LABELS } from './assessmentMasks'
+import { MASK_LABELS, MAX_ASSESSMENT_MASKS } from './assessmentMasks'
 import { readShapeFile } from './shapeImport'
 import { importLocalRaster } from './toolImports'
 import type { AssessmentMaskKind, LocalRaster } from './types'
@@ -35,7 +35,8 @@ export function ToolSourcesPanel({
       const parsed = await readShapeFile(file)
       const scene = sceneRef.current
       if (!parsed.polygons.length) throw new Error('The file contains no polygons.')
-      if ((scene.masks?.length ?? 0) + parsed.polygons.length > 100) throw new Error('Use at most 100 masks.')
+      if ((scene.masks?.length ?? 0) + parsed.polygons.length > MAX_ASSESSMENT_MASKS)
+        throw new Error(`Use at most ${MAX_ASSESSMENT_MASKS} masks.`)
       onChange({
         ...scene,
         masks: [
@@ -122,7 +123,7 @@ export function ToolSourcesPanel({
             <Button
               size="sm"
               variant="outline"
-              disabled={!selected || busy || (scene.masks?.length ?? 0) >= 100}
+              disabled={!selected || busy || (scene.masks?.length ?? 0) >= MAX_ASSESSMENT_MASKS}
               onClick={() => {
                 if (selected)
                   onChange({

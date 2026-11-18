@@ -15,7 +15,7 @@ export const MASK_LABELS = {
 } as const
 
 /** The most masks a scene keeps (`parseMasks`). */
-export const MAX_ASSESSMENT_MASKS = 100
+export const MAX_ASSESSMENT_MASKS = 200
 
 /** A stored historical exclusion applies only to the adopted face it was traced on. */
 export function masksForLandform(masks: AssessmentMask[] | undefined, landformId: string | null | undefined) {
