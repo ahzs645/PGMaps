@@ -10,6 +10,15 @@ export type ActionMenuItem =
       label: string
       ariaLabel?: string
       icon?: ReactNode
+      /** Draw the icon after the label, for a forward action such as "Next". The shortcut then leads. */
+      iconPosition?: 'start' | 'end'
+      /**
+       * A keyboard shortcut shown as a key beside the label, e.g. `]`. It is announced through
+       * `aria-keyshortcuts`, so keep it out of `label` and `ariaLabel`.
+       */
+      shortcut?: string
+      /** The `aria-keyshortcuts` value when the shown `shortcut` is not in its syntax (e.g. "⌘K" → "Meta+K"). */
+      keyShortcuts?: string
       /** Two consecutive half-width actions share a row. */
       width?: 'half'
       onSelect: () => void
@@ -148,6 +157,23 @@ export function ActionMenu({
               )
             }
             const checkable = item.checked !== undefined
+            const iconAtEnd = !checkable && !!item.icon && item.iconPosition === 'end'
+            const menuIcon = item.icon ? (
+              <span
+                className="flex size-4 shrink-0 items-center justify-center text-muted-foreground"
+                aria-hidden="true"
+              >
+                {item.icon}
+              </span>
+            ) : null
+            const shortcut = item.shortcut ? (
+              <kbd
+                aria-hidden="true"
+                className="shrink-0 rounded-sm border border-border px-1 font-mono text-2xs text-muted-foreground"
+              >
+                {item.shortcut}
+              </kbd>
+            ) : null
             return (
               <button
                 key={item.id}
@@ -155,11 +181,12 @@ export function ActionMenu({
                 data-menu-item=""
                 role={checkable ? (item.radio ? 'menuitemradio' : 'menuitemcheckbox') : 'menuitem'}
                 aria-label={item.ariaLabel}
+                aria-keyshortcuts={item.keyShortcuts ?? item.shortcut}
                 aria-checked={checkable ? item.checked : undefined}
                 disabled={item.disabled}
                 className={cn(
                   'flex w-full min-w-0 items-center gap-2.5 px-3 py-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:cursor-not-allowed disabled:opacity-50 touch:py-3',
-                  item.width !== 'half' && 'col-span-2',
+                  item.width === 'half' ? 'gap-2' : 'col-span-2',
                   item.tone === 'danger' && 'text-destructive',
                 )}
                 onClick={(event) => {
@@ -175,15 +202,13 @@ export function ActionMenu({
                   <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
                     {item.checked && <Check className="size-4" />}
                   </span>
-                ) : item.icon ? (
-                  <span
-                    className="flex size-4 shrink-0 items-center justify-center text-muted-foreground"
-                    aria-hidden="true"
-                  >
-                    {item.icon}
-                  </span>
+                ) : item.icon && !iconAtEnd ? (
+                  menuIcon
                 ) : null}
-                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                {iconAtEnd && shortcut}
+                <span className={cn('min-w-0 flex-1 truncate', iconAtEnd && 'text-right')}>{item.label}</span>
+                {!iconAtEnd && shortcut}
+                {iconAtEnd && menuIcon}
               </button>
             )
           })}

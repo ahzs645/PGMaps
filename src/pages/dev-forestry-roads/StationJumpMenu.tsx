@@ -92,7 +92,7 @@ export function StationJumpMenu({
       <ActionMenu
         label={mobile ? 'Station options' : `Jump to: ${words.label}`}
         align={mobile ? 'end' : 'start'}
-        width={248}
+        width={264}
         onOpenChange={setMenuOpen}
         triggerClassName="road-station-options flex items-center justify-center rounded-md border border-input bg-background px-1.5 py-1 text-xs text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         trigger={
@@ -124,8 +124,9 @@ export function StationJumpMenu({
           { type: 'separator', id: 'sep' },
           {
             id: 'previous',
-            label: 'Previous [',
-            ariaLabel: `Previous ${words.noun} [`,
+            label: 'Previous',
+            ariaLabel: `Previous ${words.noun}`,
+            shortcut: '[',
             width: 'half',
             icon: <ChevronsLeft className="size-4" />,
             disabled,
@@ -133,10 +134,12 @@ export function StationJumpMenu({
           },
           {
             id: 'next',
-            label: 'Next ]',
-            ariaLabel: `Next ${words.noun} ]`,
+            label: 'Next',
+            ariaLabel: `Next ${words.noun}`,
+            shortcut: ']',
             width: 'half',
             icon: <ChevronsRight className="size-4" />,
+            iconPosition: 'end',
             disabled,
             onSelect: () => jump(1),
           },
