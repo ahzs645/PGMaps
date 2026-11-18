@@ -6,7 +6,7 @@
  *
  * Free of DOM and network access.
  */
-import type { ExifReading, PoseSource } from './exifPose'
+import type { ExifReading, OwnPoseSources, PoseSource } from './exifPose'
 import { sameCamera, type AcceptancePose, type PhotoAcceptance, type PhotoCameraMethod } from './photoAcceptance'
 import { groupFlights, type LensCheck } from './photoFlight'
 import { photoReasons, type PhotoFailureReason, type PhotoOptionKind, type PhotoQueueStatus } from './photoOptions'
@@ -40,12 +40,18 @@ export const TILT_PITCH_SPAN = 6
  */
 export const CROP_MIN_LENS_SHARE = 0.4
 
-/** The heading sources the queue may overwrite with what it finds: a start, never a reviewer's or a record's value. */
-const AUTOMATIC_HEADING = new Set<PoseSource>(['exif', 'road-view', 'default', 'level'])
+/** The initial angle sources the queue may replace with a search result. */
+const AUTOMATIC_ANGLE = new Set<PoseSource>(['exif', 'road-view', 'default', 'level'])
 
-/** Whether the queue may set a photo's angles from its search: only while they are still a stand-in or the phone's. */
-export function queueMaySetPose(headingSource: PoseSource): boolean {
-  return AUTOMATIC_HEADING.has(headingSource)
+/** Whether the angles, and the lens when fitted, still come from the initial camera. */
+export function queueMaySetPose(
+  sources: Pick<OwnPoseSources, 'heading' | 'pitch' | 'roll' | 'fov'>,
+  changesLens: boolean,
+): boolean {
+  return (
+    [sources.heading, sources.pitch, sources.roll].every((source) => AUTOMATIC_ANGLE.has(source)) &&
+    (!changesLens || AUTOMATIC_ANGLE.has(sources.fov))
+  )
 }
 
 /**
@@ -159,14 +165,6 @@ export function photoFlights(photos: readonly Timed[]): Map<string, { flightId: 
   return placed
 }
 
-/**
- * Whether a narrow search round a burst neighbour's camera can stand without the full one: only a trustworthy fit. An
- * ambiguous or untrusted one always goes on to the 360° search, because the prior hides any runner-up outside it.
- */
-export function narrowSearchSettles(result: Pick<WideSearchResult, 'trustworthy'> | null): boolean {
-  return !!result && result.trustworthy
-}
-
 /** The camera the check images were drawn for that is the camera as it stands, else the last one drawn. */
 export function checkedPoseFor(
   drawn: readonly AcceptancePose[],
@@ -195,6 +193,8 @@ export function methodForOption(kind: PhotoOptionKind): PhotoCameraMethod {
       return 'phone'
     case 'neighbour':
       return 'neighbour'
+    case 'landmark':
+      return 'landmark'
     case 'points':
       return 'points'
     case 'matched':
@@ -222,7 +222,7 @@ export function methodForSource(heading: PoseSource): PhotoCameraMethod {
 export function sourcesForOption(kind: PhotoOptionKind): {
   heading: PoseSource
   pitch: PoseSource
-  roll: PoseSource
+  roll?: PoseSource
   /** Set too when the row moves the camera's place or lens (a point solve, a matched camera). */
   position?: PoseSource
 } {
@@ -235,6 +235,8 @@ export function sourcesForOption(kind: PhotoOptionKind): {
     // Another frame's camera, taken by the reviewer for this one: theirs, as a typed value would be.
     case 'neighbour':
       return { heading: 'reviewer', pitch: 'reviewer', roll: 'reviewer' }
+    case 'landmark':
+      return { heading: 'landmark', pitch: 'landmark' }
     case 'points':
       return { heading: 'controls', pitch: 'controls', roll: 'controls', position: 'controls' }
     case 'matched':
@@ -284,13 +286,14 @@ export function photoQueueStatus(input: {
   checked: readonly AcceptancePose[]
   search: 'idle' | 'working' | 'done' | 'failed'
   found: PhotoFound | null
+  hasCameraOption?: boolean
 }): PhotoQueueStatus {
   if (input.running || input.search === 'working') return 'searching'
   const current = input.pose
   if (input.acceptance && current && sameCamera(input.acceptance.pose, current)) return 'accepted'
   if (current && input.checked.some((pose) => sameCamera(pose, current))) return 'checked'
   if (input.queued) return 'queued'
-  if (input.search === 'done') return 'options'
+  if (input.search === 'done' || input.hasCameraOption) return 'options'
   if (
     input.search === 'failed' ||
     input.found?.stopped ||

@@ -19,6 +19,7 @@ import {
   ArrowRight,
   Camera,
   Check,
+  Crosshair,
   Loader2,
   Map as MapIcon,
   MapPin,
@@ -42,6 +43,8 @@ import { sameCamera } from './photoAcceptance'
 import { PhotoAdjustPanel } from './PhotoAdjustPanel'
 import type { StartPlanPick } from './PhotoCameraTools'
 import { PhotoCompare } from './PhotoCompare'
+import { PhotoCombinedPanel } from './PhotoCombinedPanel'
+import { PhotoFlightMatchPanel } from './PhotoFlightMatchPanel'
 import { PhotoOptionsCard, ownAcceptancePose } from './PhotoOptionsCard'
 import { controlSolveSuspect } from './photoQueue'
 import { PhotoStrip, queueLine } from './PhotoStrip'
@@ -166,6 +169,8 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
       }
     : undefined
   const moveTo = (point: { lng: number; lat: number }) => photo.setOwnPose(point)
+  const landmarkCount = photo.pairs.filter((pair) => !photo.pairsOff.includes(pair.id)).length
+  const guideWithLandmarks = !!current && !!startPick && (entry?.status !== 'accepted' || landmarkCount > 0)
   const placePoint = (x: number, y: number) => {
     if (!startPick) return
     const pixel: [number, number] = [x, y]
@@ -184,8 +189,10 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
     // Counted once what is drawn over the photo has its hit buffer for this exact camera (`requestCheck`), never on
     // the click alone.
     photo.requestCheck(own.id)
-    const view = photo.workFor(own.id).modelViews.camera
-    if (!view || !photo.activePoseKey || view.poseKey !== photo.activePoseKey) void photo.renderModel('camera')
+    const hasModel =
+      !!photo.activePoseKey &&
+      Object.values(photo.workFor(own.id).modelViews).some((model) => model.poseKey === photo.activePoseKey)
+    if (!hasModel) void photo.renderModel('camera')
   }
   const accept = () => {
     if (!own) return
@@ -368,11 +375,61 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                     </Button>
                   }
                 />
-                <PhotoCompare photo={photo} />
+                <PhotoCompare
+                  key={own.id}
+                  photo={photo}
+                  active={tab === 'camera' && photo.ownDialog.open && !steppedAside}
+                />
               </div>
               <div className="min-w-0 space-y-4 text-sm">
                 {photo.ownStatus.error && <InlineAlert tone="error">{photo.ownStatus.error}</InlineAlert>}
+                {guideWithLandmarks && (
+                  <section className="space-y-2 rounded-md border border-border p-3" aria-label="Guide with landmarks">
+                    <h4 className="text-sm font-semibold">Guide with landmarks</h4>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      {landmarkCount === 0
+                        ? 'Click one distinct road bend, shoreline corner or peak in the photo and on the plan to get a starting camera.'
+                        : landmarkCount === 1 && options.some((option) => option.kind === 'landmark')
+                          ? 'Try the one-landmark starting camera below. Pair another landmark far from the first to refine roll.'
+                          : landmarkCount < photo.pairsNeeded
+                            ? 'Pair another landmark well away from the first, preferably at a different distance.'
+                            : landmarkCount < photo.controlCheckCount
+                              ? `You can solve now. Use ${photo.controlCheckCount} landmarks to measure error on a point left out of the fit.`
+                              : 'Solve from the paired landmarks, then check the held-out error.'}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="touch:h-10"
+                        aria-pressed={placing}
+                        onClick={() => {
+                          setAlign(false)
+                          setPlacing(!placing)
+                        }}
+                      >
+                        <Crosshair className="h-4 w-4" />
+                        {placing ? 'Cancel landmark pick' : landmarkCount ? 'Pair another landmark' : 'Pair a landmark'}
+                      </Button>
+                      {landmarkCount >= photo.pairsNeeded && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="touch:h-10"
+                          disabled={!!photo.toolsBusy}
+                          onClick={() => void photo.solveFromPoints()}
+                        >
+                          Solve from {landmarkCount} landmarks
+                        </Button>
+                      )}
+                    </div>
+                  </section>
+                )}
+                {tab === 'camera' && <PhotoFlightMatchPanel photo={photo} />}
                 <PhotoOptionsCard photo={photo} onAdjust={() => setAdjust(true)} />
+                {tab === 'camera' && <PhotoCombinedPanel key={own.id} photo={photo} />}
                 <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
                   <p className="text-xs text-muted-foreground">
                     {checked

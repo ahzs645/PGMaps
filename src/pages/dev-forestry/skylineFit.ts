@@ -344,8 +344,16 @@ export function fitSkyline(
       }
     }
   }
-  search(0.25, 0.1, { bearing: 0, pitch: 0 }, bearingRange, pitchRange)
-  search(0.05, 0.02, { bearing: best.bearing, pitch: best.pitch }, 0.3, 0.12)
+  if (bearingRange > 0 || pitchRange > 0) {
+    search(0.25, 0.1, { bearing: 0, pitch: 0 }, bearingRange, pitchRange)
+    search(
+      0.05,
+      0.02,
+      { bearing: best.bearing, pitch: best.pitch },
+      Math.min(0.3, bearingRange),
+      Math.min(0.12, pitchRange),
+    )
+  }
   const judged = best.on + best.below
   const agreement = judged ? best.on / judged : 0
   return {

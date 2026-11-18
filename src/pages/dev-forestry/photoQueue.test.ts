@@ -9,7 +9,6 @@ import {
   lensRangeFor,
   methodForOption,
   methodForSource,
-  narrowSearchSettles,
   nextInQueue,
   photoFlights,
   photoQueueStatus,
@@ -95,18 +94,15 @@ describe('cache keys and ranges', () => {
 })
 
 describe('what the queue may do', () => {
-  it('sets the angles only while they are a stand-in or the phone’s', () => {
-    expect(queueMaySetPose('exif')).toBe(true)
-    expect(queueMaySetPose('road-view')).toBe(true)
-    expect(queueMaySetPose('reviewer')).toBe(false)
-    expect(queueMaySetPose('record')).toBe(false)
-    expect(queueMaySetPose('skyline')).toBe(false)
-  })
-
-  it('lets a narrow search stand alone only when it is trustworthy', () => {
-    expect(narrowSearchSettles({ trustworthy: true })).toBe(true)
-    expect(narrowSearchSettles({ trustworthy: false })).toBe(false)
-    expect(narrowSearchSettles(null)).toBe(false)
+  it('sets the angles only while the fitted values are still initial estimates', () => {
+    const start = { heading: 'exif', pitch: 'default', roll: 'level', fov: 'exif' } as const
+    expect(queueMaySetPose(start, true)).toBe(true)
+    expect(queueMaySetPose({ ...start, heading: 'road-view' }, false)).toBe(true)
+    expect(queueMaySetPose({ ...start, heading: 'record' }, false)).toBe(false)
+    expect(queueMaySetPose({ ...start, pitch: 'reviewer' }, false)).toBe(false)
+    expect(queueMaySetPose({ ...start, roll: 'reviewer' }, false)).toBe(false)
+    expect(queueMaySetPose({ ...start, fov: 'reviewer' }, true)).toBe(false)
+    expect(queueMaySetPose({ ...start, fov: 'reviewer' }, false)).toBe(true)
   })
 
   it('names the method from the row used, else from where the heading came', () => {

@@ -11,8 +11,8 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 import { sameCamera, type AcceptancePose } from './photoAcceptance'
-import { NEIGHBOUR_AGREE_DEGREES, type PhotoOption } from './photoOptions'
-import type { FieldPhotoState, ModelViewImage } from './useFieldPhoto'
+import { NEIGHBOUR_AGREE_DEGREES } from './photoOptions'
+import type { FieldPhotoState, ModelViewImage, PhotoModelViewKind } from './useFieldPhoto'
 
 const signed = (value: number, digits = 1) => `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(digits)}°`
 
@@ -30,13 +30,12 @@ export function ownAcceptancePose(own: FieldPhotoState['own']): AcceptancePose |
   }
 }
 
-/** A model view drawn for a row's camera (place, angles and lens), when one was. */
-function viewFor(views: Partial<Record<'camera' | 'runner-up', ModelViewImage>>, option: PhotoOption) {
-  for (const which of ['camera', 'runner-up'] as const) {
-    const view = views[which]
-    if (view?.pose && sameCamera(view.pose, option.pose)) return { which, view }
-  }
-  return null
+/** A model view drawn for this camera, wherever it was kept. */
+export function modelViewFor(
+  views: Partial<Record<PhotoModelViewKind, ModelViewImage>>,
+  pose: AcceptancePose | null,
+): ModelViewImage | null {
+  return (pose && Object.values(views).find((view) => view.pose && sameCamera(view.pose, pose))) || null
 }
 
 export function PhotoOptionsCard({ photo, onAdjust }: { photo: FieldPhotoState; onAdjust: () => void }) {
@@ -71,15 +70,16 @@ export function PhotoOptionsCard({ photo, onAdjust }: { photo: FieldPhotoState; 
       </div>
       {search.status === 'done' && search.neighbour && (
         <p className="text-2xs leading-4 text-muted-foreground">
-          Searched round {search.neighbour.name}, taken {Math.abs(Math.round(search.neighbour.gapSeconds))} s apart
-          {search.neighbour.narrowStood ? '; that narrow search stood alone.' : ', then every heading.'}
+          Also checked the heading around {search.neighbour.name}, taken{' '}
+          {Math.abs(Math.round(search.neighbour.gapSeconds))} s apart.
         </p>
       )}
       <ol className="space-y-2">
         {options.map((option) => {
           const inUse = !!current && sameCamera(option.pose, current)
-          const thumb = viewFor(work.modelViews, option)
-          const drawable = inUse ? 'camera' : option.kind === 'runner-up' ? 'runner-up' : null
+          const thumb = modelViewFor(work.modelViews, option.pose)
+          const drawable =
+            option.kind === 'winner' || option.kind === 'runner-up' ? option.kind : inUse ? 'camera' : null
           const { evidence } = option
           return (
             <li
@@ -87,17 +87,19 @@ export function PhotoOptionsCard({ photo, onAdjust }: { photo: FieldPhotoState; 
               className={cn('rounded-md border p-2 text-xs', inUse ? 'border-primary' : 'border-border')}
               aria-label={`${option.label}${inUse ? ', in use' : ''}`}
             >
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <div className="w-24 shrink-0">
                   {thumb ? (
                     <figure>
                       <img
-                        src={thumb.view.url}
-                        alt={`Model view at heading ${thumb.view.bearing.toFixed(0)}°`}
+                        src={thumb.url}
+                        alt={`Model view at heading ${thumb.bearing.toFixed(0)}°`}
                         className="w-full rounded-sm"
                       />
                       <figcaption className="text-3xs text-muted-foreground tabular-nums">
-                        agreement {thumb.view.score.toFixed(2)}
+                        {Number.isFinite(thumb.score)
+                          ? `Agreement ${thumb.score.toFixed(2)}`
+                          : 'Insufficient ground imagery'}
                       </figcaption>
                     </figure>
                   ) : drawable ? (
@@ -127,7 +129,7 @@ export function PhotoOptionsCard({ photo, onAdjust }: { photo: FieldPhotoState; 
                   </p>
                   <p className="text-muted-foreground tabular-nums">
                     Heading {option.pose.bearing.toFixed(1)}° · pitch {signed(option.pose.pitch)} · roll{' '}
-                    {signed(option.pose.roll)}
+                    {signed(option.pose.roll)} · {option.pose.hfov.toFixed(0)}° lens
                   </p>
                   {evidence.skyColumns !== undefined && (
                     <p className="text-muted-foreground tabular-nums">
@@ -154,6 +156,16 @@ export function PhotoOptionsCard({ photo, onAdjust }: { photo: FieldPhotoState; 
                   {evidence.heldOutMeters !== undefined && evidence.heldOutMeters !== null && (
                     <p className="text-muted-foreground tabular-nums">
                       Worst pair held out {Math.round(evidence.heldOutMeters)} m on the ground
+                    </p>
+                  )}
+                  {option.overlap && (
+                    <p className="text-muted-foreground tabular-nums">
+                      {option.overlap.matches} shared features ·{' '}
+                      {option.overlap.basis === 'terrain'
+                        ? `${option.overlap.controls} terrain points`
+                        : 'image geometry'}{' '}
+                      · held-out error at 1,050 px wide {option.overlap.medianPx.toFixed(1)} px median /{' '}
+                      {option.overlap.p90Px.toFixed(1)} px at the 90th percentile
                     </p>
                   )}
                   {evidence.sunNote && <p className="text-muted-foreground">Sun: {evidence.sunNote}.</p>}

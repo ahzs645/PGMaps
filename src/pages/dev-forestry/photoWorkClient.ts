@@ -161,6 +161,13 @@ const expect = <K extends PhotoWorkResult['kind']>(result: PhotoWorkResult, kind
   return result as Extract<PhotoWorkResult, { kind: K }>
 }
 
+export async function transferPhotoCamera(
+  input: Omit<Extract<PhotoWorkJob, { kind: 'transfer' }>, 'kind'>,
+  signal: AbortSignal,
+) {
+  return expect(await client().run({ kind: 'transfer', ...input }, {}, signal), 'transfer')
+}
+
 /** Every working pixel's ground for a camera (`buildHitBuffer`), about 0.2 s for 525 px at the worker. */
 export async function castPhotoHits(
   input: { pose: PhotoPose; terrain: PhotoTerrainSpec; width?: number; maxMeters?: number },

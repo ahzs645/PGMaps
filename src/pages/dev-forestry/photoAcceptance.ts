@@ -15,10 +15,11 @@
 
 const RAD = Math.PI / 180
 
-export type PhotoCameraMethod = 'skyline' | 'points' | 'matched' | 'neighbour' | 'phone' | 'typed'
+export type PhotoCameraMethod = 'skyline' | 'landmark' | 'points' | 'matched' | 'neighbour' | 'phone' | 'typed'
 
 export const PHOTO_CAMERA_METHODS: readonly PhotoCameraMethod[] = [
   'skyline',
+  'landmark',
   'points',
   'matched',
   'neighbour',
@@ -52,6 +53,9 @@ export type PhotoAcceptance = {
     sunNote?: string | null
     heldOutMeters?: number | null
     worstPairPixels?: number | null
+    overlapBasis?: 'terrain' | 'image'
+    overlapP90Px?: number
+    overlapMatches?: number
     neighbourId?: string | null
     neighbourAgreesDegrees?: number | null
   }
@@ -211,7 +215,7 @@ function parsePose(raw: unknown): AcceptancePose | null {
 function parseEvidence(raw: unknown): AcceptanceEvidence {
   const e = plain(raw) ?? {}
   const out: AcceptanceEvidence = {}
-  const count = (key: 'skyColumns') => {
+  const count = (key: 'skyColumns' | 'overlapMatches') => {
     const v = e[key]
     if (finite(v) && v >= 0) out[key] = Math.round(v)
   }
@@ -238,6 +242,9 @@ function parseEvidence(raw: unknown): AcceptanceEvidence {
     else if (typeof v === 'string') out[key] = v.slice(0, MAX_TEXT)
   }
   count('skyColumns')
+  count('overlapMatches')
+  if (e.overlapBasis === 'terrain' || e.overlapBasis === 'image') out.overlapBasis = e.overlapBasis
+  if (finite(e.overlapP90Px) && e.overlapP90Px >= 0) out.overlapP90Px = e.overlapP90Px
   share('skySpanShare')
   share('agreeShare')
   if (typeof e.settled === 'boolean') out.settled = e.settled

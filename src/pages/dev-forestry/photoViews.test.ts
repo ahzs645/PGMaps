@@ -85,6 +85,12 @@ describe('a camera checked against the map', () => {
     expect(wrong.score).toBeLessThan(right.score - 0.5)
   }, 20_000)
 
+  it('leaves ground with missing imagery transparent and does not score it', () => {
+    const model = renderModelView(truth, terrain, () => null, 100)
+    expect(model.data.some((value, i) => i % 4 === 3 && value === 0)).toBe(true)
+    expect(modelAgreement(photo, model)).toMatchObject({ coverage: 0, score: Number.NaN })
+  })
+
   it('renders a strip at a time into the same image as a whole render', () => {
     const whole = renderModelView(truth, terrain, stripes, 80)
     const into = {
@@ -104,6 +110,24 @@ describe('a camera checked against the map', () => {
     const sample = mosaicSampler(mosaic, zoom, Math.floor(tx), Math.floor(ty))
     expect(sample(-122.5, 53.7)).toEqual([7, 7, 7])
     expect(sample(-121, 53.7)).toBeNull()
+    const x = Math.floor((tx % 1) * 256)
+    const y = Math.floor((ty % 1) * 256)
+    mosaic.data[(y * 256 + x) * 4 + 3] = 0
+    expect(sample(-122.5, 53.7)).toBeNull()
+  })
+
+  it('interpolates across pixels and preserves the local color next to missing imagery', () => {
+    const zoom = 12
+    const [tx, ty] = tileXY(-122.5, 53.7, zoom)
+    const mosaic = {
+      width: 2,
+      height: 2,
+      data: new Uint8ClampedArray([0, 0, 0, 255, 100, 100, 100, 255, 0, 0, 0, 255, 100, 100, 100, 255]),
+    }
+    const sample = mosaicSampler(mosaic, zoom, tx - 1 / 256, ty - 1 / 256)
+    expect(sample(-122.5, 53.7)).toEqual([50, 50, 50])
+    mosaic.data[3] = 0
+    expect(sample(-122.5, 53.7)).toEqual([100, 100, 100])
   })
 
   it("traces the frame's footprint round the frame, around the ground the camera sees", () => {

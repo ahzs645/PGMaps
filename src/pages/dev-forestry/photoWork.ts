@@ -16,6 +16,11 @@ import { demTileRange, type DemTileRange, type ElevationSource } from '@/lib/for
 import { PhotoCache } from './photoCache'
 import { buildHitBuffer, type HitBuffer } from './photoHitBuffer'
 import type { PhotoPose } from './photoPose'
+import { ownPhotoPose } from './exifPose'
+import type { AcceptancePose } from './photoAcceptance'
+import { transferCamera, type ImageMatch, type TransferResult } from './photoOverlap'
+import { relativePhotoPose, type RelativePose } from './photoRelativePose'
+import { airborneAltitude } from './photoQueue'
 import {
   drapePhoto,
   modelAgreement,
@@ -96,7 +101,22 @@ export function imagerySampler(layers: readonly ImageryLayer[]): ImagerySampler 
 
 export type ModelAgreement = ReturnType<typeof modelAgreement>
 
+export type TransferFrame = {
+  pose: AcceptancePose
+  eyeHeightMeters: number
+  gpsAltitudeMeters?: number | null
+  width: number
+  height: number
+}
+
 export type PhotoWorkJob =
+  | {
+      kind: 'transfer'
+      reference: TransferFrame
+      target: TransferFrame
+      matches: ImageMatch[]
+      terrain: PhotoTerrainSpec
+    }
   | { kind: 'hitBuffer'; pose: PhotoPose; terrain: PhotoTerrainSpec; width?: number; maxMeters?: number }
   | {
       kind: 'modelView'
@@ -121,6 +141,7 @@ export type PhotoWorkJob =
     }
 
 export type PhotoWorkResult =
+  | { kind: 'transfer'; transfer: TransferResult; relative: RelativePose | null; airborne: boolean }
   | { kind: 'hitBuffer'; buffer: HitBuffer }
   | { kind: 'modelView'; image: Rgba; agreement: ModelAgreement | null }
   | { kind: 'drape'; drape: Drape | null }
@@ -225,6 +246,35 @@ export function createPhotoWorkHost({
     if (cancelled.has(id)) throw new Cancelled()
     sliceStart = now()
 
+    if (job.kind === 'transfer') {
+      const camera = ({ pose, eyeHeightMeters, width, height }: TransferFrame) => ({
+        ...ownPhotoPose({ ...pose, eyeHeightMeters }, terrain.elevationAt(pose.lng, pose.lat), width, height),
+        hfov: pose.hfov,
+      })
+      const reference = camera(job.reference)
+      const targetGround = terrain.elevationAt(job.target.pose.lng, job.target.pose.lat)
+      const altitude =
+        job.target.pose.altitudeMeters ??
+        airborneAltitude({
+          gpsAltitudeMeters: job.target.gpsAltitudeMeters,
+          groundMeters: targetGround,
+          eyeSource: 'default',
+        })
+      const target = camera({ ...job.target, pose: { ...job.target.pose, altitudeMeters: altitude } })
+      const airborne = altitude !== null
+      const transfer =
+        Number.isFinite(reference.altitudeMeters) && Number.isFinite(target.altitudeMeters)
+          ? transferCamera(reference, target, terrain, job.matches, airborne)
+          : { status: 'insufficient' as const, controls: 0, reason: 'Terrain is missing under a ground camera' }
+      const relative =
+        transfer.status !== 'candidate' &&
+        Number.isFinite(reference.altitudeMeters) &&
+        Number.isFinite(target.altitudeMeters)
+          ? relativePhotoPose(reference, target, job.matches)
+          : null
+      post({ type: 'done', id, result: { kind: 'transfer', transfer, relative, airborne } })
+      return
+    }
     if (job.kind === 'hitBuffer') {
       const buffer = buildHitBuffer(job.pose, terrain, { width: job.width, maxMeters: job.maxMeters })
       post(

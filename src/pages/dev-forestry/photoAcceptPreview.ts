@@ -76,6 +76,7 @@ export function acceptPreview(input: AcceptPreviewInput): AcceptPreview {
 
 /** How a method reads in the acceptance's summary. */
 export const METHOD_TEXT: Record<PhotoCameraMethod, string> = {
+  landmark: 'one paired landmark',
   skyline: 'fitted to the skyline',
   points: 'solved from paired points',
   matched: 'from a matched camera',

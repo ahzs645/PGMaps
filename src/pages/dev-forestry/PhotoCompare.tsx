@@ -6,25 +6,33 @@
  * See docs/forestry-visual-quality-own-photo-redesign-2026-11-17.md, §2.5.
  */
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { Loader2, Mountain } from 'lucide-react'
+import { Loader2, Mountain, SlidersHorizontal } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { cn } from '@/lib/utils'
 
+import { PhotoFineTune, type FineTuneStart, type FineTuneStep } from './PhotoFineTune'
+import { modelViewFor } from './PhotoOptionsCard'
 import type { FieldPhotoState, ModelViewImage } from './useFieldPhoto'
 
-type Mode = 'swipe' | 'blink'
+type Mode = 'swipe' | 'blink' | 'blend'
 
 /** Whether a key event comes from somewhere typing happens, where B is a letter, not a blink. */
 const typing = (target: EventTarget | null) =>
   target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
 
-export function PhotoCompare({ photo }: { photo: FieldPhotoState }) {
+export function PhotoCompare({ photo, active }: { photo: FieldPhotoState; active: boolean }) {
   const own = photo.own
   const [mode, setMode] = useState<Mode>('swipe')
   const [split, setSplit] = useState(50)
+  const [opacity, setOpacity] = useState(50)
   const [blink, setBlink] = useState(false)
+  const [showCandidates, setShowCandidates] = useState(false)
+  const [fineTune, setFineTune] = useState<FineTuneStart | null>(null)
+  const [step, setStep] = useState<FineTuneStep>('fine')
+  const [previewFailure, setPreviewFailure] = useState<string | null>(null)
+  const [retryPreview, setRetryPreview] = useState(0)
   const box = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
 
@@ -47,14 +55,37 @@ export function PhotoCompare({ photo }: { photo: FieldPhotoState }) {
     }
   }, [])
 
-  if (!own) return null
-  const work = photo.workFor(own.id)
-  const camera = work.modelViews.camera
-  // The model view drawn for this exact camera (place, angles and lens), never one that only shares its heading.
-  const view = camera && !!photo.activePoseKey && camera.poseKey === photo.activePoseKey ? camera : null
+  // Reuse an existing model only when it was drawn for this exact pose.
+  const { activePoseKey, previewCamera } = photo
+  const photoId = own?.id
+  const work = photoId ? photo.workFor(photoId) : null
+  const fullView = Object.values(work?.modelViews ?? {}).find((model) => model.poseKey === activePoseKey)
+  const currentView = fullView ?? (work?.previewModel?.poseKey === activePoseKey ? work?.previewModel : undefined)
+  const needsPreview = active && !!fineTune && !!activePoseKey && !currentView
+  useEffect(() => {
+    if (!needsPreview || !photoId) return
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      void previewCamera(photoId, controller.signal).catch(() => {
+        if (!controller.signal.aborted) setPreviewFailure(activePoseKey)
+      })
+    }, 350)
+    return () => {
+      controller.abort()
+      window.clearTimeout(timer)
+    }
+  }, [needsPreview, photoId, activePoseKey, previewCamera, retryPreview])
+
+  if (!own || !work) return null
+  const failed = !currentView && !!activePoseKey && previewFailure === activePoseKey
+  const view = currentView ?? (fineTune ? (work.previewModel ?? work.modelViews.camera) : null)
   const search = work.search.status === 'done' ? work.search.result : null
-  const notSettled = !!search && !search.trustworthy
-  const runnerUp = work.modelViews['runner-up'] ?? null
+  const options = photo.optionsFor(own.id)
+  const best = options.find((option) => option.kind === 'winner')
+  const alternative = options.find((option) => option.kind === 'runner-up')
+  const compareCandidates = !!search?.ambiguous && !!best && !!alternative
+  const winner = modelViewFor(work.modelViews, best?.pose ?? null)
+  const runnerUp = modelViewFor(work.modelViews, alternative?.pose ?? null)
 
   const setFrom = (event: PointerEvent<HTMLDivElement>) => {
     const rect = box.current?.getBoundingClientRect()
@@ -70,41 +101,88 @@ export function PhotoCompare({ photo }: { photo: FieldPhotoState }) {
     <section className="space-y-2" aria-label="Photo against the model view" data-testid="own-photo-compare">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-sm font-semibold">Compare with the model view</h4>
-        <SegmentedControl<Mode>
-          label="How to compare"
+        <Button
+          type="button"
+          variant={fineTune ? 'secondary' : 'outline'}
           size="sm"
-          fullWidth={false}
-          value={mode}
-          onChange={setMode}
-          options={[
-            { value: 'swipe', label: 'Swipe' },
-            { value: 'blink', label: 'Blink (hold B)' },
-          ]}
-        />
+          className="touch:h-10"
+          aria-expanded={!!fineTune}
+          disabled={own.pose.lng == null || own.pose.lat == null}
+          onClick={() => {
+            setPreviewFailure(null)
+            setFineTune(fineTune ? null : { pose: own.pose, sources: own.sources, chosen: own.chosen })
+          }}
+        >
+          <SlidersHorizontal className="size-3.5" />
+          {fineTune ? 'Finish fine-tuning' : 'Fine-tune camera'}
+        </Button>
       </div>
+      {fineTune && <PhotoFineTune own={own} photo={photo} start={fineTune} step={step} onStep={setStep} />}
+      {fineTune && !currentView && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+          {failed ? (
+            <>
+              The preview could not be drawn.
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => {
+                  setPreviewFailure(null)
+                  setRetryPreview((count) => count + 1)
+                }}
+              >
+                Retry preview
+              </Button>
+            </>
+          ) : (
+            <>
+              <Loader2 className="size-3.5 animate-spin" />
+              {activePoseKey ? 'Updating the model preview…' : 'Waiting for terrain…'}
+            </>
+          )}
+        </div>
+      )}
+      <SegmentedControl<Mode>
+        label="How to compare"
+        size="sm"
+        fullWidth={false}
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: 'swipe', label: 'Swipe' },
+          { value: 'blend', label: 'Blend' },
+          { value: 'blink', label: 'Blink (hold B)' },
+        ]}
+      />
       {!view ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <p className="min-w-0 flex-1 leading-5">
-            The model view draws satellite imagery as this camera would see it: roads, openings and lakes should fall
-            where the photo has them. It needs no skyline.
+            Check whether roads, openings and lakes appear in the same places in the photo and the model.
           </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="touch:h-10"
-            disabled={!!photo.toolsBusy || own.pose.lng === null}
-            onClick={() => void photo.renderModel('camera')}
-          >
-            {photo.toolsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mountain className="h-4 w-4" />}
-            Draw the model view for this camera
-          </Button>
+          {!fineTune && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="touch:h-10"
+              disabled={!!photo.toolsBusy || own.pose.lng === null}
+              onClick={() => void photo.renderModel('camera')}
+            >
+              {photo.toolsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mountain className="h-4 w-4" />}
+              Draw the model view for this camera
+            </Button>
+          )}
         </div>
       ) : (
         <>
           <div
             ref={box}
-            className={cn('relative overflow-hidden rounded-sm', mode === 'swipe' && 'cursor-ew-resize touch-none')}
+            className={cn(
+              'relative mx-auto w-full overflow-hidden rounded-sm',
+              mode === 'swipe' && 'cursor-ew-resize touch-none',
+            )}
+            style={fineTune ? { maxWidth: `calc(42dvh * ${own.width / own.height})` } : undefined}
             onPointerDown={(event) => {
               if (mode !== 'swipe') return
               dragging.current = true
@@ -118,12 +196,12 @@ export function PhotoCompare({ photo }: { photo: FieldPhotoState }) {
             <img
               src={view.url}
               alt={`Model view at heading ${view.bearing.toFixed(0)}°`}
-              className="absolute inset-0 h-full w-full"
+              className="absolute inset-0 h-full w-full bg-muted"
               draggable={false}
               style={
                 mode === 'swipe'
                   ? { clipPath: `inset(0 0 0 ${split}%)` }
-                  : { opacity: blink ? 1 : 0, transition: 'none' }
+                  : { opacity: mode === 'blend' ? opacity / 100 : blink ? 1 : 0, transition: 'none' }
               }
             />
             {mode === 'swipe' && (
@@ -154,18 +232,56 @@ export function PhotoCompare({ photo }: { photo: FieldPhotoState }) {
                 Hold to show the model view
               </Button>
             )}
+            {mode === 'blend' && (
+              <label className="flex items-center gap-2">
+                Model opacity
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={opacity}
+                  onChange={(event) => setOpacity(event.currentTarget.valueAsNumber)}
+                />
+              </label>
+            )}
             <span className="tabular-nums">
-              {mode === 'swipe' ? 'Photo left, model view right' : blink ? 'Model view' : 'Photo'} · heading{' '}
-              {view.bearing.toFixed(1)}° · agreement {view.score.toFixed(2)}
+              {!currentView
+                ? 'Preview for the previous camera'
+                : `${mode === 'swipe' ? 'Photo left, model view right' : mode === 'blend' ? 'Photo and model' : blink ? 'Model view' : 'Photo'} · heading ${view.bearing.toFixed(2)}° · ${fullView ? agreementLabel(view) : 'Preview'}`}
             </span>
+            {!fineTune && !fullView && (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                disabled={!!photo.toolsBusy}
+                onClick={() => void photo.renderModel('camera')}
+              >
+                Draw full model view
+              </Button>
+            )}
           </div>
           <p className="text-2xs leading-4 text-muted-foreground">
-            Agreement correlates the photo with the model view over the ground, in brightness and in edges. Higher is
-            better; it is evidence beside the skyline and the sun, not a verdict.
+            Agreement compares brightness and edges where the model has satellite imagery. Check where individual
+            landmarks line up before accepting a camera.
           </p>
         </>
       )}
-      {notSettled && <NotSettledGrid photo={photo} camera={view} runnerUp={runnerUp} />}
+      {compareCandidates && (
+        <div className="space-y-2 border-t border-border pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="touch:h-10"
+            aria-expanded={showCandidates}
+            onClick={() => setShowCandidates((shown) => !shown)}
+          >
+            {showCandidates ? 'Hide comparison' : 'Compare skyline candidates'}
+          </Button>
+          {showCandidates && <NotSettledGrid photo={photo} camera={winner} runnerUp={runnerUp} />}
+        </div>
+      )}
     </section>
   )
 }
@@ -204,10 +320,12 @@ function NotSettledGrid({
         if (!context) return
         context.drawImage(a, 0, 0)
         const first = context.getImageData(0, 0, width, height)
+        context.clearRect(0, 0, width, height)
         context.drawImage(b, 0, 0, width, height)
         const second = context.getImageData(0, 0, width, height)
         const out = context.createImageData(width, height)
         for (let i = 0; i < out.data.length; i += 4) {
+          if (!first.data[i + 3] || !second.data[i + 3]) continue
           const d =
             (Math.abs(first.data[i] - second.data[i]) +
               Math.abs(first.data[i + 1] - second.data[i + 1]) +
@@ -227,9 +345,18 @@ function NotSettledGrid({
   }, [camera, runnerUp])
   return (
     <div className="space-y-1.5" aria-label="Not settled: both candidates">
-      <p className="text-xs font-medium text-warning-foreground">
-        Not settled: another heading fits about as well. Hold the photo against both model views.
-      </p>
+      {(!camera || !runnerUp) && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="touch:h-10"
+          disabled={!!photo.toolsBusy}
+          onClick={() => void photo.renderModel('both candidates')}
+        >
+          Draw both candidates
+        </Button>
+      )}
       <div className="grid grid-cols-2 gap-2 text-3xs text-muted-foreground">
         <figure>
           <img src={own.src} alt="Your photo" className="w-full rounded-sm" />
@@ -237,8 +364,8 @@ function NotSettledGrid({
         </figure>
         <ModelCell
           view={camera}
-          label="This camera"
-          onDraw={() => void photo.renderModel('camera')}
+          label="Best skyline fit"
+          onDraw={() => void photo.renderModel('winner')}
           busy={!!photo.toolsBusy}
         />
         <ModelCell
@@ -279,7 +406,7 @@ function ModelCell({
         <img
           src={view.url}
           alt={`${label}: model view at heading ${view.bearing.toFixed(0)}°`}
-          className="w-full rounded-sm"
+          className="w-full rounded-sm bg-muted"
         />
       ) : (
         <div className="flex aspect-[4/3] items-center justify-center rounded-sm bg-muted">
@@ -290,8 +417,15 @@ function ModelCell({
       )}
       <figcaption className="tabular-nums">
         {label}
-        {view ? ` · ${view.bearing.toFixed(0)}° · agreement ${view.score.toFixed(2)}` : ''}
+        {view ? ` · ${view.bearing.toFixed(0)}° · ${agreementLabel(view)}` : ''}
       </figcaption>
     </figure>
   )
+}
+
+function agreementLabel(view: ModelViewImage): string {
+  const coverage = `${Math.round(view.coverage * 100)}% ground imagery`
+  return Number.isFinite(view.score)
+    ? `agreement ${view.score.toFixed(2)} · ${coverage}`
+    : `insufficient imagery · ${coverage}`
 }

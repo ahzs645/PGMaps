@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { landmarkAngles, orientationFromPairs, pairsNeeded, solveFromControls, type ControlPair } from './controlPose'
+import {
+  landmarkAngles,
+  orientFromLandmark,
+  orientationFromPairs,
+  pairsNeeded,
+  solveFromControls,
+  type ControlPair,
+} from './controlPose'
 import { cameraAxes, projectToPhoto, type PhotoPose } from './photoPose'
 
 const RAD = Math.PI / 180
@@ -101,5 +108,25 @@ describe('camera from paired points', () => {
     expect(q.y).toBeCloseTo(truth.height / 2, 3)
     expect(look.pitch).toBeLessThan(0)
     expect(look.distanceMeters).toBeGreaterThan(1000)
+  })
+
+  it('fits an off-centre landmark even with a wrong starting bearing and nonzero roll', () => {
+    const start = { ...truth, bearing: 288, pitch: 3 }
+    const point = pairsFor(truth)[0]
+    const angles = orientFromLandmark(start, point)
+    expect(angles?.bearing).toBeCloseTo(truth.bearing, 6)
+    expect(angles?.pitch).toBeCloseTo(truth.pitch, 6)
+  })
+
+  it('declines a landmark directly below the camera', () => {
+    expect(
+      orientFromLandmark(truth, {
+        id: 'nadir',
+        pixel: [truth.width / 2, truth.height / 2],
+        lng: truth.lng,
+        lat: truth.lat,
+        elevation: truth.altitudeMeters - 200,
+      }),
+    ).toBeNull()
   })
 })

@@ -87,7 +87,16 @@ export function PhotoAcceptPanel({
             variant="divided"
             rows={[
               { label: 'When', value: acceptance.acceptedAt.replace('T', ' ').slice(0, 16) + ' UTC' },
-              { label: 'How it was found', value: METHOD_TEXT[acceptance.method] },
+              {
+                label: 'How it was found',
+                value: acceptance.evidence.overlapBasis ? 'Flight photo match' : METHOD_TEXT[acceptance.method],
+              },
+              acceptance.evidence.overlapP90Px !== undefined
+                ? {
+                    label: 'Held-out error',
+                    value: `${acceptance.evidence.overlapP90Px.toFixed(1)} px at the 90th percentile (${acceptance.evidence.overlapBasis === 'terrain' ? 'terrain' : 'image geometry'})`,
+                  }
+                : null,
               {
                 label: 'Camera accepted',
                 value: `${acceptance.pose.bearing.toFixed(1)}°, pitch ${acceptance.pose.pitch.toFixed(1)}°, roll ${acceptance.pose.roll.toFixed(1)}°`,
@@ -106,8 +115,8 @@ export function PhotoAcceptPanel({
       {state !== 'accepted' && (
         <div className="space-y-2">
           <p className="text-xs leading-5 text-muted-foreground">
-            The camera rests on: {METHOD_TEXT[preview.method]}. Accepting records your initials, the time, the camera
-            and the evidence you saw. Nothing before this is a verdict.
+            Camera source {preview.evidence.overlapBasis ? 'flight photo match' : METHOD_TEXT[preview.method]}.
+            Accepting records your initials, the time, the camera and the evidence you saw.
           </p>
           <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
             <FormField label="Your initials">

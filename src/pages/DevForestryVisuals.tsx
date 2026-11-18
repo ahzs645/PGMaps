@@ -181,6 +181,7 @@ import { engineCaptureOptionsKey } from './dev-forestry/engineRenderOptions'
 import { beforeHarvestCells } from './dev-forestry/stand/beforeHarvestCells'
 import type { BasemapContext } from './dev-forestry/BasemapContextProbe'
 import { FieldPhotoPanel, PhotoOverlay, StreetPhotoInset } from './dev-forestry/FieldPhoto'
+import { OwnFieldPhoto } from './dev-forestry/OwnFieldPhoto'
 import { useFieldPhoto, type OwnPhotoRecordsBridge } from './dev-forestry/useFieldPhoto'
 import { PhotoDrapeLayer, type PhotoDrapeLook, type PlanPhotoDrape } from './dev-forestry/PhotoDrapeLayer'
 import { LinkedCursorMarker, PhotoCamerasLayer, type PlanPhotoCamera } from './dev-forestry/PhotoCamerasLayer'
@@ -5209,7 +5210,7 @@ function DevForestryVisuals() {
       const record = tools.fieldRecord(recordId)
       if (!record || record.kind !== 'photo') return
       fieldPhoto.openOwnRecord(record, null)
-      fieldPhoto.applyMatchedCamera(camera, 'Reference measurements', checks)
+      fieldPhoto.applyMatchedCamera(recordId, camera, 'Reference measurements', checks)
       fieldPhoto.openOwnDialog('camera')
     },
     onOriginalPhoto: (file, recordId) => addProjectAttachments([file], recordId),
@@ -6322,15 +6323,20 @@ function DevForestryVisuals() {
     )
   }
 
-  // The street-level or own photo the road view lines up with: in the stood-at view's row, else in step 2.
-  const fieldPhotoPanel = (
+  const streetPhotoPanel = (
     <FieldPhotoPanel
       photo={fieldPhoto}
       canLineUp={
         !!fieldPhoto.image && !!fieldPhoto.onRoad && fieldPhoto.onRoad.offsetMeters <= 60 && !previewInputError(scene)
       }
       onLineUp={() => lineUpPhoto()}
-      own={{
+    />
+  )
+  // Keep access to the photo set in Visit while standing at a saved view.
+  const ownPhotoPanel = (
+    <OwnFieldPhoto
+      photo={fieldPhoto}
+      actions={{
         records: tools.photoRecords,
         onOriginalPhoto: (file) => addProjectAttachments([file]),
         roadView:
@@ -6493,7 +6499,7 @@ function DevForestryVisuals() {
                 {stoodViewpointPanel(true)}
                 <div className="space-y-1.5 border-t border-border/60 pt-2">
                   <p className="text-2xs font-medium text-foreground">Field photo</p>
-                  {fieldPhotoPanel}
+                  {streetPhotoPanel}
                 </div>
               </>
             )
@@ -6657,7 +6663,12 @@ function DevForestryVisuals() {
         </>
       }
       designComparisons={tools.design}
-      fieldPhoto={summaryView ? undefined : fieldPhotoPanel}
+      fieldPhoto={
+        <>
+          {summaryView ? null : streetPhotoPanel}
+          {ownPhotoPanel}
+        </>
+      }
       fieldRecords={tools.field}
       showViewpointType={!summaryView}
       roadStand={summaryView ? undefined : stoodViewpointPanel(true)}
