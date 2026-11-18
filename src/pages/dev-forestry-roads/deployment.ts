@@ -16,6 +16,8 @@ export type RoadDesignDeployment = {
   blockSheetGallery: string | null
   /** Where the LiDAR sample is read when this site holds no copy of its own. Ends in `/`. */
   lidarSampleMirror: string
+  /** Whether the plan offers Esri Wayback's historical imagery timeline (on unless set to `false`). */
+  waybackTimeline: boolean
 }
 
 type Env = Readonly<Record<string, string | boolean | undefined>>
@@ -34,10 +36,14 @@ export function readRoadDesignDeployment(env: Env): RoadDesignDeployment {
   const mirror = text(env.VITE_ROAD_DESIGN_LIDAR_MIRROR) || PUBLISHED_LIDAR_SAMPLE_BASE
   if (!/^https:\/\/[^/]+\/.*\/$|^https:\/\/[^/]+\/$/.test(mirror))
     throw new Error('VITE_ROAD_DESIGN_LIDAR_MIRROR must be an https folder URL ending in "/".')
+  const wayback = text(env.VITE_ROAD_DESIGN_WAYBACK_TIMELINE) || 'true'
+  if (wayback !== 'true' && wayback !== 'false')
+    throw new Error(`VITE_ROAD_DESIGN_WAYBACK_TIMELINE must be "true" or "false"; got "${wayback}".`)
   return {
     designerPath: path.length > 1 ? path.replace(/\/+$/, '') : path,
     blockSheetGallery,
     lidarSampleMirror: mirror,
+    waybackTimeline: wayback === 'true',
   }
 }
 

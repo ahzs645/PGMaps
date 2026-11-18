@@ -1,5 +1,7 @@
 import { xyzTileTemplate } from '@pgmaps/geo-toolkit/map'
 
+/** How long the release catalog may take before the request gives up, ms. */
+export const WAYBACK_CATALOG_TIMEOUT_MS = 20_000
 export const WAYBACK_CATALOG = 'https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json'
 
 export interface WaybackRelease {
@@ -37,7 +39,9 @@ export function waybackReleases(catalog: unknown): WaybackRelease[] {
 }
 
 export async function loadWaybackReleases(signal: AbortSignal) {
-  const response = await fetch(WAYBACK_CATALOG, { signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]) })
+  const response = await fetch(WAYBACK_CATALOG, {
+    signal: AbortSignal.any([signal, AbortSignal.timeout(WAYBACK_CATALOG_TIMEOUT_MS)]),
+  })
   if (!response.ok) throw new Error(`Esri returned HTTP ${response.status}.`)
   return waybackReleases(await response.json())
 }

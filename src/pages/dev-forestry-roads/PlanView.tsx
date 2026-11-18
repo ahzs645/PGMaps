@@ -3118,6 +3118,8 @@ export function PlanView(input: PlanProps) {
               beforeId={SENTINEL_ANCHOR_LAYER_ID}
               attribution={waybackCredit(timeline.release)}
               fadeDuration={0}
+              // As the satellite basemap (`map-satellite-imagery.tsx`): past z18 rural BC gets Esri's grey placeholder.
+              maxZoom={18}
             />
           )}
           {tools.mapLayer}

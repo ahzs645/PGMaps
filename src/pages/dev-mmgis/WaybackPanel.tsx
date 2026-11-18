@@ -86,7 +86,7 @@ export function WaybackPanel({ mission, change }: { mission: Mission; change: (f
               setAttempt((n) => n + 1)
             }}
           >
-            {error ? 'Retry Wayback catalog' : attempt ? 'Loading releases…' : 'Browse Wayback releases'}
+            {error ? 'Retry Wayback catalog' : attempt ? 'Loading Wayback releases…' : 'Browse Wayback releases'}
           </Button>
         </>
       )}

@@ -7,6 +7,7 @@ describe('readRoadDesignDeployment', () => {
       designerPath: '/dev/forestry/road-design',
       blockSheetGallery: '/dev/forestry/block-sheets',
       lidarSampleMirror: PUBLISHED_LIDAR_SAMPLE_BASE,
+      waybackTimeline: true,
     })
   })
 
@@ -15,11 +16,13 @@ describe('readRoadDesignDeployment', () => {
       VITE_ROAD_DESIGN_PATH: '/',
       VITE_ROAD_DESIGN_GALLERY_URL: '',
       VITE_ROAD_DESIGN_LIDAR_MIRROR: 'https://data.example.org/road-design/lidar/',
+      VITE_ROAD_DESIGN_WAYBACK_TIMELINE: 'false',
     })
     expect(deployment).toEqual({
       designerPath: '/',
       blockSheetGallery: null,
       lidarSampleMirror: 'https://data.example.org/road-design/lidar/',
+      waybackTimeline: false,
     })
   })
 
@@ -36,5 +39,6 @@ describe('readRoadDesignDeployment', () => {
     expect(() => readRoadDesignDeployment({ VITE_ROAD_DESIGN_PATH: 'design' })).toThrow('VITE_ROAD_DESIGN_PATH')
     expect(() => readRoadDesignDeployment({ VITE_ROAD_DESIGN_GALLERY_URL: 'http://x.org/g' })).toThrow('GALLERY')
     expect(() => readRoadDesignDeployment({ VITE_ROAD_DESIGN_LIDAR_MIRROR: 'https://x.org/lidar' })).toThrow('MIRROR')
+    expect(() => readRoadDesignDeployment({ VITE_ROAD_DESIGN_WAYBACK_TIMELINE: 'no' })).toThrow('WAYBACK')
   })
 })

@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { MapTimeline } from '@pgmaps/geo-toolkit/ui/map-timeline'
-import { InlineAlert } from '@pgmaps/geo-toolkit/ui/map-panels'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { Button } from '@/components/ui/button'
 import { loadWaybackReleases, type WaybackRelease } from '@/lib/wayback'
+import { ROAD_DESIGN_DEPLOYMENT } from './deployment'
 import { isLocalPlane } from './localPlane'
 import type { TerrainMetadata } from './types'
 
-const ROAD_WAYBACK_ENABLED = (import.meta.env.VITE_ROAD_WAYBACK_TIMELINE ?? 'true') === 'true'
-
 export function waybackTimelineAvailable(terrain: Pick<TerrainMetadata, 'epsg'>) {
-  return ROAD_WAYBACK_ENABLED && !isLocalPlane(terrain)
+  return ROAD_DESIGN_DEPLOYMENT.waybackTimeline && !isLocalPlane(terrain)
 }
 
-const playbackSpeeds = [{ intervalMs: 2000, label: '1×' }]
+/** Play shows each release this long before the next, ms. */
+export const WAYBACK_PLAYBACK_MS = 2_000
+const playbackSpeeds = [{ intervalMs: WAYBACK_PLAYBACK_MS, label: '1×' }]
 
 export function useWaybackTimeline(active: boolean) {
   const [releases, setReleases] = useState<WaybackRelease[]>([])
@@ -92,7 +93,7 @@ export function WaybackTimeline({
           </InlineAlert>
           {timeline.error && (
             <Button size="sm" variant="outline" onClick={timeline.retry}>
-              Retry catalog
+              Retry Wayback catalog
             </Button>
           )}
           <Button size="icon-2xs" variant="ghost" aria-label="Close timeline" onClick={onClose}>
