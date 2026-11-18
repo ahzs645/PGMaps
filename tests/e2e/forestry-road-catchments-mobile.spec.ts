@@ -92,7 +92,7 @@ async function fits(page: Page) {
         if (root.scrollWidth > root.clientWidth + 1) issues.push('page horizontal overflow')
         if (root.scrollHeight > root.clientHeight + 1) issues.push('page vertical overflow')
         for (const node of panel.querySelectorAll(
-          'input,[role="combobox"],section[aria-label="Catchment and watershed tools"],section[aria-label="Catchment and watershed tools"] button',
+          'input,[role="combobox"],section[aria-label="Drainage inputs"],section[aria-label="Drainage inputs"] button',
         )) {
           const b = node.getBoundingClientRect()
           if (b.width && b.height && (b.left < bounds.left - 1 || b.right > bounds.right + 1))

@@ -83,7 +83,7 @@ export interface GroundDrainageSettings {
   depressionPolicy?: DepressionPolicy
   /** Omitted draws no watersheds. */
   watershedMinAreaHa?: number
-  /** Outlet snap radius, m. Not a routing setting: changing it reuses the routed grid. */
+  /** Pour-point snap radius, m. Not a routing setting: changing it reuses the routed grid. */
   snapRadiusM: number
   snapPolicy?: SnapPolicy
 }

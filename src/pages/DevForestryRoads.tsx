@@ -6930,7 +6930,7 @@ export default function DevForestryRoads({
                                         onPickOutlet={() =>
                                           planPick
                                             ? pickOnPlan(null)
-                                            : pickOnPlan('Click the plan where the drainage outlet is.', (coordinate) =>
+                                            : pickOnPlan('Click the plan where the pour point is.', (coordinate) =>
                                                 update((p) => ({
                                                   ...p,
                                                   groundDrainage: {
