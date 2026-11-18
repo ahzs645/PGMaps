@@ -1,0 +1,4 @@
+sliderule==5.8.1
+geopandas
+pyarrow
+pyproj
