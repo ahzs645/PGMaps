@@ -4,7 +4,7 @@ import { findDocumentFormat, T1, T5, TABLE_1, TABLE_2, TABLE_3 } from '../viaDoc
 import { resolveViaDocument, type DocumentFacts, type DocumentViewpoint } from '../viaDocument/resolve'
 import { reportMarkdown } from './html'
 import type { ReportBlock } from './model'
-import { calculationFields, landformBounding, type ReportContext } from './parts'
+import { calculationFields, landformBounding, type ReportContext, type ReportImages } from './parts'
 import {
   appendixEntries,
   CERTIFICATION_STATEMENTS,
@@ -384,9 +384,19 @@ const picture = (view: string, width = 2400, height = 900) => ({
   width,
   height,
 })
+/** The pictures a file of these reports carries: the viewpoint map and each viewpoint's plain simulation. */
+const FILE_IMAGES: ReportImages = {
+  overviewSheet: picture('Viewpoint map'),
+  after: { Bay: picture('Bay'), Lake: picture('Lake') },
+}
 const recipeContext = (id: string, over: Partial<ReportContext> = {}) => {
   const recipe = REPORT_RECIPES.find((entry) => entry.id === id)!
-  return context(recipe.format, { recipeParts: recipe.parts, recipeOptions: recipe.options, ...over })
+  return context(recipe.format, {
+    recipeParts: recipe.parts,
+    recipeOptions: recipe.options,
+    ...over,
+    images: { ...FILE_IMAGES, ...over.images },
+  })
 }
 
 describe('consultant summary and landscape (22, 23)', () => {
@@ -488,10 +498,11 @@ describe('consultant summary and landscape (22, 23)', () => {
 
 describe('consultant appendix (22, 23)', () => {
   it('number the map A1, then each viewpoint’s photo, plain page and analysis sheet in Table 3’s order', () => {
-    const ctx = recipeContext('consultant-net-private', {
+    const draft = recipeContext('consultant-net-private', {
       images: { before: { Lake: { ...picture('Lake'), source: 'photo' } }, after: { Bay: picture('Bay') } },
+      draft: true,
     })
-    expect(appendixEntries(ctx).map((entry) => `${entry.number} ${entry.title}`)).toEqual([
+    expect(appendixEntries(draft).map((entry) => `${entry.number} ${entry.title}`)).toEqual([
       'A1 Viewpoint map',
       'A2 Perspective Viewpoint – Bay',
       'A3 Perspective Viewpoint Analysis – Bay – VSU 1083',
@@ -499,12 +510,12 @@ describe('consultant appendix (22, 23)', () => {
       'A5 Perspective Viewpoint – Lake',
       'A6 Perspective Viewpoint Analysis – Lake – Landform 5a (traced)',
     ])
-    const list = tables(build('appendix-list', ctx).blocks)[0]
+    const list = tables(build('appendix-list', draft).blocks)[0]
     expect(list.rows[0]).toEqual(['A1', 'Viewpoint map'])
-    const out = build('appendix-sheets', { ...ctx, figures: [picture('Bay', 1224, 792)] })
+    const out = build('appendix-sheets', { ...draft, figures: [picture('Bay', 1224, 792)] })
     const pairs = out.blocks.filter((b): b is Extract<ReportBlock, { kind: 'figurePair' }> => b.kind === 'figurePair')
-    // The plain simulation is the page's own after picture; a missing one prints a placeholder and is listed.
-    // Each is an 11 x 17 page like the analysis sheets, its heading on the page.
+    // The plain simulation is the page's own after picture; a missing one prints a placeholder in the draft and is
+    // listed. Each is an 11 x 17 page like the analysis sheets, its heading on the page.
     expect(pairs.map((pair) => [pair.title, pair.slots[0].label, !!pair.slots[0].figure, pair.sheet])).toEqual([
       ['Appendix A2: Perspective Viewpoint – Bay', 'Perspective Viewpoint – Bay', true, true],
       ['Appendix A4: Photo from viewpoint – Lake', 'Photo from viewpoint – Lake', true, true],
@@ -515,10 +526,34 @@ describe('consultant appendix (22, 23)', () => {
       'Appendix A3: Perspective Viewpoint Analysis – Bay – VSU 1083',
       'Appendix A6: Perspective Viewpoint Analysis – Lake – Landform 5a (traced)',
     ])
-    expect(out.toComplete).toEqual([
+    const listed = [
       'Perspective Viewpoint pages not captured: Lake',
       'Perspective Viewpoint Analysis sheets not saved: Lake',
+    ]
+    expect(out.toComplete).toEqual(listed)
+    // A file has no page for the missing simulation, and numbers and cites only the pages it prints; Lake's analysis
+    // page keeps its heading and calculation without the sheet, and nothing stands in for the sheet.
+    const file = { ...draft, draft: false }
+    expect(appendixEntries(file).map((entry) => `${entry.number} ${entry.title}`)).toEqual([
+      'A1 Viewpoint map',
+      'A2 Perspective Viewpoint – Bay',
+      'A3 Perspective Viewpoint Analysis – Bay – VSU 1083',
+      'A4 Photo from viewpoint – Lake',
+      'A5 Perspective Viewpoint Analysis – Lake – Landform 5a (traced)',
     ])
+    const filed = build('appendix-sheets', { ...file, figures: [picture('Bay', 1224, 792)] })
+    expect(filed.blocks.filter((b) => b.kind === 'figurePair')).toHaveLength(2)
+    expect(filed.blocks.some((b) => b.kind === 'figure' && !b.figure)).toBe(false)
+    expect(
+      filed.blocks.some(
+        (b) => b.kind === 'heading' && b.text.startsWith('Appendix A5: Perspective Viewpoint Analysis'),
+      ),
+    ).toBe(true)
+    expect(filed.toComplete).toEqual(listed)
+    // Without the viewpoint map a file starts the appendix at A1 with the next page, and the summary cites no map.
+    const noMap = { ...file, images: { ...file.images, overviewSheet: null } }
+    expect(appendixEntries(noMap)[0]).toMatchObject({ number: 'A1', title: 'Perspective Viewpoint – Bay' })
+    expect(words(build('summary', noMap).blocks)).not.toContain('viewpoint map')
   })
 
   it('print 23’s appendix as the analysis sheets alone, and say so in the method', () => {

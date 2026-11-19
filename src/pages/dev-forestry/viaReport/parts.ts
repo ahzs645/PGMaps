@@ -15,7 +15,7 @@ import { settingLocation, type ReportSetting } from './setting'
 import type { DocumentFacts, DocumentViewpoint, ResolvedDocument, ResolvedViewpoint } from '../viaDocument/resolve'
 import { andList, blockId, blockList, landformParentFromName, otherPlannedName } from '../viaDocument/resolve'
 import { atAssessmentStation, judgedOcular } from '../viaDocument/facts'
-import { firstFigureNumber } from './partsFigures'
+import { figurePageViewpoints, firstFigureNumber } from './partsFigures'
 import {
   CLASS_NAMES,
   DISTANCE_SCALES,
@@ -61,6 +61,7 @@ import {
   heading,
   text,
   type FieldRow,
+  type FigureSlot,
   type ReportBlock,
   type ReportFigure,
   type ReportItemToComplete,
@@ -190,7 +191,7 @@ export interface ReportContext {
   }
   /**
    * Maps and extra pictures the page captured for the report (`useVisualsExport`); all optional, a part without the
-   * one it needs prints a placeholder and lists it to complete.
+   * one it needs lists it to complete (and, in the draft only, prints a box saying what goes there).
    */
   images?: ReportImages
   /**
@@ -198,7 +199,20 @@ export interface ReportContext {
    * slope, the inventory's stands. Absent when the page read none; a part then lists what it could not say.
    */
   setting?: ReportSetting
+  /**
+   * The report is Save & export's draft, the editing surface: a picture nobody has given keeps its place with a box
+   * saying what goes there (`FigureSlot.placeholder`). Absent or false, as for every file: a missing picture and its own
+   * caption print nothing, its figure number goes to the next picture, and only the to-complete list names it.
+   */
+  draft?: boolean
 }
+
+/** Whether a missing picture keeps its place with a box saying what goes there: only in the draft. */
+export const showsMissing = (ctx: ReportContext) => !!ctx.draft
+
+/** A layout's picture places as printed: every one in the draft, only those holding a picture in a file. */
+export const printedSlots = (ctx: ReportContext, slots: readonly FigureSlot[]): FigureSlot[] =>
+  showsMissing(ctx) ? [...slots] : slots.filter((slot) => !!slot.figure)
 
 /** Pictures beyond each view's analysis figure, by kind; keys of the per-viewpoint maps are viewpoint names. */
 export interface ReportImages {
@@ -2490,9 +2504,13 @@ const figureNumbers = (numbers: readonly number[]) =>
  * and which figures show a viewpoint that sees none of the proposal. Null when the recipe prints no figure pages.
  */
 export function simulationFiguresSentence(ctx: ReportContext): Sentence | null {
-  if (!ctx.recipeParts?.includes('ea-figure-pages') || !ctx.facts.viewpoints.length) return null
+  if (!ctx.recipeParts?.includes('ea-figure-pages')) return null
+  // Only the pages the report prints are numbered: in a file, a viewpoint with no picture before or after has none.
+  const paged = new Set(figurePageViewpoints(ctx))
+  const printed = ctx.facts.viewpoints.filter((vp) => paged.has(vp.name))
+  if (!printed.length) return null
   const first = firstFigureNumber(ctx, 'ea-figure-pages')
-  const numbered = ctx.facts.viewpoints.map((vp, i) => ({ vp, n: first + i }))
+  const numbered = printed.map((vp, i) => ({ vp, n: first + i }))
   const seen = numbered.filter((entry) => seesProposal(entry.vp)).map((entry) => entry.n)
   const blind = numbered.filter((entry) => !seesProposal(entry.vp))
   return fillSentence(

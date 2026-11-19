@@ -526,8 +526,30 @@ interest's *Export…*).
 | | Prescribed trees | CSV, GeoJSON points | — (every block with a stand prescription; see **Stand prescriptions**) |
 | | Road view video | MP4, or WebM where the browser cannot write MP4 | Along the road (speed, stretch, facing) or through the views of interest (which, how long each); the caption. Recorded on request under *Preview* (below) |
 
-Each output's pane has two views. **What goes in** lists, from the same state the
-file is written from, the parts it carries: the landform (name, objective, VAC,
+Each output's pane opens on a one-line header: the output's name and file
+extension, with what it is behind an (i) (`InfoTip`, "About" and the output's
+name), and its Save as, Download and Copy image. Under it sit the view switch
+and, for an output with more than one format, the format as a dropdown
+(`StyledSelect`, named "<output> format").
+
+Each output's pane has two views. **What goes in** reads the same way for every
+output, top to bottom: **Contents**, where the file has parts of its own; then
+its **Options**; then what the file **reads**. Contents is the shared
+`DocumentContents` list (`docs/shared-ui.md`, **Document contents**), carried by
+`ExportSection.contents` so that `exportContents` stays the one DOM-free place
+that says what a file holds. The page gives each list its controls (the
+dialog's `contents`); without them it is read-only. The VIA report's is its
+recipe's parts (below, **The report's contents**). The block note's is its
+sheets and pages as `blockNote.ts` writes them, in their fixed order: what the
+planner's layout always writes is locked, the visual measures and the viewpoint
+records say why on their row when there is nothing to write, and the land
+status checks are the one switch (figure or screenshot stays an option). The
+FS1252's is its stations, *Stations in the PDF*: a station switched off leaves
+the form and keeps its place in the list until it is removed under Options,
+which still adds stations and holds each one's reviewer inputs. The package's
+views keep their own checklist under *Package*: a thumbnail and a capture state
+in a sentence do not fit a contents row. Below Contents and Options, the file
+**reads** the parts it carries: the landform (name, objective, VAC,
 area, source), the viewpoint, every saved view with the settings it was saved
 with (position, facing, eye height, lens, timber, harvest phase, design), the
 blocks and masks, the run's status and figures, the run settings and the
@@ -800,12 +822,17 @@ capture):
 - **Figures drawn by**: PGMaps, or an engine at final quality in the background
   (see **Figures drawn by another engine, in the background**), for the
   analysis sheet, the VIA document and the VIA report.
-- **Views**: each planned view of interest with its thumbnail and capture
-  state, and every saved view that is not a planned view's capture, each with a
-  checkbox. A view of interest's box writes its `include`, which is in the scene
-  (absent reads as included); a saved view's lasts while the page is open. A
-  saved view captured for a planned view that has since been removed becomes an
-  ordinary saved view.
+- **Views**: two shared contents lists (`DocumentContents`, two-state, with All
+  and None and no reordering, since the package's view order is not chosen
+  here): *Views of interest*, each planned view led by its thumbnail
+  (`rowLead`), its block and lens under its name, and its capture state on the
+  row when it is a word ("Captured") or under the name when it is a sentence;
+  and *Saved views*, every saved view that is not a planned view's capture, led
+  by its screenshot. A view of interest's box writes its `include`, which is in
+  the scene (absent reads as included); a saved view's lasts while the page is
+  open. All or None writes the whole list in one change. The lists only draw
+  what `resolvePackage` holds. A saved view captured for a planned view that has
+  since been removed becomes an ordinary saved view.
 
 These were per-output choices before; each output's own options keep only what
 is its own. `resolvePackage` gives one set of views (`viewIds`) and its
@@ -885,7 +912,8 @@ The block note's pane shows what the report will hold:
   captured and why.
 - **Viewpoints in the report** — every other saved view, here or at another
   viewpoint, marked in the report (as its screenshot or figure), left out, or
-  listed as missing; which go in is chosen under *Package*.
+  not in the note for want of a screenshot; which go in is chosen under
+  *Package*.
 - **Inventory viewpoints near the block** — the BC Visual Landscape Inventory
   viewpoints and rec sites round the note's block (`viewpointsNearBlock`), read
   when the dialog opens on the note without switching the plan's inventory
@@ -3947,6 +3975,17 @@ every view in the package (Save & export → *Package*) with its caption, in the
 order saved and from every place stood at,
 and a plan map framed on the block and viewpoint.
 
+A view in the package with no screenshot (one saved before screenshots were
+kept, or whose screenshot is gone from this session) is not in the note at all:
+no caption, no empty box and no line asking for it, in Excel or the PDF. A
+caption with nothing above it would read as a picture lost in printing. The gap
+is told in Save & export instead, before and after the file is written: the
+*Other Considerations* row of the note's contents names those views
+(`blockNoteWithoutScreenshot`), so does each one's own row (*Viewpoints in the
+report*, or its view of interest), and the file's notice above the preview and
+beside a finished download says the same (`missingScreenshotsNotice`, the
+build's `BuiltFile.notes`).
+
 - **Excel** follows the planner's own `*_Report.xlsx`: an *Other
   Considerations* sheet with "Visuals" in B2 and the paragraph in C2, the
   screenshots and captions below, so the row pastes into their workbook; a
@@ -4653,7 +4692,8 @@ digits); tick boxes and ticks are drawn. A picture is embedded once however
 often it prints (a jsPDF alias), PNGs deflated, JPEGs as they are; one that is
 not a PNG or JPEG, or does not decode, prints a box saying so. The logo is the
 printed logo as a PNG or JPEG (a brand's SVG rasterised, as the analysis sheet
-takes it). The printable HTML is still offered for the browser's own print
+takes it); with no logo, or one that does not decode, its box keeps its place
+and draws nothing. The printable HTML is still offered for the browser's own print
 (*Print / save as PDF*, with the page sizes in its CSS) and is unchanged; the
 draft is HTML only.
 
@@ -4670,8 +4710,8 @@ N" are the PDF's. The report's sections are Word headings and the contents is
 Word's own, listing them and the to-complete list, with the pictures listed
 under it by name; Word fills its page numbers when it updates the file's
 fields. A value nobody gave prints as a rule to fill by hand, an unfilled
-sentence is left out, and the to-complete list and the report's last line
-close the text before the figure pages, as in the PDF. A reviewer's hand edit
+sentence is left out, and the to-complete list and the report's last line (when
+it has one) close the text before the figure pages, as in the PDF. A reviewer's hand edit
 prints in its place with the reviewer as its source, and the last line counts
 it, as the PDF says it. The text is Arial; the file is dated the day it was
 written, so the same report writes the same bytes that day.
@@ -4701,7 +4741,8 @@ kind as a section (portrait, landscape, cover, 11 × 17 sheet, full-size map
 sheet, portrait end map, figure page) with its running header and "Page n of
 N" where it carries them, and the furniture as the app's own JSON components
 (`recipeJson/components/via-*.json`): the title block or the cover's head with
-the logo, the contents, and the closing to-complete box and last line. Each
+the logo, the contents, and the closing to-complete box and last line (printed
+only when there are hand edits to count). Each
 report `extends` the base and adds its parts in order; 23 `extends` 22 and
 replaces only the sign-off. A report's details (`sources`, `format`,
 `figureStyle`, `obliquePitch`, `overviewSheetStyle`, its title and purpose) are
@@ -4820,8 +4861,10 @@ are taken at the same time as the road view's before pictures and renders
 `finally`, writes nothing to the scene, and runs only for the report file. Figure parts (`partsFigures.ts`) lay
 them out: the overview map page, 26's figure page (title, project and date,
 location and regional maps beside *Before project* and *After project*),
-photo / simulation pairs, and overhead renders; a missing picture prints a
-placeholder and is listed to complete. The plain simulation carries where each
+photo / simulation pairs, and overhead renders. A missing picture is always
+listed to complete; only the draft (`ReportContext.draft`) keeps its place with a
+box saying what goes there. In a file it prints nothing (see **Nothing stands in
+for a missing picture**). The plain simulation carries where each
 block lies in it (`ReportFigure.marks`, the callouts' anchors): 26's figure page
 and a photo / simulation pair point an arrow and label at every block seen and
 ring one that is only glimpsed or not seen, never an outline, so the figure marks
@@ -5004,7 +5047,49 @@ scene or project file; without one, the brand selected in Branding supplies its
 logo (`printedLogo`, `printedLogoRaster`). The analysis sheet's title block, the
 report's title block and the road designer's block sheets all read it, and a
 report is written through `brandedHtml` so a selected brand's colours and fonts
-apply.
+apply. With no logo the slot keeps its place and draws nothing: no file (Preview,
+Download, Save as or Copy image, in any format) draws a stand-in for something
+the person did not give. Only the report's *Draft*, an editing surface, marks the
+empty slot as theirs.
+
+**Nothing on the face says what made the file.** The analysis sheet, the VIA
+report, the VIA document, the block note and the field brief print no credit or
+disclaimer line (the style a figure was drawn in, the day it was made, "not a
+field-verified simulation"). Where the file has properties they hold it: the
+analysis sheet's PDF has the style and date as its subject (`figureSubject`),
+the VIA report's PDF and Word file and its printable HTML (a `description` meta)
+have what it is and the day it was made (`AssembledReport.about`), and the block
+note's and field brief's PDFs have their generated date. The Markdown files have
+no such place, so the line is gone from them. The figures the assessment needs
+stay printed: the pixel figure beside the sightline figure, the renderer named
+beside a pixel figure, the camera block, the to-complete list and each
+simulation page's accuracy note. The report's last line now prints only when the
+reviewer changed values by hand, and counts them.
+
+**Nothing stands in for a missing picture.** A file (Preview, Download, Save as
+or Copy image; PDF, Word, PDF from the Word layout, printable HTML or Markdown)
+draws no box and no wording where a picture is not there: no "the simulation;
+save the viewpoint in the road view", no "Figure to come", no "Key map not
+captured". The report names each missing picture only in its to-complete list.
+The figure parts decide this (`showsMissing`, `printedSlots` in `parts.ts`), so
+every format follows, the Word file's recipe route included. A missing picture
+and its own caption close up: a figure page keeps only the pictures it has and
+is left out when it has neither the picture before nor the simulation; a
+photograph and simulation pair keeps the one it has, its numbered caption then
+naming that one ("View from VP1 before harvest."); the overview map, an overhead
+render, the obliques and a simulation page are left out whole; a consultant
+report's Perspective Viewpoint page is left out, and its analysis page keeps its
+heading and calculation without the sheet. Figure and appendix numbers count
+only what the file prints (`figurePageViewpoints`, `appendixEntries`), so the
+next picture takes the number, and the text cites only those numbers ("The
+simulations are Figures 2 and 3", "shown on the viewpoint map (Appendix A1)").
+The end map's key map, when it could not be captured, keeps its room and draws
+nothing, as the logo slot does, and its overview sheet lists it to complete
+(`MapFurniture.missing`). Blanks that are there on purpose stay: a form field or
+a signature line nobody has filled prints as a line to fill by hand. A picture
+that is there but cannot be embedded still prints a box saying so, since it is a
+fault in the picture and not something left to do. The draft keeps every
+stand-in it has (below), on both its layouts.
 
 ### The report's draft, its parts and your own recipes
 
@@ -5100,11 +5185,59 @@ road view's eye was placed, and never ran again. A capture standing at a new
 place therefore always waited out its two minutes for timber. The effect now
 depends on there being an eye (`hasEye`).
 
+**The report's contents** (`viaReport/recipeContents.ts`, DOM-free; controls in
+`viaReportContentsControls.ts`). *What goes in* opens on the report's parts, in
+print order, each named by its title (`partLabel`) and switched on or off. A
+row says what is known of its part once the report has been assembled (how many
+items it leaves to complete, that it prints nothing for this assessment) and
+the page it starts on once the draft's *Pages* have been written, and nothing
+before. The cover stays pinned first while the recipe's layout has a cover
+page, since the PDF's cover takes every block before the first heading. No
+other part needs a fixed place: the to-complete list and the report's last line
+follow the parts by themselves. The last part still printing cannot be switched
+off. Rows are keyed by the part's id and which time the list holds it
+(`entryKeys`), since a recipe may hold a part twice.
+
+**The presets are the recipes.** The list's preset row offers the shipped
+recipes and your own, and its value is the package's one recipe choice, the
+same state as *Package recipe*. The first change to a shipped recipe (a part
+switched off, moved, added or removed) makes your own copy (`ownCopy`, named
+"… (your copy)", numbered when that name is taken) and chooses it, in that one
+step, with nothing asked (`editRecipeContents`). Later changes edit that copy.
+The row then reads as modified from the recipe it was copied from
+(`recipeModified`), and **Reset** goes back to that shipped recipe; the copy
+stays among the presets. **Save as preset…** is a copy under the typed name,
+and **Delete** removes your own recipe from this browser, asked once.
+
+**Off keeps its place.** A part switched off stays in the list, dimmed, where it
+was, and comes back there when switched on. An own recipe stores it in
+`leftOut`, each part with its place in the whole list (`recipeEntries` merges
+them back in by place). `parts` alone is what prints, so the report, the Word
+route (`ownRecipeJson` extends the recipe it was copied from by its `parts`)
+and every reader before this one are unchanged; an older PGMaps reads such a
+recipe and simply loses the switched-off rows. `readOwnRecipe` checks
+`leftOut` on every read like the rest: known parts, whole places inside the
+list, no two at one place, and no more than `MAX_RECIPE_PARTS` counting them.
+A part the recipe it was copied from holds is switched off, never removed; one
+you added is removed from its row's menu. *Add a part…* offers the shared
+catalogue, grouped by the reference documents each part comes from.
+
+**The draft beside the list.** Choosing a row shows the draft at that part
+(`part-<place>`, the marks the *Draft* view uses), and a click on a part's mark
+in it brings its row into view. The draft is laid out from the same
+`composeReport` as the *Draft* view and captures and runs nothing, so opening
+*What goes in* never starts a capture or a run. With no draft yet, one line says
+why (no view in the package with a class pass, the report's parts still
+loading). *Draft* and *Preview* stay full width as before. The *Draft* keeps its
+own *Parts* list, as its navigation between a part and its place on the page and
+in the PDF, not as a second place to change the recipe.
+
 **Your own recipes** (`viaReport/userRecipes.ts`, kept by
 `userRecipeStore.ts`). The package's *Make a copy* copies the recipe in use as
 yours. *Edit* changes its name, report title, document format, figure style,
-paper, cover, contents, options, oblique pitch, overview sheet, and its parts
-and their order, each added from the shared catalogue (`REPORT_PARTS`). An own
+paper, cover, contents, options, oblique pitch and overview sheet; its parts
+and their order are the same shared contents list as *What goes in*, with the
+same controls, each part added from the shared catalogue (`REPORT_PARTS`). An own
 recipe is data only: it names parts by id and never copies one, so every report
 keeps one version of each section. It lives in this browser's `localStorage`
 for every assessment, like the printed logo, and never in a scene or a project
@@ -5113,8 +5246,9 @@ reads one under a fresh id, never over an existing recipe. Every read, from the
 browser or a file, is checked by `readOwnRecipe`. A part, format, figure style
 or option this PGMaps lacks is refused with each problem named, never repaired.
 A stored recipe that no longer reads is listed with why and a *Delete*. Its
-sources follow its parts (`partSources`), and its report's footer says it was
-built from your own recipe rather than "in the structure of" a reference.
+sources follow its parts (`partSources`), and its report's properties (the PDF
+and Word subject, the HTML description) say it was built from your own recipe
+rather than "in the structure of" a reference.
 
 ## Figures drawn by another engine, in the background
 

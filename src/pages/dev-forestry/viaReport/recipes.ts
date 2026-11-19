@@ -50,6 +50,12 @@ export interface ReportRecipe {
    * reference document it no longer follows.
    */
   own?: { basedOn: string | null }
+  /**
+   * An own recipe's parts switched off in its contents (`recipeContents.ts`), each at its place in the whole list
+   * (`parts` and these merged by place), so one switched on again comes back where it was. Nothing reads them but the
+   * contents list: `parts` alone is what prints. Absent on the built-in recipes and when nothing is switched off.
+   */
+  leftOut?: ReadonlyArray<{ part: string; at: number }>
 }
 
 /** Map pitch of the report's oblique renders when a recipe gives none, degrees: about 60° down on the blocks. */
@@ -170,9 +176,9 @@ export function assembleReportParts(
     blocks: [heading(recipe.title, 1), ...blocks],
     toComplete,
     layout: { paper: 'letter', cover: false, contents: false, ...recipe.layout },
-    footer: `${structure} · generated ${ctx.date.toISOString().slice(0, 10)} · terrain model and drawn timber, not a field-verified simulation${
-      applied ? ` · ${applied} value${applied === 1 ? '' : 's'} changed by hand by the reviewer` : ''
-    }`,
+    // The count stays on the page (a reviewer's change is printed as theirs); what the report is goes in its properties.
+    footer: applied ? `${applied} value${applied === 1 ? '' : 's'} changed by hand by the reviewer.` : '',
+    about: `${structure}, generated ${ctx.date.toISOString().slice(0, 10)}`,
   }
   return {
     report,

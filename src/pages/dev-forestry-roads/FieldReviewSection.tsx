@@ -108,7 +108,7 @@ export function FieldReviewSection({
   }
   const downloadPack = (made: FieldIssue) => {
     downloadText(
-      fieldPackKml(made),
+      fieldPackKml(made, project.reportSettings?.emptyFields),
       `${fileStem(`${made.label}-${made.roadName}`)}.kml`,
       'application/vnd.google-earth.kml+xml',
     )

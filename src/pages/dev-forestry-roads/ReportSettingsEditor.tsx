@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { insetBox } from '@/components/ui/inset-box'
-import { cn } from '@/lib/utils'
+import { DocumentContents } from '@/components/ui/document-contents'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import {
   CHART_GRADE_RANGES,
@@ -84,11 +83,6 @@ export function ReportSettingsEditor({
   const [selected, setSelected] = useState<string | null>(
     initialChapter && settings.chapters.some((c) => c.id === initialChapter) ? initialChapter : settings.chapters[0].id,
   )
-  const opened = useRef<HTMLLIElement>(null)
-  useEffect(() => {
-    if (initialChapter) opened.current?.scrollIntoView?.({ block: 'nearest' })
-  }, [initialChapter])
-  const [kind, setKind] = useState<ReportChapterKind>('schedule')
   const [error, setError] = useState<string | null>(null)
   const update = (next: RoadReportSettings) => {
     try {
@@ -100,18 +94,12 @@ export function ReportSettingsEditor({
   }
   const patch = (id: string, changes: Partial<ReportChapter>) =>
     update({ ...settings, chapters: settings.chapters.map((c) => (c.id === id ? { ...c, ...changes } : c)) })
-  const move = (index: number, direction: number) => {
-    const next = index + direction
-    if (next < 0 || next >= settings.chapters.length) return
-    const chapters = [...settings.chapters]
-    ;[chapters[index], chapters[next]] = [chapters[next], chapters[index]]
-    update({ ...settings, chapters })
-  }
-  const add = () => {
+  const add = (kind: ReportChapterKind) => {
     const next = createReportChapter(kind, crypto.randomUUID())
     update({ ...settings, chapters: [...settings.chapters, next] })
     setSelected(next.id)
   }
+  const open = settings.chapters.find((chapter) => chapter.id === selected)
   const heading = 'text-3xs font-semibold uppercase tracking-wide text-muted-foreground'
   return (
     <div className="space-y-5 text-xs" data-testid="road-report-settings">
@@ -145,95 +133,53 @@ export function ReportSettingsEditor({
           </Field>
         </div>
       </section>
-      <section className="space-y-2">
-        <h4 className={heading}>Chapters</h4>
-        <ol className={cn(insetBox({ padding: 'none', tone: 'background' }), 'divide-y overflow-hidden')}>
-          {settings.chapters.map((chapter, index) => {
-            const open = selected === chapter.id
-            return (
-              <li key={chapter.id} ref={open && chapter.id === initialChapter ? opened : undefined}>
-                <div className="flex items-center gap-0.5 pr-1">
-                  <button
-                    type="button"
-                    aria-expanded={open}
-                    className="flex min-w-0 flex-1 items-baseline gap-2 px-2.5 py-2 text-left hover:bg-muted/50"
-                    onClick={() => setSelected(open ? null : chapter.id)}
-                  >
-                    <span className="w-4 shrink-0 tabular-nums text-muted-foreground">{index + 1}</span>
-                    <span className="min-w-0 truncate font-medium text-foreground">{chapter.title}</span>
-                    {chapter.title !== KIND_LABELS[chapter.kind] && (
-                      <span className="min-w-0 truncate text-muted-foreground">{KIND_LABELS[chapter.kind]}</span>
-                    )}
-                    <ChevronDown
-                      aria-hidden
-                      className={`ml-auto size-3.5 shrink-0 self-center text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    aria-label={`Move ${chapter.title} up`}
-                    title="Move up"
-                    disabled={index === 0}
-                    onClick={() => move(index, -1)}
-                  >
-                    <ArrowUp className="size-3.5" />
-                  </Button>
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    aria-label={`Move ${chapter.title} down`}
-                    title="Move down"
-                    disabled={index === settings.chapters.length - 1}
-                    onClick={() => move(index, 1)}
-                  >
-                    <ArrowDown className="size-3.5" />
-                  </Button>
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    aria-label={`Remove ${chapter.title}`}
-                    title="Remove chapter"
-                    disabled={settings.chapters.length === 1}
-                    onClick={() =>
-                      update({ ...settings, chapters: settings.chapters.filter((c) => c.id !== chapter.id) })
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-                {open && (
-                  <ChapterFields
-                    chapter={chapter}
-                    settings={settings}
-                    onPatch={(changes) => patch(chapter.id, changes)}
-                    onSubviews={(subviews) => update({ ...settings, subviews })}
-                  />
-                )}
-              </li>
-            )
-          })}
-        </ol>
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
-          <Field label="New chapter type">
-            <RoadSelect
-              value={kind}
-              onValueChange={(next) => setKind(next as ReportChapterKind)}
-              options={REPORT_CHAPTER_KINDS.map((value) => ({ value, label: KIND_LABELS[value] }))}
-              ariaLabel="New report chapter type"
-            />
-          </Field>
-          <Button
-            size="field"
-            variant="outline"
-            onClick={add}
-            disabled={settings.chapters.length >= MAX_REPORT_CHAPTERS}
-          >
-            <Plus className="size-3.5" />
-            Add chapter
-          </Button>
-        </div>
-      </section>
+      {/* The chapter list is the shared contents list; the chosen chapter's own settings sit under it. */}
+      <DocumentContents
+        title="Chapters"
+        subject="the plot book"
+        parts={settings.chapters.map((chapter) => ({
+          key: chapter.id,
+          label: chapter.title,
+          state: 'on',
+          ...(chapter.title !== KIND_LABELS[chapter.kind] ? { detail: KIND_LABELS[chapter.kind] } : {}),
+          removable: settings.chapters.length > 1,
+        }))}
+        onMove={(_key, _to, order) =>
+          update({
+            ...settings,
+            chapters: order.flatMap((id) => settings.chapters.filter((chapter) => chapter.id === id)),
+          })
+        }
+        onRemove={(id) => {
+          update({ ...settings, chapters: settings.chapters.filter((chapter) => chapter.id !== id) })
+          if (selected === id) setSelected(null)
+        }}
+        add={{
+          label: 'Add chapter',
+          options:
+            settings.chapters.length >= MAX_REPORT_CHAPTERS
+              ? []
+              : REPORT_CHAPTER_KINDS.map((value) => ({ id: value, label: KIND_LABELS[value] })),
+          onAdd: (kind) => add(kind as ReportChapterKind),
+        }}
+        selected={selected}
+        onSelect={setSelected}
+        focusKey={initialChapter}
+        summary={`${settings.chapters.length} of at most ${MAX_REPORT_CHAPTERS} chapters, printed in this order. Choose one to set it up.`}
+        beside={
+          open && (
+            <section className="grid gap-1.5" aria-label={`${open.title} settings`}>
+              <h5 className={heading}>{open.title}</h5>
+              <ChapterFields
+                chapter={open}
+                settings={settings}
+                onPatch={(changes) => patch(open.id, changes)}
+                onSubviews={(subviews) => update({ ...settings, subviews })}
+              />
+            </section>
+          )
+        }
+      />
       <section className="space-y-2">
         <h4 className={heading}>Labels</h4>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -274,7 +220,7 @@ export function ReportSettingsEditor({
   )
 }
 
-/** The open chapter's own settings, under its row in the chapter list. */
+/** The chosen chapter's own settings, under the chapter list. */
 function ChapterFields({
   chapter,
   settings,
@@ -287,7 +233,7 @@ function ChapterFields({
   onSubviews: (subviews: RoadReportSettings['subviews']) => void
 }) {
   return (
-    <div className="space-y-3 border-t bg-muted/30 p-3">
+    <div className="space-y-3 rounded-md border bg-muted/30 p-3">
       <Field label="Chapter title">
         <input
           className={roadFieldClass}

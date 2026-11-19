@@ -115,6 +115,30 @@ describe('figure parts', () => {
     expect(firstFigureNumber({ ...ctx, recipeParts: ['ea-figure-pages'] }, 'ea-figure-pages')).toBe(1)
   })
 
+  it('number only the figures a file prints, while the draft numbers its placeholders too', () => {
+    const names = ['Lakeshore', 'Ridge road']
+    // No overview map and no renders came back; Ridge road has neither a before picture nor a simulation.
+    const images: ReportImages = { ...allImages(names), overviewMap: null, overhead: [] }
+    images.before = { Lakeshore: images.before!.Lakeshore }
+    const file = context('referral-panoramas', names, { images, figures: [picture('Lakeshore')] })
+    expect(firstFigureNumber(file, 'ea-figure-pages')).toBe(1)
+    const pages = part('ea-figure-pages').build(file)
+    expect(pages.blocks.map((b) => (b.kind === 'figurePage' ? `${b.number} ${b.title}` : ''))).toEqual([
+      'Figure 1 Visualization from Lakeshore',
+    ])
+    // The page that is not printed is still named to complete.
+    expect(pages.toComplete).toEqual(
+      expect.arrayContaining([
+        'Ridge road: picture before the project (field photograph or render)',
+        'Ridge road: simulation (save the viewpoint)',
+      ]),
+    )
+    // The draft keeps a numbered place for the overview map, the overhead render and the obliques, and both pages.
+    const draft = { ...file, draft: true }
+    expect(firstFigureNumber(draft, 'ea-figure-pages')).toBe(4)
+    expect(part('ea-figure-pages').build(draft).blocks).toHaveLength(2)
+  })
+
   describe('the figure page', () => {
     it('lays out the title, the project facts, both maps, before and after for each viewpoint', () => {
       const names = ['Lakeshore', 'Ridge road']
@@ -171,27 +195,45 @@ describe('figure parts', () => {
       ])
     })
 
-    it('prints a box saying what goes where for each missing picture, and lists it', () => {
-      const ctx = context('referral-panoramas', ['Lakeshore'], { office: {}, figures: [] })
+    it('in the draft, prints a box saying what goes where for each missing picture; a file prints none; both list it', () => {
+      const ctx = context('referral-panoramas', ['Lakeshore'], { office: {}, figures: [], draft: true })
       const out = part('ea-figure-pages').build(ctx)
-      expect(out.toComplete).toEqual([
+      const listed = [
         'Project number (licence and cutting permit)',
         'Regional map',
         'Lakeshore: location map and viewpoint',
         'Lakeshore: picture before the project (field photograph or render)',
         'Lakeshore: simulation (save the viewpoint)',
-      ])
+      ]
+      expect(out.toComplete).toEqual(listed)
       const html = extraBlockHtml(out.blocks[0])
       expect(html.match(/vf-pic vf-empty/g)).toHaveLength(4)
       expect(html).toContain('Regional map placing the project in its region')
       expect(html).toContain('Project Number: <span class="blank"></span>')
       expect(html).not.toContain('<img')
+      // A file: the view has no picture before or after, so it has no page at all, only its list.
+      const file = part('ea-figure-pages').build({ ...ctx, draft: false })
+      expect(file.blocks).toEqual([])
+      expect(file.toComplete).toEqual(listed)
+      // With its simulation only, a file's page prints that picture and nothing for the rest; the blank project
+      // number is a field to fill by hand and stays.
+      const partial = part('ea-figure-pages').build({ ...ctx, draft: false, figures: [picture('Lakeshore')] })
+      const page = partial.blocks[0] as Extract<ReportBlock, { kind: 'figurePage' }>
+      expect(page.side).toEqual([])
+      expect(page.main.map((s) => s.label)).toEqual(['After project'])
+      const fileHtml = extraBlockHtml(page)
+      expect(fileHtml).not.toContain('vf-pic vf-empty')
+      expect(fileHtml).not.toContain('save the viewpoint')
+      expect(fileHtml).toContain('Project Number: <span class="blank"></span>')
     })
 
-    it('says so when no viewpoint was saved', () => {
-      const out = part('ea-figure-pages').build(context('referral-panoramas', []))
+    it('says so in the draft when no viewpoint was saved; a file prints nothing and lists it', () => {
+      const out = part('ea-figure-pages').build(context('referral-panoramas', [], { draft: true }))
       expect(kinds(out.blocks)).toEqual(['text'])
       expect(out.toComplete).toEqual(['Figure pages: save a viewpoint'])
+      const file = part('ea-figure-pages').build(context('referral-panoramas', []))
+      expect(file.blocks).toEqual([])
+      expect(file.toComplete).toEqual(['Figure pages: save a viewpoint'])
     })
 
     it('takes its wording from a parameter', () => {
@@ -259,15 +301,41 @@ describe('figure parts', () => {
       expect(figureWording('unknown').pair).toEqual(DEFAULT_FIGURE_WORDING.pair)
     })
 
-    it('print placeholders and list both pictures when missing', () => {
-      const out = part('photo-simulation-pairs').build(
-        context('appendix-1-net-private-rock', ['Lakeshore'], { figures: [] }),
-      )
-      expect(out.toComplete).toEqual([
+    it('print placeholders in the draft, nothing in a file, and list both pictures when missing', () => {
+      const ctx = context('appendix-1-net-private-rock', ['Lakeshore'], { figures: [], draft: true })
+      const out = part('photo-simulation-pairs').build(ctx)
+      const listed = [
         'Lakeshore: field photograph or render before harvest',
         'Lakeshore: simulation (save the viewpoint)',
-      ])
+      ]
+      expect(out.toComplete).toEqual(listed)
       expect(extraBlockHtml(out.blocks[0]).match(/vf-pic vf-empty/g)).toHaveLength(2)
+      const file = part('photo-simulation-pairs').build({ ...ctx, draft: false })
+      expect(file.blocks).toEqual([])
+      expect(file.toComplete).toEqual(listed)
+    })
+
+    it('in a file, print the one picture a pair has, its numbered caption saying which', () => {
+      const names = ['Lakeshore', 'Ridge road']
+      const images = allImages(names)
+      // Lakeshore has its photograph but no simulation; Ridge road has both.
+      const ctx = context('form-2001-analysis-sheets', names, {
+        images,
+        figures: [picture('Ridge road')],
+        recipeParts: ['photo-simulation-pairs'],
+        recipeOptions: { numberedPairs: true },
+      })
+      const out = part('photo-simulation-pairs').build(ctx)
+      const pairs = out.blocks as Array<Extract<ReportBlock, { kind: 'figurePair' }>>
+      expect(pairs.map((pair) => pair.slots.map((s) => s.label))).toEqual([
+        ['Photograph 1: Lakeshore'],
+        ['Before-harvest render 2: Ridge road', 'Simulation 2: Ridge road'],
+      ])
+      expect(pairs.map((pair) => pair.caption)).toEqual([
+        'Figure 1. View from Lakeshore before harvest.',
+        'Figure 2. View from Ridge road before harvest (rendered from the terrain model), and the simulated view after harvest.',
+      ])
+      expect(out.toComplete).toContain('Lakeshore: simulation (save the viewpoint)')
     })
   })
 
@@ -283,12 +351,16 @@ describe('figure parts', () => {
       expect(html).toContain('Proposed block')
       expect(html).toContain('1:50,000')
       expect(
-        (part('overview-map').build(context('referral-panoramas', ['Lakeshore'])).blocks[0] as { caption: string })
-          .caption,
+        (
+          part('overview-map').build(context('referral-panoramas', ['Lakeshore'], { images: allImages(['Lakeshore']) }))
+            .blocks[0] as { caption: string }
+        ).caption,
       ).toBe('Figure 1: Observer viewpoint location')
       expect(
-        (part('overview-map').build(context('perspective-report-gross', names)).blocks[0] as { caption: string })
-          .caption,
+        (
+          part('overview-map').build(context('perspective-report-gross', names, { images: allImages(names) }))
+            .blocks[0] as { caption: string }
+        ).caption,
       ).toBe('Appendix A1: Viewpoint map')
     })
 
@@ -302,10 +374,25 @@ describe('figure parts', () => {
       expect(html).not.toContain('vf-key')
     })
 
-    it('print a placeholder overview map and list it when missing', () => {
-      const out = part('overview-map').build(context('referral-panoramas', ['Lakeshore']))
+    it('print a placeholder overview map in the draft, nothing in a file, and list it when missing', () => {
+      const out = part('overview-map').build(context('referral-panoramas', ['Lakeshore'], { draft: true }))
       expect(out.toComplete).toEqual(['Overview map'])
       expect(extraBlockHtml(out.blocks[0])).toContain('vf-pic vf-empty')
+      const file = part('overview-map').build(context('referral-panoramas', ['Lakeshore']))
+      expect(file).toEqual({ blocks: [], toComplete: ['Overview map'] })
+    })
+
+    it('list a part a composed map could not draw, which the map leaves empty', () => {
+      const images = allImages(['Lakeshore'])
+      const sheet = { ...picture('sheet'), map: { inPicture: true, missing: ['key map'] } }
+      const out = part('overview-sheet').build(
+        context('perspective-report-gross', ['Lakeshore'], {
+          images: { ...images, overviewSheet: sheet },
+          recipeParts: ['overview-sheet'],
+        }),
+      )
+      expect(kinds(out.blocks)).toEqual(['figure'])
+      expect(out.toComplete).toEqual(['Overview sheet: key map'])
     })
 
     it('lay out each overhead render, then the obliques side by side under one caption naming the blocks', () => {
@@ -325,10 +412,13 @@ describe('figure parts', () => {
       expect(extraBlockHtml(out.blocks[2])).toContain('vf-cols-2')
     })
 
-    it('print an overhead and an oblique placeholder when no render was given', () => {
-      const out = part('overhead-renders').build(context('form-2001-analysis-sheets', ['Lakeshore']))
+    it('print an overhead and an oblique placeholder in the draft when no render was given, nothing in a file', () => {
+      const out = part('overhead-renders').build(context('form-2001-analysis-sheets', ['Lakeshore'], { draft: true }))
       expect(kinds(out.blocks)).toEqual(['pageBreak', 'mapFigure', 'figureGrid'])
-      expect(out.toComplete).toEqual(['Overhead render of the blocks', 'Oblique renders of the blocks'])
+      const listed = ['Overhead render of the blocks', 'Oblique renders of the blocks']
+      expect(out.toComplete).toEqual(listed)
+      const file = part('overhead-renders').build(context('form-2001-analysis-sheets', ['Lakeshore']))
+      expect(file).toEqual({ blocks: [], toComplete: listed })
       expect(andList(['A', 'B', 'C'])).toBe('A, B and C')
     })
   })
@@ -343,8 +433,14 @@ describe('figure parts', () => {
     const md = reportMarkdown(report(blocks))
     expect(md).toContain('**Figure 4: Visualization from Lakeshore**')
     expect(md).toContain('- Regional map: _regional_')
-    const empty = FIGURE_PARTS.flatMap((p) => p.build(context('referral-panoramas', names, { figures: [] })).blocks)
-    expect(reportMarkdown(report(empty))).toContain('- Before project: to come, Lakeshore: a field photograph')
+    const draft = FIGURE_PARTS.flatMap(
+      (p) => p.build(context('referral-panoramas', names, { figures: [], draft: true })).blocks,
+    )
+    expect(reportMarkdown(report(draft))).toContain('- Before project: to come, Lakeshore: a field photograph')
+    // A file names no missing picture where it would print: only its to-complete list does.
+    const file = FIGURE_PARTS.flatMap((p) => p.build(context('referral-panoramas', names, { figures: [] })).blocks)
+    expect(reportMarkdown(report(file))).not.toContain('to come')
+    expect(reportHtml(report(file), null)).not.toMatch(/vf-pic vf-empty|class="placeholder"|save the viewpoint/)
   })
 })
 

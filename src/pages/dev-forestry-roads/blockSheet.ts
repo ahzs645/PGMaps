@@ -38,6 +38,7 @@ import {
   type SheetSeriesProgress,
 } from '@/lib/forestry/blockSheet/sheetSeries'
 import type { RasterImage } from '@/lib/mapSheet/drawOps'
+import { emptyFieldsMode } from '@/lib/mapSheet/emptyFields'
 import type { SheetFileDeps, SheetFormat } from '@/lib/mapSheet/sheetFormats'
 import { PAPER_SIZES, type PaperId } from '@/lib/mapSheet/layout'
 import { MAX_SHEET_SCALE } from '@/lib/mapSheet/scale'
@@ -425,6 +426,8 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
       signal: run.signal,
       preview: run.preview,
       maskOutsideBlock: run.maskOutsideBlock,
+      // Every printed file of the project follows its report settings' choice; absent is blank.
+      emptyFields: emptyFieldsMode(run.project.reportSettings),
     },
     {
       drive: (steps) => runCooperatively(steps, { signal: run.signal }, 'Block sheet cancelled.'),

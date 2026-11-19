@@ -1,4 +1,5 @@
-import { expect, type Download, type Page } from '@playwright/test'
+import { expect, type Download, type Locator, type Page } from '@playwright/test'
+import { choose } from './styled-select'
 
 /** The visual-quality page's Save & export dialog, opened (from the toolbar) on one output. */
 export async function openVisualsExport(page: Page, output: string | RegExp) {
@@ -22,18 +23,23 @@ export async function openVisualsExportPackage(page: Page) {
     .getByRole('navigation', { name: 'Files' })
     .getByRole('button', { name: /^Package:/ })
     .click()
-  await expect(dialog.getByRole('region', { name: 'Package' })).toBeVisible()
+  await expect(dialog.getByRole('region', { name: 'Package', exact: true })).toBeVisible()
   return dialog
 }
 
-/** Writes one output from Save & export, in `format` (its segmented label) when given, and returns the download. */
+/** Picks an output's format by its label in the header's dropdown ("<output> format"). */
+export async function chooseVisualsFormat(dialog: Locator, output: string, format: string) {
+  await choose(dialog.getByLabel(`${output} format`, { exact: true }), { label: format })
+}
+
+/** Writes one output from Save & export, in `format` (its dropdown label) when given, and returns the download. */
 export async function downloadVisualsExport(
   page: Page,
   output: string,
   options: { format?: string } = {},
 ): Promise<Download> {
   const dialog = await openVisualsExport(page, output)
-  if (options.format) await dialog.getByRole('button', { name: options.format, exact: true }).click()
+  if (options.format) await chooseVisualsFormat(dialog, output, options.format)
   const download = page.waitForEvent('download')
   await dialog.getByRole('button', { name: `Download ${output}`, exact: true }).click()
   return download

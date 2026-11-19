@@ -855,8 +855,11 @@ describe('portrait end map', () => {
     expect(sheet.labels).toEqual(expect.arrayContaining(['VP 1', 'VP 2 Far Ridge', 'EGG1', 'EGG2', 'PR', 'Long Lake']))
     const texts = sheet.ops.flatMap((op) => (op.op === 'text' ? [op] : []))
     expect(texts.map((op) => op.text)).toEqual(
-      expect.arrayContaining(['VIA Overview Map', 'CP 12', sheet.scale, 'Legend', 'Logo (your own)']),
+      expect.arrayContaining(['VIA Overview Map', 'CP 12', sheet.scale, 'Legend']),
     )
+    // No logo given: its slot draws nothing. No key map captured: nor does its place (the report lists it to complete).
+    expect(texts.some((op) => /logo/i.test(op.text))).toBe(false)
+    expect(texts.some((op) => /key map/i.test(op.text))).toBe(false)
     // Northings stand on their side; eastings read across.
     const { ticks } = plan.endMap!
     expect(texts.find((op) => op.text === ticks.left[0].label)?.angle).toBe(90)

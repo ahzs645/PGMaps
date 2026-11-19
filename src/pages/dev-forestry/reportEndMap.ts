@@ -530,24 +530,9 @@ export function composeEndMap(input: EndMapInput): ComposedReportMap {
     ops.push(tickText(t.label, map.x + map.w + tick + 2.5 + tickSize * 0.75, t.at, tickSize, 90))
   }
 
-  // The title block: the logo slot (the user's own), the title, the project line and the stated scale.
+  // The title block: the logo slot (the user's own; with none it keeps its place and draws nothing), the title, the
+  // project line and the stated scale.
   if (input.logo) ops.push(fittedImage(input.logo, layout.logo, 'left'))
-  else {
-    ops.push({
-      op: 'rect',
-      ...layout.logo,
-      stroke: { color: '#bfbfbf', width: 0.5, dash: [3, 2] },
-    })
-    ops.push({
-      op: 'text',
-      x: layout.logo.x + layout.logo.w / 2,
-      y: layout.logo.y + layout.logo.h / 2 + 2.5,
-      text: 'Logo (your own)',
-      size: 7,
-      color: '#9c9c9c',
-      align: 'center',
-    })
-  }
   const heading = layout.heading
   const cx = heading.x + heading.w / 2
   const projectLine = fitText(
@@ -658,35 +643,25 @@ function legendLayout(
 
 /**
  * The key map: the regional capture in its box, the sheet's ground outlined on it, a north arrow and the scale it is
- * drawn at; without a capture, an outlined box saying so.
+ * drawn at. Without a capture its place keeps its room and draws nothing, as the logo's does; the report lists it to
+ * complete (`MapFurniture.missing`).
  */
 function keyMapOps(image: RasterImage | null, plan: ReportMapPlan, box: Box): DrawOp[] {
+  if (!image) return []
   const end = plan.endMap!
   const ops: DrawOp[] = [{ op: 'rect', ...box, fill: '#ffffff' }]
-  if (image) {
-    ops.push({ op: 'clip', parts: [rectRing(box.x, box.y, box.w, box.h)] })
-    ops.push({ op: 'image', ...box, image })
-    // The sheet's ground on the key map: its neat line's corners projected at the key map's scale.
-    const keyScale = end.keyMap.scale
-    const ratio = plan.sheet!.scale / keyScale
-    const cx = box.x + box.w / 2,
-      cy = box.y + box.h / 2
-    const { map } = end.layout
-    const w = map.w * ratio,
-      h = map.h * ratio
-    ops.push(...areaSymbolOps([rectRing(cx - w / 2, cy - h / 2, w, h)], S.keyMapArea, 1))
-    ops.push({ op: 'restore' })
-  } else
-    ops.push({
-      op: 'text',
-      x: box.x + box.w / 2,
-      y: box.y + box.h / 2,
-      text: 'Key map not captured',
-      size: 6,
-      color: '#6e6e6e',
-      align: 'center',
-      baseline: 'middle',
-    })
+  ops.push({ op: 'clip', parts: [rectRing(box.x, box.y, box.w, box.h)] })
+  ops.push({ op: 'image', ...box, image })
+  // The sheet's ground on the key map: its neat line's corners projected at the key map's scale.
+  const keyScale = end.keyMap.scale
+  const ratio = plan.sheet!.scale / keyScale
+  const cx = box.x + box.w / 2,
+    cy = box.y + box.h / 2
+  const { map } = end.layout
+  const w = map.w * ratio,
+    h = map.h * ratio
+  ops.push(...areaSymbolOps([rectRing(cx - w / 2, cy - h / 2, w, h)], S.keyMapArea, 1))
+  ops.push({ op: 'restore' })
   // A north arrow in the key map's top-left corner, and the key map's scale under it.
   const ax = box.x + 9,
     ay = box.y + 6

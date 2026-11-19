@@ -29,6 +29,7 @@ import {
 } from '@/lib/mapSheet/scale'
 import { areaSymbolOps, lineSymbolOps, pointSymbolOps, scaleStroke, swatchOps } from '@/lib/mapSheet/symbols'
 import { fitLabel, fitText, LABEL_LINE_HEIGHT, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
+import { emptyFieldText, type EmptyFields } from '@/lib/mapSheet/emptyFields'
 import { blockBounds, type BlockFacts, type BlockGeometry } from './blockFacts'
 import { operatingPlanBrand, operatingPlanLocator, operatingPlanTitle } from './operatingPlanPanels'
 import {
@@ -214,6 +215,14 @@ export interface ComposeInput {
    * without one the footer's map note, says the map is dimmed (`MASK_NOTE`); the legend gains nothing.
    */
   maskOutsideBlock?: boolean
+  /**
+   * What a field the person left empty prints (the typed block fields, "Prepared by", "Summary By"),
+   * through `emptyFieldText`. A tool that offers the choice passes it (the road designer's
+   * `RoadReportSettings.emptyFields`); absent is blank, as everywhere, so a tool without the choice (the visual
+   * quality page's sheet) prints no stand-in wording.
+   * Missing block facts (centre, area, elevations) are a data condition and always print "not recorded".
+   */
+  emptyFields?: EmptyFields
 }
 
 export interface LegendItem {
@@ -232,6 +241,11 @@ export interface ComposedSheet {
 }
 
 const NOT_RECORDED = 'not recorded'
+/** A field the person fills in, left empty: blank or "not recorded" as the input says. */
+const emptyTyped = (input: ComposeInput) => emptyFieldText(input.emptyFields, NOT_RECORDED)
+/** What a missing block information value prints: facts are data, the rest are typed fields. */
+const FACT_FIELDS: ReadonlySet<InfoFieldId> = new Set(['mapsheet', 'grossArea', 'minElev', 'maxElev'])
+const missingInfo = (id: InfoFieldId, input: ComposeInput) => (FACT_FIELDS.has(id) ? NOT_RECORDED : emptyTyped(input))
 /** What a masked sheet prints (`ComposeInput.maskOutsideBlock`). */
 export const MASK_NOTE = 'Map dimmed outside the block'
 
@@ -778,7 +792,7 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
         legendPanel(ops, sheet, preset, body, legend, classLegend)
         break
       case 'roadTable':
-        roadTable(ops, sheet, body, roads, input.issue)
+        roadTable(ops, sheet, body, roads, input.issue, emptyTyped(input))
         break
       case 'footer':
         footer(ops, sheet, body, input, projection, maskInFooter)
@@ -891,7 +905,10 @@ function titleBar(ops: DrawOp[], sheet: ResolvedSheet, preset: SheetPreset, inpu
   })
 }
 
-/** Label: value rows in two columns; missing values print "not recorded" in grey. */
+/**
+ * Label: value rows in two columns. A missing fact prints "not recorded" in grey; a typed field left
+ * empty prints as `ComposeInput.emptyFields` says.
+ */
 function blockInfo(
   ops: DrawOp[],
   sheet: ResolvedSheet,
@@ -913,7 +930,7 @@ function blockInfo(
       (id) =>
         textWidth(`${infoFieldLabel(id, preset.kind)}: `, size, 'bold') +
         textWidth(
-          infoValue(id, input.facts, input.fields).text ?? NOT_RECORDED,
+          infoValue(id, input.facts, input.fields).text ?? missingInfo(id, input),
           size,
           preset.info.boldValues ? 'bold' : 'normal',
         ) +
@@ -936,7 +953,7 @@ function blockInfo(
         x: x + labelWidth,
         y,
         text: fitText(
-          text ?? NOT_RECORDED,
+          text ?? missingInfo(id, input),
           size,
           columnWidth - labelWidth - 3 * k,
           preset.info.boldValues ? 'bold' : 'normal',
@@ -1151,7 +1168,15 @@ function legendPanel(
 
 /** Roads in two side-by-side halves of five rows: colour key, name, chainage. */
 export const ROAD_TABLE_ROWS = 5
-function roadTable(ops: DrawOp[], sheet: ResolvedSheet, body: Rect, roads: SheetRoad[], issue: SheetIssue) {
+function roadTable(
+  ops: DrawOp[],
+  sheet: ResolvedSheet,
+  body: Rect,
+  roads: SheetRoad[],
+  issue: SheetIssue,
+  /** What "Summary By" prints when no one is named (`emptyTyped`). */
+  emptyName: string,
+) {
   const k = sheet.k
   const summarySize = fontSize(sheet, 7)
   const summaryHeight = 18 * k
@@ -1169,7 +1194,7 @@ function roadTable(ops: DrawOp[], sheet: ResolvedSheet, body: Rect, roads: Sheet
     op: 'text',
     x: body.x + body.w / 2 + 4 * k,
     y: body.y + summaryHeight / 2,
-    text: fitText(`Summary By: ${issue.preparedBy || NOT_RECORDED}`, summarySize, body.w / 2 - 8 * k, 'bold'),
+    text: fitText(`Summary By: ${issue.preparedBy || emptyName}`, summarySize, body.w / 2 - 8 * k, 'bold'),
     size: summarySize,
     style: 'bold',
     color: '#ff0000',
@@ -1295,7 +1320,7 @@ function footer(
   const parts = [
     `Scale = ${formatScale(projection.scale)}`,
     `Date: ${input.issue.date}`,
-    `Prepared by: ${input.issue.preparedBy || NOT_RECORDED}`,
+    `Prepared by: ${input.issue.preparedBy || emptyTyped(input)}`,
   ]
   const third = (body.w - pad * 2) / 3
   parts.forEach((text, i) =>

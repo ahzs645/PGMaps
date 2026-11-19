@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { describeProjectChange } from './projectChangeLabel'
+import { createRoadReportSettings } from './reportSettings'
 import { createDemoProject } from './terrain'
 import { addVerticalAlternative, snapshotActiveVerticalAlternative } from './verticalAlternatives'
 import type { Alignment, RoadProject } from './types'
@@ -65,6 +66,21 @@ describe('naming an edit for the undo history', () => {
     }
     expect(describeProjectChange(project, many)).toBe(`${road.name}: colour and 2 other changes; Design settings`)
     expect(describeProjectChange(project, project)).toBe('No change')
+  })
+
+  it('names a report contents change by what it touched', () => {
+    const settings = createRoadReportSettings()
+    const base = { ...project, reportSettings: settings }
+    expect(describeProjectChange(base, { ...base, reportSettings: { ...settings, sectionOrder: ['profile'] } })).toBe(
+      'Report section order',
+    )
+    expect(
+      describeProjectChange(base, { ...base, reportSettings: { ...settings, omittedSections: ['profile'] } }),
+    ).toBe('Report sections')
+    expect(describeProjectChange(base, { ...base, reportSettings: { ...settings, paper: 'A4' } })).toBe('Sheet setup')
+    expect(describeProjectChange(base, { ...base, reportSettings: { ...settings, emptyFields: 'stated' } })).toBe(
+      'What empty fields print',
+    )
   })
 
   it('does not count the re-copied active profile alternative as an edit', () => {

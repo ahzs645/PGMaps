@@ -42,16 +42,11 @@ import { inventoryFetch } from '@/lib/offline/inventoryCopies'
 import { copyReadAt, oldestCopy } from '@/lib/offline/keptReads'
 
 import { compassPoint, lineToPolygonMeters } from './visualsNarrative'
+import { VIEWPOINT_LAYERS } from './viewpointLayers'
 
 export const BC_WFS = 'https://openmaps.gov.bc.ca/geo/pub/wfs'
 
-export const VIEWPOINT_LAYERS = {
-  viewpoints: 'WHSE_FOREST_VEGETATION.REC_VIEWPOINT_POINT_SVW',
-  arrows: 'WHSE_FOREST_VEGETATION.REC_VIEWING_DIRECTION_LIN',
-  screenings: 'WHSE_FOREST_VEGETATION.REC_SCREENINGS_POLY',
-  recSites: 'WHSE_FOREST_TENURE.FTEN_REC_SITE_POINTS_SVW',
-  roads: 'WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW',
-} as const
+export { VIEWPOINT_LAYERS }
 
 const FIELDS: Record<keyof typeof VIEWPOINT_LAYERS, string[]> = {
   viewpoints: ['VIEWPOINT_ID', 'VIEWPOINT_NUMBER', 'REC_VIEWPOINT_TYPE_CODE', 'DESCRIPTION', 'EXPIRY_DATE', 'GEOMETRY'],

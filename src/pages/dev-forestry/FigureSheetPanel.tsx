@@ -7,6 +7,7 @@ import {
   composeFigure,
   cropRasterRows,
   figureLabelStyle,
+  figureSubject,
   paintsBlocks,
   presetRule,
   rgbaLuminance,
@@ -363,13 +364,15 @@ async function figurePng(figure: ComposedFigure): Promise<Blob> {
   return sheetPngBlob(sheetSvg(ops, figure.width, figure.height), figure.width, figure.height, PNG_PIXELS_PER_POINT)
 }
 
-async function figurePdf(figure: ComposedFigure): Promise<Blob> {
+/** `subject`: what the file says of itself (`figureSubject`), in its properties rather than on the sheet. */
+async function figurePdf(figure: ComposedFigure, subject?: string): Promise<Blob> {
   const [jspdf, { createSheetPdf, drawSheetPdf }] = await Promise.all([
     import('jspdf'),
     import('@/lib/mapSheet/renderPdf'),
   ])
   const ops = await jpegFrames(figure.ops)
   const pdf = createSheetPdf(jspdf, figure.width, figure.height)
+  if (subject) pdf.setProperties({ subject, creator: 'PGMaps' })
   drawSheetPdf(pdf, jspdf, ops)
   return pdf.output('blob')
 }
@@ -486,7 +489,8 @@ export async function analysisSheetFile(
   timber: TimberMeasure | null = null,
 ): Promise<{ blob: Blob; fileName: string; copyPng: () => Promise<Blob> }> {
   const figure = await composeResolved(resolved, logo, timber)
-  const blob = format === 'pdf' ? await figurePdf(figure) : await figurePng(figure)
+  const blob =
+    format === 'pdf' ? await figurePdf(figure, figureSubject(resolved.preset, new Date())) : await figurePng(figure)
   return {
     blob,
     fileName: `via-analysis-${safeName(resolved.view?.name ?? 'view')}-${resolved.preset.id}.${format}`,

@@ -86,8 +86,10 @@ describe('own VIA report recipes', () => {
     const own = assembleReport(copy, ctx)
     expect(own.blocks).toEqual(built.blocks)
     expect(own.toComplete).toEqual(built.toComplete)
-    expect(built.footer).toMatch(/^PGMaps report in the structure of reference document 03/)
-    expect(own.footer).toMatch(/^PGMaps report from your own recipe, 2001 VIA summary form/)
+    // Named in the file's properties only: the printed page says nothing of what made it.
+    expect(built.about).toMatch(/^PGMaps report in the structure of reference document 03, generated \d{4}-\d\d-\d\d$/)
+    expect(own.about).toMatch(/^PGMaps report from your own recipe, 2001 VIA summary form/)
+    expect(built.footer).toBe('')
   })
 
   it('keep sources following the parts when edited', () => {
@@ -111,6 +113,54 @@ describe('own VIA report recipes', () => {
     const file = recipeFileText(copy, new Date('2026-11-15T00:00:00Z'))
     expect(readRecipeFile(file, { ids: new Set(), names: new Set() })).toEqual({ recipe: copy })
     expect(recipeFileName(copy)).toBe('2001-via-summary-form-with-analysis-sheets-your-copy.via-recipe.json')
+  })
+
+  it('keep the parts switched off at their places, as stored and through a shared file', () => {
+    const copy = editRecipe(copyRecipe(base, new Set(), fixed), {
+      parts: base.parts.filter((part) => part !== 'inventory' && part !== 'notes-2001'),
+      leftOut: [
+        { part: 'inventory', at: base.parts.indexOf('inventory') },
+        { part: 'notes-2001', at: base.parts.indexOf('notes-2001') },
+      ],
+    })
+    const stored = JSON.parse(JSON.stringify(storedRecipe(copy)))
+    expect(stored.leftOut).toEqual(copy.leftOut)
+    expect(readOwnRecipe(stored)).toEqual({ recipe: copy })
+    expect(readRecipeFile(recipeFileText(copy, new Date()), { ids: new Set(), names: new Set() })).toEqual({
+      recipe: copy,
+    })
+    // A copy keeps them, as its own list.
+    const again = copyRecipe(copy, new Set([copy.id]), () => 0.75)
+    expect(again.leftOut).toEqual(copy.leftOut)
+    expect(again.leftOut).not.toBe(copy.leftOut)
+    // Nothing switched off writes nothing, and the report assembles from `parts` alone.
+    expect(storedRecipe(copyRecipe(base, new Set(), fixed))).not.toHaveProperty('leftOut')
+    const ctx = context(base.format)
+    expect(assembleReport(copy, ctx).blocks).toEqual(assembleReport({ ...copy, leftOut: undefined }, ctx).blocks)
+  })
+
+  it('refuse parts switched off that name nothing, have no place or share one', () => {
+    const stored = storedRecipe(copyRecipe(base, new Set(), fixed))
+    const parts = stored.parts as string[]
+    const read = (leftOut: unknown) => readOwnRecipe({ ...stored, leftOut })
+    expect(read({ part: 'inventory', at: 1 }).error).toContain('switched off are not a list')
+    expect(read([{ part: 'no-such-part', at: 1 }]).error).toContain('switches off a part PGMaps does not have')
+    expect(read([{ part: 'inventory', at: 1.5 }]).error).toContain('has no place in the list')
+    expect(read([{ part: 'inventory', at: parts.length + 1 }]).error).toContain('has no place in the list')
+    expect(read([{ part: 'inventory', at: -1 }]).error).toContain('has no place in the list')
+    expect(
+      read([
+        { part: 'inventory', at: 2 },
+        { part: 'sign-off', at: 2 },
+      ]).error,
+    ).toContain('share place 2')
+    expect(read(Array.from({ length: 80 }, (_, at) => ({ part: 'inventory', at }))).error).toContain(
+      'counting those switched off',
+    )
+    // The last place in the whole list is a place.
+    expect(read([{ part: 'inventory', at: parts.length }]).recipe?.leftOut).toEqual([
+      { part: 'inventory', at: parts.length },
+    ])
   })
 
   it('import under a fresh id and name when they are taken, never over a recipe', () => {

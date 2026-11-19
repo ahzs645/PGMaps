@@ -16,6 +16,7 @@ import {
   sheetSetupFilename,
   sheetSetupFromFile,
 } from './sheetSetups'
+import { REPORT_ORDER } from './reportContents'
 
 const today = new Date(2026, 10, 10)
 const plotBook = {
@@ -56,6 +57,37 @@ describe('sheet setups', () => {
     ])
     expect(() => createSheetSetup('', { plotBook }, today)).toThrow(/1–80/)
     expect(() => createSheetSetup('x', {}, today)).toThrow(/no sheet setup/)
+  })
+
+  it('carries the report section order, and a setup without one reads as before', () => {
+    const sectionOrder = ['station-schedule' as const, ...REPORT_ORDER.filter((id) => id !== 'station-schedule')]
+    const ordered = { ...plotBook, sectionOrder }
+    const setup = createSheetSetup('Ordered', { plotBook: ordered }, today)
+    expect(setup.plotBook?.sectionOrder?.[0]).toBe('station-schedule')
+    expect(sheetSetupFromFile(serializeSheetSetup(setup))).toEqual(setup)
+    expect(applySheetSetup(setup, { blockSheet: DEFAULT_BLOCK_SHEET }).plotBook?.sectionOrder).toEqual(
+      ordered.sectionOrder,
+    )
+    expect(describeSheetSetup(setup)[0]).toBe(
+      'Plot book: Tabloid 11 × 17 in (ANSI B) landscape, 1 chapter; report leaves out 1 section; report sections in their own order',
+    )
+    // A plain setup gains no order field on the way through.
+    expect(createSheetSetup('Plain', { plotBook }, today).plotBook).not.toHaveProperty('sectionOrder')
+  })
+
+  it('carries what an empty field prints, and a setup without it reads as before', () => {
+    const stated = { ...plotBook, emptyFields: 'stated' as const }
+    const setup = createSheetSetup('Stated', { plotBook: stated }, today)
+    expect(setup.plotBook?.emptyFields).toBe('stated')
+    expect(sheetSetupFromFile(serializeSheetSetup(setup))).toEqual(setup)
+    expect(applySheetSetup(setup, { blockSheet: DEFAULT_BLOCK_SHEET }).plotBook?.emptyFields).toBe('stated')
+    expect(describeSheetSetup(setup)[0]).toBe(
+      'Plot book: Tabloid 11 × 17 in (ANSI B) landscape, 1 chapter; report leaves out 1 section; empty fields print \u201cNot recorded\u201d',
+    )
+    // A plain setup gains no field, and applying it puts the project back to blank.
+    const plain = createSheetSetup('Plain', { plotBook }, today)
+    expect(plain.plotBook).not.toHaveProperty('emptyFields')
+    expect(applySheetSetup(plain, { blockSheet: DEFAULT_BLOCK_SHEET }).plotBook).not.toHaveProperty('emptyFields')
   })
 
   it('round-trips through its file and refuses one that is not a setup', () => {

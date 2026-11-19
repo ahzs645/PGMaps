@@ -377,9 +377,12 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null, dra
     } else parts.push(html(block))
   }
   const at = completeAt(parts)
+  // No logo: the slot keeps its place and is empty in a file; only the draft, an editing surface, says whose it is.
   const logoBox = logo
     ? `<div class="logo"><img src="${logo.dataUrl}" alt="${e(logo.name)}"></div>`
-    : '<div class="logo empty">Logo (your own)</div>'
+    : draft
+      ? '<div class="logo empty">Logo (your own)</div>'
+      : '<div class="logo"></div>'
   const head = report.layout.cover
     ? `<section class="cover">${logoBox}<h1>${e(title)}</h1><p class="sub">${e(report.subtitle)}</p>${coverBlocks.map((block) => mark(block) + blockHtml(block, draft ?? false)).join('')}</section>`
     : `<header class="title"><div><h1>${e(title)}</h1><p>${e(report.subtitle)}</p></div>${logoBox}</header>`
@@ -399,7 +402,7 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null, dra
         .map(([part, items]) => `<li><b>${e(part)}:</b> ${items.map(e).join('; ')}</li>`)
         .join('')}</ul></section>`
     : ''
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'unsafe-inline'"><title>${e(title)} - ${e(report.subtitle)}</title><style>${CSS}
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'unsafe-inline'">${report.about ? `<meta name="description" content="${e(report.about)}">` : ''}<title>${e(title)} - ${e(report.subtitle)}</title><style>${CSS}
 ${SCALES_CSS}
 ${FIGURES_CSS}
 ${pageCss(report)}${draft ? `\n${DRAFT_CSS}` : ''}</style></head><body>
@@ -408,7 +411,7 @@ ${draft ? '' : '<button onclick="window.print()">Print / save as PDF</button>'}
 ${contents}
 ${parts.slice(0, at).join('\n')}
 ${complete}
-<footer>${e(report.footer)}</footer>
+${report.footer ? `<footer>${e(report.footer)}</footer>` : ''}
 ${parts.slice(at).join('\n')}
 </body></html>`
 }
@@ -486,6 +489,6 @@ export function reportMarkdown(report: AssembledReport): string {
       ...report.toComplete.map((item) => `- **${item.part}:** ${item.what}`),
       '',
     )
-  lines.push(`_${report.footer}_`, '')
+  if (report.footer) lines.push(`_${report.footer}_`, '')
   return lines.join('\n')
 }

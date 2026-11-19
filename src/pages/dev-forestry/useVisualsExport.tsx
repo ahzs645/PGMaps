@@ -86,7 +86,9 @@ import {
 } from './viaReport/recipes'
 import { DRAW_HOW, standInGroups, standInUrl, withStandIns } from './viaReport/draftPictures'
 import { recipeMakeup } from './viaReport/recipeMakeup'
+import { baseRecipeOf } from './viaReport/recipeContents'
 import { OwnRecipeTools } from './RecipeEditor'
+import { recipeContentsControls } from './viaReportContentsControls'
 import type { DraftPicture, ReportDraftPages, ReportDraftResult } from './ReportDraftView'
 import { withReportEdit } from './viaReport/edits'
 import { useOwnRecipes } from './userRecipeStore'
@@ -773,6 +775,7 @@ export function useVisualsExport(input: {
     figures: readonly ReportFigure[],
     images?: ReportImages,
     views: readonly ReportView[] = reportViews,
+    draft = false,
   ) =>
     buildReportContext({
       recipe: reportRecipe,
@@ -787,6 +790,7 @@ export function useVisualsExport(input: {
       reportSetting: input.reportSetting?.() ?? null,
       greenUp: result ? runGreenUpBasis(result).label : null,
       date: new Date(),
+      ...(draft ? { draft } : {}),
     })
   // Placeholder figures stand in for the counts only; the file draws each view's figure. Its parts are assembled
   // once the report engine has loaded (the counts wait for it); its subtitle needs no part, so it never waits.
@@ -795,10 +799,11 @@ export function useVisualsExport(input: {
         reportViews.map((view) => ({ view: view.name, caption: view.name, dataUrl: '', width: 1, height: 1 })),
       )
     : null
-  const draftReport =
+  const draftAssembly =
     draftContext && reportEngine.ready
-      ? assembleReportParts(reportRecipe, draftContext, scene.viaReview?.reportEdits).report
+      ? assembleReportParts(reportRecipe, draftContext, scene.viaReview?.reportEdits)
       : null
+  const draftReport = draftAssembly?.report ?? null
   const draftSubtitle = draftContext ? reportSubtitle(draftContext) : null
   const chosenLogo = printedLogo(branding)
   const briefBlock = blocks.find((entry) => entry.id === input.briefBlockId) ?? blocks[0] ?? null
@@ -871,7 +876,6 @@ export function useVisualsExport(input: {
       ? {
           recipe: reportRecipe.name,
           sources: reportRecipe.sources.join(', '),
-          parts: reportRecipe.parts.map((id) => id.replace(/-/g, ' ')),
           figures: reportViews.length,
           toComplete: draftReport ? draftReport.toComplete.length : null,
           ...(reportMapStyle !== SHEET_SYMBOLS_STYLE
@@ -879,6 +883,14 @@ export function useVisualsExport(input: {
             : {}),
         }
       : null,
+    // The report's parts in print order, those switched off at their place, with what each printed once assembled.
+    reportContents: {
+      recipe: { parts: reportRecipe.parts, leftOut: reportRecipe.leftOut, layout: reportRecipe.layout },
+      base: baseRecipeOf(reportRecipe)?.parts ?? null,
+      facts: draftAssembly
+        ? draftAssembly.parts.map((part) => ({ printed: part.blocks > 0, toComplete: part.toComplete }))
+        : null,
+    },
     renderer: {
       id: figureRenderer,
       label: roadRendererInfo(figureRenderer).label,
@@ -997,6 +1009,8 @@ export function useVisualsExport(input: {
       landChecks: kind === 'block-note' ? context.landChecks : null,
       // Only the route card prints the route card.
       routeCard: kind === 'route-card' ? context.routeCard : null,
+      // Only the VIA report prints its parts (its recipe is in every version below).
+      reportContents: kind === 'via-report' ? context.reportContents : null,
       // A render finishing is content (the counts, and the jobs below); its clock and queue are not.
       renderer: {
         ...context.renderer,
@@ -1215,7 +1229,7 @@ export function useVisualsExport(input: {
     if (mode === 'file') await ensurePictures(named)
     const captured = keptPictures(named)
     if (mode === 'file') {
-      // What could not be captured prints as a placeholder in the report; the reason goes to the console.
+      // What could not be captured prints nothing in the file and is listed to complete; the reason goes to the console.
       if (captured.notes.length) console.warn(`VIA report pictures:\n${captured.notes.join('\n')}`)
       // Development only: the VIA reference-library harness reads the captures whatever the recipe prints.
       if (import.meta.env.DEV) (window as unknown as { __viaReportCaptures?: unknown }).__viaReportCaptures = captured
@@ -1371,7 +1385,8 @@ export function useVisualsExport(input: {
       const id = figureViews.find((entry) => entry.name === view.name)?.id
       return id && timber[id] ? { ...view, timber: timber[id] } : view
     })
-    const context = reportContext(figures, images, views)
+    // Only the draft keeps a place, with a box, for a picture nobody gave; the file prints nothing there.
+    const context = reportContext(figures, images, views, mode === 'draft')
     // Development only: the pictures and facts the report was built from, for the reference comparison.
     if (import.meta.env.DEV && mode === 'file')
       Object.assign(window as unknown as Record<string, unknown>, {
@@ -1394,6 +1409,7 @@ export function useVisualsExport(input: {
           figures,
           standIns({ after: drawnImages.after, before: photoBefores(captured.images.before ?? {}) }),
           views,
+          true,
         ),
       )
       return standInGroups(reportHtml(dry, null, { parts: [] }))
@@ -1412,6 +1428,9 @@ export function useVisualsExport(input: {
       throw new Error(
         'No view in the package has a class pass to draw the report from: capture a view of interest or save one in the road view.',
       )
+    // Nothing assembles a report before its engine has loaded; the draft is laid out again once it has.
+    if (!reportEngine.ready)
+      throw new Error('The report’s parts are still loading: the draft is laid out once they have.')
     const { report, parts, edits, captured, named, printed } = await composeReport('draft')
     lastDraft.current = { report, parts }
     const editedKeys = new Set(edits.targets.filter((target) => target.edited !== undefined).map((t) => t.key))
@@ -1641,7 +1660,7 @@ export function useVisualsExport(input: {
               'application/json',
             )
           : textFile(
-              documentMarkdown(viaDocument, facts, new Date()) + viewsLeftOutMarkdown(leftOut),
+              documentMarkdown(viaDocument, facts) + viewsLeftOutMarkdown(leftOut),
               `${name}.md`,
               'text/markdown',
             )
@@ -1832,11 +1851,6 @@ export function useVisualsExport(input: {
           checked={noteFigures}
           onCheckedChange={input.onNoteFigures}
         />
-        <CheckboxField
-          label="Include the land status checks (treaty land, reserves, private land, parks…)"
-          checked={includeLandChecks}
-          onCheckedChange={setIncludeLandChecks}
-        />
       </div>
     ),
     fs1252: (
@@ -1974,22 +1988,25 @@ export function useVisualsExport(input: {
   }
 
   // The package's choices, shown once under its own entry in the dialog's list.
-  const setPlannedInclude = (id: string, on: boolean) =>
+  // Each takes every change of one click (a row, or All / None) in one write.
+  const setPlannedInclude = (changes: Record<string, boolean>) =>
     input.setViewsOfInterest?.((views) =>
       views.map((view) => {
-        if (view.id !== id) return view
+        if (!(view.id in changes)) return view
         // Absent reads as included (`isIncluded`), so including a view drops the flag rather than storing true.
         const next = { ...view }
-        if (on) delete next.include
+        if (changes[view.id]) delete next.include
         else next.include = false
         return next
       }),
     )
-  const setSavedInclude = (id: string, on: boolean) =>
+  const setSavedInclude = (changes: Record<string, boolean>) =>
     setExcludedViews((current) => {
       const next = new Set(current)
-      if (on) next.delete(id)
-      else next.add(id)
+      for (const [id, on] of Object.entries(changes)) {
+        if (on) next.delete(id)
+        else next.add(id)
+      }
       return next
     })
   const shownView = (id: string | null) => (id ? (images[id]?.dataUrl ?? null) : null)
@@ -2156,6 +2173,34 @@ export function useVisualsExport(input: {
       {...(input.viewsPane ? { viewsPane: input.viewsPane, viewsSummary: input.viewsSummary } : {})}
       drafts={{
         'via-report': { build: buildDraft, draw: drawDraftPicture, pages: buildDraftPages, edit: editReportValue },
+      }}
+      contents={{
+        // The report's parts are its recipe's: a change makes a shipped recipe your own copy, chosen as the package's.
+        'via-report': recipeContentsControls({
+          recipe: reportRecipe,
+          recipes: allRecipes,
+          onChoose: setPackageRecipeId,
+        }),
+        // The block note's one switch is its land status checks; the rest is the planner's layout.
+        'block-note': {
+          onState: (key, state) => {
+            if (key === 'land-status') setIncludeLandChecks(state === 'on')
+          },
+        },
+        // A station switched off leaves the form and keeps its place in the list.
+        fs1252: {
+          onState: (key, state) => {
+            const index = Number(key)
+            setFs1252((current) => ({
+              ...current,
+              selected:
+                state === 'on'
+                  ? [...new Set([...current.selected, index])].sort((a, b) => a - b)
+                  : current.selected.filter((entry) => entry !== index),
+              listed: [...new Set([...(current.listed ?? []), index])],
+            }))
+          },
+        },
       }}
       {...(video && videoPlan && videoScene
         ? { recordings: { 'road-video': videoRecording(video.api, videoPlan, videoScene.frame) } }

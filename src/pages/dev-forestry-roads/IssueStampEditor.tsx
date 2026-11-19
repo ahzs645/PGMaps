@@ -2,8 +2,11 @@ import { UseMyDetailsButton } from '@/branding/PreparerProfile'
 import { blanksFilledFromProfile, designationText } from '@/branding/profile'
 import { useBranding } from '@/branding/useBranding'
 
-import { Field, roadFieldClass } from './Controls'
+import { emptyFieldsMode, EMPTY_FIELDS_OPTIONS, type EmptyFields } from '@/lib/mapSheet/emptyFields'
+
+import { Field, RoadSelect, roadFieldClass } from './Controls'
 import { EMPTY_PROJECT_ISSUE, type ProjectIssue } from './projectIssue'
+import { createRoadReportSettings, type RoadReportSettings } from './reportSettings'
 
 /**
  * Who prepared the documents, for whom, which revision and when. Saved in the project file and
@@ -13,11 +16,17 @@ export function IssueStampEditor({
   value,
   onChange,
   today,
+  reportSettings,
+  onReportSettings,
 }: {
   value: ProjectIssue | undefined
   onChange: (issue: ProjectIssue) => void
   /** YYYY-MM-DD printed while no date of issue is entered. */
   today: string
+  /** The project's report settings, which hold what a field left empty prints (`emptyFields`). */
+  reportSettings?: RoadReportSettings
+  /** Writes the report settings; without it the empty-field choice is not offered. */
+  onReportSettings?: (settings: RoadReportSettings) => void
 }) {
   const issue = value ?? EMPTY_PROJECT_ISSUE
   const { profile } = useBranding()
@@ -78,6 +87,29 @@ export function IssueStampEditor({
       <Field label="Note" hint="One line printed under the stamp in the report, such as what changed in this revision.">
         {text('note', 500, 'Optional')}
       </Field>
+      {onReportSettings && (
+        <div className="max-w-xs">
+          <Field
+            label="A field left empty prints"
+            hint="Applies to every printed file of this project: the report, plot book, report package, estimate, map PDF, D-line sheet, block map sheet and field review pack. Blank keeps the field's label with nothing after it, so it can be written in by hand. The line above still says which fields are missing."
+          >
+            <RoadSelect
+              ariaLabel="A field left empty prints"
+              value={emptyFieldsMode(reportSettings)}
+              options={EMPTY_FIELDS_OPTIONS}
+              onValueChange={(mode) => {
+                const next: RoadReportSettings = {
+                  ...(reportSettings ?? createRoadReportSettings()),
+                  emptyFields: mode as EmptyFields,
+                }
+                // Blank is the default and is not stored, so the project file stays as it was.
+                if (next.emptyFields !== 'stated') delete next.emptyFields
+                onReportSettings(next)
+              }}
+            />
+          </Field>
+        </div>
+      )}
     </div>
   )
 }

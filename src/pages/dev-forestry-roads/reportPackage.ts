@@ -8,7 +8,8 @@
  */
 import { SHEET_KINDS, SHEET_PRESETS, type SheetKind } from '@/lib/forestry/blockSheet/sheets'
 import { parseChartsOverride, type ChartsOptions } from './chartsOptions'
-import { REPORT_SECTIONS, type ReportSectionId } from './reportContents'
+import { orderedKeys } from '@/lib/documentContents/contents'
+import { orderedReportSections, REPORT_SECTIONS, type ReportSectionId } from './reportContents'
 
 export const PACKAGE_PLACEMENTS = ['main', 'appendix', 'omit'] as const
 export type PackagePlacement = (typeof PACKAGE_PLACEMENTS)[number]
@@ -160,6 +161,12 @@ export interface ReportPackageSettings {
    * the report settings' `estimate` allowances. Absent prints no range.
    */
   range?: boolean
+  /**
+   * The order of the plot-book chapters and the block sheets in the package, when the user moved one:
+   * their part ids, read with unknown ids dropped and new parts in their usual place. The report
+   * sections follow the report's own order (`RoadReportSettings.sectionOrder`).
+   */
+  order?: PackagePartId[]
 }
 
 /**
@@ -242,7 +249,53 @@ function tidy(settings: ReportPackageSettings): ReportPackageSettings {
   if (settings.charts && Object.keys(settings.charts).length) out.charts = settings.charts
   if (settings.slopeSheet && settings.slopeSheet !== 'check') out.slopeSheet = settings.slopeSheet
   if (settings.range) out.range = true
+  const order = storedPackageOrder(settings.order)
+  if (order) out.order = order
   return out
+}
+
+/** The parts whose order the package keeps itself: the plot-book chapters and the block sheets. */
+const ORDERED_PART_IDS: readonly PackagePartId[] = PACKAGE_PARTS.filter((part) => part.group !== 'report').map(
+  (part) => part.id,
+)
+
+/** The plot-book chapters' and block sheets' order: the stored one completed, or the usual one. */
+export function packagePartOrder(order: readonly string[] | undefined): PackagePartId[] {
+  return orderedKeys(ORDERED_PART_IDS, order).keys as PackagePartId[]
+}
+
+/** The order to keep: undefined when it is the usual one. */
+function storedPackageOrder(order: readonly string[] | undefined): PackagePartId[] | undefined {
+  if (!order) return undefined
+  const full = packagePartOrder(order)
+  return full.every((id, index) => id === ORDERED_PART_IDS[index]) ? undefined : full
+}
+
+/**
+ * Every part in package order: the report sections in the report's order (`sectionOrder`), then the
+ * plot-book chapters and the block sheets in the package's own.
+ */
+export function orderedPackageParts(
+  settings: ReportPackageSettings | undefined,
+  sectionOrder?: readonly string[],
+): PackagePart[] {
+  const byId = new Map(PACKAGE_PARTS.map((part) => [part.id, part]))
+  return [
+    ...orderedReportSections(sectionOrder).map((id) => byId.get(`report:${id}`)!),
+    ...packagePartOrder(settings?.order).map((id) => byId.get(id)!),
+  ]
+}
+
+/** A copy with the plot-book chapters' and block sheets' order set (any other ids are left out). */
+export function withPackageOrder(
+  settings: ReportPackageSettings | undefined,
+  order: readonly string[],
+): ReportPackageSettings {
+  return tidy({
+    parts: {},
+    ...settings,
+    order: order.filter((id) => ORDERED_PART_IDS.includes(id as PackagePartId)) as PackagePartId[],
+  })
 }
 
 /** True when nothing differs from the default package, so the settings need not be saved. */
@@ -266,8 +319,10 @@ export function presetSettings(
   contingency = true,
   slopeSheet: SlopeSheetMode = 'check',
   range?: boolean,
+  order?: readonly PackagePartId[],
 ): ReportPackageSettings {
-  if (preset === 'full') return tidy({ parts: {}, contingency, slopeSheet, range })
+  const kept = order ? { order: [...order] } : {}
+  if (preset === 'full') return tidy({ parts: {}, contingency, slopeSheet, range, ...kept })
   const parts: ReportPackageSettings['parts'] = {}
   for (const part of PACKAGE_PARTS) {
     const placement: PackagePlacement = part.id === 'plotbook:charts' ? 'main' : 'omit'
@@ -281,14 +336,15 @@ export function presetSettings(
     slopeSheet,
     range,
     charts: { panels: ['profile', 'grade'], stationTickM: 200, intervalM: 200 },
+    ...kept,
   })
 }
 
-/** The preset the settings match, ignoring the contingency and slope-sheet choices, which every preset keeps. */
+/** The preset the settings match, ignoring the contingency, slope-sheet and range choices and the order, which every preset keeps. */
 export function packagePreset(settings: ReportPackageSettings | undefined): PackagePreset | 'custom' {
   const contingency = includesContingency(settings)
   const key = (value: ReportPackageSettings) =>
-    JSON.stringify(tidy({ ...value, contingency: true, slopeSheet: 'check', range: false }))
+    JSON.stringify(tidy({ ...value, contingency: true, slopeSheet: 'check', range: false, order: undefined }))
   const current = key(settings ?? { parts: {} })
   return PACKAGE_PRESETS.find((preset) => key(presetSettings(preset, contingency)) === current) ?? 'custom'
 }
@@ -331,7 +387,13 @@ export function parseReportPackage(raw: unknown): ReportPackageSettings {
     charts?: unknown
     slopeSheet?: unknown
     range?: unknown
+    order?: unknown
   }
+  if (
+    r.order !== undefined &&
+    (!Array.isArray(r.order) || r.order.length > 200 || r.order.some((id) => typeof id !== 'string'))
+  )
+    throw Error('Report package order must be a list of part names.')
   if (r.slopeSheet !== undefined && !SLOPE_SHEET_MODES.includes(r.slopeSheet as SlopeSheetMode))
     throw Error(`Report package slope sheet must be one of ${SLOPE_SHEET_MODES.join(', ')}.`)
   if (r.front !== undefined && !PACKAGE_FRONTS.includes(r.front as PackageFront))
@@ -350,6 +412,8 @@ export function parseReportPackage(raw: unknown): ReportPackageSettings {
     ...(r.charts === undefined ? {} : { charts: parseChartsOverride(r.charts) }),
     ...(r.slopeSheet === undefined ? {} : { slopeSheet: r.slopeSheet as SlopeSheetMode }),
     ...(r.range === undefined ? {} : { range: parseRangeSwitch(r.range) }),
+    // Unknown parts (from a newer version) are dropped; `tidy` keeps the order only when it was changed.
+    ...(r.order === undefined ? {} : { order: packagePartOrder(r.order as string[]) }),
   }
   const parts = r.parts
   if (parts === undefined) return tidy({ parts: {}, ...extras })
@@ -391,8 +455,15 @@ const slug = (text: string) =>
     .replace(/^-|-$/g, '')
     .slice(0, 40)
 
-/** Which file holds what. Parts keep their catalogue order; each appendix part is its own file. */
-export function packagePlan(settings: ReportPackageSettings | undefined, basename: string): PackagePlan {
+/**
+ * Which file holds what. Parts keep their package order (`orderedPackageParts`: the report sections
+ * in the report's `sectionOrder`); each appendix part is its own file.
+ */
+export function packagePlan(
+  settings: ReportPackageSettings | undefined,
+  basename: string,
+  sectionOrder?: readonly string[],
+): PackagePlan {
   const main: PackageFile = {
     key: 'main',
     title: 'Report package',
@@ -403,7 +474,7 @@ export function packagePlan(settings: ReportPackageSettings | undefined, basenam
   }
   const appendices: PackageFile[] = []
   const omitted: PackagePart[] = []
-  for (const part of PACKAGE_PARTS) {
+  for (const part of orderedPackageParts(settings, sectionOrder)) {
     const placement = placementOf(settings, part.id)
     if (placement === 'omit') {
       omitted.push(part)

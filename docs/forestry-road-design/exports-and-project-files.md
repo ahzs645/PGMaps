@@ -1267,7 +1267,7 @@ a desktop); elsewhere Download is the only button, since Save as… would do the
 - **A PDF laid out from the report's HTML previews as the file itself.** Report PDF and Preliminary
   estimate are drawn afresh by jsPDF (`reportPdfBlob`), so their preview is the PDF they download,
   page by page in the browser's viewer. Clicking a heading to open Contents works in the Report
-  HTML preview.
+  HTML preview, and Contents shows the HTML report beside its list for both.
 - **The project file previews as a summary,** never its text (`projectFilePreview.ts`): the roads,
   the terrain and whether its grid is stored, and a count of each other part it holds. It is counted
   from the project, so a large terrain is not written out to show it.
@@ -1289,9 +1289,23 @@ organisation, the revision and the date of issue. Enter them in Save & export: s
 documents and switch its pane to **Issue stamp**. They are `project.issue` (`projectIssue.ts`), saved
 in the project file.
 
-- **A missing name or revision prints as "not recorded",** never as a blank, so an unstamped
-  document cannot pass for a stamped one. The line beside the pane's tabs turns amber until both are
-  entered.
+- **A field left empty prints blank.** Its label and its row stay, with nothing after them, so the
+  page lays out the same and the field can be written in by hand: the report prints "Revision" and
+  "Prepared by" with empty values, a plot-book title block "Rev" and "Prepared by:", a one-line stamp
+  "Rev · Issued … · Prepared by". The line beside the pane's tabs still says "Revision not recorded"
+  and "Author not recorded" and turns amber until both are entered: that line tells you, it is not
+  printed.
+- **"A field left empty prints"** (under the stamp's fields) chooses Blank or "Not recorded". It is
+  the project's `reportSettings.emptyFields`, stored only when it is "Not recorded" and carried by a
+  saved sheet setup, and it applies to every printed file of the project: the report (HTML and PDF),
+  the plot book, the report package's covers and summary, the preliminary estimate, the map PDF, the
+  D-line sheet, the block map sheet's typed fields and "Prepared by", and the field review pack's PDF
+  and KML. "Not recorded" prints the wording each of them printed before. Every writer reads it
+  through `emptyFieldText` (`src/lib/mapSheet/emptyFields.ts`). Only fields a person fills in follow
+  it: "(day of printing)" beside a defaulted date, a block fact the sheet could not work out ("not
+  recorded" for a centre or an elevation without terrain), *Not read*, *Not assessed*, a supplier's
+  *Not stated* and Review's rows keep their own wording. Changing it is one undo step, "What empty
+  fields print".
 - **The date of issue defaults to the day the document is made.** The report then says "(day of
   printing)". Enter a date to hold it on reissued copies.
 - **Nothing increments the revision for you.** Change it each time you issue.
@@ -1359,6 +1373,10 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
 
 ### Plot book
 
+- **The chapters are a contents list.** Sheet setup lists the plot book's chapters in print order
+  in the shared contents list (`DocumentContents`): drag a row's grip, use Alt and an arrow key or
+  its ⋯ menu to move it, **Remove** it from the menu (one chapter always stays), and choose a kind
+  in **Add chapter** to add one. Choosing a chapter's name opens its own settings under the list.
 - **Each plan sheet is fitted, not drawn at a stated scale.** The plan is rotated so the
   window's first-to-last chord runs left to right and scaled to fit the frame, so the scale
   changes from sheet to sheet (the last, shorter sheet is larger). Use the scale bar; "250 m per
@@ -1425,6 +1443,7 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   contour build failed the notice reads "Plot book downloaded without contours (…)".
 - **Every sheet's title block carries the issue stamp:** the revision, the date of issue and who
   prepared it, with the terrain source and "Preliminary planning geometry · not for construction".
+  A revision or name left empty prints its label alone, or "not recorded" when the project asks.
   A field too long for its box is set smaller first (down to 70 %) and shortened with "…" only
   past that. See [Issue stamp](#issue-stamp).
 - **Paper is A3, A4, tabloid 11 × 17 in (ANSI B) or ANSI D 22 × 34 in, all landscape**
@@ -1541,6 +1560,9 @@ chooses how it is written:
 - **A default sheet is written exactly as before.** One PDF sheet goes through `blockSheetPdf`, the
   same writer as always; SVG, PNG and series go through the shared writers (`sheetFile`,
   `writeSheetSeries`). Brand fonts reach the PDF only.
+- **The blocks a series takes are a contents list** (`DocumentContents`, two-state): a checkbox a
+  block with All and None, and a count line ("4 of 9 blocks"). It has no drag: the series' **Order**
+  sorts the pages.
 - **A series builds one page at a time,** each framed on its block with its typed fields' tokens
   filled (`seriesPageRun`), with the page's name and number in the busy line and Cancel. A page that
   cannot be built is left out and the rest are written; the notice names each left-out page with its
@@ -1561,14 +1583,44 @@ chooses how it is written:
 
 ### Printed report
 
-- **You choose the sections it prints.** Save & export → Report → **Contents** has a checkbox per
-  optional section (`REPORT_SECTIONS`, `reportContents.ts`), and the choice is saved in the
-  project's `reportSettings.omittedSections`; the HTML and the PDF report both follow it. The
-  title, issue stamp, a "Not current" stamp, the status and totals, terrain and assumptions, and
-  quantity basis and limitations always print. A print that leaves anything out says so under its
-  status line, naming each section. Clicking a section heading in the preview opens Contents at
-  that section. A project file from a newer version that names a section this one does not know
-  still opens; the unknown name is dropped.
+- **You choose the sections it prints, and their order.** Save & export → Report (HTML or PDF) →
+  **Contents** is the shared contents list (`DocumentContents`, `docs/shared-ui.md`, **Document
+  contents**): one row per part in print order, with the report's live preview beside it.
+  - **On or off.** Each optional section (`REPORT_SECTIONS`, `reportContents.ts`) has a checkbox,
+    with All and None. The choice is saved in the project's `reportSettings.omittedSections`; the
+    HTML and the PDF report both follow it.
+  - **Always printed.** The title and issue stamp, the "Not current" stamp, the status and totals,
+    and terrain and assumptions are locked rows that open every report and never move. The
+    quantity basis and limitations is a locked row too: it always prints, but it may be moved.
+  - **Nothing to print.** A section this road gives nothing to print keeps its row, unticked and
+    disabled, with the reason on it: no road calculated, no complete-access comparison saved, no
+    streams or avoid areas on the map, no drainage review saved, no aggregate source entered, no
+    issued design chosen for the record of changes, or no model flags. The report reads the same
+    answers (`reportSectionsUnavailable`, `project.ts`), so the list and the print agree.
+  - **Order.** A row moves by dragging its grip, by Alt and an arrow key, or through its ⋯ menu.
+    The order is saved in `reportSettings.sectionOrder`, only when it differs from the usual one,
+    and **Usual order** clears it. The report body is built one part at a time in that order, so
+    the HTML, the PDF, the left-out line, a report package's reports and its cover contents all
+    follow it. With no order saved the report is the same, byte for byte, as before the order
+    existed. A saved order that names a section this version does not know drops it; a section
+    added since takes its usual place (`orderedKeys`).
+  - **Presets.** **Every section** and **Without the long schedules** (the cross-sections, station
+    schedule, clearing schedule and slope-stake book left out, the four the package puts in
+    appendices by default) are built in, each in the usual order. **Save as preset…** keeps the
+    sections and the order under a name in this browser (`useSavedContents('road-report-sections')`),
+    never in the project file. The preset row says which preset the contents match, "· modified"
+    once they differ from the one chosen, and **Reset** goes back to it.
+  - **The preview beside the list** is the HTML report as it prints, rebuilt as rows are ticked
+    and moved (also for the Report PDF, whose own preview takes seconds). Choosing a row's name
+    scrolls the preview to that part's heading; clicking a heading in the preview selects and rings
+    its row (`previewPick.ts`, `reportPartHeadings`). The **Preview** view still shows the file
+    itself.
+  - **Issued design for the record of changes** sits under the list.
+
+  A print that leaves anything out says so under its status line, naming each section in report
+  order. A project file from a newer version that names a section this one does not know still
+  opens; the unknown name is dropped. A saved sheet setup carries the order with the rest of the
+  report settings.
 - **Profile and section plots are fitted to their boxes,** with different horizontal and
   vertical scales. They show shape, not true slope. Use the plot book for equal-scale sections.
 - **Repeated warnings print once.** A message the model raises for every culvert prints as one
@@ -1609,12 +1661,15 @@ Save & export → Documents → **Report package** writes the report, the plot b
 sheets as one PDF with a cover, for the road on screen or every road (`reportPackage.ts`,
 `reportPackagePdf.ts`).
 
-- **Every part goes in the package, in an appendix, or nowhere.** **Contents** lists each report
-  section, each plot-book chapter kind (profile, grade and mass haul; plan and profile; cross-
-  sections; station schedule; curves; culverts; materials) and each block sheet, with **In
-  package**, **Appendix (separate PDF)** or **Leave out**. The choice is saved in the project's
-  `reportSettings.package`, keeping only the parts changed from the default, and **Reset to
-  defaults** clears it. By default the cross-sections and station schedule (report and plot book)
+- **Every part goes in the package, in an appendix, or nowhere.** **Contents** is the shared
+  contents list (`DocumentContents`) in three groups: each report section, each plot-book chapter
+  kind (profile, grade and mass haul; plan and profile; cross-sections; station schedule; curves;
+  culverts; materials) and each block sheet, with **In package**, **Appendix (separate PDF)** or
+  **Leave out** in a compact dropdown per row ("Cross-sections: where it goes"). The package's file
+  list is previewed beside it. The choice is saved in the project's `reportSettings.package`,
+  keeping only the parts changed from the default. The count line under the title says what the
+  package writes ("The package and 5 appendix PDFs; 12 parts left out."). Under the list sit the
+  **Front page**, the summary options and the chart options. By default the cross-sections and station schedule (report and plot book)
   are appendices, the field layout sheet, the charts and the plan-and-profile sheets are in the
   package, and the other plot-book chapters and sheets are left out.
 - **Each appendix part is its own PDF,** named `<project>-appendix-<part>.pdf`, holding that part
@@ -1637,12 +1692,24 @@ sheets as one PDF with a cover, for the road on screen or every road (`reportPac
 - **While an input is invalid** the reports carry the "Not current" stamp and so does the cover;
   a package that holds plot-book sheets is refused, as the plot book is.
 - **A road with no calculated results is left out** and the notice says so.
+- **Order.** A row moves inside its group by drag, Alt and an arrow key, or its ⋯ menu. The report
+  sections follow the report's own order (`reportSettings.sectionOrder`): moving one here moves it
+  in the printed report too. The plot-book chapter kinds and the block sheets keep the package's
+  own order (`reportSettings.package.order`, kept only when it differs from the usual one). Each
+  file's reports, its plot books, its block sheets, its cover contents (`describeFile`) and the
+  left-out list follow the order (`packagePlan`, `orderedPackageParts`); the cover's page numbers
+  are counted from the parts in the order they are written. The groups themselves stay in their
+  order: block sheets first in each file, then each road's report and plot book.
 - **Presets.** **Full package** is the default above. **Simplified (summary and charts)** opens
   with the summary page instead of a cover and prints each road's charts sheet after it, with
   every other part left out: one or two pages for one road. Its charts sheet shows the profile and
   the grade without mass haul, stations every 200 m and the statistics band every 200 m. Changing
-  any part, summary or chart option afterwards makes it **Custom**; the contingency choice is kept
-  across presets.
+  any part, summary or chart option afterwards shows **Custom**, or "· modified" after the preset
+  chosen, and **Reset** goes back to that preset, or to every default when none was chosen (a
+  part's default is no longer written beside each choice). The contingency, slope sheet and range
+  choices and the order are kept across presets. **Save as preset…** keeps the placements alone
+  under a name in this browser (`useSavedContents('road-report-package')`), never in the project
+  file.
 - **The package's charts** (`ReportPackageSettings.charts`): with the charts sheet in the package,
   **Contents** offers its panels, **Station axis every**, **Statistics every** and **Statistics
   shown as**. They sit over the plot book's own charts chapter (or the chapter defaults) for the

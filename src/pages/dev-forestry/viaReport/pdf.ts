@@ -464,7 +464,10 @@ function embed(f: Flow, url: string, r: Rect): boolean {
   }
 }
 
-/** A dashed box with what goes there, or why the picture is missing. */
+/**
+ * A dashed box with what goes there (a place without a picture, which only the draft's report holds), or why a picture
+ * that is there could not be printed.
+ */
 function emptyBox(f: Flow, r: Rect, text: string, size = 8.25) {
   rect(f, r, { stroke: DASH, width: 0.75, dash: [3, 2] })
   const lines = wrap(f.ctx.pdf, text, r.w - 12, size)
@@ -2226,7 +2229,10 @@ function drawPart(doc: Pages, part: Part, next?: Part) {
   doc.pending = true
 }
 
-/** The logo in its box: the user's own picture contained in it, or an empty dashed box saying it is theirs. */
+/**
+ * The logo in its box: the user's own picture contained in it. With none, or one that is not a PNG or JPEG that reads
+ * (the page hands the writer a raster, `printedLogoRaster`), the box keeps its place and draws nothing.
+ */
 function logoBox(f: Flow, logo: ReportLogo | null, box: Rect, align: 'left' | 'right') {
   if (logo && imageFormat(logo.dataUrl)) {
     let ar = 0
@@ -2240,10 +2246,9 @@ function logoBox(f: Flow, logo: ReportLogo | null, box: Rect, align: 'left' | 'r
       const w = Math.min(box.w, box.h * ar)
       const h = w / ar
       const r = { x: align === 'right' ? box.x + box.w - w : box.x, y: box.y + (box.h - h) / 2, w, h }
-      if (embed(f, logo.dataUrl, r)) return
+      embed(f, logo.dataUrl, r)
     }
   }
-  emptyBox(f, box, logo ? `Logo (your own): ${logo.name}` : 'Logo (your own)', 8.25)
 }
 
 interface ContentsEntry {
@@ -2326,7 +2331,11 @@ export function reportPdf(
   const [first, ...rest] = report.blocks
   const title = first?.kind === 'heading' ? first.text : report.title
   const blocks = first?.kind === 'heading' ? rest : report.blocks
-  pdf.setProperties({ title: fold(`${title} - ${report.subtitle}`), subject: fold(report.footer), creator: 'PGMaps' })
+  pdf.setProperties({
+    title: fold(`${title} - ${report.subtitle}`),
+    subject: fold(report.about ?? ''),
+    creator: 'PGMaps',
+  })
   // The cover takes the fields that come before the first section heading (the cover part's).
   const coverEnd = report.layout.cover ? blocks.findIndex((block) => block.kind === 'heading') : 0
   const coverBlocks = report.layout.cover ? blocks.slice(0, Math.max(0, coverEnd)) : []
@@ -2402,13 +2411,15 @@ export function reportPdf(
     doc.anchor = 'complete'
     toComplete(doc, report.toComplete)
   }
-  // The footer line: what the report is and is not.
-  doc.y += 12
-  const footerLines = wrap(pdf, report.footer, doc.w, 8.25)
-  ensure(doc, footerLines.length * 11 + 6)
-  line(doc, doc.x, doc.y, doc.x + doc.w, doc.y, RULE, 0.75)
-  doc.y += 4.5
-  for (const l of footerLines) put(doc, l, doc.x, baseline(advance(doc, 11), 11, 8.25), { size: 8.25, color: GREY })
+  // The last line, when the report has one: how many values the reviewer changed by hand.
+  if (report.footer) {
+    doc.y += 12
+    const footerLines = wrap(pdf, report.footer, doc.w, 8.25)
+    ensure(doc, footerLines.length * 11 + 6)
+    line(doc, doc.x, doc.y, doc.x + doc.w, doc.y, RULE, 0.75)
+    doc.y += 4.5
+    for (const l of footerLines) put(doc, l, doc.x, baseline(advance(doc, 11), 11, 8.25), { size: 8.25, color: GREY })
+  }
 
   for (let i = at; i < parts.length; i++) drawPart(doc, parts[i], parts[i + 1])
 

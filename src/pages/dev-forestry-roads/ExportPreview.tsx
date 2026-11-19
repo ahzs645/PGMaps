@@ -28,14 +28,62 @@ export function fitToWidth(doc: Document) {
 }
 
 /**
+ * Where a document preview stands as it is rebuilt: at the first heading that starts with one of
+ * `headings` (the selected contents row's part), at the top for an empty list, or, with null, where
+ * the reader last scrolled it, so ticking a box does not jump the page back to its top.
+ */
+export interface PreviewScroll {
+  headings: readonly string[] | null
+}
+
+function reveal(doc: Document, scroll: PreviewScroll | undefined, lastTop: number) {
+  const view = doc.defaultView
+  if (!scroll || !view) return
+  if (!scroll.headings) {
+    view.scrollTo(0, lastTop)
+    return
+  }
+  const prefixes = scroll.headings
+  const heading = prefixes.length
+    ? [...doc.querySelectorAll('h2')].find((element) =>
+        prefixes.some((prefix) => (element.textContent ?? '').trim().startsWith(prefix)),
+      )
+    : undefined
+  // Scrolls the frame's own document, never the page around it.
+  view.scrollTo(0, heading ? Math.max(0, heading.getBoundingClientRect().top + view.scrollY - 8) : 0)
+}
+
+/**
  * An HTML preview. With `onPick`, a click on a part that has settings (`previewPick.ts`) hands
  * that part up; the frame runs no script of its own, so the page listens on the frame's document.
  */
-function HtmlPreview({ html, title, onPick }: { html: string; title: string; onPick?: (pick: PreviewPick) => void }) {
+function HtmlPreview({
+  html,
+  title,
+  onPick,
+  scrollTo,
+}: {
+  html: string
+  title: string
+  onPick?: (pick: PreviewPick) => void
+  scrollTo?: PreviewScroll
+}) {
   const latest = useRef(onPick)
   useEffect(() => {
     latest.current = onPick
   })
+  // Where the document stands: a contents list's selected part, or where the reader left it.
+  const frameRef = useRef<HTMLIFrameElement>(null)
+  const place = useRef(scrollTo)
+  const lastTop = useRef(0)
+  const scrollKey = scrollTo ? JSON.stringify(scrollTo.headings) : ''
+  useEffect(() => {
+    place.current = scrollTo
+  })
+  useEffect(() => {
+    const doc = frameRef.current?.contentDocument
+    if (doc?.readyState === 'complete') reveal(doc, place.current, lastTop.current)
+  }, [scrollKey])
   // Refits the loaded document whenever the pane changes width (a dialog resize, a phone turned).
   const resize = useRef<ResizeObserver | null>(null)
   useEffect(() => () => resize.current?.disconnect(), [])
@@ -45,6 +93,17 @@ function HtmlPreview({ html, title, onPick }: { html: string; title: string; onP
     if (!doc) return
     resize.current?.disconnect()
     fitToWidth(doc)
+    if (place.current) {
+      reveal(doc, place.current, lastTop.current)
+      const view = doc.defaultView
+      view?.addEventListener(
+        'scroll',
+        () => {
+          lastTop.current = view.scrollY
+        },
+        { passive: true },
+      )
+    }
     if (typeof ResizeObserver !== 'undefined') {
       resize.current = new ResizeObserver(() => fitToWidth(doc))
       resize.current.observe(frame)
@@ -77,6 +136,7 @@ function HtmlPreview({ html, title, onPick }: { html: string; title: string; onP
   // a fully opaque frame throws on `navigator.serviceWorker`, which reaches the page as an error.
   const frame = (
     <iframe
+      ref={frameRef}
       title={`${title} preview`}
       sandbox="allow-same-origin"
       srcDoc={html}
@@ -116,14 +176,17 @@ export function ExportPreviewView({
   preview,
   title,
   onPick,
+  scrollTo,
 }: {
   preview: ExportPreview
   title: string
   onPick?: (pick: PreviewPick) => void
+  /** An HTML preview's place as it is rebuilt (`PreviewScroll`); absent opens each document at its top. */
+  scrollTo?: PreviewScroll
 }) {
   switch (preview.type) {
     case 'html':
-      return <HtmlPreview html={preview.html} title={title} onPick={onPick} />
+      return <HtmlPreview html={preview.html} title={title} onPick={onPick} scrollTo={scrollTo} />
     case 'pdf':
       return <PdfPreview blob={preview.blob} title={title} />
     case 'image': {

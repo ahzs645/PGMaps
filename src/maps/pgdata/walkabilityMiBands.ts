@@ -10,15 +10,15 @@
  * The generated citywide grid carries its own `bandColors` and `bandLabels`, and
  * the heatmap manifest carries the grid's path, so legends resolve from the data
  * and fall back to the constants below only when the grid has not loaded.
- * Regenerating the grid updates every legend without a code change.
+ * Regenerating the grid updates every legend without a code change. The hook that
+ * fetches them is `useWalkabilityMiBands.ts`, so this module stays free of React and
+ * network access (an e2e spec reads the bands from it in Node).
  *
  * The one part a rebuild cannot move on its own is the band *ranges*: the
  * thresholds are also hardcoded in `scoreBand()` in
  * `walkabilityLiveHeatmap.worker.js`, which bins live recalculations. Changing
  * the score ranges means changing both.
  */
-import { useMemo } from 'react'
-import { useFetchData } from '@/hooks/useFetchData'
 import {
   mergeValueBandMetadata,
   valueBandColorsById,
@@ -79,21 +79,3 @@ export function resolveWalkabilityMiBands(source?: WalkabilityMiBandSource | nul
 
 /** Legend-shaped view of the bands, for `MapSteppedLegend`. */
 export const toWalkabilityMiLegendBands = valueBandLegendItems
-
-interface WalkabilityHeatmapManifest {
-  citywideGrid?: { path?: string | null } | null
-}
-
-/**
- * Resolves MI bands for consumers that do not already hold the grid.
- *
- * Both fetches are served from `useFetchData`'s module cache once anything else
- * on the page has loaded them, so a legend costs no extra network work when the
- * raster is on screen.
- */
-export function useWalkabilityMiBands(enabled = true): WalkabilityMiBand[] {
-  const manifest = useFetchData<WalkabilityHeatmapManifest>(enabled ? WALKABILITY_HEATMAP_MANIFEST_PATH : null)
-  const gridPath = manifest.data?.citywideGrid?.path || WALKABILITY_MI_GRID_FALLBACK_PATH
-  const grid = useFetchData<WalkabilityMiBandSource>(enabled ? gridPath : null)
-  return useMemo(() => resolveWalkabilityMiBands(grid.data), [grid.data])
-}

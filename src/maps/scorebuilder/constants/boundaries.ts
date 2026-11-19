@@ -17,12 +17,12 @@ export {
   BOUNDARY_INDEX_KEY_BY_LEVEL,
   BOUNDARY_CODE_PROPERTY_BY_LEVEL,
   BOUNDARY_NAME_PROPERTY_BY_LEVEL,
-} from '@/lib/studyArea'
+} from '@/lib/studyArea/options'
 import {
   BOUNDARY_SOURCE_OPTIONS as _SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS,
   HEALTH_BOUNDARY_LEVEL_OPTIONS as _SCORE_BUILDER_HEALTH_BOUNDARY_LEVEL_OPTIONS,
   type BoundarySourceOption,
-} from '@/lib/studyArea'
+} from '@/lib/studyArea/options'
 
 // Backward-compatible alias used by existing imports.
 export const BOUNDARY_LEVEL_OPTIONS = _SCORE_BUILDER_HEALTH_BOUNDARY_LEVEL_OPTIONS

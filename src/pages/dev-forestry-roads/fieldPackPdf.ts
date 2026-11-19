@@ -11,6 +11,7 @@ import type { Map as MapLibreMap } from 'maplibre-gl'
 import type { ExportBrand, UploadedLogo } from '@/branding/model'
 import { configurePdfBrand, drawPdfPrintedLogo, setPdfBrandFont } from '@/branding/pdf'
 import { addMapViewports, WEB_MERCATOR_WKT } from '@/lib/geoPdf/writeViewport'
+import { emptyFieldText, type EmptyFields } from '@/lib/mapSheet/emptyFields'
 import { FIELD_CHECK_KINDS, issuedPositionAt, type FieldIssue } from './fieldReview'
 import { PLANNING_CAVEAT } from './projectIssue'
 import { withNorthUpPlan } from './planCapture'
@@ -122,6 +123,8 @@ export interface FieldPackPdfOptions {
   signal?: AbortSignal
   branding?: ExportBrand
   logo?: UploadedLogo | null
+  /** What an empty revision prints (`RoadReportSettings.emptyFields`); absent is blank. */
+  emptyFields?: EmptyFields
 }
 
 /** Page 1: the georegistered map. Page 2: the checks the crew answers. */
@@ -139,6 +142,9 @@ export async function fieldPackPdf(map: MapLibreMap, issue: FieldIssue, options:
   const width = pdf.internal.pageSize.getWidth(),
     height = pdf.internal.pageSize.getHeight()
   const fonts = configurePdfBrand(pdf, options.branding)
+  const revision = issue.revision || emptyFieldText(options.emptyFields, 'not recorded')
+  // Left empty, the field keeps its label: "Rev", not a stand-in.
+  const rev = revision ? `Rev ${revision}` : 'Rev'
   const logoDrawn = await drawPdfPrintedLogo(pdf, options.branding, options.logo, width - 58, 8, 46, 20)
   setPdfBrandFont(pdf, fonts, true)
   pdf.setFontSize(14)
@@ -149,7 +155,7 @@ export async function fieldPackPdf(map: MapLibreMap, issue: FieldIssue, options:
   pdf.setFontSize(8)
   pdf.text(
     pdfText(
-      `Rev ${issue.revision || 'not recorded'} | Issued ${issue.issuedOn} | ${issue.terrain.name} | ${issue.terrain.verticalReference} | ${PLANNING_CAVEAT}`,
+      `${rev} | Issued ${issue.issuedOn} | ${issue.terrain.name} | ${issue.terrain.verticalReference} | ${PLANNING_CAVEAT}`,
     ),
     12,
     22,
@@ -178,7 +184,7 @@ export async function fieldPackPdf(map: MapLibreMap, issue: FieldIssue, options:
   const pageWidth = pdf.internal.pageSize.getWidth()
   setPdfBrandFont(pdf, fonts, true)
   pdf.setFontSize(12)
-  pdf.text(pdfText(`${issue.label} checks | ${issue.roadName} | Rev ${issue.revision || 'not recorded'}`), 14, 16)
+  pdf.text(pdfText(`${issue.label} checks | ${issue.roadName} | ${rev}`), 14, 16)
   let y = 24
   setPdfBrandFont(pdf, fonts)
   pdf.setFontSize(8)

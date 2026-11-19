@@ -101,6 +101,7 @@ export async function prepareDLineSheet(request: DLineSheetRequest): Promise<DLi
     terrainName: project.terrain.name,
     verticalReference: project.terrain.verticalReference,
     issue: request.issue,
+    emptyFields: project.reportSettings?.emptyFields,
     stamp: request.stamp,
     caveat: request.caveat,
   }

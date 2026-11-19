@@ -99,6 +99,7 @@ export function ReportDraftView({
   pages,
   onEdit,
   startOnPages = false,
+  onPages,
 }: {
   draft: ReportDraftResult
   /** The output's own options (overview sheet, logo), shown beside the draft so a change shows at once. */
@@ -113,6 +114,8 @@ export function ReportDraftView({
   onEdit?: (key: string, value: string | null, original?: string | null) => void
   /** Open on the pages (the PDF format is chosen) rather than the flowing layout. */
   startOnPages?: boolean
+  /** Told the page each part starts on once the pages are written, so the contents can say it. */
+  onPages?: (partPages: number[]) => void
 }) {
   const [layout, setLayout] = useState<'pages' | 'flow'>(startOnPages && pages ? 'pages' : 'flow')
   const [paged, setPaged] = useState<
@@ -124,7 +127,9 @@ export function ReportDraftView({
   const latestPages = useRef(pages)
   const latestEdit = useRef(onEdit)
   const latestTargets = useRef(draft.editTargets)
+  const latestOnPages = useRef(onPages)
   useEffect(() => {
+    latestOnPages.current = onPages
     latestPages.current = pages
     latestEdit.current = onEdit
     latestTargets.current = draft.editTargets
@@ -138,6 +143,7 @@ export function ReportDraftView({
       .then((built) => {
         if (stopped) return
         setPaged({ draft, url: URL.createObjectURL(built.blob), partPages: built.partPages, pages: built.pages })
+        latestOnPages.current?.(built.partPages)
       })
       .catch((error: unknown) => {
         if (!stopped)

@@ -34,6 +34,7 @@ import {
   proposedBlocks,
   readsLandform,
   seenLandformNames,
+  showsMissing,
   type ReportContext,
   type ReportPart,
 } from './parts'
@@ -403,15 +404,18 @@ export function appendixEntries(ctx: ReportContext): AppendixEntry[] {
   const prints = (id: string) => !ctx.recipeParts || ctx.recipeParts.includes(id)
   const out: AppendixEntry[] = []
   const next = () => `A${out.length + 1}`
+  // A page that is only a picture is numbered when it prints: always in the draft, in a file only with its picture.
+  const pictured = (figure: unknown) => showsMissing(ctx) || !!figure
   if (prints('overview-sheet')) {
-    const scale = (ctx.images?.overviewSheet ?? ctx.images?.overviewMap)?.map?.scale
-    out.push({ number: next(), title: `Viewpoint map${scale ? ` ${scale}` : ''}`, kind: 'map' })
+    const map = ctx.images?.overviewSheet ?? ctx.images?.overviewMap
+    const scale = map?.map?.scale
+    if (pictured(map)) out.push({ number: next(), title: `Viewpoint map${scale ? ` ${scale}` : ''}`, kind: 'map' })
   }
   if (!prints('appendix-sheets')) return out
   for (const vp of ctx.facts.viewpoints) {
     if (ctx.images?.before?.[vp.name]?.source === 'photo')
       out.push({ number: next(), title: `Photo from viewpoint – ${vp.name}`, kind: 'photo', viewpoint: vp.name })
-    if (ctx.recipeOptions?.plainViewSheets !== false)
+    if (ctx.recipeOptions?.plainViewSheets !== false && pictured(ctx.images?.after?.[vp.name]))
       out.push({ number: next(), title: `Perspective Viewpoint – ${vp.name}`, kind: 'plain', viewpoint: vp.name })
     out.push({
       number: next(),
@@ -467,7 +471,11 @@ const appendixSheets: ReportPart = {
   sources: ['22', '23'],
   build: (ctx) => {
     const blocks: ReportBlock[] = []
-    const missingPlain: string[] = []
+    // A Perspective Viewpoint page with no simulation is listed to complete; in a file it has no page (`appendixEntries`).
+    const missingPlain =
+      ctx.recipeOptions?.plainViewSheets !== false && (!ctx.recipeParts || ctx.recipeParts.includes('appendix-sheets'))
+        ? ctx.facts.viewpoints.filter((vp) => !ctx.images?.after?.[vp.name]).map((vp) => vp.name)
+        : []
     const missingSheet: string[] = []
     for (const entry of appendixEntries(ctx)) {
       const vp = ctx.facts.viewpoints.find((candidate) => candidate.name === entry.viewpoint)
@@ -475,7 +483,6 @@ const appendixSheets: ReportPart = {
       if (entry.kind === 'photo' || entry.kind === 'plain') {
         const figure =
           entry.kind === 'photo' ? (ctx.images?.before?.[vp.name] ?? null) : (ctx.images?.after?.[vp.name] ?? null)
-        if (entry.kind === 'plain' && !figure) missingPlain.push(vp.name)
         // An 11 x 17 page of its own, as the analysis sheet after it is, its heading on the page (22 prints both as
         // sheets).
         blocks.push({
@@ -499,16 +506,21 @@ const appendixSheets: ReportPart = {
       }
       const figure = figureFor(ctx, vp.name)
       if (!figure) missingSheet.push(vp.name)
+      // Without its sheet the page keeps its heading and calculation; only the draft marks where the sheet goes.
       blocks.push(
         heading(`Appendix ${entry.number}: ${entry.title}`, 3),
-        figure
-          ? { kind: 'figure', figure, caption: figure.caption }
-          : {
-              kind: 'figure',
-              figure: null,
-              caption: entry.title,
-              placeholder: 'Save the view with its analysis sheet to print it here.',
-            },
+        ...(figure
+          ? [{ kind: 'figure', figure, caption: figure.caption } satisfies ReportBlock]
+          : showsMissing(ctx)
+            ? [
+                {
+                  kind: 'figure',
+                  figure: null,
+                  caption: entry.title,
+                  placeholder: 'Save the view with its analysis sheet to print it here.',
+                } satisfies ReportBlock,
+              ]
+            : []),
         calculationFields(ctx, vp),
       )
     }
@@ -570,9 +582,14 @@ const summary: ReportPart = {
         : []),
       fillSentence(
         'summary-method',
-        `The assessment rates the alteration seen from significant public viewpoints at the landform scale against the established visual quality objectives. The viewpoints are shown on the viewpoint map${
-          map ? ` (${map})` : ''
-        }${renders ? `, and the renders from each viewpoint are ${renders}` : ''}. Tables 1 to 5 summarize the results, and a discussion of each block’s visual impact supports the conclusion.`,
+        // A map or render the file does not print is not pointed to (`appendixEntries` numbers only what prints).
+        `The assessment rates the alteration seen from significant public viewpoints at the landform scale against the established visual quality objectives.${
+          map
+            ? ` The viewpoints are shown on the viewpoint map (${map})${renders ? `, and the renders from each viewpoint are ${renders}` : ''}.`
+            : renders
+              ? ` The renders from each viewpoint are ${renders}.`
+              : ''
+        } Tables 1 to 5 summarize the results, and a discussion of each block’s visual impact supports the conclusion.`,
         {},
         'run',
       ),

@@ -270,7 +270,14 @@ async function captureEndMap(
     view: plan.key,
     caption: plan.caption,
     ...image,
-    map: { inPicture: true, northUp: true, scale: composed.scale, legend: composed.legendRows },
+    map: {
+      inPicture: true,
+      northUp: true,
+      scale: composed.scale,
+      legend: composed.legendRows,
+      // Drawn as nothing on the sheet: the report names it to complete.
+      ...(keyShot ? {} : { missing: ['key map'] }),
+    },
     notes,
   }
 }

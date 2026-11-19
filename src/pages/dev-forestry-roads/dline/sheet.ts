@@ -8,6 +8,7 @@
  * Pure: no DOM or network access. jsPDF and the PNG encoder are applied by `sheetExport.ts`.
  */
 import { gridContours } from '@/lib/mapSheet/contours'
+import { emptyFieldText, type EmptyFields } from '@/lib/mapSheet/emptyFields'
 import type { DrawOp, Point } from '@/lib/mapSheet/drawOps'
 import { paperSize, PAPER_SIZES, type PaperId } from '@/lib/mapSheet/layout'
 import { fitText, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
@@ -63,6 +64,8 @@ export interface DLineSheetInput {
   terrainName: string
   verticalReference: string
   issue: { preparedBy: string; organisation: string; revision: string; date: string }
+  /** What an empty name or revision prints (`RoadReportSettings.emptyFields`); absent is blank. */
+  emptyFields?: EmptyFields
   /** Printed in red across the header when the sheet leaves something out. */
   stamp?: string
   caveat: string
@@ -556,8 +559,8 @@ export function buildDLineSheet(input: DLineSheetInput): DLineSheet {
   text(ops, m, m + 24, fitText(line.name, 16, leftW), 16, { style: 'bold' })
   text(ops, m, m + 36, fitText(input.projectName, 8, leftW), 8, { color: COLORS.muted })
   const stampLines = [
-    `Prepared by: ${[input.issue.preparedBy, input.issue.organisation].filter(Boolean).join(', ') || 'Not recorded'}`,
-    `Revision: ${input.issue.revision || 'Not recorded'} · Date: ${input.issue.date}`,
+    `Prepared by: ${[input.issue.preparedBy, input.issue.organisation].filter(Boolean).join(', ') || emptyFieldText(input.emptyFields, 'Not recorded')}`,
+    `Revision: ${input.issue.revision || emptyFieldText(input.emptyFields, 'Not recorded')} · Date: ${input.issue.date}`,
     `Terrain: ${input.terrainName} · ${input.verticalReference}`,
   ]
   stampLines.forEach((l, i) =>

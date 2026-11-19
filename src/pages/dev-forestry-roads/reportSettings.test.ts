@@ -6,6 +6,7 @@ import {
   parseRoadReportSettings,
   validateLabelTemplate,
 } from './reportSettings'
+import { REPORT_ORDER } from './reportContents'
 
 describe('portable report settings', () => {
   it('retains chapter order, custom ranges, physical scales, fields and label placement through JSON', () => {
@@ -64,5 +65,31 @@ describe('portable report settings', () => {
       'omittedSections',
     )
     expect(parseRoadReportSettings(createRoadReportSettings())).not.toHaveProperty('omittedSections')
+  })
+
+  it('keeps a report section order only when it differs from the usual one, dropping unknown ids', () => {
+    const moved = ['profile', ...REPORT_ORDER.filter((id) => id !== 'profile')]
+    const read = parseRoadReportSettings(
+      JSON.parse(JSON.stringify({ ...createRoadReportSettings(), sectionOrder: [...moved, 'a-future-section'] })),
+    )
+    expect(read.sectionOrder).toEqual(moved)
+    // The usual order, or a stored order that leaves a new section out, reads as no order at all.
+    expect(
+      parseRoadReportSettings({ ...createRoadReportSettings(), sectionOrder: [...REPORT_ORDER] }),
+    ).not.toHaveProperty('sectionOrder')
+    const older = moved.filter((id) => id !== 'slope-stakes')
+    expect(parseRoadReportSettings({ ...createRoadReportSettings(), sectionOrder: older }).sectionOrder).toEqual(moved)
+    expect(parseRoadReportSettings(createRoadReportSettings())).not.toHaveProperty('sectionOrder')
+    expect(() => parseRoadReportSettings({ ...createRoadReportSettings(), sectionOrder: 'profile' })).toThrow(/order/)
+  })
+  it('keeps what an empty field prints only when it is not the default, and refuses an unknown choice', () => {
+    // Absent (every file written before the choice) is blank, and nothing is added on the way through.
+    expect(parseRoadReportSettings(createRoadReportSettings())).not.toHaveProperty('emptyFields')
+    expect(parseRoadReportSettings({ ...createRoadReportSettings(), emptyFields: 'blank' })).not.toHaveProperty(
+      'emptyFields',
+    )
+    const stated = { ...createRoadReportSettings(), emptyFields: 'stated' as const }
+    expect(parseRoadReportSettings(JSON.parse(JSON.stringify(stated)))).toEqual(stated)
+    expect(() => parseRoadReportSettings({ ...createRoadReportSettings(), emptyFields: 'dash' })).toThrow(/left empty/)
   })
 })

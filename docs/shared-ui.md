@@ -320,6 +320,82 @@ For an option checkbox ("Hide tile-edge candidates") use `CheckboxField`
 and other input props reach the native checkbox. A layer or data source switched
 on and off stays a `ToggleRow`.
 
+## Document contents
+
+`DocumentContents` (`document-contents.tsx`) is the contents section of a file a
+tool prints: a report, a report package, a plot book, a VIA report. It shows what
+each part is set to, a preview beside the list, the order and the presets, in one
+place. The rules are `src/lib/documentContents/contents.ts` (moves, counts, the
+count line, the move announcement, applying a stored order), free of DOM access
+and unit tested; the component only draws them. Never give a file its own
+checkbox grid, placement dropdown grid or up/down list for its parts.
+
+- **One list in print order.** `parts` are `ContentsPart`s in the order they
+  print, each with a `key`, a `label` and a `state`. `groups` put consecutive parts
+  of one group under a small heading with "n of m" and, in a two-state list, a
+  switch for the group. A part that is left out stays in its place, dimmed, so it
+  comes back where it was.
+- **States.** `choices` defaults to `ON_OFF`. Two choices draw a checkbox labelled
+  by the part's name; more draw a compact dropdown per row, named
+  `${part.label}: ${stateLabel}` ("Culvert schedule: where it goes"). `onState`
+  writes one part; `onStates` writes All / None (two-state lists) in one change.
+  Without `onState` the list is read-only. The count line is `contentsSummary`
+  ("17 of 20 print") unless the caller passes its own `summary`.
+- **Shown on the row.** A `locked` part shows a lock and its text ("Always
+  printed") and has no control. An `unavailable` part keeps its place with its
+  control disabled and the reason printed on the row, not only in a tooltip.
+  `detail` is a word or two ("p. 4–6"), `note` is a sentence under the name about
+  the part ("Changed since its capture: captured again on Download"), on its own
+  line after a locked or unavailable part's text, `help` goes behind an (i), and `rowAction` is the caller's own small
+  control at the row's end. `rowLead` is a small picture that leads the row (the
+  Package's view thumbnails), drawn after the state control and before the name
+  at the fixed size the caller gives it. In a two-state list it sits inside the
+  checkbox's label, so a click on it toggles the part, with the note beside it
+  under the name. It is hidden from the row's accessible name, so anything it
+  shows (an empty frame's "Not captured") is said in `detail` or `note` as well.
+  No row explains itself through a `title`.
+- **Three ways to move, one `onMove`.** Dragging a row's grip (a 4 px threshold
+  keeps a click a click; an insertion line shows where it lands; the nearest
+  scroller follows the pointer near its edges; Escape or a cancelled pointer puts
+  it back), Alt + ↑ / ↓ on any control in the row, and the row's ⋯ menu (Move up,
+  Move down, Move to top, Move to bottom, each named with the part, and Remove for
+  a `removable` part). A part moves only inside its group and never across a
+  `pinned` part (`moveTargets`, `movedOrder`). Focus stays on the moved row, and a
+  polite live region says where it went (`moveAnnouncement`). `onMove` receives the
+  key, its new index and the whole key order. The grip takes `touch-action: none`,
+  so a finger drags the row instead of scrolling the page. Without `onMove` there
+  are no grips and the order is fixed; `onResetOrder` adds **Usual order**.
+- **Presets.** `presets` draws the preset row: the chosen preset, shown as
+  "Name · modified" once changed, and a disabled **Custom** when `value` is null;
+  **Reset**; **Save as preset…** (a name field in place, never `window.prompt`);
+  and **Delete** for a saved one, asked once through `ConfirmRemoveButton`
+  (`deleteDetail` says what happens next when it is more than the preset leaving
+  this browser). A list whose presets are records of its own (the VIA report's
+  recipes) passes them as `options` and writes them itself. A list
+  with no presets of its own keeps the person's through `useSavedContents(listId)`
+  (`use-saved-contents.ts`, `localStorage` key `pgmaps.documentContents.<listId>`,
+  rules in `src/lib/documentContents/savedContents.ts`): at most 30 a list, a part
+  id the list no longer has kept in the preset and reported when it is applied
+  (`applySavedContents`), never mapped to another part. A stored order goes
+  through `orderedKeys`, which gives a new part its default place.
+- **Preview.** `preview` is the caller's picture of the `selected` part, or of the
+  whole file when none is selected (`previewLabel`, "Whole report"). A row's name
+  is then the button that selects it, and `focusKey` brings a row into view and
+  rings it (a click on a heading in the preview). From 680 px wide the list and
+  the preview sit side by side, each column scrolling on its own and the element
+  filling its parent's height (give it a `min-h-0 flex-1` pane); below 640 px they
+  stack, list first, and flow (`CONTENTS_FOLD`, measured through `useElementSize`
+  and `useSizeFold`).
+- `beside` is for the caller's own controls that belong with the contents (a front
+  page choice, chart options), drawn under the list, and `actions` for its small
+  links in the heading's line ("Edit here", "Change in Package"), after All /
+  None. `data-*` props reach the root,
+  which is a region named "`title` of `subject`" ("Contents of the report").
+
+E2E specs drive it with `tests/e2e/document-contents.ts` (`contentsList`,
+`setContentsState`, `moveContentsPart`, `chooseContentsPreset`,
+`saveContentsPreset`, `contentsCountLine`, `contentsOrder`).
+
 ## Shares and distributions
 
 `ShareBars` (`share-bars.tsx`) draws rows of percentage bars against a fixed

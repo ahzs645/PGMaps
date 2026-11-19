@@ -3,6 +3,7 @@ import { ROAD_TOUR_ANCHORS, roadFilesOutputAnchor } from './tours/roadTour'
 import { Download } from 'lucide-react'
 import { PreparerProfileHostProvider, PreparerProfilePane, PreparerProfileRow } from '@/branding/PreparerProfile'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { SaveAsButton, type SaveAsButtonProps } from '@/components/ui/save-as-button'
 import { ResultRow } from '@/components/ui/result-list'
@@ -21,14 +22,14 @@ import {
   type RoadExport,
   type RoadScope,
 } from './exportCatalog'
-import { ExportPreviewView } from './ExportPreview'
+import { ExportPreviewView, type PreviewScroll } from './ExportPreview'
 import { IssueStampEditor } from './IssueStampEditor'
 import { issueLine, issueStamp, type ProjectIssue } from './projectIssue'
 import type { RoadReportSettings } from './reportSettings'
 import { ReportSettingsEditor } from './ReportSettingsEditor'
 import type { BlockSheetSettings } from './blockSheet'
 import type { PreviewPick } from './previewPick'
-import type { ReportSectionId } from './reportContents'
+import { reportPartHeadings, type ReportSectionsUnavailable } from './reportContents'
 import { ReportContentsEditor } from './ReportContentsEditor'
 import { ReportPackageEditor } from './ReportPackageEditor'
 import { EstimateSettingsEditor } from './EstimateSettingsEditor'
@@ -67,6 +68,7 @@ export function FilesDialog({
   portalContainer,
   reportSettings,
   onReportSettings,
+  reportUnavailable,
   slopeSheet,
   issue,
   onIssue,
@@ -96,6 +98,8 @@ export function FilesDialog({
   portalContainer?: HTMLElement | null
   reportSettings?: RoadReportSettings
   onReportSettings?: (settings: RoadReportSettings) => void
+  /** Why a report section has nothing to print for the shown road, for the report's contents list. */
+  reportUnavailable?: ReportSectionsUnavailable
   /** The project has an imported slope sheet (the report package can check estimates against it). */
   slopeSheet?: boolean
   /** The project's issue stamp, printed on the report, the map PDF and the plot book. */
@@ -142,7 +146,9 @@ export function FilesDialog({
   // *Your details* are open in place of the output's pane (`PreparerProfilePane`, kept mounted while the dialog is).
   const [detailsOpen, setDetailsOpen] = useState(false)
   // The part of the setup a click on the preview asked for: a plot-book chapter or a report section.
-  const [setupFocus, setSetupFocus] = useState<{ chapter?: string; section?: ReportSectionId } | null>(null)
+  const [setupFocus, setSetupFocus] = useState<{ chapter?: string; section?: string } | null>(null)
+  // The report contents row whose part the preview beside the list shows.
+  const [contentsPart, setContentsPart] = useState<string | null>(null)
   // Open on the requested deliverable, including when the previous session used another file.
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
@@ -171,8 +177,23 @@ export function FilesDialog({
   const settingUp = shownView !== 'preview'
   const chooseRoads = MULTI_ROAD_EXPORTS.includes(item.kind) && !!onRoadScope && (roads?.count ?? 0) > 1
   const saveAsSpec = saveAs?.(item.kind) ?? null
+  // The contents views draw their preview beside the list: the instant HTML report (also for the
+  // report PDF, whose own preview takes seconds) or the package's file list. Other setups have none.
+  const contentsPreviewKind: RoadExport | null =
+    shownView === 'setup' && onReportSettings
+      ? reportContents
+        ? 'report'
+        : reportPackage
+          ? 'report-package'
+          : null
+      : null
+  const previewKind = settingUp ? contentsPreviewKind : item.kind
+  const previewUnavailable = previewKind ? exportUnavailable(previewKind, context) : null
   // A new object per selection or content change: a preview is current only for its own request.
-  const request = useMemo(() => ({ kind: item.kind, version: previewVersion }), [item.kind, previewVersion])
+  const request = useMemo(
+    () => (previewKind ? { kind: previewKind, version: previewVersion } : null),
+    [previewKind, previewVersion],
+  )
   const [result, setResult] = useState<PreviewResult | null>(null)
   const latestBuild = useRef(buildPreview)
   useEffect(() => {
@@ -180,7 +201,7 @@ export function FilesDialog({
   })
   const stamp = issueStamp(issue, today ? new Date(`${today}T12:00:00`) : undefined)
   useEffect(() => {
-    if (!open || unavailable || settingUp) return
+    if (!open || !request || previewUnavailable) return
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
       latestBuild
@@ -195,7 +216,7 @@ export function FilesDialog({
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [open, request, unavailable, settingUp])
+  }, [open, request, previewUnavailable])
   const current = result?.request === request ? result : null
   const pane = useRef<HTMLElement>(null)
   const detailsPane = useRef<HTMLElement>(null)
@@ -213,16 +234,46 @@ export function FilesDialog({
     if (target.view === 'issue' && stamped) setView('issue')
     else if (target.view === 'setup' && setupAvailable) {
       setSetupFocus({ chapter: target.chapter, section: target.section })
+      // A report heading selects its row, so the preview beside the contents list stays on that part.
+      if (target.section && reportContents) setContentsPart(target.section)
       setView('setup')
     }
   }
   const select = (kind: RoadExport) => {
     setSelected(kind)
     setSetupFocus(null)
+    setContentsPart(null)
     setDetailsOpen(false)
     // Stacked on a phone, the preview sits under the list; bring it up. Side by side this does nothing.
     requestAnimationFrame(() => pane.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
+  // The live preview beside a contents list, kept on the selected part as it is rebuilt.
+  const contentsScroll: PreviewScroll = { headings: contentsPart ? reportPartHeadings(contentsPart) : null }
+  const contentsPreview = contentsPreviewKind ? (
+    previewUnavailable ? (
+      <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>
+        {previewUnavailable}
+      </p>
+    ) : current?.preview ? (
+      <ExportPreviewView
+        preview={current.preview}
+        title={item.label}
+        onPick={pick}
+        scrollTo={reportContents ? contentsScroll : { headings: null }}
+      />
+    ) : current?.error ? (
+      <p
+        role="alert"
+        className="rounded-md border border-warning-border bg-warning-surface p-3 text-xs text-warning-foreground"
+      >
+        {current.error}
+      </p>
+    ) : (
+      <p className="p-4 text-xs text-muted-foreground" aria-live="polite">
+        Preparing preview…
+      </p>
+    )
+  ) : undefined
   // The toolkit's `workspace-*` variants are not built for app classes, so the layout uses `sm:`, which
   // matches the dialog's own breakpoint in this workspace. `workspace-sm:p-0` only overrides its padding.
   return (
@@ -240,8 +291,9 @@ export function FilesDialog({
       <PreparerProfileHostProvider value={{ open: openDetails, shown: detailsOpen }}>
         <fieldset disabled={busy} className="min-w-0 sm:h-full sm:min-h-0">
           {/* A floor on the side-by-side layout: on a short screen the dialog body scrolls instead of the
-            pane shrinking until its controls are clipped. */}
-          <div className="grid min-w-0 sm:h-full sm:min-h-[24rem] sm:grid-cols-[15rem_minmax(0,1fr)]">
+            pane shrinking until its controls are clipped. Stacked on a phone the one column is held to
+            the dialog's width: an implicit column grew to a list row's untruncated subtitle. */}
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] sm:h-full sm:min-h-[24rem] sm:grid-cols-[15rem_minmax(0,1fr)]">
             <nav
               aria-label="Files"
               className="border-b border-border py-1 sm:min-h-0 sm:overflow-y-auto overscroll-none sm:border-b-0 sm:border-r"
@@ -284,11 +336,12 @@ export function FilesDialog({
               className={`${detailsOpen ? 'hidden' : 'flex'} min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold">
+                {/* One line: what the output is sits behind the (i), as on the visual quality page's dialog. */}
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <h3 className="min-w-0 truncate text-sm font-semibold">
                     {item.label} <span className="font-normal text-muted-foreground">{item.extension}</span>
                   </h3>
-                  {item.description && <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>}
+                  {item.description && <InfoTip label={`About ${item.label}`}>{item.description}</InfoTip>}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-start justify-end gap-2">
                   {saveAsSpec && (
@@ -356,7 +409,7 @@ export function FilesDialog({
                       className={`text-xs ${stamp.missing.length ? 'text-warning' : 'text-muted-foreground'}`}
                       data-testid="road-issue-line"
                     >
-                      {issueLine(stamp)}
+                      {issueLine(stamp, 'stated')}
                     </span>
                   )}
                 </div>
@@ -387,7 +440,13 @@ export function FilesDialog({
               {/* Side by side the preview scrolls in its pane; stacked on a phone it flows with the dialog. */}
               <div className="min-h-0 flex-1 sm:overflow-y-auto overscroll-none">
                 {shownView === 'issue' && onIssue ? (
-                  <IssueStampEditor value={issue} onChange={onIssue} today={stamp.date} />
+                  <IssueStampEditor
+                    value={issue}
+                    onChange={onIssue}
+                    today={stamp.date}
+                    reportSettings={reportSettings}
+                    onReportSettings={onReportSettings}
+                  />
                 ) : shownView === 'setup' && setupView ? (
                   <div className="grid gap-3">
                     {setupLibrary}
@@ -396,13 +455,22 @@ export function FilesDialog({
                 ) : shownView === 'setup' && onReportSettings && estimate ? (
                   <EstimateSettingsEditor value={reportSettings} onChange={onReportSettings} />
                 ) : shownView === 'setup' && onReportSettings && reportPackage ? (
-                  <ReportPackageEditor value={reportSettings} onChange={onReportSettings} slopeSheet={slopeSheet} />
+                  <ReportPackageEditor
+                    value={reportSettings}
+                    onChange={onReportSettings}
+                    slopeSheet={slopeSheet}
+                    preview={contentsPreview}
+                  />
                 ) : shownView === 'setup' && onReportSettings && reportContents ? (
                   <ReportContentsEditor
                     value={reportSettings}
                     baselineRoads={baselineRoads}
                     onChange={onReportSettings}
                     focus={setupFocus?.section}
+                    unavailable={reportUnavailable}
+                    preview={contentsPreview}
+                    selected={contentsPart}
+                    onSelect={setContentsPart}
                   />
                 ) : shownView === 'setup' && onReportSettings ? (
                   <div className="grid gap-3">

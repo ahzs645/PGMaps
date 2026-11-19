@@ -59,7 +59,8 @@ other tools can adopt it; see [Adopting it in another tool](#adopting-it-in-anot
   grid at the terrain's own resolution inside the block. A block only partly on the terrain prints
   the covered part and says how many samples had no ground. No terrain prints "not recorded".
 - **Merch area, NAR, timbermark, FIZ, district, region, TSA, operating area and nearest community
-  are typed.** Nothing looks them up. Blank fields print "not recorded" in grey.
+  are typed.** Nothing looks them up. A field left blank prints blank, its label kept. The road designer's *Issue stamp* view can print
+  "not recorded" there instead (*A field left empty prints*); the visual quality page's sheet always prints blank.
 - **The legend lists what the frame shows.** A layer with nothing inside the frame is left out, and
   the class legend appears only with a classed base.
 - **Slope is from the terrain grid as sampled for the sheet**, about 150 dpi on paper (1.7 m on the

@@ -11,6 +11,7 @@
  *
  * Pure: no DOM or network access.
  */
+import { emptyFieldText, type EmptyFields } from '@/lib/mapSheet/emptyFields'
 import { centrelineSamples, positionAt } from './engine'
 import type { Alignment, Coordinate } from './types'
 
@@ -353,8 +354,13 @@ function issuedStretch(issue: FieldIssue, start: number, end: number): Coordinat
  * returned file keeps them. Observations go on a layer of their own with the check's label in the
  * name or a `check` attribute.
  */
-export function fieldPackKml(issue: FieldIssue): string {
-  const head = `${issue.label} · ${issue.roadName} · Rev ${issue.revision || 'not recorded'} · ${issue.issuedOn}`
+export function fieldPackKml(
+  issue: FieldIssue,
+  /** What an empty revision prints (`RoadReportSettings.emptyFields`); absent is blank. */
+  emptyFields?: EmptyFields,
+): string {
+  const revision = issue.revision || emptyFieldText(emptyFields, 'not recorded')
+  const head = `${issue.label} · ${issue.roadName} · ${revision ? `Rev ${revision}` : 'Rev'} · ${issue.issuedOn}`
   const road = `<Placemark id="${xml(issue.label)}-centreline"><name>${xml(`${issue.label} ${issue.roadName}`)}</name><description>${xml(`Issued centreline. ${head}. Preliminary planning geometry, not for construction.`)}</description><styleUrl>#road</styleUrl>${data({ issue_id: issue.id, issue_label: issue.label, road: issue.roadName, revision: issue.revision, issued_on: issue.issuedOn })}<LineString><tessellate>1</tessellate><coordinates>${coords(issue.centreline)}</coordinates></LineString></Placemark>`
   const ticks = issue.ticks
     .map((t) => {

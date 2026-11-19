@@ -1231,15 +1231,18 @@ export interface ComposedFigure {
 const BLACK = '#000000'
 /** What the analysis sheet's inventory cell says when no unit is under the landform or the blocks. */
 export const NO_INVENTORY_UNIT = 'No visual sensitivity unit under the landform or blocks'
-const FOOTER: TextStyle = { size: 6, color: '#6b6b6b' }
 const NOTE: TextStyle = { size: 7, color: '#595959' }
 const OWN: TextStyle = { size: 9, color: '#1d4ed8' }
 
 const fixed = (value: number | null, digits = 2) =>
   value === null || !Number.isFinite(value) ? 'n/a' : value.toFixed(digits)
 
-export const footerLine = (preset: ViaStylePreset, at: Date) =>
-  `PGMaps figure in the "${preset.name}" style - generated ${at.toISOString().slice(0, 10)} - terrain model and draped data, not a field-verified simulation`
+/**
+ * What a figure file says of itself in its document properties (`FigureSheetPanel`'s PDF), never on its face: the
+ * style it is drawn in and the day it was made.
+ */
+export const figureSubject = (preset: ViaStylePreset, at: Date) =>
+  `Figure in the "${preset.name}" style, generated ${at.toISOString().slice(0, 10)}`
 
 /** The alteration a class pass gives under `rule`: the counts as the rule's areas. */
 export function countsAlteration(rule: AlterationRule, counts: FigureCounts | null): Alteration | null {
@@ -1868,18 +1871,8 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
     const w = input.logo.width * scale,
       h = input.logo.height * scale
     ops.push({ op: 'image', x: logo.x + logo.w - w, y: logo.y + (logo.h - h) / 2, w, h, image: input.logo })
-  } else {
-    ops.push(rectStroke(logo, { color: '#bfbfbf', width: 0.5, dash: [3, 2] }))
-    ops.push(
-      ...textOps(
-        logo.x + logo.w / 2,
-        logo.y + logo.h / 2 + 3,
-        'Logo (your own)',
-        { size: 7, color: '#9c9c9c' },
-        'center',
-      ),
-    )
   }
+  // No logo: the slot keeps its place and draws nothing; a printed sheet never stands in for what was not given.
   // Facts.
   const facts = cell('facts')
   const factStyle = preset.facts ?? { size: 12.96, style: 'bolditalic' as const, color: BLACK }
@@ -1996,7 +1989,6 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
       legendCell.y + 4 + (preset.legend.title ? preset.legend.title.size * 2 : 0) + rows * preset.legend.rowPitch + 10
     ops.push(...labelKeyOps(panel.key, legendCell, top))
   }
-  ops.push(...textOps(W / 2, H - 4, footerLine(preset, input.generatedAt), FOOTER, 'center'))
   return { width: W, height: H, ops, frame, drawn: [...panel.drawn], counts, notes: notesFor(input, panel.drawn) }
 }
 
@@ -2068,7 +2060,6 @@ export function analysedFigure(input: FigureInput, width = 612): ComposedFigure 
     y += 10.5
   }
   const height = Math.ceil(y + 16)
-  ops.push(...textOps(width / 2, height - 5, footerLine(preset, input.generatedAt), FOOTER, 'center'))
   return { width, height, ops, frame, drawn: [...panel.drawn], counts, notes: notesFor(input, panel.drawn) }
 }
 
@@ -2140,18 +2131,15 @@ export function overlaySheet(input: FigureInput): ComposedFigure {
     )
   const counts = input.classes ? countClasses(input.classes) : null
   const height = Math.ceil(frame.y + frame.h + 18 + (panel.key.length ? panel.key.length * 9.1 + 4 : 0) + 30)
-  let y = height - 26
   ops.push(
     ...textOps(
       W / 2,
-      y,
+      height - 26,
       measureLines(input, counts).slice(0, figureLineCount(input)).join('   ·   '),
       { size: 8, color: '#1d4ed8' },
       'center',
     ),
   )
-  y += 12
-  ops.push(...textOps(W / 2, y, footerLine(preset, input.generatedAt), FOOTER, 'center'))
   return { width: W, height, ops, frame, drawn: [...panel.drawn], counts, notes: notesFor(input, panel.drawn) }
 }
 

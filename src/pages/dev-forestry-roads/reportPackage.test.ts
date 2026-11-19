@@ -3,18 +3,23 @@ import { PDFDocument } from 'pdf-lib'
 import {
   defaultPlacement,
   describeFile,
+  isDefaultPackage,
   isEmptyFile,
   omittedFor,
+  orderedPackageParts,
   packagePlan,
+  packageReportNotice,
   packagePreset,
   parseEstimateSettings,
   parseReportPackage,
   placementOf,
   presetSettings,
   slopeSheetMode,
+  withPackageOrder,
   withSummary,
   withPlacement,
 } from './reportPackage'
+import { REPORT_ORDER } from './reportContents'
 import { assemblePackageFile, pdfPageCount } from './reportPackagePdf'
 import { createRoadReportSettings, parseRoadReportSettings } from './reportSettings'
 
@@ -159,5 +164,39 @@ describe('the estimate range option', () => {
     const settings = parseRoadReportSettings({ ...createRoadReportSettings(), estimate: { crossDrainSpacingM: 150 } })
     expect(settings.estimate).toEqual({ crossDrainSpacingM: 150 })
     expect(parseRoadReportSettings({ ...createRoadReportSettings(), estimate: {} }).estimate).toBeUndefined()
+  })
+})
+
+describe('the package order', () => {
+  it('follows the report section order and its own order for chapters and sheets, kept only when moved', () => {
+    const sectionOrder = ['station-schedule' as const, ...REPORT_ORDER.filter((id) => id !== 'station-schedule')]
+    const plan = packagePlan(undefined, 'R', sectionOrder)
+    const appendices = plan.appendices.map((file) => file.key)
+    // The four long schedules are appendices; the station schedule now comes first.
+    expect(appendices[0]).toBe('report:station-schedule')
+    expect(plan.main.report[0]).toBe('review')
+    // Moving the clearing schedule chapter ahead of the charts changes the main file's plot book.
+    const parts = orderedPackageParts(undefined).filter((part) => part.group !== 'report')
+    const chapters = parts.map((part) => part.id)
+    const moved = withPackageOrder(undefined, [
+      'plotbook:plan-profile',
+      ...chapters.filter((id) => id !== 'plotbook:plan-profile'),
+    ])
+    expect(moved.order?.[0]).toBe('plotbook:plan-profile')
+    expect(packagePlan(moved, 'R').main.plotbook).toEqual(['plan-profile', 'charts'])
+    expect(packagePlan(undefined, 'R').main.plotbook).toEqual(['charts', 'plan-profile'])
+    // The usual order is not kept, a saved order drops unknown parts, and presets keep the order.
+    expect(isDefaultPackage(withPackageOrder(undefined, chapters))).toBe(true)
+    expect(parseReportPackage({ parts: {}, order: ['sheet:nonsense', ...moved.order!] }).order).toEqual(moved.order)
+    expect(packagePreset(moved)).toBe('full')
+    expect(presetSettings('simplified', true, 'check', undefined, moved.order).order).toEqual(moved.order)
+    expect(() => parseReportPackage({ parts: {}, order: 'charts' })).toThrow(/order/)
+  })
+
+  it('words the cover contents and the left-out list in package order', () => {
+    const sectionOrder = ['profile' as const, ...REPORT_ORDER.filter((id) => id !== 'profile')]
+    const plan = packagePlan(withPlacement(undefined, 'report:review', 'omit'), 'R', sectionOrder)
+    expect(describeFile(plan.main)[1]).toMatch(/^Report, per road: Longitudinal profile, Complete access cost/)
+    expect(packageReportNotice(plan, plan.main)).toContain('Left out of the package: Readiness checks')
   })
 })

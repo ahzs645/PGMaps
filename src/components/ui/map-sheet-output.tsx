@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button'
+import { DocumentContents } from '@/components/ui/document-contents'
 import { CheckboxField, FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -106,26 +106,26 @@ export function MapSheetOutput({
       )}
       {series && (
         <div className="grid min-w-0 gap-3 rounded-md border p-2" data-testid="map-sheet-series">
-          <FormField label={`Blocks (${pages.length} of ${blocks.length})`} group>
-            <div className="flex flex-wrap gap-x-3 gap-y-1">
-              <Button type="button" variant="link" size="2xs" className="px-0" onClick={() => set({ blocks: 'all' })}>
-                All
-              </Button>
-              <Button type="button" variant="link" size="2xs" className="px-0" onClick={() => set({ blocks: [] })}>
-                None
-              </Button>
-            </div>
-            <div className="grid max-h-40 gap-1 overflow-y-auto sm:grid-cols-2" data-testid="map-sheet-series-blocks">
-              {blocks.map((block) => (
-                <CheckboxField
-                  key={block.id}
-                  label={block.name || 'Unnamed block'}
-                  checked={chosen.has(block.id)}
-                  onCheckedChange={(checked) => toggle(block.id, checked)}
-                />
-              ))}
-            </div>
-          </FormField>
+          {/* The blocks are the series' contents: the shared list, on or off with All and None. The Order below sorts them. */}
+          <div className="max-h-60 overflow-y-auto" data-testid="map-sheet-series-blocks">
+            <DocumentContents
+              title="Blocks"
+              subject="the series"
+              parts={blocks.map((block) => ({
+                key: block.id,
+                label: block.name || 'Unnamed block',
+                state: chosen.has(block.id) ? 'on' : 'off',
+              }))}
+              onState={(id, state) => toggle(id, state === 'on')}
+              onStates={(changes) => {
+                const next = blocks
+                  .filter((block) => (changes[block.id] ?? (chosen.has(block.id) ? 'on' : 'off')) === 'on')
+                  .map((block) => block.id)
+                set({ blocks: next.length === blocks.length ? 'all' : next })
+              }}
+              summary={`${pages.length} of ${blocks.length} blocks`}
+            />
+          </div>
           {pages.length > MAX_SHEET_SERIES_PAGES && (
             <InlineAlert tone="warning">
               {pages.length} blocks are chosen; a series is at most {MAX_SHEET_SERIES_PAGES} sheets.

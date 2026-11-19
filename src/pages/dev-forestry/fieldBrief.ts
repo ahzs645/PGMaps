@@ -480,6 +480,12 @@ function tickBox(pdf: Pdf, x: number, y: number, label: string, ticked: boolean)
 
 export function fieldBriefPdf(brief: FieldBrief, { jsPDF }: PdfModule): ArrayBuffer {
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
+  // When the brief was made goes in the file's properties; its face carries the date in the title line.
+  pdf.setProperties({
+    title: pdfText(`${brief.blockName} - Field brief`),
+    subject: `Field brief, generated ${localIsoDate(brief.generatedAt)}`,
+    creator: 'PGMaps visual quality',
+  })
   const { width, height, margin } = PAGE
   const inner = width - 2 * margin
   const bottom = height - margin - 8
@@ -493,12 +499,7 @@ export function fieldBriefPdf(brief: FieldBrief, { jsPDF }: PdfModule): ArrayBuf
   const footer = () => {
     setText(6.5, 'normal', MUTED)
     const lines = pdf.splitTextToSize(
-      pdfText(
-        [
-          ...brief.notes,
-          `Generated ${localIsoDate(brief.generatedAt)} by PGMaps visual quality. Record answers in step 2 of the visual quality page.`,
-        ].join('  -  '),
-      ),
+      pdfText([...brief.notes, 'Record answers in step 2 of the visual quality page.'].join('  -  ')),
       inner,
     )
     pdf.text(lines, margin, height - margin + 2 - (lines.length - 1) * 2.6)

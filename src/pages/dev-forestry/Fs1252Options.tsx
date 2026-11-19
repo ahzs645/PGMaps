@@ -60,8 +60,11 @@ const DESIGN_LABELS = [
   'Position on landform',
 ]
 
-/** The stations the form carries and each one's optional reviewer inputs, kept while the run stands. */
-export type Fs1252Choice = { selected: number[]; reviews: Record<number, FormReview> }
+/**
+ * The stations the form carries and each one's optional reviewer inputs, kept while the run stands. `listed`: stations
+ * switched off in the form's contents in Save & export, which keep their place there until removed here.
+ */
+export type Fs1252Choice = { selected: number[]; reviews: Record<number, FormReview>; listed?: number[] }
 
 export const stationLabel = (result: AnalysisResult, index: number) =>
   `Station ${index + 1} · ${formatKm(result.stations[index].distanceAlongMeters)}`
@@ -252,7 +255,11 @@ export function Fs1252Options({
                           <TextButton
                             tone="danger"
                             onClick={() => {
-                              onChoice({ ...choice, selected: selected.filter((i) => i !== index) })
+                              onChoice({
+                                ...choice,
+                                selected: selected.filter((i) => i !== index),
+                                listed: (choice.listed ?? []).filter((i) => i !== index),
+                              })
                               setOpenStation(null)
                             }}
                           >

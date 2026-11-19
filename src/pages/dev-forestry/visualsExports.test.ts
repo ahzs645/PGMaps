@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { createEmptyScene, createSampleScene, type ForestryScene } from './scene'
 import { findSceneLandform } from './sceneInput'
 import { createViewOfInterestId, viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
-import { REPORT_RECIPES, recipeFormat } from './viaReport/recipes'
+import { partLabel } from './viaReport/recipeMakeup'
+import { findReportRecipe, REPORT_RECIPES, recipeFormat } from './viaReport/recipes'
 import { VIA_DOCUMENT_FORMATS } from './viaDocument/formats'
 import { DEFAULT_VISUALS_SHEET, visualsSheetSummary } from './visualsBlockSheet'
 import { DEFAULT_ROAD_VIDEO_SETTINGS, planRoadVideo, type RoadVideoScene } from './roadVideo'
@@ -18,6 +19,7 @@ import {
   resolvePackage,
   savedIdentity,
   uncapturedNote,
+  blockNoteWithoutScreenshot,
   viewsToCapture,
   type ExportPlannedView,
   exportContents,
@@ -295,7 +297,6 @@ describe('visual-quality exports', () => {
     const report = {
       recipe: '2022 handbook report with Appendix 1',
       sources: '06, 07',
-      parts: ['cover', 'appendix 1'],
       figures: 2,
       toComplete: 3,
     }
@@ -304,11 +305,152 @@ describe('visual-quality exports', () => {
     const sections = exportContents('via-report', ctx)
     expect(rowValue(sections, 'Report', 'Logo')).toBe('Your logo, mine.png')
     expect(rowValue(sections, 'Report', 'Figures')).toBe('2 saved views')
-    expect(sections.find((section) => section.title === 'Parts, in order')?.items?.map((item) => item.title)).toEqual([
-      'cover',
-      'appendix 1',
-    ])
     expect(rowValue(sections, 'To complete before signing', 'Items')).toBe('3 items')
+    // No contents list without the recipe it is read from.
+    expect(sections.some((section) => section.contents)).toBe(false)
+  })
+
+  it('lists the VIA report’s parts first, by title, in print order, an off part kept at its place', () => {
+    const recipe = findReportRecipe('appendix-1-report')!
+    const leftOut = { parts: recipe.parts.filter((id) => id !== 'purpose'), leftOut: [{ part: 'purpose', at: 3 }] }
+    // What each printing part gave, by its place among the printing parts.
+    const facts = leftOut.parts.map((id) => ({
+      printed: id !== 'extent-scale',
+      toComplete: id === 'appendix-1' ? 4 : 0,
+    }))
+    const ctx = buildExportContext(
+      input(createEmptyScene(), {
+        report: { recipe: recipe.name, sources: '06, 07', figures: 1, toComplete: 4 },
+        reportContents: { recipe: { ...recipe, ...leftOut }, base: recipe.parts, facts },
+      }),
+    )
+    const sections = exportContents('via-report', ctx, { reportPages: [1, 2, 2, 3] })
+    // The parts list comes first, before what the report reads.
+    expect(sections[0].title).toBe('Contents')
+    const contents = sections[0].contents!
+    expect(contents.subject).toBe('the report')
+    expect(contents.parts.map((part) => part.label)).toEqual(recipe.parts.map(partLabel))
+    // The cover stays first while the layout has a cover page.
+    expect(contents.parts[0].pinned).toBe(true)
+    const purpose = contents.parts.find((part) => part.key === 'purpose#1')!
+    expect(purpose.state).toBe('off')
+    expect(contents.places?.['purpose#1']).toBeUndefined()
+    expect(contents.places?.['methodology#1']).toBe(3)
+    expect(contents.parts[1].detail).toBe('p. 2')
+    // What is known once the report has been assembled, and nothing before.
+    expect(contents.parts.find((part) => part.key === 'appendix-1#1')?.detail).toBe('4 to complete')
+    expect(contents.parts.find((part) => part.key === 'extent-scale#1')?.detail).toBe(
+      'prints nothing for this assessment',
+    )
+    const unknown = buildExportContext(
+      input(createEmptyScene(), { reportContents: { recipe, base: recipe.parts, facts: null } }),
+    )
+    const before = exportContents('via-report', unknown)
+    expect(before[0].contents?.parts.some((part) => part.detail)).toBe(false)
+    // There is a list to choose from even before a view can draw the report.
+    expect(exportUnavailable('via-report', unknown)).toMatch(/Add a view of interest/)
+  })
+
+  it('lists the FS1252’s stations as switches, a station switched off kept in its place', () => {
+    const result = {
+      stations: [0, 500, 1000, 1500].map((distanceAlongMeters) => ({ distanceAlongMeters })),
+      assessmentStationIndex: 1,
+    } as unknown as NonNullable<ContextInput['result']>
+    const ctx = buildExportContext(
+      input(createEmptyScene(), { result, fs1252: { selected: [3, 1], reviews: { 3: {} }, listed: [0, 3] } }),
+    )
+    const stations = exportContents('fs1252', ctx)[0]
+    expect(stations.title).toBe('Stations in the PDF')
+    expect(stations.editor).toBe('assess')
+    expect(stations.contents?.parts.map((part) => [part.key, part.state, part.detail])).toEqual([
+      ['0', 'off', undefined],
+      ['1', 'on', 'assessment station'],
+      ['3', 'on', 'reviewer inputs set'],
+    ])
+    expect(stations.contents?.parts[0].label).toBe('Station 1 · 0.00 km')
+    expect(exportUnavailable('fs1252', ctx)).toBeNull()
+    // Every station switched off: no form to write.
+    const none = buildExportContext(
+      input(createEmptyScene(), { result, fs1252: { selected: [], reviews: {}, listed: [1] } }),
+    )
+    expect(exportUnavailable('fs1252', none)).toMatch(/at least one station/)
+  })
+
+  it('lists the block note’s sheets in its own order, its land status checks the one switch', () => {
+    const scene = createSampleScene()
+    const blockNote = { blockId: 'b', header: [], landform: [], measures: 2 }
+    const on = exportContents('block-note', buildExportContext(input(scene, { blockNote })))
+    expect(on[0].title).toBe('Contents')
+    const parts = on[0].contents!.parts
+    expect(parts.map((part) => part.key)).toEqual([
+      'other-considerations',
+      'visual-measures',
+      'block',
+      'viewpoints',
+      'plan-map',
+      'land-status',
+      'basis',
+    ])
+    expect(parts.filter((part) => !part.locked && !part.unavailable).map((part) => part.key)).toEqual(['land-status'])
+    expect(parts.find((part) => part.key === 'visual-measures')?.detail).toBe('2 measures')
+    // No view with a screenshot: the viewpoints sheet is not written, and says why on its row.
+    expect(parts.find((part) => part.key === 'viewpoints')?.unavailable).toMatch(/screenshot/)
+    const off = exportContents(
+      'block-note',
+      buildExportContext(
+        input(scene, {
+          blockNote: { ...blockNote, measures: 0 },
+          landChecks: { include: false, pending: 0, rows: [] },
+          views: [view('v1')],
+        }),
+      ),
+    )
+    const offParts = off[0].contents!.parts
+    expect(offParts.find((part) => part.key === 'land-status')?.state).toBe('off')
+    expect(offParts.find((part) => part.key === 'visual-measures')?.unavailable).toBeTruthy()
+    expect(offParts.find((part) => part.key === 'viewpoints')?.locked).toBeTruthy()
+    expect(off.find((section) => section.title === 'Land status checks')?.empty).toMatch(/Contents/)
+    // Every view has its picture: the first sheet's row says nothing more.
+    expect(offParts[0].note).toBeUndefined()
+    // Before a block there is no note, and so no list.
+    expect(exportContents('block-note', buildExportContext(input(scene)))[0].contents).toBeUndefined()
+  })
+
+  it('names on the Other Considerations row the views the note has no picture of, which the file leaves out unsaid', () => {
+    const blockNote = { blockId: 'block-1', header: [], landform: [], measures: 0 }
+    const ctx = buildExportContext(
+      input(createSampleScene(), {
+        blockNote,
+        views: [
+          view('a'),
+          view('b', { screenshot: false, classPass: false }),
+          view('c', { screenshot: false, classPass: false }),
+          view('d', { screenshot: false, classPass: false, inReport: false }),
+        ],
+      }),
+    )
+    expect(blockNoteWithoutScreenshot(ctx)).toEqual([
+      'View from the road going north b',
+      'View from the road going north c',
+    ])
+    const first = exportContents('block-note', ctx)[0].contents!.parts[0]
+    expect(first.key).toBe('other-considerations')
+    expect(first.locked).toBeTruthy()
+    expect(first.note).toBe(
+      'No screenshot, so no picture: View from the road going north b, View from the road going north c. Nothing stands in for them; reopen each view and save it again.',
+    )
+    // A view of interest whose capture has no screenshot in this session says so on its own row too.
+    const planned = buildExportContext(
+      input(createSampleScene(), {
+        blockNote,
+        views: [view('b', { screenshot: false, classPass: false })],
+        planned: [exportPlanned('p', { state: 'captured', savedViewId: 'b' })],
+      }),
+    )
+    expect(
+      exportContents('block-note', planned).find((section) => section.title === 'Views of interest')?.items?.[0]
+        .subtitle,
+    ).toMatch(/Captured, but with no screenshot in this session: not in the note/)
   })
 
   it('says what the VIA report follows and where to add a view before there is anything to draw', () => {
@@ -412,7 +554,7 @@ describe('visual-quality exports', () => {
     const section = exportContents('block-note', ctx).find((entry) => entry.title === 'Viewpoints in the report')
     expect(section?.items?.map((item) => item.subtitle?.split(' · ')[0])).toEqual([
       'In the report as its screenshot',
-      'Listed as missing: no screenshot',
+      'No screenshot: not in the note. Reopen it and save it again',
       'Left out',
     ])
     expect(section?.note).toMatch(/^1 saved view in the report\. Choose which under Package/)

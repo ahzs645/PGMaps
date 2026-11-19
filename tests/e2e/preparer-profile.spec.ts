@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 
 import { openWorkbench } from './road-workbench'
+import { choose } from './styled-select'
 import { openVisualsExport } from './visuals-export'
 
 /**
@@ -68,12 +69,21 @@ test('Your details fill the road issue stamp on a click and print with the logo'
     'Prepared by A. Other, RPF #4521, Northwood Forestry',
   )
 
-  const pending = page.waitForEvent('download')
-  await dialog.getByRole('button', { name: 'Download Report HTML', exact: true }).click()
-  const html = await readFile((await (await pending).path())!, 'utf8')
+  const report = async () => {
+    const pending = page.waitForEvent('download')
+    await dialog.getByRole('button', { name: 'Download Report HTML', exact: true }).click()
+    return readFile((await (await pending).path())!, 'utf8')
+  }
+  const html = await report()
   expect(html).toContain('A. Other, RPF #4521, Northwood Forestry')
   expect(html).toContain('data-brand-header')
   expect(html).toContain(LOGO.toString('base64').slice(0, 24))
+  // No revision entered: the file prints the field blank, while the line above the pane still says so.
+  expect(html).toContain('<dt>Revision</dt><dd></dd>')
+  await expect(dialog.getByTestId('road-issue-line')).toContainText('Revision not recorded')
+  // The project can ask for the earlier wording instead.
+  await choose(stamp.getByRole('combobox', { name: 'A field left empty prints', exact: true }), { value: 'stated' })
+  expect(await report()).toContain('<dt>Revision</dt><dd>Not recorded</dd>')
 })
 
 test('Your details fill the VIA preparer, and person fields offer your name', async ({ page }) => {

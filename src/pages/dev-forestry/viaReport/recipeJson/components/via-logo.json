@@ -2,12 +2,12 @@
   "kind": "component",
   "id": "via-logo",
   "title": "Logo",
-  "description": "The user's own logo fitted in its box, or a dashed box saying the place is theirs. Never a brand's artwork of its own.",
+  "description": "The user's own logo fitted in its box. With none, the box keeps its place with no border and no words: a file never stands in for what was not given. Never a brand's artwork of its own.",
   "params": {
     "width": { "required": true },
     "height": { "required": true },
     "align": { "required": true },
-    "boxWidth": { "required": true, "description": "The empty box's width, as a share of the text width (per cent)." }
+    "boxWidth": { "required": true, "description": "The empty slot's width, as a share of the text width (per cent)." }
   },
   "blocks": [
     {
@@ -27,10 +27,10 @@
           "width": "{{ params.boxWidth }}",
           "align": "{{ params.align }}",
           "borders": {
-            "top": { "style": "dashed", "width": 0.75, "color": "94a3b8" },
-            "bottom": { "style": "dashed", "width": 0.75, "color": "94a3b8" },
-            "left": { "style": "dashed", "width": 0.75, "color": "94a3b8" },
-            "right": { "style": "dashed", "width": 0.75, "color": "94a3b8" },
+            "top": { "style": "none" },
+            "bottom": { "style": "none" },
+            "left": { "style": "none" },
+            "right": { "style": "none" },
             "insideHorizontal": { "style": "none" },
             "insideVertical": { "style": "none" }
           },
@@ -42,7 +42,7 @@
                 {
                   "content": {
                     "type": "text",
-                    "text": "Logo (your own){{ if logo.name }}: {{ logo.name }}{{ endif }}",
+                    "text": "",
                     "size": 8.25,
                     "color": "64748b"
                   },

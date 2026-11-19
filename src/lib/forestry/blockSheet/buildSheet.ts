@@ -7,6 +7,7 @@
  */
 import type { RasterImage } from '@/lib/mapSheet/drawOps'
 import type { FrameProjection } from '@/lib/mapSheet/scale'
+import type { EmptyFields } from '@/lib/mapSheet/emptyFields'
 import { blockFacts, type BlockFacts } from './blockFacts'
 import {
   composeSheet,
@@ -45,6 +46,8 @@ export interface SheetBuild {
   preview?: boolean
   /** Dim the map outside the block of interest (`ComposeInput.maskOutsideBlock`); off by default. */
   maskOutsideBlock?: boolean
+  /** What a field the person left empty prints (`ComposeInput.emptyFields`). */
+  emptyFields?: EmptyFields
 }
 
 export interface SheetBuildDeps {
@@ -128,6 +131,7 @@ export async function buildSheet(run: SheetBuild, deps: SheetBuildDeps): Promise
     stamp: run.stamp,
     caveat: run.caveat,
     maskOutsideBlock: run.maskOutsideBlock,
+    emptyFields: run.emptyFields,
   })
   return { sheet, facts, missing: products.missing }
 }

@@ -4,7 +4,7 @@
   "name": "VIA report (base)",
   "description": "What every VIA report shares: the theme, each page kind as a section, the title or cover, the contents and the closing. Each shipped report extends it with its parts.",
   "document": {
-    "metadata": { "title": "{{ report.title }} - {{ report.subtitle }}", "subject": "{{ report.footer }}" },
+    "metadata": { "title": "{{ report.title }} - {{ report.subtitle }}", "subject": "{{ report.about }}" },
     "theme": {
       "body": { "font": "Arial", "size": 9.5, "color": "1a2530", "after": 6, "line": 1.15 },
       "title": { "size": 18, "bold": true, "align": "left", "after": 3 },

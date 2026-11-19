@@ -256,6 +256,7 @@ import {
   blockNotePdf,
   blockNoteWorkbook,
   isPngImage,
+  missingScreenshotsNotice,
   type BlockNote,
   type NoteImage,
   type ViewpointPage,
@@ -2082,7 +2083,6 @@ function DevForestryVisuals() {
                 : image,
             ),
         ),
-        missingViews: views.filter((view) => !viewImages[view.id]).map((view) => view.name),
         // A page per view that carries its viewpoint record, in the order saved.
         viewpoints: views
           .flatMap((view) => {
@@ -2098,18 +2098,23 @@ function DevForestryVisuals() {
         notes,
         generatedAt: new Date(),
       }
+      // A view without a screenshot is not in the file at all: the dialog names it beside the preview and the download.
+      const missing = missingScreenshotsNotice(views.filter((view) => !viewImages[view.id]).map((view) => view.name))
+      const told = missing ? { notes: missing } : {}
       if (format === 'xlsx') {
         const ExcelJS = await import('exceljs')
         const buffer = await blockNoteWorkbook(note, ExcelJS)
         return {
           blob: new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
           fileName: blockNoteFileName(note, 'xlsx'),
+          ...told,
         }
       }
       const jspdf = await import('jspdf')
       return {
         blob: new Blob([blockNotePdf(note, jspdf)], { type: 'application/pdf' }),
         fileName: blockNoteFileName(note, 'pdf'),
+        ...told,
       }
     },
     [scene, savedViews, shelvedViews, viewImages, noteFigures, drive.figureStyle, drive.labelStyle],

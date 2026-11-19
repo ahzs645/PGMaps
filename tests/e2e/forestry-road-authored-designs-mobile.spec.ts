@@ -156,17 +156,13 @@ for (const viewport of [
 
     await page.getByRole('button', { name: 'Save', exact: true }).tap()
     const dialog = page.getByRole('dialog', { name: 'Save & export', exact: true })
-    await chooseExport(page, 'Plot book', { tap: true })
+    await chooseExport(page, 'Plot book HTML', { tap: true })
     await dialog.getByRole('button', { name: 'Sheet setup', exact: true }).tap()
     const reports = page.getByTestId('road-report-settings')
     await chooseOption(page, reports.getByRole('combobox', { name: 'Report paper size', exact: true }), 'A4 landscape')
     await reports.getByLabel('Station label expression', { exact: true }).fill('{road} @ {station}')
-    await chooseOption(
-      page,
-      reports.getByRole('combobox', { name: 'New report chapter type', exact: true }),
-      'Station schedule',
-    )
-    await reports.getByRole('button', { name: 'Add chapter', exact: true }).tap()
+    // The chapter list is the shared contents list: choosing a kind under it adds that chapter and opens it.
+    await chooseOption(page, reports.getByRole('combobox', { name: 'Add chapter', exact: true }), 'Station schedule')
     await reports.getByLabel('Chapter title', { exact: true }).fill('Mobile station schedule')
     await reports.getByRole('spinbutton', { name: 'Report station interval (m)', exact: true }).fill('50')
     await reports.getByRole('spinbutton', { name: 'Report station interval (m)', exact: true }).press('Tab')
@@ -176,7 +172,7 @@ for (const viewport of [
       animations: 'disabled',
       timeout: 60000,
     })
-    const book = await download(page, dialog.getByRole('button', { name: 'Download Plot book', exact: true }))
+    const book = await download(page, dialog.getByRole('button', { name: 'Download Plot book HTML', exact: true }))
     expect(book.text).toContain('@page{size:A4 landscape')
     expect(book.text).toContain('Mobile station schedule')
     expect(book.text).toContain(' @ 0+000')
@@ -188,11 +184,26 @@ for (const viewport of [
     expect(exported.reportSettings!.paper).toBe('A4')
     expect(exported.reportSettings!.chapters).toHaveLength(3)
 
+    // A project file is opened from the Projects sheet, which closes as the file chooser opens. On a
+    // phone held sideways the header keeps Projects under its overflow menu, as the project library.
+    const projects = page.getByRole('button', { name: 'Projects', exact: true })
+    if (await projects.isVisible()) await projects.tap()
+    else {
+      await page.getByRole('button', { name: 'More workspace commands', exact: true }).tap()
+      await page
+        .getByRole('dialog', { name: 'More workspace commands', exact: true })
+        .getByRole('button', { name: 'Project library', exact: true })
+        .tap()
+    }
     const chooser = page.waitForEvent('filechooser')
-    await page.getByRole('button', { name: 'Open', exact: true }).tap()
+    await page.getByRole('button', { name: 'Open project file', exact: true }).tap()
     await (
       await chooser
     ).setFiles({ name: projectFile.name, mimeType: 'application/json', buffer: Buffer.from(projectFile.text) })
+    await dialogsClosed(page)
+    await expect(page.getByTestId('road-workspace-header').getByRole('status', { includeHidden: true })).toContainText(
+      `Opened ${projectFile.name}.`,
+    )
     await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
     const reopened = await save(page)
     expect(reopened.reportSettings).toEqual(exported.reportSettings)

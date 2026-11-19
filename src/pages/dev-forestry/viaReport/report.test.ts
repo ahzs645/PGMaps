@@ -104,7 +104,9 @@ describe('VIA report recipes', () => {
       expect(html, recipe.id).not.toMatch(/\{\w+\}|undefined|NaN/)
       expect(reportMarkdown(report), recipe.id).not.toMatch(/\{\w+\}|undefined|NaN/)
       expect(report.toComplete.length, recipe.id).toBeGreaterThan(0)
-      expect(html).toContain('Logo (your own)')
+      // No logo given: the slot keeps its place and draws nothing.
+      expect(html).toContain('<div class="logo"></div>')
+      expect(html).not.toContain('Logo (your own)')
     }
   })
 
@@ -285,7 +287,11 @@ describe('report layout', () => {
   it('lists the figure pages under Images in the contents, each linked to an anchor inside its own page', () => {
     const recipe = REPORT_RECIPES.find((entry) => entry.id === 'form-2001-photos')!
     const sheet = { view: 'Lakeshore', caption: 'Lakeshore: analysis', dataUrl: 'data:,', width: 1224, height: 792 }
-    const html = reportHtml(assembleReport(recipe, context(recipe.format, { figures: [sheet] })), null)
+    const photo = { ...sheet, caption: 'Lakeshore: photograph', source: 'photo' as const }
+    const html = reportHtml(
+      assembleReport(recipe, context(recipe.format, { figures: [sheet], images: { before: { Lakeshore: photo } } })),
+      null,
+    )
     const contents = html.match(/<nav class="contents">.*?<\/nav>/s)?.[0] ?? ''
     expect(contents).toContain('<h4>Images</h4>')
     expect(contents).toMatch(/<a href="#f\d+">Lakeshore: analysis<\/a>/)

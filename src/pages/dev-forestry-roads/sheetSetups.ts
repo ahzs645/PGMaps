@@ -1,5 +1,6 @@
 /**
- * Named sheet setups: the plot book's paper, chapters, scales, subviews, labels and report contents,
+ * Named sheet setups: the plot book's paper, chapters, scales, subviews, labels and report contents
+ * (the sections left out and their order) and what a field left empty prints,
  * and the block map sheet's kind, paper, scale, typed title fields and output (format, one sheet per
  * block, order, file names, mask), kept under a name so one office standard can be applied to any
  * project. The library lives in this browser; a setup also travels as a small JSON file, and a
@@ -224,6 +225,8 @@ export function describeSheetSetup(setup: SheetSetup): string[] {
     lines.push(
       `Plot book: ${REPORT_PAPERS[setup.plotBook.paper].label}, ${chapters} chapter${chapters === 1 ? '' : 's'}${
         omitted ? `; report leaves out ${omitted} section${omitted === 1 ? '' : 's'}` : ''
+      }${setup.plotBook.sectionOrder ? '; report sections in their own order' : ''}${
+        setup.plotBook.emptyFields === 'stated' ? '; empty fields print “Not recorded”' : ''
       }`,
     )
   }

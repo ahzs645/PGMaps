@@ -52,16 +52,21 @@ export interface MapFurniture {
   northUp?: boolean
   /** The picture already prints its own legend, scale and north arrow: nothing is added over or beside it. */
   inPicture?: boolean
+  /**
+   * Parts of a composed map that could not be drawn ("key map"): nothing is drawn in their place, and the part that
+   * prints the map lists each to complete.
+   */
+  missing?: readonly string[]
 }
 
 /**
  * One picture place on a figure layout: its label, the picture, or a placeholder saying what goes there when nobody
- * has given it.
+ * has given it. Only the draft prints a slot without a picture (`ReportContext.draft`); a file leaves it out.
  */
 export interface FigureSlot {
   label: string
   figure: ReportFigure | null
-  /** What goes here, printed in the empty box. */
+  /** What goes here, printed in the draft's empty box. */
   placeholder: string
   /** A line under the picture: where it came from ("Field photograph, lined up with the view"). */
   note?: string
@@ -250,8 +255,16 @@ export interface AssembledReport {
   sources: readonly string[]
   blocks: ReportBlock[]
   toComplete: ReportItemToComplete[]
-  /** One line for the footer: what the report is and is not. */
+  /**
+   * The report's last line, or empty when it has nothing to say: how many values the reviewer changed by hand. The
+   * report never describes itself on its face.
+   */
   footer: string
+  /**
+   * What the report is (the structure it follows) and the day it was made, for the file's properties only (the PDF's
+   * and the Word file's subject), never printed.
+   */
+  about?: string
   layout: ReportLayout
 }
 

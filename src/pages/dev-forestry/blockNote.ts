@@ -6,7 +6,8 @@
  * opening, area, EVQO classes under it), the Visuals paragraph — the
  * reviewer's, or the draft marked as one — the visual measures for the Site
  * Plan and Logging Plan, the landform and its percent alteration, the saved
- * views as captioned screenshots, and a plan map.
+ * views as captioned screenshots, and a plan map. A view without a screenshot
+ * is left out with no stand-in or wording: Save & export names it.
  *
  * - **Excel** mirrors the planner's own `*_Report.xlsx`: an "Other
  *   Considerations" sheet with the label in column B and the paragraph in C,
@@ -120,9 +121,11 @@ export type BlockNote = {
   }
   /** The landform figures, already worded. */
   landform: Array<{ label: string; value: string }>
+  /**
+   * The views with a screenshot. A view in the package without one is not in the file at all, neither a caption nor a
+   * line saying so: Save & export names it instead (`missingScreenshotsNotice`, and the note's contents).
+   */
   views: NoteImage[]
-  /** Saved views without a screenshot (saved before screenshots were kept). */
-  missingViews: string[]
   planMap: NoteImage | null
   /**
    * Each saved view with its viewpoint record, for the per-viewpoint pages.
@@ -173,6 +176,18 @@ export function paragraphForLayout(note: BlockNote, format: 'xlsx' | 'pdf'): str
       ? 'See the view at left.'
       : `See the view at left and the others on the ${pages > 1 ? 'following pages' : 'next page'}.`
   return text.replace(SCREENSHOTS_SENTENCE, ` ${pointer}`).trim()
+}
+
+/**
+ * What Save & export says about the views in the package that the note has no picture of: the file leaves them out
+ * without a word, so the gap is told beside the preview and the download instead. Null when every view has one.
+ */
+export function missingScreenshotsNotice(names: readonly string[]): string | null {
+  if (!names.length) return null
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+  return names.length === 1
+    ? `${list} has no screenshot, so the note has no picture of it: reopen the view and save it again.`
+    : `${list} have no screenshot, so the note has no picture of them: reopen each view and save it again.`
 }
 
 /** "CHU_26_1-visual-note-2026-11-10" */
@@ -233,10 +248,6 @@ export async function blockNoteWorkbook(note: BlockNote, ExcelJS: ExcelModule): 
     row += 2
   }
   for (const view of note.views) placeImage(view, 720)
-  for (const caption of note.missingViews) {
-    other.getCell(`B${row}`).value = `${caption} (no screenshot: reopen the view and save it again)`
-    row += 1
-  }
   if (note.planMap) placeImage(note.planMap, 720)
 
   // The measures on a sheet of their own, in the same B/C layout, so the first
@@ -278,7 +289,6 @@ export async function blockNoteWorkbook(note: BlockNote, ExcelJS: ExcelModule): 
   }
   block.addRow([])
   for (const line of note.notes) block.addRow([line]).getCell(1).font = { italic: true, color: { argb: 'FF6B7280' } }
-  block.addRow([`Generated ${DATE(note.generatedAt)} by PGMaps visual quality.`])
 
   if (note.viewpoints?.length) {
     // One row per viewpoint: what produced each simulation, beside its caption.
@@ -402,15 +412,18 @@ function drawImage(pdf: Pdf, image: NoteImage, x: number, y: number, maxWidth: n
 export function blockNotePdf(note: BlockNote, { jsPDF }: PdfModule): ArrayBuffer {
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
   const { width, height, margin } = PAGE
+  // What the note is and when it was made: in the file's properties, never on its face.
+  pdf.setProperties({
+    title: `${note.blockName} - Visual quality note`,
+    subject: `Visual quality note, generated ${DATE(note.generatedAt)}`,
+    creator: 'PGMaps visual quality',
+  })
 
   const footer = () => {
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(7)
     pdf.setTextColor(107, 114, 128)
-    const lines = pdf.splitTextToSize(
-      [...note.notes, `Generated ${DATE(note.generatedAt)} by PGMaps visual quality.`].join('  ·  '),
-      width - 2 * margin,
-    )
+    const lines = pdf.splitTextToSize(note.notes.join('  ·  '), width - 2 * margin)
     pdf.text(lines, margin, height - margin + 2 - (lines.length - 1) * 3)
     pdf.setTextColor(17, 24, 39)
   }
@@ -644,18 +657,6 @@ export function blockNotePdf(note: BlockNote, { jsPDF }: PdfModule): ArrayBuffer
       pdf.setTextColor(17, 24, 39)
       y += rowHeight
     }
-    footer()
-  }
-
-  if (note.missingViews.length) {
-    pdf.addPage()
-    pdf.setFont('helvetica', 'italic')
-    pdf.setFontSize(9)
-    pdf.text(
-      ['Saved views without a screenshot (reopen each and save it again):', ...note.missingViews],
-      margin,
-      margin + 4,
-    )
     footer()
   }
   return pdf.output('arraybuffer')

@@ -570,16 +570,18 @@ describe('the VIA report as a Word file', () => {
     const { document, words: all, footers, headers } = await parts(report)
     // The cover is centred on its own page, with no header or footer.
     expect(document).toMatch(/<w:vAlign w:val="center"\/>/)
-    expect(all.indexOf('Logo (your own)')).toBeLessThan(all.indexOf('Contents'))
+    // No logo given: its slot keeps its place and says nothing.
+    expect(all).not.toContain('Logo (your own)')
     // Word's table of contents over the sections, and the pictures listed under it.
     expect(document).toContain('TOC \\h \\o &quot;1-1&quot;')
     expect(all).toMatch(/Images\n/)
     // The reviewer's list, by part, and the report's last line after it.
     expect(all).toContain('To complete before signing')
     for (const item of report.toComplete.slice(0, 3)) expect(all).toContain(item.what)
-    expect(all.indexOf('To complete before signing', all.indexOf('Contents') + 40)).toBeLessThan(
-      all.indexOf(report.footer),
-    )
+    expect(all.indexOf('To complete before signing', all.indexOf('Contents') + 40)).toBeGreaterThan(0)
+    // With no value changed by hand there is no last line: the report never describes itself on its face.
+    expect(report.footer).toBe('')
+    expect(all).not.toContain('not a field-verified simulation')
     // Page n of N in the footers, the running header in the headers.
     expect(footers.some((xml) => /PAGE/.test(xml) && /NUMPAGES/.test(xml))).toBe(true)
     expect(headers.some((xml) => words(xml).includes('Visual Impact Assessment · A00000 CP 1'))).toBe(true)
@@ -592,7 +594,7 @@ describe('the VIA report as a Word file', () => {
       for (const block of flatBlocks(report.blocks))
         if (block.kind === 'heading' && block.level > 1 && block.text.trim())
           expect(all, `${entry.id}: ${block.text}`).toContain(block.text)
-      expect(all, entry.id).toContain(report.footer)
+      expect(all, entry.id).not.toContain('not a field-verified simulation')
     }
   })
 

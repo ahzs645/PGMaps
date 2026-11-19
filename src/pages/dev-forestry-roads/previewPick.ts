@@ -1,12 +1,13 @@
 /**
  * What a click on an export preview opens: a title block or the report's issue box opens the issue
  * stamp; a plot-book sheet opens its chapter's settings; a report heading opens the report's
- * contents at that section. The preview reads the clicked element and its ancestors and hands them
+ * contents at that section, or at the quantity basis and limitations, which may be moved. The
+ * contents list's preview goes the other way, to a row's headings (`reportPartHeadings`). The preview reads the clicked element and its ancestors and hands them
  * here. No DOM access.
  */
-import { reportSectionForHeading, type ReportSectionId } from './reportContents'
+import { reportPartForHeading, type ReportOrderId } from './reportContents'
 
-export type PreviewPick = { view: 'issue' } | { view: 'setup'; chapter?: string; section?: ReportSectionId }
+export type PreviewPick = { view: 'issue' } | { view: 'setup'; chapter?: string; section?: ReportOrderId }
 
 /** One element from the clicked one outwards, as the preview reads it. */
 export interface PickedElement {
@@ -27,7 +28,7 @@ export function previewPick(chain: readonly PickedElement[]): PreviewPick | null
     const tag = element.tag.toLowerCase()
     if (element.role === 'title-block' || (tag === 'dl' && element.classes?.includes('issue'))) return { view: 'issue' }
     if (tag === 'h2') {
-      const section = reportSectionForHeading(element.text ?? '')
+      const section = reportPartForHeading(element.text ?? '')
       return section ? { view: 'setup', section } : null
     }
     if (element.chapter) return { view: 'setup', chapter: element.chapter }

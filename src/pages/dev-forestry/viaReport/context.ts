@@ -209,6 +209,8 @@ export function buildReportContext(input: {
   /** What the run's existing openings' green-up rests on (`runGreenUpBasis(result).label`), when there is a run. */
   greenUp?: string | null
   date: Date
+  /** Save & export's draft: a missing picture keeps its place with a box saying what goes there (`ReportContext.draft`). */
+  draft?: boolean
 }): ReportContext {
   const { scene } = input
   const landform = findSceneLandform(scene)
@@ -292,5 +294,6 @@ export function buildReportContext(input: {
     figures: input.figures,
     ...(input.images ? { images: input.images } : {}),
     ...(input.reportSetting ? { setting: input.reportSetting } : {}),
+    ...(input.draft ? { draft: true } : {}),
   }
 }

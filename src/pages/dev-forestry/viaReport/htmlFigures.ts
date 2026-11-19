@@ -1,7 +1,8 @@
 /**
  * How a report draws the block kinds its figure layouts add (map pages, before / after figure pages, photo and
  * simulation pairs, render grids), in HTML and Markdown. Unknown kinds draw nothing. Every picture place prints its
- * picture, or a dashed box saying what goes there. No DOM or network access.
+ * picture, or a dashed box saying what goes there; only the draft has a place without a picture (`ReportContext.draft`),
+ * a file's parts leave it out. No DOM or network access.
  */
 import { escapeHtml as e } from '@/branding/presentation'
 

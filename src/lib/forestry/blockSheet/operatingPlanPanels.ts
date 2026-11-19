@@ -4,6 +4,7 @@ import { rectRing } from '@/lib/mapSheet/drawOps'
 import { fontSize, type Rect, type ResolvedSheet } from '@/lib/mapSheet/layout'
 import { frameProjection } from '@/lib/mapSheet/scale'
 import { fitLabel, fitText } from '@/lib/mapSheet/textMetrics'
+import { emptyFieldText } from '@/lib/mapSheet/emptyFields'
 import type { ComposeInput } from './composeSheet'
 import { SHEET_CHROME } from './styles'
 
@@ -37,7 +38,13 @@ export function operatingPlanTitle(ops: DrawOp[], sheet: ResolvedSheet, input: C
     stroke: { color: SHEET_CHROME.line, width: sheet.k },
   })
   const slice = (start: number, height: number): Rect => ({ ...box, y: box.y + box.h * start, h: box.h * height })
-  centred(ops, sheet, slice(0, 0.25), input.fields.forestDistrict?.trim() || 'Forest district not recorded', 11)
+  centred(
+    ops,
+    sheet,
+    slice(0, 0.25),
+    input.fields.forestDistrict?.trim() || emptyFieldText(input.emptyFields, 'Forest district not recorded'),
+    11,
+  )
   centred(ops, sheet, slice(0.25, 0.3), input.frame.preset.title, 15)
   centred(ops, sheet, slice(0.55, 0.25), input.fields.blockId?.trim() || input.layers.block?.name || 'Road access', 12)
   const permits = [

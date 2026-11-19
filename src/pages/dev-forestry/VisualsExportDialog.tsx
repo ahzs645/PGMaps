@@ -4,9 +4,11 @@ import { Circle, Download, Loader2, Save, Square } from 'lucide-react'
 import { PreparerProfileHostProvider, PreparerProfilePane, PreparerProfileRow } from '@/branding/PreparerProfile'
 import { Button } from '@/components/ui/button'
 import { CopyImageButton } from '@/components/ui/copy-image-button'
-import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
+import { DocumentContents, type DocumentContentsProps } from '@/components/ui/document-contents'
+import { StyledSelect } from '@/components/ui/form-field'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { insetBox } from '@/components/ui/inset-box'
+import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { ProjectionSlot, useProjectableMounted } from '@/components/ui/movable-content'
 import { ResultRow } from '@/components/ui/result-list'
@@ -14,6 +16,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TextButton } from '@/components/ui/text-button'
 import { downloadBlob } from '@/lib/download'
 import { SaveFileError, saveFileAs, saveFilePickerSupported } from '@/lib/saveFile'
+import type { ContentsPart } from '@/lib/documentContents/contents'
 import { useInterfaceThemeApplied } from '@/lib/interfaceTheme'
 import { cn } from '@/lib/utils'
 
@@ -324,10 +327,27 @@ const stepLabel = (id: ViaStepId) => {
 }
 
 /**
+ * The controls a page gives an output's parts list (`ExportSection.contents`): what changes a part's state, its place,
+ * what is added or removed, and the presets. Without them the list is read-only.
+ */
+export type ContentsControls = Pick<
+  DocumentContentsProps,
+  'onState' | 'onStates' | 'onMove' | 'onRemove' | 'add' | 'presets' | 'choices' | 'stateLabel'
+>
+
+/** What a parts list shows beside it: the preview of the selected part, and which part that is. */
+type ContentsPreviewProps = Pick<
+  DocumentContentsProps,
+  'preview' | 'previewLabel' | 'selected' | 'onSelect' | 'focusKey'
+>
+
+/**
  * One part of an output: what the file takes, and where it is changed. A part with an `editor` is changed under its
  * own rows (*Edit here*): the sidebar section that sets it is shown there (`ProjectionSlot`, the same controls and
  * state as in its step, moved rather than copied) or, for the views of interest, their list. Without one, or while
- * the sidebar is not on the page, the link opens the step instead and closes the dialog.
+ * the sidebar is not on the page, the link opens the step instead and closes the dialog. A part that is the file's own
+ * parts list (`contents`) is drawn by the shared `DocumentContents`, with the page's `controls` and the preview beside
+ * it (`list`).
  */
 function ContentsSection({
   section,
@@ -336,6 +356,8 @@ function ContentsSection({
   viewsEditor,
   editing,
   onEditing,
+  controls,
+  list,
 }: {
   section: ExportSection
   onGoToStep?: (id: ViaStepId) => void
@@ -344,6 +366,10 @@ function ContentsSection({
   viewsEditor?: ReactNode
   editing: boolean
   onEditing: (on: boolean) => void
+  /** For a parts list: the controls that change it. */
+  controls?: ContentsControls
+  /** For a parts list: its preview, its selected part and its size. */
+  list?: ContentsPreviewProps
 }) {
   const empty = !section.rows?.length && !section.items?.length
   const projected = useProjectableMounted(
@@ -363,35 +389,57 @@ function ContentsSection({
     // Only when it opens: the editor's own changes must not scroll the pane.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing])
+  const actions = (
+    <>
+      {section.action && onAction && (
+        <TextButton className="text-2xs" onClick={() => onAction(section.action!)}>
+          {section.action.label}
+        </TextButton>
+      )}
+      {editor ? (
+        <TextButton
+          className="text-2xs"
+          aria-expanded={editing}
+          aria-label={`${editing ? 'Done editing' : 'Edit here'}: ${section.title}`}
+          onClick={() => onEditing(!editing)}
+        >
+          {editing ? 'Done' : 'Edit here'}
+        </TextButton>
+      ) : (
+        section.step &&
+        onGoToStep && (
+          <TextButton className="text-2xs" onClick={() => onGoToStep(section.step!)}>
+            Change in {stepLabel(section.step)}
+          </TextButton>
+        )
+      )}
+    </>
+  )
+  const contents = section.contents
   return (
-    <section ref={part} className="scroll-mt-1 space-y-1.5" aria-label={section.title}>
-      <div className="flex items-baseline justify-between gap-2">
-        <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{section.title}</h4>
-        <div className="flex shrink-0 flex-wrap items-baseline justify-end gap-x-3">
-          {section.action && onAction && (
-            <TextButton className="text-2xs" onClick={() => onAction(section.action!)}>
-              {section.action.label}
-            </TextButton>
-          )}
-          {editor ? (
-            <TextButton
-              className="text-2xs"
-              aria-expanded={editing}
-              aria-label={`${editing ? 'Done editing' : 'Edit here'}: ${section.title}`}
-              onClick={() => onEditing(!editing)}
-            >
-              {editing ? 'Done' : 'Edit here'}
-            </TextButton>
-          ) : (
-            section.step &&
-            onGoToStep && (
-              <TextButton className="text-2xs" onClick={() => onGoToStep(section.step!)}>
-                Change in {stepLabel(section.step)}
-              </TextButton>
-            )
-          )}
+    <section
+      ref={part}
+      className="scroll-mt-1 space-y-1.5"
+      aria-label={contents ? undefined : section.title}
+      data-export-contents={contents ? '' : undefined}
+    >
+      {contents ? (
+        <DocumentContents
+          title={section.title}
+          subject={contents.subject}
+          parts={contents.parts}
+          {...(contents.help ? { help: contents.help } : {})}
+          {...(contents.summary ? { summary: contents.summary } : {})}
+          {...controls}
+          {...list}
+          actions={actions}
+        />
+      ) : (
+        <div className="flex items-baseline justify-between gap-2">
+          <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{section.title}</h4>
+          <div className="flex shrink-0 flex-wrap items-baseline justify-end gap-x-3">{actions}</div>
         </div>
-      </div>
+      )}
       {section.rows && section.rows.length > 0 && (
         <KeyValueRows
           variant="grid"
@@ -428,7 +476,9 @@ function ContentsSection({
           ))}
         </ul>
       )}
-      {empty && section.empty && <p className="text-2xs text-muted-foreground">{section.empty}</p>}
+      {empty && section.empty && !contents?.parts.length && (
+        <p className="text-2xs text-muted-foreground">{section.empty}</p>
+      )}
       {section.note && <p className="text-2xs text-muted-foreground">{section.note}</p>}
       {editing && editor && (
         <div
@@ -453,6 +503,62 @@ function ContentsSection({
         </div>
       )}
     </section>
+  )
+}
+
+/** Scrolls a draft frame to a part's mark, or to the top when there is none. */
+function showDraftPlace(frame: HTMLIFrameElement | null, place: number | null, smooth: boolean) {
+  const win = frame?.contentWindow
+  const doc = frame?.contentDocument
+  if (!win || !doc) return
+  const mark = place === null ? null : doc.getElementById(`part-${place}`)
+  // The frame's own window is scrolled, never `scrollIntoView`: from inside a frame that also scrolls the dialog's
+  // pane, which pushed the contents list's heading out of view on every row chosen.
+  const top = mark ? Math.max(0, mark.getBoundingClientRect().top + win.scrollY - 8) : 0
+  win.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' })
+}
+
+/**
+ * The VIA report's draft at one part, beside its contents: the same draft page the *Draft* view shows, scrolled to the
+ * part's mark (`part-<place>`), or to the top for the whole report. A click on a part's mark selects its row. Nothing
+ * is captured or run for it.
+ */
+function DraftPartFrame({
+  html,
+  place,
+  onPlace,
+}: {
+  html: string
+  /** The part's place among the printing parts, or null for the whole report. */
+  place: number | null
+  onPlace: (place: number) => void
+}) {
+  const frame = useRef<HTMLIFrameElement>(null)
+  const latest = useRef({ place, onPlace })
+  useEffect(() => {
+    latest.current = { place, onPlace }
+  })
+  useEffect(() => {
+    showDraftPlace(frame.current, place, true)
+  }, [place])
+  const onLoad = () => {
+    showDraftPlace(frame.current, latest.current.place, false)
+    // The frame runs no scripts of its own; the dialog listens for clicks on its part marks.
+    frame.current?.contentDocument?.addEventListener('click', (event) => {
+      const mark = (event.target as Element | null)?.closest?.('.draft-part')
+      const at = Number(mark?.getAttribute('data-part'))
+      if (mark && Number.isInteger(at)) latest.current.onPlace(at)
+    })
+  }
+  return (
+    <iframe
+      ref={frame}
+      title="VIA report draft at the selected part"
+      sandbox="allow-same-origin"
+      srcDoc={html}
+      onLoad={onLoad}
+      className="h-[60dvh] w-full min-w-0 rounded-md border bg-white sm:h-full sm:min-h-80"
+    />
   )
 }
 
@@ -512,6 +618,25 @@ const CAPTURE_LABELS: Record<ExportPlannedView['state'], string> = {
   'not-captured': 'To capture on Preview or Download',
 }
 
+/** A view of interest's capture state as the package lists it: "Captured", or a sentence saying what happens next. */
+function plannedCaptureState(view: ExportPlannedView): string {
+  if (view.failed && view.state === 'no-figure')
+    return `Captured without its analysis sheet: ${view.failed.replace(/^Saved, but /, '').replace(/[.\s]*$/, '')}`
+  if (view.failed && view.state !== 'captured') return `Not captured: ${view.failed.replace(/[.\s]*$/, '')}`
+  return CAPTURE_LABELS[view.state]
+}
+
+/** A package view list's count line: "2 of 3 in the package". */
+function viewCount(parts: readonly ContentsPart[]): string {
+  const included = parts.filter((part) => part.state === 'on').length
+  if (included === parts.length) return parts.length === 1 ? 'In the package' : `All ${parts.length} in the package`
+  return included ? `${included} of ${parts.length} in the package` : 'None in the package'
+}
+
+/** All / None's changes, as the package's include flags. */
+const includeChanges = (changes: Record<string, string>) =>
+  Object.fromEntries(Object.entries(changes).map(([id, state]) => [id, state === 'on']))
+
 function PackageHeading({ children }: { children: ReactNode }) {
   return <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</h4>
 }
@@ -547,10 +672,29 @@ export function ExportPackagePane({
   renderer: PackageSelect & { unavailable: string | null }
   planned: ReadonlyArray<ExportPlannedView & { thumbnail: string | null }>
   saved: ReadonlyArray<{ id: string; name: string; included: boolean; detail: string; thumbnail: string | null }>
-  /** Writes a view of interest's `include`; absent, the checklist only shows it. */
-  onPlannedInclude?: (id: string, on: boolean) => void
-  onSavedInclude: (id: string, on: boolean) => void
+  /** Writes views of interest's `include`, every change of one click at once; absent, the list only shows them. */
+  onPlannedInclude?: (changes: Record<string, boolean>) => void
+  onSavedInclude: (changes: Record<string, boolean>) => void
 }) {
+  // The views in the package's own order, never reordered here: the state lives in `resolvePackage`, the list only
+  // draws it. A capture state of a word goes on the row, a sentence under the name.
+  const plannedParts: ContentsPart[] = planned.map((view) => {
+    const capture = plannedCaptureState(view)
+    const short = capture === CAPTURE_LABELS.captured
+    return {
+      key: view.id,
+      label: view.name,
+      state: view.include ? 'on' : 'off',
+      detail: short ? capture : undefined,
+      note: [view.block, view.lens, ...(short ? [] : [capture])].join(' · '),
+    }
+  })
+  const savedParts: ContentsPart[] = saved.map((view) => ({
+    key: view.id,
+    label: view.name,
+    state: view.included ? 'on' : 'off',
+    note: `Saved view · ${view.detail}`,
+  }))
   const select = (choice: PackageSelect, label: string) => (
     <StyledSelect
       aria-label={label}
@@ -587,48 +731,39 @@ export function ExportPackagePane({
           </p>
         )}
       </section>
-      <section className="min-w-0 space-y-1.5" aria-label="Views">
+      <section className="min-w-0 space-y-3" aria-label="Views">
         <PackageHeading>Views</PackageHeading>
         {planned.length > 0 && (
-          <ul aria-label="Views of interest" className={cn(insetBox({ padding: 'none' }), 'divide-y overflow-hidden')}>
-            {planned.map((view) => (
-              <li key={view.id} className="flex items-start gap-2 px-2.5 py-2">
+          <DocumentContents
+            title="Views of interest"
+            subject="the package"
+            parts={plannedParts}
+            summary={viewCount(plannedParts)}
+            onState={onPlannedInclude ? (id, state) => onPlannedInclude({ [id]: state === 'on' }) : undefined}
+            onStates={onPlannedInclude ? (changes) => onPlannedInclude(includeChanges(changes)) : undefined}
+            rowLead={(part) => {
+              const view = planned.find((entry) => entry.id === part.key)
+              return view ? (
                 <ViewThumbnail src={view.thumbnail} empty={view.state === 'captured' ? 'No picture' : 'Not captured'} />
-                <CheckboxField
-                  className="min-w-0 flex-1"
-                  label={view.name}
-                  checked={view.include}
-                  disabled={!onPlannedInclude}
-                  onCheckedChange={(on) => onPlannedInclude?.(view.id, on)}
-                  description={[
-                    view.block,
-                    view.lens,
-                    view.failed && view.state === 'no-figure'
-                      ? `Captured without its analysis sheet: ${view.failed.replace(/^Saved, but /, '').replace(/[.\s]*$/, '')}`
-                      : view.failed && view.state !== 'captured'
-                        ? `Not captured: ${view.failed.replace(/[.\s]*$/, '')}`
-                        : CAPTURE_LABELS[view.state],
-                  ].join(' · ')}
-                />
-              </li>
-            ))}
-          </ul>
+              ) : null
+            }}
+          />
         )}
         {saved.length > 0 && (
-          <ul aria-label="Saved views" className={cn(insetBox({ padding: 'none' }), 'divide-y overflow-hidden')}>
-            {saved.map((view) => (
-              <li key={view.id} className="flex items-start gap-2 px-2.5 py-2">
-                <ViewThumbnail src={view.thumbnail} empty="No screenshot" />
-                <CheckboxField
-                  className="min-w-0 flex-1"
-                  label={view.name}
-                  checked={view.included}
-                  onCheckedChange={(on) => onSavedInclude(view.id, on)}
-                  description={`Saved view · ${view.detail}`}
-                />
-              </li>
-            ))}
-          </ul>
+          <DocumentContents
+            title="Saved views"
+            subject="the package"
+            parts={savedParts}
+            summary={viewCount(savedParts)}
+            onState={(id, state) => onSavedInclude({ [id]: state === 'on' })}
+            onStates={(changes) => onSavedInclude(includeChanges(changes))}
+            rowLead={(part) => (
+              <ViewThumbnail
+                src={saved.find((entry) => entry.id === part.key)?.thumbnail ?? null}
+                empty="No screenshot"
+              />
+            )}
+          />
         )}
         <p className="text-2xs text-muted-foreground">
           {planned.length || saved.length
@@ -664,6 +799,7 @@ export function VisualsExportDialog({
   viewsPane,
   viewsSummary,
   drafts,
+  contents,
   recordings,
   onCapture,
   onCancelCapture,
@@ -707,6 +843,12 @@ export function VisualsExportDialog({
   viewsSummary?: string
   /** Outputs with a draft view (`OutputDraft`): the VIA report. */
   drafts?: Partial<Record<VisualsExport, OutputDraft>>
+  /**
+   * The controls of each output's parts list (`ExportSection.contents`, drawn by `DocumentContents` first in *What
+   * goes in*): the VIA report's recipe, the block note's land status checks, the FS1252's stations. Absent for an
+   * output: its list is read-only.
+   */
+  contents?: Partial<Record<VisualsExport, ContentsControls>>
   /** Outputs recorded on request rather than written on Preview (`OutputRecording`): the road view video. */
   recordings?: Partial<Record<VisualsExport, OutputRecording>>
   /**
@@ -735,6 +877,11 @@ export function VisualsExportDialog({
     | { request: object; draft?: undefined; error: string }
     | null
   >(null)
+  // The pages each part of the draft starts on, once its *Pages* layout has written them, for the draft they came from.
+  const [draftPages, setDraftPages] = useState<{ draft: ReportDraftResult; partPages: number[] } | null>(null)
+  // The part of a parts list whose preview is shown, and the row a click in that preview brings into view.
+  const [partSelected, setPartSelected] = useState<string | null>(null)
+  const [partFocus, setPartFocus] = useState<string | undefined>(undefined)
   const [drawing, setDrawing] = useState<string | null>(null)
   const [drawError, setDrawError] = useState<string | null>(null)
   const [formats, setFormats] = useState<Partial<Record<VisualsExport, string>>>({})
@@ -758,6 +905,7 @@ export function VisualsExportDialog({
       setView('contents')
       setStatus(null)
       setEditing(null)
+      setPartSelected(null)
     }
   }
   const item = findVisualsExport(selected)
@@ -784,7 +932,6 @@ export function VisualsExportDialog({
   const format = formatOf(item)
   // A take under way keeps its pane (and its Stop) whatever the road view reports meanwhile.
   const unavailable = recordingBusy(recordingOf) ? null : exportUnavailable(item.kind, context)
-  const sections = useMemo(() => exportContents(item.kind, context), [item.kind, context])
   const preparation = exportPreparation(item.kind, context)
 
   // A new object per selection or content change: a preview is current only for its own request.
@@ -1051,8 +1198,9 @@ export function VisualsExportDialog({
     takeRunning,
   ])
   // The draft is laid out again whenever the output's content changes; it captures nothing, so it waits for nothing.
+  // *What goes in* lays it out too, as the preview beside the output's contents.
   useEffect(() => {
-    if (!open || unavailable || shownView !== 'draft' || packageOpen || viewsOpen || detailsOpen) return
+    if (!open || unavailable || shownView === 'preview' || packageOpen || viewsOpen || detailsOpen) return
     let stopped = false
     const timer = window.setTimeout(() => {
       const draft = latestDrafts.current?.[request.kind]
@@ -1076,6 +1224,9 @@ export function VisualsExportDialog({
   }, [open, request, unavailable, shownView, packageOpen, viewsOpen, detailsOpen])
   // The last draft stays up while the next is laid out, so drawing a picture does not blank the page.
   const shownDraft = draftResult && (draftResult.request === request || draftResult.draft) ? draftResult : null
+  // The draft's pages are known only for the draft they were written from.
+  const reportPages = draftPages && draftPages.draft === shownDraft?.draft ? draftPages.partPages : null
+  const sections = useMemo(() => exportContents(item.kind, context, { reportPages }), [item.kind, context, reportPages])
   /** Draws one picture group of the draft, after any file being written: both move the page's maps. */
   const drawPicture = async (id: string) => {
     const draft = latestDrafts.current?.[item.kind]
@@ -1109,6 +1260,7 @@ export function VisualsExportDialog({
   const select = (kind: VisualsExport) => {
     setSelected(kind)
     setEditing(null)
+    setPartSelected(null)
     setPackageOpen(false)
     setViewsOpen(false)
     setDetailsOpen(false)
@@ -1277,6 +1429,53 @@ export function VisualsExportDialog({
     </TextButton>
   )
 
+  /**
+   * The preview beside an output's parts list, for an output with a draft (the VIA report): the draft at the selected
+   * part, laid out without capturing or running anything, or one line saying why there is no draft yet. The whole file
+   * stays under *Draft* and *Preview*, full width.
+   */
+  const contentsPreview = (section: ExportSection): ContentsPreviewProps => {
+    const places = section.contents?.places ?? {}
+    const at = partSelected !== null ? (places[partSelected] ?? null) : null
+    const keyAt = (place: number) => Object.keys(places).find((key) => places[key] === place)
+    const off = partSelected !== null && at === null && section.contents?.parts.some((p) => p.key === partSelected)
+    const line = (text: string) => <p className="text-xs text-muted-foreground">{text}</p>
+    const preview = unavailable ? (
+      line(`No draft yet. ${unavailable}`)
+    ) : shownDraft?.draft ? (
+      <div className="flex h-full min-h-0 flex-col gap-2">
+        {off && line('Switched off: it prints nothing. Switch it on to see it in the draft.')}
+        <div className="min-h-0 flex-1">
+          <DraftPartFrame
+            html={shownDraft.draft.html}
+            place={at}
+            onPlace={(place) => {
+              const key = keyAt(place)
+              if (!key) return
+              setPartSelected(key)
+              setPartFocus(key)
+            }}
+          />
+        </div>
+        {/* The draft is not the file: say so where it stands in for a preview. */}
+        <p className="text-2xs text-muted-foreground">
+          The draft: tinted values and dashed boxes mark what is still to fill in, and are not in the file.
+        </p>
+      </div>
+    ) : shownDraft?.error ? (
+      line(`No draft yet. ${shownDraft.error}`)
+    ) : (
+      <InlineAlert loading>Laying out the draft…</InlineAlert>
+    )
+    return {
+      preview,
+      previewLabel: 'Whole report',
+      selected: partSelected,
+      onSelect: setPartSelected,
+      ...(partFocus ? { focusKey: partFocus } : {}),
+    }
+  }
+
   return (
     <PanelDialog
       open={open}
@@ -1405,11 +1604,11 @@ export function VisualsExportDialog({
               className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <h3 className="min-w-0 truncate text-sm font-semibold">
                     {item.label} <span className="font-normal text-muted-foreground">{format.extension}</span>
                   </h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
+                  <InfoTip label={`About ${item.label}`}>{item.description}</InfoTip>
                 </div>
                 <div className="flex shrink-0 flex-wrap justify-end gap-2">
                   {/* The previewed picture itself, at print resolution: copying starts no run, capture or render. */}
@@ -1459,12 +1658,11 @@ export function VisualsExportDialog({
                   ]}
                 />
                 {item.formats.length > 1 && (
-                  <SegmentedControl
-                    size="sm"
-                    fullWidth={false}
-                    label={`${item.label} format`}
+                  <StyledSelect
+                    aria-label={`${item.label} format`}
+                    className="w-auto max-w-full rounded-md border bg-background px-2 py-1 text-xs"
                     value={format.id}
-                    onChange={(id) => chooseFormat(item.kind, id)}
+                    onValueChange={(id) => chooseFormat(item.kind, id)}
                     options={item.formats.map((entry) => ({ value: entry.id, label: entry.label }))}
                   />
                 )}
@@ -1536,6 +1734,7 @@ export function VisualsExportDialog({
                       onDraw={(id) => void drawPicture(id)}
                       drawError={drawError}
                       startOnPages={request.format === 'pdf'}
+                      onPages={(partPages) => setDraftPages({ draft: shownDraft.draft!, partPages })}
                       {...(draftOf?.pages ? { pages: () => latestDrafts.current![item.kind]!.pages!() } : {})}
                       {...(draftOf?.edit
                         ? {
@@ -1550,7 +1749,24 @@ export function VisualsExportDialog({
                     <InlineAlert loading>Laying out the draft…</InlineAlert>
                   )
                 ) : shownView === 'contents' ? (
+                  // One shape for every output: its own parts first (where it has a list of them), then its options,
+                  // then what it reads.
                   <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 pb-2">
+                    {sections
+                      .filter((section) => section.contents)
+                      .map((section) => (
+                        <ContentsSection
+                          key={section.title}
+                          section={section}
+                          onGoToStep={onGoToStep}
+                          onAction={onAction || packagePane ? act : undefined}
+                          viewsEditor={viewsPane}
+                          editing={editing === section.title}
+                          onEditing={(on) => setEditing(on ? section.title : null)}
+                          controls={contents?.[item.kind]}
+                          list={draftOf ? contentsPreview(section) : undefined}
+                        />
+                      ))}
                     {options[item.kind] && (
                       <section className="space-y-1.5" aria-label="Options">
                         <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1559,17 +1775,19 @@ export function VisualsExportDialog({
                         {options[item.kind]}
                       </section>
                     )}
-                    {sections.map((section) => (
-                      <ContentsSection
-                        key={section.title}
-                        section={section}
-                        onGoToStep={onGoToStep}
-                        onAction={onAction || packagePane ? act : undefined}
-                        viewsEditor={viewsPane}
-                        editing={editing === section.title}
-                        onEditing={(on) => setEditing(on ? section.title : null)}
-                      />
-                    ))}
+                    {sections
+                      .filter((section) => !section.contents)
+                      .map((section) => (
+                        <ContentsSection
+                          key={section.title}
+                          section={section}
+                          onGoToStep={onGoToStep}
+                          onAction={onAction || packagePane ? act : undefined}
+                          viewsEditor={viewsPane}
+                          editing={editing === section.title}
+                          onEditing={(on) => setEditing(on ? section.title : null)}
+                        />
+                      ))}
                   </div>
                 ) : unavailable ? (
                   <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>

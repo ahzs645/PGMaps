@@ -2,10 +2,18 @@ import { readFile } from 'node:fs/promises'
 import zlib from 'node:zlib'
 import ExcelJS from 'exceljs'
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import {
+  chooseContentsPreset,
+  contentsList,
+  contentsPresetSelect,
+  contentsRow,
+  contentsState,
+  setContentsState,
+} from './document-contents'
 import { choose, expectSelected } from './styled-select'
-import { openVisualsExport, openVisualsExportPackage } from './visuals-export'
+import { chooseVisualsFormat, openVisualsExport, openVisualsExportPackage } from './visuals-export'
 import { LAND_CHECKS } from '../../src/pages/dev-forestry/landStatusChecks'
-import { VIEWPOINT_LAYERS } from '../../src/pages/dev-forestry/viewpointInventory'
+import { VIEWPOINT_LAYERS } from '../../src/pages/dev-forestry/viewpointLayers'
 
 /**
  * Views of interest, end to end: planned on the plan map and from BC's viewpoint inventory, edited, captured without
@@ -284,6 +292,17 @@ async function planEye(page: Page): Promise<LngLat | null> {
 
 /** Clicks the plan map at a place, checking nothing covers the canvas there. */
 async function clickPlanAt(page: Page, point: LngLat) {
+  // The plan still easing to the scene would carry the click elsewhere: wait for it to stand still.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const map = (
+          window as unknown as { __pgmapsMap: (which: string) => { isMoving: () => boolean } | null }
+        ).__pgmapsMap('plan')
+        return !!map && !map.isMoving()
+      }),
+    )
+    .toBe(true)
   const screen = await page.evaluate((point) => {
     const map = (window as unknown as { __pgmapsMap: (which: string) => PlanMap | null }).__pgmapsMap('plan')
     if (!map) return null
@@ -526,20 +545,25 @@ test('plans views of interest, captures them without driving and writes them thr
 
   await test.step("Save & export writes the package's included views", async () => {
     const dialog = await openVisualsExportPackage(page)
-    const checklist = dialog.getByRole('region', { name: 'Package' }).getByRole('list', { name: 'Views of interest' })
-    await expect(checklist.getByRole('listitem')).toHaveCount(3)
-    await expect(checklist.getByRole('checkbox', { name: mapViewName })).not.toBeChecked()
-    await expect(checklist.getByRole('listitem').filter({ hasText: mapViewName })).toContainText(
-      'To capture on Preview or Download',
+    // The package's views are the shared contents list, each row led by the view's picture.
+    const checklist = contentsList(
+      dialog.getByRole('region', { name: 'Package', exact: true }),
+      'Views of interest of the package',
     )
+    const rows = checklist.locator('li[data-contents-row]')
+    await expect(rows).toHaveCount(3)
+    await expect(checklist.getByRole('status')).toHaveText('2 of 3 in the package')
+    // The picture and the capture sentence are not part of a checkbox's name.
+    await expect(checklist.getByRole('checkbox', { name: mapViewName, exact: true })).not.toBeChecked()
+    await expect(rows.filter({ hasText: mapViewName })).toContainText('To capture on Preview or Download')
     for (const name of [arrowOneName, arrowTwoName]) {
-      const item = checklist.getByRole('listitem').filter({ hasText: name })
-      await expect(checklist.getByRole('checkbox', { name })).toBeChecked()
+      const item = rows.filter({ hasText: name })
+      await expect(checklist.getByRole('checkbox', { name, exact: true })).toBeChecked()
       await expect(item).toContainText('Captured')
-      // A captured view shows its picture.
-      await expect(item.locator('img')).toHaveCount(1)
+      // A captured view leads its row with its picture.
+      await expect(item.locator('[data-contents-lead] img')).toHaveCount(1)
     }
-    await expect(checklist.getByRole('listitem').filter({ hasText: arrowOneName })).toContainText('28 mm')
+    await expect(rows.filter({ hasText: arrowOneName })).toContainText('28 mm')
 
     // What goes in, for the files that take the package's views: the left-out view is named as left out.
     for (const output of ['VIA report', 'Block note']) {
@@ -553,7 +577,7 @@ test('plans views of interest, captures them without driving and writes them thr
     }
 
     // The block note, written: Excel, with the run it reads made first when it is missing.
-    await dialog.getByRole('button', { name: 'Excel', exact: true }).click()
+    await chooseVisualsFormat(dialog, 'Block note', 'Excel')
     const downloading = page.waitForEvent('download', { timeout: 10 * 60_000 })
     await dialog.getByRole('button', { name: 'Download Block note', exact: true }).click()
     const download = await downloading
@@ -607,7 +631,7 @@ test('drafts the VIA report without capturing, draws its pictures one group at a
   })
 
   const dialog = await openVisualsExportPackage(page)
-  const pane = dialog.getByRole('region', { name: 'Package' })
+  const pane = dialog.getByRole('region', { name: 'Package', exact: true })
 
   await test.step('Make a copy turns the recipe into your own, edited in place', async () => {
     await choose(pane.getByLabel('Package recipe'), 'form-2001-sheets')
@@ -617,16 +641,18 @@ test('drafts the VIA report without capturing, draws its pictures one group at a
     )
     const editor = pane.getByLabel('Edit your recipe')
     await expect(editor).toBeVisible()
-    const parts = editor.getByRole('region', { name: 'Parts' }).getByRole('listitem')
+    // The parts are the shared contents list, the same one the VIA report's What goes in shows.
+    const list = contentsList(editor, 'Parts of your recipe')
+    const parts = list.locator('li[data-contents-row]')
     const before = await parts.count()
-    await editor.getByRole('button', { name: 'Remove Notes', exact: false }).first().click()
-    await expect(parts).toHaveCount(before - 1)
+    // A part of the recipe it was copied from is switched off, never removed: it keeps its place, dimmed.
+    await setContentsState(list, 'notes-2001#1', false)
+    await expect(contentsRow(list, 'notes-2001#1')).toHaveAttribute('data-prints', 'false')
+    await expect(parts).toHaveCount(before)
     // A shared part is added by id, never copied: the overview map, at the end.
-    await choose(editor.getByLabel('Part to add'), 'overview-map')
-    await editor.getByRole('button', { name: 'Add at the end' }).click()
-    await choose(editor.getByLabel('Part to add'), 'overhead-renders')
-    await editor.getByRole('button', { name: 'Add at the end' }).click()
-    await expect(parts).toHaveCount(before + 1)
+    await choose(list.getByLabel('Add a part…'), { value: 'overview-map' })
+    await choose(list.getByLabel('Add a part…'), { value: 'overhead-renders' })
+    await expect(parts).toHaveCount(before + 2)
     await expect(parts.last()).toContainText('Overhead and oblique renders')
   })
 
@@ -640,6 +666,9 @@ test('drafts the VIA report without capturing, draws its pictures one group at a
     await expect(made.getByRole('region', { name: 'Made of' })).toContainText(
       'Your own, copied from 2001 VIA summary form',
     )
+    // PDF is the report's default format, so the draft opens on its pages; the marks and stand-ins are in the
+    // flowing layout, where values are edited.
+    await dialog.getByRole('group', { name: 'Draft layout' }).getByRole('button', { name: 'Edit', exact: true }).click()
     const frame = dialog.frameLocator('iframe[title="VIA report draft"]')
     // Every part that printed is marked in the page, and the last added part is the overview map.
     await expect(frame.locator('.draft-part').last()).toContainText('Overhead and oblique renders')
@@ -685,6 +714,9 @@ test('drafts the VIA report without capturing, draws its pictures one group at a
     const file = JSON.parse(await readFile((await download.path())!, 'utf8'))
     expect(file.kind).toBe('pgmaps-via-recipe')
     expect(file.recipe.parts.slice(-2)).toEqual(['overview-map', 'overhead-renders'])
+    // The part switched off travels with its place, so it comes back there in another browser.
+    expect(file.recipe.parts).not.toContain('notes-2001')
+    expect(file.recipe.leftOut).toEqual([{ part: 'notes-2001', at: 10 }])
     await pane.getByLabel('Import a recipe file').setInputFiles((await download.path())!)
     await expect(
       pane.getByText('Imported 2001 VIA summary form with analysis sheets (your copy) (imported).'),
@@ -697,18 +729,60 @@ test('drafts the VIA report without capturing, draws its pictures one group at a
   await test.step('The file is written from the same pictures, with no stand-in, mark or tint', async () => {
     await openVisualsExport(page, 'VIA report')
     // PDF is the report's default format; the printable HTML is the one these marks would show in.
-    await dialog.getByRole('button', { name: 'Printable HTML', exact: true }).click()
-    const downloading = page.waitForEvent('download', { timeout: 10 * 60_000 })
+    await chooseVisualsFormat(dialog, 'VIA report', 'Printable HTML')
+    // The headless shell has no PDF viewer: a PDF preview or draft page in a frame arrives as a download of its blob,
+    // named by the blob's id. The file is the download Save & export names.
+    const downloading = page.waitForEvent('download', {
+      timeout: 10 * 60_000,
+      predicate: (download) => !/^[0-9a-f-]{36}\.pdf$/.test(download.suggestedFilename()),
+    })
     await dialog.getByRole('button', { name: 'Download VIA report', exact: true }).click()
     const download = await downloading
     expect(download.suggestedFilename()).toMatch(/\.html$/)
     const html = await readFile((await download.path())!, 'utf8')
-    expect(html).toContain('PGMaps report from your own recipe')
+    // What the report is goes in its properties (the page's description), never on its face.
+    expect(html).toContain('<meta name="description" content="PGMaps report from your own recipe')
+    expect(html).not.toContain('not a field-verified simulation')
+    expect(html).not.toContain('Logo (your own)')
     expect(html).not.toContain('data-draw')
     expect(html).not.toContain('draft-part')
     expect(html).not.toContain('data-src=')
+    // No box stands in for a picture that is not there: a missing one is named only in the to-complete list.
+    expect(html).not.toContain('class="vf-pic vf-empty"')
+    expect(html).not.toContain('<figure class="placeholder">')
+    expect(html).not.toContain('save the viewpoint in the road view')
     // The overview map drawn in the draft is in the file.
     expect(html).toMatch(/<img src="data:image\/(png|jpeg)/)
+  })
+
+  await test.step('What goes in lists the report’s parts first, with the recipes as presets and the draft beside', async () => {
+    await openVisualsExport(page, 'VIA report')
+    // The report was last shown as its draft.
+    await dialog.getByRole('group', { name: 'VIA report view' }).getByRole('button', { name: 'What goes in' }).click()
+    const list = contentsList(dialog, 'Contents of the report')
+    await expect(list).toBeVisible()
+    // The recipe chosen in Package is the preset; its part switched off is still listed, at its place.
+    await expect(contentsPresetSelect(list)).toContainText('(your copy) (imported)')
+    await expect(contentsRow(list, 'notes-2001#1')).toHaveAttribute('data-prints', 'false')
+    // A shipped recipe as the preset: the first change makes your own copy and chooses it, with nothing asked.
+    await chooseContentsPreset(list, '2001 VIA summary form with analysis sheets')
+    await setContentsState(list, 'sign-off#1', false)
+    await expect(contentsPresetSelect(list)).toContainText('(your copy) 2 · modified')
+    expect(await contentsState(list, 'sign-off#1')).toBe('off')
+    // The package's recipe is the same choice.
+    await openVisualsExportPackage(page)
+    await expect(pane.getByLabel('Package recipe')).toHaveText(
+      'Yours: 2001 VIA summary form with analysis sheets (your copy) 2',
+    )
+    // Reset goes back to the shipped recipe; the copy stays among the presets.
+    await openVisualsExport(page, 'VIA report')
+    await list.getByRole('button', { name: 'Reset', exact: true }).click()
+    await expect(contentsPresetSelect(list)).toHaveText('2001 VIA summary form with analysis sheets')
+    expect(await contentsState(list, 'sign-off#1')).toBe('on')
+    // A part chosen in the list shows the draft at that part, laid out without capturing anything.
+    await list.getByRole('button', { name: 'Visual resource management', exact: true }).click()
+    const frame = dialog.frameLocator('iframe[title="VIA report draft at the selected part"]')
+    await expect(frame.locator('#part-2')).toBeInViewport({ timeout: 60_000 })
   })
 })
 

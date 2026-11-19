@@ -2,7 +2,7 @@
   "kind": "component",
   "id": "via-closing",
   "title": "To complete, and the last line",
-  "description": "What is still to complete before signing, a line per part in a ruled box, then the report's last line: what it is and is not, and how many values the reviewer changed by hand.",
+  "description": "What is still to complete before signing, a line per part in a ruled box, then the report's last line when it has one: how many values the reviewer changed by hand.",
   "blocks": [
     {
       "if": "closing.toComplete",
@@ -48,10 +48,15 @@
       ]
     },
     {
-      "type": "paragraph",
-      "content": { "type": "text", "text": "{{ report.footer }}", "size": 8.25, "color": "64748b" },
-      "borders": { "top": { "style": "single", "width": 0.75, "color": "cbd5e1" } },
-      "spacing": { "before": 12, "after": 0 }
+      "if": "report.footer",
+      "then": [
+        {
+          "type": "paragraph",
+          "content": { "type": "text", "text": "{{ report.footer }}", "size": 8.25, "color": "64748b" },
+          "borders": { "top": { "style": "single", "width": 0.75, "color": "cbd5e1" } },
+          "spacing": { "before": 12, "after": 0 }
+        }
+      ]
     }
   ]
 }

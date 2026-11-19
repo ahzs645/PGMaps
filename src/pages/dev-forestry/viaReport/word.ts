@@ -224,7 +224,10 @@ const tickRun = (image: ImageData, size: number): Inline => ({
   alt: 'tick box',
 })
 
-/** A dashed box saying what goes where a picture is missing, or why it could not be printed. */
+/**
+ * A dashed box saying what goes where a picture is missing (a place only a draft's report holds; the Word file is never
+ * the draft), or why a picture that is there could not be printed.
+ */
 function emptyBox(text: string, width: number, height: number, flow: Flow, size = 8.25): TableBlock {
   return {
     type: 'table',
@@ -1517,7 +1520,10 @@ const THEME: ThemeInput = {
   blankWidth: 120,
 }
 
-/** The logo in its box: the user's own picture, or a dashed box saying it is theirs (`logoBox`). */
+/**
+ * The logo in its box: the user's own picture (`logoBox`). With none, or one that is not a PNG or JPEG that reads, the
+ * box keeps its place with no border and no words.
+ */
 function logoBlocks(
   logo: ReportLogo | null,
   w: number,
@@ -1529,7 +1535,13 @@ function logoBlocks(
   const image = logo ? pics.get(logo.dataUrl) : null
   if (image)
     return [{ type: 'figure', image, fit: { width: w, height: h, upscale: true }, align, alt: logo?.name ?? 'Logo' }]
-  return [{ ...emptyBox(logo ? `Logo (your own): ${logo.name}` : 'Logo (your own)', w, h, flow), align }]
+  return [{ ...emptySlot(w, h, flow), align }]
+}
+
+/** The room a missing picture keeps, drawn as nothing: `emptyBox`'s table with no border and no words. */
+function emptySlot(width: number, height: number, flow: Flow): TableBlock {
+  const slot = emptyBox('', width, height, flow)
+  return { ...slot, borders: { ...box(NONE), insideHorizontal: NONE, insideVertical: NONE } }
 }
 
 /** The to-complete list by part, in the report's order: each part once, its items run on. */
@@ -1622,12 +1634,13 @@ export function wordFacts(report: AssembledReport, logo: ReportLogo | null, pics
       title: parts.title,
       subtitle: report.subtitle,
       footer: report.footer,
+      about: report.about ?? '',
       runningHeader: runningHeader(report),
     },
     logo: {
       name: logo?.name ?? null,
       image: logo ? pics.get(logo.dataUrl) : null,
-      // An empty logo box's width as a share of what holds it (`emptyBox`).
+      // The empty logo slot's width as a share of what holds it (`emptySlot`).
       coverBoxWidth: Math.min(100, (COVER_LOGO.w / textBox('cover', paper).width) * 100),
       titleBoxWidth: Math.min(100, (TITLE_LOGO.w / (TITLE_LOGO.w + TITLE_LOGO.gutter)) * 100),
     },
@@ -1727,10 +1740,15 @@ export function codeFurniture(report: AssembledReport, logo: ReportLogo | null, 
       : [],
     closing: [
       ...(report.toComplete.length ? [{ type: 'spacer', height: 10 } as Block, toCompleteBox(report.toComplete)] : []),
-      paragraph(run(report.footer, { size: 8.25, color: GREY }), {
-        borders: { top: line(0.75) },
-        spacing: { before: 12, after: 0 },
-      }),
+      // The last line, when the report has one: how many values the reviewer changed by hand.
+      ...(report.footer
+        ? [
+            paragraph(run(report.footer, { size: 8.25, color: GREY }), {
+              borders: { top: line(0.75) },
+              spacing: { before: 12, after: 0 },
+            }),
+          ]
+        : []),
     ],
   }
 }
@@ -1841,7 +1859,7 @@ export function layoutReport(report: AssembledReport, pics: Pictures, furniture:
 export function reportMetadata(report: AssembledReport, options: WordReportOptions = {}): Document['metadata'] {
   return {
     title: `${reportParts(report).title} - ${report.subtitle}`,
-    subject: report.footer,
+    subject: report.about ?? '',
     ...(options.created ? { created: options.created } : {}),
   }
 }

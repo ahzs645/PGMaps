@@ -348,7 +348,10 @@ describe('figure composition', () => {
     const withTrees = texts(analysisSheet({ ...base, screenedClasses: { ...base.classes!, codes: hidden } }).ops)
     expect(withTrees.some((t) => /^Pixel measure, this image, the ground under the trees: 7\.43%/.test(t))).toBe(true)
     expect(withTrees.some((t) => /^Pixel measure with the drawn trees in front: 1\.82%/.test(t))).toBe(true)
-    expect(all).toContain('Logo (your own)')
+    // No logo given: the slot draws nothing, and the sheet says nothing of itself.
+    expect(all.some((t) => /logo/i.test(t))).toBe(false)
+    expect(all.some((t) => /PGMaps figure|generated 20|not a field-verified/.test(t))).toBe(false)
+    expect(sheet.ops.some((op) => op.op === 'rect' && op.stroke?.dash)).toBe(false)
     expect(all).toContain('Private Land')
     expect(all).toContain('Block 1')
     // The orange preset's rating code under the landform label, and why that unit.

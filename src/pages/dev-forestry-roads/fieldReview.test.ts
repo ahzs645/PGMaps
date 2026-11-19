@@ -67,6 +67,14 @@ describe('issuing a road for field review', () => {
     expect(nextIssueLabel({ issues: [issue], observations: [] })).toBe('FR-02')
   })
 
+  it('leaves an empty revision blank in the KML unless the project asks for "not recorded"', () => {
+    const unrevised = { ...issued(), revision: '' }
+    const centreline = (kml: string) => /Issued centreline\. (.*?)\. Preliminary/.exec(kml)?.[1]
+    expect(centreline(fieldPackKml(unrevised))).toBe('FR-01 · Road r · Rev · 2026-11-17')
+    expect(centreline(fieldPackKml(unrevised, 'stated'))).toBe('FR-01 · Road r · Rev not recorded · 2026-11-17')
+    expect(centreline(fieldPackKml(issued()))).toBe('FR-01 · Road r · Rev A · 2026-11-17')
+  })
+
   it('writes a KML whose check labels and ids survive PGMaps’ own reader', () => {
     const issue = issued()
     const read = parseKml(fieldPackKml(issue))

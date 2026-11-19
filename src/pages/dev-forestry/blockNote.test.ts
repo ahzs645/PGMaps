@@ -9,6 +9,7 @@ import {
   LAND_STATUS_TITLE,
   isPngImage,
   designComparisonPairs,
+  missingScreenshotsNotice,
   paragraphForLayout,
   type BlockNote,
   type NoteImage,
@@ -38,7 +39,6 @@ const note = (extra: Partial<BlockNote> = {}): BlockNote => ({
     image('View from Hwy 97 looking west toward CHU_26_1.'),
     image('View of CHU_26_1 from Davie Lake South Rec Site.'),
   ],
-  missingViews: [],
   planMap: image('Plan: CHU_26_1, EVQO polygons and viewpoints.'),
   notes: ['Terrain: AWS Open Data (CDEM/SRTM).'],
   generatedAt: new Date('2026-11-10T12:00:00Z'),
@@ -121,9 +121,30 @@ describe('block note export', () => {
     expect(pages(withChecks)).toBe(pages(plain) + 1)
   })
 
-  it('still writes a note with no views', () => {
-    const bytes = new Uint8Array(blockNotePdf(note({ views: [], planMap: null, missingViews: ['View 1'] }), jspdf))
-    expect(new TextDecoder('latin1').decode(bytes).startsWith('%PDF')).toBe(true)
+  it('still writes a note with no views, and prints nothing in place of a missing screenshot', async () => {
+    const bytes = new Uint8Array(blockNotePdf(note({ views: [], planMap: null }), jspdf))
+    const pdf = new TextDecoder('latin1').decode(bytes)
+    expect(pdf.startsWith('%PDF')).toBe(true)
+    // One page: no page listing views without a picture.
+    expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(1)
+    expect(pdf).not.toMatch(/screenshot/i)
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(await blockNoteWorkbook(note({ views: [], planMap: null }), ExcelJS))
+    const cells: string[] = []
+    workbook.getWorksheet('Other Considerations')!.eachRow((row) => {
+      row.eachCell((cell) => cells.push(String(cell.value)))
+    })
+    expect(cells.join('\n')).not.toMatch(/screenshot/i)
+  })
+
+  it('names the views it has no picture of for Save & export, not in the file', () => {
+    expect(missingScreenshotsNotice([])).toBeNull()
+    expect(missingScreenshotsNotice(['View 1'])).toBe(
+      'View 1 has no screenshot, so the note has no picture of it: reopen the view and save it again.',
+    )
+    expect(missingScreenshotsNotice(['View 1', 'View 2', 'Hwy 97'])).toBe(
+      'View 1, View 2 and Hwy 97 have no screenshot, so the note has no picture of them: reopen each view and save it again.',
+    )
   })
 
   const measures = {

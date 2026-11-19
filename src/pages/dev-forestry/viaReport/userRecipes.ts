@@ -139,6 +139,7 @@ export function copyRecipe(
     name,
     parts: [...recipe.parts],
     sources: partSources(recipe.parts),
+    ...(recipe.leftOut ? { leftOut: recipe.leftOut.map((entry) => ({ ...entry })) } : {}),
     ...(recipe.layout ? { layout: { ...recipe.layout } } : {}),
     ...(recipe.options ? { options: { ...recipe.options } } : {}),
     own: { basedOn: recipe.own ? recipe.own.basedOn : recipe.id },
@@ -178,6 +179,49 @@ function readOptions(value: unknown, problems: string[]): RecipeOptions | undefi
 }
 
 /**
+ * The parts switched off in an own recipe's contents, each at its place in the whole list (`ReportRecipe.leftOut`):
+ * every one a part PGMaps has, every place a whole number inside the list and no two at the same place. `parts` is the
+ * recipe's printed parts as read, or null when they did not read (the places are then not checked against them).
+ */
+function readLeftOut(
+  value: unknown,
+  parts: unknown[] | null,
+  problems: string[],
+): Array<{ part: string; at: number }> | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) {
+    problems.push('its parts switched off are not a list')
+    return undefined
+  }
+  const total = (parts?.length ?? 0) + value.length
+  if (total > MAX_RECIPE_PARTS) {
+    problems.push(`it has more than ${MAX_RECIPE_PARTS} parts, counting those switched off`)
+    return undefined
+  }
+  const out: Array<{ part: string; at: number }> = []
+  const places = new Set<number>()
+  for (const entry of value) {
+    const part = isRecord(entry) ? entry.part : undefined
+    const at = isRecord(entry) ? entry.at : undefined
+    if (typeof part !== 'string' || !REPORT_PARTS.some((known) => known.id === part)) {
+      problems.push(`it switches off a part PGMaps does not have: "${String(part)}"`)
+      continue
+    }
+    if (typeof at !== 'number' || !Number.isInteger(at) || at < 0 || (parts && at >= total)) {
+      problems.push(`its switched-off part "${part}" has no place in the list`)
+      continue
+    }
+    if (places.has(at)) {
+      problems.push(`two of its switched-off parts share place ${at}`)
+      continue
+    }
+    places.add(at)
+    out.push({ part, at })
+  }
+  return out.sort((a, b) => a.at - b.at)
+}
+
+/**
  * Checks an own recipe as stored or shared: every part, the format, the figure style and the overview sheet style
  * must be ones this PGMaps has, and every field its own type. Refused with every problem named, never repaired.
  */
@@ -204,6 +248,7 @@ export function readOwnRecipe(value: unknown): OwnRecipeRead {
         `it names part${unknown.length > 1 ? 's' : ''} PGMaps does not have: ${unknown.map((part) => `"${String(part)}"`).join(', ')}`,
       )
   }
+  const leftOut = readLeftOut(value.leftOut, parts, problems)
   const figureStyle = value.figureStyle
   if (figureStyle !== undefined && !VIA_STYLE_PRESETS.some((preset) => preset.id === figureStyle))
     problems.push(`its figure style "${String(figureStyle)}" is not one PGMaps has`)
@@ -252,6 +297,7 @@ export function readOwnRecipe(value: unknown): OwnRecipeRead {
       format,
       parts: recipeParts,
       sources: partSources(recipeParts),
+      ...(leftOut?.length ? { leftOut } : {}),
       ...(typeof figureStyle === 'string' ? { figureStyle } : {}),
       ...(layout ? { layout } : {}),
       ...(options && Object.keys(options).length ? { options } : {}),
@@ -273,6 +319,7 @@ export function storedRecipe(recipe: ReportRecipe): Record<string, unknown> {
     purpose: recipe.purpose,
     format: recipe.format,
     parts: [...recipe.parts],
+    ...(recipe.leftOut?.length ? { leftOut: recipe.leftOut.map(({ part, at }) => ({ part, at })) } : {}),
     ...(recipe.figureStyle ? { figureStyle: recipe.figureStyle } : {}),
     ...(recipe.layout ? { layout: recipe.layout } : {}),
     ...(recipe.options && Object.keys(recipe.options).length ? { options: recipe.options } : {}),

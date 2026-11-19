@@ -280,8 +280,20 @@ describe('the to-complete list in plain words', () => {
   })
 })
 
+/** A file's pictures for these viewpoints: the overview map, and each view's photograph and analysis figure. */
+const pictured = (names: readonly string[]): Partial<ReportContext> => {
+  const pic = (view: string) => ({ view, caption: view, dataUrl: 'data:image/png;base64,AA', width: 300, height: 200 })
+  return {
+    figures: names.map(pic),
+    images: {
+      overviewMap: pic('overview'),
+      before: Object.fromEntries(names.map((name) => [name, { ...pic(`before ${name}`), source: 'photo' as const }])),
+    },
+  }
+}
+
 describe('21: simulated viewpoints named, a numbered pair and references', () => {
-  const ctx = context('form-2001-analysed-photos', [viewpoint({ name: 'Lookout (VP2)' })])
+  const ctx = context('form-2001-analysed-photos', [viewpoint({ name: 'Lookout (VP2)' })], pictured(['Lookout (VP2)']))
   const report = assembleReport(recipe('board-comparison'), ctx)
   const md = reportMarkdown(report)
 
@@ -302,9 +314,10 @@ describe('21: simulated viewpoints named, a numbered pair and references', () =>
     // Other recipes' pairs stay unnumbered.
     const handbook = assembleReport(
       recipe('appendix-1-report'),
-      context('appendix-1-net-private-rock', ctx.facts.viewpoints.slice()),
+      context('appendix-1-net-private-rock', ctx.facts.viewpoints.slice(), pictured(['Lookout (VP2)'])),
     )
     const plain = handbook.blocks.find((b) => b.kind === 'figurePair')
+    expect(plain?.kind).toBe('figurePair')
     expect(plain?.kind === 'figurePair' && plain.caption).toBeFalsy()
   })
 })
@@ -321,7 +334,7 @@ describe('26: the memo points to its figure pages', () => {
       }),
     ]
     const ctx = {
-      ...context('referral-panoramas', vps),
+      ...context('referral-panoramas', vps, pictured(vps.map((vp) => vp.name))),
       recipeParts: ['ea-visual-memo', 'overview-map', 'ea-figure-pages', 'references'],
     }
     expect(simulationFiguresSentence(ctx)?.text).toBe(
@@ -330,6 +343,21 @@ describe('26: the memo points to its figure pages', () => {
     expect(simulationFiguresSentence({ ...ctx, recipeParts: ['ea-visual-memo'] })).toBeNull()
     const memo = all(findReportPart('ea-visual-memo')!.build(ctx).blocks)
     expect(memo).toContain('The simulations are Figures 2 and 3')
+    // A file prints no page, and no number, for a view with no picture: the sentence counts only the pages printed.
+    const before = { ...ctx.images!.before! }
+    delete before['Campground (VP6)']
+    const missing = {
+      ...ctx,
+      images: { ...ctx.images, before },
+      figures: ctx.figures.filter((f) => f.view !== 'Campground (VP6)'),
+    }
+    expect(simulationFiguresSentence(missing)?.text).toBe(
+      'The simulations are Figure 2; Figure 3 shows the view from Beach (VP4).',
+    )
+    // The draft keeps the page with its placeholders, and its number.
+    expect(simulationFiguresSentence({ ...missing, draft: true })?.text).toBe(
+      'The simulations are Figures 2 and 3; Figure 4 shows the view from Beach (VP4).',
+    )
   })
 })
 

@@ -62,6 +62,25 @@ const PROJECT_FIELDS: Partial<Record<keyof RoadProject, string>> = {
   harvestHistoryYear: 'Harvest year',
 }
 
+/**
+ * A report settings change named by the part it touched: the report's contents (sections on or off,
+ * their order), the package and what an empty field prints have names of their own; anything else
+ * is the sheet setup.
+ */
+function reportSettingsChange(before: RoadProject['reportSettings'], after: RoadProject['reportSettings']): string {
+  const keys = new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])
+  const changed = [...keys].filter(
+    (key) =>
+      JSON.stringify((before as Record<string, unknown> | undefined)?.[key]) !==
+      JSON.stringify((after as Record<string, unknown> | undefined)?.[key]),
+  )
+  if (changed.length === 1 && changed[0] === 'sectionOrder') return 'Report section order'
+  if (changed.length === 1 && changed[0] === 'omittedSections') return 'Report sections'
+  if (changed.length === 1 && changed[0] === 'package') return 'Report package'
+  if (changed.length === 1 && changed[0] === 'emptyFields') return 'What empty fields print'
+  return 'Sheet setup'
+}
+
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 /** What changed in the road's horizontal points: added, removed, moved or re-curved. */
@@ -182,7 +201,12 @@ export function describeProjectChange(before: RoadProject, after: RoadProject): 
     if (road) parts.push(`Switched to ${road.name}`)
   }
   for (const key of Object.keys(PROJECT_FIELDS) as (keyof RoadProject)[])
-    if (before[key] !== after[key]) parts.push(PROJECT_FIELDS[key] as string)
+    if (before[key] !== after[key])
+      parts.push(
+        key === 'reportSettings'
+          ? reportSettingsChange(before.reportSettings, after.reportSettings)
+          : (PROJECT_FIELDS[key] as string),
+      )
   if (!parts.length) return 'Edited the project'
   return sentence(parts.length <= 2 ? parts.join('; ') : `${parts[0]}; ${plural(parts.length - 1, 'other change')}`)
 }

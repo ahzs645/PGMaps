@@ -60,7 +60,7 @@ export function viewsLeftOutMarkdown(leftOut: ReadonlyArray<{ name: string; reas
   ].join('\n')
 }
 
-export function documentMarkdown(doc: ResolvedDocument, facts: DocumentFacts, generatedAt: Date): string {
+export function documentMarkdown(doc: ResolvedDocument, facts: DocumentFacts): string {
   const { format } = doc
   const lines: string[] = [
     `# Visual Impact Assessment: ${facts.project}`,
@@ -109,7 +109,7 @@ export function documentMarkdown(doc: ResolvedDocument, facts: DocumentFacts, ge
   }
   if (format.gaps.length) lines.push('## Not filled by PGMaps', '', ...format.gaps.map((gap) => `- ${gap}`), '')
   lines.push(
-    `_PGMaps reproduction of the ${format.name} layout · generated ${generatedAt.toISOString().slice(0, 10)} · terrain model and drawn timber, not a field-verified simulation. Pixel figures count what each picture shows; the sightline figure is the run's and stays the assessment's._`,
+    "_Pixel figures count what each picture shows; the sightline figure is the run's and stays the assessment's._",
     '',
   )
   return lines.join('\n')

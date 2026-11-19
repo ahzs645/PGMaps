@@ -136,6 +136,27 @@ describe('composeSheet', () => {
     expect(values).toContain('093I003')
   })
 
+  it('prints a typed field left empty blank when asked, and missing facts still as "not recorded"', () => {
+    const lines = (patch: Partial<ComposeInput>, kind: Parameters<typeof sheetFrame>[0]) =>
+      texts(compose({ block }, patch, kind).ops)
+        .map((op) => op.text)
+        .filter((text) => /not recorded|Prepared by|Summary By/.test(text))
+    // Absent is blank, so a tool that offers no choice prints no stand-in wording; `stated` is the earlier sheet.
+    expect(lines({}, 'lidar-slope')).toEqual(lines({ emptyFields: 'blank' }, 'lidar-slope'))
+    expect(lines({ emptyFields: 'stated' }, 'lidar-slope')).toContain('Prepared by: not recorded')
+    // Blank: the label stays with nothing after it, and only the elevations, facts this sheet could
+    // not work out without terrain, still say "not recorded".
+    expect(lines({ emptyFields: 'blank' }, 'lidar-slope')).toEqual(['not recorded', 'not recorded', 'Prepared by: '])
+    expect(lines({ emptyFields: 'blank' }, 'field-layout')).toEqual([
+      'not recorded',
+      'not recorded',
+      'Summary By: ',
+      'Prepared by: ',
+    ])
+    expect(lines({ emptyFields: 'stated' }, 'operating-plan')).toContain('Forest district not recorded')
+    expect(lines({}, 'operating-plan')).not.toContain('Forest district not recorded')
+  })
+
   it('draws a logo only when one is given', () => {
     expect(compose({ block }).ops.some((op) => op.op === 'image')).toBe(false)
     const logo = {

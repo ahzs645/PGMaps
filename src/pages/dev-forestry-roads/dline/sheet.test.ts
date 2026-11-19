@@ -132,6 +132,16 @@ describe('D-line sheet', () => {
     expect(sheet.truncated).toEqual({ stakeout: 0, forces: 0 })
   })
 
+  it('prints an empty name or revision blank unless the project asks for "Not recorded"', () => {
+    const empty = { ...input().issue, preparedBy: '', revision: '' }
+    const stamp = (emptyFields?: 'blank' | 'stated') =>
+      texts(buildDLineSheet({ ...input(), issue: empty, emptyFields }).ops).filter((t) =>
+        /^(Prepared by|Revision):/.test(t),
+      )
+    expect(stamp()).toEqual(['Prepared by: ', 'Revision:  · Date: 2026-11-10'])
+    expect(stamp('stated')).toEqual(['Prepared by: Not recorded', 'Revision: Not recorded · Date: 2026-11-10'])
+  })
+
   it('says how many rows a long table left out', () => {
     const many = Array.from({ length: 60 }, (_, i) => ({ ...input().extras.stakeout!.rows[1], point: i + 1 }))
     const base = input()

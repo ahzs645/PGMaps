@@ -2,14 +2,23 @@
  * Report parts that lay out pictures and maps: the overview map, overhead and oblique renders, a figure page per
  * viewpoint with its location and regional maps over before / after pictures, and photograph / simulation pairs.
  * Pictures come from `ReportContext.images` (the page's captures) and each view's analysis figure from
- * `ctx.figures`; a missing one prints a box saying what goes there and is listed to complete. Captions are the
+ * `ctx.figures`. A missing one is always listed to complete; in the draft (`ReportContext.draft`) it also keeps its
+ * place with a box saying what goes there, and in a file it prints nothing, its caption with it. Captions are the
  * format's wording (`FIGURE_WORDING`, by document format id) or a part's own (`figurePagesPart` and the other
  * factories), never a reference document's own titles. Figures are numbered in the order the recipe lists these
- * parts. Registered in `registry.ts`. No DOM or network access.
+ * parts, counting only the figures the report prints. Registered in `registry.ts`. No DOM or network access.
  */
 import { UNSEEN_STATUS } from './blockMarks'
 import { field, text, type FieldRow, type FigureSlot, type ReportBlock, type ReportFigure } from './model'
-import { blank, figureFor, type PartOutput, type ReportContext, type ReportPart } from './parts'
+import {
+  blank,
+  figureFor,
+  printedSlots,
+  showsMissing,
+  type PartOutput,
+  type ReportContext,
+  type ReportPart,
+} from './parts'
 
 // ------------------------------------------------------------------ wording
 
@@ -207,6 +216,25 @@ const panoramic = (ctx: ReportContext, slot: FigureSlot, marked: FigureSlot): Fi
 
 const NO_VIEWPOINT = 'No saved viewpoint yet: save one in the road view.'
 
+/** What a composed map could not draw (`MapFurniture.missing`, the end map's key map), each to complete. */
+const notDrawn = (figure: ReportFigure, what: string) => (figure.map?.missing ?? []).map((part) => `${what}: ${part}`)
+
+/** The draft's line where a part has no viewpoint to lay out; a file prints nothing there (the list names it). */
+const noViewpoint = (ctx: ReportContext): ReportBlock[] => (showsMissing(ctx) ? [text(NO_VIEWPOINT, 'run')] : [])
+
+/** The view's simulation: its plain one when the page sent one, else its analysis figure. */
+const simulationOf = (ctx: ReportContext, name: string) => ctx.images?.after?.[name] ?? figureFor(ctx, name)
+
+/**
+ * The viewpoints that get a figure page (`figurePagesPart`) or a photograph / simulation pair, in order: every one in
+ * the draft; in a file, those with a picture before or after, since the page or pair is the view's visualization.
+ * Their figure numbers follow this list.
+ */
+export function figurePageViewpoints(ctx: ReportContext): string[] {
+  const names = viewpointNames(ctx)
+  return showsMissing(ctx) ? names : names.filter((name) => ctx.images?.before?.[name] || simulationOf(ctx, name))
+}
+
 /** "A12345 CP 7", the licence alone, or null. */
 function projectNumber(ctx: ReportContext): string | null {
   const licence = blank(ctx.office.licence)
@@ -232,7 +260,7 @@ export function photoDate(iso: string | null | undefined): string | null {
  * with the view and the regional map down the left; before and after down the right.
  */
 export function figurePagesPart(id = 'ea-figure-pages', wording?: FigureWording): ReportPart {
-  FIGURE_COUNTS.set(id, (ctx) => ctx.facts.viewpoints.length)
+  FIGURE_COUNTS.set(id, (ctx) => figurePageViewpoints(ctx).length)
   return {
     id,
     title: 'Figure pages',
@@ -240,8 +268,9 @@ export function figurePagesPart(id = 'ea-figure-pages', wording?: FigureWording)
     build: (ctx): PartOutput => {
       const w = wording ?? figureWording(ctx.document.format.id)
       const names = viewpointNames(ctx)
-      if (!names.length) return { blocks: [text(NO_VIEWPOINT, 'run')], toComplete: ['Figure pages: save a viewpoint'] }
+      if (!names.length) return { blocks: noViewpoint(ctx), toComplete: ['Figure pages: save a viewpoint'] }
       const first = firstFigureNumber(ctx, id)
+      const paged = figurePageViewpoints(ctx)
       const project = projectNumber(ctx)
       const facts: FieldRow[] = [
         field(w.page.projectNumber, project, 'scene'),
@@ -251,7 +280,7 @@ export function figurePagesPart(id = 'ea-figure-pages', wording?: FigureWording)
       const toComplete: string[] = []
       if (!project) toComplete.push('Project number (licence and cutting permit)')
       if (!regional) toComplete.push('Regional map')
-      const blocks = names.map((name, i): ReportBlock => {
+      const blocks = names.flatMap((name): ReportBlock[] => {
         const location = ctx.images?.figurePageMaps?.location[name] ?? ctx.images?.locationMaps?.[name] ?? null
         // The regional map starring this page's own viewpoint when the report has several.
         const ownRegional = ctx.images?.figurePageMaps?.regionalFor?.[name] ?? regional
@@ -262,29 +291,43 @@ export function figurePagesPart(id = 'ea-figure-pages', wording?: FigureWording)
         if (!location) toComplete.push(`${name}: location map and viewpoint`)
         if (!before.figure) toComplete.push(`${name}: picture before the project (field photograph or render)`)
         if (!after.figure) toComplete.push(`${name}: simulation (save the viewpoint)`)
-        return {
-          kind: 'figurePage',
-          number: fill(w.number, { n: first + i }),
-          title: fill(w.page.title, { viewpoint: name }),
-          facts,
-          side: [
-            {
-              label: w.page.locationMap,
-              figure: location,
-              placeholder: `${name}: location map with the viewpoint and its field of view`,
-            },
-            {
-              label: w.page.regionalMap,
-              figure: ownRegional,
-              placeholder: 'Regional map placing the project in its region',
-            },
-          ],
-          main: [panoramic(ctx, before, after), panoramic(ctx, after, after)],
-        }
+        // In a file, a view with no picture before or after has no page; one that has prints only what it has.
+        const at = paged.indexOf(name)
+        if (at < 0) return []
+        return [
+          {
+            kind: 'figurePage',
+            number: fill(w.number, { n: first + at }),
+            title: fill(w.page.title, { viewpoint: name }),
+            facts,
+            side: printedSlots(ctx, [
+              {
+                label: w.page.locationMap,
+                figure: location,
+                placeholder: `${name}: location map with the viewpoint and its field of view`,
+              },
+              {
+                label: w.page.regionalMap,
+                figure: ownRegional,
+                placeholder: 'Regional map placing the project in its region',
+              },
+            ]),
+            main: printedSlots(ctx, [panoramic(ctx, before, after), panoramic(ctx, after, after)]),
+          },
+        ]
       })
       return { blocks, toComplete }
     },
   }
+}
+
+/** A numbered pair's caption when a file prints only one of its pictures. */
+const LONE_PICTURE = {
+  before: {
+    photo: 'View from {viewpoint} before harvest.',
+    render: 'View from {viewpoint} before harvest, rendered from the terrain model.',
+  },
+  after: 'The simulated view from {viewpoint} after harvest.',
 }
 
 /**
@@ -292,8 +335,8 @@ export function figurePagesPart(id = 'ea-figure-pages', wording?: FigureWording)
  * before label says whether it is a field photograph or a render. With several viewpoints the captions are numbered.
  */
 export function photoSimulationPairsPart(id = 'photo-simulation-pairs', wording?: FigureWording): ReportPart {
-  // A recipe that numbers its pairs (21) counts one figure per viewpoint; otherwise the pairs take no number.
-  FIGURE_COUNTS.set(id, (ctx) => (ctx.recipeOptions?.numberedPairs ? ctx.facts.viewpoints.length : 0))
+  // A recipe that numbers its pairs (21) counts one figure per pair it prints; otherwise the pairs take no number.
+  FIGURE_COUNTS.set(id, (ctx) => (ctx.recipeOptions?.numberedPairs ? figurePageViewpoints(ctx).length : 0))
   return {
     id,
     title: 'Photographs and simulations',
@@ -302,12 +345,15 @@ export function photoSimulationPairsPart(id = 'photo-simulation-pairs', wording?
       const w = wording ?? figureWording(ctx.document.format.id)
       const names = viewpointNames(ctx)
       if (!names.length)
-        return { blocks: [text(NO_VIEWPOINT, 'run')], toComplete: ['Photographs and simulations: save a viewpoint'] }
+        return { blocks: noViewpoint(ctx), toComplete: ['Photographs and simulations: save a viewpoint'] }
       const toComplete: string[] = []
-      const many = names.length > 1
+      // Numbered over the pairs the report prints: in a file, a view with neither picture has none.
+      const paired = figurePageViewpoints(ctx)
+      const many = paired.length > 1
       const first = firstFigureNumber(ctx, id)
       const numbered = !!ctx.recipeOptions?.numberedPairs
-      const blocks = names.map((name, i): ReportBlock => {
+      const blocks = names.flatMap((name): ReportBlock[] => {
+        const i = paired.indexOf(name)
         const caption = (label: string, date: string | null = null) =>
           w.pair.placement === 'caption'
             ? `${label}${many ? ` ${i + 1}` : ''}: ${name}${date ? ` (${date})` : ''}`
@@ -321,24 +367,30 @@ export function photoSimulationPairsPart(id = 'photo-simulation-pairs', wording?
         if (photo?.source === 'photo' && !takenOn) toComplete.push(`${name}: the date the photograph was taken`)
         if (!before.figure) toComplete.push(`${name}: field photograph or render before harvest`)
         if (!after.figure) toComplete.push(`${name}: simulation (save the viewpoint)`)
-        const sentence = w.pair.figure ?? DEFAULT_FIGURE_WORDING.pair.figure!
-        return {
-          kind: 'figurePair',
-          ...(w.pair.placement === 'inset' ? { title: name } : {}),
-          ...(numbered
-            ? {
-                caption: `${fill(w.number, { n: first + i })}. ${fill(
-                  sentence[ctx.images?.before?.[name]?.source ?? 'photo'],
-                  { viewpoint: name },
-                )}`,
-              }
-            : {}),
-          placement: w.pair.placement,
-          slots: [
-            { ...before, label: caption(before.label, takenOn) },
-            { ...after, label: caption(after.label) },
-          ],
-        }
+        if (i < 0) return []
+        const slots = printedSlots(ctx, [
+          { ...before, label: caption(before.label, takenOn) },
+          { ...after, label: caption(after.label) },
+        ])
+        // The numbered caption says what the pair shows: both pictures, or (in a file) the one it has.
+        const source = ctx.images?.before?.[name]?.source ?? 'photo'
+        const sentence =
+          slots.length === 2
+            ? (w.pair.figure ?? DEFAULT_FIGURE_WORDING.pair.figure!)[source]
+            : slots[0].figure === after.figure
+              ? LONE_PICTURE.after
+              : LONE_PICTURE.before[source]
+        return [
+          {
+            kind: 'figurePair',
+            ...(w.pair.placement === 'inset' ? { title: name } : {}),
+            ...(numbered
+              ? { caption: `${fill(w.number, { n: first + i })}. ${fill(sentence, { viewpoint: name })}` }
+              : {}),
+            placement: w.pair.placement,
+            slots,
+          },
+        ]
       })
       return { blocks, toComplete }
     },
@@ -350,7 +402,7 @@ export function photoSimulationPairsPart(id = 'photo-simulation-pairs', wording?
  * Figure 1), with its legend, scale and north arrow when the map gives them (`ReportFigure.map`).
  */
 export function overviewMapPart(id = 'overview-map', wording?: FigureWording): ReportPart {
-  FIGURE_COUNTS.set(id, () => 1)
+  FIGURE_COUNTS.set(id, (ctx) => (showsMissing(ctx) || ctx.images?.overviewMap ? 1 : 0))
   return {
     id,
     title: 'Overview map',
@@ -358,6 +410,8 @@ export function overviewMapPart(id = 'overview-map', wording?: FigureWording): R
     build: (ctx): PartOutput => {
       const w = wording ?? figureWording(ctx.document.format.id)
       const map = ctx.images?.overviewMap ?? null
+      // In a file, a map nobody drew prints nothing, its caption and number with it.
+      if (!map && !showsMissing(ctx)) return { blocks: [], toComplete: ['Overview map'] }
       const caption = `${fill(w.number, { n: firstFigureNumber(ctx, id) })}: ${
         ctx.facts.viewpoints.length > 1 ? w.overview.many : w.overview.one
       }`
@@ -373,7 +427,7 @@ export function overviewMapPart(id = 'overview-map', wording?: FigureWording): R
             },
           },
         ],
-        toComplete: map ? [] : ['Overview map'],
+        toComplete: map ? notDrawn(map, 'Overview map') : ['Overview map'],
       }
     },
   }
@@ -384,8 +438,8 @@ export function overviewMapPart(id = 'overview-map', wording?: FigureWording): R
  * page of its own, its legend, scale and north arrow drawn on it. Without a sheet it prints the overview map.
  */
 export function overviewSheetPart(id = 'overview-sheet', wording?: FigureWording): ReportPart {
-  FIGURE_COUNTS.set(id, () => 1)
   const fallback = overviewMapPart(id, wording)
+  FIGURE_COUNTS.set(id, (ctx) => (showsMissing(ctx) || ctx.images?.overviewSheet || ctx.images?.overviewMap ? 1 : 0))
   return {
     id,
     title: 'Overview sheet',
@@ -397,7 +451,7 @@ export function overviewSheetPart(id = 'overview-sheet', wording?: FigureWording
       const caption = `${fill(w.number, { n: firstFigureNumber(ctx, id) })}: ${
         ctx.facts.viewpoints.length > 1 ? w.overview.many : w.overview.one
       }${sheet.map?.scale ? ` (${sheet.map.scale} at 11 × 17)` : ''}`
-      return { blocks: [{ kind: 'figure', figure: sheet, caption }] }
+      return { blocks: [{ kind: 'figure', figure: sheet, caption }], toComplete: notDrawn(sheet, 'Overview sheet') }
     },
   }
 }
@@ -405,15 +459,17 @@ export function overviewSheetPart(id = 'overview-sheet', wording?: FigureWording
 const isOblique = (figure: ReportFigure) => /oblique/i.test(`${figure.caption} ${figure.view}`)
 
 /**
- * The overhead renders, each one figure, then the obliques, one figure between them. With none at all, one overhead
- * placeholder and one oblique placeholder; with only one kind, only that kind.
+ * The overhead renders, each one figure, then the obliques, one figure between them. With none at all, the draft has
+ * one overhead placeholder and one oblique placeholder and a file nothing; with only one kind, only that kind.
  */
 function overheadLayout(ctx: ReportContext) {
   const all = ctx.images?.overhead ?? []
   const overhead = all.filter((f) => !isOblique(f))
   const oblique = all.filter(isOblique)
-  const tops: Array<ReportFigure | null> = overhead.length ? overhead : oblique.length ? [] : [null]
-  return { tops, oblique, obliqueFigure: oblique.length > 0 || !overhead.length }
+  const none = !all.length
+  const placeholders = none && showsMissing(ctx)
+  const tops: Array<ReportFigure | null> = overhead.length ? overhead : placeholders ? [null] : []
+  return { tops, oblique, obliqueFigure: oblique.length > 0 || placeholders, none }
 }
 
 /**
@@ -431,14 +487,14 @@ export function overheadRendersPart(id = 'overhead-renders', wording?: FigureWor
     sources: ['01'],
     build: (ctx): PartOutput => {
       const w = wording ?? figureWording(ctx.document.format.id)
-      const { tops, oblique, obliqueFigure } = overheadLayout(ctx)
+      const { tops, oblique, obliqueFigure, none } = overheadLayout(ctx)
       let n = firstFigureNumber(ctx, id)
       const number = () => fill(w.number, { n: n++ })
       const names = ctx.blocks.map((block) => block.name)
       const blockList = names.length ? ` - ${names.length > 1 ? 'Blocks' : 'Block'} ${andList(names)}` : ''
       // The renders start a page of their own (01 p7), so the overhead and its obliques print together.
       const blocks: ReportBlock[] = obliqueFigure && tops.length === 1 ? [{ kind: 'pageBreak' }] : []
-      const toComplete: string[] = []
+      const toComplete: string[] = none ? ['Overhead render of the blocks', 'Oblique renders of the blocks'] : []
       for (const figure of tops) {
         const caption = `${number()}: ${w.overhead}`
         blocks.push({
@@ -448,7 +504,6 @@ export function overheadRendersPart(id = 'overhead-renders', wording?: FigureWor
           // One overhead shares its page with the obliques under it, as 01 p7 prints them.
           ...(obliqueFigure && tops.length === 1 ? { compact: true } : {}),
         })
-        if (!figure) toComplete.push('Overhead render of the blocks')
       }
       if (obliqueFigure) {
         const caption = `${number()}: ${oblique.length > 1 ? w.oblique.many : w.oblique.one}${blockList}`
@@ -460,7 +515,6 @@ export function overheadRendersPart(id = 'overhead-renders', wording?: FigureWor
             ? oblique.map((figure) => ({ label: figure.caption || figure.view, figure, placeholder: '' }))
             : [{ label: 'Oblique render', figure: null, placeholder: 'Oblique renders of the blocks, one per block' }],
         })
-        if (!oblique.length) toComplete.push('Oblique renders of the blocks')
       }
       return { blocks, toComplete }
     },
@@ -474,10 +528,13 @@ export const SIMULATION_DISCLAIMER =
 /**
  * The simulations on landscape pages of their own (02 pp. 5-6): per viewpoint, the view's figure (its own style's
  * labels on it) else its plain simulation across the page with the accuracy disclaimer under it; then the oblique
- * renders together on one more landscape page. A view with neither prints a placeholder and is listed.
+ * renders together on one more landscape page. A view with neither is listed to complete; in the draft it keeps its
+ * page with a placeholder, in a file it has no page and no number.
  */
 export function simulationPagesPart(id = 'simulation-pages', wording?: FigureWording): ReportPart {
-  FIGURE_COUNTS.set(id, (ctx) => ctx.facts.viewpoints.length + (overheadLayout(ctx).oblique.length ? 1 : 0))
+  const simulated = (ctx: ReportContext) =>
+    viewpointNames(ctx).filter((name) => showsMissing(ctx) || figureFor(ctx, name) || ctx.images?.after?.[name])
+  FIGURE_COUNTS.set(id, (ctx) => simulated(ctx).length + (overheadLayout(ctx).oblique.length ? 1 : 0))
   return {
     id,
     title: 'Simulations',
@@ -485,25 +542,29 @@ export function simulationPagesPart(id = 'simulation-pages', wording?: FigureWor
     build: (ctx): PartOutput => {
       const w = wording ?? figureWording(ctx.document.format.id)
       const names = viewpointNames(ctx)
-      if (!names.length) return { blocks: [text(NO_VIEWPOINT, 'run')], toComplete: ['Simulations: save a viewpoint'] }
+      if (!names.length) return { blocks: noViewpoint(ctx), toComplete: ['Simulations: save a viewpoint'] }
       let n = firstFigureNumber(ctx, id)
       const toComplete: string[] = []
-      const blocks = names.map((name): ReportBlock => {
+      const printed = new Set(simulated(ctx))
+      const blocks = names.flatMap((name): ReportBlock[] => {
         const figure = figureFor(ctx, name) ?? ctx.images?.after?.[name] ?? null
         if (!figure) toComplete.push(`${name}: simulation (save the viewpoint)`)
-        return {
-          kind: 'figurePair',
-          placement: 'caption',
-          landscape: true,
-          slots: [
-            {
-              label: `${fill(w.number, { n: n++ })}: ${name} – ${w.pair.after}`,
-              figure,
-              placeholder: `${name}: the simulation; save the viewpoint in the road view`,
-              note: SIMULATION_DISCLAIMER,
-            },
-          ],
-        }
+        if (!printed.has(name)) return []
+        return [
+          {
+            kind: 'figurePair',
+            placement: 'caption',
+            landscape: true,
+            slots: [
+              {
+                label: `${fill(w.number, { n: n++ })}: ${name} – ${w.pair.after}`,
+                figure,
+                placeholder: `${name}: the simulation; save the viewpoint in the road view`,
+                note: SIMULATION_DISCLAIMER,
+              },
+            ],
+          },
+        ]
       })
       const { oblique } = overheadLayout(ctx)
       if (oblique.length)

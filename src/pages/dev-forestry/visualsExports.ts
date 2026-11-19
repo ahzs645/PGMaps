@@ -5,6 +5,7 @@
  * the file is written from. No DOM or network access.
  */
 
+import type { ContentsPart } from '@/lib/documentContents/contents'
 import { formatBytes } from '@/lib/format'
 import { CASTOR_DENOMINATOR_NOTE, castorConstraintProblem, castorVqoConstraint } from './castorConstraint'
 import { layoutStageLabel, layoutStageOf } from './fieldChecklist'
@@ -23,6 +24,7 @@ import {
 } from './roadVideo'
 import type { AnalysisResult, HarvestSystem, TargetPolygon } from './types'
 import type { ViaAssessment, ViaStepId } from './via'
+import { recipeContents, type PartFacts, type RecipeContentsSource } from './viaReport/recipeContents'
 import { lineLengthMeters, polygonAreaMeters } from './visibility'
 import { EVQO_CODE_FOR_CLASS, EVQO_NAMES } from './visualsNarrative'
 import {
@@ -478,8 +480,11 @@ export type ExportContext = {
     checklist: string
   }
   officeFields: { filled: number; total: number }
-  /** FS1252: the stations chosen, as labels. */
-  fs1252Stations: Array<{ label: string; assessment: boolean; inputs: boolean }>
+  /**
+   * FS1252: the stations listed for the form, by station index: those chosen (`on`) and those switched off in its
+   * contents, which keep their place until removed.
+   */
+  fs1252Stations: Array<{ index: number; label: string; on: boolean; assessment: boolean; inputs: boolean }>
   /** Block note: the text the paragraph panel holds, or null before a block. */
   blockNote: {
     /** The note's block: views of interest planned for another block are left out of it. */
@@ -504,13 +509,22 @@ export type ExportContext = {
   report: {
     recipe: string
     sources: string
-    parts: string[]
     figures: number
     /** Null while the report's parts load with the dialog (`viaReportEngine.ts`). */
     toComplete: number | null
     /** The figure style the maps' blocks and openings are drawn in, when one was chosen over the maps' own. */
     mapStyle?: string
   } | null
+  /**
+   * The VIA report's contents as its list reads them (`recipeContents.ts`): the package's recipe, the parts of the
+   * shipped recipe it was copied from, and what each printing part gave once the report was assembled (null until it
+   * has been: no view with a class pass yet, or the report's parts still loading). Absent: not known here.
+   */
+  reportContents?: {
+    recipe: RecipeContentsSource
+    base: readonly string[] | null
+    facts: ReadonlyArray<PartFacts> | null
+  }
   /** The logo printed sheets and reports carry, in words ("Your logo, x.png" / "Brand: y" / "None"). */
   logo: string
   /**
@@ -899,8 +913,8 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
       if (ctx.run !== 'current' && !ctx.autoRun.blocker) return null
       if (ctx.run === 'none') return 'Run the visibility assessment first: the form is filled from the run.'
       if (ctx.run === 'stale') return 'The run is out of date. Run it again to fill the form from the current scene.'
-      if (!ctx.fs1252Stations.length) return 'Choose at least one station for the form.'
-      return ctx.fs1252Stations.length > 30 ? 'Choose 30 stations or fewer.' : null
+      if (!ctx.fs1252Stations.some((station) => station.on)) return 'Choose at least one station for the form.'
+      return ctx.fs1252Stations.filter((station) => station.on).length > 30 ? 'Choose 30 stations or fewer.' : null
     case 'analysis-sheet':
       return ctx.views.some((view) => view.inReport && view.hasScreenshot) || capturesFirst(ctx)
         ? null
@@ -1003,6 +1017,31 @@ export type ExportSection = {
   /** Said when there is nothing to list. */
   empty?: string
   note?: string
+  /**
+   * The file's own parts as one list in print order (`DocumentContents`): what each is set to, kept at its place when
+   * it is off. A section with one is drawn first in *What goes in*, above the output's options; the page gives the
+   * controls that change it (the dialog's `contents`), and without them the list is read-only.
+   */
+  contents?: SectionContents
+}
+
+/** A section's parts list (`ExportSection.contents`). */
+export type SectionContents = {
+  /** What is printed, for the list's accessible name: "the report". */
+  subject: string
+  parts: ContentsPart[]
+  /** Each printing part's place in the draft (`part-<place>`), by key; only the VIA report has a draft. */
+  places?: Readonly<Record<string, number>>
+  /** Behind the list's (i). */
+  help?: string
+  /** Replaces the list's count line. */
+  summary?: string
+}
+
+/** What *What goes in* knows beyond the context and must not restart a preview: the draft's pages, once written. */
+export type ContentsKnown = {
+  /** The page each printing part of the VIA report starts on in its draft, by its place among the printing parts. */
+  reportPages?: readonly number[] | null
 }
 
 const hectares = (ha: number) =>
@@ -1139,6 +1178,13 @@ function plannedStatus(view: ExportPlannedView, kind: VisualsExport, ctx: Export
     return `Captured, but not drawn in the file: ${undrawn.reason.replace(/[.\s]*$/, '')}${
       view.failed ? '' : '. Captured again before the file is written'
     }`
+  // The block note draws no figure, so its gap is a capture with no screenshot in this session (`blockNoteWithoutScreenshot`).
+  if (
+    kind === 'block-note' &&
+    hasCurrentCapture(view) &&
+    ctx.views.some((saved) => saved.id === view.savedViewId && !saved.hasScreenshot)
+  )
+    return 'Captured, but with no screenshot in this session: not in the note. Capture it again'
   if (view.state === 'no-figure')
     return view.failed
       ? `Captured without its analysis sheet (${view.failed.replace(/[.\s]*$/, '')}): in the file as its screenshot. Download tries again`
@@ -1218,6 +1264,21 @@ function noViewsSection(): ExportSection {
 const withPlanned = (sections: Array<ExportSection | null>): ExportSection[] =>
   sections.filter((section): section is ExportSection => !!section)
 
+/**
+ * The saved views the block note takes that have no screenshot, by name, in the dialog's order: the note has no
+ * picture of them and prints nothing in their place, so Save & export names them (`missingScreenshotsNotice` beside
+ * the preview and the download, and here). A capture of a view of interest planned for another block is that block's.
+ */
+export function blockNoteWithoutScreenshot(ctx: Pick<ExportContext, 'views' | 'planned' | 'blockNote'>): string[] {
+  return ctx.views
+    .filter((view) => view.inReport && !view.hasScreenshot)
+    .filter((view) => {
+      const planned = ctx.planned.find((entry) => entry.savedViewId === view.id)
+      return !planned || !forAnotherBlock('block-note', ctx, planned)
+    })
+    .map((view) => view.name)
+}
+
 /** The block note's views: which go in, which are left out, and which have no screenshot. */
 function reportViewsSection(ctx: ExportContext, figures: boolean): ExportSection {
   const order = (view: ExportView) => (view.inReport && view.hasScreenshot ? 0 : view.hasScreenshot ? 2 : 1)
@@ -1232,7 +1293,7 @@ function reportViewsSection(ctx: ExportContext, figures: boolean): ExportSection
       subtitle: [
         !view.hasScreenshot
           ? view.inReport
-            ? 'Listed as missing: no screenshot'
+            ? 'No screenshot: not in the note. Reopen it and save it again'
             : 'Left out · no screenshot'
           : view.inReport
             ? figures && view.hasClassPass
@@ -1308,7 +1369,7 @@ function landChecksSection(ctx: ExportContext): ExportSection {
           value: row.reading ? 'Checking…' : row.value,
         }))
       : undefined,
-    empty: 'Left out of the note. Turn them on in Options.',
+    empty: 'Left out of the note. Switch them on in Contents, above.',
     note: checks.include
       ? 'Their own sheet and page: a screen from DataBC, never a legal determination or a mask. Not read means the layer could not be read.'
       : undefined,
@@ -1361,12 +1422,124 @@ function reviewSection(ctx: ExportContext): ExportSection {
   }
 }
 
-/** What goes into an output, part by part. */
-export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportSection[] {
+/**
+ * The block note's sheets and pages as `blockNote.ts` writes them, in its fixed order: what the planner's layout always
+ * writes is locked, the visual measures and the viewpoint records are written only when there is something to put in
+ * them, and the land status checks are the one switch. Figure or screenshot is an option, not a part.
+ */
+function blockNoteContents(ctx: ExportContext): ExportSection {
+  const note = ctx.blockNote
+  const always = 'Always written: the planner’s layout'
+  const records = ctx.views.filter((view) => view.inReport && view.hasScreenshot).length
+  const noPicture = blockNoteWithoutScreenshot(ctx)
+  return {
+    title: 'Contents',
+    contents: {
+      subject: 'the block note',
+      help: 'The note’s sheets in Excel, and its pages in the PDF, in the order they are written. Only the land status checks can be left out; the rest is the planner’s layout.',
+      parts: [
+        {
+          key: 'other-considerations',
+          label: 'Other Considerations: the Visuals paragraph and a picture per view',
+          state: 'on',
+          locked: always,
+          ...(noPicture.length
+            ? {
+                note: `No screenshot, so no picture: ${noPicture.join(', ')}. Nothing stands in for ${noPicture.length === 1 ? 'it' : 'them'}; reopen each view and save it again.`,
+              }
+            : {}),
+          help: 'Excel: the label in B2, the paragraph in C2 and the pictures below, as the planner’s report has them. PDF: the first page.',
+        },
+        {
+          key: 'visual-measures',
+          label: 'Visual measures',
+          state: 'on',
+          ...(note?.measures
+            ? { locked: 'Written when there are measures', detail: plural(note.measures, 'measure') }
+            : { unavailable: 'None to write yet: draft them in Visual measures' }),
+        },
+        { key: 'block', label: 'Block: its header, the landform and the figures', state: 'on', locked: always },
+        {
+          key: 'viewpoints',
+          label: 'Viewpoints: what made each simulation',
+          state: 'on',
+          ...(records
+            ? { locked: 'Written for each view in the package with its record' }
+            : { unavailable: 'No view in the package has a screenshot' }),
+        },
+        { key: 'plan-map', label: 'Plan map', state: 'on', locked: always },
+        {
+          key: 'land-status',
+          label: 'Land status checks',
+          state: ctx.landChecks.include ? 'on' : 'off',
+          help: 'Treaty land, reserves, private land, parks and the rest, read from DataBC: a screen on its own sheet and page, never a legal determination.',
+        },
+        {
+          key: 'basis',
+          label: 'Basis: what each drafted sentence was written from',
+          state: 'on',
+          locked: always,
+          detail: 'Excel',
+        },
+      ],
+    },
+  }
+}
+
+/** The FS1252's stations as its contents: one form per station switched on, in station order. */
+function fs1252Contents(ctx: ExportContext): ExportSection {
+  return {
+    title: 'Stations in the PDF',
+    step: 'assess',
+    editor: 'assess',
+    empty: 'None chosen. Add a station under Options.',
+    contents: {
+      subject: 'the FS1252 form',
+      help: 'One form per station switched on, then the reference pages and a scenario appendix. A station switched off keeps its place here; Options adds stations and holds each one’s reviewer inputs.',
+      parts: ctx.fs1252Stations.map((station) => ({
+        key: String(station.index),
+        label: station.label,
+        state: station.on ? 'on' : 'off',
+        ...(station.assessment
+          ? { detail: 'assessment station' }
+          : station.inputs
+            ? { detail: 'reviewer inputs set' }
+            : {}),
+      })),
+    },
+  }
+}
+
+/** The VIA report's parts in print order, from its recipe (`recipeContents.ts`); null when the recipe is not known. */
+function reportContentsSection(ctx: ExportContext, known: ContentsKnown): ExportSection | null {
+  const source = ctx.reportContents
+  if (!source) return null
+  const { parts, places } = recipeContents(source.recipe, {
+    base: source.base,
+    facts: source.facts,
+    pages: known.reportPages ?? null,
+  })
+  return {
+    title: 'Contents',
+    contents: {
+      subject: 'the report',
+      parts,
+      places,
+      help: 'The package’s recipe, part by part in print order. The first change to a shipped recipe makes it your own copy, kept in this browser; Reset goes back to the recipe it was copied from. A part switched off keeps its place and comes back there.',
+    },
+  }
+}
+
+/**
+ * What goes into an output, part by part: its own parts first where it has a list of them (`contents`), then what it
+ * reads. `known` is what the dialog knows beyond the context (the draft's pages), which never restarts a preview.
+ */
+export function exportContents(kind: VisualsExport, ctx: ExportContext, known: ContentsKnown = {}): ExportSection[] {
   switch (kind) {
     case 'block-note': {
       const note = ctx.blockNote
       return [
+        ...(note ? [blockNoteContents(ctx)] : []),
         {
           title: 'Block',
           step: 'identify',
@@ -1398,21 +1571,8 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
     }
     case 'fs1252':
       return [
+        fs1252Contents(ctx),
         runSection(ctx),
-        {
-          title: 'Stations in the PDF',
-          step: 'assess',
-          editor: 'assess',
-          items: ctx.fs1252Stations.map((station) => ({
-            title: station.label,
-            subtitle: station.assessment
-              ? 'The assessment station · step 4 record'
-              : station.inputs
-                ? 'Reviewer inputs set'
-                : 'Reviewer inputs optional',
-          })),
-          empty: 'None chosen.',
-        },
         landformSection(ctx),
         viewpointSection(ctx),
         reviewSection(ctx),
@@ -1477,8 +1637,10 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
         : ctx.recipe
           ? [{ label: 'Structure of', value: ctx.recipe }]
           : []
+      const contents = reportContentsSection(ctx, known)
       if (!report)
         return withPlanned([
+          contents,
           {
             title: 'Report',
             action: packageAction,
@@ -1499,6 +1661,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
         ])
       const undrawn = unprintedFor('via-report', ctx).length
       return withPlanned([
+        contents,
         {
           title: 'Report',
           action: packageAction,
@@ -1513,7 +1676,6 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
             { label: 'Drawn by', value: rendererRow(ctx, 'via-report') },
           ],
         },
-        { title: 'Parts, in order', items: report.parts.map((part) => ({ title: part })) },
         {
           title: 'To complete before signing',
           step: 'assess',
@@ -1924,12 +2086,15 @@ export type ContextInput = {
   stale: boolean
   assessment: ViaAssessment | null
   views: ContextView[]
-  fs1252: { selected: number[]; reviews: Record<number, unknown> }
+  /** `listed`: stations switched off in the form's contents, kept in its list until removed. Absent: none. */
+  fs1252: { selected: number[]; reviews: Record<number, unknown>; listed?: number[] }
   blockNote: { blockId?: string; header: Row[]; landform: Row[]; measures: number } | null
   noteFigures: boolean
   figure: { viewId: string | null; style: string; labelStyle: string; cameraInfo: boolean; paintBlocks: boolean }
   document: ExportContext['document']
   report: ExportContext['report']
+  /** The VIA report's contents (`ExportContext.reportContents`). Absent: not known here. */
+  reportContents?: ExportContext['reportContents']
   logo: string
   renderer: ExportContext['renderer']
   /** `screenshots`: the views with a screenshot the brief takes; absent, every view with one. */
@@ -2128,10 +2293,13 @@ export function buildExportContext(input: ContextInput): ExportContext {
       total: input.officeFieldCount,
     },
     fs1252Stations: result
-      ? input.fs1252.selected
+      ? [...new Set([...input.fs1252.selected, ...(input.fs1252.listed ?? [])])]
           .filter((index) => index < result.stations.length)
+          .sort((a, b) => a - b)
           .map((index) => ({
+            index,
             label: `Station ${index + 1} · ${(result.stations[index].distanceAlongMeters / 1000).toFixed(2)} km`,
+            on: input.fs1252.selected.includes(index),
             assessment: index === result.assessmentStationIndex,
             inputs: !!input.fs1252.reviews[index],
           }))
@@ -2143,6 +2311,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
     ...(input.blockSheet ? { blockSheet: input.blockSheet } : {}),
     document: input.document,
     report: input.report,
+    ...(input.reportContents ? { reportContents: input.reportContents } : {}),
     logo: input.logo,
     renderer: input.renderer,
     brief: {

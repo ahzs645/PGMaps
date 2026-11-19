@@ -1,5 +1,6 @@
 /** Portable bounded report authoring. Label templates substitute whitelisted data; never eval code. */
-import { parseOmittedSections, type ReportSectionId } from './reportContents'
+import { parseEmptyFields, type EmptyFields } from '@/lib/mapSheet/emptyFields'
+import { parseOmittedSections, parseSectionOrder, type ReportOrderId, type ReportSectionId } from './reportContents'
 import { DEFAULT_CHARTS_OPTIONS, parseChartsOptions, type ChartsOptions } from './chartsOptions'
 import {
   isDefaultPackage,
@@ -136,6 +137,11 @@ export interface RoadReportSettings {
   curveTablePosition: 'chapter' | 'plan-sheet' | 'none'
   /** Report sections left out of the printed report (`reportContents.ts`); absent prints them all. */
   omittedSections?: ReportSectionId[]
+  /**
+   * The order of the report body (`reportContents.ts`): every section and the limitations. Absent
+   * prints the usual order; read with unknown ids dropped and new sections in their usual place.
+   */
+  sectionOrder?: ReportOrderId[]
   /** Where each part goes in the report package (`reportPackage.ts`); absent means every default. */
   package?: ReportPackageSettings
   /** The preliminary estimate's allowances and contingency (`EstimateSettings`); absent is all blank. */
@@ -145,6 +151,12 @@ export interface RoadReportSettings {
    * active road with (`recordChanges.ts`); absent prints no comparison.
    */
   recordBaselineId?: string
+  /**
+   * What a field the person left empty (revision, prepared by, a typed title-block field) prints on
+   * every printed file of the project, read only through `emptyFieldText` (`@/lib/mapSheet/emptyFields`).
+   * Absent is blank; `stated` prints each product's earlier wording, such as "Not recorded".
+   */
+  emptyFields?: EmptyFields
 }
 export const MAX_REPORT_CHAPTERS = 16
 export const MAX_REPORT_SHEETS = 500
@@ -303,8 +315,10 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
   if (!['chapter', 'plan-sheet', 'none'].includes(r.curveTablePosition as string))
     throw Error('Unknown curve table position.')
   const omittedSections = parseOmittedSections(r.omittedSections)
+  const sectionOrder = parseSectionOrder(r.sectionOrder)
   const reportPackage = r.package === undefined ? undefined : parseReportPackage(r.package)
   const estimate = r.estimate === undefined ? undefined : parseEstimateSettings(r.estimate)
+  const emptyFields = parseEmptyFields(r.emptyFields)
   return {
     schema: 'pgmaps-road-report-v1',
     paper: r.paper as ReportPaper,
@@ -325,11 +339,15 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
     labelOffsetY: number(r.labelOffsetY, -100, 100, 'Label Y offset'),
     curveTablePosition: r.curveTablePosition as RoadReportSettings['curveTablePosition'],
     ...(omittedSections?.length ? { omittedSections } : {}),
+    // Written only when it differs from the usual order, so older files read back unchanged.
+    ...(sectionOrder ? { sectionOrder } : {}),
     // Written only when a part was moved from its default, so older files read back unchanged.
     ...(reportPackage && !isDefaultPackage(reportPackage) ? { package: reportPackage } : {}),
     ...(estimate && Object.keys(estimate).length ? { estimate } : {}),
     ...(typeof r.recordBaselineId === 'string' && r.recordBaselineId && r.recordBaselineId.length <= 200
       ? { recordBaselineId: r.recordBaselineId }
       : {}),
+    // Written only when it is not the default (blank), so older files read back unchanged.
+    ...(emptyFields ? { emptyFields } : {}),
   }
 }

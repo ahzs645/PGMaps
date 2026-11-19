@@ -362,6 +362,7 @@ import {
   projectGeoJson,
   projectReportHtml,
   reportReview,
+  reportSectionsUnavailable,
   serializeProject,
   stationsCsv,
   terrainProfileCsv,
@@ -2162,6 +2163,7 @@ export default function DevForestryRoads({
           signal,
           branding: selectedExportBrand,
           logo: printLogo,
+          emptyFields: project.reportSettings?.emptyFields,
         })
         downloadBlob(blob, `${`${issue.label}-${issue.roadName}`.replace(/[^\w.-]+/g, '-')}.pdf`)
         w.setNotice(`${issue.label} field pack PDF downloaded. Its KML was downloaded beside it.`)
@@ -4316,7 +4318,13 @@ export default function DevForestryRoads({
       summaryInputFor(),
     ])
     const plan = packagePlan(undefined, '')
-    const input = summaryInput(safe, plan, [issueLine(issueStamp(safe.issue)), PLANNING_CAVEAT], [], true)
+    const input = summaryInput(
+      safe,
+      plan,
+      [issueLine(issueStamp(safe.issue), safe.reportSettings?.emptyFields), PLANNING_CAVEAT],
+      [],
+      true,
+    )
     return brandedHtml(estimateHtml({ ...input, appendices: [], omitted: [] }), selectedExportBrand, printLogo)
   }
   /**
@@ -4345,7 +4353,7 @@ export default function DevForestryRoads({
       summaryInputFor(),
     ])
     const settings = parseRoadReportSettings(safe.reportSettings)
-    const plan = packagePlan(settings.package, basename)
+    const plan = packagePlan(settings.package, basename, settings.sectionOrder)
     const summaryFront = packageFront(settings.package) === 'summary'
     const roads = exportRoads(safe.alignments, alignment.id, packageScope)
     // A summary front page is content of its own, so the main file is written even with no part in it.
@@ -4356,7 +4364,7 @@ export default function DevForestryRoads({
     const invalid = exportInvalidInput('report-package')
     if (invalid && files.some((file) => file.plotbook.length))
       throw Error(invalidInputRefusal('A report package with plot-book sheets', invalid))
-    const stamp = issueLine(issueStamp(safe.issue))
+    const stamp = issueLine(issueStamp(safe.issue), safe.reportSettings?.emptyFields)
     const bytes = async (blob: Blob) => new Uint8Array(await blob.arrayBuffer())
     const roadNames = roads.map((road) => road.name)
     const missing: string[] = []
@@ -4579,7 +4587,7 @@ export default function DevForestryRoads({
     return {
       name: safe.name,
       terrain: project.terrain.name,
-      datum: `${project.terrain.verticalReference} | ${issueLine(issueStamp(safe.issue))} | ${PLANNING_CAVEAT}${
+      datum: `${project.terrain.verticalReference} | ${issueLine(issueStamp(safe.issue), safe.reportSettings?.emptyFields)} | ${PLANNING_CAVEAT}${
         invalid ? ` | NOT CURRENT: ${invalidInputNotice(invalid)}` : ''
       }`,
       branding: selectedExportBrand,
@@ -4840,6 +4848,8 @@ export default function DevForestryRoads({
       mapPdfSettings,
     ],
   )
+  // The report sections this road gives nothing to print, shown on the report's contents list.
+  const reportUnavailable = useMemo(() => reportSectionsUnavailable(project, analysis), [project, analysis])
   /** What the Save & export dialog shows for one output, from the content its download writes. */
   const buildExportPreview = async (kind: RoadExport, signal: AbortSignal): Promise<ExportPreview> => {
     const { safe } = exportBasis(kind)
@@ -4868,7 +4878,7 @@ export default function DevForestryRoads({
         ])
       const { basename } = exportBasis(kind)
       const settings = parseRoadReportSettings(safe.reportSettings)
-      const plan = packagePlan(settings.package, basename)
+      const plan = packagePlan(settings.package, basename, settings.sectionOrder)
       const files = packagePreviewHtml(
         plan,
         exportRoads(safe.alignments, alignment.id, packageScope).map((road) => road.name),
@@ -4877,7 +4887,12 @@ export default function DevForestryRoads({
       if (packageFront(settings.package) !== 'summary') return { type: 'html', html: files }
       // The summary page as it prints (page numbers are set when the file is laid out), then the files.
       const summary = packageSummaryHtml(
-        summaryInput(safe, plan, [issueLine(issueStamp(safe.issue)), PLANNING_CAVEAT], []),
+        summaryInput(
+          safe,
+          plan,
+          [issueLine(issueStamp(safe.issue), safe.reportSettings?.emptyFields), PLANNING_CAVEAT],
+          [],
+        ),
       )
       const filesBody = /<body>([\s\S]*)<\/body>/.exec(files)?.[1] ?? ''
       return {
@@ -6527,6 +6542,7 @@ export default function DevForestryRoads({
         onName={(name) => update((p) => ({ ...p, name }))}
         onSave={save}
         reportSettings={project.reportSettings}
+        reportUnavailable={reportUnavailable}
         onReportSettings={(reportSettings) => update((p) => ({ ...p, reportSettings }))}
         slopeSheet={(project.reference ?? []).some((feature) => feature.classGrid?.kind === 'slope')}
         issue={project.issue}

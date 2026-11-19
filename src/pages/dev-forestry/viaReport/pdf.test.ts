@@ -181,7 +181,10 @@ describe('the VIA report as a PDF', () => {
       // The views left out are named, and the reviewer's list is printed.
       expect(all, entry.id).toContain(squeeze('Viewpoint 3: not captured.'))
       expect(all, entry.id).toContain(squeeze('To complete before signing'))
-      expect(all, entry.id).toContain(squeeze(report.footer))
+      // The report says nothing of itself on its face: no credit or disclaimer line, and no logo stand-in.
+      expect(report.footer, entry.id).toBe('')
+      expect(all, entry.id).not.toContain(squeeze('not a field-verified simulation'))
+      expect(all, entry.id).not.toContain(squeeze('Logo (your own)'))
     }
   })
 

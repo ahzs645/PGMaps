@@ -11,6 +11,7 @@ import { printedLogoSvg } from '@/branding/presentation'
  */
 import { sectionStations, type ToGrid } from './designExports'
 import { textWidth } from '@/lib/mapSheet/textMetrics'
+import { emptyFieldText, type EmptyFields } from '@/lib/mapSheet/emptyFields'
 import { horizontalCurveSummary, nearestStation } from './engine'
 import { STATION_MATCH_M } from './stationAt'
 import { reportingRows, rowFlags, type StationRow } from './stationReport'
@@ -111,6 +112,8 @@ function titleBlock(
   brand?: BrandRecord,
   unitsPerMm = 96 / 25.4,
   logo?: UploadedLogo | null,
+  /** What an empty revision or author prints (`RoadReportSettings.emptyFields`). */
+  emptyFields?: EmptyFields,
 ) {
   // Fit a field in its box: shrink the type first (to 70%), and only shorten what still does not fit.
   // Plain clipping cut "Rev A - draft for review" to "Rev A - draft for rev…" at full size.
@@ -128,8 +131,14 @@ function titleBlock(
     y = H - SHEET_FRAME.y - TITLE_BLOCK.height,
     split = x + 470
   const author = [stamp.preparedBy, stamp.organisation].filter(Boolean).join(', ')
-  const revision = stamp.revision ? `Rev ${stamp.revision.replace(/^rev(ision)?\.?\s*/i, '')}` : 'Rev not recorded'
-  return `<g font-family="system-ui,sans-serif" fill="#111827" data-role="title-block"><rect x="${x}" y="${y}" width="${TITLE_BLOCK.width}" height="${TITLE_BLOCK.height}" fill="#fff" stroke="#111827" stroke-width="${SHEET_FRAME.stroke}"/><line x1="${x}" x2="${x + TITLE_BLOCK.width}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + TITLE_BLOCK.height}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" ${size(project, 44, 16)} font-weight="700">${html(shown(project, 44))}</text><text x="${x + 610}" y="${y + 21}" ${size(revision, 22, 13)} font-weight="700" text-anchor="end" data-role="revision">${html(shown(revision, 22))}</text><text x="${x + 10}" y="${y + 45}" ${size(road, 62, 12)}>${html(shown(road, 62))}</text><text x="${x + 10}" y="${y + 60}" ${size(sheet, 62, 12)} font-weight="600">${html(shown(sheet, 62))}</text><text x="${x + 10}" y="${y + 75}" ${size(`${terrain.name} · ${terrain.verticalReference}`, 84, 10)} fill="#4b5563">${html(shown(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 89}" ${size(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84, 10)} data-role="prepared-by">${html(shown(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">${html(PLANNING_CAVEAT)}</text><text x="${split + 10}" y="${y + 48}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 63}" ${size(scale, 24, 10)}>${html(shown(scale, 24))}</text><text x="${split + 10}" y="${y + 80}" font-size="10" font-weight="600" data-role="issued">Issued ${html(stamp.date)}</text>${brand || logo ? printedLogoSvg(brand, logo, split + 10, y + 82, 130, 28, unitsPerMm) : `<text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">DDC Access</text>`}</g>`
+  const revision = stamp.revision
+    ? `Rev ${stamp.revision.replace(/^rev(ision)?\.?\s*/i, '')}`
+    : emptyFieldText(emptyFields, 'Rev not recorded', 'Rev')
+  // Left empty, the field keeps its label so it can be written in by hand.
+  const preparedBy = author
+    ? `Prepared by ${author}`
+    : emptyFieldText(emptyFields, 'Prepared by: not recorded', 'Prepared by:')
+  return `<g font-family="system-ui,sans-serif" fill="#111827" data-role="title-block"><rect x="${x}" y="${y}" width="${TITLE_BLOCK.width}" height="${TITLE_BLOCK.height}" fill="#fff" stroke="#111827" stroke-width="${SHEET_FRAME.stroke}"/><line x1="${x}" x2="${x + TITLE_BLOCK.width}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + TITLE_BLOCK.height}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" ${size(project, 44, 16)} font-weight="700">${html(shown(project, 44))}</text><text x="${x + 610}" y="${y + 21}" ${size(revision, 22, 13)} font-weight="700" text-anchor="end" data-role="revision">${html(shown(revision, 22))}</text><text x="${x + 10}" y="${y + 45}" ${size(road, 62, 12)}>${html(shown(road, 62))}</text><text x="${x + 10}" y="${y + 60}" ${size(sheet, 62, 12)} font-weight="600">${html(shown(sheet, 62))}</text><text x="${x + 10}" y="${y + 75}" ${size(`${terrain.name} · ${terrain.verticalReference}`, 84, 10)} fill="#4b5563">${html(shown(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 89}" ${size(preparedBy, 84, 10)} data-role="prepared-by">${html(shown(preparedBy, 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">${html(PLANNING_CAVEAT)}</text><text x="${split + 10}" y="${y + 48}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 63}" ${size(scale, 24, 10)}>${html(shown(scale, 24))}</text><text x="${split + 10}" y="${y + 80}" font-size="10" font-weight="600" data-role="issued">Issued ${html(stamp.date)}</text>${brand || logo ? printedLogoSvg(brand, logo, split + 10, y + 82, 130, 28, unitsPerMm) : `<text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">DDC Access</text>`}</g>`
 }
 
 /** One plan-and-profile sheet for the stations between `start` and `end`. */
@@ -712,7 +721,10 @@ function plotBookHtmlInChainage({
   sheetLengthM?: number
   sectionIntervalM?: number
   settings?: RoadReportSettings
-  /** Printed in every title block. A missing author or revision prints as not recorded. */
+  /**
+   * Printed in every title block. A missing author or revision prints its label alone, or "not
+   * recorded" when the settings' `emptyFields` is `stated`.
+   */
   issue?: ProjectIssue
   /** The day of printing, used when the stamp has no date of issue. */
   today?: Date
@@ -975,7 +987,7 @@ function plotBookHtmlInChainage({
   const pages = sheets
     .map(
       (sheet, i) =>
-        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"${sheet.chapter ? ` data-chapter="${html(sheet.chapter)}"` : ''}><rect width="${W}" height="${H}" fill="#fff"/><rect x="${SHEET_FRAME.x}" y="${SHEET_FRAME.y}" width="${W - 2 * SHEET_FRAME.x}" height="${H - 2 * SHEET_FRAME.y}" fill="none" stroke="#111827" stroke-width="${SHEET_FRAME.stroke}"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values', stamp, W, branding?.brand, W / REPORT_PAPERS[settings.paper].widthMm, logo)}</svg></section>`,
+        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"${sheet.chapter ? ` data-chapter="${html(sheet.chapter)}"` : ''}><rect width="${W}" height="${H}" fill="#fff"/><rect x="${SHEET_FRAME.x}" y="${SHEET_FRAME.y}" width="${W - 2 * SHEET_FRAME.x}" height="${H - 2 * SHEET_FRAME.y}" fill="none" stroke="#111827" stroke-width="${SHEET_FRAME.stroke}"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values', stamp, W, branding?.brand, W / REPORT_PAPERS[settings.paper].widthMm, logo, settings.emptyFields)}</svg></section>`,
     )
     .join('')
   const paper = REPORT_PAPERS[settings.paper]

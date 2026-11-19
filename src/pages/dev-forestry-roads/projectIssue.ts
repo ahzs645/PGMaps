@@ -1,4 +1,5 @@
 import { nameWithDesignation } from '@/branding/profile'
+import { emptyFieldText, type EmptyFields } from '@/lib/mapSheet/emptyFields'
 
 /**
  * The issue stamp printed on documents that leave the workspace: who prepared them, for whom, which
@@ -83,7 +84,10 @@ export interface IssueStamp {
   missing: string[]
 }
 
-/** The stamp as printed. A missing name or revision prints as "not recorded", never as a blank. */
+/**
+ * The stamp as printed. A missing name or revision is left empty here; each writer prints it through
+ * `emptyFieldText`, blank unless the project's report settings ask for "Not recorded".
+ */
 export function issueStamp(issue: ProjectIssue | undefined, today: Date = new Date()): IssueStamp {
   const value = issue ?? EMPTY_PROJECT_ISSUE
   const missing: string[] = []
@@ -100,12 +104,19 @@ export function issueStamp(issue: ProjectIssue | undefined, today: Date = new Da
   }
 }
 
-/** One line for a title block or a file header: "Rev B · 2026-11-09 · J. Smith, Northwood". */
-export function issueLine(stamp: IssueStamp): string {
+/**
+ * One line for a title block or a file header: "Rev B · 2026-11-09 · J. Smith, Northwood". A missing
+ * revision or author prints its label alone ("Rev", "Prepared by") unless `emptyFields` is `stated`,
+ * which prints "Revision not recorded" and "Author not recorded"; the dialog's own status line, which
+ * tells the author what is missing, always passes `stated`.
+ */
+export function issueLine(stamp: IssueStamp, emptyFields: EmptyFields | undefined): string {
   const who = [stamp.preparedBy, stamp.organisation].filter(Boolean).join(', ')
   return [
-    stamp.revision ? `Rev ${stamp.revision.replace(/^rev(ision)?\.?\s*/i, '')}` : 'Revision not recorded',
+    stamp.revision
+      ? `Rev ${stamp.revision.replace(/^rev(ision)?\.?\s*/i, '')}`
+      : emptyFieldText(emptyFields, 'Revision not recorded', 'Rev'),
     `Issued ${stamp.date}`,
-    who ? `Prepared by ${who}` : 'Author not recorded',
+    who ? `Prepared by ${who}` : emptyFieldText(emptyFields, 'Author not recorded', 'Prepared by'),
   ].join(' · ')
 }

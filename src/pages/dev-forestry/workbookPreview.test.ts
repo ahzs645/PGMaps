@@ -15,7 +15,6 @@ const note: BlockNote = {
   sentences: [],
   landform: [{ label: 'Landform alteration', value: '0.3% perspective' }],
   views: [{ caption: 'Viewpoint 3, toward Block A.', dataUrl: PNG, width: 4, height: 4 }],
-  missingViews: [],
   planMap: null,
   notes: ['Terrain: AWS Open Data (CDEM/SRTM).'],
   generatedAt: new Date('2026-11-15T12:00:00Z'),

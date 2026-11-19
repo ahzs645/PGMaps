@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { ArrowDown, ArrowUp, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { DocumentContents } from '@/components/ui/document-contents'
 import { FileButton } from '@/components/ui/file-button'
 import {
   CheckboxField,
@@ -9,7 +9,6 @@ import {
   FormField,
   NullableNumberField,
   SelectField,
-  StyledSelect,
 } from '@/components/ui/form-field'
 import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -20,8 +19,9 @@ import { cn } from '@/lib/utils'
 
 import { DEFAULT_OVERVIEW_SHEET_STYLE, OVERVIEW_SHEET_STYLES, type OverviewSheetStyle } from './reportMaps'
 import { deleteOwnRecipe, putOwnRecipe, type OwnRecipes } from './userRecipeStore'
+import { recipeContentsControls } from './viaReportContentsControls'
 import { VIA_DOCUMENT_FORMATS } from './viaDocument/formats'
-import { partCatalogue, partLabel } from './viaReport/recipeMakeup'
+import { baseRecipeOf, recipeContents } from './viaReport/recipeContents'
 import { DEFAULT_OBLIQUE_PITCH, type ReportRecipe } from './viaReport/recipes'
 import {
   copyRecipe,
@@ -34,25 +34,16 @@ import {
   recipeFileText,
 } from './viaReport/userRecipes'
 
-const iconButton =
-  'inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40'
-
 /**
  * Your own recipe's choices, each written to this browser as it changes: its name and report title, the document
  * format, the figure style, the paper, cover and contents, the recipe options, the oblique renders' pitch, the overview
- * sheet, and its parts in order, each added from the shared parts and never copied.
+ * sheet, and its parts in order, each added from the shared parts and never copied. The parts are the same shared
+ * contents list, with the same controls, as the VIA report's *What goes in* (`recipeContentsControls`).
  */
 export function RecipeEditor({ recipe }: { recipe: ReportRecipe }) {
   const change = (next: Parameters<typeof editRecipe>[1]) => putOwnRecipe(editRecipe(recipe, next))
-  const [adding, setAdding] = useState('')
-  const catalogue = partCatalogue()
   const layout = { paper: 'letter' as const, cover: false, contents: false, ...recipe.layout }
-  const move = (from: number, to: number) => {
-    const parts = [...recipe.parts]
-    const [part] = parts.splice(from, 1)
-    parts.splice(to, 0, part)
-    change({ parts })
-  }
+  const contents = recipeContents(recipe, { base: baseRecipeOf(recipe)?.parts ?? null })
   const setOption = (key: string, value: unknown) => {
     const options: Record<string, unknown> = { ...recipe.options }
     if (value === undefined) delete options[key]
@@ -194,79 +185,13 @@ export function RecipeEditor({ recipe }: { recipe: ReportRecipe }) {
           )
         })}
       </fieldset>
-      <section className="grid min-w-0 gap-1.5" aria-label="Parts">
-        <h5 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Parts, in print order</h5>
-        <ol className={cn(insetBox({ padding: 'none' }), 'divide-y overflow-hidden')}>
-          {recipe.parts.map((id, index) => {
-            const part = catalogue.find((entry) => entry.id === id)
-            return (
-              <li key={`${index}-${id}`} className="flex min-w-0 items-center gap-1.5 px-2 py-1 text-xs">
-                <span className="w-5 shrink-0 text-right tabular-nums text-muted-foreground">{index + 1}</span>
-                <span className="min-w-0 flex-1 truncate" title={id}>
-                  {partLabel(id)}
-                  {part?.sources.length ? (
-                    <span className="text-muted-foreground"> · {part.sources.join(', ')}</span>
-                  ) : null}
-                </span>
-                <button
-                  type="button"
-                  className={iconButton}
-                  aria-label={`Move ${partLabel(id)} up`}
-                  disabled={index === 0}
-                  onClick={() => move(index, index - 1)}
-                >
-                  <ArrowUp className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  className={iconButton}
-                  aria-label={`Move ${partLabel(id)} down`}
-                  disabled={index === recipe.parts.length - 1}
-                  onClick={() => move(index, index + 1)}
-                >
-                  <ArrowDown className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  className={iconButton}
-                  aria-label={`Remove ${partLabel(id)}`}
-                  disabled={recipe.parts.length === 1}
-                  onClick={() => change({ parts: recipe.parts.filter((_, at) => at !== index) })}
-                >
-                  <X className="size-3.5" />
-                </button>
-              </li>
-            )
-          })}
-        </ol>
-        <div className="flex min-w-0 items-center gap-2">
-          <StyledSelect
-            aria-label="Part to add"
-            className="min-w-0 flex-1 rounded-md border bg-background p-1"
-            value={adding}
-            onChange={(event) => setAdding(event.target.value)}
-          >
-            <option value="">Add a shared part…</option>
-            {catalogue.map((part) => (
-              <option key={part.id} value={part.id}>
-                {partLabel(part.id)} · {part.sources.join(', ') || 'PGMaps'}
-                {recipe.parts.includes(part.id) ? ' (in this recipe)' : ''}
-              </option>
-            ))}
-          </StyledSelect>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!adding}
-            onClick={() => {
-              change({ parts: [...recipe.parts, adding] })
-              setAdding('')
-            }}
-          >
-            Add at the end
-          </Button>
-        </div>
-      </section>
+      {/* The recipe is chosen above, as the package's recipe: no preset row here. */}
+      <DocumentContents
+        title="Parts"
+        subject="your recipe"
+        parts={contents.parts}
+        {...recipeContentsControls({ recipe, recipes: [recipe], onChoose: () => {}, presets: false })}
+      />
     </div>
   )
 }
@@ -379,7 +304,7 @@ export function OwnRecipeTools({
       <p className="text-2xs text-muted-foreground">
         {isOwn
           ? 'Your own recipe, kept in this browser for every assessment. Share it as a file to use it in another browser.'
-          : 'Make a copy to change this recipe: its parts, their order, the format, the figure style, the paper and the options. Copies are kept in this browser.'}
+          : 'Make a copy to change this recipe: the format, the figure style, the paper and the options. A change to its parts in the VIA report’s What goes in makes the copy for you. Copies are kept in this browser.'}
       </p>
       {message && <InlineAlert tone={message.tone}>{message.text}</InlineAlert>}
       {own.writeError && <InlineAlert tone="warning">{own.writeError}</InlineAlert>}
