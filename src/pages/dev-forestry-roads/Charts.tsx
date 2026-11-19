@@ -19,9 +19,19 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight, PanelBottom, Rows3, TableProperties } from 'lucide-react'
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ListChecks,
+  PanelBottom,
+  Rows3,
+  TableProperties,
+  type LucideIcon,
+} from 'lucide-react'
 import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
+import { ToolbarPopover } from '@/components/ui/toolbar-popover'
 import { InfoTip } from '@/components/ui/info-tip'
 import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
 import { axisTicks } from './chartScale'
@@ -647,23 +657,52 @@ export function useChartHeaderControls() {
  * from 284 px: more than the grip reserve folding gives back.
  */
 const CHART_FOLD: FoldThresholds = { foldBelow: 260, unfoldFrom: 284 }
+/**
+ * Below this slot width the chart's on/off toggles (its `settings`, bands, value bands, details) share
+ * one "View options" button, so a narrow panel's header keeps the view picker and the panel's own
+ * buttons on screen. The header sits outside the slot, so folding it cannot change the width measured here.
+ */
+export const CHART_TOGGLES_FOLD_BELOW_PX = 600
+/** Below this slot width the vertical exaggeration reads "×25" rather than "V ×25 auto"; its tooltip keeps the rest. */
+export const PROFILE_SHORT_SCALE_BELOW_PX = 480
+/** Below this slot width the profile drops its + and − buttons: the wheel and a pinch still zoom it. */
+export const PROFILE_ZOOM_BUTTONS_FROM_PX = 420
+
+/** An on/off setting a folded chart header lists as a row. */
+export type ChartToggleRow = {
+  /** Accessible name, the same as the header button's. */
+  label: string
+  text: string
+  icon: LucideIcon
+  on: boolean
+  flip: () => void
+}
 
 function ChartSlot({
   children,
   footer,
   notice,
+  settings,
   bands,
   valueBands,
   measurement,
 }: {
-  /** May return absolutely positioned controls beside the svg; they float over the chart. */
-  children: (width: number, height: number) => ReactNode
+  /**
+   * May return absolutely positioned controls beside the svg; they float over the chart. `folded` is
+   * true while `settings` are listed under the folded header button, so the chart leaves out their own.
+   */
+  children: (width: number, height: number, folded: boolean) => ReactNode
   footer?: ReactNode
   /**
    * Status outside the plot, still visible when the legend and readouts are folded: first among the
    * panel header's chart controls, or in the toggle row above the plot outside a `ChartHeader`.
    */
   notice?: ReactNode
+  /**
+   * The chart's own on/off settings, which its toolbar shows as buttons. When the slot folds they lead
+   * the folded list instead (see `children`'s `folded`).
+   */
+  settings?: ChartToggleRow[]
   /** Data bands that line up under the plot, folded until the header toggle opens them. */
   bands?: { label: string; content: ReactNode }
   /** A second set of bands under the plot with its own header toggle, remembered in this browser. */
@@ -677,7 +716,8 @@ function ChartSlot({
   const ref = useRef<HTMLDivElement>(null)
   // Folding the readouts away gives the slot back the panel's grip reserve (`data-axis-at-bottom`,
   // panel-corner.css: up to 19 px), so the fold needs a gap wider than that (`useSizeFold`).
-  const compact = useSizeFold(useElementSize(ref).height, CHART_FOLD)
+  const size = useElementSize(ref)
+  const compact = useSizeFold(size.height, CHART_FOLD)
   const header = useContext(ChartHeaderContext)
   const [localView, setLocalView] = useState<ChartView | null>(null)
   const [bandsOpen, setBandsOpen] = useState(false)
@@ -728,12 +768,75 @@ function ChartSlot({
       <PanelBottom className="size-3.5" />
     </Button>
   )
+  // A narrow slot lists its toggles in one panel. An unmeasured slot (0) keeps the buttons.
+  const rows: ChartToggleRow[] = [
+    ...(settings ?? []),
+    bands && {
+      label: bands.label,
+      text: bands.label,
+      icon: Rows3,
+      on: bandsOpen,
+      flip: () => setBandsOpen(!bandsOpen),
+    },
+    valueBands && {
+      label: valueBands.label,
+      text: valueBands.label,
+      icon: TableProperties,
+      on: valueBandsOpen,
+      flip: () => setValueBandsOpen(!valueBandsOpen),
+    },
+    footer && {
+      label: 'Details below chart',
+      text: 'Legend & readouts',
+      icon: PanelBottom,
+      on: showDetails,
+      flip: () => (header ? header.setView : setLocalView)(showDetails ? 'chart' : 'both'),
+    },
+  ].filter((row): row is ChartToggleRow => !!row)
+  const foldToggles = rows.length > 1 && size.width > 0 && size.width < CHART_TOGGLES_FOLD_BELOW_PX
+  const foldedToggles = foldToggles && (
+    <ToolbarPopover
+      label="View options"
+      icon={<ListChecks className="size-3.5" />}
+      count={rows.filter((row) => row.on).length}
+      align="end"
+      width={320}
+      variant="ghost"
+      buttonClassName="size-8 text-muted-foreground"
+    >
+      {/* minmax(0, 1fr): a grid row's minimum is otherwise its label's full width, which pushed the rows past the
+          panel and cut them off instead of ellipsizing. */}
+      <div role="group" aria-label="View options" className="grid grid-cols-[minmax(0,1fr)] gap-0.5 p-1.5 text-xs">
+        {rows.map(({ label, text, icon: Icon, on, flip }) => (
+          <Button
+            key={label}
+            size="xs"
+            variant={on ? 'secondary' : 'ghost'}
+            className="w-full justify-start"
+            aria-label={label}
+            aria-pressed={on}
+            onClick={flip}
+          >
+            <Icon className="size-3.5" aria-hidden />
+            <span className="min-w-0 truncate">{text}</span>
+            {on && <Check className="ml-auto" aria-hidden />}
+          </Button>
+        ))}
+      </div>
+    </ToolbarPopover>
+  )
   const switcher = (notice || bandsToggle || valueBandsToggle || detailsToggle) && (
     <>
       {notice}
-      {bandsToggle}
-      {valueBandsToggle}
-      {detailsToggle}
+      {foldToggles ? (
+        foldedToggles
+      ) : (
+        <>
+          {bandsToggle}
+          {valueBandsToggle}
+          {detailsToggle}
+        </>
+      )}
     </>
   )
   return (
@@ -763,7 +866,7 @@ function ChartSlot({
             <SizedChart height={height}>
               {(width) => (
                 <>
-                  {children(width, height)}
+                  {children(width, height, foldToggles)}
                   {measurement && (
                     <ChartMeasurementReadout
                       measurement={measurement.reading}
@@ -1127,7 +1230,9 @@ export function ProfileChart({
   // Pan arrows sit on the plot's own left and right edges, where the hidden road continues.
   const edge =
     'pointer-events-auto absolute flex h-10 w-5 -translate-y-1/2 items-center justify-center rounded-md border bg-background/80 text-muted-foreground opacity-70 shadow-sm backdrop-blur-sm transition-opacity hover:text-foreground hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring touch:h-12 touch:w-8 [&_svg]:size-3.5'
-  const toolbar = (exaggeration: number, width: number, frame: ReturnType<typeof chartFrame>) => {
+  const toolbar = (exaggeration: number, width: number, frame: ReturnType<typeof chartFrame>, folded: boolean) => {
+    // A narrow header gives the view picker room first: a shorter scale label, then no + and −.
+    const shortScale = width < PROFILE_SHORT_SCALE_BELOW_PX
     const bar = (
       <div
         role="toolbar"
@@ -1144,20 +1249,32 @@ export function ProfileChart({
             {formatRoadStation(visibleStart)}–{formatRoadStation(visibleEnd)}
           </span>
         )}
-        {editing.snapToggle(control)}
-        <Button className={control} size="sm" variant="ghost" aria-label="Zoom profile in" onClick={() => zoom(0.5)}>
-          +
-        </Button>
-        <Button
-          className={control}
-          size="sm"
-          variant="ghost"
-          aria-label="Zoom profile out"
-          disabled={!zoomed}
-          onClick={() => zoom(2)}
-        >
-          −
-        </Button>
+        {/* Folded, the snap toggle is a row of the header's View options. */}
+        {!folded && editing.snapToggle(control)}
+        {/* A narrow pane keeps Fit (shown while zoomed) as the way back; the wheel and a pinch zoom. */}
+        {width >= PROFILE_ZOOM_BUTTONS_FROM_PX && (
+          <>
+            <Button
+              className={control}
+              size="sm"
+              variant="ghost"
+              aria-label="Zoom profile in"
+              onClick={() => zoom(0.5)}
+            >
+              +
+            </Button>
+            <Button
+              className={control}
+              size="sm"
+              variant="ghost"
+              aria-label="Zoom profile out"
+              disabled={!zoomed}
+              onClick={() => zoom(2)}
+            >
+              −
+            </Button>
+          </>
+        )}
         {(zoomed || verticalScale !== 'fit') && (
           <Button
             className={control}
@@ -1186,15 +1303,21 @@ export function ProfileChart({
             {
               value: 'fit',
               label: `Auto (×${format(exaggeration, 1)})`,
-              selectedLabel: (
+              selectedLabel: shortScale ? (
+                `×${format(exaggeration, exaggeration >= 10 ? 0 : 1)}`
+              ) : (
                 <>
                   V ×{format(exaggeration, exaggeration >= 10 ? 0 : 1)}{' '}
                   <span className="text-muted-foreground">auto</span>
                 </>
               ),
             },
-            { value: '1', label: '×1 · true scale', selectedLabel: 'V ×1' },
-            ...['2', '5', '10'].map((value) => ({ value, label: `×${value}`, selectedLabel: `V ×${value}` })),
+            { value: '1', label: '×1 · true scale', selectedLabel: shortScale ? '×1' : 'V ×1' },
+            ...['2', '5', '10'].map((value) => ({
+              value,
+              label: `×${value}`,
+              selectedLabel: shortScale ? `×${value}` : `V ×${value}`,
+            })),
           ]}
         />
         {/* Separates the chart's own controls from the panel's toggles after it. */}
@@ -1249,6 +1372,7 @@ export function ProfileChart({
   }
   return (
     <ChartSlot
+      settings={editing.snapRow ? [editing.snapRow] : undefined}
       measurement={
         !rangePick
           ? {
@@ -1355,7 +1479,7 @@ export function ProfileChart({
         </>
       }
     >
-      {(width, height) => {
+      {(width, height, folded) => {
         const frame = chartFrame(width, height, domain, profileTop, profileBottom)
         const targetScale = verticalScale === 'fit' ? 1 : Number(verticalScale)
         const halfSpan = ((domain[1] - domain[0]) * frame.plotHeight) / frame.plotWidth / (2 * targetScale)
@@ -2340,7 +2464,7 @@ export function ProfileChart({
               )}
               {editing.cursor(f, width)}
             </svg>
-            {toolbar(actualExaggeration, width, f)}
+            {toolbar(actualExaggeration, width, f, folded)}
             {editing.html(f)}
           </>
         )

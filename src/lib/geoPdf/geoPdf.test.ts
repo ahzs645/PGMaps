@@ -285,6 +285,9 @@ describe.skipIf(!privateMaps)('local Canfor source sheets', () => {
         const heights = Array.from(surface!.values).filter(Number.isFinite)
         expect(heights.length).toBeGreaterThan(surface!.values.length / 2)
         expect(Math.min(...heights.slice(0, 50_000))).toBeGreaterThanOrEqual(700)
+        // The profile assumes the datum and metres, which the import offers ticked.
+        const terrain = result.layers.find((l) => l.contourSurface)!
+        expect(terrain.assumedVerticalDatum?.reference).toBe('CGVD2013 (CGG2013), EPSG:6647; metres')
       }
     }
   }, 600_000)

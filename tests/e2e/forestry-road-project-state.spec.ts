@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { createDemoProject } from '../../src/pages/dev-forestry-roads/terrain'
 import { choose } from './styled-select'
+import { pressChartToggle } from './road-chart-toggles'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1280, height: 800 } })
 test.setTimeout(60_000)
@@ -42,8 +43,7 @@ test('a project opened from training survives reload, and incomplete-section sta
   await expect(notice).toBeVisible()
   await expect(notice).toContainText('It is left out of quantities.')
   await expect(section).toBeVisible()
-  const toggle = page.getByRole('button', { name: 'Details below chart', exact: true }).filter({ visible: true })
-  if ((await toggle.getAttribute('aria-pressed')) === 'true') await toggle.click()
+  await pressChartToggle(page, page, 'Details below chart', false)
   await expect(notice).toBeVisible()
   expect(await notice.evaluate((element) => !!element.closest('svg'))).toBe(false)
   await expect(section.getByText(/Incomplete section/)).toHaveCount(0)

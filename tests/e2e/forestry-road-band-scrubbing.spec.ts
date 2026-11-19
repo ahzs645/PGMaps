@@ -1,6 +1,7 @@
 import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { pressChartToggle, profilePanel } from './road-chart-toggles'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 }, hasTouch: true })
 test.setTimeout(120_000)
@@ -16,7 +17,7 @@ async function prepare(page: Page) {
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await expect(page.getByTestId('road-profile-chart').locator('path[stroke="#a07845"]')).not.toHaveAttribute('d', '')
   const bands = page.getByTestId('road-engineering-bands')
-  await page.getByRole('button', { name: 'Grade, curve, template & material bands', exact: true }).click()
+  await pressChartToggle(page, profilePanel(page), 'Grade, curve, template & material bands')
   const svg = bands.getByRole('group', { name: 'Connected profile data bands; click or drag to inspect a station' })
   await expect(svg).toBeVisible()
   await svg.scrollIntoViewIfNeeded()

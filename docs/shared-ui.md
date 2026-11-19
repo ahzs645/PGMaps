@@ -463,7 +463,11 @@ Felt-style "layers, legend, table" pages. `/dev/data` is the reference.
   `useChartHeaderControls`, and its chips take a row only while a filter is on.
 - `FileDropTarget` (`file-drop-target.tsx`): wraps a map. While files are
   dragged over it, it shows a "drop to add" overlay, then hands the parent a
-  `File[]`. Dragged text and links are ignored.
+  `File[]`, or with `onPickedFiles` (and `onError`) the `PickedFile[]` of
+  `filesFromDrop`, dropped folders walked. Dragged text and links are ignored.
+  A drop field inside it that takes its own drop keeps it. A page that cannot
+  add a wrapper element spreads `useFileDrop`'s `dropProps` on its own
+  positioned element and renders its `overlay` (the road designer's workspace).
 - `ColumnStatsSummary` (`column-stats.tsx`): Felt's column stats: rows with a
   value, empty rows, distinct values, min/median/max/mean/sum for numbers, and
   the most common values for text. Pass the column's own `formatValue`.
@@ -567,10 +571,6 @@ track grows to the longest cell in any column.
   `RecordEmptyState` when the record has nothing to show.
 - `PanelDialog`: settings, pickers and libraries (optional footer).
 
-### Storage dialog
-
-`StorageDialog` (`storage-dialog.tsx`) is the one panel for what the site keeps in this browser: usage and protection, the offline tools, what can be cleared, and a person's own work. The navbar opens it as **Offline and storage**; a tool that wants its own entry point mounts the same component (`open`, `onOpenChange`, optional `trigger`) and never builds a second panel. It reads `STORE_CATALOGUE` (`src/lib/storage/siteStorage.ts`): a tool that starts keeping something adds an entry there and gets a row, a size and, for a `download`, a **Clear**. See `docs/app-updates-and-caching.md`, **Managing what is kept**.
-
 ### Zoom and pan
 
 `ZoomPan` (`src/components/ui/zoom-pan.tsx`) lets a picture be zoomed and panned in the box it is given, as a map can: the wheel or a pinch zooms about the pointer, a drag moves a zoomed picture, and the buttons in its corner step in, step out and fit it again. Use it for a photograph or a drawing a person needs to read closely; never give a page its own wheel listener or transform for that.
@@ -583,6 +583,10 @@ track grows to the longest cell in any column.
 - The arithmetic (`zoomAbout`, `clampView`, `fitBox`) is in `zoomPanView.ts`, free of DOM access, and tested there: the spot under the pointer stays under it, and a picture never leaves a gap at an edge of its box.
 
 In use: the own photo on `/dev/forestry/visual-quality`'s Camera tab (`PhotoWithOverlays`'s `fit`) and its comparison with the model view, overlaid or side by side (`PhotoCompare`).
+
+### Storage dialog
+
+`StorageDialog` (`storage-dialog.tsx`) is the one panel for what the site keeps in this browser: usage and protection, the offline tools, what can be cleared, and a person's own work. The navbar opens it as **Offline and storage**; a tool that wants its own entry point mounts the same component (`open`, `onOpenChange`, optional `trigger`) and never builds a second panel. It reads `STORE_CATALOGUE` (`src/lib/storage/siteStorage.ts`): a tool that starts keeping something adds an entry there and gets a row, a size and, for a `download`, a **Clear**. See `docs/app-updates-and-caching.md`, **Managing what is kept**.
 
 ## Your details and person fields
 

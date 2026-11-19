@@ -68,6 +68,8 @@ export interface SpatialFile {
     imageMosaic?: import('@/lib/geoPdf/types').PdfImageMosaic
     /** Terrain from the sheet's contours: only ever the project's terrain, never a reference layer. */
     contourSurface?: import('@/lib/geoPdf/contours').PdfContourSurface
+    /** The company profile's assumed datum for the contour surface, offered ticked in the import. */
+    assumedVerticalDatum?: import('@/lib/geoPdf/profiles').AssumedVerticalDatum
   }
   notices?: string[]
   selected?: boolean

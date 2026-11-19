@@ -149,8 +149,9 @@ book.
 
 ### Bringing spatial files in
 
-Open **Layers** on the plan, or under **View → Map layers** in the ribbon. Drop a folder or use
-**Add folder** or **Add files**. The pane reads each shapefile with its matching sidecars from the
+Drop files or a folder anywhere on the designer, or open **Layers** on the plan (or under
+**View → Map layers** in the ribbon) and use **Add folder** or **Add files**. A drop opens the
+same review as the pane, and Layers opens once the import loads so the new layers show there. The pane reads each shapefile with its matching sidecars from the
 same directory, including subfolders. It also takes zipped shapefiles, GeoJSON, KML and KMZ.
 Supported Canfor ArcGIS map PDFs can be added here too: a company profile reads the registered
 map frame and recognized vector layers in a browser worker. The review dialog lets you select
@@ -1260,6 +1261,16 @@ a desktop); elsewhere Download is the only button, since Save as… would do the
   series. The Map PDF builds through the same path as its Download, opening and moving the plan.
 - **On Download only:** the **Report package**, which is one PDF or a zip of several depending on its
   parts (`DOWNLOAD_ONLY_EXPORTS`).
+
+### What the preview shows
+
+- **A PDF laid out from the report's HTML previews as the file itself.** Report PDF and Preliminary
+  estimate are drawn afresh by jsPDF (`reportPdfBlob`), so their preview is the PDF they download,
+  page by page in the browser's viewer. Clicking a heading to open Contents works in the Report
+  HTML preview.
+- **The project file previews as a summary,** never its text (`projectFilePreview.ts`): the roads,
+  the terrain and whether its grid is stored, and a count of each other part it holds. It is counted
+  from the project, so a large terrain is not written out to show it.
 
 ### One road or every road
 

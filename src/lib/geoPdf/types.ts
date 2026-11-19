@@ -118,6 +118,8 @@ export interface PdfLayer {
   mosaicPixels?: Uint8Array[]
   /** Terrain grid built from the sheet's labelled contours; offered as terrain, never a reference drawing. */
   contourSurface?: import('./contours').PdfContourSurface
+  /** The profile's assumed datum for the contour surface, when its legend states the interval in metres. */
+  assumedVerticalDatum?: import('./profiles').AssumedVerticalDatum
 }
 export interface PdfImport {
   sha256: string

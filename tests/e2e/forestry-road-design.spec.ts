@@ -4,6 +4,7 @@ import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
 import { choose, optionDisabled, optionEntries, optionLabels } from './styled-select'
 import { chooseExport } from './road-files'
+import { pressChartToggle, profilePanel } from './road-chart-toggles'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -658,7 +659,7 @@ test('named templates, live previews, material horizons and libraries reach the 
   await fillNumber(page, 'Assignment 1 end (m)', 400)
   await fillNumber(page, 'Assignment 1 transition (m)', 10)
   await expect.poll(async () => (await mapState(page))?.formation).not.toEqual(initialFormation)
-  await page.getByRole('button', { name: /Grade, curve, template & material bands/ }).click()
+  await pressChartToggle(page, profilePanel(page), 'Grade, curve, template & material bands')
   await expect(page.getByTestId('road-engineering-bands')).toContainText('Two-lane test section')
   await linkedStation(page, 250)
 

@@ -22,7 +22,7 @@ plumbing.
   holds the grade out. Keyboard: Alt+→ and Alt+← on a focused PVI slide it 5 m the same way.
 - **Drag a tangent's grip** up or down to move both its PVIs together; its own grade does not
   change. Keyboard: ↑ and ↓ on a focused grip move it 0.1 m (Shift: 1 m).
-- **Snap grades.** The magnet on the profile toolbar snaps a grade to the nearest 0.5 % while
+- **Snap grades.** The magnet on the profile toolbar (in a narrow panel, a row of **View options**) snaps a grade to the nearest 0.5 % while
   dragging (on by default; the choice is kept in this browser). A plain PVI drag rounds whichever
   adjacent grade needs the smaller change of level; a Shift-drag rounds the free grade by where the
   PVI sits on the held line; a tangent drag rounds the nearer outer grade. The snapped grade shows

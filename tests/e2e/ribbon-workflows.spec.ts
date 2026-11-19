@@ -23,9 +23,13 @@ async function readDownload(download: Download) {
 }
 
 async function exportProject(page: Page): Promise<RoadProject> {
-  const pending = page.waitForEvent('download')
   await button(ribbon(page), 'Save project file').click()
-  return JSON.parse(await readDownload(await pending))
+  const dialog = page.getByRole('dialog', { name: 'Save & export', exact: true })
+  const pending = page.waitForEvent('download')
+  await dialog.getByRole('button', { name: 'Save project JSON', exact: true }).click()
+  const project = JSON.parse(await readDownload(await pending))
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  return project
 }
 
 function tab(page: Page, name: string) {

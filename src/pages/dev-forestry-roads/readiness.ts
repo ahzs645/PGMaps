@@ -46,6 +46,7 @@ import type { SweptPathResult } from './sweptPath'
 import { reviewRoadHaul, type RoadHaulReview } from './haulReview'
 import { DEFAULT_TEMPLATE } from './terrain'
 import { terrainResolution } from './tinGround'
+import { isContourTerrain } from './contourTerrain'
 import type {
   Alignment,
   ContextFeature,
@@ -80,6 +81,8 @@ export type ReadinessTarget =
   | 'constraints'
   | 'haul-destination'
   | 'cross-drain-guide'
+  /** Widen a contour terrain to every road with the regional DEM (`fillBeyondContours`). */
+  | 'regional-fill'
 
 export interface ReadinessRow {
   id: string
@@ -165,7 +168,7 @@ export interface ReadinessInput {
   standards?: DesignStandards
   terrain: Pick<
     TerrainMetadata,
-    'kind' | 'name' | 'resolutionM' | 'verticalReference' | 'fill' | 'relief' | 'preparation'
+    'kind' | 'name' | 'resolutionM' | 'verticalReference' | 'fill' | 'relief' | 'preparation' | 'raster'
   >
   context: readonly ContextFeature[]
   alignment: Alignment
@@ -584,9 +587,15 @@ function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
         .map(span)
         .join(', ')}${gaps.length > 3 ? ` and ${gaps.length - 3} more` : ''}`,
       judgedOn: '100% of the road length',
-      action: gaps.length
-        ? { label: `Go to ${station(gaps[0].start)}`, target: 'station', chainage: gaps[0].start }
-        : undefined,
+      // A sheet's contours stop at its frame and its unlabelled ground: where that is why the road
+      // has no ground, the regional DEM can fill it, as the import's own fill does.
+      action:
+        isContourTerrain(terrain.raster) &&
+        stations.some((s) => s.groundElevation === null || s.section.some((p) => p.ground === null))
+          ? { label: 'Fill from the regional DEM', target: 'regional-fill' }
+          : gaps.length
+            ? { label: `Go to ${station(gaps[0].start)}`, target: 'station', chainage: gaps[0].start }
+            : undefined,
     })
 
   const sheet = input.slopeSheet

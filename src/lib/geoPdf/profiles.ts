@@ -48,6 +48,20 @@ export interface ContourConventions {
   statedInterval?: RegExp
   /** A printed contour height. Defaults to an optionally signed whole number of 1–5 digits. */
   label?: RegExp
+  /**
+   * The vertical datum and units this company's sheets are taken to use, since they print no datum:
+   * offered ticked in the import so the person is not asked, and named as assumed in the terrain's
+   * datum text. It applies to every contour surface the profile reads, legend or not.
+   */
+  assumedVerticalDatum?: AssumedVerticalDatum
+}
+
+/** A company's sheets' vertical datum, assumed rather than read: what it is and why. */
+export interface AssumedVerticalDatum {
+  /** One of the import's datum choices, as the terrain records it. */
+  reference: string
+  /** Why it is assumed, printed beside the choice and kept with the terrain. */
+  basis: string
 }
 
 export interface PdfTemplateProfile {
@@ -99,7 +113,14 @@ export const CANFOR_PROFILE: PdfTemplateProfile = {
     { kind: 'imagery', layer: 'ESRI - World Imagery', name: 'Ortho imagery', selected: false },
   ],
   legend: { swatchWidth: [8, 40], swatchHeight: [4, 20], placement: 'right-of-frame', labelGap: 12, labelOffset: 5 },
-  contours: { statedInterval: /^Contours\s*-\s*(\d+)\s*m$/i },
+  contours: {
+    statedInterval: /^Contours\s*-\s*(\d+)\s*m$/i,
+    assumedVerticalDatum: {
+      reference: 'CGVD2013 (CGG2013), EPSG:6647; metres',
+      basis:
+        "Canfor's sheets print no datum. Their contours are in metres (the field sheet's legend says so) and are drawn from the block's LiDAR, which BC's LiDAR specification delivers in CGVD2013.",
+    },
+  },
   transparentFill: [0, 0, 0],
 }
 

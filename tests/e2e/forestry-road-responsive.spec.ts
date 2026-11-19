@@ -1,6 +1,7 @@
 import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import { choose } from './styled-select'
+import { chartToggle } from './road-chart-toggles'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 15000 })
 test.setTimeout(180000)
@@ -297,12 +298,14 @@ test('short workspace keeps controls internally scrollable, reaches all engineer
   }
   await tabs.getByRole('tab', { name: 'Profile', exact: true }).click()
   const profile = page.getByRole('region', { name: 'Road profile · ground & formation', exact: true })
-  // A short chart starts folded; the header toggle shows the details under it.
-  const details = profile.getByRole('button', { name: 'Details below chart', exact: true })
+  // A short chart starts folded; the header toggle shows the details under it. A narrow panel lists
+  // that toggle with the band toggles under one button.
+  const { toggle: details, close } = await chartToggle(page, profile, 'Details below chart')
   await expect(details).toHaveAttribute('aria-pressed', 'false')
   await details.click()
   await expect(details).toHaveAttribute('aria-pressed', 'true')
   await expect(profile.locator('[data-chart-slot]')).toHaveAttribute('data-chart-view', 'both')
+  await close()
   await expectContained(page)
   await profile.getByRole('button', { name: 'Fullscreen Road profile · ground & formation', exact: true }).click()
   await expect(profile).toHaveAttribute('data-fullscreen', 'true')

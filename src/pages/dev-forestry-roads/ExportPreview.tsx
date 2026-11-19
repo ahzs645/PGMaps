@@ -96,6 +96,17 @@ function HtmlPreview({ html, title, onPick }: { html: string; title: string; onP
   )
 }
 
+/** A PDF as it downloads, page by page in the browser's own viewer; the address is let go with the preview. */
+function PdfPreview({ blob, title }: { blob: Blob; title: string }) {
+  const frame = useRef<HTMLIFrameElement>(null)
+  useEffect(() => {
+    const url = URL.createObjectURL(blob)
+    if (frame.current) frame.current.src = url
+    return () => URL.revokeObjectURL(url)
+  }, [blob])
+  return <iframe ref={frame} title={`${title} preview`} className="h-full min-h-80 w-full rounded-md border bg-white" />
+}
+
 /**
  * One output's preview, from the same content the download writes. `onPick` makes the parts of a
  * document preview that have settings open them: a title block, a sheet, a report heading, or the
@@ -113,6 +124,8 @@ export function ExportPreviewView({
   switch (preview.type) {
     case 'html':
       return <HtmlPreview html={preview.html} title={title} onPick={onPick} />
+    case 'pdf':
+      return <PdfPreview blob={preview.blob} title={title} />
     case 'image': {
       const image = (
         <img

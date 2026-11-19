@@ -90,6 +90,8 @@ export interface SidebarProps {
   onCommand?: (id: WorkspaceCommand) => void
   /** Opens Load 1 m DEM on a road, at the LidarBC source (the incomplete-section fixes). */
   onFindTerrain?: (alignmentId: string) => void
+  /** Widens a contour terrain to every road, taking the ground it lacks from the regional DEM. */
+  onFillTerrainFromRegional?: () => void
   /** Loads a mapped road from context as a road whose formation follows the ground. */
   onLoadMappedRoad?: (featureId: string) => void
   /** Loads every mapped road with a part in the plan's view, each as its own road. */

@@ -95,6 +95,8 @@ export function ReviewTab(
         return p.onShowCulverts?.(action.chainage)
       case 'drainage':
         return p.onShowDrainage?.()
+      case 'regional-fill':
+        return p.onFillTerrainFromRegional?.()
       case 'vehicle': {
         // The standards' design vehicle is run on a road that has no check of its own yet.
         const check = alignment.vehicleCheck ? null : standardVehicleCheck(project.standards)

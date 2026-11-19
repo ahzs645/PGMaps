@@ -592,6 +592,15 @@ describe('assessReadiness: limits and states', () => {
     expect(row('terrain-coverage')).toMatchObject({ state: 'attention', severity: 'limit' })
     expect(row('terrain-coverage').measured).toMatch(/% covered · 0\+\d/)
     expect(row('terrain-coverage').action).toMatchObject({ target: 'station' })
+    // On a sheet's contour terrain, the gap is ground the contours do not reach: the regional DEM fills it.
+    const contours = assess({
+      source: holed,
+      terrain: { ...terrain, kind: 'geotiff', raster: { id: 'terrain-abc-contours' } as never },
+    })
+    expect(contours.row('terrain-coverage').action).toEqual({
+      label: 'Fill from the regional DEM',
+      target: 'regional-fill',
+    })
     expect(assess().row('terrain-coverage').state).toBe('met')
     expect(assess().row('terrain-source').state).toBe('met')
     const coarse = assess({

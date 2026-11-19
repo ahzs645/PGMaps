@@ -57,7 +57,8 @@ export interface ExportItem {
   label: string
   /** File type as the user sees it, e.g. `.pdf`. */
   extension: string
-  description: string
+  /** One line under the output's name in the preview; left out where the output's own form says it. */
+  description?: string
 }
 
 /** Outputs that print the issue stamp: who prepared them, the revision and the date of issue. */
@@ -239,8 +240,6 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     group: 'documents',
     label: 'Block map sheet',
     extension: '.pdf / .svg / .png / .zip',
-    description:
-      'A printed block map with information, legend and roads. Choose field, LiDAR, access, imagery or Ministry-style operating plan layouts, and a map style: PGMaps’ sheet symbols or your saved styles. Written as a PDF, an editable SVG or a PNG, for one block or one sheet per block.',
   },
   {
     kind: 'dline-sheet-pdf',
@@ -588,6 +587,8 @@ export interface GeometryLayer {
 
 export type ExportPreview =
   | { type: 'html'; html: string }
+  /** The file itself, shown page by page in the browser's PDF viewer. */
+  | { type: 'pdf'; blob: Blob }
   | {
       type: 'image'
       src: string

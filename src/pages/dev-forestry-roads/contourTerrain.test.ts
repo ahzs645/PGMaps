@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { PdfContourSurface } from '@/lib/geoPdf/contours'
-import { contourTerrain, fillBeyondContours, isContourTerrain } from './contourTerrain'
+import { contourTerrain, fillBeyondContours, isContourTerrain, roadsPastGrid } from './contourTerrain'
 import { reliefSummary } from './hillshadeReliefSummary'
 import { parseProject, serializeProject } from './project'
-import { TerrainImportQuestion } from './terrain'
+import { roadProjection, TerrainImportQuestion } from './terrain'
 import { slopeRangeIndex, summarizeTerrainSlopeSteps } from './terrainSlopeClasses'
 import { applyLayerImport, layerImportOptions, suggestedLayerRole } from './referenceImport'
 import { createDemoProject } from './terrain'
@@ -189,6 +189,31 @@ describe('filling past a sheet’s contours from the regional DEM', () => {
       sharePercent: Math.round(out.filledShare * 1000) / 10,
     })
   })
+  it('widens a filled terrain again for a road drawn past it, keeping the earlier fill and one name', async () => {
+    const first = await fillBeyondContours(
+      terrain(),
+      box(origin[0] + 20, origin[1] - 195, origin[0] + 295, origin[1] - 20),
+      regional,
+    )
+    // A road drawn later, 300 m further east.
+    const again = await fillBeyondContours(
+      first,
+      box(origin[0] + 20, origin[1] - 195, origin[0] + 600, origin[1] - 20),
+      regional,
+    )
+    const r = again.metadata.raster!,
+      old = first.metadata.raster!
+    expect(r.width).toBeGreaterThan(old.width)
+    const dc = (old.origin[0] - r.origin[0]) / 5,
+      dr = (r.origin[1] - old.origin[1]) / 5
+    for (let row = 0; row < old.height; row++)
+      for (let col = 0; col < old.width; col++)
+        expect(r.values[(row + dr) * r.width + col + dc]).toBe(old.values[row * old.width + col])
+    expect(again.metadata.name.match(/regional DEM beyond them/g)).toHaveLength(1)
+    expect(again.metadata.verticalReference).toBe(first.metadata.verticalReference)
+    expect(again.filledShare).toBeGreaterThan(first.filledShare)
+    expect(again.metadata.relief).toEqual(first.metadata.relief)
+  })
   it('crops the sheet to the roads before it ever coarsens the cells', async () => {
     // Roads 12 km east and 9 km south: the sheet and the roads together pass the cell limit at 5 m,
     // the roads alone (plus 100 m) do not.
@@ -198,6 +223,20 @@ describe('filling past a sheet’s contours from the regional DEM', () => {
     expect(r.pixelSize).toEqual([5, -5])
     expect(r.width * r.height).toBeLessThan(40_000)
     expect(out.metadata.name).not.toMatch(/m cells\)$/)
+  })
+  it('never crops the grid it has when widened for a later road, and refuses past the cell limit', async () => {
+    // 30 km off: keeping the sheet needs cells over twice as coarse. The import would crop it; a later road may not.
+    const far = box(origin[0] + 30_000, origin[1] - 25_000, origin[0] + 30_200, origin[1] - 24_800)
+    await expect(fillBeyondContours(terrain(), far, regional, undefined, 100, { maxCellFactor: 2 })).rejects.toThrow(
+      /too far from the sheet/,
+    )
+    // Near enough: the whole sheet stays, at its own cells.
+    const near = box(origin[0] + 20, origin[1] - 195, origin[0] + 295, origin[1] - 20)
+    const kept = await fillBeyondContours(terrain(), near, regional, undefined, 100, { maxCellFactor: 2 })
+    const old = terrain().metadata.raster!
+    expect(kept.metadata.raster!.pixelSize).toEqual([5, -5])
+    expect(kept.metadata.raster!.origin[0]).toBeLessThanOrEqual(old.origin[0])
+    expect(kept.metadata.raster!.origin[1]).toBeGreaterThanOrEqual(old.origin[1])
   })
   it('leaves a terrain that already covers the roads and has no gap unchanged', async () => {
     const full = contourTerrain(
@@ -250,5 +289,31 @@ describe('slope classes from terrain', () => {
     expect(result.classM2[1]).toBeGreaterThan(result.areaM2 * 0.8)
     expect(result.missingM2).toBeGreaterThan(0)
     expect(result.belowM2).toBe(0)
+  })
+})
+
+describe('roads past a contour grid', () => {
+  // A 1 km square grid in BC Albers, 10 m cells.
+  const raster = {
+    epsg: 3005,
+    origin: [1_200_000, 1_000_000] as [number, number],
+    pixelSize: [10, -10] as [number, number],
+    width: 101,
+    height: 101,
+  }
+  const at = (x: number, y: number) => {
+    const [lon, lat] = roadProjection(3005).inverse([x, y])
+    return { coordinate: [lon, lat] as [number, number] }
+  }
+  const road = (id: string, ...xy: [number, number][]) => ({ id, points: xy.map(([x, y]) => at(x, y)) })
+  it('finds a road that leaves the grid or runs within its section reach of the edge', () => {
+    const roads = [
+      road('inside', [1_200_300, 999_700], [1_200_700, 999_300]),
+      road('leaves', [1_200_500, 999_500], [1_201_800, 999_500]),
+      road('edge', [1_200_500, 999_500], [1_200_970, 999_500]),
+      road('near', [1_202_000, 999_500], [1_203_000, 999_500]),
+      road('far', [1_250_000, 999_500], [1_251_000, 999_500]),
+    ]
+    expect(roadsPastGrid(raster, roads, 50).map((r) => r.id)).toEqual(['leaves', 'edge', 'near'])
   })
 })

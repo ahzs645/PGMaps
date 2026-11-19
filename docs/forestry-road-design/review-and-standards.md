@@ -53,6 +53,10 @@ and `readinessVerdict`, `readiness.ts`):
 - The rows that need attention follow, **Outside a limit** before **To do**. A row shows its result,
   its measured value and its button; opening it adds the check's own wording and what it was judged
   on.
+- The **Ground and design known at every section** row's button goes to the first gap, except on a
+  contour terrain from a map sheet with a station that has no ground: there it is **Fill from the
+  regional DEM**, which widens that terrain to the road (`source-pdf-import.md`, **Filling past
+  the contours**). It never changes the row's rule.
 - **Not assessed** and **Met** are folded groups. Each summary line gives its count ("9 checks"),
   and opening a group lists its rows under the same headings the report uses. A not-assessed row
   keeps its button there ("Run check", "Set standards").

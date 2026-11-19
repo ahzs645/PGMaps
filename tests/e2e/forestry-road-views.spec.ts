@@ -2,6 +2,7 @@ import { openWorkbench, selectWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { choose } from './styled-select'
+import { chartToggle, pressChartToggle, profilePanel } from './road-chart-toggles'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -188,7 +189,7 @@ test('an off-screen shared station is revealed and profile bands keep the same c
   await page.getByRole('button', { name: 'Zoom profile in', exact: true }).click()
   const zoomed = await rangeOf(chart)
   const bands = page.getByTestId('road-engineering-bands')
-  await page.getByRole('button', { name: 'Grade, curve, template & material bands', exact: true }).click()
+  await pressChartToggle(page, profilePanel(page), 'Grade, curve, template & material bands')
   await expect(bands.locator('svg')).toBeVisible()
   expect(await rangeOf(bands)).toEqual(zoomed)
 
@@ -606,7 +607,7 @@ test('toggling a chart’s readouts never paints the plot at the old height', as
   await expect(chart).toBeVisible()
   const slot = page.locator('[data-chart-slot]').filter({ has: chart })
   const panel = page.getByRole('region').filter({ has: chart }).last()
-  const details = panel.getByRole('button', { name: 'Details below chart', exact: true })
+  const { toggle: details } = await chartToggle(page, panel, 'Details below chart')
   // Read in a ResizeObserver registered after the chart's own, so in the same delivery, between layout and
   // paint: each pair is the plot's slot and the svg exactly as the next frame draws them.
   await chart.evaluate((svg) => {

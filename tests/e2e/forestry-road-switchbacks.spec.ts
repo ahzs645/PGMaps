@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { choose, optionLabels } from './styled-select'
+import { pressChartToggle, profilePanel } from './road-chart-toggles'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(180_000)
@@ -183,8 +184,7 @@ test('a switchback alternative is staged, created, reviewed in linked views, sav
 
   // The horizontal-curve band lies under the profile with the other engineering bands.
   const bands = page.getByTestId('road-engineering-bands')
-  const toggle = page.getByRole('button', { name: 'Grade, curve, template & material bands', exact: true })
-  if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click()
+  await pressChartToggle(page, profilePanel(page), 'Grade, curve, template & material bands', true)
   await expect(bands.locator('text', { hasText: 'H curve' })).toHaveCount(1)
 
   // Creation is one normal undoable edit.

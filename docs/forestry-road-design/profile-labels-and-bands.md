@@ -28,6 +28,12 @@ readout) and `profileBands.ts` (band values and the curvature diagram). The scre
 - **Value bands.** The profile header's **Value bands** button (next to the grade, curve,
   template and material bands) opens numeric rows under the plot. This browser remembers whether
   they are open. Click a value, or focus the bands and use ← and →, to select its station.
+- **A narrow profile panel.** Below 600 px (`CHART_TOGGLES_FOLD_BELOW_PX`, `Charts.tsx`) the snap
+  magnet and the band and details toggles become rows of one **View options** button, whose badge
+  counts those turned on. Below 480 px (`PROFILE_SHORT_SCALE_BELOW_PX`) the vertical exaggeration
+  reads "×25" (its tooltip keeps the rest), and below 420 px (`PROFILE_ZOOM_BUTTONS_FROM_PX`) the
+  + and − buttons go: the wheel and a pinch still zoom, and **Fit** shows while zoomed. The header
+  is outside the measured chart, so folding it never changes the width it is decided on.
 - **Plot book.** **Save → Plot book → Sheet setup**, in a plan and profile chapter: **Value bands**
   and **Curve labels** under **Show on plan & profile sheets**. Both are off until ticked, so a
   sheet printed before is unchanged.

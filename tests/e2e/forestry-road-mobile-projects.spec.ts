@@ -1,6 +1,7 @@
 import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { chartToggle } from './road-chart-toggles'
 
 test.use({
   serviceWorkers: 'block',
@@ -156,9 +157,11 @@ test('the profile view switch stays as short as the adjacent controls on a touch
     .getByRole('tab', { name: 'Profile', exact: true })
     .tap()
   const panel = page.getByRole('region', { name: 'Road profile · ground & formation', exact: true })
-  const switcher = panel.getByRole('button', { name: 'Details below chart', exact: true })
+  // At phone width the chart's show/hide toggles share one header button.
+  const fold = panel.getByRole('button', { name: /^View options/ })
   const fullscreen = panel.getByRole('button', { name: 'Fullscreen Road profile · ground & formation', exact: true })
-  expect((await switcher.boundingBox())!.height).toBeLessThanOrEqual((await fullscreen.boundingBox())!.height + 1)
+  expect((await fold.boundingBox())!.height).toBeLessThanOrEqual((await fullscreen.boundingBox())!.height + 1)
+  const { toggle: switcher } = await chartToggle(page, panel, 'Details below chart')
   const pressed = (await switcher.getAttribute('aria-pressed')) === 'true'
   for (const view of pressed ? ['chart', 'both'] : ['both', 'chart']) {
     await switcher.tap()

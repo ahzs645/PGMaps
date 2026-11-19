@@ -128,6 +128,7 @@ import {
   Route,
   Shapes,
   Spline,
+  TriangleAlert,
   Waves,
   Waypoints,
   Maximize,
@@ -281,6 +282,8 @@ import {
 import { withReferenceStyle } from './dev-forestry-roads/referenceStyles'
 import type { SymbolStyle } from '@/lib/mapSheet/symbolStyle'
 import type { PickedFile } from '@/components/ui/picked-files'
+import { useFileDrop } from '@/components/ui/file-drop-target'
+import { isContourTerrain, roadsPastGrid } from './dev-forestry-roads/contourTerrain'
 import type { EngineeringInputTab, PointCloudChoice, SidebarTab } from './dev-forestry-roads/DesignSidebarBody'
 import { FullCostPlanningDialog, type FullCostPreview } from './dev-forestry-roads/FullCostPlanningDialog'
 import { NetworkPlanningDialog } from './dev-forestry-roads/NetworkPlanningDialog'
@@ -3301,6 +3304,100 @@ export default function DevForestryRoads({
           : decoded,
       )
     })
+  // The Layers pane's drop field, for the whole page: a drop anywhere opens the same review.
+  const pageDrop = useFileDrop({
+    label: 'Drop to add map layers',
+    hint: 'GIS files, company map PDFs or a folder',
+    disabled: investigation || !w.ready || !!busy || !!costPreview || !!layerImportFiles,
+    onPickedFiles: (files) => void importReferenceFiles(files),
+    onError: (error) => w.setError(error instanceof Error ? error.message : 'Could not read the dropped files.'),
+  })
+  /**
+   * The contour terrain widened under `roads` with the regional DEM, as the import's fill: for roads
+   * drawn, copied or imported past it later. The grid it has is kept whole (`keep`), since other
+   * roads stand on it. Callers hold the workspace busy, so the project cannot change meanwhile.
+   */
+  const fillUnderRoads = async (roads: readonly Alignment[], signal: AbortSignal) => {
+    const terrain = project.terrain
+    if (!terrain.raster) throw Error('This terrain has no grid to widen.')
+    const coords = roads.flatMap((road) => road.points.map((p) => p.coordinate))
+    if (!coords.length) throw Error('This road has no points to fill under.')
+    const names = roads.map((road) => road.name).join(', ')
+    const extent: [number, number, number, number] = [
+      Math.min(...coords.map((p) => p[0])),
+      Math.min(...coords.map((p) => p[1])),
+      Math.max(...coords.map((p) => p[0])),
+      Math.max(...coords.map((p) => p[1])),
+    ]
+    // The regional tiles are read a little wider than the grid's 100 m margin.
+    const regional = await loadRegionalTerrain(
+      [extent[0] - 0.003, extent[1] - 0.002, extent[2] + 0.003, extent[3] + 0.002],
+      signal,
+    ).catch((cause: unknown) => {
+      if (cause instanceof Error && /maximum 64 tiles/.test(cause.message))
+        throw Error(`${names} span more ground than the regional DEM loads at once (64 tiles).`)
+      throw cause
+    })
+    if (signal.aborted) return
+    const { fillBeyondContours } = await import('./dev-forestry-roads/contourTerrain')
+    const widened = await fillBeyondContours(
+      { metadata: terrain, source, summary: '' },
+      extent,
+      { source: regional.source, resolutionM: regional.metadata.resolutionM, name: 'the regional DEM' },
+      signal,
+      100,
+      { maxCellFactor: 2 },
+    )
+    if (signal.aborted) return
+    if (widened.metadata === terrain) {
+      w.setNotice(`The terrain already has ground under ${names}; nothing was filled.`)
+      return
+    }
+    w.setSource(widened.source)
+    w.commit(
+      shareUnchanged(project, { ...project, terrain: widened.metadata, scenario: undefined }),
+      true,
+      'Fill terrain from the regional DEM',
+      true,
+    )
+    w.setNotice(
+      `The terrain now reaches ${names}: ${Math.round(widened.filledShare * 100)}% of its cells come from the regional DEM (about ${Math.round(regional.metadata.resolutionM)} m), not shifted to meet the contours. Expect a step of a metre or two where they join. Use Undo to go back.`,
+    )
+  }
+  /** Review's action on the active road. */
+  const fillTerrainFromRegional = () =>
+    void run('Filling the terrain from the regional DEM…', (signal) => fillUnderRoads([alignment], signal))
+  // A contour terrain filled from the regional DEM at import keeps doing so: a road drawn, copied or
+  // imported later that runs past it is filled under automatically, once for each set of roads
+  // (Undo stays undone). Without the import's fill, Review's action asks first.
+  const autoFilled = useRef(new Set<string>())
+  const autoFill = useRef<AbortController | null>(null)
+  useEffect(() => () => autoFill.current?.abort(), [])
+  useEffect(() => {
+    const terrain = project.terrain
+    if (busy || !w.ready || investigation || !terrain.fill || !terrain.raster || !isContourTerrain(terrain.raster))
+      return
+    const past = roadsPastGrid(terrain.raster, project.alignments, Math.min(project.settings.crossSectionHalfWidth, 90))
+    if (!past.length) return
+    const key = `${terrain.sha256}|${past
+      .map((road) => `${road.id}:${road.points.map((p) => p.coordinate.map((v) => v.toFixed(5)).join(',')).join(';')}`)
+      .join('|')}`
+    if (autoFilled.current.has(key)) return
+    autoFilled.current.add(key)
+    const controller = new AbortController()
+    autoFill.current = controller
+    w.setBusy('Filling the terrain under the roads from the regional DEM…')
+    fillUnderRoads(past, controller.signal)
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted)
+          w.setNotice(
+            `The roads past the contour terrain were not filled from the regional DEM: ${cause instanceof Error ? cause.message : 'it could not be read'}`,
+          )
+      })
+      .finally(() => w.setBusy(''))
+    // fillUnderRoads reads this render's project and terrain; the key keeps it to one try a set of roads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.terrain, project.alignments, busy, w.ready, investigation])
   const commitLayerImport = (choices: LayerImportChoice[], options?: LayerImportOptions) => {
     const terrainChoice = choices.find((choice) => choice.role === 'terrain')
     if (!terrainChoice) return applyLayerChoices(choices, options)
@@ -3335,16 +3432,23 @@ export default function DevForestryRoads({
         if (signal.aborted) return
         w.setBusy('Building terrain from contours…')
       }
-      // The sheet prints no vertical datum: always ask, never reuse the open terrain's.
+      // The sheet prints no vertical datum: its company profile's assumption when the person kept it,
+      // else asked; never the open terrain's.
       let loaded = await importTerrainWithAnswers(
         async (answers) => contourTerrain(surface, source, answers.verticalReference ?? '', relief),
         askTerrain,
+        options?.verticalReference ? { verticalReference: options.verticalReference } : {},
       )
       if (loaded && reliefFailure) loaded = { ...loaded, summary: `${loaded.summary}${reliefFailure}` }
+      if (loaded && options?.verticalReference)
+        loaded = { ...loaded, summary: `${loaded.summary} Vertical datum: ${options.verticalReference}.` }
       if (signal.aborted) return
       const others = choices.filter((choice) => choice !== terrainChoice)
-      // A sheet's contours stop at its frame; roads that run off it take the regional DEM there.
-      const extent = loaded && options?.fillBeyondContours ? designExtent(others) : null
+      // A sheet's contours stop at its frame; roads that run off it take the regional DEM there. With no
+      // roads or blocks coming in, the sheet's own gaps are filled, which marks the terrain so roads
+      // added later are filled under too.
+      const extent =
+        loaded && options?.fillBeyondContours ? (designExtent(others) ?? terrainBounds(loaded.metadata)) : null
       if (loaded && extent) {
         // The regional tiles are read a little wider than the grid's 100 m margin.
         const padded: [number, number, number, number] = [
@@ -3413,6 +3517,8 @@ export default function DevForestryRoads({
     )
     setLayerImportFiles(null)
     setFocusedReferenceId(null)
+    // Show what came in, wherever the files were picked or dropped.
+    if (choices.length && !investigation) setLayersOpen(true)
     if (options?.prepareDem) {
       // Boxes for what is being designed: proposed roads and planned blocks, not reference layers.
       const ids = new Set(
@@ -4736,8 +4842,22 @@ export default function DevForestryRoads({
   /** What the Save & export dialog shows for one output, from the content its download writes. */
   const buildExportPreview = async (kind: RoadExport, signal: AbortSignal): Promise<ExportPreview> => {
     const { safe } = exportBasis(kind)
-    if (kind === 'report-pdf') return { type: 'html', html: reportHtml(safe) }
-    if (kind === 'estimate-pdf') return { type: 'html', html: await estimatePageHtml(safe) }
+    // The PDFs are laid out afresh from the HTML, so they preview as the file itself, page by page.
+    if (kind === 'report-pdf' || kind === 'estimate-pdf') {
+      const html = kind === 'report-pdf' ? reportHtml(safe) : await estimatePageHtml(safe)
+      signal.throwIfAborted()
+      const { reportPdfBlob } = await import('./dev-forestry-roads/pdf')
+      return { type: 'pdf', blob: await reportPdfBlob(html, selectedExportBrand, printLogo) }
+    }
+    if (kind === 'project') {
+      // Counted from the project, never serialized: the file is for Open, and a large terrain took seconds.
+      const { projectFilePreviewHtml } = await import('./dev-forestry-roads/projectFilePreview')
+      const { basename } = exportBasis(kind)
+      return {
+        type: 'html',
+        html: projectFilePreviewHtml(safe, exportFileType(kind, basename, fileVariant(), safe.name).name),
+      }
+    }
     if (kind === 'report-package') {
       const [{ packagePlan, packagePreviewHtml, packageFront }, { packageSummaryHtml }, summaryInput] =
         await Promise.all([
@@ -5475,7 +5595,8 @@ export default function DevForestryRoads({
     haulInputs: () => showEngineeringInputs('haul'),
     customizeRibbon: () => setCustomizingRibbon(true),
     newProject: openNewProject,
-    saveProject: () => save('project'),
+    // Opens Save & export on the project file, as the header's Save does; an investigation has no dialog.
+    saveProject: () => (investigation ? save('project') : openExport('project')),
     fieldNotes: () => togglePlanOption(planDisplay.setNotesOpen),
     importReference: () => {
       showPane('plan')
@@ -6243,6 +6364,7 @@ export default function DevForestryRoads({
 
   const workspace = (
     <div
+      {...pageDrop.dropProps}
       data-interface={active.id}
       data-panel-background={panelFrame?.background}
       data-panel-inset={panelFrame?.inset !== undefined || undefined}
@@ -6263,6 +6385,7 @@ export default function DevForestryRoads({
       data-focus-mode={focusMode || undefined}
       data-tiny-height={tinyHeight || undefined}
     >
+      {pageDrop.overlay}
       {brandingOpen && branding.ready && (
         <BrandingDialog onClose={() => setBrandingOpen(false)} portalContainer={ref.current} />
       )}
@@ -6908,6 +7031,7 @@ export default function DevForestryRoads({
                               commandStates={commandStates}
                               onCommand={runCommand}
                               onFindTerrain={(id) => openDetailArea({ source: 'lidarbc', areaId: `road:${id}` })}
+                              onFillTerrainFromRegional={fillTerrainFromRegional}
                               onRemoveAlignment={deleteRoad}
                               onSuggest={suggest}
                               onLoadMappedRoad={loadMappedRoad}
@@ -7374,7 +7498,7 @@ export default function DevForestryRoads({
                                 // stays the pane's accessible name and window title.
                                 heading={
                                   <RoadSelect
-                                    className="min-w-0 h-8 w-36"
+                                    className="h-8 w-36 min-w-24"
                                     value={profileView}
                                     onValueChange={(value) => setProfileView(value as ProfileView)}
                                     options={roadProfileViews.map((view) => ({
@@ -7517,7 +7641,7 @@ export default function DevForestryRoads({
                                 // the title stays the pane's accessible name and window title.
                                 heading={
                                   <RoadSelect
-                                    className="min-w-0 h-8 w-36"
+                                    className="h-8 w-36 min-w-24"
                                     value={detail}
                                     onValueChange={(value) => {
                                       setDetail(value as typeof detail)
@@ -8139,29 +8263,39 @@ export default function DevForestryRoads({
                                   ? `Design only at ${formatRoadStation(station)}: no terrain under this road.`
                                   : `${formatRoadStation(station)} · ground ${designOnlyGround.toFixed(2)} m, from the design file`}
                               </span>
-                            ) : at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
-                              <span
-                                className="block text-left font-sans text-warning"
-                                data-testid="road-station-terrain-gap"
-                                title="The selected terrain has missing data here. Hatched chart areas and holes in the 3D ground show those gaps."
-                              >
-                                {at.groundElevation === null
-                                  ? 'No ground elevation'
-                                  : 'Terrain gaps in the cross-section'}{' '}
-                                at {formatRoadStation(station)}. Import a DEM with coverage here in Terrain.
-                              </span>
                             ) : (
                               <span className="grid grid-cols-[9ch_15ch_10ch] whitespace-nowrap">
                                 <span className="truncate" data-station-reading="station" title="Station">
                                   {stationReadout.station}
                                 </span>
-                                <span
-                                  className="truncate border-l border-border pl-2"
-                                  data-station-reading="elevation"
-                                  title="Ground elevation"
-                                >
-                                  Z {stationReadout.elevation} m
-                                </span>
+                                {at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
+                                  // A terrain gap keeps the readout to one line: a triangle in the elevation slot,
+                                  // with the full sentence for screen readers.
+                                  <span
+                                    className="flex items-center gap-1 truncate border-l border-border pl-2 text-warning"
+                                    data-station-reading="elevation"
+                                    data-testid="road-station-terrain-gap"
+                                  >
+                                    <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+                                    <span aria-hidden className="truncate">
+                                      {at.groundElevation === null ? 'No ground' : `Z ${stationReadout.elevation} m`}
+                                    </span>
+                                    <span className="sr-only">
+                                      {at.groundElevation === null
+                                        ? 'No ground elevation'
+                                        : 'Terrain gaps in the cross-section'}{' '}
+                                      at {formatRoadStation(station)}. Import a DEM with coverage here in Terrain.
+                                    </span>
+                                  </span>
+                                ) : (
+                                  <span
+                                    className="truncate border-l border-border pl-2"
+                                    data-station-reading="elevation"
+                                    title="Ground elevation"
+                                  >
+                                    Z {stationReadout.elevation} m
+                                  </span>
+                                )}
                                 <span
                                   className="truncate border-l border-border pl-2"
                                   data-station-reading="grade"

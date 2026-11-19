@@ -383,6 +383,7 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
             classGrid: layer.classGrid,
             imageMosaic: layer.imageMosaic,
             contourSurface: layer.contourSurface,
+            ...(layer.assumedVerticalDatum ? { assumedVerticalDatum: layer.assumedVerticalDatum } : {}),
             selected,
           },
         }

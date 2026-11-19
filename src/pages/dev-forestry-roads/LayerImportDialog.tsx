@@ -24,7 +24,15 @@ export interface LayerImportOptions {
   fillBeyondContours: boolean
   /** Read the ground between a contour terrain's contours from the hillshade sheet in the same import. */
   refineWithHillshade: boolean
+  /**
+   * The datum a contour terrain takes without asking, as the terrain records it: the company profile's
+   * assumption, when the person keeps it. Absent, the datum is asked.
+   */
+  verticalReference?: string
 }
+
+/** How an assumed datum is recorded on the terrain: the choice, and that the sheet did not print it. */
+export const assumedDatumReference = (reference: string) => `${reference}; assumed, the sheet prints no datum`
 
 const roleHelp: Record<LayerImportRole, string> = {
   reference: 'Shows this layer on the plan.',
@@ -66,6 +74,16 @@ export function LayerImportDialog({
   // Off unless asked for: it is an estimate between contours, and takes about a minute.
   const [refineWithHillshade, setRefineWithHillshade] = useState(false)
   const hillshade = files.find((file) => file.pdf?.imageMosaic?.kind === 'hillshade')
+  // Sheets whose contours can become the terrain: offered first, with the choices that go with them.
+  const contourRows = files.flatMap((file, index) => (file.pdf?.contourSurface ? [{ file, index }] : []))
+  const contourTerrainOn = contourRows.some(({ index }) => included[index])
+  // The included sheet's assumed datum, used unless the person unticks it.
+  const assumed = contourRows.find(({ index }) => included[index])?.file.pdf?.assumedVerticalDatum
+  const [useAssumedDatum, setUseAssumedDatum] = useState(true)
+  const include = (index: number, on: boolean) => {
+    setIncluded((previous) => previous.map((value, i) => (i === index ? on : value)))
+    setError('')
+  }
   const commit = () => {
     try {
       const selected = choices.filter((_, i) => included[i])
@@ -77,6 +95,7 @@ export function LayerImportDialog({
         loadRoads,
         fillBeyondContours,
         refineWithHillshade: refineWithHillshade && !!hillshade,
+        ...(assumed && useAssumedDatum ? { verticalReference: assumedDatumReference(assumed.reference) } : {}),
       })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not import the layers.')
@@ -127,6 +146,88 @@ export function LayerImportDialog({
             </details>
           </div>
         )}
+        {contourRows.length > 0 && (
+          <fieldset
+            className="space-y-2 rounded-md border border-primary/40 bg-primary/5 p-3"
+            data-testid="import-elevation"
+          >
+            <legend className="px-1 text-sm font-semibold">Elevation found</legend>
+            <p className="text-xs text-muted-foreground">
+              {contourRows.length === 1 ? 'This sheet has' : 'These sheets have'} labelled contours that can become the
+              project terrain{hillshade ? ', and a hillshade that can add the ground between them' : ''}.
+            </p>
+            {contourRows.map(({ file, index }) => (
+              <div key={file.fileName}>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={included[index]}
+                    onChange={(event) => include(index, event.target.checked)}
+                  />
+                  <span className="min-w-0 [overflow-wrap:anywhere]">
+                    Use the contours of {file.pdf!.source.file.split('/').at(-1)} as the terrain (replaces the current
+                    terrain)
+                  </span>
+                </label>
+                <p className="ml-6 text-xs text-muted-foreground">{file.pdf!.note}</p>
+              </div>
+            ))}
+            {contourTerrainOn &&
+              (assumed ? (
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={useAssumedDatum}
+                    onChange={(event) => setUseAssumedDatum(event.target.checked)}
+                  />
+                  <span className="min-w-0">
+                    Heights in metres, vertical datum {assumed.reference.replace(/; metres$/, '')} (assumed)
+                    <span className="block text-xs text-muted-foreground">
+                      {assumed.basis} Untick to choose the datum yourself.
+                    </span>
+                  </span>
+                </label>
+              ) : (
+                <p className="text-xs text-muted-foreground">You will be asked for the vertical datum.</p>
+              ))}
+            {contourTerrainOn && hillshade && (
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={refineWithHillshade}
+                  onChange={(event) => setRefineWithHillshade(event.target.checked)}
+                />
+                <span className="min-w-0">
+                  Read the ground between the contours from the hillshade in{' '}
+                  <span className="[overflow-wrap:anywhere]">{hillshade.pdf!.source.file.split('/').at(-1)}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    The contours keep the heights; the hillshade adds the gullies and benches between them, within one
+                    contour interval. An estimate, not a survey; takes about a minute.
+                  </span>
+                </span>
+              </label>
+            )}
+            {contourTerrainOn && (
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={fillBeyondContours}
+                  onChange={(event) => setFillBeyondContours(event.target.checked)}
+                />
+                <span className="min-w-0">
+                  Fill past the contours from the regional DEM
+                  <span className="block text-xs text-muted-foreground">
+                    About 22 m, so roads and blocks off the sheet have ground. The two are not shifted to meet.
+                  </span>
+                </span>
+              </label>
+            )}
+          </fieldset>
+        )}
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={loadRoads} onChange={(e) => setLoadRoads(e.target.checked)} />
           Load proposed roads into the road switcher and profile
@@ -150,10 +251,7 @@ export function LayerImportDialog({
                   type="checkbox"
                   aria-label={`Include ${file.fileName}`}
                   checked={included[index]}
-                  onChange={(event) => {
-                    setIncluded((previous) => previous.map((value, i) => (i === index ? event.target.checked : value)))
-                    setError('')
-                  }}
+                  onChange={(event) => include(index, event.target.checked)}
                 />
                 {/* A path has no spaces to break at: let it wrap anywhere rather than run under the select. */}
                 <span className="min-w-0 [overflow-wrap:anywhere]">{file.fileName}</span>
@@ -167,36 +265,12 @@ export function LayerImportDialog({
                   ? `${linePartCount(file)} separate lines: each loads as its own road, named “(part n)”.`
                   : roleHelp[role]}
               </p>
-              {role === 'terrain' && included[index] && (
-                <label className="mt-2 flex items-start gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5"
-                    checked={fillBeyondContours}
-                    onChange={(event) => setFillBeyondContours(event.target.checked)}
-                  />
-                  <span>
-                    Fill past the contours from the regional DEM (about 22 m), so roads and blocks off the sheet have
-                    ground. The two are not shifted to meet.
-                  </span>
-                </label>
+              {file.pdf?.contourSurface && (
+                <p className="mt-1 text-xs text-muted-foreground">Its options are under Elevation found, above.</p>
               )}
-              {role === 'terrain' && included[index] && hillshade && (
-                <label className="mt-2 flex items-start gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5"
-                    checked={refineWithHillshade}
-                    onChange={(event) => setRefineWithHillshade(event.target.checked)}
-                  />
-                  <span>
-                    Read the ground between the contours from {hillshade.pdf!.source.file.split('/').at(-1)}. The
-                    contours keep the heights; the hillshade adds the gullies and benches between them, within one
-                    contour interval. An estimate, not a survey; takes about a minute.
-                  </span>
-                </label>
+              {file.pdf && !file.pdf.contourSurface && (
+                <p className="mt-1 text-xs text-muted-foreground">{file.pdf.note}</p>
               )}
-              {file.pdf && <p className="mt-1 text-xs text-muted-foreground">{file.pdf.note}</p>}
             </div>
             <StyledSelect
               value={role}

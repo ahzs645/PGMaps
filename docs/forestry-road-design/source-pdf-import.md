@@ -1,6 +1,6 @@
 # Company source-map imports
 
-**Layers → Add files / Add folder** accepts the Canfor ArcGIS Pro PDF templates represented by
+**Layers → Add files / Add folder**, or a drop anywhere on the designer, accepts the Canfor ArcGIS Pro PDF templates represented by
 a supplied block's August/September 2026 field layout, ortho, general access, hillshade,
 slope and canopy-height sheets, including their revised PDF. This is a client-side reader:
 PDF bytes, extraction and preview rendering stay in a dedicated browser worker. It uses
@@ -27,8 +27,10 @@ conversion server, upload, Python, installed GDAL or RustGIS requirement.
 4. Read the sheet's hillshade and ortho imagery as image layers at their own pixels, the tiles
    kept exactly as the PDF stores them. See **Image layers** below.
 5. Build a terrain surface from the field sheet's labelled contours, offered only as terrain.
-   See **Terrain from contours** below. When the same import holds the hillshade sheet, the
-   terrain row offers to read the ground between the contours from it (off by default). See
+   See **Terrain from contours** below. Whenever an import recognizes contours, the review opens
+   with an **Elevation found** box at the top holding every terrain choice: use the contours as
+   the terrain (the same tick as that layer's row), fill past them, and, when the same import
+   holds a hillshade, read the ground between the contours from it (off by default). See
    **Relief between contours from the hillshade** below.
 6. Show a review dialog with a checkbox and permitted role for each recovered layer. A PDF
    drawing starts as **Reference**. A line layer can explicitly become proposed roads, and a
@@ -298,15 +300,23 @@ The field layout sheet draws its LiDAR contours as vector lines in **Contours - 
    contours never reached. On the supplied sheet they fanned across the north-east, where only an unnamed
    contour set is drawn, so that ground is now missing, not invented.
 
-Choose **Terrain (replaces current)** in the import dialog. The sheet prints no vertical datum,
-so the existing terrain question asks for it; the open terrain's datum is never reused. The
-surface becomes an ordinary terrain raster (`contourTerrain.ts`), id ending `-contours`.
+Choose **Terrain (replaces current)** in the import dialog. The sheet prints no vertical datum.
+A company profile can state the datum and units its sheets are taken to use
+(`ContourConventions.assumedVerticalDatum`, `profiles.ts`): **Elevation found** then offers
+**Heights in metres, vertical datum … (assumed)** ticked, with the profile's reason, and the import
+asks nothing. The terrain's vertical reference records it as "…; assumed, the sheet prints no datum"
+(`assumedDatumReference`), and the import notice repeats it. The Canfor profile assumes CGVD2013
+(CGG2013) in metres for every contour surface it reads: the field sheet's legend states the 10 m
+interval in metres, the hillshade sheet's does not but draws the same contours, and BC's LiDAR
+specification delivers CGVD2013. Untick it, or import a profile without one, and the existing
+terrain question asks; the open terrain's datum is never reused. The surface becomes an ordinary
+terrain raster (`contourTerrain.ts`), id ending `-contours`.
 
 ### Filling past the contours
 
 A sheet's contours stop at its frame, and an access road usually runs off it: on the supplied
 block the main road had ground under 16% of its length. **Fill past the contours from the
-regional DEM** (on the terrain row, on by default) widens the grid to the roads and blocks being
+regional DEM** (under **Elevation found**, on by default) widens the grid to the roads and blocks being
 imported plus 100 m and takes every cell the contours leave missing from the regional Terrarium
 DEM (`fillBeyondContours`). The contour cells are copied unchanged on the same grid lines. The
 two surfaces are **not shifted** to meet (their datums are not known to agree; see **Against a
@@ -322,6 +332,25 @@ regional DEM, datum unverified", and `terrain.fill` records the source, its cell
 share. Review's **Terrain fit for site quantities** row judges the terrain by the fill's cell
 size too: a grid that is two-thirds 22 m regional cells needs attention. A failed regional
 read leaves the contours alone, with the missing ground named in the notice.
+
+With no roads or blocks in the same import, the fill still runs over the sheet's own area, filling
+its gaps, so the terrain is marked as filled (`terrain.fill`).
+
+A road drawn, copied or imported after that can run past the filled grid. The workspace fills
+under it automatically (`roadsPastGrid`, `contourTerrain.ts`): whenever the terrain is a filled
+contour terrain and a design road comes within 5 km of the grid and runs past its edge (or within
+its section reach of it), the same widening runs for those roads as its own undo step. It runs once
+for each set of roads, so Undo stays undone; a refusal (too far, too wide) is named in a notice.
+A contour terrain imported with the fill unticked is never filled unasked:
+Review's **Ground and design known at every section** row then offers **Fill from the regional
+DEM** as its action, whenever the terrain is a contour terrain and a station has no ground under
+it or across its section (`readiness.ts`, target `regional-fill`). It runs the same `fillBeyondContours` for the road in Review, as one undo step, with two
+differences from the import: the grid the terrain has is never cropped, because other roads stand
+on it, and when keeping it would need cells more than twice as coarse the fill is refused with the
+reason (the road runs too far from the sheet; load a terrain that covers it). Cells an earlier fill
+took are copied as they are and still counted in the filled share, and the name and vertical
+reference keep one "regional DEM" note. A road wider than the regional DEM's 64-tile read is
+refused by name.
 
 Between contours the ground is a plane, so crests and valley floors read flat and nothing finer
 than 10 m of relief is known. Where a triangle's three corners lie on one contour the surface is a
@@ -355,7 +384,8 @@ plane, and triangles on one contour are flat terraces. The same sheet set's hill
 from the LiDAR the contours came from, at 0.85 m on the supplied sheets, and it holds the gullies
 and benches in between. The import can put the two together (`hillshadeRelief.ts`).
 
-Tick **Read the ground between the contours from *the hillshade sheet*** on the terrain row. It is
+Tick **Read the ground between the contours from the hillshade in *the sheet*** under **Elevation
+found**. It is
 shown when the import holds a hillshade image layer, and it is off by default: the result is an
 estimate, and it takes the better part of a minute on a full sheet.
 
@@ -529,7 +559,7 @@ The whole comparison, with the canopy sources, is written up in
 | Field layout | Terrain (when chosen) | Every analysis view: profiles, sections, cut/fill and quantities, route searches and grade limits, skid reach, cable lines, sight distance. Slope anywhere is computed from this surface. |
 | Slope        | Reference class layer | Point readings, block summaries with exact, estimated and **From terrain** columns, the LiDAR slope block map sheet, and the profile's **Map slope** row beside Sidehill ([Profile labels and bands](profile-labels-and-bands.md)). No road tool reads it: route search and skid reach take slope from the terrain. |
 | Canopy       | Reference class layer | Point readings, block summaries, the canopy height block map sheet and the profile's **Map canopy** row. Nothing else reads it yet: not extraction reach, cable volume or the canopy background. |
-| Hillshade    | Reference image layer | The plan, as a picture under the design, and the hillshade block map sheet. Its greys are read only when the terrain row's option asks for the ground between the contours.               |
+| Hillshade    | Reference image layer | The plan, as a picture under the design, and the hillshade block map sheet. Its greys are read only when the **Elevation found** option asks for the ground between the contours.               |
 | Field ortho  | Reference image layer | The plan, as a picture (offered unticked).                                                                                                                                                |
 
 So the LiDAR-derived terrain is a design input; the slope, canopy and hillshade maps are for

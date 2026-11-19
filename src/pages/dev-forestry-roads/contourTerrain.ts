@@ -86,6 +86,10 @@ export function contourTerrain(
 /** A contour terrain as {@link contourTerrain} returns it. */
 export type ContourTerrain = ReturnType<typeof contourTerrain>
 
+const FILL_NAME = / \+ regional DEM beyond them \(\d+% of cells\)$/
+const FILL_DATUM_TEXT = '; cells beyond the contours: regional DEM, datum unverified'
+const FILL_DATUM = /; cells beyond the contours: regional DEM, datum unverified$/
+
 /**
  * The contour terrain widened to cover `extent` (WGS84 [west, south, east, north]: the roads and
  * blocks being designed), with every cell the contours leave missing taken from `fill`, the
@@ -103,6 +107,11 @@ export async function fillBeyondContours(
   fill: { source: TerrainSource; resolutionM: number; name?: string },
   signal?: AbortSignal,
   padM = 100,
+  /**
+   * Widening for a road drawn later: never crop the grid it has (other roads stand on it), and
+   * refuse rather than coarsen its cells past this factor.
+   */
+  keep?: { maxCellFactor: number },
 ): Promise<ContourTerrain & { filledShare: number }> {
   const r = terrain.metadata.raster
   if (!r) throw Error('That terrain has no grid to widen.')
@@ -143,11 +152,15 @@ export async function fillBeyondContours(
     return { cell, x0, y0, width, height }
   }
   let grid = size(factor)
-  if (grid.width * grid.height > MAX_ROAD_RASTER_CELLS) {
+  if (grid.width * grid.height > MAX_ROAD_RASTER_CELLS && !keep) {
     ;[left, bottom, right, top] = want
     grid = size(factor)
   }
   while (grid.width * grid.height > MAX_ROAD_RASTER_CELLS) grid = size((factor += 0.25))
+  if (keep && factor > keep.maxCellFactor)
+    throw Error(
+      `Widening this terrain to the road would need ${Math.round(grid.cell * 10) / 10} m cells, more than ${keep.maxCellFactor} times its ${Math.round(cell0 * 10) / 10} m: the road runs too far from the sheet. Load a terrain that covers the road instead.`,
+    )
   const at = (x: number, y: number) => {
     const col = (x - r.origin[0]) / cell0,
       row = (r.origin[1] - y) / cell0
@@ -205,7 +218,14 @@ export async function fillBeyondContours(
     grid.height === r.height
   )
     return { ...terrain, filledShare: 0 }
-  const filledShare = known ? filled / known : 0
+  // Widened again (a road drawn past the last fill): cells an earlier fill took still count as filled.
+  let earlier = 0
+  if (terrain.metadata.fill) {
+    let before = 0
+    for (const v of r.values) if (v !== null) before++
+    earlier = Math.round((terrain.metadata.fill.sharePercent / 100) * before)
+  }
+  const filledShare = known ? Math.min(1, (filled + earlier) / known) : 0
   const header = JSON.stringify([r.sha256, r.epsg, grid.x0, grid.y0, grid.cell, grid.width, grid.height])
   const bytes = new Uint8Array([
     ...new TextEncoder().encode(header),
@@ -219,16 +239,13 @@ export async function fillBeyondContours(
   const raster = validateRoadRaster({
     ...r,
     id: `terrain-${sha256.slice(0, 16)}-contours`,
-    name: `${r.name} + regional DEM beyond them (${share} of cells)`.slice(0, 200),
+    name: `${r.name.replace(FILL_NAME, '')} + regional DEM beyond them (${share} of cells)`.slice(0, 200),
     origin: [grid.x0, grid.y0],
     pixelSize: [grid.cell, -grid.cell],
     width: grid.width,
     height: grid.height,
     values,
-    verticalReference: `${r.verticalReference}; cells beyond the contours: regional DEM, datum unverified`.slice(
-      0,
-      300,
-    ),
+    verticalReference: `${r.verticalReference.replace(FILL_DATUM, '')}${FILL_DATUM_TEXT}`.slice(0, 300),
     sha256,
   })
   const latitude = projection.inverse(raster.origin)[1]
@@ -268,3 +285,26 @@ export const CONTOUR_RELIEF_SLOPE_CHECK =
   'On the one sheet set checked, slope from contours refined with the hillshade was in the same printed range for 53% of the slope sheet’s exact pixels and within one range for 80% (contours alone: 43% and 69% on the same pixels); it agreed 91–94% on the 35%, 40% and 60% thresholds.'
 export const CONTOUR_SLOPE_CHECK =
   'On the one sheet pair checked, contour slope was in the same printed range for 43% of the sheet’s exact pixels and within one range for 69%; it agreed 87–91% on the 35%, 40% and 60% thresholds and read the 60%+ share low (38% against 42%).'
+
+/**
+ * The roads that use this grid but run past it, for the automatic regional fill: a road with a point
+ * within `nearM` of the grid and a point closer than `reachM` (its section reach) to the grid's edge
+ * or beyond it. A road farther off stands on other ground and is left alone. DOM free.
+ */
+export function roadsPastGrid<Road extends { points: readonly { coordinate: readonly [number, number] }[] }>(
+  raster: Pick<NonNullable<TerrainMetadata['raster']>, 'epsg' | 'origin' | 'pixelSize' | 'width' | 'height'>,
+  roads: readonly Road[],
+  reachM: number,
+  nearM = 5000,
+): Road[] {
+  const projection = roadProjection(raster.epsg)
+  const x0 = raster.origin[0],
+    x1 = raster.origin[0] + (raster.width - 1) * raster.pixelSize[0],
+    y1 = raster.origin[1],
+    y0 = raster.origin[1] + (raster.height - 1) * raster.pixelSize[1]
+  const inside = (x: number, y: number, by: number) => x >= x0 + by && x <= x1 - by && y >= y0 + by && y <= y1 - by
+  return roads.filter((road) => {
+    const points = road.points.map((p) => projection.forward([p.coordinate[0], p.coordinate[1]]))
+    return points.some(([x, y]) => inside(x, y, -nearM)) && points.some(([x, y]) => !inside(x, y, reachM))
+  })
+}

@@ -4,6 +4,7 @@
  * selected PVI, and junction markers with **Add control here**. The arithmetic is in `gradeEdit.ts`
  * and `profileJunctions.ts`; this file holds the pointer, key and popover plumbing only.
  */
+import type { ChartToggleRow } from './Charts'
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { Magnet, Plus, X } from 'lucide-react'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
@@ -752,6 +753,17 @@ export function useProfileEditing(options: ProfileEditingOptions) {
       </Button>
     ) : null
 
+  /** The same toggle as a row of a folded chart header (`ChartSlot`'s `settings`). */
+  const snapRow: ChartToggleRow | null = editable
+    ? {
+        label: `Snap grades to ${GRADE_SNAP_STEP_PERCENT} % while dragging`,
+        text: `Snap grades to ${GRADE_SNAP_STEP_PERCENT} %`,
+        icon: Magnet,
+        on: snap,
+        flip: () => setSnap(!snap),
+      }
+    : null
+
   return {
     startPvi,
     move,
@@ -763,6 +775,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     cursor,
     html,
     snapToggle,
+    snapRow,
     dragging,
     draggedPviId,
   }

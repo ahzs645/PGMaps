@@ -204,6 +204,9 @@ export async function readGeoPdf(
             suggestedRole: 'terrain',
             selected: false,
             contourSurface: surface,
+            ...(profile.contours.assumedVerticalDatum
+              ? { assumedVerticalDatum: profile.contours.assumedVerticalDatum }
+              : {}),
             note: `Ground surface from the sheet's ${assignment.interval} m contours: ${assignment.labelledLines} labelled lines, ${assignment.inferredLines} inferred from their neighbours, ${assignment.unassignedLines} left out. Coarser than LiDAR: use it where no LiDAR terrain covers the block.`,
           })
         } catch (error) {

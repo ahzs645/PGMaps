@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test'
 import { readFile, writeFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { canforPdfFixture } from '../fixtures/canforPdf'
-import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 } })
 test.setTimeout(90_000)
@@ -339,6 +338,38 @@ test('Layers reviews a supported PDF, saves its source metadata and mounts the s
   await expect(page.getByTestId('road-save-state')).toHaveAttribute('data-save', 'saved')
 })
 
+test('a PDF dropped anywhere on the designer opens the import review, and Layers shows what came in', async ({
+  page,
+}) => {
+  await page.route('https://basemaps.cartocdn.com/**', (r) =>
+    r.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.goto('/dev/forestry/road-design?interface=workbench&example=training')
+  await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
+  await expect(page.getByTestId('road-reference-layers')).toHaveCount(0)
+  const bytes = Array.from(await canforPdfFixture({ raster: 'canopy' }))
+  // Dropped on the plan with Layers closed: the page takes it, not the pane's own drop field.
+  const overlay = await page.getByTestId('road-plan-view').evaluate(async (plan, bytes) => {
+    const transfer = new DataTransfer()
+    transfer.items.add(new File([new Uint8Array(bytes)], 'Canfor-test.pdf', { type: 'application/pdf' }))
+    const fire = (type: string) =>
+      plan.dispatchEvent(new DragEvent(type, { dataTransfer: transfer, bubbles: true, cancelable: true }))
+    fire('dragenter')
+    fire('dragover')
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    const shown = document.querySelector('[data-testid="road-workspace"] > [role="status"]')?.textContent ?? ''
+    fire('drop')
+    return shown
+  }, bytes)
+  expect(overlay).toContain('Drop to add map layers')
+  const dialog = page.getByRole('dialog', { name: 'Import layers' })
+  await expect(dialog).toContainText('Recognized: Canfor')
+  await dialog.getByLabel('Prepare 1 m DEM download boxes after import').uncheck()
+  await dialog.getByRole('button', { name: 'Import layers', exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByTestId('road-reference-layers')).toContainText('Canfor-test.pdf')
+})
+
 test('the supplied private Canfor sheet renders in the browser', async ({ page }, testInfo) => {
   test.skip(!process.env.PGMAPS_CANFOR_PDF, 'Set PGMAPS_CANFOR_PDF to a local source sheet.')
   await page.goto('/tests/e2e/fixtures/geopdf-import.html')
@@ -510,22 +541,24 @@ test('the hillshade sheet refines the contour terrain when the import asks for i
   await refine.check()
   await dialog.getByLabel(/^Fill past the contours/).uncheck()
   await dialog.getByLabel('Prepare 1 m DEM download boxes after import').uncheck()
+  // Canfor's sheets print no datum: the profile's assumption is offered ticked, so nothing is asked.
+  await expect(dialog.getByLabel(/^Heights in metres, vertical datum CGVD2013 .*\(assumed\)/)).toBeChecked()
   await dialog.getByRole('button', { name: 'Import layers', exact: true }).click()
-  const question = page.getByTestId('road-terrain-import-question')
-  await expect(question).toBeVisible({ timeout: 300_000 })
-  await choose(question.getByLabel('Vertical datum of the elevations', { exact: true }), {
-    value: 'CGVD2013 (CGG2013), EPSG:6647; metres',
-  })
-  await question.getByText('Elevations are in metres').click()
-  await question.getByRole('button', { name: 'Import', exact: true }).click()
-  await expect(page.getByTestId('road-save-state')).toHaveAttribute('data-save', 'saved', { timeout: 120_000 })
+  await expect(page.getByTestId('road-save-state')).toHaveAttribute('data-save', 'saved', { timeout: 300_000 })
+  await expect(page.getByTestId('road-terrain-import-question')).toHaveCount(0)
   const terrain = await page.evaluate(async () => {
     const { readLibrary, readProject } = await import('/src/pages/dev-forestry-roads/projectLibrary.ts')
     const library = await readLibrary(),
       project = await readProject(library.activeId!)
-    return { name: project!.terrain.name, relief: project!.terrain.relief, cell: project!.terrain.resolutionM }
+    return {
+      name: project!.terrain.name,
+      relief: project!.terrain.relief,
+      cell: project!.terrain.resolutionM,
+      datum: project!.terrain.verticalReference,
+    }
   })
   expect(terrain.name).toMatch(/^Contours \+ hillshade · .*Field_Layout/)
+  expect(terrain.datum).toBe('CGVD2013 (CGG2013), EPSG:6647; metres; assumed, the sheet prints no datum')
   expect(terrain.relief?.name).toMatch(/Hillshade/)
   expect(terrain.relief!.sharePercent).toBeGreaterThan(85)
   // Typical change is decimetres; nearly all of it under the 10 m interval.

@@ -288,7 +288,7 @@ export function FilesDialog({
                   <h3 className="text-sm font-semibold">
                     {item.label} <span className="font-normal text-muted-foreground">{item.extension}</span>
                   </h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
+                  {item.description && <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-start justify-end gap-2">
                   {saveAsSpec && (
