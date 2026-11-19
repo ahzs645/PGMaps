@@ -13,6 +13,7 @@ import {
   viewpointCandidateSummary,
   viewpointLayerUrl,
   viewpointsNearBlock,
+  vliViewpointName,
   type CandidateArrow,
 } from './viewpointInventory'
 import { bearingDegrees, haversineMeters, type PolygonGeometry } from './visibility'
@@ -125,7 +126,7 @@ describe('arrow bearings', () => {
 })
 
 describe('records', () => {
-  it('drops viewpoints the inventory typed ERROR and keeps the rest despite expiry', () => {
+  it('keeps viewpoints the inventory typed ERROR as flagged, counts them, and keeps the rest despite expiry', () => {
     const parsed = parseViewpoints({
       features: [
         point(-122.6, 54.5, { VIEWPOINT_ID: 1, REC_VIEWPOINT_TYPE_CODE: 'PHOTOP', EXPIRY_DATE: '2004-01-15Z' }),
@@ -133,8 +134,12 @@ describe('records', () => {
         { type: 'Feature', geometry: null, properties: { VIEWPOINT_ID: 3 } },
       ],
     })
-    expect(parsed.viewpoints.map((v) => [v.id, v.typeLabel, v.expiry])).toEqual([['1', 'Photopoint', '2004-01-15']])
-    expect(parsed.droppedErrors).toBe(1)
+    expect(parsed.viewpoints.map((v) => [v.id, v.typeLabel, v.expiry, v.inventoryError])).toEqual([
+      ['1', 'Photopoint', '2004-01-15', undefined],
+      ['2', 'Viewpoint (inventory: ERROR)', null, true],
+    ])
+    expect(parsed.inventoryErrors).toBe(1)
+    expect(vliViewpointName(parsed.viewpoints[1])).toBe('VLI viewpoint')
   })
 
   it('names rec sites and forest service roads as notes write them', () => {
@@ -235,6 +240,32 @@ describe('ranking near a block', () => {
     expect(rows[0].arrow?.aims).toBe(true)
     expect(rows[0].name).toBe('VLI minor viewpoint 1')
     expect(rows.find((row) => row.key === 'vli:b')?.arrow).toBeNull()
+  })
+
+  it('lists an ERROR viewpoint flagged, after an equally good unflagged one, with its arrows joined', () => {
+    const { viewpoints } = parseViewpoints({
+      features: [
+        point(-122.99134, 54.956582, { VIEWPOINT_ID: 'e', VIEWPOINT_NUMBER: 7, REC_VIEWPOINT_TYPE_CODE: 'ERROR' }),
+        point(-122.99134, 54.956582, { VIEWPOINT_ID: 'm', VIEWPOINT_NUMBER: 8, REC_VIEWPOINT_TYPE_CODE: 'MINVP' }),
+      ],
+    })
+    const arrows = parseArrows(
+      {
+        features: ['e', 'm'].map((id, i) => ({
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: [ARROWS[0].arrow] },
+          properties: { VIEWING_DIRECTION_ID: i + 1, VIEWPOINT_ID: id },
+        })),
+      },
+      viewpoints,
+    )
+    expect(arrows.every((arrow) => arrow.bearingFrom === 'viewpoint')).toBe(true)
+    const rows = viewpointsNearBlock(block, { viewpoints, arrows, recSites: [] })
+    expect(rows.map((row) => [row.key, row.name, row.inventoryError, row.arrow?.aims])).toEqual([
+      ['vli:m', 'VLI minor viewpoint 8', undefined, true],
+      ['vli:e', 'VLI viewpoint 7', true, true],
+    ])
+    expect(rows[0].weight).toBe(rows[1].weight)
   })
 
   it('keeps every arrow of a viewpoint, the one aimed at the block first', () => {

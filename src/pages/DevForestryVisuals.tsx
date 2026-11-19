@@ -255,6 +255,7 @@ import {
   blockNoteFileName,
   blockNotePdf,
   blockNoteWorkbook,
+  isPngImage,
   type BlockNote,
   type NoteImage,
   type ViewpointPage,
@@ -405,6 +406,17 @@ import {
 import { runResultMetrics, viewpointSummaryMetrics } from './dev-forestry/viewpointSummaryRows'
 import { landCheckMetrics } from './dev-forestry/landStatusChecks'
 import { useLandChecks } from './dev-forestry/useLandChecks'
+import { RouteCardPanel, type SessionLayer } from './dev-forestry/RouteCardPanel'
+import {
+  DOCX_TYPE as ROUTE_CARD_DOCX_TYPE,
+  XLSX_TYPE as ROUTE_CARD_XLSX_TYPE,
+  loadRouteCardKit,
+  useRouteCardKit,
+} from './dev-forestry/routeCardEngine'
+import { blockShape, useRouteCard } from './dev-forestry/useRouteCard'
+import { assembleRouteCard } from '@/lib/forestry/routeCard/assemble'
+import type { RouteCardReview } from '@/lib/forestry/routeCard/review'
+import { DEFAULT_ROUTE_CARD_PRESET, ROUTE_CARD_PRESETS } from '@/lib/forestry/routeCard/rows'
 import { usePrivateParcels } from './dev-forestry/usePrivateParcels'
 import { VisualQualityLayers, type SceneLayerData } from './dev-forestry/VisualQualityLayers'
 import {
@@ -2681,7 +2693,10 @@ function DevForestryVisuals() {
             properties: {
               id: `vli:${viewpoint.id}`,
               kind: 'vli',
-              name: viewpoint.typeLabel + (viewpoint.number !== null ? ` ${viewpoint.number}` : ''),
+              // A row the inventory typed ERROR is drawn and offered, flagged: the label says so after the number.
+              name: viewpoint.inventoryError
+                ? `Viewpoint${viewpoint.number !== null ? ` ${viewpoint.number}` : ''} (inventory: ERROR)`
+                : viewpoint.typeLabel + (viewpoint.number !== null ? ` ${viewpoint.number}` : ''),
             },
             geometry: { type: 'Point' as const, coordinates: [viewpoint.lng, viewpoint.lat] },
           })),
@@ -2693,7 +2708,7 @@ function DevForestryVisuals() {
           })),
         ],
       } satisfies GeoJSON.FeatureCollection,
-      // An arrow whose viewpoint was left out (typed ERROR by the inventory, or outside the area read) has nowhere to
+      // An arrow whose viewpoint was not read (outside the area read) has nowhere to
       // stand and points from no drawn point, so it is not drawn.
       arrows: {
         type: 'FeatureCollection',
@@ -3957,6 +3972,183 @@ function DevForestryVisuals() {
   // read live from DataBC; cards in the summary, never inputs to the run.
   const checkBlocks = useMemo(() => scene.targets.filter((target) => target.role === 'block'), [scene.targets])
   const landChecks = useLandChecks(checkBlocks, sceneLandform)
+  // Step 1's *Route card*: one block's route card, read while the section is open or Save & export is.
+  const [routeCardOpen, setRouteCardOpen] = useState(false)
+  const [routeCardBlockId, setRouteCardBlockId] = useState<string | null>(null)
+  // Layer files the reviewer read for the route card this session (the fisher layer, a RAAD export): memory only.
+  const [routeCardLayers, setRouteCardLayers] = useState<SessionLayer[]>([])
+  const keepRouteCardLayer = useCallback(
+    (layer: SessionLayer) =>
+      setRouteCardLayers((current) => [...current.filter((entry) => entry.file.name !== layer.file.name), layer]),
+    [],
+  )
+  const routeCardReview = scene.viaReview?.routeCard
+  const routeCardPreset =
+    ROUTE_CARD_PRESETS.find((preset) => preset.id === routeCardReview?.preset) ?? DEFAULT_ROUTE_CARD_PRESET
+  const routeCardBlock =
+    checkBlocks.find((block) => block.id === routeCardBlockId) ??
+    checkBlocks.find((block) => block.id === blockNoteParts?.blockId) ??
+    checkBlocks[0] ??
+    null
+  const routeCardActive = (routeCardOpen || exportOpener.open) && !!routeCardBlock
+  const routeCardAccess = routeCardBlock ? (routeCardReview?.blocks?.[routeCardBlock.id]?.access?.lines ?? null) : null
+  const routeCardRun = useRouteCard(routeCardBlock, routeCardAccess, routeCardPreset, routeCardActive)
+  const routeCardKit = useRouteCardKit(routeCardActive)
+  const routeCardShape = useMemo(() => (routeCardBlock ? blockShape(routeCardBlock) : null), [routeCardBlock])
+  const routeCardVisuals =
+    blockNoteParts && routeCardBlock && blockNoteParts.blockId === routeCardBlock.id ? blockNoteParts.visuals : null
+  const routeCardPlanned = useMemo(
+    () =>
+      checkBlocks.flatMap((block) => {
+        const shape = block.id === routeCardBlock?.id ? null : blockShape(block)
+        return shape ? [{ name: block.name, shape }] : []
+      }),
+    [checkBlocks, routeCardBlock?.id],
+  )
+  const routeCardAssembled = useMemo(() => {
+    if (!routeCardKit.kit || !routeCardBlock || !routeCardShape) return null
+    try {
+      return assembleRouteCard(routeCardKit.kit, {
+        preset: routeCardPreset,
+        block: { id: routeCardBlock.id, name: routeCardBlock.name, shape: routeCardShape },
+        states: routeCardRun.states,
+        review: routeCardReview?.blocks?.[routeCardBlock.id],
+        visuals: routeCardVisuals,
+        planned: routeCardPlanned,
+        readAt: routeCardRun.readAt,
+      })
+    } catch (error) {
+      console.error('Route card report', error)
+      return null
+    }
+  }, [
+    routeCardKit.kit,
+    routeCardBlock,
+    routeCardShape,
+    routeCardPreset,
+    routeCardRun.states,
+    routeCardRun.readAt,
+    routeCardReview,
+    routeCardVisuals,
+    routeCardPlanned,
+  ])
+  const updateRouteCardReview = useCallback(
+    (next: RouteCardReview) => updateViaReview({ routeCard: next }),
+    [updateViaReview],
+  )
+  const buildRouteCard = useCallback(
+    async (format: 'xlsx' | 'docx') => {
+      const kit = await loadRouteCardKit()
+      if (!routeCardBlock || !routeCardShape) throw new Error('Add a cutblock to write its route card.')
+      const input = {
+        preset: routeCardPreset,
+        block: { id: routeCardBlock.id, name: routeCardBlock.name, shape: routeCardShape },
+        states: routeCardRun.states,
+        review: routeCardReview?.blocks?.[routeCardBlock.id],
+        visuals: routeCardVisuals,
+        planned: routeCardPlanned,
+        readAt: routeCardRun.readAt,
+      }
+      // The maps the printed considerations carry, rasterised, and the views saved of this block under Visuals.
+      const { sheetPngBlob } = await import('@/lib/mapSheet/sheetPng')
+      const draft = assembleRouteCard(kit, input)
+      const maps = await Promise.all(
+        draft.maps.map(async (map) => ({
+          consideration: map.consideration,
+          caption: map.caption,
+          bytes: new Uint8Array(await (await sheetPngBlob(map.svg, map.width, map.height, 1)).arrayBuffer()),
+          format: 'png' as const,
+          width: map.width,
+          height: map.height,
+        })),
+      )
+      const views = draft.report.considerations.some((item) => item.id === 'visuals')
+        ? [...shelvedViews.flatMap((entry) => entry.views), ...savedViews]
+            .filter((view) => !view.lookAtTargetId || view.lookAtTargetId === routeCardBlock.id)
+            .flatMap((view) => (viewImages[view.id] ? [viewImages[view.id]] : []))
+            .sort((a, b) => a.savedAt - b.savedAt)
+            .slice(0, 3)
+            .map((image) => ({
+              consideration: 'visuals' as const,
+              caption: image.caption,
+              bytes: Uint8Array.from(atob(image.dataUrl.slice(image.dataUrl.indexOf(',') + 1)), (c) => c.charCodeAt(0)),
+              format: isPngImage(image) ? ('png' as const) : ('jpeg' as const),
+              width: image.width,
+              height: image.height,
+            }))
+        : []
+      const assembled = assembleRouteCard(kit, { ...input, figures: [...maps, ...views] })
+      const base = `${routeCardBlock.name.replace(/[^\w.-]+/g, '_')}_Report`
+      if (format === 'docx') {
+        const { writeDocx } = await import('document-kit/docx')
+        const bytes = await writeDocx(assembled.report.document)
+        return {
+          blob: new Blob([bytes as Uint8Array<ArrayBuffer>], { type: ROUTE_CARD_DOCX_TYPE }),
+          fileName: `${base}.docx`,
+        }
+      }
+      const [{ routeCardWorkbook }, ExcelJS] = await Promise.all([
+        import('@/lib/forestry/routeCard/excel'),
+        import('exceljs'),
+      ])
+      const bytes = await routeCardWorkbook(
+        {
+          preset: routeCardPreset,
+          sheet: assembled.sheet,
+          considerations: assembled.report.considerations,
+          notes: assembled.notes,
+          figures: [...maps, ...views],
+        },
+        ExcelJS,
+      )
+      return { blob: new Blob([bytes], { type: ROUTE_CARD_XLSX_TYPE }), fileName: `${base}.xlsx` }
+    },
+    [
+      routeCardBlock,
+      routeCardShape,
+      routeCardPreset,
+      routeCardRun.states,
+      routeCardRun.readAt,
+      routeCardReview,
+      routeCardVisuals,
+      routeCardPlanned,
+      shelvedViews,
+      savedViews,
+      viewImages,
+    ],
+  )
+  const routeCardExport = useMemo(
+    () => ({
+      context: {
+        blockName: routeCardBlock?.name ?? null,
+        presetName: routeCardPreset.name,
+        problem: !routeCardBlock
+          ? 'Add a cutblock to write its route card.'
+          : routeCardKit.error
+            ? routeCardKit.error
+            : null,
+        reading: !routeCardRun.readAt,
+        counts: routeCardAssembled?.counts ?? null,
+        considerations: (routeCardAssembled?.report.considerations ?? []).map((item) => ({
+          title: item.title,
+          own: item.own,
+          toComplete: item.toComplete.length,
+        })),
+        notCalledFor: (routeCardAssembled?.report.notCalledFor ?? []).map((item) => item.title),
+        access: routeCardBlock ? (routeCardReview?.blocks?.[routeCardBlock.id]?.access?.name ?? null) : null,
+      },
+      build: buildRouteCard,
+    }),
+    [
+      routeCardBlock,
+      routeCardPreset.name,
+      routeCardKit.error,
+      routeCardRun.readAt,
+      routeCardAssembled,
+      routeCardReview,
+      buildRouteCard,
+    ],
+  )
   // The planned view of interest the reviewer stands at (`summaryViewSwitch.ts`), for the summary's ◀ ▶: matched by
   // the road view's look, then the block the road view faces or the sidebar's selection.
   const summaryView = useMemo(
@@ -6185,6 +6377,7 @@ function DevForestryVisuals() {
       },
     },
     landChecks,
+    routeCard: routeCardExport,
     visualInventory: {
       status: sceneInventory.status,
       units: sceneInventory.units,
@@ -6768,6 +6961,36 @@ function DevForestryVisuals() {
         views: viewsProgress,
       }}
       setup={<PreviewWorkflow part="setup" {...previewProps} />}
+      routeCard={
+        <RouteCardPanel
+          blocks={checkBlocks}
+          block={routeCardBlock}
+          blockShape={routeCardShape}
+          onBlockChange={setRouteCardBlockId}
+          presets={ROUTE_CARD_PRESETS}
+          preset={routeCardPreset}
+          onPresetChange={(id) => updateRouteCardReview({ ...routeCardReview, preset: id })}
+          run={routeCardRun}
+          assembled={routeCardAssembled}
+          engineError={routeCardKit.error}
+          review={routeCardReview}
+          onReviewChange={updateRouteCardReview}
+          onOpenExport={() => exportOpener.openExport('route-card')}
+          sessionLayers={routeCardLayers}
+          onSessionLayer={keepRouteCardLayer}
+        />
+      }
+      routeCardOpen={routeCardOpen}
+      onRouteCardOpenChange={setRouteCardOpen}
+      routeCardSummary={
+        !routeCardRun.readAt
+          ? routeCardOpen
+            ? 'Reading…'
+            : 'Not read yet'
+          : routeCardAssembled
+            ? `${routeCardAssembled.counts.flagged} Y · ${routeCardAssembled.counts.notPublic} to enter`
+            : undefined
+      }
       landformFinder={
         !drive.active && (
           <>

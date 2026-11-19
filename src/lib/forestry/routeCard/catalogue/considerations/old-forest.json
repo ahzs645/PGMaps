@@ -1,0 +1,146 @@
+{
+  "kind": "component",
+  "id": "consideration-old-forest",
+  "title": "Old Forest",
+  "description": "The block's NDTs and landscape unit, their old seral targets from the Biodiversity Guidebook, how the unit meets them, and whether the block takes draft OGMA.",
+  "meta": {
+    "consideration": "old-forest",
+    "sources": [
+      "route card: NDT, LU",
+      "BEC subzone",
+      "Biodiversity Guidebook (1995)",
+      "route card: Non Legal Old Growth Management Areas"
+    ]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 3,
+      "content": "{{ params.title }}"
+    },
+    {
+      "if": "own.oldForest",
+      "then": [
+        {
+          "type": "paragraph",
+          "content": "{{ own.oldForest }}",
+          "source": "reviewer"
+        }
+      ],
+      "else": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "sentence",
+              "template": "{block} is located in {ndts} within the {lu} Landscape Unit.",
+              "values": {
+                "block": "{{ subject.name }}",
+                "ndts": "{{ oldForestLabels.ndts | prose }}",
+                "lu": "{{ oldForest.landscapeUnit }}"
+              },
+              "missing": "placeholder"
+            },
+            {
+              "for": "n in oldForest.ndts",
+              "do": [
+                {
+                  "if": "n.percent",
+                  "then": [
+                    {
+                      "type": "text",
+                      "text": " "
+                    },
+                    {
+                      "type": "sentence",
+                      "template": "Within the {lu} LU, {label} has an old seral-stage (>{age} years) retention target of greater than {percent}%.",
+                      "values": {
+                        "lu": "{{ oldForest.landscapeUnit }}",
+                        "label": "{{ n.label }}",
+                        "age": "{{ n.olderThanYears }}",
+                        "percent": "{{ n.percent }}"
+                      }
+                    }
+                  ],
+                  "else": [
+                    {
+                      "type": "text",
+                      "text": " "
+                    },
+                    {
+                      "type": "text",
+                      "text": "{{ toComplete.none | missing \"placeholder\" \"old seral target for this NDT\" }}"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "text": "{{ oldForest.statement | missing \"placeholder\" \"how the unit meets its old forest objective\" }}"
+            },
+            {
+              "if": "oldForest.ogmaPercent == 0",
+              "then": [
+                {
+                  "type": "text",
+                  "text": " The proposed cutblock is located outside the d-OGMA boundaries and therefore will not reduce the area spatially identified for old forest retention."
+                }
+              ],
+              "else": [
+                {
+                  "if": "oldForest.ogmaPercent > 0",
+                  "then": [
+                    {
+                      "type": "text",
+                      "text": " "
+                    },
+                    {
+                      "type": "sentence",
+                      "template": "The proposed cutblock overlaps draft OGMAs on {percent}% of its area.",
+                      "values": {
+                        "percent": "{{ oldForest.ogmaPercent }}"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "text": " "
+                    },
+                    {
+                      "type": "text",
+                      "text": "{{ toComplete.none | missing \"placeholder\" \"how the overlap with draft OGMAs is addressed\" }}"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "for": "f in figures.oldForest",
+      "do": [
+        {
+          "type": "figure",
+          "image": "{{ f.image }}",
+          "caption": "{{ f.caption }}",
+          "fit": {
+            "width": 468,
+            "height": 340
+          },
+          "align": "left"
+        }
+      ]
+    }
+  ],
+  "params": {
+    "title": {
+      "default": "Old Forest"
+    }
+  }
+}

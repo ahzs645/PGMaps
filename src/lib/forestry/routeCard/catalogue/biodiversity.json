@@ -1,0 +1,62 @@
+{
+  "kind": "route-card-biodiversity",
+  "version": 1,
+  "oldSeral": [
+    {
+      "ndt": "NDT1",
+      "zone": "ESSF",
+      "beo": "Low",
+      "olderThanYears": 250,
+      "percent": 19,
+      "source": "Biodiversity Guidebook (1995), old seral targets by natural disturbance type, BEC zone and biodiversity emphasis option"
+    },
+    {
+      "ndt": "NDT1",
+      "zone": "ICH",
+      "beo": "Low",
+      "olderThanYears": 250,
+      "percent": 13,
+      "source": "Biodiversity Guidebook (1995), old seral targets by natural disturbance type, BEC zone and biodiversity emphasis option"
+    },
+    {
+      "ndt": "NDT2",
+      "zone": "*",
+      "beo": "Low",
+      "olderThanYears": 250,
+      "percent": 9,
+      "source": "Biodiversity Guidebook (1995), old seral targets by natural disturbance type, BEC zone and biodiversity emphasis option"
+    }
+  ],
+  "patchSize": [
+    {
+      "ndts": ["NDT1", "NDT2"],
+      "bins": [
+        {
+          "name": "small",
+          "fromHa": 0,
+          "toHa": 40,
+          "targetPercent": "30–40%"
+        },
+        {
+          "name": "medium",
+          "fromHa": 40,
+          "toHa": 80,
+          "targetPercent": "30–40%"
+        },
+        {
+          "name": "large",
+          "fromHa": 80,
+          "toHa": 250,
+          "targetPercent": "20–40%"
+        },
+        {
+          "name": "x-large",
+          "fromHa": 250,
+          "toHa": 1000000,
+          "targetPercent": null
+        }
+      ],
+      "source": "Biodiversity Guidebook (1995), patch size distribution for natural disturbance types 1 and 2"
+    }
+  ]
+}

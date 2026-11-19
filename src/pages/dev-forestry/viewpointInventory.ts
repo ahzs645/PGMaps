@@ -4,8 +4,11 @@
  * - **Viewpoints** (`REC_VIEWPOINT_POINT_SVW`) — the Visual Landscape
  *   Inventory's viewing points. Every row carries an expiry date in the past
  *   (12,396 of 12,396 in November 2026), so expiry is reported, not used as a
- *   filter. Type `ERROR` is the inventory flagging its own mistakes; those are
- *   dropped. The ArcGIS view of this layer (MapServer layer 5) answers queries
+ *   filter. Rows typed `ERROR` are kept as flagged candidates (`inventoryError`)
+ *   and ranked after an equally good unflagged one, never dropped: `ERROR` is a
+ *   code on the record, not proof the point is wrong. Near one real block 12 of
+ *   the 13 viewpoints within 12 km were typed `ERROR`, the one its planner
+ *   assessed from among them. The ArcGIS view of this layer (MapServer layer 5) answers queries
  *   with no rows, so the WFS is the only working source.
  * - **Viewing directions** (`REC_VIEWING_DIRECTION_LIN`) — the landscape
  *   arrows, stored as arrow-shaped *polygons* despite the name. Their
@@ -104,9 +107,11 @@ export function viewpointLayerUrl(layer: keyof typeof VIEWPOINT_LAYERS, bounds: 
 export type VliViewpoint = {
   id: string
   number: number | null
-  /** `MAJVP`, `MINVP`, `PHOTOP`. */
+  /** `MAJVP`, `MINVP`, `PHOTOP`, or `ERROR` (then `inventoryError`). */
   typeCode: string
   typeLabel: string
+  /** The inventory typed this row `ERROR`: listed as a candidate to check before use, never dropped. */
+  inventoryError?: true
   lng: number
   lat: number
   expiry: string | null
@@ -152,14 +157,15 @@ export type ViewpointInventory = {
   failed: Array<{ layer: keyof typeof VIEWPOINT_LAYERS; message: string }>
   retrievedAt: string
   bounds: Bounds
-  /** Viewpoints the inventory itself typed `ERROR`, left out. */
-  droppedErrorViewpoints: number
+  /** Viewpoints the inventory itself typed `ERROR`, kept and flagged (`VliViewpoint.inventoryError`). */
+  inventoryErrorViewpoints: number
 }
 
 const VIEWPOINT_TYPE_LABELS: Record<string, string> = {
   MAJVP: 'Major viewpoint',
   MINVP: 'Minor viewpoint',
   PHOTOP: 'Photopoint',
+  ERROR: 'Viewpoint (inventory: ERROR)',
 }
 
 type RawFeature = { id?: unknown; geometry?: GeoJSON.Geometry | null; properties?: Record<string, unknown> | null }
@@ -183,18 +189,17 @@ function isPoint(geometry: GeoJSON.Geometry | null | undefined): geometry is Geo
   )
 }
 
-export function parseViewpoints(payload: unknown): { viewpoints: VliViewpoint[]; droppedErrors: number } {
-  let droppedErrors = 0
+/** Viewpoints, those typed `ERROR` kept with `inventoryError` and counted in `inventoryErrors`. */
+export function parseViewpoints(payload: unknown): { viewpoints: VliViewpoint[]; inventoryErrors: number } {
+  let inventoryErrors = 0
   const viewpoints = features(payload).flatMap((feature): VliViewpoint[] => {
     const p = feature.properties ?? {}
     if (!isPoint(feature.geometry)) return []
     const typeCode = text(p.REC_VIEWPOINT_TYPE_CODE)?.toUpperCase() ?? ''
-    if (typeCode === 'ERROR') {
-      droppedErrors += 1
-      return []
-    }
     const id = text(p.VIEWPOINT_ID)
     if (!id) return []
+    const inventoryError = typeCode === 'ERROR'
+    if (inventoryError) inventoryErrors += 1
     return [
       {
         id,
@@ -204,10 +209,11 @@ export function parseViewpoints(payload: unknown): { viewpoints: VliViewpoint[];
         lng: feature.geometry.coordinates[0],
         lat: feature.geometry.coordinates[1],
         expiry: text(p.EXPIRY_DATE)?.replace(/Z$/, '') ?? null,
+        ...(inventoryError ? { inventoryError: true as const } : {}),
       },
     ]
   })
-  return { viewpoints, droppedErrors }
+  return { viewpoints, inventoryErrors }
 }
 
 function localMetres(origin: { lng: number; lat: number }) {
@@ -446,6 +452,8 @@ export type ViewpointCandidate = {
   arrows: CandidateArrow[]
   /** Sort key: nearer and aimed at the block first. Not a visibility figure. */
   weight: number
+  /** A viewpoint the inventory typed `ERROR`: listed, flagged, and after an equally weighted unflagged row. */
+  inventoryError?: true
 }
 
 /**
@@ -470,8 +478,10 @@ export function viewpointCandidateSummary(candidate: ViewpointCandidate): string
   return `${kind} · ${distance} ${compassPoint(candidate.bearingToBlock + 180)} of the block${arrows}`
 }
 
+/** "VLI minor viewpoint 4". A row typed `ERROR` is plain "VLI viewpoint 4": its flag travels beside the name. */
 export function vliViewpointName(viewpoint: VliViewpoint): string {
-  return `VLI ${viewpoint.typeLabel.toLowerCase()}${viewpoint.number !== null ? ` ${viewpoint.number}` : ''}`
+  const type = viewpoint.inventoryError ? 'viewpoint' : viewpoint.typeLabel.toLowerCase()
+  return `VLI ${type}${viewpoint.number !== null ? ` ${viewpoint.number}` : ''}`
 }
 
 function angleBetween(a: number, b: number): number {
@@ -483,7 +493,8 @@ function angleBetween(a: number, b: number): number {
  * aimed-at-it first. An arrow aiming at the block raises a viewpoint, as the
  * planner would weigh it; one aiming away does not drop it, because a person
  * at a site looks around. Whether the block is in view is the reverse run's
- * job, not this ranking's.
+ * job, not this ranking's. A viewpoint the inventory typed `ERROR` is listed
+ * and flagged, and on equal weight comes after the unflagged row.
  */
 export function viewpointsNearBlock(
   block: PolygonGeometry,
@@ -529,6 +540,7 @@ export function viewpointsNearBlock(
       arrow,
       arrows,
       weight: distance / (aims ? 2 : 1) / (viewpoint.typeCode === 'MAJVP' ? 1.5 : 1),
+      ...(viewpoint.inventoryError ? { inventoryError: true as const } : {}),
     })
   }
   for (const site of inventory.recSites) {
@@ -548,7 +560,7 @@ export function viewpointsNearBlock(
       weight: distance / 1.5,
     })
   }
-  return rows.sort((a, b) => a.weight - b.weight)
+  return rows.sort((a, b) => a.weight - b.weight || Number(!!a.inventoryError) - Number(!!b.inventoryError))
 }
 
 /** Tenure roads within `withinMeters` of the block, nearest first, retired roads left out. */
@@ -612,7 +624,7 @@ export async function fetchViewpointInventory(bounds: Bounds, signal?: AbortSign
   }
   // A layer answered from a kept copy dates the whole read by its oldest copy.
   const copyAt = oldestCopy(settled.map((result) => (result.status === 'fulfilled' ? result.value.copyAt : null)))
-  const { viewpoints, droppedErrors } = parseViewpoints(payload('viewpoints'))
+  const { viewpoints, inventoryErrors } = parseViewpoints(payload('viewpoints'))
   return {
     viewpoints,
     arrows: parseArrows(payload('arrows'), viewpoints),
@@ -628,7 +640,7 @@ export async function fetchViewpointInventory(bounds: Bounds, signal?: AbortSign
     }),
     retrievedAt: copyAt ?? new Date().toISOString(),
     bounds: clampViewpointBounds(bounds),
-    droppedErrorViewpoints: droppedErrors,
+    inventoryErrorViewpoints: inventoryErrors,
   }
 }
 

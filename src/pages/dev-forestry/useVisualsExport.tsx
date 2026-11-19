@@ -135,6 +135,7 @@ import {
   type ContextView,
   type ExportAction,
   type ExportAutoRun,
+  type ExportContext,
   type VisualsExport,
   VISUALS_EXPORTS,
 } from './visualsExports'
@@ -333,6 +334,14 @@ export function useVisualsExport(input: {
   onManageAttachments?: () => void
   /** The land status checks the summary cards read (`useLandChecks`). */
   landChecks: { states: Partial<Record<LandCheckId, LandCheckState>>; unchecked: string | null }
+  /**
+   * The route card as step 1's *Route card* shows it, and its file: the workbook or the Word document, built from the
+   * same render (`assembleRouteCard`). Absent: the page offers none.
+   */
+  routeCard?: {
+    context: NonNullable<ExportContext['routeCard']>
+    build: (format: 'xlsx' | 'docx') => Promise<BuiltFile>
+  }
   /**
    * The scene's visual landscape inventory, read live around the scene (the EVQO drape's read): `units` once read,
    * null before and after a failure. `read` starts it, or reads again after a failure; the outputs that print the
@@ -929,6 +938,7 @@ export function useVisualsExport(input: {
       pending: input.landChecks.unchecked ? 0 : landChecksPending(input.landChecks.states),
       rows: landRows,
     },
+    ...(input.routeCard ? { routeCard: input.routeCard.context } : {}),
     ...(input.visualInventory
       ? { visualInventory: { status: input.visualInventory.status, error: input.visualInventory.error } }
       : {}),
@@ -985,6 +995,8 @@ export function useVisualsExport(input: {
       // A take's progress is no other output's content.
       roadVideo: kind === 'road-video' ? context.roadVideo : null,
       landChecks: kind === 'block-note' ? context.landChecks : null,
+      // Only the route card prints the route card.
+      routeCard: kind === 'route-card' ? context.routeCard : null,
       // A render finishing is content (the counts, and the jobs below); its clock and queue are not.
       renderer: {
         ...context.renderer,
@@ -1764,6 +1776,9 @@ export function useVisualsExport(input: {
         // Recorded on request (`recordings` below), never written here: Download writes the take it holds.
         if (!videoTake) throw new Error('Nothing recorded yet: record the video under Preview first.')
         return videoFile(videoTake)
+      case 'route-card':
+        if (!input.routeCard) throw new Error('The route card is not offered here.')
+        return input.routeCard.build(format === 'docx' ? 'docx' : 'xlsx')
       case 'castor-constraint': {
         const constraint = castorVqoConstraint(scene, result)
         if (!constraint)

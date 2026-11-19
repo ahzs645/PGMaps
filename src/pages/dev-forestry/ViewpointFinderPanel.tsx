@@ -1,7 +1,9 @@
 import { Check, ListPlus, Loader2, MapPin, Plus, Radar } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
@@ -199,7 +201,8 @@ export function ViewpointFinderPanel({
           no bearing of their own, so each is read from its viewpoint to its tip; a viewpoint often has several. An
           arrow within {ARROW_AIM_DEGREES}° of the block ranks its viewpoint higher; one aimed elsewhere does not drop
           it, because people at a site look around. Every viewpoint in the inventory carries a past expiry date, so
-          expiry is not used to filter them; rows the inventory typed ERROR are left out.
+          expiry is not used to filter them. Rows the inventory typed ERROR are listed and flagged, after an equally
+          good unflagged row: the code is on the record, not proof the point is wrong.
           <br />
           <em>Add</em> on a row lists it in the views of interest above for this block: by default up to two of its
           arrows aimed at the block, else one view facing it. Open a row to see its arrows on the map, add just one
@@ -281,6 +284,11 @@ export function ViewpointFinderPanel({
                     title={
                       <span className="text-xs">
                         {candidate.name}
+                        {candidate.inventoryError && (
+                          <Badge tone="warning" className="ml-1 align-middle font-normal">
+                            Inventory: ERROR
+                          </Badge>
+                        )}
                         {listedKeys?.has(candidate.key) && (
                           <span className="ml-1 font-normal text-muted-foreground">· in views</span>
                         )}
@@ -348,6 +356,17 @@ export function ViewpointFinderPanel({
                 )}
                 {selected && (
                   <ResultRowDetail className="space-y-2 pl-2">
+                    {candidate.inventoryError && (
+                      <p className="flex items-center gap-1 text-3xs text-warning">
+                        Inventory: ERROR — check before use
+                        <InfoTip label="About viewpoints typed ERROR" tone="warning">
+                          The Visual Landscape Inventory typed this viewpoint ERROR. That is a code on the record, not
+                          proof the point is wrong: near one block a planner assessed, 12 of the 13 viewpoints within 12
+                          km were typed ERROR, the one they stood at among them. Check the place on the ground or the
+                          map before relying on it.
+                        </InfoTip>
+                      </p>
+                    )}
                     {candidate.arrows.length > 0 && (
                       <div
                         role="radiogroup"
@@ -458,10 +477,10 @@ export function ViewpointFinderPanel({
           {addMessage.text}
         </p>
       )}
-      {data && data.droppedErrorViewpoints > 0 && (
+      {data && data.inventoryErrorViewpoints > 0 && (
         <p className="text-3xs text-muted-foreground">
-          {data.droppedErrorViewpoints} viewpoint{data.droppedErrorViewpoints === 1 ? '' : 's'} typed ERROR in the
-          inventory left out.
+          {data.inventoryErrorViewpoints} viewpoint{data.inventoryErrorViewpoints === 1 ? '' : 's'} typed ERROR in the
+          inventory {data.inventoryErrorViewpoints === 1 ? 'is' : 'are'} listed and flagged; check one before use.
         </p>
       )}
     </ToolSection>

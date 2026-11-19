@@ -1,0 +1,31 @@
+{
+  "kind": "route-card-bird-nest-rank",
+  "version": 1,
+  "id": "pgmaps-nest-rank-2026",
+  "name": "PGMaps estimate of migratory bird nest-density rank",
+  "assumption": "The route card tool ranks each forest inventory stand from 1 (low nest density) to 6 (high) with an industry nest-density matrix (BEC zone, stand type, age class and height class) that is not published. PGMaps estimates the rank with this stated rule instead: older and taller stands rank higher, a deciduous share raises the rank, and pure pine and black spruce stands lower it. It is an estimate for planning, never the matrix: confirm the ranks with the route card tool or enter them.",
+  "calibration": "Against the ranks the route card tool printed for eleven blocks and roads (VRI rank 1 read in November 2026): 4 of 11 exact, 28 of the 34 printed ranks found. The tool appears to rank an older inventory: back-dating the stands about seven years made 5 of 11 exact.",
+  "treedOnly": true,
+  "ageClasses": [
+    { "maxYears": 30, "base": 2 },
+    { "maxYears": 80, "base": 2 },
+    { "maxYears": 120, "base": 3 },
+    { "maxYears": 250, "base": 3 },
+    { "maxYears": null, "base": 4 }
+  ],
+  "heightBonus": {
+    "olderThanYears": 80,
+    "steps": [
+      { "fromMeters": 19.5, "add": 1 },
+      { "fromMeters": 28.5, "add": 2 }
+    ]
+  },
+  "adjustments": [
+    { "when": "pineAtLeast", "percent": 75, "add": -1 },
+    { "when": "leading", "species": ["SB"], "add": -1 },
+    { "when": "deciduousAtLeast", "percent": 25, "add": 1 }
+  ],
+  "deciduous": ["AT", "AC", "ACT", "ACB", "EP", "EA", "E", "MB", "DR", "D", "W", "V", "VB", "RA", "ES"],
+  "min": 1,
+  "max": 6
+}

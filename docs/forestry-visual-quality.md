@@ -3469,7 +3469,15 @@ recreation sites (`FTEN_REC_SITE_POINTS_SVW`) and tenure road sections
 - The ArcGIS view of the viewpoints (MapServer layer 5) advertises queries but
   answers with no rows; the WFS has all 12,396. Every one carries an expiry
   date in the past, so expiry is shown, not filtered on. Rows typed `ERROR` are
-  the inventory flagging its own mistakes and are dropped.
+  kept as flagged candidates (`inventoryError`), never dropped: `ERROR` is a
+  code on the record, not proof the point is wrong. Near one real block 12 of
+  the 13 viewpoints within 12 km were typed `ERROR`, the one its planner stood
+  at for the Visuals assessment (beside a forest service road, 2.7 km off)
+  among them, so dropping them hid the viewpoint a planner used. A flagged row
+  is named plainly ("VLI viewpoint 7"), shows *Inventory: ERROR* with an
+  explanation behind its (i), ranks after an equally good unflagged row, keeps
+  its arrows (joined on `VIEWPOINT_ID` like any other) and is added in one
+  click like the rest. Photo markers label it "Viewpoint 7 (inventory: ERROR)".
 - The arrows are polygons, and `COMPASS_BEARING` is 0 on every row. The bearing
   runs from the arrow's viewpoint (joined on `VIEWPOINT_ID`, a median 8 m from
   the tail) to the vertex farthest from it. Read from the shape alone — the
@@ -5616,3 +5624,7 @@ stations are not guaranteed. The merged 128×128 grid stays fixed across the
 selected footprint, avoiding flicker or loss from changing grids; complete
 prefixes are reused and only newly reached stations are calculated. Large
 stretches produce coarser cells/DEM zoom within the same 64-tile loading limit.
+
+## Route card
+
+Step 1's *Route card* reads the chosen block's Route Card Tool Assessment live from public BC layers. The reviewer enters, or measures from their own file, the rows no public layer holds. The section drafts the Other Considerations paragraphs, the Visuals paragraph among them (step 5's own), and Save & export writes the planners' workbook or a Word document. It is a screen and a record of review, never a run input. The rows, rules, sources and wording are in `docs/forestry-route-card.md`.

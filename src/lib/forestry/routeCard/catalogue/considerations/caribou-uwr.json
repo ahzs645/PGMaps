@@ -1,0 +1,120 @@
+{
+  "kind": "component",
+  "id": "consideration-caribou-uwr",
+  "title": "Mountain Caribou Ungulate Winter Range",
+  "description": "The ungulate winter range units the block or its road enters or borders, with their harvest codes.",
+  "meta": {
+    "consideration": "caribou-uwr",
+    "sources": ["route card: Ungulate Winter Range", "the access road"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 3,
+      "content": "{{ params.title }}"
+    },
+    {
+      "if": "own.caribouUwr",
+      "then": [
+        {
+          "type": "paragraph",
+          "content": "{{ own.caribouUwr }}",
+          "source": "reviewer"
+        }
+      ],
+      "else": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "for": "u in uwr.units",
+              "do": [
+                {
+                  "if": "u.roadInsideMeters > 0",
+                  "then": [
+                    {
+                      "type": "sentence",
+                      "template": "The proposed access to the block overlaps unit {unit} under the {order} ungulate winter range order for about {m} m. ",
+                      "values": {
+                        "unit": "{{ u.unit }}",
+                        "order": "{{ u.number }}",
+                        "m": "{{ u.roadInsideMeters | format \"#,##0\" }}"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "if": "u.percentOfBlock > 0",
+                  "then": [
+                    {
+                      "type": "sentence",
+                      "template": "{percent}% of the block lies in unit {unit} ({harvest}) under the {order} order. ",
+                      "values": {
+                        "percent": "{{ u.percentOfBlock }}",
+                        "unit": "{{ u.unit }}",
+                        "harvest": "{{ u.harvestCode }}",
+                        "order": "{{ u.number }}"
+                      }
+                    }
+                  ],
+                  "else": [
+                    {
+                      "if": "u.touching",
+                      "then": [
+                        {
+                          "type": "sentence",
+                          "template": "The block boundary is adjacent to unit {unit} ({harvest}). ",
+                          "values": {
+                            "unit": "{{ u.unit }}",
+                            "harvest": "{{ u.harvestCode }}"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "if": "uwr.roadCrosses",
+              "then": [
+                {
+                  "type": "text",
+                  "text": "Road construction is considered a primary forest activity and must be consistent with the order's general wildlife measures; the road alignment should be assessed against them. "
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": "Please ensure that boundary does not encroach into the UWR. "
+            },
+            {
+              "type": "text",
+              "text": "{{ toComplete.none | missing \"placeholder\" \"the general wildlife measure that applies\" }}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "for": "f in figures.caribouUwr",
+      "do": [
+        {
+          "type": "figure",
+          "image": "{{ f.image }}",
+          "caption": "{{ f.caption }}",
+          "fit": {
+            "width": 468,
+            "height": 340
+          },
+          "align": "left"
+        }
+      ]
+    }
+  ],
+  "params": {
+    "title": {
+      "default": "Mountain Caribou Ungulate Winter Range"
+    }
+  }
+}

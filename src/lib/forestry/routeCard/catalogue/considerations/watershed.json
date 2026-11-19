@@ -1,0 +1,96 @@
+{
+  "kind": "component",
+  "id": "consideration-watershed",
+  "title": "Watershed",
+  "description": "Whether the block overlaps a fisheries sensitive watershed, from the route card row.",
+  "meta": {
+    "consideration": "watershed",
+    "sources": ["route card: Fisheries sensitive Watershed"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 3,
+      "content": "{{ params.title }}"
+    },
+    {
+      "if": "own.watershed",
+      "then": [
+        {
+          "type": "paragraph",
+          "content": "{{ own.watershed }}",
+          "source": "reviewer"
+        }
+      ],
+      "else": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "if": "rows.fisheriesSensitiveWatershed.yes",
+              "then": [
+                {
+                  "type": "sentence",
+                  "template": "{block} overlaps the {names} fisheries sensitive watershed.",
+                  "values": {
+                    "block": "{{ subject.name }}",
+                    "names": "{{ rows.fisheriesSensitiveWatershed.names | prose }}"
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "if": "rows.fisheriesSensitiveWatershed.known",
+                  "then": [
+                    {
+                      "type": "sentence",
+                      "template": "{block} does not overlap any fisheries sensitive watersheds.",
+                      "values": {
+                        "block": "{{ subject.name }}"
+                      }
+                    },
+                    {
+                      "if": "rows.fisheriesSensitiveWatershed.near",
+                      "then": [
+                        {
+                          "type": "text",
+                          "text": " One lies within 200 m of the boundary."
+                        }
+                      ]
+                    }
+                  ],
+                  "else": [
+                    {
+                      "type": "text",
+                      "text": "{{ toComplete.none | missing \"placeholder\" \"fisheries sensitive watershed check (the layer was not read)\" }}"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "for": "f in figures.watershed",
+      "do": [
+        {
+          "type": "figure",
+          "image": "{{ f.image }}",
+          "caption": "{{ f.caption }}",
+          "fit": {
+            "width": 468,
+            "height": 340
+          },
+          "align": "left"
+        }
+      ]
+    }
+  ],
+  "params": {
+    "title": {
+      "default": "Watershed"
+    }
+  }
+}

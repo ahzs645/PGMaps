@@ -1,0 +1,67 @@
+{
+  "kind": "component",
+  "id": "consideration-arch",
+  "title": "Arch",
+  "description": "The archaeological sites the route card lists, and where they lie, which only the reviewer can say from restricted records.",
+  "meta": {
+    "consideration": "arch",
+    "sources": ["route card: Arch Sites (entered)"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 3,
+      "content": "{{ params.title }}"
+    },
+    {
+      "if": "own.arch",
+      "then": [
+        {
+          "type": "paragraph",
+          "content": "{{ own.arch }}",
+          "source": "reviewer"
+        }
+      ],
+      "else": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "sentence",
+              "template": "The route card lists {count} archaeological {sites} ({names}).",
+              "values": {
+                "count": "{{ rows.archSites.count }}",
+                "sites": "{{ rows.archSites.count | plural \"site\" \"sites\" }}",
+                "names": "{{ rows.archSites.names | prose }}"
+              }
+            },
+            {
+              "type": "text",
+              "text": " {{ toComplete.none | missing \"placeholder\" \"where the sites lie relative to the boundary, from RAAD\" }}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "for": "f in figures.arch",
+      "do": [
+        {
+          "type": "figure",
+          "image": "{{ f.image }}",
+          "caption": "{{ f.caption }}",
+          "fit": {
+            "width": 468,
+            "height": 340
+          },
+          "align": "left"
+        }
+      ]
+    }
+  ],
+  "params": {
+    "title": {
+      "default": "Arch"
+    }
+  }
+}

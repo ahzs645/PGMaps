@@ -1,0 +1,863 @@
+{
+  "kind": "route-card-rows",
+  "version": 1,
+  "rows": [
+    {
+      "id": "district",
+      "label": "District",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_ADMIN_BOUNDARIES.ADM_NR_DISTRICTS_SPG",
+        "geometryField": "SHAPE",
+        "fields": ["DISTRICT_NAME"]
+      },
+      "print": ["DISTRICT_NAME"]
+    },
+    {
+      "id": "bcts-op-area",
+      "label": "BCTS OP AREA",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_TENURE.BCTS_OPERATING_AREAS_SP",
+        "geometryField": "SHAPE",
+        "fields": ["OPERATING_AREA_NAME"]
+      },
+      "print": ["OPERATING_AREA_NAME"]
+    },
+    {
+      "id": "mk-op-referrals",
+      "label": "MK OP# and Referral Dates",
+      "source": {
+        "kind": "notPublic",
+        "reason": "BCTS operating plan referral areas and dates (Mackenzie field team) are BCTS records, not published.",
+        "holder": "BCTS",
+        "fill": "Enter it from BCTS records, or import a BCTS export."
+      }
+    },
+    {
+      "id": "pg-op-referrals",
+      "label": "PG OP# and Referral Dates",
+      "source": {
+        "kind": "notPublic",
+        "reason": "BCTS operating plan referral areas and dates (Prince George field team) are BCTS records, not published.",
+        "holder": "BCTS",
+        "fill": "Enter it from BCTS records, or import a BCTS export."
+      }
+    },
+    {
+      "id": "rv-op-referrals",
+      "label": "RV OP# and Referral Dates",
+      "source": {
+        "kind": "notPublic",
+        "reason": "BCTS operating plan referral areas and dates (Robson Valley field team) are BCTS records, not published.",
+        "holder": "BCTS",
+        "fill": "Enter it from BCTS records, or import a BCTS export."
+      }
+    },
+    {
+      "id": "first-nations",
+      "label": "First Nations",
+      "source": {
+        "kind": "notPublic",
+        "reason": "The Consultative Areas Database is not on DataBC's public services.",
+        "holder": "Province of BC",
+        "fill": "Open the Consultative Areas Database report for the block and enter the nations it names. It matched the route card tool on every test block, but it answers no browser, so PGMaps cannot read it for you.",
+        "link": {
+          "label": "Consultative Areas Database",
+          "url": "https://maps.gov.bc.ca/ess/hm/cadb/"
+        }
+      }
+    },
+    {
+      "id": "guide-outfitter",
+      "label": "Guide Outfitter Areas",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_WILDLIFE_MANAGEMENT.WAA_GUIDE_OUTFITTER_AREA_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["GUIDING_CERTIFICATE_NO", "GUIDE_LAST_NAME", "GUIDE_FIRST_NAME"]
+      },
+      "print": ["GUIDING_CERTIFICATE_NO", "GUIDE_LAST_NAME", "GUIDE_FIRST_NAME"]
+    },
+    {
+      "id": "trapline",
+      "label": "Trapline Boundary",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_WILDLIFE_MANAGEMENT.WAA_TRAPLINE_AREAS_SP",
+        "geometryField": "GEOMETRY",
+        "fields": ["TRAPLINE_AREA_IDENTIFIER"]
+      },
+      "print": ["TRAPLINE_AREA_IDENTIFIER"]
+    },
+    {
+      "id": "crown-tenures",
+      "label": "Crown Tenures",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_TANTALIS.TA_CROWN_TENURES_SVW",
+        "geometryField": "SHAPE",
+        "fields": ["CROWN_LANDS_FILE", "TENURE_STATUS"]
+      },
+      "print": ["CROWN_LANDS_FILE"]
+    },
+    {
+      "id": "range-tenure",
+      "label": "Range Tenure",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_TENURE.FTEN_RANGE_POLY_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["FOREST_FILE_ID", "LIFE_CYCLE_STATUS_CODE"]
+      },
+      "print": ["FOREST_FILE_ID"]
+    },
+    {
+      "id": "woodlots-community-forests",
+      "label": "Woodlots & Community Forests",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_TENURE.FTEN_MANAGED_LICENCE_POLY_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["FOREST_FILE_ID", "LIFE_CYCLE_STATUS_CODE"]
+      },
+      "print": ["FOREST_FILE_ID"]
+    },
+    {
+      "id": "merged-bec",
+      "label": "Merged BEC",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_LAND_USE_PLANNING.RMP_PLAN_LEGAL_POLY_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["LEGAL_FEAT_ATRB_5_VALUE", "LEGAL_FEAT_PROVID", "LEGAL_FEAT_ATRB_5_NAME"],
+        "filter": "STRGC_LAND_RSRCE_PLAN_NAME LIKE '%Landscape Biodiversity Objective Order%'"
+      },
+      "print": ["LEGAL_FEAT_ATRB_5_VALUE"]
+    },
+    {
+      "id": "ndt",
+      "label": "NDT",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_VEGETATION.BEC_NATURAL_DISTURBANCE_SV",
+        "geometryField": "SHAPE",
+        "fields": ["NATURAL_DISTURBANCE_TYPE_CODE"]
+      },
+      "print": ["NATURAL_DISTURBANCE_TYPE_CODE"]
+    },
+    {
+      "id": "landscape-unit",
+      "label": "LU",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_LAND_USE_PLANNING.RMP_LANDSCAPE_UNIT_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["LANDSCAPE_UNIT_NAME", "BIODIVERSITY_EMPHASIS_OPTION"]
+      },
+      "print": ["LANDSCAPE_UNIT_NAME"]
+    },
+    {
+      "id": "location",
+      "label": "Location",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_TENURE.BCTS_OPERATING_AREAS_SP",
+        "geometryField": "SHAPE",
+        "fields": ["OPERATING_AREA_NAME"]
+      },
+      "print": ["OPERATING_AREA_NAME"]
+    },
+    {
+      "id": "opening-results",
+      "label": "Opening Results",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_VEGETATION.RSLT_OPENING_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["OPENING_LOCATION_NAME", "OPENING_ID"]
+      },
+      "print": ["OPENING_LOCATION_NAME"]
+    },
+    {
+      "id": "ften-cut-blocks",
+      "label": "FTEN Cut Block Results",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_TENURE.FTEN_CUT_BLOCK_POLY_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["CUT_BLOCK_FOREST_FILE_ID", "HARVEST_AUTH_FOREST_FILE_ID", "LIFE_CYCLE_STATUS_CODE"]
+      },
+      "print": ["CUT_BLOCK_FOREST_FILE_ID"]
+    },
+    {
+      "id": "existing-roads",
+      "label": "Existing Roads",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["FOREST_FILE_ID", "ROAD_SECTION_NAME", "LIFE_CYCLE_STATUS_CODE"]
+      },
+      "print": ["FOREST_FILE_ID", "ROAD_SECTION_NAME"],
+      "search": {
+        "yesWithinMeters": 400,
+        "nearWithinMeters": 600
+      }
+    },
+    {
+      "id": "bcts-roads",
+      "label": "BCTS Roads",
+      "source": {
+        "kind": "notPublic",
+        "reason": "BCTS road records; the public BCTS planned roads layer holds only part of them.",
+        "holder": "BCTS",
+        "fill": "Enter it from BCTS records, or import a BCTS export."
+      }
+    },
+    {
+      "id": "block-state",
+      "label": "Block State",
+      "source": {
+        "kind": "notPublic",
+        "reason": "BCTS block state (WIP, PP and so on) is a BCTS record, not published.",
+        "holder": "BCTS",
+        "fill": "Enter it from BCTS records, or import a BCTS export."
+      }
+    },
+    {
+      "id": "forest-health",
+      "label": "Forest Health",
+      "source": {
+        "kind": "arcgis",
+        "service": "https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer",
+        "layer": 68,
+        "fields": ["PEST_SPECIES_COMMON_NAME", "CAPTURE_YEAR"]
+      },
+      "print": ["PEST_SPECIES_COMMON_NAME"]
+    },
+    {
+      "id": "tap-remnant",
+      "label": "TAP Overlap - Remnant",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_VEGETATION.OGSR_TAP_PRIORITY_DEF_AREA_SP",
+        "geometryField": "SHAPE",
+        "fields": ["REMNANT_OLD_ECOSYS_ID", "REMNANT_OLD_ECOSYS_IND"],
+        "filter": "REMNANT_OLD_ECOSYS_IND='Y'"
+      },
+      "print": ["REMNANT_OLD_ECOSYS_ID"]
+    },
+    {
+      "id": "tap-ancient",
+      "label": "TAP Overlap - Ancient forest",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_VEGETATION.OGSR_TAP_PRIORITY_DEF_AREA_SP",
+        "geometryField": "SHAPE",
+        "fields": ["ANCIENT_FOREST_ID", "ANCIENT_FOREST_IND"],
+        "filter": "ANCIENT_FOREST_IND='Y'"
+      },
+      "print": ["ANCIENT_FOREST_ID"]
+    },
+    {
+      "id": "tap-big-treed",
+      "label": "TAP Overlap - Priority big treed",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_VEGETATION.OGSR_TAP_PRIORITY_DEF_AREA_SP",
+        "geometryField": "SHAPE",
+        "fields": ["PRIORITY_BIG_TREED_OG_IND"],
+        "filter": "PRIORITY_BIG_TREED_OG_IND='Y'"
+      },
+      "print": ["PRIORITY_BIG_TREED_OG_IND"]
+    },
+    {
+      "id": "cofa-non-legal-ogma",
+      "label": "COFA Overlap (Non-legal OGMA)",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["NON_LEGAL_OGMA_PROVID", "OGMA_PRIMARY_REASON"]
+      },
+      "print": ["NON_LEGAL_OGMA_PROVID", "OGMA_PRIMARY_REASON"]
+    },
+    {
+      "id": "wildlife-habitat-areas",
+      "label": "Wildlife Habitat Areas",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_WILDLIFE_MANAGEMENT.WCP_WILDLIFE_HABITAT_AREA_POLY",
+        "geometryField": "GEOMETRY",
+        "fields": ["TAG", "COMMON_SPECIES_NAME"]
+      },
+      "print": ["TAG"]
+    },
+    {
+      "id": "ungulate-winter-range",
+      "label": "Ungulate Winter Range",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_WILDLIFE_MANAGEMENT.WCP_UNGULATE_WINTER_RANGE_SP",
+        "geometryField": "GEOMETRY",
+        "fields": ["SPECIES_1", "UWR_NUMBER", "UWR_UNIT_NUMBER", "TIMBER_HARVEST_CODE"]
+      },
+      "print": ["SPECIES_1", "UWR_NUMBER"]
+    },
+    {
+      "id": "wildlife-management-area",
+      "label": "Wildlife Management Area",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_TANTALIS.TA_WILDLIFE_MGMT_AREAS_SVW",
+        "geometryField": "SHAPE",
+        "fields": ["WILDLIFE_MANAGEMENT_AREA_NAME"]
+      },
+      "print": ["WILDLIFE_MANAGEMENT_AREA_NAME"]
+    },
+    {
+      "id": "csfn-esi-moose-candidates",
+      "label": "CSFN ESI Ims BMA T123 Moose Candidates",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Carrier Sekani First Nations ESI moose candidate polygons are not on DataBC's public services.",
+        "holder": "Environmental Stewardship Initiative",
+        "fill": "Import the ESI layer if you hold it, or enter what it shows."
+      }
+    },
+    {
+      "id": "approved-moose-polygons",
+      "label": "Approved Moose Polygons",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Approved moose polygons are not on DataBC's public services.",
+        "holder": "Environmental Stewardship Initiative",
+        "fill": "Import the ESI layer if you hold it, or enter what it shows."
+      }
+    },
+    {
+      "id": "private-land",
+      "label": "Private Land",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_CADASTRE.PMBC_PARCEL_FABRIC_POLY_SVW",
+        "geometryField": "SHAPE",
+        "fields": ["PID_FORMATTED", "OWNER_TYPE"],
+        "filter": "OWNER_TYPE='Private'"
+      },
+      "print": ["PID_FORMATTED"]
+    },
+    {
+      "id": "permanent-sample-plots",
+      "label": "Permanent Sample Plots",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_VEGETATION.GRY_PSP_STATUS_ACTIVE",
+        "geometryField": "GEOMETRY",
+        "fields": ["SAMPLE_REFERENCE_NUMBER"]
+      },
+      "print": ["SAMPLE_REFERENCE_NUMBER"]
+    },
+    {
+      "id": "legal-ogma",
+      "label": "Legal Old Growth Management Areas",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_LAND_USE_PLANNING.RMP_OGMA_LEGAL_CURRENT_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["LEGAL_OGMA_INTERNAL_ID"]
+      },
+      "print": ["LEGAL_OGMA_INTERNAL_ID"]
+    },
+    {
+      "id": "non-legal-ogma",
+      "label": "Non Legal Old Growth Management Areas",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["NON_LEGAL_OGMA_INTERNAL_ID"]
+      },
+      "print": ["NON_LEGAL_OGMA_INTERNAL_ID"]
+    },
+    {
+      "id": "recreation-sites",
+      "label": "Recreation Sites",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_TENURE.FTEN_RECREATION_POLY_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["FOREST_FILE_ID", "PROJECT_NAME", "PROJECT_TYPE"]
+      },
+      "print": ["FOREST_FILE_ID", "PROJECT_NAME"]
+    },
+    {
+      "id": "recreation-trails",
+      "label": "Recreation Trails",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["FOREST_FILE_ID", "PROJECT_NAME"]
+      },
+      "print": ["FOREST_FILE_ID", "PROJECT_NAME"]
+    },
+    {
+      "id": "recreational-areas",
+      "label": "Recreational Areas",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_TENURE.FTEN_RECREATION_POLY_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["FOREST_FILE_ID", "PROJECT_NAME", "PROJECT_TYPE"]
+      },
+      "print": ["FOREST_FILE_ID", "PROJECT_NAME"],
+      "confirmed": false,
+      "note": "Layer chosen by name; no test block overlapped it, so it is not confirmed against the route card tool."
+    },
+    {
+      "id": "historical-trails",
+      "label": "Historical Trails",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_HUMAN_CULTURAL_ECONOMIC.HIST_HIST_TRAILS_SVW",
+        "geometryField": "SHAPE",
+        "fields": ["LEGAL_TRAIL_NAME"]
+      },
+      "print": ["LEGAL_TRAIL_NAME"]
+    },
+    {
+      "id": "historical-trail-areas",
+      "label": "Historical Trail Areas",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_HUMAN_CULTURAL_ECONOMIC.HIST_HIST_TRAIL_AREAS_SVW",
+        "geometryField": "SHAPE",
+        "fields": ["LEGAL_TRAIL_NAME"]
+      },
+      "print": ["LEGAL_TRAIL_NAME"]
+    },
+    {
+      "id": "protected-areas",
+      "label": "Protected Areas and Prov Parks",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_TANTALIS.TA_PARK_ECORES_PA_SVW",
+        "geometryField": "SHAPE",
+        "fields": ["PROTECTED_LANDS_NAME"]
+      },
+      "print": ["PROTECTED_LANDS_NAME"]
+    },
+    {
+      "id": "terrain-stability",
+      "label": "Terrain Stability Concerns",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_TERRESTRIAL_ECOLOGY.STE_TER_STABILITY_POLYS_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["SLOPE_STABILITY_CLASS_W_ROADS", "PROJECT_NAME"]
+      },
+      "print": ["SLOPE_STABILITY_CLASS_W_ROADS"],
+      "confirmed": false,
+      "note": "Layer chosen by name; no test block overlapped it, so it is not confirmed against the route card tool."
+    },
+    {
+      "id": "pipeline-crossing",
+      "label": "Pipeline crossing",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_MINERAL_TENURE.OG_PIPELINE_SEGMENT_PERMIT_SP",
+        "geometryField": "SHAPE",
+        "fields": ["PROJECT_NUMBER", "PROPONENT", "STATUS"]
+      },
+      "print": ["PROJECT_NUMBER"],
+      "confirmed": false,
+      "note": "Layer chosen by name; no test block overlapped it, so it is not confirmed against the route card tool."
+    },
+    {
+      "id": "hydro-line-crossing",
+      "label": "Hydro line crossing",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_BASEMAPPING.GBA_TRANSMISSION_LINES_SP",
+        "geometryField": "SHAPE",
+        "fields": ["CIRCUIT_NAME", "VOLTAGE"]
+      },
+      "print": ["CIRCUIT_NAME"]
+    },
+    {
+      "id": "railway-gba",
+      "label": "railway GBA",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_BASEMAPPING.GBA_RAILWAY_TRACKS_SP",
+        "geometryField": "SHAPE",
+        "fields": ["TRACK_NAME", "STATUS"]
+      },
+      "print": ["TRACK_NAME"]
+    },
+    {
+      "id": "railway-trim",
+      "label": "railway TRIM",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_BASEMAPPING.TRIM_TRANSPORTATION_LINES",
+        "geometryField": "GEOMETRY",
+        "fields": ["FCODE"],
+        "filter": "FCODE LIKE 'EB%'"
+      },
+      "print": ["FCODE"],
+      "confirmed": false,
+      "note": "Layer chosen by name; no test block overlapped it, so it is not confirmed against the route card tool."
+    },
+    {
+      "id": "oil-gas-transmission",
+      "label": "Oil transmission line or Natural Gas transmission line",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_MINERAL_TENURE.OG_PIPELINE_AREA_PERMIT_SP",
+        "geometryField": "SHAPE",
+        "fields": ["PROJECT_NUMBER", "PROPONENT"]
+      },
+      "print": ["PROJECT_NUMBER"],
+      "confirmed": false,
+      "note": "Layer chosen by name; no test block overlapped it, so it is not confirmed against the route card tool."
+    },
+    {
+      "id": "cable-line",
+      "label": "cable line",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_BASEMAPPING.TRIM_CULTURAL_LINES",
+        "geometryField": "GEOMETRY",
+        "fields": ["FCODE"],
+        "filter": "FCODE IN ('EA03800000','CQ00300000')"
+      },
+      "print": ["FCODE"],
+      "confirmed": false,
+      "note": "TRIM cultural lines coded cable (EA03800000) or aerial cableway (CQ00300000). No test block was near one, so the layer is not confirmed against the route card tool."
+    },
+    {
+      "id": "arch-sites",
+      "label": "Arch Sites",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Archaeological site records (RAAD) are restricted to licensed users.",
+        "holder": "Archaeology Branch",
+        "fill": "Import a RAAD site export (shapefile or GeoJSON) to measure it against the block, or enter what RAAD shows."
+      }
+    },
+    {
+      "id": "fisher-region",
+      "label": "Fisher Natural Resource Region",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Fisher habitat model output from the BC Fisher Habitat Working Group; not on DataBC's public services.",
+        "holder": "BC Fisher Habitat Working Group",
+        "fill": "Import the BC Fisher Habitat Working Group's habitat retention download for the region as it comes (the zipped geodatabase, bcfisherhabitat.ca): one file fills every fisher row, read only round the block. The route card tool used the June 2021 release (version 210215); the 2025 release gives other values.",
+        "importField": "Region",
+        "link": {
+          "label": "BC Fisher Habitat tools",
+          "url": "https://www.bcfisherhabitat.ca/habitat-tools/"
+        }
+      }
+    },
+    {
+      "id": "fisher-zone",
+      "label": "Fisher Natural Zone",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Fisher habitat model output from the BC Fisher Habitat Working Group; not on DataBC's public services.",
+        "holder": "BC Fisher Habitat Working Group",
+        "fill": "Import the BC Fisher Habitat Working Group's habitat retention download for the region as it comes (the zipped geodatabase, bcfisherhabitat.ca): one file fills every fisher row, read only round the block. The route card tool used the June 2021 release (version 210215); the 2025 release gives other values.",
+        "importField": "Fisher_habitat_zone",
+        "link": {
+          "label": "BC Fisher Habitat tools",
+          "url": "https://www.bcfisherhabitat.ca/habitat-tools/"
+        }
+      }
+    },
+    {
+      "id": "fisher-harvest-impact",
+      "label": "Fisher Harvest Impact Warning",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Fisher habitat model output from the BC Fisher Habitat Working Group; not on DataBC's public services.",
+        "holder": "BC Fisher Habitat Working Group",
+        "fill": "Import the BC Fisher Habitat Working Group's habitat retention download for the region as it comes (the zipped geodatabase, bcfisherhabitat.ca): one file fills every fisher row, read only round the block. The route card tool used the June 2021 release (version 210215); the 2025 release gives other values.",
+        "importField": "Harvest_impact_warning",
+        "link": {
+          "label": "BC Fisher Habitat tools",
+          "url": "https://www.bcfisherhabitat.ca/habitat-tools/"
+        }
+      }
+    },
+    {
+      "id": "fisher-denning-warning",
+      "label": "Fisher Denning Warning",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Fisher habitat model output from the BC Fisher Habitat Working Group; not on DataBC's public services.",
+        "holder": "BC Fisher Habitat Working Group",
+        "fill": "Import the BC Fisher Habitat Working Group's habitat retention download for the region as it comes (the zipped geodatabase, bcfisherhabitat.ca): one file fills every fisher row, read only round the block. The route card tool used the June 2021 release (version 210215); the 2025 release gives other values.",
+        "importField": "Denning_warning",
+        "link": {
+          "label": "BC Fisher Habitat tools",
+          "url": "https://www.bcfisherhabitat.ca/habitat-tools/"
+        }
+      }
+    },
+    {
+      "id": "fisher-denning-stems",
+      "label": "Fisher Denning Stems/ha",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Fisher habitat model output from the BC Fisher Habitat Working Group; not on DataBC's public services.",
+        "holder": "BC Fisher Habitat Working Group",
+        "fill": "Import the BC Fisher Habitat Working Group's habitat retention download for the region as it comes (the zipped geodatabase, bcfisherhabitat.ca): one file fills every fisher row, read only round the block. The route card tool used the June 2021 release (version 210215); the 2025 release gives other values.",
+        "importField": "Denning_primary_density",
+        "link": {
+          "label": "BC Fisher Habitat tools",
+          "url": "https://www.bcfisherhabitat.ca/habitat-tools/"
+        }
+      }
+    },
+    {
+      "id": "fisher-branch-resting-warning",
+      "label": "Branch Resting Warning",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Fisher habitat model output from the BC Fisher Habitat Working Group; not on DataBC's public services.",
+        "holder": "BC Fisher Habitat Working Group",
+        "fill": "Import the BC Fisher Habitat Working Group's habitat retention download for the region as it comes (the zipped geodatabase, bcfisherhabitat.ca): one file fills every fisher row, read only round the block. The route card tool used the June 2021 release (version 210215); the 2025 release gives other values.",
+        "importField": "Branch_resting_warning",
+        "link": {
+          "label": "BC Fisher Habitat tools",
+          "url": "https://www.bcfisherhabitat.ca/habitat-tools/"
+        }
+      }
+    },
+    {
+      "id": "fisher-branch-resting-stems",
+      "label": "Branch Resting Stem/ha",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Fisher habitat model output from the BC Fisher Habitat Working Group; not on DataBC's public services.",
+        "holder": "BC Fisher Habitat Working Group",
+        "fill": "Import the BC Fisher Habitat Working Group's habitat retention download for the region as it comes (the zipped geodatabase, bcfisherhabitat.ca): one file fills every fisher row, read only round the block. The route card tool used the June 2021 release (version 210215); the 2025 release gives other values.",
+        "importField": "Branch_resting_primary_density",
+        "link": {
+          "label": "BC Fisher Habitat tools",
+          "url": "https://www.bcfisherhabitat.ca/habitat-tools/"
+        }
+      }
+    },
+    {
+      "id": "fisher-cavity-resting-warning",
+      "label": "Fisher Cavity Resting Warning",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Fisher habitat model output from the BC Fisher Habitat Working Group; not on DataBC's public services.",
+        "holder": "BC Fisher Habitat Working Group",
+        "fill": "Import the BC Fisher Habitat Working Group's habitat retention download for the region as it comes (the zipped geodatabase, bcfisherhabitat.ca): one file fills every fisher row, read only round the block. The route card tool used the June 2021 release (version 210215); the 2025 release gives other values.",
+        "importField": "Cavity_resting_warning",
+        "link": {
+          "label": "BC Fisher Habitat tools",
+          "url": "https://www.bcfisherhabitat.ca/habitat-tools/"
+        }
+      }
+    },
+    {
+      "id": "fisher-cavity-resting-stems",
+      "label": "Fisher Cavity Resting Stem/ha",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Fisher habitat model output from the BC Fisher Habitat Working Group; not on DataBC's public services.",
+        "holder": "BC Fisher Habitat Working Group",
+        "fill": "Import the BC Fisher Habitat Working Group's habitat retention download for the region as it comes (the zipped geodatabase, bcfisherhabitat.ca): one file fills every fisher row, read only round the block. The route card tool used the June 2021 release (version 210215); the 2025 release gives other values.",
+        "importField": "Cavity_resting_primary_density",
+        "link": {
+          "label": "BC Fisher Habitat tools",
+          "url": "https://www.bcfisherhabitat.ca/habitat-tools/"
+        }
+      }
+    },
+    {
+      "id": "fisher-cwd-single",
+      "label": "Fisher Density of single CWD",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Fisher habitat model output from the BC Fisher Habitat Working Group; not on DataBC's public services.",
+        "holder": "BC Fisher Habitat Working Group",
+        "fill": "Import the BC Fisher Habitat Working Group's habitat retention download for the region as it comes (the zipped geodatabase, bcfisherhabitat.ca): one file fills every fisher row, read only round the block. The route card tool used the June 2021 release (version 210215); the 2025 release gives other values.",
+        "importField": "CWD_resting_piece_density",
+        "link": {
+          "label": "BC Fisher Habitat tools",
+          "url": "https://www.bcfisherhabitat.ca/habitat-tools/"
+        }
+      }
+    },
+    {
+      "id": "fisher-cwd-piles",
+      "label": "Fisher Density of CWD piles/ha",
+      "source": {
+        "kind": "notPublic",
+        "reason": "Fisher habitat model output from the BC Fisher Habitat Working Group; not on DataBC's public services.",
+        "holder": "BC Fisher Habitat Working Group",
+        "fill": "Import the BC Fisher Habitat Working Group's habitat retention download for the region as it comes (the zipped geodatabase, bcfisherhabitat.ca): one file fills every fisher row, read only round the block. The route card tool used the June 2021 release (version 210215); the 2025 release gives other values.",
+        "importField": "CWD_resting_pile_density",
+        "link": {
+          "label": "BC Fisher Habitat tools",
+          "url": "https://www.bcfisherhabitat.ca/habitat-tools/"
+        }
+      }
+    },
+    {
+      "id": "migratory-bird-rankings",
+      "label": "Migratory Bird Rankings",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY",
+        "geometryField": "GEOMETRY",
+        "fields": [
+          "BCLCS_LEVEL_2",
+          "PROJ_AGE_1",
+          "PROJ_HEIGHT_1",
+          "SPECIES_CD_1",
+          "SPECIES_PCT_1",
+          "SPECIES_CD_2",
+          "SPECIES_PCT_2",
+          "SPECIES_CD_3",
+          "SPECIES_PCT_3",
+          "SPECIES_CD_4",
+          "SPECIES_PCT_4",
+          "SPECIES_CD_5",
+          "SPECIES_PCT_5",
+          "SPECIES_CD_6",
+          "SPECIES_PCT_6"
+        ]
+      },
+      "print": ["PROJ_AGE_1"],
+      "estimate": "migratory-bird-nest-rank",
+      "search": {
+        "yesWithinMeters": 0,
+        "nearWithinMeters": null
+      },
+      "note": "Estimated by PGMaps from VRI rank 1 (catalogue/birdNestRank.json): the route card tool's own ranking matrix is not published. Confirm with the tool, or enter its ranks."
+    },
+    {
+      "id": "esi-study-area",
+      "label": "ESI Study Area",
+      "source": {
+        "kind": "notPublic",
+        "reason": "The ESI study area is not on DataBC's public services.",
+        "holder": "Environmental Stewardship Initiative",
+        "fill": "Import the ESI layer if you hold it, or enter what it shows."
+      }
+    },
+    {
+      "id": "fisheries-sensitive-watershed",
+      "label": "Fisheries sensitive Watershed",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_WILDLIFE_MANAGEMENT.WCP_FISH_SENSITIVE_WS_POLY",
+        "geometryField": "GEOMETRY",
+        "fields": ["FSW_TAG"]
+      },
+      "print": ["FSW_TAG"]
+    },
+    {
+      "id": "community-watershed",
+      "label": "Community Watershed",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_WATER_MANAGEMENT.WLS_COMMUNITY_WS_PUB_SVW",
+        "geometryField": "SHAPE",
+        "fields": ["CW_NAME"]
+      },
+      "print": ["CW_NAME"]
+    },
+    {
+      "id": "invasive-species",
+      "label": "Invasive species",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_VEGETATION.IAPP_INVASIVE_PLANT_SITE_POLY",
+        "geometryField": "GEOMETRY",
+        "fields": ["MAP_LABEL", "SITE_ID"]
+      },
+      "print": ["MAP_LABEL"],
+      "search": {
+        "yesWithinMeters": 5000,
+        "nearWithinMeters": null
+      },
+      "maxFeatures": 5000
+    },
+    {
+      "id": "species-at-risk",
+      "label": "Species at Risk",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_TERRESTRIAL_ECOLOGY.BIOT_OCCR_NON_SENS_AREA_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["ENG_NAME"]
+      },
+      "print": ["ENG_NAME"]
+    },
+    {
+      "id": "lakeshore-management-zones",
+      "label": "Lakeshore Management Zones",
+      "source": {
+        "kind": "notPublic",
+        "reason": "No public layer for lakeshore management zones was found.",
+        "fill": "Enter the lake's class from the district's lakeshore classification: the zones run 250 m from a class A lake, 100 m from classes B to D and 50 m from class E (BCTS Prince George forest stewardship plan, s. 5.1.3.2)."
+      }
+    },
+    {
+      "id": "karst-potential",
+      "label": "Karst potential",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_LAND_USE_PLANNING.RKPM_KARST_POTENTIAL_AREA_SP",
+        "geometryField": "GEOMETRY",
+        "fields": ["GEOLOGICAL_UNIT_NAME"]
+      },
+      "print": ["GEOLOGICAL_UNIT_NAME"]
+    },
+    {
+      "id": "evqc",
+      "label": "Existing Visual Quality Code (EVQC)",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_VEGETATION.REC_VIMS_EVQO_SVW",
+        "geometryField": "GEOMETRY",
+        "fields": ["REC_EVQO_CODE"]
+      },
+      "print": ["REC_EVQO_CODE"]
+    },
+    {
+      "id": "rvqc",
+      "label": "Recommended Visual Quality Code (RVQC)",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_VEGETATION.REC_VISUAL_LANDSCAPE_INVENTORY",
+        "geometryField": "GEOMETRY",
+        "fields": ["REC_RVQC_CODE"]
+      },
+      "print": ["REC_RVQC_CODE"]
+    },
+    {
+      "id": "bec-subzone",
+      "label": "BEC subzone",
+      "source": {
+        "kind": "wfs",
+        "typeName": "WHSE_FOREST_VEGETATION.BEC_BIOGEOCLIMATIC_POLY",
+        "geometryField": "GEOMETRY",
+        "fields": ["MAP_LABEL", "ZONE", "SUBZONE", "VARIANT", "NATURAL_DISTURBANCE"]
+      },
+      "print": ["MAP_LABEL"],
+      "note": "Read for the Old Forest paragraph, not printed on the route card."
+    }
+  ]
+}

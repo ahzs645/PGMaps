@@ -22,6 +22,7 @@
  * deciding where they disagree.
  */
 
+import { parseRouteCardReview, type RouteCardReview } from '@/lib/forestry/routeCard/review'
 import type { FormReview } from './pdf/fs1252'
 import type { AlterationBreakdown, AnalysisResult, TargetPolygon } from './types'
 import { designDistanceScore, visibleProposalCentre } from './vqe'
@@ -686,6 +687,11 @@ export type ViaReview = {
    * interest, keeps them at the top of the review, as before groups.
    */
   stations?: Record<string, StationJudgement>
+  /**
+   * The route card (`src/lib/forestry/routeCard/`): the preset, and per block what the reviewer entered for rows no
+   * public layer answers, their own Other Considerations paragraphs and the figures those ask for. A record of review.
+   */
+  routeCard?: RouteCardReview
 }
 
 /** The fields step 4 records: kept per group of views (`ViaReview.stations`) or, on a road, at the top. */
@@ -1073,6 +1079,7 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
     strip<LandformRecord>({ parent: text(entry.parent, 200), divider: text(entry.divider) }),
   )
   // Each group's step 4 is read as a review's own would be, keeping only its step 4 fields.
+  const routeCard = parseRouteCardReview(value.routeCard)
   const stations = namedRecords(value.stations, (entry) => {
     const read = parseViaReview(entry)
     return read ? topLevelStep4(read) : {}
@@ -1105,6 +1112,7 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
     ...(reportEdits ? { reportEdits } : {}),
     ...(landformRecords ? { landformRecords } : {}),
     ...(stations ? { stations } : {}),
+    ...(routeCard ? { routeCard } : {}),
   }
 }
 
