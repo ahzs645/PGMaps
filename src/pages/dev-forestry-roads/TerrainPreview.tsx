@@ -1,12 +1,30 @@
 import { RoadSelect } from './Controls'
 import type { RoadSelectionRange } from './roadSelection'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
-import { Crosshair, Grid3x3, Minus, PaintBucket, Plus, RotateCcw, RotateCw, TriangleRight } from 'lucide-react'
+import {
+  Crosshair,
+  Eye,
+  Grid3x3,
+  Minus,
+  PaintBucket,
+  Plus,
+  RotateCcw,
+  RotateCw,
+  Scissors,
+  TriangleRight,
+} from 'lucide-react'
 import { TerrainCover, TerrainGround, type TerrainFace as Face } from './TerrainGround'
+import { TerrainGpu } from './TerrainGpu'
+import type { TerrainGpuHandle } from './terrainGpuTypes'
+import type { TerrainRenderQuality } from './terrainRenderQuality'
+import { terrainSceneFrame, terrainSceneGeometry, type TerrainSceneFrame } from './terrainSceneGeometry'
+import { terrainScenePresentation } from './terrainScenePresentation'
+import type { DesignSurfaceKind } from './designSurfaceExport'
+import { stationOffsetCoordinate } from './designExports'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ROAD_CHART_COLORS, formatRoadStation } from './Charts'
 import { sectionCodePoints, sectionSampleAt } from './sectionGeometry'
@@ -26,7 +44,7 @@ import {
   type CameraFocus,
   type PreviewCamera,
 } from './previewCamera'
-import { isBeyondReachFlag } from './engine'
+import { isBeyondReachFlag, offsetCoordinate } from './engine'
 import { BARREL_MIN_OPENING_PX, barrelPolygons, culvertBarrel, shadedColour } from './culvertBarrel'
 import { culvertRiseM, culvertShapeOf, culvertSpanM } from './culverts/culvertShape'
 import type { Culvert } from './engineeringTypes'
@@ -36,7 +54,7 @@ import {
   terrainElevationColor,
   terrainSlopeColor,
 } from './terrainDisplay'
-import type { Coordinate, RoadAnalysis, RoadStation, TerrainSource } from './types'
+import type { Alignment, Coordinate, RoadAnalysis, RoadStation, TerrainSource, TerrainMetadata } from './types'
 
 const NO_FACES: Face[] = []
 const radians = Math.PI / 180
@@ -54,6 +72,13 @@ const interpolate = (a: Vertex, b: Vertex, t: number): Vertex => ({
   y: a.y + (b.y - a.y) * t,
   z: a.z + (b.z - a.z) * t,
 })
+
+/** Geographic bearings must be projected with the geometry: grid north can differ from true north. */
+function bearingInFrame(frame: Frame, coordinate: Coordinate, bearing: number) {
+  const [x, y] = frame.point(coordinate)
+  const [aheadX, aheadY] = frame.point(offsetCoordinate(coordinate, bearing, 10))
+  return Math.atan2(aheadX - x, aheadY - y) / radians
+}
 
 /** Clip preview overlays to the sampled ground window, retaining their elevations. */
 function clipFace(vertices: Vertex[], bounds: number[]): Vertex[] {
@@ -121,12 +146,11 @@ function sampleSection(station: RoadStation, offset: number): number | null {
 function sideways(station: RoadStation, offset: number, frame: Frame): Vertex | null {
   const elevation = sampleSection(station, offset)
   if (!finite(elevation)) return null
-  const [x, y] = frame.point(station.coordinate)
-  const bearing = station.bearing * radians
-  return { x: x + Math.cos(bearing) * offset, y: y - Math.sin(bearing) * offset, z: elevation }
+  const [x, y] = frame.point(stationOffsetCoordinate(station, offset))
+  return { x, y, z: elevation }
 }
 
-type GroundColour = 'slope' | 'elevation' | 'plain'
+type GroundColour = 'slope' | 'elevation' | 'plain' | 'ortho'
 const GROUND_COLOURS: { value: GroundColour; label: string }[] = [
   { value: 'slope', label: 'Slope' },
   { value: 'elevation', label: 'Elevation' },
@@ -223,6 +247,7 @@ function buildGeometry({
   fillGaps,
   terrainOnly,
   maxGradePercent,
+  meshOptions,
 }: {
   analysis: RoadAnalysis
   frame: Frame
@@ -232,18 +257,17 @@ function buildGeometry({
   fillGaps: boolean
   terrainOnly: boolean
   maxGradePercent: number | undefined
+  meshOptions?: { maxSide?: number; minSpacing?: number }
 }) {
   // A coarse cell can have four valid corners around a real source gap.
   // Carry the analysis's missing samples into the display mesh as well.
   const missing: Array<[number, number]> = []
   for (const s of analysis.stations) {
-    const [x, y] = frame.point(s.coordinate),
-      bearing = s.bearing * radians
+    const [x, y] = frame.point(s.coordinate)
     if (!finite(s.groundElevation)) missing.push([x, y])
-    for (const p of s.section)
-      if (!finite(p.ground)) missing.push([x + Math.cos(bearing) * p.offset, y - Math.sin(bearing) * p.offset])
+    for (const p of s.section) if (!finite(p.ground)) missing.push(frame.point(stationOffsetCoordinate(s, p.offset)))
   }
-  const mesh = terrainMesh(bounds, elevation, missing, fillGaps)
+  const mesh = terrainMesh(bounds, elevation, missing, fillGaps, meshOptions)
   // A window from an earlier display window may reach past this one; keep only the overlap.
   const detail = requestedDetail && [
     Math.max(requestedDetail[0], bounds[0] - mesh.spacing),
@@ -252,7 +276,9 @@ function buildGeometry({
     Math.min(requestedDetail[3], bounds[3] + mesh.spacing),
   ]
   const fine =
-    detail && detail[2] > detail[0] && detail[3] > detail[1] ? terrainMesh(detail, elevation, missing, fillGaps) : null
+    detail && detail[2] > detail[0] && detail[3] > detail[1]
+      ? terrainMesh(detail, elevation, missing, fillGaps, meshOptions)
+      : null
   const inDetail = (x: number, y: number, margin = 0) =>
     !!fine &&
     !!detail &&
@@ -328,9 +354,8 @@ function buildGeometry({
         })
     }
     const batters = previewEarthwork(analysis.stations.slice(a.index, b.index + 1), (s, offset, z) => {
-      const [x, y] = frame.point(s.coordinate)
-      const bearing = s.bearing * radians
-      return { x: x + Math.cos(bearing) * offset, y: y - Math.sin(bearing) * offset, z }
+      const [x, y] = frame.point(stationOffsetCoordinate(s, offset))
+      return { x, y, z }
     })
     for (const face of batters.faces) {
       const vertices = clipFace(face.vertices, bounds)
@@ -423,6 +448,8 @@ export function TerrainPreview({
   onSelectCulvert,
   culvertDesigns,
   maxGradePercent,
+  alignment,
+  terrainMetadata,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
@@ -438,6 +465,9 @@ export function TerrainPreview({
   culvertDesigns?: Culvert[]
   /** Road faces steeper than this draw in the over-grade colour, as on the plan. */
   maxGradePercent?: number
+  /** Exact design surfaces and imported imagery, supplied by the road workspace. */
+  alignment?: Alignment
+  terrainMetadata?: TerrainMetadata
 }) {
   const [mode, setMode] = useState<'orbit' | 'follow'>('orbit')
   const [yaw, setYaw] = useState(DEFAULT_YAW)
@@ -447,6 +477,25 @@ export function TerrainPreview({
   const [showEarthwork, setShowEarthwork] = useState(true)
   const [fillGaps, setFillGaps] = useState(true)
   const [groundColour, setGroundColour] = useState<GroundColour>('slope')
+  const [quality, setQuality] = useState<TerrainRenderQuality>('auto')
+  const [surfaceKind, setSurfaceKind] = useState<DesignSurfaceKind>('finished')
+  const [xray, setXray] = useState(false)
+  const [cutaway, setCutaway] = useState(false)
+  const [orthoId, setOrthoId] = useState('')
+  const [renderer, setRenderer] = useState<'webgl' | 'canvas'>('canvas')
+  const [rendererReason, setRendererReason] = useState<string>()
+  const gpuHandle = useRef<TerrainGpuHandle | null>(null)
+  const gpuEnabled = !!terrainMetadata
+  const onRendererStatus = useCallback((status: 'webgl' | 'canvas', reason?: string) => {
+    setRenderer(status)
+    setRendererReason(reason)
+  }, [])
+  const orthophotos = useMemo(
+    () => terrainMetadata?.backgrounds?.filter((layer) => layer.kind === 'ortho' && layer.visible) ?? [],
+    [terrainMetadata],
+  )
+  const ortho = orthophotos.find((layer) => layer.id === orthoId) ?? orthophotos[orthophotos.length - 1]
+  const shownColour = groundColour === 'ortho' && !ortho ? 'plain' : groundColour
   const [zoom, setZoom] = useState(1)
   const active = analysis.stations.reduce<RoadStation | undefined>(
     (best, candidate) =>
@@ -505,10 +554,18 @@ export function TerrainPreview({
     setLook(null)
     live.current = { zoom: 1, look: null }
   }
-  const cachedElevation = useMemo(() => {
-    const frame = localFrame(analysis.stations[0]?.coordinate ?? [0, 0])
-    return cachedTerrainSampler((x, y) => terrain.elevationAt(...frame.coordinate(x, y)))
-  }, [analysis, terrain])
+  const frame = useMemo<Frame | TerrainSceneFrame>(
+    () =>
+      terrainMetadata
+        ? terrainSceneFrame(terrainMetadata, analysis.stations[0]?.coordinate ?? [0, 0])
+        : localFrame(analysis.stations[0]?.coordinate ?? [0, 0]),
+    [analysis, terrainMetadata],
+  )
+  const cachedElevation = useMemo(
+    () =>
+      cachedTerrainSampler((x, y) => terrain.elevationAt(...frame.coordinate(x, y)), gpuEnabled ? 262144 : undefined),
+    [frame, terrain, gpuEnabled],
+  )
   const cachedElevationRef = useRef(cachedElevation)
   useLayoutEffect(() => {
     cachedElevationRef.current = cachedElevation
@@ -585,7 +642,16 @@ export function TerrainPreview({
   const selectedCulvert = terrainOnly
     ? undefined
     : analysis.engineering?.culverts.find((c) => c.id === selectedCulvertId)
-  const frame = useMemo(() => localFrame(analysis.stations[0]?.coordinate ?? [0, 0]), [analysis])
+  const meshOptions = useMemo(
+    () =>
+      gpuEnabled
+        ? {
+            maxSide: rendererReason || quality === 'efficient' ? 128 : quality === 'high' ? 256 : 192,
+            minSpacing: terrainMetadata?.resolutionM,
+          }
+        : undefined,
+    [gpuEnabled, quality, terrainMetadata?.resolutionM, rendererReason],
+  )
   const base = useMemo(() => {
     if (!analysis.stations.length) return null
     return buildGeometry({
@@ -597,23 +663,42 @@ export function TerrainPreview({
       fillGaps,
       terrainOnly,
       maxGradePercent,
+      meshOptions: gpuEnabled ? { minSpacing: terrainMetadata?.resolutionM } : undefined,
     })
-  }, [analysis, frame, followingStation, terrainOnly, cachedElevation, fillGaps, maxGradePercent])
+  }, [
+    analysis,
+    frame,
+    followingStation,
+    terrainOnly,
+    cachedElevation,
+    fillGaps,
+    maxGradePercent,
+    gpuEnabled,
+    terrainMetadata?.resolutionM,
+  ])
   const sourceGeometry = useMemo(
     () =>
-      base && detail
-        ? buildGeometry({
-            analysis,
-            frame,
-            bounds: base.bounds,
-            detail,
-            elevation: cachedElevation,
-            fillGaps,
-            terrainOnly,
-            maxGradePercent,
-          })
+      base && (detail || gpuEnabled)
+        ? {
+            ...buildGeometry({
+              analysis,
+              frame,
+              bounds: base.bounds,
+              detail,
+              elevation: cachedElevation,
+              fillGaps,
+              terrainOnly,
+              maxGradePercent,
+              meshOptions,
+            }),
+            low: base.low,
+            high: base.high,
+            groundLow: base.groundLow,
+            groundHigh: base.groundHigh,
+            medianZ: base.medianZ,
+          }
         : base,
-    [base, detail, analysis, frame, cachedElevation, fillGaps, terrainOnly, maxGradePercent],
+    [base, detail, analysis, frame, cachedElevation, fillGaps, terrainOnly, maxGradePercent, meshOptions, gpuEnabled],
   )
   // The automatic exaggeration reads the whole road's sections, so it does not change while following.
   const autoExaggeration = useMemo(() => {
@@ -645,19 +730,71 @@ export function TerrainPreview({
         face.vertices[0],
         face.vertices[1],
         face.vertices[2],
-        groundColour,
+        shownColour === 'ortho' ? 'plain' : shownColour,
         groundLow,
         groundHigh,
         exaggeration,
       ),
     }))
-  }, [sourceGeometry, groundColour, exaggeration])
+  }, [sourceGeometry, shownColour, exaggeration])
+
+  const design = useMemo(
+    () =>
+      !terrainOnly && alignment && 'epsg' in frame
+        ? terrainSceneGeometry({ kind: surfaceKind, alignment, analysis, frame })
+        : null,
+    [terrainOnly, alignment, analysis, frame, surfaceKind],
+  )
+  const presentation = useMemo(
+    () =>
+      gpuEnabled && sourceGeometry
+        ? terrainScenePresentation({
+            geometry: sourceGeometry,
+            design,
+            analysis,
+            culvertDesigns,
+            terrainOnly,
+            colour: shownColour,
+            ortho: shownColour === 'ortho' ? ortho : undefined,
+            showEarthwork,
+            maxGradePercent,
+          })
+        : null,
+    [
+      gpuEnabled,
+      sourceGeometry,
+      design,
+      analysis,
+      culvertDesigns,
+      terrainOnly,
+      shownColour,
+      ortho,
+      showEarthwork,
+      maxGradePercent,
+    ],
+  )
+  const gpuActive = gpuEnabled && !!presentation && !presentation.requiresCanvas && renderer === 'webgl'
+  // Fit the stable whole-window geometry, never the optional detail patch.
+  const fitVertices = useMemo(
+    () =>
+      base
+        ? Array.from(
+            new Set([
+              ...base.ground.flatMap((face) => face.vertices),
+              ...base.road.flatMap((face) => face.vertices),
+              ...base.earthwork.flatMap((face) => face.vertices),
+              ...(design?.footprint.flatMap((face) => clipFace(face, base.bounds)) ?? []),
+            ]),
+          )
+        : [],
+    [base, design],
+  )
 
   // Ground the road's overlays are tested against: the ground as the formation and batters leave it,
   // since the display draws it unexcavated over a cut. A terrain-only transect has no footprint and
   // lies on the ground it would be tested against, so it is never culled.
   const occluders = useMemo(() => {
-    if (!sourceGeometry || terrainOnly) return null
+    if (!sourceGeometry || terrainOnly || gpuActive) return null
     const footprint = [...sourceGeometry.road, ...sourceGeometry.earthwork].map((face) => face.vertices)
     const spacing = sourceGeometry.detailSpacing ?? sourceGeometry.meshSpacing
     return {
@@ -669,7 +806,7 @@ export function TerrainPreview({
       // The mesh's error in height is drawn exaggerated, so the allowance grows with the exaggeration.
       tolerance: (spacing / 2) * Math.max(1, exaggeration),
     }
-  }, [sourceGeometry, terrainOnly, exaggeration])
+  }, [sourceGeometry, terrainOnly, exaggeration, gpuActive])
 
   const following = mode === 'follow' && active ? active : undefined
   const activeElevation = terrainOnly ? active?.groundElevation : (active?.designElevation ?? active?.groundElevation)
@@ -679,14 +816,22 @@ export function TerrainPreview({
       : [(base.bounds[0] + base.bounds[2]) / 2, (base.bounds[1] + base.bounds[3]) / 2]
     : [0, 0]
   const targetZ = base ? (following ? (activeElevation ?? base.medianZ) : (base.low + base.high) / 2) : 0
-  const angleDegrees = following ? following.bearing + yaw - DEFAULT_YAW : yaw
+  const angleDegrees = following
+    ? bearingInFrame(frame, following.coordinate, following.bearing) + yaw - DEFAULT_YAW
+    : yaw
   const angle = angleDegrees * radians
   const tilt = (following ? clamp(pitch - 10, 15, 80) : pitch) * radians
   const activeVertex =
     active && finite(activeElevation)
       ? (() => {
           const [x, y] = frame.point(active.coordinate)
-          return { x, y, z: activeElevation }
+          return gpuActive
+            ? (presentation?.data.stations.find((point) => point.station === active.chainage) ?? {
+                x,
+                y,
+                z: activeElevation,
+              })
+            : { x, y, z: activeElevation }
         })()
       : null
 
@@ -694,11 +839,18 @@ export function TerrainPreview({
   const focusX = look?.x ?? target[0],
     focusY = look?.y ?? target[1]
   useEffect(() => {
-    const next = base ? previewDetailWindow(base.bounds, zoom, { x: focusX, y: focusY }, base.meshSpacing) : null
+    const next = base
+      ? previewDetailWindow(
+          base.bounds,
+          zoom,
+          { x: focusX, y: focusY },
+          sourceGeometry?.meshSpacing ?? base.meshSpacing,
+        )
+      : null
     if (sameWindow(next, detail)) return
     const timer = setTimeout(() => setDetail(next), next ? 180 : 0)
     return () => clearTimeout(timer)
-  }, [base, zoom, focusX, focusY, detail])
+  }, [base, zoom, focusX, focusY, detail, sourceGeometry?.meshSpacing])
 
   const centreOnStation = () => {
     if (!activeVertex) return
@@ -709,9 +861,11 @@ export function TerrainPreview({
     setLook(focus)
     setInteracted(true)
   }
-  const faceNorth = () => setYaw((value) => value - angleDegrees)
+  const northBearing = bearingInFrame(frame, frame.coordinate(focusX, focusY), 0)
+  const faceNorth = () => setYaw((value) => value + northBearing - angleDegrees)
   // Screen direction of north, clockwise from up; tilt foreshortens the ahead component.
-  const northDegrees = (Math.atan2(-Math.sin(angle), Math.cos(angle) * Math.sin(tilt)) * 180) / Math.PI
+  const northAngle = northBearing * radians - angle
+  const northDegrees = (Math.atan2(Math.sin(northAngle), Math.cos(northAngle) * Math.sin(tilt)) * 180) / Math.PI
 
   const controlHelp = (
     <InfoTip label="3D view controls" bubbleClassName="max-w-72">
@@ -737,6 +891,9 @@ export function TerrainPreview({
     <div
       className="relative flex h-full min-h-0 min-w-0 flex-col"
       data-testid="road-terrain-preview"
+      data-renderer={gpuActive ? 'webgl' : 'canvas'}
+      data-design-surface={design?.status}
+      data-surface-kind={surfaceKind}
       data-station={active?.chainage ?? station}
       data-terrain-only={terrainOnly}
       data-zoom={zoom}
@@ -905,10 +1062,23 @@ export function TerrainPreview({
             title="Ground colour"
             ariaLabel="Terrain colour"
             className="h-7 w-20 px-2"
-            value={groundColour}
+            value={shownColour}
             onValueChange={(value) => setGroundColour(value as GroundColour)}
-            options={GROUND_COLOURS}
+            options={[
+              ...GROUND_COLOURS,
+              ...(orthophotos.length ? [{ value: 'ortho', label: 'Orthophoto', disabled: !gpuActive }] : []),
+            ]}
           />
+          {shownColour === 'ortho' && orthophotos.length > 1 && (
+            <RoadSelect
+              ariaLabel="3D orthophoto"
+              title="Imported orthophoto"
+              className="h-7 max-w-40"
+              value={ortho?.id ?? ''}
+              onValueChange={setOrthoId}
+              options={orthophotos.map((layer) => ({ value: layer.id, label: layer.name }))}
+            />
+          )}
           <RoadSelect
             title="Vertical exaggeration: heights are drawn this many times taller than true scale"
             ariaLabel="Terrain vertical exaggeration"
@@ -922,6 +1092,80 @@ export function TerrainPreview({
           />
           {controlHelp}
         </div>
+        {gpuEnabled && (
+          <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label="3D presentation">
+            {!terrainOnly && (
+              <RoadSelect
+                ariaLabel="3D road surface"
+                title="Draw one exact design surface at a time"
+                disabled={!gpuActive}
+                className="h-7 w-28"
+                value={surfaceKind}
+                onValueChange={(value) => setSurfaceKind(value as DesignSurfaceKind)}
+                options={[
+                  { value: 'finished', label: 'Finished' },
+                  { value: 'subgrade', label: 'Subgrade' },
+                ]}
+              />
+            )}
+            <RoadSelect
+              ariaLabel="Terrain render quality"
+              title="Rendering quality; source elevations are unchanged"
+              disabled={!gpuActive}
+              className="h-7 w-28"
+              value={quality}
+              onValueChange={(value) => setQuality(value as TerrainRenderQuality)}
+              options={[
+                { value: 'auto', label: 'Auto quality' },
+                { value: 'high', label: 'High quality' },
+                { value: 'efficient', label: 'Efficient' },
+              ]}
+            />
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label="X-ray structures"
+              title="See buried culverts through the ground"
+              disabled={!gpuActive}
+              aria-pressed={xray}
+              onClick={() => setXray((value) => !value)}
+              className="aria-pressed:bg-primary/10 aria-pressed:text-primary"
+            >
+              <Eye className="size-3.5" />
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label="Cutaway at selected station"
+              title="Cut the view at the selected cross-section"
+              disabled={!gpuActive || !active}
+              aria-pressed={cutaway}
+              onClick={() => setCutaway((value) => !value)}
+              className="aria-pressed:bg-primary/10 aria-pressed:text-primary"
+            >
+              <Scissors className="size-3.5" />
+            </Button>
+            <InfoTip label="3D rendering and source detail" bubbleClassName="max-w-80">
+              <span className="block">
+                Auto quality sharpens after the camera stops. High increases the pixel budget; Efficient uses fewer
+                pixels.
+              </span>
+              <span className="mt-1 block">
+                Source: {terrainMetadata?.resolutionM ?? 'unknown'} m. Display mesh:{' '}
+                {sourceGeometry?.detailSpacing ?? sourceGeometry?.meshSpacing ?? '—'} m. Height ×{exaggeration}.
+                Rendering quality cannot add detail absent from the source.
+              </span>
+              <span className="mt-1 block">
+                {gpuActive ? (design?.notice ?? 'Terrain display only.') : 'Simplified subgrade preview.'}{' '}
+                {shownColour === 'ortho' && ortho ? `Image: ${ortho.name}; imported display pixels.` : ''}
+              </span>
+              <span className="mt-1 block">
+                Culverts show entered count and dimensions. Multiple-barrel spacing and arch outlines are schematic; no
+                installation spacing is inferred.
+              </span>
+            </InfoTip>
+          </div>
+        )}
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col">
         <ChartViewport className="min-h-0 flex-1" minHeight={1} initialHeight={240}>
@@ -945,6 +1189,7 @@ export function TerrainPreview({
                   exaggeration,
                   width,
                   height,
+                  fitVertices,
                 }
                 const camera = previewCamera({ ...cameraInputs, zoom, focus: look })
                 cameraView.current = {
@@ -973,11 +1218,11 @@ export function TerrainPreview({
                   occlusion.occluders !== (occluders ?? sourceGeometry) ||
                   occlusion.showEarthwork !== showEarthwork
                 ) {
-                  const test = occluders ? occlusionTest({ ...occluders, project, width, height }) : null
+                  const test = !gpuActive && occluders ? occlusionTest({ ...occluders, project, width, height }) : null
                   const visible = test?.visible ?? (() => true)
                   const shown = (items: Face[]) => items.filter((face) => visible(face.vertices.map(project)))
-                  const road = shown(sourceGeometry.road)
-                  const earthwork = showEarthwork ? shown(sourceGeometry.earthwork) : NO_FACES
+                  const road = gpuActive ? NO_FACES : shown(sourceGeometry.road)
+                  const earthwork = !gpuActive && showEarthwork ? shown(sourceGeometry.earthwork) : NO_FACES
                   occlusion = {
                     key: projectionKey,
                     occluders: occluders ?? sourceGeometry,
@@ -1014,11 +1259,10 @@ export function TerrainPreview({
                 const section =
                   active?.section.map((p) => {
                     if (!finite(p.ground)) return null
-                    const [x, y] = geometryFrame.point(active.coordinate)
-                    const bearing = active.bearing * radians
+                    const [x, y] = geometryFrame.point(stationOffsetCoordinate(active, p.offset))
                     return {
-                      x: x + Math.cos(bearing) * p.offset,
-                      y: y - Math.sin(bearing) * p.offset,
+                      x,
+                      y,
                       z: p.ground as number,
                     }
                   }) ?? []
@@ -1077,6 +1321,21 @@ export function TerrainPreview({
                     onContextMenu={(event) => event.preventDefault()}
                     onDoubleClick={(event) => zoomAt(event.shiftKey ? 0.5 : 2, svgPoint(event, event.currentTarget))}
                     onClick={(event) => {
+                      if (gpuActive) {
+                        if (
+                          !pointerStart.current ||
+                          Math.hypot(event.clientX - pointerStart.current[0], event.clientY - pointerStart.current[1]) >
+                            DRAG_THRESHOLD_PX
+                        )
+                          return
+                        const p = svgPoint(event, event.currentTarget)
+                        const picked = gpuHandle.current?.pick(p.x, p.y)
+                        if (picked) {
+                          if (picked.culvertId) onSelectCulvert?.(picked.culvertId)
+                          onStation(picked.station)
+                        }
+                        return
+                      }
                       if (
                         !showEarthwork ||
                         !pointerStart.current ||
@@ -1211,17 +1470,63 @@ export function TerrainPreview({
                     }}
                   >
                     <rect width={width} height={height} fill="hsl(var(--muted))" opacity={0.3} />
-                    <TerrainGround
-                      faces={groundFaces}
-                      overlays={occlusion.earthwork}
-                      project={project}
-                      width={width}
-                      height={height}
-                      wireframe={wireframe}
-                      projectionKey={projectionKey}
-                      groundLayer={groundLayer}
-                    />
-                    {faces(visibleRoad).map((face, i) => (
+                    {!gpuActive && (
+                      <TerrainGround
+                        faces={groundFaces}
+                        overlays={occlusion.earthwork}
+                        project={project}
+                        width={width}
+                        height={height}
+                        wireframe={wireframe}
+                        projectionKey={projectionKey}
+                        groundLayer={groundLayer}
+                      />
+                    )}
+                    {gpuEnabled && presentation && !presentation.requiresCanvas && (
+                      <TerrainGpu
+                        data={presentation.data}
+                        handle={gpuHandle}
+                        onStatus={onRendererStatus}
+                        projectionKey={projectionKey}
+                        view={{
+                          camera,
+                          angle,
+                          tilt,
+                          exaggeration,
+                          width,
+                          height,
+                          quality,
+                          wireframe,
+                          showEarthwork,
+                          xray,
+                          selectedCulvertId,
+                          bounds: sourceGeometry.bounds,
+                          cutaway:
+                            cutaway && activeVertex && active
+                              ? {
+                                  point: activeVertex,
+                                  normal: (() => {
+                                    const [x, y] = frame.point(stationOffsetCoordinate(active, 1))
+                                    const dx = x - activeVertex.x,
+                                      dy = y - activeVertex.y
+                                    const length = Math.hypot(dx, dy) || 1
+                                    return [-dy / length, dx / length] as [number, number]
+                                  })(),
+                                }
+                              : null,
+                        }}
+                      />
+                    )}
+                    {faces(
+                      gpuActive && selectedRange
+                        ? sourceGeometry.road.filter(
+                            (face) =>
+                              face.station !== undefined &&
+                              face.station >= selectedRange.start &&
+                              face.station <= selectedRange.end,
+                          )
+                        : visibleRoad,
+                    ).map((face, i) => (
                       <polygon
                         key={`road${i}`}
                         data-design-over-terrain-gap={face.terrainGap || undefined}
@@ -1236,7 +1541,7 @@ export function TerrainPreview({
                         }
                         stroke="#94744a"
                         strokeWidth={0.3}
-                        opacity={0.95}
+                        opacity={gpuActive ? 0.35 : 0.95}
                         className="cursor-pointer"
                         onClick={() => onStation(face.station ?? 0)}
                       />
@@ -1267,7 +1572,8 @@ export function TerrainPreview({
                           </line>
                         )
                       })}
-                    {showEarthwork &&
+                    {!gpuActive &&
+                      showEarthwork &&
                       sourceGeometry.ditches.map((segment, index) => {
                         const a = project(segment.a),
                           b = project(segment.b)
@@ -1287,102 +1593,112 @@ export function TerrainPreview({
                           />
                         )
                       })}
-                    {route.map((segment, i) => (
-                      <line
-                        key={`line${i}`}
-                        x1={segment.first.x}
-                        y1={segment.first.y}
-                        x2={segment.last.x}
-                        y2={segment.last.y}
-                        stroke={terrainOnly ? ROAD_CHART_COLORS.ground : ROAD_CHART_COLORS.design}
-                        strokeWidth={terrainOnly ? 2.5 : 1.2}
-                        strokeDasharray="3 2"
-                        opacity={0.9}
-                        pointerEvents={terrainOnly ? 'stroke' : 'none'}
-                        onClick={terrainOnly ? () => onStation(segment.chainage) : undefined}
-                      />
-                    ))}
+                    {(!gpuActive || terrainOnly) &&
+                      route.map((segment, i) => (
+                        <line
+                          key={`line${i}`}
+                          x1={segment.first.x}
+                          y1={segment.first.y}
+                          x2={segment.last.x}
+                          y2={segment.last.y}
+                          stroke={
+                            gpuActive
+                              ? 'transparent'
+                              : terrainOnly
+                                ? ROAD_CHART_COLORS.ground
+                                : ROAD_CHART_COLORS.design
+                          }
+                          strokeWidth={gpuActive ? 10 : terrainOnly ? 2.5 : 1.2}
+                          strokeDasharray={gpuActive ? undefined : '3 2'}
+                          opacity={0.9}
+                          pointerEvents={terrainOnly ? 'stroke' : 'none'}
+                          onClick={terrainOnly ? () => onStation(segment.chainage) : undefined}
+                        />
+                      ))}
                     {/* The ground in front of the road, drawn back over it pixel by pixel. */}
-                    <TerrainCover
-                      groundLayer={groundLayer}
-                      cover={occlusion.cover}
-                      width={width}
-                      height={height}
-                      faces={groundFaces}
-                      wireframe={wireframe}
-                      projectionKey={projectionKey}
-                    />
-                    {culverts
-                      .sort(
-                        (a, b) =>
-                          Number(a.culvert.id === selectedCulvertId) - Number(b.culvert.id === selectedCulvertId),
-                      )
-                      .map(({ culvert, barrel }) => (
-                        <g
-                          key={culvert.id}
-                          role="button"
-                          tabIndex={barrel ? 0 : undefined}
-                          aria-label={`Inspect 3D culvert ${culvert.name}`}
-                          aria-pressed={selectedCulvertId === culvert.id}
-                          className="cursor-pointer"
-                          onClick={() => {
-                            onSelectCulvert?.(culvert.id)
-                            onStation(culvert.chainage)
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault()
-                              event.stopPropagation()
+                    {!gpuActive && (
+                      <TerrainCover
+                        groundLayer={groundLayer}
+                        cover={occlusion.cover}
+                        width={width}
+                        height={height}
+                        faces={groundFaces}
+                        wireframe={wireframe}
+                        projectionKey={projectionKey}
+                      />
+                    )}
+                    {!gpuActive &&
+                      culverts
+                        .sort(
+                          (a, b) =>
+                            Number(a.culvert.id === selectedCulvertId) - Number(b.culvert.id === selectedCulvertId),
+                        )
+                        .map(({ culvert, barrel }) => (
+                          <g
+                            key={culvert.id}
+                            role="button"
+                            tabIndex={barrel ? 0 : undefined}
+                            aria-label={`Inspect 3D culvert ${culvert.name}`}
+                            aria-pressed={selectedCulvertId === culvert.id}
+                            className="cursor-pointer"
+                            onClick={() => {
                               onSelectCulvert?.(culvert.id)
                               onStation(culvert.chainage)
-                            }
-                          }}
-                        >
-                          {barrel &&
-                            (() => {
-                              const colour =
-                                selectedCulvertId === culvert.id
-                                  ? ROAD_CHART_COLORS.selected
-                                  : culvert.warnings.length
-                                    ? '#dc2626'
-                                    : '#0284c7'
-                              if (barrel.openingPx < BARREL_MIN_OPENING_PX)
-                                return (
-                                  <line
-                                    x1={barrel.axis[0].x}
-                                    y1={barrel.axis[0].y}
-                                    x2={barrel.axis[1].x}
-                                    y2={barrel.axis[1].y}
-                                    stroke={colour}
-                                    strokeWidth={selectedCulvertId === culvert.id ? 6 : 4}
-                                  />
-                                )
-                              return (
-                                <>
-                                  {barrel.sides.map((side, index) => (
-                                    <polygon
-                                      key={`side-${index}`}
-                                      points={side.points}
-                                      fill={shadedColour(colour, side.light)}
-                                      stroke={shadedColour(colour, side.light)}
-                                      strokeWidth={0.5}
-                                      strokeLinejoin="round"
-                                    />
-                                  ))}
-                                  {barrel.ends.map((end, index) => (
-                                    <polygon
-                                      key={`end-${index}`}
-                                      points={end}
-                                      fill="#1e3a8a"
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                onSelectCulvert?.(culvert.id)
+                                onStation(culvert.chainage)
+                              }
+                            }}
+                          >
+                            {barrel &&
+                              (() => {
+                                const colour =
+                                  selectedCulvertId === culvert.id
+                                    ? ROAD_CHART_COLORS.selected
+                                    : culvert.warnings.length
+                                      ? '#dc2626'
+                                      : '#0284c7'
+                                if (barrel.openingPx < BARREL_MIN_OPENING_PX)
+                                  return (
+                                    <line
+                                      x1={barrel.axis[0].x}
+                                      y1={barrel.axis[0].y}
+                                      x2={barrel.axis[1].x}
+                                      y2={barrel.axis[1].y}
                                       stroke={colour}
-                                      strokeWidth={selectedCulvertId === culvert.id ? 2 : 1.25}
+                                      strokeWidth={selectedCulvertId === culvert.id ? 6 : 4}
                                     />
-                                  ))}
-                                </>
-                              )
-                            })()}
-                        </g>
-                      ))}
+                                  )
+                                return (
+                                  <>
+                                    {barrel.sides.map((side, index) => (
+                                      <polygon
+                                        key={`side-${index}`}
+                                        points={side.points}
+                                        fill={shadedColour(colour, side.light)}
+                                        stroke={shadedColour(colour, side.light)}
+                                        strokeWidth={0.5}
+                                        strokeLinejoin="round"
+                                      />
+                                    ))}
+                                    {barrel.ends.map((end, index) => (
+                                      <polygon
+                                        key={`end-${index}`}
+                                        points={end}
+                                        fill="#1e3a8a"
+                                        stroke={colour}
+                                        strokeWidth={selectedCulvertId === culvert.id ? 2 : 1.25}
+                                      />
+                                    ))}
+                                  </>
+                                )
+                              })()}
+                          </g>
+                        ))}
                     {section.length > 1 && (
                       <path
                         d={section
@@ -1494,9 +1810,9 @@ export function TerrainPreview({
             )}
           </div>
         )}
-        {sourceGeometry && groundColour !== 'plain' && (
+        {sourceGeometry && (shownColour === 'slope' || shownColour === 'elevation') && (
           <TerrainColourLegend
-            colour={groundColour}
+            colour={shownColour}
             low={sourceGeometry.groundLow}
             high={sourceGeometry.groundHigh}
             maxGradePercent={terrainOnly ? undefined : maxGradePercent}
@@ -1505,6 +1821,21 @@ export function TerrainPreview({
         )}
       </div>
       <div className="shrink-0 text-3xs">
+        {rendererReason && (
+          <p role="status" className="border-t px-2 py-1 text-muted-foreground">
+            {rendererReason}
+          </p>
+        )}
+        {presentation?.notice && (
+          <p role="status" className="border-t px-2 py-1 text-muted-foreground">
+            {presentation.notice}
+          </p>
+        )}
+        {gpuActive && cutaway && (
+          <p className="border-t px-2 py-1 text-muted-foreground">
+            Cutaway at {formatRoadStation(station)} · display only
+          </p>
+        )}
         {!terrainOnly && active && !active.complete && (
           <p role="status" data-testid="road-3d-incomplete-section" className="border-t px-2 py-1 text-warning">
             {formatRoadStation(active.chainage)} ·{' '}
@@ -1541,7 +1872,7 @@ function TerrainColourLegend({
   maxGradePercent,
   exaggeration,
 }: {
-  colour: Exclude<GroundColour, 'plain'>
+  colour: 'slope' | 'elevation'
   low: number
   high: number
   maxGradePercent?: number

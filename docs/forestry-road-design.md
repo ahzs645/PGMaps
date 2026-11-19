@@ -350,10 +350,27 @@ its samples. Calculated station elevations, sections and routing checks query
 the native terrain adapter directly; they do not read a contour, rendered
 image, 3D mesh or MapLibre terrain LOD.
 
-The 3D view is a separate triangular display mesh: at most 128 cells on the longer
-side, with proportional rows/columns and a bounded selection of road stations
-for rendering. Cells containing missing centreline or cross-section samples are
-classified as unsupported even if their mesh corners have terrain.
+The 3D view uses a lazily loaded **Three.js 0.186.1 / WebGL2** renderer, with the
+existing canvas/SVG preview kept as a compatibility path. Its terrain, road,
+structures, camera and picking share one local frame in the terrain's export CRS.
+**Finished** and **Subgrade** select one exact `designSurface` TIN at a time, with
+the same faces as the engineering surface export. Incomplete intervals stay open;
+neither a better picture nor display gap infill completes those sections. The
+chosen TIN's triangle footprint is clipped out of the sampled display ground so
+original ground does not cover a designed cut. New ground-edge vertices retain
+the sampled ground face's interpolated elevation; the analytical source is unchanged.
+
+Natural ground uses indexed geometry with smooth normals; design faces keep their
+breaklines. The display mesh uses fixed local coordinates and discrete spacing.
+**Auto quality** allows 192 samples along the longer side, **High quality** 256,
+and **Efficient** 128; spacing never goes below the terrain's stated source
+resolution. Separate drawing-buffer budgets cap screen pixels and device pixel
+ratio. Auto reduces those pixels while moving and sharpens 350 ms after the
+camera stops. See [3D view: rendering, inspection and verification](forestry-road-design/3d-view.md)
+for the architecture, controls and complete budgets.
+
+Cells containing missing centreline or cross-section samples are classified as
+unsupported even if their mesh corners have terrain.
 **Fill gaps** is on by default for the 3D display: enclosed unsupported components
 no wider or taller than 80 m receive estimated display patches. Missing preview
 vertices are relaxed toward the mean of their four neighbours, bounded by the
@@ -365,28 +382,30 @@ coverage. Infill is never passed to the source sampler, analysis, quantities or
 exports. Profile and section charts still hatch missing terrain intervals, and
 the selected station still explains missing source coverage. Resolving those
 analysis gaps requires a DEM with coverage there.
-The road formation remains continuous wherever its designed elevations and
-widths are known, even if source ground is missing; the selected station's note
-says when its ground is unverified. Batters and ditch geometry still require their computed,
-supported sections; display infill never supplies missing earthwork geometry.
-The grid uses fixed local coordinates and discrete spacing, so moving the follow
-window does not move missing cells across the ground. Up to 65,536 sampled vertices
-(including missing values) are cached. Ground and batters paint onto one canvas;
-formation and structure overlays retain SVG selection. Ground in front of the road
-hides it (`terrainOcclusion.ts`). The display mesh is not excavated, so the test
-runs against the ground as the road leaves it: ground faces wholly inside the
-footprint (formation and batters) are left out, and faces across its edge have their
-inside corners lowered to the design surface, while ground beside the road, however
-close, stays whole. That ground goes into a 2 px depth buffer. A formation or batter
-face, centreline segment, ditch or unfinished-batter edge with no corner and no
-centre in front of it is not drawn, and the ground canvas is drawn again over the
-road pixel by pixel wherever the ground is nearer, so a strip half behind a crest is
-cut at the crest. The allowance grows with the vertical exaggeration, and specks of
-cover a cell or two across are dropped as mesh error. A terrain-only transect lies on
-the ground it would be tested against and is never hidden, and culverts, the selected
-station and its section line always draw. Camera-only redraws reuse
-the terrain geometry. **Whole road** and **Around station** modes, camera rotation,
-zoom, pan and vertical exaggeration change the presentation only.
+The simplified formation used when batters are hidden or the exact TIN is unavailable
+can remain continuous wherever its elevations and widths are known. The selected
+station still says when its ground is unverified. The hidden-batter path clips only
+the visible formation's footprint, preserving ground beside it. Batters and ditch
+geometry require supported calculated sections; infill never supplies them.
+The accelerated scene caches up to 262,144 finite or missing terrain samples;
+the sampler's default remains 65,536. Fixed-grid overlaps reuse those samples.
+
+GPU depth testing handles visible road, terrain and structure surfaces. **X-ray
+structures** exposes buried culverts; **Cutaway at selected station** clips the
+display at that cross-section. Culverts use their calculated endpoint elevations
+and entered dimensions/count; multiple-barrel spacing and arch outlines remain
+schematic. **Orthophoto** uses an already imported, visible RGB background and
+its own CRS, pixels, transparency and opacity. It fetches no new imagery.
+Camera-only changes reuse GPU geometry and request a frame on demand; there is
+no continuous animation loop while the view is still.
+
+The canvas/SVG preview stays available until the first GPU frame, after a failed
+or lost WebGL context, or when the footprint-clipping budget cannot be met. A
+notice explains the fallback. This path keeps its existing simplified formation,
+estimated ground, SVG selection and `terrainOcclusion.ts` software depth cover;
+it is labelled as a simplified subgrade preview. GPU-only inspection controls are
+disabled. **Whole road**, **Around station**, camera rotation, zoom, pan and
+vertical exaggeration change presentation only.
 
 The 3D camera works like the plan beside it: drag to pan, right-drag, Ctrl-drag or
 Alt-drag to rotate and tilt, scroll or pinch to zoom toward the pointer, and
@@ -395,15 +414,18 @@ Shift+arrows rotate and tilt, +/− zoom and Home fits. Zoom, rotation and pan a
 work around one focus point on the ground, held at the same place on screen
 (`previewCamera.ts`), so a zoom or a turn never throws what you are looking at off
 the pane. A press that moves less than 3 px is a click, so a click on the road still
-selects its station while a drag that starts on the road pans. The toolbar holds
+selects its station while a drag that starts on the road pans. The fit uses the actual
+coarse terrain and design vertices, avoiding empty corners of their enclosing box;
+loading a finer patch does not change that fit. The toolbar holds
 **Fit**, which resets the view, then zoom, a compass (click to turn north up), rotate
 buttons and **Centre on selected station**. The scale
 bar is measured at the focus, and perspective shortens distances beyond it.
 
 Zoomed in past 2×, the ground around the focus is meshed again at finer spacing,
 covering about twice the visible width and snapped to the coarse cells, and every
-road station inside it is drawn. The camera fit, colour range and median elevation
-keep the coarse mesh, so the finer patch never moves the view. Vertical
+road station inside it is drawn by the simplified preview. The patch uses the
+selected mesh budget and the same source-resolution floor. The camera fit, colour
+range and median elevation keep the coarse mesh, so the finer patch never moves the view. Vertical
 exaggeration defaults to **Auto**: the smallest of ×1, ×2 and ×4 that draws the
 road's ground relief at least a tenth of its extent. Hill shading follows the drawn
 exaggeration; slope colours always use true metres, and the legend says when

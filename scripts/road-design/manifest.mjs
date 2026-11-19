@@ -111,6 +111,7 @@ export const DEV_PACKAGES = [
   '@types/react-dom',
   '@types/react-test-renderer',
   '@types/sql.js',
+  '@types/three',
   '@vitejs/plugin-react',
   'autoprefixer',
   'fake-indexeddb',

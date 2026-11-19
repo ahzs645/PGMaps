@@ -5,6 +5,7 @@ import type { LocalRaster } from '../../src/pages/dev-forestry/types'
 import { positionAt } from '../../src/pages/dev-forestry-roads/engine'
 import { createDemoProject } from '../../src/pages/dev-forestry-roads/terrain'
 import { choose } from './styled-select'
+import { forceCanvasTerrainPreview } from './road-terrain-renderer'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -73,6 +74,8 @@ async function settledCanvasMeasurements(canvas: Locator): Promise<CanvasMeasure
 }
 
 test('source gaps remain visible across station selection, charts and the terrain preview', async ({ page }, info) => {
+  // The pixel and SVG-mask assertions below specifically protect the software fallback.
+  await forceCanvasTerrainPreview(page)
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.addInitScript(() => {
@@ -153,6 +156,7 @@ test('source gaps remain visible across station selection, charts and the terrai
   expect(await page.getByTestId('road-section-chart').locator('[data-terrain-gap]').count()).toBeGreaterThan(0)
   expect(await page.getByTestId('road-profile-chart').locator('[data-terrain-gap]').count()).toBeGreaterThan(0)
   await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: '3D' })
+  await expect(page.getByTestId('road-terrain-preview')).toHaveAttribute('data-renderer', 'canvas')
   await expect(page.getByTestId('road-terrain-preview')).toHaveAttribute('data-station', '200')
   await expect(page.getByTestId('road-ground-canvas')).toHaveAttribute('data-face-count', /^[1-9][0-9]*$/)
   await station.fill('600')

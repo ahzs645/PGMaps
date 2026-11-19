@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { cachedTerrainSampler, MAX_DISPLAY_GAP_M, MAX_TERRAIN_MESH_SIDE, terrainMesh } from './terrainMesh'
+import {
+  cachedTerrainSampler,
+  MAX_DISPLAY_GAP_M,
+  MAX_GPU_TERRAIN_MESH_SIDE,
+  MAX_TERRAIN_MESH_SIDE,
+  terrainMesh,
+} from './terrainMesh'
 
 describe('terrain preview coverage', () => {
   it('keeps the same ground triangles and gaps when the follow window shifts', () => {
@@ -56,6 +62,83 @@ describe('terrain preview coverage', () => {
     expect(mesh.spacing).toBe(10)
     expect(mesh.faces.length).toBeGreaterThan(0)
     expect(mesh.faces.every((face) => face.every((p) => Number.isFinite(p.z) && p.x > 0))).toBe(true)
+  })
+
+  it('adds bounded display detail for a GPU without changing the default mesh', () => {
+    const bounds = [0.3, 0.4, 127.3, 127.4]
+    const sample = (x: number, y: number) => 700 + x / 10 + y / 20
+    const standard = terrainMesh(bounds, sample, [])
+    let samples = 0
+    const detailed = terrainMesh(
+      bounds,
+      (x, y) => {
+        samples++
+        return sample(x, y)
+      },
+      [],
+      false,
+      { maxSide: 10_000 },
+    )
+    expect(standard.spacing).toBe(2)
+    expect(detailed.spacing).toBe(0.5)
+    expect(samples).toBeLessThanOrEqual(MAX_GPU_TERRAIN_MESH_SIDE ** 2)
+    expect(detailed.faces.length).toBeGreaterThan(standard.faces.length)
+    expect(detailed.faces.every((face) => face.every((point) => point.z === sample(point.x, point.y)))).toBe(true)
+    expect(terrainMesh(bounds, sample, [], false, { maxSide: MAX_TERRAIN_MESH_SIDE })).toEqual(standard)
+  })
+
+  it.each([
+    [0.3, 0.5],
+    [1.2, 2],
+    [2.1, 2.5],
+    [3, 5],
+  ])('does not subdivide below a %s m source cell', (minSpacing, expectedSpacing) => {
+    const mesh = terrainMesh([0.3, 0.4, 96.3, 96.4], () => 700, [], false, {
+      maxSide: MAX_GPU_TERRAIN_MESH_SIDE,
+      minSpacing,
+    })
+    expect(mesh.spacing).toBe(expectedSpacing)
+    expect(mesh.spacing).toBeGreaterThanOrEqual(minSpacing)
+    expect(mesh.estimatedFaces).toHaveLength(0)
+  })
+
+  it('keeps fine source and known analysis gaps open as a detailed window moves', () => {
+    const sample = (x: number, y: number) => (x >= 40 && x <= 42 && y >= 40 && y <= 42 ? NaN : 700 + x / 10)
+    const options = { maxSide: MAX_GPU_TERRAIN_MESH_SIDE, minSpacing: 0.5 }
+    const first = terrainMesh([0, 0, 96, 96], sample, [[50.25, 50.25]], false, options)
+    const shifted = terrainMesh([0.1, 0.2, 96.1, 96.2], sample, [[50.25, 50.25]], false, options)
+    expect(first.spacing).toBe(0.5)
+    expect(first.openGapCells).toBeGreaterThan(1)
+    expect(first.estimatedFaces).toHaveLength(0)
+    expect(first.faces.every((face) => face.every((point) => Number.isFinite(sample(point.x, point.y))))).toBe(true)
+    expect(
+      first.faces.some((face) =>
+        face.every((point) => point.x >= 50 && point.x <= 50.5 && point.y >= 50 && point.y <= 50.5),
+      ),
+    ).toBe(false)
+    const common = (mesh: typeof first) =>
+      mesh.faces.filter((face) => face.every((point) => point.x >= 1 && point.x <= 95 && point.y >= 1 && point.y <= 95))
+    expect(common(first)).toEqual(common(shifted))
+  })
+
+  it('bounds optional detail values and falls back for unreadable ones', () => {
+    const bounds = [0.3, 0.4, 96.3, 96.4]
+    const sample = () => 700
+    expect(terrainMesh(bounds, sample, [], false, { maxSide: Infinity, minSpacing: NaN })).toEqual(
+      terrainMesh(bounds, sample, []),
+    )
+    let samples = 0
+    terrainMesh(
+      bounds,
+      () => {
+        samples++
+        return 700
+      },
+      [],
+      false,
+      { maxSide: -1, minSpacing: -1 },
+    )
+    expect(samples).toBeLessThanOrEqual(4 ** 2)
   })
 
   it('closes an enclosed display hole while preserving the source sampler and measured faces', () => {
