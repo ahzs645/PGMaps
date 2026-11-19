@@ -33,6 +33,11 @@ vi.mock('@/components/ui/segmented-control', () => ({
       ),
     ),
 }))
+// The legend's panel reads a media query on mount, which this renderer (no window) cannot answer; its sections are real.
+vi.mock('@/components/ui/map-panels', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/map-panels')>()),
+  MapLegendPanel: ({ children }: { children: ReactNode }) => createElement('section', {}, children),
+}))
 vi.mock('@pgmaps/geo-toolkit/visualizations/react', () => ({
   ChartViewport: ({ children }: { children: (height: number) => ReactNode }) => children(240),
   SizedChart: ({ children }: { children: (width: number) => ReactNode }) => children(600),

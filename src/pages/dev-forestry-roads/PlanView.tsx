@@ -25,7 +25,7 @@ import {
   X,
 } from 'lucide-react'
 import { Map, MapControls, MapLayersControl, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
-import { IMAGERY_BASEMAPS, SatelliteImagery, useStoredImageryBasemap } from '@/components/ui/map-satellite-imagery'
+import { IMAGERY_BASEMAPS, SatelliteImagery } from '@/components/ui/map-satellite-imagery'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MapSketchDraft, MapSketchLayers } from '@/components/ui/map-sketch'
 import { canFinishSketch, nearFirstVertex } from '@/lib/geo/mapSketch'
@@ -50,7 +50,7 @@ import {
   referenceLineWidth,
   referencePlanData,
 } from './ReferenceLayer'
-import { referenceLayerKey, referenceLayers, type ReferenceFeature } from './referenceFeatures'
+import { hiddenDesignRoads, referenceLayerKey, referenceLayers, type ReferenceFeature } from './referenceFeatures'
 import { referenceCustomDashes, referenceStyleSymbols, type ReferenceLayerStyle } from './referenceStyles'
 import { CUTBLOCK_BUFFER_COLOR, cutblockBufferFeatures, cutblockBufferKey } from './cutblockBuffers'
 import { CutblockCard } from './CutblockCard'
@@ -245,6 +245,12 @@ interface PlanProps {
    * and from the vehicle tools 'swept-area' | 'vehicle-outline' | 'vehicle-trace' | 'vehicle-template' | 'vehicle-lock').
    */
   swept?: GeoJSON.FeatureCollection
+  /**
+   * Whether the swept path is drawn, when there is one to draw: Map settings then lists it as a row, so it can be shown
+   * or hidden from the plan without opening the Swept path view. Absent: no row.
+   */
+  sweptShown?: boolean
+  onSweptShown?: (shown: boolean) => void
   /** Consume a plan click as a drain-to-point selection rather than changing road chainage. */
   pourPointPicking?: boolean
   onPourPoint?: (coordinate: Coordinate) => void
@@ -359,7 +365,25 @@ const CONTOUR_PAINT = {
 /** The plan's drawing colour: a pegged road's draft line and a drawn area's sketch. */
 const DRAFT_COLOR = '#0d9488'
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
-/** Covers the basemap under a project on the flat plane. */
+/**
+ * The plan's basemap choices: the shared Map and Satellite (`IMAGERY_BASEMAPS`), and *None*, the plain background the
+ * flat plane is drawn on, for reading the plan's own layers alone.
+ */
+const ROAD_BASEMAPS = [
+  ...IMAGERY_BASEMAPS,
+  {
+    value: 'none' as const,
+    label: (
+      <span className="flex items-center gap-2">
+        <span className="h-7 w-10 shrink-0 rounded-sm border border-border bg-muted" aria-hidden="true" />
+        None
+      </span>
+    ),
+    description: 'A plain background',
+  },
+]
+
+/** Covers the basemap under a project on the flat plane, or when the basemap is switched off. */
 const PLANE_BACKGROUND: GeoJSON.FeatureCollection = {
   type: 'FeatureCollection',
   features: [
@@ -663,7 +687,12 @@ function Layers(
       return at ? [{ chainage, ...at }] : []
     })
   }, [analysis, labelInterval, props.alignment])
+  // Design roads hidden from the Layers list (`designRoadLayerKey`): each one's line leaves the plan, and for the road
+  // being designed its chainage ticks and curve labels with it.
+  const hiddenRoads = useMemo(() => hiddenDesignRoads(props.hiddenReferenceLayers), [props.hiddenReferenceLayers])
+  const activeRoadHidden = hiddenRoads.has(props.alignment.id)
   const ticks = useMemo(() => {
+    if (activeRoadHidden) return fc([])
     if (!props.showLabels || !analysis.stations.length || labelInterval === null || pixelMetres === null) return fc([])
     return fc(
       tickChainages(analysis.length, labelInterval, pixelMetres).flatMap(({ chainage, major }) => {
@@ -681,9 +710,9 @@ function Layers(
         ]
       }),
     )
-  }, [analysis, labelInterval, pixelMetres, props.alignment, props.showLabels])
+  }, [analysis, labelInterval, pixelMetres, props.alignment, props.showLabels, activeRoadHidden])
   const radiusLabels = useMemo(() => {
-    if (props.terrainOnly || pixelMetres === null) return []
+    if (props.terrainOnly || pixelMetres === null || activeRoadHidden) return []
     try {
       return horizontalCurveSummary(props.alignment).flatMap((curve, index) => {
         // A curve label appears once its arc is long enough on screen to belong to it.
@@ -709,7 +738,7 @@ function Layers(
     } catch {
       return []
     }
-  }, [props.alignment, props.terrainOnly, pixelMetres])
+  }, [props.alignment, props.terrainOnly, pixelMetres, activeRoadHidden])
   // Curve points (BC/EC, or TS/SC/CS/ST with spirals) labelled with their stations along the road, on
   // the radius label's side, once the whole curve is long enough on screen for its labels not to touch.
   const curvePointLabels = useMemo(
@@ -739,7 +768,7 @@ function Layers(
     return fc(
       props.project.alignments.flatMap((a) => {
         const result = props.analyses.get(a.id)
-        if (!result) return []
+        if (!result || hiddenRoads.has(a.id)) return []
         if (a.id !== props.alignment.id)
           return [line(result.centerline, { id: a.id, color: colors.get(a.id)!, selected: false })]
         return result.stations.slice(1).map((p, i) =>
@@ -768,6 +797,7 @@ function Layers(
     props.analyses,
     props.alignment.id,
     props.terrainOnly,
+    hiddenRoads,
   ])
   const roadColourMode = props.roadColouring?.mode ?? 'plain'
   const costSettings = props.roadColouring?.cost
@@ -2811,7 +2841,9 @@ export function PlanView(input: PlanProps) {
   ])
   const { terrainLayer, setTerrainLayer, settingsOpen, setSettingsOpen } = props.display
   // The same Map / Satellite choice as the visual-quality maps, under the plan's own layers.
-  const [basemap, setBasemap] = useStoredImageryBasemap('pgmaps-road-basemap')
+  const { basemap, setBasemap, showBasemap, setShowBasemap } = props.display
+  // Imagery under the plan: the satellite basemap, when the basemap is shown at all.
+  const imageryShown = basemap === 'satellite' && showBasemap
   const { showContours, setShowContours, showLabels, setShowLabels, showEarthwork, setShowEarthwork, fitRequest, fit } =
     props.display
   // Block-sheet symbols by default, as printed block-map sheets draw them; a saved choice of
@@ -3154,9 +3186,13 @@ export function PlanView(input: PlanProps) {
               <MapControls position="top-right" showZoom showCompass={false} className="road-map-controls">
                 <MapLayersControl
                   label="Basemap"
-                  basemaps={IMAGERY_BASEMAPS}
-                  basemap={basemap}
-                  onBasemapChange={setBasemap}
+                  basemaps={ROAD_BASEMAPS}
+                  basemap={showBasemap ? basemap : 'none'}
+                  onBasemapChange={(value) => {
+                    if (value === 'none') return setShowBasemap(false)
+                    setBasemap(value)
+                    setShowBasemap(true)
+                  }}
                   overlays={[
                     {
                       id: 'hrdem-relief',
@@ -3182,7 +3218,8 @@ export function PlanView(input: PlanProps) {
             fillOpacity={1}
             lineOpacity={0}
             interactive={false}
-            visible={!!plane}
+            // The same plain cover hides the basemap when it is switched off (*None*, or its eye in Layers).
+            visible={!!plane || !showBasemap}
           />
           <MapLineLayer
             sourceKey="road-local-plane-grid"
@@ -3192,20 +3229,17 @@ export function PlanView(input: PlanProps) {
             interactive={false}
             visible={!!plane}
           />
-          <SatelliteImagery visible={basemap === 'satellite' && !plane} />
-          <RegionalDemLayer
-            visible={props.display.terrainLayer !== 'none' && !plane}
-            imagery={basemap === 'satellite'}
-          />
+          <SatelliteImagery visible={imageryShown && !plane} />
+          <RegionalDemLayer visible={props.display.terrainLayer !== 'none' && !plane} imagery={imageryShown} />
           <HrdemReliefLayer
             visible={props.display.showHrdem && props.display.terrainLayer !== 'none' && !plane}
             dark={dark}
-            imagery={basemap === 'satellite'}
+            imagery={imageryShown}
           />
           <RegionalContourLayer
             visible={showContours && props.display.terrainLayer !== 'none' && !plane}
             dark={dark}
-            imagery={basemap === 'satellite'}
+            imagery={imageryShown}
           />
           {props.detailArea && (
             <MapLineLayer
@@ -3299,7 +3333,7 @@ export function PlanView(input: PlanProps) {
             }}
             fitRequest={fitRequest}
             terrainLayer={terrainLayer}
-            imagery={basemap === 'satellite'}
+            imagery={imageryShown}
             showContours={showContours}
             showLabels={showLabels}
             showEarthwork={showEarthwork}
@@ -3527,6 +3561,9 @@ export function PlanView(input: PlanProps) {
                       ]
                     : []),
                   ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
+                  ...(props.sweptShown !== undefined && props.onSweptShown
+                    ? [['Vehicle swept path', props.sweptShown, props.onSweptShown] as const]
+                    : []),
                   ...tools.settingsRows,
                 ] as const
               ).map(([label, checked, set]) => (

@@ -83,6 +83,44 @@ export function referenceLayers(features: readonly LayerFeature[]) {
 
 export type ReferenceLayer = ReturnType<typeof referenceLayers>[number]
 
+/**
+ * Moves whole layers within the project's reference features, whose order is also their draw order on the plan: a
+ * feature later in the list draws over one before it, within each kind (areas, lines, points). The Layers list shows
+ * that order the other way up, as a GIS does, so the layer at its top draws on top (`referenceListOrder`).
+ *
+ * `moving` and `target` are layer keys (one layer, or every layer of a folder); `place` is where `moving` goes in the
+ * Layers list: `above` draws it over `target`, `below` under it. The moved layers keep their order among themselves,
+ * and features keep theirs within a layer. A key that holds no feature is ignored, so an imported cutblock layer
+ * (read from the context, not the reference list) never moves, and moving onto itself changes nothing.
+ */
+export function moveReferenceLayers<T extends Pick<ReferenceFeature, 'source'>>(
+  reference: readonly T[],
+  moving: readonly string[],
+  target: readonly string[],
+  place: 'above' | 'below',
+): T[] {
+  const groups = new Map<string, T[]>()
+  for (const feature of reference) {
+    const key = feature.source ?? ''
+    const group = groups.get(key)
+    if (group) group.push(feature)
+    else groups.set(key, [feature])
+  }
+  const order = [...groups.keys()]
+  const moved = new Set(moving.filter((key) => groups.has(key)))
+  const targets = new Set(target.filter((key) => groups.has(key) && !moved.has(key)))
+  if (!moved.size || !targets.size) return [...reference]
+  const rest = order.filter((key) => !moved.has(key))
+  const at = rest.flatMap((key, index) => (targets.has(key) ? [index] : []))
+  // Above in the list is later in the draw order: after the target's last layer; below, before its first.
+  const index = place === 'above' ? at[at.length - 1] + 1 : at[0]
+  const next = [...rest.slice(0, index), ...order.filter((key) => moved.has(key)), ...rest.slice(index)]
+  return next.flatMap((key) => groups.get(key)!)
+}
+
+/** The Layers list's order: the last drawn first, so the layer at the top draws on top. */
+export const referenceListOrder = <T>(layers: readonly T[]): T[] => [...layers].reverse()
+
 export interface ReferenceFolder {
   path: string
   name: string
@@ -106,6 +144,31 @@ export function referenceFolders(layers: readonly ReferenceLayer[]): ReferenceFo
     parent.layers.push(layer)
   }
   return root
+}
+
+/** Every layer key in a folder and the folders under it, for one switch that shows or hides them all. */
+export function folderLayerKeys(folder: ReferenceFolder): string[] {
+  return [...[...folder.folders.values()].flatMap(folderLayerKeys), ...folder.layers.map((layer) => layer.key)]
+}
+
+/**
+ * A design road's key in the Layers list's hidden set (the same session-only set as the project's layers): a hidden
+ * road leaves the plan. The prefix keeps it apart from a layer's saved path.
+ */
+export const designRoadLayerKey = (alignmentId: string) => `design-road:${alignmentId}`
+
+/** The design roads the hidden set names, by id. */
+export function hiddenDesignRoads(hidden: readonly string[] | undefined): ReadonlySet<string> {
+  const prefix = designRoadLayerKey('')
+  return new Set((hidden ?? []).flatMap((key) => (key.startsWith(prefix) ? [key.slice(prefix.length)] : [])))
+}
+
+/**
+ * What a group's switch does to its members: shown while any member shows, so a click hides them all; a group with
+ * every member hidden shows them all. Returns whether the group reads as shown.
+ */
+export function groupShown(keys: readonly string[], hidden: readonly string[] | undefined): boolean {
+  return keys.some((key) => !hidden?.includes(key))
 }
 
 /**

@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { analyzeRoad } from './engine'
 import { parseProject, projectGeoJson, serializeProject } from './project'
 import {
+  designRoadLayerKey,
+  folderLayerKeys,
+  groupShown,
+  hiddenDesignRoads,
+  moveReferenceLayers,
+  referenceListOrder,
   compactReferenceFolder,
   parseReferenceFeatures,
   referenceBounds,
@@ -117,5 +123,50 @@ describe('reference features', () => {
     // Two layers keep their folder.
     const pair = referenceFolders([layer('Survey/a.shp'), layer('Survey/b.shp')]).folders.get('Survey')!
     expect(compactReferenceFolder(pair).onlyLayer).toBeUndefined()
+  })
+})
+
+describe('showing and hiding a group in the Layers list', () => {
+  const layer = (key: string) => ({ key, name: key, features: [] })
+  it('collects every layer under a folder, nested folders included', () => {
+    const tree = referenceFolders([layer('maps/a.geojson'), layer('maps/old/b.geojson'), layer('c.geojson')])
+    expect(folderLayerKeys(tree.folders.get('maps')!).sort()).toEqual(['maps/a.geojson', 'maps/old/b.geojson'])
+    expect(folderLayerKeys(tree).sort()).toEqual(['c.geojson', 'maps/a.geojson', 'maps/old/b.geojson'])
+  })
+
+  it('reads a group as shown while any member shows', () => {
+    expect(groupShown(['a', 'b'], ['a'])).toBe(true)
+    expect(groupShown(['a', 'b'], ['a', 'b'])).toBe(false)
+    expect(groupShown(['a'], undefined)).toBe(true)
+    expect(groupShown([], [])).toBe(false)
+  })
+
+  it('keeps design roads apart from layer paths in the hidden set', () => {
+    const hidden = [designRoadLayerKey('r1'), 'maps/a.geojson', designRoadLayerKey('r2')]
+    expect([...hiddenDesignRoads(hidden)]).toEqual(['r1', 'r2'])
+    expect(hiddenDesignRoads(undefined).size).toBe(0)
+  })
+})
+
+describe('reordering layers in the Layers list', () => {
+  const f = (source: string, id: string) => ({ source, id })
+  // Draw order: a first, then b, then c on top. The list shows c, b, a.
+  const reference = [f('a', 'a1'), f('b', 'b1'), f('a', 'a2'), f('c', 'c1')]
+  const ids = (features: { id: string }[]) => features.map((feature) => feature.id)
+
+  it('moves a layer above another, so it draws over it, keeping its features together and in order', () => {
+    expect(ids(moveReferenceLayers(reference, ['a'], ['c'], 'above'))).toEqual(['b1', 'c1', 'a1', 'a2'])
+    expect(ids(moveReferenceLayers(reference, ['c'], ['a'], 'below'))).toEqual(['c1', 'a1', 'a2', 'b1'])
+    expect(ids(moveReferenceLayers(reference, ['b'], ['c'], 'below'))).toEqual(['a1', 'a2', 'b1', 'c1'])
+  })
+
+  it('moves a folder’s layers as one block, and ignores keys with no features or a move onto itself', () => {
+    expect(ids(moveReferenceLayers(reference, ['b', 'c'], ['a'], 'below'))).toEqual(['b1', 'c1', 'a1', 'a2'])
+    expect(ids(moveReferenceLayers(reference, ['cutblocks'], ['a'], 'above'))).toEqual(ids(reference))
+    expect(ids(moveReferenceLayers(reference, ['a'], ['a'], 'above'))).toEqual(ids(reference))
+  })
+
+  it('lists the last drawn first', () => {
+    expect(referenceListOrder(['a', 'b', 'c'])).toEqual(['c', 'b', 'a'])
   })
 })

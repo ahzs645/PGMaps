@@ -1,18 +1,23 @@
-import { Fragment, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useId, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
 import {
   ChevronRight,
   Eye,
   EyeOff,
   Folder,
   FolderOpen,
+  GripVertical,
   Layers3,
   LocateFixed,
+  Map as MapIcon,
   Mountain,
   Pencil,
   Route,
   Trash2,
 } from 'lucide-react'
+import { CommandButton } from '@/components/interfaces/CommandButton'
 import { RibbonTaskPane } from '@/components/interfaces/RibbonTaskPane'
+import type { CommandState, WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { DisclosureRow } from '@/components/ui/disclosure'
 import { FileDropField } from '@/components/ui/file-drop-field'
@@ -21,7 +26,11 @@ import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { cn } from '@/lib/utils'
 import {
   compactReferenceFolder,
+  designRoadLayerKey,
+  folderLayerKeys,
+  groupShown,
   importedCutblockFeatures,
+  referenceListOrder,
   isImageFrame,
   referenceFolders,
   referenceLayers,
@@ -96,6 +105,36 @@ const rowActionClass = 'text-muted-foreground hover:bg-foreground/10 hover:text-
 const quietActionClass =
   'opacity-0 focus-visible:opacity-100 group-focus-within/row:opacity-100 group-hover/row:opacity-100 touch:opacity-100'
 
+/** The eye on a row: shows or hides what the row names (a layer, a road, a whole group). */
+function VisibilityButton({
+  visible,
+  label,
+  onToggle,
+  disabled,
+  title,
+}: {
+  visible: boolean
+  /** What it shows or hides, for its name: "all design roads" gives "Hide all design roads". */
+  label: string
+  onToggle: () => void
+  disabled?: boolean
+  title?: string
+}) {
+  return (
+    <Button
+      size="icon-xs"
+      variant="ghost"
+      className={rowActionClass}
+      aria-label={`${visible ? 'Hide' : 'Show'} ${label}`}
+      title={title ?? (visible ? 'Hide' : 'Show')}
+      disabled={disabled}
+      onClick={onToggle}
+    >
+      {visible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
+    </Button>
+  )
+}
+
 /**
  * A disclosure row with its actions beside the toggle so each action has its own focus target.
  * A row with nothing under it has no chevron, and `editor` stands in for the name while it is edited.
@@ -113,6 +152,9 @@ function Branch({
   editor,
   tag,
   title = name,
+  lead,
+  rowProps,
+  dropAt,
 }: {
   name: string
   detail?: string
@@ -128,6 +170,12 @@ function Branch({
   /** What the row is, at its right end: a layer's role while it is folded. */
   tag?: string
   title?: string
+  /** Before the row's toggle: the grip that moves it. */
+  lead?: ReactNode
+  /** On the row itself: where a dragged row is dropped. */
+  rowProps?: HTMLAttributes<HTMLDivElement>
+  /** A dragged row would land here: a line over or under this one. */
+  dropAt?: 'above' | 'below' | null
 }) {
   const id = useId()
   const expandable = children != null && children !== false
@@ -149,7 +197,17 @@ function Branch({
   const rowClass = 'flex min-w-0 flex-1 items-center gap-1.5 rounded-sm px-1 text-left text-xs touch:min-h-11'
   return (
     <>
-      <div className="group/row flex min-w-0 items-center rounded-sm hover:bg-accent">
+      <div className="group/row relative flex min-w-0 items-center rounded-sm hover:bg-accent" {...rowProps}>
+        {dropAt && (
+          <span
+            className={cn(
+              'pointer-events-none absolute inset-x-0 h-0.5 rounded-full bg-primary',
+              dropAt === 'above' ? 'top-0' : 'bottom-0',
+            )}
+            aria-hidden="true"
+          />
+        )}
+        {lead}
         {editor ? (
           <div className={cn(rowClass, 'py-0.5')}>
             {chevron}
@@ -196,6 +254,99 @@ export type BaseMapLayer = {
   onVisibleChange: (visible: boolean) => void
 }
 
+/**
+ * The basemap as the first row of Base map: what the plan is drawn on, and *Change* to pick another from the same
+ * pictures the plan's Basemap button shows.
+ */
+function BasemapRow({ choice, disabled }: { choice: BaseMapChoice; disabled?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const current = choice.options.find((option) => option.value === choice.value) ?? choice.options[0]
+  const name = (option: (typeof choice.options)[number]) =>
+    typeof option.label === 'string' ? option.label : option.value[0].toUpperCase() + option.value.slice(1)
+  return (
+    <li data-base-layer="basemap" className="group/row flex min-w-0 items-center rounded-sm hover:bg-accent">
+      <div
+        className="flex min-w-0 flex-1 items-center gap-1.5 rounded-sm px-1 py-1.5 text-left text-xs touch:min-h-11"
+        title={choice.unavailable ?? current?.description}
+      >
+        <span className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className={cn('min-w-0 truncate', (choice.unavailable || !choice.shown) && 'text-muted-foreground')}>
+          Basemap: {current ? name(current) : choice.value}
+          {!choice.shown && ' (hidden)'}
+        </span>
+      </div>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            size="2xs"
+            variant="ghost"
+            className="mr-0.5 shrink-0 text-muted-foreground hover:text-foreground"
+            disabled={disabled || !!choice.unavailable}
+            title={choice.unavailable ?? 'Change the basemap'}
+            aria-label="Change the basemap"
+          >
+            Change
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-56 p-1.5" aria-label="Basemap">
+          <ul className="grid gap-1" role="list">
+            {choice.options.map((option) => (
+              <li key={option.value}>
+                <button
+                  type="button"
+                  aria-pressed={option.value === choice.value}
+                  className="flex w-full items-center gap-2 rounded-md p-1.5 text-left text-xs hover:bg-accent aria-[pressed=true]:bg-primary/10 aria-[pressed=true]:font-medium"
+                  onClick={() => {
+                    // Choosing a basemap shows it, as choosing it in the plan's Basemap button does.
+                    choice.onChange(option.value)
+                    choice.onShownChange(true)
+                    setOpen(false)
+                  }}
+                >
+                  <span className="min-w-0 flex-1">{option.label}</span>
+                  {option.description && (
+                    <span className="shrink-0 text-2xs text-muted-foreground">{option.description}</span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </PopoverContent>
+      </Popover>
+      <VisibilityButton
+        visible={choice.shown}
+        label="the basemap"
+        title={choice.unavailable ?? (choice.shown ? 'Hide the basemap: a plain background' : 'Show the basemap')}
+        disabled={disabled || !!choice.unavailable}
+        onToggle={() => choice.onShownChange(!choice.shown)}
+      />
+    </li>
+  )
+}
+
+/** The plan's basemap, the same choice as its Basemap button (`usePlanDisplay`), changed from the Base map group. */
+export type BaseMapChoice = {
+  value: string
+  options: ReadonlyArray<{ value: string; label: ReactNode; description?: string }>
+  onChange: (value: string) => void
+  /** Whether it is drawn; hidden, the plan is drawn on a plain background (*None* in the plan's Basemap button). */
+  shown: boolean
+  onShownChange: (shown: boolean) => void
+  /** Why it cannot be changed now (a project on the flat plane has no basemap). */
+  unavailable?: string
+}
+
+/** The terrain under the project, listed as its own group with the commands that bring in another. */
+export type TerrainEntry = {
+  name: string
+  /** Its cell size or source, beside the name. */
+  detail?: string
+  /** Registry commands that load terrain (`detailedDem`, `regional`), drawn through `CommandButton`. */
+  commands: readonly WorkspaceCommand[]
+  states?: Partial<Record<WorkspaceCommand, CommandState>>
+  onCommand: (id: WorkspaceCommand) => void
+}
+
 export function ReferencePanel({
   open,
   onClose,
@@ -217,6 +368,9 @@ export function ReferencePanel({
   onPegAt,
   onRoadEndAt,
   baseLayers = [],
+  basemap,
+  terrain,
+  onMoveLayers,
 }: {
   open: boolean
   onClose: () => void
@@ -240,6 +394,15 @@ export function ReferencePanel({
   onRoadEndAt?: (at: Coordinate, name: string, end: 'start' | 'end') => void
   /** The plan's own backgrounds, listed after the project's layers. */
   baseLayers?: readonly BaseMapLayer[]
+  /** The basemap, listed first under Base map with a way to change it. */
+  basemap?: BaseMapChoice
+  /** The project's terrain, listed with the commands that load another (Load 1 m DEM). */
+  terrain?: TerrainEntry
+  /**
+   * Moves layers in the draw order (`moveReferenceLayers`): a row's grip drags it over or under a sibling, and its
+   * arrow keys move it one place. Absent, the list has no grips.
+   */
+  onMoveLayers?: (moving: readonly string[], target: readonly string[], place: 'above' | 'below') => void
 }) {
   const { reference, context, cutblockBuffers, referenceStyles, alignments, designPlaceholderId, activeAlignmentId } =
     w.project
@@ -251,16 +414,140 @@ export function ReferencePanel({
     () => new Set((cutblockBuffers ?? []).flatMap((setting) => ('source' in setting ? [setting.source] : []))),
     [cutblockBuffers],
   )
-  const tree = useMemo(() => referenceFolders(layers.filter(({ key }) => !attached.has(key))), [layers, attached])
+  // Listed the last drawn first, so the layer at the top of the list draws on top (`referenceListOrder`).
+  const tree = useMemo(
+    () => referenceFolders(referenceListOrder(layers.filter(({ key }) => !attached.has(key)))),
+    [layers, attached],
+  )
+  // Only layers in the project's reference list have a draw order to change (an imported cutblock is the context's).
+  const orderable = useMemo(() => new Set((reference ?? []).map((feature) => feature.source ?? '')), [reference])
+  const [dragging, setDragging] = useState<{ id: string; keys: readonly string[]; group: string } | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ id: string; place: 'above' | 'below' } | null>(null)
   const roads = alignments.filter(({ id }) => id !== designPlaceholderId)
   const [disclosures, setDisclosures] = useState<Record<string, boolean>>({})
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const toggle = (key: string, isOpen: boolean) => setDisclosures((previous) => ({ ...previous, [key]: !isOpen }))
   const pegging = mode === 'road' || mode === 'extend'
   const fixedRoad = !!w.alignment.mappedRoad
+  // One switch per group, and one for everything: a group reads as shown while any member shows.
+  const roadKeys = roads.map((road) => designRoadLayerKey(road.id))
+  const roadsShown = groupShown(roadKeys, hiddenKeys)
+  const layerKeys = layers.map((layer) => layer.key)
+  const everyKey = [...roadKeys, ...layerKeys]
+  const switchableBase = baseLayers.filter((layer) => !layer.unavailable)
+  const basemapSwitchable = !!basemap && !basemap.unavailable
+  const baseShown = switchableBase.some((layer) => layer.visible) || (basemapSwitchable && basemap.shown)
+  const setBase = (visible: boolean) => {
+    switchableBase.forEach((layer) => layer.onVisibleChange(visible))
+    if (basemapSwitchable) basemap.onShownChange(visible)
+  }
+  const anyShown = groupShown(everyKey, hiddenKeys) || baseShown
+  const setAll = (visible: boolean) => {
+    if (everyKey.length) onVisibilityChange(everyKey, visible)
+    setBase(visible)
+  }
+  /**
+   * The grip and drop handling of one row in its sibling list (`group`: its folder, and whether the row is a layer or a
+   * folder there, since a folder lists its folders before its layers). A drag drops over or under a sibling; on the
+   * grip, ↑ and ↓ (with or without Alt) move the row one place.
+   */
+  const ordering = (
+    id: string,
+    label: string,
+    keys: readonly string[],
+    group: string,
+    siblings: readonly (readonly string[])[],
+    index: number,
+  ): { lead?: ReactNode; rowProps?: HTMLAttributes<HTMLDivElement>; dropAt?: 'above' | 'below' | null } => {
+    if (!onMoveLayers) return {}
+    const movable = !disabled && keys.some((key) => orderable.has(key)) && siblings.length > 1
+    const move = (to: number, place: 'above' | 'below') => {
+      const target = siblings[to]
+      if (target) onMoveLayers(keys, target, place)
+    }
+    const lead = (
+      <button
+        type="button"
+        draggable={movable}
+        disabled={!movable}
+        aria-label={`Move ${label}`}
+        title={
+          movable
+            ? 'Drag to change the draw order (the top of the list draws on top); ↑ and ↓ move it one place'
+            : 'Its draw order is fixed'
+        }
+        className={cn(
+          'flex h-6 w-3.5 shrink-0 cursor-grab items-center justify-center text-muted-foreground hover:text-foreground disabled:cursor-default disabled:opacity-0 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-primary',
+          quietActionClass,
+        )}
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = 'move'
+          event.dataTransfer.setData('text/plain', label)
+          setDragging({ id, keys, group })
+        }}
+        onDragEnd={() => {
+          setDragging(null)
+          setDropTarget(null)
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowUp' && index > 0) {
+            event.preventDefault()
+            move(index - 1, 'above')
+          } else if (event.key === 'ArrowDown' && index < siblings.length - 1) {
+            event.preventDefault()
+            move(index + 1, 'below')
+          }
+        }}
+      >
+        <GripVertical className="size-3" aria-hidden="true" />
+      </button>
+    )
+    const accepts = !!dragging && dragging.group === group && dragging.id !== id
+    const placeOf = (event: React.DragEvent<HTMLDivElement>) => {
+      const box = event.currentTarget.getBoundingClientRect()
+      return event.clientY < box.top + box.height / 2 ? ('above' as const) : ('below' as const)
+    }
+    return {
+      lead,
+      dropAt: accepts && dropTarget?.id === id ? dropTarget.place : null,
+      rowProps: accepts
+        ? {
+            onDragOver: (event) => {
+              event.preventDefault()
+              event.dataTransfer.dropEffect = 'move'
+              const place = placeOf(event)
+              if (dropTarget?.id !== id || dropTarget.place !== place) setDropTarget({ id, place })
+            },
+            onDragLeave: (event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTarget(null)
+            },
+            onDrop: (event) => {
+              event.preventDefault()
+              onMoveLayers(dragging.keys, keys, placeOf(event))
+              setDragging(null)
+              setDropTarget(null)
+            },
+          }
+        : undefined,
+    }
+  }
   if (!open) return null
 
-  const renderLayer = ({ key, name, features }: ReferenceLayer) => {
+  /** The folder a layer or folder sits in, for its sibling list. */
+  const parentOf = (path: string) => path.split('/').slice(0, -1).join('/')
+  const renderLayer = (
+    { key, name, features }: ReferenceLayer,
+    index = 0,
+    siblings: readonly ReferenceLayer[] = [],
+    order = ordering(
+      `layer:${key}`,
+      `layer ${name}`,
+      [key],
+      `${parentOf(key)}:layer`,
+      siblings.map((layer) => [layer.key]),
+      index,
+    ),
+  ) => {
     const branchKey = `layer:${key}`
     const expanded = disclosures[branchKey] ?? false
     const visible = !hiddenKeys?.includes(key)
@@ -279,6 +566,7 @@ export function ReferencePanel({
     return (
       <li key={key} data-layer-source={key}>
         <Branch
+          {...order}
           name={name}
           title={key}
           detail={String(features.length)}
@@ -638,20 +926,41 @@ export function ReferencePanel({
       </li>
     )
   }
-  const renderFolder = (listed: ReferenceFolder) => {
+  const renderFolder = (listed: ReferenceFolder, index = 0, siblings: readonly ReferenceFolder[] = []) => {
     const { folder, label, onlyLayer } = compactReferenceFolder(listed)
+    // A folder moves among its sibling folders, with every layer in it.
+    const order = ordering(
+      `folder:${listed.path}`,
+      `folder ${onlyLayer?.name ?? label}`,
+      folderLayerKeys(listed),
+      `${parentOf(listed.path)}:folder`,
+      siblings.map(folderLayerKeys),
+      index,
+    )
     // A folder around one file is listed as that file; its path stays in the row's tooltip.
-    if (onlyLayer) return renderLayer(onlyLayer)
+    if (onlyLayer) return renderLayer(onlyLayer, 0, [], order)
     const key = `folder:${folder.path}`
     const expanded = disclosures[key] ?? true
     const Icon = expanded ? FolderOpen : Folder
     return (
       <li key={folder.path} data-layer-folder={folder.path}>
         <Branch
+          {...order}
           name={label}
           icon={<Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
           open={expanded}
           toggle={() => toggle(key, expanded)}
+          muted={!groupShown(folderLayerKeys(folder), hiddenKeys)}
+          actions={
+            <VisibilityButton
+              visible={groupShown(folderLayerKeys(folder), hiddenKeys)}
+              label={`every layer in ${label}`}
+              title={groupShown(folderLayerKeys(folder), hiddenKeys) ? 'Hide the folder' : 'Show the folder'}
+              onToggle={() =>
+                onVisibilityChange(folderLayerKeys(folder), !groupShown(folderLayerKeys(folder), hiddenKeys))
+              }
+            />
+          }
         >
           <ul>
             {[...folder.folders.values()].map(renderFolder)}
@@ -676,14 +985,36 @@ export function ReferencePanel({
           disabled={disabled}
           dropProps={{ 'data-testid': 'road-layer-drop' }}
         />
-        {(layers.length > 0 || roads.length > 0 || baseLayers.length > 0) && (
+        {(layers.length > 0 || roads.length > 0 || baseLayers.length > 0 || basemap || terrain) && (
           <>
-            {layers.length > 0 && (
-              <Button variant="outline" size="sm" onClick={() => onLocate(layers.flatMap((layer) => layer.features))}>
-                <LocateFixed className="mr-1.5 size-3.5" aria-hidden="true" />
-                Fit all layers
-              </Button>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {layers.length > 0 && (
+                <Button variant="outline" size="sm" onClick={() => onLocate(layers.flatMap((layer) => layer.features))}>
+                  <LocateFixed className="mr-1.5 size-3.5" aria-hidden="true" />
+                  Fit all layers
+                </Button>
+              )}
+              {everyKey.length + switchableBase.length + (basemapSwitchable ? 1 : 0) > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label={anyShown ? 'Hide all layers' : 'Show all layers'}
+                  title={
+                    anyShown
+                      ? 'Hide every layer, design road and base layer on the plan, the basemap too; the terrain stays'
+                      : 'Show every layer, design road, base layer and the basemap again'
+                  }
+                  onClick={() => setAll(!anyShown)}
+                >
+                  {anyShown ? (
+                    <EyeOff className="mr-1.5 size-3.5" aria-hidden="true" />
+                  ) : (
+                    <Eye className="mr-1.5 size-3.5" aria-hidden="true" />
+                  )}
+                  {anyShown ? 'Hide all' : 'Show all'}
+                </Button>
+              )}
+            </div>
             <ul aria-label="Project layers" className="rounded-md border p-1">
               {roads.length > 0 && (
                 <li>
@@ -693,41 +1024,116 @@ export function ReferencePanel({
                     icon={<Route className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
                     open={disclosures.roads ?? true}
                     toggle={() => toggle('roads', disclosures.roads ?? true)}
+                    muted={!roadsShown}
+                    actions={
+                      <VisibilityButton
+                        visible={roadsShown}
+                        label="all design roads"
+                        title={roadsShown ? 'Hide every design road on the plan' : 'Show every design road'}
+                        onToggle={() => onVisibilityChange(roadKeys, !roadsShown)}
+                      />
+                    }
                   >
                     <ul>
-                      {roads.map((road) => (
-                        <li key={road.id}>
-                          <button
-                            type="button"
-                            aria-current={road.id === activeAlignmentId ? 'true' : undefined}
-                            disabled={disabled}
-                            className="flex w-full items-center rounded-sm pl-1 text-left text-xs hover:bg-accent aria-[current=true]:bg-primary/10 aria-[current=true]:font-medium touch:min-h-11"
-                            onClick={() => onShowRoad(road)}
-                            title="Select and fit road on the plan"
-                          >
-                            <span className="min-w-0 flex-1 truncate">{road.name}</span>
-                            {/* The same box as a layer row's last action, so the targets share a column. */}
-                            <span className="flex size-7 shrink-0 items-center justify-center text-muted-foreground">
-                              <LocateFixed className="size-3.5" aria-hidden="true" />
-                            </span>
-                          </button>
-                        </li>
-                      ))}
+                      {roads.map((road) => {
+                        const roadKey = designRoadLayerKey(road.id)
+                        const shown = !hiddenKeys?.includes(roadKey)
+                        return (
+                          <li key={road.id} className="group/row flex min-w-0 items-center rounded-sm hover:bg-accent">
+                            <button
+                              type="button"
+                              aria-current={road.id === activeAlignmentId ? 'true' : undefined}
+                              disabled={disabled}
+                              className="flex min-w-0 flex-1 items-center rounded-sm py-1.5 pl-1 text-left text-xs aria-[current=true]:bg-primary/10 aria-[current=true]:font-medium touch:min-h-11"
+                              onClick={() => onShowRoad(road)}
+                              title="Select and fit road on the plan"
+                            >
+                              <span className={cn('min-w-0 flex-1 truncate', !shown && 'text-muted-foreground')}>
+                                {road.name}
+                              </span>
+                            </button>
+                            {/* The same column as a layer row's actions: the eye, then the fit. */}
+                            <div className="flex shrink-0">
+                              <VisibilityButton
+                                visible={shown}
+                                label={`road ${road.name}`}
+                                title={shown ? 'Hide road on the plan' : 'Show road on the plan'}
+                                onToggle={() => onVisibilityChange([roadKey], !shown)}
+                              />
+                              <Button
+                                size="icon-xs"
+                                variant="ghost"
+                                className={rowActionClass}
+                                aria-label={`Fit road ${road.name}`}
+                                title="Select and fit road on the plan"
+                                disabled={disabled}
+                                onClick={() => onShowRoad(road)}
+                              >
+                                <LocateFixed aria-hidden="true" />
+                              </Button>
+                            </div>
+                          </li>
+                        )
+                      })}
                     </ul>
                   </Branch>
                 </li>
               )}
               {[...tree.folders.values()].map(renderFolder)}
               {tree.layers.map(renderLayer)}
-              {baseLayers.length > 0 && (
+              {terrain && (
+                <li data-terrain-group="">
+                  <Branch
+                    name="Terrain"
+                    icon={<Mountain className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
+                    open={disclosures.terrain ?? true}
+                    toggle={() => toggle('terrain', disclosures.terrain ?? true)}
+                  >
+                    <div className="space-y-1.5 py-1 pl-1">
+                      <p className="flex min-w-0 items-baseline gap-1.5 text-xs" title={terrain.name}>
+                        <span className="min-w-0 truncate">{terrain.name}</span>
+                        {terrain.detail && (
+                          <span className="shrink-0 text-2xs text-muted-foreground">{terrain.detail}</span>
+                        )}
+                      </p>
+                      {/* The terrain commands as the Terrain tab draws them: the same registry entries. */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {terrain.commands.map((id) => (
+                          <CommandButton
+                            key={id}
+                            id={id}
+                            surface="sidebar"
+                            state={terrain.states?.[id]}
+                            presentation={{ className: 'px-2 text-xs' }}
+                            onRun={terrain.onCommand}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </Branch>
+                </li>
+              )}
+              {(baseLayers.length > 0 || basemap) && (
                 <li>
                   <Branch
                     name="Base map"
-                    icon={<Mountain className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
+                    icon={<MapIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
                     open={disclosures.baseMap ?? true}
                     toggle={() => toggle('baseMap', disclosures.baseMap ?? true)}
+                    muted={!baseShown}
+                    actions={
+                      (switchableBase.length > 0 || basemapSwitchable) && (
+                        <VisibilityButton
+                          visible={baseShown}
+                          label="the base map"
+                          title={baseShown ? 'Hide the basemap and its layers' : 'Show the basemap and its layers'}
+                          onToggle={() => setBase(!baseShown)}
+                        />
+                      )
+                    }
                   >
                     <ul>
+                      {basemap && <BasemapRow choice={basemap} disabled={disabled} />}
                       {baseLayers.map((layer) => (
                         <li key={layer.key} data-base-layer={layer.key}>
                           <Branch

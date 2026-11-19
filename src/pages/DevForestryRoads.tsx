@@ -248,7 +248,12 @@ import {
   type RoleChoice,
   type SpatialFile,
 } from './dev-forestry-roads/spatialImport'
-import { combinedReferenceBounds, referenceLayerKey, type LayerFeature } from './dev-forestry-roads/referenceFeatures'
+import {
+  combinedReferenceBounds,
+  moveReferenceLayers,
+  referenceLayerKey,
+  type LayerFeature,
+} from './dev-forestry-roads/referenceFeatures'
 import { ReferencePanel } from './dev-forestry-roads/ReferencePanel'
 import { LayerImportDialog, type LayerImportOptions } from './dev-forestry-roads/LayerImportDialog'
 import { DetailAreaDialog, type DetailSource, type DetailWindow } from './dev-forestry-roads/DetailAreaDialog'
@@ -390,6 +395,7 @@ import {
   type TerrainImportNeeds,
 } from './dev-forestry-roads/terrain'
 import { terrainCellLabel, terrainDisplayName } from './dev-forestry-roads/terrainName'
+import { IMAGERY_BASEMAPS } from '@/components/ui/map-satellite-imagery'
 import { ProjectsDialog, type NewProject } from './dev-forestry-roads/ProjectsDialog'
 import { loadRoadScenario, type RoadScenarioId } from './dev-forestry-roads/scenarios'
 import type { AccessHistorySelection } from './dev-forestry-roads/AccessHistorySelection'
@@ -3567,6 +3573,12 @@ export default function DevForestryRoads({
     })
     w.commit(shareUnchanged(project, next), true, 'Change cutblock buffer', true)
     if (setting) changeLayerVisibility([key, cutblockBufferKey(key)], true)
+  }
+  // The Layers list's order is the reference features' draw order (`moveReferenceLayers`): one undo step a move.
+  const moveReferenceLayerOrder = (moving: readonly string[], target: readonly string[], place: 'above' | 'below') => {
+    if (!project.reference?.length) return
+    const next = parseProject({ ...project, reference: moveReferenceLayers(project.reference, moving, target, place) })
+    w.commit(shareUnchanged(project, next), true, 'Reorder layers', true)
   }
   const changeReferenceStyle = (key: string, style: SymbolStyle) => {
     const next = parseProject({ ...project, referenceStyles: withReferenceStyle(project.referenceStyles, key, style) })
@@ -7489,6 +7501,9 @@ export default function DevForestryRoads({
                                     ) : undefined
                                   }
                                   swept={!investigation && showSwept ? sweptOnPlan : undefined}
+                                  // Shown or hidden from Map settings too, whenever the road has a swept path to draw.
+                                  sweptShown={!investigation && sweptOnPlan?.features.length ? showSwept : undefined}
+                                  onSweptShown={setShowSwept}
                                   sightlines={investigation ? undefined : planSightlines}
                                   // The drainage pour point and the sidebar's plan picks share the plan's one-click pick.
                                   pourPointPicking={!!drainagePicking || !!planPick}
@@ -8386,6 +8401,7 @@ export default function DevForestryRoads({
           onRemoveLayer={(key, name) => setLayerToDelete({ key, name })}
           onBufferChange={changeCutblockBuffer}
           onLayerStyleChange={changeReferenceStyle}
+          onMoveLayers={moveReferenceLayerOrder}
           onFitBuffer={(setting) => {
             changeLayerVisibility([setting.layer, cutblockBufferKey(setting.layer)], true)
             if (!dockLayers) setLayersOpen(false)
@@ -8411,6 +8427,24 @@ export default function DevForestryRoads({
               onVisibleChange: planDisplay.setShowHrdem,
             },
           ]}
+          // The plan's Basemap button and this row set the same choice (`usePlanDisplay`).
+          basemap={{
+            value: planDisplay.basemap,
+            options: IMAGERY_BASEMAPS,
+            onChange: (value) => planDisplay.setBasemap(value === 'satellite' ? 'satellite' : 'map'),
+            shown: planDisplay.showBasemap,
+            onShownChange: planDisplay.setShowBasemap,
+            ...(project.terrain.epsg === LOCAL_PLANE_EPSG
+              ? { unavailable: 'A project on the flat plane has no basemap until it is placed on the map.' }
+              : {}),
+          }}
+          terrain={{
+            name: terrainDisplayName(project.terrain.name),
+            detail: terrainCellLabel(project.terrain.resolutionM),
+            commands: ['detailedDem', 'regional'],
+            states: commandStates,
+            onCommand: runCommand,
+          }}
         />
       )}
       {summaryAvailable && summaryTarget !== null && (

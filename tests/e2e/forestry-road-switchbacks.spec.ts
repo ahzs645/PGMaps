@@ -228,6 +228,19 @@ test('a design vehicle swept path checks the switchback as one turn, frames it, 
   await expect(page.getByText('Outer wheel paths', { exact: true })).toBeVisible()
   await expect(page.getByText('Wheels outside formation less clearance', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Legend', exact: true }).click()
+  // Map settings shows or hides the swept path without the Swept path view: off, the legend drops its rows.
+  await page.getByRole('button', { name: 'Map display settings', exact: true }).first().click()
+  const settings = page.getByRole('dialog', { name: 'Map display settings', exact: true })
+  const sweptRow = settings.getByRole('checkbox', { name: 'Vehicle swept path', exact: true })
+  await expect(sweptRow).toBeChecked()
+  await sweptRow.uncheck()
+  await page.getByRole('button', { name: 'Close map settings', exact: true }).click()
+  await page.getByRole('button', { name: 'Legend', exact: true }).click()
+  await expect(page.getByText('Outer wheel paths', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Legend', exact: true }).click()
+  await page.getByRole('button', { name: 'Map display settings', exact: true }).first().click()
+  await settings.getByRole('checkbox', { name: 'Vehicle swept path', exact: true }).check()
+  await page.getByRole('button', { name: 'Close map settings', exact: true }).click()
 
   // The curve review reports the turn a curve belongs to.
   await data.getByRole('tab', { name: 'Horizontal curves', exact: true }).click()

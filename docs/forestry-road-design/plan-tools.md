@@ -14,6 +14,30 @@ The plan's **Layers** button, under the zoom buttons, switches the basemap betwe
 Satellite, the same choice as the visual-quality maps (`map-satellite-imagery.tsx`), remembered in
 this browser. The imagery sits under the plan's layers and labels; over it the hillshade drops to
 half opacity so the imagery reads through, while slope, aspect and elevation stay as they were.
+The Layers pane's **Base map** group sets the same choice (*Basemap: Map*, **Change**), held once in
+`usePlanDisplay` (`basemap`), so the button and the pane never disagree.
+
+The basemap can be hidden too: *None* in the Basemap button, or the eye on the Layers row, draws the
+plan on the flat plane's plain background (`showBasemap`, for the session), with the project's own
+terrain display still over it; choosing Map or Satellite shows it again.
+
+Every group in the Layers pane has an eye: **Design roads** (each road has its own too), each folder of
+imported layers and **Base map** (the basemap and its overlays). A group reads as shown
+while any member shows, so its eye hides them all; **Hide all** at the top does every road, layer and
+base overlay, the basemap included, at once, and **Show all** brings them back.
+
+The imported layers are listed as a GIS lists them: the layer at the top draws on top. Their order is
+the project's reference features' own order (`moveReferenceLayers`, `referenceListOrder`), so a move
+is a project edit with one undo step, kept in the project file, and the Map PDF follows it. A row's grip
+drags it over or under a sibling (a layer among the layers of its folder, a folder among its sibling
+folders, with every layer in it); on the grip, ↑ and ↓ move it one place. Draw order holds within
+each kind of feature: every area still draws under every line, and every line under every point. An
+imported cutblock layer is read from the project's context, not its reference features, and has no
+grip. A hidden design road leaves the plan (its
+line, and for the road being designed its chainage ticks and curve labels); it is kept in the same
+session-only hidden set as the layers (`designRoadLayerKey`, `referenceFeatures.ts`), never in the
+project. The **Terrain** group names the terrain the project runs on with its cell size and offers
+**Load 1 m DEM** and **Regional DEM**, the same registry commands as the Terrain tab.
 
 **Map display settings** (the sliders button) adds two plan options: **Colour road by** (Plain,
 Grade class or Cost per metre, with its **Scale and colours** fold) and **Follow station**. Both

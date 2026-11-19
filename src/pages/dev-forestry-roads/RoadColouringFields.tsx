@@ -230,8 +230,9 @@ export function RoadColouringFields({
         : { ...value, grade: DEFAULT_GRADE_COLOURING },
     )
   return (
-    <div className="grid gap-1 text-xs" data-testid="road-colouring">
-      <label className="grid gap-1">
+    // One column held to the space it is given: a summary's full text never widens it (a narrow popover clipped it).
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1 text-xs" data-testid="road-colouring">
+      <label className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1">
         Colour road by
         <StyledSelect
           value={value.mode}

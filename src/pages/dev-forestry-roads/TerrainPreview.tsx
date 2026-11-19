@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { Crosshair, Grid3x3, Minus, PaintBucket, Plus, RotateCcw, RotateCw, TriangleRight } from 'lucide-react'
 import { TerrainCover, TerrainGround, type TerrainFace as Face } from './TerrainGround'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -1528,7 +1529,11 @@ export function TerrainPreview({
   )
 }
 
-/** What the ground colours mean, in the plan's degrees and the percent forestry works in. */
+/**
+ * What the ground colours mean, in the plan's degrees and the percent forestry works in. Drawn as the plan's legend is
+ * (`PlanLegend.tsx`): the shared folding panel in the corner, a titled section, the gradient bar with its ticks and a
+ * legend row, so the two views read alike.
+ */
 function TerrainColourLegend({
   colour,
   low,
@@ -1542,75 +1547,77 @@ function TerrainColourLegend({
   maxGradePercent?: number
   exaggeration: number
 }) {
+  const [collapsed, setCollapsed] = useState(false)
   const top = TERRAIN_SLOPE_STOPS[TERRAIN_SLOPE_STOPS.length - 1].value
+  const last = TERRAIN_SLOPE_STOPS.length - 1
+  // The heights note sits in the section's corner, where the plan's legend puts a section's action.
+  const heights =
+    exaggeration !== 1 ? (
+      <span
+        className="shrink-0 text-muted-foreground"
+        data-testid="road-3d-exaggeration-note"
+        title="Heights are drawn taller than true scale; slope colours and all values use true scale."
+      >
+        heights ×{exaggeration}
+      </span>
+    ) : undefined
   return (
-    <div
-      className="pointer-events-none absolute bottom-2 right-2 z-10 w-52 max-w-[calc(100%-3rem)] rounded-lg border bg-background/90 px-2 py-1 text-3xs"
-      data-testid="road-3d-legend"
-    >
-      {colour === 'slope' ? (
-        <>
-          <LegendTitle exaggeration={exaggeration}>Ground slope</LegendTitle>
-          <div
-            className="mt-0.5 h-2 rounded-sm"
-            style={{
-              background: `linear-gradient(to right, ${TERRAIN_SLOPE_STOPS.map((stop) => `${stop.color} ${(stop.value / top) * 100}%`).join(', ')})`,
-            }}
-          />
-          <div className="relative mt-0.5 h-6 tabular-nums text-muted-foreground">
-            {TERRAIN_SLOPE_STOPS.map((stop, i) => (
-              <span
-                key={stop.value}
-                className="absolute top-0 -translate-x-1/2 text-center leading-3"
-                style={{
-                  left: `${(stop.value / top) * 100}%`,
-                  transform: i === 0 ? 'none' : i === TERRAIN_SLOPE_STOPS.length - 1 ? 'translateX(-100%)' : undefined,
-                }}
-              >
-                {stop.value}°{i === TERRAIN_SLOPE_STOPS.length - 1 ? '+' : ''}
-                <br />
-                {percentOf(stop.value)}%
-              </span>
-            ))}
-          </div>
-        </>
-      ) : (
-        <>
-          <LegendTitle exaggeration={exaggeration}>Ground elevation</LegendTitle>
-          <div
-            className="mt-0.5 h-2 rounded-sm"
-            style={{ background: `linear-gradient(to right, ${TERRAIN_ELEVATION_COLORS.join(', ')})` }}
-          />
-          <p className="flex justify-between tabular-nums text-muted-foreground">
-            <span>{Math.round(low)} m</span>
-            <span>{Math.round(high)} m</span>
-          </p>
-        </>
-      )}
-      {maxGradePercent !== undefined && (
-        <p className="mt-0.5 flex items-center gap-1">
-          <span className="size-2 rounded-sm" style={{ background: OVER_GRADE_FILL }} aria-hidden="true" />
-          Road over {maxGradePercent}% grade
-        </p>
-      )}
+    <div data-testid="road-3d-legend">
+      <MapLegendPanel
+        title="Legend"
+        collapsible
+        collapsed={collapsed}
+        onCollapsedChange={setCollapsed}
+        width="sm"
+        // The plan legend's corner, size and folded height (`PlanLegend.tsx`).
+        className="road-map-legend bottom-2 right-2 flex max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col rounded-md p-2 shadow-sm workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:rounded-md workspace-desktop:p-2 data-[collapsed]:h-8 data-[collapsed]:justify-center data-[collapsed]:py-0 workspace-desktop:data-[collapsed]:py-0 [&>div:first-child]:shrink-0"
+        contentClassName="min-h-0 max-h-64 overflow-y-auto overscroll-none text-2xs"
+      >
+        <div className="mt-1 space-y-3 border-t pt-1.5">
+          {colour === 'slope' ? (
+            <MapLegendSection title="Ground slope" actions={heights}>
+              <MapGradientLegendItem
+                className="py-1"
+                aria-label="Ground slope in degrees and percent"
+                colors={TERRAIN_SLOPE_STOPS.map((stop) => `${stop.color} ${(stop.value / top) * 100}%`)}
+                // Each tick under its own point of the ramp: the ends to the edges, the rest centred.
+                labelClassName="relative block h-7"
+                ticks={TERRAIN_SLOPE_STOPS.map((stop, i) => (
+                  <span
+                    key={stop.value}
+                    className="absolute top-0 text-center leading-tight tabular-nums"
+                    style={{
+                      left: `${(stop.value / top) * 100}%`,
+                      transform: i === 0 ? 'none' : i === last ? 'translateX(-100%)' : 'translateX(-50%)',
+                    }}
+                  >
+                    <span className="block text-foreground">
+                      {stop.value}°{i === last ? '+' : ''}
+                    </span>
+                    <span className="block">{percentOf(stop.value)}%</span>
+                  </span>
+                ))}
+              />
+            </MapLegendSection>
+          ) : (
+            <MapLegendSection title="Ground elevation" actions={heights}>
+              <MapGradientLegendItem
+                className="py-1"
+                aria-label="Ground elevation colours"
+                colors={TERRAIN_ELEVATION_COLORS}
+                labelClassName="tabular-nums"
+                minLabel={`${Math.round(low)} m`}
+                maxLabel={`${Math.round(high)} m`}
+              />
+            </MapLegendSection>
+          )}
+          {maxGradePercent !== undefined && (
+            <MapLegendSection title="Road">
+              <LegendItem color={OVER_GRADE_FILL} swatchShape="square" label={`Over ${maxGradePercent}% grade`} />
+            </MapLegendSection>
+          )}
+        </div>
+      </MapLegendPanel>
     </div>
-  )
-}
-
-/** Legend heading, with the drawn exaggeration when heights are not at true scale. */
-function LegendTitle({ exaggeration, children }: { exaggeration: number; children: string }) {
-  return (
-    <p className="flex justify-between gap-2 font-medium">
-      {children}
-      {exaggeration !== 1 && (
-        <span
-          className="font-normal text-muted-foreground"
-          data-testid="road-3d-exaggeration-note"
-          title="Heights are drawn taller than true scale; slope colours and all values use true scale."
-        >
-          heights ×{exaggeration}
-        </span>
-      )}
-    </p>
   )
 }

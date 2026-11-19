@@ -1,3 +1,4 @@
+import { useStoredImageryBasemap } from '@/components/ui/map-satellite-imagery'
 import { useCallback, useState } from 'react'
 import type { MapRef } from '@/components/ui/map'
 import type { TerrainLayer } from './TerrainLayerSelect'
@@ -85,6 +86,10 @@ export function usePlanDisplay() {
     [setImageryVisible],
   )
   const [showHrdem, setShowHrdem] = useState(true)
+  // Map or satellite, kept in this browser: the plan's Basemap button and the Layers list's Base map both set it.
+  const [basemap, setBasemap] = useStoredImageryBasemap('pgmaps-road-basemap')
+  // Off, the plan is drawn on a plain background (*None* in the Basemap button, the eye in Layers); for this session.
+  const [showBasemap, setShowBasemap] = useState(true)
   // A part-transparent overlay, so it can sit over either imagery layer.
   const [showCanopy, setShowCanopy] = useState(false)
   const [fitRequest, setFitRequest] = useState<FitRequest>({ revision: 0, target: 'roads' })
@@ -118,6 +123,10 @@ export function usePlanDisplay() {
     setShowSentinel,
     showHrdem,
     setShowHrdem,
+    basemap,
+    setBasemap,
+    showBasemap,
+    setShowBasemap,
     showCanopy,
     setShowCanopy,
     fitRequest,
