@@ -51,6 +51,8 @@ const PREVIEW_DELAY_MS = 250
  * widest normal size and at Full screen. The gap keeps a pane dragged across the line from flipping.
  */
 const SIDE_BY_SIDE_FOLD = { foldBelow: 860, unfoldFrom: 900 }
+/** How many outputs' previews the dialog keeps for the current content; the oldest shown gives way. */
+const KEPT_PREVIEWS = 6
 /** The dialog at its normal size: wide enough for settings and a preview side by side on a laptop screen. */
 const DIALOG_MAX_WIDTH = 'min(80rem, calc(100vw - 2rem))'
 
@@ -98,6 +100,7 @@ export function FilesDialog({
   blockSheetSettings,
   selected: controlledSelected,
   onSelectedChange,
+  previewCacheable,
 }: {
   open: boolean
   initialOutput?: RoadExport
@@ -130,6 +133,11 @@ export function FilesDialog({
   buildPreview: (kind: RoadExport, signal: AbortSignal) => Promise<ExportPreview>
   /** Changes whenever the content would: the project, its results or the shown road. */
   previewVersion: unknown
+  /**
+   * Whether an output's preview may be kept and shown again while `previewVersion` holds. False for one that reads
+   * something the version does not cover, such as the Map PDF as shown, which captures the plan's current view.
+   */
+  previewCacheable?: (kind: RoadExport) => boolean
   /** A Sheet setup view for outputs other than the plot book, e.g. the block map sheet. */
   setupViews?: Partial<Record<RoadExport, ReactNode>>
   /** The setup view's tab caption where it is not "Sheet setup", e.g. "Styles". */
@@ -228,18 +236,44 @@ export function FilesDialog({
   if ((request?.kind ?? null) !== previewKind || (request && request.version !== previewVersion))
     setRequest(previewKind ? { kind: previewKind, version: previewVersion } : null)
   const [result, setResult] = useState<PreviewResult | null>(null)
+  // Previews already written for this content, by output: going back to an output whose content has not changed shows
+  // its preview at once rather than writing it again (a report PDF's pages, the Map PDF's capture, a plot book). Only
+  // the current version's are kept, so a change to the project or a setting drops them all.
+  const [kept, setKept] = useState<ReadonlyMap<RoadExport, { version: unknown; preview: ExportPreview }>>(
+    () => new Map(),
+  )
+  const [keptFor, setKeptFor] = useState<unknown>(previewVersion)
+  if (keptFor !== previewVersion) {
+    setKeptFor(previewVersion)
+    setKept(new Map())
+  }
+  const keepable = !!request && (previewCacheable?.(request.kind) ?? true)
+  const keptEntry = keepable && request ? kept.get(request.kind) : undefined
+  const keptPreview = keptEntry && keptEntry.version === request?.version ? keptEntry.preview : undefined
+  const hasKept = !!keptPreview
   const latestBuild = useRef(buildPreview)
   useEffect(() => {
     latestBuild.current = buildPreview
   })
   const stamp = issueStamp(issue, today ? new Date(`${today}T12:00:00`) : undefined)
   useEffect(() => {
-    if (!open || !request || previewUnavailable) return
+    if (!open || !request || previewUnavailable || hasKept) return
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
       latestBuild
         .current(request.kind, controller.signal)
-        .then((preview) => !controller.signal.aborted && setResult({ request, preview }))
+        .then((preview) => {
+          if (controller.signal.aborted) return
+          setResult({ request, preview })
+          if (!keepable) return
+          setKept((previous) => {
+            const next = new Map(previous)
+            next.delete(request.kind)
+            next.set(request.kind, { version: request.version, preview })
+            while (next.size > KEPT_PREVIEWS) next.delete(next.keys().next().value!)
+            return next
+          })
+        })
         .catch((error: unknown) => {
           if (!controller.signal.aborted)
             setResult({ request, error: error instanceof Error ? error.message : 'Could not prepare a preview.' })
@@ -249,8 +283,9 @@ export function FilesDialog({
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [open, request, previewUnavailable])
-  const current = result?.request === request ? result : null
+  }, [open, request, previewUnavailable, hasKept, keepable])
+  const current =
+    result?.request === request ? result : request && keptPreview ? { request, preview: keptPreview } : null
   const detailsPane = useRef<HTMLElement>(null)
   const openDetails = () => {
     setDetailsOpen(true)

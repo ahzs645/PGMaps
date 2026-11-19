@@ -234,6 +234,8 @@ function RecordingPane({
 const GROUPS = Object.keys(VISUALS_EXPORT_GROUP_LABELS) as VisualsExportGroup[]
 // Option edits rebuild the preview; a short pause keeps typing from rebuilding it per key.
 const PREVIEW_DELAY_MS = 300
+/** How many outputs' written previews the dialog keeps; the oldest shown gives way. */
+const KEPT_PREVIEWS = 6
 /**
  * Where an output's pane puts *What goes in* beside its preview: from about 900 px, which the dialog has at its widest
  * normal size and at Full screen. The gap keeps a pane dragged across the line from flipping.
@@ -329,6 +331,12 @@ async function previewOf(file: BuiltFile): Promise<Preview> {
   if (type === 'text/html') return { type: 'html', html: text }
   return { type: 'text', text: text.slice(0, TEXT_PREVIEW_CHARS), truncated: text.length > TEXT_PREVIEW_CHARS }
 }
+
+/** A preview that was written, kept by `previewKey` to be shown again while its content is unchanged. */
+type WrittenPreview = { request: object; file: BuiltFile; preview: Preview; missing: string | null }
+/** Which written preview a request can take: the same output, format and content version. */
+const previewKey = (request: { kind: string; format: string; version: string }) =>
+  `${request.kind}\u0000${request.format}\u0000${request.version}`
 
 type PreviewResult =
   | { request: object; file: BuiltFile; preview: Preview; error?: undefined; missing: string | null; outdated?: true }
@@ -969,6 +977,11 @@ export function VisualsExportDialog({
     [item.kind, format.id, itemVersion],
   )
   const [result, setResult] = useState<PreviewResult | null>(null)
+  // Previews already written, by output, format and content version: going back to an output whose content has not
+  // changed shows its file at once, with nothing prepared, captured or written again. The oldest shown gives way.
+  const [kept, setKept] = useState<ReadonlyMap<string, WrittenPreview>>(() => new Map())
+  const keptResult = kept.get(previewKey(request))
+  const hasKept = !!keptResult
   const latestRequest = useRef<object>(request)
   const resultRef = useRef(result)
   useEffect(() => {
@@ -1175,7 +1188,7 @@ export function VisualsExportDialog({
   const recorded = !!recordingOf
   useEffect(() => {
     if (!open || unavailable || !previewShown || previewOnRequest || packageOpen || viewsOpen || detailsOpen) return
-    if (recorded || takeRunning) return
+    if (recorded || takeRunning || hasKept) return
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
       let missing: string | null = null
@@ -1196,7 +1209,18 @@ export function VisualsExportDialog({
             if (resultRef.current?.request === latestRequest.current) {
               if ('url' in preview) URL.revokeObjectURL(preview.url)
             } else setResult({ request, file, preview, missing: withFileNotes(missing, file), outdated: true })
-          } else setResult({ request, file, preview, missing: withFileNotes(missing, file) })
+          } else {
+            const written = { request, file, preview, missing: withFileNotes(missing, file) }
+            setResult(written)
+            setKept((previous) => {
+              const next = new Map(previous)
+              const key = previewKey(request)
+              next.delete(key)
+              next.set(key, written)
+              while (next.size > KEPT_PREVIEWS) next.delete(next.keys().next().value!)
+              return next
+            })
+          }
         })
         .catch((error: unknown) => {
           if (!controller.signal.aborted)
@@ -1218,6 +1242,7 @@ export function VisualsExportDialog({
     unavailable,
     previewShown,
     previewOnRequest,
+    hasKept,
     packageOpen,
     viewsOpen,
     detailsOpen,
@@ -1274,14 +1299,30 @@ export function VisualsExportDialog({
     }
   }
 
-  // Object URLs live as long as their preview.
+  // Object URLs live as long as something shows or keeps their preview: the current result or a kept one.
+  const ownedUrls = useRef(new Set<string>())
   useEffect(() => {
-    const preview = result?.preview
+    const live = new Set<string>()
+    for (const entry of [...kept.values(), result])
+      if (entry?.preview && 'url' in entry.preview) live.add(entry.preview.url)
+    for (const url of live) ownedUrls.current.add(url)
+    for (const url of ownedUrls.current)
+      if (!live.has(url)) {
+        URL.revokeObjectURL(url)
+        ownedUrls.current.delete(url)
+      }
+  }, [kept, result])
+  useEffect(() => {
+    const owned = ownedUrls.current
     return () => {
-      if (preview && 'url' in preview) URL.revokeObjectURL(preview.url)
+      owned.forEach((url) => URL.revokeObjectURL(url))
+      owned.clear()
     }
-  }, [result])
-  const current = result?.request === request ? result : null
+  }, [])
+  const current = useMemo(
+    () => (result?.request === request ? result : keptResult ? { ...keptResult, request } : null),
+    [result, request, keptResult],
+  )
   // A preview written for content that has since changed, shown until the current one is written.
   const outdated = !current && result?.preview && result.request && 'outdated' in result ? result : null
 

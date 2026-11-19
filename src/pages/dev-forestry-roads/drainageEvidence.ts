@@ -140,26 +140,75 @@ export function parsePourPoint(value: unknown): PourPoint {
     ...(r.snapPolicy === undefined ? {} : { snapPolicy: parseSnapPolicy(r.snapPolicy) }),
   }
 }
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+/**
+ * Stable JSON: keys sorted, undefined left out. A value in `known` is written as the text already worked out for it,
+ * which is exactly what `canonical` would write, so a fingerprint reads the same with or without it.
+ */
+function canonical(value: unknown, known?: ReadonlyMap<object, string>): string {
+  if (known && value && typeof value === 'object') {
+    const text = known.get(value)
+    if (text !== undefined) return text
+  }
+  if (Array.isArray(value)) return `[${value.map((item) => canonical(item, known)).join(',')}]`
   if (value && typeof value === 'object')
     return `{${Object.keys(value)
       .sort()
       .filter((key) => (value as Record<string, unknown>)[key] !== undefined)
-      .map((key) => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`)
+      .map((key) => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key], known)}`)
       .join(',')}}`
   return JSON.stringify(value) ?? 'null'
 }
+
+/**
+ * A terrain's canonical text without its display backgrounds, kept by terrain object. The grid is nearly all of a
+ * drainage fingerprint's text, and the report, Review and every Save & export preview fingerprint the same terrain
+ * again and again: written out each time it took about 100 ms a build on a 1 m terrain. A terrain is never changed in
+ * place (every edit makes a new one), so the object is the key.
+ */
+const analyticalTerrainText = new WeakMap<TerrainMetadata, string>()
+function terrainText(terrain: TerrainMetadata): string {
+  let text = analyticalTerrainText.get(terrain)
+  if (text === undefined) {
+    const analytical = { ...terrain }
+    delete analytical.backgrounds
+    text = canonical(analytical)
+    analyticalTerrainText.set(terrain, text)
+  }
+  return text
+}
+
+/**
+ * Fingerprints already worked out for a terrain, by the canonical text of everything else they cover (small: the road,
+ * its settings and the drainage settings). Hashing the terrain's text is the other half of the cost; a handful per
+ * terrain covers the roads and settings a session moves between.
+ */
+const terrainFingerprints = new WeakMap<TerrainMetadata, Map<string, string>>()
+const FINGERPRINTS_PER_TERRAIN = 16
+function fingerprintWithTerrain(rest: Record<string, unknown>, terrain: TerrainMetadata, prefix: string): string {
+  // The terrain stands in the object as a marker, written as its kept text, so the result is the plain fingerprint's.
+  const marker = {}
+  const key = `${prefix}\u0000${canonical({ ...rest, terrain: null })}`
+  let kept = terrainFingerprints.get(terrain)
+  const hit = kept?.get(key)
+  if (hit !== undefined) return hit
+  const value = fingerprintOf(
+    canonical({ ...rest, terrain: marker }, new Map([[marker, terrainText(terrain)]])),
+    prefix,
+  )
+  if (!kept) terrainFingerprints.set(terrain, (kept = new Map()))
+  if (kept.size >= FINGERPRINTS_PER_TERRAIN) kept.delete(kept.keys().next().value!)
+  kept.set(key, value)
+  return value
+}
+
 /** Stable change detector, not an authenticity signature. Includes raster content as well as recorded source metadata. */
 export function drainageInputFingerprint(input: DrainageFingerprintInput): string {
   const alignment = { ...input.alignment }
   delete alignment.fullCostRecord
-  const terrain = { ...input.terrain }
-  delete terrain.backgrounds
   // Per-culvert intensity switched off changes no figure, so a curve kept for later stales no run.
   const settings = { ...input.settings }
   if (!settings.concentration?.enabled) delete settings.concentration
-  return fingerprint({ ...input, alignment, terrain, settings }, 'drainage-v1')
+  return fingerprintWithTerrain({ ...input, alignment, settings }, input.terrain, 'drainage-v1')
 }
 export function drainageRoadFingerprint(input: Pick<DrainageFingerprintInput, 'alignment' | 'roadSettings'>): string {
   const alignment = { ...input.alignment }
@@ -167,12 +216,18 @@ export function drainageRoadFingerprint(input: Pick<DrainageFingerprintInput, 'a
   return fingerprint({ alignment, roadSettings: input.roadSettings }, 'drainage-road-v1')
 }
 export function drainageTerrainFingerprint(terrain: TerrainMetadata): string {
-  const analytical = { ...terrain }
-  delete analytical.backgrounds
-  return fingerprint(analytical, 'drainage-terrain-v1')
+  let kept = terrainFingerprints.get(terrain)
+  const hit = kept?.get('drainage-terrain-v1')
+  if (hit !== undefined) return hit
+  const value = fingerprintOf(terrainText(terrain), 'drainage-terrain-v1')
+  if (!kept) terrainFingerprints.set(terrain, (kept = new Map()))
+  kept.set('drainage-terrain-v1', value)
+  return value
 }
 function fingerprint(value: unknown, prefix: string): string {
-  const source = canonical(value)
+  return fingerprintOf(canonical(value), prefix)
+}
+function fingerprintOf(source: string, prefix: string): string {
   let a = 2166136261,
     b = 2246822519
   for (let i = 0; i < source.length; i++) {

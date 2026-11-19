@@ -1702,7 +1702,13 @@ fitted to the pane's width. Once the pane is about 900 px wide the output's
 settings (its setup or issue stamp) and its preview sit side by side, with no
 Preview tab (`SIDE_BY_SIDE_FOLD`, `FilesDialog.tsx`); the preview column shows the
 file in the chosen format, and the report's contents keep it on the selected
-part where it is HTML. An output with nothing to write is greyed out
+part where it is HTML. The dialog keeps the previews it has written while the content is unchanged
+(`KEPT_PREVIEWS`, by output and `previewVersion`), so going back to an output shows
+its file at once; any change to what the files are made from drops them all. The Map
+PDF as shown is always written afresh, since it captures the plan's current view
+(`previewCacheable`). A drainage fingerprint keeps each terrain's canonical text by
+terrain object (`drainageEvidence.ts`), so the report's review no longer writes a 1 m
+grid out again for every preview. An output with nothing to write is greyed out
 with the reason: the stream register, for example, until the project has a stream. The dialog opens on the project file
 each time, since its Save button (`Save project JSON`) is what the header promises. **Map PDF** downloads the current plan with its rendered
 terrain, roads, station labels, crossing marks and scale bar. `mapImage` (`pdf.ts`)

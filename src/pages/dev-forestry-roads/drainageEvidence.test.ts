@@ -4,6 +4,7 @@ import {
   drainageEvidenceGeoJson,
   drainageEvidenceNeedsRecompute,
   drainageInputFingerprint,
+  drainageTerrainFingerprint,
   drainageReportHtml,
   parseDrainageProjectState,
   parseDrainageEvidence,
@@ -130,6 +131,19 @@ describe('portable drainage evidence', () => {
     ).not.toBe(baseline)
     expect(drainageInputFingerprint({ ...input, pourPoint: { ...input.pourPoint!, snapRadiusM: 20 } })).not.toBe(
       baseline,
+    )
+  })
+  it('keeps a terrain’s fingerprint by object without changing it: a copy and a second call read the same', () => {
+    // The value pinned above is the uncached one; asked again, and from a copy of the same terrain, it does not move.
+    const first = drainageInputFingerprint(input)
+    expect(drainageInputFingerprint(input)).toBe(first)
+    expect(drainageInputFingerprint({ ...input, terrain: JSON.parse(JSON.stringify(input.terrain)) })).toBe(first)
+    // The road and settings beside a kept terrain still count.
+    expect(drainageInputFingerprint({ ...input, settings: { ...input.settings, rainfallMmPerHr: 71 } })).not.toBe(first)
+    expect(drainageInputFingerprint(input)).toBe(first)
+    // Display backgrounds are left out whether or not the terrain was seen before.
+    expect(drainageTerrainFingerprint({ ...input.terrain, backgrounds: [] } as typeof input.terrain)).toBe(
+      drainageTerrainFingerprint(input.terrain),
     )
   })
   it('refuses to export stale evidence as current and attaches provenance to each GeoJSON feature', () => {

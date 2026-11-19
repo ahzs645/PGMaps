@@ -549,6 +549,11 @@ shared file viewers (`docs/shared-ui.md`, **File previews**); the VIA report's
 is the draft (laid out at once, stand-ins, nothing captured or run) and which
 the file Download writes.
 
+The dialog keeps the previews it has written (`KEPT_PREVIEWS`, by output, format and
+content version, `previewKey`): going back to an output whose content has not changed
+shows its file at once, with nothing prepared, captured or written again. Their object
+URLs are freed once neither the shown preview nor a kept one holds them.
+
 Each output's pane has two views. **What goes in** reads the same way for every
 output, top to bottom: **Contents**, where the file has parts of its own; then
 its **Options**; then what the file **reads**. Contents is the shared

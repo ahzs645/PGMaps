@@ -6581,6 +6581,8 @@ export default function DevForestryRoads({
         context={exportContext}
         buildPreview={buildExportPreview}
         previewVersion={exportPreviewVersion}
+        // The Map PDF as shown captures the plan's view, which the version does not cover: it is written afresh.
+        previewCacheable={(kind) => kind !== 'map-pdf' || mapPdfSettings.frame !== 'view'}
         setupViews={{
           'block-sheet-pdf': blockSheet.setup,
           'map-pdf': (
