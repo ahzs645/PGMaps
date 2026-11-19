@@ -1,7 +1,7 @@
 /**
  * The settings Find the best route searched with, kept on each road it found, so the road can say
  * months later how it was made: its goal, grade limit, corridor, ground window, switchback rules,
- * placeholder prices and the day. Optional on an alignment; a road without it loads as before.
+ * planning allowances and the day. Optional on an alignment; a road without it loads as before.
  *
  * Free of DOM and network access.
  */
@@ -10,6 +10,8 @@ import { matchingSearchPreset, searchPreset, type SearchPresetId } from './searc
 import { parseSwitchbackRouteOptions, type SwitchbackRouteOptions } from './switchbackOptions'
 import { isCalendarDate } from './projectIssue'
 import type { Alignment, RoadSettings } from './types'
+import { CROSS_DRAIN_COST_DEFAULT, DEFAULT_CROSS_DRAIN_LENGTH_M } from './culvertCostDefaults'
+import type { EvidenceCurrency } from './costEvidence/costEvidence'
 
 /** Goal ids, in the order `ROUTE_GOALS` lists them. Kept here so the record has no runtime import cycle. */
 export const FOUND_ROAD_GOALS = ['cost', 'shortest', 'gentle', 'drainage'] as const
@@ -28,6 +30,10 @@ export interface FoundRoadSearchSettings {
   groundWindowM: number
   crossingCost: number
   crossDrainCost: number
+  /** Absent on older records, whose values are preserved without inferring a currency or source. */
+  currency?: EvidenceCurrency
+  /** The assumed length and source as read when searched, or the explicit unpriced notice. */
+  crossDrainAllowanceNote?: string
   /** Null when no side-hill limit was set. */
   maxTerrainSlopePercent: number | null
   switchbacks: SwitchbackRouteOptions
@@ -46,6 +52,15 @@ const pad = (n: number) => String(n).padStart(2, '0')
 /** A local calendar day, YYYY-MM-DD. */
 export const calendarDay = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 
+/** Explains the built-in planning allowance; custom amounts acquire no inferred source. */
+export function crossDrainAllowanceNote(cost: number, currency: EvidenceCurrency = 'CAD'): string | undefined {
+  if (cost === 0)
+    return `Cross-drains are unpriced: zero ${currency} allowance. Enter a planning allowance before comparing complete costs. No CAD price has been converted.`
+  if (currency !== 'CAD' || Math.abs(cost - CROSS_DRAIN_COST_DEFAULT.unitCost * DEFAULT_CROSS_DRAIN_LENGTH_M) > 1e-6)
+    return undefined
+  return `Provisional cross-drain allowance: assumed ${DEFAULT_CROSS_DRAIN_LENGTH_M} m × CAD ${CROSS_DRAIN_COST_DEFAULT.unitCost}/m = CAD ${cost.toFixed(2)} per site. Alberta ${CROSS_DRAIN_COST_DEFAULT.priceYear} tender average for 600 mm CSP supply and installation; not a local quote. Replace with the actual barrel length, specification and installation scope. Source ${CROSS_DRAIN_COST_DEFAULT.recordId}, checked ${CROSS_DRAIN_COST_DEFAULT.checkedAt}: ${CROSS_DRAIN_COST_DEFAULT.sourceUrl}`
+}
+
 export function foundRoadSearchSettings(input: {
   alignment: Pick<Alignment, 'points'>
   goals: readonly FoundRoadGoal[]
@@ -55,6 +70,7 @@ export function foundRoadSearchSettings(input: {
   groundWindowM: number
   crossingCost: number
   crossDrainCost: number
+  currency?: EvidenceCurrency
   maxTerrainSlopePercent: number | null
   switchbacks: SwitchbackRouteOptions
   note?: string
@@ -62,6 +78,7 @@ export function foundRoadSearchSettings(input: {
 }): FoundRoadSearchSettings {
   const preset = matchingSearchPreset(input.settings)
   const how = input.note?.trim()
+  const allowanceNote = crossDrainAllowanceNote(input.crossDrainCost, input.currency)
   return {
     goals: [...input.goals],
     label: input.label,
@@ -72,6 +89,8 @@ export function foundRoadSearchSettings(input: {
     groundWindowM: input.groundWindowM,
     crossingCost: input.crossingCost,
     crossDrainCost: input.crossDrainCost,
+    ...(input.currency ? { currency: input.currency } : {}),
+    ...(allowanceNote ? { crossDrainAllowanceNote: allowanceNote } : {}),
     maxTerrainSlopePercent: input.maxTerrainSlopePercent,
     switchbacks: { ...input.switchbacks },
     ...(preset ? { preset: preset.id } : {}),
@@ -103,6 +122,9 @@ export function parseFoundRoadSearchSettings(raw: unknown): FoundRoadSearchSetti
   const foundOn = text(r.foundOn, 'date', 10)
   if (!isCalendarDate(foundOn)) throw Error('Found-road search date must be a real date, written YYYY-MM-DD.')
   if (r.preset !== undefined && !searchPreset(String(r.preset))) throw Error('Unknown found-road search preset.')
+  const currencies: readonly EvidenceCurrency[] = ['CAD', 'USD', 'NZD', 'GBP', 'AUD', 'EUR']
+  if (r.currency !== undefined && !currencies.includes(r.currency as EvidenceCurrency))
+    throw Error('Unknown found-road search currency.')
   return {
     goals,
     label: text(r.label, 'label', 200),
@@ -113,6 +135,16 @@ export function parseFoundRoadSearchSettings(raw: unknown): FoundRoadSearchSetti
     groundWindowM: num(r.groundWindowM, 'ground trend', 0, 100),
     crossingCost: num(r.crossingCost, 'stream crossing price', 0, 1e8),
     crossDrainCost: num(r.crossDrainCost, 'cross-drain price', 0, 1e6),
+    ...(r.currency === undefined ? {} : { currency: r.currency as EvidenceCurrency }),
+    ...(r.crossDrainAllowanceNote === undefined
+      ? {}
+      : {
+          crossDrainAllowanceNote: text(
+            r.crossDrainAllowanceNote,
+            'cross-drain allowance note',
+            MAX_FOUND_ROAD_NOTE_CHARS,
+          ),
+        }),
     maxTerrainSlopePercent:
       r.maxTerrainSlopePercent === null ? null : num(r.maxTerrainSlopePercent, 'side-hill limit', 1, 300),
     switchbacks: parseSwitchbackRouteOptions(r.switchbacks),
@@ -122,7 +154,8 @@ export function parseFoundRoadSearchSettings(raw: unknown): FoundRoadSearchSetti
   }
 }
 
-const money = (n: number) => `$${Math.round(n).toLocaleString('en-CA')}`
+const money = (n: number, currency?: EvidenceCurrency) =>
+  `${currency ? `${currency} ` : '$'}${Math.round(n).toLocaleString('en-CA')}`
 
 /**
  * The record as label–value rows, for the road's info and the report. Says when the road's line
@@ -157,8 +190,11 @@ export function foundRoadSearchRows(
     },
     {
       label: 'Search prices',
-      value: `Stream crossing ${money(record.crossingCost)}; cross-drain ${money(record.crossDrainCost)} (placeholder allowances)`,
+      value: `Stream crossing ${money(record.crossingCost, record.currency)}; cross-drain ${money(record.crossDrainCost, record.currency)} (planning allowances)`,
     },
+    ...(record.crossDrainAllowanceNote
+      ? [{ label: 'Cross-drain allowance', value: record.crossDrainAllowanceNote }]
+      : []),
     ...(record.how ? [{ label: 'How it was found', value: record.how }] : []),
   ]
 }

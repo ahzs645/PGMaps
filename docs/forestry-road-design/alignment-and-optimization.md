@@ -628,10 +628,21 @@ and a buffer of at most 150 m. That is coarser than the Drainage view, and the c
 run the view on the road you pick. Low points within 40 m of each other are one cross-drain site,
 the same rule the Drainage view uses (`CROSS_DRAIN_SITE_M`).
 
-**Total** is the base engineering estimate plus a drainage allowance: stream crossings without a
-culvert at **Stream crossing ($)**, default $8,000, and cross-drain sites at **Cross-drain ($)\*\*,
-default $1,500. Both are placeholders. The allowance is a planning figure in the comparison only; it
-does not enter the road's estimate, because no culvert has been sized or placed.
+**Total** is the base engineering estimate plus planning drainage allowances. The stream-crossing
+allowance still starts at 8,000 in the project currency, to be checked. In CAD projects the
+cross-drain allowance starts at **CAD $4,472.04 per site**: an explicit **12 m assumed installed
+length × $372.67/m**, from Alberta's 2026 tender average for 600 mm CSP supply and installation
+(`DEFAULT_CROSS_DRAIN_COST`, `DEFAULT_CROSS_DRAIN_LENGTH_M`, `CROSS_DRAIN_COST_DEFAULT`). It is
+provisional and needs the actual length, specification and local installation scope. An entered
+lump-sum override is used unchanged. Other currencies start with no cross-drain allowance and an
+unpriced warning; a CAD figure is never converted. The route finder retains each currency's entered
+value separately. Access comparisons follow the same CAD-only default.
+
+The allowance stays in the comparison because no culvert has been sized or placed. An actual
+culvert is priced by installed barrel length, so one shorter than the assumed 12 m can cost less
+without losing its price. New found roads keep the default's source and assumed-length note with
+their search settings and report; saved older prices are not rewritten. See
+[Provisional cross-drain estimates](bc-cost-evidence.md#provisional-cross-drain-estimates).
 
 **A row with a blocker cannot lead.** Grades over the limit, incomplete sections and sharp corners
 keep a road out of the Cheapest, Shortest, Gentlest and Best drainage tags, however low its price. A

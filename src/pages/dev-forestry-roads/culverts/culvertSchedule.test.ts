@@ -3,6 +3,8 @@ import type { DrainageEvidence } from '../drainageEvidence'
 import { analyzeRoad, offsetCoordinate } from '../engine'
 import { parseEngineering } from '../engineeringProject'
 import { createEngineeringDesign } from '../engineeringTypes'
+import { withCulvertCostDefault } from '../culvertCostDefaults'
+import { estimateCrossings } from '../crossingPlan'
 import { withStationing } from '../roadStationing'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from '../terrain'
 import type { Alignment, Coordinate, Culvert, TerrainSource } from '../types'
@@ -85,6 +87,43 @@ const drainage = (checks: Record<string, unknown>[]): { record: DrainageEvidence
 const csvCells = (line: string) => [...line.matchAll(/("(?:[^"]|"")*"|[^,]*)(,|$)/g)].map((m) => m[1]).slice(0, -1)
 
 describe('the culvert schedule', () => {
+  it('prints provisional construction-price review beside the amount in both CSV and HTML', () => {
+    const pipe = withCulvertCostDefault(culvert({ kind: 'cross-drain', diameterM: 0.6, unitCost: 0, fixedCost: 0 }))
+    const { schedule: result } = schedule([pipe])
+    expect(result.rows[0].cost.installedCad).toBeGreaterThan(0)
+    expect(result.rows[0].cost.basis).toContain('Provisional CAD 372.67/m')
+    expect(culvertScheduleCsv(result)).toContain('Provisional CAD 372.67/m')
+    expect(culvertScheduleCsv(result)).toContain('review required')
+    expect(culvertScheduleReportHtml(result)).toContain('Provisional CAD 372.67/m')
+    expect(culvertScheduleReportHtml(result)).toContain('review required')
+  })
+
+  it('keeps the source review visible when the price is edited to zero or the currency/specification changes', () => {
+    const pipe = withCulvertCostDefault(culvert({ kind: 'cross-drain', diameterM: 0.6, unitCost: 0, fixedCost: 0 }))
+    const zero = schedule([{ ...pipe, unitCost: 0 }]).schedule
+    expect(zero.rows[0].cost.installedCad).toBe(0)
+    expect(culvertScheduleCsv(zero)).toContain('Edited from provisional CAD 372.67/m')
+    expect(culvertScheduleReportHtml(zero)).toContain('Edited from provisional CAD 372.67/m')
+    const different = schedule([{ ...pipe, diameterM: 0.8 }], { place: { country: 'US' } }).schedule
+    expect(culvertScheduleCsv(different)).toContain('project’s currency')
+    expect(culvertScheduleReportHtml(different)).toContain('project’s currency')
+  })
+
+  it('uses a replacement’s price and keeps excluded inventory clearly not calculated', () => {
+    const pipe = withCulvertCostDefault(culvert({ kind: 'cross-drain', diameterM: 0.6, unitCost: 0, fixedCost: 0 }))
+    const { alignment, analysis } = schedule([pipe])
+    analysis.crossingEstimate = { ...estimateCrossings(alignment, analysis, []), replacedLegacyIds: [pipe.id] }
+    const replaced = buildCulvertSchedule({ alignment, analysis, place: undefined })
+    expect(replaced.rows[0].cost.basis).toContain('Replaced by the crossing record')
+    expect(culvertScheduleCsv(replaced)).not.toContain('Provisional CAD')
+    expect(culvertScheduleReportHtml(replaced)).not.toContain('Provisional CAD')
+    const excluded = schedule([{ ...pipe, chainage: 5000 }]).schedule
+    expect(excluded.rows[0].cost.installedCad).toBeNull()
+    expect(culvertScheduleCsv(excluded)).toContain('Not calculated. Provisional CAD')
+    expect(culvertScheduleReportHtml(excluded)).toContain('Not calculated. Provisional CAD')
+    expect(excluded.totals.installedCad).toBe(0)
+  })
+
   it('keeps construction cost, appraisal treatment and design evidence apart for each culvert', () => {
     const { analysis, schedule: result } = schedule([
       culvert({}),

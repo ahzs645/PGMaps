@@ -72,6 +72,7 @@
  * Checked by `roadEngPlacedCulverts.test.ts`. Pure: no DOM or network access.
  */
 import type { Culvert } from './engineeringTypes'
+import { parseCulvertCostDefault } from './culvertCostDefaults'
 
 /** Culverts a road holds (`parseEngineering`); records past it stay in the file unread. */
 export const MAX_PLACED_CULVERTS = 100
@@ -390,7 +391,8 @@ export function withDesignCulverts(existing: readonly Culvert[], read: readonly 
 
 /**
  * What a design's culverts that RoadEng saved since keep from the culverts this workspace wrote
- * into it (`[PGMaps]` engineering, unchecked): its id, cover, costs, inverts and ditch dip, by
+ * into it (`[PGMaps]` engineering, unchecked): its id, cover, costs and their provisional source,
+ * inverts and ditch dip, by
  * record. A record RoadEng rewrote matches nothing and keeps the defaults.
  */
 export function carryWrittenCulvertFields(read: readonly Culvert[], written: unknown): Culvert[] {
@@ -418,6 +420,7 @@ export function carryWrittenCulvertFields(read: readonly Culvert[], written: unk
       ...(num('minCoverM') !== undefined ? { minCoverM: num('minCoverM')! } : {}),
       ...(num('unitCost') !== undefined ? { unitCost: num('unitCost')! } : {}),
       ...(num('fixedCost') !== undefined ? { fixedCost: num('fixedCost')! } : {}),
+      ...(match.costDefault === undefined ? {} : { costDefault: parseCulvertCostDefault(match.costDefault) }),
       ...(inlet !== undefined && outlet !== undefined ? { inletInvertM: inlet, outletInvertM: outlet } : {}),
       ...(num('ditchDipPercent') !== undefined ? { ditchDipPercent: num('ditchDipPercent')! } : {}),
     }

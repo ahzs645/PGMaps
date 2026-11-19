@@ -21,8 +21,10 @@ contract rate describe different work.
 catalogue of 161 records, 12 worked estimates and 2 sources awaiting a readable
 copy, plus the person's own records. It is evidence to read beside an estimate. No record converts
 a currency, escalates a price or averages across sources, and browsing writes
-nothing. A record reaches a project rate only when the user adopts it (see
+nothing. Confirmed use of a record goes through the adoption form (see
 [Adopting a record into a project rate](#adopting-a-record-into-a-project-rate)).
+The one automatic exception is the explicitly unreviewed
+[provisional cross-drain estimate](#provisional-cross-drain-estimates) below.
 
 | Part | Records | What it holds |
 | --- | --- | --- |
@@ -167,12 +169,81 @@ references, context-only records, municipal fees, maintenance awards, a
 whole-project amount with no unit, and a record with no published amount. A
 project file carrying one of them as a rate source is refused.
 
+### Provisional cross-drain estimates
+
+New ordinary 600 mm round cross-drains can start with **CAD $372.67 per installed
+barrel metre**, with no added fixed allowance. The source is the catalogue's
+`alberta-upa-2026-4`: **Culverts — Supply and Install (600 mm dia. CSP)** in the
+[Government of Alberta's 2026 construction-price sheet](https://www.alberta.ca/system/files/custom_downloaded_images/trans-unit-price-averages.xlsx),
+locator `'2026 UPA '!B39:H39`, checked **12 November 2026**. The record covers
+**6,024 m across 21 contracts**, with tenders from **1 May 2025 to 30 September
+2026**. It is the quantity-weighted average of the three lowest bids, for
+600 mm corrugated steel pipe supplied and installed as a pay item. It is an
+Alberta highway reference, **not a local BC quote or a final account**.
+
+This is a stated planning assumption, kept separate from confirmed adoption:
+
+- **CAD only.** No currency conversion, escalation, regional adjustment or
+  cross-source average is made. The source year and location remain visible.
+- **Matching ordinary cross-drains only.** The default assumes a round 600 mm
+  single-barrel CSP cross-drain without embedment or an associated stream
+  feature. A missing material means *cost assumes corrugated steel*, not that
+  the pipe's material has been verified. Applying
+  the price never changes the hydraulic material, roughness, geometry or
+  design status. Stream crossings and other specifications need their own rate.
+- **New batches show their price before Add.** Eligible new culverts receive
+  the provisional rate and its provenance when the batch is added. The engine
+  prices the installed barrel length and barrel count, using the same quantity
+  as the rest of the estimate; the horizontal span alone can differ from the
+  inclined barrel length. The designer can replace the batch's rate.
+- **Saved values stay as entered.** Opening, importing or loading a project
+  does not fill existing zeroes. **Use provisional estimates** explicitly fills
+  eligible unpriced cross-drains in one named undo step, preserving entered
+  rates, fixed costs and costs documented as carried elsewhere. Imported
+  RoadEng culverts and previously marked defaults are excluded from that
+  fill action.
+- **Review remains outstanding.** `Culvert.costDefault` retains the frozen
+  source snapshot and `status: unreviewed`. **Review culvert rates** opens the
+  evidence and adoption path to confirm the specification and scope or replace
+  it with a local quote.
+  A later change of specification or currency flags the mismatch; a positive
+  price alone does not confirm it. Only an explicit review can resolve the
+  provisional status. A later catalogue does not rewrite the stored estimate.
+
+The rate does not establish that local delivery, mobilisation, difficult
+excavation, water management, protection works, taxes or other project scope
+are covered; review the pay-item specification and each separate allowance.
+Do not add an allowance for work already included in a chosen installed rate.
+The Labrador mixed-diameter estimate, Canim Lake concrete-box estimate,
+municipal fees and appraisal tables are not substitute defaults. Appraisal
+allowances remain a separate comparison and never reduce an installed cost.
+
+**Before a barrel is placed, the route comparison assumes 12 m per site.**
+`DEFAULT_CROSS_DRAIN_COST` is `CROSS_DRAIN_COST_DEFAULT.unitCost ×
+DEFAULT_CROSS_DRAIN_LENGTH_M`, **12 m × $372.67/m = CAD $4,472.04 per site**.
+This is an explicit planning length, not a length measured from the road.
+The entered lump-sum override still controls the comparison. In other currencies
+no CAD default is applied: the allowance starts at zero with an unpriced warning,
+and Find the best route keeps separate entered values for each currency.
+Access comparisons likewise leave non-CAD cross-drains unpriced and say so.
+Newly found roads keep the source and assumed-length note with their search
+settings and report; older saved allowances are not relabelled or replaced.
+After placement the engine uses actual barrel length and installed rate. A pipe
+shorter than 12 m can therefore legitimately cost less than the search allowance;
+that reduction is explained by quantity, rather than a missing price.
+
+For the example's horizontal spans of 9.5 m, 8.5 m and 26.5 m, the multiplication
+is **44.5 m × $372.67/m = $16,583.815**, approximately **$16,584**, before other
+allowances. Known barrel fall can increase the installed length slightly. This
+illustrates the provisional quantity-based price, not a BC contractor quote.
+
 ### Limits and upkeep
 
 | Limit | Value | Where |
 | --- | --- | --- |
 | Currency conversion, escalation, cross-source averages | None | `costEvidence/costEvidence.ts`, `costEvidence/rateAdoption.ts` |
-| Ways a record can change the estimate | One: the confirmed adoption form | `RateAdoption.tsx`; `BCCostReferences` receives only `adoption.onAdopt` and `adoption.onBuildUps` |
+| Ways a record can change the estimate | Confirmed adoption; the narrow unreviewed 600 mm cross-drain default described above | `RateAdoption.tsx`, `culvertCostDefaults.ts`; browsing still writes nothing |
+| Provisional cross-drain rate | CAD $372.67 per installed barrel metre; 600 mm round single-barrel CSP assumption, no embedment | `CROSS_DRAIN_COST_DEFAULT.unitCost`, `culvertCostDefaults.ts`; `DEFAULT_BATCH_PIPE`, `crossDrainBatch.ts` |
 | Rates a record can be adopted into | Project rates, the active road's haul, material, site, surfacing-source and culvert rates, one-time budget items | `adoptionTargets.ts` |
 | Adopted rate | Above 0, at most the target's limit: 10,000 per unit for the project rates, materials and per-m³ rates up to 1,000,000, lump sums up to 1,000,000,000, percentages up to 200 | `AdoptionTarget.max`, `adoptionTargets.ts` |
 | Saved rate sources | At most 500 | `parseRateEvidence`, `rateAdoption.ts` |

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad } from './engine'
+import { CROSS_DRAIN_COST_DEFAULT, DEFAULT_CROSS_DRAIN_LENGTH_M } from './culvertCostDefaults'
 import {
   calendarDay,
+  crossDrainAllowanceNote,
   foundRoadSearchRows,
   foundRoadSearchSettings,
   foundRoadSearchSummary,
@@ -78,8 +80,52 @@ describe('found-road search settings', () => {
       [{ preset: 'highway' }, /Unknown found-road search preset/],
       [{ switchbacks: { allow: 'yes' } }, /true or false/],
       [{ how: 'x'.repeat(700) }, /note must be text/],
+      [{ currency: 'JPY' }, /Unknown found-road search currency/],
+      [{ crossDrainAllowanceNote: 'x'.repeat(700) }, /allowance note must be text/],
     ] as const)
       expect(() => parseFoundRoadSearchSettings({ ...saved, ...patch })).toThrow(message)
+  })
+
+  it('keeps the provisional source and assumed length with the found road and report', () => {
+    const project = createDemoProject()
+    const road = project.alignments.find((a) => a.id === project.activeAlignmentId)!
+    road.searchSettings = record(road, {
+      currency: 'CAD',
+      crossDrainCost: CROSS_DRAIN_COST_DEFAULT.unitCost * DEFAULT_CROSS_DRAIN_LENGTH_M,
+    })
+    const saved = serializeProject(project)
+    const restored = parseProject(saved)
+    expect(restored.alignments.find((a) => a.id === road.id)!.searchSettings).toEqual(road.searchSettings)
+    const note = road.searchSettings.crossDrainAllowanceNote!
+    expect(note).toContain('12 m × CAD 372.67/m = CAD 4472.04 per site')
+    expect(note).toContain('Alberta 2026 tender average for 600 mm CSP supply and installation')
+    expect(note).toContain(CROSS_DRAIN_COST_DEFAULT.sourceUrl)
+    expect(note).toContain('actual barrel length')
+    expect(foundRoadSearchRows(road)).toContainEqual({ label: 'Cross-drain allowance', value: note })
+    const report = projectReportHtml(project, analyzeRoad(road, demoTerrain, project.settings))
+    expect(report).toContain('12 m × CAD 372.67/m = CAD 4472.04 per site')
+    expect(report).toContain('Alberta 2026 tender average')
+  })
+
+  it('never assigns a CAD source to other currencies or retrofits saved allowances', () => {
+    const road = createDemoProject().alignments[0]
+    const defaultValue = CROSS_DRAIN_COST_DEFAULT.unitCost * DEFAULT_CROSS_DRAIN_LENGTH_M
+    expect(record(road, { crossDrainCost: defaultValue, currency: 'USD' })).not.toHaveProperty(
+      'crossDrainAllowanceNote',
+    )
+    expect(record(road, { crossDrainCost: 5000, currency: 'CAD' })).not.toHaveProperty('crossDrainAllowanceNote')
+    const legacy = record(road, { crossDrainCost: defaultValue })
+    delete legacy.crossDrainAllowanceNote
+    const read = parseFoundRoadSearchSettings(JSON.parse(JSON.stringify(legacy)))
+    expect(read.crossDrainCost).toBe(defaultValue)
+    expect(read).not.toHaveProperty('crossDrainAllowanceNote')
+    expect(read).not.toHaveProperty('currency')
+    const unpriced = record(road, { crossDrainCost: 0, currency: 'USD' })
+    expect(unpriced.crossDrainAllowanceNote).toContain('unpriced: zero USD allowance')
+    expect(
+      foundRoadSearchRows({ ...road, searchSettings: unpriced }).find((row) => row.label === 'Search prices')!.value,
+    ).toContain('cross-drain USD 0')
+    expect(crossDrainAllowanceNote(1500, 'CAD')).toBeUndefined()
   })
 
   it('shows in the road info and the report, and says when the line has been edited since', () => {
@@ -104,7 +150,7 @@ describe('found-road search settings', () => {
     )
     expect(rows[2].value).toBe('Corridor ±180 m; ground trend 12 m; side-hill limit 60%')
     expect(rows[3].value).toMatch(/^Allowed: radius 20 m/)
-    expect(rows[4].value).toBe('Stream crossing $8,000; cross-drain $1,500 (placeholder allowances)')
+    expect(rows[4].value).toBe('Stream crossing $8,000; cross-drain $1,500 (planning allowances)')
     const report = projectReportHtml(project, analyzeRoad(road, demoTerrain, project.settings))
     expect(report).toContain('<dt>Found by</dt><dd>Find the best route, 2026-11-10: led Lowest cost · Shortest</dd>')
     expect(report).toContain('<dt>Search area</dt><dd>Corridor ±180 m; ground trend 12 m; side-hill limit 60%</dd>')

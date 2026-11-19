@@ -25,6 +25,9 @@ import { STEEPER_GRADE_STEPS_PERCENT } from './steeperGrades'
 import { RouteSearchPresets } from './RouteSearchPresets'
 import { RouteFailureRow } from './RouteFailureRow'
 import { FoundRoadSearchNote } from './FoundRoadSearchNote'
+import { crossDrainAllowanceNote } from './foundRoadSearch'
+import { projectCurrency } from './costPlaces/projectLocation'
+import type { EvidenceCurrency } from './costEvidence/costEvidence'
 import type { RoutePreviewLine } from './routePreviewFeatures'
 import { corridorSearchResolution, MAX_SEARCH_RADIUS_M, MIN_SEARCH_RADIUS_M } from './corridorOptimizer'
 import { DEFAULT_GROUND_WINDOW_M, resolvedGroundWindow } from './groundTrend'
@@ -66,7 +69,12 @@ export function RouteFinder({
   const { project, source, alignment, analysis } = w
   const [goals, setGoals] = useState<RouteGoal[]>(['cost', 'shortest', 'gentle', 'drainage'])
   const [halfWidth, setHalfWidth] = useState(180)
-  const [crossDrainCost, setCrossDrainCost] = useState(DEFAULT_CROSS_DRAIN_COST)
+  const currency = projectCurrency(project.costLocation)
+  // Each currency retains its own entry. Changing location never converts or reuses another currency's amount.
+  const [crossDrainCosts, setCrossDrainCosts] = useState<Partial<Record<EvidenceCurrency, number>>>({})
+  const crossDrainCost = crossDrainCosts[currency] ?? (currency === 'CAD' ? DEFAULT_CROSS_DRAIN_COST : 0)
+  const setCrossDrainCost = (value: number) => setCrossDrainCosts((now) => ({ ...now, [currency]: value }))
+  const allowanceNote = crossDrainAllowanceNote(crossDrainCost, currency)
   const [run, setRun] = useState<{
     comparison: RouteComparison
     roadKey: string
@@ -101,6 +109,9 @@ export function RouteFinder({
   const searchKey = JSON.stringify([
     project.routeSearch?.switchbacks ?? null,
     project.routeSearch?.maxTerrainSlopePercent ?? null,
+    route.crossingCost,
+    crossDrainCost,
+    currency,
   ])
   const inputs = useMemo(
     () => JSON.stringify([project.settings, project.context]) + searchKey,
@@ -168,6 +179,7 @@ export function RouteFinder({
         groundWindowM,
         crossingCost: route.crossingCost,
         crossDrainCost,
+        currency,
         drainage: project.drainage?.settings ?? DEFAULT_DRAINAGE_SETTINGS,
         ...(trySteeper ? { steeperGrades: true } : {}),
       },
@@ -330,8 +342,8 @@ export function RouteFinder({
           Designs a road between the same two ends for each goal, then measures every road. Each goal goes to the road
           that actually leads it, so one road can win several and a road that leads nothing is left out.
           <br />
-          Prices are build cost plus a placeholder allowance per stream crossing and cross-drain. Planning comparison
-          only: searches are bounded, so a better line can exist.
+          Prices are build cost plus planning allowances per stream crossing and cross-drain. Planning comparison only:
+          searches are bounded, so a better line can exist.
         </>
       }
     >
@@ -436,7 +448,7 @@ export function RouteFinder({
               onChange={(groundWindowM) => w.update((x) => ({ ...x, routeSearch: { ...route, groundWindowM } }))}
             />
             <NumberField
-              label="Stream crossing ($)"
+              label={`Stream crossing (${currency})`}
               value={route.crossingCost}
               max={1e8}
               step={500}
@@ -444,14 +456,23 @@ export function RouteFinder({
               onChange={(crossingCost) => w.update((x) => ({ ...x, routeSearch: { ...route, crossingCost } }))}
             />
             <NumberField
-              label="Cross-drain ($)"
+              label={`Cross-drain (${currency})`}
               value={crossDrainCost}
               max={1e6}
               step={100}
-              hint="Placeholder allowance per low point that needs a cross-drain."
+              hint={
+                allowanceNote ??
+                `Entered ${currency} allowance per unplaced cross-drain site. Replace it after checking actual barrel length, specification and installed scope.`
+              }
               onChange={setCrossDrainCost}
             />
           </div>
+          {crossDrainCost === 0 && (
+            <InlineAlert tone="warning">
+              Cross-drains are unpriced in {currency}: the comparison adds no cost for them. Enter a cross-drain
+              allowance in Search settings. The CAD source is not converted.
+            </InlineAlert>
+          )}
           {resolution && (
             <p className="text-2xs leading-4 text-muted-foreground" data-testid="road-route-resolution">
               Searches on {resolution.cellM.toFixed(1)} m cells in {resolution.stepM.toFixed(0)} m strides and{' '}
@@ -549,7 +570,7 @@ export function RouteFinder({
               )}
               <InfoTip label="About these prices">
                 Build is the engineering estimate at this project's rates, the same figure Compare shows. The drainage
-                part is the placeholder allowance from Search settings. New roads carry your template but no culverts,
+                part is the planning allowance from Search settings. New roads carry your template but no culverts,
                 materials or haul inputs, so add those before relying on the gap.
               </InfoTip>
             </div>
