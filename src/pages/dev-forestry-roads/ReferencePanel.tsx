@@ -668,7 +668,8 @@ export function ReferencePanel({
           label="Map layers"
           filesLabel="Add files"
           folderLabel="Add folder"
-          dropHint="Drop GIS files, Canfor map PDFs or a folder here"
+          dropHint="Drop GIS files, map PDFs or a folder here"
+          iconsBelow={320}
           accept={REFERENCE_ACCEPT}
           onFiles={onFiles}
           onError={onReadError}

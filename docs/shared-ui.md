@@ -656,6 +656,13 @@ track grows to the longest cell in any column.
   with "Data from …", source link, `footerActions`, `footerStart`, Close.
   `RecordEmptyState` when the record has nothing to show.
 - `PanelDialog`: settings, pickers and libraries (optional footer).
+- `expandable` on either adds a *Full screen* button beside the close button: the panel fills the window whatever height classes the page gave it, and opens at its own size again next time. Both Save & export dialogs use it.
+
+### PDF pages
+
+`PdfPages` (`src/components/ui/pdf-pages.tsx`) shows a PDF in the app's own viewer, never the browser's (an `<iframe>` on the file): pages drawn by pdf.js (`src/lib/pdfPages/pdfjs.ts`, loaded on first use, so it never joins the shell), page and zoom controls in the app's style, and *Open in a new tab* for the browser's viewer when someone needs to search or print. Pass it the very `Blob` (or its address) the download writes. Pages are drawn only near the view and let go away from it, so a long plot book costs only the pages in sight; a zoom stretches the last drawing until it rests, then draws again. Fit to width never enlarges a page past 150%. The scroller is `contain: inline-size`: the fitted scale is read from its width, so a page must never widen it.
+
+In use: every PDF output in the road designer's and visual quality's Save & export.
 
 ### Zoom and pan
 

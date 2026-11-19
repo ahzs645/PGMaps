@@ -7,6 +7,7 @@ import { CopyImageButton } from '@/components/ui/copy-image-button'
 import { DocumentContents, type DocumentContentsProps } from '@/components/ui/document-contents'
 import { StyledSelect } from '@/components/ui/form-field'
 import { PanelDialog } from '@/components/ui/dialog-shell'
+import { PdfPages } from '@/components/ui/pdf-pages'
 import { insetBox } from '@/components/ui/inset-box'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
@@ -565,9 +566,7 @@ function DraftPartFrame({
 function PreviewView({ preview, title }: { preview: Preview; title: string }) {
   switch (preview.type) {
     case 'pdf':
-      return (
-        <iframe title={`${title} preview`} src={preview.url} className="h-full min-h-96 w-full rounded-md border" />
-      )
+      return <PdfPages source={preview.url} title={title} className="min-h-96" />
     case 'image':
       return (
         <img
@@ -1482,6 +1481,7 @@ export function VisualsExportDialog({
       onOpenChange={onOpenChange}
       title="Save & export"
       size="xl"
+      expandable
       portalContainer={portalContainer}
       className="sm:h-[min(48rem,92dvh)]"
       bodyClassName="p-0 workspace-sm:p-0"

@@ -282,6 +282,7 @@ export function FilesDialog({
       onOpenChange={onOpenChange}
       title="Save & export"
       size="xl"
+      expandable
       portalContainer={portalContainer}
       className="sm:h-[min(48rem,92dvh)]"
       bodyClassName="p-0 workspace-sm:p-0"

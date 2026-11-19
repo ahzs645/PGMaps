@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { File as FileIcon, FileImage, FileJson, FileText, Paperclip, Upload } from 'lucide-react'
+import { Download, File as FileIcon, FileImage, FileJson, FileText, Paperclip, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ConfirmRemoveButton } from '@/components/ui/confirm-remove'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { FileButton } from '@/components/ui/file-button'
 import { FileDropTarget } from '@/components/ui/file-drop-target'
 import { EmptyHint, ResultRow, ResultRowDetail } from '@/components/ui/result-list'
-import { TextButton } from '@/components/ui/text-button'
 import { downloadBlob } from '@/lib/download'
 import { formatBytes } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { PHOTO_REMOVE_DETAIL } from './photoOptions'
 import type { ProjectAttachment } from './projectArchive'
 
 function previewType(name: string) {
@@ -88,7 +89,9 @@ export function ProjectAttachmentsButton({ count, onClick }: { count: number; on
 /**
  * The files a project carries: the original VIA sheets, a case.json, a photo's original. They go into the project ZIP
  * from Save & export (whose *What goes in* lists them) and come back when it is opened. A file that is a field record's
- * original (`recordId`) is removed with its record, through `onRemove`, never on its own.
+ * original (`recordId`) is removed with its record, through `onRemove`, never on its own. Every row carries its own
+ * Download and the shared bin (`ConfirmRemoveButton`), as Field records and the photo strip do, so removing a file asks
+ * the same question wherever it is done; *Remove all* sits in the toolbar beside the count.
  */
 export function ProjectAttachmentsDialog({
   open,
@@ -113,9 +116,9 @@ export function ProjectAttachmentsDialog({
   footer?: ReactNode
 }) {
   const [selected, setSelected] = useState<ProjectAttachment | null>(null)
-  const [confirming, setConfirming] = useState<ProjectAttachment | null>(null)
   const shown = selected && files.includes(selected) ? selected : null
   const total = files.reduce((sum, file) => sum + file.blob.size, 0)
+  const linkedCount = files.filter((file) => linkedTo(file)).length
   return (
     <PanelDialog
       open={open}
@@ -136,6 +139,24 @@ export function ProjectAttachmentsDialog({
             {files.length} {files.length === 1 ? 'file' : 'files'}
             {files.length ? ` · ${formatBytes(total)}` : ''}
           </span>
+          {files.length > 1 && (
+            <ConfirmRemoveButton
+              label="Remove all project attachments"
+              question={`Remove all ${files.length} files?`}
+              detail={
+                linkedCount
+                  ? `Field photos' records go with their originals (${linkedCount} of them). A viewpoint made from one stays, without the link.`
+                  : 'The files go from the project.'
+              }
+              confirmLabel="Remove all"
+              onConfirm={() => {
+                files.forEach(onRemove)
+                setSelected(null)
+              }}
+            >
+              Remove all
+            </ConfirmRemoveButton>
+          )}
         </div>
       }
       footer={footer}
@@ -150,52 +171,39 @@ export function ProjectAttachmentsDialog({
               const isSelected = file === shown
               return (
                 <li key={`${file.name}-${index}`}>
-                  <ResultRow
-                    leading={<Icon className="mt-0.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
-                    title={file.name}
-                    subtitle={[label, formatBytes(file.blob.size), linked].filter(Boolean).join(' · ')}
-                    selected={isSelected}
-                    onClick={() => {
-                      setSelected(isSelected ? null : file)
-                      setConfirming(null)
-                    }}
-                  />
+                  <div className="flex items-center gap-1 pr-2">
+                    <ResultRow
+                      className="min-w-0 flex-1"
+                      leading={<Icon className="mt-0.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
+                      title={file.name}
+                      subtitle={[label, formatBytes(file.blob.size), linked].filter(Boolean).join(' · ')}
+                      selected={isSelected}
+                      onClick={() => setSelected(isSelected ? null : file)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="shrink-0 text-muted-foreground"
+                      aria-label={`Download ${file.name}`}
+                      title={`Download ${file.name}`}
+                      onClick={() => downloadBlob(file.blob, file.name)}
+                    >
+                      <Download aria-hidden />
+                    </Button>
+                    <ConfirmRemoveButton
+                      label={`Remove ${file.name}`}
+                      question={`Remove ${file.name}?`}
+                      detail={linked ? `${linked}. ${PHOTO_REMOVE_DETAIL}` : 'The file goes from the project.'}
+                      onConfirm={() => {
+                        onRemove(file)
+                        if (isSelected) setSelected(null)
+                      }}
+                    />
+                  </div>
                   {isSelected && (
-                    <ResultRowDetail className="space-y-2">
+                    <ResultRowDetail>
                       <AttachmentPreview file={file} />
-                      {confirming === file ? (
-                        <div role="group" aria-label="Confirm removal" className="space-y-1.5">
-                          <p>
-                            {linked
-                              ? `Removes ${linked} from Field records as well, and any view's link to it.`
-                              : 'Removes the file from the project.'}
-                          </p>
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => {
-                                onRemove(file)
-                                setSelected(null)
-                                setConfirming(null)
-                              }}
-                            >
-                              Remove
-                            </Button>
-                            <Button type="button" size="sm" variant="outline" onClick={() => setConfirming(null)}>
-                              Keep
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap gap-x-3">
-                          <TextButton onClick={() => downloadBlob(file.blob, file.name)}>Download</TextButton>
-                          <TextButton onClick={() => setConfirming(file)}>
-                            {linked ? 'Remove with its record…' : 'Remove…'}
-                          </TextButton>
-                        </div>
-                      )}
                     </ResultRowDetail>
                   )}
                 </li>

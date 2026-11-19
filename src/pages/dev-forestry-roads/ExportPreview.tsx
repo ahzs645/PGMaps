@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { CopyImageButton } from '@/components/ui/copy-image-button'
 import { DisclosureRow } from '@/components/ui/disclosure'
+import { PdfPages } from '@/components/ui/pdf-pages'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { fitGeometry, type ExportPreview } from './exportCatalog'
 import { previewPick, PREVIEW_PICK_SELECTOR, type PickedElement, type PreviewPick } from './previewPick'
@@ -156,17 +157,6 @@ function HtmlPreview({
   )
 }
 
-/** A PDF as it downloads, page by page in the browser's own viewer; the address is let go with the preview. */
-function PdfPreview({ blob, title }: { blob: Blob; title: string }) {
-  const frame = useRef<HTMLIFrameElement>(null)
-  useEffect(() => {
-    const url = URL.createObjectURL(blob)
-    if (frame.current) frame.current.src = url
-    return () => URL.revokeObjectURL(url)
-  }, [blob])
-  return <iframe ref={frame} title={`${title} preview`} className="h-full min-h-80 w-full rounded-md border bg-white" />
-}
-
 /**
  * One output's preview, from the same content the download writes. `onPick` makes the parts of a
  * document preview that have settings open them: a title block, a sheet, a report heading, or the
@@ -188,7 +178,7 @@ export function ExportPreviewView({
     case 'html':
       return <HtmlPreview html={preview.html} title={title} onPick={onPick} scrollTo={scrollTo} />
     case 'pdf':
-      return <PdfPreview blob={preview.blob} title={title} />
+      return <PdfPages source={preview.blob} title={title} />
     case 'image': {
       const image = (
         <img
