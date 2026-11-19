@@ -180,6 +180,36 @@ export const EXPORT_GROUP_LABELS: Record<ExportGroup, string> = {
   survey: 'Survey & CAD',
 }
 
+/**
+ * Outputs that are one document in more than one format: one row in Save & export's list, under the family's name,
+ * with a "<name> format" dropdown that picks the member, as the visual quality page's outputs do. Each member keeps
+ * its own kind (its file, its last-export record, its Download label), so a page or a lesson that opens the dialog on
+ * one still opens it on that format. The first member is the format a family opens on.
+ */
+export const EXPORT_FORMAT_FAMILIES: readonly {
+  label: string
+  members: readonly { kind: RoadExport; format: string }[]
+}[] = [
+  {
+    label: 'Report',
+    members: [
+      { kind: 'report-pdf', format: 'PDF' },
+      { kind: 'report', format: 'HTML' },
+    ],
+  },
+  {
+    label: 'Plot book',
+    members: [
+      { kind: 'plotbook-pdf', format: 'PDF' },
+      { kind: 'plotbook', format: 'HTML' },
+    ],
+  },
+]
+
+/** The format family an output belongs to, or null for an output with one format. */
+export const exportFamilyOf = (kind: RoadExport) =>
+  EXPORT_FORMAT_FAMILIES.find((family) => family.members.some((member) => member.kind === kind)) ?? null
+
 export const EXPORT_ITEMS: readonly ExportItem[] = [
   {
     kind: 'project',

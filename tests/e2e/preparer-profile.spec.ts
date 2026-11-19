@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 
+import { chooseExport } from './road-files'
 import { openWorkbench } from './road-workbench'
 import { choose } from './styled-select'
 import { openVisualsExport } from './visuals-export'
@@ -55,7 +56,7 @@ test('Your details fill the road issue stamp on a click and print with the logo'
   await expect(dialog).toBeVisible()
   await enterDetails(page, dialog)
 
-  await dialog.getByRole('navigation', { name: 'Files' }).getByRole('button', { name: 'Report HTML' }).click()
+  await chooseExport(page, 'Report HTML')
   await dialog.getByRole('button', { name: 'Issue stamp', exact: true }).click()
   const stamp = dialog.getByTestId('road-issue-stamp')
   await stamp.getByRole('textbox', { name: 'Prepared by' }).fill('A. Other')

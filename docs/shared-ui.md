@@ -656,13 +656,18 @@ track grows to the longest cell in any column.
   with "Data from …", source link, `footerActions`, `footerStart`, Close.
   `RecordEmptyState` when the record has nothing to show.
 - `PanelDialog`: settings, pickers and libraries (optional footer).
-- `expandable` on either adds a *Full screen* button beside the close button: the panel fills the window whatever height classes the page gave it, and opens at its own size again next time. Both Save & export dialogs use it.
+- `expandable` on either adds a *Full screen* button beside the close button: the panel fills the window whatever height classes the page gave it, and opens at its own size again next time. Both Save & export dialogs use it, and open up to 80 rem wide (`style.maxWidth` through `contentProps`, which the full-screen rule overrides) so an output's settings and its preview fit side by side.
 
-### PDF pages
+### File previews
 
-`PdfPages` (`src/components/ui/pdf-pages.tsx`) shows a PDF in the app's own viewer, never the browser's (an `<iframe>` on the file): pages drawn by pdf.js (`src/lib/pdfPages/pdfjs.ts`, loaded on first use, so it never joins the shell), page and zoom controls in the app's style, and *Open in a new tab* for the browser's viewer when someone needs to search or print. Pass it the very `Blob` (or its address) the download writes. Pages are drawn only near the view and let go away from it, so a long plot book costs only the pages in sight; a zoom stretches the last drawing until it rests, then draws again. Fit to width never enlarges a page past 150%. The scroller is `contain: inline-size`: the fitted scale is read from its width, so a page must never widen it.
+Every preview of a file a page writes is drawn by one of three viewers that share a bar (`viewer-toolbar.tsx`: pages where the file has them, − % + and fit, *Open in a new tab*) and one set of gestures (`zoomGestures.ts`, DOM-light and unit-tested), as PDF viewers take them rather than maps: a pinch (Ctrl + wheel in Chrome, Edge and Firefox; Safari's own gesture events) or Ctrl/⌘ + wheel zooms about the pointer, a plain wheel scrolls (and moves a zoomed picture), `+`, `-` and `0` zoom in, out and fit while the viewer has focus, and a double click zooms in or fits again where a click does not already pick something. Never put a file in a bare `<iframe>` or `<img>` in a preview, and never give one its own wheel listener.
 
-In use: every PDF output in the road designer's and visual quality's Save & export.
+- `PdfPages` (`pdf-pages.tsx`) shows a PDF in the app's own viewer, never the browser's: pages drawn by pdf.js (`src/lib/pdfPages/pdfjs.ts`, loaded on first use, so it never joins the shell). Pass it the very `Blob` (or its address) the download writes. Pages are drawn only near the view and let go away from it, so a long plot book costs only the pages in sight; a zoom stretches the last drawing until it rests, then draws again. Fit to width never enlarges a page past 150%. The scroller is `contain: inline-size`: the fitted scale is read from its width, so a page must never widen it. `page` (a new `{ number }` each time) brings a page into view.
+- `PicturePreview` (`picture-preview.tsx`) is a picture file (a sheet's PNG or SVG, an analysis sheet) on `ZoomPan` with `wheel="modified"`; `ZoomablePreview` is the same viewer round any drawing (an export's geometry). `onPick` makes a click (not a drag) on the picture open what sets it; a copy button goes on the bar (`toolbarEnd`), never on the picture.
+- `FramePages` (`frame-pages.tsx`) is pages laid out as HTML (a Word file's pages, a workbook, a report or plot book written as a web page, a draft) in a frame with no scripts; the viewer zooms the frame's document with CSS `zoom`, fits one wider than the frame to its width, and listens for the gestures inside it. A page that listens for clicks or finds its place in the document does it in `onFrameLoad`, after the zoom.
+- `resetKey` (the output's name) decides when a viewer starts again fitted: a file written again for the same output keeps the reader's zoom and place, and `PdfPages` keeps the last pages up until the new ones are read. *Open in a new tab* opens the same bytes in the browser's own viewer, to search or print; a `data:` address is turned into a Blob first, since a browser will not open one.
+
+In use: every preview in the road designer's and visual quality's Save & export, the VIA report's draft (its *Pages* and *Edit* layouts) and its draft beside the contents.
 
 ### Zoom and pan
 
@@ -673,6 +678,7 @@ In use: every PDF output in the road designer's and visual quality's Save & expo
 - `resetKey` fits the picture again for another picture; `onScaleChange` tells content that draws finer when enlarged.
 - Two pictures of one size set side by side share one view through `view` and `onViewChange`, so they zoom and move together; `controls={false}` on one leaves a single set of buttons for the pair.
 - A press that does not move is still a click on what is under it, and a fitted picture is never dragged. Zooming out of a fitted picture is left to the page, so a dialog still scrolls under the pointer.
+- `wheel="modified"` (every file preview) zooms only on a pinch or Ctrl/⌘ + wheel; a plain wheel then moves a zoomed picture and scrolls the page over a fitted one or at an edge. The default `zoom` zooms on any wheel, as a map does. A pinch zooms either way, Safari's gesture events included (`listenZoomGestures`). `doubleClick` and `keys` add the viewers' double click and `+`/`-`/`0`.
 - The arithmetic (`zoomAbout`, `clampView`, `fitBox`) is in `zoomPanView.ts`, free of DOM access, and tested there: the spot under the pointer stays under it, and a picture never leaves a gap at an edge of its box.
 
 In use: the own photo on `/dev/forestry/visual-quality`'s Camera tab (`PhotoWithOverlays`'s `fit`) and its comparison with the model view, overlaid or side by side (`PhotoCompare`).

@@ -1,18 +1,42 @@
 import type { Locator, Page } from '@playwright/test'
+import { choose } from './styled-select'
+
+/**
+ * Outputs listed as one row with a format dropdown (`EXPORT_FORMAT_FAMILIES`): the row's name and the format's label.
+ * A test names the output as its Download button does ("Report HTML").
+ */
+const FORMAT_ROWS: Record<string, readonly [row: string, format: string]> = {
+  'Report PDF': ['Report', 'PDF'],
+  'Report HTML': ['Report', 'HTML'],
+  'Plot book PDF': ['Plot book', 'PDF'],
+  'Plot book HTML': ['Plot book', 'HTML'],
+}
 
 /**
  * Selects an output in the open Save & export dialog and returns its Download button, which writes
- * the file. The list rows only select; each output downloads from the preview pane.
+ * the file. The list rows only select; each output downloads from the preview pane. An output that
+ * is one format of a row ("Report HTML") selects the row, then the format.
  */
 export async function chooseExport(page: Page, label: string, { tap = false } = {}): Promise<Locator> {
   const dialog = page.getByTestId('road-files-dialog')
+  const [name, format] = FORMAT_ROWS[label] ?? [label, null]
   const row = dialog.getByRole('navigation', { name: 'Files', exact: true }).getByRole('button', {
-    name: label,
+    name,
     exact: true,
   })
   if (tap) await row.tap()
   else await row.click()
+  if (format) await choose(dialog.getByRole('combobox', { name: `${name} format`, exact: true }), { label: format })
   return dialog.getByRole('button', { name: `Download ${label}`, exact: true })
+}
+
+/**
+ * Shows an output's preview: its Preview tab where the pane is narrow, nothing where the preview already sits beside
+ * the settings (`data-layout="side-by-side"`), which has no such tab.
+ */
+export async function showRoadPreview(views: Locator) {
+  const tab = views.getByRole('button', { name: 'Preview', exact: true })
+  if (await tab.count()) await tab.click()
 }
 
 /**

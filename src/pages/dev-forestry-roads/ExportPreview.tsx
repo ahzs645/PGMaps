@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { CopyImageButton } from '@/components/ui/copy-image-button'
 import { DisclosureRow } from '@/components/ui/disclosure'
+import { FramePages } from '@/components/ui/frame-pages'
 import { PdfPages } from '@/components/ui/pdf-pages'
+import { PicturePreview, ZoomablePreview } from '@/components/ui/picture-preview'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { fitGeometry, type ExportPreview } from './exportCatalog'
 import { previewPick, PREVIEW_PICK_SELECTOR, type PickedElement, type PreviewPick } from './previewPick'
@@ -14,19 +16,6 @@ const GEOMETRY_WIDTH = 640,
 
 const bytes = (n: number) =>
   n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1024 ** 2).toFixed(1)} MB`
-
-/**
- * Scales a document wider than its frame down to the frame's width, as a print preview does, so a
- * fixed-size sheet (the plot book's A3) shows whole rather than cropped. Narrower documents, such as
- * the report, are left at their own size.
- */
-export function fitToWidth(doc: Document) {
-  const root = doc.documentElement
-  root.style.removeProperty('zoom')
-  const room = root.clientWidth,
-    wide = root.scrollWidth
-  if (room > 0 && wide > room + 1) root.style.setProperty('zoom', String(room / wide))
-}
 
 /**
  * Where a document preview stands as it is rebuilt: at the first heading that starts with one of
@@ -74,7 +63,7 @@ function HtmlPreview({
     latest.current = onPick
   })
   // Where the document stands: a contents list's selected part, or where the reader left it.
-  const frameRef = useRef<HTMLIFrameElement>(null)
+  const frameRef = useRef<HTMLIFrameElement | null>(null)
   const place = useRef(scrollTo)
   const lastTop = useRef(0)
   const scrollKey = scrollTo ? JSON.stringify(scrollTo.headings) : ''
@@ -85,15 +74,12 @@ function HtmlPreview({
     const doc = frameRef.current?.contentDocument
     if (doc?.readyState === 'complete') reveal(doc, place.current, lastTop.current)
   }, [scrollKey])
-  // Refits the loaded document whenever the pane changes width (a dialog resize, a phone turned).
-  const resize = useRef<ResizeObserver | null>(null)
-  useEffect(() => () => resize.current?.disconnect(), [])
   const picking = !!onPick
+  // The viewer zooms the document and fits a wide one (the plot book's A3) to the frame; this finds its place and,
+  // where the output has settings, listens for clicks on its parts.
   const attach = (frame: HTMLIFrameElement) => {
     const doc = frame.contentDocument
     if (!doc) return
-    resize.current?.disconnect()
-    fitToWidth(doc)
     if (place.current) {
       reveal(doc, place.current, lastTop.current)
       const view = doc.defaultView
@@ -104,10 +90,6 @@ function HtmlPreview({
         },
         { passive: true },
       )
-    }
-    if (typeof ResizeObserver !== 'undefined') {
-      resize.current = new ResizeObserver(() => fitToWidth(doc))
-      resize.current.observe(frame)
     }
     if (!picking) return
     const style = doc.createElement('style')
@@ -133,27 +115,23 @@ function HtmlPreview({
       if (pick) latest.current?.(pick)
     })
   }
-  // Scripts stay off (no `allow-scripts`). Same-origin only lets the frame read its own navigator:
-  // a fully opaque frame throws on `navigator.serviceWorker`, which reaches the page as an error.
-  const frame = (
-    <iframe
-      ref={frameRef}
-      title={`${title} preview`}
-      sandbox="allow-same-origin"
-      srcDoc={html}
-      className="h-full min-h-80 w-full rounded-md border bg-white"
-      onLoad={(event) => attach(event.currentTarget)}
+  return (
+    <FramePages
+      html={html}
+      title={title}
+      resetKey={title}
+      frameRef={(element) => {
+        frameRef.current = element
+      }}
+      onFrameLoad={attach}
+      toolbarStart={
+        picking ? (
+          <span className="truncate text-2xs text-muted-foreground">
+            Click a sheet, a title block or a heading to open its settings.
+          </span>
+        ) : undefined
+      }
     />
-  )
-  return picking ? (
-    <div className="flex h-full min-h-0 flex-col gap-1.5">
-      <div className="min-h-80 flex-1">{frame}</div>
-      <p className="shrink-0 text-2xs text-muted-foreground">
-        Click a sheet, a title block or a heading to open its settings.
-      </p>
-    </div>
-  ) : (
-    frame
   )
 }
 
@@ -178,49 +156,30 @@ export function ExportPreviewView({
     case 'html':
       return <HtmlPreview html={preview.html} title={title} onPick={onPick} scrollTo={scrollTo} />
     case 'pdf':
-      return <PdfPages source={preview.blob} title={title} />
-    case 'image': {
-      const image = (
-        <img
+      return <PdfPages source={preview.blob} title={title} resetKey={title} />
+    case 'image':
+      // A click on the picture (not a drag) opens the sheet setup; the copy sits on the bar, never on the picture.
+      return (
+        <PicturePreview
           src={preview.src}
-          alt={`${title} preview`}
           width={preview.width}
           height={preview.height}
-          className="max-h-full max-w-full object-contain"
+          title={title}
+          resetKey={title}
+          onPick={onPick ? () => onPick({ view: 'setup' }) : undefined}
+          pickLabel={onPick ? `${title} preview: open the sheet setup` : undefined}
+          toolbarStart={
+            preview.caption ? (
+              <span className="truncate text-2xs text-muted-foreground" data-testid="road-export-preview-caption">
+                {preview.caption}
+              </span>
+            ) : undefined
+          }
+          toolbarEnd={
+            preview.copy ? <CopyImageButton png={preview.copy.png}>{preview.copy.label}</CopyImageButton> : undefined
+          }
         />
       )
-      const frame = 'flex h-full min-h-60 w-full items-center justify-center rounded-md border bg-white p-2'
-      const picture = onPick ? (
-        <button
-          type="button"
-          className={`${frame} cursor-pointer hover:ring-2 hover:ring-primary/40`}
-          title="Open the sheet setup"
-          aria-label={`${title} preview: open the sheet setup`}
-          onClick={() => onPick({ view: 'setup' })}
-        >
-          {image}
-        </button>
-      ) : (
-        <div className={frame}>{image}</div>
-      )
-      if (!preview.caption && !preview.copy) return picture
-      // The copy button sits under the picture, never inside the button that opens the setup.
-      return (
-        <div className="flex h-full min-h-0 flex-col gap-1.5">
-          <div className="min-h-60 flex-1">{picture}</div>
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-            {preview.caption ? (
-              <p className="min-w-0 text-2xs text-muted-foreground" data-testid="road-export-preview-caption">
-                {preview.caption}
-              </p>
-            ) : (
-              <span />
-            )}
-            {preview.copy && <CopyImageButton png={preview.copy.png}>{preview.copy.label}</CopyImageButton>}
-          </div>
-        </div>
-      )
-    }
     case 'table':
       return (
         <div className="flex h-full min-h-0 flex-col gap-1.5">
@@ -272,8 +231,8 @@ export function ExportPreviewView({
           .join('')
       return (
         <div className="flex h-full min-h-0 flex-col gap-1.5">
-          <div className={cn(insetBox({ padding: 'sm', tone: 'background' }), 'min-h-0 flex-1')}>
-            {project ? (
+          {project ? (
+            <ZoomablePreview title={title} resetKey={title} className="min-h-60 flex-1" stageClassName="bg-background">
               <svg
                 viewBox={`0 0 ${GEOMETRY_WIDTH} ${GEOMETRY_HEIGHT}`}
                 className="h-full w-full"
@@ -295,10 +254,12 @@ export function ExportPreviewView({
                   )
                 })}
               </svg>
-            ) : (
-              <p className="p-3 text-xs text-muted-foreground">No geometry to export.</p>
-            )}
-          </div>
+            </ZoomablePreview>
+          ) : (
+            <p className={cn(insetBox({ padding: 'sm', tone: 'background' }), 'p-3 text-xs text-muted-foreground')}>
+              No geometry to export.
+            </p>
+          )}
           <ul className="flex shrink-0 flex-wrap gap-x-4 gap-y-1 text-2xs text-muted-foreground">
             {preview.layers.map((layer, index) => (
               <li key={layer.name} className="inline-flex items-center gap-1.5">

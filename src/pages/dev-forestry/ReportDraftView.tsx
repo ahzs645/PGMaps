@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { FramePages } from '@/components/ui/frame-pages'
 import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { PdfPages } from '@/components/ui/pdf-pages'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { cn } from '@/lib/utils'
 
@@ -123,7 +125,8 @@ export function ReportDraftView({
     | { draft: ReportDraftResult; error: string }
     | null
   >(null)
-  const [page, setPage] = useState(1)
+  // The page the pages layout brings into view: a new object each time a part is chosen, even the same one again.
+  const [page, setPage] = useState<{ number: number }>({ number: 1 })
   const latestPages = useRef(pages)
   const latestEdit = useRef(onEdit)
   const latestTargets = useRef(draft.editTargets)
@@ -157,7 +160,7 @@ export function ReportDraftView({
   useEffect(() => () => void (pagedUrl && URL.revokeObjectURL(pagedUrl)), [pagedUrl])
   const edited = Object.entries(draft.editTargets).filter(([, target]) => target.edited !== undefined)
 
-  const frame = useRef<HTMLIFrameElement>(null)
+  const frame = useRef<HTMLIFrameElement | null>(null)
   // The page keeps its place when the draft is laid out again (a picture drawn, an option changed).
   const scrolled = useRef(0)
   const latestDraw = useRef(onDraw)
@@ -230,7 +233,7 @@ export function ReportDraftView({
 
   const showPart = (index: number) => {
     if (layout === 'pages') {
-      if (paged && 'url' in paged) setPage(paged.partPages[index] ?? 1)
+      if (paged && 'url' in paged) setPage({ number: paged.partPages[index] ?? 1 })
       return
     }
     const doc = frame.current?.contentDocument
@@ -421,26 +424,31 @@ export function ReportDraftView({
       {/* Scripts stay off in the frame; same-origin lets the dialog find the parts and listen for stand-in clicks. */}
       {layout === 'pages' &&
         (paged && 'url' in paged ? (
-          <iframe
-            key={`${paged.url}#${page}`}
-            title="VIA report draft pages"
-            src={page > 1 ? `${paged.url}#page=${page}` : paged.url}
-            className="h-[70dvh] w-full min-w-0 rounded-md border sm:h-full sm:min-h-96"
+          // The app's own page viewer, as the file's preview is shown: the same pages, zoom and gestures.
+          <PdfPages
+            source={paged.url}
+            title="VIA report draft"
+            resetKey="draft"
+            page={page}
+            className="h-[70dvh] min-w-0 sm:h-full sm:min-h-96"
           />
         ) : paged && 'error' in paged && paged.draft === draft ? (
           <InlineAlert tone="error">{paged.error}</InlineAlert>
         ) : (
           <InlineAlert loading>Writing the draft’s pages…</InlineAlert>
         ))}
-      <iframe
-        ref={frame}
-        hidden={layout === 'pages'}
-        title="VIA report draft"
-        sandbox="allow-same-origin"
-        srcDoc={draft.html}
-        onLoad={onLoad}
-        className="h-[70dvh] w-full min-w-0 rounded-md border bg-white sm:h-full sm:min-h-96"
-      />
+      <div hidden={layout === 'pages'} className="h-[70dvh] min-w-0 sm:h-full sm:min-h-96">
+        <FramePages
+          html={draft.html}
+          title="VIA report draft"
+          frameTitle="VIA report draft"
+          resetKey="draft"
+          frameRef={(element) => {
+            frame.current = element
+          }}
+          onFrameLoad={onLoad}
+        />
+      </div>
     </div>
   )
 }

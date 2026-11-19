@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ROAD_TOUR_ANCHORS, roadFilesOutputAnchor } from './tours/roadTour'
 import { Download } from 'lucide-react'
 import { PreparerProfileHostProvider, PreparerProfilePane, PreparerProfileRow } from '@/branding/PreparerProfile'
@@ -8,10 +8,12 @@ import { PanelDialog } from '@/components/ui/dialog-shell'
 import { SaveAsButton, type SaveAsButtonProps } from '@/components/ui/save-as-button'
 import { ResultRow } from '@/components/ui/result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { StyledSelect } from '@/components/ui/styled-select'
 import { Field, roadFieldClass } from './Controls'
 import {
   EXPORT_GROUP_LABELS,
   EXPORT_ITEMS,
+  exportFamilyOf,
   exportStampNote,
   exportUnavailable,
   MULTI_ROAD_EXPORTS,
@@ -35,6 +37,8 @@ import { ReportPackageEditor } from './ReportPackageEditor'
 import { EstimateSettingsEditor } from './EstimateSettingsEditor'
 import { SheetSetupLibrary } from './SheetSetupLibrary'
 import { insetBox } from '@/components/ui/inset-box'
+import { useElementSize } from '@/hooks/useElementSize'
+import { useSizeFold } from '@/hooks/useSizeFold'
 import { cn } from '@/lib/utils'
 
 export type { RoadExport } from './exportCatalog'
@@ -42,6 +46,13 @@ export type { RoadExport } from './exportCatalog'
 const GROUPS = Object.keys(EXPORT_GROUP_LABELS) as ExportGroup[]
 // Edits in Sheet setup rebuild the plot book; a short pause keeps typing from rebuilding it per key.
 const PREVIEW_DELAY_MS = 250
+/**
+ * Where the output's pane puts its settings beside its preview: from about 900 px, which the dialog has at its
+ * widest normal size and at Full screen. The gap keeps a pane dragged across the line from flipping.
+ */
+const SIDE_BY_SIDE_FOLD = { foldBelow: 860, unfoldFrom: 900 }
+/** The dialog at its normal size: wide enough for settings and a preview side by side on a laptop screen. */
+const DIALOG_MAX_WIDTH = 'min(80rem, calc(100vw - 2rem))'
 
 /** A road name short enough for a choice chip; the whole name is in the header's road switcher. */
 const clipName = (name: string) => (name.length > 30 ? `${name.slice(0, 29)}…` : name)
@@ -143,6 +154,8 @@ export function FilesDialog({
     onSelectedChange?.(kind)
   }
   const [view, setView] = useState<'preview' | 'setup' | 'issue'>('preview')
+  // The format last chosen in each format family (`EXPORT_FORMAT_FAMILIES`), by the family's name: its row opens on it.
+  const [familyChoice, setFamilyChoice] = useState<Record<string, RoadExport>>({})
   // *Your details* are open in place of the output's pane (`PreparerProfilePane`, kept mounted while the dialog is).
   const [detailsOpen, setDetailsOpen] = useState(false)
   // The part of the setup a click on the preview asked for: a plot-book chapter or a report section.
@@ -161,6 +174,10 @@ export function FilesDialog({
     }
   }
   const item = EXPORT_ITEMS.find((entry) => entry.kind === selected) ?? EXPORT_ITEMS[0]
+  const family = exportFamilyOf(item.kind)
+  /** The output a family's row opens: the format last chosen in it, else its first. */
+  const familyShown = (of: NonNullable<ReturnType<typeof exportFamilyOf>>) =>
+    of.members.some((member) => member.kind === item.kind) ? item.kind : (familyChoice[of.label] ?? of.members[0].kind)
   const unavailable = exportUnavailable(item.kind, context)
   const stampNote = exportStampNote(item.kind, context)
   const stamped = STAMPED_EXPORTS.includes(item.kind) && !!onIssue
@@ -174,26 +191,42 @@ export function FilesDialog({
   // A view the selected output does not have falls back to its preview.
   const shownView =
     view === 'setup' ? (setupAvailable ? view : 'preview') : view === 'issue' && !stamped ? 'preview' : view
-  const settingUp = shownView !== 'preview'
+  // Settings beside the file once the pane has room for both (a wide window or Full screen): the setup or the issue
+  // stamp on the left, the file's own preview on the right, and no Preview tab. Narrower, they are tabs.
+  // The pane mounts with the dialog's content, after this component: measured as an element, not a ref read on mount.
+  const pane = useRef<HTMLElement | null>(null)
+  const [paneElement, setPaneElement] = useState<HTMLElement | null>(null)
+  const { width: paneWidth } = useElementSize(paneElement)
+  const narrowPane = useSizeFold(paneWidth, SIDE_BY_SIDE_FOLD, true)
+  const sideBySide = !narrowPane && (setupAvailable || stamped)
+  // The view of the settings: side by side it is never the preview, which has its own column.
+  const formView: 'preview' | 'setup' | 'issue' = !sideBySide
+    ? shownView
+    : shownView !== 'preview'
+      ? shownView
+      : setupAvailable
+        ? 'setup'
+        : 'issue'
+  const settingUp = formView !== 'preview'
   const chooseRoads = MULTI_ROAD_EXPORTS.includes(item.kind) && !!onRoadScope && (roads?.count ?? 0) > 1
   const saveAsSpec = saveAs?.(item.kind) ?? null
   // The contents views draw their preview beside the list: the instant HTML report (also for the
   // report PDF, whose own preview takes seconds) or the package's file list. Other setups have none.
+  // Side by side the preview column shows the file itself, in the chosen format.
   const contentsPreviewKind: RoadExport | null =
-    shownView === 'setup' && onReportSettings
+    !sideBySide && formView === 'setup' && onReportSettings
       ? reportContents
         ? 'report'
         : reportPackage
           ? 'report-package'
           : null
       : null
-  const previewKind = settingUp ? contentsPreviewKind : item.kind
+  const previewKind = settingUp && !sideBySide ? contentsPreviewKind : item.kind
   const previewUnavailable = previewKind ? exportUnavailable(previewKind, context) : null
   // A new object per selection or content change: a preview is current only for its own request.
-  const request = useMemo(
-    () => (previewKind ? { kind: previewKind, version: previewVersion } : null),
-    [previewKind, previewVersion],
-  )
+  const [request, setRequest] = useState(() => (previewKind ? { kind: previewKind, version: previewVersion } : null))
+  if ((request?.kind ?? null) !== previewKind || (request && request.version !== previewVersion))
+    setRequest(previewKind ? { kind: previewKind, version: previewVersion } : null)
   const [result, setResult] = useState<PreviewResult | null>(null)
   const latestBuild = useRef(buildPreview)
   useEffect(() => {
@@ -218,7 +251,6 @@ export function FilesDialog({
     }
   }, [open, request, previewUnavailable])
   const current = result?.request === request ? result : null
-  const pane = useRef<HTMLElement>(null)
   const detailsPane = useRef<HTMLElement>(null)
   const openDetails = () => {
     setDetailsOpen(true)
@@ -247,6 +279,12 @@ export function FilesDialog({
     // Stacked on a phone, the preview sits under the list; bring it up. Side by side this does nothing.
     requestAnimationFrame(() => pane.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
+  /** Another format of the same document: the view, the setup's place and the contents row stay as they are. */
+  const chooseFormat = (kind: RoadExport) => {
+    const of = exportFamilyOf(kind)
+    if (of) setFamilyChoice((current) => ({ ...current, [of.label]: kind }))
+    setSelected(kind)
+  }
   // The live preview beside a contents list, kept on the selected part as it is rebuilt.
   const contentsScroll: PreviewScroll = { headings: contentsPart ? reportPartHeadings(contentsPart) : null }
   const contentsPreview = contentsPreviewKind ? (
@@ -274,6 +312,74 @@ export function FilesDialog({
       </p>
     )
   ) : undefined
+  // The output's settings: its setup, or its issue stamp.
+  const form =
+    formView === 'issue' && onIssue ? (
+      <IssueStampEditor
+        value={issue}
+        onChange={onIssue}
+        today={stamp.date}
+        reportSettings={reportSettings}
+        onReportSettings={onReportSettings}
+      />
+    ) : formView === 'setup' && setupView ? (
+      <div className="grid gap-3">
+        {setupLibrary}
+        {setupView}
+      </div>
+    ) : formView === 'setup' && onReportSettings && estimate ? (
+      <EstimateSettingsEditor value={reportSettings} onChange={onReportSettings} />
+    ) : formView === 'setup' && onReportSettings && reportPackage ? (
+      <ReportPackageEditor
+        value={reportSettings}
+        onChange={onReportSettings}
+        slopeSheet={slopeSheet}
+        preview={sideBySide ? undefined : contentsPreview}
+      />
+    ) : formView === 'setup' && onReportSettings && reportContents ? (
+      <ReportContentsEditor
+        value={reportSettings}
+        baselineRoads={baselineRoads}
+        onChange={onReportSettings}
+        focus={setupFocus?.section}
+        unavailable={reportUnavailable}
+        preview={sideBySide ? undefined : contentsPreview}
+        selected={contentsPart}
+        onSelect={setContentsPart}
+      />
+    ) : formView === 'setup' && onReportSettings ? (
+      <div className="grid gap-3">
+        {setupLibrary}
+        <ReportSettingsEditor
+          key={setupFocus?.chapter ?? ''}
+          value={reportSettings}
+          onChange={onReportSettings}
+          initialChapter={setupFocus?.chapter}
+        />
+      </div>
+    ) : null
+  // The file itself, from the same content its download writes.
+  const filePreview = unavailable ? (
+    <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>{unavailable}</p>
+  ) : current?.preview ? (
+    <ExportPreviewView
+      preview={current.preview}
+      title={item.label}
+      onPick={setupAvailable ? pick : undefined}
+      {...(sideBySide && reportContents ? { scrollTo: contentsScroll } : {})}
+    />
+  ) : current?.error ? (
+    <p
+      role="alert"
+      className="rounded-md border border-warning-border bg-warning-surface p-3 text-xs text-warning-foreground"
+    >
+      {current.error}
+    </p>
+  ) : (
+    <p className="p-4 text-xs text-muted-foreground" aria-live="polite">
+      Preparing preview…
+    </p>
+  )
   // The toolkit's `workspace-*` variants are not built for app classes, so the layout uses `sm:`, which
   // matches the dialog's own breakpoint in this workspace. `workspace-sm:p-0` only overrides its padding.
   return (
@@ -286,7 +392,11 @@ export function FilesDialog({
       portalContainer={portalContainer}
       className="sm:h-[min(48rem,92dvh)]"
       bodyClassName="p-0 workspace-sm:p-0"
-      contentProps={{ 'data-testid': 'road-files-dialog', 'data-tutorial-id': ROAD_TOUR_ANCHORS.files }}
+      contentProps={{
+        'data-testid': 'road-files-dialog',
+        'data-tutorial-id': ROAD_TOUR_ANCHORS.files,
+        style: { maxWidth: DIALOG_MAX_WIDTH },
+      }}
     >
       {/* The row opens the pane below, not a second modal. */}
       <PreparerProfileHostProvider value={{ open: openDetails, shown: detailsOpen }}>
@@ -306,22 +416,28 @@ export function FilesDialog({
                     {EXPORT_GROUP_LABELS[group]}
                   </h3>
                   {EXPORT_ITEMS.filter((entry) => entry.group === group).map((entry) => {
-                    const reason = exportUnavailable(entry.kind, context)
+                    // A format family is one row, where its first member is listed, under the family's name.
+                    const of = exportFamilyOf(entry.kind)
+                    if (of && of.members[0].kind !== entry.kind) return null
+                    const shownKind = of ? familyShown(of) : entry.kind
+                    const shown = EXPORT_ITEMS.find((candidate) => candidate.kind === shownKind) ?? entry
+                    const label = of?.label ?? entry.label
+                    const reason = exportUnavailable(shown.kind, context)
                     return (
                       <ResultRow
                         key={entry.kind}
                         accent="teal"
-                        selected={!detailsOpen && entry.kind === item.kind}
-                        title={entry.label}
+                        selected={!detailsOpen && (of ? of === family : entry.kind === item.kind)}
+                        title={label}
                         subtitle={
                           reason ??
-                          (exportStampNote(entry.kind, context) ? 'Stamped: leaves out an invalid input' : undefined)
+                          (exportStampNote(shown.kind, context) ? 'Stamped: leaves out an invalid input' : undefined)
                         }
-                        trailing={<span className="text-3xs font-normal text-muted-foreground">{entry.extension}</span>}
+                        trailing={<span className="text-3xs font-normal text-muted-foreground">{shown.extension}</span>}
                         className={`py-2 ${reason ? '[&_span]:text-muted-foreground' : ''}`}
-                        aria-label={reason ? `${entry.label}, unavailable: ${reason}` : entry.label}
-                        data-tutorial-id={roadFilesOutputAnchor(entry.kind)}
-                        onClick={() => select(entry.kind)}
+                        aria-label={reason ? `${label}, unavailable: ${reason}` : label}
+                        data-tutorial-id={roadFilesOutputAnchor(shown.kind)}
+                        onClick={() => select(shown.kind)}
                       />
                     )
                   })}
@@ -331,7 +447,10 @@ export function FilesDialog({
             <PreparerProfilePane hidden={!detailsOpen} sectionRef={detailsPane} />
             {/* Kept mounted under Your details, so the preview is ready on the way back. */}
             <section
-              ref={pane}
+              ref={(element) => {
+                pane.current = element
+                setPaneElement(element)
+              }}
               aria-label={`${item.label} preview`}
               hidden={detailsOpen}
               className={`${detailsOpen ? 'hidden' : 'flex'} min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5`}
@@ -340,9 +459,12 @@ export function FilesDialog({
                 {/* One line: what the output is sits behind the (i), as on the visual quality page's dialog. */}
                 <div className="flex min-w-0 items-center gap-1.5">
                   <h3 className="min-w-0 truncate text-sm font-semibold">
-                    {item.label} <span className="font-normal text-muted-foreground">{item.extension}</span>
+                    {family?.label ?? item.label}{' '}
+                    <span className="font-normal text-muted-foreground">{item.extension}</span>
                   </h3>
-                  {item.description && <InfoTip label={`About ${item.label}`}>{item.description}</InfoTip>}
+                  {item.description && (
+                    <InfoTip label={`About ${family?.label ?? item.label}`}>{item.description}</InfoTip>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-start justify-end gap-2">
                   {saveAsSpec && (
@@ -379,32 +501,43 @@ export function FilesDialog({
                   />
                 </Field>
               )}
-              {(stamped || setupAvailable) && (
+              {(stamped || setupAvailable || family) && (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <SegmentedControl
-                    size="sm"
-                    fullWidth={false}
-                    label={`${item.label} view`}
-                    value={shownView}
-                    onChange={setView}
-                    options={[
-                      { value: 'preview' as const, label: 'Preview' },
-                      ...(setupAvailable
-                        ? [
-                            {
-                              value: 'setup' as const,
-                              label:
-                                reportContents || reportPackage
-                                  ? 'Contents'
-                                  : estimate
-                                    ? 'Allowances'
-                                    : (setupLabels?.[item.kind] ?? 'Sheet setup'),
-                            },
-                          ]
-                        : []),
-                      ...(stamped ? [{ value: 'issue' as const, label: 'Issue stamp' }] : []),
-                    ]}
-                  />
+                  {(stamped || setupAvailable) && (
+                    <SegmentedControl
+                      size="sm"
+                      fullWidth={false}
+                      label={`${item.label} view`}
+                      value={formView}
+                      onChange={setView}
+                      options={[
+                        ...(sideBySide ? [] : [{ value: 'preview' as const, label: 'Preview' }]),
+                        ...(setupAvailable
+                          ? [
+                              {
+                                value: 'setup' as const,
+                                label:
+                                  reportContents || reportPackage
+                                    ? 'Contents'
+                                    : estimate
+                                      ? 'Allowances'
+                                      : (setupLabels?.[item.kind] ?? 'Sheet setup'),
+                              },
+                            ]
+                          : []),
+                        ...(stamped ? [{ value: 'issue' as const, label: 'Issue stamp' }] : []),
+                      ]}
+                    />
+                  )}
+                  {family && (
+                    <StyledSelect
+                      aria-label={`${family.label} format`}
+                      className="w-auto max-w-full rounded-md border bg-background px-2 py-1 text-xs"
+                      value={item.kind}
+                      onValueChange={(kind) => chooseFormat(kind as RoadExport)}
+                      options={family.members.map((member) => ({ value: member.kind, label: member.format }))}
+                    />
+                  )}
                   {stamped && today && (
                     <span
                       className={`text-xs ${stamp.missing.length ? 'text-warning' : 'text-muted-foreground'}`}
@@ -438,74 +571,23 @@ export function FilesDialog({
                   {stampNote}
                 </p>
               )}
-              {/* Side by side the preview scrolls in its pane; stacked on a phone it flows with the dialog. */}
-              <div className="min-h-0 flex-1 sm:overflow-y-auto overscroll-none">
-                {shownView === 'issue' && onIssue ? (
-                  <IssueStampEditor
-                    value={issue}
-                    onChange={onIssue}
-                    today={stamp.date}
-                    reportSettings={reportSettings}
-                    onReportSettings={onReportSettings}
-                  />
-                ) : shownView === 'setup' && setupView ? (
-                  <div className="grid gap-3">
-                    {setupLibrary}
-                    {setupView}
+              {/* The settings and the file: side by side, each scrolls in its column; as tabs, the one shown scrolls in the
+                  pane; stacked on a phone it flows with the dialog. */}
+              {sideBySide ? (
+                <div
+                  className="grid min-h-0 flex-1 grid-cols-[minmax(20rem,2fr)_minmax(0,3fr)] gap-4"
+                  data-layout="side-by-side"
+                >
+                  <div className="min-h-0 min-w-0 overflow-y-auto overscroll-none pr-1">{form}</div>
+                  <div className="min-h-0 min-w-0" aria-label={`${item.label} file`} role="group">
+                    {filePreview}
                   </div>
-                ) : shownView === 'setup' && onReportSettings && estimate ? (
-                  <EstimateSettingsEditor value={reportSettings} onChange={onReportSettings} />
-                ) : shownView === 'setup' && onReportSettings && reportPackage ? (
-                  <ReportPackageEditor
-                    value={reportSettings}
-                    onChange={onReportSettings}
-                    slopeSheet={slopeSheet}
-                    preview={contentsPreview}
-                  />
-                ) : shownView === 'setup' && onReportSettings && reportContents ? (
-                  <ReportContentsEditor
-                    value={reportSettings}
-                    baselineRoads={baselineRoads}
-                    onChange={onReportSettings}
-                    focus={setupFocus?.section}
-                    unavailable={reportUnavailable}
-                    preview={contentsPreview}
-                    selected={contentsPart}
-                    onSelect={setContentsPart}
-                  />
-                ) : shownView === 'setup' && onReportSettings ? (
-                  <div className="grid gap-3">
-                    {setupLibrary}
-                    <ReportSettingsEditor
-                      key={setupFocus?.chapter ?? ''}
-                      value={reportSettings}
-                      onChange={onReportSettings}
-                      initialChapter={setupFocus?.chapter}
-                    />
-                  </div>
-                ) : unavailable ? (
-                  <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>
-                    {unavailable}
-                  </p>
-                ) : current?.preview ? (
-                  <ExportPreviewView
-                    preview={current.preview}
-                    title={item.label}
-                    onPick={setupAvailable ? pick : undefined}
-                  />
-                ) : current?.error ? (
-                  <p
-                    role="alert"
-                    className="rounded-md border border-warning-border bg-warning-surface p-3 text-xs text-warning-foreground"
-                  >
-                    {current.error}
-                  </p>
-                ) : (
-                  <p className="p-4 text-xs text-muted-foreground" aria-live="polite">
-                    Preparing preview…
-                  </p>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="min-h-0 flex-1 sm:overflow-y-auto overscroll-none">
+                  {settingUp ? form : filePreview}
+                </div>
+              )}
             </section>
           </div>
         </fieldset>

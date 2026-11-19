@@ -1690,10 +1690,19 @@ holds its type, description and why it is unavailable); the selected one is
 previewed beside the list from the same content its download writes, built by
 `exportFile` in `DevForestryRoads.tsx`: documents render in a sandboxed frame,
 CSVs show their first rows, GeoJSON and shapefiles draw their geometry, and XML,
-grids and the project file show their opening lines. The Report PDF previews its
-report page, the Plot book PDF its sheets and the Map PDF its captured plan. A page
-wider than the pane, such as a plot-book sheet, is scaled down to the pane's width
-(`fitToWidth`, `ExportPreview.tsx`). An output with nothing to write is greyed out
+grids and the project file show their opening lines. The report and the plot book
+are each one row with a format dropdown ("Report format": PDF or HTML,
+`EXPORT_FORMAT_FAMILIES`, `exportCatalog.ts`); each format keeps its own kind, so
+its Download label, file and last-export record are as before. The Report PDF
+previews its report page, the Plot book PDF its sheets and the Map PDF its
+captured plan. Every preview is drawn by the shared file viewers
+(`docs/shared-ui.md`, **File previews**): a PDF's pages, a picture and an HTML
+document zoom alike, and a page wider than the pane, such as a plot-book sheet, is
+fitted to the pane's width. Once the pane is about 900 px wide the output's
+settings (its setup or issue stamp) and its preview sit side by side, with no
+Preview tab (`SIDE_BY_SIDE_FOLD`, `FilesDialog.tsx`); the preview column shows the
+file in the chosen format, and the report's contents keep it on the selected
+part where it is HTML. An output with nothing to write is greyed out
 with the reason: the stream register, for example, until the project has a stream. The dialog opens on the project file
 each time, since its Save button (`Save project JSON`) is what the header promises. **Map PDF** downloads the current plan with its rendered
 terrain, roads, station labels, crossing marks and scale bar. `mapImage` (`pdf.ts`)

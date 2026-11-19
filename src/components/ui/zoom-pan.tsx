@@ -9,11 +9,21 @@
  * picture grows (a numbered pin, a card) reads `--zoom-pan-scale`, e.g. `scale: calc(1 / var(--zoom-pan-scale, 1))`.
  * A control inside that takes its own drags or clicks carries `data-zoom-pan-ignore`.
  */
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react'
 import { Maximize, Minus, Plus } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
+import { listenZoomGestures, zoomKey, type ZoomPoint } from './zoomGestures'
 import { clampView, zoomAbout, FIT_VIEW, type ZoomPanView } from './zoomPanView'
 
 export type ZoomPanProps = {
@@ -39,11 +49,23 @@ export type ZoomPanProps = {
   className?: string
   /** Over the viewport's corners, outside the zoom: controls that must stay put. */
   overlay?: ReactNode
+  /**
+   * What a plain wheel does. `zoom` (the default, as a map does) zooms about the pointer. `modified`, for a preview in
+   * a scrolling dialog (as a PDF viewer does): only a pinch or Ctrl/⌘ + wheel zooms, and a plain wheel moves a zoomed
+   * picture and scrolls the page over a fitted one. A pinch zooms either way, Safari's included.
+   */
+  wheel?: 'zoom' | 'modified'
+  /** A double click fits a zoomed picture, or zooms a fitted one in about the pointer. Off where a click picks. */
+  doubleClick?: boolean
+  /** The viewport takes focus and `+`, `-` and `0` (with or without Ctrl/⌘) zoom in, out and fit. */
+  keys?: boolean
 }
 
 /** Pixels a press may move and still be a click on what is under it. */
 const DRAG_SLOP_PX = 4
 const STEP = 1.5
+/** How far a double click on a fitted picture zooms in. */
+const DOUBLE_CLICK_SCALE = 2.5
 
 export function ZoomPan({
   children,
@@ -57,6 +79,9 @@ export function ZoomPan({
   enabled = true,
   className,
   overlay,
+  wheel = 'zoom',
+  doubleClick = false,
+  keys = false,
 }: ZoomPanProps) {
   const viewport = useRef<HTMLDivElement>(null)
   const [ownView, setOwnView] = useState<ZoomPanView>(FIT_VIEW)
@@ -100,31 +125,43 @@ export function ZoomPan({
     report.current?.(scale)
   }, [scale])
 
-  // The wheel is taken through a listener of its own: React's is passive, so its `preventDefault` is ignored and the
-  // page would scroll under a zoom.
+  // The wheel and Safari's pinch are taken through listeners of their own (`listenZoomGestures`): React's are
+  // passive, so their `preventDefault` is ignored and the page would scroll or zoom under the picture.
   useEffect(() => {
     const element = viewport.current
     if (!element || !enabled) return
-    const onWheel = (event: WheelEvent) => {
-      if ((event.target as Element | null)?.closest?.('[data-zoom-pan-ignore]')) return
-      // A pinch on a trackpad arrives as a wheel with Ctrl held, in finer steps than a wheel's notches.
-      const factor = Math.exp(-event.deltaY * (event.ctrlKey ? 0.01 : 0.0015))
+    const zoomAt = (factor: number, at: ZoomPoint) => {
       const from = current.current
-      // Zooming out of a fitted picture is the page's scroll, not ours.
-      if (factor <= 1 && from.scale <= 1) return
-      event.preventDefault()
       const box = element.getBoundingClientRect()
       const next = clampView(
-        zoomAbout(from, from.scale * factor, { x: event.clientX - box.left, y: event.clientY - box.top }, maxScale),
+        zoomAbout(from, from.scale * factor, { x: at.clientX - box.left, y: at.clientY - box.top }, maxScale),
         box,
         maxScale,
       )
       current.current = next
       commit.current(next)
     }
-    element.addEventListener('wheel', onWheel, { passive: false })
-    return () => element.removeEventListener('wheel', onWheel)
-  }, [enabled, maxScale])
+    const onWheel = (event: WheelEvent) => {
+      if ((event.target as Element | null)?.closest?.('[data-zoom-pan-ignore]')) return false
+      const from = current.current
+      if (wheel === 'zoom') {
+        const factor = Math.exp(-event.deltaY * 0.0015)
+        // Zooming out of a fitted picture is the page's scroll, not ours.
+        if (factor <= 1 && from.scale <= 1) return false
+        zoomAt(factor, event)
+        return true
+      }
+      // A plain wheel moves a zoomed picture; over a fitted one, or at its edge, it is the page's scroll.
+      if (from.scale <= 1) return false
+      const box = element.getBoundingClientRect()
+      const next = clampView({ ...from, x: from.x - event.deltaX, y: from.y - event.deltaY }, box, maxScale)
+      if (next.x === from.x && next.y === from.y) return false
+      current.current = next
+      commit.current(next)
+      return true
+    }
+    return listenZoomGestures(element, zoomAt, onWheel)
+  }, [enabled, maxScale, wheel])
 
   const spreadOf = () => {
     const [a, b] = [...pointers.current.values()]
@@ -201,13 +238,40 @@ export function ZoomPan({
     apply(zoomAbout(from, from.scale * factor, { x: box.width / 2, y: box.height / 2 }, maxScale))
   }
   const zoomed = live.scale > 1.001
+  const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!enabled || !doubleClick) return
+    if ((event.target as Element).closest('[data-zoom-pan-ignore], button, a, input')) return
+    const box = size()
+    const from = current.current
+    apply(
+      from.scale > 1.001
+        ? FIT_VIEW
+        : zoomAbout(from, DOUBLE_CLICK_SCALE, { x: event.clientX - box.left, y: event.clientY - box.top }, maxScale),
+    )
+  }
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!enabled || !keys) return
+    const asked = zoomKey(event.nativeEvent)
+    if (!asked) return
+    event.preventDefault()
+    if (asked === 'fit') apply(FIT_VIEW)
+    else step(asked === 'in' ? STEP : 1 / STEP)
+  }
   const buttonClass =
     'flex h-7 w-7 items-center justify-center rounded-sm text-foreground hover:bg-foreground/[0.08] disabled:text-muted-foreground disabled:hover:bg-transparent touch:h-10 touch:w-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
   return (
     <div
       ref={viewport}
-      className={cn('relative overflow-hidden', zoomed && 'touch-none', className)}
+      className={cn(
+        'relative overflow-hidden',
+        zoomed && 'touch-none',
+        keys && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+        className,
+      )}
+      tabIndex={keys && enabled ? 0 : undefined}
+      onKeyDown={onKeyDown}
+      onDoubleClick={onDoubleClick}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerEnd}

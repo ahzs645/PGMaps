@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { encode } from 'fast-png'
 import { PDFDocument } from 'pdf-lib'
-import { chooseExport, dismissExampleNoticeWhenShown } from './road-files'
+import { chooseExport, dismissExampleNoticeWhenShown, showRoadPreview } from './road-files'
 import { openWorkbench } from './road-workbench'
 import { choose, expectSelected } from './styled-select'
 import { openVisualsExport } from './visuals-export'
@@ -189,7 +189,7 @@ test('the plan, its legend and the block sheet draw a saved style when asked', a
   const dialog = page.getByTestId('road-files-dialog')
   const views = dialog.getByRole('group', { name: 'Block map sheet view', exact: true })
   const sheetSvg = async () => {
-    await views.getByRole('button', { name: 'Preview', exact: true }).click()
+    await showRoadPreview(views)
     const image = dialog.getByRole('img', { name: /block map sheet/i })
     await expect(image).toBeVisible({ timeout: 30_000 })
     return decodeURIComponent((await image.getAttribute('src')) ?? '')
@@ -221,7 +221,7 @@ test('the road designer’s block sheet offers this browser’s saved styles as 
   await expect(library.getByRole('list', { name: 'Exported features and their styles', exact: true })).toBeVisible()
 
   // The sheet still builds, and the choice survives reopening the dialog.
-  await views.getByRole('button', { name: 'Preview', exact: true }).click()
+  await showRoadPreview(views)
   await expect(dialog.getByRole('img', { name: /block map sheet/i })).toBeVisible({ timeout: 30_000 })
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Save', exact: true }).click()

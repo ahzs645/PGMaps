@@ -1,9 +1,19 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from 'pdfjs-dist'
-import { ArrowLeftRight, ChevronDown, ChevronUp, ExternalLink, LoaderCircle, Minus, Plus } from 'lucide-react'
+import { ArrowLeftRight, ChevronDown, ChevronUp, LoaderCircle } from 'lucide-react'
 import { useElementSize } from '@/hooks/useElementSize'
 import { loadPdfJs } from '@/lib/pdfPages/pdfjs'
 import { cn } from '@/lib/utils'
+
+import {
+  OpenInTabButton,
+  useOpenInTab,
+  viewerControlClass,
+  viewerGroupClass,
+  ViewerToolbar,
+  ViewerZoom,
+} from './viewer-toolbar'
+import { listenZoomGestures, zoomKey, type ZoomPoint } from './zoomGestures'
 
 /** CSS pixels per PDF point: a page at 100% is its printed size on screen. */
 const ACTUAL_SIZE = 96 / 72
@@ -22,30 +32,54 @@ const REDRAW_DELAY_MS = 150
 const MAX_CANVAS_PIXELS = 16_000_000
 
 type PageSize = { width: number; height: number }
-type Loaded = { doc: PDFDocumentProxy; sizes: PageSize[] }
+type Loaded = { doc: PDFDocumentProxy; sizes: PageSize[]; task: PDFDocumentLoadingTask }
 
-const controlClass =
-  'flex h-7 w-7 items-center justify-center rounded-sm text-foreground hover:bg-foreground/[0.08] disabled:text-muted-foreground disabled:hover:bg-transparent touch:h-10 touch:w-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-const groupClass = 'flex items-center rounded-md border border-border bg-background p-0.5 text-2xs shadow-sm'
+const clampScale = (scale: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale))
 
 /**
  * A PDF drawn page by page in the application's own viewer, in place of the browser's: the same
  * bytes the download writes, with page and zoom controls in the app's style. Pages are drawn only
  * near the view and let go away from it, so a long plot book costs no more than the pages in sight.
  * *Open in a new tab* hands the same file to the browser's viewer, for search and print.
+ *
+ * The gestures are every file preview's (`docs/shared-ui.md`, **File previews**): a pinch or Ctrl/⌘ + wheel zooms
+ * about the pointer, a plain wheel scrolls, a double click zooms in or fits again, and `+`, `-` and `0` work while the
+ * pages have focus. A file written again for the same output (`resetKey` unchanged) keeps the reader's zoom and place:
+ * the last pages stay up until the new ones are read. `page` brings a page into view each time a new one is asked for.
  */
-export function PdfPages({ source, title, className }: { source: Blob | string; title: string; className?: string }) {
-  // Each result is kept with the file it was read from, so a new file shows nothing of the last.
-  const [read, setRead] = useState<{ source: Blob | string; loaded?: Loaded; error?: string } | null>(null)
-  const loaded = read?.source === source ? read.loaded : undefined
+export function PdfPages({
+  source,
+  title,
+  className,
+  resetKey,
+  page,
+  toolbarStart,
+}: {
+  source: Blob | string
+  title: string
+  className?: string
+  /** A change starts the viewer again at the first page, fitted; by default, a new `source` does. */
+  resetKey?: string | number | null
+  /** A page to bring into view (1 for the first), asked for again by passing a new object. */
+  page?: { number: number }
+  /** Left of the bar, after the page controls: a caption. */
+  toolbarStart?: ReactNode
+}) {
+  const key = resetKey === undefined ? source : resetKey
+  // Each result is kept with the file it was read from and the viewer's key: a file for another key shows nothing
+  // of the last, and one for the same key is shown until the next has been read.
+  const [read, setRead] = useState<{ source: Blob | string; key: unknown; loaded?: Loaded; error?: string } | null>(
+    null,
+  )
+  const loaded = read && (read.source === source || read.key === key) ? read.loaded : undefined
   const error = read?.source === source ? read.error : undefined
   // `null` fits the pages to the pane's width; a number is a zoom the reader chose.
   const [chosenScale, setChosenScale] = useState<number | null>(null)
   const [current, setCurrent] = useState(0)
-  // A new file starts on its first page at the fitted width.
-  const [shownSource, setShownSource] = useState(source)
-  if (shownSource !== source) {
-    setShownSource(source)
+  // A new key starts on its first page at the fitted width.
+  const [shownKey, setShownKey] = useState<unknown>(key)
+  if (shownKey !== key) {
+    setShownKey(key)
     setCurrent(0)
     setChosenScale(null)
   }
@@ -55,6 +89,7 @@ export function PdfPages({ source, title, className }: { source: Blob | string; 
 
   useEffect(() => {
     let cancelled = false
+    let handedOver = false
     let task: PDFDocumentLoadingTask | null = null
     ;(async () => {
       const [pdfjs, bytes] = await Promise.all([
@@ -70,31 +105,27 @@ export function PdfPages({ source, title, className }: { source: Blob | string; 
         if (cancelled) return
         sizes.push({ width: viewport.width, height: viewport.height })
       }
-      setRead({ source, loaded: { doc, sizes } })
+      handedOver = true
+      setRead({ source, key, loaded: { doc, sizes, task: task! } })
     })().catch((reason: unknown) => {
       if (!cancelled)
-        setRead({ source, error: reason instanceof Error ? reason.message : 'The PDF could not be read.' })
+        setRead({ source, key, error: reason instanceof Error ? reason.message : 'The PDF could not be read.' })
     })
     return () => {
       cancelled = true
-      void task?.destroy()
+      // A document already shown is let go when the next replaces it (below), not while it is still on screen.
+      if (!handedOver) void task?.destroy()
     }
+    // `key` travels with the result; only a new file is read again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source])
-
-  // *Open in a new tab* makes its address on the click; every address made is let go with the viewer.
-  const opened = useRef<string[]>([])
+  const shownTask = read?.loaded?.task
   useEffect(() => {
-    const urls = opened.current
-    return () => urls.forEach((url) => URL.revokeObjectURL(url))
-  }, [])
-  const openInTab = () => {
-    let url = source
-    if (typeof url !== 'string') {
-      url = URL.createObjectURL(url)
-      opened.current.push(url)
-    }
-    window.open(url, '_blank', 'noopener')
-  }
+    if (!shownTask) return
+    return () => void shownTask.destroy()
+  }, [shownTask])
+
+  const openInTab = useOpenInTab()
 
   const widest = loaded ? Math.max(...loaded.sizes.map((size) => size.width)) : 0
   const fitScale =
@@ -114,26 +145,78 @@ export function PdfPages({ source, title, className }: { source: Blob | string; 
     setCurrent(page)
   }, [])
 
-  // A zoom keeps the point at the top of the view where it was.
-  const anchor = useRef<{ page: number; offset: number } | null>(null)
-  const zoomTo = (next: number | null) => {
-    const view = scroller.current,
-      element = pageRefs.current[current]
-    if (view && element) anchor.current = { page: current, offset: (view.scrollTop - element.offsetTop) / scale }
-    setChosenScale(next === null ? null : Math.min(MAX_SCALE, Math.max(MIN_SCALE, next)))
+  // A zoom keeps the point under the pointer (or, from the buttons, the top middle of the view) where it was. The
+  // scale the pages are drawn at and the one asked for are kept apart, so a pinch's quick steps all start from the
+  // last one asked for and keep the spot taken before the first was drawn.
+  const drawnScale = useRef(0)
+  const askedScale = useRef(0)
+  const anchor = useRef<{ page: number; x: number; y: number; atX: number; atY: number } | null>(null)
+  const zoomTo = (next: number | null, at?: ZoomPoint) => {
+    const target = next === null ? null : clampScale(next)
+    const effective = target ?? fitScale
+    const view = scroller.current
+    if (view && !anchor.current && drawnScale.current && Math.abs(effective - drawnScale.current) > 1e-6) {
+      const box = view.getBoundingClientRect()
+      const atX = at ? at.clientX - box.left : view.clientWidth / 2
+      const atY = at ? at.clientY - box.top : 0
+      const line = view.scrollTop + atY
+      let page = 0
+      pageRefs.current.forEach((element, index) => {
+        if (element && element.offsetTop <= line) page = index
+      })
+      const element = pageRefs.current[page]
+      if (element)
+        anchor.current = {
+          page,
+          x: (view.scrollLeft + atX - element.offsetLeft) / drawnScale.current,
+          y: (line - element.offsetTop) / drawnScale.current,
+          atX,
+          atY,
+        }
+    }
+    askedScale.current = effective
+    setChosenScale(target)
   }
   useLayoutEffect(() => {
+    drawnScale.current = scale
+    askedScale.current = scale
     const view = scroller.current,
       held = anchor.current
     anchor.current = null
     const element = held && pageRefs.current[held.page]
-    if (view && element) view.scrollTop = element.offsetTop + held.offset * scale
+    if (view && element) {
+      view.scrollTop = element.offsetTop + held.y * scale - held.atY
+      view.scrollLeft = element.offsetLeft + held.x * scale - held.atX
+    }
   }, [scale])
+  const latestZoom = useRef(zoomTo)
+  useEffect(() => {
+    latestZoom.current = zoomTo
+  })
+  useEffect(() => {
+    const view = scroller.current
+    if (!view) return
+    return listenZoomGestures(view, (factor, at) => {
+      const from = askedScale.current
+      if (from > 0) latestZoom.current(from * factor, at)
+    })
+  }, [])
 
   const goTo = (page: number) => {
     const element = pageRefs.current[page]
     if (element && scroller.current) scroller.current.scrollTo({ top: element.offsetTop - PAGE_PAD_PX })
   }
+  // A page asked for is brought into view once its pages are laid out.
+  const wanted = useRef(page)
+  useEffect(() => {
+    wanted.current = page
+  }, [page])
+  useLayoutEffect(() => {
+    const asked = wanted.current
+    if (!asked || !loaded || !scale) return
+    wanted.current = undefined
+    goTo(Math.max(0, Math.min(loaded.sizes.length - 1, asked.number - 1)))
+  }, [page, loaded, scale])
 
   const count = loaded?.sizes.length ?? 0
   return (
@@ -141,83 +224,68 @@ export function PdfPages({ source, title, className }: { source: Blob | string; 
       className={cn('relative flex h-full min-h-80 flex-col overflow-hidden rounded-md border bg-muted/60', className)}
       role="region"
       aria-label={`${title} pages`}
+      onKeyDown={(event) => {
+        const asked = zoomKey(event.nativeEvent)
+        if (!asked || !scale) return
+        event.preventDefault()
+        zoomTo(asked === 'fit' ? null : askedScale.current * (asked === 'in' ? ZOOM_STEP : 1 / ZOOM_STEP))
+      }}
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-background/90 px-2 py-1.5">
-        <div className={groupClass} role="group" aria-label="Pages">
-          <button
-            type="button"
-            className={controlClass}
-            aria-label="Previous page"
-            disabled={current <= 0}
-            onClick={() => goTo(current - 1)}
-          >
-            <ChevronUp className="h-3.5 w-3.5" aria-hidden />
-          </button>
-          <span className="min-w-16 px-1 text-center tabular-nums text-muted-foreground" aria-live="polite">
-            {count ? `Page ${current + 1} of ${count}` : 'Pages'}
-          </span>
-          <button
-            type="button"
-            className={controlClass}
-            aria-label="Next page"
-            disabled={current >= count - 1}
-            onClick={() => goTo(current + 1)}
-          >
-            <ChevronDown className="h-3.5 w-3.5" aria-hidden />
-          </button>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className={groupClass} role="group" aria-label="Zoom">
-            <button
-              type="button"
-              className={controlClass}
-              aria-label="Zoom out"
-              disabled={!scale || scale <= MIN_SCALE + 1e-6}
-              onClick={() => zoomTo(scale / ZOOM_STEP)}
-            >
-              <Minus className="h-3.5 w-3.5" aria-hidden />
-            </button>
-            <span className="min-w-10 text-center tabular-nums text-muted-foreground" role="status">
-              {scale ? `${Math.round((scale / ACTUAL_SIZE) * 100)}%` : '–'}
-            </span>
-            <button
-              type="button"
-              className={controlClass}
-              aria-label="Zoom in"
-              disabled={!scale || scale >= MAX_SCALE - 1e-6}
-              onClick={() => zoomTo(scale * ZOOM_STEP)}
-            >
-              <Plus className="h-3.5 w-3.5" aria-hidden />
-            </button>
-            <button
-              type="button"
-              className={controlClass}
-              aria-label="Fit to width"
-              title="Fit to width"
-              disabled={chosenScale === null}
-              onClick={() => zoomTo(null)}
-            >
-              <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={openInTab}
-            className="flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-2xs text-foreground shadow-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:h-11"
-            title="Open in the browser's own viewer, to search or print"
-          >
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-            <span className="max-sm:sr-only">Open in a new tab</span>
-          </button>
-        </div>
-      </div>
+      <ViewerToolbar
+        start={
+          <>
+            <div className={viewerGroupClass} role="group" aria-label="Pages">
+              <button
+                type="button"
+                className={viewerControlClass}
+                aria-label="Previous page"
+                disabled={current <= 0}
+                onClick={() => goTo(current - 1)}
+              >
+                <ChevronUp className="h-3.5 w-3.5" aria-hidden />
+              </button>
+              <span className="min-w-16 px-1 text-center tabular-nums text-muted-foreground" aria-live="polite">
+                {count ? `Page ${current + 1} of ${count}` : 'Pages'}
+              </span>
+              <button
+                type="button"
+                className={viewerControlClass}
+                aria-label="Next page"
+                disabled={current >= count - 1}
+                onClick={() => goTo(current + 1)}
+              >
+                <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </div>
+            {toolbarStart}
+          </>
+        }
+      >
+        <ViewerZoom
+          percent={scale ? (scale / ACTUAL_SIZE) * 100 : null}
+          canOut={!!scale && scale > MIN_SCALE + 1e-6}
+          canIn={!!scale && scale < MAX_SCALE - 1e-6}
+          fitted={chosenScale === null}
+          onOut={() => zoomTo(scale / ZOOM_STEP)}
+          onIn={() => zoomTo(scale * ZOOM_STEP)}
+          onFit={() => zoomTo(null)}
+          fitLabel="Fit to width"
+          fitIcon={<ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />}
+        />
+        <OpenInTabButton onOpen={() => openInTab(source)} />
+      </ViewerToolbar>
       {/* Sized by the pane, never by its pages: the fitted scale is read from this box, so pages that
           widened it would widen themselves again (`contain: inline-size`). */}
       <div
         ref={scroller}
-        className="relative min-h-0 flex-1 overflow-auto overscroll-contain [contain:inline-size]"
+        tabIndex={0}
+        className="relative min-h-0 flex-1 overflow-auto overscroll-contain [contain:inline-size] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         style={{ padding: PAGE_PAD_PX }}
         onScroll={readPage}
+        onDoubleClick={(event) => {
+          if (!scale) return
+          zoomTo(chosenScale === null ? Math.max(fitScale * 2, ACTUAL_SIZE) : null, event)
+        }}
       >
         {error ? (
           <p className="m-auto max-w-sm p-6 text-center text-xs text-muted-foreground" role="alert">

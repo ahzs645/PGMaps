@@ -7,7 +7,9 @@ import { CopyImageButton } from '@/components/ui/copy-image-button'
 import { DocumentContents, type DocumentContentsProps } from '@/components/ui/document-contents'
 import { StyledSelect } from '@/components/ui/form-field'
 import { PanelDialog } from '@/components/ui/dialog-shell'
+import { FramePages } from '@/components/ui/frame-pages'
 import { PdfPages } from '@/components/ui/pdf-pages'
+import { PicturePreview } from '@/components/ui/picture-preview'
 import { insetBox } from '@/components/ui/inset-box'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
@@ -18,6 +20,8 @@ import { TextButton } from '@/components/ui/text-button'
 import { downloadBlob } from '@/lib/download'
 import { SaveFileError, saveFileAs, saveFilePickerSupported } from '@/lib/saveFile'
 import type { ContentsPart } from '@/lib/documentContents/contents'
+import { useElementSize } from '@/hooks/useElementSize'
+import { useSizeFold } from '@/hooks/useSizeFold'
 import { useInterfaceThemeApplied } from '@/lib/interfaceTheme'
 import { cn } from '@/lib/utils'
 
@@ -38,6 +42,7 @@ import {
   exportUnavailable,
   findVisualsExport,
   suggestedExportName,
+  DRAWS_FIGURES,
   USES_PACKAGE_VIEWS,
   VISUALS_EXPORT_GROUP_LABELS,
   VISUALS_EXPORTS,
@@ -229,6 +234,13 @@ function RecordingPane({
 const GROUPS = Object.keys(VISUALS_EXPORT_GROUP_LABELS) as VisualsExportGroup[]
 // Option edits rebuild the preview; a short pause keeps typing from rebuilding it per key.
 const PREVIEW_DELAY_MS = 300
+/**
+ * Where an output's pane puts *What goes in* beside its preview: from about 900 px, which the dialog has at its widest
+ * normal size and at Full screen. The gap keeps a pane dragged across the line from flipping.
+ */
+const SIDE_BY_SIDE_FOLD = { foldBelow: 860, unfoldFrom: 900 }
+/** The dialog at its normal size: wide enough for what goes in and a preview side by side on a laptop screen. */
+const DIALOG_MAX_WIDTH = 'min(80rem, calc(100vw - 2rem))'
 /** Text previews stop here; the download is whole. */
 const TEXT_PREVIEW_CHARS = 60_000
 /** How often a waiting export looks at the page's state again. */
@@ -534,7 +546,7 @@ function DraftPartFrame({
   place: number | null
   onPlace: (place: number) => void
 }) {
-  const frame = useRef<HTMLIFrameElement>(null)
+  const frame = useRef<HTMLIFrameElement | null>(null)
   const latest = useRef({ place, onPlace })
   useEffect(() => {
     latest.current = { place, onPlace }
@@ -552,39 +564,30 @@ function DraftPartFrame({
     })
   }
   return (
-    <iframe
-      ref={frame}
-      title="VIA report draft at the selected part"
-      sandbox="allow-same-origin"
-      srcDoc={html}
-      onLoad={onLoad}
-      className="h-[60dvh] w-full min-w-0 rounded-md border bg-white sm:h-full sm:min-h-80"
+    <FramePages
+      html={html}
+      title="VIA report draft"
+      frameTitle="VIA report draft at the selected part"
+      resetKey="draft"
+      frameRef={(element) => {
+        frame.current = element
+      }}
+      onFrameLoad={onLoad}
+      className="h-[60dvh] min-w-0 sm:h-full sm:min-h-80"
     />
   )
 }
 
 function PreviewView({ preview, title }: { preview: Preview; title: string }) {
+  // Every file in the same viewer (`docs/shared-ui.md`, **File previews**); a rebuilt file of the same output keeps
+  // the reader's zoom and place.
   switch (preview.type) {
     case 'pdf':
-      return <PdfPages source={preview.url} title={title} className="min-h-96" />
+      return <PdfPages source={preview.url} title={title} resetKey={title} className="min-h-96" />
     case 'image':
-      return (
-        <img
-          src={preview.url}
-          alt={`${title} preview`}
-          className="max-h-full w-full rounded-md border bg-white object-contain"
-        />
-      )
+      return <PicturePreview src={preview.url} title={title} resetKey={title} className="min-h-96" />
     case 'html':
-      // Scripts stay off; same-origin only lets the frame read its own navigator.
-      return (
-        <iframe
-          title={`${title} preview`}
-          sandbox="allow-same-origin"
-          srcDoc={preview.html}
-          className="h-full min-h-96 w-full rounded-md border bg-white"
-        />
-      )
+      return <FramePages html={preview.html} title={title} resetKey={title} className="min-h-96" />
     case 'text':
       return (
         <div className="space-y-1">
@@ -892,6 +895,8 @@ export function VisualsExportDialog({
   // The part being edited in place (`ContentsSection`), by its title: one at a time, since a part's editor is one
   // element shown in one place.
   const [editing, setEditing] = useState<string | null>(null)
+  // Side by side, the output whose preview was asked for with *Build preview* (see `previewOnRequest` below).
+  const [previewAsked, setPreviewAsked] = useState<VisualsExport | null>(null)
   // Open on the requested output, including when the previous session used another.
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
@@ -905,6 +910,7 @@ export function VisualsExportDialog({
       setStatus(null)
       setEditing(null)
       setPartSelected(null)
+      setPreviewAsked(null)
     }
   }
   const item = findVisualsExport(selected)
@@ -916,6 +922,21 @@ export function VisualsExportDialog({
   const takeRunning = !!runningTake
   // An output without a draft shows its contents in place of one.
   const shownView = view === 'draft' && !draftOf ? 'contents' : view
+  // *What goes in* beside the file once the pane has room for both (a wide window or Full screen), with no Preview
+  // tab. An output with a draft (the VIA report) keeps its tabs: its contents already show the draft beside them.
+  // The pane is one of three sections (an output, Package, Views), swapped as the list is used: it is measured as the
+  // element mounted now, never a ref read once.
+  const pane = useRef<HTMLElement | null>(null)
+  const [paneElement, setPaneElement] = useState<HTMLElement | null>(null)
+  const paneRef = (element: HTMLElement | null) => {
+    pane.current = element
+    setPaneElement(element)
+  }
+  const { width: paneWidth } = useElementSize(paneElement)
+  const narrowPane = useSizeFold(paneWidth, SIDE_BY_SIDE_FOLD, true)
+  const sideBySide = !narrowPane && !draftOf
+  // Whether the file's preview is on screen: its tab, or its column.
+  const previewShown = sideBySide || shownView === 'preview'
   /** The format chosen for an output: the page's (`formatControls`) where it keeps it, else this dialog's. */
   const formatOf = (entry: (typeof VISUALS_EXPORTS)[number]) => {
     const control = formatControls?.[entry.kind]
@@ -932,6 +953,14 @@ export function VisualsExportDialog({
   // A take under way keeps its pane (and its Stop) whatever the road view reports meanwhile.
   const unavailable = recordingBusy(recordingOf) ? null : exportUnavailable(item.kind, context)
   const preparation = exportPreparation(item.kind, context)
+  // Side by side, the preview is written as soon as the output is open, unless writing it would first run the
+  // assessment, capture views of interest, wait for another engine's renders or draw figures from the road view:
+  // those wait for *Build preview*, as they wait for the Preview tab, so opening an output never moves the page or
+  // starts a run.
+  const previewOnRequest =
+    sideBySide &&
+    previewAsked !== item.kind &&
+    (preparation.run || preparation.capture.length > 0 || preparation.render || DRAWS_FIGURES.has(item.kind))
 
   // A new object per selection or content change: a preview is current only for its own request.
   const itemVersion = version(item.kind)
@@ -1145,7 +1174,7 @@ export function VisualsExportDialog({
   // An output recorded on request is never written by its preview; no preview is written while a take runs.
   const recorded = !!recordingOf
   useEffect(() => {
-    if (!open || unavailable || shownView !== 'preview' || packageOpen || viewsOpen || detailsOpen) return
+    if (!open || unavailable || !previewShown || previewOnRequest || packageOpen || viewsOpen || detailsOpen) return
     if (recorded || takeRunning) return
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
@@ -1187,7 +1216,8 @@ export function VisualsExportDialog({
     open,
     request,
     unavailable,
-    shownView,
+    previewShown,
+    previewOnRequest,
     packageOpen,
     viewsOpen,
     detailsOpen,
@@ -1255,7 +1285,6 @@ export function VisualsExportDialog({
   // A preview written for content that has since changed, shown until the current one is written.
   const outdated = !current && result?.preview && result.request && 'outdated' in result ? result : null
 
-  const pane = useRef<HTMLElement>(null)
   const select = (kind: VisualsExport) => {
     setSelected(kind)
     setEditing(null)
@@ -1475,6 +1504,141 @@ export function VisualsExportDialog({
     }
   }
 
+  // The VIA report's draft, full width under its own tab.
+  const draftView = shownDraft?.draft ? (
+    <ReportDraftView
+      draft={shownDraft.draft}
+      options={options[item.kind]}
+      drawing={drawing}
+      onDraw={(id) => void drawPicture(id)}
+      drawError={drawError}
+      startOnPages={request.format === 'pdf'}
+      onPages={(partPages) => setDraftPages({ draft: shownDraft.draft!, partPages })}
+      {...(draftOf?.pages ? { pages: () => latestDrafts.current![item.kind]!.pages!() } : {})}
+      {...(draftOf?.edit
+        ? {
+            onEdit: (key, value, original) => latestDrafts.current?.[item.kind]?.edit?.(key, value, original),
+          }
+        : {})}
+    />
+  ) : shownDraft?.error ? (
+    <InlineAlert tone="error">{shownDraft.error}</InlineAlert>
+  ) : (
+    <InlineAlert loading>Laying out the draft…</InlineAlert>
+  )
+  // *What goes in*: one shape for every output, its own parts first (where it has a list of them), then its options,
+  // then what it reads.
+  const contentsView = (
+    // One shape for every output: its own parts first (where it has a list of them), then its options,
+    // then what it reads.
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 pb-2">
+      {sections
+        .filter((section) => section.contents)
+        .map((section) => (
+          <ContentsSection
+            key={section.title}
+            section={section}
+            onGoToStep={onGoToStep}
+            onAction={onAction || packagePane ? act : undefined}
+            viewsEditor={viewsPane}
+            editing={editing === section.title}
+            onEditing={(on) => setEditing(on ? section.title : null)}
+            controls={contents?.[item.kind]}
+            list={draftOf ? contentsPreview(section) : undefined}
+          />
+        ))}
+      {options[item.kind] && (
+        <section className="space-y-1.5" aria-label="Options">
+          <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Options</h4>
+          {options[item.kind]}
+        </section>
+      )}
+      {sections
+        .filter((section) => !section.contents)
+        .map((section) => (
+          <ContentsSection
+            key={section.title}
+            section={section}
+            onGoToStep={onGoToStep}
+            onAction={onAction || packagePane ? act : undefined}
+            viewsEditor={viewsPane}
+            editing={editing === section.title}
+            onEditing={(on) => setEditing(on ? section.title : null)}
+          />
+        ))}
+    </div>
+  )
+  // The file itself, from the same bytes its download writes; side by side, a preview that would first run the
+  // assessment, capture views or wait for renders is written only on *Build preview*.
+  // What writing the output does first (a run, a capture, the inventory read), and its progress.
+  const preparationNote =
+    !unavailable && preparation.note && !(previewShown && preparation.noteIsSkipped && current) ? (
+      <InlineAlert
+        loading={
+          context.autoRun.status === 'running' ||
+          (USES_PACKAGE_VIEWS.has(item.kind) && captureRunning) ||
+          (saving && preparation.landChecks) ||
+          (preparation.render && context.renderer.running)
+        }
+      >
+        <span role="status">{preparation.note}</span>
+        {USES_PACKAGE_VIEWS.has(item.kind) && cancelCapture}
+      </InlineAlert>
+    ) : null
+  // Side by side, a preview that has to run, capture or draw first waits for *Build preview*: one line and the button,
+  // with what writing it does first behind the (i).
+  const buildOnRequest = previewOnRequest && !current?.preview && !unavailable && !recordingOf
+  const previewView = buildOnRequest ? (
+    <div className={cn(insetBox({ padding: 'sm' }), 'flex flex-wrap items-center gap-2 border-dashed text-xs')}>
+      <span className="text-muted-foreground">Not built yet.</span>
+      <Button variant="outline" size="sm" onClick={() => setPreviewAsked(item.kind)}>
+        Build preview
+      </Button>
+      <InfoTip label="What building the preview does first">
+        {preparation.note ??
+          (preparation.capture.length
+            ? 'It first captures the views of interest it draws, standing at each.'
+            : preparation.render
+              ? 'It first waits for the figures another engine still owes it.'
+              : preparation.run
+                ? 'It first runs the visibility assessment.'
+                : 'It draws its figures from the road view, which moves it while they are taken.')}{' '}
+        So it is written when you ask, as Download would.
+      </InfoTip>
+    </div>
+  ) : unavailable ? (
+    <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>{unavailable}</p>
+  ) : recordingOf ? (
+    <RecordingPane
+      recording={recordingOf}
+      title={item.label}
+      blocked={recordBlocked}
+      onRecord={() => void startRecording()}
+    />
+  ) : current?.preview ? (
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      {current.file.previewOf && <InlineAlert>{current.file.previewOf}</InlineAlert>}
+      {current.missing && <InlineAlert tone="warning">{current.missing}</InlineAlert>}
+      <div className="min-h-0 flex-1">
+        <PreviewView preview={current.preview} title={item.label} />
+      </div>
+    </div>
+  ) : outdated?.preview && (outdated.request as { kind?: string }).kind === item.kind ? (
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <InlineAlert loading>
+        <span role="status">
+          Out of date: the page changed while this was written. Writing it again, with the pictures already drawn kept.
+        </span>
+      </InlineAlert>
+      <div className="min-h-0 flex-1">
+        <PreviewView preview={outdated.preview} title={item.label} />
+      </div>
+    </div>
+  ) : current?.error ? (
+    <InlineAlert tone="error">{current.error}</InlineAlert>
+  ) : (
+    <InlineAlert loading>{previewStage?.request === request ? previewStage.text : 'Preparing preview…'}</InlineAlert>
+  )
   return (
     <PanelDialog
       open={open}
@@ -1485,7 +1649,7 @@ export function VisualsExportDialog({
       portalContainer={portalContainer}
       className="sm:h-[min(48rem,92dvh)]"
       bodyClassName="p-0 workspace-sm:p-0"
-      contentProps={{ 'data-testid': 'visuals-export-dialog' }}
+      contentProps={{ 'data-testid': 'visuals-export-dialog', style: { maxWidth: DIALOG_MAX_WIDTH } }}
     >
       {/* The row and every output's *Edit your details* open the pane below, not a second modal. */}
       <PreparerProfileHostProvider value={{ open: openDetails, shown: detailsOpen }}>
@@ -1552,7 +1716,7 @@ export function VisualsExportDialog({
           </nav>
           <PreparerProfilePane hidden={!detailsOpen} sectionRef={detailsPane} />
           {detailsOpen ? null : viewsOpen && viewsPane ? (
-            <section ref={pane} aria-label="Views" className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5">
+            <section ref={paneRef} aria-label="Views" className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5">
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold">Views</h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -1563,7 +1727,7 @@ export function VisualsExportDialog({
               <div className="min-h-0 flex-1 overflow-x-clip sm:overflow-y-auto overscroll-none">{viewsPane}</div>
             </section>
           ) : packageOpen && packagePane ? (
-            <section ref={pane} aria-label="Package" className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5">
+            <section ref={paneRef} aria-label="Package" className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5">
               <div className="min-w-0">
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="text-sm font-semibold">Package</h3>
@@ -1599,7 +1763,7 @@ export function VisualsExportDialog({
             </section>
           ) : (
             <section
-              ref={pane}
+              ref={paneRef}
               aria-label={`${item.label} export`}
               className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5"
             >
@@ -1640,33 +1804,45 @@ export function VisualsExportDialog({
                   </Button>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <SegmentedControl
-                  size="sm"
-                  fullWidth={false}
-                  label={`${item.label} view`}
-                  value={shownView}
-                  onChange={(next) => {
-                    // A download's line (saved, or why not) belongs to that download, not to the next view.
-                    setView(next)
-                    setStatus(null)
-                  }}
-                  options={[
-                    { value: 'contents' as const, label: 'What goes in' },
-                    ...(draftOf ? [{ value: 'draft' as const, label: 'Draft' }] : []),
-                    { value: 'preview' as const, label: 'Preview' },
-                  ]}
-                />
-                {item.formats.length > 1 && (
-                  <StyledSelect
-                    aria-label={`${item.label} format`}
-                    className="w-auto max-w-full rounded-md border bg-background px-2 py-1 text-xs"
-                    value={format.id}
-                    onValueChange={(id) => chooseFormat(item.kind, id)}
-                    options={item.formats.map((entry) => ({ value: entry.id, label: entry.label }))}
-                  />
-                )}
-              </div>
+              {(!sideBySide || item.formats.length > 1) && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  {!sideBySide && (
+                    <SegmentedControl
+                      size="sm"
+                      fullWidth={false}
+                      label={`${item.label} view`}
+                      value={shownView}
+                      onChange={(next) => {
+                        // A download's line (saved, or why not) belongs to that download, not to the next view.
+                        setView(next)
+                        setStatus(null)
+                      }}
+                      options={[
+                        { value: 'contents' as const, label: 'What goes in' },
+                        ...(draftOf ? [{ value: 'draft' as const, label: 'Draft' }] : []),
+                        { value: 'preview' as const, label: 'Preview' },
+                      ]}
+                    />
+                  )}
+                  {item.formats.length > 1 && (
+                    <StyledSelect
+                      aria-label={`${item.label} format`}
+                      className="w-auto max-w-full rounded-md border bg-background px-2 py-1 text-xs"
+                      value={format.id}
+                      onValueChange={(id) => chooseFormat(item.kind, id)}
+                      options={item.formats.map((entry) => ({ value: entry.id, label: entry.label }))}
+                    />
+                  )}
+                </div>
+              )}
+              {/* The draft and the file look alike in one viewer; this says which is which. */}
+              {draftOf && shownView !== 'contents' && !unavailable && (
+                <p className="text-2xs text-muted-foreground" data-testid="visuals-export-view-note">
+                  {shownView === 'draft'
+                    ? 'The draft: laid out at once, with a stand-in where a picture is not drawn yet. Nothing is captured or run for it, and its tints are not in the file.'
+                    : 'The file Download writes: views of interest are captured and the assessment run first where they are missing.'}
+                </p>
+              )}
               {status && (
                 <InlineAlert tone={status.tone === 'info' ? 'success' : status.tone}>
                   <span role="status">{status.text}</span>
@@ -1680,21 +1856,8 @@ export function VisualsExportDialog({
                   </TextButton>
                 </InlineAlert>
               )}
-              {!unavailable &&
-                preparation.note &&
-                !(shownView === 'preview' && preparation.noteIsSkipped && current) && (
-                  <InlineAlert
-                    loading={
-                      context.autoRun.status === 'running' ||
-                      (USES_PACKAGE_VIEWS.has(item.kind) && captureRunning) ||
-                      (saving && preparation.landChecks) ||
-                      (preparation.render && context.renderer.running)
-                    }
-                  >
-                    <span role="status">{preparation.note}</span>
-                    {USES_PACKAGE_VIEWS.has(item.kind) && cancelCapture}
-                  </InlineAlert>
-                )}
+              {/* Side by side the note sits in the preview column, never across the pane. */}
+              {!sideBySide && preparationNote}
               {unavailable && (
                 <p
                   role="status"
@@ -1703,7 +1866,7 @@ export function VisualsExportDialog({
                   {unavailable}
                 </p>
               )}
-              {takeRunning && runningTake && !(runningTake === recordingOf && shownView === 'preview') && (
+              {takeRunning && runningTake && !(runningTake === recordingOf && previewShown) && (
                 <InlineAlert loading>
                   <span role="status">
                     Recording the road view video
@@ -1718,116 +1881,35 @@ export function VisualsExportDialog({
                   </TextButton>
                 </InlineAlert>
               )}
-              {!unavailable && recordingOf && !recordingOf.file && shownView !== 'preview' && (
+              {!unavailable && recordingOf && !recordingOf.file && !previewShown && (
                 <InlineAlert>
                   Nothing recorded yet: Preview records it, then Download and Save as… write that recording.
                 </InlineAlert>
               )}
-              {/* Side by side the pane scrolls; stacked on a phone it flows with the dialog. */}
-              <div className="min-h-0 flex-1 overflow-x-clip sm:overflow-y-auto overscroll-none">
-                {shownView === 'draft' && !unavailable ? (
-                  shownDraft?.draft ? (
-                    <ReportDraftView
-                      draft={shownDraft.draft}
-                      options={options[item.kind]}
-                      drawing={drawing}
-                      onDraw={(id) => void drawPicture(id)}
-                      drawError={drawError}
-                      startOnPages={request.format === 'pdf'}
-                      onPages={(partPages) => setDraftPages({ draft: shownDraft.draft!, partPages })}
-                      {...(draftOf?.pages ? { pages: () => latestDrafts.current![item.kind]!.pages!() } : {})}
-                      {...(draftOf?.edit
-                        ? {
-                            onEdit: (key, value, original) =>
-                              latestDrafts.current?.[item.kind]?.edit?.(key, value, original),
-                          }
-                        : {})}
-                    />
-                  ) : shownDraft?.error ? (
-                    <InlineAlert tone="error">{shownDraft.error}</InlineAlert>
-                  ) : (
-                    <InlineAlert loading>Laying out the draft…</InlineAlert>
-                  )
-                ) : shownView === 'contents' ? (
-                  // One shape for every output: its own parts first (where it has a list of them), then its options,
-                  // then what it reads.
-                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 pb-2">
-                    {sections
-                      .filter((section) => section.contents)
-                      .map((section) => (
-                        <ContentsSection
-                          key={section.title}
-                          section={section}
-                          onGoToStep={onGoToStep}
-                          onAction={onAction || packagePane ? act : undefined}
-                          viewsEditor={viewsPane}
-                          editing={editing === section.title}
-                          onEditing={(on) => setEditing(on ? section.title : null)}
-                          controls={contents?.[item.kind]}
-                          list={draftOf ? contentsPreview(section) : undefined}
-                        />
-                      ))}
-                    {options[item.kind] && (
-                      <section className="space-y-1.5" aria-label="Options">
-                        <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Options
-                        </h4>
-                        {options[item.kind]}
-                      </section>
-                    )}
-                    {sections
-                      .filter((section) => !section.contents)
-                      .map((section) => (
-                        <ContentsSection
-                          key={section.title}
-                          section={section}
-                          onGoToStep={onGoToStep}
-                          onAction={onAction || packagePane ? act : undefined}
-                          viewsEditor={viewsPane}
-                          editing={editing === section.title}
-                          onEditing={(on) => setEditing(on ? section.title : null)}
-                        />
-                      ))}
+              {/* Side by side, what goes in and the file each scroll in their column; as tabs, the one shown scrolls in
+                  the pane; stacked on a phone it flows with the dialog. */}
+              {sideBySide ? (
+                <div
+                  className="grid min-h-0 flex-1 grid-cols-[minmax(20rem,2fr)_minmax(0,3fr)] gap-4"
+                  data-layout="side-by-side"
+                >
+                  <div className="min-h-0 min-w-0 overflow-x-clip overflow-y-auto overscroll-none pr-1">
+                    {contentsView}
                   </div>
-                ) : unavailable ? (
-                  <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>
-                    {unavailable}
-                  </p>
-                ) : recordingOf ? (
-                  <RecordingPane
-                    recording={recordingOf}
-                    title={item.label}
-                    blocked={recordBlocked}
-                    onRecord={() => void startRecording()}
-                  />
-                ) : current?.preview ? (
-                  <div className="flex h-full min-h-0 flex-col gap-2">
-                    {current.file.previewOf && <InlineAlert>{current.file.previewOf}</InlineAlert>}
-                    {current.missing && <InlineAlert tone="warning">{current.missing}</InlineAlert>}
-                    <div className="min-h-0 flex-1">
-                      <PreviewView preview={current.preview} title={item.label} />
-                    </div>
+                  <div className="flex min-h-0 min-w-0 flex-col gap-2" role="group" aria-label={`${item.label} file`}>
+                    {!buildOnRequest && preparationNote}
+                    <div className="min-h-0 flex-1">{previewView}</div>
                   </div>
-                ) : outdated?.preview && (outdated.request as { kind?: string }).kind === item.kind ? (
-                  <div className="flex h-full min-h-0 flex-col gap-2">
-                    <InlineAlert loading>
-                      <span role="status">
-                        Out of date: the page changed while this was written. Writing it again, with the pictures
-                        already drawn kept.
-                      </span>
-                    </InlineAlert>
-                    <div className="min-h-0 flex-1">
-                      <PreviewView preview={outdated.preview} title={item.label} />
-                    </div>
-                  </div>
-                ) : current?.error ? (
-                  <InlineAlert tone="error">{current.error}</InlineAlert>
-                ) : (
-                  <InlineAlert loading>
-                    {previewStage?.request === request ? previewStage.text : 'Preparing preview…'}
-                  </InlineAlert>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="min-h-0 flex-1 overflow-x-clip sm:overflow-y-auto overscroll-none">
+                  {shownView === 'draft' && !unavailable
+                    ? draftView
+                    : shownView === 'contents'
+                      ? contentsView
+                      : previewView}
+                </div>
+              )}
             </section>
           )}
         </div>

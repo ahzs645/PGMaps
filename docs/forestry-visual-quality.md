@@ -532,6 +532,23 @@ name), and its Save as, Download and Copy image. Under it sit the view switch
 and, for an output with more than one format, the format as a dropdown
 (`StyledSelect`, named "<output> format").
 
+**Side by side.** Once the output's pane is about 900 px wide (the dialog's
+normal size on a laptop screen, which is now up to 80 rem, or *Full screen*),
+*What goes in* and the file's preview sit side by side and the Preview tab goes
+(`SIDE_BY_SIDE_FOLD`, measured on the pane as mounted). The VIA report keeps its
+tabs, since its contents already show the draft beside them. Opening an output
+side by side writes its preview at once, unless writing it would first run the
+assessment, capture views of interest, wait for another engine's renders or
+draw figures from the road view (`DRAWS_FIGURES`): those wait for *Build
+preview* (`previewOnRequest`), with what it does first behind the (i), so
+opening an output never moves the page or starts a run. What writing an output
+does first (the run, a capture, the inventory read, with progress) sits at the
+top of the preview column, never across the pane. Every preview is drawn by the
+shared file viewers (`docs/shared-ui.md`, **File previews**); the VIA report's
+*Draft* and *Preview* are the same viewer, and a line under the tabs says which
+is the draft (laid out at once, stand-ins, nothing captured or run) and which
+the file Download writes.
+
 Each output's pane has two views. **What goes in** reads the same way for every
 output, top to bottom: **Contents**, where the file has parts of its own; then
 its **Options**; then what the file **reads**. Contents is the shared

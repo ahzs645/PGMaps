@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   csvPreview,
+  EXPORT_FORMAT_FAMILIES,
   EXPORT_ITEMS,
+  exportFamilyOf,
   exportRoads,
   exportStampNote,
   exportUnavailable,
@@ -289,5 +291,23 @@ describe('GeoPackage, KMZ and the 3D surface model', () => {
     expect(EXPORT_ITEMS.find((item) => item.kind === 'design-model')?.description).toMatch(
       /not a machine-control file: build from the LandXML surfaces/,
     )
+  })
+})
+
+describe('format families', () => {
+  it('lists each document in more than one format once, under its own name, opening on PDF', () => {
+    for (const family of EXPORT_FORMAT_FAMILIES) {
+      expect(family.members[0].format).toBe('PDF')
+      for (const member of family.members) {
+        expect(EXPORT_ITEMS.some((item) => item.kind === member.kind)).toBe(true)
+        expect(exportFamilyOf(member.kind)).toBe(family)
+      }
+    }
+    // No output belongs to two families, and an output with one format belongs to none.
+    const members = EXPORT_FORMAT_FAMILIES.flatMap((family) => family.members.map((member) => member.kind))
+    expect(new Set(members).size).toBe(members.length)
+    expect(exportFamilyOf('project')).toBeNull()
+    expect(exportFamilyOf('report')?.label).toBe('Report')
+    expect(exportFamilyOf('plotbook-pdf')?.label).toBe('Plot book')
   })
 })

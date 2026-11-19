@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { PDFDocument } from 'pdf-lib'
-import { chooseExport, dismissExampleNoticeWhenShown } from './road-files'
+import { chooseExport, dismissExampleNoticeWhenShown, showRoadPreview } from './road-files'
 import { openWorkbench } from './road-workbench'
 import { choose, expectSelected } from './styled-select'
 
@@ -24,7 +24,7 @@ test('operating plan is an additional export option with a native-size vector PD
   await choose(kind, 'operating-plan')
   await expectSelected(dialog.getByRole('combobox', { name: 'Paper', exact: true }), '36x29')
   await expectSelected(dialog.getByRole('combobox', { name: 'Scale', exact: true }), '20000')
-  await views.getByRole('button', { name: 'Preview', exact: true }).click()
+  await showRoadPreview(views)
   const preview = dialog.getByRole('img', { name: /block map sheet/i })
   await expect(preview).toBeVisible({ timeout: 30_000 })
   await page.screenshot({ path: testInfo.outputPath('operating-plan-export.png'), animations: 'disabled' })

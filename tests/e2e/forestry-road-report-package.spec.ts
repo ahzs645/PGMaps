@@ -51,9 +51,9 @@ test('the report package puts a part in an appendix PDF of its own and leaves ot
   await setContentsState(editor, 'report:slope-stakes', 'omit')
   await choose(editor.getByLabel('Plan & profile sheets: where it goes', { exact: true }), { label: /^Appendix/ })
   await expect.poll(() => contentsCountLine(editor)).toBe('The package and 1 appendix PDF; 18 parts left out.')
-  // The package's file list is previewed beside the list.
+  // The package's file list is previewed beside the list (or, in a wide pane, beside the settings).
   await expect(
-    editor
+    dialog
       .frameLocator('iframe[title="Report package preview"]')
       .getByText('Package-review-appendix-plan-profile-sheets.pdf'),
   ).toBeVisible({ timeout: 30000 })
@@ -110,9 +110,10 @@ test('the report contents list leaves a section out, moves one, and the report b
   await chooseExport(page, 'Report HTML')
   await dialog.getByRole('button', { name: 'Contents', exact: true }).click()
   const list = contentsList(dialog, { testId: 'road-report-contents' })
-  // The opening parts are locked in place; the live report is previewed beside the list.
+  // The opening parts are locked in place; the live report is previewed beside the list (or, in a wide pane, beside
+  // the settings).
   expect((await contentsOrder(list)).slice(0, 4)).toEqual(['title', 'not-current', 'status', 'terrain'])
-  const preview = list.frameLocator('iframe[title="Report HTML preview"]')
+  const preview = dialog.frameLocator('iframe[title="Report HTML preview"]')
   await expect(preview.getByRole('heading', { name: 'Station schedule', exact: true })).toBeVisible({
     timeout: 30000,
   })
