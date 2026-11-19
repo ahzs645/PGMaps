@@ -20,9 +20,15 @@ export const SENTINEL_FIRST_YEAR = 2017
 
 /** Imagery is only requested at neighbourhood/road scale. */
 export const SENTINEL_MIN_ZOOM = 12
-/** Wait for navigation to stop before changing the requested area. */
-export const SENTINEL_VIEW_IDLE_MS = 800
-/** Snap outward to this degree grid so small pans reuse the same read. */
+/** The read window's width and height over the view's (OpenLayers' `ImageWMS` ratio). */
+export const SENTINEL_VIEW_OVERSCAN = 1.5
+/** Ask for the next window once the view comes within this share of its size of the window's edge. */
+export const SENTINEL_VIEW_EDGE_SHARE = 0.1
+/** While the map moves, a new window is asked for at most this often (Leaflet's `updateInterval` is 200). */
+export const SENTINEL_VIEW_THROTTLE_MS = 250
+/** After the map stops, the view is checked once more after this long. */
+export const SENTINEL_VIEW_SETTLE_MS = 100
+/** Snap the window outward to this degree grid so nearby views share one read. */
 export const SENTINEL_VIEW_GRID_DEG = 0.01
 /** Minimum time between catalogue requests, including manual retries. */
 export const SENTINEL_SEARCH_INTERVAL_MS = 5_000
@@ -37,8 +43,17 @@ export const SENTINEL_READ_CONCURRENCY = 2
 export const SENTINEL_WINDOW_MARGIN_M = 250
 /** Terrain wider or taller than this (km, margin included) is refused rather than read. */
 export const SENTINEL_MAX_WINDOW_KM = 60
-/** The longest side of a read, in pixels. Larger windows read a 20, 40… m overview instead of 10 m. */
+/**
+ * The longest side of the view (margin included), in pixels, before the read takes a 20, 40… m
+ * overview instead of 10 m. The pixel is chosen from the view, not the overscanned window, so the
+ * picture is never coarser than the view needs.
+ */
 export const SENTINEL_MAX_WINDOW_PX = 2048
+/**
+ * The longest side of one read, in pixels: the overscanned window at the view's pixel. A window past
+ * it is cropped about the view's centre (never read coarser), so it still holds the whole view.
+ */
+export const SENTINEL_MAX_READ_PX = 3_200
 /** The longest side of the scene-classification read that rates each listed scene's clear share. */
 export const SENTINEL_LIST_SCL_PX = 128
 /** Scene-classification reads that run at once while a list is rated. */

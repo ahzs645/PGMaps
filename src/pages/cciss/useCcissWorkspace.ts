@@ -45,12 +45,19 @@ export function usePublishedTiles(selection: CcissLayerSelection, enabled: boole
   const tileId = ccissTileId(selection)
   const [status, setStatus] = useState<{ id: string; available: boolean } | null>(null)
   const [attempt, setAttempt] = useState(0)
+  // The last set known to be published stays on the map while the next one is checked, so a change
+  // of period or species hands over (`MapRasterHandoff`) instead of blanking for the check.
+  const [lastAvailable, setLastAvailable] = useState<string | null>(null)
+  if (!enabled && lastAvailable) setLastAvailable(null)
 
   useEffect(() => {
     if (!enabled) return
     const controller = new AbortController()
     fetch(`https://tileserver.thebeczone.ca/data/${tileId}.json`, { signal: controller.signal })
-      .then((response) => setStatus({ id: tileId, available: response.ok }))
+      .then((response) => {
+        setStatus({ id: tileId, available: response.ok })
+        if (response.ok) setLastAvailable(tileId)
+      })
       .catch(() => {
         if (!controller.signal.aborted) setStatus({ id: tileId, available: false })
       })
@@ -60,6 +67,8 @@ export function usePublishedTiles(selection: CcissLayerSelection, enabled: boole
   return {
     tileId,
     available: status?.id === tileId ? status.available : null,
+    /** The tiles to draw: the selection's once published, the previous set while that is checked, none if it is not. */
+    shownTileId: !enabled ? null : status?.id === tileId ? (status.available ? tileId : null) : lastAvailable,
     retry: () => {
       setStatus(null)
       setAttempt((value) => value + 1)

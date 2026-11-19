@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useMap } from '@/components/ui/map'
 import { MapRasterLayer } from '@/components/ui/map-layers'
-import { basemapReliefBeforeId } from './RegionalDemLayer'
+import { basemapReliefBeforeId, useReliefPlace } from './RegionalDemLayer'
 import { HRDEM_RELIEF_CREDIT, HRDEM_RELIEF_TILES, HRDEM_RELIEF_MIN_ZOOM, HRDEM_RELIEF_MAX_ZOOM } from './hrdem'
 
 const LAYER_ID = 'road-hrdem-relief'
@@ -49,13 +49,14 @@ export function HrdemReliefLayer({ visible, dark, imagery }: { visible: boolean;
       map.off('styledata', apply)
     }
   }, [shown, map, paint])
-  if (!shown) return null
   // Under the basemap's water and roads, and so under any loaded terrain too. The layer is placed
-  // only when added, so a new place is a new layer.
-  const beforeId = basemapReliefBeforeId(map, imagery)
+  // when added and moved when the basemap changes, which keeps its tiles: NRCan takes 0.5–1.7 s
+  // a tile, so adding it again left the relief blank for that long on every Map/Satellite switch.
+  const beforeId = shown ? basemapReliefBeforeId(map, imagery) : undefined
+  useReliefPlace(shown ? map : null, LAYER_ID, beforeId)
+  if (!shown) return null
   return (
     <MapRasterLayer
-      key={beforeId}
       id={LAYER_ID}
       tiles={HRDEM_RELIEF_TILES}
       tileSize={512}

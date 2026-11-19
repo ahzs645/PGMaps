@@ -6,6 +6,7 @@ import proj4 from 'proj4'
 import {
   SENTINEL_BC_UTM_ZONES,
   SENTINEL_LIST_SCL_PX,
+  SENTINEL_MAX_READ_PX,
   SENTINEL_MAX_WINDOW_KM,
   SENTINEL_MAX_WINDOW_PX,
   SENTINEL_WINDOW_MARGIN_M,
@@ -71,9 +72,62 @@ export function sceneWindow(
     marginM = SENTINEL_WINDOW_MARGIN_M,
     maxKm = SENTINEL_MAX_WINDOW_KM,
     maxPx = SENTINEL_MAX_WINDOW_PX,
-  }: { marginM?: number; maxKm?: number; maxPx?: number } = {},
+    maxReadPx = SENTINEL_MAX_READ_PX,
+    view,
+  }: {
+    marginM?: number
+    maxKm?: number
+    maxPx?: number
+    maxReadPx?: number
+    /**
+     * The view an overscanned window was made for. The pixel size is chosen from the view (so the
+     * picture is no coarser than the view needs), the km limit is judged on the view, and the window
+     * is cropped about the view's centre to `maxKm` and to `maxReadPx` pixels.
+     */
+    view?: LonLatBounds
+  } = {},
 ): SceneWindow {
   const projection = utm(epsg)
+  let [minX, minY, maxX, maxY] = projectedBox(bounds, projection, marginM)
+  const [vMinX, vMinY, vMaxX, vMaxY] = view ? projectedBox(view, projection, marginM) : [minX, minY, maxX, maxY]
+  const spanKm = Math.max(vMaxX - vMinX, vMaxY - vMinY) / 1000
+  if (!Number.isFinite(spanKm) || ![minX, minY, maxX, maxY].every(Number.isFinite))
+    throw new SentinelError('outside-bc', 'The terrain bounds could not be placed in a UTM zone.')
+  if (spanKm > maxKm)
+    throw new SentinelError(
+      'too-large',
+      `The terrain spans ${spanKm.toFixed(1)} km; Sentinel-2 imagery is read over at most ${maxKm} km.`,
+    )
+  let pixelM = SENTINEL_NATIVE_PIXEL_M
+  while (Math.max(vMaxX - vMinX, vMaxY - vMinY) / pixelM > maxPx) pixelM *= 2
+  if (view) {
+    // Never wider than the km limit or the read budget: crop about the view's centre, which keeps
+    // the whole view because the view itself is inside both.
+    const limit = Math.min(maxKm * 1000, maxReadPx * pixelM)
+    const crop = (low: number, high: number, centre: number): [number, number] =>
+      high - low <= limit ? [low, high] : [Math.max(low, centre - limit / 2), Math.min(high, centre + limit / 2)]
+    ;[minX, maxX] = crop(minX, maxX, (vMinX + vMaxX) / 2)
+    ;[minY, maxY] = crop(minY, maxY, (vMinY + vMaxY) / 2)
+  }
+  minX = Math.floor(minX / pixelM) * pixelM
+  minY = Math.floor(minY / pixelM) * pixelM
+  maxX = Math.ceil(maxX / pixelM) * pixelM
+  maxY = Math.ceil(maxY / pixelM) * pixelM
+  return {
+    epsg,
+    pixelM,
+    bbox: [minX, minY, maxX, maxY],
+    width: Math.round((maxX - minX) / pixelM),
+    height: Math.round((maxY - minY) / pixelM),
+  }
+}
+
+/** A degree box's outline projected to UTM, widened by the margin: min x, min y, max x, max y. */
+function projectedBox(
+  bounds: LonLatBounds,
+  projection: ReturnType<typeof utm>,
+  marginM: number,
+): [number, number, number, number] {
   const [west, south, east, north] = bounds
   const xs: number[] = [],
     ys: number[] = []
@@ -91,32 +145,28 @@ export function sceneWindow(
       ys.push(y)
     }
   }
-  let minX = Math.min(...xs) - marginM,
-    minY = Math.min(...ys) - marginM,
-    maxX = Math.max(...xs) + marginM,
-    maxY = Math.max(...ys) + marginM
-  const spanKm = Math.max(maxX - minX, maxY - minY) / 1000
-  if (!Number.isFinite(spanKm))
-    throw new SentinelError('outside-bc', 'The terrain bounds could not be placed in a UTM zone.')
-  if (spanKm > maxKm)
-    throw new SentinelError(
-      'too-large',
-      `The terrain spans ${spanKm.toFixed(1)} km; Sentinel-2 imagery is read over at most ${maxKm} km.`,
-    )
-  let pixelM = SENTINEL_NATIVE_PIXEL_M
-  while (Math.max(maxX - minX, maxY - minY) / pixelM > maxPx) pixelM *= 2
-  minX = Math.floor(minX / pixelM) * pixelM
-  minY = Math.floor(minY / pixelM) * pixelM
-  maxX = Math.ceil(maxX / pixelM) * pixelM
-  maxY = Math.ceil(maxY / pixelM) * pixelM
-  return {
-    epsg,
-    pixelM,
-    bbox: [minX, minY, maxX, maxY],
-    width: Math.round((maxX - minX) / pixelM),
-    height: Math.round((maxY - minY) / pixelM),
+  return [Math.min(...xs) - marginM, Math.min(...ys) - marginM, Math.max(...xs) + marginM, Math.max(...ys) + marginM]
+}
+
+/**
+ * The pixel size a view needs (10, 20, 40… m): its projected span with the margin against
+ * `SENTINEL_MAX_WINDOW_PX`. The view-window rule reuses a window only at the same pixel size, so
+ * zooming in from 14 to 15 at 10 m reads nothing while zooming in from 12 to 13 reads again finer.
+ * Null outside the zones this layer reads.
+ */
+export function viewPixelM(view: LonLatBounds): number | null {
+  try {
+    return sceneWindow(view, terrainZoneEpsg(view), { maxKm: Infinity }).pixelM
+  } catch {
+    return null
   }
 }
+
+/** A window's ground size in kilometres, width × height, for stating what a figure covers. */
+export const windowKm = (window: Pick<SceneWindow, 'bbox'>): [number, number] => [
+  (window.bbox[2] - window.bbox[0]) / 1000,
+  (window.bbox[3] - window.bbox[1]) / 1000,
+]
 
 /** The same window at no more than `maxPx` pixels a side, for cheap whole-window statistics. */
 export function coarseWindow(window: SceneWindow, maxPx = SENTINEL_LIST_SCL_PX): SceneWindow {

@@ -45,7 +45,7 @@ The code is in `src/pages/dev-forestry-roads/sentinel/`.
   API sends `Access-Control-Allow-Origin: *`.
 - Pixels: the item's `visual` (TCI), `red` (B04), `nir` (B08), `swir16` (B11), `swir22` (B12) and
   `scl` (scene classification) Cloud-Optimized GeoTIFFs in the AWS `sentinel-cogs` bucket, read by
-  byte range through geotiff.js (`cogReader.ts`). Only the window over the map view is fetched. An
+  byte range through geotiff.js (`cogReader.ts`). Only the read window round the map view is fetched. An
   item without the SWIR assets still draws true colour and NDVI; NBR and NDMI then say which band
   the scene lacks.
 - B11, B12 and the scene classification are 20 m. On a 10 m window they are read on their own
@@ -70,7 +70,7 @@ instance id shipped to the browser), and Sentinel-1 radar (its hosted terms were
 
 ## How a scene is chosen
 
-1. The search asks for scenes over the settled map bounds with whole-tile cloud under
+1. The search asks for scenes over the read window (see [The window](#the-window)) with whole-tile cloud under
    `SENTINEL_CLOUD_MAX_PERCENT`, newest first. **Last 2 years** reaches back
    `SENTINEL_RECENT_DAYS`; a year reads its June–September scenes, when clearings read best.
 2. Neighbouring tiles share dates. One scene is kept per date: the tile whose footprint holds the
@@ -80,17 +80,55 @@ instance id shipped to the browser), and Sentinel-1 radar (its hosted terms were
    `SENTINEL_MIN_COVERAGE` of the window; if none is, the one with the most clear ground. The
    default change pair is the oldest and newest such scenes.
 
-Scenes found by earlier searches stay in the change view's two lists, so pick a year, then another
-year, and compare a scene from each. Both must come from tiles in the same UTM zone.
+Scenes found by earlier searches stay in the change view's two lists while their tile reaches the
+window, so pick a year, then another year, and compare a scene from each. Both must come from tiles
+in the same UTM zone.
+
+A pan does not search again while the listed scenes still serve the new window: same date range,
+same UTM zone, and every listed tile whose footprint held the searched window still holds the new
+one (`catalogueServes`, `catalogue.ts`). Past a tile's edge, or into another zone, the window gets
+its own search, paced and cached as before. The reviewer's scene stays picked while it is in the
+list, and the change pair while both its scenes are still offered; a default is picked only where
+the choice is no longer offered, and only once the new list is rated.
 
 ## The window
 
-Imagery loads only at zoom 12 or closer, after 800 ms without navigation. Bounds snap outward to a 0.01° grid so small pans reuse reads. Moving, zooming out or switching the layer off cancels work and removes its picture. A new area clears old scene choices; earlier years remain comparable within the same area. Image keys include their geographic window, so an old encoded image is never stretched onto new coordinates.
+The layer follows the map as it moves, by the shared view-window rule
+(the toolkit's `map/view-window.ts`, [shared UI: View windows](../shared-ui.md#view-windows)):
 
-The read window is the visible map's bounds projected into the scene's UTM zone, widened by
+- **Overscan.** The read window is the view grown 1.5 times (`SENTINEL_VIEW_OVERSCAN`, OpenLayers'
+  image ratio) and snapped outward to a 0.01° grid (`SENTINEL_VIEW_GRID_DEG`), so a small pan
+  reads nothing and nearby views share one read.
+- **During the move.** When the view comes within a tenth of its size of the window's edge
+  (`SENTINEL_VIEW_EDGE_SHARE`) or leaves it, the next window is asked for while the map is still
+  moving, at most every 250 ms (`SENTINEL_VIEW_THROTTLE_MS`), and checked once more 100 ms after it
+  stops (`SENTINEL_VIEW_SETTLE_MS`). A newer window aborts the reads of the one it supersedes.
+- **The picture stays.** The last picture is never removed because the camera moves: it stays at
+  its own corners until the next window's image is ready, then swaps in place (MapLibre keeps the
+  old texture until the new one has decoded). Image keys include their window's UTM grid, so an
+  picture is never placed on another window's corners. It reaches the map as an `ImageBitmap`
+  (`usePreparedImage`, `MapImageLayer`'s `image`), with no PNG encoded for each swap.
+- **Resolution.** A window is reused only at the pixel size its view needs (`viewPixelM`): zooming
+  in from 13 to 14 at 10 m reads nothing; zooming in from 12 to 13 reads again, finer.
+- **Paused.** Below zoom 12 the layer is paused and hidden, as a map layer's least zoom is, and the
+  card says so; it is a stated state, not a movement. Zooming back in where the old window still
+  serves shows it again without a read.
+- **Ratings** for a new window are read once the map stops; the list keeps showing the previous
+  ones meanwhile. The chosen scene's pixels for a new window are read straight away.
+
+The read window is the window's outline projected into the scene's UTM zone, widened by
 `SENTINEL_WINDOW_MARGIN_M` and snapped to the pixel grid. It is drawn on the plan as a four-corner
-image in its own UTM grid, the way imported backgrounds are. A window longer than
-`SENTINEL_MAX_WINDOW_PX` pixels at 10 m reads 20, 40… m pixels from the COG's overviews.
+image in its own UTM grid, the way imported backgrounds are. The pixel size is chosen from the
+**view** (its own outline and margin): a view longer than `SENTINEL_MAX_WINDOW_PX` pixels at 10 m
+reads 20, 40… m pixels from the COG's overviews, exactly as before the overscan, so the picture is
+never coarser at the same zoom. The overscanned read is up to about 1.5 times that a side (2.25
+times the pixels); past `SENTINEL_MAX_READ_PX`, or past `SENTINEL_MAX_WINDOW_KM`, it is cropped about
+the view's centre, never read coarser. Only a view itself wider than the km limit is refused.
+
+**What the figures cover.** The clear share in the scene list, the default scene's thresholds and
+the change view's hectares and compared share are all measured over the read window, not the
+visible map: the view and the overscan round it. The card states it under the list ("Figures cover
+the area read: _w_ × _h_ km"), and the change view's note says the same.
 
 ## Area series
 
@@ -107,7 +145,7 @@ The **Area series** part of the card reads one index through time over one area 
   (`thinScenes`). Pick a year, then another, to reach back. A year's list is its 12 newest summer
   scenes, so it seldom reaches back past mid-August: a bracket across two years runs from that
   year's late summer. Each scene reads only the area's window, on the 10 m grid of its own UTM zone, `SENTINEL_READ_CONCURRENCY` reads at a
-  time; moving the map, a new area or a new display cancels the reads in flight. A scene read once
+  time; a new area, a new display, a change in the scenes offered or a new scene search cancels the reads in flight. A scene read once
   for an area and index is kept for the session and not read again; a failed read is.
 - **The value.** The mean of the index over the clear pixels whose centres lie inside the area
   (`areaSeries.ts`). A scene whose tile covers less than `SENTINEL_SERIES_MIN_COVERAGE` of the area,
@@ -146,9 +184,12 @@ also move with season and leaf colour, and a short spur cannot be told apart fro
 
 | Limit                           | Value                     | Enforced in                                                             | When exceeded                                          |
 | ------------------------------- | ------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------ |
-| Minimum map zoom                | 12                        | `limits.ts` `SENTINEL_MIN_ZOOM`                                         | Layer paused; no search or COG read                    |
-| Navigation debounce             | 800 ms                    | `limits.ts` `SENTINEL_VIEW_IDLE_MS`                                     | Only the settled view loads                            |
-| Bounds grid                     | 0.01° outward             | `limits.ts` `SENTINEL_VIEW_GRID_DEG`                                    | Nearby views reuse their window                        |
+| Minimum map zoom                | 12                        | `limits.ts` `SENTINEL_MIN_ZOOM`                                         | Layer paused and hidden; no search or COG read         |
+| Read window over the view       | 1.5 × wide and high       | `limits.ts` `SENTINEL_VIEW_OVERSCAN`                                    | Pans inside it read nothing                            |
+| Next window asked for           | within 0.1 of the view's size of the edge | `limits.ts` `SENTINEL_VIEW_EDGE_SHARE`                  | Read starts before the view reaches the edge           |
+| Window requests while moving    | at most every 250 ms      | `limits.ts` `SENTINEL_VIEW_THROTTLE_MS`                                 | Later views wait for the next slot; superseded reads aborted |
+| Check after the map stops       | 100 ms                    | `limits.ts` `SENTINEL_VIEW_SETTLE_MS`                                   | —                                                      |
+| Window grid                     | 0.01° outward             | `limits.ts` `SENTINEL_VIEW_GRID_DEG`                                    | Nearby views share their window                        |
 | Catalogue request spacing       | 5 s                       | `limits.ts` `SENTINEL_SEARCH_INTERVAL_MS`                               | Wait cancellably; respect HTTP Retry-After             |
 | Catalogue cache                 | 8 searches / 15 min       | `limits.ts` `SENTINEL_SEARCH_CACHE_ENTRIES`, `SENTINEL_SEARCH_CACHE_MS` | Oldest searches expire                                 |
 | Concurrent band reads           | 2                         | `limits.ts` `SENTINEL_READ_CONCURRENCY`                                 | Further reads queue; cancelled ones do not start       |
@@ -159,8 +200,9 @@ also move with season and leaf colour, and a short spur cannot be told apart fro
 | "Last 2 years"                  | 730 days                  | `limits.ts` `SENTINEL_RECENT_DAYS`                                      | —                                                      |
 | First year offered              | 2017                      | `limits.ts` `SENTINEL_FIRST_YEAR`                                       | —                                                      |
 | Margin round the view           | 250 m                     | `limits.ts` `SENTINEL_WINDOW_MARGIN_M`                                  | —                                                      |
-| Window size                     | 60 km a side              | `limits.ts` `SENTINEL_MAX_WINDOW_KM`                                    | "The terrain spans … km; … at most 60 km", no read     |
-| Read size                       | 2,048 px a side           | `limits.ts` `SENTINEL_MAX_WINDOW_PX`                                    | Coarser pixels (20, 40… m) from the overviews          |
+| Window size                     | 60 km a side              | `limits.ts` `SENTINEL_MAX_WINDOW_KM`                                    | Overscan cropped about the view; a wider view: "The terrain spans … km; … at most 60 km", no read |
+| View size at 10 m               | 2,048 px a side           | `limits.ts` `SENTINEL_MAX_WINDOW_PX`                                    | Coarser pixels (20, 40… m) from the overviews          |
+| Read size                       | 3,200 px a side           | `limits.ts` `SENTINEL_MAX_READ_PX`                                      | Overscan cropped about the view, never read coarser    |
 | Scene rating read               | 128 px a side             | `limits.ts` `SENTINEL_LIST_SCL_PX`                                      | —                                                      |
 | Rating reads at once            | 4                         | `limits.ts` `SENTINEL_LIST_CONCURRENCY`                                 | —                                                      |
 | Default scene: clear / coverage | 80 % / 95 % of the window | `limits.ts` `SENTINEL_MIN_CLEAR_SHARE`, `SENTINEL_MIN_COVERAGE`         | Falls back to the clearest scene                       |
@@ -182,7 +224,7 @@ Every failure says why on the card, and the ones a retry can fix offer **Retry**
 
 | Situation                            | Shown                                                                                                |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| Map not ready                        | No read until the map has settled bounds. Terrain import is not required.                            |
+| Map not ready                        | No read until the map shows a view at zoom 12 or closer. Terrain import is not required.             |
 | Terrain outside BC's UTM zones       | "The terrain is outside British Columbia's UTM zones 7–11 …"                                         |
 | Terrain wider than the window limit  | "The terrain spans … km; Sentinel-2 imagery is read over at most 60 km."                             |
 | Search fails or times out            | "The Sentinel-2 scene search failed (HTTP …)" / "could not be reached" / "took longer than …", Retry |
@@ -205,8 +247,12 @@ layer, never through a `styles` swap, so `setStyle` never runs.
 - Unit tests (`sentinel/*.test.ts`) run on a recorded Earth Search response
   (`stacSearch.fixture.json`) and on small GeoTIFFs written in memory; they need no network.
 - `tests/e2e/forestry-road-sentinel2.spec.ts` stubs the search and the COGs and checks the layer is
-  added to the map, the scene list renders, the NDVI change and dNBR views print an interval, and a
-  drawn area's series brackets the stubbed clearing and draws its histogram.
+  added to the map, the scene list renders, the NDVI change and dNBR views print an interval, a
+  drawn area's series brackets the stubbed clearing and draws its histogram, and the picture stays
+  on every rendered frame through pans that make no new search (the listed tiles hold them).
+- The toolkit's `map/view-window.test.ts` pins the view-window rule (overscan, reuse while inside, the
+  throttle during a move, the settle check, pausing); `sentinel/requestPolicy.test.ts` pins the
+  layer's use of it, the pixel chosen from the view, and catalogue reuse over a pan journey.
 
 Catalogue and band caches are local to this map session. There is no polling or automatic failure retry. HTTP 429 without Retry-After holds new searches for 60 s; HTTP 503 without it keeps the normal 5 s spacing. Successful decoded bands survive cancellation of their originating effect. The public Earth Search service promises no guaranteed service: these application limits are conservative client budgets, not a published provider quota.
 
@@ -231,14 +277,20 @@ site to hide it; `deployment.ts` reads it with the designer's other deployment s
 setting it to `true` restores the option. The standalone designer uses the same setting
 ([standalone build](standalone-build.md)).
 
-| Limit             | Value                                                     | Where                                             |
-| ----------------- | --------------------------------------------------------- | ------------------------------------------------- |
-| Catalog request   | Gives up after 20 s; **Retry Wayback catalog** asks again | `src/lib/wayback.ts` `WAYBACK_CATALOG_TIMEOUT_MS` |
-| Playback          | One release every 2 s                                     | `WaybackTimeline.tsx` `WAYBACK_PLAYBACK_MS`       |
-| Deepest tile zoom | 18                                                        | `PlanView.tsx` (`maxZoom` on `road-wayback`)      |
+| Limit             | Value                                                           | Where                                                |
+| ----------------- | --------------------------------------------------------------- | ---------------------------------------------------- |
+| Catalog request   | Gives up after 20 s; **Retry Wayback catalog** asks again       | `src/lib/wayback.ts` `WAYBACK_CATALOG_TIMEOUT_MS`    |
+| Playback          | One release every 2 s                                           | `WaybackTimeline.tsx` `WAYBACK_PLAYBACK_MS`          |
+| Deepest tile zoom | 18                                                              | `PlanView.tsx` (`maxZoom` on `road-wayback`)         |
+| Release hand-off  | Previous release kept until the next has its tiles, at most 4 s | `map-layer-handoff.ts` `LAYER_HANDOFF_TIME_LIMIT_MS` |
 
 Opening Wayback requests the catalog. The plan then requests tiles for the selected release and visible area.
-Tile traffic varies with the viewport, zoom and playback. Esri publishes no numeric request allowance for these
+Tile traffic varies with the viewport, zoom and playback. A new release loads behind the one shown and replaces
+it in one frame once it has its tiles, so stepping and playback never blank the imagery
+([swapping a tile layer](../shared-ui.md#swapping-a-tile-layer-without-a-blank)). Played faster than its tiles
+arrive, the plan skips releases; after 4 s on one release it waits for the loading one rather than skip again,
+and a release still loading after 4 s is shown as it stands. Until the swap, the slider names the requested
+release while the plan still shows the previous one. Esri publishes no numeric request allowance for these
 endpoints in the service information reviewed. Deployments need rights to use Esri imagery and must retain its
 attribution. The mission workbench uses the same catalog and credits for its manual release picker.
 See [workbench source limits](../mmgis-workbench.md) and [Esri’s terms summary](https://goto.arcgis.com/termsofuse/viewsummary).

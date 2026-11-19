@@ -1,77 +1,72 @@
-import { useEffect, useState } from 'react'
-import type { Map as MapLibreMap, MapSourceDataEvent } from 'maplibre-gl'
+import { useEffect, useRef, useState } from 'react'
 import { useMap } from '@/components/ui/map'
 import { MapImageLayer } from '@/components/ui/map-layers'
 import { SENTINEL_ANCHOR_LAYER_ID, SENTINEL_LAYER_ID } from './planOrder'
 import { usePlanImageryOrder } from '../usePlanImageryOrder'
 import type { SentinelImage } from './useSentinel2'
 
-/** The picked pixels as an object URL, revoked a little after the image changes. */
-export function useImageUrl(image: Pick<SentinelImage, 'key' | 'width' | 'height' | 'rgba'> | null) {
-  const [url, setUrl] = useState<{ key: string; url: string } | null>(null)
+/** A picture ready to draw and the corners it belongs to: always handed to the map together. */
+export type PreparedImage = { key: string; image: ImageBitmap; quad: SentinelImage['quad'] }
+
+/** How long a replaced picture is kept, so the map can finish with it. */
+const RELEASE_AFTER_MS = 5_000
+
+/**
+ * The picture as an `ImageBitmap` with its own corners, which the map uploads as it is: no PNG is
+ * encoded, requested or decoded. While the next picture is prepared (off the page's thread) the
+ * previous pair is returned unchanged, so the map keeps drawing it where it belongs and swaps only
+ * when the new one exists. A newer picture supersedes one still being prepared. Null only while
+ * there is no image.
+ */
+export function usePreparedImage(image: Pick<SentinelImage, 'key' | 'width' | 'height' | 'rgba' | 'quad'> | null) {
+  const [prepared, setPrepared] = useState<PreparedImage | null>(null)
+  const current = useRef<PreparedImage | null>(null)
   useEffect(() => {
-    if (!image) return
-    let cancelled = false,
-      made: string | null = null
-    const canvas = document.createElement('canvas')
-    canvas.width = image.width
-    canvas.height = image.height
-    const context = canvas.getContext('2d')
-    if (!context) return
-    context.putImageData(new ImageData(new Uint8ClampedArray(image.rgba), image.width, image.height), 0, 0)
-    canvas.toBlob((blob) => {
-      if (cancelled || !blob) return
-      made = URL.createObjectURL(blob)
-      setUrl({ key: image.key, url: made })
-    }, 'image/png')
+    if (!image || current.current?.key === image.key) return
+    let cancelled = false
+    void createImageBitmap(new ImageData(new Uint8ClampedArray(image.rgba), image.width, image.height)).then(
+      (bitmap) => {
+        if (cancelled) return bitmap.close()
+        const next = { key: image.key, image: bitmap, quad: image.quad }
+        const replaced = current.current
+        current.current = next
+        setPrepared(next)
+        if (replaced) setTimeout(() => replaced.image.close(), RELEASE_AFTER_MS)
+      },
+      // A picture the browser cannot hold leaves the previous one up.
+      () => undefined,
+    )
     return () => {
       cancelled = true
-      // The map may still be drawing the previous URL; let it finish loading the next one first.
-      if (made) setTimeout(() => URL.revokeObjectURL(made!), 5_000)
     }
   }, [image])
-  // The previous picture stays up while the next one is encoded, so a new scene does not flash.
-  return image && url?.key === image.key ? url : null
+  useEffect(
+    () => () => {
+      const last = current.current
+      if (last) setTimeout(() => last.image.close(), RELEASE_AFTER_MS)
+    },
+    [],
+  )
+  return image ? prepared : null
 }
 
 /**
- * Puts the Copernicus credit in the map's attribution. An image source carries no attribution of its
- * own in MapLibre's style spec, but the attribution control reads `source.attribution` from every
- * source in use. The credit is set on the source while its image is still loading (the effect runs
- * right after the layer adds it, and again as each new image starts), so the load's metadata event
- * makes the control show it; removing the source takes it away.
+ * The Sentinel-2 image on the plan: a georeferenced quad in its UTM window, under the engineering
+ * layers, with the Copernicus credit in the map's attribution. A new window or scene swaps the
+ * picture in place; the camera moving never removes it.
  */
-export function useSourceCredit(map: MapLibreMap | null, sourceId: string, credit: string | null) {
-  useEffect(() => {
-    if (!map || !credit) return
-    const apply = () => {
-      const source = map.getSource(sourceId) as { attribution?: string } | undefined
-      if (source && source.attribution !== credit) source.attribution = credit
-    }
-    const onLoading = (event: MapSourceDataEvent) => {
-      if (event.sourceId === sourceId) apply()
-    }
-    apply()
-    map.on('sourcedataloading', onLoading)
-    return () => {
-      map.off('sourcedataloading', onLoading)
-    }
-  }, [map, sourceId, credit])
-}
-
-/** The Sentinel-2 image on the plan: a georeferenced quad in its UTM window, under the engineering layers. */
 export function Sentinel2Layer({ image, credit }: { image: SentinelImage | null; credit: string | null }) {
   const { map, isLoaded } = useMap()
-  const url = useImageUrl(image)
-  const ready = !!map && isLoaded && !!image && !!url
-  useSourceCredit(ready ? map : null, SENTINEL_LAYER_ID, credit)
+  const prepared = usePreparedImage(image)
+  const ready = !!map && isLoaded && !!prepared
   usePlanImageryOrder(map, ready, SENTINEL_LAYER_ID)
   if (!ready) return null
   return (
     <MapImageLayer
       id={SENTINEL_LAYER_ID}
-      url={url.url}
-      coordinates={image.quad}
+      image={prepared.image}
+      coordinates={prepared.quad}
+      attribution={credit ?? undefined}
       opacity={1}
       resampling="nearest"
       beforeId={(m) => (m.getLayer(SENTINEL_ANCHOR_LAYER_ID) ? SENTINEL_ANCHOR_LAYER_ID : undefined)}

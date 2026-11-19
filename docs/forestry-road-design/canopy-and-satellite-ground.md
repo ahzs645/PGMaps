@@ -8,10 +8,30 @@ which measured each source against airborne LiDAR before anything was built.
 ## Canopy height on the plan (Meta CHM v2)
 
 **View → Map layers → Canopy height (CHM v2)** (also in the plan's **Map settings** and **Find tools**)
-draws Meta and WRI's 2026 global canopy height map over the settled view. It is drawn in the block
-sheet's canopy classes (`CANOPY_HEIGHT_CLASSES`, `src/lib/forestry/blockSheet/styles.ts`), so it reads
-like a company canopy sheet laid beside it, at `CANOPY_LAYER_OPACITY` over the imagery and under every
-engineering layer. Its card lists the classes, the cell size read and the imagery years under the view.
+draws Meta and WRI's 2026 global canopy height map on the plan from zoom 12 in. It is drawn in the
+block sheet's canopy classes (`CANOPY_HEIGHT_CLASSES`, `src/lib/forestry/blockSheet/styles.ts`), so it
+reads like a company canopy sheet laid beside it, at `CANOPY_LAYER_OPACITY` over the imagery and under
+every engineering layer. Its card lists the classes, the cell size drawn and the imagery years under
+the view at rest; its header icon turns while tiles are being read, and tiles in view that could not
+be read are named with the reason.
+
+The layer is a MapLibre raster tile source (`road-canopy-height`, `CanopyHeightLayer.tsx`) fed by a
+`pgmaps-chm://{z}/{x}/{y}` protocol (`canopy/chmTileProtocol.ts`), so it loads as the map moves and
+never leaves the map during a pan or zoom: MapLibre requests tiles every frame, keeps coarser and
+finer tiles drawn while the ideal ones load, aborts a tile that leaves the view (the abort reaches
+the block read) and caches the rest. A 512 px map tile at zoom 10–16 is exactly one 512 px internal
+block of one image of one file (`chmTiles.ts`): one byte range a tile, no resampling, no
+reprojection. Zoom 16 is the files' full resolution; deeper zooms enlarge it, drawn nearest. A tile
+with no canopy, or under a file the bucket does not have (outside coverage, a 404), is clear; the
+missing file is asked for once a session. A tile takes about 2 ms to inflate and under 1 ms to colour
+on the page's thread, so the tiles need no worker. The Map PDF and the field pack frame the plan
+through `planCapture.ts`, which waits for the map's `idle`, and so for the canopy tiles of the framed
+view.
+
+Before November 2026 the layer was one picture of the settled view, read 800 ms after the map
+stopped. It vanished at the start of every pan and came back 1.3–1.7 s after it stopped; measured in
+Chrome on a 2 s drag, 178 of 179 frames had no canopy, against none now, with tile reads starting
+about 0.5 s into the drag.
 
 **Read the corridor** reads the active road's corridor at full resolution (about 0.7 m) and reports,
 from `corridorSummary` (`src/lib/forestry/canopy/chmView.ts`):
@@ -37,7 +57,10 @@ What the bench found, and so what the card says:
 
 The files are uint8 COGs on Source Cooperative (CORS, byte ranges), one per zoom-10 quadkey. Each
 carries a transparency mask after its full-resolution image and after its overviews, so an overview
-is found by its width, never by its IFD number (`readMetaChm`).
+is found by its width, never by its IFD number (`readMetaChm`, `chmBlock`). Checked on
+`0212102011.tif` (19 November 2026): EPSG:3857, deflate with no predictor, 512 px blocks, a 32,768 px
+image with overviews down to 512 px, masks at IFD 1 and 8–13. The masks are not read: the blocks
+sampled were valid throughout, and a 0 is drawn clear either way.
 
 ## ICESat-2 ground check (Review)
 
@@ -94,8 +117,12 @@ earlier; the others are the research bench's.
 
 | Limit                          | Value             | Enforced in                                       | When exceeded                          |
 | ------------------------------ | ----------------- | ------------------------------------------------- | -------------------------------------- |
-| Canopy layer minimum zoom      | 12                | `chmView.ts` `CHM_MIN_ZOOM`                       | Layer paused                           |
-| Canopy view read, longest side | 2,048 cells       | `chmView.ts` `CHM_VIEW_MAX_SIDE`                  | A coarser overview is read             |
+| Canopy layer minimum zoom      | 12                | `chmView.ts` `CHM_MIN_ZOOM`                       | Layer paused, no tile read             |
+| Canopy tile zooms              | 10–16, 512 px     | `chmTiles.ts` `CHM_TILE_MIN_ZOOM`, `CHM_TILE_MAX_ZOOM`, `CHM_TILE_SIZE` | Past 16 the zoom-16 tiles are enlarged |
+| Canopy block reads at once     | 8                 | `canopy/chmFiles.ts` `CHM_TILE_MAX_REQUESTS`      | Later tiles wait their turn            |
+| Canopy files kept open         | 12                | `canopy/chmFiles.ts` `CHM_OPEN_FILES`             | The oldest header is read again later  |
+| Canopy tile fade               | 150 ms            | `CanopyHeightLayer.tsx` `CANOPY_FADE_MS`          | —                                      |
+| Canopy card loading hold       | 250 ms            | `useCanopyHeight.ts` `CANOPY_LOADING_HOLD_MS`     | Shorter reads show no loading icon     |
 | Corridor read                  | 60 M cells        | `chmView.ts` `CHM_CORRIDOR_MAX_PIXELS`            | Refused with a message                 |
 | Corridor margin                | 60 m              | `chmView.ts` `CHM_CORRIDOR_MARGIN_M`              | —                                      |
 | Shortest gap listed            | 25 m              | `chmView.ts` `CHM_GAP_MIN_LENGTH_M`               | Shorter gaps not listed                |

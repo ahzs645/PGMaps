@@ -1,3 +1,10 @@
+/**
+ * Which blocks may start a request on this update. `all` is the settled view: visible blocks, then
+ * the prefetch ring. `visible` is a camera gesture: only blocks the view shows now (the ring waits for
+ * the settled view). `none` starts nothing: cached blocks still show and still-wanted requests finish.
+ */
+export type BlockLoadScope = 'all' | 'visible' | 'none'
+
 /** Incremental native-block loading. Visible data is pinned; only idle blocks use the LRU budget. */
 export class ViewportBlockLoader<T> {
   private wanted: string[] = []
@@ -6,7 +13,7 @@ export class ViewportBlockLoader<T> {
   private pending = new Map<string, AbortController>()
   private errors = new Map<string, string>()
   private disposed = false
-  private paused = false
+  private scope: BlockLoadScope = 'all'
 
   constructor(
     private fetchBlock: (id: string, signal: AbortSignal) => Promise<T>,
@@ -15,9 +22,13 @@ export class ViewportBlockLoader<T> {
     private idleLimit = 32,
   ) {}
 
-  update(visible: string[], prefetched: string[] = [], retry = false, loadNew = true) {
+  /**
+   * Set the blocks the view shows (nearest first) and the prefetch ring. Requests for blocks in
+   * neither are aborted whatever the scope, so a block that has left the view never holds a slot.
+   */
+  update(visible: string[], prefetched: string[] = [], retry = false, scope: BlockLoadScope = 'all') {
     if (this.disposed) return
-    this.paused = !loadNew
+    this.scope = scope
     this.visible = new Set(visible)
     this.wanted = [...new Set([...visible, ...prefetched])]
     const wanted = new Set(this.wanted)
@@ -63,9 +74,10 @@ export class ViewportBlockLoader<T> {
   }
 
   private pump() {
-    if (this.disposed || this.paused) return
+    if (this.disposed || this.scope === 'none') return
     for (const id of this.wanted) {
       if (this.pending.size >= this.concurrency) break
+      if (this.scope === 'visible' && !this.visible.has(id)) continue
       if (this.cache.has(id) || this.pending.has(id) || this.errors.has(id)) continue
       const controller = new AbortController()
       this.pending.set(id, controller)

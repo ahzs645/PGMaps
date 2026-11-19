@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, TreePine, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Loader2, TreePine, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -18,17 +18,17 @@ const years = (d: CanopyDates) => {
 /**
  * The canopy height layer's card on the plan: its classes, the imagery years under the view and, on
  * request, what the active road's corridor reads. Values here; explanations behind the InfoTips.
+ * Tiles load as the map moves, so their progress is the header's icon, never a line that comes and
+ * goes, and the view's figures follow the view at rest.
  */
 export function CanopyHeightPanel({
   state,
   paused,
-  moving,
   roadName,
   onClose,
 }: {
   state: CanopyHeightState
   paused: boolean
-  moving: boolean
   roadName: string
   onClose: () => void
 }) {
@@ -43,7 +43,14 @@ export function CanopyHeightPanel({
       data-map-export-ignore
     >
       <div className="flex items-center gap-1">
-        <TreePine className="size-3.5 shrink-0" aria-hidden="true" />
+        {state.loading && !paused ? (
+          <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden="true" data-testid="road-canopy-loading" />
+        ) : (
+          <TreePine className="size-3.5 shrink-0" aria-hidden="true" />
+        )}
+        <span className="sr-only" role="status">
+          {state.loading && !paused ? 'Reading canopy height tiles' : ''}
+        </span>
         <h3 className="min-w-0 flex-1 truncate font-semibold">Canopy height (CHM v2)</h3>
         <InfoTip label="About the canopy height map" bubbleClassName="max-w-72">
           Meta and WRI&apos;s global canopy height map v2 (2026), a model&apos;s prediction from satellite imagery, read
@@ -69,9 +76,7 @@ export function CanopyHeightPanel({
       {!folded && (
         <div className="mt-2 space-y-2">
           {paused && <InlineAlert>Zoom in to level {CHM_MIN_ZOOM} to load canopy height for this view.</InlineAlert>}
-          {!paused && moving && <InlineAlert>Canopy updates when you stop moving the map.</InlineAlert>}
-          {state.status === 'loading' && <InlineAlert loading>Reading canopy height…</InlineAlert>}
-          {state.status === 'error' && state.error && <InlineAlert tone="error">{state.error}</InlineAlert>}
+          {!paused && state.error && <InlineAlert tone="error">{state.error}</InlineAlert>}
           <div className="grid grid-cols-4 gap-x-1 gap-y-0.5" data-testid="road-canopy-classes">
             {CANOPY_HEIGHT_CLASSES.filter((c) => c.color).map((c) => (
               <span key={c.label} className="flex items-center gap-1 whitespace-nowrap">
@@ -86,7 +91,7 @@ export function CanopyHeightPanel({
           </div>
           <div className="text-muted-foreground">
             Metres · under 5 m clear
-            {state.image && ` · ${state.image.cellM.toFixed(1)} m cells`}
+            {!paused && state.cellM !== null && ` · ${state.cellM.toFixed(1)} m cells`}
             {state.dates && ` · imagery ${years(state.dates)}`}
           </div>
           <div className="border-t pt-2">

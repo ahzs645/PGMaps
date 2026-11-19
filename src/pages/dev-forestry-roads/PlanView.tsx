@@ -100,7 +100,7 @@ import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
 import { sectionCodePoints } from './sectionGeometry'
 import { safeAnalyzeRoad } from './analysisResult'
 import { TerrainRasterLayers } from './TerrainRasterLayers'
-import { MapRasterLayer } from '@/components/ui/map-layers'
+import { MapRasterHandoff, useMapLayerHandoff } from '@/components/ui/map-raster-handoff'
 import { commandDef } from '@/components/interfaces/workspaceCommands'
 import { waybackCredit } from '@/lib/wayback'
 import { waybackTimelineAvailable, useWaybackTimeline, WaybackTimeline } from './WaybackTimeline'
@@ -109,10 +109,11 @@ import { usePlanImageryOrder } from './usePlanImageryOrder'
 import { Sentinel2Layer } from './sentinel/Sentinel2Layer'
 import { Sentinel2Panel } from './sentinel/Sentinel2Panel'
 import { useSentinel2 } from './sentinel/useSentinel2'
-import { useSentinelViewport } from './sentinel/useSentinelViewport'
+import { useSentinelViewWindow } from './sentinel/useSentinelViewWindow'
 import { CanopyHeightLayer } from './canopy/CanopyHeightLayer'
 import { CanopyHeightPanel } from './canopy/CanopyHeightPanel'
 import { useCanopyHeight } from './canopy/useCanopyHeight'
+import { useCanopyView } from './canopy/useCanopyView'
 import { META_CHM_CREDIT } from '@/lib/forestry/canopy/metaChm'
 import { areaFromFeature, useSentinelAreaDrawing } from './sentinel/useSentinelAreaDrawing'
 import { RegionalDemLayer } from './RegionalDemLayer'
@@ -2913,17 +2914,18 @@ export function PlanView(input: PlanProps) {
     return { data: fc(features), symbols }
   }, [bufferSettings, hiddenContextKinds, props.hiddenReferenceLayers, props.project.context, reference])
   const { notesOpen, setNotesOpen, showSentinel, setShowSentinel, showCanopy, setShowCanopy } = props.display
-  const sentinelView = useSentinelViewport(props.display.navigationMap, showSentinel)
+  const sentinelView = useSentinelViewWindow(props.display.navigationMap, showSentinel)
   const sentinel = useSentinel2({
-    visible: showSentinel && !sentinelView.paused && !sentinelView.moving,
-    bounds: sentinelView.bounds,
+    visible: showSentinel && !sentinelView.paused,
+    window: sentinelView.window,
+    moving: sentinelView.moving,
   })
-  const canopyView = useSentinelViewport(props.display.navigationMap, showCanopy)
+  const canopyView = useCanopyView(props.display.navigationMap, showCanopy)
   const canopyAnalysis = props.analyses.get(props.alignment.id)
   const canopyStations = useMemo(() => canopyAnalysis?.stations ?? [], [canopyAnalysis])
   const canopy = useCanopyHeight({
-    visible: showCanopy && !canopyView.paused && !canopyView.moving,
-    bounds: canopyView.bounds,
+    visible: showCanopy,
+    view: canopyView,
     stations: canopyStations,
     roadKey: `${props.alignment.id}:${canopyStations.length}:${canopyAnalysis?.length ?? 0}`,
   })
@@ -3040,7 +3042,14 @@ export function PlanView(input: PlanProps) {
   const waybackAvailable = waybackTimelineAvailable(props.project.terrain)
   const waybackActive = waybackAvailable && props.display.showWayback
   const timeline = useWaybackTimeline(waybackActive)
-  usePlanImageryOrder(props.display.navigationMap, waybackActive && !!timeline.release, 'road-wayback')
+  const waybackRelease = waybackActive ? timeline.release : undefined
+  const wayback = useMapLayerHandoff(
+    'road-wayback',
+    waybackRelease ? { key: waybackRelease.id, value: waybackRelease } : null,
+  )
+  // Only the shown release is ordered: the one loading is drawn at opacity 0, and ordering both
+  // would have each move the other above itself on every style change.
+  usePlanImageryOrder(props.display.navigationMap, !!wayback.shownLayerId, wayback.shownLayerId ?? 'road-wayback')
   const planeGrid = useMemo(() => {
     if (!plane) return EMPTY_COLLECTION
     const b = terrainBounds(props.project.terrain)
@@ -3230,7 +3239,7 @@ export function PlanView(input: PlanProps) {
             </>
           )}
           {showSentinel && !plane && <Sentinel2Layer image={sentinel.image} credit={sentinel.credit} />}
-          {showCanopy && !plane && <CanopyHeightLayer image={canopy.image} credit={META_CHM_CREDIT} />}
+          {showCanopy && !plane && <CanopyHeightLayer credit={META_CHM_CREDIT} />}
           {showSentinel && !plane && sentinel.area && (
             <MapLineLayer
               data={{
@@ -3328,18 +3337,18 @@ export function PlanView(input: PlanProps) {
               </MapMarker>
             </>
           )}
-          {waybackActive && timeline.release && (
-            <MapRasterLayer
-              key={timeline.release.id}
-              id="road-wayback"
-              tiles={[timeline.release.tiles]}
-              beforeId={SENTINEL_ANCHOR_LAYER_ID}
-              attribution={waybackCredit(timeline.release)}
-              fadeDuration={0}
+          {/* The shown release stays until the next has its tiles, so stepping and playback never blank the imagery. */}
+          <MapRasterHandoff
+            handoff={wayback}
+            layer={(release) => ({
+              tiles: [release.tiles],
+              beforeId: SENTINEL_ANCHOR_LAYER_ID,
+              attribution: waybackCredit(release),
+              fadeDuration: 0,
               // As the satellite basemap (`map-satellite-imagery.tsx`): past z18 rural BC gets Esri's grey placeholder.
-              maxZoom={18}
-            />
-          )}
+              maxZoom: 18,
+            })}
+          />
           {tools.mapLayer}
           <ReferenceLabels features={visibleReference} />
           <NotesLayer
@@ -3665,7 +3674,6 @@ export function PlanView(input: PlanProps) {
               <Sentinel2Panel
                 state={sentinel}
                 paused={sentinelView.paused}
-                moving={sentinelView.moving}
                 onClose={() => {
                   sentinelArea.drawing.cancel()
                   setShowSentinel(false)
@@ -3677,7 +3685,6 @@ export function PlanView(input: PlanProps) {
               <CanopyHeightPanel
                 state={canopy}
                 paused={canopyView.paused}
-                moving={canopyView.moving}
                 roadName={props.alignment.name || 'the road'}
                 onClose={() => setShowCanopy(false)}
               />

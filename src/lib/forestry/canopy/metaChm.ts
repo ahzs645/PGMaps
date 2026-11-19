@@ -96,7 +96,7 @@ export interface ChmTiff {
  * full-resolution image (IFD 1) and keep the overviews' masks after the overviews, so an overview's
  * IFD number is not its level.
  */
-async function overviewImage(tiff: ChmTiff, width: number) {
+export async function overviewImage(tiff: ChmTiff, width: number) {
   const count = await tiff.getImageCount()
   for (let i = 0; i < count; i++) {
     const image = await tiff.getImage(i)

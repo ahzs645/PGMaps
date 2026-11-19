@@ -14,8 +14,18 @@ export class ResidentRasterBlocks<T> {
     return this.blocks.get(id)?.data
   }
 
-  update(visible: Array<{ id: string; data: T }>) {
+  /**
+   * Show `visible`; add `warm` blocks hidden, so their GPU state is built a few at a time before a
+   * level switch shows them all at once. Warm blocks are idle and count against the idle budget.
+   */
+  update(visible: Array<{ id: string; data: T }>, warm: Array<{ id: string; data: T }> = []) {
     for (const block of this.blocks.values()) block.visible = false
+    const shown = new Set(visible.map((block) => block.id))
+    for (const block of warm) {
+      if (shown.has(block.id) || this.blocks.get(block.id)?.data === block.data) continue
+      this.blocks.delete(block.id)
+      this.blocks.set(block.id, { ...block, visible: false })
+    }
     for (const block of visible) {
       this.blocks.delete(block.id)
       this.blocks.set(block.id, { ...block, visible: true })

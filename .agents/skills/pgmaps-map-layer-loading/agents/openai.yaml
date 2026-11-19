@@ -1,0 +1,4 @@
+interface:
+  display_name: 'PGMaps Map Layer Loading'
+  short_description: 'Make a map layer load as the map moves, without blanking, and measure it'
+  default_prompt: 'Use $pgmaps-map-layer-loading to make this layer load smoothly as the map moves and measure it.'

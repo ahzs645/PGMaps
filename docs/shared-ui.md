@@ -911,10 +911,20 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   results accordingly instead of describing them as exact cell values.
   Polygon fetch/decode/triangulation runs in a two-worker pool with transferable
   binary geometry; retain Float64 positions and use binary feature indices for
-  picking. Newly prepared blocks wait for camera movement to finish. Recently
-  drawn blocks remain as hidden, non-pickable deck.gl layers (up to 48 inactive
-  blocks), so cached levels can switch during a gesture without GPU uploads.
-  New block requests wait for the settled viewport; cached views remain usable.
+  picking. Blocks load while the camera moves: every `BLOCK_MOVE_THROTTLE_MS`
+  (120 ms) of a gesture, blocks the view shows start their request and worker
+  preparation (six pending, two workers, nearest the centre first), and a prepared block is
+  drawn before the gesture ends, at most `GESTURE_BLOCK_UPLOADS_PER_FRAME` (2)
+  first uploads a frame. Blocks that leave the view are aborted (their worker is
+  stopped); the 25 % prefetch ring waits for the settled view. While a gesture
+  is still zooming in, a finer level waits too: the coarser level stays drawn,
+  scaled up, and keeps loading the view. A coarser level loads at once, and a
+  level change during a gesture uploads the new level hidden, within the same
+  budget, then switches with no upload. Recently drawn blocks remain as hidden,
+  non-pickable deck.gl layers (up to 48 inactive blocks), so cached levels
+  switch without GPU uploads. `loadWhileMoving={false}` (or a browser asking to
+  save data) keeps the settled-view rule: during a gesture only blocks already
+  on the GPU show, and no request starts.
 
 - Image box grids: `createRasterGridLayer` (`map-raster-grid.ts`) composes
   a pickable `TileLayer` into an existing deck.gl overlay. Supply XYZ
@@ -1233,6 +1243,54 @@ does. A map with `controls={null}` is taken for an inset or figure and goes with
 basemap's name in `MapLayersControl`; `IMAGERY_BASEMAPS` uses it. Pass it any XYZ template, or one
 per theme.
 
+## Swapping a tile layer without a blank
+
+A raster tile layer whose *source* changes (a timeline's release, a scenario, a year) hands over
+through `useMapLayerHandoff` and `MapRasterHandoff` (`@/components/ui/map-raster-handoff`; the
+toolkit's `map/map-raster-handoff.tsx`, rule in its DOM-free `map-layer-handoff.ts`), never by
+remounting `MapRasterLayer` with a new `key`:
+that removes the source, and the map shows nothing there until the new tiles arrive. The Wayback
+timeline in the road designer is the first user. `docs/map-layer-loading.md` says when to use this
+and when another pattern fits, and how to measure the result.
+
+```tsx
+const handoff = useMapLayerHandoff('road-wayback', release ? { key: release.id, value: release } : null)
+// …inside the <Map>:
+<MapRasterHandoff handoff={handoff} layer={(release) => ({ tiles: [release.tiles], maxZoom: 18 })} />
+```
+
+- The shown layer stays drawn until the requested one has its tiles for the current view (a tile of
+  its own has landed and none is loading, or the map is idle). The two then swap in one frame:
+  opacity changes on these layers have no transition.
+- The incoming layer loads at opacity 0, so two layers are never drawn at once and a translucent
+  layer does not read darker during the swap. Pass the layer's `opacity` to `MapRasterHandoff`,
+  not in `layer`.
+- At most two layers are mounted. A request made while one is loading replaces it (a timeline
+  played faster than its tiles drops releases). Once the map has shown an old layer for the time
+  limit (`LAYER_HANDOFF_TIME_LIMIT_MS`, 4 s, or `timeLimitMs`), newer requests wait, unmounted,
+  until the loading one is shown, so playback still moves a whole release at a time. A layer
+  still loading after its own time limit is shown as it stands.
+- The layers alternate between two ids, the caller's own and `${id}-handoff`, and between two
+  sources of the same ids. Code that moves or reads the layer uses `handoff.shownLayerId`;
+  move only the shown one, because the incoming layer is invisible and moving both by one rule
+  can move each above the other on every style change.
+- While the next loads, the map shows the previous value (`handoff.shown`, `handoff.pending`) and
+  both sources' credits appear. Where a legend, a readout or the sidebar follows the selection at
+  once, add `<MapHandoffNote handoff={handoff}>…</MapHandoffNote>` inside the map: it says the map
+  still shows the previous layer, only once the hand-off has lasted `HANDOFF_NOTE_DELAY_MS`
+  (400 ms), and goes in the same frame as the swap. The CCISS page's original tiles use it.
+- The request must stay non-null across the change. A page that clears its overlay while it checks
+  or fetches something for the next choice switches the hand-off off and blanks the map as a
+  remount did: hold the last good value until the next is known (`usePublishedTiles`'s
+  `shownTileId`).
+- A change of place in the stack is not a swap: change the layer's `beforeId`. `MapRasterLayer`
+  and `MapTerrain` move the layer (`moveLayer`) and keep its tiles; `useReliefPlace` in the road
+  designer's `RegionalDemLayer.tsx` also puts a layer back when something else in the style has
+  moved it since. Nothing survives `setStyle`, which drops every source.
+- A changed `tiles` on a plain `MapRasterLayer` reloads in place too (`setTiles`), tile by tile, so
+  two versions show side by side until the last arrives. Use that where a patchwork is harmless;
+  a timeline or a data layer hands over.
+
 ## Settled map observation and HTML-marker clustering
 
 `map-viewport.ts` exports `MapViewportSnapshot` (`bounds` in west/south/east/north
@@ -1257,6 +1315,33 @@ content, priority and expand/reveal actions. This differs from source-based
 
 Use existing toolkit `pointBounds`, `fitMapToPoints` and `geometryBounds` for
 fitting where appropriate, passing each app's own padding/span/zoom policy.
+
+## View windows
+
+A layer that draws one image per view, or reads one bounding box per view, follows the map
+through `useViewWindow` (`@/components/ui/map-view-window`; the toolkit's `map/use-view-window.ts`)
+over the DOM-free rule in its `map/view-window.ts`, as established map libraries do (OpenLayers' `ImageWMS`, Leaflet's
+`GridLayer`). The Sentinel-2 plan layer is the first user (`useSentinelViewWindow`). `docs/map-layer-loading.md`
+says when to use this and when another pattern fits, and how to measure the result.
+
+- **Keep what is drawn.** Nothing is removed because the camera moves. The picture stays at its own
+  corners until the next one is ready, then swaps in place (`MapImageLayer` swaps through
+  `ImageSource.updateImage`, which keeps the old texture until the new image has decoded). Hand the
+  map the URL and the corners as one pair, never a new URL on old corners or the reverse.
+- **Overscan.** The window is the view grown by `overscan` (1.5 by default) and optionally snapped
+  outward to a degree grid, so small pans read nothing. A window is kept while the view stays
+  inside it at the same resolution `level` (the caller's: a zoom, a pixel size).
+- **Request during the move.** When the view comes within `edgeShare` of its size of the window's
+  edge, or leaves it, the next window is published while the map still moves, at most every
+  `throttleMs` (250 ms), and checked once more `settleMs` (100 ms) after it stops.
+- **Abort the superseded.** A new window replaces the old one in the caller's effect dependencies;
+  its cleanup aborts the reads the old one started.
+- **Paused** below `minZoom`: the hook keeps the window and reports `paused`, a stated state the
+  layer may hide for, never a movement.
+
+The hook re-renders only when the window, `paused` or `moving` changes. The window object stays the
+same while it serves, so it can go straight into effect dependencies. Figures read over the window
+cover more than the visible map: say so where they are shown.
 
 ## Touch
 

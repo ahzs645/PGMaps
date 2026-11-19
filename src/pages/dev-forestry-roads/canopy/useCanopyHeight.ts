@@ -1,32 +1,27 @@
 /**
- * The plan's Meta CHM v2 layer: reads the canopy under the settled view from Source Cooperative's COGs
- * (CORS, byte ranges) at an overview that fits the screen, and, on request, the active road's corridor
- * at full resolution. The maths is `src/lib/forestry/canopy/chmView.ts`; this file only fetches.
+ * The plan's Meta CHM v2 layer, as its card reads it: the tiles' progress and failures in the view
+ * (the tiles themselves are MapLibre's, `chmTileProtocol.ts`), the cell size and imagery years of the
+ * view at rest and, on request, the active road's corridor at full resolution. The maths is
+ * `src/lib/forestry/canopy/`; this file only fetches.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { fromUrl, type GeoTIFF } from 'geotiff'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
-  canopyPicture,
-  canopyQuad,
   chmImageryDates,
-  chmOverviewFor,
   CHM_CORRIDOR_MAX_PIXELS,
   corridorSummary,
   stationBounds,
   type ChmTileDates,
   type CorridorCanopySummary,
 } from '@/lib/forestry/canopy/chmView'
-import { readMetaChm, type ChmTiff, type LonLatBounds } from '@/lib/forestry/canopy/metaChm'
+import { chmTileCellM, chmTilesIn, CHM_TILE_MAX_ZOOM } from '@/lib/forestry/canopy/chmTiles'
+import { readMetaChm } from '@/lib/forestry/canopy/metaChm'
 import type { CorridorStation } from '@/lib/forestry/canopy/corridor'
+import { openChmTiff } from './chmFiles'
+import { chmTileStatus } from './chmTileProtocol'
+import type { CanopyView } from './useCanopyView'
 
-export interface CanopyImage {
-  key: string
-  rgba: Uint8ClampedArray
-  width: number
-  height: number
-  quad: [[number, number], [number, number], [number, number], [number, number]]
-  cellM: number
-}
+/** The card shows "loading" only once tiles have been reading this long, and drops it this long after. */
+export const CANOPY_LOADING_HOLD_MS = 250
 
 export interface CanopyDates {
   from: string
@@ -43,29 +38,17 @@ export interface CanopyCorridor {
 }
 
 export interface CanopyHeightState {
-  image: CanopyImage | null
-  dates: CanopyDates | null
-  status: 'idle' | 'loading' | 'ready' | 'error'
+  /** Tiles are being read for the map. */
+  loading: boolean
+  /** Why tiles of the view at rest could not be read, or null. */
   error: string | null
+  /** Ground size of the cells drawn in the view at rest, metres. */
+  cellM: number | null
+  dates: CanopyDates | null
   corridor: CanopyCorridor | null
   corridorStatus: 'idle' | 'loading' | 'error'
   corridorError: string | null
   readCorridor: () => void
-}
-
-const FILE_CACHE = 8
-const files = new Map<string, Promise<GeoTIFF>>()
-function openTiff(url: string): Promise<ChmTiff> {
-  let file = files.get(url)
-  if (!file) {
-    file = fromUrl(url, { allowFullFile: false, credentials: 'omit', blockSize: 65536, cacheSize: 64 })
-    files.set(url, file)
-    while (files.size > FILE_CACHE) files.delete(files.keys().next().value!)
-    file.catch(() => {
-      if (files.get(url) === file) files.delete(url)
-    })
-  }
-  return file as unknown as Promise<ChmTiff>
 }
 
 let datesTable: Promise<ChmTileDates> | null = null
@@ -77,55 +60,67 @@ const loadDates = () =>
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'The canopy height map could not be read from Source Cooperative.'
 
+/** True once `on` has held for `holdMs`, false once it has been off for `holdMs`: no blink on quick loads. */
+function useHeld(on: boolean, holdMs: number) {
+  const [held, setHeld] = useState(on)
+  useEffect(() => {
+    if (on === held) return
+    const timer = setTimeout(() => setHeld(on), holdMs)
+    return () => clearTimeout(timer)
+  }, [on, held, holdMs])
+  return held
+}
+
 export function useCanopyHeight({
   visible,
-  bounds,
+  view,
   stations,
   roadKey,
 }: {
   visible: boolean
-  bounds: LonLatBounds | null
+  /** The view at rest (`useCanopyView`). */
+  view: CanopyView
   /** The active road's stations, for the corridor read. */
   stations: readonly CorridorStation[]
   /** Changes whenever the road's stations do. */
   roadKey: string
 }): CanopyHeightState {
-  const [image, setImage] = useState<CanopyImage | null>(null)
-  const [dates, setDates] = useState<CanopyDates | null>(null)
-  const [status, setStatus] = useState<CanopyHeightState['status']>('idle')
-  const [error, setError] = useState<string | null>(null)
-  const [corridor, setCorridor] = useState<CanopyCorridor | null>(null)
-  const [corridorStatus, setCorridorStatus] = useState<CanopyHeightState['corridorStatus']>('idle')
-  const [corridorError, setCorridorError] = useState<string | null>(null)
+  const tiles = useSyncExternalStore(chmTileStatus.subscribe, chmTileStatus.get)
+  const loading = useHeld(visible && tiles.reading > 0, CANOPY_LOADING_HOLD_MS)
+  const { bounds, zoom } = view
   const boundsKey = bounds?.join(',') ?? ''
 
+  // The tiles MapLibre draws a view at rest with: its rounded zoom, overzoomed past the files' finest.
+  const tileZoom = zoom === null ? null : Math.min(Math.round(zoom), CHM_TILE_MAX_ZOOM)
+  const inView = useMemo(
+    () => (bounds && tileZoom !== null ? new Set(chmTilesIn(bounds, tileZoom)) : new Set<string>()),
+    // `bounds` is keyed by `boundsKey`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [boundsKey, tileZoom],
+  )
+  let failedInView = 0
+  let reason: string | null = null
+  for (const [key, why] of tiles.failed)
+    if (inView.has(key)) {
+      failedInView++
+      reason ??= why
+    }
+  const error =
+    visible && failedInView
+      ? `${failedInView} canopy ${failedInView === 1 ? 'tile' : 'tiles'} in view could not be read: ${reason}`
+      : null
+  const cellM = bounds && tileZoom !== null ? chmTileCellM(tileZoom, (bounds[1] + bounds[3]) / 2) : null
+
+  const [dates, setDates] = useState<CanopyDates | null>(null)
   useEffect(() => {
     if (!visible || !bounds) return
     let cancelled = false
-    const overview = chmOverviewFor(bounds)
-    const key = `${boundsKey}@${overview}`
-    setStatus('loading')
-    setError(null)
-    ;(async () => {
-      try {
-        const [grid, table] = await Promise.all([readMetaChm(bounds, openTiff, { overview }), loadDates()])
-        if (cancelled) return
-        setImage({
-          key,
-          rgba: canopyPicture(grid),
-          width: grid.width,
-          height: grid.height,
-          quad: canopyQuad(grid),
-          cellM: grid.cellM,
-        })
-        setDates(chmImageryDates(bounds, table))
-        setStatus('ready')
-      } catch (e) {
-        if (cancelled) return
-        setStatus('error')
-        setError(message(e))
-      }
-    })()
+    loadDates().then(
+      (table) => {
+        if (!cancelled) setDates(chmImageryDates(bounds, table))
+      },
+      () => {},
+    )
     return () => {
       cancelled = true
     }
@@ -134,6 +129,9 @@ export function useCanopyHeight({
   }, [visible, boundsKey])
 
   // A corridor read belongs to the road it was read for.
+  const [corridor, setCorridor] = useState<CanopyCorridor | null>(null)
+  const [corridorStatus, setCorridorStatus] = useState<CanopyHeightState['corridorStatus']>('idle')
+  const [corridorError, setCorridorError] = useState<string | null>(null)
   const latest = useRef({ stations, roadKey })
   latest.current = { stations, roadKey }
   const [readFor, setReadFor] = useState<string | null>(null)
@@ -153,7 +151,7 @@ export function useCanopyHeight({
       try {
         const box = stationBounds(road.map((s) => s.coordinate))
         const [grid, table] = await Promise.all([
-          readMetaChm(box, openTiff, { overview: 0, maxPixels: CHM_CORRIDOR_MAX_PIXELS }),
+          readMetaChm(box, openChmTiff, { overview: 0, maxPixels: CHM_CORRIDOR_MAX_PIXELS }),
           loadDates(),
         ])
         if (cancelled) return
@@ -178,10 +176,10 @@ export function useCanopyHeight({
   }, [visible, readFor])
 
   return {
-    image: visible ? image : null,
-    dates,
-    status: visible ? status : 'idle',
+    loading: visible && loading,
     error,
+    cellM: visible ? cellM : null,
+    dates,
     corridor,
     corridorStatus,
     corridorError,

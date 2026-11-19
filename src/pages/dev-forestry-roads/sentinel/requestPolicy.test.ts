@@ -1,20 +1,114 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { sentinelViewBounds } from './viewport'
+import { makeViewWindow, viewWindowRule, windowServes, type LonLatBounds } from '@/components/ui/map-view-window'
 import { createSentinelSearch } from './searchCache'
 import { createReadQueue } from './readQueue'
+import { catalogueServes, sceneReaches, type SceneCatalogue } from './catalogue'
+import {
+  SENTINEL_MAX_READ_PX,
+  SENTINEL_MAX_WINDOW_PX,
+  SENTINEL_VIEW_EDGE_SHARE,
+  SENTINEL_VIEW_GRID_DEG,
+  SENTINEL_VIEW_OVERSCAN,
+} from './limits'
+import { parseSentinelScenes } from './stac'
+import { sceneWindow, viewPixelM } from './window'
 import fixture from './stacSearch.fixture.json'
 
 afterEach(() => vi.useRealTimers())
 
-describe('Sentinel viewport and request limits', () => {
-  it('does no work below z12, rejects wrapped views and reuses outward-snapped small pans', () => {
-    expect(sentinelViewBounds([-122.729, 53.891, -122.711, 53.899], 11.99)).toBeNull()
-    expect(sentinelViewBounds([170, 50, -170, 51], 14)).toBeNull()
-    expect(sentinelViewBounds([-122.728, 53.892, -122.712, 53.898], 14)).toEqual(
-      sentinelViewBounds([-122.729, 53.891, -122.711, 53.899], 14),
-    )
+const RULE = viewWindowRule({
+  overscan: SENTINEL_VIEW_OVERSCAN,
+  edgeShare: SENTINEL_VIEW_EDGE_SHARE,
+  gridDeg: SENTINEL_VIEW_GRID_DEG,
+})
+/** About a z13 view of the plan near Prince George. */
+const VIEW: LonLatBounds = [-122.78, 53.86, -122.64, 53.93]
+const pan = ([w, s, e, n]: LonLatBounds, dx: number, dy = 0): LonLatBounds => [w + dx, s + dy, e + dx, n + dy]
+
+describe('Sentinel view window', () => {
+  it('reads 1.5 × the view, so a small pan reads nothing', () => {
+    const level = viewPixelM(VIEW)!
+    const window = makeViewWindow(VIEW, level, RULE)
+    expect(windowServes(window, pan(VIEW, 0.01), viewPixelM(pan(VIEW, 0.01))!, RULE)).toBe(true)
+    expect(windowServes(window, pan(VIEW, 0.06), viewPixelM(pan(VIEW, 0.06))!, RULE)).toBe(false)
+    const read = sceneWindow(window.bounds, 32610, { view: VIEW })
+    const plain = sceneWindow(VIEW, 32610)
+    expect(read.width / plain.width).toBeGreaterThan(1.4)
+    expect(read.height / plain.height).toBeGreaterThan(1.4)
   })
 
+  it('chooses the pixel from the view, so the picture is no coarser than it was without overscan', () => {
+    // A z12 view about 30 km wide reads 20 m today; with overscan it still reads 20 m.
+    const wide: LonLatBounds = [-122.95, 53.8, -122.5, 54.0]
+    expect(sceneWindow(wide, 32610).pixelM).toBe(20)
+    const window = makeViewWindow(wide, viewPixelM(wide)!, RULE)
+    const read = sceneWindow(window.bounds, 32610, { view: wide })
+    expect(read.pixelM).toBe(20)
+    expect(Math.max(read.width, read.height)).toBeGreaterThan(SENTINEL_MAX_WINDOW_PX)
+    expect(Math.max(read.width, read.height)).toBeLessThanOrEqual(SENTINEL_MAX_READ_PX)
+    // Zooming in from 13 to 14 keeps 10 m: the level, and so the window, stay.
+    const inner: LonLatBounds = [-122.745, 53.878, -122.675, 53.912]
+    expect(viewPixelM(VIEW)).toBe(10)
+    expect(viewPixelM(inner)).toBe(10)
+    expect(windowServes(makeViewWindow(VIEW, 10, RULE), inner, 10, RULE)).toBe(true)
+  })
+
+  it('crops an overscanned window to the km limit and read budget about the view, refusing only a view too wide', () => {
+    const view: LonLatBounds = [-123.0, 53.75, -122.4, 54.05]
+    const window = makeViewWindow(view, viewPixelM(view)!, RULE)
+    const read = sceneWindow(window.bounds, 32610, { view, maxKm: 50 })
+    expect((read.bbox[2] - read.bbox[0]) / 1000).toBeLessThanOrEqual(50 + read.pixelM / 1000)
+    const own = sceneWindow(view, 32610)
+    expect(read.bbox[0]).toBeLessThanOrEqual(own.bbox[0])
+    expect(read.bbox[2]).toBeGreaterThanOrEqual(own.bbox[2])
+    expect(() => sceneWindow(window.bounds, 32610, { view, maxKm: 30 })).toThrow('at most 30 km')
+  })
+})
+
+describe('Sentinel catalogue reuse', () => {
+  const scenes = parseSentinelScenes(fixture, VIEW, { preferEpsg: 32610 })
+  const catalogue: SceneCatalogue = { searched: VIEW, epsg: 32610, range: 'recent', scenes }
+
+  it('keeps the listed scenes for a pan inside their tiles', () => {
+    expect(scenes.length).toBeGreaterThan(2)
+    expect(catalogueServes(catalogue, pan(VIEW, 0.2, 0.05), 32610, 'recent')).toBe(true)
+    for (const scene of scenes) expect(sceneReaches(scene, pan(VIEW, 0.2))).toBe(true)
+  })
+
+  it('searches again past a listed tile, in another zone or for another date range', () => {
+    const tile = scenes.find((scene) => scene.bbox)!.bbox!
+    const past: LonLatBounds = [tile[2] - 0.05, VIEW[1], tile[2] + 0.1, VIEW[3]]
+    expect(catalogueServes(catalogue, past, 32610, 'recent')).toBe(false)
+    expect(catalogueServes(catalogue, VIEW, 32611, 'recent')).toBe(false)
+    expect(catalogueServes(catalogue, VIEW, 32610, '2019')).toBe(false)
+    expect(catalogueServes(null, VIEW, 32610, 'recent')).toBe(false)
+    expect(catalogueServes({ ...catalogue, scenes: [] }, VIEW, 32610, 'recent')).toBe(false)
+  })
+
+  it('a pan journey inside the tiles makes one search, where the settled-view rule made eleven', async () => {
+    vi.useFakeTimers()
+    const fetch = vi.fn(async () => Response.json(fixture))
+    const search = createSentinelSearch(fetch)
+    const range = { from: '2024-01-01', to: '2026-01-01' }
+    let listed: SceneCatalogue | null = null
+    let window = makeViewWindow(VIEW, viewPixelM(VIEW)!, RULE)
+    const views = Array.from({ length: 11 }, (_, step) => pan(VIEW, step * 0.03, step * 0.005))
+    // The settled-view rule searched each new 0.01° area: every one of these stops.
+    const snapped = (view: LonLatBounds) =>
+      view.map((v, i) => (i < 2 ? Math.floor(v / 0.01) : Math.ceil(v / 0.01))).join()
+    expect(new Set(views.map(snapped)).size).toBe(11)
+    for (const view of views) {
+      if (!windowServes(window, view, viewPixelM(view)!, RULE)) window = makeViewWindow(view, viewPixelM(view)!, RULE)
+      if (catalogueServes(listed, window.bounds, 32610, 'recent')) continue
+      const pending = search({ window: window.bounds, range, preferEpsg: 32610 })
+      await vi.advanceTimersByTimeAsync(5_000)
+      listed = { searched: window.bounds, epsg: 32610, range: 'recent', scenes: await pending }
+    }
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Sentinel viewport and request limits', () => {
   it('caches catalogue results and paces new searches including retries', async () => {
     vi.useFakeTimers()
     const fetch = vi.fn(async () => Response.json(fixture))

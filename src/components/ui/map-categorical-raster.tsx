@@ -7,7 +7,7 @@ import { fetchJson } from '@/lib/fetchJson'
 import { withBase } from '@/lib/dataUrl'
 import { CategoricalPolygonWorkerPool } from '@/lib/categoricalPolygonWorkerPool'
 import type { PreparedPolygons } from '@/lib/categoricalPolygonGeometry'
-import { ViewportBlockLoader } from '@/lib/viewportBlockLoader'
+import { ViewportBlockLoader, type BlockLoadScope } from '@/lib/viewportBlockLoader'
 import { canPublishRasterLevel, selectRasterLevel, type RasterLevel } from '@/lib/categoricalRasterLevels'
 import { ResidentRasterBlocks } from '@/lib/residentRasterBlocks'
 
@@ -16,6 +16,22 @@ type Manifest = { format: string; tiles: Tile[] }
 type Pyramid = { format: 'categorical-raster-pyramid-v1'; levels: RasterLevel[] }
 export type CategoricalRasterPick = { value: number; longitude: number; latitude: number; overview?: boolean }
 export type CategoricalRasterStatus = { state: 'loading' | 'ready' | 'error'; message: string }
+type Block = { id: string; data: PreparedPolygons }
+
+/** Camera `move` events start block work at most this often (Leaflet's GridLayer uses 200 ms). */
+export const BLOCK_MOVE_THROTTLE_MS = 120
+/**
+ * During a camera gesture, at most this many blocks are handed to deck.gl for a first GPU upload per
+ * animation frame; the rest follow on later frames. A settled view uploads everything at once, as before.
+ */
+export const GESTURE_BLOCK_UPLOADS_PER_FRAME = 2
+
+/** Data saver asks for fewer bytes: wait for the settled view rather than load during a gesture. */
+function prefersSavingData() {
+  const connection = (globalThis.navigator as (Navigator & { connection?: { saveData?: boolean } }) | undefined)
+    ?.connection
+  return connection?.saveData === true
+}
 
 /** Draw native numeric/class polygons; colour and picking use the same source value. */
 export function MapCategoricalRaster({
@@ -27,6 +43,7 @@ export function MapCategoricalRaster({
   attribution,
   beforeId,
   onLayers,
+  loadWhileMoving = true,
 }: {
   manifestUrl: string
   colorForValue: (value: number) => [number, number, number, number]
@@ -38,17 +55,29 @@ export function MapCategoricalRaster({
   beforeId?: string
   /** Use a shared map overlay when composing several native-grid surfaces. */
   onLayers?: (layers: GeoJsonLayer[]) => void
+  /**
+   * Load and draw blocks the view shows while the camera moves (default). `false` waits for the
+   * settled view: during a gesture only blocks already on the GPU show, and no request starts. A
+   * browser asking to save data (`navigator.connection.saveData`) gets `false` whatever is passed.
+   */
+  loadWhileMoving?: boolean
 }) {
   const { map, isLoaded } = useMap()
   const [result, setResult] = useState<{
     source: string
     level?: RasterLevel
-    tiles: Array<{ id: string; data: PreparedPolygons }>
+    tiles: Block[]
+    /** Another level's blocks, given GPU state hidden so a level switch during a gesture uploads nothing. */
+    warm?: Block[]
   }>({
     source: '',
     tiles: [],
   })
   const statusRef = useRef(onStatus)
+  const loadWhileMovingRef = useRef(loadWhileMoving)
+  useEffect(() => {
+    loadWhileMovingRef.current = loadWhileMoving
+  }, [loadWhileMoving])
   const residentRef = useRef(new ResidentRasterBlocks<PreparedPolygons>())
   const residentSourceRef = useRef('')
   useEffect(() => {
@@ -97,47 +126,88 @@ export function MapCategoricalRaster({
     const workers = new CategoricalPolygonWorkerPool()
     const loading = new Set<string>()
     let displayed: string | undefined
+    // Blocks handed to deck.gl by the previous frame, whose GPU state may not be resident yet.
+    let handed = new Set<string>()
+    let lastStatus = ''
+    const status = (value: CategoricalRasterStatus) => {
+      // Called once a frame while blocks arrive; tell the page only when the wording changes.
+      const key = `${value.state}:${value.message}`
+      if (key === lastStatus) return
+      lastStatus = key
+      statusRef.current(value)
+    }
     const publish = () => {
       if (!active || frame) return
       // Batch completions to one render per frame; never wait for the slowest block.
       frame = requestAnimationFrame(() => {
         frame = 0
         if (!active || !selected) return
-        const loader = resources.get(selected.id)?.loader
+        const level = selected
+        const loader = resources.get(level.id)?.loader
         if (!loader) return
         const snapshot = loader.snapshot()
         const { loaded, total, errors } = snapshot
-        // During a gesture, toggle only buffers that are already on the GPU.
-        // New uploads and prefetched geometry still wait for moveend.
-        const blocks = map.isMoving() ? snapshot.visibleBlocks : snapshot.blocks
-        if (
-          map.isMoving() &&
-          (loaded !== total ||
-            residentSourceRef.current !== manifestUrl ||
-            !residentRef.current.hasAll(blocks.map((block) => ({ ...block, id: `${selected!.id}/${block.id}` }))))
-        )
-          return
-        if (canPublishRasterLevel(displayed, selected.id, loaded, total)) {
-          displayed = selected.id
-          setResult({ source: manifestUrl, level: selected, tiles: blocks })
+        const key = (block: Block) => `${level.id}/${block.id}`
+        const onGpu = (block: Block) =>
+          handed.has(key(block)) ||
+          (residentSourceRef.current === manifestUrl && residentRef.current.get(key(block)) === block.data)
+        const moving = map.isMoving()
+        let blocks = snapshot.blocks
+        const warm: Block[] = []
+        let more = false
+        let switchNow = true
+        if (moving && !loadsWhileMoving()) {
+          // Settled-view mode: during a gesture, toggle only buffers that are already on the GPU.
+          blocks = snapshot.visibleBlocks
+          if (loaded !== total || !blocks.every(onGpu)) return
+        } else if (moving) {
+          // Visible blocks get their first upload a few per frame; the prefetch ring's wait for moveend.
+          const visible = new Set(snapshot.visibleBlocks.map((block) => block.id))
+          const levelShown = !displayed || displayed === level.id
+          let budget = GESTURE_BLOCK_UPLOADS_PER_FRAME
+          blocks = snapshot.blocks.filter((block) => {
+            if (onGpu(block)) return true
+            if (!visible.has(block.id)) return false
+            if (budget <= 0) {
+              more = true
+              return false
+            }
+            budget--
+            if (!levelShown) warm.push(block)
+            return true
+          })
+          // A new level replaces the shown one only once all its visible blocks are on the GPU;
+          // until then they are uploaded hidden, within the same per-frame budget.
+          switchNow = levelShown || (!more && loaded === total)
         }
-        const detail = selected.overview
+        if (switchNow && canPublishRasterLevel(displayed, level.id, loaded, total)) {
+          displayed = level.id
+          handed = new Set(blocks.map(key))
+          setResult({ source: manifestUrl, level, tiles: blocks })
+        } else if (warm.length) {
+          handed = new Set(warm.map(key))
+          setResult((current) => ({ ...current, warm: warm.map((block) => ({ ...block, id: key(block) })) }))
+        } else {
+          handed = new Set()
+        }
+        if (more) publish()
+        const detail = level.overview
           ? 'Generalized display; zoom in for full cells.'
           : 'Click a polygon to read its value.'
-        statusRef.current(
+        status(
           errors.length
             ? {
                 state: 'error',
-                message: `${selected.label}: ${loaded}/${total} blocks loaded. ${errors[0]}${displayed !== selected.id ? ' Keeping the previous detail level.' : ''}`,
+                message: `${level.label}: ${loaded}/${total} blocks loaded. ${errors[0]}${displayed !== level.id ? ' Keeping the previous detail level.' : ''}`,
               }
             : loaded < total
               ? {
                   state: 'loading',
-                  message: `${selected.label}: ${loaded}/${total} visible blocks ready…${displayed && displayed !== selected.id ? ' Keeping the previous detail level while loading.' : ''}`,
+                  message: `${level.label}: ${loaded}/${total} visible blocks ready…${displayed && displayed !== level.id ? ' Keeping the previous detail level while loading.' : ''}`,
                 }
               : {
                   state: 'ready',
-                  message: `${selected.label}: ${total} visible ${total === 1 ? 'block' : 'blocks'} ready. ${detail}`,
+                  message: `${level.label}: ${total} visible ${total === 1 ? 'block' : 'blocks'} ready. ${detail}`,
                 },
         )
       })
@@ -165,9 +235,20 @@ export function MapCategoricalRaster({
         }, publish),
       })
     }
+    const loadsWhileMoving = () => loadWhileMovingRef.current && !prefersSavingData()
+    const moveScope = (): BlockLoadScope => (!map.isMoving() ? 'all' : loadsWhileMoving() ? 'visible' : 'none')
+    let lastZoom = Number.NaN
     const update = (retry = false) => {
       if (!levels.length) return
-      const next = selectRasterLevel(levels, map.getZoom(), selected)
+      const zoom = map.getZoom()
+      const zoomingNow = map.isMoving() && zoom !== lastZoom
+      lastZoom = zoom
+      let next = selectRasterLevel(levels, zoom, selected)
+      // While a gesture is still zooming in, a finer level would only be requested to be replaced: the
+      // coarser level stays drawn (scaled up) and keeps loading the view; the finer one starts once the
+      // zoom holds for a throttle interval or the camera settles. A coarser level loads at once, because
+      // zooming out exposes ground the finer level has not loaded.
+      if (zoomingNow && selected && next.minZoom > selected.minZoom && loadsWhileMoving()) next = selected
       if (selected !== next) {
         // Cancel obsolete requests but retain each level's bounded LRU cache.
         if (selected) resources.get(selected.id)?.loader.update([])
@@ -177,7 +258,7 @@ export function MapCategoricalRaster({
       if (!resource) {
         if (loading.has(next.id)) return
         loading.add(next.id)
-        statusRef.current({ state: 'loading', message: `Loading ${next.label.toLowerCase()} index…` })
+        status({ state: 'loading', message: `Loading ${next.label.toLowerCase()} index…` })
         fetchJson<Manifest>(`${base}${next.manifest}`, manifestController.signal)
           .then((value) => {
             if (!active) return
@@ -185,7 +266,7 @@ export function MapCategoricalRaster({
             if (selected === next) update()
           })
           .catch((cause: unknown) => {
-            if (active && selected === next) statusRef.current({ state: 'error', message: String(cause) })
+            if (active && selected === next) status({ state: 'error', message: String(cause) })
           })
           .finally(() => loading.delete(next.id))
         return
@@ -214,7 +295,7 @@ export function MapCategoricalRaster({
         nearby.filter((tile) => intersects(tile, false)).map((tile) => tile.id),
         nearby.filter((tile) => !intersects(tile, false)).map((tile) => tile.id),
         retry,
-        !map.isMoving(),
+        moveScope(),
       )
     }
     const moving = () => {
@@ -222,14 +303,14 @@ export function MapCategoricalRaster({
       timer = setTimeout(() => {
         timer = undefined
         update()
-      }, 120)
+      }, BLOCK_MOVE_THROTTLE_MS)
     }
     const settled = () => {
       clearTimeout(timer)
       timer = undefined
       update(true)
     }
-    statusRef.current({ state: 'loading', message: 'Loading polygon index…' })
+    status({ state: 'loading', message: 'Loading polygon index…' })
     fetchJson<Manifest | Pyramid>(manifestUrl, manifestController.signal)
       .then((value) => {
         if (!active) return
@@ -249,7 +330,7 @@ export function MapCategoricalRaster({
       .catch((cause: unknown) => {
         if (!active) return
         setResult({ source: manifestUrl, tiles: [] })
-        statusRef.current({ state: 'error', message: cause instanceof Error ? cause.message : String(cause) })
+        status({ state: 'error', message: cause instanceof Error ? cause.message : String(cause) })
       })
     map.on('move', moving)
     map.on('moveend', settled)
@@ -278,7 +359,8 @@ export function MapCategoricalRaster({
               id: `${result.level?.id}/${block.id}`,
             }))
           : []
-      const retained = residentRef.current.update(current)
+      const warm = result.source === manifestUrl ? (result.warm ?? []) : []
+      const retained = residentRef.current.update(current, warm)
       const layers = retained.map(
         ({ id, data, visible }) =>
           new GeoJsonLayer<{ value: number }>({

@@ -50,6 +50,59 @@ export function keepReliefOverImagery(map: {
   for (const id of present) map.moveLayer(id, layers[labels].id)
 }
 
+/**
+ * Where to move a relief layer when its place has changed, or null when it already sits under
+ * `beforeId`. Only a layer above its place moves, so the two relief layers sharing one place keep
+ * their own order and never move each other back and forth.
+ */
+export function reliefMoveBefore(
+  layers: ReadonlyArray<{ id: string }>,
+  layerId: string,
+  beforeId: string | undefined,
+): string | null {
+  if (!beforeId) return null
+  const at = layers.findIndex((layer) => layer.id === layerId)
+  const before = layers.findIndex((layer) => layer.id === beforeId)
+  return at >= 0 && before >= 0 && at > before ? beforeId : null
+}
+
+/**
+ * Keeps a relief layer under its place as the style changes around it, by moving it. The toolkit's
+ * layers already move, rather than add themselves again, when their `beforeId` changes (adding
+ * again drops every loaded tile and blanks the relief until they return); this also catches a
+ * layer added later that lands under the relief's place.
+ */
+export function useReliefPlace(
+  map: Pick<MaplibreMap, 'getStyle' | 'moveLayer' | 'on' | 'off'> | null,
+  layerId: string,
+  beforeId: string | undefined,
+) {
+  useEffect(() => {
+    if (!map || !beforeId) return
+    const place = () => {
+      const before = reliefMoveBefore(map.getStyle()?.layers ?? [], layerId, beforeId)
+      if (before) map.moveLayer(layerId, before)
+    }
+    place()
+    map.on('styledata', place)
+    return () => {
+      map.off('styledata', place)
+    }
+  }, [map, layerId, beforeId])
+}
+
+/**
+ * The regional hillshade. `MapTerrain` moves it when `beforeId` changes; `useReliefPlace` puts it
+ * back whenever something else in the style has moved it since.
+ */
+function RegionalRelief({ beforeId, imagery }: { beforeId: string | undefined; imagery: boolean }) {
+  const { map } = useMap()
+  useReliefPlace(map, RELIEF_LAYER_IDS[0], beforeId)
+  return (
+    <MapTerrain id="road-regional" dem={DEM} reliefOnly beforeId={beforeId} hillshadeIntensity={imagery ? 0.2 : 0.35} />
+  )
+}
+
 export function RegionalDemLayer({ visible, imagery }: { visible: boolean; imagery: boolean }) {
   const { map, isLoaded } = useMap()
   useEffect(() => {
@@ -62,16 +115,5 @@ export function RegionalDemLayer({ visible, imagery }: { visible: boolean; image
     }
   }, [map, isLoaded, imagery])
   if (!visible || !map || !isLoaded) return null
-  const beforeId = basemapReliefBeforeId(map, imagery)
-  return (
-    // Keyed by place: a new place is a new layer, since the layer is placed only when added.
-    <MapTerrain
-      key={beforeId}
-      id="road-regional"
-      dem={DEM}
-      reliefOnly
-      beforeId={beforeId}
-      hillshadeIntensity={imagery ? 0.2 : 0.35}
-    />
-  )
+  return <RegionalRelief beforeId={basemapReliefBeforeId(map, imagery)} imagery={imagery} />
 }

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Map, MapMarker, MarkerContent, useMap, WORKSPACE_MAP_CONTROLS } from '@/components/ui/map'
-import { MapRasterLayer } from '@/components/ui/map-layers'
+import { MapHandoffNote, MapRasterHandoff, useMapLayerHandoff } from '@/components/ui/map-raster-handoff'
 import {
   MapCategoricalRaster,
   type CategoricalRasterPick,
@@ -21,6 +21,8 @@ export type CcissOverlay =
   | null
 
 const POINT_COLOR = '#c026d3'
+/** The original CCISS tiles' layer; its hand-off alternates this id with `${id}-handoff`. */
+const CCISS_TILE_LAYER_ID = 'cciss-original-tiles'
 
 /** Map clicks set the inspection point, except where a polygon layer picks its own. */
 function ClickToInspect({ onSelect }: { onSelect: (point: [number, number]) => void }) {
@@ -111,6 +113,9 @@ export function CcissMap({
   onPickPolygon: (pick: CategoricalRasterPick) => void
   onPolygonStatus: (status: CategoricalRasterStatus) => void
 }) {
+  // A new period, species or scenario keeps the tiles on show until the next set has loaded.
+  const tileId = overlay?.kind === 'tiles' ? overlay.tileId : null
+  const tiles = useMapLayerHandoff(CCISS_TILE_LAYER_ID, tileId ? { key: tileId, value: tileId } : null)
   return (
     <Map center={camera.center} zoom={camera.zoom} controls={WORKSPACE_MAP_CONTROLS}>
       <SyncMapUrl />
@@ -128,17 +133,19 @@ export function CcissMap({
         />
       )}
       {overlay?.kind === 'native' && <NativeSuitabilityLayer key={overlay.tileId} image={overlay.image} />}
-      {overlay?.kind === 'tiles' && (
-        <MapRasterLayer
-          key={overlay.tileId}
-          tiles={[ccissTileUrl(overlay.tileId)]}
-          minZoom={5}
-          maxZoom={12}
-          opacity={0.8}
-          resampling="nearest"
-          attribution="CCISS · BC Ministry of Forests"
-        />
-      )}
+      <MapRasterHandoff
+        handoff={tiles}
+        opacity={0.8}
+        layer={(id) => ({
+          tiles: [ccissTileUrl(id)],
+          minZoom: 5,
+          maxZoom: 12,
+          resampling: 'nearest',
+          attribution: 'CCISS · BC Ministry of Forests',
+        })}
+      />
+      {/* The legend and the sidebar already name the new choice; the map says when it has not caught up. */}
+      <MapHandoffNote handoff={tiles}>Loading the new layer. The map still shows the previous one.</MapHandoffNote>
       {overlay?.kind !== 'polygons' && <ClickToInspect onSelect={onPointChange} />}
       <MapMarker longitude={point[0]} latitude={point[1]}>
         <MarkerContent>

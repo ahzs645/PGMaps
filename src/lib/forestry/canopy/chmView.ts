@@ -1,6 +1,6 @@
 /**
- * Meta CHM v2 as a plan layer: which overview to read for a view, the picture drawn from it, where it
- * sits, and what a road's corridor reads off it. Evidence beside the design, never an input to it.
+ * Meta CHM v2 as a plan layer: the colours it is drawn in (the tiles are `chmTiles.ts`), the imagery
+ * dates under a view, and what a road's corridor reads off it. Evidence beside the design, never an input to it.
  *
  * The picture uses the block sheet's canopy height classes (`CANOPY_HEIGHT_CLASSES`), so it reads like a
  * company canopy sheet laid beside it. Heights are a model's, read low and by a site-dependent amount
@@ -9,40 +9,16 @@
  */
 import { CANOPY_HEIGHT_CLASSES, type RasterClass } from '@/lib/forestry/blockSheet/styles'
 import { corridorCanopy, gapRuns, CORRIDOR_DEFAULTS, type CorridorStation } from './corridor'
-import {
-  canopyAt,
-  mercatorLonLat,
-  mercatorPixel,
-  META_CHM_TILE_BITS,
-  META_CHM_TILE_ZOOM,
-  metaChmTiles,
-  type CanopyGrid,
-  type LonLatBounds,
-} from './metaChm'
+import { canopyAt, metaChmTiles, type CanopyGrid, type LonLatBounds } from './metaChm'
 
-/** The plan reads the canopy only from this zoom in. */
+/** The plan draws the canopy only from this zoom in (the layer's minimum zoom). */
 export const CHM_MIN_ZOOM = 12
-/** The longest side of a plan read, in cells: coarser overviews are read past it. */
-export const CHM_VIEW_MAX_SIDE = 2048
-/** Overviews the COGs carry (full resolution is 0). */
-export const CHM_MAX_OVERVIEW = 6
 /** A corridor read is refused past this many cells (full resolution, about 0.7 m). */
 export const CHM_CORRIDOR_MAX_PIXELS = 60_000_000
 /** Margin round a road's stations when its corridor is read, metres. */
 export const CHM_CORRIDOR_MARGIN_M = 60
 /** Gaps in the canopy along the centreline shorter than this are not listed, metres. */
 export const CHM_GAP_MIN_LENGTH_M = 25
-
-/** The overview whose cells keep the view's longest side at or under `CHM_VIEW_MAX_SIDE`. */
-export function chmOverviewFor(bounds: LonLatBounds, maxSide = CHM_VIEW_MAX_SIDE): number {
-  const [w, s, e, n] = bounds
-  const zoom = META_CHM_TILE_ZOOM + META_CHM_TILE_BITS
-  const [x0, y0] = mercatorPixel(w, n, zoom)
-  const [x1, y1] = mercatorPixel(e, s, zoom)
-  const side = Math.max(x1 - x0, y1 - y0)
-  for (let overview = 0; overview <= CHM_MAX_OVERVIEW; overview++) if (side / 2 ** overview <= maxSide) return overview
-  return CHM_MAX_OVERVIEW
-}
 
 function hexRgb(hex: string): [number, number, number] {
   const v = parseInt(hex.slice(1), 16)
@@ -54,32 +30,24 @@ export function canopyClassOf(value: number, classes: readonly RasterClass[] = C
   return classes.find((c) => (c.min === undefined || value > c.min) && (c.max === undefined || value <= c.max))
 }
 
-/** RGBA for the grid: each height in its sheet class, clear under 5 m and where the source has nothing. */
-export function canopyPicture(grid: CanopyGrid, classes: readonly RasterClass[] = CANOPY_HEIGHT_CLASSES) {
-  const lut = new Uint8Array(256 * 4)
+const colourTables = new WeakMap<readonly RasterClass[], Uint8Array>()
+
+/**
+ * RGBA for each height 0–255 in its sheet class, four bytes a height: clear under 5 m and at 0,
+ * which is both no canopy and no data in the source. Built once per class list.
+ */
+export function canopyColours(classes: readonly RasterClass[] = CANOPY_HEIGHT_CLASSES): Uint8Array {
+  let lut = colourTables.get(classes)
+  if (lut) return lut
+  lut = new Uint8Array(256 * 4)
   for (let v = 1; v < 256; v++) {
     const color = canopyClassOf(v, classes)?.color
     if (!color) continue
     const [r, g, b] = hexRgb(color)
     lut.set([r, g, b, 255], v * 4)
   }
-  const rgba = new Uint8ClampedArray(grid.width * grid.height * 4)
-  for (let i = 0; i < grid.data.length; i++) {
-    const v = grid.data[i]
-    if (v) rgba.set(lut.subarray(v * 4, v * 4 + 4), i * 4)
-  }
-  return rgba
-}
-
-/** The grid's corners, top-left clockwise, as MapLibre's image source takes them. */
-export function canopyQuad(grid: CanopyGrid): [[number, number], [number, number], [number, number], [number, number]] {
-  const { zoom, x0, y0, width, height } = grid
-  return [
-    mercatorLonLat(x0, y0, zoom),
-    mercatorLonLat(x0 + width, y0, zoom),
-    mercatorLonLat(x0 + width, y0 + height, zoom),
-    mercatorLonLat(x0, y0 + height, zoom),
-  ]
+  colourTables.set(classes, lut)
+  return lut
 }
 
 export interface ChmTileDates {

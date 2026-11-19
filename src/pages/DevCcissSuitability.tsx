@@ -69,8 +69,8 @@ export default function DevCcissSuitability() {
       }
     : selectedSource.available && renderSource === 'native'
       ? suitabilityRaster.image && { kind: 'native', image: suitabilityRaster.image, tileId: tiles.tileId }
-      : renderSource === 'tiles' && tiles.available
-        ? { kind: 'tiles', tileId: tiles.tileId }
+      : renderSource === 'tiles' && tiles.shownTileId
+        ? { kind: 'tiles', tileId: tiles.shownTileId }
         : null
 
   // A pick belongs to the polygons it came from; any change of layer or source clears it.

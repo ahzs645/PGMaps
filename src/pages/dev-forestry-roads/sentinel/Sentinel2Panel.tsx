@@ -10,6 +10,7 @@ import { Sentinel2AreaSeries, type AreaDrawing } from './Sentinel2AreaSeries'
 import { isChangeMode, modeIndex, type RatedScene, type Sentinel2State, type SentinelMode } from './useSentinel2'
 
 const percent = (share: number) => `${Math.round(share * 100)}%`
+const km = (value: number) => value.toFixed(value < 10 ? 1 : 0)
 const gradient = (stops: typeof NDVI_STOPS) => {
   const [low, high] = [stops[0][0], stops[stops.length - 1][0]]
   return stops.map(([value, [r, g, b]]) => `rgb(${r} ${g} ${b}) ${((value - low) / (high - low)) * 100}%`)
@@ -42,13 +43,11 @@ const MODE_OPTIONS: { value: SentinelMode; label: string }[] = [
 export function Sentinel2Panel({
   state,
   paused,
-  moving,
   onClose,
   drawing,
 }: {
   state: Sentinel2State
   paused: boolean
-  moving: boolean
   onClose: () => void
   /** The plan's area sketch, for the area series. */
   drawing: AreaDrawing
@@ -75,7 +74,9 @@ export function Sentinel2Panel({
           Copernicus Sentinel-2 level-2A scenes from Element 84&apos;s Earth Search, read from the AWS archive. Pixels
           are 10 m, so a 4–6 m road shows only where its cleared corridor is wide enough. The imagery is evidence for
           review: it is never a constraint, never feeds a route search and is not proof of a road. &ldquo;Clear&rdquo;
-          is the share of the map window whose scene classification sees ground (not cloud, shadow or snow).
+          is the share of the area read (the view with a margin round it, stated below the list) whose scene
+          classification sees ground (not cloud, shadow or snow). The imagery follows the map as it moves: the last
+          picture stays where it belongs until the next one is ready.
         </InfoTip>
         <Button
           size="icon-2xs"
@@ -110,7 +111,6 @@ export function Sentinel2Panel({
             />
           </div>
           {paused && <InlineAlert>Zoom in to level {SENTINEL_MIN_ZOOM} to load Sentinel-2 for this view.</InlineAlert>}
-          {!paused && moving && <InlineAlert>Imagery updates when you stop moving the map.</InlineAlert>}
           {state.failure && (
             <InlineAlert tone="error">
               <span>{state.failure.message}</span>
@@ -122,7 +122,7 @@ export function Sentinel2Panel({
               )}
             </InlineAlert>
           )}
-          {state.searching && !state.scenes.length && <InlineAlert loading>Searching scenes…</InlineAlert>}
+          {state.searching && <InlineAlert loading>Searching scenes…</InlineAlert>}
           {comparing
             ? pickable.length >= 2 && (
                 <div className="space-y-1">
@@ -205,9 +205,10 @@ export function Sentinel2Panel({
                   bubbleClassName="max-w-72"
                 >
                   {spec.about} A pixel counts when its {spec.label} fell by {spec.drop} or more between the two scenes,
-                  where both see clear ground ({percent(state.change.comparedShare)} of the window). It means the ground
-                  changed some time in that interval, not that a road was built or is drivable, and a spur cannot be
-                  told apart from its block&apos;s own clearing. A bracket over November–April is marked as a snow gap.
+                  where both see clear ground ({percent(state.change.comparedShare)} of the area read). The area read is
+                  the view with a margin round it, so it is larger than the map shows. It means the ground changed some
+                  time in that interval, not that a road was built or is drivable, and a spur cannot be told apart from
+                  its block&apos;s own clearing. A bracket over November–April is marked as a snow gap.
                 </InfoTip>
               </p>
             </>
@@ -219,6 +220,11 @@ export function Sentinel2Panel({
             selectedSceneId={comparing ? state.pair.after : state.sceneId}
             onClear={() => state.setArea(null)}
           />
+          {state.image && (
+            <p className="text-2xs text-muted-foreground" data-testid="road-sentinel2-area-read">
+              Figures cover the area read: {km(state.image.areaKm[0])} × {km(state.image.areaKm[1])} km
+            </p>
+          )}
           {state.credit && <p className="text-2xs text-muted-foreground">{state.credit}</p>}
         </div>
       )}

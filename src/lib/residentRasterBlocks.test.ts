@@ -28,4 +28,21 @@ describe('resident raster GPU blocks', () => {
     cache.clear()
     expect(cache.hasAll([blocks[2]])).toBe(false)
   })
+  it('builds another level hidden before a switch, so the switch itself adds nothing', () => {
+    const cache = new ResidentRasterBlocks<object>(4)
+    const shown = { id: 'full/a', data: {} }
+    const next = ['b', 'c'].map((id) => ({ id: `overview/${id}`, data: {} }))
+    cache.update([shown])
+    expect(cache.update([shown], [next[0]])).toEqual([
+      { ...next[0], visible: false },
+      { ...shown, visible: true },
+    ])
+    cache.update([shown], [next[1]])
+    expect(cache.hasAll(next)).toBe(true)
+    const switched = cache.update(next)
+    expect(switched.filter((block) => block.visible).map((block) => block.id)).toEqual(next.map((block) => block.id))
+    expect(switched.find((block) => block.id === shown.id)?.visible).toBe(false)
+    // A warm block already shown, or already resident, is not added twice.
+    expect(cache.update(next, [next[0]])).toHaveLength(3)
+  })
 })

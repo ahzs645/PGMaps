@@ -17,7 +17,11 @@ composes; the parts live in `src/pages/cciss/`:
   separately, so panning never moves an assessment's point.
 - `useRasterSource.ts` opens the hosted or local GeoTIFFs and reads the cell under
   the point. `usePublishedTiles` checks CCISS's TileJSON only while original tiles
-  are shown.
+  are shown. A change of period, species or scenario hands the tiles over
+  (`MapRasterHandoff`, `docs/map-layer-loading.md`): the set on show stays, through the
+  TileJSON check too (`shownTileId`), until the next has loaded, and the map says so
+  (`MapHandoffNote`) when that takes longer than 400 ms, because the legend and the
+  sidebar already name the new choice.
 - The sidebar is one file per section: `AnalysesSection` (dialog launchers and the
   folded "About" notes), `MapLayerSection`, `InspectSection` and
   `RasterFilesSection`. The suitability legend is a `MapLegendPanel` on the map;
@@ -409,7 +413,9 @@ fetch, inflate gzip, parse JSON, and triangulate into deck.gl binary geometry.
 Typed arrays are transferred rather than cloned, coordinates stay Float64, and
 class values remain indexed for binary picking. The LRU caches prepared geometry;
 cancelling a block terminates its active worker, and unmount disposes the pool.
-GPU layer updates wait for `moveend` while preparation continues during motion.
+As first built, a gesture started no new block request, so nothing was prepared
+during motion either; since 19 November 2026 blocks the view shows are requested,
+prepared and drawn during the gesture (see **Load blocks while the camera moves**).
 There is no synchronous triangulation fallback that could freeze a gesture.
 
 The same local zoom test after the change recorded no tasks over 50 ms, and no
@@ -430,16 +436,76 @@ clears residency. The loader can reuse resident geometry even if its separate
 decoded-data LRU evicted that block.
 
 During movement, a fully cached viewport may switch visibility immediately.
-New geometry uploads and new block requests wait for the final viewport, avoiding
-requests for temporary extents that would be cancelled at the next threshold.
-Existing still-relevant requests may complete in the background. The first visit
-to a new area/detail level still loads; this is bounded in-session caching.
+As first built, new geometry uploads and new block requests waited for the final
+viewport, to avoid requests for temporary extents that would be cancelled at the
+next threshold; that was reasoning, not a measured cost, and it left newly
+exposed ground empty until the camera stopped. The next section replaces it.
+The first visit to a new area/detail level still loads; this is bounded
+in-session caching.
 
 Browser verification at (-123.367858, 53.147972), warming zooms 7.5 and 8.5 and
 then repeating the round trip, recorded zero polygon worker jobs in both
 directions (so no polygon fetch/decode/triangulation). Returning to the overview
 also created zero WebGL buffers. Fifteen loader, residency, level-selection and
 worker/geometry tests passed, along with TypeScript and targeted ESLint.
+
+### Load blocks while the camera moves
+
+Since 19 November 2026 `MapCategoricalRaster` loads the blocks the view shows
+during a gesture, as Leaflet's `GridLayer` (200 ms `updateInterval`) and
+deck.gl's `TileLayer` do:
+
+- Every 120 ms of camera movement (`BLOCK_MOVE_THROTTLE_MS`) the loader is given
+  the visible blocks with scope `visible` (`ViewportBlockLoader`): their requests
+  and worker preparation start at once, six at a time through the two-worker
+  pool. The 25 % prefetch ring starts nothing until `moveend`; a ring request
+  already running is kept while it is still in the ring. Blocks that leave the
+  view are aborted, which stops their worker.
+- A prepared visible block is drawn during the gesture. At most
+  `GESTURE_BLOCK_UPLOADS_PER_FRAME` (2) blocks get their first GPU upload in one
+  animation frame; the rest follow on the next frames. A settled view still
+  uploads everything at once. GPU and idle budgets are unchanged (48 resident
+  inactive blocks, 32 idle decoded blocks).
+- A level change during a gesture keeps the shown level until the new level's
+  visible blocks are all on the GPU: they are added as hidden layers within the
+  same budget, then the switch uploads nothing. While a gesture is still zooming
+  in, a finer level is not selected at all (the coarser level stays drawn,
+  scaled up, and keeps loading the view); it is selected once the zoom holds for
+  one throttle interval or the camera settles. A coarser level is selected at
+  once, because zooming out exposes ground the finer level has not loaded.
+- `loadWhileMoving={false}`, or a browser reporting `navigator.connection.saveData`,
+  keeps the earlier rule: during a gesture only blocks already on the GPU show
+  and no request starts.
+- The status callback is called only when its wording changes, since publishing
+  now happens once a frame while blocks arrive.
+
+Measured on the trace grid with real data from the bcdatamapper host, desktop
+Chrome on the real GPU (Metal), map pane 990 × 845 px, against the previous code
+in the same harness. Timings are one machine with other sessions running, so
+upper bounds:
+
+| Case | Before | After |
+| --- | --- | --- |
+| 2 s drag across ~90 % of the pane at zoom 8.4: first request for new ground | 12 ms after release | 0.84–0.88 s into the drag |
+| Exposed ground drawn at release | 52 % | 97–100 % |
+| Fully drawn after release | 0.39–0.72 s | 12–16 ms |
+| Requests for the drag | 6, all after release | 6, 5 during the drag |
+| Long tasks or frames over 50 ms during the drag | none | none (max frame 16.8 ms) |
+| One-gesture swing left, right, left, 300 ms added per request | 8 requests, 0 aborted | 9 requests, 3 aborts |
+| Wheel zoom-in 6.6 → 9.1 in 1.9 s | 12 full-grid requests after the zoom | the same; none during it |
+| Wheel zoom-out 9.1 → 6.6 in 1.9 s | 14 requests | 28 (20 with 300 ms per request); the 1:2 level passed through is fetched |
+| 4 s eased zoom-out 8.4 → 6.9 | full grid until the camera stopped | 1:2 overview shown from 1.8 s, no frame over 16.8 ms |
+
+The cost is the zoom-out: a level the zoom passes through is fetched (and kept
+in the bounded cache) even when the zoom leaves it before it is complete. A
+zoom-in costs nothing extra. Touch devices and metered connections were not
+measured; they can pass `loadWhileMoving={false}`.
+
+Local runs read the CCISS folders from the bcdatamapper host. With MapLibre 6,
+deck.gl 9.3's interleaved overlay throws on every frame (`map.transform` is no
+longer exposed, and `@deck.gl/mapbox` reads `map.transform.height`), so nothing
+draws: these measurements put the camera's transform back on the map in the
+harness only. That fault is outside this component and still open.
 
 
 ## Legacy client-side analysis (2026-09-27)

@@ -27,12 +27,47 @@ const flush = async () => {
 }
 
 describe('viewport block loading', () => {
-  it('uses cached blocks during a gesture without starting requests for transient extents', async () => {
+  it('starts requests for blocks the view shows during a gesture, leaving the prefetch ring for the settled view', async () => {
+    const { loader, calls } = fixture(6)
+    loader.update(['a'], ['ring-a'])
+    expect(calls.map((c) => c.id)).toEqual(['a', 'ring-a'])
+    // Mid-gesture: newly visible ground starts at once; a new ring block does not.
+    loader.update(['a', 'b', 'c'], ['ring-a', 'ring-b'], false, 'visible')
+    expect(calls.map((c) => c.id)).toEqual(['a', 'ring-a', 'b', 'c'])
+    // A ring request started on the settled view is still wanted, so it is not cancelled.
+    expect(calls[1].signal.aborted).toBe(false)
+    calls[2].resolve({ id: 'b' })
+    await flush()
+    expect(loader.snapshot().visibleBlocks.map((b) => b.id)).toEqual(['b'])
+    expect(calls).toHaveLength(4)
+    loader.update(['a', 'b', 'c'], ['ring-a', 'ring-b'], true)
+    expect(calls.map((c) => c.id)).toEqual(['a', 'ring-a', 'b', 'c', 'ring-b'])
+    loader.dispose()
+  })
+
+  it('cancels requests for blocks that leave the view during a gesture and starts the next visible one', async () => {
+    const { loader, calls } = fixture(2)
+    loader.update(['a', 'b', 'c'], [], false, 'visible')
+    expect(calls.map((c) => c.id)).toEqual(['a', 'b'])
+    loader.update(['b', 'c', 'd'], [], false, 'visible')
+    expect(calls[0].signal.aborted).toBe(true)
+    expect(calls[1].signal.aborted).toBe(false)
+    expect(calls.map((c) => c.id)).toEqual(['a', 'b', 'c'])
+    calls[0].resolve({ late: true })
+    calls[1].resolve({ id: 'b' })
+    await flush()
+    // The freed slot goes to the next visible block, still within the concurrency cap.
+    expect(calls.map((c) => c.id)).toEqual(['a', 'b', 'c', 'd'])
+    expect(loader.snapshot().blocks.map((b) => b.id)).toEqual(['b'])
+    loader.dispose()
+  })
+
+  it('in settled-view mode uses cached blocks during a gesture without starting requests', async () => {
     const { loader, calls } = fixture()
     loader.update(['a', 'b'])
     calls[0].resolve({ cached: true })
     await flush()
-    loader.update(['a', 'b', 'transient'], [], false, false)
+    loader.update(['a', 'b', 'transient'], [], false, 'none')
     calls[1].resolve({ cached: true })
     await flush()
     expect(calls).toHaveLength(2)

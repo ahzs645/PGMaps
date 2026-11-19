@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  canopyClassOf,
-  canopyPicture,
-  canopyQuad,
-  chmImageryDates,
-  chmOverviewFor,
-  corridorSummary,
-  stationBounds,
-} from './chmView'
-import { mercatorLonLat, mercatorPixel, type CanopyGrid } from './metaChm'
+import { canopyClassOf, canopyColours, chmImageryDates, corridorSummary, stationBounds } from './chmView'
+import { mercatorPixel, type CanopyGrid } from './metaChm'
 import type { CorridorStation } from './corridor'
 
 // The 093G086 LiDAR tile at Prince George; nothing here is a licensee's block.
@@ -32,38 +24,16 @@ function grid(value: (dxM: number, dyM: number) => number, halfM = 150): CanopyG
 }
 
 describe('canopy layer', () => {
-  it('reads coarser overviews for wider views', () => {
-    expect(chmOverviewFor([-122.82, 53.88, -122.81, 53.89])).toBe(0)
-    // About 0.5° wide: 46,600 full-resolution columns, so the 32× overview (1,456).
-    expect(chmOverviewFor([-123.1, 53.7, -122.6, 54.0])).toBe(5)
-    expect(chmOverviewFor([-130, 50, -120, 58])).toBe(6)
-  })
-
   it('classes heights as the block sheet does and leaves under 5 m clear', () => {
     expect(canopyClassOf(5)?.label).toBe('< 5')
     expect(canopyClassOf(5.1)?.label).toBe('5 - 10')
     expect(canopyClassOf(40)?.label).toBe('35 - 40')
     expect(canopyClassOf(41)?.label).toBe('40 +')
-    const g: CanopyGrid = {
-      zoom: 25,
-      x0: 0,
-      y0: 0,
-      width: 3,
-      height: 1,
-      data: Uint8Array.from([0, 4, 12]),
-      cellM: 1,
-      sources: [],
-    }
-    expect(Array.from(canopyPicture(g))).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0x4c, 0xe6, 0x00, 255])
-  })
-
-  it('places the picture on its Mercator cells', () => {
-    const g = grid(() => 0)
-    const [tl, tr, br, bl] = canopyQuad(g)
-    expect(tl).toEqual(mercatorLonLat(g.x0, g.y0, 25))
-    expect(br).toEqual(mercatorLonLat(g.x0 + g.width, g.y0 + g.height, 25))
-    expect(tr[1]).toBe(tl[1])
-    expect(bl[0]).toBe(tl[0])
+    const lut = canopyColours()
+    expect(Array.from(lut.subarray(0, 4))).toEqual([0, 0, 0, 0])
+    expect(Array.from(lut.subarray(4 * 4, 4 * 5))).toEqual([0, 0, 0, 0])
+    expect(Array.from(lut.subarray(12 * 4, 12 * 4 + 4))).toEqual([0x4c, 0xe6, 0x00, 255])
+    expect(canopyColours()).toBe(lut)
   })
 
   it('spans the imagery dates of every listed tile under a box', () => {

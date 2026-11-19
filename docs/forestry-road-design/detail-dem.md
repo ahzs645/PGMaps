@@ -51,7 +51,10 @@ rendering is strongest. It is switched in the map's **Basemap** control and in L
 map**, the same setting in both. Regional Terrarium relief sits underneath, capped at z12, with
 the regional contours (`RegionalContourLayer`, from the same Terrarium tiles) over both. Both
 relief layers sit under the basemap's water and roads, or over imagery and under the labels when
-Satellite is chosen. The selected project terrain is drawn above these context layers, and
+Satellite is chosen; switching basemap moves them and keeps their loaded tiles, so the relief does
+not blank or ask NRCan again. Ground a pan or a zoom out newly exposes stays empty until NRCan
+answers, about 0.5–1.7 s a tile (November 2026); MapLibre draws loaded parent tiles meanwhile,
+so a zoom in keeps the relief. The selected project terrain is drawn above these context layers, and
 Sentinel stays above the rasters and below engineering layers. Selecting **Basemap** in the
 terrain display list disables both relief backgrounds.
 

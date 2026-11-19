@@ -230,7 +230,8 @@ test('Sentinel-2 area series: a drawn area charts the index through time, bracke
 
   await panel.getByRole('button', { name: 'Draw area', exact: true }).click()
   const plan = (await page.getByTestId('road-plan-view').boundingBox())!
-  const [cx, cy] = [plan.x + plan.width * 0.4, plan.y + plan.height * 0.55]
+  // Left of the card in the plan's top-right corner, which widens while an area is drawn.
+  const [cx, cy] = [plan.x + plan.width * 0.3, plan.y + plan.height * 0.6]
   for (const [dx, dy] of [
     [-40, -40],
     [40, -40],
@@ -278,7 +279,43 @@ test('Sentinel-2 imagery: a failed search states why and retries', async ({ page
   await expect.poll(async () => (await imagery(page))?.layer).toBe(true)
 })
 
-test('Sentinel follows the settled view, pauses below z12, and reuses a previously visited area', async ({ page }) => {
+/** Count rendered frames on which the imagery source is missing, from the first frame it is there. */
+async function watchSource(page: Page, layerId = 'road-sentinel2') {
+  await page.evaluate((layerId) => {
+    const container = document.querySelector('[data-testid="road-plan-view"] .maplibregl-map')
+    const key = container && Object.keys(container).find((name) => name.startsWith('__reactFiber$'))
+    if (!container || !key) throw new Error('No plan map')
+    type Map = import('maplibre-gl').Map
+    type Hook = { memoizedState?: { current?: Map } | Map; next?: Hook }
+    type Fiber = { memoizedState?: Hook; return?: Fiber }
+    let fiber = (container as unknown as Record<string, Fiber>)[key]
+    for (let depth = 0; fiber && depth < 200; depth++, fiber = fiber.return!) {
+      for (let hook = fiber.memoizedState, count = 0; hook && count < 40; hook = hook.next, count++) {
+        const value = hook.memoizedState
+        const map =
+          value && typeof value === 'object' && 'current' in value ? value.current : (value as Map | undefined)
+        if (typeof map?.getTerrain !== 'function') continue
+        const watch = { frames: 0, missing: 0, seen: false }
+        ;(window as unknown as { __imageryWatch: typeof watch }).__imageryWatch = watch
+        map.on('render', () => {
+          const present = !!map.getSource(layerId) && !!map.getLayer(layerId)
+          if (present) watch.seen = true
+          if (!watch.seen) return
+          watch.frames++
+          if (!present) watch.missing++
+        })
+        return
+      }
+    }
+    throw new Error('No plan map')
+  }, layerId)
+  return () =>
+    page.evaluate(() => (window as unknown as { __imageryWatch: { frames: number; missing: number } }).__imageryWatch)
+}
+
+test('Sentinel follows the view as it moves: the picture stays through a pan, a pan inside the listed tiles makes no search, and it pauses below z12', async ({
+  page,
+}) => {
   const searches: number[][] = []
   page.on('request', (request) => {
     if (request.url().includes('earth-search') && request.method() === 'POST')
@@ -287,23 +324,41 @@ test('Sentinel follows the settled view, pauses below z12, and reuses a previous
   const errors = await open(page, { failing: false })
   await imagery(page, { center: [-122.71, 53.895], zoom: 10 })
   await toggleFromRibbon(page)
-  await expect(page.getByTestId('road-sentinel2-panel')).toContainText('Zoom in to level 12')
+  const panel = page.getByTestId('road-sentinel2-panel')
+  await expect(panel).toContainText('Zoom in to level 12')
   await page.waitForTimeout(1100)
   expect(searches).toHaveLength(0)
   await imagery(page, { center: [-122.71, 53.895], zoom: 14 })
   await expect.poll(() => imagery(page)).toMatchObject({ layer: true, regional: true, hrdem: true })
   expect(searches).toHaveLength(1)
+  // The figures say what area they cover: the read window, larger than the view.
+  await expect(panel.getByTestId('road-sentinel2-area-read')).toContainText(/area read: \d+(\.\d)? × \d+(\.\d)? km/)
+  await expect(panel).not.toContainText('when you stop moving')
   const first = (await imagery(page))!.quad
+  const watch = await watchSource(page)
+  // A pan inside the read window reads nothing new: the same picture at the same corners.
+  await imagery(page, { center: [-122.705, 53.896], zoom: 14 })
+  await page.waitForTimeout(400)
+  expect((await imagery(page))?.quad).toEqual(first)
+  // A pan out of it reads a new window, and the listed scenes still hold it: no search.
   await imagery(page, { center: [-122.65, 53.94], zoom: 14 })
-  await expect.poll(() => searches.length).toBe(2)
   await expect.poll(async () => (await imagery(page))?.quad).not.toEqual(first)
-  await expect.poll(async () => (await imagery(page))?.layer).toBe(true)
-  expect(searches[1][0]).toBeGreaterThan(searches[0][0])
+  // Back again: the earlier window, from the band cache.
   await imagery(page, { center: [-122.71, 53.895], zoom: 14 })
   await expect.poll(async () => (await imagery(page))?.quad).toEqual(first)
-  expect(searches).toHaveLength(2)
+  expect(searches).toHaveLength(1)
+  // The picked scene stayed the reviewer's through the pans.
+  await expect(
+    panel.getByRole('list', { name: 'Sentinel-2 scenes' }).getByRole('button', { pressed: true }),
+  ).toContainText('2025-08-20')
+  const watched = await watch()
+  expect(watched.frames).toBeGreaterThan(0)
+  expect(watched.missing).toBe(0)
+  // Below z12 the layer is paused, a stated state rather than a movement.
   await imagery(page, { center: [-122.71, 53.895], zoom: 10 })
   await expect.poll(async () => (await imagery(page))?.layer).toBe(false)
+  await expect(panel).toContainText('Zoom in to level 12')
+  expect(searches).toHaveLength(1)
   expect(errors).toEqual([])
 })
 
@@ -377,7 +432,7 @@ test('Wayback timeline respects its deployment flag and only requests the select
   await expect(command).toHaveAttribute('aria-pressed', 'true')
   const card = page.getByRole('region', { name: 'Historical imagery timeline' })
   await expect(card.getByRole('alert')).toContainText('503')
-  await card.getByRole('button', { name: 'Retry catalog' }).click()
+  await card.getByRole('button', { name: 'Retry Wayback catalog' }).click()
   const slider = card.getByRole('slider')
   await expect(slider).toHaveAttribute('aria-valuetext', '2024-08-21')
   await expect.poll(() => tiles.includes('2')).toBe(true)

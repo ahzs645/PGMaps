@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { basemapReliefBeforeId, keepReliefOverImagery } from './RegionalDemLayer'
+import { basemapReliefBeforeId, keepReliefOverImagery, reliefMoveBefore } from './RegionalDemLayer'
 
 type Layer = { id: string; type: string; 'source-layer'?: string }
 
@@ -53,5 +53,33 @@ describe('relief placement', () => {
     const moves = map.moves
     keepReliefOverImagery(map)
     expect(map.moves).toBe(moves)
+  })
+
+  it('moves relief back under the water when Satellite is left, and leaves relief already under its place', () => {
+    // Over imagery the relief sits under the labels, above the water.
+    const map = fakeMap([
+      ...BASEMAP.slice(0, 4),
+      { id: 'road-regional-hillshade', type: 'hillshade' },
+      { id: 'road-hrdem-relief', type: 'raster' },
+      ...BASEMAP.slice(4),
+    ])
+    for (const id of ['road-regional-hillshade', 'road-hrdem-relief']) {
+      const before = reliefMoveBefore(map.layers, id, 'waterway')
+      expect(before).toBe('waterway')
+      map.moveLayer(id, before!)
+    }
+    expect(map.layers.map((l) => l.id).slice(1, 5)).toEqual([
+      'landuse',
+      'road-regional-hillshade',
+      'road-hrdem-relief',
+      'waterway',
+    ])
+    // Both now sit under their place: neither moves the other back and forth.
+    expect(reliefMoveBefore(map.layers, 'road-regional-hillshade', 'waterway')).toBeNull()
+    expect(reliefMoveBefore(map.layers, 'road-hrdem-relief', 'waterway')).toBeNull()
+    // Going to Satellite moves nothing here: the labels are above, and `keepReliefOverImagery` lifts it over imagery.
+    expect(reliefMoveBefore(map.layers, 'road-hrdem-relief', 'waterway_label')).toBeNull()
+    expect(reliefMoveBefore(map.layers, 'road-hrdem-relief', undefined)).toBeNull()
+    expect(reliefMoveBefore(map.layers, 'missing', 'waterway')).toBeNull()
   })
 })
