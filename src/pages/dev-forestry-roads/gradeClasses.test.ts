@@ -55,3 +55,19 @@ describe('the plan coloured by grade class', () => {
     expect(coloured[3]).toEqual({ id: 'b', selected: false, color: '#123456' })
   })
 })
+
+describe('grade classes with the person’s own breaks and colours', () => {
+  const settings = { breaks: [0.4, 0.9] as const, colors: { gentle: '#0000ff', moderate: '#00ffff', steep: '#ff00ff' } }
+  it('break where asked and colour as asked, keeping over the limit red and unknown grey', () => {
+    expect(gradeClasses(20, settings).map((c) => [c.label, c.color])).toEqual([
+      ['Grade 0–8 %', '#0000ff'],
+      ['Grade 8–18 %', '#00ffff'],
+      ['Grade 18–20 %', '#ff00ff'],
+      ['Over the 20 % limit', '#dc2626'],
+      ['Grade unknown', '#9ca3af'],
+    ])
+    expect(gradeClassOf(8, 20, settings).id).toBe('gentle')
+    expect(gradeClassOf(8.01, 20, settings).id).toBe('moderate')
+    expect(gradeClassOf(-18.5, 20, settings).id).toBe('steep')
+  })
+})

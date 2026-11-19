@@ -1488,7 +1488,10 @@ the project name, the terrain and datum line with the issue stamp and caveat, th
 source's credit and the brand line. Its **Options** pane (`MapPdfOptions.tsx`; the rules in
 `mapPdfFrame.ts`, the page in `mapPdf.ts`) chooses the paper, what the page frames and the scale.
 The options are kept in this browser (`localStorage`, `pgmaps.forestryRoads.mapPdf`), never in the
-project file, and opening the pane changes nothing.
+project file, and opening the pane changes nothing. Below them sit the plan's own **Colour road
+by** controls (`RoadColouringFields.tsx`, `plan-tools.md`, **Colour road by**), open: they are the
+page's one road-colouring setting, so a change there recolours the plan as well as the page, and the
+preview follows it.
 
 | Option      | Choices                                                                                               | Default                    |
 | ----------- | ----------------------------------------------------------------------------------------------------- | -------------------------- |

@@ -137,7 +137,9 @@ import { planSheetLayerSet, riparianSheetKey, sheetProperties, type PlanSheetLay
 import { roleOverrides } from './styleLibrary'
 import { readStoredStyleLibrary, STYLE_LIBRARY_CHANGED } from './StyleLibraryPanel'
 import { CLEARING_LINE_COLOR, clearingLineFeatures, preparationMarginFeatures } from './preparationFootprint'
-import { ROAD_COLOUR_OPTIONS, usePlanTools, type RoadColourMode } from './PlanTools'
+import { usePlanTools } from './PlanTools'
+import { RoadColouringFields } from './RoadColouringFields'
+import type { RoadColouring } from './roadColouring'
 import { crossDrainMarks } from './crossDrainMarks'
 import { gradeClassRoadLines } from './gradeClasses'
 import { costColourHeading, costColourLines } from './costColours'
@@ -412,8 +414,8 @@ function Layers(
     planToolActive?: boolean
     /** The previewed edit would be refused on drop (`planEditCheck.ts`): draw the road as refused. */
     refusedEdit?: boolean
-    /** What the active road is coloured by. */
-    roadColour?: RoadColourMode
+    /** What the active road is coloured by, and how (`roadColouring.ts`). */
+    roadColouring?: RoadColouring
     /** The strip under the map that takes the legend when it is placed below. */
     legendSlot: HTMLElement | null
   },
@@ -767,16 +769,19 @@ function Layers(
     props.alignment.id,
     props.terrainOnly,
   ])
-  const costColours = props.roadColour === 'cost' && !props.terrainOnly ? props.costColours : undefined
+  const roadColourMode = props.roadColouring?.mode ?? 'plain'
+  const costSettings = props.roadColouring?.cost
+  const gradeSettings = props.roadColouring?.grade
+  const costColours = roadColourMode === 'cost' && !props.terrainOnly ? props.costColours : undefined
   const costAttribution = costColours?.attribution
   const costRowId = costColours?.rowId
   const roadLines = useMemo(() => {
     const lines = props.terrainOnly
       ? allLines
-      : props.roadColour === 'grade'
-        ? gradeClassRoadLines(allLines, analysis.stations, props.project.settings.maxGradePercent)
+      : roadColourMode === 'grade'
+        ? gradeClassRoadLines(allLines, analysis.stations, props.project.settings.maxGradePercent, gradeSettings)
         : costAttribution && costRowId !== undefined
-          ? costColourLines(allLines, costAttribution, costRowId)
+          ? costColourLines(allLines, costAttribution, costRowId, costSettings)
           : allLines
     if (!props.refusedEdit) return lines
     return fc(
@@ -789,7 +794,9 @@ function Layers(
   }, [
     allLines,
     analysis.stations,
-    props.roadColour,
+    roadColourMode,
+    gradeSettings,
+    costSettings,
     costAttribution,
     costRowId,
     props.terrainOnly,
@@ -798,8 +805,11 @@ function Layers(
   ])
   // The legend names the row the road is coloured by and the average its classes are read against.
   const costHeading = useMemo(
-    () => (costAttribution && costRowId !== undefined ? costColourHeading(costAttribution, costRowId) : undefined),
-    [costAttribution, costRowId],
+    () =>
+      costAttribution && costRowId !== undefined
+        ? costColourHeading(costAttribution, costRowId, costSettings)
+        : undefined,
+    [costAttribution, costRowId, costSettings],
   )
   const onWholeEstimate = costColours?.onWholeEstimate
   const costAction = useMemo(
@@ -3304,7 +3314,7 @@ export function PlanView(input: PlanProps) {
             referenceSymbols={referenceSymbols}
             noteTool={noteTool}
             planToolActive={!!tools.tool || !!sentinelArea.draft}
-            roadColour={tools.roadColour}
+            roadColouring={tools.roadColouring}
             refusedEdit={!!previewRefusal}
           />
           {previewRefusal && dragAt && (
@@ -3525,26 +3535,10 @@ export function PlanView(input: PlanProps) {
                   <input type="checkbox" checked={checked} onChange={(event) => set(event.target.checked)} />
                 </label>
               ))}
-              {tools.setRoadColour && (
-                <label className="grid gap-1 py-2 text-xs">
-                  Colour road by
-                  <StyledSelect
-                    value={tools.roadColour}
-                    onValueChange={(value) => tools.setRoadColour?.(value as RoadColourMode)}
-                    aria-label="Colour road by"
-                  >
-                    {ROAD_COLOUR_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </StyledSelect>
-                  {tools.roadColour === 'cost' && (
-                    <span className="text-2xs text-muted-foreground">
-                      Against the road&apos;s average $/m. Covered estimate → a row&apos;s colour button picks one cost.
-                    </span>
-                  )}
-                </label>
+              {tools.setRoadColouring && (
+                <div className="py-2">
+                  <RoadColouringFields value={tools.roadColouring} onChange={tools.setRoadColouring} />
+                </div>
               )}
               <label className="mt-2 grid gap-1 border-t pt-2 text-xs">
                 Legend and map symbols
@@ -3557,11 +3551,12 @@ export function PlanView(input: PlanProps) {
                   <option value="block-sheet">Block sheet forestry</option>
                   <option value="saved-styles">Block sheet, my saved styles</option>
                 </StyledSelect>
-                <span className="text-2xs text-muted-foreground">
-                  {symbolStyle === 'saved-styles'
-                    ? 'Block sheet symbols, with the styles saved in this browser for the features they are chosen for (Save & export, a GIS output or the block sheet, Styles). The Map PDF prints the plan as shown.'
-                    : 'The map and legend use the same symbols, and the Map PDF prints them. Choice saved in this browser.'}
-                </span>
+                {symbolStyle === 'saved-styles' && (
+                  <span className="text-2xs text-muted-foreground">
+                    Block sheet symbols, with the styles saved in this browser for the features they are chosen for
+                    (Save &amp; export, a GIS output or the block sheet, Styles).
+                  </span>
+                )}
               </label>
               <fieldset className="mt-2 grid gap-2 border-t pt-2" data-testid="road-plan-layout">
                 <legend className="text-xs font-medium">Layout</legend>
@@ -3588,7 +3583,6 @@ export function PlanView(input: PlanProps) {
                     <option value="side">All down the side</option>
                   </StyledSelect>
                 </label>
-                <span className="text-2xs text-muted-foreground">Saved in this browser.</span>
               </fieldset>
               {contextKinds.length > 0 && (
                 <fieldset className="mt-2 border-t pt-2" data-testid="road-context-visibility">

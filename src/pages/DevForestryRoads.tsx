@@ -139,7 +139,9 @@ import {
 import { measureHint, measureReadout } from '@/components/ui/map-measure'
 import { sketchStats } from '@/lib/geo/mapSketch'
 import { MapToolPanel } from '@/components/ui/map-tool-panel'
-import { leavesDrawingOnEscape, useRoadColourMode } from './dev-forestry-roads/PlanTools'
+import { leavesDrawingOnEscape } from './dev-forestry-roads/PlanTools'
+import { useRoadColouring } from './dev-forestry-roads/useRoadColouring'
+import { RoadColouringFields } from './dev-forestry-roads/RoadColouringFields'
 import { attributeCosts, type CostSeriesId } from './dev-forestry-roads/costAttribution'
 import { costBreakdownRows } from './dev-forestry-roads/costBreakdownRows'
 import { hasCostSeries } from './dev-forestry-roads/costColours'
@@ -1374,7 +1376,8 @@ export default function DevForestryRoads({
   const incompleteReasons = useMemo(() => incompleteReasonSummary(displayedAnalysis.stations), [displayedAnalysis])
   // The cost dialog's "Where it falls" and the plan's "Colour road by → Cost per metre" read one
   // spread of the estimate (`costAttribution.ts`), made only while either is in use.
-  const [roadColour, setRoadColour] = useRoadColourMode()
+  const [roadColouring, setRoadColouring] = useRoadColouring()
+  const roadColour = roadColouring.mode
   const [costSeries, setCostSeries] = useState<CostSeriesId>('total')
   const costSpreadWanted =
     !investigation && !terrainProfile && displayedAnalysis.stations.length > 1 && (costOpen || roadColour === 'cost')
@@ -1405,7 +1408,7 @@ export default function DevForestryRoads({
   )
   const colourRoadByCost = (id: CostSeriesId) => {
     setCostSeries(id)
-    setRoadColour('cost')
+    setRoadColouring((previous) => (previous.mode === 'cost' ? previous : { ...previous, mode: 'cost' }))
   }
   // A stretch picked in "Where it falls": framed and outlined on the plan, its costliest section
   // selected, the road coloured by that row, and the dialog closed so the plan shows.
@@ -4829,6 +4832,7 @@ export default function DevForestryRoads({
       locationAscii,
       modelFormat,
       mapPdfSettings,
+      roadColouring,
     }),
     [
       project,
@@ -4846,6 +4850,7 @@ export default function DevForestryRoads({
       locationAscii,
       modelFormat,
       mapPdfSettings,
+      roadColouring,
     ],
   )
   // The report sections this road gives nothing to print, shown on the report's contents list.
@@ -6571,6 +6576,11 @@ export default function DevForestryRoads({
               value={mapPdfSettings}
               onChange={setMapPdfSettings}
               blocks={blockSheet.blocks.map(({ value, label }) => ({ value, label }))}
+              roadColouring={
+                investigation || terrainProfile ? undefined : (
+                  <RoadColouringFields value={roadColouring} onChange={setRoadColouring} folded={false} />
+                )
+              }
             />
           ),
           'softree-location-ascii': (

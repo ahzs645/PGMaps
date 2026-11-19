@@ -662,7 +662,9 @@ test('a cost row opens where it falls, and a stretch takes the plan to its secti
   await expect
     .poll(async () => (await activeRoadSegments(page))?.every((segment) => typeof segment.costClass === 'string'))
     .toBe(true)
-  expect(await page.evaluate(() => localStorage.getItem('pgmaps-road-colour-by'))).toBe('cost')
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('pgmaps-road-colouring') ?? '{}').mode as unknown),
+  ).toBe('cost')
   const legend = page.getByTestId('road-plan-legend-content')
   await expect(legend.locator('[data-legend-section="roads"]')).toContainText('Cost per metre')
   if (rowId !== 'total') {

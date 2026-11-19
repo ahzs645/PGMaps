@@ -13,6 +13,7 @@ import {
 import { defaultStretchLength } from './CostWhereItFalls'
 import { buildPlanLegend } from './planLegendModel'
 import { GRADE_CLASS_COLORS } from './gradeClasses'
+import { costRampColors, DEFAULT_COST_COLOURING } from './roadColouring'
 
 // Eleven 10 m intervals; the known ones average exactly 10 $/m and the last is incomplete
 // (the fixture `costAttribution.test.ts` classes).
@@ -78,7 +79,7 @@ describe('cost colours on the plan', () => {
       costRampColour(costRampPosition(0.75)),
       costRampColour(costRampPosition(1.5)),
       costRampColour(costRampPosition(3)),
-      COST_RAMP_COLORS[4],
+      COST_RAMP_COLORS.at(-1),
       ...Array(5).fill(COST_INTENSITY_COLORS.none),
       COST_INTENSITY_COLORS.unknown,
     ])
@@ -105,9 +106,16 @@ describe('cost colours on the plan', () => {
     expect(costRampPosition(2)).toBeCloseTo(0.75)
     expect(costRampPosition(4)).toBe(1)
     expect(costRampPosition(40)).toBe(1)
-    // The stops are where a CSS gradient of the same colours puts them.
-    COST_RAMP_COLORS.forEach((colour, i) => expect(costRampColour(i / 4)).toBe(colour))
-    expect(costRampColour(0.125)).toBe('#aed844')
+    // The stops are where a CSS gradient of the same colours puts them: viridis, pale yellow first.
+    const last = COST_RAMP_COLORS.length - 1
+    COST_RAMP_COLORS.forEach((colour, i) => expect(costRampColour(i / last)).toBe(colour))
+    expect([0, 0.25, 0.5, 0.75, 1].map((t) => costRampColour(t))).toEqual([
+      '#fde725',
+      '#5ec962',
+      '#21918c',
+      '#3b528b',
+      '#440154',
+    ])
   })
 
   it('never reuses the plan road amber, the over-grade red, or the colours off the ramp', () => {
@@ -124,7 +132,7 @@ describe('cost colours on the plan', () => {
     ])
     expect(costRampTicks(3.456).map((tick) => tick.label)).toEqual(['≤ $0.864/m', '$3.46/m', '≥ $13.8/m'])
     // Without an average the multiples stand alone.
-    expect(costRampTicks(null).map((tick) => tick.label)).toEqual(['≤ 0.25×', '1×', '≥ 4×'])
+    expect(costRampTicks(null).map((tick) => tick.label)).toEqual(['≤ ¼×', '1×', '≥ 4×'])
   })
 
   it('draws the costed stretches as the ramp and lists only what is off it, in order', () => {
@@ -187,5 +195,39 @@ describe('stretch length', () => {
     expect(defaultStretchLength(1000)).toBe(100)
     expect(defaultStretchLength(1500)).toBe(200)
     expect(defaultStretchLength(40000)).toBe(500)
+  })
+})
+
+describe('cost colours with the person’s own scale', () => {
+  it('reads every stretch against a target, and says so in the legend', () => {
+    const settings = { ...DEFAULT_COST_COLOURING, reference: 'target' as const, targetPerMetre: 20 }
+    const lines = costColourLines(roads(), attribution, 'total', settings)
+    const active = lines.features.filter((feature) => feature.properties?.selected)
+    // 2.5, 7.5, 15, 30 and 45 $/m against a target of 20 $/m.
+    expect(active.slice(0, 5).map((feature) => feature.properties?.costRatio)).toEqual([0.125, 0.375, 0.75, 1.5, 2.25])
+    const heading = costColourHeading(attribution, 'total', settings)
+    expect(heading.description).toBe('Whole estimate · target $20/m · road average $10/m')
+    expect(heading.ramp.ticks).toEqual([
+      { label: '≤ $5/m', note: '¼× target' },
+      { label: '$20/m', note: 'target' },
+      { label: '≥ $80/m', note: '4× target' },
+    ])
+  })
+
+  it('runs the chosen ramp between the chosen ends', () => {
+    const settings = { ...DEFAULT_COST_COLOURING, minRatio: 0.5, maxRatio: 2, ramp: 'blues', reverse: false }
+    expect(costRampPosition(0.5, settings)).toBe(0)
+    expect(costRampPosition(1, settings)).toBeCloseTo(0.5)
+    expect(costRampPosition(2, settings)).toBe(1)
+    const blues = costRampColors(settings)
+    const active = costColourLines(roads(), attribution, 'total', settings).features.filter(
+      (feature) => feature.properties?.selected,
+    )
+    // 0.25× and 4.5× hold the ramp's ends.
+    expect(active[0].properties?.color).toBe(blues[0])
+    expect(active[4].properties?.color).toBe(blues.at(-1))
+    const heading = costColourHeading(attribution, 'total', settings)
+    expect(heading.ramp.colors).toEqual(blues)
+    expect(heading.ramp.ticks.map((tick) => tick.note)).toEqual(['½× avg', 'average', '2× avg'])
   })
 })

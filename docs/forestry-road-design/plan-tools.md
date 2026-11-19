@@ -16,8 +16,9 @@ this browser. The imagery sits under the plan's layers and labels; over it the h
 half opacity so the imagery reads through, while slope, aspect and elevation stay as they were.
 
 **Map display settings** (the sliders button) adds two plan options: **Colour road by** (Plain,
-Grade class or Cost per metre) and **Follow station**. Both are remembered in this browser; a
-browser that had the old **Colour by grade** box ticked starts on Grade class.
+Grade class or Cost per metre, with its **Scale and colours** fold) and **Follow station**. Both
+are remembered in this browser; a browser that had the old **Colour road by** choice, or the
+older **Colour by grade** box ticked, starts on it.
 
 The calculations are `pegCursor.ts`, `pointQuery.ts`, `gradeClasses.ts`, `costColours.ts` and
 `followStation.ts`.
@@ -134,17 +135,36 @@ are clicked, without snapping, as before.
 
 ## Colour road by
 
+How the road is coloured is one setting for the whole page (`roadColouring.ts`, kept by
+`useRoadColouring.ts` in this browser under `pgmaps-road-colouring`, never in the project file).
+The map settings' **Colour road by**, the cost dialog's **Colour road by this** and Save & export →
+Map PDF → **Options** all read and change that one value through the same controls
+(`RoadColouringFields.tsx`), so the plan and the printed map always agree. A new way to colour the
+road is one entry in `ROAD_COLOUR_MODES`, its settings in `RoadColouring` and `parseRoadColouring`,
+and its colouring function beside `gradeClasses.ts` and `costColours.ts`. With nothing changed,
+each mode draws with the defaults below; **Reset** in the fold puts the mode's scale and colours
+back.
+
 **Grade class.** The active road's segments take the class of their design grade, judged on the absolute grade
 against the project's grade limit: up to half the limit, to three quarters, to the limit, and
 over it. A grade on a break belongs to the class below, so a road exactly at the limit is within
 it. Segments with no terrain under them stay grey, as without the option. The legend lists the
-classes the road shows. Other roads keep their own colours.
+classes the road shows. Other roads keep their own colours. Under **Scale and colours** the two
+inner breaks (as percentages of the grade limit, default 50 and 75) and the three colours within
+the limit can be changed; over the limit stays the plan's red and unknown its grey, so they still
+read as the flags they are.
 
 **Cost per metre.** Each calculation interval takes its cost per metre against the road's own
 average $/m over its complete length (`costIntensityClasses`, `costColours.ts`) and is coloured on
-a continuous ramp, pale yellow to deep purple, even in log scale from a quarter of the average or
-less to four times it or more, so the average is the ramp's middle (`costRampPosition`,
-`costRampColour`). An interval whose sections are incomplete is grey, and one where nothing is
+a continuous ramp, by default viridis from pale yellow to deep purple, even in log scale from a
+quarter of the average or less to four times it or more, so the average is the ramp's middle
+(`costRampPosition`, `costRampColour`). Under **Scale and colours** the ramp can be any of the
+toolkit's low-to-high or either-side-of-a-middle ramps (`COLOR_RAMPS`; the rainbow is not offered
+for an amount), reversed, or a gradient of the person's own (its colours are kept with the
+setting); the ends can be moved (low end 0.01–0.99 ×, high end 1.01–100 ×); and the colours can be
+read against a typed **target $/m** instead of the road average, which makes roads comparable
+with each other. The legend's heading then names the target beside the average, and its ticks read
+"× target". An interval whose sections are incomplete is grey, and one where nothing is
 placed is light grey. The legend draws the same ramp with its ends and middle in $/m, under a
 heading that names the average, and lists the two greys below it; the other roads are listed under
 their own **Other roads** heading. By default the whole
@@ -190,7 +210,10 @@ drag) never scrubs, and a radial spoke under the pointer still takes precedence.
 | Cursor label                           | 224 px wide, 12 px from its point      | `pegCursor.ts` `CURSOR_LABEL_MAX_WIDTH_PX`, `cursorLabelSide`        | Drawn left of the point instead          |
 | On grade                               | within 5 mm                            | `pointQuery.ts` `ON_GRADE_M`                                         | —                                        |
 | Grade class breaks                     | ½, ¾ and 1 × the grade limit           | `gradeClasses.ts` `GRADE_CLASS_BREAKS`                               | —                                        |
-| Cost per metre class breaks            | ½, 1, 2 and 4 × the road average $/m   | `costAttribution.ts` `COST_INTENSITY_BINS`                           | —                                        |
+| Grade class breaks (settable)          | 5–95 % of the limit, rising            | `roadColouring.ts` `ROAD_COLOURING_LIMITS.gradeBreak`                | Field changes it to the range, says so   |
+| Cost ramp ends (default ¼ and 4 ×)     | low 0.01–0.99 ×, high 1.01–100 ×       | `roadColouring.ts` `ROAD_COLOURING_LIMITS.minRatio`, `.maxRatio`     | Field changes it to the range, says so   |
+| Cost target                            | 0.01–1,000,000 $/m                     | `roadColouring.ts` `ROAD_COLOURING_LIMITS.targetPerMetre`            | Field changes it to the range, says so   |
+| Cost "nothing placed" and "unknown"    | ½, 1, 2 and 4 × bins, used only to tell those two apart from the ramp | `costAttribution.ts` `COST_INTENSITY_BINS`         | —                                        |
 | Follow margin                          | 15 % of the view, at least 40 px       | `followStation.ts` `FOLLOW_MARGIN_FRACTION`, `FOLLOW_MIN_MARGIN_PX`  | —                                        |
 | Follow throttle; hold after a user pan | 250 ms; 1.5 s                          | `followStation.ts` `FOLLOW_THROTTLE_MS`, `FOLLOW_HOLD_AFTER_USER_MS` | —                                        |
 

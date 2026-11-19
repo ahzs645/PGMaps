@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { PAPER_SIZES, type PaperId } from '@/lib/mapSheet/layout'
 import { formatScale, MAX_SHEET_SCALE } from '@/lib/mapSheet/scale'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
@@ -45,17 +45,20 @@ export function useMapPdfSettings() {
 /**
  * Save & export → Map PDF → **Options**: the paper, what the page frames and at what scale. The
  * default (A4, the plan as shown) prints the plan as it always did; anything else prints a north-up,
- * georeferenced frame at a stated scale (`mapPdfFrame.ts`).
+ * georeferenced frame at a stated scale (`mapPdfFrame.ts`). `roadColouring` is the page's own road
+ * colour controls (`RoadColouringFields`): the PDF prints the plan, so they change both.
  */
 export function MapPdfOptions({
   value,
   onChange,
   blocks,
+  roadColouring,
 }: {
   value: MapPdfSettings
   onChange: (value: MapPdfSettings) => void
   /** The block sheet's own block list. */
   blocks: readonly { value: string; label: string }[]
+  roadColouring?: ReactNode
 }) {
   const set = (patch: Partial<MapPdfSettings>) => onChange({ ...value, ...patch })
   const asShown = isAsShown(value)
@@ -159,6 +162,12 @@ export function MapPdfOptions({
           </Field>
         )}
       </div>
+      {roadColouring && (
+        <fieldset className="grid gap-2 border-t pt-3" data-testid="road-map-pdf-road-colours">
+          <legend className="sr-only">Road colours</legend>
+          {roadColouring}
+        </fieldset>
+      )}
       <p className="text-xs text-muted-foreground" data-testid="road-map-pdf-options-summary">
         {asShown
           ? 'The plan as it is shown now, turned and tilted as it is, fitted to the page. It is georeferenced only when the plan is north-up and flat, without 3D terrain.'

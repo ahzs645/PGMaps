@@ -7,7 +7,7 @@
  * `followStation.ts`.
  */
 import type { SnapLine } from './drawSnap'
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl'
 import { Footprints, Ruler, ScanSearch } from 'lucide-react'
@@ -22,58 +22,15 @@ import { PointQueryTool } from './PointQueryTool'
 import type { NoteTool } from './PlanNotes'
 import type { DrawMode } from './PlanView'
 import type { Alignment, Coordinate, RoadAnalysis, RoadProject, RoadStation, TerrainSource } from './types'
+import { useRoadColouring } from './useRoadColouring'
 import './planTools.css'
 
 export type PlanTool = 'peg' | 'query' | 'measure'
 
 const STORAGE = {
-  roadColour: 'pgmaps-road-colour-by',
-  /** The checkbox before "Colour road by": 'on' reads as grade class. */
-  gradeColours: 'pgmaps-road-grade-colours',
   follow: 'pgmaps-road-follow-station',
 }
 
-/** What the plan colours the active road by. */
-export type RoadColourMode = 'plain' | 'grade' | 'cost'
-export const ROAD_COLOUR_OPTIONS: readonly { value: RoadColourMode; label: string }[] = [
-  { value: 'plain', label: 'Plain' },
-  { value: 'grade', label: 'Grade class' },
-  { value: 'cost', label: 'Cost per metre' },
-]
-const isRoadColourMode = (value: unknown): value is RoadColourMode =>
-  ROAD_COLOUR_OPTIONS.some((option) => option.value === value)
-
-function readRoadColour(): RoadColourMode {
-  try {
-    const stored = localStorage.getItem(STORAGE.roadColour)
-    if (isRoadColourMode(stored)) return stored
-    return localStorage.getItem(STORAGE.gradeColours) === 'on' ? 'grade' : 'plain'
-  } catch {
-    return 'plain'
-  }
-}
-// One value for the whole page: the plan's settings and the cost dialog both set it.
-let roadColour: RoadColourMode | null = null
-const roadColourListeners = new Set<() => void>()
-const roadColourSnapshot = () => (roadColour ??= readRoadColour())
-const subscribeRoadColour = (listener: () => void) => {
-  roadColourListeners.add(listener)
-  return () => roadColourListeners.delete(listener)
-}
-export function setRoadColourMode(next: RoadColourMode) {
-  if (roadColourSnapshot() === next) return
-  roadColour = next
-  try {
-    localStorage.setItem(STORAGE.roadColour, next)
-  } catch {
-    /* The choice still holds for this session. */
-  }
-  for (const listener of roadColourListeners) listener()
-}
-/** What the active road is coloured by, saved in this browser (the old grade checkbox carries over). */
-export function useRoadColourMode(): [RoadColourMode, (next: RoadColourMode) => void] {
-  return [useSyncExternalStore(subscribeRoadColour, roadColourSnapshot, () => 'plain'), setRoadColourMode]
-}
 function useStoredFlag(key: string): [boolean, (value: boolean) => void] {
   const [value, setValue] = useState(() => {
     try {
@@ -152,7 +109,7 @@ export interface PlanToolsInput {
 /** The plan's tool state, and the pieces the plan places: toolbar, panel slot, map layer, settings rows. */
 export function usePlanTools(input: PlanToolsInput) {
   const [tool, setTool] = useState<PlanTool | null>(null)
-  const [roadColourBy, setRoadColourBy] = useRoadColourMode()
+  const [roadColouringBy, setRoadColouringBy] = useRoadColouring()
   const [followOn, setFollow] = useStoredFlag(STORAGE.follow)
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
   // Pegging and query read a design road; measuring needs only the map.
@@ -196,15 +153,20 @@ export function usePlanTools(input: PlanToolsInput) {
       followStation={available && followOn}
     />
   )
+  const roadColouring = useMemo(
+    () =>
+      available || roadColouringBy.mode === 'plain' ? roadColouringBy : { ...roadColouringBy, mode: 'plain' as const },
+    [available, roadColouringBy],
+  )
   const settingsRows: (readonly [string, boolean, (value: boolean) => void])[] = available
     ? [['Follow station', followOn, setFollow]]
     : []
   return {
     tool: active,
-    /** Plain wherever pegging and query are off (an access investigation, terrain alone). */
-    roadColour: available ? roadColourBy : ('plain' as RoadColourMode),
-    /** Null where the choice does not apply; the plan then offers no select. */
-    setRoadColour: available ? setRoadColourBy : null,
+    /** The page's road colouring; plain wherever pegging and query are off (an access investigation, terrain alone). */
+    roadColouring,
+    /** Null where the choice does not apply; the plan then offers no road colour settings. */
+    setRoadColouring: available ? setRoadColouringBy : null,
     toolbar,
     panelSlot,
     mapLayer,
