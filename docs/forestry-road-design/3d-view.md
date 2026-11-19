@@ -164,7 +164,7 @@ into the same projected frame as the geometry.
 | Exact design footprint | 250,000 triangles | Report an unavailable exact surface and retain simplified presentation. |
 | Spatial-index memberships | 2,000,000 | Coarsen lookup cells only; design triangles are unchanged. |
 | Ground polygon/triangle checks | 4,000,000 | Report the limit and use the complete canvas/SVG preview. |
-| Clipped pieces per source face | 256 | Report the limit and use the complete canvas/SVG preview. |
+| Clipped pieces per source face | 2,048 | Report the limit and use the complete canvas/SVG preview. A guard on one face only: the clip tests and clipped faces bound the whole cut. |
 | Clipped output faces | 1,000,000 | Report the limit and use the complete canvas/SVG preview. |
 | Cached source samples | 262,144 in the accelerated scene; helper default 65,536 | Evict the oldest finite or missing result and reuse fixed-grid overlaps. |
 

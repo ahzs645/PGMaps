@@ -3,6 +3,8 @@ import type { RoadSelectionRange } from './roadSelection'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
+import { useElementSize } from '@/hooks/useElementSize'
+import { useSizeFold } from '@/hooks/useSizeFold'
 import { InfoTip } from '@/components/ui/info-tip'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import {
@@ -1115,7 +1117,8 @@ export function TerrainPreview({
             <RoadSelect
               ariaLabel="Terrain render quality"
               title="Rendering quality; source elevations are unchanged"
-              disabled={!gpuActive}
+              // Stays usable while a quality the accelerated view cannot draw falls back, so another can be chosen.
+              disabled={!gpuEnabled || (!gpuActive && !presentation?.requiresCanvas)}
               className="h-7 w-28"
               value={quality}
               onValueChange={(value) => setQuality(value as TerrainRenderQuality)}
@@ -1873,6 +1876,9 @@ export function TerrainPreview({
  * (`PlanLegend.tsx`): the shared folding panel in the corner, a titled section, the gradient bar with its ticks and a
  * legend row, so the two views read alike.
  */
+/** The 3D pane height below which its legend starts folded (with a gap, so a pane dragged across it does not flip). */
+const LEGEND_FOLD = { foldBelow: 300, unfoldFrom: 320 }
+
 function TerrainColourLegend({
   colour,
   low,
@@ -1886,7 +1892,14 @@ function TerrainColourLegend({
   maxGradePercent?: number
   exaggeration: number
 }) {
-  const [collapsed, setCollapsed] = useState(false)
+  // Folded on a short 3D pane, as the plan's legend starts folded: open, it would cover the middle of the view and take
+  // its drags and wheel. A fold or unfold the reader chooses holds. The legend sits over the pane, so folding it never
+  // changes the height measured.
+  const [chosen, setChosen] = useState<boolean | null>(null)
+  const [pane, setPane] = useState<Element | null>(null)
+  const { height: paneHeight } = useElementSize(pane)
+  const short = useSizeFold(paneHeight, LEGEND_FOLD)
+  const collapsed = chosen ?? short
   const top = TERRAIN_SLOPE_STOPS[TERRAIN_SLOPE_STOPS.length - 1].value
   const last = TERRAIN_SLOPE_STOPS.length - 1
   // The heights note sits in the section's corner, where the plan's legend puts a section's action.
@@ -1901,12 +1914,12 @@ function TerrainColourLegend({
       </span>
     ) : undefined
   return (
-    <div data-testid="road-3d-legend">
+    <div data-testid="road-3d-legend" ref={(element) => setPane(element?.parentElement ?? null)}>
       <MapLegendPanel
         title="Legend"
         collapsible
         collapsed={collapsed}
-        onCollapsedChange={setCollapsed}
+        onCollapsedChange={setChosen}
         width="sm"
         // The plan legend's corner, size and folded height (`PlanLegend.tsx`).
         className="road-map-legend bottom-2 right-2 flex max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col rounded-md p-2 shadow-sm workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:rounded-md workspace-desktop:p-2 data-[collapsed]:h-8 data-[collapsed]:justify-center data-[collapsed]:py-0 workspace-desktop:data-[collapsed]:py-0 [&>div:first-child]:shrink-0"

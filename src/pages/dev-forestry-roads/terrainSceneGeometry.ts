@@ -16,7 +16,12 @@ import type { Alignment, Coordinate, RoadAnalysis, TerrainMetadata } from './typ
 export const MAX_TERRAIN_SCENE_FOOTPRINT_TRIANGLES = 250_000
 export const MAX_TERRAIN_SCENE_INDEX_ENTRIES = 2_000_000
 export const MAX_TERRAIN_SCENE_CLIP_TESTS = 4_000_000
-export const MAX_TERRAIN_SCENE_CLIP_PIECES = 256
+/**
+ * Pieces one ground face may be cut into. Only a guard against one face exploding: the clip tests and the clipped faces
+ * above bound the whole cut. 256 refused the training road at Efficient quality (128 samples a side, about 11 m faces,
+ * each crossed by the finished surface's many narrow triangles) and sent it to the canvas preview.
+ */
+export const MAX_TERRAIN_SCENE_CLIP_PIECES = 2_048
 export const MAX_TERRAIN_SCENE_CLIPPED_FACES = 1_000_000
 const INDEX_SIDE = 128
 const EDGE_EPS_M = 1e-7
