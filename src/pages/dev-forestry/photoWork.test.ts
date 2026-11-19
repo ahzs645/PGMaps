@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { DemTileRange, ElevationSource } from '@/lib/forestry/terrain/terrain'
+import { groundAppearance, terrainInverseDepth } from './photoCombined'
 import { buildHitBuffer } from './photoHitBuffer'
+import { photoOverlay } from './photoOverlay'
 import type { PhotoPose } from './photoPose'
 import { drapePhoto, renderModelView, tileXY, type Rgba } from './photoViews'
 import {
@@ -161,6 +163,46 @@ describe('the own-photo worker', () => {
     )
     expect(right.agreement!.score).toBeGreaterThan(wrong.agreement!.score)
     expect(requests.filter((r) => r.type === 'job' && r.resources?.imagery).length).toBe(1)
+  })
+
+  it('reads a candidate camera’s cues as the page read them, from one cast', async () => {
+    const { client } = inThread()
+    const imagery = [mosaic()]
+    const photo = photoPixels()
+    const result = await client.run(
+      { kind: 'cameraCues', pose, terrain: spec, imagery: 'spot', photo: 'frame', width: 48, maxMeters: 60000 },
+      { imagery, photo },
+    )
+    if (result.kind !== 'cameraCues') throw Error('not camera cues')
+    const hits = buildHitBuffer(pose, hill, { width: 48, maxMeters: 60000 })
+    expect(result.appearance).toBe(groundAppearance(photo, hits, imagerySampler(imagery)))
+    const depth = terrainInverseDepth(hits, pose)
+    expect(result.depth.width).toBe(depth.width)
+    expect(Array.from(result.depth.inverse)).toEqual(Array.from(depth.inverse))
+  })
+
+  it('lays a layer for a camera as the page laid it, sending its features once', async () => {
+    const { client, requests } = inThread()
+    const features = [
+      {
+        layer: 'roads',
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: [
+            [pose.lng + 0.01, pose.lat + 0.01],
+            [pose.lng + 0.03, pose.lat + 0.03],
+          ],
+        },
+      },
+    ]
+    const job = { kind: 'overlay' as const, pose, terrain: spec, features: 'set-1:roads' }
+    const first = await client.run(job, { features })
+    const turned = await client.run({ ...job, pose: { ...pose, bearing: 50 } }, { features })
+    if (first.kind !== 'overlay' || turned.kind !== 'overlay') throw Error('not an overlay')
+    expect(first.paths).toEqual(photoOverlay(pose, buildHitBuffer(pose, hill), features, { ground: hill }))
+    expect(first.paths).toHaveLength(1)
+    expect(turned.paths).not.toEqual(first.paths)
+    expect(requests.filter((r) => r.type === 'job' && r.resources?.features).length).toBe(1)
   })
 
   it('rejects at once when aborted, drops the job in the worker, and carries on with the next', async () => {

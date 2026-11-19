@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useElementSize } from '@/hooks/useElementSize'
 import { ToolbarPopover } from '@/components/ui/toolbar-popover'
+import { ZoomPan } from '@/components/ui/zoom-pan'
+import { fitBox } from '@/components/ui/zoomPanView'
 import { DEFAULT_FIGURE_STYLE } from '@/lib/forestry/viaFigure/presets'
 import { sheetSvg } from '@/lib/mapSheet/renderSvg'
 import { svgDataUrl } from '@/lib/mapSheet/symbolSvg'
@@ -38,13 +40,14 @@ import {
   type PhotoLayerId,
 } from './photoLayers'
 import { PhotoLayersPanel, type PhotoLayerAvailability } from './PhotoLayersPanel'
-import { bearingTicks, distanceContours, horizonLine, photoOverlay } from './photoOverlay'
+import { bearingTicks, distanceContours, horizonLine } from './photoOverlay'
 import { photoDrawOps, photoOverlayFeatures, photoPickLayers, type DrawnFeature } from './photoOverlayDraw'
 import { photoInventoryWanted, resolvePhotoExtras, type PhotoPageFeatures } from './photoPageFeatures'
 import { pixelsInFeature, readPhotoPixel, type PhotoPixelReading } from './photoPick'
 import { SkylineDragHandles } from './SkylineDragHandles'
 import type { FieldPhotoState } from './useFieldPhoto'
 import { usePhotoInventory } from './usePhotoInventory'
+import { usePhotoLaidLayers } from './usePhotoLaidLayers'
 
 const LAYERS_KEY = 'pgmaps.forestry-visual-quality.own-photo-layers'
 
@@ -70,6 +73,10 @@ function storedCustomVisibility(): Record<string, unknown> {
 
 const NO_PAGE_FEATURES: PhotoPageFeatures = {}
 const NO_CUSTOM_LAYERS: readonly PhotoCustomLayer[] = []
+const NO_DRAWN: DrawnFeature[] = []
+
+/** For a mark that keeps its size on screen while the photo is enlarged under it (`ZoomPan`). */
+const KEEP_SIZE = 'calc(1 / var(--zoom-pan-scale, 1))'
 
 const km = (meters: number) => (meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`)
 
@@ -98,6 +105,11 @@ export type PhotoWithOverlaysProps = {
   customLayers?: readonly PhotoCustomLayer[]
   /** Where the layer list opens from: the toolbar under the photo (default), or a button on the photo's corner. */
   layersMenu?: 'popover' | 'corner'
+  /**
+   * Size the photo to the height its holder gives it (a flex column of a set height), whole in view, and let it be
+   * zoomed and panned there (`ZoomPan`). Without it the photo takes its own height, capped by `imageClassName`.
+   */
+  fit?: boolean
   /** Show the drag-to-align handles on the skyline. */
   align?: boolean
   /** Draw the paired points: each click, where the solved camera puts its spot, and the line between. */
@@ -106,6 +118,17 @@ export type PhotoWithOverlaysProps = {
   readOnClick?: boolean
   /** Offer *Pair with the plan* in the reading card, for a clicked spot. */
   onPairPixel?: (x: number, y: number) => void
+  /**
+   * The features check under the photo; by default wherever the photo is not `compact`. Off where the holder places
+   * `PhotoFeaturesCheck` itself, so the photo keeps the height.
+   */
+  featuresCheck?: boolean
+  /**
+   * The photo is mounted but not shown (another picture has its place): nothing is laid on it until it is shown
+   * again. Laying a camera's layers takes a few tenths of a second on the page's thread, which a camera chosen while
+   * the model view shows would otherwise wait for.
+   */
+  idle?: boolean
   /** Extra controls for the toolbar under the photo. */
   toolbar?: ReactNode
   className?: string
@@ -123,16 +146,23 @@ export function PhotoWithOverlays({
   styleId = DEFAULT_FIGURE_STYLE,
   customLayers = NO_CUSTOM_LAYERS,
   layersMenu = 'popover',
+  fit = false,
   align = false,
   showPairs = false,
   readOnClick = true,
   onPairPixel,
+  featuresCheck = !compact,
+  idle = false,
   toolbar,
   className,
   imageClassName,
 }: PhotoWithOverlaysProps) {
   const own = photo.own
   const frame = useRef<HTMLDivElement>(null)
+  const stage = useRef<HTMLDivElement>(null)
+  // How far the photo is enlarged (`fit`), in whole doublings: what is drawn over it is redrawn finer at each.
+  const [zoom, setZoom] = useState(1)
+  const zoomStep = 2 ** Math.max(0, Math.round(Math.log2(zoom)))
   const tintCanvas = useRef<HTMLCanvasElement>(null)
   const [builtIn, setBuiltIn] = useState(storedVisibility)
   const [customSaved, setCustomSaved] = useState(storedCustomVisibility)
@@ -204,7 +234,6 @@ export function PhotoWithOverlays({
 
   const pose = photo.activePose
   const buffer = photo.hitBuffer && photo.hitBuffer.poseKey === photo.activePoseKey ? photo.hitBuffer : null
-  const ground = photo.ownTerrain
   const reads = photo.ownFeatures?.status === 'ready' ? photo.ownFeatures.reads : null
   // The ground the camera sees: what the photo's own inventory reads ask for, and what a click is read against.
   const seen = useMemo(() => (buffer ? photoSeenBounds(buffer) : null), [buffer])
@@ -227,13 +256,37 @@ export function PhotoWithOverlays({
   )
   const unavailable: PhotoLayerAvailability = extras.unavailable
 
-  // Features laid on the ground and projected, for the layers turned on.
-  const drawn = useMemo((): DrawnFeature[] => {
-    if (!pose || !buffer || !ground) return []
-    const shown = features.filter((feature) => visibility[feature.layer] && !unavailable[feature.layer as PhotoLayerId])
-    const paths = photoOverlay(pose, buffer, shown, { ground })
-    return paths.map((entry, i) => ({ paths: entry, properties: shown[i].properties }))
-  }, [pose, buffer, ground, features, visibility, unavailable])
+  // Features laid on the ground and projected, for the layers turned on: in the worker, a layer at a time, kept by
+  // camera (`usePhotoLaidLayers`). The main window's copy also lays them ahead for the options card's cameras.
+  const shownLayers = useMemo(() => {
+    const on = new Set<string>()
+    for (const feature of features)
+      if (visibility[feature.layer] && !unavailable[feature.layer as PhotoLayerId]) on.add(feature.layer)
+    return [...on]
+  }, [features, visibility, unavailable])
+  const poseKey = photo.activePoseKey
+  const terrainSpec = photo.ownTerrainSpec
+  const camera = useMemo(
+    () => (pose && poseKey && terrainSpec ? { key: poseKey, pose, terrain: terrainSpec } : null),
+    [pose, poseKey, terrainSpec],
+  )
+  const laid = usePhotoLaidLayers({
+    camera,
+    features,
+    layers: shownLayers,
+    ahead: fit ? photo.optionCameras : undefined,
+    idle,
+  })
+  // Everything this camera's drawing needs is here: its ground for the aids and the reading, and every layer laid.
+  const complete = !!buffer && laid.complete
+  // The last complete drawing and the camera it was made for (`heldUrl`, below).
+  const [held, setHeld] = useState<{ id: string; poseKey: string; url: string | null } | null>(null)
+  const heldHere = !!own && held?.id === own.id
+  // A camera still waiting for some of its layers draws none of them: its last drawing stands in, faded, until all
+  // are here, so layers never arrive one after another over an old picture. One more layer switched on for the camera
+  // already drawn is not a new picture, and joins the others as it comes.
+  const settled = complete || (heldHere && held?.poseKey === poseKey)
+  const drawn = settled ? laid.drawn : NO_DRAWN
 
   const aids = useMemo(
     () =>
@@ -249,9 +302,12 @@ export function PhotoWithOverlays({
 
   // Sheet points a screen pixel covers where the photo is shown, in quarter steps so a pane drag does not redraw it
   // each pixel: lines are simplified to about that.
+  const stageSize = useElementSize(stage)
+  const fitted = fit && own ? fitBox(stageSize, own.width / own.height) : null
   const shownWidth = useElementSize(frame).width
   const pixelPoints =
-    shownWidth > 0 ? Math.max(0.5, Math.round((PHOTO_SYMBOL_REFERENCE_WIDTH_POINTS / shownWidth) * 4) / 4) : 1
+    (shownWidth > 0 ? Math.max(0.5, Math.round((PHOTO_SYMBOL_REFERENCE_WIDTH_POINTS / shownWidth) * 4) / 4) : 1) /
+    zoomStep
   const overlayUrl = useMemo(() => {
     if (!own) return null
     const draw = photoDrawOps({
@@ -269,6 +325,14 @@ export function PhotoWithOverlays({
     })
     return draw.ops.length ? svgDataUrl(sheetSvg(draw.ops, draw.width, draw.height, undefined, null)) : null
   }, [own, visibility, customSymbols, styleId, photo.ownSkyline, drawn, aids, compact, pixelPoints])
+
+  // The last complete drawing stays where it was, faded, under the skyline that already follows the new camera, while
+  // the new camera's ground is cast and its layers laid, so a change of camera never strips the photo bare and fills
+  // it again. It is one photo's: another photo starts clean. Never read against.
+  const drawing = !!pose && !complete && !idle
+  if (own && poseKey && complete && !idle && (!heldHere || held?.poseKey !== poseKey || held.url !== overlayUrl))
+    setHeld({ id: own.id, poseKey, url: overlayUrl })
+  const heldUrl = drawing && !settled && heldHere ? (held?.url ?? null) : null
 
   // Polygons a pixel is read against, prepared once for the ground the camera sees.
   const pickLayers = useMemo(() => (buffer ? photoPickLayers(features, seen) : []), [features, buffer, seen])
@@ -365,185 +429,216 @@ export function PhotoWithOverlays({
   const layersOn =
     PHOTO_LAYERS.filter((layer) => visibility[layer.id] && !unavailable[layer.id]).length +
     customLayers.filter((layer) => layer.features.length && visibility[customLayerKey(layer.id)]).length
-  const drawing = !!pose && !buffer
 
-  return (
-    <div className={cn('min-w-0 space-y-2', className)}>
-      <div className="flex justify-center rounded-md bg-muted/50">
-        <div
-          ref={frame}
-          className="relative inline-block max-w-full overflow-hidden"
-          data-testid={compact ? 'docked-photo-frame' : 'own-photo-frame'}
+  const cornerLayers = layersMenu === 'corner' && (
+    // On the picture's corner, as a map keeps its layers: the list opens over the photo and scrolls inside
+    // what the window has room for, so the photo stays where it is while layers go on and off.
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          className="absolute right-2 top-2 z-10 bg-background/90 shadow-sm backdrop-blur touch:h-10"
+          aria-label={`Layers on the photo, ${layersOn} on`}
+          data-testid="own-photo-layers-button"
         >
-          <img
-            src={own.src}
-            alt={`Your photo ${own.name}${onPickPixel || onPairPixel ? ': click to read the map under a spot' : ''}`}
-            className={cn('block h-auto w-auto max-w-full cursor-crosshair rounded-sm', imageClassName)}
-            draggable={false}
-            onClick={onClick}
-            onMouseMove={onMove}
-            onMouseLeave={onLeave}
+          <Layers aria-hidden />
+          Layers
+          <span className="tabular-nums text-muted-foreground">{layersOn}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        aria-label="Layers on the photo"
+        className="max-h-[min(70dvh,var(--radix-popover-content-available-height))] w-[340px] max-w-[calc(100vw-16px)] overflow-y-auto p-0"
+      >
+        {layersPanel}
+      </PopoverContent>
+    </Popover>
+  )
+  const picture = (
+    <div
+      ref={frame}
+      className={cn('relative overflow-hidden', fitted ? 'shrink-0' : 'inline-block max-w-full')}
+      style={fitted ? { width: fitted.width, height: fitted.height } : undefined}
+      data-testid={compact ? 'docked-photo-frame' : 'own-photo-frame'}
+    >
+      <img
+        src={own.src}
+        alt={`Your photo ${own.name}${onPickPixel || onPairPixel ? ': click to read the map under a spot' : ''}`}
+        className={cn(
+          'block cursor-crosshair rounded-sm',
+          fitted ? 'h-full w-full' : cn('h-auto w-auto max-w-full', imageClassName),
+        )}
+        draggable={false}
+        onClick={onClick}
+        onMouseMove={onMove}
+        onMouseLeave={onLeave}
+      />
+      <canvas
+        ref={tintCanvas}
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        style={{ imageRendering: 'pixelated' }}
+        aria-hidden="true"
+      />
+      {heldUrl && (
+        <img
+          src={heldUrl}
+          alt=""
+          aria-hidden="true"
+          data-testid="own-photo-overlay-held"
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-40"
+        />
+      )}
+      {overlayUrl && (
+        <img
+          src={overlayUrl}
+          alt=""
+          aria-hidden="true"
+          data-testid="own-photo-overlay"
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          style={preview ? { transform: preview.transform, transformOrigin: preview.origin } : undefined}
+        />
+      )}
+      <svg
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        viewBox={`0 0 ${own.width} ${own.height}`}
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        {photo.ownSkyline && photo.ownSkyline.length > 1 && visibility.skyline && (
+          // Kept for tests and assistive checks: where the skyline is, as one plain line under the drawn symbol.
+          <polyline
+            data-testid="own-photo-skyline"
+            points={photo.ownSkyline.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ')}
+            fill="none"
+            stroke="none"
           />
-          <canvas
-            ref={tintCanvas}
-            className="pointer-events-none absolute inset-0 h-full w-full"
-            style={{ imageRendering: 'pixelated' }}
-            aria-hidden="true"
+        )}
+        {sun?.inFrame && sun.pixel && (
+          <circle
+            cx={sun.pixel.x}
+            cy={sun.pixel.y}
+            r={own.width / 45}
+            fill="none"
+            stroke={pairColor}
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
           />
-          {overlayUrl && (
-            <img
-              src={overlayUrl}
-              alt=""
-              aria-hidden="true"
-              data-testid="own-photo-overlay"
-              className="pointer-events-none absolute inset-0 h-full w-full"
-              style={preview ? { transform: preview.transform, transformOrigin: preview.origin } : undefined}
-            />
-          )}
-          <svg
-            className="pointer-events-none absolute inset-0 h-full w-full"
-            viewBox={`0 0 ${own.width} ${own.height}`}
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            {photo.ownSkyline && photo.ownSkyline.length > 1 && visibility.skyline && (
-              // Kept for tests and assistive checks: where the skyline is, as one plain line under the drawn symbol.
-              <polyline
-                data-testid="own-photo-skyline"
-                points={photo.ownSkyline.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ')}
-                fill="none"
-                stroke="none"
+        )}
+        {pairs.map((row) =>
+          row.solvedPixel ? (
+            <g key={row.id}>
+              <line
+                x1={row.pixel[0]}
+                y1={row.pixel[1]}
+                x2={row.solvedPixel.x}
+                y2={row.solvedPixel.y}
+                stroke={pairColor}
+                strokeWidth={1.5}
+                vectorEffect="non-scaling-stroke"
               />
-            )}
-            {sun?.inFrame && sun.pixel && (
               <circle
-                cx={sun.pixel.x}
-                cy={sun.pixel.y}
-                r={own.width / 45}
+                cx={row.solvedPixel.x}
+                cy={row.solvedPixel.y}
+                r={own.width / 160}
                 fill="none"
                 stroke={pairColor}
                 strokeWidth={2}
                 vectorEffect="non-scaling-stroke"
               />
-            )}
-            {pairs.map((row) =>
-              row.solvedPixel ? (
-                <g key={row.id}>
-                  <line
-                    x1={row.pixel[0]}
-                    y1={row.pixel[1]}
-                    x2={row.solvedPixel.x}
-                    y2={row.solvedPixel.y}
-                    stroke={pairColor}
-                    strokeWidth={1.5}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                  <circle
-                    cx={row.solvedPixel.x}
-                    cy={row.solvedPixel.y}
-                    r={own.width / 160}
-                    fill="none"
-                    stroke={pairColor}
-                    strokeWidth={2}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </g>
-              ) : null,
-            )}
-            {cursorPixel && (
-              <g data-testid="own-photo-linked-cursor">
-                <line
-                  x1={cursorPixel.x - own.width / 40}
-                  x2={cursorPixel.x + own.width / 40}
-                  y1={cursorPixel.y}
-                  y2={cursorPixel.y}
-                  stroke={pairColor}
-                  strokeWidth={2}
-                  vectorEffect="non-scaling-stroke"
-                />
-                <line
-                  x1={cursorPixel.x}
-                  x2={cursorPixel.x}
-                  y1={cursorPixel.y - own.width / 40}
-                  y2={cursorPixel.y + own.width / 40}
-                  stroke={pairColor}
-                  strokeWidth={2}
-                  vectorEffect="non-scaling-stroke"
-                />
-              </g>
-            )}
-          </svg>
-          {pairs.map((row) => (
-            <span
-              key={row.id}
-              className={cn(
-                'pointer-events-none absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-2xs font-bold shadow',
-                row.on
-                  ? 'border-white bg-primary text-primary-foreground'
-                  : 'border-dashed border-white bg-background/80 text-foreground',
-              )}
-              style={percent(row.pixel[0], row.pixel[1])}
-              title={row.on ? `Point ${row.n}` : `Point ${row.n}, a check point`}
-            >
-              {row.n}
-            </span>
-          ))}
-          {showPairs && photo.pendingPixel && (
-            <span
-              className="pointer-events-none absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white bg-warning text-2xs font-bold text-white shadow"
-              style={percent(photo.pendingPixel[0], photo.pendingPixel[1])}
-            >
-              ?
-            </span>
-          )}
-          {align && pose && photo.ownSkyline && !reading && (
-            <SkylineDragHandles
-              frame={frame}
-              pose={pose}
-              skyline={photo.ownSkyline}
-              onPreview={setPreview}
-              onAlign={(angles) => photo.setOwnPose(angles)}
+            </g>
+          ) : null,
+        )}
+        {cursorPixel && (
+          <g data-testid="own-photo-linked-cursor">
+            <line
+              x1={cursorPixel.x - own.width / 40}
+              x2={cursorPixel.x + own.width / 40}
+              y1={cursorPixel.y}
+              y2={cursorPixel.y}
+              stroke={pairColor}
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
             />
-          )}
-          {layersMenu === 'corner' && (
-            // On the picture's corner, as a map keeps its layers: the list opens over the photo and scrolls inside
-            // what the window has room for, so the photo stays where it is while layers go on and off.
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  className="absolute right-2 top-2 z-10 bg-background/90 shadow-sm backdrop-blur touch:h-10"
-                  aria-label={`Layers on the photo, ${layersOn} on`}
-                  data-testid="own-photo-layers-button"
-                >
-                  <Layers aria-hidden />
-                  Layers
-                  <span className="tabular-nums text-muted-foreground">{layersOn}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                aria-label="Layers on the photo"
-                className="max-h-[min(70dvh,var(--radix-popover-content-available-height))] w-[340px] max-w-[calc(100vw-16px)] overflow-y-auto p-0"
-              >
-                {layersPanel}
-              </PopoverContent>
-            </Popover>
-          )}
-          {reading && (
-            <ReadingCard
-              compact={compact}
-              reading={reading.reading}
-              style={percent(reading.x, reading.y)}
-              flip={reading.x > own.width * 0.6}
-              onPair={onPairPixel ? () => onPairPixel(reading.x, reading.y) : undefined}
-              onClose={() => setReading(null)}
+            <line
+              x1={cursorPixel.x}
+              x2={cursorPixel.x}
+              y1={cursorPixel.y - own.width / 40}
+              y2={cursorPixel.y + own.width / 40}
+              stroke={pairColor}
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
             />
+          </g>
+        )}
+      </svg>
+      {pairs.map((row) => (
+        <span
+          key={row.id}
+          className={cn(
+            'pointer-events-none absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-2xs font-bold shadow',
+            row.on
+              ? 'border-white bg-primary text-primary-foreground'
+              : 'border-dashed border-white bg-background/80 text-foreground',
           )}
+          style={{ ...percent(row.pixel[0], row.pixel[1]), scale: KEEP_SIZE }}
+          title={row.on ? `Point ${row.n}` : `Point ${row.n}, a check point`}
+        >
+          {row.n}
+        </span>
+      ))}
+      {showPairs && photo.pendingPixel && (
+        <span
+          className="pointer-events-none absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white bg-warning text-2xs font-bold text-white shadow"
+          style={{ ...percent(photo.pendingPixel[0], photo.pendingPixel[1]), scale: KEEP_SIZE }}
+        >
+          ?
+        </span>
+      )}
+      {align && pose && photo.ownSkyline && !reading && (
+        <SkylineDragHandles
+          frame={frame}
+          pose={pose}
+          skyline={photo.ownSkyline}
+          onPreview={setPreview}
+          onAlign={(angles) => photo.setOwnPose(angles)}
+        />
+      )}
+      {!fit && cornerLayers}
+      {reading && (
+        <ReadingCard
+          compact={compact}
+          reading={reading.reading}
+          style={percent(reading.x, reading.y)}
+          flip={reading.x > own.width * 0.6}
+          onPair={onPairPixel ? () => onPairPixel(reading.x, reading.y) : undefined}
+          onClose={() => setReading(null)}
+        />
+      )}
+    </div>
+  )
+
+  return (
+    <div className={cn('min-w-0', fit ? 'flex min-h-0 flex-1 flex-col gap-2' : 'space-y-2', className)}>
+      {fit ? (
+        // The photo whole in the height its holder gives, zoomed and panned in place; on a narrow screen, where the
+        // column is as tall as its content, it takes a share of the screen instead.
+        <div ref={stage} className="relative min-h-[45dvh] flex-1 rounded-md bg-muted/50 md:min-h-0">
+          <ZoomPan
+            className="absolute inset-0 rounded-md"
+            label="photo"
+            resetKey={own.id}
+            onScaleChange={setZoom}
+            overlay={cornerLayers}
+          >
+            {picture}
+          </ZoomPan>
         </div>
-      </div>
+      ) : (
+        <div className="flex justify-center rounded-md bg-muted/50">{picture}</div>
+      )}
       <div className="flex flex-wrap items-center gap-2 text-2xs text-muted-foreground">
         {layersMenu === 'popover' && (
           <ToolbarPopover
@@ -564,7 +659,7 @@ export function PhotoWithOverlays({
         {!pose && <span>Layers draw once the terrain round the photo has loaded.</span>}
         {toolbar}
       </div>
-      {!compact && <FeaturesCheck photo={photo} />}
+      {featuresCheck && <PhotoFeaturesCheck photo={photo} />}
     </div>
   )
 }
@@ -592,7 +687,8 @@ function ReadingCard({
         compact ? 'w-44' : 'w-56',
         flip && '-translate-x-full',
       )}
-      style={style}
+      // Its own size on screen however far the photo is enlarged, growing from the clicked spot.
+      style={{ ...style, scale: KEEP_SIZE, transformOrigin: flip ? 'top right' : 'top left' }}
       role="dialog"
       aria-label="The map under this spot"
     >
@@ -649,17 +745,20 @@ function FeatureRow({ layer, label }: { layer: string; label?: string }) {
  * The features check under the photo: what was read for the ground the camera sees, layer by layer, and a read again
  * for the camera as it stands. A layer that was not read says *Not read*, never *None*.
  */
-function FeaturesCheck({ photo }: { photo: FieldPhotoState }) {
+export function PhotoFeaturesCheck({ photo }: { photo: FieldPhotoState }) {
   const features = photo.ownFeatures
   if (!photo.activePose) return null
   const stale = !!features && features.poseKey !== photo.activePoseKey
   return (
     <section className="space-y-1 rounded-md border border-border p-2 text-2xs" aria-label="Features check">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-medium text-foreground">
+        <p className="min-w-0 font-medium text-foreground">
           Features check{' '}
+          {/* In the line's own place, so a camera change never makes the strip a line taller and back. */}
           <span className="font-normal text-muted-foreground">
-            · lakes on water, roads on roads, recent cutblocks on clearings
+            {stale
+              ? '· read for an earlier camera: read again to follow this one'
+              : '· lakes on water, roads on roads, recent cutblocks on clearings'}
           </span>
         </p>
         <Button
@@ -695,7 +794,6 @@ function FeaturesCheck({ photo }: { photo: FieldPhotoState }) {
           })}
         </ul>
       )}
-      {stale && <p className="text-muted-foreground">Read for an earlier camera: read again to follow this one.</p>}
     </section>
   )
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
 
 import type { FieldRecord, PhotoJob } from './assessmentTools'
 import { HeicDecodeError } from '@/lib/heic/heicDecode'
@@ -361,6 +361,12 @@ type Landmark = {
 export type OwnPhotoWork = {
   search: CameraSearch
   modelViews: Partial<Record<PhotoModelViewKind, ModelViewImage>>
+  /**
+   * Model views drawn ahead for the options card's other cameras (the phone's heading, a neighbour's camera, a point
+   * solve…), by the camera's key, so a row shows its view and *Use* has it at once. Nobody asked for them, so they
+   * are no check (`checked`); they are dropped when their option goes.
+   */
+  optionViews?: Record<string, ModelViewImage>
   previewModel?: ModelViewImage
   /** Every camera check images (model views, a full drape) were drawn for, the newest last. */
   checked: AcceptancePose[]
@@ -382,6 +388,26 @@ export type OwnPhotoWork = {
    */
   combined?: { result: CombinedResult; depth: boolean } | null
 }
+
+/** Every model view kept for a photo: the queue's, the reviewer's and those drawn ahead for its options. */
+export const photoModelViews = (work: Pick<OwnPhotoWork, 'modelViews' | 'optionViews'>): ModelViewImage[] => [
+  ...Object.values(work.modelViews),
+  ...Object.values(work.optionViews ?? {}),
+]
+
+/** Names an option's camera for the views drawn ahead: two rows with one camera share a view. */
+const optionViewKey = (pose: AcceptancePose) =>
+  [
+    pose.lng.toFixed(6),
+    pose.lat.toFixed(6),
+    pose.altitudeMeters === null ? 'ground' : pose.altitudeMeters.toFixed(1),
+    pose.bearing.toFixed(2),
+    pose.pitch.toFixed(2),
+    pose.roll.toFixed(2),
+    pose.hfov.toFixed(2),
+  ].join('|')
+
+const NO_CAMERAS: ReadonlyArray<{ key: string; pose: PhotoPose; terrain: PhotoTerrainSpec }> = []
 
 const EMPTY_WORK: OwnPhotoWork = Object.freeze({
   search: { status: 'idle' },
@@ -717,6 +743,12 @@ export function useFieldPhoto({
     imagery: new PhotoCache<ImageryLayer>({ maxEntries: 9, maxBytes: 160e6, sizeOf: (layer) => layer.data.byteLength }),
     /** Hit buffers by camera (`photoPoseKey`). */
     hits: new PhotoCache<HitBuffer>({ maxEntries: 6 }),
+    /**
+     * Hit buffers cast ahead for the open photo's option cameras, about 5 MB each, so *Use* lays the layers at once.
+     * Apart from `hits`: the features checks and comparisons that follow the queue cast for every photo in the set,
+     * and in one cache they pushed the open photo's options out again within seconds.
+     */
+    optionHits: new PhotoCache<HitBuffer>({ maxEntries: 8 }),
     /** A photo's depth estimate by picture and model: worked out once, kept in this browser's database too. */
     depth: new PhotoCache<DepthGrid>({ maxEntries: 32, sizeOf: (grid) => grid.inverse.byteLength }),
     /** Features read for a box (`featuresKey`). */
@@ -1287,12 +1319,31 @@ export function useFieldPhoto({
    * The terrain under the active photo, once loaded; null until then. Read with `get`, not `peek`, so it is the most
    * recently used each time terrain loads: the queue loads other photos' terrain behind it, and the cache keeps two.
    */
-  const ownSkylineTerrain = useMemo(
-    () => (own && positioned(own) ? (caches.terrain.get(terrainSpecKey(specOf(own))) ?? null) : null),
+  const ownTerrainKey = own && positioned(own) ? terrainSpecKey(specOf(own)) : null
+  const ownTerrainSpec = useMemo(
+    () => (own && positioned(own) ? specOf(own) : null),
+    // The tiles are named by their key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ownTerrainKey],
+  )
+  const cachedOwnTerrain = useMemo(
+    () => (ownTerrainKey ? (caches.terrain.get(ownTerrainKey) ?? null) : null),
     // The cache is read again whenever terrain loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ownLng, ownLat, terrainVersion, caches],
+    [ownTerrainKey, terrainVersion, caches],
   )
+  // Held for as long as the photo is open, whatever the cache does: the queue's follow-up work loads other photos'
+  // terrain, and when that pushed the open photo's out of the cache its camera had no ground to stand on, so
+  // everything drawn over the photo went away and came back about half a second later, at no click of the reviewer's.
+  const [heldOwnTerrain, setHeldOwnTerrain] = useState<{ key: string; terrain: ElevationSource } | null>(null)
+  if (
+    ownTerrainKey &&
+    cachedOwnTerrain &&
+    (heldOwnTerrain?.key !== ownTerrainKey || heldOwnTerrain.terrain !== cachedOwnTerrain)
+  )
+    setHeldOwnTerrain({ key: ownTerrainKey, terrain: cachedOwnTerrain })
+  const ownSkylineTerrain =
+    cachedOwnTerrain ?? (heldOwnTerrain && heldOwnTerrain.key === ownTerrainKey ? heldOwnTerrain.terrain : null)
   /**
    * The terrain's skyline for the active photo's camera as it stands, in the photo's pixels: drawn over the photo in
    * its window, so a camera can be judged against the ridgeline with no road view. Null until the terrain is loaded.
@@ -1737,6 +1788,63 @@ export function useFieldPhoto({
   }
 
   /**
+   * An option's camera as the photo would stand at it: the pose *Use* gives the photo (`useOption`), so what is cast
+   * and drawn for it ahead is found again under the same key once it is the camera.
+   */
+  const optionCamera = async (photo: OwnPhoto, option: AcceptancePose, signal: AbortSignal) => {
+    // An eye at an altitude needs no ground under it, so another photo's terrain is not loaded onto this thread.
+    const ground =
+      option.altitudeMeters === null
+        ? (await loadOwnTerrain(option.lng, option.lat, signal)).elevationAt(option.lng, option.lat)
+        : 0
+    const pose = ownPhotoPose(
+      { ...photo.pose, ...option, hfov: clampFov(option.hfov) },
+      ground,
+      photo.width,
+      photo.height,
+    )
+    return Number.isFinite(pose.altitudeMeters)
+      ? { pose, terrain: photoTerrainSpec(option.lng, option.lat, PHOTO_TERRAIN_RINGS) }
+      : null
+  }
+
+  /**
+   * Draws the model view for one of a photo's option cameras ahead of any click, quietly: no busy line, no check
+   * recorded. A tenth of a second or so in the worker once the place's imagery is held.
+   */
+  const drawOptionView = async (id: string, option: AcceptancePose, signal: AbortSignal) => {
+    const photo = photoById(id)
+    if (!photo) return
+    const camera = await optionCamera(photo, option, signal)
+    if (!camera) return
+    const [layers, pixels] = await Promise.all([imageryLayers(option.lng, option.lat, signal), readPixels(photo)])
+    const { image: drawn, agreement } = await renderPhotoModelView(
+      {
+        pose: camera.pose,
+        terrain: camera.terrain,
+        imagery: { key: imageryKey(option.lng, option.lat), value: layers },
+        photo: { key: photo.src, value: pixels },
+        width: MODEL_VIEW_WIDTH,
+        maxMeters: WIDE_RADIUS_METERS,
+      },
+      signal,
+    )
+    if (signal.aborted) return
+    const view: ModelViewImage = {
+      url: rgbaDataUrl(drawn),
+      bearing: camera.pose.bearing,
+      score: agreement?.score ?? Number.NaN,
+      coverage: agreement?.coverage ?? 0,
+      pose: option,
+      poseKey: photoPoseKey(camera.pose),
+    }
+    patchWork(id, (current) => ({
+      ...current,
+      optionViews: { ...current.optionViews, [optionViewKey(option)]: view },
+    }))
+  }
+
+  /**
    * The features check for a photo's camera: what the camera sees (`photoSeenBounds` of its hit buffer), then lakes,
    * roads and recent cutblocks read for that box, which can lie 5–30 km past the scene's own data.
    */
@@ -1828,7 +1936,9 @@ export function useFieldPhoto({
   // The queue: one photo at a time, in time order, without being asked. It lives here, not in the window, because the
   // window is unmounted while hidden.
   const queueAbort = useRef<AbortController | null>(null)
-  useEffect(() => {
+  // A layout effect, so the next photo is running before the frame that ends the last one is painted: as a plain
+  // effect the window showed "12 waiting" with no Cancel for a frame between every two photos.
+  useLayoutEffect(() => {
     if (queueRun.running || queueRun.paused || !queueRun.pending.length) return
     const id = nextInQueue(queueRun.pending, photosRef.current)
     if (!id) {
@@ -2138,7 +2248,7 @@ export function useFieldPhoto({
           hfov: photo.pose.hfov,
         },
         search: search ? { result: search.result, sun: search.sun } : null,
-        modelScores: Object.values(w.modelViews).flatMap((view) =>
+        modelScores: photoModelViews(w).flatMap((view) =>
           Number.isFinite(view.score) ? [{ pose: view.pose, score: view.score }] : [],
         ),
         phone: heading
@@ -2239,8 +2349,9 @@ export function useFieldPhoto({
       eyeHeightMeters: target.pose.eyeHeightMeters,
       terrain,
       terrainSpec: specOf(target),
-      pixels,
-      imagery,
+      pixels: { key: target.src, value: pixels },
+      // No imagery (offline) is a key of its own, so the worker never keeps an empty set under the place's key.
+      imagery: { key: imagery.length ? imageryKey(lng, lat) : `${imageryKey(lng, lat)}|none`, value: imagery },
       signal,
       onProgress,
       depthFor: (model, depthSignal) => photoDepthFor(target, pixels, model, depthSignal),
@@ -2286,6 +2397,69 @@ export function useFieldPhoto({
     },
     [optionsFor, patchPhoto],
   )
+
+  // Views drawn ahead for the options card, one photo at a time: the open photo's at once, the others' once nothing is
+  // being searched or read, so the queue is never held back and a photo opened later already has its rows' views (a
+  // score arriving after a photo opens can move its rows). Each option is tried once: a view that could not be drawn
+  // leaves its row offering to draw it.
+  const [viewsRunning, setViewsRunning] = useState<string | null>(null)
+  const viewsTried = useRef(new Set<string>())
+  const viewsAbort = useRef<AbortController | null>(null)
+  const drawOptionViewRef = useRef(drawOptionView)
+  drawOptionViewRef.current = drawOptionView
+  const optionCameraRef = useRef(optionCamera)
+  optionCameraRef.current = optionCamera
+  useEffect(() => {
+    if (viewsRunning) return
+    const wanting = (photo: OwnPhoto) => {
+      const w = work[photo.id] ?? EMPTY_WORK
+      if (w.search.status === 'working') return []
+      const views = photoModelViews(w)
+      return optionsFor(photo.id).filter(
+        (option) =>
+          !views.some((view) => sameCamera(view.pose, option.pose)) &&
+          !viewsTried.current.has(`${photo.id}|${optionViewKey(option.pose)}`),
+      )
+    }
+    const open = photos.find((photo) => photo.id === activeId)
+    const idle =
+      !queueRun.running && !queueRun.pending.length && !queueRun.paused && !queueRun.cancelled && !featuresRunning
+    const target =
+      (open && wanting(open).length ? open : null) ??
+      (idle ? photos.find((photo) => wanting(photo).length) : null) ??
+      null
+    if (!target) return
+    const id = target.id
+    const todo = wanting(target)
+    const kept = new Set(optionsFor(id).map((option) => optionViewKey(option.pose)))
+    const controller = new AbortController()
+    viewsAbort.current = controller
+    setViewsRunning(id)
+    // Views of options that have gone (a solve made again, a neighbour no longer accepted) go with them.
+    patchWork(id, (current) =>
+      current.optionViews && Object.keys(current.optionViews).some((key) => !kept.has(key))
+        ? {
+            ...current,
+            optionViews: Object.fromEntries(Object.entries(current.optionViews).filter(([key]) => kept.has(key))),
+          }
+        : current,
+    )
+    void (async () => {
+      for (const option of todo) {
+        if (controller.signal.aborted) return
+        viewsTried.current.add(`${id}|${optionViewKey(option.pose)}`)
+        try {
+          await drawOptionViewRef.current(id, option.pose, controller.signal)
+        } catch {
+          /* No imagery, or the photo went: the row keeps its offer to draw the view. */
+        }
+      }
+    })().finally(() => {
+      if (viewsAbort.current === controller) viewsAbort.current = null
+      setViewsRunning((current) => (current === id ? null : current))
+    })
+  }, [viewsRunning, photos, work, activeId, queueRun, featuresRunning, optionsFor, patchWork])
+  useEffect(() => () => viewsAbort.current?.abort(), [])
 
   /** The camera the check images were drawn for, the one matching the camera as it stands when there is one. */
   const checksDrawnFor = useCallback(
@@ -3241,13 +3415,16 @@ export function useFieldPhoto({
     [own, cameraSearch],
   )
 
-  /** Draw a smaller live view for fine tuning without recording a reviewer check. */
+  /**
+   * Draws the model view for the camera as it stands without a busy line: a smaller one while fine-tuning, which
+   * records no check, or (`full`) the full one the comparison shows, drawn as soon as that camera is looked at.
+   */
   const previewCamera = useCallback(
-    async (id: string, signal: AbortSignal) => {
+    async (id: string, signal: AbortSignal, { full = false }: { full?: boolean } = {}) => {
       const current = photoById(id)
       if (!current || !positioned(current)) return
       const { bearing, pitch, roll } = current.pose
-      await drawModelView(id, 'camera', { bearing, pitch, roll }, signal, undefined, { preview: true })
+      await drawModelView(id, 'camera', { bearing, pitch, roll }, signal, undefined, { preview: !full })
     },
     // The draw reads the photo by ID. Its worker, caches and work updater are stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3277,7 +3454,7 @@ export function useFieldPhoto({
     if (!own || !activePose || !activePoseKey || !positioned(own)) return
     const photo = own,
       pose = activePose
-    const held = caches.hits.get(activePoseKey)
+    const held = caches.hits.get(activePoseKey) ?? caches.optionHits.get(activePoseKey)
     if (held) {
       setHits({ photoId: photo.id, buffer: held })
       return
@@ -3304,6 +3481,63 @@ export function useFieldPhoto({
     // The camera is named by its key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePoseKey, own?.id])
+
+  // The ground under each of the open photo's option cameras, cast ahead while its window is open, so *Use* lays the
+  // layers on the photo at once rather than a second later. After the camera's own cast, which the reviewer is
+  // waiting on; a cast already held is skipped.
+  const ownOptionPoses = own && ownDialog.open ? optionsFor(own.id).map((option) => option.pose) : []
+  const ownOptionsKey = ownOptionPoses.map(optionViewKey).join(';')
+  // The same cameras, for what else is made ahead for them (the layers laid on the photo, `usePhotoLaidLayers`).
+  const [optionCameras, setOptionCameras] = useState<{
+    photoId: string
+    cameras: Array<{ key: string; pose: PhotoPose; terrain: PhotoTerrainSpec }>
+  } | null>(null)
+  useEffect(() => {
+    if (!own || !ownOptionPoses.length) return
+    const photo = own
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const cameras: Array<{ key: string; pose: PhotoPose; terrain: PhotoTerrainSpec }> = []
+        for (const option of ownOptionPoses) {
+          const camera = await optionCameraRef.current(photo, option, controller.signal)
+          if (camera) cameras.push({ key: photoPoseKey(camera.pose), ...camera })
+        }
+        if (controller.signal.aborted) return
+        setOptionCameras({ photoId: photo.id, cameras })
+        for (const camera of cameras) {
+          if (controller.signal.aborted) return
+          const key = camera.key
+          if (caches.optionHits.peek(key)) continue
+          // One already cast as the photo's camera is kept here too: `hits` lets it go as other photos are read.
+          const cast = caches.hits.peek(key)
+          if (cast) {
+            caches.optionHits.set(key, cast)
+            continue
+          }
+          await caches.optionHits.getOrCreate(key, (shared) => castPhotoHits(camera, shared), controller.signal)
+        }
+      })().catch(() => {
+        /* The photo changed, or the terrain did not load: the cast is made when the option is used. */
+      })
+    }, HIT_DEBOUNCE_MS * 3)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+    // The options are named by their key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [own?.id, ownOptionsKey])
+  /**
+   * The hit buffer for the camera as it stands: the one last cast for it, else one already held for that camera (an
+   * option's, cast ahead), read here so the frame that makes an option the camera already has its ground; else the
+   * last one cast, which the overlays tell apart by its `poseKey`.
+   */
+  const activeHits =
+    hits && hits.photoId === activeId && hits.buffer.poseKey === activePoseKey
+      ? hits.buffer
+      : ((activePoseKey ? (caches.hits.peek(activePoseKey) ?? caches.optionHits.peek(activePoseKey)) : undefined) ??
+        (hits && hits.photoId === activeId ? hits.buffer : null))
 
   /**
    * A check the reviewer asked for (*Check this camera*): it counts once what is drawn over the photo has a hit buffer
@@ -3834,7 +4068,13 @@ export function useFieldPhoto({
     activePose,
     activePoseKey,
     /** Where each working pixel's ray meets the ground for the active camera (debounced; compare its `poseKey`). */
-    hitBuffer: hits && hits.photoId === activeId ? hits.buffer : null,
+    hitBuffer: activeHits,
+    /** The tiles of the terrain round the active photo, as the photo worker is asked for them; null without a place. */
+    ownTerrainSpec,
+    /** The open photo's option cameras, as the photo would stand at each: what is made ahead is made for these. */
+    optionCameras: optionCameras && optionCameras.photoId === activeId ? optionCameras.cameras : NO_CAMERAS,
+    /** The photo whose options' model views are being drawn ahead now; null when none are. */
+    optionViewsFor: viewsRunning,
     /** The main thread's terrain round the active photo (what `activePose` stands on); overlays lay features on it. */
     ownTerrain: ownSkylineTerrain,
     /** The scene, for what is drawn over a photo (its blocks, openings, landform, masks and views of interest). */

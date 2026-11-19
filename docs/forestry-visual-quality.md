@@ -1943,7 +1943,7 @@ street-level photo from Mapillary, or with a photo of your own.
     and model, in memory and in this browser's database
     (`photoDepthFor`), so it is worked out once. Where the comparison
     favours a camera more than 15° from the one in use, the window says so
-    above the options with *Start from it*, which takes that camera and then
+    under the options with *Start from it*, which takes that camera and then
     searches the skyline within 20° of its heading. On the frame whose
     skyline is one straight ridge the automatic pick was 207.6°; depth
     favoured 270° (correlation 0.99), and the search inside that sector gave
@@ -2029,6 +2029,78 @@ street-level photo from Mapillary, or with a photo of your own.
     is chosen. *Layers* is a button on the photo's corner whose list opens
     over the photo and scrolls inside the window; how to compare (swipe,
     blend, blink) and *Fine-tune camera* are under the picture.
+  - **The photo whole in view, and zoomed.** The window is one height for
+    every tab and photo, and the picture's column is as tall as the window
+    shows of its content (measured, not a share of the screen), so the
+    photo is always whole in view. It is sized to that space by its own
+    shape (`fitBox`) before it has loaded, so nothing moves when it does,
+    and zoomed and panned in place with the shared `ZoomPan` (wheel or
+    pinch about the pointer, drag, the buttons in its corner; up to 8×).
+    What is drawn over it is redrawn finer at each doubling; numbered
+    points and the reading card keep their size. The features check sits in
+    the right column so the photo keeps the height.
+  - **Nothing is taken away to be put back.** Measured on a set of fourteen
+    photos before these rules, the window changed under the reviewer at no
+    click of theirs: between every two photos of the queue its line read
+    "12 waiting" with no Cancel for a frame or two (the next photo was
+    started in an effect, after a paint; it is a layout effect now);
+    whenever the queue's follow-up work loaded another photo's terrain, the
+    open photo's left the two-entry cache, its camera had no ground, and
+    everything drawn over it went away for about 0.4 s (the open photo's
+    terrain is now held for as long as it is open, `heldOwnTerrain`); and
+    choosing a camera stripped the layers for about a second while its
+    ground was cast. The last drawing now stays up, faded, under the
+    skyline that already follows the new camera, until the new one is
+    ready, and is never read against (`PhotoWithOverlays`'s `held`).
+  - **Views drawn ahead.** Every row of the options card has its model
+    view, not only the skyline's two: the others (the phone's heading, a
+    neighbour's camera, a point solve, a matched camera) are drawn in the
+    background, the open photo's first and the rest once nothing is being
+    searched or read (`optionViews`, `drawOptionView`), about a tenth of a
+    second each in the worker once the place's imagery is held. They record
+    no check, because nobody asked for them. The ground under each of the
+    open photo's option cameras is cast ahead too (`optionHits`, kept apart
+    from `hits`, which the set's other photos fill), so *Use* goes from one
+    complete drawing to the next. *Against the model view* draws its view
+    by itself as soon as a camera is looked at and keeps the last view up,
+    said under it, while the next is drawn; its box has the photo's shape
+    whether or not a view is in it. A row's view has the same place before
+    and after it arrives.
+  - **Off the page's thread.** The camera comparison's scoring of each
+    candidate (imagery seen from it against the photo, and the terrain's
+    depth from it) is one worker job (`cameraCues`); on the page's thread
+    it held it about a tenth of a second a camera, 4.4 s over one traced
+    session. The layers on the photo are laid in the worker too, a layer at
+    a time for a camera (`overlay` job, `usePhotoLaidLayers.ts`), and kept
+    by camera and by what the layer holds (`layerSignature`: the list of
+    features is made again at every change of camera, so naming a layer by
+    its list laid everything again each time). Once the camera in use has
+    its layers the same layers are laid for each option camera in turn.
+    Measured with roads on, *Use* went from a strip and about a second, to
+    0.4–0.7 s with the page held, to about 0.1 s from one complete drawing
+    to the next. A camera not laid ahead (a typed heading, a drag) keeps
+    its last drawing up, faded, until all of its layers have come: they
+    never arrive one after another over an old picture. One more layer
+    switched on for the camera already drawn joins the others as it comes.
+    The depth model's worker is kept between photos with its session
+    (`photoDepth.ts`) and let go a minute after the last estimate; it was
+    started and loaded again for each photo.
+  - **Zooming and side by side in the comparison.** *Against the model
+    view* is zoomed and panned like the photo, with the same buttons.
+    Enlarged, a drag moves the pictures, so the swipe's divider is then
+    moved by its own handle; fitted, a drag anywhere still moves it. *Side
+    by side* sets the photo and the model view next to each other at one
+    size sharing one view, so zooming or moving either moves both, and the
+    pointer over one is ringed on the other. The model view is drawn 320
+    pixels across, which is what it is scored at: enlarged it shows where
+    things are, not detail.
+  - **What the comparison offers sits under the options.** The camera the
+    ground favours (*Start from it*), the headings it leaves open and
+    *Compare with depth* come after the options card, not before it: they
+    are worked out a second or more after a photo opens, and above the
+    options they pushed the rows down the window under the pointer. The
+    one sentence on what the photo needs stays on top, with room for two
+    lines whatever it says.
   - **Photos imported before** are listed under the set on the Photos tab:
     every photo record that is not open. *Open* (and *Open all*) carries on
     with that record, its id, the camera it holds, its acceptance and its

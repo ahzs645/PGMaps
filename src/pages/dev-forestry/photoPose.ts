@@ -128,6 +128,15 @@ export function cameraAxes(pose: Pick<PhotoPose, 'bearing' | 'pitch' | 'roll'>):
   return { right, down: [-up[0], -up[1], -up[2]], forward }
 }
 
+// The axes of the camera last projected through, kept by its angles: laying a layer on a photo projects tens of
+// thousands of points through one camera, and working its axes out again for each was a fifth of that time.
+let lastAxes: { bearing: number; pitch: number; roll: number; axes: ReturnType<typeof cameraAxes> } | null = null
+function axesOf(pose: Pick<PhotoPose, 'bearing' | 'pitch' | 'roll'>): ReturnType<typeof cameraAxes> {
+  if (!lastAxes || lastAxes.bearing !== pose.bearing || lastAxes.pitch !== pose.pitch || lastAxes.roll !== pose.roll)
+    lastAxes = { bearing: pose.bearing, pitch: pose.pitch, roll: pose.roll, axes: cameraAxes(pose) }
+  return lastAxes.axes
+}
+
 /** East/north/up metres from the camera, with the drop of the earth's curve. */
 export function localOffset(
   pose: Pick<PhotoPose, 'lng' | 'lat' | 'altitudeMeters'>,
@@ -152,7 +161,7 @@ export function projectToPhoto(
   lat: number,
   altitude: number,
 ): { x: number; y: number; depth: number } | null {
-  const { right, down, forward } = cameraAxes(pose)
+  const { right, down, forward } = axesOf(pose)
   const v = localOffset(pose, lng, lat, altitude)
   const z = dot(v, forward)
   if (z <= 0.5) return null

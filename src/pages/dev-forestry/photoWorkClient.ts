@@ -6,7 +6,9 @@
  * Pixels and imagery are passed as `{ key, value }`. The value crosses only when the worker may not hold that key (a
  * copy, so the caller keeps its own); if the worker has let it go since, it asks and the job is sent again with it.
  */
+import type { DepthGrid } from './photoDepth'
 import type { HitBuffer } from './photoHitBuffer'
+import type { PhotoFeature, PhotoFeaturePaths, PhotoOverlayOptions } from './photoOverlay'
 import type { PhotoPose } from './photoPose'
 import type {
   ImageryLayer,
@@ -73,8 +75,9 @@ export function createPhotoWorkClient(makeWorker: () => PhotoWorkerLike): PhotoW
     sent.clear()
   }
   const keysOf = (job: PhotoWorkJob) => ({
-    photo: job.kind === 'drape' || job.kind === 'modelView' ? (job.photo ?? null) : null,
-    imagery: job.kind === 'modelView' ? job.imagery : null,
+    photo: job.kind === 'drape' || job.kind === 'modelView' || job.kind === 'cameraCues' ? (job.photo ?? null) : null,
+    imagery: job.kind === 'modelView' || job.kind === 'cameraCues' ? job.imagery : null,
+    features: job.kind === 'overlay' ? job.features : null,
   })
   const send = (id: number, entry: Pending, force: ReadonlyArray<keyof PhotoWorkResources> = []) => {
     const keys = keysOf(entry.job)
@@ -86,6 +89,14 @@ export function createPhotoWorkClient(makeWorker: () => PhotoWorkerLike): PhotoW
     if (keys.imagery && entry.values.imagery && (force.includes('imagery') || !sent.has(`imagery:${keys.imagery}`))) {
       resources.imagery = entry.values.imagery
       sent.add(`imagery:${keys.imagery}`)
+    }
+    if (
+      keys.features &&
+      entry.values.features &&
+      (force.includes('features') || !sent.has(`features:${keys.features}`))
+    ) {
+      resources.features = entry.values.features
+      sent.add(`features:${keys.features}`)
     }
     ensure().postMessage({ type: 'job', id, job: entry.job, resources })
   }
@@ -201,6 +212,53 @@ export async function renderPhotoModelView(
     'modelView',
   )
   return { image: result.image, agreement: result.agreement }
+}
+
+/**
+ * One candidate camera's cues for a comparison of cameras: the agreement of imagery seen from it with the photo
+ * (`groundAppearance`) and the terrain's inverse depth from it (`terrainInverseDepth`), from one cast, in the worker.
+ */
+export async function photoCameraCues(
+  input: {
+    pose: PhotoPose
+    terrain: PhotoTerrainSpec
+    imagery: PhotoResource<ImageryLayer[]>
+    photo: PhotoResource<Rgba>
+    width?: number
+    maxMeters?: number
+  },
+  signal?: AbortSignal,
+): Promise<{ appearance: number | null; depth: DepthGrid }> {
+  const { imagery, photo, ...rest } = input
+  const result = expect(
+    await client().run(
+      { kind: 'cameraCues', ...rest, imagery: imagery.key, photo: photo.key },
+      { imagery: imagery.value, photo: photo.value },
+      signal,
+    ),
+    'cameraCues',
+  )
+  return { appearance: result.appearance, depth: result.depth }
+}
+
+/**
+ * One layer's features laid on the terrain for a camera (`photoOverlay`), in the worker. The features cross once under
+ * their key: the same key must always name the same features.
+ */
+export async function layPhotoFeatures(
+  input: {
+    pose: PhotoPose
+    terrain: PhotoTerrainSpec
+    features: PhotoResource<PhotoFeature[]>
+    options?: Omit<PhotoOverlayOptions, 'ground'>
+  },
+  signal?: AbortSignal,
+): Promise<PhotoFeaturePaths[]> {
+  const { features, ...rest } = input
+  return expect(
+    await client().run({ kind: 'overlay', ...rest, features: features.key }, { features: features.value }, signal),
+    'overlay',
+  ).paths
 }
 
 /** The photo laid on the plan for a camera (`drapePhoto`), its range from the frame. */

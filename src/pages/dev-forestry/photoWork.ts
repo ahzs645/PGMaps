@@ -14,8 +14,11 @@
  */
 import { demTileRange, type DemTileRange, type ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { PhotoCache } from './photoCache'
-import { buildHitBuffer, type HitBuffer } from './photoHitBuffer'
+import { buildHitBuffer, photoPoseKey, type HitBuffer } from './photoHitBuffer'
+import { photoOverlay, type PhotoFeature, type PhotoFeaturePaths, type PhotoOverlayOptions } from './photoOverlay'
 import type { PhotoPose } from './photoPose'
+import { groundAppearance, terrainInverseDepth } from './photoCombined'
+import type { DepthGrid } from './photoDepth'
 import { ownPhotoPose } from './exifPose'
 import type { AcceptancePose } from './photoAcceptance'
 import { transferCamera, type ImageMatch, type TransferResult } from './photoOverlap'
@@ -130,6 +133,34 @@ export type PhotoWorkJob =
     }
   | { kind: 'drape'; pose: PhotoPose; terrain: PhotoTerrainSpec; photo: string; options?: DrapeOptions }
   | {
+      /**
+       * What a camera comparison reads for one candidate camera (`comparePhotoCameras`): how well imagery seen from
+       * it agrees with the photo, and the terrain's depth from it. One cast serves both, and neither runs on the page.
+       */
+      kind: 'cameraCues'
+      pose: PhotoPose
+      terrain: PhotoTerrainSpec
+      /** Key of the imagery layers. */
+      imagery: string
+      /** Key of the photo's pixels. */
+      photo: string
+      width?: number
+      maxMeters?: number
+    }
+  | {
+      /**
+       * One layer's features laid on the terrain and projected for a camera (`photoOverlay`): the runs in sight and
+       * the runs behind nearer ground. A layer of roads or stands is a few tenths of a second, which on the page's
+       * thread every change of camera waited for.
+       */
+      kind: 'overlay'
+      pose: PhotoPose
+      terrain: PhotoTerrainSpec
+      /** Key of the layer's features. */
+      features: string
+      options?: Omit<PhotoOverlayOptions, 'ground'>
+    }
+  | {
       kind: 'horizon'
       eye: { lng: number; lat: number; altitudeMeters: number }
       terrain: PhotoTerrainSpec
@@ -144,10 +175,12 @@ export type PhotoWorkResult =
   | { kind: 'hitBuffer'; buffer: HitBuffer }
   | { kind: 'modelView'; image: Rgba; agreement: ModelAgreement | null }
   | { kind: 'drape'; drape: Drape | null }
+  | { kind: 'cameraCues'; appearance: number | null; depth: DepthGrid }
+  | { kind: 'overlay'; paths: PhotoFeaturePaths[] }
   | { kind: 'horizon'; profile: ProfilePoint[] }
 
 /** The values behind a job's keys, sent with it when the worker may not hold them. */
-export type PhotoWorkResources = { photo?: Rgba; imagery?: ImageryLayer[] }
+export type PhotoWorkResources = { photo?: Rgba; imagery?: ImageryLayer[]; features?: PhotoFeature[] }
 
 export type PhotoWorkRequest =
   | { type: 'job'; id: number; job: PhotoWorkJob; resources?: PhotoWorkResources }
@@ -194,6 +227,10 @@ export function createPhotoWorkHost({
   })
   const photos = new PhotoCache<Rgba>({ maxEntries: 8, maxBytes: 64e6 })
   const imagery = new PhotoCache<ImageryLayer[]>({ maxEntries: 3, maxBytes: 240e6 })
+  // The layers of the photos lately looked at, by the page's key for each: a few megabytes of shapes at most.
+  const layerFeatures = new PhotoCache<PhotoFeature[]>({ maxEntries: 48, sizeOf: () => 0 })
+  // A camera's cast at the working width, kept so its layers (one job each) share it: about 5 MB a camera.
+  const casts = new PhotoCache<HitBuffer>({ maxEntries: 6 })
   const active = new Set<number>(),
     cancelled = new Set<number>()
 
@@ -219,13 +256,17 @@ export function createPhotoWorkHost({
   const run = async (id: number, job: PhotoWorkJob, resources: PhotoWorkResources = {}) => {
     // Values sent with the job are used for it even when the cache declines to keep them.
     if (resources.photo && 'photo' in job && job.photo) photos.set(job.photo, resources.photo)
-    if (resources.imagery && job.kind === 'modelView') imagery.set(job.imagery, resources.imagery)
-    const photoKey = job.kind === 'drape' || job.kind === 'modelView' ? job.photo : null
+    const imaged = job.kind === 'modelView' || job.kind === 'cameraCues'
+    if (resources.imagery && imaged) imagery.set(job.imagery, resources.imagery)
+    const photoKey = job.kind === 'drape' || imaged ? job.photo : null
     const photo = photoKey ? (resources.photo ?? photos.get(photoKey)) : undefined
-    const layers = job.kind === 'modelView' ? (resources.imagery ?? imagery.get(job.imagery)) : undefined
+    const layers = imaged ? (resources.imagery ?? imagery.get(job.imagery)) : undefined
+    if (resources.features && job.kind === 'overlay') layerFeatures.set(job.features, resources.features)
+    const laid = job.kind === 'overlay' ? (resources.features ?? layerFeatures.get(job.features)) : undefined
     const missing: Array<keyof PhotoWorkResources> = []
     if (photoKey && !photo) missing.push('photo')
-    if (job.kind === 'modelView' && !layers) missing.push('imagery')
+    if (imaged && !layers) missing.push('imagery')
+    if (job.kind === 'overlay' && !laid) missing.push('features')
     if (missing.length) {
       post({ type: 'need', id, keys: missing })
       return
@@ -274,6 +315,15 @@ export function createPhotoWorkHost({
     }
     if (job.kind === 'hitBuffer') {
       const buffer = buildHitBuffer(job.pose, terrain, { width: job.width, maxMeters: job.maxMeters })
+      // The page takes these arrays; a copy stays for the camera's layers, which are laid on the same cast.
+      if (job.width === undefined && job.maxMeters === undefined)
+        casts.set(buffer.poseKey, {
+          ...buffer,
+          lng: buffer.lng.slice(),
+          lat: buffer.lat.slice(),
+          distance: buffer.distance.slice(),
+          elevation: buffer.elevation.slice(),
+        })
       post(
         { type: 'done', id, result: { kind: 'hitBuffer', buffer } },
         [buffer.lng, buffer.lat, buffer.distance, buffer.elevation].map((array) => array.buffer as ArrayBuffer),
@@ -300,6 +350,28 @@ export function createPhotoWorkHost({
       const agreement = photo ? modelAgreement(photo, into) : null
       post({ type: 'done', id, result: { kind: 'modelView', image: into, agreement } }, [
         into.data.buffer as ArrayBuffer,
+      ])
+      return
+    }
+    if (job.kind === 'overlay') {
+      const key = photoPoseKey(job.pose)
+      let hits = casts.get(key)
+      if (!hits) {
+        hits = buildHitBuffer(job.pose, terrain)
+        casts.set(key, hits)
+        await checkpoint()
+      }
+      const paths = photoOverlay(job.pose, hits, laid!, { ...job.options, ground: terrain })
+      post({ type: 'done', id, result: { kind: 'overlay', paths } })
+      return
+    }
+    if (job.kind === 'cameraCues') {
+      const hits = buildHitBuffer(job.pose, terrain, { width: job.width, maxMeters: job.maxMeters })
+      await checkpoint()
+      const appearance = groundAppearance(photo!, hits, imagerySampler(layers!))
+      const depth = terrainInverseDepth(hits, job.pose)
+      post({ type: 'done', id, result: { kind: 'cameraCues', appearance, depth } }, [
+        depth.inverse.buffer as ArrayBuffer,
       ])
       return
     }

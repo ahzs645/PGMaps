@@ -13,7 +13,7 @@
  * it works on lives in `useFieldPhoto`, so nothing is lost while it is away. `docs/forestry-visual-quality.md`,
  * "A photo of your own".
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowRight,
@@ -33,6 +33,7 @@ import { DialogShell } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TabBar } from '@/components/ui/tab-bar'
+import { useElementSize } from '@/hooks/useElementSize'
 import { cn } from '@/lib/utils'
 
 import type { OwnPhotoActions } from './OwnFieldPhoto'
@@ -50,7 +51,7 @@ import { photoStripState } from './photoOptions'
 import { scenePhotoLayers } from './photoPageFeatures'
 import { controlSolveSuspect } from './photoQueue'
 import { PHOTO_TONE_DOT, PhotoFilmstrip, PhotoStrip, queueLine } from './PhotoStrip'
-import { PhotoWithOverlays } from './PhotoWithOverlays'
+import { PhotoFeaturesCheck, PhotoWithOverlays } from './PhotoWithOverlays'
 import type { FieldPhotoState } from './useFieldPhoto'
 
 type Own = NonNullable<FieldPhotoState['own']>
@@ -139,6 +140,16 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
   useEffect(() => {
     if (shownId) requestCheck(shownId)
   }, [shownId, activePoseKey, requestCheck])
+
+  // The picture's column is as tall as what the window shows of its content, so the photo is whole in view whatever
+  // the screen: the window's scrolling body, found from the column itself and measured inside its padding.
+  const [body, setBody] = useState<HTMLElement | null>(null)
+  const findBody = useCallback((node: HTMLElement | null) => {
+    let scroller = node?.parentElement ?? null
+    while (scroller && !/auto|scroll/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement
+    setBody(scroller)
+  }, [])
+  const bodyHeight = useElementSize(body, { box: 'content' }).height
 
   const current = ownAcceptancePose(own)
   const options = own ? photo.optionsFor(own.id) : []
@@ -293,7 +304,9 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
         open={!steppedAside}
         onClose={photo.closeOwnDialog}
         size="xl"
-        className="workspace-sm:max-w-6xl"
+        // One height for every tab and photo: the window does not grow and shrink as cards come and go, and the
+        // Camera tab's picture has a set space to fit.
+        className="workspace-sm:h-[92dvh] workspace-sm:max-w-6xl"
         title={ownPhotos.length > 1 ? 'Line up photos of my own' : 'Line up a photo of my own'}
         subtitle={
           own
@@ -384,7 +397,11 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
         {own && (
           <TabPanel tab="camera" current={tab}>
             <div className="grid gap-5 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]" aria-label="Own photo camera">
-              <div className="min-w-0 space-y-4 self-start md:sticky md:top-0">
+              <div
+                ref={findBody}
+                className="flex min-w-0 flex-col gap-3 self-start md:sticky md:top-6 md:h-[var(--own-photo-column)]"
+                style={{ '--own-photo-column': bodyHeight ? `${bodyHeight}px` : '60dvh' } as React.CSSProperties}
+              >
                 <SegmentedControl<CameraViewer>
                   label="What to look at"
                   size="sm"
@@ -408,16 +425,18 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                 )}
                 {/* Hidden, not unmounted, while the model view shows: laying the layers on the photo again costs a
                     second or more a camera. */}
-                <div hidden={showModel}>
+                <div className={showModel ? 'hidden' : 'flex min-h-0 flex-1 flex-col'}>
                   <PhotoWithOverlays
                     photo={photo}
                     pageFeatures={actions.pageFeatures}
                     customLayers={sceneLayers}
                     layersMenu="corner"
+                    fit
+                    featuresCheck={false}
+                    idle={showModel}
                     align={align}
                     showPairs
                     readOnClick={!placing}
-                    imageClassName="max-h-[52dvh]"
                     onPickPixel={placing ? placePoint : undefined}
                     onPairPixel={startPick ? placePoint : undefined}
                     toolbar={
@@ -438,7 +457,7 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                     }
                   />
                 </div>
-                <div hidden={!showModel}>
+                <div className={showModel ? 'flex min-h-0 flex-1 flex-col overflow-y-auto' : 'hidden'}>
                   <PhotoCompare
                     key={own.id}
                     photo={photo}
@@ -448,8 +467,14 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
               </div>
               <div className="min-w-0 space-y-4 text-sm">
                 {photo.ownStatus.error && <InlineAlert tone="error">{photo.ownStatus.error}</InlineAlert>}
+                {entry && <PhotoNeeds part="line" entry={entry} />}
+                <PhotoOptionsCard photo={photo} onAdjust={() => setAdjust(true)} />
+                {/* What the comparison of cameras offers comes under the options, not over them: it is worked out
+                    after a photo opens (a second or more), and above the options it pushed them down the window
+                    under the reviewer's pointer. */}
                 {entry && (
                   <PhotoNeeds
+                    part="offers"
                     entry={entry}
                     suggestion={groundSuggestion}
                     onUseSuggestion={
@@ -471,7 +496,9 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                     }
                   />
                 )}
-                <PhotoOptionsCard photo={photo} onAdjust={() => setAdjust(true)} />
+                {/* Beside the picture, not under it: the picture's column is as tall as the window shows, and what
+                    was read for the camera's ground is a list to read, not something to line up by eye. */}
+                <PhotoFeaturesCheck photo={photo} />
                 {guideWithLandmarks && (
                   <section className="space-y-2 rounded-md border border-border p-3" aria-label="Guide with landmarks">
                     <h4 className="text-sm font-semibold">Guide with landmarks</h4>
@@ -608,11 +635,14 @@ const sameHeading = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 1
  * did not settle, the camera the ground favours, to take as a start.
  */
 function PhotoNeeds({
+  part,
   entry,
   suggestion,
   onUseSuggestion,
   depth,
 }: {
+  /** The one sentence, above the options; or what the comparison offers, under them. */
+  part: 'line' | 'offers'
   entry: Parameters<typeof photoStripState>[0]
   suggestion?: {
     pose: { bearing: number; pitch: number }
@@ -624,9 +654,11 @@ function PhotoNeeds({
   depth?: { busy: boolean; error: string | null; onCompare: () => void }
 }) {
   const state = photoStripState(entry)
+  if (part === 'line') return <NeedsLine state={state} />
+  const offered = !!suggestion?.undecided || (!!suggestion && !!onUseSuggestion) || (!!depth && state.tone === 'help')
+  if (!offered) return null
   return (
     <div className="space-y-2">
-      <NeedsLine state={state} />
       {suggestion?.undecided && (
         <p
           className="rounded-md border border-border bg-card p-2.5 text-xs leading-5"
@@ -684,7 +716,8 @@ function PhotoNeeds({
 function NeedsLine({ state }: { state: ReturnType<typeof photoStripState> }) {
   return (
     <p
-      className="flex items-start gap-2 rounded-md border border-border bg-card p-2.5 text-xs leading-5"
+      // Room for two lines whatever the sentence, so one that changes when a search or comparison ends moves nothing.
+      className="flex min-h-[3.875rem] items-start gap-2 rounded-md border border-border bg-card p-2.5 text-xs leading-5"
       role="status"
       aria-label="What this photo needs"
       data-testid="own-photo-needs"

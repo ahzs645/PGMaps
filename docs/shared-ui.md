@@ -571,6 +571,19 @@ track grows to the longest cell in any column.
 
 `StorageDialog` (`storage-dialog.tsx`) is the one panel for what the site keeps in this browser: usage and protection, the offline tools, what can be cleared, and a person's own work. The navbar opens it as **Offline and storage**; a tool that wants its own entry point mounts the same component (`open`, `onOpenChange`, optional `trigger`) and never builds a second panel. It reads `STORE_CATALOGUE` (`src/lib/storage/siteStorage.ts`): a tool that starts keeping something adds an entry there and gets a row, a size and, for a `download`, a **Clear**. See `docs/app-updates-and-caching.md`, **Managing what is kept**.
 
+### Zoom and pan
+
+`ZoomPan` (`src/components/ui/zoom-pan.tsx`) lets a picture be zoomed and panned in the box it is given, as a map can: the wheel or a pinch zooms about the pointer, a drag moves a zoomed picture, and the buttons in its corner step in, step out and fit it again. Use it for a photograph or a drawing a person needs to read closely; never give a page its own wheel listener or transform for that.
+
+- Everything inside is scaled together by one CSS transform, so marks placed in percent of the picture stay on their spots and `getBoundingClientRect` on anything inside still answers in screen pixels. Its content box is the viewport's own size: centre the picture in it, sized with `fitBox` (`zoomPanView.ts`) from the measured space (`useElementSize`).
+- A mark that must keep its size on screen while the picture grows (a numbered pin, a card) reads `--zoom-pan-scale`: `scale: calc(1 / var(--zoom-pan-scale, 1))`. A control inside that takes its own drags carries `data-zoom-pan-ignore`. Controls that must stay put go in `overlay`, outside the zoom.
+- `resetKey` fits the picture again for another picture; `onScaleChange` tells content that draws finer when enlarged.
+- Two pictures of one size set side by side share one view through `view` and `onViewChange`, so they zoom and move together; `controls={false}` on one leaves a single set of buttons for the pair.
+- A press that does not move is still a click on what is under it, and a fitted picture is never dragged. Zooming out of a fitted picture is left to the page, so a dialog still scrolls under the pointer.
+- The arithmetic (`zoomAbout`, `clampView`, `fitBox`) is in `zoomPanView.ts`, free of DOM access, and tested there: the spot under the pointer stays under it, and a picture never leaves a gap at an edge of its box.
+
+In use: the own photo on `/dev/forestry/visual-quality`'s Camera tab (`PhotoWithOverlays`'s `fit`) and its comparison with the model view, overlaid or side by side (`PhotoCompare`).
+
 ## Your details and person fields
 
 - **Your details** (`src/branding/PreparerProfile.tsx`, model `profile.ts`) are who prepares sheets and

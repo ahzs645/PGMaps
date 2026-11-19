@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 import { sameCamera, type AcceptancePose } from './photoAcceptance'
 import { PHOTO_MATCHERS } from './photoMatchers'
 import { NEIGHBOUR_AGREE_DEGREES } from './photoOptions'
-import type { FieldPhotoState, ModelViewImage, PhotoModelViewKind } from './useFieldPhoto'
+import { photoModelViews, type FieldPhotoState, type ModelViewImage, type OwnPhotoWork } from './useFieldPhoto'
 
 const signed = (value: number, digits = 1) => `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(digits)}°`
 
@@ -31,12 +31,12 @@ export function ownAcceptancePose(own: FieldPhotoState['own']): AcceptancePose |
   }
 }
 
-/** A model view drawn for this camera, wherever it was kept. */
+/** A model view drawn for this camera, wherever it was kept: by the queue, by the reviewer, or ahead for an option. */
 export function modelViewFor(
-  views: Partial<Record<PhotoModelViewKind, ModelViewImage>>,
+  work: Pick<OwnPhotoWork, 'modelViews' | 'optionViews'>,
   pose: AcceptancePose | null,
 ): ModelViewImage | null {
-  return (pose && Object.values(views).find((view) => view.pose && sameCamera(view.pose, pose))) || null
+  return (pose && photoModelViews(work).find((view) => view.pose && sameCamera(view.pose, pose))) || null
 }
 
 export function PhotoOptionsCard({ photo, onAdjust }: { photo: FieldPhotoState; onAdjust: () => void }) {
@@ -46,6 +46,7 @@ export function PhotoOptionsCard({ photo, onAdjust }: { photo: FieldPhotoState; 
   const current = ownAcceptancePose(own)
   const work = photo.workFor(own.id)
   const search = work.search
+  const viewsComing = photo.optionViewsFor === own.id
   if (!options.length)
     return (
       <section className="space-y-2 rounded-md border border-border p-3 text-xs" aria-label="Camera options">
@@ -78,10 +79,12 @@ export function PhotoOptionsCard({ photo, onAdjust }: { photo: FieldPhotoState; 
       <ol className="space-y-2">
         {options.map((option) => {
           const inUse = !!current && sameCamera(option.pose, current)
-          const thumb = modelViewFor(work.modelViews, option.pose)
+          const thumb = modelViewFor(work, option.pose)
           const drawable =
             option.kind === 'winner' || option.kind === 'runner-up' ? option.kind : inUse ? 'camera' : null
           const { evidence } = option
+          // Its view is being drawn ahead, or waits its turn behind the search.
+          const drawing = !thumb && (viewsComing || search.status === 'working')
           return (
             <li
               key={option.id}
@@ -89,40 +92,54 @@ export function PhotoOptionsCard({ photo, onAdjust }: { photo: FieldPhotoState; 
               aria-label={`${option.label}${inUse ? ', in use' : ''}`}
             >
               <div className="flex gap-3">
-                <div className="w-24 shrink-0">
-                  {thumb ? (
-                    <figure>
+                {/* The view's place is the photo's shape whether or not the view has been drawn yet, so a view arriving
+                    (they are drawn ahead, one camera at a time) never changes the height of its row. */}
+                <figure className="w-24 shrink-0">
+                  <div
+                    className="flex items-center justify-center overflow-hidden rounded-sm bg-muted"
+                    style={{ aspectRatio: `${own.width} / ${own.height}` }}
+                  >
+                    {thumb ? (
                       <img
                         src={thumb.url}
                         alt={`Model view at heading ${thumb.bearing.toFixed(0)}°`}
-                        className="w-full rounded-sm"
+                        className="h-full w-full"
                       />
-                      <figcaption className="text-3xs text-muted-foreground tabular-nums">
-                        {Number.isFinite(thumb.score)
-                          ? `Agreement ${thumb.score.toFixed(2)}`
-                          : 'Insufficient ground imagery'}
-                      </figcaption>
-                    </figure>
-                  ) : drawable ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      className="h-auto w-full py-2 text-2xs whitespace-normal touch:h-10"
-                      disabled={!!photo.toolsBusy}
-                      onClick={() => void photo.renderModel(drawable)}
-                    >
-                      {photo.toolsBusy ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Mountain className="h-3.5 w-3.5" />
-                      )}
-                      Draw its model view
-                    </Button>
-                  ) : (
-                    <p className="text-3xs leading-4 text-muted-foreground">Use it to draw its model view</p>
-                  )}
-                </div>
+                    ) : drawing ? (
+                      <Loader2
+                        className="h-3.5 w-3.5 animate-spin text-muted-foreground"
+                        aria-label="Drawing its model view"
+                      />
+                    ) : drawable ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="xs"
+                        className="h-auto w-full py-2 text-2xs whitespace-normal touch:h-10"
+                        disabled={!!photo.toolsBusy}
+                        onClick={() => void photo.renderModel(drawable)}
+                      >
+                        {photo.toolsBusy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Mountain className="h-3.5 w-3.5" />
+                        )}
+                        Draw its model view
+                      </Button>
+                    ) : (
+                      <p className="p-1 text-center text-3xs leading-4 text-muted-foreground">
+                        Use it to draw its model view
+                      </p>
+                    )}
+                  </div>
+                  <figcaption className="min-h-4 text-3xs leading-4 text-muted-foreground tabular-nums">
+                    {thumb
+                      ? Number.isFinite(thumb.score)
+                        ? `Agreement ${thumb.score.toFixed(2)}`
+                        : 'Insufficient ground imagery'
+                      : ''}
+                  </figcaption>
+                </figure>
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <p className="flex items-center gap-1 font-medium">
                     {inUse && <Check className="h-3.5 w-3.5 text-success" aria-hidden />}

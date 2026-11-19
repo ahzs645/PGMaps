@@ -51,36 +51,57 @@ async function infer({ photo, model }: PhotoDepthRequest) {
   for (let channel = 0; channel < 3; channel++)
     for (let i = 0; i < plane; i++)
       channels[channel * plane + i] = (pixels[i * 4 + channel] / 255 - mean[channel]) / deviation[channel]
-  const [graph, external] = await Promise.all(
-    settings.files.map(({ path, size }) => weights(settings.root + path, size)),
+  const session = await sessionFor(model)
+  const input = new ort.Tensor(
+    'float32',
+    channels,
+    model === 'da3-small' ? [1, 1, 3, height, width] : [1, 3, height, width],
   )
-  const session = await ort.InferenceSession.create(graph, {
-    executionProviders: ['wasm'],
-    ...(external ? { externalData: [{ path: 'model.onnx_data', data: new Uint8Array(external) }] } : {}),
-  })
-  try {
-    const input = new ort.Tensor(
-      'float32',
-      channels,
-      model === 'da3-small' ? [1, 1, 3, height, width] : [1, 3, height, width],
-    )
-    const result = await session.run({ [session.inputNames[0]]: input }, ['predicted_depth'])
-    const depth = result.predicted_depth
-    if (!(depth.data instanceof Float32Array) || depth.data.length !== plane || !depth.data.every(Number.isFinite))
-      throw Error('The depth model returned an invalid image.')
-    const inverse =
-      model === 'da3-small'
-        ? Float32Array.from(depth.data, (value) => (value > 0 ? 1 / value : 0))
-        : new Float32Array(depth.data)
-    return { width, height, inverse }
-  } finally {
-    await session.release()
-  }
+  const result = await session.run({ [session.inputNames[0]]: input }, ['predicted_depth'])
+  const depth = result.predicted_depth
+  if (!(depth.data instanceof Float32Array) || depth.data.length !== plane || !depth.data.every(Number.isFinite))
+    throw Error('The depth model returned an invalid image.')
+  const inverse =
+    model === 'da3-small'
+      ? Float32Array.from(depth.data, (value) => (value > 0 ? 1 / value : 0))
+      : new Float32Array(depth.data)
+  return { width, height, inverse }
 }
 
+// One model's session, kept between photos: reading its weights and building the session is a large part of each
+// estimate, and a flight's photos ask one after another. The page ends this worker when none has asked for a while
+// (`photoDepth.ts`), which is what lets the session go.
+let loaded: { model: PhotoDepthRequest['model']; session: Promise<ort.InferenceSession> } | null = null
+function sessionFor(model: PhotoDepthRequest['model']): Promise<ort.InferenceSession> {
+  if (loaded?.model === model) return loaded.session
+  const previous = loaded?.session
+  const settings = MODELS[model]
+  const session = (async () => {
+    await previous?.then((old) => old.release()).catch(() => undefined)
+    const [graph, external] = await Promise.all(
+      settings.files.map(({ path, size }) => weights(settings.root + path, size)),
+    )
+    return ort.InferenceSession.create(graph, {
+      executionProviders: ['wasm'],
+      ...(external ? { externalData: [{ path: 'model.onnx_data', data: new Uint8Array(external) }] } : {}),
+    })
+  })()
+  loaded = { model, session }
+  // A model that did not load is asked for again by the next photo, not remembered as failed.
+  session.catch(() => {
+    if (loaded?.session === session) loaded = null
+  })
+  return session
+}
+
+// One estimate at a time, in the order asked: the runtime has one thread.
+let queue: Promise<unknown> = Promise.resolve()
 scope.onmessage = ({ data }: MessageEvent<PhotoDepthRequest>) => {
-  void infer(data).then(
-    (depth) => scope.postMessage({ depth } satisfies PhotoDepthReply, [depth.inverse.buffer]),
-    (error: unknown) => scope.postMessage({ error: String(error) } satisfies PhotoDepthReply),
-  )
+  const { id } = data
+  queue = queue
+    .then(() => infer(data))
+    .then(
+      (depth) => scope.postMessage({ id, depth } satisfies PhotoDepthReply, [depth.inverse.buffer]),
+      (error: unknown) => scope.postMessage({ id, error: String(error) } satisfies PhotoDepthReply),
+    )
 }

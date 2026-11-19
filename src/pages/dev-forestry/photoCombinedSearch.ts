@@ -4,8 +4,6 @@ import { POINTS_REFERENCE_WIDTH, pointsHeldOutLimit, sameCamera, type Acceptance
 import {
   cameraCueScore,
   compareDepthGrids,
-  groundAppearance,
-  terrainInverseDepth,
   undecidedHeadings,
   COMBINED_SAMPLE_WIDTH,
   type CameraCues,
@@ -14,8 +12,7 @@ import { estimatePhotoDepth, type DepthGrid, type PhotoDepthModel } from './phot
 import { ownPhotoPose } from './exifPose'
 import type { PhotoOption } from './photoOptions'
 import type { Rgba } from './photoViews'
-import { imagerySampler } from './photoWork'
-import { castPhotoHits, type ImageryLayer, type PhotoTerrainSpec } from './photoWorkClient'
+import { photoCameraCues, type ImageryLayer, type PhotoResource, type PhotoTerrainSpec } from './photoWorkClient'
 import { photoSkyline } from './skylineFit'
 
 export type CombinedSettings = { useSkyline: boolean; depthModel: PhotoDepthModel | null }
@@ -104,7 +101,7 @@ export async function comparePhotoCameras({
   eyeHeightMeters,
   terrain,
   terrainSpec,
-  pixels,
+  pixels: photo,
   imagery,
   signal,
   onProgress,
@@ -118,8 +115,9 @@ export async function comparePhotoCameras({
   eyeHeightMeters: number
   terrain: ElevationSource
   terrainSpec: PhotoTerrainSpec
-  pixels: Rgba
-  imagery: ImageryLayer[]
+  /** The photo's pixels and the imagery round it, each under the key the photo worker keeps it by. */
+  pixels: PhotoResource<Rgba>
+  imagery: PhotoResource<ImageryLayer[]>
   signal: AbortSignal
   onProgress: (message: string) => void
   /**
@@ -128,6 +126,7 @@ export async function comparePhotoCameras({
    */
   depthFor?: (model: PhotoDepthModel, signal: AbortSignal) => Promise<DepthGrid>
 }): Promise<CombinedResult> {
+  const pixels = photo.value
   const { seeds, coarse, trustedSky } = seedsFor(current, options, settings.useSkyline, overlapP90, photoWidth)
   let depthIssue: string | null = null
   const model = settings.depthModel
@@ -140,7 +139,6 @@ export async function comparePhotoCameras({
         })
       })()
     : Promise.resolve(null)
-  const sample = imagerySampler(imagery)
   const candidates = []
   for (const [index, seed] of seeds.entries()) {
     signal.throwIfAborted()
@@ -153,12 +151,14 @@ export async function comparePhotoCameras({
       pixels.height,
     )
     if (!Number.isFinite(pose.altitudeMeters)) continue
-    const hits = await castPhotoHits(
-      { pose, terrain: terrainSpec, width: COMBINED_SAMPLE_WIDTH, maxMeters: 75000 },
+    // Cast, coloured from imagery and scored against the photo in the worker: on the page's thread a comparison of
+    // twenty-odd cameras held it for a tenth of a second a camera (4.4 s over one traced session).
+    const { appearance, depth } = await photoCameraCues(
+      { pose, terrain: terrainSpec, imagery, photo, width: COMBINED_SAMPLE_WIDTH, maxMeters: 75000 },
       signal,
     )
-    const cues = { appearance: groundAppearance(pixels, hits, sample), skyline: seed.skyline, geometry: seed.geometry }
-    candidates.push({ seed, cues, depthGrid: terrainInverseDepth(hits, pose) })
+    const cues = { appearance, skyline: seed.skyline, geometry: seed.geometry }
+    candidates.push({ seed, cues, depthGrid: depth })
   }
   if (model) onProgress('Finishing the local depth comparison…')
   const photoDepth = await inferred
