@@ -1097,14 +1097,18 @@ export function TerrainPreview({
             {!terrainOnly && (
               <RoadSelect
                 ariaLabel="3D road surface"
-                title="Draw one exact design surface at a time"
-                disabled={!gpuActive}
+                title={
+                  showEarthwork
+                    ? 'Draw one exact design surface at a time'
+                    : 'Batters are hidden: showing a simplified subgrade preview. Turn Batters on to compare surfaces.'
+                }
+                disabled={!gpuActive || !showEarthwork}
                 className="h-7 w-28"
-                value={surfaceKind}
+                value={showEarthwork ? surfaceKind : 'subgrade'}
                 onValueChange={(value) => setSurfaceKind(value as DesignSurfaceKind)}
                 options={[
                   { value: 'finished', label: 'Finished' },
-                  { value: 'subgrade', label: 'Subgrade' },
+                  { value: 'subgrade', label: showEarthwork ? 'Subgrade' : 'Subgrade preview' },
                 ]}
               />
             )}
@@ -1156,7 +1160,11 @@ export function TerrainPreview({
                 Rendering quality cannot add detail absent from the source.
               </span>
               <span className="mt-1 block">
-                {gpuActive ? (design?.notice ?? 'Terrain display only.') : 'Simplified subgrade preview.'}{' '}
+                {terrainOnly
+                  ? 'Terrain display only.'
+                  : gpuActive && showEarthwork
+                    ? (design?.notice ?? 'Simplified subgrade preview.')
+                    : 'Simplified subgrade preview.'}{' '}
                 {shownColour === 'ortho' && ortho ? `Image: ${ortho.name}; imported display pixels.` : ''}
               </span>
               <span className="mt-1 block">
