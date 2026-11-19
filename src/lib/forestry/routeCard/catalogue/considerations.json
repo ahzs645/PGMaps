@@ -1,0 +1,51 @@
+{
+  "kind": "route-card-considerations",
+  "version": 1,
+  "considerations": [
+    {
+      "id": "old-forest",
+      "title": "Old Forest",
+      "when": "true"
+    },
+    {
+      "id": "patch-size",
+      "title": "Patch Size",
+      "when": "true"
+    },
+    {
+      "id": "watershed",
+      "title": "Watershed",
+      "when": "true"
+    },
+    {
+      "id": "tap-ogma",
+      "title": "TAP - Remnant Old Ecosystems/ d-OGMA",
+      "when": "rows.tapRemnant.yes or rows.tapRemnant.near"
+    },
+    {
+      "id": "visuals",
+      "title": "Visuals",
+      "when": "rows.evqc.yes"
+    },
+    {
+      "id": "caribou-uwr",
+      "title": "Mountain Caribou Ungulate Winter Range",
+      "when": "rows.ungulateWinterRange.yes"
+    },
+    {
+      "id": "arch",
+      "title": "Arch",
+      "when": "rows.archSites.yes"
+    },
+    {
+      "id": "migratory-birds",
+      "title": "Migratory Bird Habitat",
+      "when": "true"
+    },
+    {
+      "id": "fisher",
+      "title": "Fisher Habitat",
+      "when": "true"
+    }
+  ]
+}

@@ -370,6 +370,24 @@ describe('visual-quality exports', () => {
     expect(sections.find((section) => section.title === 'Landform')?.step).toBe('identify')
   })
 
+  it('lists the project attachments in the project file, with the way to manage them', () => {
+    const attachments = [
+      { name: 'case.json', bytes: 2048, linked: null },
+      { name: 'IMG_1203.jpg', bytes: 3 * 1024 * 1024, linked: 'Field photo: Ridge' },
+    ]
+    const section = exportContents('project', buildExportContext(input(createSampleScene(), { attachments }))).find(
+      (entry) => entry.title === 'Project attachments',
+    )
+    expect(section?.action).toEqual({ id: 'manage-attachments', label: 'Manage…' })
+    expect(section?.items?.map((item) => item.title)).toEqual(['case.json', 'IMG_1203.jpg'])
+    expect(section?.items?.[1].subtitle).toBe('3.0 MB · Field photo: Ridge')
+    const none = exportContents('project', buildExportContext(input(createSampleScene()))).find(
+      (entry) => entry.title === 'Project attachments',
+    )
+    expect(none?.items).toBeUndefined()
+    expect(none?.empty).toMatch(/No files attached/)
+  })
+
   it('lists each saved view with the settings it was saved with', () => {
     const ctx = buildExportContext(input(createSampleScene(), { views: [view('a'), view('b', { classPass: false })] }))
     const views = exportContents('block-note', ctx).find((section) => section.title === 'Viewpoints in the report')

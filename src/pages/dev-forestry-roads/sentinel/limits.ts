@@ -50,6 +50,33 @@ export const SENTINEL_MIN_CLEAR_SHARE = 0.8
 export const SENTINEL_MIN_COVERAGE = 0.95
 /** A pixel whose NDVI falls by at least this much between two scenes is drawn as a new clearing. */
 export const SENTINEL_CLEARING_NDVI_DROP = 0.2
+/**
+ * dNBR (earlier NBR minus later) counted as burned or cleared: the floor of "moderate-low severity"
+ * in Key & Benson (2006), FIREMON Landscape Assessment, USDA Forest Service RMRS-GTR-164-CD,
+ * table LA-2 (p. LA-37): +270 on their ×1000 scale. Their "low severity" class (+100 to +269) is
+ * drawn faintly and not counted: the table itself says its thresholds shift by about 100 between
+ * scene pairs, so a low-severity change cannot be told from season and moisture.
+ */
+export const SENTINEL_BURN_DNBR = 0.27
+/** Key & Benson's table LA-2 "unburned" upper bound (+99 on their scale): smaller dNBR is drawn clear. */
+export const SENTINEL_DNBR_UNBURNED = 0.1
+/**
+ * An NDMI fall counted as drier ground. A PGMaps screen, not a published threshold: work on mountain
+ * pine beetle red attack in BC (Goodwin et al. 2008) tracks NDMI loss, but its cut-offs are local
+ * calibrations, and none carries over to another place or sensor.
+ */
+export const SENTINEL_DRYING_NDMI_DROP = 0.15
+
+/** An area's time series is refused when its box is wider or taller than this (km). */
+export const SENTINEL_AREA_MAX_KM = 10
+/** Scenes one area series reads: at most one panel list's worth, thinned evenly over time. */
+export const SENTINEL_SERIES_MAX_SCENES = SENTINEL_MAX_SCENES
+/** A series scene with less of the area clear than this (share of covered pixels) is a gap. */
+export const SENTINEL_SERIES_MIN_CLEAR_SHARE = 0.8
+/** …or whose tile covers less of the area than this. */
+export const SENTINEL_SERIES_MIN_COVERAGE = 0.95
+/** Bins in the area histogram, over the index's fixed range. */
+export const SENTINEL_HISTOGRAM_BINS = 40
 
 /** Every network request (search or image read) is abandoned after this long. */
 export const SENTINEL_REQUEST_TIMEOUT_MS = 30_000

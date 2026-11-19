@@ -242,7 +242,7 @@ for (const phone of [false, true]) {
       await expect.poll(async () => (await mapHistory(page))?.route?.date).toBe('2022-08-01')
       await page
         .getByTestId('history-trace-results')
-        .locator('summary', { hasText: 'Structure evidence and conflicts' })
+        .getByRole('button', { name: /^Structure evidence and conflicts/ })
         .click()
       await expect(page.getByTestId('history-trace-results')).toContainText('conflict')
       await expect
@@ -254,7 +254,7 @@ for (const phone of [false, true]) {
 
       // Document the supported 2010 route. Changing the query date did not rewrite it.
       await choose(card.getByRole('combobox', { name: 'Historical route', exact: true }), { label: /2010-06-30/ })
-      await card.locator('summary', { hasText: 'Review this association' }).click()
+      await card.getByRole('button', { name: 'Review this association', exact: true }).click()
       await choose(card.getByRole('combobox', { name: 'Reviewed relationship', exact: true }), 'documented-use')
       await choose(card.getByRole('combobox', { name: 'Review source', exact: true }), 'example-haul-ledger')
       await card.getByLabel('Reviewer', { exact: true }).fill('Synthetic training reviewer')

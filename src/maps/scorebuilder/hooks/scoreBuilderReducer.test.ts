@@ -183,6 +183,24 @@ describe('createInitialScoreBuilderState for the lens labs', () => {
     expect(state.enabledDataSources).toEqual(expect.arrayContaining(['parks', 'bcAssessment', 'crime', 'census']))
   })
 
+  it('reads the cluster map, its variable and the FDR option from the URL', () => {
+    const correlate = createInitialScoreBuilderState(
+      new URLSearchParams('w=0&cx=commercialShare&cy=crimePerCapita&cstyle=clusters&ccv=residual&cfdr=1'),
+      'correlate',
+    )
+    expect(correlate.correlateVisStyle).toBe('clusters')
+    expect(correlate.correlateClusterVariable).toBe('residual')
+    expect(correlate.clusterFdr).toBe(true)
+
+    const unknown = createInitialScoreBuilderState(new URLSearchParams('w=0&cstyle=lisa&ccv=z'), 'correlate')
+    expect(unknown.correlateVisStyle).toBe('bivariate')
+    expect(unknown.correlateClusterVariable).toBe('y')
+    expect(unknown.clusterFdr).toBe(false)
+
+    expect(createInitialScoreBuilderState(new URLSearchParams('w=0&map=clusters'), 'density').clusterMap).toBe(true)
+    expect(createInitialScoreBuilderState(new URLSearchParams('w=0'), 'index').clusterMap).toBe(false)
+  })
+
   it('switches off the index score filters, which would hide regions the lens maps', () => {
     const state = createInitialScoreBuilderState(new URLSearchParams('w=0'), 'density')
 

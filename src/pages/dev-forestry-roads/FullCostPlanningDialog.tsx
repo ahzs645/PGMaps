@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ROAD_LIMIT_MESSAGE, roadLimitReached } from './roadLimits'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
+import { DisclosureCard, DisclosureRow } from '@/components/ui/disclosure'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
 import { downloadText } from '@/lib/download'
@@ -24,6 +25,7 @@ export type FullCostPreview = {
   totalCost: number | null
   status: 'feasible' | 'infeasible' | 'unpriced'
 }
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
 const money = (value: number | null) =>
   value === null ? 'Unpriced' : `$${value.toLocaleString('en-CA', { maximumFractionDigits: 0 })}`
 
@@ -343,9 +345,16 @@ export function FullCostPlanningDialog({
                           <dd>{money(result.ledger.contingency)}</dd>
                         </dl>
                       )}
-                      <details className="text-xs">
-                        <summary>Final checks, sources and haul routes</summary>
-                        <p className="mt-2">
+                      <DisclosureRow
+                        title="Final checks, sources and haul routes"
+                        summary={[
+                          count(candidate.checks.metrics.checkedStations, 'station') + ' checked',
+                          count(candidate.checks.failures.length + candidate.checks.unknowns.length, 'issue'),
+                          count(result.allocations.length, 'source'),
+                        ].join(' · ')}
+                        contentClassName="text-xs"
+                      >
+                        <p>
                           {candidate.checks.metrics.checkedStations} checked stations · minimum radius{' '}
                           {candidate.checks.metrics.minFittedRadiusM ?? 'straight'} m · full prism width up to{' '}
                           {candidate.checks.metrics.maxFootprintWidthM.toFixed(1)} m.
@@ -368,7 +377,7 @@ export function FullCostPlanningDialog({
                             {message}
                           </p>
                         ))}
-                      </details>
+                      </DisclosureRow>
                       <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
@@ -398,12 +407,13 @@ export function FullCostPlanningDialog({
                   )
                 })}
                 {review.run.network.excludedRoads.length > 0 && (
-                  <details open className={cn(insetBox({ padding: 'lg' }), 'text-xs')}>
-                    <summary>
-                      Roads unavailable for connected access ({review.run.network.excludedRoads.length})
-                    </summary>
+                  <DisclosureCard
+                    title={`Roads unavailable for connected access (${review.run.network.excludedRoads.length})`}
+                    summary={review.run.network.excludedRoads.map((road) => road.name).join(', ')}
+                    defaultOpen
+                  >
                     {review.run.network.excludedRoads.map((road) => (
-                      <div key={road.roadId} className="mt-2">
+                      <div key={road.roadId} className="space-y-1">
                         <p className="font-medium">{road.name}</p>
                         <p>{road.reasons.join(' ')}</p>
                         <Button variant="outline" size="sm" onClick={() => reviewRoads(road.roadId)}>
@@ -411,15 +421,18 @@ export function FullCostPlanningDialog({
                         </Button>
                       </div>
                     ))}
-                  </details>
+                  </DisclosureCard>
                 )}
                 {review.run.generationWarnings.length > 0 && (
-                  <details className="text-xs">
-                    <summary>Candidate generation limits</summary>
+                  <DisclosureRow
+                    title="Candidate generation limits"
+                    summary={`${count(review.run.generationWarnings.length, 'limit')} reached`}
+                    contentClassName="text-xs"
+                  >
                     {review.run.generationWarnings.map((warning, index) => (
                       <p key={index}>{warning}</p>
                     ))}
-                  </details>
+                  </DisclosureRow>
                 )}
               </>
             )}

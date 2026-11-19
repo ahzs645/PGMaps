@@ -1,0 +1,153 @@
+{
+  "kind": "route-card-report-components",
+  "version": 1,
+  "components": [
+    {
+      "kind": "component",
+      "id": "route-card-title",
+      "title": "Route card title",
+      "description": "The subject and the preset.",
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "content": "{{ sheet.title }}"
+        },
+        {
+          "type": "paragraph",
+          "content": "{{ report.presetName }}. Layers read {{ report.readAt }}."
+        }
+      ]
+    },
+    {
+      "kind": "component",
+      "id": "route-card-table",
+      "title": "Route Card Tool Assessment",
+      "description": "Every row of the preset, section by section: the check, Y, N or Within, and what was found.",
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 2,
+          "content": "Route Card Tool Assessment"
+        },
+        {
+          "type": "table",
+          "columnWidths": [3, 1.4, 6],
+          "size": 8,
+          "rows": [
+            {
+              "role": "header",
+              "cells": ["Check", "Result", "Found"]
+            },
+            {
+              "for": "section in sheet.sections",
+              "do": [
+                {
+                  "role": "group",
+                  "cells": [
+                    {
+                      "content": "{{ section.title }}",
+                      "colSpan": 3
+                    }
+                  ]
+                },
+                {
+                  "for": "row in section.rows",
+                  "do": [
+                    {
+                      "if": "row.flagged",
+                      "then": [
+                        {
+                          "cells": [
+                            {
+                              "content": "{{ row.label }}",
+                              "text": {
+                                "bold": true
+                              }
+                            },
+                            {
+                              "content": "{{ row.value }}",
+                              "text": {
+                                "bold": true
+                              }
+                            },
+                            {
+                              "if": "row.found",
+                              "then": [
+                                {
+                                  "content": "{{ row.found }}",
+                                  "text": {
+                                    "bold": true
+                                  }
+                                }
+                              ],
+                              "else": [
+                                {
+                                  "content": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "else": [
+                        {
+                          "cells": [
+                            "{{ row.label }}",
+                            "{{ row.value }}",
+                            {
+                              "if": "row.found",
+                              "then": [
+                                {
+                                  "content": "{{ row.found }}"
+                                }
+                              ],
+                              "else": [
+                                {
+                                  "content": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "component",
+      "id": "route-card-considerations-heading",
+      "title": "Other Considerations heading",
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 2,
+          "content": "Other Considerations"
+        }
+      ]
+    },
+    {
+      "kind": "component",
+      "id": "route-card-notes",
+      "title": "Notes",
+      "description": "Where the figures came from and what they are not.",
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 2,
+          "content": "Notes"
+        },
+        {
+          "type": "list",
+          "items": "{{ report.notes }}"
+        }
+      ]
+    }
+  ]
+}

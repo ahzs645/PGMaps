@@ -1,0 +1,12 @@
+{
+  "kind": "component",
+  "id": "via-running-header",
+  "title": "Running header",
+  "description": "The report's title and project, small and grey, at the top of each page that carries a header.",
+  "blocks": [
+    {
+      "type": "paragraph",
+      "content": { "type": "text", "text": "{{ report.runningHeader }}", "size": 8, "color": "64748b" }
+    }
+  ]
+}

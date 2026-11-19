@@ -1,3 +1,4 @@
+import { DisclosureCard } from '@/components/ui/disclosure'
 import { useState } from 'react'
 import { StyledSelect } from '@/components/ui/styled-select'
 import { Button } from '@/components/ui/button'
@@ -160,14 +161,11 @@ export function ReferenceComparisonPanel({
     }
   }
   return (
-    <details className="rounded-md border p-3">
-      <summary className="cursor-pointer font-medium">
-        Compare with a saved PGMaps figure ({row.comparisons?.length ?? 0} saved)
-      </summary>
-      <div className="mt-3 space-y-3">
-        <p>
-          Link the workspace viewpoint and mapped landform above. Save an after-harvest analysis sheet for that planned
-          view to use its measured pixels.
+    <section aria-label="Compare with a saved PGMaps figure">
+      <div className="space-y-3">
+        <p className="text-muted-foreground">
+          Link the workspace viewpoint and mapped landform on the Measurements tab. Save an after-harvest analysis sheet
+          for that planned view to use its measured pixels.
         </p>
         <Pick
           label="Capture"
@@ -290,37 +288,40 @@ export function ReferenceComparisonPanel({
         >
           Save reviewed comparison
         </Button>
+        {!!row.comparisons?.length && (
+          <h3 className="pt-2 text-xs font-semibold">Saved comparisons ({row.comparisons.length})</h3>
+        )}
         {row.comparisons?.map((c, i) => (
-          <details className="rounded-md border p-2" key={i}>
-            <summary>
-              {c.capture.name} · {c.reviewer} · {c.savedAt}
-            </summary>
+          <DisclosureCard
+            key={i}
+            title={c.capture.name}
+            summary={`${c.reviewer} · ${c.savedAt}`}
+            contentClassName="space-y-2 px-3 pb-3 text-sm"
+          >
             <Result record={c} />
-            <p>
-              {c.capture.landform} · {c.capture.savedAt}
+            <p className="text-xs text-muted-foreground">
+              {c.capture.landform} · {c.capture.savedAt} · reviewed by {c.reviewer} · {c.savedAt}
             </p>
-            <details>
-              <summary>Values and evidence at review</summary>
-              <pre className="whitespace-pre-wrap break-words">
-                {JSON.stringify(
-                  {
-                    captureSetup: c.capture.setup,
-                    source: c.source,
-                    origins: c.origins,
-                    selected: c.selected,
-                    scale: c.referenceScale,
-                    numerator: c.referenceNumerator,
-                    denominator: c.referenceDenominator,
-                    evidence: c.evidence,
-                  },
-                  null,
-                  2,
-                )}
-              </pre>
-            </details>
-          </details>
+            <h4 className="text-xs font-semibold">Values and evidence at review</h4>
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/50 p-2 text-2xs">
+              {JSON.stringify(
+                {
+                  captureSetup: c.capture.setup,
+                  source: c.source,
+                  origins: c.origins,
+                  selected: c.selected,
+                  scale: c.referenceScale,
+                  numerator: c.referenceNumerator,
+                  denominator: c.referenceDenominator,
+                  evidence: c.evidence,
+                },
+                null,
+                2,
+              )}
+            </pre>
+          </DisclosureCard>
         ))}
       </div>
-    </details>
+    </section>
   )
 }

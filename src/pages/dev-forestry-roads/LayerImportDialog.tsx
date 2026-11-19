@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StyledSelect } from '@/components/ui/styled-select'
@@ -84,6 +85,7 @@ export function LayerImportDialog({
     setIncluded((previous) => previous.map((value, i) => (i === index ? on : value)))
     setError('')
   }
+  const notes = groupNotes(files.flatMap((file) => file.notices ?? []))
   const commit = () => {
     try {
       const selected = choices.filter((_, i) => included[i])
@@ -134,16 +136,20 @@ export function LayerImportDialog({
                 </p>
               </>
             )}
-            <details>
-              <summary>Source import notes</summary>
-              <ul className="mt-2 list-disc space-y-1 pl-4">
-                {groupNotes(files.flatMap((file) => file.notices ?? [])).map((note) => (
-                  <li key={note} className="break-words">
-                    {note}
-                  </li>
-                ))}
-              </ul>
-            </details>
+            {notes.length > 0 && (
+              <DisclosureRow
+                title="Source import notes"
+                summary={`${notes.length} note${notes.length === 1 ? '' : 's'}`}
+              >
+                <ul className="list-disc space-y-1 pl-4">
+                  {notes.map((note) => (
+                    <li key={note} className="break-words">
+                      {note}
+                    </li>
+                  ))}
+                </ul>
+              </DisclosureRow>
+            )}
           </div>
         )}
         {contourRows.length > 0 && (

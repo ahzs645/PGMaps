@@ -4,24 +4,21 @@
  * 05) differ in the figures they carry and the numerical worksheet; the consultant reports (22, 23) share every part
  * and differ only in their arithmetic; the handbook's Appendix 1 (06, 07) is one part; the Board's comparison (21)
  * and the environmental assessment memo (26) are the two that assess without a VQO rating of their own.
- * Structure only, never branding. No DOM or network access.
+ *
+ * The recipes are JSON in document-kit's recipe format (`recipeJson/*.json`; `recipeRoute.ts` says how): that is
+ * where a recipe is added or changed. The page reads them as `REPORT_RECIPES` from `recipeJson/recipes.generated.json`,
+ * which the kit's own compile writes from the JSON (`npm run via-recipes:build`) and `recipeJson.test.ts` pins, so the
+ * kit never loads with the page. Structure only, never branding. No DOM or network access.
  */
 import type { OverviewSheetStyle } from '../reportMaps'
 import { findDocumentFormat } from '../viaDocument/formats'
 import { toCompleteLine } from '../viaDocument/wording'
 import { inViewpointOrder, proposedBlocks, type ReportContext } from './parts'
-import { CONSULTANT_RECIPE_PARTS } from './partsConsultant'
 import { findReportPart } from './registry'
 import { editKeysOf, editPartBlocks, orphanEdits, type EditKeys, type EditTarget, type ReportEdits } from './edits'
-
-/** The consultant reports carry their viewpoint map as an 11 x 17 appendix sheet, before the analysis sheets. */
-const withOverviewMap = (parts: readonly string[]) => {
-  if (parts.includes('overview-sheet')) return parts
-  const at = parts.indexOf('calculations')
-  return at < 0 ? [...parts, 'overview-sheet'] : [...parts.slice(0, at), 'overview-sheet', ...parts.slice(at)]
-}
 import type { AssembledReport, ReportBlock, ReportItemToComplete, ReportLayout } from './model'
 import { heading } from './model'
+import generated from './recipeJson/recipes.generated.json'
 
 export interface ReportRecipe {
   id: string
@@ -58,189 +55,8 @@ export interface ReportRecipe {
 /** Map pitch of the report's oblique renders when a recipe gives none, degrees: about 60° down on the blocks. */
 export const DEFAULT_OBLIQUE_PITCH = 60
 
-export const REPORT_RECIPES: readonly ReportRecipe[] = [
-  {
-    id: 'partial-cut-form',
-    figureStyle: 'arrows-no-outlines',
-    // 01 pastes the poster, so its guide is lettered as the poster prints it; its viewpoint table rates each view's
-    // angle class.
-    options: { partialCutGuide: 'poster', viewingAngleClass: true },
-    layout: { paper: 'letter', cover: false, contents: false },
-    name: 'Fuel-management VIA form (partial cut)',
-    title: 'Visual Impact Assessment',
-    sources: ['01'],
-    format: 'form-2001-analysis-sheets',
-    parts: [
-      'form-header-2001',
-      'block-areas-2001',
-      'retention',
-      'inventory',
-      'current-evc',
-      'viewpoints-columns',
-      'criteria-rating-2001',
-      'visual-design',
-      'design-techniques-2001',
-      'numerical-data',
-      'summary-2001-five',
-      'certification-2001',
-      'overview-map',
-      'overhead-renders',
-      'photo-simulation-pairs',
-    ],
-    purpose: 'The 2001-style form for a partial cut: criteria by eye, design factors, the partial-cut table, summary.',
-  },
-  {
-    id: 'design-rationale',
-    figureStyle: 'arrows-no-outlines',
-    // 02's obliques look across at the blocks from near eye level, on the viewpoint's side.
-    obliquePitch: 75,
-    layout: { paper: 'letter', cover: false, contents: false },
-    name: 'Design rationale with district summary table',
-    title: 'Visual Landscape Design Rationale',
-    sources: ['02'],
-    format: 'district-summary',
-    parts: [
-      'cover',
-      'design-rationale',
-      'recommendations',
-      'certification-2001',
-      'simulation-pages',
-      'district-summary-form',
-    ],
-    purpose: 'A narrative rationale, the recommendations, then the district summary table against strict % guidelines.',
-  },
-  {
-    id: 'form-2001-sheets',
-    layout: { paper: 'letter', cover: false, contents: false },
-    name: '2001 VIA summary form with analysis sheets',
-    title: 'Visual Impact Assessment Summary Form',
-    sources: ['03'],
-    format: 'form-2001-analysis-sheets',
-    parts: [
-      'form-header-2001',
-      'block-areas-2001',
-      'inventory',
-      'viewpoints-columns',
-      'basic-definition',
-      'design-questions-2001',
-      'design-techniques-2001',
-      'numerical-data',
-      'summary-2001',
-      'sign-off',
-      'notes-2001',
-      'calculations',
-    ],
-    purpose: 'The 2001 form, then one perspective analysis sheet per viewpoint with its pixel calculation.',
-  },
-  {
-    id: 'form-2001-photos',
-    // 05 ends on a portrait 11 x 17 VIA overview map, and lists each block's hectares in each inventory unit.
-    overviewSheetStyle: 'end-map-portrait',
-    options: { inventoryByBlock: true },
-    layout: { paper: 'letter', cover: true, contents: true },
-    name: '2001 VIA with existing / proposed / analysed panels',
-    title: 'Visual Impact Assessment',
-    sources: ['05'],
-    format: 'form-2001-analysed-photos',
-    parts: [
-      'cover',
-      'project-information',
-      'inventory',
-      'distance-zones',
-      'viewpoints-columns',
-      'basic-definition',
-      'design-questions-2001',
-      'design-techniques-2001',
-      'numerical-data',
-      'summary-boxed',
-      'notes-2001',
-      'recommendations',
-      'limitations',
-      'figures',
-      'overview-sheet',
-      'photo-simulation-pairs',
-      'calculations',
-    ],
-    purpose: 'The 2001 form with a project information page, the report’s own distance zones and calculation pages.',
-  },
-  {
-    id: 'appendix-1-report',
-    layout: { paper: 'legal', cover: true, contents: false },
-    name: '2022 handbook report with Appendix 1',
-    title: 'Visual Impact Assessment',
-    sources: ['06', '07'],
-    format: 'appendix-1-net-private-rock',
-    parts: [
-      'cover',
-      'project-information',
-      'overview-map',
-      'purpose',
-      'methodology',
-      'viewpoint-pages',
-      'photo-simulation-pairs',
-      'calculations',
-      'conclusion',
-      'sign-off',
-      'appendix-1',
-      'extent-scale',
-    ],
-    purpose: 'Objective and methods, a page per viewpoint with its calculation, and the handbook’s Appendix 1 form.',
-  },
-  {
-    id: 'board-comparison',
-    layout: { paper: 'letter', cover: true, contents: true },
-    name: 'Simulation against the result (Board comparison)',
-    title: 'Visual Quality: Simulation and Result',
-    sources: ['21'],
-    format: 'form-2001-analysed-photos',
-    // 21 numbers its before / after pair and captions it in a sentence.
-    options: { numberedPairs: true },
-    parts: [
-      'cover',
-      'regulatory-frame',
-      'board-comparison',
-      'methodology',
-      'overview-map',
-      'photo-simulation-pairs',
-      'references',
-    ],
-    purpose: 'Per viewpoint the established objective, the simulated class and the post-harvest class, with findings.',
-  },
-  {
-    id: 'consultant-net-private',
-    layout: { paper: 'letter', cover: true, contents: true },
-    name: 'Consultant VIA, landform net of private land',
-    title: 'Visual Impact Assessment',
-    sources: ['22'],
-    format: 'perspective-report-net-private',
-    parts: withOverviewMap(CONSULTANT_RECIPE_PARTS['consultant-net-private']),
-    purpose: 'Regulatory frame, terms, method, Tables 1-5, the block discussion, conclusion and analysis sheets.',
-  },
-  {
-    id: 'consultant-gross',
-    layout: { paper: 'letter', cover: true, contents: true },
-    name: 'Consultant VIA, gross landform',
-    title: 'Visual Impact Assessment',
-    sources: ['23'],
-    format: 'perspective-report-gross',
-    // 23's appendix is the analysis sheets alone (A2 to A8), with no plain Perspective Viewpoint page before each.
-    options: { plainViewSheets: false },
-    parts: withOverviewMap(CONSULTANT_RECIPE_PARTS['consultant-gross']),
-    purpose: 'As the net-of-private report, on the gross landform with private land left standing.',
-  },
-  {
-    id: 'ea-visual-memo',
-    // 26's Figure 2 prints its before and after pictures as wide panoramas.
-    options: { figurePanorama: 2.4 },
-    layout: { paper: 'letter', cover: false, contents: false },
-    name: 'Environmental assessment visual memo (no VQO)',
-    title: 'Visual Aesthetics',
-    sources: ['26'],
-    format: 'referral-panoramas',
-    parts: ['ea-visual-memo', 'overview-map', 'ea-figure-pages', 'references'],
-    purpose: 'Existing conditions, observer viewpoints, visibility per viewpoint and the effect characterization.',
-  },
-]
+/** The shipped recipes, compiled from `recipeJson/` (`recipes.generated.json`), in the order the page lists them. */
+export const REPORT_RECIPES: readonly ReportRecipe[] = generated.recipes as unknown as readonly ReportRecipe[]
 
 export const findReportRecipe = (id: string | null | undefined) =>
   REPORT_RECIPES.find((recipe) => recipe.id === id) ?? null
@@ -276,6 +92,21 @@ export interface AssembledPart {
   toComplete: number
 }
 
+/** The report's subtitle: the licence and cutting permit, else the proposed blocks. No part is needed for it. */
+export const reportSubtitle = (ctx: ReportContext): string =>
+  ctx.office.cuttingPermit
+    ? `${ctx.office.licence ? `${ctx.office.licence} ` : ''}CP ${ctx.office.cuttingPermit}`
+    : proposedBlocks(ctx)
+        .map((block) => block.name)
+        .join(', ') || 'Proposed blocks'
+
+/** The context every part of `recipe` is built with: the recipe's parts and options laid over `ctx`. */
+export const partContext = (recipe: ReportRecipe, ctx: ReportContext): ReportContext => ({
+  ...inViewpointOrder(ctx),
+  recipeParts: recipe.parts,
+  recipeOptions: { ...recipe.options, ...ctx.recipeOptions },
+})
+
 /** Assembles `recipe` from `ctx`: each part in order, with what each leaves for the reviewer. */
 export function assembleReport(recipe: ReportRecipe, ctx: ReportContext): AssembledReport {
   return assembleReportParts(recipe, ctx).report
@@ -292,6 +123,7 @@ export function assembleReportParts(
 ): { report: AssembledReport; parts: AssembledPart[]; edits: AssembledEdits } {
   // Viewpoints print in the order of the numbers their names carry, whatever order the views were saved in.
   ctx = inViewpointOrder(ctx)
+  const partCtx = partContext(recipe, ctx)
   const blocks: ReportBlock[] = []
   const toComplete: ReportItemToComplete[] = []
   const parts: AssembledPart[] = []
@@ -300,11 +132,7 @@ export function assembleReportParts(
   for (const id of recipe.parts) {
     const part = findReportPart(id)
     if (!part) throw new Error(`Unknown report part: ${id}`)
-    const out = part.build({
-      ...ctx,
-      recipeParts: recipe.parts,
-      recipeOptions: { ...recipe.options, ...ctx.recipeOptions },
-    })
+    const out = part.build(partCtx)
     // The reviewer's hand edits of this part's values (`edits.ts`); a blank filled by hand is no longer to complete.
     const edited = editPartBlocks(part, out.blocks, edits)
     const left = (out.toComplete ?? []).filter((what) => !edited.filled.includes(what))
@@ -330,11 +158,7 @@ export function assembleReportParts(
       part: 'Wording',
       what: `${item.viewpoint ? `${item.viewpoint}: ` : ''}${item.about ? `${item.about}, ` : ''}${toCompleteLine(item)}`,
     })
-  const project = ctx.office.cuttingPermit
-    ? `${ctx.office.licence ? `${ctx.office.licence} ` : ''}CP ${ctx.office.cuttingPermit}`
-    : proposedBlocks(ctx)
-        .map((block) => block.name)
-        .join(', ') || 'Proposed blocks'
+  const project = reportSubtitle(ctx)
   const structure = recipe.own
     ? `PGMaps report from your own recipe, ${recipe.name}, built of shared parts${recipe.sources.length ? ` from reference document${recipe.sources.length > 1 ? 's' : ''} ${recipe.sources.join(', ')}` : ''}`
     : `PGMaps report in the structure of reference document${recipe.sources.length > 1 ? 's' : ''} ${recipe.sources.join(', ')}`

@@ -1,0 +1,587 @@
+{
+  "about": "Written by npm run via-recipes:compare (scripts/forestry/via-recipes/compare.run.ts); do not edit by hand. Each recipe over each made-up assessment, built through the recipe engine and by the direct route: document deeply equal, Word bytes equal (creation time pinned), report equal, and each part and each piece of JSON furniture equal.",
+  "kit": "3be55fa",
+  "cases": ["full", "bare", "single", "edited"],
+  "summary": {
+    "recipeCases": 40,
+    "equal": 40,
+    "parts": 57,
+    "partsPrinted": 57,
+    "partsEqual": 57,
+    "furniture": {
+      "page:portrait": true,
+      "page:landscape": true,
+      "page:cover": true,
+      "page:sheet": true,
+      "page:sheetFull": true,
+      "page:sheetPortrait": true,
+      "page:figure": true,
+      "title": true,
+      "contents": true,
+      "closing": true,
+      "cover": true
+    },
+    "jsonParts": {
+      "cover": { "cases": 36, "equal": 36 },
+      "three-elements": { "cases": 36, "equal": 36 },
+      "limitations": { "cases": 36, "equal": 36 },
+      "sign-off": { "cases": 36, "equal": 36 },
+      "references": { "cases": 36, "equal": 36 },
+      "form-header-2001": { "cases": 36, "equal": 36 },
+      "sign-off-certified": { "cases": 36, "equal": 36 }
+    }
+  },
+  "recipes": {
+    "partial-cut-form": {
+      "cases": {
+        "full": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 1,
+          "reportBlocks": 55,
+          "toComplete": 15,
+          "orphans": 0
+        },
+        "bare": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 1,
+          "reportBlocks": 54,
+          "toComplete": 49,
+          "orphans": 0
+        },
+        "single": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 1,
+          "reportBlocks": 54,
+          "toComplete": 25,
+          "orphans": 0
+        },
+        "edited": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 1,
+          "reportBlocks": 57,
+          "toComplete": 16,
+          "orphans": 1
+        }
+      },
+      "parts": {
+        "form-header-2001": { "equal": true, "printedIn": 4 },
+        "block-areas-2001": { "equal": true, "printedIn": 4 },
+        "retention": { "equal": true, "printedIn": 4 },
+        "inventory": { "equal": true, "printedIn": 4 },
+        "current-evc": { "equal": true, "printedIn": 4 },
+        "viewpoints-columns": { "equal": true, "printedIn": 4 },
+        "criteria-rating-2001": { "equal": true, "printedIn": 4 },
+        "visual-design": { "equal": true, "printedIn": 4 },
+        "design-techniques-2001": { "equal": true, "printedIn": 4 },
+        "numerical-data": { "equal": true, "printedIn": 4 },
+        "summary-2001-five": { "equal": true, "printedIn": 4 },
+        "certification-2001": { "equal": true, "printedIn": 4 },
+        "overview-map": { "equal": true, "printedIn": 4 },
+        "overhead-renders": { "equal": true, "printedIn": 4 },
+        "photo-simulation-pairs": { "equal": true, "printedIn": 4 }
+      }
+    },
+    "design-rationale": {
+      "cases": {
+        "full": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 5,
+          "reportBlocks": 36,
+          "toComplete": 3,
+          "orphans": 0
+        },
+        "bare": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 4,
+          "reportBlocks": 35,
+          "toComplete": 22,
+          "orphans": 0
+        },
+        "single": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 4,
+          "reportBlocks": 35,
+          "toComplete": 6,
+          "orphans": 0
+        },
+        "edited": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 5,
+          "reportBlocks": 38,
+          "toComplete": 4,
+          "orphans": 1
+        }
+      },
+      "parts": {
+        "cover": { "equal": true, "printedIn": 4 },
+        "design-rationale": { "equal": true, "printedIn": 4 },
+        "recommendations": { "equal": true, "printedIn": 4 },
+        "certification-2001": { "equal": true, "printedIn": 4 },
+        "simulation-pages": { "equal": true, "printedIn": 4 },
+        "district-summary-form": { "equal": true, "printedIn": 4 }
+      }
+    },
+    "form-2001-sheets": {
+      "cases": {
+        "full": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 3,
+          "reportBlocks": 55,
+          "toComplete": 10,
+          "orphans": 0
+        },
+        "bare": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 1,
+          "reportBlocks": 51,
+          "toComplete": 28,
+          "orphans": 0
+        },
+        "single": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 2,
+          "reportBlocks": 52,
+          "toComplete": 16,
+          "orphans": 0
+        },
+        "edited": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 4,
+          "reportBlocks": 57,
+          "toComplete": 11,
+          "orphans": 1
+        }
+      },
+      "parts": {
+        "form-header-2001": { "equal": true, "printedIn": 4 },
+        "block-areas-2001": { "equal": true, "printedIn": 4 },
+        "inventory": { "equal": true, "printedIn": 4 },
+        "viewpoints-columns": { "equal": true, "printedIn": 4 },
+        "basic-definition": { "equal": true, "printedIn": 4 },
+        "design-questions-2001": { "equal": true, "printedIn": 4 },
+        "design-techniques-2001": { "equal": true, "printedIn": 4 },
+        "numerical-data": { "equal": true, "printedIn": 4 },
+        "summary-2001": { "equal": true, "printedIn": 4 },
+        "sign-off": { "equal": true, "printedIn": 4 },
+        "notes-2001": { "equal": true, "printedIn": 4 },
+        "calculations": { "equal": true, "printedIn": 4 }
+      }
+    },
+    "form-2001-photos": {
+      "cases": {
+        "full": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 6,
+          "reportBlocks": 64,
+          "toComplete": 10,
+          "orphans": 0
+        },
+        "bare": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 2,
+          "reportBlocks": 59,
+          "toComplete": 39,
+          "orphans": 0
+        },
+        "single": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 5,
+          "reportBlocks": 60,
+          "toComplete": 19,
+          "orphans": 0
+        },
+        "edited": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 7,
+          "reportBlocks": 66,
+          "toComplete": 11,
+          "orphans": 1
+        }
+      },
+      "parts": {
+        "cover": { "equal": true, "printedIn": 4 },
+        "project-information": { "equal": true, "printedIn": 4 },
+        "inventory": { "equal": true, "printedIn": 4 },
+        "distance-zones": { "equal": true, "printedIn": 4 },
+        "viewpoints-columns": { "equal": true, "printedIn": 4 },
+        "basic-definition": { "equal": true, "printedIn": 4 },
+        "design-questions-2001": { "equal": true, "printedIn": 4 },
+        "design-techniques-2001": { "equal": true, "printedIn": 4 },
+        "numerical-data": { "equal": true, "printedIn": 4 },
+        "summary-boxed": { "equal": true, "printedIn": 4 },
+        "notes-2001": { "equal": true, "printedIn": 4 },
+        "recommendations": { "equal": true, "printedIn": 4 },
+        "limitations": { "equal": true, "printedIn": 4 },
+        "figures": { "equal": true, "printedIn": 0 },
+        "overview-sheet": { "equal": true, "printedIn": 4 },
+        "photo-simulation-pairs": { "equal": true, "printedIn": 4 },
+        "calculations": { "equal": true, "printedIn": 4 }
+      }
+    },
+    "appendix-1-report": {
+      "cases": {
+        "full": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 5,
+          "reportBlocks": 50,
+          "toComplete": 4,
+          "orphans": 0
+        },
+        "bare": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 2,
+          "reportBlocks": 46,
+          "toComplete": 26,
+          "orphans": 0
+        },
+        "single": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 4,
+          "reportBlocks": 39,
+          "toComplete": 5,
+          "orphans": 0
+        },
+        "edited": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 5,
+          "reportBlocks": 52,
+          "toComplete": 5,
+          "orphans": 1
+        }
+      },
+      "parts": {
+        "cover": { "equal": true, "printedIn": 4 },
+        "project-information": { "equal": true, "printedIn": 4 },
+        "overview-map": { "equal": true, "printedIn": 4 },
+        "purpose": { "equal": true, "printedIn": 4 },
+        "methodology": { "equal": true, "printedIn": 4 },
+        "viewpoint-pages": { "equal": true, "printedIn": 4 },
+        "photo-simulation-pairs": { "equal": true, "printedIn": 4 },
+        "calculations": { "equal": true, "printedIn": 4 },
+        "conclusion": { "equal": true, "printedIn": 4 },
+        "sign-off": { "equal": true, "printedIn": 4 },
+        "appendix-1": { "equal": true, "printedIn": 4 },
+        "extent-scale": { "equal": true, "printedIn": 4 }
+      }
+    },
+    "board-comparison": {
+      "cases": {
+        "full": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 2,
+          "reportBlocks": 26,
+          "toComplete": 3,
+          "orphans": 0
+        },
+        "bare": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 2,
+          "reportBlocks": 24,
+          "toComplete": 16,
+          "orphans": 0
+        },
+        "single": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 2,
+          "reportBlocks": 25,
+          "toComplete": 3,
+          "orphans": 0
+        },
+        "edited": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 2,
+          "reportBlocks": 28,
+          "toComplete": 4,
+          "orphans": 1
+        }
+      },
+      "parts": {
+        "cover": { "equal": true, "printedIn": 4 },
+        "regulatory-frame": { "equal": true, "printedIn": 4 },
+        "board-comparison": { "equal": true, "printedIn": 4 },
+        "methodology": { "equal": true, "printedIn": 4 },
+        "overview-map": { "equal": true, "printedIn": 4 },
+        "photo-simulation-pairs": { "equal": true, "printedIn": 4 },
+        "references": { "equal": true, "printedIn": 4 }
+      }
+    },
+    "consultant-net-private": {
+      "cases": {
+        "full": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 13,
+          "reportBlocks": 73,
+          "toComplete": 20,
+          "orphans": 0
+        },
+        "bare": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 11,
+          "reportBlocks": 71,
+          "toComplete": 36,
+          "orphans": 0
+        },
+        "single": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 11,
+          "reportBlocks": 69,
+          "toComplete": 19,
+          "orphans": 0
+        },
+        "edited": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 14,
+          "reportBlocks": 75,
+          "toComplete": 21,
+          "orphans": 1
+        }
+      },
+      "parts": {
+        "cover": { "equal": true, "printedIn": 4 },
+        "summary": { "equal": true, "printedIn": 4 },
+        "regulatory-frame": { "equal": true, "printedIn": 4 },
+        "three-elements": { "equal": true, "printedIn": 4 },
+        "extent-scale": { "equal": true, "printedIn": 4 },
+        "vocabulary": { "equal": true, "printedIn": 4 },
+        "methodology": { "equal": true, "printedIn": 4 },
+        "assessment-method": { "equal": true, "printedIn": 4 },
+        "landforms-and-viewpoints": { "equal": true, "printedIn": 4 },
+        "table-1-vsu": { "equal": true, "printedIn": 4 },
+        "table-2-landforms": { "equal": true, "printedIn": 4 },
+        "table-3-viewpoints": { "equal": true, "printedIn": 4 },
+        "assessment-tables": { "equal": true, "printedIn": 4 },
+        "block-discussion": { "equal": true, "printedIn": 4 },
+        "recommendations": { "equal": true, "printedIn": 4 },
+        "conclusion": { "equal": true, "printedIn": 4 },
+        "limitations": { "equal": true, "printedIn": 4 },
+        "sign-off-peer": { "equal": true, "printedIn": 4 },
+        "references": { "equal": true, "printedIn": 4 },
+        "appendix-list": { "equal": true, "printedIn": 4 },
+        "overview-sheet": { "equal": true, "printedIn": 4 },
+        "appendix-sheets": { "equal": true, "printedIn": 4 }
+      }
+    },
+    "consultant-gross": {
+      "cases": {
+        "full": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 11,
+          "reportBlocks": 73,
+          "toComplete": 12,
+          "orphans": 0
+        },
+        "bare": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 7,
+          "reportBlocks": 71,
+          "toComplete": 28,
+          "orphans": 0
+        },
+        "single": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 10,
+          "reportBlocks": 70,
+          "toComplete": 18,
+          "orphans": 0
+        },
+        "edited": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 12,
+          "reportBlocks": 75,
+          "toComplete": 13,
+          "orphans": 1
+        }
+      },
+      "parts": {
+        "cover": { "equal": true, "printedIn": 4 },
+        "summary": { "equal": true, "printedIn": 4 },
+        "regulatory-frame": { "equal": true, "printedIn": 4 },
+        "three-elements": { "equal": true, "printedIn": 4 },
+        "extent-scale": { "equal": true, "printedIn": 4 },
+        "vocabulary": { "equal": true, "printedIn": 4 },
+        "methodology": { "equal": true, "printedIn": 4 },
+        "assessment-method": { "equal": true, "printedIn": 4 },
+        "landforms-and-viewpoints": { "equal": true, "printedIn": 4 },
+        "table-1-vsu": { "equal": true, "printedIn": 4 },
+        "table-2-landforms": { "equal": true, "printedIn": 4 },
+        "table-3-viewpoints": { "equal": true, "printedIn": 4 },
+        "assessment-tables": { "equal": true, "printedIn": 4 },
+        "block-discussion": { "equal": true, "printedIn": 4 },
+        "recommendations": { "equal": true, "printedIn": 4 },
+        "conclusion": { "equal": true, "printedIn": 4 },
+        "limitations": { "equal": true, "printedIn": 4 },
+        "sign-off-certified": { "equal": true, "printedIn": 4 },
+        "references": { "equal": true, "printedIn": 4 },
+        "appendix-list": { "equal": true, "printedIn": 4 },
+        "overview-sheet": { "equal": true, "printedIn": 4 },
+        "appendix-sheets": { "equal": true, "printedIn": 4 }
+      }
+    },
+    "ea-visual-memo": {
+      "cases": {
+        "full": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 4,
+          "reportBlocks": 19,
+          "toComplete": 1,
+          "orphans": 0
+        },
+        "bare": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 4,
+          "reportBlocks": 19,
+          "toComplete": 11,
+          "orphans": 0
+        },
+        "single": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 3,
+          "reportBlocks": 18,
+          "toComplete": 2,
+          "orphans": 0
+        },
+        "edited": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 4,
+          "reportBlocks": 21,
+          "toComplete": 2,
+          "orphans": 1
+        }
+      },
+      "parts": {
+        "ea-visual-memo": { "equal": true, "printedIn": 4 },
+        "overview-map": { "equal": true, "printedIn": 4 },
+        "ea-figure-pages": { "equal": true, "printedIn": 4 },
+        "references": { "equal": true, "printedIn": 4 }
+      }
+    },
+    "own (made-up)": {
+      "cases": {
+        "full": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 5,
+          "reportBlocks": 62,
+          "toComplete": 14,
+          "orphans": 0
+        },
+        "bare": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 2,
+          "reportBlocks": 59,
+          "toComplete": 52,
+          "orphans": 0
+        },
+        "single": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 4,
+          "reportBlocks": 60,
+          "toComplete": 24,
+          "orphans": 0
+        },
+        "edited": {
+          "document": true,
+          "wordBytes": true,
+          "report": true,
+          "sections": 5,
+          "reportBlocks": 64,
+          "toComplete": 15,
+          "orphans": 1
+        }
+      },
+      "parts": {
+        "photo-simulation-pairs": { "equal": true, "printedIn": 4 },
+        "overhead-renders": { "equal": true, "printedIn": 4 },
+        "overview-map": { "equal": true, "printedIn": 4 },
+        "certification-2001": { "equal": true, "printedIn": 4 },
+        "summary-2001-five": { "equal": true, "printedIn": 4 },
+        "numerical-data": { "equal": true, "printedIn": 4 },
+        "design-techniques-2001": { "equal": true, "printedIn": 4 },
+        "visual-design": { "equal": true, "printedIn": 4 },
+        "criteria-rating-2001": { "equal": true, "printedIn": 4 },
+        "viewpoints-columns": { "equal": true, "printedIn": 4 },
+        "current-evc": { "equal": true, "printedIn": 4 },
+        "inventory": { "equal": true, "printedIn": 8 },
+        "retention": { "equal": true, "printedIn": 4 },
+        "figures": { "equal": true, "printedIn": 4 }
+      }
+    }
+  }
+}

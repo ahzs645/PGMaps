@@ -18,6 +18,9 @@ vi.mock('@/components/ui/info-tip', () => ({
   InfoTip: ({ children }: { children: ReactNode }) => createElement('aside', {}, children),
 }))
 vi.mock('@/components/ui/map-panels', () => ({
+  // Folds keep their content mounted, as the real one does.
+  CollapsibleSection: ({ label, children }: { label: ReactNode; children: ReactNode }) =>
+    createElement('section', {}, createElement('h4', {}, label), children),
   InlineAlert: ({ children, title }: { children: ReactNode; title?: string }) =>
     createElement('div', { role: 'alert' }, title, children),
 }))

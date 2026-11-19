@@ -1,0 +1,30 @@
+{
+  "kind": "component",
+  "id": "via-contents",
+  "title": "Contents",
+  "description": "The report's sections as a table of contents Word fills, then the list of its pictures.",
+  "blocks": [
+    { "use": "contents", "with": { "levels": 1 } },
+    {
+      "if": "contents.images",
+      "then": [
+        {
+          "type": "paragraph",
+          "content": { "type": "text", "text": "Images", "bold": true, "size": 10 },
+          "keepWithNext": true,
+          "spacing": { "before": 9, "after": 3 }
+        },
+        {
+          "for": "image in contents.images",
+          "do": [
+            {
+              "type": "paragraph",
+              "content": { "type": "text", "text": "{{ image }}" },
+              "spacing": { "before": 0, "after": 2 }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

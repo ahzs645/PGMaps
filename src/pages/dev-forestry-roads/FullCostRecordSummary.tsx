@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { isFullCostRecordCurrent, type FullCostReviewRecord } from './fullCostRecord'
 import type { Alignment, RoadProject } from './types'
 
@@ -59,9 +60,11 @@ export function FullCostRecordSummary({
           ? 'Inputs match this saved comparison. Cost and condition assumptions still require review.'
           : 'Saved comparison is stale. Inputs changed; recalculate before relying on this total.'}
       </p>
-      <details>
-        <summary className="cursor-pointer font-medium">Cost breakdown and source paths</summary>
-        <dl className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1">
+      <DisclosureRow
+        title="Cost breakdown and source paths"
+        summary={`${record.allocations.length} source${record.allocations.length === 1 ? '' : 's'}${record.warnings.length ? ` · ${record.warnings.length} warning${record.warnings.length === 1 ? '' : 's'}` : ''}`}
+      >
+        <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1">
           {components.map(([key, label]) => (
             <div key={key} className="contents">
               <dt>{label}</dt>
@@ -91,7 +94,7 @@ export function FullCostRecordSummary({
             ))}
           </ul>
         )}
-      </details>
+      </DisclosureRow>
     </section>
   )
 }

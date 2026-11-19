@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
+import { ToolSubsection } from '@/components/ui/tool-section'
 import { RoadSection } from './SidebarParts'
 import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { PlanningCoordinateField } from './PlanningCoordinateField'
@@ -164,10 +165,8 @@ export function HaulPanel({
               { label: 'Cycle', value: time(route.cycleMin) },
             ]}
           />
-          <details className="text-2xs">
-            <summary className="cursor-pointer text-muted-foreground">By road class</summary>
+          <ToolSubsection title="By road class">
             <KeyValueRows
-              className="mt-1"
               valueMaxWidth={null}
               rows={route.legs.map((leg, i) => ({
                 key: String(i),
@@ -175,7 +174,7 @@ export function HaulPanel({
                 value: `${km(leg.lengthM)} · ${time(leg.loadedMin)} loaded`,
               }))}
             />
-          </details>
+          </ToolSubsection>
           {route.reason && <p className="text-2xs text-muted-foreground">{route.reason}</p>}
         </div>
       )}

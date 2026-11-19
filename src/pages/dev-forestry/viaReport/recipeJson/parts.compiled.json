@@ -1,0 +1,1012 @@
+{
+  "parts": {
+    "cover": {
+      "code": [],
+      "customKinds": [],
+      "document": {},
+      "filters": [],
+      "from": {
+        "code": [],
+        "components": [
+          { "hash": "sha256:e139323e5fb3c83d9c55ff467e88b8e74bd66c319f9fa48bbb1db8145e70297d", "id": "cover" },
+          { "hash": "sha256:4f474c20728256639367e7164d2398b7ab18403875cd81f112c04e4f7f1d755f", "id": "via-fields" }
+        ],
+        "hash": "sha256:408524498d592ebb9b1bddece1c1a8eed0cc9b2ef4350623412273ec35e7f103",
+        "recipes": [
+          { "hash": "sha256:a596c3aa1c1337ce66ff004a59d6d5242742354ce9f5f8b6b508abf125835cd5", "id": "part.cover" }
+        ]
+      },
+      "kind": "compiled-recipe",
+      "needs": [
+        {
+          "inLoop": false,
+          "path": "facts.blocks.listed",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[4].value",
+              "inLoop": false,
+              "part": "cover",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.date",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[7].value",
+              "inLoop": false,
+              "part": "cover",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.generalLocation.source",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[6].source",
+              "inLoop": false,
+              "part": "cover",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.generalLocation.value",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[6].value",
+              "inLoop": false,
+              "part": "cover",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.office.cuttingPermit",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[3].value",
+              "inLoop": false,
+              "part": "cover",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.office.district",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[5].value",
+              "inLoop": false,
+              "part": "cover",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.office.licence",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[2].value",
+              "inLoop": false,
+              "part": "cover",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.office.licensee",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[0].value",
+              "inLoop": false,
+              "part": "cover",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.preparer",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[1].value",
+              "inLoop": false,
+              "part": "cover",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        }
+      ],
+      "options": {},
+      "recipe": { "id": "part.cover", "name": "Cover" },
+      "sections": [
+        {
+          "parts": [
+            {
+              "blocks": [
+                {
+                  "blocks": [
+                    {
+                      "layout": "table",
+                      "pending": [
+                        {
+                          "if": "params.listBlanks",
+                          "then": [
+                            {
+                              "do": [{ "else": [{ "what": "{{ row.label }}" }], "if": "row.value", "then": [] }],
+                              "for": "row in params.rows"
+                            }
+                          ]
+                        },
+                        { "do": [{ "what": "{{ item }}" }], "for": "item in params.toComplete" }
+                      ],
+                      "rows": [
+                        {
+                          "do": [
+                            { "label": "{{ row.label }}", "source": "{{ row.source }}", "value": "{{ row.value }}" }
+                          ],
+                          "for": "row in params.rows"
+                        }
+                      ],
+                      "type": "fields"
+                    }
+                  ],
+                  "component": "via-fields",
+                  "params": {
+                    "listBlanks": true,
+                    "rows": [
+                      { "label": "Prepared for", "source": "scene", "value": "{{ facts.office.licensee }}" },
+                      { "label": "Prepared by", "source": "scene", "value": "{{ facts.preparer }}" },
+                      { "label": "Licence", "source": "scene", "value": "{{ facts.office.licence }}" },
+                      { "label": "Cutting permit", "source": "scene", "value": "{{ facts.office.cuttingPermit }}" },
+                      { "label": "Blocks", "source": "scene", "value": "{{ facts.blocks.listed }}" },
+                      {
+                        "label": "Natural resource district",
+                        "source": "scene",
+                        "value": "{{ facts.office.district }}"
+                      },
+                      {
+                        "label": "General location",
+                        "source": "{{ facts.generalLocation.source }}",
+                        "value": "{{ facts.generalLocation.value }}"
+                      },
+                      { "label": "Date", "source": "run", "value": "{{ facts.date }}" }
+                    ],
+                    "toComplete": []
+                  }
+                }
+              ],
+              "params": {},
+              "part": {
+                "component": "cover",
+                "componentMeta": { "reportPart": true, "sources": ["01", "02", "03", "05", "06", "22", "23", "26"] },
+                "id": "cover",
+                "title": "Cover"
+              }
+            }
+          ]
+        }
+      ],
+      "version": 1
+    },
+    "form-header-2001": {
+      "code": [],
+      "customKinds": [],
+      "document": {},
+      "filters": [],
+      "from": {
+        "code": [],
+        "components": [
+          {
+            "hash": "sha256:abb7aeaaabe14c7d160e644e0d8b5ec563fdf18e45a16a3aaf5a6962abcd3599",
+            "id": "form-header-2001"
+          },
+          { "hash": "sha256:4f474c20728256639367e7164d2398b7ab18403875cd81f112c04e4f7f1d755f", "id": "via-fields" }
+        ],
+        "hash": "sha256:8b6d64836b9341867b45999de41fe98f410efa01d024fc43eeab4471bc3dea40",
+        "recipes": [
+          {
+            "hash": "sha256:6ff6ced33605a9a61f4635104240cc61c2e26833eaac4099e89a6eb0ebe0e486",
+            "id": "part.form-header-2001"
+          }
+        ]
+      },
+      "kind": "compiled-recipe",
+      "needs": [
+        {
+          "inLoop": false,
+          "path": "facts.blocks.all",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[3].value",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.blocks.harvestYears",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[6].then[0].value",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.blocks.proposed",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[6].then[1].if",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "condition"
+            },
+            {
+              "at": "sections[0].parts[0].blocks[0].params.toComplete[0].if",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "condition"
+            }
+          ],
+          "uses": ["condition"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.blocks.systems",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[5].value",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.date",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[7].value",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.generalLocation.source",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[4].source",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.generalLocation.value",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[4].value",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.office.cuttingPermit",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[2].value",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.office.licence",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[1].value",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.office.licensee",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[0].value",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.recipe.summaryForm",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[6].if",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "condition"
+            },
+            {
+              "at": "sections[0].parts[0].blocks[0].params.toComplete[0].if",
+              "inLoop": false,
+              "part": "form-header-2001",
+              "use": "condition"
+            }
+          ],
+          "uses": ["condition"]
+        }
+      ],
+      "options": {},
+      "recipe": { "id": "part.form-header-2001", "name": "Form header" },
+      "sections": [
+        {
+          "parts": [
+            {
+              "blocks": [
+                {
+                  "blocks": [
+                    {
+                      "layout": "table",
+                      "pending": [
+                        {
+                          "if": "params.listBlanks",
+                          "then": [
+                            {
+                              "do": [{ "else": [{ "what": "{{ row.label }}" }], "if": "row.value", "then": [] }],
+                              "for": "row in params.rows"
+                            }
+                          ]
+                        },
+                        { "do": [{ "what": "{{ item }}" }], "for": "item in params.toComplete" }
+                      ],
+                      "rows": [
+                        {
+                          "do": [
+                            { "label": "{{ row.label }}", "source": "{{ row.source }}", "value": "{{ row.value }}" }
+                          ],
+                          "for": "row in params.rows"
+                        }
+                      ],
+                      "type": "fields"
+                    }
+                  ],
+                  "component": "via-fields",
+                  "params": {
+                    "listBlanks": true,
+                    "rows": [
+                      { "label": "Licensee name", "source": "scene", "value": "{{ facts.office.licensee }}" },
+                      { "label": "Licensee no.", "source": "scene", "value": "{{ facts.office.licence }}" },
+                      { "label": "Cutting permit", "source": "scene", "value": "{{ facts.office.cuttingPermit }}" },
+                      { "label": "Blocks", "source": "scene", "value": "{{ facts.blocks.all }}" },
+                      {
+                        "label": "General location",
+                        "source": "{{ facts.generalLocation.source }}",
+                        "value": "{{ facts.generalLocation.value }}"
+                      },
+                      {
+                        "label": "Proposed silvicultural system",
+                        "source": "scene",
+                        "value": "{{ facts.blocks.systems }}"
+                      },
+                      {
+                        "if": "facts.recipe.summaryForm",
+                        "then": [
+                          {
+                            "label": "Proposed year of harvest",
+                            "source": "scene",
+                            "value": "{{ facts.blocks.harvestYears }}"
+                          },
+                          {
+                            "else": [{ "label": "Type of proposed operation", "source": "scene", "value": null }],
+                            "if": "facts.blocks.proposed",
+                            "then": [
+                              { "label": "Type of proposed operation", "source": "scene", "value": "Harvesting" }
+                            ]
+                          }
+                        ]
+                      },
+                      { "label": "Date", "source": "run", "value": "{{ facts.date }}" }
+                    ],
+                    "toComplete": [
+                      {
+                        "if": "facts.recipe.summaryForm and facts.blocks.proposed",
+                        "then": ["Type of proposed operation: road building, if any"]
+                      }
+                    ]
+                  }
+                }
+              ],
+              "params": {},
+              "part": {
+                "component": "form-header-2001",
+                "componentMeta": { "reportPart": true, "sources": ["01", "03", "05"] },
+                "id": "form-header-2001",
+                "title": "Form header"
+              }
+            }
+          ]
+        }
+      ],
+      "version": 1
+    },
+    "limitations": {
+      "code": [],
+      "customKinds": [],
+      "document": {},
+      "filters": [],
+      "from": {
+        "code": [],
+        "components": [
+          { "hash": "sha256:b72eef9f23b45586c7d03161697ca08637e9c9304d3e8461efe3ead79a0e531b", "id": "limitations" }
+        ],
+        "hash": "sha256:74e3de871f8a536b5af020f465dbacf54bbf011e64f114c26098605b45020359",
+        "recipes": [
+          {
+            "hash": "sha256:6f77c70024ad5b5a20a6b5d32b9da16b063c23ee1056c3bf6fbf485a3e9e2b49",
+            "id": "part.limitations"
+          }
+        ]
+      },
+      "kind": "compiled-recipe",
+      "needs": [
+        {
+          "inLoop": false,
+          "path": "facts.method.terrain",
+          "places": [
+            { "at": "sections[0].parts[0].blocks[1].content", "inLoop": false, "part": "limitations", "use": "value" }
+          ],
+          "uses": ["value"]
+        }
+      ],
+      "options": {},
+      "recipe": { "id": "part.limitations", "name": "Limitations" },
+      "sections": [
+        {
+          "parts": [
+            {
+              "blocks": [
+                { "content": "Limitations", "level": 2, "type": "heading" },
+                {
+                  "content": "The simulations are drawn on {{ facts.method.terrain }}; timber is drawn from the inventory, not surveyed. Operational changes to the harvest area or retention, and windthrow after harvest, are not modelled. Pixel figures count what each picture shows at its lens; the sightline figure is the assessment's. A field visit confirms the viewpoints and the figures.",
+                  "source": "run",
+                  "type": "paragraph"
+                }
+              ],
+              "params": {},
+              "part": {
+                "component": "limitations",
+                "componentMeta": { "reportPart": true, "sources": ["02", "22", "23"] },
+                "id": "limitations",
+                "title": "Limitations"
+              }
+            }
+          ]
+        }
+      ],
+      "version": 1
+    },
+    "references": {
+      "code": [],
+      "customKinds": [],
+      "document": {},
+      "filters": [],
+      "from": {
+        "code": [],
+        "components": [
+          { "hash": "sha256:cf2d100a8641767c3b22f25f007332a6da02f3784200120fabe29105bfb59166", "id": "references" }
+        ],
+        "hash": "sha256:a839a4cd54b36acc1ea59520c264ca98a0a0677f831afe962b262d4a9c7e49ae",
+        "recipes": [
+          { "hash": "sha256:25dc253045d41bc92dae7da2787108030f94a949951f2c5f2f849d15b6d1188d", "id": "part.references" }
+        ]
+      },
+      "kind": "compiled-recipe",
+      "needs": [
+        {
+          "inLoop": false,
+          "path": "facts.inventoryRead",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[1].items[2].if",
+              "inLoop": false,
+              "part": "references",
+              "use": "condition"
+            }
+          ],
+          "uses": ["condition"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.method.terrain",
+          "places": [
+            { "at": "sections[0].parts[0].blocks[1].items[3]", "inLoop": false, "part": "references", "use": "value" }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.method.vegetation",
+          "places": [
+            { "at": "sections[0].parts[0].blocks[1].items[3]", "inLoop": false, "part": "references", "use": "value" }
+          ],
+          "uses": ["value"]
+        }
+      ],
+      "options": {},
+      "recipe": { "id": "part.references", "name": "References" },
+      "sections": [
+        {
+          "parts": [
+            {
+              "blocks": [
+                { "content": "References", "level": 2, "type": "heading" },
+                {
+                  "items": [
+                    "BC Ministry of Forests. Visual Impact Assessment Handbook (May 2022).",
+                    "Forest Planning and Practices Regulation, s. 1.1 (visual quality objective definitions).",
+                    {
+                      "else": [
+                        "BC Geographic Warehouse: Visual Landscape Inventory (REC_VISUAL_LANDSCAPE_INVENTORY): not read for this report; inventory values are the office fields."
+                      ],
+                      "if": "facts.inventoryRead",
+                      "then": [
+                        "BC Geographic Warehouse: Visual Landscape Inventory (REC_VISUAL_LANDSCAPE_INVENTORY), read live from DataBC for this report."
+                      ]
+                    },
+                    "Terrain: {{ facts.method.terrain }}. Timber: {{ facts.method.vegetation }}."
+                  ],
+                  "source": "fixed",
+                  "type": "list"
+                }
+              ],
+              "params": {},
+              "part": {
+                "component": "references",
+                "componentMeta": { "reportPart": true, "sources": ["22", "23", "26"] },
+                "id": "references",
+                "title": "References"
+              }
+            }
+          ]
+        }
+      ],
+      "version": 1
+    },
+    "sign-off": {
+      "code": [],
+      "customKinds": ["via.signature"],
+      "document": {},
+      "filters": [],
+      "from": {
+        "code": [],
+        "components": [
+          { "hash": "sha256:b6161b9f65f621cfcef3168bb31c3632562d87c79b63b8080dc268ce6aae7ee5", "id": "sign-off" },
+          { "hash": "sha256:4f474c20728256639367e7164d2398b7ab18403875cd81f112c04e4f7f1d755f", "id": "via-fields" },
+          { "hash": "sha256:b58a493390253ccda255a4701a6bad60e59dd6864f015348ed03a2c05e65c58d", "id": "via-sign-off" }
+        ],
+        "hash": "sha256:df3a686f7d50c55a68b31fbb33c5b2428ee757aac7e58c971e2e001d62d11dfd",
+        "recipes": [
+          { "hash": "sha256:05981b581c754d85b0f391496c961e6aca7b3b51df37095a219068983a3ca8b8", "id": "part.sign-off" }
+        ]
+      },
+      "kind": "compiled-recipe",
+      "needs": [
+        {
+          "inLoop": false,
+          "path": "facts.preparer",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[0].value",
+              "inLoop": false,
+              "part": "sign-off",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        }
+      ],
+      "options": {},
+      "recipe": { "id": "part.sign-off", "name": "Sign-off" },
+      "sections": [
+        {
+          "parts": [
+            {
+              "blocks": [
+                {
+                  "blocks": [
+                    { "content": "{{ params.heading }}", "level": 2, "type": "heading" },
+                    {
+                      "blocks": [
+                        {
+                          "layout": "table",
+                          "pending": [
+                            {
+                              "if": "params.listBlanks",
+                              "then": [
+                                {
+                                  "do": [{ "else": [{ "what": "{{ row.label }}" }], "if": "row.value", "then": [] }],
+                                  "for": "row in params.rows"
+                                }
+                              ]
+                            },
+                            { "do": [{ "what": "{{ item }}" }], "for": "item in params.toComplete" }
+                          ],
+                          "rows": [
+                            {
+                              "do": [
+                                { "label": "{{ row.label }}", "source": "{{ row.source }}", "value": "{{ row.value }}" }
+                              ],
+                              "for": "row in params.rows"
+                            }
+                          ],
+                          "type": "fields"
+                        }
+                      ],
+                      "component": "via-fields",
+                      "params": {
+                        "listBlanks": false,
+                        "rows": "{{ params.rows }}",
+                        "toComplete": "{{ params.toComplete }}"
+                      }
+                    },
+                    {
+                      "if": "params.choices",
+                      "then": [
+                        {
+                          "chosen": null,
+                          "label": "Certification:",
+                          "options": "{{ params.choices }}",
+                          "source": "reviewer",
+                          "type": "choices"
+                        }
+                      ]
+                    },
+                    {
+                      "if": "params.statement",
+                      "then": [{ "content": "{{ params.statement }}", "source": "fixed", "type": "paragraph" }]
+                    },
+                    { "data": { "lines": "{{ params.lines }}" }, "kind": "via.signature", "type": "custom" }
+                  ],
+                  "component": "via-sign-off",
+                  "params": {
+                    "choices": [
+                      "I carried out or directly supervised this assessment",
+                      "I reviewed this assessment and judge it to meet the standard of my profession"
+                    ],
+                    "heading": "Sign-off",
+                    "lines": ["Signature", "Professional designation and seal", "Date"],
+                    "rows": [{ "label": "Prepared by", "source": "scene", "value": "{{ facts.preparer }}" }],
+                    "statement": null,
+                    "toComplete": []
+                  }
+                }
+              ],
+              "params": {},
+              "part": {
+                "component": "sign-off",
+                "componentMeta": { "reportPart": true, "sources": ["01", "02", "03", "05", "22", "23"] },
+                "id": "sign-off",
+                "title": "Sign-off"
+              }
+            }
+          ]
+        }
+      ],
+      "version": 1
+    },
+    "sign-off-certified": {
+      "code": [],
+      "customKinds": ["via.signature"],
+      "document": {},
+      "filters": [],
+      "from": {
+        "code": [],
+        "components": [
+          {
+            "hash": "sha256:7bfe4d0d50ec2626ea2296d877edeef442d90b69f9d120df0b6384e64fcace8b",
+            "id": "sign-off-certified"
+          },
+          { "hash": "sha256:4f474c20728256639367e7164d2398b7ab18403875cd81f112c04e4f7f1d755f", "id": "via-fields" },
+          { "hash": "sha256:b58a493390253ccda255a4701a6bad60e59dd6864f015348ed03a2c05e65c58d", "id": "via-sign-off" }
+        ],
+        "hash": "sha256:0140c24ca15bfd0d552811b02f6e4166397382262546570f534cabd78456103f",
+        "recipes": [
+          {
+            "hash": "sha256:0410921cdf8e714af972361998bff52662c42ed1275fa8e79ad538fc89b35cc5",
+            "id": "part.sign-off-certified"
+          }
+        ]
+      },
+      "kind": "compiled-recipe",
+      "needs": [
+        {
+          "inLoop": false,
+          "path": "facts.evaluator.designation.source",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[1].source",
+              "inLoop": false,
+              "part": "sign-off-certified",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.evaluator.designation.value",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[1].value",
+              "inLoop": false,
+              "part": "sign-off-certified",
+              "use": "value"
+            },
+            {
+              "at": "sections[0].parts[0].blocks[0].params.toComplete[1].if",
+              "inLoop": false,
+              "part": "sign-off-certified",
+              "use": "condition"
+            }
+          ],
+          "uses": ["value", "condition"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.evaluator.name",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.rows[0].value",
+              "inLoop": false,
+              "part": "sign-off-certified",
+              "use": "value"
+            },
+            {
+              "at": "sections[0].parts[0].blocks[0].params.toComplete[0].if",
+              "inLoop": false,
+              "part": "sign-off-certified",
+              "use": "condition"
+            }
+          ],
+          "uses": ["value", "condition"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.wording.certification.supervised",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].params.statement",
+              "inLoop": false,
+              "part": "sign-off-certified",
+              "use": "value"
+            },
+            {
+              "at": "sections[0].parts[0].blocks[0].blocks[3].if",
+              "inLoop": false,
+              "part": "sign-off-certified",
+              "use": "condition"
+            },
+            {
+              "at": "sections[0].parts[0].blocks[0].blocks[3].then[0].content",
+              "inLoop": false,
+              "part": "sign-off-certified",
+              "use": "value"
+            }
+          ],
+          "uses": ["value", "condition"]
+        }
+      ],
+      "options": {},
+      "recipe": { "id": "part.sign-off-certified", "name": "Sign-off" },
+      "sections": [
+        {
+          "parts": [
+            {
+              "blocks": [
+                {
+                  "blocks": [
+                    { "content": "{{ params.heading }}", "level": 2, "type": "heading" },
+                    {
+                      "blocks": [
+                        {
+                          "layout": "table",
+                          "pending": [
+                            {
+                              "if": "params.listBlanks",
+                              "then": [
+                                {
+                                  "do": [{ "else": [{ "what": "{{ row.label }}" }], "if": "row.value", "then": [] }],
+                                  "for": "row in params.rows"
+                                }
+                              ]
+                            },
+                            { "do": [{ "what": "{{ item }}" }], "for": "item in params.toComplete" }
+                          ],
+                          "rows": [
+                            {
+                              "do": [
+                                { "label": "{{ row.label }}", "source": "{{ row.source }}", "value": "{{ row.value }}" }
+                              ],
+                              "for": "row in params.rows"
+                            }
+                          ],
+                          "type": "fields"
+                        }
+                      ],
+                      "component": "via-fields",
+                      "params": {
+                        "listBlanks": false,
+                        "rows": "{{ params.rows }}",
+                        "toComplete": "{{ params.toComplete }}"
+                      }
+                    },
+                    {
+                      "if": "params.choices",
+                      "then": [
+                        {
+                          "chosen": null,
+                          "label": "Certification:",
+                          "options": "{{ params.choices }}",
+                          "source": "reviewer",
+                          "type": "choices"
+                        }
+                      ]
+                    },
+                    {
+                      "if": "params.statement",
+                      "then": [{ "content": "{{ params.statement }}", "source": "fixed", "type": "paragraph" }]
+                    },
+                    { "data": { "lines": "{{ params.lines }}" }, "kind": "via.signature", "type": "custom" }
+                  ],
+                  "component": "via-sign-off",
+                  "params": {
+                    "choices": null,
+                    "heading": "Sign-off",
+                    "lines": ["Signature", "Date"],
+                    "rows": [
+                      {
+                        "label": "Visual impact assessment prepared by",
+                        "source": "scene",
+                        "value": "{{ facts.evaluator.name }}"
+                      },
+                      {
+                        "label": "Professional designation and seal",
+                        "source": "{{ facts.evaluator.designation.source }}",
+                        "value": "{{ facts.evaluator.designation.value }}"
+                      }
+                    ],
+                    "statement": "{{ facts.wording.certification.supervised }}",
+                    "toComplete": [
+                      { "if": "not facts.evaluator.name", "then": ["Prepared by: name"] },
+                      {
+                        "else": ["Prepared by: designation, seal, signature and date"],
+                        "if": "facts.evaluator.designation.value",
+                        "then": ["Prepared by: seal, signature and date"]
+                      }
+                    ]
+                  }
+                }
+              ],
+              "params": {},
+              "part": {
+                "component": "sign-off-certified",
+                "componentMeta": { "reportPart": true, "sources": ["23"] },
+                "id": "sign-off-certified",
+                "title": "Sign-off"
+              }
+            }
+          ]
+        }
+      ],
+      "version": 1
+    },
+    "three-elements": {
+      "code": [],
+      "customKinds": [],
+      "document": {},
+      "filters": [],
+      "from": {
+        "code": [],
+        "components": [
+          { "hash": "sha256:9076237d061e0bd1899ee32c72f51ec0b9025b60ee9d91d3935dfcaae1518bd2", "id": "three-elements" }
+        ],
+        "hash": "sha256:adf1742055d9cf9477782171264632fee61e94403379c9083c8758a6935f1fe0",
+        "recipes": [
+          {
+            "hash": "sha256:822fe3e884b5e3ebec20e85d7dc23780989b00fe6618003a93d7e4d8d07f4c0a",
+            "id": "part.three-elements"
+          }
+        ]
+      },
+      "kind": "compiled-recipe",
+      "needs": [],
+      "options": {},
+      "recipe": { "id": "part.three-elements", "name": "The three elements of the definition" },
+      "sections": [
+        {
+          "parts": [
+            {
+              "blocks": [
+                { "content": "Assessing the definition", "level": 2, "type": "heading" },
+                {
+                  "items": [
+                    "Visibility: how easy the alteration is to see, given where it sits, where the viewpoints are, its size, how distinct it is from the landscape around it, screening in front of it, and how long and how directly it is viewed.",
+                    "Size and scale: the alteration against the visible area of the landform, judged by eye and measured as the percent of the landform altered in perspective view.",
+                    "Design: the shape and position of the alteration on the landform, its response to the lines of force of the terrain, and whether it borrows from the natural character of the landscape."
+                  ],
+                  "source": "fixed",
+                  "type": "list"
+                },
+                {
+                  "content": "The three are considered together, and the extent the objective is met is a judgement on all three; the percent alteration is a measure of one of them.",
+                  "source": "fixed",
+                  "type": "paragraph"
+                }
+              ],
+              "params": {},
+              "part": {
+                "component": "three-elements",
+                "componentMeta": { "reportPart": true, "sources": ["22", "23"] },
+                "id": "three-elements",
+                "title": "The three elements of the definition"
+              }
+            }
+          ]
+        }
+      ],
+      "version": 1
+    }
+  }
+}

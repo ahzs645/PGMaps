@@ -1,0 +1,15 @@
+{
+  "kind": "component",
+  "id": "limitations",
+  "title": "Limitations",
+  "description": "What the simulations and figures do not include.",
+  "meta": { "reportPart": true, "sources": ["02", "22", "23"] },
+  "blocks": [
+    { "type": "heading", "level": 2, "content": "Limitations" },
+    {
+      "type": "paragraph",
+      "source": "run",
+      "content": "The simulations are drawn on {{ facts.method.terrain }}; timber is drawn from the inventory, not surveyed. Operational changes to the harvest area or retention, and windthrow after harvest, are not modelled. Pixel figures count what each picture shows at its lens; the sightline figure is the assessment's. A field visit confirms the viewpoints and the figures."
+    }
+  ]
+}

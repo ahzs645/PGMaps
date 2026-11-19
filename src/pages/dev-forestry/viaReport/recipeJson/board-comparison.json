@@ -1,0 +1,62 @@
+{
+  "kind": "recipe",
+  "id": "board-comparison",
+  "name": "Simulation against the result (Board comparison)",
+  "extends": "via-report",
+  "meta": {
+    "title": "Visual Quality: Simulation and Result",
+    "sources": ["21"],
+    "format": "form-2001-analysed-photos",
+    "purpose": "Per viewpoint the established objective, the simulated class and the post-harvest class, with findings."
+  },
+  "options": {
+    "paper": "letter",
+    "cover": true,
+    "contents": true,
+    "numberedPairs": true
+  },
+  "changes": [
+    {
+      "add": {
+        "use": "cover"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "regulatory-frame"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "board-comparison"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "methodology"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "overview-map"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "photo-simulation-pairs"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "references"
+      },
+      "before": "closing"
+    }
+  ]
+}

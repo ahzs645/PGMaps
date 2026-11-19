@@ -1,0 +1,126 @@
+{
+  "kind": "component",
+  "id": "consideration-tap-ogma",
+  "title": "TAP - Remnant Old Ecosystems/ d-OGMA",
+  "description": "Where TAP remnant old ecosystem polygons lie against the block and its road, and the draft OGMAs that border it.",
+  "meta": {
+    "consideration": "tap-ogma",
+    "sources": ["route card: TAP Overlap - Remnant", "route card: COFA Overlap (Non-legal OGMA)", "the access road"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 3,
+      "content": "{{ params.title }}"
+    },
+    {
+      "if": "own.tapOgma",
+      "then": [
+        {
+          "type": "paragraph",
+          "content": "{{ own.tapOgma }}",
+          "source": "reviewer"
+        }
+      ],
+      "else": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "for": "r in tap.remnant",
+              "do": [
+                {
+                  "if": "r.roadInsideMeters > 0",
+                  "then": [
+                    {
+                      "type": "sentence",
+                      "template": "Proposed access road to the block goes through TAP remnant ecosystem polygon {id} for about {m} m. ",
+                      "values": {
+                        "id": "{{ r.name }}",
+                        "m": "{{ r.roadInsideMeters | format \"#,##0\" }}"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "if": "r.touching",
+                  "then": [
+                    {
+                      "type": "sentence",
+                      "template": "Block boundary borders TAP - Remnant Old Ecosystem polygon {id} to the {side}. ",
+                      "values": {
+                        "id": "{{ r.name }}",
+                        "side": "{{ r.side }}"
+                      }
+                    }
+                  ],
+                  "else": [
+                    {
+                      "if": "r.distanceMeters >= 0",
+                      "then": [
+                        {
+                          "type": "sentence",
+                          "template": "There is a TAP Remnant Old Ecosystem polygon ({id}) {d} m to the {side} of the proposed boundary. ",
+                          "values": {
+                            "id": "{{ r.name }}",
+                            "d": "{{ r.distanceMeters }}",
+                            "side": "{{ r.side }}"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "if": "tap.ogmas",
+              "then": [
+                {
+                  "type": "sentence",
+                  "template": "The block is also bordered by draft OGMAs to the {sides}. Ensure boundary does not overlap the OGMAs. ",
+                  "values": {
+                    "sides": "{{ tap.ogmaSides | prose }}"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": "Ensure that the boundary and road do not overlap with TAP."
+            },
+            {
+              "if": "tap.note",
+              "then": [
+                {
+                  "type": "text",
+                  "text": " {{ tap.note }}"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "for": "f in figures.tapOgma",
+      "do": [
+        {
+          "type": "figure",
+          "image": "{{ f.image }}",
+          "caption": "{{ f.caption }}",
+          "fit": {
+            "width": 468,
+            "height": 340
+          },
+          "align": "left"
+        }
+      ]
+    }
+  ],
+  "params": {
+    "title": {
+      "default": "TAP - Remnant Old Ecosystems/ d-OGMA"
+    }
+  }
+}

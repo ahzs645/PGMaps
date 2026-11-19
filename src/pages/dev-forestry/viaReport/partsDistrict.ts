@@ -7,13 +7,14 @@
  * office gave, and the reviewer's step 4 record fills judgements at the assessment station only. Anything else prints
  * blank and is listed as to complete. Registered in `registry.ts`. No DOM or network access.
  */
+import { jsonPart } from './reportEngine'
 import { blockId, blockList, significanceScore } from '../viaDocument/resolve'
 import { atAssessmentStation, judgedOcular } from '../viaDocument/facts'
 import { CLASS_NAMES, PERCENT_SCALES, readPercent, type ClassCode, type PercentScale } from '../viaDocument/scales'
 import { fillSentence, type Sentence } from '../viaDocument/wording'
 import { SCALE_TERMS, SHAPE_TERMS, VIEWPOINT_TYPES, VISIBLENESS_TERMS, type DesignElementId } from '../via'
 import { designDistanceScore } from '../vqe'
-import { field, fields, heading, text, type FieldRow, type ReportBlock } from './model'
+import { field, fields, heading, text, type ReportBlock } from './model'
 import {
   assessed,
   blank,
@@ -23,7 +24,6 @@ import {
   ha,
   missingFields,
   objectiveOf,
-  generalLocationRow,
   officeRow,
   preparerRow,
   paragraph,
@@ -76,22 +76,6 @@ export function withinRange(scale: PercentScale, percent: number | null, objecti
   if (percent === null || !objective) return null
   const band = readPercent(scale, percent)
   return band?.code ? rank(band.code) <= rank(objective) : false
-}
-
-/** The systems the scene records, with their blocks: "Clearcut" or "Clearcut (X1); Partial cut (X2)". */
-function systemsLine(blocks: readonly ReportBlockFacts[]): string | null {
-  const systems = [...new Set(blocks.map((block) => block.system))]
-  if (!systems.length) return null
-  if (systems.length === 1) return systems[0]
-  return systems
-    .map(
-      (system) =>
-        `${system} (${blocks
-          .filter((block) => block.system === system)
-          .map((block) => block.name)
-          .join(', ')})`,
-    )
-    .join('; ')
 }
 
 /** A block's recorded leave (retention) area, hectares, or null when the scene records none. */
@@ -211,14 +195,7 @@ export function operationArea(blocks: readonly ReportBlockFacts[]): string | nul
   return `${ha(total)} ha (${sizes}${retained > 0 ? `; includes about ${ha(retained)} ha of ${what}` : ''})`
 }
 
-/** The proposed year of harvest from each block's planned harvest year; null until every block has one. */
-export function harvestYearLine(blocks: readonly ReportBlockFacts[]): string | null {
-  if (!blocks.length || blocks.some((block) => block.plannedHarvestYear == null)) return null
-  const years = [...new Set(blocks.map((block) => block.plannedHarvestYear))]
-  return years.length === 1
-    ? String(years[0])
-    : blocks.map((block) => `${block.name} ${block.plannedHarvestYear}`).join(', ')
-}
+export { harvestYearLine } from './formLines'
 
 const DISTRICT_ROW = {
   inventory: '1. Visual Landscape Inventory/Analysis Data',
@@ -377,37 +354,8 @@ const districtSummaryForm: ReportPart = {
 
 // ------------------------------------------------------------------ 2001 forms: header and block areas (01, 03, 05)
 
-/**
- * The 2001 form's header (01 p1, 03 p1). The summary form that carries notes (03, 05) also asks for the year of
- * harvest, read from the blocks' planned harvest years, and the type of operation: harvesting when the scene has
- * proposed blocks; the scene records no proposed roads, so road building is listed for the reviewer to add.
- */
-const formHeader2001: ReportPart = {
-  id: 'form-header-2001',
-  title: 'Form header',
-  sources: ['01', '03', '05'],
-  build: (ctx) => {
-    const summaryForm = !!ctx.recipeParts?.includes('notes-2001')
-    const rows: FieldRow[] = [
-      officeRow(ctx, 'licensee', 'Licensee name'),
-      officeRow(ctx, 'licence', 'Licensee no.'),
-      officeRow(ctx, 'cuttingPermit', 'Cutting permit'),
-      blocksField(ctx),
-      generalLocationRow(ctx),
-      field('Proposed silvicultural system', systemsLine(ctx.blocks), 'scene'),
-      ...(summaryForm
-        ? [
-            field('Proposed year of harvest', harvestYearLine(proposedBlocks(ctx)), 'scene'),
-            field('Type of proposed operation', proposedBlocks(ctx).length ? 'Harvesting' : null, 'scene'),
-          ]
-        : []),
-      field('Date', today(ctx), 'run'),
-    ]
-    // The scene records blocks but no proposed roads, so road building is the reviewer's to add.
-    const roads = summaryForm && proposedBlocks(ctx).length ? ['Type of proposed operation: road building, if any'] : []
-    return { blocks: [fields(rows)], toComplete: [...missingFields(rows), ...roads] }
-  },
-}
+/** form-header-2001: defined once in JSON (`recipeJson/components/form-header-2001.json`), read by `kitBlocks.ts`. */
+const formHeader2001 = jsonPart('form-header-2001')
 
 /** 01's block table: gross, leave and net hectares per block, with the total. */
 const blockAreas2001: ReportPart = {

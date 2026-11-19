@@ -69,6 +69,7 @@ import { documentMarkdown, viewsLeftOutMarkdown } from './viaDocument/markdown'
 import { resolveViaDocument } from './viaDocument/resolve'
 import { EVQO_CODE_FOR_CLASS } from './visualsNarrative'
 import { buildReportContext, type ReportView } from './viaReport/context'
+import { loadReportEngine, useReportEngine } from './viaReportEngine'
 import { reportHtml, reportMarkdown } from './viaReport/html'
 import type { AssembledReport, ReportBlock, ReportFigure } from './viaReport/model'
 import { withRasterStandIns } from './reportDraftPages'
@@ -80,6 +81,7 @@ import {
   type AssembledPart,
   recipeFormat,
   REPORT_RECIPES,
+  reportSubtitle,
   withViewsLeftOut,
 } from './viaReport/recipes'
 import { DRAW_HOW, standInGroups, standInUrl, withStandIns } from './viaReport/draftPictures'
@@ -133,6 +135,7 @@ import {
   type ContextView,
   type ExportAction,
   type ExportAutoRun,
+  type ExportContext,
   type VisualsExport,
   VISUALS_EXPORTS,
 } from './visualsExports'
@@ -325,8 +328,20 @@ export function useVisualsExport(input: {
   }
   /** The own photos open in the set, for the project file's *What goes in*. Absent: none. */
   ownPhotos?: { count: number; accepted: number; flights: number }
+  /** The project's attachments, for the project file's *What goes in*. */
+  attachments?: Array<{ name: string; bytes: number; linked: string | null }>
+  /** Opens Project attachments, the one place they are added and removed. */
+  onManageAttachments?: () => void
   /** The land status checks the summary cards read (`useLandChecks`). */
   landChecks: { states: Partial<Record<LandCheckId, LandCheckState>>; unchecked: string | null }
+  /**
+   * The route card as step 1's *Route card* shows it, and its file: the workbook or the Word document, built from the
+   * same render (`assembleRouteCard`). Absent: the page offers none.
+   */
+  routeCard?: {
+    context: NonNullable<ExportContext['routeCard']>
+    build: (format: 'xlsx' | 'docx') => Promise<BuiltFile>
+  }
   /**
    * The scene's visual landscape inventory, read live around the scene (the EVQO drape's read): `units` once read,
    * null before and after a failure. `read` starts it, or reads again after a failure; the outputs that print the
@@ -536,6 +551,10 @@ export function useVisualsExport(input: {
   const gisVersion = useRef({ parts: gisParts, n: 0 })
   if (gisParts.some((part, index) => part !== gisVersion.current.parts[index]))
     gisVersion.current = { parts: gisParts, n: gisVersion.current.n + 1 }
+
+  // The VIA report's engine (document-kit's renderer and the compiled JSON parts) loads when the dialog opens, never
+  // with the page; until it has, nothing assembles a report (`viaReportEngine.ts`).
+  const reportEngine = useReportEngine(open)
 
   // Closed, the dialog costs the page nothing: this page re-renders several times a second while the
   // road view moves, and nothing below is needed until the dialog opens.
@@ -769,16 +788,18 @@ export function useVisualsExport(input: {
       greenUp: result ? runGreenUpBasis(result).label : null,
       date: new Date(),
     })
-  // Placeholder figures stand in for the counts only; the file draws each view's figure.
-  const draftReport = reportViews.length
-    ? assembleReportParts(
-        reportRecipe,
-        reportContext(
-          reportViews.map((view) => ({ view: view.name, caption: view.name, dataUrl: '', width: 1, height: 1 })),
-        ),
-        scene.viaReview?.reportEdits,
-      ).report
+  // Placeholder figures stand in for the counts only; the file draws each view's figure. Its parts are assembled
+  // once the report engine has loaded (the counts wait for it); its subtitle needs no part, so it never waits.
+  const draftContext = reportViews.length
+    ? reportContext(
+        reportViews.map((view) => ({ view: view.name, caption: view.name, dataUrl: '', width: 1, height: 1 })),
+      )
     : null
+  const draftReport =
+    draftContext && reportEngine.ready
+      ? assembleReportParts(reportRecipe, draftContext, scene.viaReview?.reportEdits).report
+      : null
+  const draftSubtitle = draftContext ? reportSubtitle(draftContext) : null
   const chosenLogo = printedLogo(branding)
   const briefBlock = blocks.find((entry) => entry.id === input.briefBlockId) ?? blocks[0] ?? null
   // The brief takes the package's views as the other documents do, less views of interest planned for another block.
@@ -846,13 +867,13 @@ export function useVisualsExport(input: {
       cameraInfo: resolved.cameraInfo,
       paintBlocks: resolved.paintBlocks,
     },
-    report: draftReport
+    report: reportViews.length
       ? {
           recipe: reportRecipe.name,
           sources: reportRecipe.sources.join(', '),
           parts: reportRecipe.parts.map((id) => id.replace(/-/g, ' ')),
           figures: reportViews.length,
-          toComplete: draftReport.toComplete.length,
+          toComplete: draftReport ? draftReport.toComplete.length : null,
           ...(reportMapStyle !== SHEET_SYMBOLS_STYLE
             ? { mapStyle: reportMapStyles().find((style) => style.value === reportMapStyle)?.label ?? reportMapStyle }
             : {}),
@@ -900,6 +921,7 @@ export function useVisualsExport(input: {
     },
     evidence,
     ownPhotos: input.ownPhotos,
+    attachments: input.attachments,
     roadViewReady: input.scenePackage.ready,
     prescribedStands: standFileSummary(input.prescribedStands),
     sightlineArchive: input.sightlineArchive
@@ -916,6 +938,7 @@ export function useVisualsExport(input: {
       pending: input.landChecks.unchecked ? 0 : landChecksPending(input.landChecks.states),
       rows: landRows,
     },
+    ...(input.routeCard ? { routeCard: input.routeCard.context } : {}),
     ...(input.visualInventory
       ? { visualInventory: { status: input.visualInventory.status, error: input.visualInventory.error } }
       : {}),
@@ -972,6 +995,8 @@ export function useVisualsExport(input: {
       // A take's progress is no other output's content.
       roadVideo: kind === 'road-video' ? context.roadVideo : null,
       landChecks: kind === 'block-note' ? context.landChecks : null,
+      // Only the route card prints the route card.
+      routeCard: kind === 'route-card' ? context.routeCard : null,
       // A render finishing is content (the counts, and the jobs below); its clock and queue are not.
       renderer: {
         ...context.renderer,
@@ -1045,7 +1070,7 @@ export function useVisualsExport(input: {
       `${input.visualInventory?.status ?? 'none'}:${input.visualInventory?.units?.length ?? 0}`,
       overviewSheetStyle,
       overviewSheetStyle === 'end-map-portrait'
-        ? `${chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo'}|${draftReport?.subtitle ?? ''}`
+        ? `${chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo'}|${draftSubtitle ?? ''}`
         : '',
       reportRecipe.parts.includes('ea-figure-pages') ? 'figure-page-maps' : '',
       // The maps draw their blocks and openings in the chosen style.
@@ -1075,7 +1100,7 @@ export function useVisualsExport(input: {
       const out = await timed('report maps', () =>
         input.captureReportImages!({
           views: named,
-          overviewSheet: { style: overviewSheetStyle, logo: endMapLogo, project: draftReport?.subtitle ?? null },
+          overviewSheet: { style: overviewSheetStyle, logo: endMapLogo, project: draftSubtitle },
           ...(reportRecipe.parts.includes('ea-figure-pages') ? { figurePageMaps: true } : {}),
           ...(reportMapStyle !== SHEET_SYMBOLS_STYLE ? { mapStyle: reportMapStyle } : {}),
           only: { maps: true },
@@ -1184,6 +1209,8 @@ export function useVisualsExport(input: {
    * stand-in at its own size (`draftPictures.ts`), so the draft lays out as the file does.
    */
   const composeReport = async (mode: 'file' | 'draft') => {
+    // Every report is assembled over the loaded engine: its JSON parts never print missing.
+    await loadReportEngine()
     const { names, withFigure, named } = reportPictureViews()
     if (mode === 'file') await ensurePictures(named)
     const captured = keptPictures(named)
@@ -1356,8 +1383,9 @@ export function useVisualsExport(input: {
         __viaReportSetting: context.setting ?? null,
       })
     // Every view of the package the report does not print is named at its end, with why.
+    const leftOut = viewsLeftOut('via-report', exportContext)
     const assembled = assembleReportParts(reportRecipe, context, scene.viaReview?.reportEdits)
-    const report = withViewsLeftOut(assembled.report, viewsLeftOut('via-report', exportContext))
+    const report = withViewsLeftOut(assembled.report, leftOut)
     // Which groups the recipe prints at all, drawn or not: the same report with every group stood in.
     const printed = () => {
       const dry = assembleReport(
@@ -1370,7 +1398,9 @@ export function useVisualsExport(input: {
       )
       return standInGroups(reportHtml(dry, null, { parts: [] }))
     }
-    return { report, parts: assembled.parts, edits: assembled.edits, captured, named, printed }
+    // What the Word file is built from through the recipe engine (`viaReportWord.ts`): the very inputs of `report`.
+    const source = { recipe: reportRecipe, ctx: context, edits: scene.viaReview?.reportEdits, leftOut }
+    return { report, parts: assembled.parts, edits: assembled.edits, captured, named, printed, source }
   }
   /** The lined-up photographs among the before pictures: drawn without a capture, never stood in. */
   const photoBefores = (before: NonNullable<ReportImages['before']>) =>
@@ -1477,16 +1507,18 @@ export function useVisualsExport(input: {
     return chosenLogo && drawn?.kind === 'url' ? { name: chosenLogo.name, dataUrl: drawn.url } : reportLogo()
   }
   /**
-   * The report as a Word file (`viaReport/word.ts`), the same report the PDF draws, dated the day it was written so the
-   * same report writes the same bytes that day. The kit and the writer load with the file, never with the page.
+   * The report as a Word file, built through document-kit's recipe engine from the report's recipe and its inputs
+   * (`viaReport/recipeRoute.ts`): the same report the PDF draws, on the same pages (`viaReport/word.ts` places them),
+   * dated the day it was written so the same report writes the same bytes that day. The kit, the recipes and the
+   * writer load with the file, never with the page.
    */
-  const reportDocxBytes = async (report: AssembledReport) => {
+  const reportDocxBytes = async (source: Awaited<ReturnType<typeof composeReport>>['source']) => {
     const [{ printedLogoRaster }, { viaReportDocx }] = await Promise.all([
       import('@/branding/raster'),
       import('./viaReportWord'),
     ])
     const day = `${new Date().toISOString().slice(0, 10)}T00:00:00Z`
-    return viaReportDocx(report, await printedReportLogo(printedLogoRaster), day)
+    return viaReportDocx({ ...source, logo: await printedReportLogo(printedLogoRaster) }, day)
   }
   /**
    * The draft on the pages the PDF prints (`ReportDraftView`'s *Pages*): the file's own writer run on the draft's
@@ -1569,11 +1601,11 @@ export function useVisualsExport(input: {
       }
       case 'via-report': {
         if (!reportViews.length) throw new Error('No view in the package has a class pass to draw the report from.')
-        const { report } = await composeReport('file')
+        const { report, source } = await composeReport('file')
         const fileName = `forestry-via-report-${reportRecipe.id}`
         if (format === 'md') return textFile(reportMarkdown(report), `${fileName}.md`, 'text/markdown')
         if (format === 'docx' || format === 'docx-pdf') {
-          const docx = await reportDocxBytes(report)
+          const docx = await reportDocxBytes(source)
           const { DOCX_TYPE, viaReportWordPdf } = await import('./viaReportWord')
           if (format === 'docx')
             return { blob: new Blob([docx as BlobPart], { type: DOCX_TYPE }), fileName: `${fileName}.docx` }
@@ -1744,6 +1776,9 @@ export function useVisualsExport(input: {
         // Recorded on request (`recordings` below), never written here: Download writes the take it holds.
         if (!videoTake) throw new Error('Nothing recorded yet: record the video under Preview first.')
         return videoFile(videoTake)
+      case 'route-card':
+        if (!input.routeCard) throw new Error('The route card is not offered here.')
+        return input.routeCard.build(format === 'docx' ? 'docx' : 'xlsx')
       case 'castor-constraint': {
         const constraint = castorVqoConstraint(scene, result)
         if (!constraint)
@@ -1766,6 +1801,11 @@ export function useVisualsExport(input: {
   }
 
   const onAction = (action: ExportAction) => {
+    if (action.id === 'manage-attachments') {
+      setOpen(false)
+      input.onManageAttachments?.()
+      return
+    }
     if (action.id === 'load-inventory') {
       askedFor.current = noteBlock?.id ?? null
       if (noteBlock) onLoadInventory(noteBlock, { show: false })

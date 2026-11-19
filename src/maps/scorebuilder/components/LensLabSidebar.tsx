@@ -1,5 +1,5 @@
 import { useClipboardText } from '@/hooks/useClipboardText'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Check, Copy, X } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { CollapsibleSection, InlineAlert, MapSidebarShell } from '@/components/ui/map-panels'
@@ -17,7 +17,8 @@ import type {
 } from '../types'
 import type { CorrelationResult, MetricCorrelation } from '../lib/correlation'
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
-import { getScoreLab } from '../lib/labs'
+import { getScoreLab, type CorrelateVisStyle } from '../lib/labs'
+import type { GlobalMoranResult } from '../lib/spatialAutocorrelation'
 import { formatMetricValue, formatRegionCount, getMetricLabel, getUnavailableWeightedMetrics } from '../lib/metrics'
 import { CorrelateTab } from './CorrelateTab'
 import { DataSourceToggleList } from './DataSourceToggleList'
@@ -38,9 +39,11 @@ interface CorrelateLensProps {
   correlateMetricY: ScoreMetricKey
   onCorrelateMetricXChange: (metric: ScoreMetricKey) => void
   onCorrelateMetricYChange: (metric: ScoreMetricKey) => void
-  correlateVisStyle: 'bivariate' | 'residual'
-  onCorrelateVisStyleChange: (style: 'bivariate' | 'residual') => void
+  correlateVisStyle: CorrelateVisStyle
+  onCorrelateVisStyleChange: (style: CorrelateVisStyle) => void
   correlationResult: CorrelationResult
+  /** Global Moran's I of the regression residuals; null until it is measured. */
+  residualPattern: GlobalMoranResult | null
   correlationTopPairs: MetricCorrelation[]
   onApplyTopPair: (metricX: ScoreMetricKey, metricY: ScoreMetricKey) => void
 }
@@ -70,6 +73,8 @@ type LensLabSidebarProps = (DensityLensProps | CorrelateLensProps) & {
   /** Set where no header offers exports, which is the phone layout. */
   onExport?: (format: ScoreBuilderExportFormat) => void
   exportFormats?: readonly ScoreBuilderExportFormat[]
+  /** The lens variable's spatial pattern section (Moran's I and its clusters). */
+  spatialPattern?: ReactNode
 }
 
 const EXPORT_LABELS: Record<ScoreBuilderExportFormat, string> = {
@@ -108,6 +113,7 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
     lensCoverage,
     onExport,
     exportFormats = [],
+    spatialPattern,
   } = props
   const [sourcesOpen, setSourcesOpen] = useState(false)
   const { copy, status: copyStatus } = useClipboardText({ failureResetAfterMs: 1800 })
@@ -267,6 +273,7 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
             visStyle={props.correlateVisStyle}
             onVisStyleChange={props.onCorrelateVisStyleChange}
             result={props.correlationResult}
+            residualPattern={props.residualPattern}
             topPairs={props.correlationTopPairs}
             onApplyTopPair={props.onApplyTopPair}
             boundarySource={boundarySource}
@@ -276,6 +283,8 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
           />
         )}
       </section>
+
+      {spatialPattern}
 
       <StudyAreaSelector<BoundarySource, RegionLevel>
         source={boundarySource}

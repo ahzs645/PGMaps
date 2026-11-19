@@ -1000,9 +1000,16 @@ export function useAssessmentTools({
     restoreWorkspace,
     startNewSite,
     sightlineArchive,
-    referencePanel: (
+    /** The historical VIA review: its row count, whether the workspace has loaded, and its dialog. */
+    reference: {
+      count: d.referenceMeasurements.length,
+      loaded,
+    },
+    referencePanel: (open: boolean, onOpenChange: (open: boolean) => void) => (
       <ReferenceMeasurements
         key={workspaceGeneration.current}
+        open={open}
+        onOpenChange={onOpenChange}
         runActions={{
           retain: setSightlineArchive,
           retained: sightlineArchive,

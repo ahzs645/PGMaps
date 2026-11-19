@@ -1,0 +1,91 @@
+{
+  "kind": "recipe",
+  "id": "appendix-1-report",
+  "name": "2022 handbook report with Appendix 1",
+  "extends": "via-report",
+  "meta": {
+    "title": "Visual Impact Assessment",
+    "sources": ["06", "07"],
+    "format": "appendix-1-net-private-rock",
+    "purpose": "Objective and methods, a page per viewpoint with its calculation, and the handbook’s Appendix 1 form."
+  },
+  "options": {
+    "paper": "legal",
+    "cover": true,
+    "contents": false
+  },
+  "changes": [
+    {
+      "add": {
+        "use": "cover"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "project-information"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "overview-map"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "purpose"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "methodology"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "viewpoint-pages"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "photo-simulation-pairs"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "calculations"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "conclusion"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "sign-off"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "appendix-1"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "extent-scale"
+      },
+      "before": "closing"
+    }
+  ]
+}

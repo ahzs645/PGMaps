@@ -1,0 +1,44 @@
+{
+  "kind": "component",
+  "id": "form-header-2001",
+  "title": "Form header",
+  "description": "The 2001 forms' header (01, 03, 05). The summary form (with its notes) also asks the year and type of operation; the scene records no proposed roads, so road building is the reviewer's to add.",
+  "meta": { "reportPart": true, "sources": ["01", "03", "05"] },
+  "blocks": [
+    {
+      "use": "via-fields",
+      "with": {
+        "rows": [
+          { "label": "Licensee name", "value": "{{ facts.office.licensee }}", "source": "scene" },
+          { "label": "Licensee no.", "value": "{{ facts.office.licence }}", "source": "scene" },
+          { "label": "Cutting permit", "value": "{{ facts.office.cuttingPermit }}", "source": "scene" },
+          { "label": "Blocks", "value": "{{ facts.blocks.all }}", "source": "scene" },
+          {
+            "label": "General location",
+            "value": "{{ facts.generalLocation.value }}",
+            "source": "{{ facts.generalLocation.source }}"
+          },
+          { "label": "Proposed silvicultural system", "value": "{{ facts.blocks.systems }}", "source": "scene" },
+          {
+            "if": "facts.recipe.summaryForm",
+            "then": [
+              { "label": "Proposed year of harvest", "value": "{{ facts.blocks.harvestYears }}", "source": "scene" },
+              {
+                "if": "facts.blocks.proposed",
+                "then": [{ "label": "Type of proposed operation", "value": "Harvesting", "source": "scene" }],
+                "else": [{ "label": "Type of proposed operation", "value": null, "source": "scene" }]
+              }
+            ]
+          },
+          { "label": "Date", "value": "{{ facts.date }}", "source": "run" }
+        ],
+        "toComplete": [
+          {
+            "if": "facts.recipe.summaryForm and facts.blocks.proposed",
+            "then": ["Type of proposed operation: road building, if any"]
+          }
+        ]
+      }
+    }
+  ]
+}

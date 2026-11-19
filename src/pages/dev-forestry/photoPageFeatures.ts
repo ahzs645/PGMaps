@@ -277,14 +277,20 @@ export function candidateLineFeatures(
   return { subLandforms, linesOfForce }
 }
 
-/** The inventory's viewpoints as markers, named as the inventory types and numbers them. */
+/**
+ * The inventory's viewpoints as markers, named as the inventory types and numbers them. A row the inventory typed
+ * `ERROR` is drawn like the rest (it may be the one a planner stood at) and says so after its number.
+ */
 export function inventoryViewpointFeatures(viewpoints: readonly VliViewpoint[]): PhotoFeature[] {
-  return viewpoints.map((viewpoint) => ({
-    layer: 'inventoryViewpoints',
-    id: viewpoint.id,
-    label: viewpoint.number !== null ? `${viewpoint.typeLabel} ${viewpoint.number}` : viewpoint.typeLabel,
-    geometry: { type: 'Point', coordinates: [viewpoint.lng, viewpoint.lat] },
-  }))
+  return viewpoints.map((viewpoint) => {
+    const number = viewpoint.number !== null ? ` ${viewpoint.number}` : ''
+    return {
+      layer: 'inventoryViewpoints',
+      id: viewpoint.id,
+      label: viewpoint.inventoryError ? `Viewpoint${number} (inventory: ERROR)` : `${viewpoint.typeLabel}${number}`,
+      geometry: { type: 'Point', coordinates: [viewpoint.lng, viewpoint.lat] },
+    }
+  })
 }
 
 /** The road to assess, in the plan's own road colour over a white casing, so it reads on forest and on sky. */

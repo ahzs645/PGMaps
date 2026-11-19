@@ -1,0 +1,112 @@
+{
+  "kind": "recipe",
+  "id": "partial-cut-form",
+  "name": "Fuel-management VIA form (partial cut)",
+  "extends": "via-report",
+  "meta": {
+    "title": "Visual Impact Assessment",
+    "sources": ["01"],
+    "format": "form-2001-analysis-sheets",
+    "purpose": "The 2001-style form for a partial cut: criteria by eye, design factors, the partial-cut table, summary.",
+    "figureStyle": "arrows-no-outlines"
+  },
+  "options": {
+    "paper": "letter",
+    "cover": false,
+    "contents": false,
+    "partialCutGuide": "poster",
+    "viewingAngleClass": true
+  },
+  "changes": [
+    {
+      "add": {
+        "use": "form-header-2001"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "block-areas-2001"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "retention"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "inventory"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "current-evc"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "viewpoints-columns"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "criteria-rating-2001"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "visual-design"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "design-techniques-2001"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "numerical-data"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "summary-2001-five"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "certification-2001"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "overview-map"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "overhead-renders"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "photo-simulation-pairs"
+      },
+      "before": "closing"
+    }
+  ]
+}

@@ -5,6 +5,7 @@
  * the file is written from. No DOM or network access.
  */
 
+import { formatBytes } from '@/lib/format'
 import { CASTOR_DENOMINATOR_NOTE, castorConstraintProblem, castorVqoConstraint } from './castorConstraint'
 import { layoutStageLabel, layoutStageOf } from './fieldChecklist'
 import type { SavedDriveView } from './previewState'
@@ -36,6 +37,7 @@ import type { VisualQualityClassId } from './vqo'
 
 export type VisualsExport =
   | 'block-note'
+  | 'route-card'
   | 'fs1252'
   | 'analysis-sheet'
   | 'via-document'
@@ -85,6 +87,17 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     description:
       "The planning note's Visuals row: the block, the paragraph, the visual measures, the landform's alteration, the package's views of this block and a plan map.",
     formats: [{ id: 'xlsx', label: 'Excel', extension: '.xlsx' }, PDF],
+  },
+  {
+    kind: 'route-card',
+    group: 'documents',
+    label: 'Route card',
+    description:
+      "The block's Route Card Tool Assessment read live from public BC layers, with the rows you entered, and the Other Considerations paragraphs drafted from it: the planners' workbook layout, or a Word document from the same parts.",
+    formats: [
+      { id: 'xlsx', label: 'Excel', extension: '.xlsx' },
+      { id: 'docx', label: 'Word', extension: '.docx' },
+    ],
   },
   {
     kind: 'fs1252',
@@ -493,7 +506,8 @@ export type ExportContext = {
     sources: string
     parts: string[]
     figures: number
-    toComplete: number
+    /** Null while the report's parts load with the dialog (`viaReportEngine.ts`). */
+    toComplete: number | null
     /** The figure style the maps' blocks and openings are drawn in, when one was chosen over the maps' own. */
     mapStyle?: string
   } | null
@@ -549,6 +563,8 @@ export type ExportContext = {
   evidence: { loaded: boolean; gaps: string[]; views: number; runs: number; fields: number }
   /** The own photos open in the set, which the project file keeps with their originals. Absent: none open. */
   ownPhotos?: { count: number; accepted: number; flights: number }
+  /** The project's attachments, which the project file carries as they are. Absent: none. */
+  attachments?: Array<{ name: string; bytes: number; linked: string | null }>
   /** The road view is open with its terrain loaded, so the 3D scene can be written. */
   roadViewReady: boolean
   /** *Scene for GIS*: the layers the scene gives with their counts (`sceneGisPlan`), and the kinds it holds none of. */
@@ -583,6 +599,29 @@ export type ExportContext = {
     plan: RoadVideoPlan
     take: RoadVideoTakeFacts | null
     recording: boolean
+  }
+  /**
+   * The route card (`src/lib/forestry/routeCard/`) for its block, as the sidebar's *Route card* shows it. Absent: the
+   * page offers none.
+   */
+  routeCard?: {
+    blockName: string | null
+    presetName: string
+    /** Why the file cannot be written yet, or null. */
+    problem: string | null
+    reading: boolean
+    counts: {
+      rows: number
+      flagged: number
+      within: number
+      notRead: number
+      notPublic: number
+      entered: number
+      estimated: number
+    } | null
+    considerations: Array<{ title: string; own: boolean; toComplete: number }>
+    notCalledFor: string[]
+    access: string | null
   }
   /** BC inventory viewpoints near the block note's block. */
   inventory: {
@@ -899,6 +938,8 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
       return ctx.roadViewReady ? null : 'Open the road view and let its terrain load first.'
     case 'scene-gis':
       return sceneGisUnavailable(ctx.gis)
+    case 'route-card':
+      return ctx.routeCard ? ctx.routeCard.problem : 'The route card is not offered here.'
     case 'castor-constraint':
       if (!ctx.landform) return 'Delineate or adopt one active landform first: it is the constraint’s zone.'
       if (ctx.run !== 'current')
@@ -943,7 +984,7 @@ const rateAction: ExportAction = { id: OPEN_PACKAGE_ACTION, label: 'Rate in Pack
  * the views of interest already planned. The same controls with the same state as in the step, never a second form.
  * Name one only for a part those controls really set: a saved view that is not a view of interest has none.
  */
-export type ExportEditor = 'cutblocks' | 'landform' | 'viewpoint' | 'run' | 'assess' | 'views'
+export type ExportEditor = 'cutblocks' | 'landform' | 'viewpoint' | 'run' | 'assess' | 'views' | 'route-card'
 
 /** The id a sidebar section and the dialog's slot for it share. */
 export const exportEditorId = (editor: ExportEditor) => `visuals-export-editor:${editor}`
@@ -1477,7 +1518,17 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           title: 'To complete before signing',
           step: 'assess',
           editor: 'assess',
-          rows: [{ label: 'Items', value: report.toComplete ? plural(report.toComplete, 'item') : 'None' }],
+          rows: [
+            {
+              label: 'Items',
+              value:
+                report.toComplete === null
+                  ? 'Counted once the report’s parts have loaded'
+                  : report.toComplete
+                    ? plural(report.toComplete, 'item')
+                    : 'None',
+            },
+          ],
           note: 'Judgements, office fields and signatures the run cannot give print blank and are listed at the end of the report.',
         },
         unprintedSection(ctx, 'via-report'),
@@ -1650,6 +1701,15 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           empty: 'No own photos open.',
         },
         {
+          title: 'Project attachments',
+          action: { id: 'manage-attachments', label: 'Manage…' },
+          items: ctx.attachments?.map((file) => ({
+            title: file.name,
+            subtitle: [formatBytes(file.bytes), file.linked].filter(Boolean).join(' · '),
+          })),
+          empty: 'No files attached. Attach the original VIA sheets, a case.json or other evidence with the paperclip.',
+        },
+        {
           title: 'Workspace and package',
           rows: [
             { label: 'Recorded assessments', value: String(ctx.evidence.runs) },
@@ -1769,6 +1829,44 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
       return ctx.roadVideo
         ? roadVideoContents(ctx.roadVideo.scene, ctx.roadVideo.plan, ctx.roadVideo.take)
         : [{ title: 'Video', note: 'The road view video is not offered here.' }]
+    case 'route-card': {
+      const card = ctx.routeCard
+      if (!card) return [{ title: 'Route card', note: 'The route card is not offered here.' }]
+      const counts = card.counts
+      return [
+        {
+          title: 'Route Card Tool Assessment',
+          step: 'identify',
+          editor: 'route-card',
+          rows: [
+            { label: 'Block', value: card.blockName ?? 'Add a cutblock' },
+            { label: 'Preset', value: card.presetName },
+            {
+              label: 'Rows',
+              value: card.reading
+                ? 'Still reading the layers'
+                : counts
+                  ? `${counts.rows}: ${counts.flagged} Y, ${counts.within} within, ${counts.notRead} not read, ${counts.notPublic} not public, ${counts.entered} entered, ${counts.estimated} estimated`
+                  : 'Not read yet',
+            },
+            { label: 'Access road', value: card.access ?? 'None: crossings are not checked' },
+          ],
+          note: 'Read live from public BC layers: a screen, not a legal determination. A row no public layer answers prints Not public until you enter it.',
+        },
+        {
+          title: 'Other Considerations',
+          step: 'identify',
+          editor: 'route-card',
+          rows: card.considerations.map((item) => ({
+            label: item.title,
+            value: `${item.own ? 'Yours' : 'Draft'}${item.toComplete ? `, ${item.toComplete} to complete` : ''}`,
+          })),
+          note: card.notCalledFor.length
+            ? `Not called for by the rows: ${card.notCalledFor.join(', ')}.`
+            : 'Every consideration the preset lists is called for.',
+        },
+      ]
+    }
     case 'castor-constraint': {
       const c = ctx.castor.constraint
       return [
@@ -1838,6 +1936,7 @@ export type ContextInput = {
   brief: { blockId: string | null; viewpoints: number; screenshots?: number }
   evidence: { loaded: boolean; gaps: string[]; counts: { views: number; runs: number; fields: number } }
   ownPhotos?: ExportContext['ownPhotos']
+  attachments?: ExportContext['attachments']
   roadViewReady: boolean
   /** Absent: no block has a stand prescription. */
   prescribedStands?: Row[]
@@ -1846,6 +1945,7 @@ export type ContextInput = {
   officeFieldCount: number
   autoRun: ExportAutoRun
   landChecks: ExportContext['landChecks']
+  routeCard?: ExportContext['routeCard']
   inventory: ExportContext['inventory']
   visualInventory?: ExportContext['visualInventory']
   /** The package's views of interest (`resolvePackage`). Absent: none planned. */
@@ -2053,6 +2153,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
     },
     evidence: { loaded: input.evidence.loaded, gaps: input.evidence.gaps, ...input.evidence.counts },
     ...(input.ownPhotos?.count ? { ownPhotos: input.ownPhotos } : {}),
+    ...(input.attachments?.length ? { attachments: input.attachments } : {}),
     roadViewReady: input.roadViewReady,
     gis: sceneGisPlan(scene),
     prescribedStands: input.prescribedStands ?? [],
@@ -2069,6 +2170,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
     },
     autoRun: input.autoRun,
     landChecks: input.landChecks,
+    ...(input.routeCard ? { routeCard: input.routeCard } : {}),
     inventory: input.inventory,
     ...(input.visualInventory ? { visualInventory: input.visualInventory } : {}),
     ...(input.roadVideo ? { roadVideo: input.roadVideo } : {}),

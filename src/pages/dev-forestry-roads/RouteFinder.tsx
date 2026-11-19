@@ -5,6 +5,7 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { MapPin } from 'lucide-react'
 import { NumberField } from './Controls'
 import { RoadSection } from './SidebarParts'
+import { ToolSubsection } from '@/components/ui/tool-section'
 import { parseProject } from './project'
 import { distinctRoadColors } from './roadColors'
 import {
@@ -412,9 +413,10 @@ export function RouteFinder({
         >
           Compare {goals.length === 1 ? 'route' : `${goals.length} routes`}
         </Button>
-        <details className="group text-xs">
-          <summary className="cursor-pointer text-muted-foreground">Search settings</summary>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+        {/* Headed, not folded: Switchbacks below folds already, and failure texts point to "Search settings →
+            Switchbacks". */}
+        <ToolSubsection title="Search settings" className="text-xs">
+          <div className="grid grid-cols-2 gap-2">
             <NumberField
               label="Corridor ±m"
               value={halfWidth}
@@ -451,7 +453,7 @@ export function RouteFinder({
             />
           </div>
           {resolution && (
-            <p className="mt-2 text-2xs leading-4 text-muted-foreground" data-testid="road-route-resolution">
+            <p className="text-2xs leading-4 text-muted-foreground" data-testid="road-route-resolution">
               Searches on {resolution.cellM.toFixed(1)} m cells in {resolution.stepM.toFixed(0)} m strides and{' '}
               {resolution.headings} headings; ground is read every {resolution.sampleM} m along each line.{' '}
               <InfoTip label="About the search resolution">
@@ -461,7 +463,7 @@ export function RouteFinder({
               </InfoTip>
             </p>
           )}
-          <label className="mt-2 flex items-center gap-2 text-xs">
+          <label className="flex items-center gap-2 text-xs">
             <input
               type="checkbox"
               checked={trySteeper}
@@ -484,7 +486,7 @@ export function RouteFinder({
             maxGradePercent={project.settings.maxGradePercent}
             onChange={(routeSearch) => w.update((x) => ({ ...x, routeSearch }))}
           />
-        </details>
+        </ToolSubsection>
         {stale && !drawing && (
           <InlineAlert tone="warning">
             The road, limits or terrain changed.{' '}

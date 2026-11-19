@@ -1,0 +1,18 @@
+{
+  "kind": "component",
+  "id": "via-page-number",
+  "title": "Page n of N",
+  "description": "\"Page n of N\" at the right of the foot of each numbered page.",
+  "blocks": [
+    {
+      "type": "paragraph",
+      "align": "right",
+      "content": [
+        { "type": "text", "text": "Page ", "size": 8, "color": "64748b" },
+        { "type": "field", "field": "page", "size": 8, "color": "64748b" },
+        { "type": "text", "text": " of ", "size": 8, "color": "64748b" },
+        { "type": "field", "field": "pages", "size": 8, "color": "64748b" }
+      ]
+    }
+  ]
+}

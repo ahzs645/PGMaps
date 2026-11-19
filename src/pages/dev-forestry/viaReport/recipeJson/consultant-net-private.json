@@ -1,0 +1,151 @@
+{
+  "kind": "recipe",
+  "id": "consultant-net-private",
+  "name": "Consultant VIA, landform net of private land",
+  "extends": "via-report",
+  "meta": {
+    "title": "Visual Impact Assessment",
+    "sources": ["22"],
+    "format": "perspective-report-net-private",
+    "purpose": "Regulatory frame, terms, method, Tables 1-5, the block discussion, conclusion and analysis sheets."
+  },
+  "options": {
+    "paper": "letter",
+    "cover": true,
+    "contents": true
+  },
+  "changes": [
+    {
+      "add": {
+        "use": "cover"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "summary"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "regulatory-frame"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "three-elements"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "extent-scale"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "vocabulary"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "methodology"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "assessment-method"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "landforms-and-viewpoints"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "table-1-vsu"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "table-2-landforms"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "table-3-viewpoints"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "assessment-tables"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "block-discussion"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "recommendations"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "conclusion"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "limitations"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "sign-off-peer"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "references"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "appendix-list"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "overview-sheet"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
+        "use": "appendix-sheets"
+      },
+      "before": "closing"
+    }
+  ]
+}

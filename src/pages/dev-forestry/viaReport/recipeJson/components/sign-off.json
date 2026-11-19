@@ -1,0 +1,20 @@
+{
+  "kind": "component",
+  "id": "sign-off",
+  "title": "Sign-off",
+  "description": "The sign-off of the 2001 forms and the handbook report: the preparer, the certification ticked by hand, and the signature, seal and date lines.",
+  "meta": { "reportPart": true, "sources": ["01", "02", "03", "05", "22", "23"] },
+  "blocks": [
+    {
+      "use": "via-sign-off",
+      "with": {
+        "rows": [{ "label": "Prepared by", "value": "{{ facts.preparer }}", "source": "scene" }],
+        "choices": [
+          "I carried out or directly supervised this assessment",
+          "I reviewed this assessment and judge it to meet the standard of my profession"
+        ],
+        "lines": ["Signature", "Professional designation and seal", "Date"]
+      }
+    }
+  ]
+}

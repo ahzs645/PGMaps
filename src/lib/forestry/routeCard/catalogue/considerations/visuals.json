@@ -1,0 +1,64 @@
+{
+  "kind": "component",
+  "id": "consideration-visuals",
+  "title": "Visuals",
+  "description": "The Visuals paragraph from step 5: the reviewer's own, or the draft the run writes.",
+  "meta": {
+    "consideration": "visuals",
+    "sources": ["Visuals paragraph (step 5)"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 3,
+      "content": "{{ params.title }}"
+    },
+    {
+      "if": "own.visuals",
+      "then": [
+        {
+          "type": "paragraph",
+          "content": "{{ own.visuals }}",
+          "source": "reviewer"
+        }
+      ],
+      "else": [
+        {
+          "if": "visuals.text",
+          "then": [
+            {
+              "type": "paragraph",
+              "content": "{{ visuals.text }}"
+            }
+          ],
+          "else": [
+            {
+              "type": "paragraph",
+              "content": "{{ toComplete.none | missing \"placeholder\" \"Visuals paragraph (step 5)\" }}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "for": "f in figures.visuals",
+      "do": [
+        {
+          "type": "figure",
+          "image": "{{ f.image }}",
+          "caption": "{{ f.caption }}",
+          "fit": {
+            "width": 468,
+            "height": 340
+          },
+          "align": "left"
+        }
+      ]
+    }
+  ],
+  "params": {
+    "title": {
+      "default": "Visuals"
+    }
+  }
+}

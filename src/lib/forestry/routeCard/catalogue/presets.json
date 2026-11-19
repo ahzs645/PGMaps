@@ -1,0 +1,125 @@
+{
+  "kind": "route-card-presets",
+  "version": 1,
+  "presets": [
+    {
+      "kind": "route-card-preset",
+      "version": 1,
+      "id": "bcts-route-card",
+      "name": "BCTS route card",
+      "description": "The Route Card Tool Assessment and Other Considerations as BC Timber Sales planners in Prince George write them: 69 rows in five sections, and a paragraph for each consideration the rows call for.",
+      "sheet": {
+        "routeCard": "Route Card Tool Assessment",
+        "considerations": "Other Considerations"
+      },
+      "sections": [
+        {
+          "title": "Operating Plan Summary",
+          "rows": [
+            "district",
+            "bcts-op-area",
+            "mk-op-referrals",
+            "pg-op-referrals",
+            "rv-op-referrals",
+            "first-nations",
+            "guide-outfitter",
+            "trapline",
+            "crown-tenures",
+            "range-tenure",
+            "woodlots-community-forests"
+          ]
+        },
+        {
+          "title": "Block Information",
+          "rows": [
+            "merged-bec",
+            "ndt",
+            "landscape-unit",
+            "location",
+            "opening-results",
+            "ften-cut-blocks",
+            "existing-roads",
+            "bcts-roads",
+            "block-state"
+          ]
+        },
+        {
+          "title": "Known constraints at the time of Planning",
+          "rows": [
+            "forest-health",
+            "tap-remnant",
+            "tap-ancient",
+            "tap-big-treed",
+            "cofa-non-legal-ogma",
+            "wildlife-habitat-areas",
+            "ungulate-winter-range",
+            "wildlife-management-area",
+            "csfn-esi-moose-candidates",
+            "approved-moose-polygons",
+            "private-land",
+            "permanent-sample-plots",
+            "legal-ogma",
+            "non-legal-ogma",
+            "recreation-sites",
+            "recreation-trails",
+            "recreational-areas",
+            "historical-trails",
+            "historical-trail-areas",
+            "protected-areas",
+            "terrain-stability",
+            "pipeline-crossing",
+            "hydro-line-crossing",
+            "railway-gba",
+            "railway-trim",
+            "oil-gas-transmission",
+            "cable-line",
+            "arch-sites"
+          ]
+        },
+        {
+          "title": "Fisher Habitat and Migratory Bird Ranking",
+          "rows": [
+            "fisher-region",
+            "fisher-zone",
+            "fisher-harvest-impact",
+            "fisher-denning-warning",
+            "fisher-denning-stems",
+            "fisher-branch-resting-warning",
+            "fisher-branch-resting-stems",
+            "fisher-cavity-resting-warning",
+            "fisher-cavity-resting-stems",
+            "fisher-cwd-single",
+            "fisher-cwd-piles",
+            "migratory-bird-rankings"
+          ]
+        },
+        {
+          "title": "Landscape Biodiversity",
+          "rows": [
+            "esi-study-area",
+            "fisheries-sensitive-watershed",
+            "community-watershed",
+            "invasive-species",
+            "species-at-risk",
+            "lakeshore-management-zones",
+            "karst-potential",
+            "evqc",
+            "rvqc"
+          ]
+        }
+      ],
+      "considerations": [
+        "old-forest",
+        "patch-size",
+        "watershed",
+        "tap-ogma",
+        "visuals",
+        "caribou-uwr",
+        "arch",
+        "migratory-birds",
+        "fisher"
+      ],
+      "reads": ["bec-subzone"]
+    }
+  ]
+}

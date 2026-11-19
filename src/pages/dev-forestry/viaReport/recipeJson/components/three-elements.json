@@ -1,0 +1,24 @@
+{
+  "kind": "component",
+  "id": "three-elements",
+  "title": "The three elements of the definition",
+  "description": "The three elements every visual quality objective is defined by, and that they are judged together. Fixed wording: no value of the assessment.",
+  "meta": { "reportPart": true, "sources": ["22", "23"] },
+  "blocks": [
+    { "type": "heading", "level": 2, "content": "Assessing the definition" },
+    {
+      "type": "list",
+      "source": "fixed",
+      "items": [
+        "Visibility: how easy the alteration is to see, given where it sits, where the viewpoints are, its size, how distinct it is from the landscape around it, screening in front of it, and how long and how directly it is viewed.",
+        "Size and scale: the alteration against the visible area of the landform, judged by eye and measured as the percent of the landform altered in perspective view.",
+        "Design: the shape and position of the alteration on the landform, its response to the lines of force of the terrain, and whether it borrows from the natural character of the landscape."
+      ]
+    },
+    {
+      "type": "paragraph",
+      "source": "fixed",
+      "content": "The three are considered together, and the extent the objective is met is a judgement on all three; the percent alteration is a measure of one of them."
+    }
+  ]
+}

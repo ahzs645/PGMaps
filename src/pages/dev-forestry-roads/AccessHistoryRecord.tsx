@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { formatNumber } from '@/lib/format'
 import { assessHistoricalRoad, assessHistoricalStructures, roadGeometryFingerprint } from './accessHistory'
@@ -16,11 +17,11 @@ function Sources({ sources }: { sources: HistoricalSource[] }) {
   if (!sources.length)
     return <p className="text-2xs text-muted-foreground">No retained source reference accompanies this record.</p>
   return (
-    <details>
-      <summary className="cursor-pointer">
-        Source reference{sources.length === 1 ? '' : 's'} · {sources.length}
-      </summary>
-      <ul className="mt-1 space-y-2">
+    <DisclosureRow
+      title={sources.length === 1 ? 'Source reference' : 'Source references'}
+      summary={sources.length === 1 ? sources[0].dataset : `${sources.length} sources`}
+    >
+      <ul className="space-y-2">
         {sources.map((source) => (
           <li key={source.id}>
             <p>
@@ -37,7 +38,7 @@ function Sources({ sources }: { sources: HistoricalSource[] }) {
           </li>
         ))}
       </ul>
-    </details>
+    </DisclosureRow>
   )
 }
 

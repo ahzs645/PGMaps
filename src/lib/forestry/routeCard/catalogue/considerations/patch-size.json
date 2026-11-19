@@ -1,0 +1,129 @@
+{
+  "kind": "component",
+  "id": "consideration-patch-size",
+  "title": "Patch Size",
+  "description": "The patch the block makes with openings within 100 m, its size class and target from the Biodiversity Guidebook, and the patch analysis figures and decision the reviewer gives.",
+  "meta": {
+    "consideration": "patch-size",
+    "sources": ["RESULTS openings within 100 m", "Biodiversity Guidebook (1995)", "reviewer: patch analysis"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 3,
+      "content": "{{ params.title }}"
+    },
+    {
+      "if": "own.patchSize",
+      "then": [
+        {
+          "type": "paragraph",
+          "content": "{{ own.patchSize }}",
+          "source": "reviewer"
+        }
+      ],
+      "else": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "if": "patch.areaHa",
+              "then": [
+                {
+                  "type": "text",
+                  "text": "{{ if patch.ndt }}{{ patch.ndt }} - {{ endif }}Currently, the proximity of {{ subject.name }} to other openings"
+                },
+                {
+                  "if": "patch.joined",
+                  "then": [
+                    {
+                      "type": "text",
+                      "text": " ("
+                    },
+                    {
+                      "for": "o in patch.joined",
+                      "do": [
+                        {
+                          "type": "text",
+                          "text": "{{ o.name }} - {{ o.areaHa }} ha{{ if not loop.last }}, {{ endif }}"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "text": ")"
+                    }
+                  ]
+                },
+                {
+                  "if": "patch.className",
+                  "then": [
+                    {
+                      "type": "text",
+                      "text": " would contribute to {{ patch.article }} {{ patch.className }} patch size of {{ patch.areaHa }} ha ({{ patch.bin }})."
+                    },
+                    {
+                      "if": "patch.target",
+                      "then": [
+                        {
+                          "type": "text",
+                          "text": " {{ patch.className | capitalize }} patches in the {{ patch.ndt }} have a target of {{ patch.target }} and a current percentage of {{ patch.currentPercent | missing \"placeholder\" \"current percentage from the patch analysis\" }} and a future target of {{ patch.futureTarget | missing \"placeholder\" \"future target from the patch analysis\" }}."
+                        }
+                      ],
+                      "else": [
+                        {
+                          "type": "text",
+                          "text": " {{ patch.className | capitalize }} patches in the {{ patch.ndt }} do not have a target."
+                        }
+                      ]
+                    }
+                  ],
+                  "else": [
+                    {
+                      "type": "text",
+                      "text": " would contribute to a patch of {{ patch.areaHa }} ha. "
+                    },
+                    {
+                      "type": "text",
+                      "text": "{{ toComplete.none | missing \"placeholder\" \"patch size class and target for this NDT\" }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " {{ patch.decision | missing \"placeholder\" \"patch size decision and initials\" }}"
+                }
+              ],
+              "else": [
+                {
+                  "type": "text",
+                  "text": "{{ toComplete.none | missing \"placeholder\" \"patch size (the block has no area)\" }}"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "for": "f in figures.patchSize",
+      "do": [
+        {
+          "type": "figure",
+          "image": "{{ f.image }}",
+          "caption": "{{ f.caption }}",
+          "fit": {
+            "width": 468,
+            "height": 340
+          },
+          "align": "left"
+        }
+      ]
+    }
+  ],
+  "params": {
+    "title": {
+      "default": "Patch Size"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "kind": "component",
+  "id": "via-fields",
+  "title": "Field table",
+  "description": "Label and value rows as one ruled table, each row saying where its value came from. A row nobody filled prints blank and, unless the part says otherwise, is listed to complete under its own label.",
+  "params": {
+    "rows": {
+      "required": true,
+      "description": "[{ label, value, source }]: value null when nobody gave it; source run, reviewer, scene, table or fixed."
+    },
+    "listBlanks": { "default": true, "description": "List each blank row to complete under its label." },
+    "toComplete": { "default": [], "description": "More items to complete, in the part's own words." }
+  },
+  "blocks": [
+    {
+      "type": "fields",
+      "layout": "table",
+      "rows": [
+        {
+          "for": "row in params.rows",
+          "do": [{ "label": "{{ row.label }}", "value": "{{ row.value }}", "source": "{{ row.source }}" }]
+        }
+      ],
+      "pending": [
+        {
+          "if": "params.listBlanks",
+          "then": [
+            {
+              "for": "row in params.rows",
+              "do": [{ "if": "row.value", "then": [], "else": [{ "what": "{{ row.label }}" }] }]
+            }
+          ]
+        },
+        { "for": "item in params.toComplete", "do": [{ "what": "{{ item }}" }] }
+      ]
+    }
+  ]
+}

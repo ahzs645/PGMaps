@@ -135,8 +135,7 @@ export function ReferenceGeometryPanel({
   }, [fitFile, showFit, row.caseId, row.printed.viewpoint, row.printed.landform])
   const choice = choices[Number(index)]
   return (
-    <details className="space-y-2 rounded-md border p-3">
-      <summary className="cursor-pointer font-medium">Study geometry and registration</summary>
+    <section className="space-y-2" aria-label="Study geometry and registration">
       {fitFile && (
         <>
           <Button type="button" size="sm" variant="outline" onClick={() => setShowFit(true)}>
@@ -380,6 +379,6 @@ export function ReferenceGeometryPanel({
         </>
       )}
       {error && <p role="alert">{error}</p>}
-    </details>
+    </section>
   )
 }

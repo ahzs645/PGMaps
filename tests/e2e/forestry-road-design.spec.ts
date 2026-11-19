@@ -928,7 +928,10 @@ test('numeric pegging and radial D-lines preserve physical map positions, invali
   const mapDistance = Number(await page.getByTestId('road-active-cable-position').getAttribute('data-distance'))
   expect(chartDistance).toBeCloseTo(175, 1)
   expect(mapDistance).toBeCloseTo(chartDistance, 1)
-  await page.getByTestId('road-cable-summary').locator('summary').click()
+  await page
+    .getByTestId('road-cable-summary')
+    .getByRole('button', { name: /^D-line geometry/ })
+    .click()
   await expect(page.getByTestId('road-cable-summary')).toContainText('Straight chord')
   const cableCsv = await downloadText(page, page.getByRole('button', { name: 'D-line CSV', exact: true }))
   expect(cableCsv.text).toContain('sampled_geometric_cable_length_m')

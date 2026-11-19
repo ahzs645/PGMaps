@@ -2,12 +2,11 @@ import { CommandButton, type CommandPresentation } from '@/components/interfaces
 import { ROAD_TOUR_ANCHORS } from '../tours/roadTour'
 import type { WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
 import type { ReactNode } from 'react'
-import { ChevronRight } from 'lucide-react'
 import { insetBox } from '@/components/ui/inset-box'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, KeyValueRows } from '@/components/ui/map-panels'
+import { ToolSubsection } from '@/components/ui/tool-section'
 import { RoadSection } from '../SidebarParts'
 import { ConstraintsPanel } from '../ConstraintsPanel'
 import { StreamsPanel } from '../StreamsPanel'
@@ -190,7 +189,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
       <RoadSection
         title="Import options"
         toggleTutorialId={ROAD_TOUR_ANCHORS.importOptions}
-        summary={`${SURFACES[p.pointCloud.surface]}${p.verticalReference ? ' · datum set' : ''}`}
+        summary={`${SURFACES[p.pointCloud.surface]}${p.verticalReference ? ' · datum set' : ''}${p.breaklines ? ` · ${p.breaklines}` : ''}`}
         help={
           <>
             <b>GeoTIFF:</b> single-band bare-earth elevations in metres, up to 4.19 million native cells / 64 MB, with
@@ -205,16 +204,9 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
         }
       >
         <TerrainImportField field="importDatum" {...p} />
-        <details className={cn(insetBox({ padding: 'none' }), 'group')} data-testid="road-point-cloud-options">
-          <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2 py-1.5 text-xs [&::-webkit-details-marker]:hidden">
-            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
-            <span className="font-medium">Point-cloud options</span>
-            <span className="min-w-0 truncate text-muted-foreground">
-              {SURFACES[p.pointCloud.surface]}
-              {p.breaklines ? ` · ${p.breaklines}` : ''}
-            </span>
-          </summary>
-          <div className="space-y-2 border-t p-2">
+        {/* A hairline of its own: the group is the first child here, where the subsection drops its rule. */}
+        <div data-testid="road-point-cloud-options" className="border-t border-border/60 pt-2.5">
+          <ToolSubsection title="Point-cloud options">
             <TerrainImportField field="cloudSurface" {...p} />
             <TerrainImportField field="cloudClass" {...p} />
             {p.pointCloud.surface === 'tin' && (
@@ -249,8 +241,8 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
               lastCrop={p.lastCrop}
               busy={busy}
             />
-          </div>
-        </details>
+          </ToolSubsection>
+        </div>
       </RoadSection>
       <TerrainPreparationPanel
         workspace={p.workspace}

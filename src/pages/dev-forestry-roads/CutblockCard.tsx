@@ -20,6 +20,7 @@ export function CutblockCard({
   onClose,
   onOpenHistory,
   onAccessHistory,
+  onSentinelSeries,
 }: {
   feature: ContextFeature
   at: Coordinate
@@ -28,6 +29,8 @@ export function CutblockCard({
   /** The full evidence and nearby roads, in the sidebar's cutblock history. */
   onOpenHistory?: () => void
   onAccessHistory?: () => void
+  /** Read this block's Sentinel-2 series (evidence only). */
+  onSentinelSeries?: () => void
 }) {
   const evidence = feature.harvestEvidence
   const isProposed = evidence?.status === 'proposed'
@@ -66,6 +69,7 @@ export function CutblockCard({
         footerActions={[
           ...(onOpenHistory ? [{ label: 'Review cutblock', onClick: onOpenHistory }] : []),
           ...(onAccessHistory ? [{ label: 'Access evidence', onClick: onAccessHistory }] : []),
+          ...(onSentinelSeries ? [{ label: 'Sentinel-2 series', onClick: onSentinelSeries }] : []),
         ]}
       >
         <div data-testid="road-cutblock-card">

@@ -611,6 +611,15 @@ export type SidebarProps = {
    */
   /** Step 1: the road and the proposed cutblocks. */
   setup: ReactNode
+  /**
+   * Step 1, under the cutblocks: a block's route card and the Other Considerations drafted from it (`RouteCardPanel`).
+   * Read only while open, so its section's open state is the page's.
+   */
+  routeCard?: ReactNode
+  routeCardOpen?: boolean
+  onRouteCardOpenChange?: (open: boolean) => void
+  /** What the folded section says: its Y count and the rows still to enter. */
+  routeCardSummary?: string
   projectAttachments?: ReactNode
   /** Step 1: nearby inventory units to adopt as the landform. */
   landformFinder?: ReactNode
@@ -726,6 +735,10 @@ export function Sidebar({
   onOpenExport,
   onAddRoadDisturbance,
   setup,
+  routeCard,
+  routeCardOpen,
+  onRouteCardOpenChange,
+  routeCardSummary,
   projectAttachments,
   landformFinder,
   visit,
@@ -1335,6 +1348,20 @@ export function Sidebar({
             </div>
           </ToolSection>
         </Projectable>
+
+        {routeCard && (
+          <Projectable id={exportEditorId('route-card')} away={editedInExport}>
+            <ToolSection
+              title="Route card"
+              summary={routeCardSummary}
+              open={routeCardOpen}
+              onOpenChange={onRouteCardOpenChange}
+              help="The block's Route Card Tool Assessment, read live from public BC layers by the preset's rows (Y touches the block, Within lies within 200 m), with the rows no public layer holds for you to enter or measure from your own file, and the Other Considerations paragraphs drafted from it. A screen, not a legal determination; Save & export writes it as the planners' workbook or a Word document."
+            >
+              {routeCard}
+            </ToolSection>
+          </Projectable>
+        )}
 
         <Projectable id={exportEditorId('landform')} away={editedInExport}>
           <ToolSection

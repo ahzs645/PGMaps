@@ -1,0 +1,87 @@
+{
+  "kind": "component",
+  "id": "consideration-fisher",
+  "title": "Fisher Habitat",
+  "description": "The fisher habitat harvest impact classes the block overlaps, and the layout advice for denning and resting trees.",
+  "meta": {
+    "consideration": "fisher",
+    "sources": ["route card: Fisher Harvest Impact Warning", "BC Fisher Habitat Working Group"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 3,
+      "content": "{{ params.title }}"
+    },
+    {
+      "if": "own.fisher",
+      "then": [
+        {
+          "type": "paragraph",
+          "content": "{{ own.fisher }}",
+          "source": "reviewer"
+        }
+      ],
+      "else": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "if": "fisher.classes",
+              "then": [
+                {
+                  "type": "sentence",
+                  "template": "Block overlaps fisher habitat {classes} polygons developed by the BC Fisher Habitat Working Group.",
+                  "values": {
+                    "classes": "{{ fisher.classes | prose }}"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": " If there are areas identified during layout with high numbers of large diameter cottonwood (>90cm dbh), Aspen (>44cm dbh), Douglas Fir (>65 cm dbh), live Pine (>35cm dbh), or Spruce (>27cm dbh) with rust brooms within the block layout crews should try to tie these areas into WTRAs when feasible to provide denning and resting habitat for fishers."
+                }
+              ],
+              "else": [
+                {
+                  "if": "rows.fisherHarvestImpact.known",
+                  "then": [
+                    {
+                      "type": "text",
+                      "text": "Block does not overlap with any fisher habitat 'caution' or 'warning' polygons developed by the BC Fisher Habitat Working Group."
+                    }
+                  ],
+                  "else": [
+                    {
+                      "type": "text",
+                      "text": "{{ toComplete.none | missing \"placeholder\" \"fisher harvest impact classes from the route card tool (not public)\" }}"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "for": "f in figures.fisher",
+      "do": [
+        {
+          "type": "figure",
+          "image": "{{ f.image }}",
+          "caption": "{{ f.caption }}",
+          "fit": {
+            "width": 468,
+            "height": 340
+          },
+          "align": "left"
+        }
+      ]
+    }
+  ],
+  "params": {
+    "title": {
+      "default": "Fisher Habitat"
+    }
+  }
+}

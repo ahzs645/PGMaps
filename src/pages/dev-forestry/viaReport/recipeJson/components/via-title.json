@@ -1,0 +1,49 @@
+{
+  "kind": "component",
+  "id": "via-title",
+  "title": "Title block",
+  "description": "The report's title and project over a rule, the logo at the right: the first page's head when there is no cover.",
+  "blocks": [
+    {
+      "type": "table",
+      "columnWidths": "{{ titleBlock.columnWidths }}",
+      "borders": {
+        "top": { "style": "none" },
+        "bottom": { "style": "single", "width": 1.5, "color": "1a2530" },
+        "left": { "style": "none" },
+        "right": { "style": "none" },
+        "insideHorizontal": { "style": "none" },
+        "insideVertical": { "style": "none" }
+      },
+      "cellPadding": { "top": 0, "bottom": 9, "left": 0, "right": 0 },
+      "rows": [
+        {
+          "cells": [
+            {
+              "blocks": [
+                { "type": "paragraph", "content": { "type": "text", "text": "{{ report.title }}" }, "style": "title" },
+                {
+                  "type": "paragraph",
+                  "content": { "type": "text", "text": "{{ report.subtitle }}" },
+                  "style": "subtitle",
+                  "spacing": { "before": 0, "after": 0 }
+                }
+              ],
+              "verticalAlign": "top"
+            },
+            {
+              "blocks": [
+                {
+                  "use": "via-logo",
+                  "with": { "width": 135, "height": 48, "align": "right", "boxWidth": "{{ logo.titleBoxWidth }}" }
+                }
+              ],
+              "verticalAlign": "top"
+            }
+          ]
+        }
+      ]
+    },
+    { "type": "spacer", "height": 12 }
+  ]
+}

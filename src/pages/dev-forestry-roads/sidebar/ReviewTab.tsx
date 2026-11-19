@@ -5,6 +5,7 @@ import type { RoadSettings } from '../types'
 import { useMemo, useRef, useState } from 'react'
 import { ArrowRight, Trash2 } from 'lucide-react'
 import { insetBox } from '@/components/ui/inset-box'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass, RoadSelect } from '../Controls'
@@ -29,6 +30,8 @@ import { projectReadiness, type ReadinessRow } from '../readiness'
 import { HaulPanel } from '../HaulPanel'
 import { FieldReviewSection } from '../FieldReviewSection'
 import { CrossDrainGuideSection } from '../CrossDrainGuideSection'
+import { Icesat2Section } from '../canopy/Icesat2Section'
+import { icesat2Key, useIcesat2Run } from '../canopy/icesat2Store'
 
 /** The settings with the curvature correction applied, or back to report only (the field left out). */
 const withCurvatureCorrection = (settings: RoadSettings, apply: boolean): RoadSettings => {
@@ -47,9 +50,16 @@ export function ReviewTab(
   const aggregateSource = alignment.engineering?.surfacingSupply
   const aggregate = surfacingSupplyCost(analysis.surfaceVolumeM3, project.settings.surfacingRate, aggregateSource)
   const settings = project.settings
+  const laserRun = useIcesat2Run(icesat2Key(project.terrain, alignment.id))
+  const icesat2 = laserRun?.status === 'done' ? laserRun.result : null
   const { rows, register } = useMemo(
-    () => projectReadiness(project, alignment, analysis, { drainageStale: !!p.drainageStale, vehicle: p.vehicleFit }),
-    [project, alignment, analysis, p.drainageStale, p.vehicleFit],
+    () =>
+      projectReadiness(project, alignment, analysis, {
+        drainageStale: !!p.drainageStale,
+        vehicle: p.vehicleFit,
+        icesat2,
+      }),
+    [project, alignment, analysis, p.drainageStale, p.vehicleFit, icesat2],
   )
   const [ratesOpen, setRatesOpen] = useState(false)
   const [standardsOpen, setStandardsOpen] = useState(false)
@@ -126,6 +136,7 @@ export function ReviewTab(
           Review connected access & complete route costs
         </Button>
       </ReadinessList>
+      <Icesat2Section terrain={project.terrain} alignment={alignment} analysis={analysis} />
       <RoadSection
         title="Crossing register"
         summary={crossingRegisterSummary(register)}
@@ -363,9 +374,11 @@ function CableLines(p: SidebarProps) {
               />
             ))}
           </div>
-          <details className={insetBox()}>
-            <summary className="cursor-pointer text-xs">Edit original endpoints</summary>
-            <div className="mt-2 grid grid-cols-2 gap-1">
+          <DisclosureRow
+            title="Original endpoints"
+            summary={`${c.start.map((n) => n.toFixed(5)).join(', ')} → ${c.end.map((n) => n.toFixed(5)).join(', ')}`}
+          >
+            <div className="grid grid-cols-2 gap-1">
               {(['start', 'end'] as const).flatMap((endpoint) =>
                 ([0, 1] as const).map((axis) => (
                   <NumberField
@@ -382,7 +395,7 @@ function CableLines(p: SidebarProps) {
                 )),
               )}
             </div>
-          </details>
+          </DisclosureRow>
           <Button
             size="sm"
             variant="outline"

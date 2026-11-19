@@ -1,0 +1,28 @@
+{
+  "kind": "component",
+  "id": "references",
+  "title": "References",
+  "description": "The handbook, the regulation, the inventory as read (or not) and how the pictures were drawn.",
+  "meta": { "reportPart": true, "sources": ["22", "23", "26"] },
+  "blocks": [
+    { "type": "heading", "level": 2, "content": "References" },
+    {
+      "type": "list",
+      "source": "fixed",
+      "items": [
+        "BC Ministry of Forests. Visual Impact Assessment Handbook (May 2022).",
+        "Forest Planning and Practices Regulation, s. 1.1 (visual quality objective definitions).",
+        {
+          "if": "facts.inventoryRead",
+          "then": [
+            "BC Geographic Warehouse: Visual Landscape Inventory (REC_VISUAL_LANDSCAPE_INVENTORY), read live from DataBC for this report."
+          ],
+          "else": [
+            "BC Geographic Warehouse: Visual Landscape Inventory (REC_VISUAL_LANDSCAPE_INVENTORY): not read for this report; inventory values are the office fields."
+          ]
+        },
+        "Terrain: {{ facts.method.terrain }}. Timber: {{ facts.method.vegetation }}."
+      ]
+    }
+  ]
+}

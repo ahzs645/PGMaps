@@ -13,6 +13,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // The VIA report's JSON parts render through document-kit's engine, which the page loads with Save & export.
+    setupFiles: ['src/pages/dev-forestry/viaReport/reportEngine.setup.ts'],
     // Only pick up co-located unit tests; tests/e2e/ contains Playwright specs.
     // The forestry regression suite is plain ESM (.mjs) against the real modules.
     include: [

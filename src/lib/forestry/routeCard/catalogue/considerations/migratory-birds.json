@@ -1,0 +1,87 @@
+{
+  "kind": "component",
+  "id": "consideration-migratory-birds",
+  "title": "Migratory Bird Habitat",
+  "description": "The migratory bird habitat rankings the block overlaps, and the SOP steps that follow.",
+  "meta": {
+    "consideration": "migratory-birds",
+    "sources": ["route card: Migratory Bird Rankings"]
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 3,
+      "content": "{{ params.title }}"
+    },
+    {
+      "if": "own.migratoryBirds",
+      "then": [
+        {
+          "type": "paragraph",
+          "content": "{{ own.migratoryBirds }}",
+          "source": "reviewer"
+        }
+      ],
+      "else": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "if": "rows.migratoryBirdRankings.yes",
+              "then": [
+                {
+                  "type": "sentence",
+                  "template": "Block overlaps with Migratory Bird Habitat Ranking {ranks}.",
+                  "values": {
+                    "ranks": "{{ birds.rankings | prose }}"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": " Follow steps 4-14 in the SOP to eliminate, reduce, or mitigate incidental take."
+                }
+              ],
+              "else": [
+                {
+                  "if": "rows.migratoryBirdRankings.known",
+                  "then": [
+                    {
+                      "type": "text",
+                      "text": "Block does not overlap ranked migratory bird habitat."
+                    }
+                  ],
+                  "else": [
+                    {
+                      "type": "text",
+                      "text": "{{ toComplete.none | missing \"placeholder\" \"migratory bird rankings from the route card tool (not public)\" }}"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "for": "f in figures.migratoryBirds",
+      "do": [
+        {
+          "type": "figure",
+          "image": "{{ f.image }}",
+          "caption": "{{ f.caption }}",
+          "fit": {
+            "width": 468,
+            "height": 340
+          },
+          "align": "left"
+        }
+      ]
+    }
+  ],
+  "params": {
+    "title": {
+      "default": "Migratory Bird Habitat"
+    }
+  }
+}

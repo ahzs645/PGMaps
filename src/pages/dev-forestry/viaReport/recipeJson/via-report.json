@@ -1,0 +1,72 @@
+{
+  "kind": "recipe",
+  "id": "via-report",
+  "name": "VIA report (base)",
+  "description": "What every VIA report shares: the theme, each page kind as a section, the title or cover, the contents and the closing. Each shipped report extends it with its parts.",
+  "document": {
+    "metadata": { "title": "{{ report.title }} - {{ report.subtitle }}", "subject": "{{ report.footer }}" },
+    "theme": {
+      "body": { "font": "Arial", "size": 9.5, "color": "1a2530", "after": 6, "line": 1.15 },
+      "title": { "size": 18, "bold": true, "align": "left", "after": 3 },
+      "subtitle": { "size": 9.75, "color": "475569", "align": "left" },
+      "headings": [
+        { "size": 11.5, "bold": true, "color": "1a2530", "before": 9, "after": 3 },
+        { "size": 10, "bold": true, "color": "1a2530", "before": 5, "after": 3 },
+        { "size": 10, "bold": true, "color": "1a2530", "before": 5, "after": 3 }
+      ],
+      "caption": { "size": 8.25, "color": "475569", "bold": false, "before": 3, "after": 3 },
+      "note": { "size": 8, "color": "64748b", "after": 5 },
+      "small": { "size": 8, "color": "64748b" },
+      "header": { "size": 8, "color": "64748b" },
+      "footer": { "size": 8, "color": "64748b" },
+      "table": {
+        "size": 9,
+        "headerFill": "f1f5f9",
+        "headerText": { "bold": true },
+        "headerAlign": "left",
+        "groupFill": "d9dee4",
+        "labelFill": "f8fafc",
+        "outerBorder": { "style": "single", "width": 0.75, "color": "cbd5e1" },
+        "innerBorder": { "style": "single", "width": 0.75, "color": "cbd5e1" },
+        "cellPadding": { "top": 3, "bottom": 3, "left": 3, "right": 3 },
+        "placeholderFill": "ffffff",
+        "placeholderBorder": { "style": "dashed", "width": 0.75, "color": "94a3b8" },
+        "placeholderText": { "size": 8.25, "color": "64748b" }
+      },
+      "blankWidth": 120
+    }
+  },
+  "options": { "paper": "letter", "cover": false, "contents": false },
+  "sections": [
+    {
+      "id": "portrait",
+      "page": "{{ pages.portrait }}",
+      "header": [{ "use": "via-running-header" }],
+      "footer": [{ "use": "via-page-number" }],
+      "parts": [
+        { "use": "via-title", "id": "title", "if": "not options.cover" },
+        { "use": "via-cover", "id": "cover-page", "if": "options.cover" },
+        { "use": "via-contents", "id": "contents", "if": "contents.show" },
+        { "use": "via-closing", "id": "closing" }
+      ]
+    },
+    {
+      "id": "landscape",
+      "page": "{{ pages.landscape }}",
+      "header": [{ "use": "via-running-header" }],
+      "footer": [{ "use": "via-page-number" }],
+      "parts": []
+    },
+    { "id": "cover", "page": "{{ pages.cover }}", "header": [], "footer": [], "parts": [] },
+    { "id": "sheet", "page": "{{ pages.sheet }}", "header": [], "footer": [{ "use": "via-page-number" }], "parts": [] },
+    { "id": "sheetFull", "page": "{{ pages.sheetFull }}", "header": [], "footer": [], "parts": [] },
+    { "id": "sheetPortrait", "page": "{{ pages.sheetPortrait }}", "header": [], "footer": [], "parts": [] },
+    {
+      "id": "figure",
+      "page": "{{ pages.figure }}",
+      "header": [],
+      "footer": [{ "use": "via-page-number" }],
+      "parts": []
+    }
+  ]
+}

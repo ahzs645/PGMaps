@@ -909,8 +909,11 @@ workspace, and the package's renderer and recipe. Terrain and inventories are
 read again, and the first output that needs the run makes it again. The ZIP
 contains `project.json` with references to image files under `photos/` and
 `captures/` and an `archive.json` manifest. Successful local photo imports
-also keep the original file under **Project attachments**, where other
-source files can be attached. The open local photo comes back with its edited
+also keep the original file under **Project attachments** (the paperclip
+beside *Save & export*, `ProjectAttachments.tsx`), where other source files can
+be attached; a file that is a field record's original is removed only with its
+record (`removePhoto`). The project file's *What goes in* lists them with a
+*Manage…* button to the same dialog. The open local photo comes back with its edited
 camera. ZIPs can be up to 400 MB, including their expanded contents.
 A figure's rasters are gzipped one by one
 (`CompressionStream`) and written as base64, since a class pass is tens of
@@ -934,9 +937,13 @@ curve and the Castor curve library stay, as the reviewer's inputs rather than
 the site's records.
 
 **Reviewing a historical VIA.** Open the project ZIP in **Step 1 → Start from**,
-then choose **Reference measurements**. Earlier converted projects import their
-attached `case.json` on open. A standalone case can be imported in the same
-dialog. Choose a viewpoint and landform to open its original sheet, inspect the
+then open **Project attachments** (the paperclip) and choose **Reference
+measurements**. Earlier converted projects import their attached `case.json` on
+open. A standalone case can be imported from the dialog's header, beside the
+row picker and *Add measurement*. Each row's work is a tab (*Measurements*,
+*Geometry*, *Image trace*, *Run*, *Compare*, and *Exhibits* when the project
+carries a figure catalogue), mounted when first shown and kept while another is
+chosen. Choose a viewpoint and landform to open its original sheet, inspect the
 transcribed measurements and enter corrections. Tab out of an edited field or
 press Enter to apply it. Clear **Use reviewer value** to use the transcription again. The alternative value and its evidence note remain available.
 
@@ -3534,7 +3541,15 @@ recreation sites (`FTEN_REC_SITE_POINTS_SVW`) and tenure road sections
 - The ArcGIS view of the viewpoints (MapServer layer 5) advertises queries but
   answers with no rows; the WFS has all 12,396. Every one carries an expiry
   date in the past, so expiry is shown, not filtered on. Rows typed `ERROR` are
-  the inventory flagging its own mistakes and are dropped.
+  kept as flagged candidates (`inventoryError`), never dropped: `ERROR` is a
+  code on the record, not proof the point is wrong. Near one real block 12 of
+  the 13 viewpoints within 12 km were typed `ERROR`, the one its planner stood
+  at for the Visuals assessment (beside a forest service road, 2.7 km off)
+  among them, so dropping them hid the viewpoint a planner used. A flagged row
+  is named plainly ("VLI viewpoint 7"), shows *Inventory: ERROR* with an
+  explanation behind its (i), ranks after an equally good unflagged row, keeps
+  its arrows (joined on `VIEWPOINT_ID` like any other) and is added in one
+  click like the rest. Photo markers label it "Viewpoint 7 (inventory: ERROR)".
 - The arrows are polygons, and `COMPASS_BEARING` is 0 on every row. The bearing
   runs from the arrow's viewpoint (joined on `VIEWPOINT_ID`, a median 8 m from
   the tail) to the vertex farthest from it. Read from the shape alone — the
@@ -4469,8 +4484,9 @@ the structure of a reference VIA (a PDF by default, a Word file, a PDF laid
 out from that Word file, printable HTML, or Markdown for review). A
 report is a **recipe**: an ordered list of shared **parts**
 (`src/pages/dev-forestry/viaReport/recipes.ts`, `parts.ts`) and the VIA document
-format whose arithmetic, scale and wording the parts read. The reports share
-most of their parts:
+format whose arithmetic, scale and wording the parts read. The recipes are JSON
+in document-kit's recipe format (`viaReport/recipeJson/`, **Recipes as JSON**
+below). The reports share most of their parts:
 
 | Report (reference)                                 | Parts beyond the shared cover, viewpoints, sign-off and figures                                                   |
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -4641,8 +4657,9 @@ takes it). The printable HTML is still offered for the browser's own print
 (*Print / save as PDF*, with the page sizes in its CSS) and is unchanged; the
 draft is HTML only.
 
-**The Word file** (`viaReport/word.ts`, `reportDocx`) is the same
-`AssembledReport` written through document-kit (`docs/document-kit.md`), by the
+**The Word file** (`viaReport/word.ts`, built through the recipe engine by
+`recipeRoute.ts`, below) is the same `AssembledReport` written through
+document-kit (`docs/document-kit.md`), by the
 PDF's page rules read from the PDF's own helpers (`bodyParts`, `completeAt`,
 `pageSpec`, `runningHeader`, with `isWide`, `isSheet`, `imageLabel`,
 `scaleGeometry` and `untitled`): each page kind is a Word section, so the
@@ -4676,6 +4693,98 @@ view, left to right…") rather than ringed in it, a panorama prints its picture
 whole rather than its band, and an inset label prints over its picture rather
 than in its corner. A picture that is not a PNG or JPEG prints the PDF's box
 saying so.
+
+**Recipes as JSON.** Each shipped report is a recipe in document-kit's format
+(`vendor/document-kit/docs/recipe.md`) under `viaReport/recipeJson/`. The base,
+`via-report.json`, says what every report shares: the Word theme, each page
+kind as a section (portrait, landscape, cover, 11 × 17 sheet, full-size map
+sheet, portrait end map, figure page) with its running header and "Page n of
+N" where it carries them, and the furniture as the app's own JSON components
+(`recipeJson/components/via-*.json`): the title block or the cover's head with
+the logo, the contents, and the closing to-complete box and last line. Each
+report `extends` the base and adds its parts in order; 23 `extends` 22 and
+replaces only the sign-off. A report's details (`sources`, `format`,
+`figureStyle`, `obliquePitch`, `overviewSheetStyle`, its title and purpose) are
+its `meta`; its paper, cover and contents, and the options its parts read, are
+its `options`. A recipe is added or changed there, then
+`npm run via-recipes:build` writes `recipeJson/recipes.generated.json`, which
+is what the page reads as `REPORT_RECIPES` so the kit never loads with it; the
+file is the kit's own compile of the JSON, and `recipeJson.test.ts` (and
+`npm run via-recipes:check`) fails when the two differ. `recipeJson/index.json`
+orders the list.
+
+Every part is usable by the recipe engine, and a part is defined once, for every
+format. A part that is layout and wording over the assessment's facts is a JSON
+component (`recipeJson/components/`, marked `meta.reportPart`); a part that
+computes (ratings, matrices, scales, tables built from the run, figure
+placement, sentences with the reviewer's slots) stays code in `parts.ts` and its
+neighbours, and reaches the engine as a code component made by one adapter over
+the part registry (`recipeRoute.ts`, `viaCodeComponents`). Where several parts
+were the same shape with different content, one family component holds the
+shape and each part says only its content through `with`: `via-fields` (a ruled
+field table whose blank rows are listed to complete under their labels) is the
+cover and the 2001 forms' header, and `via-sign-off` (the preparer, the
+certification as tick boxes or one statement, the lines signed by hand) is the
+handbook sign-off and the consultant preparer's sign-off. *Limitations*,
+*References* and *The three elements of the definition* are single JSON parts.
+The certification statements are one file (`recipeJson/wording.json`) read by
+the JSON parts and the code parts alike. A JSON part reads one facts object
+(`reportFacts.ts`): the office information and the preparer, the block lines,
+the general location, the date, how the pictures were drawn and whether the
+inventory was read. Each value is plain; where its provenance depends on the
+assessment (the general location, the designation) the fact is a pair of value
+and source, and the component prints both, so a field keeps the source the code
+part gave it. A value nobody gave is null: it prints blank and the part lists
+it to complete in its own words, which the component declares (`pending`). The
+blocks it renders are read back as the report's own (`kitBlocks.ts`), only for
+block kinds where the mapping is exact (a heading, plain text, a plain list,
+fields, a tick-box question, signature lines), so the PDF, HTML, Markdown, the
+draft and the Word file draw the same blocks, and the reviewer's hand edits key
+and land as before.
+
+**The engine loads with Save & export, never with the page.** When the dialog
+opens, `viaReportEngine.ts` imports document-kit's renderer, the reader
+(`engineParts.ts`, with the facts object) and the JSON parts compiled ahead
+(`recipeJson/parts.compiled.json`, written with the generated recipes by
+`npm run via-recipes:build`), and hands them to `reportEngine.ts`; the page
+renders a part, it never compiles one. From then on a report assembles
+synchronously as before. Until the engine has loaded nothing assembles a report:
+the dialog's counts say they wait for it, every build of a file awaits the load
+first, and a JSON part asked for before it refuses (`ReportEngineNotLoaded`), so
+a report is never printed without one of its parts. In a production build the
+renderer (about 35 kB gzipped), the compiled parts (4 kB) and the reader are
+chunks fetched when the dialog first opens; the visual-quality tool's offline
+list takes them from the bundle like its other chunks. A full report assembles
+in well under a millisecond either way. The conversion of each part is pinned:
+`jsonParts.test.ts` builds every JSON part against the code it replaced
+(`jsonParts.oracle.ts`, test support no page code imports) in every shipped
+recipe and made-up assessment, blocks, sources and to-complete alike.
+
+**The Word file is built through the recipe engine** (`recipeRoute.ts`, loaded
+with the Word outputs only). The recipe is compiled, the report's recipe is
+read back from the compiled recipe alone, and the report is assembled from it
+exactly as the page assembles it (`assembleReportParts`: each part run once over
+the assessment, the reviewer's hand edits applied after the part filled its
+blocks, an edit whose place is not printed kept and listed, each part's
+to-complete kept, and the document's own unfilled sentences listed once). The
+engine then renders the recipe: the furniture from its JSON, a JSON part from
+its component, and each code part handing over its blocks with what it left to
+complete. `word.ts` places the result on the PDF's pages (`layoutReport`):
+where a block goes depends on the blocks around it, which a component cannot
+say, so placement stays here, as the kit's model expects. Own recipes go the
+same way: one becomes a kit recipe that `extends` the shipped recipe it was
+copied from, its parts reached by changes and its options laid over the shipped
+ones (`ownRecipeJson`), made fresh from the stored own recipe each time; the
+stored format is unchanged. A JSON part in the Word file is rendered from the
+compiled recipe with the same facts and read back the same way. The direct route
+(`reportDocument`, `reportDocx`) is kept as the test oracle: `recipeRoute.test.ts` builds every shipped recipe and
+an own recipe over four made-up assessments (every part and every block kind
+printed between them) both ways, and pins the documents deeply equal and the
+Word files byte for byte; `npm run via-recipes:compare` writes the same
+comparison, per recipe, assessment, part and piece of furniture, to
+`recipeJson/comparison-result.json`. Since the two are equal for every recipe,
+nothing offers a choice between them. The PDF, HTML and Markdown never touch
+the engine.
 
 **PDF from the Word layout** is that same Word file laid out to a PDF by the
 kit (`docxToPdf`), so it paginates as the Word file does. The layout draws
@@ -5587,3 +5696,7 @@ stations are not guaranteed. The merged 128×128 grid stays fixed across the
 selected footprint, avoiding flicker or loss from changing grids; complete
 prefixes are reused and only newly reached stations are calculated. Large
 stretches produce coarser cells/DEM zoom within the same 64-tile loading limit.
+
+## Route card
+
+Step 1's *Route card* reads the chosen block's Route Card Tool Assessment live from public BC layers. The reviewer enters, or measures from their own file, the rows no public layer holds. The section drafts the Other Considerations paragraphs, the Visuals paragraph among them (step 5's own), and Save & export writes the planners' workbook or a Word document. It is a screen and a record of review, never a run input. The rows, rules, sources and wording are in `docs/forestry-route-card.md`.

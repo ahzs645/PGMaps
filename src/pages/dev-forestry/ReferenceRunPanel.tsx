@@ -145,9 +145,8 @@ export function ReferenceRunPanel({
     }
   }
   return (
-    <details className="space-y-2 rounded-md border p-3">
-      <summary className="cursor-pointer font-medium">Numerical run and offline replay</summary>
-      <p>
+    <section className="space-y-2" aria-label="Numerical run and offline replay">
+      <p className="text-muted-foreground">
         Run this linked viewpoint and landform with the current design and settings. The run is retained for this
         session with its numerical inputs, sampled inventory geometry, terrain cells and checksums; save it from Save
         &amp; export. The project never holds terrain or inventory.
@@ -239,6 +238,6 @@ export function ReferenceRunPanel({
         )}
       </div>
       {message && <p role="status">{message}</p>}
-    </details>
+    </section>
   )
 }

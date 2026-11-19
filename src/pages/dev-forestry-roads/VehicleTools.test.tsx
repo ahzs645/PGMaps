@@ -99,14 +99,20 @@ function render(overrides: Partial<VehicleToolsProps> = {}) {
   })
   return { tools, onChange }
 }
+/** Opens the Drive a path & turnarounds fold by its toggle, the first expandable button in it. */
+const openDrivePath = () => {
+  const [toggle] = renderer!.root
+    .findByProps({ 'data-testid': 'road-drive-path' })
+    .findAll((node) => node.type === 'button' && node.props['aria-expanded'] === false)
+  act(() => toggle.props.onClick())
+}
 const lastOverlay = (tools: VehicleToolsProps) =>
   (tools.onOverlay as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as GeoJSON.FeatureCollection | null
 
 describe('vehicle tools in the swept path panel', () => {
   it('drives a drawn line into a landing and reports the swept area against it', async () => {
     const { tools } = render()
-    const drive = renderer!.root.findByProps({ 'data-testid': 'road-drive-path' })
-    act(() => drive.props.onToggle({ currentTarget: { open: true } }))
+    openDrivePath()
     act(() => select(renderer!, 'Path to drive').props.onValueChange('note:turn'))
     const landingBox = renderer!.root.find(
       (node) =>
@@ -135,8 +141,7 @@ describe('vehicle tools in the swept path panel', () => {
 
   it('places the turning template in a landing and says whether a loop fits', () => {
     render()
-    const drive = renderer!.root.findByProps({ 'data-testid': 'road-drive-path' })
-    act(() => drive.props.onToggle({ currentTarget: { open: true } }))
+    openDrivePath()
     act(() => select(renderer!, 'Where to place the turning template').props.onValueChange('note:landing'))
     expect(renderer!.root.findByProps({ 'data-testid': 'road-turning-template' })).toBeTruthy()
     expect(text(renderer!)).toMatch(/Loop turnaround (fits|does not fit)/)
