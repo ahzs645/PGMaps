@@ -6,6 +6,7 @@ import { localRasterResolution } from '../../src/lib/forestry/terrain/localRaste
 import type { LocalRaster } from '../../src/pages/dev-forestry/types'
 import { openRoadPanel } from './road-sidebar'
 import { choose } from './styled-select'
+import { forceCanvasTerrainPreview } from './road-terrain-renderer'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000 })
 test.setTimeout(120_000)
@@ -53,6 +54,8 @@ function steepProject() {
 }
 
 async function prepare(page: Page) {
+  // These cases measure Canvas2D fill pixels and the software renderer's projected masks.
+  await forceCanvasTerrainPreview(page)
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
@@ -76,6 +79,7 @@ async function prepare(page: Page) {
   if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Detail', exact: true }).click()
   await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: '3D' })
   const preview = page.getByTestId('road-terrain-preview')
+  await expect(preview).toHaveAttribute('data-renderer', 'canvas')
   await expect(preview).toHaveAttribute('data-station', '390')
   return { preview, errors }
 }

@@ -7,6 +7,7 @@ import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
 import { choose } from './styled-select'
 import { chooseExport, replaceSavedProjectWhenAsked, savedActiveRoadId } from './road-files'
+import { expectTerrainSurface } from './road-terrain-renderer'
 
 // This journey deliberately uses only user-facing navigation and camera controls.
 const root = process.env.PGMAPS_ROAD_NEW_AREA_DIR
@@ -239,7 +240,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
   await expect(page.getByTestId('road-profile-chart')).toHaveAttribute('data-station', '50')
   await expect(page.getByTestId('road-section-chart')).toHaveAttribute('data-station', '50')
   await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: '3D' })
-  await expect(page.getByTestId('road-ground-canvas')).toHaveAttribute('data-face-count', /^[1-9][0-9]*$/)
+  await expectTerrainSurface(page.getByTestId('road-terrain-preview'))
   await page.screenshot({ path: info.outputPath('desktop-optimized-3d.png') })
 
   await page.getByRole('button', { name: 'Save', exact: true }).click()

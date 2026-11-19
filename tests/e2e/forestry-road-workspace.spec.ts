@@ -3,6 +3,7 @@ import { inflateSync } from 'node:zlib'
 import { expect, test, type Page } from '@playwright/test'
 import { choose } from './styled-select'
 import { chooseExport } from './road-files'
+import { forceCanvasTerrainPreview } from './road-terrain-renderer'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 15000 })
 test.setTimeout(120000)
@@ -146,6 +147,8 @@ test('panels close and restore, and the map keeps its canvas through a divider d
 })
 
 test('map settings use styled controls and terrain supports zoom, pan and a compact renderer', async ({ page }) => {
+  // Preserve coverage of Canvas2D paint and the fallback's compact SVG road overlay.
+  await forceCanvasTerrainPreview(page)
   const errors = await prepare(page)
   const fit = (await page.getByRole('button', { name: 'Fit road alignments', exact: true }).boundingBox())!
   const zoom = (await page.getByRole('button', { name: 'Zoom in', exact: true }).boundingBox())!
@@ -159,6 +162,7 @@ test('map settings use styled controls and terrain supports zoom, pan and a comp
   await expect(page.getByRole('dialog', { name: 'Map display settings', exact: true })).toHaveCount(0)
   await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: '3D' })
   const preview = page.getByTestId('road-terrain-preview')
+  await expect(preview).toHaveAttribute('data-renderer', 'canvas')
   const ground = page.getByTestId('road-ground-canvas')
   await expect(ground).toHaveAttribute('data-face-count', /^[1-9][0-9]*$/)
   expect(

@@ -5,6 +5,7 @@ import { openRoadPanel } from './road-sidebar'
 import { choose, optionDisabled, optionEntries, optionLabels } from './styled-select'
 import { chooseExport } from './road-files'
 import { pressChartToggle, profilePanel } from './road-chart-toggles'
+import { forceCanvasTerrainPreview } from './road-terrain-renderer'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -181,6 +182,8 @@ async function linkedStation(page: Page, station: number) {
 }
 
 test('station, real map layers, profile, section, schedule and terrain remain linked', async ({ page }, testInfo) => {
+  // This journey checks the software road polygons as the camera rotates.
+  await forceCanvasTerrainPreview(page)
   const errors = await prepare(page)
   const initial = (await mapState(page))!
   expect(initial.roadCount).toBe(2)
@@ -242,6 +245,7 @@ test('station, real map layers, profile, section, schedule and terrain remain li
   await expect(page.getByTestId('road-mass-chart')).toBeVisible()
   await showDetail(page, '3D')
   const terrain = page.getByTestId('road-terrain-preview')
+  await expect(terrain).toHaveAttribute('data-renderer', 'canvas')
   await expect(terrain.locator('polygon')).not.toHaveCount(0)
   const firstFace = terrain.locator('polygon').first()
   const beforeRotate = await firstFace.getAttribute('points')
@@ -463,6 +467,8 @@ test('alternatives, comparison, undo and GeoJSON/project round trips preserve ed
 })
 
 test('stream terrain profiles show ground-only data and cannot edit the road vertical alignment', async ({ page }) => {
+  // Retain the fallback's ground-only transect and absence-of-road-polygon regression.
+  await forceCanvasTerrainPreview(page)
   const errors = await prepare(page)
   const original = (await saveProject(page)).project
   await workflow(page, 'Terrain').click()
@@ -495,6 +501,7 @@ test('stream terrain profiles show ground-only data and cannot edit the road ver
   expect(terrainCsv.text).not.toContain('cut_volume')
   await showDetail(page, '3D')
   const terrain = page.getByTestId('road-terrain-preview')
+  await expect(terrain).toHaveAttribute('data-renderer', 'canvas')
   await expect(terrain).toHaveAttribute('data-terrain-only', 'true')
   await expect(terrain.locator('line[stroke="#a07845"]')).not.toHaveCount(0)
   await expect(terrain.locator('polygon.cursor-pointer')).toHaveCount(0)
@@ -816,11 +823,13 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
   )
   await expect(page.getByTestId('culvert-profile')).toContainText('Cross-drain A')
   await showDetail(page, '3D')
-  await expect(page.getByTestId('road-terrain-preview').getByRole('button', { name: /Cross-drain A/ })).toBeVisible()
+  const structures = page.getByRole('combobox', { name: '3D structure', exact: true })
+  // The structure selector preserves identity in both the GPU and software scenes.
+  await expect(structures).toContainText('Cross-drain A')
+  await expect(structures).toHaveAttribute('data-value', active.engineering!.culverts[0].id)
   const secondStructure = (await saveProject(page)).project.alignments.find(
     (a) => a.id === saved.project.activeAlignmentId,
   )!.engineering!.culverts[1]
-  const structures = page.getByRole('combobox', { name: '3D structure', exact: true })
   await choose(
     structures,
     (await optionEntries(structures)).find((entry) => entry.label.includes(secondStructure.name))!.value,

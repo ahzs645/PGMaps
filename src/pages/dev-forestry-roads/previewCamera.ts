@@ -35,6 +35,7 @@ export function previewCamera({
   width,
   height,
   zoom,
+  fitVertices,
   focus: requestedFocus,
 }: {
   bounds: number[]
@@ -48,6 +49,12 @@ export function previewCamera({
   width: number
   height: number
   zoom: number
+  /**
+   * Actual terrain and design vertices to frame, within bounds/low/high. Use the coarse display
+   * geometry so loading a finer patch cannot move the fit. Missing vertices are ignored; without
+   * any finite vertices the enclosing box is fitted, as before.
+   */
+  fitVertices?: readonly TerrainVertex[] | null
   /** World point the camera orbits and zooms about. Defaults to the fit target. */
   focus?: CameraFocus | null
 }) {
@@ -80,15 +87,22 @@ export function previewCamera({
     right = -Infinity,
     top = Infinity,
     bottom = -Infinity
-  for (const x of [bounds[0], bounds[2]])
-    for (const y of [bounds[1], bounds[3]])
-      for (const z of [low, high]) {
-        const point = cameraPoint({ x, y, z }, fitOrigin)
-        left = Math.min(left, point.x)
-        right = Math.max(right, point.x)
-        top = Math.min(top, point.y)
-        bottom = Math.max(bottom, point.y)
-      }
+  const includeFitVertex = (vertex: TerrainVertex) => {
+    if (!Number.isFinite(vertex.x) || !Number.isFinite(vertex.y) || !Number.isFinite(vertex.z)) return
+    const point = cameraPoint(vertex, fitOrigin)
+    left = Math.min(left, point.x)
+    right = Math.max(right, point.x)
+    top = Math.min(top, point.y)
+    bottom = Math.max(bottom, point.y)
+  }
+  // A diagonal strip or rising hillside does not occupy every corner of its axis-aligned box.
+  // Fitting those empty corners makes the real ground needlessly small. Perspective projects a
+  // triangle's edges to straight lines, so its vertices bound the entire drawn face while the
+  // enclosing box still keeps the camera plane and focus clamps safe.
+  for (const vertex of fitVertices ?? []) includeFitVertex(vertex)
+  if (left === Infinity)
+    for (const x of [bounds[0], bounds[2]])
+      for (const y of [bounds[1], bounds[3]]) for (const z of [low, high]) includeFitVertex({ x, y, z })
   const fitScale = Math.max(
     0.0001,
     Math.min((width - 24) / Math.max(1, right - left), (height - 24) / Math.max(1, bottom - top)),

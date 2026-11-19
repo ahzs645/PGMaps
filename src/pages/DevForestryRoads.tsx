@@ -7802,6 +7802,8 @@ export default function DevForestryRoads({
                                       )}
                                       {detail === 'terrain' && (
                                         <TerrainPreview
+                                          alignment={displayedAlignment}
+                                          terrainMetadata={project.terrain}
                                           selectedRange={terrainProfile ? undefined : selectedRange}
                                           selectedCulvertId={currentCulvertId}
                                           onSelectCulvert={selectCulvert}

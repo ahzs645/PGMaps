@@ -68,6 +68,127 @@ describe('3D terrain and design camera fit', () => {
     zoom: 1,
   }
 
+  const diagonalGround = [
+    { x: -230, y: -420, z: 750 },
+    { x: -130, y: -460, z: 750 },
+    { x: 230, y: 420, z: 780 },
+    { x: 130, y: 460, z: 780 },
+  ]
+  const diagonalOptions = {
+    ...options,
+    bounds: [-1200, -1200, 1200, 1200],
+    low: 750,
+    high: 780,
+    targetZ: 765,
+    exaggeration: 4,
+    width: 773,
+    height: 431,
+  }
+
+  it('fills the pane with a narrow diagonal footprint instead of its empty terrain envelope', () => {
+    const box = previewCamera(diagonalOptions)
+    const camera = previewCamera({ ...diagonalOptions, fitVertices: diagonalGround })
+    const points = diagonalGround.map(camera.project)
+    // Real ground occupies a small diagonal strip of a larger no-data raster window.
+    expect(camera.scale).toBeGreaterThan(box.scale * 3)
+    expect(Math.min(...points.map((p) => p.y))).toBeCloseTo(12, 6)
+    expect(Math.max(...points.map((p) => p.y))).toBeCloseTo(diagonalOptions.height - 12, 6)
+    expect(points.every((p) => p.x >= 12 && p.x <= diagonalOptions.width - 12)).toBe(true)
+    // The camera's safety distance and pan limits still cover the full window.
+    expect(camera.cameraDistance).toBe(box.cameraDistance)
+    expect(camera.bounds).toEqual(box.bounds)
+  })
+
+  it('fits actual ground and extreme design elevations at wide, narrow and portrait sizes', () => {
+    for (const [width, height] of [
+      [320, 220],
+      [1120, 320],
+      [320, 640],
+    ])
+      for (const [low, high] of [
+        [700, 967.5],
+        [-1000, 700],
+        [700, 9000],
+        [700, 700],
+      ])
+        for (const angle of [0, 0.49, 2.4])
+          for (const tilt of [0.26, 0.73, 1.39])
+            for (const exaggeration of [1, 4]) {
+              const vertices = [
+                { x: -120, y: -95, z: low },
+                { x: -100, y: -120, z: low },
+                { x: 120, y: 95, z: high },
+                { x: 100, y: 120, z: high },
+                // An isolated design point must fit even when it is not a ground corner.
+                { x: 0, y: -25, z: high },
+              ]
+              const camera = previewCamera({
+                ...options,
+                low,
+                high,
+                targetZ: high,
+                angle,
+                tilt,
+                exaggeration,
+                width,
+                height,
+                fitVertices: vertices,
+              })
+              const points = vertices.map(camera.project)
+              for (const point of points) {
+                expect(camera.cameraDistance + point.depth).toBeGreaterThan(0)
+                expect(point.x).toBeGreaterThanOrEqual(12 - 1e-8)
+                expect(point.x).toBeLessThanOrEqual(width - 12 + 1e-8)
+                expect(point.y).toBeGreaterThanOrEqual(12 - 1e-8)
+                expect(point.y).toBeLessThanOrEqual(height - 12 + 1e-8)
+              }
+              const x = points.map((p) => p.x),
+                y = points.map((p) => p.y)
+              const widthUsed = (Math.max(...x) - Math.min(...x)) / (width - 24),
+                heightUsed = (Math.max(...y) - Math.min(...y)) / (height - 24)
+              expect(Math.max(widthUsed, heightUsed)).toBeCloseTo(1, 7)
+            }
+  })
+
+  it('keeps the enclosing-box fit when no finite geometry is supplied', () => {
+    const expected = previewCamera(options)
+    const missing = [
+      { x: 0, y: 0, z: NaN },
+      { x: Infinity, y: 0, z: 750 },
+      { x: 0, y: -Infinity, z: 750 },
+    ]
+    for (const fitVertices of [null, [], missing]) {
+      const camera = previewCamera({ ...options, fitVertices })
+      expect(camera.scale).toBe(expected.scale)
+      expect(camera.anchor).toEqual(expected.anchor)
+      expect(camera.project({ x: 100, y: -50, z: 750 })).toEqual(expected.project({ x: 100, y: -50, z: 750 }))
+    }
+    const valid = previewCamera({ ...diagonalOptions, fitVertices: diagonalGround })
+    const mixed = previewCamera({ ...diagonalOptions, fitVertices: [...missing, ...diagonalGround] })
+    expect(mixed.scale).toBe(valid.scale)
+    expect(mixed.anchor).toEqual(valid.anchor)
+  })
+
+  it('keeps pointer zoom, ground panning and orbit focus stable with a geometry fit', () => {
+    const settings = { ...diagonalOptions, fitVertices: diagonalGround }
+    const vertex = { x: 30, y: 40, z: 765 }
+    const before = previewCamera(settings)
+    const pointer = before.project(vertex)
+    const zoomed = previewCamera({ ...settings, zoom: 2.5 })
+    const focus = focusHoldingPoint(before, zoomed, pointer)!
+    const after = previewCamera({ ...settings, zoom: 2.5, focus })
+    expect(after.project(vertex).x).toBeCloseTo(pointer.x, 6)
+    expect(after.project(vertex).y).toBeCloseTo(pointer.y, 6)
+    const to = { x: pointer.x + 37, y: pointer.y - 18 }
+    const panned = focusHoldingPoint(after, after, pointer, to)!
+    const dragged = previewCamera({ ...settings, zoom: 2.5, focus: panned })
+    expect(dragged.project(vertex).x).toBeCloseTo(to.x, 6)
+    expect(dragged.project(vertex).y).toBeCloseTo(to.y, 6)
+    const turned = previewCamera({ ...settings, angle: 2.1, tilt: 1.2, zoom: 2.5, focus: panned })
+    expect(turned.project(panned).x).toBeCloseTo(dragged.anchor.x, 6)
+    expect(turned.project(panned).y).toBeCloseTo(dragged.anchor.y, 6)
+  })
+
   it('zooms about the focus, which stays at the same place on screen', () => {
     const vertex = { x: 30, y: 60, z: 700 }
     const initial = previewCamera(options)

@@ -6,9 +6,17 @@ export interface TerrainVertex {
 }
 
 export const MAX_TERRAIN_MESH_SIDE = 128
+export const MAX_GPU_TERRAIN_MESH_SIDE = 256
 export const MAX_CACHED_TERRAIN_VERTICES = 65536
 export const MAX_DISPLAY_GAP_M = 80
 export const DISPLAY_GAP_ITERATIONS = 128
+
+export interface TerrainMeshOptions {
+  /** Display vertex budget along the longest side; capped at the GPU limit. */
+  maxSide?: number
+  /** Source cell size in metres. More display vertices cannot add detail below this spacing. */
+  minSpacing?: number
+}
 
 /** Bounded sampler shared by overlapping windows; missing values are cached too. */
 export function cachedTerrainSampler(sample: (x: number, y: number) => number, capacity = MAX_CACHED_TERRAIN_VERTICES) {
@@ -28,11 +36,18 @@ export function terrainMesh(
   elevationAt: (x: number, y: number) => number,
   missing: Array<[number, number]>,
   fillSmallGaps = false,
+  options: TerrainMeshOptions = {},
 ) {
   const width = bounds[2] - bounds[0],
     height = bounds[3] - bounds[1]
+  const requestedSide = options.maxSide ?? MAX_TERRAIN_MESH_SIDE
+  const maxSide = Number.isFinite(requestedSide)
+    ? Math.max(4, Math.min(MAX_GPU_TERRAIN_MESH_SIDE, Math.floor(requestedSide)))
+    : MAX_TERRAIN_MESH_SIDE
+  const minSpacing = Number.isFinite(options.minSpacing) ? Math.max(0, options.minSpacing!) : 0
   // A fixed origin and a discrete spacing keep the same ground vertices as a follow window moves.
-  const required = Math.max(width, height) / (MAX_TERRAIN_MESH_SIDE - 2)
+  // Round up to respect both the source detail and the budget, including the snapped boundary.
+  const required = Math.max(Math.max(width, height) / (maxSide - 2), minSpacing)
   const power = 10 ** Math.floor(Math.log10(required))
   const spacing = [1, 2, 2.5, 5, 10].map((n) => n * power).find((n) => n >= required)!
   const firstColumn = Math.floor(bounds[0] / spacing),
