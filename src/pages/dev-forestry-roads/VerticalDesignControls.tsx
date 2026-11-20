@@ -13,7 +13,8 @@ import { stationEntry } from './stationEntry'
 import { OptionalStationField, StationField } from './StationFields'
 import { formatRoadStation } from './Charts'
 import { RoadSection } from './SidebarParts'
-import { designProfileAt, nearestStation } from './engine'
+import { createRoadStationSampler, designProfileAt } from './engine'
+import { roadStationAt } from './stationAt'
 import { EMPTY_VERTICAL_STANDARDS, type VerticalControl, type VerticalStandards } from './verticalStandards'
 import { buildCrossingRegister, type CrossingRegisterRow } from './crossingRegister'
 import { curveLengthsForK } from './verticalTools'
@@ -45,6 +46,27 @@ export function VerticalDesignControls({
   onPreviewRefineBoxes?: (boxes: GeoJSON.FeatureCollection | null) => void
 }) {
   const { alignment, analysis, setStation, updateAlignment } = workspace
+  const { calculatedAlignment, source, project, referenceSurfaces } = workspace
+  const stationSampler = useMemo(() => {
+    try {
+      return createRoadStationSampler(calculatedAlignment, source, project.settings, {
+        context: project.context,
+        referenceSurfaces,
+        verticalReference: project.terrain.verticalReference,
+      })
+    } catch {
+      return null
+    }
+  }, [
+    calculatedAlignment,
+    source,
+    project.settings,
+    project.context,
+    project.terrain.verticalReference,
+    referenceSurfaces,
+  ])
+  const sectionAt = (chainage: number) =>
+    roadStationAt(analysis, chainage, stationSampler ? (at) => stationSampler.at(at) : undefined)
   // Range ends and control stations take the road's station names (`stationEntry.ts`).
   const stations = stationEntry(alignment.stationing, analysis.length)
   const standards = alignment.verticalStandards ?? EMPTY_VERTICAL_STANDARDS
@@ -190,10 +212,6 @@ export function VerticalDesignControls({
       ...a,
       verticalControls: (a.verticalControls ?? []).map((c) => (c.id === id ? { ...c, ...patch } : c)),
     }))
-  const fromAlignment = (chainage: number) => {
-    const at = nearestStation(analysis.stations, chainage)
-    return { elevation: at?.designElevation ?? null, gradePercent: at?.gradePercent ?? null }
-  }
   /** Fills a control from the designed profile at its own station, or says what there is to read instead. */
   const readFromAlignment = (control: VerticalControl, index: number) => {
     const name = `Control ${index + 1}`,
@@ -207,7 +225,7 @@ export function VerticalDesignControls({
       return
     }
     // Without a profile the formation follows the ground, which has a level to hold but no design grade.
-    const ground = nearestStation(analysis.stations, control.chainage)?.groundElevation
+    const ground = sectionAt(control.chainage)?.groundElevation
     if (ground === null || ground === undefined || !Number.isFinite(ground)) {
       workspace.setError(`There is no profile and no ground at ${at} to read. Move the control onto the terrain.`)
       return
@@ -780,35 +798,38 @@ export function VerticalDesignControls({
             ),
           )}
           <StationValue workspace={workspace}>
-            {(station) => (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!designed && !nearestStation(analysis.stations, station)?.groundElevation}
-                onClick={() => {
-                  const at = nearestStation(analysis.stations, station)
-                  const target = fromAlignment(at?.chainage ?? station)
-                  updateAlignment((a) => ({
-                    ...a,
-                    verticalControls: [
-                      ...(a.verticalControls ?? []),
-                      {
-                        id: uid(),
-                        chainage: Math.round((at?.chainage ?? station) * 100) / 100,
-                        elevation: target.elevation ?? at?.groundElevation ?? null,
-                        toleranceAboveM: 0,
-                        toleranceBelowM: 0,
-                        gradePercent: null,
-                        gradeTolerancePercent: 0,
-                      },
-                    ].sort((x, y) => x.chainage - y.chainage),
-                  }))
-                }}
-              >
-                <Plus className="mr-1 size-3" />
-                Control at selected station
-              </Button>
-            )}
+            {(station) => {
+              const at = sectionAt(station)
+              const elevation = at?.designElevation ?? at?.groundElevation ?? null
+              return (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={elevation === null || !Number.isFinite(elevation)}
+                  onClick={() => {
+                    if (!at || elevation === null || !Number.isFinite(elevation)) return
+                    updateAlignment((a) => ({
+                      ...a,
+                      verticalControls: [
+                        ...(a.verticalControls ?? []),
+                        {
+                          id: uid(),
+                          chainage: at.chainage,
+                          elevation,
+                          toleranceAboveM: 0,
+                          toleranceBelowM: 0,
+                          gradePercent: null,
+                          gradeTolerancePercent: 0,
+                        },
+                      ].sort((x, y) => x.chainage - y.chainage),
+                    }))
+                  }}
+                >
+                  <Plus className="mr-1 size-3" />
+                  Control at selected station
+                </Button>
+              )
+            }}
           </StationValue>
           <div className={insetBox()} data-testid="road-minimum-crossing">
             <div className="mb-1 flex items-center gap-1 text-xs font-medium">
@@ -867,7 +888,7 @@ export function VerticalDesignControls({
                       />
                     </div>
                     <MinimumReference
-                      ground={nearestStation(analysis.stations, minimumDraft.chainage)?.groundElevation ?? null}
+                      ground={sectionAt(minimumDraft.chainage)?.groundElevation ?? null}
                       profile={profileHere(minimumDraft.chainage)}
                     />
                     <div className="flex gap-1">

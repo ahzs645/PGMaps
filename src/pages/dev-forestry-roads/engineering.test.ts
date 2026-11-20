@@ -368,7 +368,21 @@ describe('culvert geometry and cover', () => {
     expect(c.requiredLengthM).toBeCloseTo(32, 4)
     expect(c.coverM).toBeLessThan(0)
     expect(c.warnings.join(' ')).toMatch(/shorter than the centred daylight span/)
-    expect(c.warnings.join(' ')).toMatch(/below 0.50/)
+    expect(c.warnings.join(' ')).toMatch(/below the entered minimum \(0.50 m\)/)
+  })
+
+  it('states a small cover deficit without rounding both sides into an equal comparison', () => {
+    const a = road(802)
+    const invert = 802 - 0.6 - 0.5998
+    a.engineering!.culverts.push(culvert({ inletInvertM: invert, outletInvertM: invert, minCoverM: 0.6 }))
+    const result = analyzeRoad(a, flat, settings).engineering!.culverts[0]
+    expect(result.coverM).toBeCloseTo(0.5998, 7)
+    expect(result.warnings).toContain(
+      'Minimum sampled subgrade cover is less than 0.001 m below the entered minimum (0.60 m).',
+    )
+    // Equality remains a pass; only the message has changed, not the entered cover requirement.
+    a.engineering!.culverts[0].minCoverM = result.coverM!
+    expect(analyzeRoad(a, flat, settings).engineering!.culverts[0].warnings.join(' ')).not.toMatch(/subgrade cover/)
   })
 
   it('keeps unknown inverts and missing terrain distinct from zero cover or grade', () => {

@@ -671,9 +671,9 @@ export const totalsNote = (totals: StationTotals) =>
   totals.unknownM > 1e-6 ? `Leaves out ${metres(totals.unknownM)} m with unknown earthwork` : ''
 
 /**
- * The table as CSV: the given rows with every column the road offers, whether or not the table is
- * showing it, the road length each row leaves out, its flags, and a last `total` row. Values are
- * unrounded.
+ * The table as CSV: the given rows with every column the road offers by default, or the selected
+ * columns in their requested order. Station identifiers, the road length each row leaves out,
+ * flags and a last `total` row are retained. Values are unrounded; totals sum only the given rows.
  */
 export function stationReportCsv(
   analysis: RoadAnalysis,
@@ -681,13 +681,22 @@ export function stationReportCsv(
   terrainOnly = false,
   /** The road's start station and equations: a `station` column of names follows `station_m`. */
   stationing?: RoadStationing | null,
+  /** Omit for the full CSV. Unavailable and duplicate ids are ignored; [] keeps only identifiers and quality. */
+  columnIds?: readonly string[],
 ): string {
   refuseInvalidResults('Station table CSV', analysis)
-  const columns = availableStationColumns(
+  const available = availableStationColumns(
     analysis,
     terrainOnly,
     rows.some((row) => row.extra),
   )
+  const byId = new Map(available.map((column) => [column.id, column]))
+  const columns = columnIds
+    ? [...new Set(columnIds)].flatMap((id) => {
+        const column = byId.get(id)
+        return column ? [column] : []
+      })
+    : available
   const totals = tableTotals(rows)
   const named = hasStationing(stationing)
   return (

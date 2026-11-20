@@ -10,6 +10,7 @@ import { terrainMesh, type TerrainVertex } from './terrainMesh'
 import * as sceneGeometry from './terrainSceneGeometry'
 import { terrainScenePresentation } from './terrainScenePresentation'
 import type { Alignment, Coordinate, TerrainMetadata } from './types'
+import { DEFAULT_DESIGN_STANDARDS, gradeRule, reviewGrades } from './designStandards'
 
 type PresentationInput = Parameters<typeof terrainScenePresentation>[0]
 const origin: Coordinate = [-122.7, 53.9]
@@ -135,6 +136,35 @@ const culvert = (patch: Partial<Culvert> = {}): Culvert => ({
 })
 
 describe('the GPU terrain scene presentation', () => {
+  it('uses reviewed grade runs on simplified lines, including a skipped adverse breach', () => {
+    const { input } = fixture()
+    const stations = input.analysis.stations
+    stations.forEach((station) => {
+      station.gradePercent = station.index === 1 ? 10 : 0
+    })
+    const rule = gradeRule(
+      { maxGradePercent: 12 },
+      { ...DEFAULT_DESIGN_STANDARDS, loadedDirection: 'start-to-end', adverseGradePercent: 8 },
+    )
+    const flags = reviewGrades(stations, rule, 'ahead').flags
+    stations.forEach((station, i) => {
+      station.flags = flags.has(i) ? [flags.get(i)!] : []
+    })
+    input.geometry.line = [input.geometry.line[0], input.geometry.line[3], input.geometry.line.at(-1)!]
+    input.maxGradePercent = 12
+    input.gradeSpan = 'ahead'
+    const result = terrainScenePresentation(input)
+    expect(result.data.lines.map((line) => line.color)).toEqual(['#dc5a51', '#1e8790'])
+
+    // The same uphill run is allowed by a short-pitch rule, without changing its signed grade.
+    const permitted = reviewGrades(stations, { ...rule, shortPitch: { gradePercent: 16, maxLengthM: 20 } }, 'ahead')
+    expect(permitted.flags.size).toBe(0)
+    stations.forEach((station) => {
+      station.flags = []
+    })
+    expect(terrainScenePresentation(input).data.lines.map((line) => line.color)).toEqual(['#1e8790', '#1e8790'])
+  })
+
   it('maps an imported PixelIsArea orthophoto into another CRS at its corners and pixel centres', async () => {
     const { input, frame, source } = fixture()
     const projection = roadProjection(32610)

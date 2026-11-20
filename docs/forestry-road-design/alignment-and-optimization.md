@@ -363,6 +363,10 @@ with K = 0 and no curve length, not on its entered length.
   Levels remain on the entered discrete ladder. "Tie both ends to ground" means
   centreline ground at 0+000 and at the road end, not an existing road's formation. To tie to
   a structure, add a control point at that end instead; a control there overrides the tie.
+- **Control at selected station** keeps the exact selected chainage, including a typed station
+  between calculation stations. It evaluates the profile or ground there with the same sampler
+  as the section view; it does not round the control back to the station spacing. Zero elevation
+  is valid. The action stays unavailable when neither profile nor terrain supplies an elevation.
 - **Grade limit by direction.** With **Loaded trucks travel** and an **adverse limit** set under
   Review → Design standards, the search holds loaded climbs to the adverse limit and loaded
   descents to the road-wide grade limit (`gradeRule`, `sustainedLimit`), as Review judges them,

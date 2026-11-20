@@ -164,7 +164,7 @@ function GradeScaleFields({
         />
         <NumberField
           label="Moderate to (%)"
-          hint="Of the grade limit; steep runs from here to the limit."
+          hint="Of the grade limit; higher grades within the standard, including allowed short pitches, use steep."
           value={percent(high)}
           min={percent(low) + 1}
           max={percent(max)}

@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { openWorkbench } from './road-workbench'
 import { chooseExport, replaceSavedProjectWhenAsked } from './road-files'
+import { culvertDetails, selectCulvert } from './road-culverts'
 
 // Culverts placed in a RoadEng design (.ds1). The example road is written as a RoadEng design, two
 // culvert records in RoadEng's layout (this file's own values, never Softree's samples) are put in
@@ -110,13 +111,17 @@ test('culverts placed in a RoadEng design are read, edited, added and written ba
   await expect(page.getByTestId('roadeng-design-culverts')).toHaveText(
     /^2 of this road’s 2 culverts are from its RoadEng design \(Location1\.ds1\)/,
   )
+  await expect(page.getByTestId('road-culvert-inventory').getByRole('button', { name: /^Edit / })).toHaveCount(2)
+  await selectCulvert(page, 'Spring creek', 'Review')
   const facts = page.getByTestId('culvert-roadeng-design-facts')
-  await expect(facts).toHaveCount(2)
-  await expect(facts.first()).toHaveText(
+  await expect(facts).toHaveCount(1)
+  await expect(facts).toHaveText(
     `RoadEng design culvert 1 · L-station ${s1} m · skew 75° clockwise from the L-line · 7.50 m left and 6.25 m right of it · depth 0.00 m · RoadEng computes its gradient and length (Auto) · template override: ditch 1.00 m wide and 0.60 m deep, held 3.00 m, tapered over 2.00 m · option flags 4508`,
   )
+  await culvertDetails(page, 'Geometry')
   await expect(page.getByRole('textbox', { name: 'Culvert 1 name' })).toHaveValue('Spring creek')
   await expect(page.getByLabel('Culvert 1 skew from square (°)', { exact: true })).toHaveValue('-15')
+  await selectCulvert(page, 'Cross-drain 2')
   await expect(page.getByLabel('Culvert 2 diameter (m)', { exact: true })).toHaveValue('0.45')
   await page
     .getByTestId('road-engineering-controls')
@@ -130,14 +135,21 @@ test('culverts placed in a RoadEng design are read, edited, added and written ba
   // The first culvert made 1.2 m and its RoadEng gradient −3 %; a cross-drain added at the start.
   await page.getByRole('tab', { name: 'Engineering', exact: true }).first().click()
   await page.getByRole('tab', { name: 'Drainage', exact: true }).first().click()
+  await selectCulvert(page, 'Spring creek')
   const diameter = page.getByLabel('Culvert 1 diameter (m)', { exact: true })
   await diameter.fill('1.2')
   await diameter.press('Enter')
+  await culvertDetails(page, 'Review')
   const gradient = page.getByLabel('Culvert 1 RoadEng gradient (%)', { exact: true })
   await gradient.fill('-3')
   await gradient.press('Enter')
+  // Inspecting a culvert moves the linked station; this new pipe belongs at the road's start.
+  await page.getByRole('spinbutton', { name: 'Selected station metres', exact: true }).fill('0')
+  await page.getByRole('spinbutton', { name: 'Selected station metres', exact: true }).press('Enter')
   await page.getByRole('button', { name: 'Add culvert at station', exact: true }).click()
-  await expect(facts).toHaveCount(2)
+  await expect(page.getByTestId('roadeng-design-culverts')).toHaveText(
+    /^2 of this road’s 3 culverts are from its RoadEng design \(Location1\.ds1\)/,
+  )
   const written = records(unzipSync(await downloadDesign(page))['Location1.ds1'])
   expect(written).toHaveLength(3)
   expect(written[0]).toMatch(/^Culvert 3%#%\|0,[\d.]+,3\.40282346639e\+38,\d+(\.\d+)?,90,/)

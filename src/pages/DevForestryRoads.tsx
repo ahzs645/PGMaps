@@ -112,6 +112,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ComponentProps,
   type CSSProperties,
   type ReactNode,
 } from 'react'
@@ -297,6 +298,7 @@ import { FullCostPlanningDialog, type FullCostPreview } from './dev-forestry-roa
 import { NetworkPlanningDialog } from './dev-forestry-roads/NetworkPlanningDialog'
 import { isFullCostRecordCurrent } from './dev-forestry-roads/fullCostRecord'
 import { PlanView, type DrawMode } from './dev-forestry-roads/PlanView'
+import { PlanViewBoundary } from './dev-forestry-roads/PlanViewBoundary'
 import { usePlanSightlines } from './dev-forestry-roads/planSightlines'
 import { waybackTimelineAvailable } from './dev-forestry-roads/WaybackTimeline'
 import { ROAD_DESIGN_DEPLOYMENT } from './dev-forestry-roads/deployment'
@@ -516,6 +518,15 @@ const STARTING_JOB_STANDARDS = startingJobStandards(
   DEFAULT_ROAD_SETTINGS,
   DEFAULT_TEMPLATE.leftWidth + DEFAULT_TEMPLATE.rightWidth,
 )
+
+/** A map graphics failure leaves the other design views and the project mounted. */
+function RecoverablePlanView(props: ComponentProps<typeof PlanView>) {
+  return (
+    <PlanViewBoundary>
+      <PlanView {...props} />
+    </PlanViewBoundary>
+  )
+}
 
 /** The sidebar skips the page's renders that change only the station (a hover along the road); see roadStation.tsx. */
 const StationIndependentSidebar = memoWithLatestHandlers(DesignSidebar, { bags: ['workspace'] })
@@ -1537,12 +1548,13 @@ export default function DevForestryRoads({
       : null
   const selectCulvert = (id: string) => {
     setSelectedCulvertId(id)
-    const culvert = displayedAnalysis.engineering?.culverts.find((c) => c.id === id)
+    const culvert = displayedAlignment.engineering?.culverts.find((c) => c.id === id)
     if (culvert) selectStation(culvert.chainage)
+    showCulverts()
   }
-  const currentCulvertId = displayedAnalysis.engineering?.culverts.some((c) => c.id === selectedCulvertId)
+  const currentCulvertId = displayedAlignment.engineering?.culverts.some((c) => c.id === selectedCulvertId)
     ? selectedCulvertId
-    : undefined
+    : displayedAlignment.engineering?.culverts[0]?.id
   const selectedRange = useMemo(
     () => roadSelectionRange(displayedAlignment, w.featureSelection),
     [displayedAlignment, w.featureSelection],
@@ -1747,10 +1759,12 @@ export default function DevForestryRoads({
   const showCulverts = useCallback(
     (chainage?: number) => {
       setWorkflowTab('engineering')
+      setCollapsed(false)
+      setControlsOpen(true)
       setEngineeringRequest((n) => n + 1)
       if (chainage !== undefined) setStation(chainage)
     },
-    [setStation, setWorkflowTab],
+    [setStation, setWorkflowTab, setCollapsed, setControlsOpen],
   )
   /** Refuses a plan edit the road could not be built to (`planEditCheck.ts`), and says why. */
   const refusedPlanEdit = useCallback(
@@ -7118,6 +7132,8 @@ export default function DevForestryRoads({
                               onShowSwept={() => showDetailPane('swept')}
                               vehicleFit={vehicleFitOnRoad}
                               engineeringRequest={engineeringRequest}
+                              selectedCulvertId={currentCulvertId}
+                              onSelectCulvert={selectCulvert}
                               engineeringInputsRequest={engineeringInputsRequest}
                               onEngineeringInputs={showEngineeringInputs}
                               drainageStale={drainageStale}
@@ -7313,7 +7329,7 @@ export default function DevForestryRoads({
                           >
                             {() => (
                               <div className="min-h-0 flex-1" data-tutorial-id="road.plan">
-                                <PlanView
+                                <RecoverablePlanView
                                   display={planDisplay}
                                   toolPanel={drawToolPanel}
                                   selectedRange={investigation || terrainProfile ? undefined : selectedRange}
