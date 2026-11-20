@@ -31,7 +31,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ROAD_CHART_COLORS, formatRoadStation } from './Charts'
 import { sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { terrainMesh, cachedTerrainSampler, type TerrainVertex as Vertex } from './terrainMesh'
-import { previewEarthwork, type PreviewBatterEdge } from './previewEarthwork'
+import { CUT_BATTER_FILL, FILL_BATTER_FILL, previewEarthwork, type PreviewBatterEdge } from './previewEarthwork'
 import { excavatedGround, occlusionTest, type OcclusionCover } from './terrainOcclusion'
 import {
   autoPreviewExaggeration,
@@ -480,7 +480,9 @@ export function TerrainPreview({
   const [fillGaps, setFillGaps] = useState(true)
   const [groundColour, setGroundColour] = useState<GroundColour>('slope')
   const [quality, setQuality] = useState<TerrainRenderQuality>('auto')
-  const [surfaceKind, setSurfaceKind] = useState<DesignSurfaceKind>('finished')
+  // What the road is drawn as: the cut-and-fill formation (the road's lanes and each batter strip, coloured by cut
+  // and fill, as the canvas preview draws it), or one exact design surface.
+  const [surfaceKind, setSurfaceKind] = useState<'formation' | DesignSurfaceKind>('formation')
   const [xray, setXray] = useState(false)
   const [cutaway, setCutaway] = useState(false)
   const [orthoId, setOrthoId] = useState('')
@@ -742,7 +744,7 @@ export function TerrainPreview({
 
   const design = useMemo(
     () =>
-      !terrainOnly && alignment && 'epsg' in frame
+      !terrainOnly && alignment && 'epsg' in frame && surfaceKind !== 'formation'
         ? terrainSceneGeometry({ kind: surfaceKind, alignment, analysis, frame })
         : null,
     [terrainOnly, alignment, analysis, frame, surfaceKind],
@@ -1101,16 +1103,17 @@ export function TerrainPreview({
                 ariaLabel="3D road surface"
                 title={
                   showEarthwork
-                    ? 'Draw one exact design surface at a time'
-                    : 'Batters are hidden: showing a simplified subgrade preview. Turn Batters on to compare surfaces.'
+                    ? 'Cut and fill colours the road and each batter; Finished and Subgrade draw that exact design surface'
+                    : 'Batters are hidden: the road is drawn alone. Turn Batters on to choose a surface.'
                 }
                 disabled={!gpuActive || !showEarthwork}
                 className="h-7 w-28"
-                value={showEarthwork ? surfaceKind : 'subgrade'}
-                onValueChange={(value) => setSurfaceKind(value as DesignSurfaceKind)}
+                value={showEarthwork ? surfaceKind : 'formation'}
+                onValueChange={(value) => setSurfaceKind(value as 'formation' | DesignSurfaceKind)}
                 options={[
+                  { value: 'formation', label: showEarthwork ? 'Cut and fill' : 'Road only' },
                   { value: 'finished', label: 'Finished' },
-                  { value: 'subgrade', label: showEarthwork ? 'Subgrade' : 'Subgrade preview' },
+                  { value: 'subgrade', label: 'Subgrade' },
                 ]}
               />
             )}
@@ -1828,6 +1831,9 @@ export function TerrainPreview({
             high={sourceGeometry.groundHigh}
             maxGradePercent={terrainOnly ? undefined : maxGradePercent}
             exaggeration={exaggeration}
+            // The batters are keyed while they are drawn in their cut and fill colours: the canvas preview always, the
+            // accelerated view while it draws the formation rather than one exact surface.
+            batters={!terrainOnly && showEarthwork && (!gpuActive || surfaceKind === 'formation')}
           />
         )}
       </div>
@@ -1885,12 +1891,15 @@ function TerrainColourLegend({
   high,
   maxGradePercent,
   exaggeration,
+  batters = false,
 }: {
   colour: 'slope' | 'elevation'
   low: number
   high: number
   maxGradePercent?: number
   exaggeration: number
+  /** The batters are drawn in their cut and fill colours, so the legend keys them. */
+  batters?: boolean
 }) {
   // Folded on a short 3D pane, as the plan's legend starts folded: open, it would cover the middle of the view and take
   // its drags and wheel. A fold or unfold the reader chooses holds. The legend sits over the pane, so folding it never
@@ -1963,9 +1972,17 @@ function TerrainColourLegend({
               />
             </MapLegendSection>
           )}
-          {maxGradePercent !== undefined && (
+          {(maxGradePercent !== undefined || batters) && (
             <MapLegendSection title="Road">
-              <LegendItem color={OVER_GRADE_FILL} swatchShape="square" label={`Over ${maxGradePercent}% grade`} />
+              {batters && (
+                <>
+                  <LegendItem color={CUT_BATTER_FILL} swatchShape="square" label="Cut batter" />
+                  <LegendItem color={FILL_BATTER_FILL} swatchShape="square" label="Fill batter" />
+                </>
+              )}
+              {maxGradePercent !== undefined && (
+                <LegendItem color={OVER_GRADE_FILL} swatchShape="square" label={`Over ${maxGradePercent}% grade`} />
+              )}
             </MapLegendSection>
           )}
         </div>

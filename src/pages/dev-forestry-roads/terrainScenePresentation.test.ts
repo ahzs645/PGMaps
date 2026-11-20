@@ -248,7 +248,9 @@ describe('the GPU terrain scene presentation', () => {
     expect(covers(result.data.ground, at(50))).toBe(true)
     expect(covers(input.geometry.ground, at(50, -10))).toBe(false)
     expect(covers(result.data.ground, at(50, -10))).toBe(false)
-    expect(result.data.ground.every((face) => face.vertices.every((v) => v.z === 800))).toBe(true)
+    // The ground keeps its level: on flat ground the seam moves a vertex by rounding only, never to the open end of
+    // the incomplete stretch a metre or two below it.
+    expect(result.data.ground.every((face) => face.vertices.every((v) => Math.abs(v.z - 800) < 1e-6))).toBe(true)
     expect(source.mock.calls).toHaveLength(samples)
     expect(Number.isNaN(groundAt(-10, 50))).toBe(true)
     expect(JSON.stringify({ analysis: input.analysis, geometry: input.geometry })).toBe(before)

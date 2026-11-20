@@ -5,6 +5,9 @@ import type { RoadStation } from './types'
 import { preparationExtent } from './preparationFootprint'
 
 export const PREVIEW_BATTER_STRIPS = 6
+/** A batter strip's colour by what it is: cut where the ground stood above the design, fill where it stood below. */
+export const CUT_BATTER_FILL = '#dca365'
+export const FILL_BATTER_FILL = '#79a9d9'
 const EPS = 1e-6
 const finite = (value: number | null | undefined): value is number => value != null && Number.isFinite(value)
 
@@ -110,7 +113,7 @@ export function previewEarthwork(
       )
       faces.push({
         vertices,
-        fill: sample.ground! >= sample.design! ? '#dca365' : '#79a9d9',
+        fill: sample.ground! >= sample.design! ? CUT_BATTER_FILL : FILL_BATTER_FILL,
         station: (stations[0].chainage + stations.at(-1)!.chainage) / 2,
       })
     }

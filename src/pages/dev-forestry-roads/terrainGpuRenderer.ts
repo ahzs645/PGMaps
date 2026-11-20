@@ -85,6 +85,35 @@ function facesGeometry(faces: TerrainFace[], originZ: number) {
   return geometry
 }
 
+/**
+ * The formation's own mesh lines, as the canvas preview strokes them: each road face between two stations and each
+ * batter strip, once an edge however many faces share it. Lifted a little, like the centreline, to stay over the faces.
+ */
+function faceEdgesGeometry(faces: TerrainFace[], originZ: number) {
+  const positions: number[] = []
+  const seen = new Set<string>()
+  const key = (v: { x: number; y: number; z: number }) =>
+    `${Math.round(v.x * 100)}:${Math.round(v.y * 100)}:${Math.round(v.z * 100)}`
+  for (const face of faces)
+    for (let i = 0, j = face.vertices.length - 1; i < face.vertices.length; j = i++) {
+      const a = face.vertices[j],
+        b = face.vertices[i]
+      const ka = key(a),
+        kb = key(b)
+      if (ka === kb) continue
+      const edge = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`
+      if (seen.has(edge)) continue
+      seen.add(edge)
+      positions.push(a.x, a.y, a.z - originZ + EDGE_LIFT_M, b.x, b.y, b.z - originZ + EDGE_LIFT_M)
+    }
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  return geometry
+}
+const EDGE_LIFT_M = 0.03
+/** The canvas preview's face stroke. */
+const FORMATION_EDGE_COLOUR = '#94744a'
+
 function release(group: THREE.Group) {
   group.traverse((object) => {
     if (!(object instanceof THREE.Mesh || object instanceof THREE.LineSegments)) return
@@ -167,6 +196,7 @@ export function createTerrainGpu(
     revision = 0
   let cameraKey = ''
   let ground: THREE.Mesh | undefined, road: THREE.Mesh | undefined, earthwork: THREE.Mesh | undefined
+  let earthworkEdges: THREE.LineSegments | undefined
   const pickables: THREE.Object3D[] = []
   const culverts = new Map<string, THREE.Mesh>()
   const materials: THREE.Material[] = []
@@ -210,6 +240,7 @@ export function createTerrainGpu(
             material.wireframe = view.wireframe
         }
         if (earthwork) earthwork.visible = view.showEarthwork
+        if (earthworkEdges) earthworkEdges.visible = view.showEarthwork && !view.wireframe
         if (road) road.visible = true
         // X-ray exposes buried structures without altering the terrain or their actual positions.
         if (ground && ground.material instanceof THREE.MeshStandardMaterial) {
@@ -263,7 +294,7 @@ export function createTerrainGpu(
   }
   document.addEventListener('visibilitychange', onVisibility)
 
-  const addMesh = (geometry: THREE.BufferGeometry, material: THREE.MeshStandardMaterial) => {
+  const addMesh = (geometry: THREE.BufferGeometry, material: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial) => {
     const mesh = new THREE.Mesh(geometry, material)
     material.side = THREE.DoubleSide
     group.add(mesh)
@@ -329,10 +360,10 @@ export function createTerrainGpu(
       } else
         road = addMesh(
           facesGeometry(next.road, next.originZ),
-          new THREE.MeshStandardMaterial({
+          // The formation's faces keep the colours they are keyed by (the road, cut, fill, over the grade limit), as
+          // the canvas preview paints them: unlit, their mesh lines giving the shape.
+          new THREE.MeshBasicMaterial({
             vertexColors: true,
-            flatShading: true,
-            roughness: 1,
             polygonOffset: true,
             polygonOffsetFactor: -1,
             polygonOffsetUnits: -1,
@@ -342,10 +373,21 @@ export function createTerrainGpu(
       pickables.push(ground, road)
       earthwork = addMesh(
         facesGeometry(next.design ? [] : next.earthwork, next.originZ),
-        new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 }),
+        new THREE.MeshBasicMaterial({ vertexColors: true }),
       )
       earthwork.userData.road = true
       pickables.push(earthwork)
+      // The formation drawn as faces (not one exact surface) keeps its mesh lines: stations across the road, strips
+      // down each batter.
+      const addEdges = (faces: TerrainFace[]) => {
+        const material = new THREE.LineBasicMaterial({ color: FORMATION_EDGE_COLOUR, transparent: true, opacity: 0.5 })
+        materials.push(material)
+        const lines = new THREE.LineSegments(faceEdgesGeometry(faces, next.originZ), material)
+        group.add(lines)
+        return lines
+      }
+      if (!next.design) addEdges(next.road)
+      earthworkEdges = addEdges(next.design ? [] : next.earthwork)
       const linePositions: number[] = [],
         lineColors: number[] = []
       const color = new THREE.Color()

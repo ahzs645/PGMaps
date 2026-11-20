@@ -194,6 +194,42 @@ describe('terrain outside the exact design footprint', () => {
     expect(JSON.stringify(ground)).toBe(original)
   })
 
+  it('stitches sloping display ground to the footprint edge it was cut at, and leaves level ground and far edges alone', () => {
+    // A coarse face rising 4 m across its 12 m: the source ground the design met can stand up to 2 m off its plane.
+    const slope = (x: number, y: number) => ({ x, y, z: 100 + (x + 1) / 3 })
+    const ground = [
+      { vertices: [slope(-1, -1), slope(11, -1), slope(11, 11)], fill: '#abc', estimated: false },
+      { vertices: [slope(-1, -1), slope(11, 11), slope(-1, 11)], fill: '#abc', estimated: false },
+    ]
+    const original = JSON.stringify(ground)
+    const onEdge = (v: TerrainVertex) =>
+      (Math.abs(v.x) < 1e-9 || Math.abs(v.x - 10) < 1e-9 || Math.abs(v.y) < 1e-9 || Math.abs(v.y - 10) < 1e-9) &&
+      v.x > -1e-9 &&
+      v.x < 10 + 1e-9 &&
+      v.y > -1e-9 &&
+      v.y < 10 + 1e-9
+    // The footprint's edge stands 1 m above the display ground's plane: within reach, so the cut edge meets it.
+    const near = triangles(0, 0, 10, 10).map((face) => face.map((v) => ({ ...v, z: slope(v.x, v.y).z + 1 })))
+    const stitchedFaces = clipTerrainToDesign(ground, near, { stitch: true })
+    const seam = stitchedFaces.flatMap((face) => face.vertices).filter(onEdge)
+    expect(seam.length).toBeGreaterThan(0)
+    for (const v of seam) expect(v.z).toBeCloseTo(slope(v.x, v.y).z + 1, 9)
+    // Away from the edge the ground keeps its own level, and nothing is stitched unless asked.
+    for (const v of stitchedFaces.flatMap((face) => face.vertices).filter((v) => !onEdge(v)))
+      expect(v.z).toBeCloseTo(slope(v.x, v.y).z, 9)
+    for (const v of clipTerrainToDesign(ground, near).flatMap((face) => face.vertices))
+      expect(v.z).toBeCloseTo(slope(v.x, v.y).z, 9)
+    expect(area(stitchedFaces)).toBeCloseTo(44, 8)
+    // An edge 6 m off (a batter that never reached the ground) is past the face's reach: the ground stays open to it.
+    const far = triangles(0, 0, 10, 10).map((face) => face.map((v) => ({ ...v, z: slope(v.x, v.y).z - 6 })))
+    for (const v of clipTerrainToDesign(ground, far, { stitch: true }).flatMap((face) => face.vertices))
+      expect(v.z).toBeCloseTo(slope(v.x, v.y).z, 9)
+    // Level ground has no relief to be out by: a design edge even 0.5 m off it is not the ground's.
+    const level = clipTerrainToDesign(squareFaces(-1, -1, 11, 11), triangles(0, 0, 10, 10, 10.5), { stitch: true })
+    expect(level.every((face) => face.vertices.every((v) => v.z === 10))).toBe(true)
+    expect(JSON.stringify(ground)).toBe(original)
+  })
+
   it('subtracts overlapping/folded faces as a union without removing their shared area twice', () => {
     const footprint = [...triangles(2, 2, 6, 6), ...triangles(4, 4, 8, 8).map((face) => [...face].reverse())]
     const clipped = clipTerrainToDesign(squareFaces(0, 0, 10, 10), footprint)

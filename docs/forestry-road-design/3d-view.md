@@ -16,11 +16,11 @@ station schedule continue to use that same chainage. See the
 | Control | Behavior |
 | --- | --- |
 | **Fit** | Fits actual coarse ground and design vertices. Empty corners of the enclosing box no longer determine the picture's size. A later detail patch does not move the fit. |
-| **Finished / Subgrade** | Chooses one exact design TIN while batters are shown. These surfaces overlap outside the formation, so they are not drawn as two competing opaque surfaces. |
+| **Cut and fill / Finished / Subgrade** | What the road is drawn as while batters are shown. **Cut and fill**, the default, is the formation the canvas preview draws: the road's lanes between stations, and each batter in strips, coloured cut (`CUT_BATTER_FILL`) or fill (`FILL_BATTER_FILL`) and a road stretch over the grade limit in its own colour, unlit, with their mesh lines; the legend keys the colours. **Finished** and **Subgrade** draw that one exact design TIN in a single colour. The exact surfaces overlap outside the formation, so they are not drawn as two competing opaque surfaces. |
 | **Auto quality / High quality / Efficient** | Sets the ground sampling and screen-pixel budgets below. Auto reduces screen pixels during camera movement and sharpens after it stops. |
 | **Slope / Elevation / Plain** | Colours sampled ground. Slope is in true, unexaggerated metres; lighting follows the drawn geometry. These colours are not aerial photography. |
 | **Orthophoto** | Appears when the project has a visible imported orthophoto. Uses that layer's CRS, retained RGB(A) pixels and opacity. A selector appears if more than one is available. No imagery request is made by the viewer. |
-| **Batters** | With batters shown, the exact surface includes its supported formation and earthworks. Hiding them uses the simplified formation-only drawing and cuts only that visible footprint out of ground. |
+| **Batters** | With batters shown, the drawing includes the formation and its earthworks, and the display ground is stitched to their outer edge (below). Hiding them draws the road alone and cuts only that visible footprint out of ground. |
 | **Fill gaps** | Keeps the existing optional estimated ground patches, initially on. Estimates are marked in the drawing and never enter engineering calculations or exports. |
 | **X-ray structures** | Makes ground translucent and shows buried culverts through intervening surfaces. The structures stay at their calculated locations and elevations. |
 | **Cutaway at selected station** | Clips the picture at the selected cross-section and prints a display-only notice. Moving the station moves the clipping plane. |
@@ -86,6 +86,15 @@ ground faces. A bounded spatial index restricts candidate checks. Using triangle
 overlapping or folded design footprints without relying on a possibly self-intersecting outer
 ring. Each cut ground vertex is interpolated on its original sampled ground face; it is not
 lowered to an invented road elevation. Face colour and estimated status are retained.
+
+With batters shown, the cut ground is then stitched to the footprint's edge (`stitch`). The display
+ground is sampled far more coarsely than the source ground the design met, so left alone it stands a
+little above or below the formation's edge and saws in and out of it along the whole road. A ground
+vertex made on a footprint edge takes that edge's level when it is within half its own display face's
+relief of it (`seamReach`, at least `SEAM_MIN_REACH_M`), which is about how far a face sampled at its
+corners can stand from the source. On level ground that is next to nothing, so an edge that does not
+reach the ground (an incomplete stretch's open end, a batter stopped at the section's reach or at
+missing terrain) stays open, as it is. The stitch moves display vertices only and reads no terrain.
 
 The GPU therefore depth-tests ground outside the corridor against the exact road surface,
 including deep cuts. With batters hidden or an exact TIN unavailable, clipping follows the

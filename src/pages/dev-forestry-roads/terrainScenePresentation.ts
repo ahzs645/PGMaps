@@ -55,6 +55,9 @@ export function terrainScenePresentation({
         exact && showEarthwork
           ? exact.footprint
           : [...geometry.road, ...(showEarthwork ? geometry.earthwork : [])].map((face) => face.vertices),
+        // With the batters drawn, the footprint's edge is where the design meets the ground: the display ground is
+        // brought to it. A road drawn alone stands above or below the ground, which stays where it is.
+        { stitch: showEarthwork },
       )
   } catch (error) {
     // A too-complex display remains usable and says which drawing it can show. Never lose source

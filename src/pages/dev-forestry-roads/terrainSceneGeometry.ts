@@ -25,6 +25,10 @@ export const MAX_TERRAIN_SCENE_CLIP_PIECES = 2_048
 export const MAX_TERRAIN_SCENE_CLIPPED_FACES = 1_000_000
 const INDEX_SIDE = 128
 const EDGE_EPS_M = 1e-7
+/** How near a footprint edge a ground vertex must lie, in plan, to be on it. */
+const SEAM_EPS_M = 1e-5
+/** The least a ground vertex may be moved to a formation edge: rounding in the two meshes, not a real gap. */
+const SEAM_MIN_REACH_M = 0.02
 const AREA_EPS_M2 = 1e-9
 
 export interface TerrainSceneFrame {
@@ -313,6 +317,48 @@ function subtractTriangle(polygon: TerrainVertex[], triangle: readonly TerrainVe
 }
 
 /**
+ * How far a ground vertex on the formation's edge may be moved to meet it: half the display face's own relief, which
+ * is about how far a face sampled at its corners can stand from the finer source ground the design met. On level
+ * ground that is next to nothing, so a design edge that does not reach the ground (an incomplete stretch's open end, a
+ * batter stopped at the section's reach or at missing terrain) stays open, as it is.
+ */
+function seamReach(vertices: readonly TerrainVertex[]) {
+  let low = Infinity,
+    high = -Infinity
+  for (const { z } of vertices) {
+    low = Math.min(low, z)
+    high = Math.max(high, z)
+  }
+  return Math.max(SEAM_MIN_REACH_M, (high - low) / 2)
+}
+
+/** A ground vertex lying on a footprint triangle's edge, at that edge's level when it is within `reach` of it. */
+function stitched(vertex: TerrainVertex, triangles: readonly IndexedTriangle[], reach: number): TerrainVertex {
+  let level: number | null = null
+  for (const triangle of triangles) {
+    const [left, top, right, bottom] = triangle.box
+    if (vertex.x < left - SEAM_EPS_M || vertex.x > right + SEAM_EPS_M) continue
+    if (vertex.y < top - SEAM_EPS_M || vertex.y > bottom + SEAM_EPS_M) continue
+    for (let i = 0; i < 3; i++) {
+      const a = triangle.vertices[i],
+        b = triangle.vertices[(i + 1) % 3]
+      const dx = b.x - a.x,
+        dy = b.y - a.y
+      const squared = dx * dx + dy * dy
+      if (!(squared > EDGE_EPS_M * EDGE_EPS_M)) continue
+      const t = ((vertex.x - a.x) * dx + (vertex.y - a.y) * dy) / squared
+      if (t < -1e-9 || t > 1 + 1e-9) continue
+      const off = Math.hypot(vertex.x - (a.x + dx * t), vertex.y - (a.y + dy * t))
+      if (off > SEAM_EPS_M) continue
+      const z = a.z + (b.z - a.z) * Math.min(1, Math.max(0, t))
+      // Where footprint triangles overlap, the ground meets the one nearest its own level.
+      if (level === null || Math.abs(z - vertex.z) < Math.abs(level - vertex.z)) level = z
+    }
+  }
+  return level !== null && Math.abs(level - vertex.z) <= reach ? { ...vertex, z: level } : vertex
+}
+
+/**
  * Remove the chosen design surface's exact XY footprint from sampled display ground. The input
  * is convex sampled faces (triangles, or triangles clipped to a display window). All face metadata,
  * including colour and estimated status, is retained. Non-finite source faces remain absent.
@@ -325,6 +371,7 @@ function subtractTriangle(polygon: TerrainVertex[], triangle: readonly TerrainVe
 export function clipTerrainToDesign<T extends { vertices: TerrainVertex[] }>(
   faces: readonly T[],
   footprint: readonly (readonly TerrainVertex[])[],
+  options: { stitch?: boolean } = {},
 ): T[] {
   const near = footprintIndex(footprint)
   const result: T[] = []
@@ -351,6 +398,12 @@ export function clipTerrainToDesign<T extends { vertices: TerrainVertex[] }>(
       }
       polygons = next
       if (!polygons.length) break
+    }
+    if (options.stitch && polygons.length) {
+      // The display ground is coarser than the source the design met: left alone, it stands above or below the
+      // formation's edge and saws in and out of it. Bring its cut edge to the formation's own level there.
+      const reach = seamReach(face.vertices)
+      polygons = polygons.map((polygon) => polygon.map((vertex) => stitched(vertex, candidates, reach)))
     }
     for (const vertices of polygons) result.push({ ...face, vertices })
     if (result.length > MAX_TERRAIN_SCENE_CLIPPED_FACES)
