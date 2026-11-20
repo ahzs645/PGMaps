@@ -5,6 +5,8 @@ import { surfacingSupplyCost } from './gravel'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
 import { LEGACY_CULVERT_ASSOCIATION_M } from './crossingPlan'
+import { culvertCostDefaultStatus } from './culvertCostDefaults'
+import type { EvidenceCurrency } from './costEvidence/costEvidence'
 
 type BaseRateKey = 'cutRate' | 'fillRate' | 'surfacingRate' | 'clearingRate'
 
@@ -30,8 +32,8 @@ export interface CostReadinessAssessment {
   quantityCoverageComplete: boolean
   placeholderRates: BaseRateKey[]
   /**
-   * Every quantity above zero whose rate is zero. Adding such work lowers nothing and prices
-   * nothing, so an estimate that falls after it is added is missing a price, not cheaper.
+   * Every quantity above zero whose rate is zero. These quantities add no price to the total;
+   * a lower total alone does not establish a saving when work is still unpriced.
    */
   unpriced: UnpricedQuantity[]
   /**
@@ -165,6 +167,7 @@ export function assessCostReadiness(
   analysis: RoadAnalysis,
   alignment: Alignment,
   settings: RoadSettings,
+  currency: EvidenceCurrency = 'CAD',
 ): CostReadinessAssessment {
   const result = analysis.engineering
   const engineering = alignment.engineering
@@ -312,6 +315,18 @@ export function assessCostReadiness(
       detail: analysis.crossingEstimate.warnings.join(' '),
     })
   const unpricedCulverts = unpricedCulvertsOf(analysis)
+  const provisionalCulverts = (engineering?.culverts ?? []).flatMap((culvert) => {
+    if (!culverts.some((c) => c.id === culvert.id) || analysis.crossingEstimate?.replacedLegacyIds.includes(culvert.id))
+      return []
+    const status = culvertCostDefaultStatus(culvert, currency)
+    return status ? [{ culvert, status }] : []
+  })
+  if (provisionalCulverts.length)
+    flags.push({
+      id: 'provisional-culvert-rates',
+      label: 'Provisional culvert estimates need local price review',
+      detail: provisionalCulverts.map(({ culvert, status }) => `${culvert.name}: ${status.summary}`).join(' '),
+    })
   if (unpricedCulverts.length)
     flags.push({
       id: 'zero-culvert-rates',

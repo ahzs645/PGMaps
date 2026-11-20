@@ -23,6 +23,7 @@ import {
 import { buildUpSnapshot, type RateBuildUp } from './rateBuildUps'
 import { createDemoProject } from '../terrain'
 import { createEngineeringDesign } from '../engineeringTypes'
+import { withCulvertCostDefault } from '../culvertCostDefaults'
 import type { RoadProject } from '../types'
 
 const catalogue = assembleCostEvidence(bcLocal, bcProjects, external, additions)
@@ -270,6 +271,48 @@ describe('a bundled price is not counted twice', () => {
 
 describe('what is stored', () => {
   const adoption = createAdoption(input({ observedBasis: 'tonne' }), '2026-11-12')
+
+  it('clears only the explicitly adopted culvert’s provisional marker and stores its reviewed source', () => {
+    const pending = engineered()
+    const alignment = pending.alignments.find((a) => a.id === pending.activeAlignmentId)!
+    const first = withCulvertCostDefault({
+      ...alignment.engineering!.culverts[0],
+      kind: 'cross-drain',
+      unitCost: 0,
+      fixedCost: 0,
+    })
+    const second = { ...first, id: 'c2', name: 'Second cross-drain' }
+    alignment.engineering!.culverts = [first, second]
+    const key = `${alignment.id}/culvert:c1.unitCost`
+    const typed = writeTarget(pending, key, 450)
+    expect(typed.alignments.find((a) => a.id === alignment.id)!.engineering!.culverts[0].costDefault).toEqual(
+      first.costDefault,
+    )
+    const reviewed = createAdoption(
+      {
+        record: record('alberta-upa-2026-4'),
+        target: targetFor(pending, key)!,
+        currency: 'CAD',
+        rate: 450,
+        specificationConfirmed: true,
+        observedBasis: 'm',
+        includes: ['supply', 'installation'],
+        reason: 'Reviewed local site allowance above the Alberta tender reference.',
+      },
+      '2026-11-19',
+    )
+    const adopted = applyAdoption(pending, key, reviewed)
+    const culverts = adopted.alignments.find((a) => a.id === alignment.id)!.engineering!.culverts
+    expect(culverts[0].unitCost).toBe(450)
+    expect(culverts[0]).not.toHaveProperty('costDefault')
+    expect(culverts[1]).toBe(second)
+    expect(culverts[1].costDefault).toEqual(first.costDefault)
+    expect(adopted.rateEvidence?.[key]).toBe(reviewed)
+    expect(first.costDefault).toBeDefined()
+    expect(pending.rateEvidence).toBeUndefined()
+    expect(() => applyAdoption(pending, `${alignment.id}/culvert:missing.unitCost`, reviewed)).toThrow()
+    expect(first.costDefault).toBeDefined()
+  })
 
   it('keeps the observation as it was read, with every term, beside the typed rate and its reason', () => {
     expect(adoption).toMatchObject({

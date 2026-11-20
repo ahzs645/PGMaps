@@ -39,6 +39,9 @@ import { cellIndexAt, sampleSurfaceGrid, type ToGrid, type ToLonLat } from './su
 import { optimizeVerticalProfileAsync } from './verticalOptimizer'
 import { constraintRouteIssues } from './riparian'
 import { foundRoadSearchSettings } from './foundRoadSearch'
+import { CROSS_DRAIN_COST_DEFAULT, DEFAULT_CROSS_DRAIN_LENGTH_M } from './culvertCostDefaults'
+import type { EvidenceCurrency } from './costEvidence/costEvidence'
+export { DEFAULT_CROSS_DRAIN_LENGTH_M } from './culvertCostDefaults'
 import { corridorStop, switchbackStop, type RouteSearchStop } from './routeSearchStop'
 import { sweepSteeperGrades, type SteeperGradeResult } from './steeperGrades'
 import type {
@@ -94,10 +97,12 @@ export interface RouteComparisonOptions {
   goals: RouteGoal[]
   corridorHalfWidthM: number
   groundWindowM: number
-  /** Allowance per stream crossing without a culvert, CAD. A planning placeholder. */
+  /** Allowance per stream crossing without a culvert, in the project currency. */
   crossingCost: number
-  /** Allowance per cross-drain site without a culvert, CAD. A planning placeholder. */
+  /** Planning allowance per unplaced cross-drain site, in the project currency. */
   crossDrainCost: number
+  /** Currency of the entered allowances; older callers use CAD. No conversion is performed. */
+  currency?: EvidenceCurrency
   drainage: DrainageSettings
   /** Smaller search budgets, for tests and constrained devices. The defaults are the documented ones. */
   searchBudget?: { maxStates?: number; maxTerrainSamples?: number; switchbackExpansions?: number }
@@ -107,7 +112,8 @@ export interface RouteComparisonOptions {
    */
   steeperGrades?: boolean
 }
-export const DEFAULT_CROSS_DRAIN_COST = 1500
+/** CAD planning allowance before a barrel is designed: 12 m at the provisional installed rate. */
+export const DEFAULT_CROSS_DRAIN_COST = CROSS_DRAIN_COST_DEFAULT.unitCost * DEFAULT_CROSS_DRAIN_LENGTH_M
 /** Metres of road a mapped stream contact is worth to the drainage goal's search. */
 const DRAINAGE_STREAM_CONTACT_M = 600
 /**
@@ -1251,7 +1257,7 @@ export async function compareRoutes(
   const shown = assignGoals(distinct, options.goals)
   const currentLeads = shown.find((row) => row.goal === 'current')?.best ?? []
   const date = input.now?.() ?? new Date()
-  for (const row of shown)
+  for (const row of shown) {
     if (row.goal !== 'current' && row.alignment) {
       row.alignment.name = derivedRoadName(
         base.name,
@@ -1267,11 +1273,17 @@ export async function compareRoutes(
         groundWindowM: options.groundWindowM,
         crossingCost: options.crossingCost,
         crossDrainCost: options.crossDrainCost,
+        currency: options.currency ?? 'CAD',
         maxTerrainSlopePercent: routeOptions.maxTerrainSlopePercent,
         switchbacks: switchbackRules,
         note: row.notes[0],
         date,
       })
     }
+    if (row.drainage?.crossDrains && options.crossDrainCost === 0)
+      row.notes.push(
+        `${row.drainage.crossDrains} cross-drain site(s) are unpriced: their allowance is zero ${options.currency ?? 'CAD'}, so this total excludes them. Enter a planning allowance before comparing complete costs.`,
+      )
+  }
   return { rows: shown, drainageChecked, currentLeads }
 }

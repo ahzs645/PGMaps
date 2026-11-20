@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { resolvedCableLine } from './cableGeometry'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
+import { CROSS_DRAIN_COST_DEFAULT } from './culvertCostDefaults'
 import { createMaterialVolumeFactorProvenance, materialCompactionFactorPatch } from './materialFactors'
 import { validateEngineering } from './templates'
 import {
@@ -217,6 +218,31 @@ function readCsv(csv: string): Record<string, string>[] {
 }
 
 describe('engineering project persistence and portable libraries', () => {
+  it('round-trips a provisional culvert source without repricing saved, edited or zero rates', () => {
+    const project = projectFixture()
+    const culvert = project.alignments[0].engineering!.culverts[0]
+    culvert.costDefault = { ...CROSS_DRAIN_COST_DEFAULT }
+    // A later specification/rate edit must retain the observation and still require review.
+    culvert.diameterM = 0.8
+    culvert.unitCost = 500
+    expect(parseProject(serializeProject(project)).alignments[0].engineering!.culverts[0]).toEqual(culvert)
+    culvert.unitCost = 0
+    culvert.fixedCost = 0
+    expect(parseProject(serializeProject(project)).alignments[0].engineering!.culverts[0]).toEqual(culvert)
+    delete culvert.costDefault
+    const restored = parseProject(serializeProject(project)).alignments[0].engineering!.culverts[0]
+    expect(restored).not.toHaveProperty('costDefault')
+    expect(restored.unitCost).toBe(0)
+    expect(restored.fixedCost).toBe(0)
+  })
+
+  it('rejects malformed provisional-price metadata at project load and save', () => {
+    const project = projectFixture()
+    project.alignments[0].engineering!.culverts[0].costDefault = { ...CROSS_DRAIN_COST_DEFAULT, unitCost: -1 }
+    expect(() => parseProject(project)).toThrow(/Culvert provisional cost/)
+    expect(() => serializeProject(project)).toThrow(/Culvert provisional cost/)
+  })
+
   it('round-trips optional factor convention evidence in projects and reusable material libraries', () => {
     const project = projectFixture()
     const material = project.alignments[0].engineering!.materials[1]

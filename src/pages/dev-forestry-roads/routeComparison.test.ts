@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { safeAnalyzeRoad } from './analysisResult'
+import { CROSS_DRAIN_COST_DEFAULT } from './culvertCostDefaults'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { createEngineeringDesign } from './engineeringTypes'
 import {
@@ -9,6 +10,7 @@ import {
   comparisonSummary,
   crossDrainSites,
   DEFAULT_CROSS_DRAIN_COST,
+  DEFAULT_CROSS_DRAIN_LENGTH_M,
   describeCorridorFailure,
   flowPenalty,
   probeSteeperGrades,
@@ -77,6 +79,14 @@ describe('simplifyGuide', () => {
   it('leaves a short line alone', () => {
     const line = [at(0, 0), at(10, 0)]
     expect(simplifyGuide(line)).toBe(line)
+  })
+})
+
+describe('cross-drain planning allowance', () => {
+  it('uses the same installed rate as a default culvert, on an explicit 12 m assumed length', () => {
+    expect(DEFAULT_CROSS_DRAIN_LENGTH_M).toBe(12)
+    expect(DEFAULT_CROSS_DRAIN_COST).toBe(CROSS_DRAIN_COST_DEFAULT.unitCost * DEFAULT_CROSS_DRAIN_LENGTH_M)
+    expect(DEFAULT_CROSS_DRAIN_COST).toBeCloseTo(4472.04, 2)
   })
 })
 
@@ -318,7 +328,8 @@ describe('compareRoutes', () => {
     expect(rows[0].alignment!.searchSettings).toBeUndefined()
     const found = rows.filter((row) => row.goal !== 'current' && row.alignment)
     expect(found.length).toBeGreaterThan(0)
-    for (const row of found)
+    for (const row of found) {
+      expect(row.alignment!.searchSettings!.crossDrainAllowanceNote).toContain('12 m × CAD 372.67/m')
       expect(row.alignment!.searchSettings).toMatchObject({
         goals: row.best.length ? row.best : [row.goal],
         label: row.label,
@@ -328,7 +339,9 @@ describe('compareRoutes', () => {
         groundWindowM: 0,
         crossingCost: 8000,
         crossDrainCost: DEFAULT_CROSS_DRAIN_COST,
+        currency: 'CAD',
       })
+    }
   }, 30_000)
 
   // Four designed roads with drainage screens: about 18 s here and three to four times that on CI runners.

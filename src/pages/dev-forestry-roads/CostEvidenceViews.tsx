@@ -246,18 +246,20 @@ export function EvidenceGroupList({
   sources,
   defaultOpen = false,
   summary = groupSummary,
+  focusRecordId,
 }: {
   groups: EvidenceGroup[]
   sources: EvidenceSource[]
   defaultOpen?: boolean
   summary?: (group: EvidenceGroup) => string
+  focusRecordId?: string
 }) {
   // Only an opened group renders its records; a hundred folded rows cost nothing.
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set())
   return (
     <div className={cn(insetBox({ padding: 'none', hoverRows: true }), 'overflow-hidden')}>
       {groups.map((group) => {
-        const open = toggled.has(group.name) !== defaultOpen
+        const open = toggled.has(group.name) !== (defaultOpen || group.records.some((r) => r.id === focusRecordId))
         return (
           <CollapsibleSection
             key={group.name}
@@ -378,20 +380,29 @@ export function EvidenceBrowser({
   onFilter,
   projectPlace,
   preferredKinds,
+  focusRecordId,
+  focusSequence,
 }: {
   catalogue: CostEvidenceCatalogue
   filter: EvidenceFilter
   onFilter: (filter: EvidenceFilter) => void
   projectPlace?: CostPlace
   preferredKinds?: readonly EvidenceKind[]
+  /** Brings the referenced provisional price first and opens its source group. */
+  focusRecordId?: string
+  /** A new CTA request reopens its source even if it was previously folded by hand. */
+  focusSequence?: number
 }) {
   const inPlace = useMemo(
     () => filterEvidence(catalogue.records, { ...filter, kind: ALL, query: '' }),
     [catalogue.records, filter],
   )
   const shown = useMemo(
-    () => sortByRelevance(filterEvidence(catalogue.records, filter), projectPlace, preferredKinds),
-    [catalogue.records, filter, projectPlace, preferredKinds],
+    () =>
+      sortByRelevance(filterEvidence(catalogue.records, filter), projectPlace, preferredKinds).sort(
+        (a, b) => Number(b.id === focusRecordId) - Number(a.id === focusRecordId),
+      ),
+    [catalogue.records, filter, projectPlace, preferredKinds, focusRecordId],
   )
   const groups = useMemo(() => groupEvidence(shown), [shown])
   const places = useMemo(() => evidencePlaceOptions(catalogue.records, projectPlace), [catalogue.records, projectPlace])
@@ -463,17 +474,18 @@ export function EvidenceBrowser({
         </span>
         <InfoTip label="About these records">
           Each amount stays in its own currency, unit and price year. Nothing is converted, escalated or averaged, and
-          browsing changes nothing. A record reaches the estimate only through Use for a project rate, where you type
-          the rate yourself. Two records from one project or source are not independent samples.
+          browsing changes nothing. Use for a project rate records your reviewed figure; automatic cross-drain defaults
+          stay marked provisional until reviewed. Two records from one project or source are not independent samples.
         </InfoTip>
       </div>
       {groups.length > 0 ? (
         <EvidenceGroupList
-          key={JSON.stringify(filter)}
+          key={JSON.stringify([filter, focusRecordId, focusSequence])}
           groups={groups}
           sources={catalogue.sources}
           defaultOpen={groups.length === 1}
           summary={nearSummary(projectPlace)}
+          focusRecordId={focusRecordId}
         />
       ) : (
         <EmptyHint>

@@ -17,6 +17,8 @@ import { drainageRoadFingerprint } from './drainageEvidence'
 import type { DitchLowPoint } from './hydrology'
 import { CROSS_DRAIN_SITE_M, DEFAULT_CULVERT_SEARCH_M } from './hydrology'
 import { culvertInletSide, otherSide, type CulvertInletSide } from './culverts/culvertInlet'
+import { CROSS_DRAIN_COST_DEFAULT, culvertCostDefaultProblem, type CulvertCostDefault } from './culvertCostDefaults'
+import type { EvidenceCurrency } from './costEvidence/costEvidence'
 
 /** The project file's limit on culverts per road (`engineeringProject.ts`). */
 export const MAX_ROAD_CULVERTS = 100
@@ -39,8 +41,17 @@ export interface BatchPipeDefaults {
   minCoverM: number
   unitCost: number
   fixedCost: number
+  costDefault?: CulvertCostDefault
+  /** Currency of the open project; the provisional CAD price never carries into another currency. */
+  currency?: EvidenceCurrency
 }
-export const DEFAULT_BATCH_PIPE: BatchPipeDefaults = { diameterM: 0.6, minCoverM: 0.6, unitCost: 0, fixedCost: 0 }
+export const DEFAULT_BATCH_PIPE: BatchPipeDefaults = {
+  diameterM: 0.6,
+  minCoverM: 0.6,
+  unitCost: CROSS_DRAIN_COST_DEFAULT.unitCost,
+  fixedCost: CROSS_DRAIN_COST_DEFAULT.fixedCost,
+  costDefault: { ...CROSS_DRAIN_COST_DEFAULT },
+}
 
 export interface CrossDrainDraft {
   /** Stable for the life of the preview; becomes the culvert's id when added. */
@@ -246,6 +257,16 @@ export function draftCulvert(
     minCoverM: pipe.minCoverM,
     unitCost: pipe.unitCost,
     fixedCost: pipe.fixedCost,
+  }
+  if (pipe.costDefault) {
+    const defaultUnchanged =
+      pipe.unitCost === pipe.costDefault.unitCost && pipe.fixedCost === pipe.costDefault.fixedCost
+    if (defaultUnchanged && culvertCostDefaultProblem(culvert, pipe.currency)) {
+      // Changing size or currency cannot turn the default into an apparently user-entered price.
+      // An explicitly edited price remains the user's, with its provisional origin still visible.
+      culvert.unitCost = 0
+      culvert.fixedCost = 0
+    } else culvert.costDefault = { ...pipe.costDefault }
   }
   if (draft.inletSide === 'right') culvert.inletSide = 'right'
   return culvert

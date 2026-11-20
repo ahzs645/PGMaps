@@ -150,6 +150,8 @@ export interface Culvert {
   /** CAD per installed barrel metre (each barrel of a multiple installation), plus the explicit fixed amount. */
   unitCost: number
   fixedCost: number
+  /** Frozen provisional construction-price source; present until the user explicitly reviews it. */
+  costDefault?: import('./culvertCostDefaults').CulvertCostDefault
   /**
    * The opening's shape (`culverts/culvertShape.ts`). Omitted is a round pipe. For another shape
    * `diameterM` is the rise and `spanM` the width.

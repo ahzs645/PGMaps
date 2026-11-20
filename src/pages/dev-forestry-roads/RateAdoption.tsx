@@ -47,6 +47,10 @@ export interface RateAdoptionTarget {
   onAdopt: (key: string, adoption: RateAdoption, label: string) => void
   /** Saving, editing or deleting a build-up. */
   onBuildUps?: (next: RateBuildUp[] | undefined, label: string) => void
+  /** A review CTA may open one record on the culvert it is asking about, without saving it. */
+  preferredTargetKey?: string
+  openRecordId?: string
+  requestSequence?: number
 }
 
 /** Absent where the dialog is read-only: no record then offers an adoption. */
@@ -112,6 +116,21 @@ export function AdoptRecord({ record }: { record: EvidenceRecord }) {
   const [basis, setBasis] = useState<MeasureBasis | typeof NOT_STATED>(NOT_STATED)
   const [includes, setIncludes] = useState<WorkPart[]>([])
   const [saved, setSaved] = useState<string | null>(null)
+  const [seenRequest, setSeenRequest] = useState<number>()
+  if (target?.requestSequence !== undefined && target.requestSequence !== seenRequest) {
+    setSeenRequest(target.requestSequence)
+    if (target.openRecordId === record.id) {
+      const preferred = target.targets.find((item) => item.key === target.preferredTargetKey)
+      setOpen(true)
+      setKey(preferred?.key ?? '')
+      setRate(preferred ? adoptionPrefill(record, preferred, target.currency) : null)
+      setIncludes(preferred ? [...preferred.prices] : [])
+      setConfirmed(false)
+      setReason('')
+      setBasis(NOT_STATED)
+      setSaved(null)
+    }
+  }
   const chosen = target?.targets.find((item) => item.key === key) ?? null
   const overlaps = useMemo(
     () => (target && chosen ? adoptionOverlaps(target.project, chosen, includes) : []),
@@ -130,6 +149,12 @@ export function AdoptRecord({ record }: { record: EvidenceRecord }) {
           onClick={() => {
             setOpen(true)
             setSaved(null)
+            const preferred = target.targets.find((item) => item.key === target.preferredTargetKey)
+            if (!key && preferred) {
+              setKey(preferred.key)
+              setRate(adoptionPrefill(record, preferred, currency))
+              setIncludes([...preferred.prices])
+            }
           }}
         >
           Use for a project rate

@@ -84,10 +84,14 @@ The route search itself is described in
    - the grade limit and tightest curve, and the preset they matched;
    - the corridor, ground trend and side-hill limit;
    - the switchback rules;
-   - the stream-crossing and cross-drain prices;
+   - the stream-crossing and cross-drain planning allowances, with their currency when recorded;
+   - for a new search using the CAD cross-drain default, its frozen source note and assumed
+     12 m length at CAD $372.67/m; a zero allowance instead says the cross-drains are unpriced;
    - how the line was found.
 
-   The report prints the same rows under **Terrain and assumptions**.
+   The report prints the same rows under **Terrain and assumptions**. Older saved values and
+   records without the new currency/source note stay as written; the reader never infers a
+   source from their numeric value.
 
 ## The presets
 

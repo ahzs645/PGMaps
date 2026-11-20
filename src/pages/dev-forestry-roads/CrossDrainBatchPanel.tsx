@@ -11,6 +11,8 @@ import type { StationEntry } from './stationEntry'
 import type { CrossDrainBatch } from './useCrossDrainBatch'
 import { TRIAL_SPACING_LIMITS, type TrialSpacing } from './crossDrainBatch'
 import type { CulvertInletSide } from './culverts/culvertInlet'
+import { CROSS_DRAIN_COST_DEFAULT, culvertCostDefaultProblem, culvertCostDefaultStatus } from './culvertCostDefaults'
+import { ReferenceLink } from './CostReferenceControls'
 
 const fixed = (value: number | null | undefined, digits: number) => (value == null ? '—' : value.toFixed(digits))
 
@@ -39,6 +41,7 @@ export function CrossDrainBatchPanel({
   const { rows } = batch
   const ready = rows.filter((r) => r.ready).length
   const unconfirmed = rows.filter((r) => r.draft.included && !r.draft.sideConfirmed && r.draft.proposedSide).length
+  const provisional = rows[0] && culvertCostDefaultStatus(rows[0].culvert, batch.pipe.currency)
   return (
     <section
       aria-label="Place cross-drains in a batch"
@@ -127,6 +130,34 @@ export function CrossDrainBatchPanel({
               onChange={(unitCost) => batch.setPipe({ ...batch.pipe, unitCost })}
             />
           </div>
+          {provisional ? (
+            <InlineAlert tone="warning" title="Provisional installed cost — review required">
+              {provisional.summary}{' '}
+              <ReferenceLink href={CROSS_DRAIN_COST_DEFAULT.sourceUrl}>Alberta source</ReferenceLink>. After adding the
+              batch, use Review culvert rates in the covered estimate to confirm or replace the rate.
+            </InlineAlert>
+          ) : batch.pipe.unitCost === 0 && batch.pipe.fixedCost === 0 ? (
+            <InlineAlert tone="warning" title="These drafts have no installed price">
+              {culvertCostDefaultProblem(rows[0].culvert, batch.pipe.currency) ??
+                'Enter a local installed price, or use the provisional 600 mm CSP estimate.'}
+              {!culvertCostDefaultProblem(rows[0].culvert, batch.pipe.currency) && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  className="mt-1"
+                  onClick={() =>
+                    batch.setPipe({
+                      ...batch.pipe,
+                      unitCost: CROSS_DRAIN_COST_DEFAULT.unitCost,
+                      costDefault: { ...CROSS_DRAIN_COST_DEFAULT },
+                    })
+                  }
+                >
+                  Use provisional estimate
+                </Button>
+              )}
+            </InlineAlert>
+          ) : null}
           <EngineeringTable data-testid="cross-drain-batch-rows">
             <thead>
               <tr>
@@ -138,6 +169,7 @@ export function CrossDrainBatchPanel({
                 <ColumnHeader label="Fall" unit="%" />
                 <ColumnHeader label="Span" unit="m" />
                 <ColumnHeader label="Cover" unit="m" />
+                <ColumnHeader label="Installed cost" unit={batch.pipe.currency ?? 'CAD'} />
                 <ColumnHeader label="Checks" className="text-left" />
               </tr>
             </thead>
@@ -217,6 +249,7 @@ export function CrossDrainBatchPanel({
                     </td>
                     <td>{fixed(row.culvert.lengthM, 1)}</td>
                     <td>{fixed(row.result?.coverM, 2)}</td>
+                    <td>{fixed(row.result?.installedCost, 2)}</td>
                     <td className="min-w-48 text-left">
                       {row.issues.length ? (
                         <ul className="space-y-0.5">

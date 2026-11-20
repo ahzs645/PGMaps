@@ -16,8 +16,9 @@ them apart instead of folding them into one number:
    the terrain and the design. Gaps stay unknown, never zero.
 2. **Prices**: what each unit of work costs here, now. A price is only as good
    as its evidence: who quoted it, where, when, measured on what, and what it
-   includes. The tool never invents, converts, escalates or averages a price;
-   the estimator adopts one and says why.
+   includes. The tool never invents, converts, escalates or averages a price.
+   The estimator adopts one and says why; the narrow 600 mm cross-drain default
+   described below remains explicitly provisional until reviewed.
 3. **Scope**: everything a budget needs beyond the measured work, such as
    survey, design, environmental monitoring, overhead, taxes and future
    maintenance. Leaving an item out is acceptable when it is a stated decision;
@@ -82,9 +83,19 @@ in `AGENTS.md`; change them there and in the contract together.
   not a weight, a regional multiplier or a filter that hides anything. A
   location factor would be a new kind of evidence with its own source, not a
   property of the place.
-- **One way in.** A record or a build-up reaches the estimate only through the
-  adoption form, as one named undo step that writes the rate and its frozen
-  source together. A new rate is a new adoption target, never a second form.
+- **One adoption path, one provisional exception.** A confirmed record or
+  build-up reaches the estimate through the adoption form, as one named undo
+  step that writes the rate and its frozen source together. A new rate is a new
+  adoption target, never a second form. `culvertCostDefaults.ts` allows only
+  the pinned Alberta 2026 CAD $372.67/m observation to seed ordinary new 600 mm
+  round cross-drains as **unreviewed**, with frozen provenance. Unspecified
+  material is a CSP cost assumption and never changes hydraulic inputs. The
+  exception has no currency conversion and does not fill saved zeroes on load:
+  **Use provisional estimates** applies it explicitly to eligible unpriced
+  drains in one undo step. **Review culvert rates** returns to the existing
+  evidence/adoption path. Changed specifications remain flagged; a default is
+  never recorded as confirmed adoption. See
+  [Provisional cross-drain estimates](bc-cost-evidence.md#provisional-cross-drain-estimates).
 - **The source is frozen.** The observation is stored as it was read, with all
   its terms. A later catalogue never rewrites it; an edited rate, a removed
   target and a changed build-up each say so instead of hiding the mismatch.

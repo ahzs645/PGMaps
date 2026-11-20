@@ -10,6 +10,7 @@ import { parseSitePreparation } from './sectionAssembly'
 import { parseMaterialVolumeFactorProvenance } from './materialFactors'
 import { MAX_HORIZON_DEPTH_M } from './groundHorizons'
 import { parseParameterOverrides } from './templateParameterOverrides'
+import { parseCulvertCostDefault } from './culvertCostDefaults'
 
 const record = (v: unknown, label: string): Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw Error(`${label} must be an object.`)
@@ -140,6 +141,7 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
         : { ditchDipPercent: numeric(v.ditchDipPercent, 'Ditch dip grade', 0.1, 50) }),
       unitCost: numeric(v.unitCost, 'Culvert cost per metre', 0, 1000000),
       fixedCost: numeric(v.fixedCost, 'Culvert fixed cost', 0, 1e9),
+      ...(v.costDefault === undefined ? {} : { costDefault: parseCulvertCostDefault(v.costDefault) }),
       ...(v.kind === undefined ? {} : { kind: oneOf(v.kind, ['stream', 'cross-drain'] as const, 'Culvert kind') }),
       ...(v.sourceFeatureId === undefined ? {} : { sourceFeatureId: key(v.sourceFeatureId, 'Culvert source feature') }),
       ...parseCulvertOptions(v),

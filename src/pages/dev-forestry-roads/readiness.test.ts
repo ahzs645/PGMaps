@@ -6,6 +6,7 @@ import { DEFAULT_DESIGN_STANDARDS, type DesignStandards } from './designStandard
 import type { DrainageEvidence } from './drainageEvidence'
 import { analyzeRoad, offsetCoordinate, positionAt } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
+import { withCulvertCostDefault } from './culvertCostDefaults'
 import {
   assessReadiness,
   isStartingTemplate,
@@ -20,7 +21,7 @@ import {
 } from './readiness'
 import { icesat2Check } from './canopy/icesat2Check'
 import { assessmentFingerprint, RIPARIAN_RULES } from './streamClass'
-import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
+import { createDemoProject, DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, ContextFeature, Coordinate, Culvert, RoadAnalysis, RoadSettings, TerrainSource } from './types'
 
 const origin: Coordinate = [-122.8, 53.9]
@@ -158,6 +159,48 @@ function assess(
 }
 
 describe('assessReadiness: culverts against the Engineering Manual', () => {
+  it('does not mark nonzero provisional structure costs as met and prints the same review prompt', () => {
+    const pipe = withCulvertCostDefault(
+      culvert({ kind: 'cross-drain', diameterM: 0.6, inletInvertM: 803.3, outletInvertM: 803.0 }),
+    )
+    const quoted = { ...pipe, id: 'quoted', name: 'Quoted cross-drain', chainage: 200, unitCost: 600 }
+    delete quoted.costDefault
+    // The review action must reach the pending price, even when a reviewed pipe comes first.
+    const alignment = road({ engineering: { ...createEngineeringDesign(), culverts: [quoted, pipe] } })
+    const { row, rows, analysis } = assess({ alignment })
+    expect(analysis.engineering!.costs.structures).toBeGreaterThan(0)
+    expect(row('structure-costs')).toMatchObject({
+      state: 'attention',
+      result: 'Provisional culvert estimates need local price review',
+      action: { label: 'Review culvert rates', target: 'culverts', chainage: 100 },
+    })
+    expect(readinessReportHtml(rows)).toContain('Provisional culvert estimates need local price review')
+    const reviewed = { ...pipe }
+    delete reviewed.costDefault
+    alignment.engineering!.culverts = [quoted, reviewed]
+    expect(assess({ alignment }).row('structure-costs').state).toBe('met')
+  })
+
+  it('keeps provisional prices in attention through the project review wrapper after a currency change', () => {
+    const pipe = withCulvertCostDefault(
+      culvert({ kind: 'cross-drain', diameterM: 0.6, inletInvertM: 803.3, outletInvertM: 803.0 }),
+    )
+    const alignment = road({ engineering: { ...createEngineeringDesign(), culverts: [pipe] } })
+    const project = {
+      ...createDemoProject(),
+      settings: DEFAULT_ROAD_SETTINGS,
+      context: [],
+      alignments: [alignment],
+      costLocation: { place: { country: 'US' }, basis: 'chosen' as const, setOn: '2026-11-19' },
+    }
+    const analysis = analyzeRoad(alignment, hillside, project.settings)
+    const { rows } = projectReadiness(project, alignment, analysis, { drainageStale: false })
+    expect(rows.find((row) => row.id === 'structure-costs')).toMatchObject({
+      state: 'attention',
+      action: { label: 'Review culvert rates' },
+    })
+  })
+
   const withCulverts = (...culverts: Culvert[]) =>
     assess({ alignment: road({ engineering: { ...createEngineeringDesign(), culverts } }) }).row('culvert-standards')
   it('is not assessed with no culverts, or while a culvert has no inverts', () => {

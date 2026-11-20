@@ -22,6 +22,8 @@ import {
   type TrialSpacing,
 } from './crossDrainBatch'
 import { draftBarrelFeatures } from './crossDrainBatchPlan'
+import { projectCurrency } from './costPlaces/projectLocation'
+import type { EvidenceCurrency } from './costEvidence/costEvidence'
 
 const uid = () => crypto.randomUUID()
 
@@ -81,7 +83,25 @@ export function useCrossDrainBatch({
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [drafts, setDrafts] = useState<CrossDrainDraft[]>([])
   const [basis, setBasis] = useState<string | null>(null)
-  const [pipe, setPipe] = useState<BatchPipeDefaults>(DEFAULT_BATCH_PIPE)
+  const currency = projectCurrency(project.costLocation)
+  // A rate entered in one currency is never silently carried to another project currency.
+  const [pipes, setPipes] = useState<Partial<Record<EvidenceCurrency, BatchPipeDefaults>>>({})
+  const pipe = useMemo(() => {
+    const selected = { ...(pipes[currency] ?? DEFAULT_BATCH_PIPE), currency }
+    if (
+      selected.costDefault &&
+      selected.unitCost === selected.costDefault.unitCost &&
+      selected.fixedCost === selected.costDefault.fixedCost &&
+      (currency !== 'CAD' || Math.abs(selected.diameterM - 0.6) > 1e-6)
+    ) {
+      selected.unitCost = 0
+      selected.fixedCost = 0
+      delete selected.costDefault
+    }
+    return selected
+  }, [pipes, currency])
+  const setPipe = (next: BatchPipeDefaults) =>
+    setPipes((current) => ({ ...current, [currency]: { ...next, currency } }))
   // Drafts belong to one road; switching roads starts over.
   const [roadId, setRoadId] = useState(alignment.id)
   if (roadId !== alignment.id) {

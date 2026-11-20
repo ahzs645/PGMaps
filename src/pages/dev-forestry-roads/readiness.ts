@@ -19,6 +19,7 @@ import { calculatedAlignment, hasCompleteCoverage } from './analysisResult'
 import { MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M } from './connectorCheckOptions'
 import { CONSTRAINT_LABELS, resolveConstraint } from './constraints'
 import { assessCostReadiness, type CostReadinessAssessment } from './costReadiness'
+import { projectCurrency } from './costPlaces/projectLocation'
 import { buildCrossingRegister, type CrossingRegister } from './crossingRegister'
 import { buildCulvertSchedule } from './culverts/culvertSchedule'
 import { culvertChannels } from './culverts/culvertChannels'
@@ -282,6 +283,7 @@ const COST_FLAG_OWNERS: Record<string, string> = {
   'drainage-inventory': 'crossing-structures',
   'incomplete-crossing-estimate': 'structure-costs',
   'zero-culvert-rates': 'structure-costs',
+  'provisional-culvert-rates': 'structure-costs',
   'incomplete-culverts': 'structure-costs',
   'excluded-culverts': 'structure-costs',
   // A standing reminder of what no estimate here covers; the report prints it in full.
@@ -2184,6 +2186,12 @@ function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
   const structureFlags = costFlags('structure-costs')
   // Counted and named from the records, never from the prompt's sentence: a name can hold a comma.
   const unpricedNames = cost.unpricedCulverts.map((culvert) => culvert.name)
+  const firstProvisional = culverts.find(
+    (culvert) =>
+      culvert.costDefault &&
+      result?.culverts.some((item) => item.id === culvert.id) &&
+      !analysis.crossingEstimate?.replacedLegacyIds.includes(culvert.id),
+  )
   add(
     culverts.length && !(calculated && result)
       ? {
@@ -2219,9 +2227,11 @@ function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
             judgedOn: 'An installed price on every culvert and current crossing record',
             // The first culvert with no price, where there is one; else the first entered.
             action: {
-              label: 'Set price',
+              label: structureFlags.some((flag) => flag.id === 'provisional-culvert-rates')
+                ? 'Review culvert rates'
+                : 'Set price',
               target: 'culverts',
-              chainage: (cost.unpricedCulverts[0] ?? culverts[0])?.chainage,
+              chainage: (cost.unpricedCulverts[0] ?? firstProvisional ?? culverts[0])?.chainage,
             },
           }
         : culverts.length
@@ -2607,7 +2617,7 @@ export function junctionTurnRow(haul: RoadHaulReview): ReadinessRow {
  */
 export function projectReadiness(
   project: Pick<RoadProject, 'settings' | 'standards' | 'terrain' | 'context' | 'drainage'> &
-    Partial<Pick<RoadProject, 'alignments' | 'haulDestination' | 'reference'>>,
+    Partial<Pick<RoadProject, 'alignments' | 'haulDestination' | 'reference' | 'costLocation'>>,
   alignment: Alignment,
   analysis: RoadAnalysis,
   options: { drainageStale: boolean; vehicle?: VehicleFit | null; icesat2?: Icesat2CheckResult | null },
@@ -2629,7 +2639,7 @@ export function projectReadiness(
       context: project.context,
       alignment,
       analysis,
-      cost: assessCostReadiness(analysis, alignment, project.settings),
+      cost: assessCostReadiness(analysis, alignment, project.settings, projectCurrency(project.costLocation)),
       drainage,
       vehicle: options.vehicle,
       register,

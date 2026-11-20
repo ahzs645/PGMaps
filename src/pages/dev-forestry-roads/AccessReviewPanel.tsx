@@ -27,6 +27,8 @@ import {
 import { nearestFsrConnections } from './fsrNetwork'
 import { distance } from './engine'
 import { DEFAULT_CROSS_DRAIN_COST, ROUTE_GOALS, type RouteGoal } from './routeComparison'
+import { crossDrainAllowanceNote } from './foundRoadSearch'
+import { projectCurrency } from './costPlaces/projectLocation'
 import { resolvedGroundWindow } from './groundTrend'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
@@ -60,6 +62,8 @@ export interface AccessMark {
 export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean }) {
   const w = p.workspace
   const { project, source } = w
+  const currency = projectCurrency(project.costLocation)
+  const crossDrainCost = currency === 'CAD' ? DEFAULT_CROSS_DRAIN_COST : 0
   const blocks = useMemo(
     () =>
       project.context
@@ -147,6 +151,7 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
     goals,
     regional,
     project.settings,
+    currency,
     orient,
     project.haulDestination,
   ])
@@ -321,7 +326,8 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
             corridorHalfWidthM: CORRIDOR_HALF_WIDTH_M,
             groundWindowM: resolvedGroundWindow(route, terrainMetadata.resolutionM),
             crossingCost: route.crossingCost,
-            crossDrainCost: DEFAULT_CROSS_DRAIN_COST,
+            crossDrainCost,
+            currency,
             drainage: project.drainage?.settings ?? DEFAULT_DRAINAGE_SETTINGS,
           },
         },
@@ -659,6 +665,19 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
             coarse: adding a road from this run opens a separate reconnaissance project and leaves this one as it was.
           </InfoTip>
         </label>
+        {currency !== 'CAD' ? (
+          <InlineAlert tone="warning">
+            Cross-drains are unpriced in {currency}; access totals exclude them. Use Find the best route to compare a
+            road with an entered cross-drain allowance. The CAD source is not converted.
+          </InlineAlert>
+        ) : (
+          <p className="text-2xs text-muted-foreground">
+            Cross-drains use a provisional CAD allowance.
+            <InfoTip label="Cross-drain planning allowance">
+              {crossDrainAllowanceNote(crossDrainCost, currency)}
+            </InfoTip>
+          </p>
+        )}
         <Button
           size="xs"
           className="w-full"
