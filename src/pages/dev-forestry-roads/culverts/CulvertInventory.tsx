@@ -7,7 +7,7 @@ import type { Culvert, CulvertAnalysis } from '../engineeringTypes'
 import type { InvalidInput } from '../inputErrors'
 import type { RoadStationing } from '../roadStationing'
 import { culvertSizeText } from './culvertShape'
-import { culvertInventoryStatus } from './culvertInventory'
+import { culvertInventoryStatus } from './culvertInventoryStatus'
 import type { CulvertSchedule } from './culvertSchedule'
 
 const WHOLE = new Intl.NumberFormat('en-CA', { maximumFractionDigits: 0 })
