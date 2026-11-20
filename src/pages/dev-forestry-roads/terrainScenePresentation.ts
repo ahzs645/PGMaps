@@ -9,6 +9,7 @@ import { culvertBarrels, culvertRiseM, culvertShapeOf, culvertSpanM } from './cu
 import type { Culvert } from './engineeringTypes'
 import type { TerrainBackgroundLayer } from './terrainPreparation'
 import { roadProjection } from './terrain'
+import { gradeBreachBetween, type GradeSpan } from './designStandards'
 
 interface Geometry {
   frame: { point: (coordinate: Coordinate) => [number, number]; coordinate: (x: number, y: number) => Coordinate }
@@ -33,6 +34,7 @@ export function terrainScenePresentation({
   ortho,
   showEarthwork,
   maxGradePercent,
+  gradeSpan = 'behind',
 }: {
   geometry: Geometry
   design: TerrainSceneGeometry | null
@@ -43,6 +45,7 @@ export function terrainScenePresentation({
   ortho?: TerrainBackgroundLayer
   showEarthwork: boolean
   maxGradePercent?: number
+  gradeSpan?: GradeSpan
 }): { data: TerrainGpuData; notice?: string; requiresCanvas?: boolean } {
   let exact = design?.indices.length ? design : null
   let notice = design?.status === 'ready' || terrainOnly ? undefined : (design?.reason ?? design?.notice)
@@ -89,17 +92,19 @@ export function terrainScenePresentation({
   const lines: TerrainGpuData['lines'] = geometry.line.slice(1).flatMap((item, i) => {
     const previous = geometry.line[i]
     if (!previous.vertex || !item.vertex || !item.connected) return []
-    const grade = byChainage.get(item.chainage)?.gradePercent
+    const first = byChainage.get(previous.chainage)
+    const last = byChainage.get(item.chainage)
+    const overGrade =
+      maxGradePercent !== undefined &&
+      first !== undefined &&
+      last !== undefined &&
+      gradeBreachBetween(analysis.stations, first.index, last.index, gradeSpan)
     return [
       {
         a: atSurface(previous.vertex),
         b: atSurface(item.vertex),
         station: item.chainage,
-        color: terrainOnly
-          ? '#4e7c55'
-          : maxGradePercent !== undefined && grade != null && Math.abs(grade) > maxGradePercent
-            ? '#dc5a51'
-            : '#1e8790',
+        color: terrainOnly ? '#4e7c55' : overGrade ? '#dc5a51' : '#1e8790',
       },
     ]
   })

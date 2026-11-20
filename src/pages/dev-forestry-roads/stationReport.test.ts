@@ -41,6 +41,44 @@ describe('station table reporting interval', () => {
   })
 })
 
+describe('station table CSV column selection', () => {
+  it('exports only the selected columns in their order and totals only the supplied rows', () => {
+    const rows = reportingRows(analysis, analysis.stations, 200).filter((row) => row.station.chainage === 200)
+    const lines = stationReportCsv(analysis, rows, false, undefined, [
+      'cutVolume',
+      'ground',
+      'cutVolume',
+      'borrow', // Not available without haul allocation.
+      'retired-column',
+    ])
+      .trimEnd()
+      .split('\r\n')
+    expect(lines[0]).toBe('station_m,cut_volume_bank_m3,ground_elevation_m,unknown_earthwork_m,flags')
+    expect(lines).toHaveLength(3)
+    const data = lines[1].split(',')
+    const total = lines[2].split(',')
+    expect(data.slice(0, 4)).toEqual(['200', String(rows[0].cutVolume), '800', '0'])
+    expect(total).toEqual(['total', String(rows[0].cutVolume), '', '0', 'Sum of the rows above'])
+    expect(Number(total[1])).toBeLessThan(analysis.cutVolumeM3)
+  })
+
+  it('supports a terrain profile and an empty column selection without adding engineering totals', () => {
+    const rows = reportingRows(analysis, analysis.stations, 200)
+    const lines = stationReportCsv(analysis, rows, true, undefined, ['interval', 'ground', 'formation'])
+      .trimEnd()
+      .split('\r\n')
+    expect(lines[0]).toBe('station_m,interval_m,ground_elevation_m,flags')
+    expect(lines).toHaveLength(rows.length + 1)
+    expect(lines[2].split(',').slice(0, 3)).toEqual(['200', '200', '800'])
+    expect(stationReportCsv(analysis, rows, true, undefined, []).split('\r\n')[0]).toBe('station_m,flags')
+  })
+
+  it('still refuses invalid results when exporting a column selection', () => {
+    const invalid = { ...analysis, invalidInput: { message: 'Invalid section input' } }
+    expect(() => stationReportCsv(invalid, [], false, undefined, [])).toThrow('Invalid section input')
+  })
+})
+
 describe('station table on a road with unknown earthwork', () => {
   const northing = (p: Coordinate) => (((p[1] - origin[1]) * Math.PI) / 180) * 6371008.8
   // No ground under stations 250 and 260: the intervals 240–270 are unknown.
@@ -105,6 +143,16 @@ describe('station table on a road with unknown earthwork', () => {
     expect(rows[0].cutVolume).toBe(0)
     const expected = inRange.slice(1).reduce((total, s) => total + (s.cutVolumeM3 ?? 0), 0)
     expect(sum(rows, 'cutVolume')).toBeCloseTo(expected, 6)
+  })
+
+  it('retains named stations and missing-earthwork qualifications even with every numeric column hidden', () => {
+    const rows = reportingRows(holed, holed.stations, 100).filter((row) => row.unknownM > 0)
+    const lines = stationReportCsv(holed, rows, false, { startStation: 1000, equations: [] }, [])
+      .trimEnd()
+      .split('\r\n')
+    expect(lines[0]).toBe('station_m,station,unknown_earthwork_m,flags')
+    expect(lines[1]).toBe('300,1+300.000,30,Partial: leaves out 30 m with unknown earthwork')
+    expect(lines[2]).toBe('total,,30,Sum of the rows above')
   })
 })
 

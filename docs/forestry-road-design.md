@@ -469,6 +469,11 @@ Cancel action in the notification. Completion removes progress, and failures
 show an error notification. Dismissing an initial restore error does not enable
 autosave; explicit source recovery is still required.
 
+The plan has its own error boundary. If its map cannot start, including when the browser cannot
+initialize WebGL 2, the plan pane states the reason and offers **Retry map**. The profile, section,
+data and design controls remain mounted, with their current state. Retrying remounts only the plan
+map; it does not reload the workspace or replace the project.
+
 Every pane boundary is a `ResizableSplit` separator (`src/components/ui/resizable-split.tsx`):
 drag it, or focus it and use the arrow keys (Shift for larger steps); double-click
 restores the default. The controls sidebar and the connected views share one more

@@ -3,6 +3,7 @@ import { openRoadPanel } from './road-sidebar'
 import { openWorkbench } from './road-workbench'
 import { chooseExport, replaceSavedProjectWhenAsked } from './road-files'
 import { choose } from './styled-select'
+import { culvertDetails, selectCulvert } from './road-culverts'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 
 // Station equations and RoadEng's culverts on a road, from generated files only. The example road is
@@ -161,10 +162,15 @@ test('station equations name a road’s stations, and RoadEng culverts are read 
   await expect(panel).toContainText('2 culverts in Survey 1.')
   await panel.getByRole('button', { name: 'Read from book', exact: true }).click()
   await expect(panel).toContainText('2 culverts read from Survey 1; 0 removed.')
+  await expect(page.getByTestId('road-culvert-inventory').getByRole('button', { name: /^Edit / })).toHaveCount(2)
+  await selectCulvert(page, 'Creek A', 'Review')
   const facts = page.getByTestId('culvert-roadeng-facts')
-  await expect(facts).toHaveCount(2)
-  await expect(facts.nth(1)).toContainText('box 2.00 m wide')
+  await expect(facts).toHaveCount(1)
+  await selectCulvert(page, 'Creek B', 'Review')
+  await expect(facts).toContainText('box 2.00 m wide')
+  await culvertDetails(page, 'Geometry')
   await expect(page.getByRole('spinbutton', { name: 'Culvert 2 skew from square (°)', exact: true })).toHaveValue('20')
+  await selectCulvert(page, 'Creek A')
   await expect(page.getByRole('spinbutton', { name: 'Culvert 1 diameter (m)', exact: true })).toHaveValue('0.6')
   // The culvert's station field takes the road's station names.
   const at = Number(await page.getByRole('spinbutton', { name: 'Culvert 1 station', exact: true }).inputValue())

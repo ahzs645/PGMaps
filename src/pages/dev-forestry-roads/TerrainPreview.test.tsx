@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { localRasterResolution } from '@/lib/forestry/terrain/localRaster'
 import type { LocalRaster } from '@/lib/forestry/terrain/localRaster'
 import { TerrainPreview } from './TerrainPreview'
-import { analyzeRoad, positionAt } from './engine'
+import { analyzeRoad, offsetCoordinate, positionAt } from './engine'
+import { DEFAULT_DESIGN_STANDARDS } from './designStandards'
 import { parseProject } from './project'
 import { createDemoProject, terrainFromMetadata } from './terrain'
 import type { TerrainFace } from './TerrainGround'
@@ -104,6 +105,50 @@ function pointer(x: number, y: number, extra: Record<string, unknown> = {}) {
 }
 
 describe('terrain preview infill restoration', () => {
+  it('colours formation faces from the reviewed grade standard, including permitted pitches', async () => {
+    const project = createDemoProject()
+    const alignment = project.alignments[0]
+    const origin = alignment.points[0].coordinate
+    alignment.points = [
+      { id: 'start', coordinate: origin, radiusM: 0 },
+      { id: 'end', coordinate: offsetCoordinate(origin, 0, 100), radiusM: 0 },
+    ]
+    alignment.vertical = [
+      { id: 'start', chainage: 0, elevation: 802, curveLength: 0 },
+      { id: 'end', chainage: 100, elevation: 817, curveLength: 0 },
+    ]
+    const terrain = { elevationAt: () => 800 }
+    const settings = { ...project.settings, maxGradePercent: 12, stationInterval: 10 }
+    const analyse = (allowedLength: number) =>
+      analyzeRoad(alignment, terrain, settings, [], {
+        gradeStandards: {
+          ...DEFAULT_DESIGN_STANDARDS,
+          shortPitchGradePercent: 16,
+          shortPitchMaxLengthM: allowedLength,
+        },
+      })
+    const view = (allowedLength: number) =>
+      createElement(TerrainPreview, {
+        terrain,
+        alignment,
+        analysis: analyse(allowedLength),
+        station: 0,
+        onStation: vi.fn(),
+        maxGradePercent: 12,
+      })
+    await act(async () => {
+      renderer = create(view(120))
+    })
+    const roadFaces = () =>
+      renderer!.root.findAllByType('polygon').filter((polygon) => polygon.props.stroke === '#94744a')
+    expect(roadFaces().length).toBeGreaterThan(0)
+    expect(roadFaces().every((face) => face.props.fill === '#e8c886')).toBe(true)
+    await act(async () => {
+      renderer!.update(view(50))
+    })
+    expect(roadFaces().some((face) => face.props.fill === '#f2a39b')).toBe(true)
+  })
+
   it('restores identical camera, source geometry and projected faces after follow → infill off → on', async () => {
     const project = createDemoProject()
     const raster: LocalRaster = {

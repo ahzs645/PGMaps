@@ -47,6 +47,7 @@ import {
   type PreviewCamera,
 } from './previewCamera'
 import { isBeyondReachFlag, offsetCoordinate } from './engine'
+import { gradeBreachBetween, gradeSpanOf, type GradeSpan } from './designStandards'
 import { BARREL_MIN_OPENING_PX, barrelPolygons, culvertBarrel, shadedColour } from './culvertBarrel'
 import { culvertRiseM, culvertShapeOf, culvertSpanM } from './culverts/culvertShape'
 import type { Culvert } from './engineeringTypes'
@@ -249,6 +250,7 @@ function buildGeometry({
   fillGaps,
   terrainOnly,
   maxGradePercent,
+  gradeSpan,
   meshOptions,
 }: {
   analysis: RoadAnalysis
@@ -259,6 +261,7 @@ function buildGeometry({
   fillGaps: boolean
   terrainOnly: boolean
   maxGradePercent: number | undefined
+  gradeSpan: GradeSpan
   meshOptions?: { maxSide?: number; minSpacing?: number }
 }) {
   // A coarse cell can have four valid corners around a real source gap.
@@ -347,8 +350,7 @@ function buildGeometry({
         road.push({
           vertices,
           fill:
-            maxGradePercent !== undefined &&
-            Math.max(Math.abs(a.gradePercent ?? 0), Math.abs(b.gradePercent ?? 0)) > maxGradePercent
+            maxGradePercent !== undefined && gradeBreachBetween(analysis.stations, a.index, b.index, gradeSpan)
               ? OVER_GRADE_FILL
               : '#e8c886',
           station: (a.chainage + b.chainage) / 2,
@@ -465,12 +467,13 @@ export function TerrainPreview({
   onSelectCulvert?: (id: string) => void
   /** The culverts as designed, for each barrel's shape and span; without them a barrel is round. */
   culvertDesigns?: Culvert[]
-  /** Road faces steeper than this draw in the over-grade colour, as on the plan. */
+  /** Enables grade highlighting; the analysis's reviewed flags decide breaches, as on the plan. */
   maxGradePercent?: number
   /** Exact design surfaces and imported imagery, supplied by the road workspace. */
   alignment?: Alignment
   terrainMetadata?: TerrainMetadata
 }) {
+  const gradeSpan = gradeSpanOf(alignment ?? { vertical: [] })
   const [mode, setMode] = useState<'orbit' | 'follow'>('orbit')
   const [yaw, setYaw] = useState(DEFAULT_YAW)
   const [pitch, setPitch] = useState(DEFAULT_PITCH)
@@ -667,6 +670,7 @@ export function TerrainPreview({
       fillGaps,
       terrainOnly,
       maxGradePercent,
+      gradeSpan,
       meshOptions: gpuEnabled ? { minSpacing: terrainMetadata?.resolutionM } : undefined,
     })
   }, [
@@ -677,6 +681,7 @@ export function TerrainPreview({
     cachedElevation,
     fillGaps,
     maxGradePercent,
+    gradeSpan,
     gpuEnabled,
     terrainMetadata?.resolutionM,
   ])
@@ -693,6 +698,7 @@ export function TerrainPreview({
               fillGaps,
               terrainOnly,
               maxGradePercent,
+              gradeSpan,
               meshOptions,
             }),
             low: base.low,
@@ -702,7 +708,19 @@ export function TerrainPreview({
             medianZ: base.medianZ,
           }
         : base,
-    [base, detail, analysis, frame, cachedElevation, fillGaps, terrainOnly, maxGradePercent, meshOptions, gpuEnabled],
+    [
+      base,
+      detail,
+      analysis,
+      frame,
+      cachedElevation,
+      fillGaps,
+      terrainOnly,
+      maxGradePercent,
+      gradeSpan,
+      meshOptions,
+      gpuEnabled,
+    ],
   )
   // The automatic exaggeration reads the whole road's sections, so it does not change while following.
   const autoExaggeration = useMemo(() => {
@@ -762,6 +780,7 @@ export function TerrainPreview({
             ortho: shownColour === 'ortho' ? ortho : undefined,
             showEarthwork,
             maxGradePercent,
+            gradeSpan,
           })
         : null,
     [
@@ -775,6 +794,7 @@ export function TerrainPreview({
       ortho,
       showEarthwork,
       maxGradePercent,
+      gradeSpan,
     ],
   )
   const gpuActive = gpuEnabled && !!presentation && !presentation.requiresCanvas && renderer === 'webgl'
@@ -1981,7 +2001,7 @@ function TerrainColourLegend({
                 </>
               )}
               {maxGradePercent !== undefined && (
-                <LegendItem color={OVER_GRADE_FILL} swatchShape="square" label={`Over ${maxGradePercent}% grade`} />
+                <LegendItem color={OVER_GRADE_FILL} swatchShape="square" label="Grade standard not met" />
               )}
             </MapLegendSection>
           )}

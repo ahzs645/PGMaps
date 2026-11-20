@@ -1,7 +1,9 @@
 import { RoadSelect } from './Controls'
 import { Columns3, Download, ListFilter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DocumentContents } from '@/components/ui/document-contents'
 import { downloadText } from '@/lib/download'
+import { orderedKeys } from '@/lib/documentContents/contents'
 import { FormField, NumberField } from '@/components/ui/form-field'
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -55,7 +57,12 @@ const fixed = (v: number | null | undefined, decimals: number) =>
 const STORAGE = 'pgmaps-road-station-columns-v2'
 /** The first version kept only the hidden ids, so a column added later could not stay hidden by default. */
 const STORAGE_V1 = 'pgmaps-road-station-columns'
+const ORDER_STORAGE = 'pgmaps-road-station-column-order-v1'
 const INTERVALS = [0, 20, 50, 100, 200, 500]
+const COLUMN_CHOICES = [
+  { value: 'on', label: 'Shown', included: true },
+  { value: 'off', label: 'Hidden', included: false },
+] as const
 
 /** Each column the person has switched on (true) or off (false); others follow their default. */
 function readChoices(): Record<string, boolean> {
@@ -70,6 +77,16 @@ function readChoices(): Record<string, boolean> {
     /* Column choice is a convenience. */
   }
   return {}
+}
+
+function readOrder(): string[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(ORDER_STORAGE) ?? 'null')
+    if (Array.isArray(value) && value.every((id) => typeof id === 'string')) return [...new Set(value)]
+  } catch {
+    /* Column order is a convenience. */
+  }
+  return []
 }
 
 /**
@@ -102,6 +119,7 @@ export const StationTable = memo(function StationTable({
   const [range, setRange] = useState<{ start: number; end: number | null }>({ start: 0, end: null })
   const [every, setEvery] = useState(0)
   const [choices, setChoices] = useState<Record<string, boolean>>(readChoices)
+  const [order, setOrder] = useState<string[]>(readOrder)
   const scroller = useRef<HTMLDivElement>(null)
   // Keep the selected row in view inside the table's own scroll port, never scrolling the page.
   useEffect(() => {
@@ -115,14 +133,32 @@ export const StationTable = memo(function StationTable({
     else if (target.bottom > box.bottom) port.scrollTop += target.bottom - box.bottom
   }, [active?.index])
   const shown = (c: StationColumn) => choices[c.id] ?? !c.hidden
-  const toggle = (c: StationColumn) => {
-    const next = { ...choices, [c.id]: !shown(c) }
+  const changeChoices = (changes: Record<string, string>) => {
+    const next = {
+      ...choices,
+      ...Object.fromEntries(Object.entries(changes).map(([id, state]) => [id, state === 'on'])),
+    }
     setChoices(next)
     try {
       localStorage.setItem(STORAGE, JSON.stringify(next))
     } catch {
       /* Column choice is a convenience. */
     }
+  }
+  const changeOrder = (next: string[]) => {
+    setOrder(next)
+    try {
+      localStorage.setItem(ORDER_STORAGE, JSON.stringify(next))
+    } catch {
+      /* Column order is a convenience. */
+    }
+  }
+  const moveColumn = (_key: string, _toIndex: number, next: string[]) => {
+    // Retain the places of columns this road cannot offer (haul, material or builder columns).
+    const present = new Set(next)
+    let index = 0
+    const merged = order.map((id) => (present.has(id) ? next[index++] : id))
+    changeOrder([...merged, ...next.slice(index)])
   }
   const end = Math.min(analysis.length, range.end ?? analysis.length)
   const extras = useMemo(() => {
@@ -148,8 +184,15 @@ export const StationTable = memo(function StationTable({
     () => availableStationColumns(analysis, terrainOnly, !!extras),
     [analysis, terrainOnly, extras],
   )
+  const ordered = useMemo(() => {
+    const byId = new Map(available.map((column) => [column.id, column]))
+    return orderedKeys(
+      available.map((column) => column.id),
+      order,
+    ).keys.map((id) => byId.get(id)!)
+  }, [available, order])
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `shown` reads only `choices`
-  const columns = useMemo(() => available.filter(shown), [available, choices])
+  const columns = useMemo(() => ordered.filter(shown), [ordered, choices])
   const narrowed = range.start > 0.001 || end < analysis.length - 0.001
   // A road with a start station or equations takes station names in From and To, and marks each
   // equation between the rows it falls between (`roadStationing.ts`).
@@ -173,7 +216,7 @@ export const StationTable = memo(function StationTable({
   }, [named, stationing, rows, analysis.length])
   const clearRange = () => setRange({ start: 0, end: null })
   const field = 'w-full min-w-0 rounded-md border bg-background px-1.5 py-1 text-base text-foreground md:text-xs'
-  // In a panel the two buttons join its header; only active filters take a row above the table.
+  // In a panel the toolbar buttons join its header; only active filters take a row above the table.
   // Inside the road data schedule they join its tab row instead.
   const panelHeader = useChartHeaderControls()
   const scheduleRow = useScheduleToolbar()
@@ -183,6 +226,15 @@ export const StationTable = memo(function StationTable({
     : scheduleRow
       ? ({ buttonClassName: 'size-8', align: 'end' } as const)
       : ({} as const)
+  const csvName = `${
+    (roadName ?? '')
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 70) || 'road'
+  }-${terrainOnly ? 'profile' : 'volumes'}${every ? `-${every}m` : ''}`
+  const invalidCsv = analysis.invalidInput
+    ? 'Correct the invalid input first: this table leaves it out, and a CSV cannot say so'
+    : undefined
   const toolbarButtons = (
     <>
       <ToolbarPopover
@@ -239,14 +291,25 @@ export const StationTable = memo(function StationTable({
           </div>
         </div>
       </ToolbarPopover>
-      <ToolbarPopover {...popover} label="Choose columns" icon={<Columns3 />} width={196}>
-        <div className="grid max-h-80 gap-1 overflow-y-auto p-2.5 text-xs">
-          {available.map((c) => (
-            <label key={c.id} className="flex items-center gap-2 whitespace-nowrap" title={c.title}>
-              <input type="checkbox" checked={shown(c)} onChange={() => toggle(c)} />
-              {c.label}
-            </label>
-          ))}
+      <ToolbarPopover {...popover} label="Choose columns" icon={<Columns3 />} width={320}>
+        <div className="grid max-h-96 gap-2 overflow-y-auto p-2.5 text-xs">
+          <DocumentContents
+            title="Columns"
+            subject="the station table"
+            parts={ordered.map((c) => ({
+              key: c.id,
+              label: c.label,
+              detail: c.unit,
+              help: c.title,
+              state: shown(c) ? 'on' : 'off',
+            }))}
+            choices={COLUMN_CHOICES}
+            summary={`${columns.length} of ${available.length} shown · Station and Flags stay fixed`}
+            onState={(id, state) => changeChoices({ [id]: state })}
+            onStates={changeChoices}
+            onMove={moveColumn}
+            onResetOrder={order.length ? () => changeOrder([]) : undefined}
+          />
           {!terrainOnly && !analysis.engineering?.haul.enabled && (
             <p className="mt-1 whitespace-normal text-2xs text-muted-foreground">
               Borrow and waste columns appear when haul allocation is on.
@@ -254,32 +317,58 @@ export const StationTable = memo(function StationTable({
           )}
         </div>
       </ToolbarPopover>
-      <Button
-        size="icon"
-        variant={panelHeader ? 'ghost' : 'outline'}
-        className="size-8 shrink-0"
-        aria-label="Download table as CSV"
-        title={
-          analysis.invalidInput
-            ? 'Correct the invalid input first: this table leaves it out, and a CSV cannot say so'
-            : `Download these ${reported.length} rows as CSV, with every column and the totals`
-        }
-        disabled={!reported.length || !!analysis.invalidInput}
-        onClick={() =>
-          downloadText(
-            stationReportCsv(analysis, reported, terrainOnly, stationing),
-            `${
-              (roadName ?? '')
-                .replace(/[^a-z0-9]+/gi, '-')
-                .replace(/^-|-$/g, '')
-                .slice(0, 70) || 'road'
-            }-${terrainOnly ? 'profile' : 'volumes'}${every ? `-${every}m` : ''}.csv`,
-            'text/csv;charset=utf-8',
-          )
-        }
-      >
-        <Download className="size-3.5" />
-      </Button>
+      <ToolbarPopover {...popover} label="Download table as CSV" icon={<Download />} width={264}>
+        {(close) => (
+          <div className="grid gap-2 p-2.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className="justify-start"
+              title={
+                invalidCsv ??
+                `Download ${rows.length} shown rows in the visible column order, with station IDs and quality flags${terrainOnly ? '' : ' and totals for these rows'}`
+              }
+              disabled={!rows.length || !!analysis.invalidInput}
+              onClick={() => {
+                downloadText(
+                  stationReportCsv(
+                    analysis,
+                    rows,
+                    terrainOnly,
+                    stationing,
+                    columns.map((c) => c.id),
+                  ),
+                  `${csvName}-shown.csv`,
+                  'text/csv;charset=utf-8',
+                )
+                close()
+              }}
+            >
+              Shown rows and columns
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="justify-start"
+              title={
+                invalidCsv ??
+                `Download all ${reported.length} rows in the selected range and reporting interval, with every column in its usual order${terrainOnly ? '' : ' and the totals'}`
+              }
+              disabled={!reported.length || !!analysis.invalidInput}
+              onClick={() => {
+                downloadText(
+                  stationReportCsv(analysis, reported, terrainOnly, stationing),
+                  `${csvName}.csv`,
+                  'text/csv;charset=utf-8',
+                )
+                close()
+              }}
+            >
+              All rows and columns
+            </Button>
+          </div>
+        )}
+      </ToolbarPopover>
     </>
   )
   const filtered = flagged || every > 0 || narrowed

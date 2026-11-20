@@ -33,6 +33,19 @@ material's `bankCutM3` (preparation included, the interval's curvature scale app
 columns total to the Materials tab. Column choices are kept in this browser
 (`pgmaps-road-station-columns-v2`); the first version's hidden list is read once.
 
+**Choose columns** also changes their order: drag a grip, use the row's menu, or focus a row
+control and press **Alt + Up / Down**. **Usual order** resets the order without changing which
+columns are shown. Station and Flags remain at the ends. The order is kept separately in
+`pgmaps-road-station-column-order-v1`; a column unavailable on this road keeps its saved place
+for when it is available again. Neither preference changes the project file or its calculations.
+
+The CSV button offers **Shown rows and columns**, which follows the range, reporting interval,
+flagged-only filter and visible column order, and **All rows and columns**, the existing full
+export at the chosen range and interval, with all available columns in their usual order and
+without the flagged-only filter. Both retain station identifiers, flags and, for a designed road,
+the unknown-earthwork length. CSV values are unrounded. Each CSV's total sums its exported rows;
+the screen's total continues to sum every reported row in the range, even with Flagged only on.
+
 There is no "backwater" quantity: RoadEng's `BKW Vol` column is its borrow/waste volume, which the
 Borrow and Waste columns give once haul allocation is on.
 

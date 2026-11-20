@@ -115,7 +115,10 @@ test('each failing check can be cleared from where it points', async ({ page }) 
     .getByRole('button', { name: /^Add culvert at (?!station)/ })
     .first()
     .click()
-  await page.getByRole('tab', { name: 'Review', exact: true }).click()
+  await page
+    .getByRole('tablist', { name: 'Road workflow', exact: true })
+    .getByRole('tab', { name: 'Review', exact: true })
+    .click()
   // A culvert dropped in at its starting size is a structure, but not yet a sized one.
   await expect(crossing).not.toContainText('no structure')
   await expect(crossing).toContainText('not sized')
@@ -124,7 +127,10 @@ test('each failing check can be cleared from where it points', async ({ page }) 
   await price.getByRole('button', { name: 'Set price', exact: true }).click()
   await page.getByRole('spinbutton', { name: 'Culvert 1 installed $/m', exact: true }).fill('450')
   await page.getByRole('spinbutton', { name: 'Culvert 1 installed $/m', exact: true }).press('Tab')
-  await page.getByRole('tab', { name: 'Review', exact: true }).click()
+  await page
+    .getByRole('tablist', { name: 'Road workflow', exact: true })
+    .getByRole('tab', { name: 'Review', exact: true })
+    .click()
   await expect(price).not.toContainText('no price')
 
   const rates = checks.locator('[data-check="rates"]')

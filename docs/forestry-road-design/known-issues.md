@@ -55,8 +55,10 @@ unless marked.
 - **"Curves fitted within 8 m" can be exceeded by the tightened curves.** `roadFromRoute`
   (`routeFit.ts`) reports the deviation limit of the polyline fit; the larger curves it then gives
   sharp corners moved one road 8.47 m from its route (`roadFromGridRoute`, `routeComparison.ts`).
-- **A control added at a typed station lands on the nearest analysis station.** "Control at selected
-  station" at 0+437.3 made a control at 0+440.0 (`nearestStation` in `VerticalDesignControls.tsx`).
+- **A control added at a typed station landed on the nearest analysis station (fixed 2026-11-20).**
+  "Control at selected station" now evaluates the same exact chainage as the section, through
+  `roadStationAt` in `VerticalDesignControls.tsx`; 0+437.3 stays there with its own profile or ground
+  elevation. A valid ground elevation of zero also keeps the action available.
 - **The header shows the figures of a line being pegged beside the saved road's name.** While a
   road is being pegged or extended the tiles, plan and profile read the unfinished line
   (`displayedAlignment` in `DevForestryRoads.tsx`) and the road switcher still names the saved
@@ -102,11 +104,10 @@ unless marked.
 
 Found on 2026-11-09 while reworking Review and the design standards; **read** unless marked.
 
-- A permitted short pitch is still coloured as over the limit on the plan, in the 3D view and in
-  the mapped-road panel. They compare each grade with `settings.maxGradePercent` directly
-  (`PlanView.tsx`, the active road's segment colour; `TerrainPreview.tsx`, `maxGradePercent`;
-  `MappedRoadPanel.tsx`) instead of `reviewGrades` (`designStandards.ts`). The station flags, the
-  header's grade card and the Review grade row do apply the allowance.
+- **Plan and 3D grade colours now follow the reviewed grade flags (fixed 2026-11-20).** They apply
+  the loaded direction and short-pitch allowance, using the correct interval at a grade break and
+  checking stations skipped by display simplification. The mapped-road panel's steep-grade summary
+  still compares directly with `settings.maxGradePercent`; it does not apply those extra standards.
 - Route search, the corridor optimizer and the profile optimizer read the grade limit and the minimum
   radius only (`routing.ts` `suggestRoutes`, `corridorOptimizer.ts`, `verticalOptimizer.ts`). They
   ignore `project.standards`: no short-pitch allowance, no adverse limit. Route search keeps its own

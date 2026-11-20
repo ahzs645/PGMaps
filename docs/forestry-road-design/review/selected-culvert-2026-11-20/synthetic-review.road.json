@@ -1,0 +1,390 @@
+{
+  "schema": "pgmaps-road-project-v1",
+  "name": "Hillside access · synthetic training project",
+  "activeAlignmentId": "demo-main",
+  "alignments": [
+    {
+      "id": "demo-main",
+      "name": "Hillside access · training",
+      "color": "#d97706",
+      "points": [
+        {
+          "id": "demo-main-p0",
+          "coordinate": [-122.72, 53.89],
+          "radiusM": 0
+        },
+        {
+          "id": "demo-main-p1",
+          "coordinate": [-122.7167954278395, 53.89089932101263],
+          "radiusM": 30
+        },
+        {
+          "id": "demo-main-p2",
+          "coordinate": [-122.71343825700468, 53.89161877782274],
+          "radiusM": 30
+        },
+        {
+          "id": "demo-main-p3",
+          "coordinate": [-122.71114927689004, 53.89287782724043],
+          "radiusM": 30
+        },
+        {
+          "id": "demo-main-p4",
+          "coordinate": [-122.70763950738092, 53.893687216151804],
+          "radiusM": 30
+        },
+        {
+          "id": "demo-main-p5",
+          "coordinate": [-122.70397713919749, 53.89503619767076],
+          "radiusM": 30
+        },
+        {
+          "id": "demo-main-p6",
+          "coordinate": [-122.70061996836269, 53.89557579027834],
+          "radiusM": 0
+        }
+      ],
+      "vertical": [
+        {
+          "id": "demo-main-v0",
+          "chainage": 0,
+          "elevation": 687.9999999998431,
+          "curveLength": 0
+        },
+        {
+          "id": "demo-main-v1",
+          "chainage": 343.0669486540527,
+          "elevation": 712.8771981382007,
+          "curveLength": 40
+        },
+        {
+          "id": "demo-main-v2",
+          "chainage": 714.7228096959432,
+          "elevation": 722.3139756490469,
+          "curveLength": 40
+        },
+        {
+          "id": "demo-main-v3",
+          "chainage": 1086.3786707378335,
+          "elevation": 750.4925148426299,
+          "curveLength": 40
+        },
+        {
+          "id": "demo-main-v4",
+          "chainage": 1364.4456193918863,
+          "elevation": 778.3649288502155,
+          "curveLength": 40
+        },
+        {
+          "id": "demo-main-v5",
+          "chainage": 1429.4456193918863,
+          "elevation": 778.8649288501002,
+          "curveLength": 0
+        }
+      ],
+      "template": {
+        "leftWidth": 3,
+        "rightWidth": 3,
+        "crossfallPercent": 3,
+        "cutSlope": 0.75,
+        "fillSlope": 1.5,
+        "ditchWidth": 1,
+        "ditchDepth": 0.5,
+        "surfaceDepth": 0.25
+      },
+      "overrides": [
+        {
+          "id": "demo-main-turnout",
+          "name": "Passing turnout",
+          "kind": "turnout",
+          "side": "left",
+          "start": 200,
+          "end": 260,
+          "taper": 10,
+          "extraWidth": 4
+        },
+        {
+          "id": "demo-main-landing",
+          "name": "Terminal landing",
+          "kind": "landing",
+          "side": "left",
+          "start": 1369.4456193918863,
+          "end": 1429.4456193918863,
+          "taper": 12,
+          "extraWidth": 9
+        }
+      ],
+      "engineering": {
+        "templates": [],
+        "assignments": [],
+        "materials": [],
+        "strata": [],
+        "culverts": [
+          {
+            "id": "d3a11174-5a74-4cad-96c4-c6a24389e095",
+            "name": "Training cross-drain A",
+            "chainage": 125.321,
+            "skewDegrees": 0,
+            "lengthM": 24,
+            "diameterM": 0.8,
+            "inletInvertM": 695.6875421257415,
+            "outletInvertM": 695.207542,
+            "minCoverM": 0.6,
+            "unitCost": 400,
+            "fixedCost": 1500,
+            "kind": "cross-drain"
+          },
+          {
+            "id": "ffd69418-c47a-446c-939e-545d5122eb52",
+            "name": "Training cross-drain B",
+            "chainage": 430,
+            "skewDegrees": 0,
+            "lengthM": 12,
+            "diameterM": 0.8,
+            "inletInvertM": null,
+            "outletInvertM": null,
+            "minCoverM": 0.6,
+            "unitCost": 0,
+            "fixedCost": 0,
+            "kind": "cross-drain"
+          },
+          {
+            "id": "494e2554-0b1c-4fdd-95cf-b4a56c43befd",
+            "name": "Synthetic drainage",
+            "chainage": 600.471861681401,
+            "skewDegrees": 0,
+            "lengthM": 12,
+            "diameterM": 0.8,
+            "inletInvertM": null,
+            "outletInvertM": null,
+            "minCoverM": 0.6,
+            "unitCost": 0,
+            "fixedCost": 0,
+            "kind": "stream",
+            "sourceFeatureId": "demo-stream"
+          }
+        ],
+        "sites": [],
+        "haul": {
+          "enabled": false,
+          "freeHaulDistanceM": 25,
+          "overhaulDistanceM": 150,
+          "freeHaulRate": 0,
+          "overhaulRate": 0,
+          "endHaulRate": 0,
+          "freeHaulLoadingRate": 0,
+          "overhaulLoadingRate": 0,
+          "endHaulLoadingRate": 0,
+          "borrowRate": 0,
+          "wasteRate": 0,
+          "mobilizationCost": 0,
+          "contingencyPercent": 0
+        }
+      }
+    },
+    {
+      "id": "demo-contour",
+      "name": "Contour alternative · training",
+      "color": "#2563eb",
+      "points": [
+        {
+          "id": "demo-contour-p0",
+          "coordinate": [-122.72, 53.89],
+          "radiusM": 0
+        },
+        {
+          "id": "demo-contour-p1",
+          "coordinate": [-122.71725322386243, 53.89161877782274],
+          "radiusM": 30
+        },
+        {
+          "id": "demo-contour-p2",
+          "coordinate": [-122.71420125037623, 53.892697963037904],
+          "radiusM": 30
+        },
+        {
+          "id": "demo-contour-p3",
+          "coordinate": [-122.71008108616988, 53.89350735194928],
+          "radiusM": 30
+        },
+        {
+          "id": "demo-contour-p4",
+          "coordinate": [-122.70687651400938, 53.895126129772024],
+          "radiusM": 30
+        },
+        {
+          "id": "demo-contour-p5",
+          "coordinate": [-122.70321414582595, 53.89584558658213],
+          "radiusM": 30
+        },
+        {
+          "id": "demo-contour-p6",
+          "coordinate": [-122.70061996836269, 53.89557579027834],
+          "radiusM": 0
+        }
+      ],
+      "vertical": [
+        {
+          "id": "demo-contour-v0",
+          "chainage": 0,
+          "elevation": 687.9999999998431,
+          "curveLength": 0
+        },
+        {
+          "id": "demo-contour-v1",
+          "chainage": 353.71860918940854,
+          "elevation": 712.168507032922,
+          "curveLength": 40
+        },
+        {
+          "id": "demo-contour-v2",
+          "chainage": 736.9137691446011,
+          "elevation": 723.1824138149686,
+          "curveLength": 40
+        },
+        {
+          "id": "demo-contour-v3",
+          "chainage": 1120.1089290997938,
+          "elevation": 753.7531297784504,
+          "curveLength": 40
+        },
+        {
+          "id": "demo-contour-v4",
+          "chainage": 1408.8275382892023,
+          "elevation": 778.3649288502155,
+          "curveLength": 40
+        },
+        {
+          "id": "demo-contour-v5",
+          "chainage": 1473.8275382892023,
+          "elevation": 778.8649288501002,
+          "curveLength": 0
+        }
+      ],
+      "template": {
+        "leftWidth": 3,
+        "rightWidth": 3,
+        "crossfallPercent": 3,
+        "cutSlope": 0.75,
+        "fillSlope": 1.5,
+        "ditchWidth": 1,
+        "ditchDepth": 0.5,
+        "surfaceDepth": 0.25
+      },
+      "overrides": [
+        {
+          "id": "demo-contour-turnout",
+          "name": "Passing turnout",
+          "kind": "turnout",
+          "side": "left",
+          "start": 200,
+          "end": 260,
+          "taper": 10,
+          "extraWidth": 4
+        },
+        {
+          "id": "demo-contour-landing",
+          "name": "Terminal landing",
+          "kind": "landing",
+          "side": "left",
+          "start": 1413.8275382892023,
+          "end": 1473.8275382892023,
+          "taper": 12,
+          "extraWidth": 9
+        }
+      ]
+    }
+  ],
+  "terrain": {
+    "kind": "demo",
+    "name": "Synthetic training hillside near Prince George",
+    "resolutionM": 1,
+    "verticalReference": "Synthetic metres; no survey or real-world vertical datum",
+    "epsg": 4326
+  },
+  "settings": {
+    "stationInterval": 10,
+    "crossSectionHalfWidth": 35,
+    "maxGradePercent": 12,
+    "minRadius": 25,
+    "cutRate": 12,
+    "fillRate": 8,
+    "surfacingRate": 40,
+    "clearingRate": 1.5,
+    "shrinkFactor": 0.9
+  },
+  "context": [
+    {
+      "id": "demo-stream",
+      "name": "Synthetic drainage",
+      "kind": "stream",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-122.71175967158729, 53.88775169746841],
+          [-122.7120648689359, 53.89179864202527],
+          [-122.71130187556436, 53.89584558658213],
+          [-122.7120648689359, 53.899442870632676]
+        ]
+      }
+    },
+    {
+      "id": "demo-existing",
+      "name": "Synthetic existing road",
+      "kind": "existing-road",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-122.72228898011464, 53.88775169746841],
+          [-122.72, 53.89],
+          [-122.71908440795414, 53.89233823463285]
+        ]
+      }
+    },
+    {
+      "id": "demo-harvest",
+      "name": "Synthetic harvest block · planning example",
+      "kind": "harvest",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-122.70321414582595, 53.895126129772024],
+            [-122.69833098824805, 53.895126129772024],
+            [-122.69833098824805, 53.897644228607405],
+            [-122.70321414582595, 53.897644228607405],
+            [-122.70321414582595, 53.895126129772024]
+          ]
+        ]
+      }
+    },
+    {
+      "id": "demo-avoid",
+      "name": "Synthetic review area",
+      "kind": "avoid",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-122.70931809279833, 53.89179864202527],
+            [-122.7055031259406, 53.89179864202527],
+            [-122.7055031259406, 53.8929677593417],
+            [-122.70931809279833, 53.8929677593417],
+            [-122.70931809279833, 53.89179864202527]
+          ]
+        ]
+      }
+    }
+  ],
+  "cables": [
+    {
+      "id": "demo-cable-1",
+      "name": "Landing D-line · geometric screen",
+      "start": [-122.70061996836269, 53.89557579027834],
+      "end": [-122.7055031259406, 53.898453617518776],
+      "startHeight": 18,
+      "endHeight": 8,
+      "deflectionPercent": 5
+    }
+  ]
+}

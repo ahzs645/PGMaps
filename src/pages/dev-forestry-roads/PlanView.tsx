@@ -142,6 +142,7 @@ import { RoadColouringFields } from './RoadColouringFields'
 import type { RoadColouring } from './roadColouring'
 import { crossDrainMarks } from './crossDrainMarks'
 import { gradeClassRoadLines } from './gradeClasses'
+import { gradeBreachBetween, gradeSpanOf } from './designStandards'
 import { costColourHeading, costColourLines } from './costColours'
 import type { CostAttribution, CostSeriesId } from './costAttribution'
 import type {
@@ -771,34 +772,30 @@ function Layers(
         if (!result || hiddenRoads.has(a.id)) return []
         if (a.id !== props.alignment.id)
           return [line(result.centerline, { id: a.id, color: colors.get(a.id)!, selected: false })]
-        return result.stations.slice(1).map((p, i) =>
-          line([result.stations[i].coordinate, p.coordinate], {
+        return result.stations.slice(1).map((p, i) => {
+          const overGrade = gradeBreachBetween(result.stations, i, i + 1, gradeSpanOf(a))
+          return line([result.stations[i].coordinate, p.coordinate], {
             id: a.id,
             selected: true,
             chainage: p.chainage,
+            ...(!props.terrainOnly && p.groundElevation !== null && overGrade
+              ? { legendLabel: 'Grade standard not met' }
+              : {}),
             color:
               props.terrainOnly && a.id === props.alignment.id
                 ? '#0284c7'
                 : p.groundElevation === null
                   ? '#9ca3af'
-                  : p.gradePercent !== null && Math.abs(p.gradePercent) > props.project.settings.maxGradePercent
+                  : overGrade
                     ? '#dc2626'
                     : a.mappedRoad
                       ? (colors.get(a.id) ?? MAPPED_ROAD_COLOR)
                       : '#d97706',
-          }),
-        )
+          })
+        })
       }),
     )
-  }, [
-    investigation,
-    props.project.alignments,
-    props.project.settings.maxGradePercent,
-    props.analyses,
-    props.alignment.id,
-    props.terrainOnly,
-    hiddenRoads,
-  ])
+  }, [investigation, props.project.alignments, props.analyses, props.alignment.id, props.terrainOnly, hiddenRoads])
   const roadColourMode = props.roadColouring?.mode ?? 'plain'
   const costSettings = props.roadColouring?.cost
   const gradeSettings = props.roadColouring?.grade
@@ -809,7 +806,13 @@ function Layers(
     const lines = props.terrainOnly
       ? allLines
       : roadColourMode === 'grade'
-        ? gradeClassRoadLines(allLines, analysis.stations, props.project.settings.maxGradePercent, gradeSettings)
+        ? gradeClassRoadLines(
+            allLines,
+            analysis.stations,
+            props.project.settings.maxGradePercent,
+            gradeSettings,
+            gradeSpanOf(props.alignment),
+          )
         : costAttribution && costRowId !== undefined
           ? costColourLines(allLines, costAttribution, costRowId, costSettings)
           : allLines
@@ -824,6 +827,7 @@ function Layers(
   }, [
     allLines,
     analysis.stations,
+    props.alignment,
     roadColourMode,
     gradeSettings,
     costSettings,
