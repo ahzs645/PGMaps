@@ -150,6 +150,7 @@ export function MetricSummaryLayout({
   className,
   summary,
   resize,
+  bar,
   children,
 }: {
   placement: MetricSummaryPlacement
@@ -158,6 +159,12 @@ export function MetricSummaryLayout({
   summary?: ReactNode
   /** Opt in to a saved width for a visible left-hand summary; small and top layouts keep their sizing. */
   resize?: MetricSummaryResizeOptions
+  /**
+   * On a small screen only: controls that share the collapsed summary's row (a pane switcher), with the
+   * summary's toggle at the row's end, so the two take one row. Give the summary `compactToggle` with it.
+   * Elsewhere the page shows these controls itself.
+   */
+  bar?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -166,7 +173,14 @@ export function MetricSummaryLayout({
       data-placement={placement}
       data-small={small || undefined}
     >
-      {summary}
+      {small && bar ? (
+        <div className="metric-summary-bar">
+          {bar}
+          {summary}
+        </div>
+      ) : (
+        summary
+      )}
       {resize && placement === 'left' && !small && <MetricSummaryResize {...resize} />}
       {children}
     </div>
@@ -194,6 +208,7 @@ export function MetricSummary({
   empty,
   id = 'metric-summary-measurements',
   toolbar,
+  compactToggle = false,
 }: {
   /** "Road summary": names the region, its heading and its buttons. */
   title: string
@@ -217,6 +232,11 @@ export function MetricSummary({
    * narrow panel; opt in, nothing shows without them.
    */
   toolbar?: ReactNode
+  /**
+   * On a small screen the collapsed heading is its icon alone and the settings move to the foot of the
+   * open rows, so the toggle fits beside other controls (`MetricSummaryLayout`'s `bar`).
+   */
+  compactToggle?: boolean
 }) {
   const [menu, setMenu] = useState<{ metric?: MetricSummaryItem; container: Element | null } | null>(null)
   const anchor = useRef<HTMLElement | null>(null)
@@ -234,6 +254,7 @@ export function MetricSummary({
   const lower = title.toLowerCase()
   const pane = variant === 'pane'
   const collapsible = small && !pane
+  const iconToggle = collapsible && compactToggle
   const shown = metrics.filter((metric) => metricLevel(metric, preferences.metrics) !== 'hidden')
   if (!pane && (!preferences.visible || !shown.length)) return null
   return (
@@ -250,29 +271,38 @@ export function MetricSummary({
       }}
     >
       {(showHeading || collapsible) && (
-        <div className="metric-summary-heading">
+        <div className="metric-summary-heading" data-compact={iconToggle || undefined}>
           {collapsible ? (
             <button
               type="button"
               aria-expanded={expanded}
               aria-controls={id}
               aria-label={expanded ? `Hide ${lower}` : `Show ${lower}`}
+              title={iconToggle ? title : undefined}
               onClick={onExpand}
             >
-              <BarChart3 size={15} /> <span className="metric-summary-label">{title}</span>{' '}
+              <BarChart3 size={15} />
+              {!iconToggle && (
+                <>
+                  {' '}
+                  <span className="metric-summary-label">{title}</span>{' '}
+                </>
+              )}
               {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
           ) : (
             <h2>{title}</h2>
           )}
-          <button
-            type="button"
-            title={`${title} settings`}
-            aria-label={`Configure ${lower}`}
-            onClick={() => onSettings()}
-          >
-            <Settings2 size={15} />
-          </button>
+          {!iconToggle && (
+            <button
+              type="button"
+              title={`${title} settings`}
+              aria-label={`Configure ${lower}`}
+              onClick={() => onSettings()}
+            >
+              <Settings2 size={15} />
+            </button>
+          )}
         </div>
       )}
       {toolbar && <div className="metric-summary-toolbar">{toolbar}</div>}
@@ -325,6 +355,15 @@ export function MetricSummary({
               </dl>
             )
           })}
+          {iconToggle && (
+            <button
+              type="button"
+              className="metric-summary-menu-action metric-summary-settings-action"
+              onClick={() => onSettings()}
+            >
+              <Settings2 size={15} /> {title} settings
+            </button>
+          )}
         </div>
       )}
       <AnchoredPopover

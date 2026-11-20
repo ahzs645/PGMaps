@@ -23,16 +23,6 @@
   height: 100%;
   border-radius: var(--lp-task-radius);
 }
-.lp-task-sheet[data-dialog-variant] {
-  position: fixed;
-  inset: 0 0 0 auto;
-  width: min(24rem, calc(100% - 24px));
-  height: 100dvh;
-  max-height: 100dvh;
-  max-width: none;
-  border-radius: var(--lp-task-radius) 0 0 var(--lp-task-radius);
-  transform: none;
-}
 .lp-task-pane:has(> .lp-panel-grip) {
   position: relative;
   align-self: flex-start;
@@ -40,7 +30,21 @@
   height: clamp(min(100%, 12rem), var(--corner-height, 100%), 100%);
   padding-bottom: 22px;
 }
-.lp-task-sheet[data-dialog-variant]:has(> .lp-panel-grip) {
+/* Below the docked width the pane is the toolkit dialog's `sheet` with `sheetWide="end"`: a bottom sheet
+   on a phone, which drops the edge it rests on and the corner grip, and a drawer at the right edge above
+   it, which the grip sizes from the workspace's panel inset. */
+/* Its corners follow the workspace panels' radius, like the docked pane's. */
+.geo-motion-dialog-root[data-workspace-max-sm='true'] .lp-task-sheet {
+  border-bottom: 0;
+  border-radius: var(--lp-task-radius) var(--lp-task-radius) 0 0;
+}
+.geo-motion-dialog-root[data-workspace-sm='true'] .lp-task-sheet {
+  border-radius: var(--lp-task-radius) 0 0 var(--lp-task-radius);
+}
+.geo-motion-dialog-root[data-workspace-max-sm='true'] .lp-task-sheet > .lp-panel-grip {
+  display: none;
+}
+.geo-motion-dialog-root[data-workspace-sm='true'] .lp-task-sheet:has(> .lp-panel-grip) {
   --sheet-inset: min(var(--workspace-panel-inset, 0px), 4vw);
   --sheet-width: min(24rem, calc(100vw - max(24px, 2 * var(--sheet-inset))));
   inset: 0 auto auto calc(100vw - var(--sheet-inset) - var(--sheet-width));
@@ -97,19 +101,8 @@
     opacity: 1;
   }
 }
-@keyframes lp-drawer-enter {
-  from {
-    translate: 100% 0;
-  }
-  to {
-    translate: 0 0;
-  }
-}
 @media (prefers-reduced-motion: no-preference) {
   .lp-task-pane {
     animation: lp-task-enter 150ms ease-out;
-  }
-  .lp-task-sheet[data-dialog-variant][data-state='open'] {
-    animation: lp-drawer-enter 180ms ease-out;
   }
 }

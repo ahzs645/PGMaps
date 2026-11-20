@@ -738,6 +738,19 @@ export default function DevForestryRoads({
     ...(['engineering', 'pegging'].includes(layout) ? [{ value: 'data' as const, label: 'Data' }] : []),
   ].filter((option) => !hiddenPanels.includes(option.value))
   const focusedPane = focusOptions.some((option) => option.value === focusPane) ? focusPane : focusOptions[0]?.value
+  // The pane tabs; on a small screen they share the road summary's row (`MetricSummaryLayout`'s `bar`).
+  const paneTabs = focusMode && !investigation && !shortPanePicker && (
+    <TabBar
+      label="Visible road pane"
+      value={focusedPane ?? 'plan'}
+      onChange={(value) => {
+        setFocusPane(value as RoadPaneId)
+        setControlsOpen(false)
+      }}
+      options={focusOptions}
+      stretch
+    />
+  )
   const visiblePanelCount = [
     'plan',
     'profile',
@@ -7169,6 +7182,7 @@ export default function DevForestryRoads({
                   <MetricSummaryLayout
                     placement={summaryControls.preferences.placement}
                     small={smallSummary}
+                    bar={paneTabs}
                     resize={
                       summaryAvailable &&
                       summaryControls.preferences.visible &&
@@ -7191,6 +7205,7 @@ export default function DevForestryRoads({
                           expanded={summaryOpen}
                           onExpand={() => setSummaryOpen((open) => !open)}
                           onSettings={showSummarySettings}
+                          compactToggle={!!paneTabs}
                         />
                       )
                     }
@@ -7199,18 +7214,7 @@ export default function DevForestryRoads({
                       className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden"
                       aria-label={investigation ? 'Access investigation map' : 'Connected road views'}
                     >
-                      {focusMode && !investigation && !shortPanePicker && (
-                        <TabBar
-                          label="Visible road pane"
-                          value={focusedPane ?? 'plan'}
-                          onChange={(value) => {
-                            setFocusPane(value as RoadPaneId)
-                            setControlsOpen(false)
-                          }}
-                          options={focusOptions}
-                          stretch
-                        />
-                      )}
+                      {!smallSummary && paneTabs}
                       {!investigation && !awaitingFirstRoad(project) && !displayedAnalysis.stations.length && (
                         <InlineAlert tone="error">{displayedAnalysis.warnings.join(' ')}</InlineAlert>
                       )}

@@ -532,6 +532,19 @@
     display: none;
   }
 
+  /* The road selector and Compare all stand as tall as the header's tool buttons, and Compare all
+     takes their square, outlined shape. */
+  .road-workspace-header [data-testid='road-switcher'] button {
+    height: 2.5rem;
+  }
+
+  .road-workspace-header [data-testid='road-switcher'] > button {
+    width: 2.5rem;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid hsl(var(--input));
+  }
+
   .road-workspace .road-station-controller {
     gap: 0.25rem;
     padding: 0.25rem 0.375rem;
@@ -588,6 +601,17 @@
   .road-workspace [data-pane='detail'] > section > div:first-child > h2 {
     display: none;
   }
+}
+
+/* Beside the road summary's toggle the pane tabs fill its row's height (36px), even on touch. */
+.road-workspace .metric-summary-bar [role='tablist'] {
+  padding: 2px;
+}
+
+.road-workspace .metric-summary-bar [role='tab'] {
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 @media (max-height: 620px) {
