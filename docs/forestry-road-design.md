@@ -29,6 +29,12 @@ network projection and raster utilities adapted from LandSciTech/roads. See the
 [package compatibility inventory](forestry-road-design/roads-package-compatibility.md)
 for its scenarios, four algorithms, source attribution and differences from R.
 
+What is not built yet (curves that hold K, culverts that stay attached to a ditch,
+construction rules over station ranges, editing any selected object the way a culvert is
+edited, and adopting and designing a whole network with its shared roads and junctions) is
+listed, with where each stops today, in
+[design intent and networks: not built yet](forestry-road-design/design-intent-and-networks-follow-up-2026-11-20.md).
+
 See the [reference matrix](forestry-road-reference-matrix.md) for the functional
 comparison and completed checks, and the [workspace gallery](forestry-road-gallery.md)
 for actual native-terrain views with their entered engineering assumptions.
