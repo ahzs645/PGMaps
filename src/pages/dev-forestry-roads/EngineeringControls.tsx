@@ -9,6 +9,13 @@ import { ColorField } from '@/components/ui/color-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolDisclosure } from '@/components/ui/tool-section'
 import { crossingsWithoutStructure } from './costReadiness'
+import {
+  CROSS_DRAIN_COST_DEFAULT,
+  culvertCostDefaultStatus,
+  withCulvertCostDefault,
+  withUnpricedCrossDrainDefaults,
+} from './culvertCostDefaults'
+import { projectCurrency } from './costPlaces/projectLocation'
 import { TabBar } from '@/components/ui/tab-bar'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { CheckboxField } from '@/components/ui/form-field'
@@ -573,7 +580,10 @@ export function EngineeringControls({
       unitCost: 0,
       fixedCost: 0,
     }
-    edit((e) => ({ ...e, culverts: [...e.culverts, culvert] }))
+    edit((e) => ({
+      ...e,
+      culverts: [...e.culverts, withCulvertCostDefault(culvert, projectCurrency(project.costLocation))],
+    }))
     setLocalCulvertId(culvert.id)
     onSelectCulvert?.(culvert.id)
     setCulvertTab('geometry')
@@ -1439,6 +1449,8 @@ export function EngineeringControls({
           {design.culverts.map((c, index) => {
             if (c.id !== selectedCulvert?.id) return null
             const result = analysis.engineering?.culverts.find((x) => x.id === c.id)
+            const provisional = culvertCostDefaultStatus(c, projectCurrency(project.costLocation))
+            const canDefault = withCulvertCostDefault(c, projectCurrency(project.costLocation)) !== c
             return (
               <div
                 key={c.id}
@@ -1548,6 +1560,27 @@ export function EngineeringControls({
                       'fixedCost',
                     ]}
                   />
+                  {provisional && (
+                    <InlineAlert tone="warning" title="Provisional installed cost — review required">
+                      {provisional.summary} Open the covered estimate and choose Review culvert rates to confirm or
+                      replace this source.
+                    </InlineAlert>
+                  )}
+                  {canDefault && !analysis.crossingEstimate?.replacedLegacyIds.includes(c.id) && (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() =>
+                        w.update(
+                          (p) => withUnpricedCrossDrainDefaults(p, alignment.id, [c.id]),
+                          `Use provisional estimate for ${c.name}`,
+                          { ownStep: true },
+                        )
+                      }
+                    >
+                      Use provisional estimate (CAD {CROSS_DRAIN_COST_DEFAULT.unitCost.toFixed(2)}/m)
+                    </Button>
+                  )}
                   <CulvertOptionFields
                     culvert={c}
                     label={`Culvert ${index + 1}`}

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
 import { assessCostReadiness, unpricedQuantities } from './costReadiness'
+import { withCulvertCostDefault } from './culvertCostDefaults'
+import { estimateCrossings } from './crossingPlan'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
 
@@ -45,6 +47,73 @@ const ids = (analysis: RoadAnalysis, road: Alignment, rates = settings) =>
   assessCostReadiness(analysis, road, rates).flags.map((flag) => flag.id)
 
 describe('road cost review', () => {
+  const provisionalRoad = () => {
+    const road = alignment()
+    road.engineering = {
+      ...createEngineeringDesign(),
+      culverts: [
+        withCulvertCostDefault({
+          id: 'default-pipe',
+          name: 'Provisional cross-drain',
+          kind: 'cross-drain',
+          chainage: 50,
+          skewDegrees: 0,
+          lengthM: 9.5,
+          diameterM: 0.6,
+          inletInvertM: 800.8,
+          outletInvertM: 800.6,
+          minCoverM: 0.6,
+          unitCost: 0,
+          fixedCost: 0,
+        }),
+      ],
+    }
+    return road
+  }
+
+  it('counts a provisional drain in the total but keeps an actionable price-review flag', () => {
+    const road = provisionalRoad()
+    const analysis = analyzeRoad(road, { elevationAt: () => 800 }, settings)
+    expect(analysis.engineering!.costs.structures).toBeGreaterThan(3500)
+    const review = assessCostReadiness(analysis, road, settings)
+    expect(review.unpricedCulverts).toEqual([])
+    expect(review.flags.find((flag) => flag.id === 'provisional-culvert-rates')).toMatchObject({
+      label: 'Provisional culvert estimates need local price review',
+      detail: expect.stringContaining('Provisional cross-drain: Provisional CAD 372.67/m'),
+    })
+  })
+
+  it('keeps price, specification and currency edits visible until the provisional source is reviewed', () => {
+    const road = provisionalRoad()
+    road.engineering!.culverts[0].unitCost = 500
+    road.engineering!.culverts[0].diameterM = 0.8
+    const analysis = analyzeRoad(road, { elevationAt: () => 800 }, settings)
+    const cad = assessCostReadiness(analysis, road, settings).flags.find(
+      (flag) => flag.id === 'provisional-culvert-rates',
+    )!
+    expect(cad.detail).toContain('Edited from provisional CAD 372.67/m')
+    expect(cad.detail).toContain('600 mm pipe')
+    const usd = assessCostReadiness(analysis, road, settings, 'USD').flags.find(
+      (flag) => flag.id === 'provisional-culvert-rates',
+    )!
+    expect(usd.detail).toContain('project’s currency')
+  })
+
+  it('omits replaced and excluded culverts from provisional-price review for the counted estimate', () => {
+    const road = provisionalRoad()
+    const analysis = analyzeRoad(road, { elevationAt: () => 800 }, settings)
+    analysis.crossingEstimate = {
+      ...estimateCrossings(road, analysis, []),
+      replacedLegacyIds: ['default-pipe'],
+    }
+    expect(ids(analysis, road)).not.toContain('provisional-culvert-rates')
+    road.engineering!.culverts[0].chainage = 1000
+    const outside = analyzeRoad(road, { elevationAt: () => 800 }, settings)
+    expect(outside.engineering!.culverts).toHaveLength(0)
+    expect(ids(outside, road)).not.toContain('provisional-culvert-rates')
+    expect(ids(outside, road)).toContain('excluded-culverts')
+  })
+
   it('screens the supplied borrow deficit without extrapolating missing length or adding cost', () => {
     const analysis = suppliedAnalysis()
     const before = structuredClone(analysis)

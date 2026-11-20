@@ -68,7 +68,7 @@ export function CulvertInventory({
                             ? 'Cost not calculated'
                             : cost.installedCad === 0
                               ? 'Unpriced'
-                              : `$${WHOLE.format(cost.installedCad)} installed`}
+                              : `$${WHOLE.format(cost.installedCad)} installed${cost.provisional ? ' · provisional' : ''}`}
                       </span>
                     </span>
                   }

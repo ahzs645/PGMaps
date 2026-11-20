@@ -102,6 +102,18 @@ and `readinessVerdict`, `readiness.ts`):
 A cost prompt from `costReadiness.ts` that the list has no row for is shown as its own row, so a
 prompt added there is never dropped here.
 
+**Provisional culvert prices remain a review task.** An eligible ordinary
+600 mm cross-drain can have a positive installed price from the pinned Alberta
+2026 tender average (CAD $372.67/m) while its specification, local scope and
+quote remain unconfirmed (`culvertCostDefaults.ts`). The cost prompt keeps
+that distinction visible; a price in the total is not evidence of completed
+review. It names the provisional culverts and offers **Review culvert rates**
+through the existing evidence/adoption path. Changed specification or currency
+is flagged rather than silently treated as a matching reviewed price. For
+eligible unpriced saved culverts, **Use provisional estimates** is an explicit
+one-step action; opening the project never fills their zeroes. See
+[Provisional cross-drain estimates](bc-cost-evidence.md#provisional-cross-drain-estimates).
+
 **While an input is invalid** the list leads with one more row, under **Inputs**: "The results
 leave out 1 invalid input", outside a limit, with the input's message and a button to where it is
 corrected. Every row after it is judged on the results, which use that input's last valid value,

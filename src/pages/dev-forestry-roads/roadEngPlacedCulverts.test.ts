@@ -4,6 +4,7 @@ import { strFromU8, unzipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { alignmentLength, offsetCoordinate } from './engine'
 import { createEngineeringDesign, type Culvert } from './engineeringTypes'
+import { CROSS_DRAIN_COST_DEFAULT, culvertCostDefaultStatus } from './culvertCostDefaults'
 import { parseEngineering } from './engineeringProject'
 import { roadEngDesign } from './roadEngExport'
 import { roadEngProject } from './roadEngProject'
@@ -292,6 +293,27 @@ describe('RoadEng placed culverts (.ds1)', () => {
       outletInvertM: 699,
     })
     expect(carried[0]).toEqual(culverts[0])
+  })
+
+  it('carries and validates provisional price evidence with the retained cost after a RoadEng save', () => {
+    const { culverts } = culvertsFromDesign(ds1([STREAM, DRAIN]), { unitM: 1, frame, newId })
+    const saved = {
+      ...culverts[1],
+      unitCost: 410,
+      costDefault: { ...CROSS_DRAIN_COST_DEFAULT },
+    }
+    const carried = carryWrittenCulvertFields(culverts, { culverts: [saved] })
+    expect(carried[0]).toBe(culverts[0])
+    expect(carried[1].unitCost).toBe(410)
+    expect(carried[1].costDefault).toEqual(CROSS_DRAIN_COST_DEFAULT)
+    expect(carried[1].costDefault).not.toBe(saved.costDefault)
+    expect(culvertCostDefaultStatus(carried[1])).toMatchObject({ edited: true, specChanged: true })
+    expect(() =>
+      carryWrittenCulvertFields(culverts, {
+        culverts: [{ ...saved, costDefault: { ...CROSS_DRAIN_COST_DEFAULT, sourceUrl: 'javascript:alert(1)' } }],
+      }),
+    ).toThrow(/Culvert provisional source URL/)
+    expect(carryWrittenCulvertFields(culverts, { culverts: [culverts[1]] })[1]).not.toHaveProperty('costDefault')
   })
 
   it('refuses a malformed kept record', () => {

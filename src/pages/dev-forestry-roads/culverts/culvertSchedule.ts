@@ -12,6 +12,8 @@
  */
 import type { BankfullReading } from './naturalChannel'
 import type { CostPlace } from '../costPlaces/places'
+import { placeCurrency } from '../costPlaces/packs'
+import { culvertCostDefaultStatus } from '../culvertCostDefaults'
 import { CROSSING_STRUCTURES } from '../crossingPlan'
 import type { DrainageEvidence } from '../drainageEvidence'
 import { labelStation } from '../roadStationing'
@@ -90,6 +92,8 @@ export interface CulvertScheduleRow {
     installedCad: number | null
     /** A current crossing record's itemized estimate stands in place of the installed cost. */
     replacedByCrossingRecord: boolean
+    /** The amount still carries an unreviewed default origin, including after a manual edit. */
+    provisional?: boolean
     /** "Installed cost", "Replaced by the crossing record's estimate", "No price entered". */
     basis: string
   }
@@ -216,6 +220,7 @@ export function buildCulvertSchedule({
     const result = analysis?.engineering?.culverts.find((item) => item.id === culvert.id)
     const flow = flows.get(culvert.id) ?? null
     const replaced = !!estimate?.replacedLegacyIds.includes(culvert.id)
+    const costDefault = !replaced ? culvertCostDefaultStatus(culvert, placeCurrency(place)) : null
     const crossingRecord = estimate?.rows.find(
       (row) => row.status === 'current' && row.record.replacesCulvertId === culvert.id,
     )?.record
@@ -287,13 +292,19 @@ export function buildCulvertSchedule({
       cost: {
         installedCad: result?.installedCost ?? null,
         replacedByCrossingRecord: replaced,
-        basis: !result
-          ? 'Not calculated'
-          : replaced
-            ? 'Replaced by the crossing record’s itemized estimate'
-            : result.installedCost === 0
-              ? 'No price entered'
-              : 'Installed cost per metre plus fixed cost',
+        ...(costDefault ? { provisional: true } : {}),
+        basis: [
+          !result
+            ? 'Not calculated'
+            : replaced
+              ? 'Replaced by the crossing record’s itemized estimate'
+              : result.installedCost === 0
+                ? 'No price entered'
+                : 'Installed cost per metre plus fixed cost',
+          costDefault?.summary,
+        ]
+          .filter(Boolean)
+          .join('. '),
       },
       appraisal: choice
         ? culvertAppraisalTreatment(
@@ -561,7 +572,7 @@ export function culvertScheduleReportHtml(schedule: CulvertSchedule): string {
         open.length ? `Not assessed: ${open.map((check) => check.label.toLowerCase()).join('; ')}` : '',
       ].filter(Boolean)
       const hydraulics = culvertHydraulicsText(row)
-      return `<tr><td>${escapeHtml(labelStation(row.chainage))}</td><td style="text-align:left">${escapeHtml(row.name)}<br><span class="muted">${escapeHtml(row.purpose === 'stream' ? 'Stream' : 'Cross-drain')}</span></td><td style="text-align:left">${escapeHtml(row.sizeText)} × ${escapeHtml((row.barrelLengthM ?? row.spanLengthM).toFixed(1))} m${row.materialLabel ? `<br><span class="muted">${escapeHtml(row.materialLabel)}</span>` : ''}</td><td>${escapeHtml(cost)}</td><td style="text-align:left">${escapeHtml(row.appraisal?.summary ?? 'Not shown')}${row.appraisal ? `<br><span class="muted">${escapeHtml(row.appraisal.locator)}</span>` : ''}</td><td style="text-align:left">${design.length ? design.map(escapeHtml).join('<br>') : 'Checks met'}${hydraulics ? `<br>${escapeHtml(hydraulics)}` : ''}<br><span class="muted">${escapeHtml(row.evidence.join('; '))}</span></td></tr>`
+      return `<tr><td>${escapeHtml(labelStation(row.chainage))}</td><td style="text-align:left">${escapeHtml(row.name)}<br><span class="muted">${escapeHtml(row.purpose === 'stream' ? 'Stream' : 'Cross-drain')}</span></td><td style="text-align:left">${escapeHtml(row.sizeText)} × ${escapeHtml((row.barrelLengthM ?? row.spanLengthM).toFixed(1))} m${row.materialLabel ? `<br><span class="muted">${escapeHtml(row.materialLabel)}</span>` : ''}</td><td>${escapeHtml(cost)}${row.cost.provisional ? `<br><span class="muted">${escapeHtml(row.cost.basis)}</span>` : ''}</td><td style="text-align:left">${escapeHtml(row.appraisal?.summary ?? 'Not shown')}${row.appraisal ? `<br><span class="muted">${escapeHtml(row.appraisal.locator)}</span>` : ''}</td><td style="text-align:left">${design.length ? design.map(escapeHtml).join('<br>') : 'Checks met'}${hydraulics ? `<br>${escapeHtml(hydraulics)}` : ''}<br><span class="muted">${escapeHtml(row.evidence.join('; '))}</span></td></tr>`
     })
     .join('')
   return `<h2>Culvert schedule</h2><p>${escapeHtml(basis)}</p><table><thead><tr><th>Station</th><th style="text-align:left">Culvert</th><th style="text-align:left">Size</th><th>Construction cost</th><th style="text-align:left">Appraisal treatment</th><th style="text-align:left">Design checks and evidence</th></tr></thead><tbody>${body}</tbody></table><p class="muted">Design checks follow BC’s Engineering Manual and Fish-stream Crossing Guidebook as screens; they are not a hydrotechnical or fish-passage design. ${escapeHtml(culvertTreatmentSummary(schedule))}.</p>`

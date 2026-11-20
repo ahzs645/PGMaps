@@ -11,7 +11,7 @@ import { haulUnitCost } from './engineering'
 import type { HaulSettings } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadProject, RoadSettings } from './types'
 import { COST_SETTING_RATE_KEYS, costBreakdownRows, type CostRow, type CostRowRate } from './costBreakdownRows'
-import { BCCostReferences } from './BCCostReferencesPanel'
+import { BCCostReferences, type CulvertReviewRequest } from './BCCostReferencesPanel'
 import { RateSources, type RateAdoptionTarget } from './RateAdoption'
 import { applyAdoption, rateSourceLines, withoutAdoption } from './costEvidence/rateAdoption'
 import { adoptionTargets } from './costEvidence/adoptionTargets'
@@ -23,6 +23,12 @@ import { ProjectBudgetPanel } from './ProjectBudgetPanel'
 import { CostScenariosPanel } from './CostScenariosPanel'
 import { CollapsibleSection } from '@/components/ui/map-panels'
 import { unpricedQuantities } from './costReadiness'
+import {
+  CROSS_DRAIN_COST_DEFAULT,
+  culvertCostDefaultStatus,
+  withCulvertCostDefault,
+  withUnpricedCrossDrainDefaults,
+} from './culvertCostDefaults'
 import { invalidInputNotice } from './inputErrors'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { insetBox } from '@/components/ui/inset-box'
@@ -163,8 +169,13 @@ export function CostBreakdown({
   onColourBy?: (id: CostSeriesId) => void
 }) {
   const [opened, setOpened] = useState<{ open: boolean; total: number }>({ open, total: analysis.estimatedCost })
-  if (opened.open !== open) setOpened({ open, total: analysis.estimatedCost })
   const [preferences] = useCostPreferences()
+  const [culvertReview, setCulvertReview] = useState<CulvertReviewRequest>()
+  if (opened.open !== open) {
+    setOpened({ open, total: analysis.estimatedCost })
+    // The references panel remounts with the dialog: a request it already answered must not reopen it.
+    if (culvertReview && !culvertReview.spent) setCulvertReview({ ...culvertReview, spent: true })
+  }
   // Session state: the dialog stays mounted while closed, so these hold until the page reloads.
   const [stretchChoice, setStretchChoice] = useState<number | null>(null)
   const stretchLengthM = stretchChoice ?? defaultStretchLength(analysis.length)
@@ -236,6 +247,33 @@ export function CostBreakdown({
   // Work with a quantity and no rate: its amount is zero because it is unpriced, not because it is free.
   const unpriced = unpricedQuantities(analysis, alignment, settings)
   const unpricedOn = (rowId: string) => unpriced.filter((item) => item.rowId === rowId)
+  const countedCulverts = (alignment.engineering?.culverts ?? []).filter(
+    (culvert) =>
+      result?.culverts.some((item) => item.id === culvert.id) &&
+      !analysis.crossingEstimate?.replacedLegacyIds.includes(culvert.id),
+  )
+  const eligibleCulverts = countedCulverts.filter((culvert) => withCulvertCostDefault(culvert, currency) !== culvert)
+  const provisionalCulverts = countedCulverts.flatMap((culvert) => {
+    const status = culvertCostDefaultStatus(culvert, currency)
+    return status ? [{ culvert, status }] : []
+  })
+  const provisionalGroups = new Map<string, string[]>()
+  for (const { culvert, status } of provisionalCulverts)
+    provisionalGroups.set(status.summary, [...(provisionalGroups.get(status.summary) ?? []), culvert.name])
+  const reviewCulverts = () => {
+    const first =
+      provisionalCulverts[0]?.culvert ??
+      eligibleCulverts[0] ??
+      countedCulverts.find((c) => c.unitCost === 0 && c.fixedCost === 0) ??
+      countedCulverts[0]
+    setCulvertReview((previous) => ({
+      sequence: (previous?.sequence ?? 0) + 1,
+      targetKey: first ? `${alignment.id}/culvert:${first.id}.unitCost` : undefined,
+      recordId:
+        first?.costDefault?.recordId ??
+        (first && eligibleCulverts.includes(first) ? CROSS_DRAIN_COST_DEFAULT.recordId : undefined),
+    }))
+  }
   const sources = rateSourceLines(project.rateEvidence, project, budget.packItems)
   const sourceOn = (row: Row) => sources.find((line) => line.rateKey === row.rate?.rateKey)
   return (
@@ -282,6 +320,7 @@ export function CostBreakdown({
               road={{ name: alignment.name, length: analysis.length, stations: analysis.stations }}
               adoption={adoption}
               place={project.costLocation?.place}
+              culvertReview={culvertReview}
             />
             <InfoTip label="How amounts are calculated" showLabel>
               Amount = quantity × rate. Contingency = subtotal × %. Quantities cover supported intervals only, with
@@ -313,7 +352,62 @@ export function CostBreakdown({
               }
             >
               {unpriced.map((item) => item.text).join('; ')}. Enter the missing rate{unpriced.length === 1 ? '' : 's'},
-              or note where the cost is carried. A total that falls after work is added is missing a price.
+              or note where the cost is carried.
+              {eligibleCulverts.length > 0 && onProjectEdit && (
+                <div className="mt-2 space-y-1">
+                  <p>
+                    A provisional CAD {CROSS_DRAIN_COST_DEFAULT.unitCost.toFixed(2)}/m estimate is available for{' '}
+                    {eligibleCulverts.length} eligible 600 mm cross-drain{eligibleCulverts.length === 1 ? '' : 's'}. It
+                    assumes corrugated steel pipe, using Alberta’s 2026 supply-and-install tender average. Review the
+                    local price and installation scope.
+                  </p>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    data-testid="road-culvert-defaults-apply"
+                    onClick={() =>
+                      onProjectEdit(
+                        (p) =>
+                          withUnpricedCrossDrainDefaults(
+                            p,
+                            alignment.id,
+                            eligibleCulverts.map((c) => c.id),
+                          ),
+                        'Use provisional culvert estimates',
+                      )
+                    }
+                  >
+                    Use provisional estimates
+                  </Button>
+                </div>
+              )}
+              {countedCulverts.some((c) => c.unitCost === 0 && c.fixedCost === 0) && (
+                <Button size="xs" variant="outline" className="mt-2" onClick={reviewCulverts}>
+                  Review culvert rates
+                </Button>
+              )}
+            </InlineAlert>
+          </div>
+        )}
+        {provisionalCulverts.length > 0 && (
+          <div data-testid="road-culvert-defaults-review">
+            <InlineAlert tone="warning" title="Provisional culvert estimates — review local installed cost">
+              <ul className="space-y-1">
+                {[...provisionalGroups].map(([summary, names]) => (
+                  <li key={summary}>
+                    <strong>{names.join(', ')}:</strong> {summary}
+                  </li>
+                ))}
+              </ul>
+              <Button
+                size="xs"
+                variant="outline"
+                className="mt-2"
+                data-testid="road-culvert-defaults-review-open"
+                onClick={reviewCulverts}
+              >
+                Review culvert rates
+              </Button>
             </InlineAlert>
           </div>
         )}

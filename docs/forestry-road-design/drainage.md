@@ -99,6 +99,7 @@ you choose.
 | Batch stream clearance       | 15 m of chainage from a natural-stream crossing                                                                                                                                                                                                                              | `crossDrainBatch.ts` `BATCH_STREAM_CLEARANCE_M`                                      | The draft is refused: a stream crossing is placed on its own                                          |
 | Trial spacing                | 10–1,000 m; start and end on the road                                                                                                                                                                                                                                        | `crossDrainBatch.ts` `TRIAL_SPACING_LIMITS`, `trialSpacingProblem`                   | The preview is not filled and the panel says why                                                      |
 | Draft barrel span            | Farther daylight on both ends at the skew, rounded up to 0.5 m; unresolved: road width + 4 m, at least 12 m                                                                                                                                                                  | `crossDrainBatch.ts` `draftCulvert`, `BATCH_SPAN_STEP_M`                             | —                                                                                                     |
+| Provisional cross-drain rate | CAD $372.67 per installed barrel metre for ordinary 600 mm round single-barrel CSP cross-drains, no embedment | `culvertCostDefaults.ts` `CROSS_DRAIN_COST_DEFAULT.unitCost`; `crossDrainBatch.ts` `DEFAULT_BATCH_PIPE` | Unreviewed; other currencies/specifications need their own rate; saved zeroes change only by explicit action |
 | Culverts per road            | 100; diameter 0.1–20 m; length 0.2–500 m; skew −80° to 80°                                                                                                                                                                                                                   | `engineeringProject.ts`, `parseEngineering`                                          | Project refused                                                                                       |
 | Culvert off the road or grid | Chainage outside 0 to road length, or no cell found                                                                                                                                                                                                                          | `designSurface.ts`, `burnRoad`; `hydrology.ts`                                       | Warning: "outside the road or the surface grid; not checked"                                          |
 | Pour-point snap radius       | 25 m for a new pour point; 0–2,000 m                                                                                                                                                                                                                                         | `drainageCatchments.ts`, `DEFAULT_POUR_POINT_SNAP_M`, `snapPourPoint`                | Invalid requests reject; no supported cell reports an error                                           |
@@ -583,6 +584,17 @@ culverts and adds the ready ones in one step (`crossDrainBatch.ts`, `useCrossDra
   draws each barrel in violet with an arrow past its outlet, red while a row is refused, grey when
   excluded. Station, inlet side, skew and fall are edited in the row; diameter, cover and cost
   for the whole batch above it.
+- **A provisional installed price.** In a CAD project, eligible 600 mm round
+  cross-drains start at **$372.67 per installed barrel metre**, from the Alberta
+  2026 tender average for supply and installation of 600 mm corrugated steel
+  pipe (`culvertCostDefaults.ts`). The batch shows the assumption before Add;
+  it is unreviewed and is not a local BC quote. Unspecified material means CSP
+  is assumed for cost only: no hydraulic input changes. Existing prices and
+  saved zeroes are not migrated. **Use provisional estimates** explicitly fills
+  eligible unpriced drains in one undo step; **Review culvert rates** opens the
+  evidence/adoption path. A changed specification remains flagged. See
+  [Provisional cross-drain estimates](bc-cost-evidence.md#provisional-cross-drain-estimates)
+  for the source, eligibility and scope limits.
 - **Refused rows** (not added until fixed or excluded): inlet side not confirmed, off the road, a
   natural-stream crossing within 15 m (those stay in individual review under Culvert inputs), a
   barrel crossing an existing culvert or another included draft, past 100 culverts on the road.

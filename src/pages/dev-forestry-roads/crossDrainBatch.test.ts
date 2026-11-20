@@ -4,6 +4,7 @@ import { calculateCulverts } from './engineering'
 import { createEngineeringDesign, type Culvert } from './engineeringTypes'
 import type { DitchLowPoint } from './hydrology'
 import type { Alignment, Coordinate, RoadSettings, TerrainSource } from './types'
+import { CROSS_DRAIN_COST_DEFAULT, culvertCostDefaultStatus } from './culvertCostDefaults'
 import {
   acceptedCulverts,
   batchBasis,
@@ -100,6 +101,69 @@ let next = 0
 const newId = () => `d${++next}`
 
 describe('cross-drain batch drafts', () => {
+  it('prices new ordinary drains by inclined barrel length and carries the unreviewed source', () => {
+    const a = road()
+    const context = contextFor(a)
+    const drafts = confirmSides(
+      draftsFromCandidates([site('cost-site', 60, 'left')], new Set(['cost-site']), { screening: false, newId }),
+    )
+    const [row] = previewBatch(drafts, context)
+    expect(row.ready).toBe(true)
+    expect(row.culvert.costDefault).toEqual(CROSS_DRAIN_COST_DEFAULT)
+    const length = Math.hypot(row.culvert.lengthM, row.culvert.inletInvertM! - row.culvert.outletInvertM!)
+    expect(row.result!.installedCost).toBeCloseTo(length * 372.67, 6)
+    expect(row.result!.installedCost).toBeGreaterThan(0)
+    const added = { ...a, engineering: { ...a.engineering!, culverts: acceptedCulverts([row]) } }
+    expect(analyzeRoad(added, sloped, settings).engineering!.costs.structures).toBeCloseTo(length * 372.67, 6)
+  })
+
+  it('adds the three reported barrel spans to the road total instead of leaving them at zero', () => {
+    const a = road()
+    const context = contextFor(a)
+    const drafts = confirmSides(
+      draftsFromCandidates(
+        [site('one', 60, 'left'), site('two', 150, 'left'), site('three', 220, 'left')],
+        new Set(['one', 'two', 'three']),
+        { screening: false, newId },
+      ),
+    )
+    const lengths = [9.5, 8.5, 26.5]
+    const culverts = acceptedCulverts(previewBatch(drafts, context)).map((culvert, index) => ({
+      ...culvert,
+      lengthM: lengths[index],
+      inletInvertM: null,
+      outletInvertM: null,
+    }))
+    const added = { ...a, engineering: { ...a.engineering!, culverts } }
+    const after = analyzeRoad(added, sloped, settings)
+    expect(after.engineering!.costs.structures).toBeCloseTo(16583.815, 6)
+    expect(after.estimatedCost - context.analysis.estimatedCost).toBeCloseTo(16583.815, 6)
+  })
+
+  it('does not price a changed batch size or currency with the unchanged CAD default', () => {
+    const a = road()
+    const drafts = confirmSides(
+      draftsFromCandidates([site('cost-site', 60, 'left')], new Set(['cost-site']), { screening: false, newId }),
+    )
+    for (const patch of [{ diameterM: 0.8 }, { currency: 'USD' as const }]) {
+      const [row] = previewBatch(drafts, contextFor(a, { pipe: { ...DEFAULT_BATCH_PIPE, ...patch } }))
+      expect(row.culvert.unitCost).toBe(0)
+      expect(row.culvert.costDefault).toBeUndefined()
+      expect(row.result!.installedCost).toBe(0)
+    }
+    // A deliberate zero stays zero, rather than being replaced by the default again.
+    const [zero] = previewBatch(drafts, contextFor(a, { pipe: { ...DEFAULT_BATCH_PIPE, unitCost: 0 } }))
+    expect(zero.culvert.unitCost).toBe(0)
+    expect(culvertCostDefaultStatus(zero.culvert)?.edited).toBe(true)
+    // A separately entered price keeps its value and the still-visible origin of that edit.
+    const [custom] = previewBatch(
+      drafts,
+      contextFor(a, { pipe: { ...DEFAULT_BATCH_PIPE, diameterM: 0.8, unitCost: 500 } }),
+    )
+    expect(custom.culvert.unitCost).toBe(500)
+    expect(culvertCostDefaultStatus(custom.culvert)).toMatchObject({ edited: true, specChanged: true })
+  })
+
   it('proposes one pipe per selected site, inlet on its recorded side, none for a site through a culvert', () => {
     const sites = [
       site('low-1', 60, 'left'),

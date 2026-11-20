@@ -278,7 +278,33 @@ export function applyAdoption(
   adoption: RateAdoption,
   scheduleItems: readonly ScheduleTemplateItem[] = [],
 ): RoadProject {
-  const next = writeTarget(project, key, adoption.rate, scheduleItems)
+  const written = writeTarget(project, key, adoption.rate, scheduleItems)
+  // Only the explicit, confirmed adoption replaces a provisional origin. Generic rate edits
+  // keep it visible until reviewed. Rate, new source and review state are one undoable edit.
+  const hasProvisionalTarget = written.alignments.some((road) =>
+    road.engineering?.culverts.some((c) => c.costDefault && key === `${road.id}/culvert:${c.id}.unitCost`),
+  )
+  const next = !hasProvisionalTarget
+    ? written
+    : {
+        ...written,
+        alignments: written.alignments.map((road) => {
+          if (!road.engineering?.culverts.some((c) => c.costDefault && key === `${road.id}/culvert:${c.id}.unitCost`))
+            return road
+          return {
+            ...road,
+            engineering: {
+              ...road.engineering,
+              culverts: road.engineering.culverts.map((culvert) => {
+                if (key !== `${road.id}/culvert:${culvert.id}.unitCost`) return culvert
+                const reviewed = { ...culvert }
+                delete reviewed.costDefault
+                return reviewed
+              }),
+            },
+          }
+        }),
+      }
   return { ...next, rateEvidence: { ...project.rateEvidence, [key]: adoption } }
 }
 

@@ -1,6 +1,7 @@
 import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { createEngineeringDesign, type Culvert } from '../../src/pages/dev-forestry-roads/engineeringTypes'
 import { choose, optionLabels } from './styled-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
@@ -398,6 +399,191 @@ test('an evidence record is adopted into a project rate with its observation kep
   const undone = await saveProject(page)
   expect(undone.settings).toEqual(before.settings)
   expect(undone.rateEvidence).toBeUndefined()
+  expect(errors).toEqual([])
+})
+
+test('unpriced cross-drains receive reviewable estimates, survive reload and adopt a local rate atomically', async ({
+  page,
+}, testInfo) => {
+  testInfo.setTimeout(240_000)
+  const errors = await prepare(page)
+  const project = await saveProject(page)
+  const road = project.alignments.find((item) => item.id === project.activeAlignmentId)!
+  const invert = (road.vertical[0]?.elevation ?? 800) - 2
+  // Keep the training terrain, with a short road whose quantities can all be calculated.
+  project.name = 'Cross-drain provisional-price regression'
+  road.points = road.points.slice(0, 2).map((point) => ({ ...point, radiusM: 0 }))
+  road.vertical = []
+  road.overrides = []
+  road.engineering = createEngineeringDesign()
+  road.engineering.culverts = [9.5, 8.5, 26.5, 12].map(
+    (lengthM, index): Culvert => ({
+      id: `price-check-${index + 1}`,
+      name: index === 3 ? 'Already priced cross-drain' : `Cross-drain ${index + 1}`,
+      kind: 'cross-drain',
+      chainage: 30 + 40 * index,
+      skewDegrees: 0,
+      lengthM,
+      diameterM: 0.6,
+      inletInvertM: invert,
+      outletInvertM: invert,
+      minCoverM: 0.6,
+      unitCost: index === 3 ? 420 : 0,
+      fixedCost: index === 3 ? 250 : 0,
+    }),
+  )
+  project.alignments = [road]
+  project.context = []
+  project.cables = []
+  project.settings.crossSectionHalfWidth = 100
+
+  await page.getByRole('button', { name: 'Open', exact: true }).click()
+  await page.getByTestId('road-file-input').setInputFiles({
+    name: 'cross-drain-provisional-price.road.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(project)),
+  })
+  await expect(page.getByTestId('road-project-name')).toHaveText(project.name)
+  const before = await saveProject(page)
+  const culverts = (saved: RoadProject) => saved.alignments.find((item) => item.id === road.id)!.engineering!.culverts
+  const total = async () => Number((await page.getByTestId('road-cost-total').innerText()).replace(/[^\d.-]/g, ''))
+
+  let dialog = await openCosts(page)
+  await expect(dialog.getByTestId('road-cost-unpriced')).toContainText('3 quantities have no rate')
+  await expect(dialog.getByTestId('road-culvert-defaults-apply')).toContainText('Use provisional estimates')
+  const beforeTotal = await total()
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  // Merely opening the estimate never upgrades an old project's deliberately blank prices.
+  expect(await saveProject(page)).toEqual(before)
+
+  dialog = await openCosts(page)
+  await dialog.getByTestId('road-culvert-defaults-apply').click()
+  await expect(dialog.getByTestId('road-cost-unpriced')).toHaveCount(0)
+  const review = dialog.getByTestId('road-culvert-defaults-review')
+  await expect(review).toContainText('Provisional culvert estimates')
+  await expect(review).toContainText('Alberta 2026 tender average')
+  // Culverts sharing the same source note are listed on one line by name.
+  await expect(review.locator('li')).toHaveCount(1)
+  await expect(review.locator('li')).toContainText('Cross-drain 1, Cross-drain 2, Cross-drain 3:')
+  await expect.poll(async () => (await total()) - beforeTotal).toBeCloseTo(44.5 * 372.67, 1)
+  await page.screenshot({ path: testInfo.outputPath('culvert-provisional-estimates.png'), animations: 'disabled' })
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  const priced = await saveProject(page)
+  for (const culvert of culverts(priced).slice(0, 3)) {
+    expect(culvert).toMatchObject({
+      unitCost: 372.67,
+      fixedCost: 0,
+      costDefault: {
+        recordId: 'alberta-upa-2026-4',
+        policyVersion: 1,
+        status: 'unreviewed',
+        currency: 'CAD',
+        unit: '/m',
+        unitCost: 372.67,
+        priceYear: 2026,
+      },
+    })
+  }
+  expect(culverts(priced)[3]).toEqual(culverts(before)[3])
+  expect(priced.rateEvidence).toBeUndefined()
+
+  // All three prices and their observations are one undo step; the user's fourth price is retained.
+  await page.getByRole('button', { name: 'Undo road edit', exact: true }).click()
+  expect(await saveProject(page)).toEqual(before)
+  await page.getByRole('button', { name: 'Redo road edit', exact: true }).click()
+  expect(await saveProject(page)).toEqual(priced)
+  // Wait for the actual browser save, rather than assuming the debounce finished before reload.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          new Promise<RoadProject | undefined>((resolve, reject) => {
+            const open = indexedDB.open('pgmaps-forestry-roads-v1', 1)
+            open.onerror = () => reject(open.error)
+            open.onsuccess = () => {
+              const database = open.result
+              const transaction = database.transaction('projects', 'readonly')
+              const store = transaction.objectStore('projects')
+              const active = store.get('active')
+              active.onsuccess = () => {
+                const saved = store.get(`project:${active.result}`)
+                saved.onsuccess = () => resolve(saved.result as RoadProject | undefined)
+                saved.onerror = () => reject(saved.error)
+              }
+              transaction.oncomplete = () => database.close()
+              transaction.onerror = () => reject(transaction.error)
+            }
+          }),
+      ),
+    )
+    .toEqual(priced)
+  await page.reload()
+  await expect(page.getByTestId('road-project-name')).toHaveText(project.name)
+  expect(await saveProject(page)).toEqual(priced)
+
+  dialog = await openCosts(page)
+  await dialog.getByTestId('road-culvert-defaults-review-open').click()
+  let references = page.getByTestId('road-bc-cost-references')
+  await expect(references.getByRole('tab', { name: 'Evidence', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('#road-cost-evidence-search')).toHaveValue('culvert')
+  const record = () =>
+    page
+      .getByTestId('road-cost-evidence-group')
+      .getByRole('listitem')
+      .filter({ hasText: 'Culverts — Supply and Install (600 mm dia. CSP)' })
+  let form = record().getByTestId('road-rate-adopt-form')
+  await expect(form).toBeVisible()
+  await expect(form.getByRole('combobox', { name: 'Project rate to inform', exact: true })).toContainText(
+    'Cross-drain 1 installed cost',
+  )
+  await expect(form.getByRole('spinbutton', { name: 'Adopted rate (CAD/m)', exact: true })).toHaveValue('372.67')
+  await expect(form.getByTestId('road-rate-adopt-save')).toBeDisabled()
+  await references.getByRole('button', { name: 'Close', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  expect(await saveProject(page)).toEqual(priced)
+
+  dialog = await openCosts(page)
+  await dialog.getByTestId('road-culvert-defaults-review-open').click()
+  references = page.getByTestId('road-bc-cost-references')
+  form = record().getByTestId('road-rate-adopt-form')
+  const reason = 'Synthetic local quote: 600 mm CSP supplied and installed, including the site delivery.'
+  await form.getByRole('spinbutton', { name: 'Adopted rate (CAD/m)', exact: true }).fill('425')
+  await form.getByRole('checkbox', { name: 'The specification matches', exact: true }).check()
+  await expect(form.getByTestId('road-rate-adopt-save')).toBeDisabled()
+  await form.getByRole('textbox', { name: 'Reason for any adjustment', exact: true }).fill(reason)
+  await page.screenshot({ path: testInfo.outputPath('culvert-rate-review.png'), animations: 'disabled' })
+  await form.getByTestId('road-rate-adopt-save').click()
+  await expect(record().getByTestId('road-rate-adopt-saved')).toContainText(
+    'Cross-drain 1 installed cost set to $425.00/m',
+  )
+  await references.getByRole('button', { name: 'Close', exact: true }).click()
+  // The adopted culvert leaves the list; the other two still share one line.
+  const remaining = dialog.getByTestId('road-culvert-defaults-review').locator('li')
+  await expect(remaining).toHaveCount(1)
+  await expect(remaining).toContainText('Cross-drain 2, Cross-drain 3:')
+  await expect(remaining).not.toContainText('Cross-drain 1')
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  // Reopening the estimate does not reopen the references panel the review asked for earlier.
+  await openCosts(page)
+  await expect(page.getByTestId('road-bc-cost-references')).toHaveCount(0)
+  await page
+    .getByRole('dialog', { name: 'Covered estimate', exact: true })
+    .getByRole('button', { name: 'Close', exact: true })
+    .click()
+  const adopted = await saveProject(page)
+  expect(culverts(adopted)[0].unitCost).toBe(425)
+  expect(culverts(adopted)[0].costDefault).toBeUndefined()
+  expect(culverts(adopted).slice(1)).toEqual(culverts(priced).slice(1))
+  expect(adopted.rateEvidence?.[`${road.id}/culvert:price-check-1.unitCost`]).toMatchObject({
+    rate: 425,
+    specificationConfirmed: true,
+    reason,
+    currency: 'CAD',
+    includes: ['supply', 'installation'],
+    observation: { recordId: 'alberta-upa-2026-4', currency: 'CAD', costYear: 2026, amounts: { value: 372.67 } },
+  })
+  await page.getByRole('button', { name: 'Undo road edit', exact: true }).click()
+  expect(await saveProject(page)).toEqual(priced)
   expect(errors).toEqual([])
 })
 

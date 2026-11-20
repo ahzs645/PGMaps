@@ -91,11 +91,23 @@ function useEvidenceWithOwnRecords(state: CostEvidenceState): CostEvidenceState 
  * records and preferences are theirs, in this browser. Every tab stays mounted, so typed inputs
  * survive a switch.
  */
+/**
+ * A request from the covered estimate to open the culvert evidence and adoption form. `spent` marks
+ * one already answered before the dialog closed, so remounting with the dialog does not reopen it.
+ */
+export interface CulvertReviewRequest {
+  sequence: number
+  targetKey?: string
+  recordId?: string
+  spent?: boolean
+}
+
 export function BCCostReferences({
   portalContainer,
   adoption,
   road,
   place,
+  culvertReview,
 }: {
   portalContainer?: HTMLElement | null
   adoption?: RateAdoptionTarget
@@ -103,6 +115,8 @@ export function BCCostReferences({
   road?: SideSlopeRoad
   /** The project's cost location. Absent: BC, the pack the catalogue grew from, with no region chosen. */
   place?: CostPlace
+  /** Opens the culvert evidence and adoption form; opening it never changes a project rate. */
+  culvertReview?: CulvertReviewRequest
 }) {
   const projectPack = packFor(place)
   // A project placed outside every pack reads the evidence by place but has no region guidance.
@@ -121,6 +135,18 @@ export function BCCostReferences({
   const method = chosenMethod?.region === regionId ? chosenMethod.method : regionMethod
   const [evidenceView, setEvidenceView] = useState<'records' | 'estimates'>('records')
   const [evidenceFilter, setEvidenceFilter] = useState<EvidenceFilter>(NO_EVIDENCE_FILTER)
+  const [seenCulvertReview, setSeenCulvertReview] = useState<number>()
+  const [focusRecordId, setFocusRecordId] = useState<string>()
+  const [preferredTargetKey, setPreferredTargetKey] = useState<string>()
+  if (culvertReview && !culvertReview.spent && culvertReview.sequence !== seenCulvertReview) {
+    setSeenCulvertReview(culvertReview.sequence)
+    setOpen(true)
+    setTab('evidence')
+    setEvidenceView('records')
+    setEvidenceFilter({ ...NO_EVIDENCE_FILTER, query: 'culvert' })
+    setFocusRecordId(culvertReview.recordId)
+    setPreferredTargetKey(culvertReview.targetKey)
+  }
   const [preferences] = useCostPreferences()
   const evidence = useEvidenceWithOwnRecords(useCostEvidence(open))
   const packRegion = pack?.regionScheme?.regions.find((item) => item.id === regionId)
@@ -160,7 +186,13 @@ export function BCCostReferences({
         className="z-menu"
         contentProps={{ 'data-testid': 'road-bc-cost-references' }}
       >
-        <RateAdoptionContext.Provider value={adoption ?? null}>
+        <RateAdoptionContext.Provider
+          value={
+            adoption
+              ? { ...adoption, preferredTargetKey, openRecordId: focusRecordId, requestSequence: seenCulvertReview }
+              : null
+          }
+        >
           <div
             role="tabpanel"
             id="road-bc-cost-panel-appraisal"
@@ -330,6 +362,8 @@ export function BCCostReferences({
                     onFilter={setEvidenceFilter}
                     projectPlace={place}
                     preferredKinds={preferences.preferredKinds}
+                    focusRecordId={focusRecordId}
+                    focusSequence={seenCulvertReview}
                   />
                 ) : (
                   <WorkedEstimates catalogue={catalogue} />
