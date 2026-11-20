@@ -13,6 +13,7 @@ import { TRIAL_SPACING_LIMITS, type TrialSpacing } from './crossDrainBatch'
 import type { CulvertInletSide } from './culverts/culvertInlet'
 import { CROSS_DRAIN_COST_DEFAULT, culvertCostDefaultProblem, culvertCostDefaultStatus } from './culvertCostDefaults'
 import { ReferenceLink } from './CostReferenceControls'
+import { ProvisionalPriceTip } from './culverts/CulvertEditorParts'
 
 const fixed = (value: number | null | undefined, digits: number) => (value == null ? '—' : value.toFixed(digits))
 
@@ -131,20 +132,20 @@ export function CrossDrainBatchPanel({
             />
           </div>
           {provisional ? (
-            <InlineAlert tone="warning" title="Provisional installed cost — review required">
-              {provisional.summary}{' '}
-              <ReferenceLink href={CROSS_DRAIN_COST_DEFAULT.sourceUrl}>Alberta source</ReferenceLink>. After adding the
-              batch, use Review culvert rates in the covered estimate to confirm or replace the rate.
+            <InlineAlert tone="warning">
+              {provisional.headline} · <ReferenceLink href={CROSS_DRAIN_COST_DEFAULT.sourceUrl}>source</ReferenceLink>{' '}
+              <ProvisionalPriceTip status={provisional} />
+              {provisional.problem && <span className="block">{provisional.problem}</span>}
             </InlineAlert>
           ) : batch.pipe.unitCost === 0 && batch.pipe.fixedCost === 0 ? (
-            <InlineAlert tone="warning" title="These drafts have no installed price">
+            <InlineAlert tone="warning" title="No installed price">
               {culvertCostDefaultProblem(rows[0].culvert, batch.pipe.currency) ??
-                'Enter a local installed price, or use the provisional 600 mm CSP estimate.'}
+                'Enter a local price, or start from the provisional estimate.'}
               {!culvertCostDefaultProblem(rows[0].culvert, batch.pipe.currency) && (
                 <Button
                   size="xs"
                   variant="outline"
-                  className="mt-1"
+                  className="mt-1.5 flex"
                   onClick={() =>
                     batch.setPipe({
                       ...batch.pipe,
@@ -153,7 +154,7 @@ export function CrossDrainBatchPanel({
                     })
                   }
                 >
-                  Use provisional estimate
+                  Use provisional estimate · CAD {CROSS_DRAIN_COST_DEFAULT.unitCost.toFixed(2)}/m
                 </Button>
               )}
             </InlineAlert>

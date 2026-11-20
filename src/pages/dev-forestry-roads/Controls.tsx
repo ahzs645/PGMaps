@@ -285,6 +285,7 @@ export function CellNumberField({
 
 export function OptionalNumberField({
   label,
+  ariaLabel,
   value,
   onChange,
   updateOn,
@@ -299,6 +300,8 @@ export function OptionalNumberField({
   description,
 }: {
   label: string
+  /** The accessible name, when the visible label leaves out what the editor round it already says. */
+  ariaLabel?: string
   value: number | null
   onChange: (value: number | null) => void
   updateOn?: 'change' | 'commit'
@@ -316,7 +319,7 @@ export function OptionalNumberField({
   const note = useRangeNote(value, min, max)
   return (
     <NullableNumberField
-      {...unitProps(label, undefined, hideLabel, roadFieldClass)}
+      {...unitProps(label, ariaLabel, hideLabel, roadFieldClass)}
       value={value}
       onValueChange={onChange}
       updateOn={updateOn}

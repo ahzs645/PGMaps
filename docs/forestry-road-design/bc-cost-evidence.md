@@ -209,6 +209,12 @@ This is a stated planning assumption, kept separate from confirmed adoption:
   A later change of specification or currency flags the mismatch; a positive
   price alone does not confirm it. Only an explicit review can resolve the
   provisional status. A later catalogue does not rewrite the stored estimate.
+- **One line on screen, the whole note in print.** The editor, the batch panel and the
+  covered estimate show `culvertCostDefaultStatus`'s `headline` ("Provisional CAD
+  372.67/m · Alberta 2026 tender average") and any mismatch, with its `notes` (the material
+  assumption, the prompt to confirm) behind an (i) (`ProvisionalPriceTip`). The culvert
+  schedule, the report and the CSV print the full `summary`. Culverts sharing a note are
+  listed on one line, and the covered estimate offers **Review culvert rates** once.
 
 The rate does not establish that local delivery, mobilisation, difficult
 excavation, water management, protection works, taxes or other project scope

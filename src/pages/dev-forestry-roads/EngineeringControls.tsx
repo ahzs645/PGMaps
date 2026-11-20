@@ -3,7 +3,7 @@ import { ROAD_TOUR_ANCHORS } from './tours/roadTour'
 import { RoadSection } from './SidebarParts'
 import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { useRef, useState } from 'react'
-import { ArrowRight, Copy, Plus, Trash2 } from 'lucide-react'
+import { ArrowRight, Copy, Crosshair, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ColorField } from '@/components/ui/color-field'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -38,7 +38,7 @@ import { EntryProblem } from './InputProblem'
 import { freeStationRange, inputMessage, invalidInputMessages, type EngineeringInputList } from './inputErrors'
 import { horizonReplacements, MAX_HORIZON_DEPTH_M, nextHorizon } from './groundHorizons'
 import { culvertFallPercent, culvertScreeningCapacity, invertsForFall } from './culvertGrade'
-import { CulvertOptionFields, CulvertStandards } from './culverts/CulvertEditorParts'
+import { CulvertOptionFields, CulvertReview, ProvisionalPriceTip } from './culverts/CulvertEditorParts'
 import { CulvertInventory } from './culverts/CulvertInventory'
 import { buildCulvertSchedule } from './culverts/culvertSchedule'
 import { culvertChannels } from './culverts/culvertChannels'
@@ -94,7 +94,16 @@ type NumericField<T> = {
   hint?: string
   /** The number shown and typed, when it is not the stored value (a station name for a chainage). */
   display?: { to: (stored: number) => number; from: (typed: number) => number }
+  /** The visible label, when it differs from `label`, which stays the field's accessible name. */
+  shown?: string
 }
+/** "Culvert 2 diameter (m)" shown as "Diameter (m)" inside culvert 2's own editor. */
+function withoutPrefix(label: string, prefix: string | undefined) {
+  if (!prefix || !label.startsWith(`${prefix} `)) return label
+  const rest = label.slice(prefix.length + 1)
+  return rest.charAt(0).toUpperCase() + rest.slice(1)
+}
+
 /** A station or range end of {@link Fields}, shown and typed through the road's stationing. */
 function stationNumeric<T>(entry: StationEntry, key: keyof T, base: string, current: number): NumericField<T> {
   return entry.named
@@ -111,19 +120,27 @@ function Fields<T extends object>({
   fields,
   onChange,
   errorFor,
+  labelPrefix,
 }: {
   value: T
   fields: NumericField<T>[]
   onChange: (patch: Partial<T>) => void
   /** The validation message for one of these fields, shown under it. */
   errorFor?: (field: string) => string | undefined
+  /**
+   * Inside one item's own editor ("Culvert 2"), its name is left off the visible labels, which then
+   * fit one line; the accessible name keeps it.
+   */
+  labelPrefix?: string
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    // Inputs line up along each row's foot even where one label still takes two lines.
+    <div className="grid grid-cols-2 items-end gap-2">
       {fields.map((field) => (
         <NumberField
           key={String(field.key)}
-          label={field.label}
+          label={field.shown ?? withoutPrefix(field.label, labelPrefix)}
+          ariaLabel={field.label}
           value={
             typeof value[field.key] === 'number'
               ? (field.display?.to(value[field.key] as number) ?? (value[field.key] as number))
@@ -1452,24 +1469,28 @@ export function EngineeringControls({
             const provisional = culvertCostDefaultStatus(c, projectCurrency(project.costLocation))
             const canDefault = withCulvertCostDefault(c, projectCurrency(project.costLocation)) !== c
             return (
+              // The selected culvert's fields sit under a hairline, not in a box of their own inside the section.
               <div
                 key={c.id}
-                className={cn(insetBox(), 'mt-3 space-y-2')}
+                className="mt-3 space-y-2 border-t pt-3"
                 data-testid="road-culvert-editor"
                 aria-label={`Selected culvert: ${c.name}`}
               >
-                <p className="text-2xs font-medium text-muted-foreground">
-                  Selected culvert · {formatRoadStation(c.chainage, alignment.stationing ?? null)}
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-2xs font-medium text-muted-foreground">
+                    Selected culvert · {formatRoadStation(c.chainage, alignment.stationing ?? null)}
+                  </p>
+                  <Button size="2xs" variant="ghost" onClick={() => selectCulvert(c.id)}>
+                    <Crosshair className="size-3.5" aria-hidden />
+                    Show in views
+                  </Button>
+                </div>
                 <Name
                   value={c.name}
                   label={`Culvert ${index + 1} name`}
                   onChange={(name) => patch('culverts', c.id, { name })}
                   onDelete={() => remove('culverts', c.id)}
                 />
-                <Button size="sm" variant="ghost" onClick={() => selectCulvert(c.id)}>
-                  Select {formatRoadStation(c.chainage, alignment.stationing ?? null)} in all views
-                </Button>
 
                 <TabBar
                   label="Selected culvert details"
@@ -1540,11 +1561,17 @@ export function EngineeringControls({
                       { key: 'lengthM', label: `Culvert ${index + 1} horizontal barrel span (m)`, min: 0.2, max: 500 },
                       { key: 'diameterM', label: `Culvert ${index + 1} diameter (m)`, min: 0.1, max: 20 },
                       { key: 'minCoverM', label: `Culvert ${index + 1} required cover (m)`, max: 100 },
-                      { key: 'unitCost', label: `Culvert ${index + 1} installed $/m`, max: 1000000 },
+                      {
+                        key: 'unitCost',
+                        label: `Culvert ${index + 1} installed $/m`,
+                        shown: 'Installed cost ($/m)',
+                        max: 1000000,
+                      },
                       { key: 'fixedCost', label: `Culvert ${index + 1} fixed cost ($)`, max: 1e9 },
                     ]}
                     errorFor={errorsFor('culverts', c.id)}
                     onChange={(p) => patch('culverts', c.id, p)}
+                    labelPrefix={`Culvert ${index + 1}`}
                   />
                   <EntryProblem
                     problem={problem}
@@ -1561,9 +1588,9 @@ export function EngineeringControls({
                     ]}
                   />
                   {provisional && (
-                    <InlineAlert tone="warning" title="Provisional installed cost — review required">
-                      {provisional.summary} Open the covered estimate and choose Review culvert rates to confirm or
-                      replace this source.
+                    <InlineAlert tone="warning">
+                      {provisional.headline} <ProvisionalPriceTip status={provisional} />
+                      {provisional.problem && <span className="block">{provisional.problem}</span>}
                     </InlineAlert>
                   )}
                   {canDefault && !analysis.crossingEstimate?.replacedLegacyIds.includes(c.id) && (
@@ -1578,7 +1605,7 @@ export function EngineeringControls({
                         )
                       }
                     >
-                      Use provisional estimate (CAD {CROSS_DRAIN_COST_DEFAULT.unitCost.toFixed(2)}/m)
+                      Use provisional price · CAD {CROSS_DRAIN_COST_DEFAULT.unitCost.toFixed(2)}/m
                     </Button>
                   )}
                   <CulvertOptionFields
@@ -1592,7 +1619,8 @@ export function EngineeringControls({
                 </div>
                 <div hidden={culvertTab !== 'levels'} className="space-y-2">
                   <OptionalNumberField
-                    label={`Culvert ${index + 1} ditch dip to inlet (%)`}
+                    label="Ditch dip to inlet (%)"
+                    ariaLabel={`Culvert ${index + 1} ditch dip to inlet (%)`}
                     placeholder="no dip"
                     value={c.ditchDipPercent ?? null}
                     min={0.1}
@@ -1650,11 +1678,13 @@ export function EngineeringControls({
                         ]}
                         errorFor={errorsFor('culverts', c.id)}
                         onChange={(p) => patch('culverts', c.id, p)}
+                        labelPrefix={`Culvert ${index + 1}`}
                       />
                       {/* The same two inverts, entered as a gradient: one end is held and the other follows. */}
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 items-end gap-2">
                         <NumberField
-                          label={`Culvert ${index + 1} fall, inlet to outlet (%)`}
+                          label="Fall, inlet to outlet (%)"
+                          ariaLabel={`Culvert ${index + 1} fall, inlet to outlet (%)`}
                           value={Number((culvertFallPercent(c) ?? 0).toFixed(3))}
                           min={-50}
                           max={50}
@@ -1665,7 +1695,7 @@ export function EngineeringControls({
                             if (inverts) patch('culverts', c.id, inverts)
                           }}
                         />
-                        <Field label={`Culvert ${index + 1} fall keeps`}>
+                        <Field label="Fall keeps">
                           <RoadSelect
                             ariaLabel={`Culvert ${index + 1} fall keeps`}
                             className={roadFieldClass}
@@ -1683,6 +1713,15 @@ export function EngineeringControls({
                   )}
                 </div>
                 <div hidden={culvertTab !== 'review'} className="space-y-2">
+                  <CulvertReview
+                    culvert={c}
+                    result={result}
+                    row={culvertSchedule?.rows.find((item) => item.id === c.id)}
+                    capacity={culvertScreeningCapacity(c, manningN)}
+                    provisional={provisional}
+                    appraisalBasis={culvertSchedule?.appraisal?.basis}
+                    onShowDrainage={onShowDrainage}
+                  />
                   {c.roadEng && (
                     <p className="text-2xs text-muted-foreground" data-testid="culvert-roadeng-facts">
                       {roadEngCulvertFacts(c, project.surveyBooks?.find((b) => b.id === c.roadEng?.bookId)?.name)}
@@ -1699,35 +1738,6 @@ export function EngineeringControls({
                         onChange={(roadEngDesign) => patch('culverts', c.id, { roadEngDesign })}
                       />
                     </>
-                  )}
-                  <p className="text-2xs leading-4 text-muted-foreground" data-testid="road-culvert-capacity">
-                    {(() => {
-                      const pipe = culvertScreeningCapacity(c, manningN)
-                      return `Full-pipe capacity ${pipe.capacityM3s.toFixed(3)} m³/s at ${(pipe.slope * 100).toFixed(2)} %${pipe.slopeAssumed ? ', assumed until the outlet is below the inlet' : ''} (Manning n ${pipe.manningN}${pipe.approximate ? '; an arch is read as the round pipe of the same end area' : ''}). The peak flow it must carry needs a drainage run.`
-                    })()}
-                  </p>
-                  {result && (
-                    <p className="text-2xs leading-4">
-                      Grade {result.gradePercent?.toFixed(2) ?? '—'}% · minimum formation cover{' '}
-                      {result.coverM?.toFixed(2) ?? '—'} m · required span {result.requiredLengthM?.toFixed(1) ?? '—'} m
-                      {' · '}inclined barrel {result.barrelLengthM?.toFixed(2) ?? 'unknown'} m
-                      {result.warnings.map((warning) => (
-                        <span key={warning} className="mt-1 block text-warning">
-                          {warning}
-                        </span>
-                      ))}
-                    </p>
-                  )}
-                  {(() => {
-                    const row = culvertSchedule?.rows.find((item) => item.id === c.id)
-                    return row ? (
-                      <CulvertStandards row={row} appraisalBasis={culvertSchedule?.appraisal?.basis} />
-                    ) : null
-                  })()}
-                  {onShowDrainage && (
-                    <Button size="sm" variant="outline" onClick={onShowDrainage}>
-                      Open drainage check
-                    </Button>
                   )}
                 </div>
               </div>

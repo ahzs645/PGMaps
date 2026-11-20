@@ -166,6 +166,11 @@ export interface CulvertCostDefaultStatus {
   currencyChanged: boolean
   /** The current mismatch, if any, before the general prompt to confirm a local installed price. */
   problem: string | null
+  /** One line for a list or a field: "Provisional CAD 372.67/m · Alberta 2026 tender average". */
+  headline: string
+  /** What the headline leaves out (the material assumption, the prompt to confirm), for an (i). */
+  notes: string[]
+  /** Headline, problem and notes as one paragraph, for the schedule, the report and the CSV. */
   summary: string
 }
 
@@ -181,18 +186,17 @@ export function culvertCostDefaultStatus(
   const currencyChanged = currency !== source.currency
   const problem = culvertCostDefaultProblem(culvert, currency)
   const basis = `${source.currency} ${source.unitCost.toFixed(2)}${source.unit} · Alberta ${source.priceYear} tender average`
+  const headline = `${edited ? 'Edited from provisional' : 'Provisional'} ${basis}`
+  const material =
+    culvert.material === undefined ? 'CSP is a cost assumption; pipe material has not been confirmed.' : ''
+  const confirm = 'Confirm a current local supply-and-install price and any site-specific work.'
   return {
     edited,
     specChanged,
     currencyChanged,
     problem,
-    summary: [
-      `${edited ? 'Edited from provisional' : 'Provisional'} ${basis}; review required.`,
-      culvert.material === undefined ? 'CSP is a cost assumption; pipe material has not been confirmed.' : '',
-      problem ?? '',
-      'Confirm a current local supply-and-install price and any site-specific work.',
-    ]
-      .filter(Boolean)
-      .join(' '),
+    headline,
+    notes: [material, confirm].filter(Boolean),
+    summary: [`${headline}; review required.`, material, problem ?? '', confirm].filter(Boolean).join(' '),
   }
 }

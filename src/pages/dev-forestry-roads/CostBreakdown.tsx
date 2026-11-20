@@ -28,7 +28,9 @@ import {
   culvertCostDefaultStatus,
   withCulvertCostDefault,
   withUnpricedCrossDrainDefaults,
+  type CulvertCostDefaultStatus,
 } from './culvertCostDefaults'
+import { ProvisionalPriceTip } from './culverts/CulvertEditorParts'
 import { invalidInputNotice } from './inputErrors'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { insetBox } from '@/components/ui/inset-box'
@@ -257,9 +259,13 @@ export function CostBreakdown({
     const status = culvertCostDefaultStatus(culvert, currency)
     return status ? [{ culvert, status }] : []
   })
-  const provisionalGroups = new Map<string, string[]>()
+  // Culverts with the same source note are listed on one line by name.
+  const provisionalGroups = new Map<string, { names: string[]; status: CulvertCostDefaultStatus }>()
   for (const { culvert, status } of provisionalCulverts)
-    provisionalGroups.set(status.summary, [...(provisionalGroups.get(status.summary) ?? []), culvert.name])
+    provisionalGroups.set(status.summary, {
+      names: [...(provisionalGroups.get(status.summary)?.names ?? []), culvert.name],
+      status,
+    })
   const reviewCulverts = () => {
     const first =
       provisionalCulverts[0]?.culvert ??
@@ -347,67 +353,76 @@ export function CostBreakdown({
               tone="warning"
               title={
                 unpriced.length === 1
-                  ? 'One quantity has no rate and adds nothing to the total'
-                  : `${unpriced.length} quantities have no rate and add nothing to the total`
+                  ? 'One quantity has no rate · not in the total'
+                  : `${unpriced.length} quantities have no rate · not in the total`
               }
             >
-              {unpriced.map((item) => item.text).join('; ')}. Enter the missing rate{unpriced.length === 1 ? '' : 's'},
-              or note where the cost is carried.
-              {eligibleCulverts.length > 0 && onProjectEdit && (
-                <div className="mt-2 space-y-1">
-                  <p>
-                    A provisional CAD {CROSS_DRAIN_COST_DEFAULT.unitCost.toFixed(2)}/m estimate is available for{' '}
-                    {eligibleCulverts.length} eligible 600 mm cross-drain{eligibleCulverts.length === 1 ? '' : 's'}. It
-                    assumes corrugated steel pipe, using Alberta’s 2026 supply-and-install tender average. Review the
-                    local price and installation scope.
-                  </p>
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    data-testid="road-culvert-defaults-apply"
-                    onClick={() =>
-                      onProjectEdit(
-                        (p) =>
-                          withUnpricedCrossDrainDefaults(
-                            p,
-                            alignment.id,
-                            eligibleCulverts.map((c) => c.id),
-                          ),
-                        'Use provisional culvert estimates',
-                      )
-                    }
-                  >
-                    Use provisional estimates
+              <ul className="mt-0.5 space-y-0.5">
+                {unpriced.map((item) => (
+                  <li key={item.text}>{item.text}</li>
+                ))}
+              </ul>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {eligibleCulverts.length > 0 && onProjectEdit && (
+                  <>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      data-testid="road-culvert-defaults-apply"
+                      onClick={() =>
+                        onProjectEdit(
+                          (p) =>
+                            withUnpricedCrossDrainDefaults(
+                              p,
+                              alignment.id,
+                              eligibleCulverts.map((c) => c.id),
+                            ),
+                          'Use provisional culvert estimates',
+                        )
+                      }
+                    >
+                      {eligibleCulverts.length === 1 ? 'Use provisional estimate' : 'Use provisional estimates'} · CAD{' '}
+                      {CROSS_DRAIN_COST_DEFAULT.unitCost.toFixed(2)}/m
+                    </Button>
+                    <InfoTip label="About the provisional estimate">
+                      For {eligibleCulverts.length} eligible 600 mm cross-drain
+                      {eligibleCulverts.length === 1 ? '' : 's'}: Alberta’s 2026 supply-and-install tender average for
+                      corrugated steel pipe. It stays marked provisional until a local price is confirmed.
+                    </InfoTip>
+                  </>
+                )}
+                {/* With provisional prices listed below, their notice carries the one review button. */}
+                {!provisionalCulverts.length && countedCulverts.some((c) => c.unitCost === 0 && c.fixedCost === 0) && (
+                  <Button size="xs" variant="outline" onClick={reviewCulverts}>
+                    Review culvert rates
                   </Button>
-                </div>
-              )}
-              {countedCulverts.some((c) => c.unitCost === 0 && c.fixedCost === 0) && (
-                <Button size="xs" variant="outline" className="mt-2" onClick={reviewCulverts}>
-                  Review culvert rates
-                </Button>
-              )}
+                )}
+              </div>
             </InlineAlert>
           </div>
         )}
         {provisionalCulverts.length > 0 && (
           <div data-testid="road-culvert-defaults-review">
-            <InlineAlert tone="warning" title="Provisional culvert estimates — review local installed cost">
-              <ul className="space-y-1">
-                {[...provisionalGroups].map(([summary, names]) => (
+            <InlineAlert tone="warning" title="Provisional culvert estimates · confirm local prices">
+              <ul className="mt-0.5 space-y-0.5">
+                {[...provisionalGroups].map(([summary, { names, status }]) => (
                   <li key={summary}>
-                    <strong>{names.join(', ')}:</strong> {summary}
+                    <span className="font-medium">{names.join(', ')}:</span> {status.headline}
+                    {status.problem && <span className="block">{status.problem}</span>}
                   </li>
                 ))}
               </ul>
-              <Button
-                size="xs"
-                variant="outline"
-                className="mt-2"
-                data-testid="road-culvert-defaults-review-open"
-                onClick={reviewCulverts}
-              >
-                Review culvert rates
-              </Button>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button
+                  size="xs"
+                  variant="outline"
+                  data-testid="road-culvert-defaults-review-open"
+                  onClick={reviewCulverts}
+                >
+                  Review culvert rates
+                </Button>
+                <ProvisionalPriceTip status={provisionalCulverts[0].status} />
+              </div>
             </InlineAlert>
           </div>
         )}

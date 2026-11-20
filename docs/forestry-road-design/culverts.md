@@ -18,7 +18,17 @@ keep; Review keeps the calculated geometry, warnings, source evidence and engine
 together. All existing fields remain available, and invalid inputs stay reachable in the editor.
 Selection and the editor tab are workspace state, never part of a saved road.
 
-The Review tab shows three things, kept on separate lines because they answer different questions:
+The Review tab (`CulvertReview`, `culverts/CulvertEditorParts.tsx`) reads top to bottom in the
+order a designer needs it: the calculated figures (grade, least cover against the required
+cover, span against the required span, inclined barrel, full-pipe capacity and construction
+cost, marked **Provisional** while its price is), then one **Needs attention** box with the
+engine's warnings and every unmet check, then the design checks counted by state with **Met**,
+**Not assessed** and **Notes** folded. Several checks waiting on the same evidence state the
+reason once. The rule each check is judged on, the capacity's assumptions and the appraisal
+reasons sit behind an (i); appraisal, class and hydraulics are folded last. The selected
+editor sits under a hairline in the section rather than in a box of its own.
+
+Its figures and checks answer three different questions, kept apart:
 
 | Line                    | Question it answers                                                    | Where it comes from                                                                 |
 | ----------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
