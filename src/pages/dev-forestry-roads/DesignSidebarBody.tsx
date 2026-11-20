@@ -1,5 +1,5 @@
-import type { CommandState, WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
-import type { WorkflowEditor } from '@/components/interfaces/workspaceLayouts'
+import type { CommandState, WorkspaceCommand } from '@/pages/dev-forestry-roads/interface/workspaceCommands'
+import type { WorkflowEditor } from '@/pages/dev-forestry-roads/interface/workspaceLayouts'
 import type { PointCloudCropChoice } from './pointCloudCrop'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ClipboardCheck, HardHat, Mountain, Route, SlidersHorizontal } from 'lucide-react'

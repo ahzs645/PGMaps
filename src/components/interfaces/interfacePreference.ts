@@ -1,18 +1,13 @@
 /**
- * Which workspace interface the road designer opens in. No DOM access: the caller passes the
- * URL search string and the stored choice, so the rule is unit-testable.
+ * Which workspace interface a tool opens in. No DOM access in the rule itself: the caller passes
+ * the URL search string and the stored choice, so it is unit-testable.
  *
- * The designer never stops at a chooser. It opens, in order of precedence, the interface named
- * by `?interface=` (a shared link), the one this browser last used, the Ribbon (which opens on
- * the linked plan, profile and cross-section panels), or the first served layout.
+ * A tool never stops at a chooser. It opens, in order of precedence, the interface named by
+ * `?interface=` (a shared link), the one this browser last used for this tool, the tool's default,
+ * or the first served layout.
  */
-const INTERFACE_STORAGE_KEY = 'pgmaps-road-interface'
 const INTERFACE_PARAM = 'interface'
-const DEFAULT_INTERFACE = 'ribbon'
-/** The built-in layout used when the served catalog cannot be read (`workspaceLayouts.ts`). */
-export const DEFAULT_INTERFACE_NAME = 'Guided mode'
 
-/** Keep the launching workspace in help links, including layouts without a Ribbon. */
 /** The help's address for an interface (`/help?interface=<id>`): its lessons then open in it. */
 export function workspaceHelpSearch(layout: { id: string }) {
   return new URLSearchParams({ interface: layout.id }).toString()
@@ -22,38 +17,45 @@ export function initialInterfaceId(
   layouts: readonly { id: string }[],
   search: string,
   stored: string | null,
+  fallback?: string,
 ): string | undefined {
   const known = (id: string | null | undefined) => (id && layouts.some((layout) => layout.id === id) ? id : undefined)
-  return (
-    known(new URLSearchParams(search).get(INTERFACE_PARAM)) ??
-    known(stored) ??
-    known(DEFAULT_INTERFACE) ??
-    layouts[0]?.id
-  )
-}
-
-export function readStoredInterface(): string | null {
-  try {
-    return localStorage.getItem(INTERFACE_STORAGE_KEY)
-  } catch {
-    return null
-  }
+  return known(new URLSearchParams(search).get(INTERFACE_PARAM)) ?? known(stored) ?? known(fallback) ?? layouts[0]?.id
 }
 
 /**
- * Remember a chosen interface. A link that named another one is rewritten to this choice, so a
- * reload opens what the user switched to rather than what the link said. It builds on the address
- * bar as it is now (AGENTS.md: router params can lag it).
+ * One tool's remembered interface, under `pgmaps-<storage>-interface`. `defaultId` is what the tool
+ * opens with nothing chosen.
  */
-export function storeInterface(id: string) {
-  try {
-    localStorage.setItem(INTERFACE_STORAGE_KEY, id)
-  } catch {
-    /* The chosen interface still applies to this session. */
-  }
-  const url = new URL(window.location.href)
-  if (url.searchParams.has(INTERFACE_PARAM) && url.searchParams.get(INTERFACE_PARAM) !== id) {
-    url.searchParams.set(INTERFACE_PARAM, id)
-    window.history.replaceState(window.history.state, '', url)
+export function interfacePreferences(storage: string, defaultId: string) {
+  const key = `pgmaps-${storage}-interface`
+  return {
+    initialInterfaceId: (layouts: readonly { id: string }[], search: string, stored: string | null) =>
+      initialInterfaceId(layouts, search, stored, defaultId),
+    readStoredInterface(): string | null {
+      try {
+        return localStorage.getItem(key)
+      } catch {
+        return null
+      }
+    },
+    /**
+     * Remember a chosen interface. A link that named another one is rewritten to this choice, so a
+     * reload opens what the user switched to rather than what the link said. It builds on the
+     * address bar as it is now (AGENTS.md: router params can lag it).
+     */
+    storeInterface(id: string) {
+      try {
+        localStorage.setItem(key, id)
+      } catch {
+        /* The chosen interface still applies to this session. */
+      }
+      const url = new URL(window.location.href)
+      if (url.searchParams.has(INTERFACE_PARAM) && url.searchParams.get(INTERFACE_PARAM) !== id) {
+        url.searchParams.set(INTERFACE_PARAM, id)
+        window.history.replaceState(window.history.state, '', url)
+      }
+    },
   }
 }
+export type InterfacePreferences = ReturnType<typeof interfacePreferences>

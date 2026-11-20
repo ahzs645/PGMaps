@@ -1,4 +1,4 @@
-import type { WorkspaceLayout } from '@/components/interfaces/workspaceLayouts'
+import type { WorkspaceLayout } from '@/pages/dev-forestry-roads/interface/workspaceLayouts'
 import {
   parseSummaryOptions,
   type SummaryLevel,

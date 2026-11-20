@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { parseLayoutCatalog } from './workspaceLayouts'
-import { parseSummaryOptions } from './workspaceLayoutSchema'
+import { parseSummaryOptions } from '@/components/interfaces/workspaceLayoutSchema'
 
-const shipped = JSON.parse(readFileSync(new URL('../../../public/workspace-layouts.json', import.meta.url), 'utf8'))
+const shipped = JSON.parse(readFileSync(new URL('../../../../public/workspace-layouts.json', import.meta.url), 'utf8'))
 const minimal = { id: 'plain', name: 'Plain', description: 'A layout.' }
 const toolbar = (groups: unknown[], extra: object = {}) => ({
   ...minimal,

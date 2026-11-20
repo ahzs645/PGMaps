@@ -3,8 +3,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { SearchResultContent } from '@/components/ui/search-combobox'
 import { SearchPalette } from '@/components/ui/search-palette'
 import { isApplePlatform } from '@/lib/platform'
-import type { WorkspaceCommand } from './workspaceCommands'
-import type { WorkspaceWidget } from './workspaceLayouts'
 
 interface SearchLocation {
   label: string
@@ -16,7 +14,7 @@ interface SearchLocation {
   icon?: LucideIcon
 }
 
-export type ToolResult = SearchLocation & { id: WorkspaceCommand | WorkspaceWidget; target?: undefined }
+export type ToolResult = SearchLocation & { id: string; target?: undefined }
 export type EditorResult = SearchLocation & { id: string; target: HTMLElement }
 export type RibbonResult = ToolResult | EditorResult
 

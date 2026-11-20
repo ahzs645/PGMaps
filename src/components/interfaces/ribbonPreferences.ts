@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { list, object, text } from '@/lib/jsonGuards'
-import type { WorkspaceLayout, WorkspaceToolbar } from './workspaceLayouts'
-import type { RibbonTool } from './ribbonToolCatalog'
+import { useWorkspaceKit } from './workspaceKit'
+import type { AnyLayout, AnyToolbar } from './workspaceLayoutSchema'
 
+type WorkspaceToolbar = AnyToolbar
+type RibbonTool = string
 export type RibbonTab = WorkspaceToolbar['groups'][number]
 export type RibbonSection = NonNullable<RibbonTab['sections']>[number] & { preferenceKey?: string }
 export const groupKey = (section: RibbonSection) => section.preferenceKey ?? section.label
 
 /** Occurrences distinguish groups that share a caption, including after a personal reorder. */
-function identifyGroups(toolbar: WorkspaceToolbar): WorkspaceToolbar {
+function identifyGroups<T extends WorkspaceToolbar>(toolbar: T): T {
   return {
     ...toolbar,
     groups: toolbar.groups.map((tab) => {
@@ -25,9 +27,10 @@ function identifyGroups(toolbar: WorkspaceToolbar): WorkspaceToolbar {
     }),
   }
 }
-const storageKey = (layoutId: string) => `pgmaps-road-ribbon-order:${layoutId}`
+/** Each tool keeps its own arrangements: `pgmaps-road-ribbon-order:<layout>`, `pgmaps-visuals-…`. */
+const storageKey = (storage: string, layoutId: string) => `pgmaps-${storage}-ribbon-order:${layoutId}`
 /** The tabs' order lives under its own key, so arrangements saved before tabs could move still read. */
-const tabOrderKey = (layoutId: string) => `pgmaps-road-ribbon-tabs:${layoutId}`
+const tabOrderKey = (storage: string, layoutId: string) => `pgmaps-${storage}-ribbon-tabs:${layoutId}`
 type Preferences = { tab: string; order?: string[]; sections: { label: string; items: string[]; more: string[] }[] }[]
 
 const names = (value: unknown, label: string) => list(value, label).map((name) => text(name, label, 400))
@@ -56,17 +59,17 @@ function parsePreferences(raw: string | null): Preferences {
   }
 }
 
-function readPreferences(id: string) {
+function readPreferences(storage: string, id: string) {
   try {
-    return parsePreferences(localStorage.getItem(storageKey(id)))
+    return parsePreferences(localStorage.getItem(storageKey(storage, id)))
   } catch {
     return []
   }
 }
 
-function readTabOrder(id: string): string[] {
+function readTabOrder(storage: string, id: string): string[] {
   try {
-    const raw = localStorage.getItem(tabOrderKey(id))
+    const raw = localStorage.getItem(tabOrderKey(storage, id))
     return raw ? names(JSON.parse(raw), 'Ribbon tab order').slice(0, 100) : []
   } catch {
     return []
@@ -86,7 +89,7 @@ export function moveTo<T>(list: readonly T[], from: number, to: number): T[] {
  * The tabs in a saved order. Names the served layout no longer has are dropped; tabs it gained keep
  * their served place relative to the tab before them, so a new tab does not land at the end.
  */
-export function orderTabs(toolbar: WorkspaceToolbar, order: readonly string[]): WorkspaceToolbar {
+export function orderTabs<T extends WorkspaceToolbar>(toolbar: T, order: readonly string[]): T {
   if (!order.length) return toolbar
   const byLabel = new Map(toolbar.groups.map((tab) => [tab.label, tab]))
   const groups = order.flatMap((label) => {
@@ -153,7 +156,7 @@ function reconcileSection(source: RibbonSection, saved: Preferences[number]['sec
   }
 }
 
-function applyPreferences(toolbar: WorkspaceToolbar, prefs: Preferences): WorkspaceToolbar {
+function applyPreferences<T extends WorkspaceToolbar>(toolbar: T, prefs: Preferences): T {
   if (!prefs.length) return toolbar
   return {
     ...toolbar,
@@ -174,21 +177,34 @@ function applyPreferences(toolbar: WorkspaceToolbar, prefs: Preferences): Worksp
   }
 }
 
-const read = (id: string) => ({ id, prefs: readPreferences(id), tabs: readTabOrder(id) })
+const read = (storage: string, id: string) => ({
+  id,
+  prefs: readPreferences(storage, id),
+  tabs: readTabOrder(storage, id),
+})
 
-export function useRibbonPreferences(layout: WorkspaceLayout) {
-  const [entry, setEntry] = useState(() => read(layout.id))
-  if (entry.id !== layout.id) setEntry(read(layout.id))
+export function useRibbonPreferences<L extends AnyLayout>(layout: L) {
+  const { storage } = useWorkspaceKit()
+  const [entry, setEntry] = useState(() => read(storage, layout.id))
+  if (entry.id !== layout.id) setEntry(read(storage, layout.id))
   useEffect(() => {
     const receive = (event: StorageEvent) => {
-      if (event.key === storageKey(layout.id) || event.key === tabOrderKey(layout.id) || event.key === null) {
-        setEntry(read(layout.id))
+      if (
+        event.key === storageKey(storage, layout.id) ||
+        event.key === tabOrderKey(storage, layout.id) ||
+        event.key === null
+      ) {
+        setEntry(read(storage, layout.id))
       }
     }
     window.addEventListener('storage', receive)
     return () => window.removeEventListener('storage', receive)
-  }, [layout.id])
-  const defaults = useMemo(() => layout.toolbar && identifyGroups(layout.toolbar), [layout.toolbar])
+  }, [storage, layout.id])
+  type Toolbar = NonNullable<L['toolbar']>
+  const defaults = useMemo(
+    () => (layout.toolbar ? identifyGroups(layout.toolbar as Toolbar) : undefined),
+    [layout.toolbar],
+  )
   const toolbar = useMemo(() => {
     if (!defaults) return defaults
     const current = entry.id === layout.id ? entry : { prefs: [], tabs: [] }
@@ -206,8 +222,8 @@ export function useRibbonPreferences(layout: WorkspaceLayout) {
     const tabs = tabOrderFor(defaults, draft)
     setEntry({ id: layout.id, prefs, tabs })
     try {
-      store(storageKey(layout.id), prefs)
-      store(tabOrderKey(layout.id), tabs)
+      store(storageKey(storage, layout.id), prefs)
+      store(tabOrderKey(storage, layout.id), tabs)
       return true
     } catch {
       return false
@@ -220,7 +236,7 @@ export function useRibbonPreferences(layout: WorkspaceLayout) {
     const tabs = tabOrderFor(defaults, orderTabs(defaults, order))
     setEntry((previous) => ({ ...previous, id: layout.id, tabs }))
     try {
-      store(tabOrderKey(layout.id), tabs)
+      store(tabOrderKey(storage, layout.id), tabs)
       return true
     } catch {
       return false

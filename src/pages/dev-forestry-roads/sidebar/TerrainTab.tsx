@@ -1,6 +1,6 @@
 import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
 import { ROAD_TOUR_ANCHORS } from '../tours/roadTour'
-import type { WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
+import type { WorkspaceCommand } from '@/pages/dev-forestry-roads/interface/workspaceCommands'
 import type { ReactNode } from 'react'
 import { insetBox } from '@/components/ui/inset-box'
 import { Button } from '@/components/ui/button'

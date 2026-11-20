@@ -1,7 +1,6 @@
 import { ArrowDownRight, PanelRightOpen } from 'lucide-react'
 import { useCallback, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { RibbonTaskPane } from './RibbonTaskPane'
-import type { RibbonTool } from './ribbonToolCatalog'
 import './ribbonGroupSettings.css'
 
 /** Prefer the editor itself to any adjacent help button when finding a field. */
@@ -35,7 +34,7 @@ export function RibbonGroupSettings({
   tab: string
   label: string
   open: boolean
-  focusItem?: RibbonTool
+  focusItem?: string
   standalone: boolean
   onOpenChange: (open: boolean) => void
   children: ReactNode

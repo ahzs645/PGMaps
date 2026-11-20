@@ -1,5 +1,5 @@
 import type { EditorResult } from './RibbonFinder'
-import type { WorkspaceToolbar } from './workspaceLayouts'
+import type { AnyToolbar as WorkspaceToolbar } from './workspaceLayoutSchema'
 
 /** Read the mounted editors when Find tools opens, including sections inside folded disclosures. */
 export function editorSections(host: HTMLElement, tabs: WorkspaceToolbar['groups'], disabled: boolean): EditorResult[] {

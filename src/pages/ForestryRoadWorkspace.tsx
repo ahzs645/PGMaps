@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { loadWorkspaceLayouts, type WorkspaceLayout } from '../components/interfaces/workspaceLayouts'
-import { initialInterfaceId, readStoredInterface } from '../components/interfaces/interfacePreference'
+import { loadWorkspaceLayouts, type WorkspaceLayout } from '@/pages/dev-forestry-roads/interface/workspaceLayouts'
+import { initialInterfaceId, readStoredInterface } from '@/pages/dev-forestry-roads/interface/interfacePreference'
 import { BrandScope } from '../branding/BrandScope'
+import { WorkspaceKitProvider } from '@/components/interfaces/workspaceKit'
+import { ROAD_KIT } from '@/pages/dev-forestry-roads/interface/roadKit'
 import { useOfflineTool } from '../lib/offline/offlineTools'
 
 const RoadDesign = lazy(() => import('./DevForestryRoads'))
@@ -44,7 +46,9 @@ function RoadWorkspaceLoader() {
   if (!catalog) return loading
   return (
     <Suspense fallback={loading}>
-      <RoadDesign layouts={catalog.layouts} initialInterface={catalog.initial} layoutsFallback={catalog.fallback} />
+      <WorkspaceKitProvider kit={ROAD_KIT}>
+        <RoadDesign layouts={catalog.layouts} initialInterface={catalog.initial} layoutsFallback={catalog.fallback} />
+      </WorkspaceKitProvider>
     </Suspense>
   )
 }

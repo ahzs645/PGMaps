@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { TutorialSemanticAction } from 'tourkit/core'
-import { workspaceCommands } from '@/components/interfaces/workspaceCommands'
+import { workspaceCommands } from '@/pages/dev-forestry-roads/interface/workspaceCommands'
 import {
   ROAD_EDITOR_COMMANDS,
   ROAD_TOUR_ACTIONS,

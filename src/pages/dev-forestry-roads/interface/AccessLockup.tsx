@@ -1,5 +1,5 @@
-import { logoDataUrl, type BrandSurface } from '../../branding/model'
-import { useBranding } from '../../branding/useBranding'
+import { logoDataUrl, type BrandSurface } from '@/branding/model'
+import { useBranding } from '@/branding/useBranding'
 
 export function AccessLockup({
   compact = false,

@@ -1,8 +1,9 @@
 /**
- * The `workspace-layouts.json` contract: types and a hand-written parser (house style, see
- * `src/lib/jsonGuards.ts`). No DOM, icon or road imports: the application passes the vocabulary
- * of icon, command and widget ids it supports, so this module is reusable for any workspace and
- * unit-testable on its own. Guide: `docs/forestry-road-design/workspace-layouts.md`.
+ * The layout-file contract (`public/workspace-layouts.json`, `public/visuals-layouts.json`): types
+ * and a hand-written parser (house style, see `src/lib/jsonGuards.ts`). No DOM, icon or tool
+ * imports: each tool passes the vocabulary of icon, command, widget, editor and preset ids it
+ * supports, so this module serves every workspace and is unit-testable on its own. Guides:
+ * `docs/workspace-interfaces.md` and `docs/forestry-road-design/workspace-layouts.md`.
  */
 import {
   bool,
@@ -18,10 +19,6 @@ import {
 } from '@/lib/jsonGuards'
 import { parsePanelWindowLayouts, type PanelWindowLayout } from '@pgmaps/geo-toolkit/ui/panel-window-layout'
 
-const WORKFLOW_EDITORS = ['terrain', 'design', 'template', 'engineering', 'review'] as const
-export type WorkflowEditor = (typeof WORKFLOW_EDITORS)[number]
-
-const LAYOUT_PRESETS = ['linked', 'split', 'plan', 'engineering', 'pegging'] as const
 const SUMMARY_LEVELS = ['hidden', 'value', 'detailed'] as const
 export type SummaryLevel = (typeof SUMMARY_LEVELS)[number]
 const SUMMARY_PLACEMENTS = ['left', 'top'] as const
@@ -36,32 +33,58 @@ export interface SummaryOptions {
   curveNote?: (typeof CURVE_NOTES)[number]
 }
 
-export interface LayoutVocabulary<I extends string, C extends string, W extends string> {
+export interface LayoutVocabulary<
+  I extends string,
+  C extends string,
+  W extends string,
+  E extends string = string,
+  P extends string = string,
+> {
   icons: readonly I[]
   commands: readonly C[]
   widgets: readonly W[]
+  /** The workflow editors a ribbon tab can host (`editor`). */
+  editors: readonly E[]
+  /** The screen presets an interface can start on (`preset`); the first is the default. */
+  presets: readonly P[]
+  /** Named tool lists a ribbon section can `collect`; `remainingTools` is always available. */
+  collections?: Readonly<Record<string, readonly (C | W)[]>>
   panels?: readonly string[]
 }
+
+/** The tool list every vocabulary offers: whatever no other place in the toolbar holds. */
+export const REMAINING_TOOLS = 'remainingTools'
 
 interface LayoutSection<C extends string = string, W extends string = string> {
   label: string
   rows?: 1 | 2 | 3
-  collect?: 'documentExports' | 'dataExports' | 'remainingTools'
+  /** A tool list from the vocabulary's `collections`, or `remainingTools`, added to `more`. */
+  collect?: string
   primary?: C
   items: (C | W)[]
   more?: (C | W)[]
 }
 
-interface LayoutGroup<I extends string = string, C extends string = string, W extends string = string> {
+interface LayoutGroup<
+  I extends string = string,
+  C extends string = string,
+  W extends string = string,
+  E extends string = string,
+> {
   label: string
   icon?: I
   hint?: string
-  editor?: WorkflowEditor
+  editor?: E
   commands?: C[]
   sections?: LayoutSection<C, W>[]
 }
 
-export interface LayoutToolbar<I extends string = string, C extends string = string, W extends string = string> {
+export interface LayoutToolbar<
+  I extends string = string,
+  C extends string = string,
+  W extends string = string,
+  E extends string = string,
+> {
   dock: 'top' | 'side'
   fullWidth?: boolean
   compact?: boolean
@@ -77,7 +100,7 @@ export interface LayoutToolbar<I extends string = string, C extends string = str
   tabsLabel: string
   title?: string
   startGroup?: string
-  groups: LayoutGroup<I, C, W>[]
+  groups: LayoutGroup<I, C, W, E>[]
 }
 
 interface PanelFrame {
@@ -88,19 +111,25 @@ interface PanelFrame {
   resizeCorners?: boolean
 }
 
-export interface LayoutConfig<I extends string = string, C extends string = string, W extends string = string> {
+export interface LayoutConfig<
+  I extends string = string,
+  C extends string = string,
+  W extends string = string,
+  E extends string = string,
+  P extends string = string,
+> {
   id: string
   name: string
   shortName?: string
   description: string
   icon: I
   preview?: string
-  preset: (typeof LAYOUT_PRESETS)[number]
+  preset: P
   sidebar: 'open' | 'collapsed'
   view: 'responsive' | 'focused'
   summary?: SummaryOptions
   panelFrame?: PanelFrame
-  toolbar?: LayoutToolbar<I, C, W>
+  toolbar?: LayoutToolbar<I, C, W, E>
   /** Commands and widgets on the header line, in order. Absent: the workspace's default line. */
   headerTools?: (C | W)[]
   /** Optional separate-window/tab defaults, restored through the host's panel manager. */
@@ -127,10 +156,13 @@ export function parseSummaryOptions(value: unknown, label = 'Summary'): SummaryO
 }
 
 /** Parse the whole served catalog. Throws a readable Error naming the first problem found. */
-export function parseWorkspaceLayouts<I extends string, C extends string, W extends string>(
-  value: unknown,
-  vocabulary: LayoutVocabulary<I, C, W>,
-): LayoutConfig<I, C, W>[] {
+export function parseWorkspaceLayouts<
+  I extends string,
+  C extends string,
+  W extends string,
+  E extends string,
+  P extends string,
+>(value: unknown, vocabulary: LayoutVocabulary<I, C, W, E, P>): LayoutConfig<I, C, W, E, P>[] {
   const layouts = list(value, 'The layout list', 50, 1).map((entry, i) => parseLayout(entry, vocabulary, i + 1))
   distinct(
     layouts.map((layout) => layout.id),
@@ -156,11 +188,11 @@ const LAYOUT_KEYS = [
   'panelWindows',
 ]
 
-export function parseLayout<I extends string, C extends string, W extends string>(
+export function parseLayout<I extends string, C extends string, W extends string, E extends string, P extends string>(
   value: unknown,
-  vocabulary: LayoutVocabulary<I, C, W>,
+  vocabulary: LayoutVocabulary<I, C, W, E, P>,
   position = 1,
-): LayoutConfig<I, C, W> {
+): LayoutConfig<I, C, W, E, P> {
   const source = strictObject(value, `Layout ${position}`, LAYOUT_KEYS)
   const id = text(source.id, `Layout ${position} id`, 60)
   if (!/^[a-z][a-z0-9-]*$/.test(id)) throw Error(`Layout id "${id}" must be lowercase letters, digits and hyphens.`)
@@ -175,7 +207,7 @@ export function parseLayout<I extends string, C extends string, W extends string
     description: text(source.description, `${label} description`, 400),
     icon: optional(source, 'icon', (v) => oneOf(v, `${label} icon`, vocabulary.icons)) ?? defaultIcon(vocabulary),
     preview,
-    preset: optional(source, 'preset', (v) => oneOf(v, `${label} preset`, LAYOUT_PRESETS)) ?? 'linked',
+    preset: optional(source, 'preset', (v) => oneOf(v, `${label} preset`, vocabulary.presets)) ?? vocabulary.presets[0],
     sidebar: optional(source, 'sidebar', (v) => oneOf(v, `${label} sidebar`, ['open', 'collapsed'] as const)) ?? 'open',
     view:
       optional(source, 'view', (v) => oneOf(v, `${label} view`, ['responsive', 'focused'] as const)) ?? 'responsive',
@@ -197,7 +229,7 @@ export function parseLayout<I extends string, C extends string, W extends string
   })
 }
 
-function defaultIcon<I extends string>(vocabulary: LayoutVocabulary<I, string, string>): I {
+function defaultIcon<I extends string>(vocabulary: { icons: readonly I[] }): I {
   return (vocabulary.icons.find((icon) => icon === 'panels') ?? vocabulary.icons[0]) as I
 }
 
@@ -232,11 +264,11 @@ const TOOLBAR_KEYS = [
   'groups',
 ]
 
-function parseToolbar<I extends string, C extends string, W extends string>(
+function parseToolbar<I extends string, C extends string, W extends string, E extends string, P extends string>(
   value: unknown,
-  vocabulary: LayoutVocabulary<I, C, W>,
+  vocabulary: LayoutVocabulary<I, C, W, E, P>,
   label: string,
-): LayoutToolbar<I, C, W> {
+): LayoutToolbar<I, C, W, E> {
   const source = strictObject(value, label, TOOLBAR_KEYS)
   const flag = (key: string) => optional(source, key, (v) => bool(v, `${label} ${key}`))
   const command = (v: unknown, what: string) => oneOf(v, what, vocabulary.commands)
@@ -280,11 +312,11 @@ function parseToolbar<I extends string, C extends string, W extends string>(
   return toolbar
 }
 
-function parseGroup<I extends string, C extends string, W extends string>(
+function parseGroup<I extends string, C extends string, W extends string, E extends string, P extends string>(
   value: unknown,
-  vocabulary: LayoutVocabulary<I, C, W>,
+  vocabulary: LayoutVocabulary<I, C, W, E, P>,
   toolbarLabel: string,
-): LayoutGroup<I, C, W> {
+): LayoutGroup<I, C, W, E> {
   const source = strictObject(value, `${toolbarLabel} group`, [
     'label',
     'icon',
@@ -298,7 +330,7 @@ function parseGroup<I extends string, C extends string, W extends string>(
     label: text(source.label, label),
     icon: optional(source, 'icon', (v) => oneOf(v, `${label} icon`, vocabulary.icons)),
     hint: optional(source, 'hint', (v) => text(v, `${label} hint`, 400)),
-    editor: optional(source, 'editor', (v) => oneOf(v, `${label} editor`, WORKFLOW_EDITORS)),
+    editor: optional(source, 'editor', (v) => oneOf(v, `${label} editor`, vocabulary.editors)),
     commands: optional(source, 'commands', (v) => {
       const ids = list(v, `${label} commands`, 100, 1).map((id) => oneOf(id, `${label} command`, vocabulary.commands))
       distinct(ids, 'Repeated command in group.')
@@ -316,7 +348,7 @@ function parseGroup<I extends string, C extends string, W extends string>(
 
 function parseSection<C extends string, W extends string>(
   value: unknown,
-  vocabulary: LayoutVocabulary<string, C, W>,
+  vocabulary: LayoutVocabulary<string, C, W, string, string>,
   groupLabel: string,
 ): LayoutSection<C, W> {
   const source = strictObject(value, `${groupLabel} section`, ['label', 'rows', 'primary', 'items', 'more', 'collect'])
@@ -329,7 +361,7 @@ function parseSection<C extends string, W extends string>(
     rows: optional(source, 'rows', (v) => oneOf(v, `${label} rows`, [1, 2, 3] as const)),
     primary: optional(source, 'primary', (v) => oneOf(v, `${label} primary`, vocabulary.commands)),
     collect: optional(source, 'collect', (v) =>
-      oneOf(v, label, ['documentExports', 'dataExports', 'remainingTools'] as const),
+      oneOf(v, `${label} collect`, [...Object.keys(vocabulary.collections ?? {}), REMAINING_TOOLS]),
     ),
     items: items('items') ?? [],
     more: items('more'),
@@ -346,3 +378,45 @@ function compact<T extends JsonObject>(value: T): T {
   for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key]
   return value
 }
+
+/**
+ * Expand the sections that `collect` a tool list: each gains, under `more`, the tools of that list
+ * no explicit placement holds. Hosted placements win; run it before personal ribbon preferences.
+ */
+export function resolveToolbar<T extends LayoutToolbar<string, string, string, string>>(
+  toolbar: T,
+  vocabulary: Pick<LayoutVocabulary<string, string, string>, 'commands' | 'widgets' | 'collections'>,
+): T {
+  const sections = toolbar.groups.flatMap((tab) => tab.sections ?? [])
+  if (!sections.some((section) => section.collect)) return toolbar
+  const placed = new Set<string>([
+    ...(toolbar.tabTools ?? []),
+    ...toolbar.groups.flatMap((tab) => tab.commands ?? []),
+    ...sections.flatMap((section) => [...section.items, ...(section.more ?? [])]),
+  ])
+  const additions = new Map<(typeof sections)[number], string[]>()
+  const collect = (source: readonly string[], section: (typeof sections)[number]) => {
+    const missing = source.filter((id) => !placed.has(id))
+    missing.forEach((id) => placed.add(id))
+    additions.set(section, missing)
+  }
+  // Named lists first, so `remainingTools` takes only what none of them claimed.
+  for (const section of sections)
+    if (section.collect && section.collect !== REMAINING_TOOLS)
+      collect(vocabulary.collections?.[section.collect] ?? [], section)
+  for (const section of sections)
+    if (section.collect === REMAINING_TOOLS) collect([...vocabulary.commands, ...vocabulary.widgets], section)
+  return {
+    ...toolbar,
+    groups: toolbar.groups.map((tab) => ({
+      ...tab,
+      sections: tab.sections?.map((section) =>
+        additions.has(section) ? { ...section, more: [...(section.more ?? []), ...additions.get(section)!] } : section,
+      ),
+    })),
+  }
+}
+
+/** A layout or toolbar of any tool, as the shared renderers take them. */
+export type AnyLayout = LayoutConfig<string, string, string, string, string>
+export type AnyToolbar = LayoutToolbar<string, string, string, string>

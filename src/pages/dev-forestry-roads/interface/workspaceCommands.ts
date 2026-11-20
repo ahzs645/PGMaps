@@ -119,34 +119,30 @@ import {
   Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { WorkflowEditor } from './workspaceLayoutSchema'
+import {
+  commandTooltip,
+  resolveCommandIn,
+  type CommandDef,
+  type CommandState,
+} from '@/components/interfaces/workspaceKit'
+import type { WorkflowEditor } from './workspaceLayouts'
+
+/** A road command: an editor command names one of the road's workflow editors. */
+interface RoadCommandDef extends CommandDef {
+  editor?: WorkflowEditor
+}
 
 /**
  * Every command the road workspace offers, defined once. Layouts (`public/workspace-layouts.json`)
  * arrange these IDs into a ribbon, a guide or a header; every renderer reads the label, icon and
- * kind from here, and the workspace supplies one handler and one state per ID.
+ * kind from here (through `roadKit.tsx`), and the workspace supplies one handler and one state per ID.
+ * The shape of a command and the renderers are the shared interface kit's (`workspaceKit.tsx`).
  *
- * - `kind: 'pane'` opens a task pane, so a renderer closes its own open group settings first.
- * - `kind: 'editor'` shows one of the workflow editors; the workspace derives its handler from `editor`.
  * - Each command has its own icon, so two commands never look alike side by side
  *   (`workspaceCommands.test.ts`).
  * - `investigation: true` keeps the command available while the project is an access investigation
  *   (evidence only, no design yet); every other command is hidden there.
  */
-interface CommandDef {
-  label: string
-  icon: LucideIcon
-  /** What the command does when its label alone cannot say it; every surface shows it as the tooltip. */
-  description?: string
-  /**
-   * Other captions the workspace's state gives it while you work ("Undo point" while pegging). A
-   * ribbon button keeps room for the longest, so a caption change never shifts its neighbours.
-   */
-  altLabels?: readonly string[]
-  kind?: 'pane' | 'editor'
-  editor?: WorkflowEditor
-  investigation?: boolean
-}
 
 /** Keep existing layout and preference IDs for the original export shortcuts. */
 function exportCommandId(kind: RoadExport) {
@@ -397,7 +393,7 @@ export const workspaceCommands = {
   },
   profile: { label: 'Road profile', icon: ChartSpline },
   chooseInterface: { label: 'Switch interface', icon: LayoutTemplate, kind: 'pane', investigation: true },
-} satisfies Record<string, CommandDef>
+} satisfies Record<string, RoadCommandDef>
 export type WorkspaceCommand = keyof typeof workspaceCommands
 /** Commands that show a workflow editor; the workspace derives their handlers from `editor`. */
 export type EditorCommand = {
@@ -405,53 +401,16 @@ export type EditorCommand = {
 }[WorkspaceCommand]
 export const workspaceCommandIds = Object.keys(workspaceCommands) as WorkspaceCommand[]
 
-/**
- * What the workspace reports for each command at render time. `reason` says why a disabled
- * command cannot run, and `shortcut` names its keys; both join the description in the tooltip.
- */
-export type CommandState = {
-  disabled?: boolean
-  pressed?: boolean
-  hidden?: boolean
-  label?: string
-  reason?: string
-  shortcut?: string
-}
+export type { CommandState }
+export { commandTooltip }
 
-export const commandDef = (id: WorkspaceCommand): CommandDef => workspaceCommands[id]
+export const commandDef = (id: WorkspaceCommand): RoadCommandDef => workspaceCommands[id]
 export const isWorkspaceCommand = (id: string): id is WorkspaceCommand =>
   Object.prototype.hasOwnProperty.call(workspaceCommands, id)
 
 /** The label, icon and availability a renderer shows for one command, from the definition and its state. */
-export function resolveCommand(id: WorkspaceCommand, state: CommandState | undefined, disabled = false) {
-  const def = commandDef(id)
-  const off = state?.disabled ?? disabled
-  return {
-    id,
-    label: state?.label ?? def.label,
-    icon: def.icon,
-    kind: def.kind,
-    disabled: off,
-    pressed: state?.pressed,
-    hidden: !!state?.hidden,
-    description: def.description,
-    // Every caption this command can show, so a renderer can keep room for the longest.
-    captions: [def.label, ...((def as CommandDef).altLabels ?? [])],
-    shortcut: state?.shortcut,
-    reason: off ? state?.reason : undefined,
-  }
-}
-
-/**
- * The tooltip every surface gives a command: its label (where the label is not shown, or may be
- * cut short), what it does, its keys, and why it is unavailable.
- */
-export function commandTooltip(command: ReturnType<typeof resolveCommand>, withLabel = true) {
-  const keys = command.shortcut ? ` (${command.shortcut})` : ''
-  return [withLabel ? `${command.label}${keys}` : keys.trim(), command.description, command.reason]
-    .filter(Boolean)
-    .join('\n')
-}
+export const resolveCommand = (id: WorkspaceCommand, state: CommandState | undefined, disabled = false) =>
+  resolveCommandIn(workspaceCommands, id, state, disabled)
 
 /** Commands that must stay out of an access investigation, which has evidence but no design yet. */
 export const designOnlyCommands = workspaceCommandIds.filter((id) => !commandDef(id).investigation)

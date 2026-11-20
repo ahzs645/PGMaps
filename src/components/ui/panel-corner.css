@@ -1,23 +1,23 @@
-.road-workspace[data-interface][data-panel-background='white'] {
+.lp-workspace[data-interface][data-panel-background='white'] {
   /* The page's own background: white in the light theme, the dark background in the dark one. */
   background: hsl(var(--background));
 }
-.road-workspace[data-interface][data-panel-background='gray'] {
+.lp-workspace[data-interface][data-panel-background='gray'] {
   background: color-mix(in srgb, hsl(var(--foreground)) var(--workspace-panel-gray, 19%), hsl(var(--background)));
 }
-.road-workspace[data-interface][data-panel-inset] {
+.lp-workspace[data-interface][data-panel-inset] {
   --workspace-gutter: min(var(--workspace-panel-inset), 4vw);
 }
-.road-workspace .lp-guided-frame {
+.lp-workspace .lp-guided-frame {
   gap: var(--workspace-panel-gap, 8px);
 }
-.road-workspace :has(> .lp-panel-grip) {
+.lp-workspace :has(> .lp-panel-grip) {
   /* A drag reads the new dimensions immediately, including under reduced motion. */
   transition-property: opacity, transform;
 }
 
 /* Use the panel's existing slot as the limit, even when another pane opens or the viewport rotates. */
-.road-workspace[data-interface] section:has(> .lp-panel-grip):not([data-fullscreen]) {
+.lp-workspace[data-interface] section:has(> .lp-panel-grip):not([data-fullscreen]) {
   flex: none;
   align-self: flex-start;
   width: clamp(min(100%, 15.5rem), var(--corner-width, 100%), 100%);
@@ -27,7 +27,7 @@
 /* A chart that ends at its axis title puts that title in the grip's row rather than above it: the title is
    centred under the plot and the grip sits in the corner, so they share a line. The section view keeps the
    reserve, because its tools sit under the chart. 4px lines the title's middle up with the grip's. */
-.road-workspace[data-interface]
+.lp-workspace[data-interface]
   section:has(> .lp-panel-grip):has([data-chart-slot][data-axis-at-bottom]):not(
     :has([data-testid='road-section-tools'])
   ):not([data-fullscreen]) {
@@ -64,12 +64,12 @@
 .lp-controls-window :is(.road-design-sidebar, [data-testid='access-investigation-sidebar']) {
   padding-bottom: 22px;
 }
-.road-workspace[data-focus-mode] [data-pane='sidebar']:has(> .lp-controls-window) {
+.lp-workspace[data-focus-mode] [data-pane='sidebar']:has(> .lp-controls-window) {
   pointer-events: none;
   background: transparent;
   box-shadow: none;
 }
-.road-workspace[data-focus-mode] .lp-controls-window {
+.lp-workspace[data-focus-mode] .lp-controls-window {
   pointer-events: auto;
 }
 @media (min-width: 900px), (min-width: 560px) and (max-height: 599px) {
@@ -84,7 +84,7 @@
    be the card's radius less 2px to follow the card's curve; a smaller radius pokes its hover square through
    the rounded corner. A host whose card carries the border sets --lp-grip-corner to that card's radius; a
    window wrapping a bordered card also sets --lp-grip-inset: 2px, because the grip is then outside the border. */
-.road-workspace[data-interface] section:has(> .lp-panel-grip) {
+.lp-workspace[data-interface] section:has(> .lp-panel-grip) {
   --lp-grip-corner: calc(var(--radius) + 4px);
 }
 .lp-controls-window {
@@ -113,7 +113,7 @@
   cursor: nwse-resize;
   user-select: none;
 }
-.road-workspace .lp-panel-grip {
+.lp-workspace .lp-panel-grip {
   touch-action: none;
 }
 .lp-panel-grip::after {
@@ -138,11 +138,11 @@
     width: 34px;
     height: 28px;
   }
-  .road-workspace[data-interface] section:has(> .lp-panel-grip):not([data-fullscreen]),
+  .lp-workspace[data-interface] section:has(> .lp-panel-grip):not([data-fullscreen]),
   .lp-guide-window > .lp-guide {
     padding-block-end: 28px;
   }
-  .road-workspace[data-interface]
+  .lp-workspace[data-interface]
     section:has(> .lp-panel-grip):has([data-chart-slot][data-axis-at-bottom]):not(
       :has([data-testid='road-section-tools'])
     ):not([data-fullscreen]) {
@@ -155,13 +155,13 @@
    in). A legend placed below the map keeps its text clear of the grip itself (`road-plan-legend-slot`). The
    grip's box must fit the full corner radius, or the browser scales the curve down when a larger theme radius
    is selected. */
-.road-workspace[data-interface] [data-pane='plan'] > section:has(> .lp-panel-grip):not([data-fullscreen]) {
+.lp-workspace[data-interface] [data-pane='plan'] > section:has(> .lp-panel-grip):not([data-fullscreen]) {
   --plan-grip-radius: calc(var(--lp-grip-corner) - 1px);
   --plan-grip-height: max(19px, var(--plan-grip-radius));
   --plan-grip-width: max(22px, var(--plan-grip-radius));
   padding-block-end: 0.75rem;
 }
-.road-workspace [data-pane='plan'] > section > .lp-panel-grip {
+.lp-workspace [data-pane='plan'] > section > .lp-panel-grip {
   right: 0;
   bottom: 0;
   width: var(--plan-grip-width);
@@ -170,7 +170,7 @@
   border-end-end-radius: var(--plan-grip-radius);
 }
 @media (pointer: coarse) {
-  .road-workspace[data-interface] [data-pane='plan'] > section:has(> .lp-panel-grip):not([data-fullscreen]) {
+  .lp-workspace[data-interface] [data-pane='plan'] > section:has(> .lp-panel-grip):not([data-fullscreen]) {
     --plan-grip-height: max(28px, var(--plan-grip-radius));
     --plan-grip-width: max(34px, var(--plan-grip-radius));
   }
