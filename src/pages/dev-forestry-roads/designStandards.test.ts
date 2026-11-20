@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_DESIGN_STANDARDS,
+  gradeBreachBetween,
   gradeRule,
   gradeRuleText,
   isGradeBreachFlag,
@@ -13,6 +14,19 @@ const stations = (grades: (number | null)[], spacing = 10) =>
   grades.map((gradePercent, i) => ({ chainage: i * spacing, gradePercent }))
 const standards = (patch: Partial<DesignStandards>): DesignStandards => ({ ...DEFAULT_DESIGN_STANDARDS, ...patch })
 const settings = { maxGradePercent: 12 }
+
+describe('grade flags on drawn intervals', () => {
+  it('uses interval ownership and includes breaches skipped by display simplification', () => {
+    const stations = [[], ['Grade exceeds the 8% adverse limit'], [], ['Grade exceeds 12%']].map((flags) => ({ flags }))
+    expect(gradeBreachBetween(stations, 0, 1, 'ahead')).toBe(false)
+    expect(gradeBreachBetween(stations, 0, 1, 'behind')).toBe(true)
+    expect(gradeBreachBetween(stations, 1, 2, 'ahead')).toBe(true)
+    expect(gradeBreachBetween(stations, 1, 2, 'behind')).toBe(false)
+    expect(gradeBreachBetween(stations, 0, 3, 'ahead')).toBe(true)
+    expect(gradeBreachBetween(stations, 2, 3, 'ahead')).toBe(false)
+    expect(gradeBreachBetween(stations, 2, 3, 'behind')).toBe(true)
+  })
+})
 
 describe('gradeRule', () => {
   it('judges both directions on the road-wide limit when nothing else is entered', () => {

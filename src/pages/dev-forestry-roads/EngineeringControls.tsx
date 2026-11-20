@@ -32,6 +32,7 @@ import { freeStationRange, inputMessage, invalidInputMessages, type EngineeringI
 import { horizonReplacements, MAX_HORIZON_DEPTH_M, nextHorizon } from './groundHorizons'
 import { culvertFallPercent, culvertScreeningCapacity, invertsForFall } from './culvertGrade'
 import { CulvertOptionFields, CulvertStandards } from './culverts/CulvertEditorParts'
+import { CulvertInventory } from './culverts/CulvertInventory'
 import { buildCulvertSchedule } from './culverts/culvertSchedule'
 import { culvertChannels } from './culverts/culvertChannels'
 import { culvertInletSide, otherSide, withInletSide, type CulvertInletSide } from './culverts/culvertInlet'
@@ -322,6 +323,8 @@ export function EngineeringControls({
   aggregateOpen = false,
   onAggregateOpenChange,
   culvertRequest,
+  selectedCulvertId,
+  onSelectCulvert,
   templateRequest,
   inputsRequest,
   onShowDrainage,
@@ -335,6 +338,9 @@ export function EngineeringControls({
   aggregateOpen?: boolean
   onAggregateOpenChange?: (open: boolean) => void
   culvertRequest?: number
+  /** The same structure selected in the plan, profile, section and 3D view. */
+  selectedCulvertId?: string
+  onSelectCulvert?: (id: string) => void
   /** Opens the Templates tab on this library template; a new sequence repeats the request. */
   templateRequest?: { id: string; sequence: number }
   /** Brings one input tab forward, e.g. from a Review check; a new `sequence` asks again. */
@@ -362,6 +368,8 @@ export function EngineeringControls({
   const [haulOpen, setHaulOpen] = useState(false)
   // Which invert a typed culvert fall keeps; the other one follows.
   const [fallHolds, setFallHolds] = useState<Record<string, 'inlet' | 'outlet'>>({})
+  const [localCulvertId, setLocalCulvertId] = useState<string>()
+  const [culvertTab, setCulvertTab] = useState<'geometry' | 'levels' | 'review'>('geometry')
   const activeTab = aggregateOpen ? 'haul' : tab
   const changeHaulOpen = (open: boolean) => {
     setHaulOpen(open)
@@ -380,6 +388,14 @@ export function EngineeringControls({
   const libraryInput = useRef<HTMLInputElement>(null)
   const { alignment, analysis, project } = w
   const design = alignment.engineering ?? createEngineeringDesign()
+  const selectedCulvert =
+    design.culverts.find((culvert) => culvert.id === (selectedCulvertId ?? localCulvertId)) ?? design.culverts[0]
+  const selectCulvert = (id: string) => {
+    setLocalCulvertId(id)
+    onSelectCulvert?.(id)
+    const culvert = design.culverts.find((item) => item.id === id)
+    if (culvert) w.setStation(culvert.chainage)
+  }
   // Range and station fields take the road's station names (`stationEntry.ts`).
   const stations = stationEntry(alignment.stationing, analysis.length)
   // Transitions to neighbouring ranges, for the ones that step at their midpoint.
@@ -558,6 +574,9 @@ export function EngineeringControls({
       fixedCost: 0,
     }
     edit((e) => ({ ...e, culverts: [...e.culverts, culvert] }))
+    setLocalCulvertId(culvert.id)
+    onSelectCulvert?.(culvert.id)
+    setCulvertTab('geometry')
     w.setStation(chainage)
   }
   return (
@@ -1387,12 +1406,21 @@ export function EngineeringControls({
       )}
       {activeTab === 'culverts' && (
         <RoadSection
-          title="Culvert inventory & geometry"
+          title="Culverts"
           help="Place structures by road station. Skew, dimensions and entered inverts drive plan geometry, cover checks and installed cost. Invert initialization is a draft at the requested centre cover, not a survey. Dimensions and cover do not establish hydraulic capacity or fish passage."
         >
           <Button size="sm" variant="outline" disabled={design.culverts.length >= 100} onClick={() => newCulvert()}>
             Add culvert at station
           </Button>
+          <CulvertInventory
+            culverts={design.culverts}
+            schedule={culvertSchedule}
+            results={analysis.engineering?.culverts}
+            invalid={problem}
+            selectedId={selectedCulvert?.id}
+            stationing={alignment.stationing}
+            onSelect={selectCulvert}
+          />
           <RoadEngCulvertsPanel workspace={w} />
           <div className="my-2 space-y-1">
             {crossingsWithoutStructure(analysis, design).map((c) => (
@@ -1409,232 +1437,266 @@ export function EngineeringControls({
             ))}
           </div>
           {design.culverts.map((c, index) => {
+            if (c.id !== selectedCulvert?.id) return null
             const result = analysis.engineering?.culverts.find((x) => x.id === c.id)
             return (
-              <div key={c.id} className={cn(insetBox(), 'mt-3 space-y-2')}>
+              <div
+                key={c.id}
+                className={cn(insetBox(), 'mt-3 space-y-2')}
+                data-testid="road-culvert-editor"
+                aria-label={`Selected culvert: ${c.name}`}
+              >
+                <p className="text-2xs font-medium text-muted-foreground">
+                  Selected culvert · {formatRoadStation(c.chainage, alignment.stationing ?? null)}
+                </p>
                 <Name
                   value={c.name}
                   label={`Culvert ${index + 1} name`}
                   onChange={(name) => patch('culverts', c.id, { name })}
                   onDelete={() => remove('culverts', c.id)}
                 />
-                <Button size="sm" variant="ghost" onClick={() => w.setStation(c.chainage)}>
-                  Select {formatRoadStation(c.chainage)} in all views
+                <Button size="sm" variant="ghost" onClick={() => selectCulvert(c.id)}>
+                  Select {formatRoadStation(c.chainage, alignment.stationing ?? null)} in all views
                 </Button>
-                {c.roadEng && (
-                  <p className="text-2xs text-muted-foreground" data-testid="culvert-roadeng-facts">
-                    {roadEngCulvertFacts(c, project.surveyBooks?.find((b) => b.id === c.roadEng?.bookId)?.name)}
-                  </p>
-                )}
-                {c.roadEngDesign && (
-                  <>
-                    <p className="text-2xs text-muted-foreground" data-testid="culvert-roadeng-design-facts">
-                      {roadEngDesignCulvertFacts(c)}
-                    </p>
-                    <RoadEngDesignCulvertGradient
-                      culvert={c}
-                      label={`Culvert ${index + 1} RoadEng gradient (%)`}
-                      onChange={(roadEngDesign) => patch('culverts', c.id, { roadEngDesign })}
-                    />
-                  </>
-                )}
-                <Field label="Culvert purpose">
-                  <RoadSelect
-                    ariaLabel="Culvert purpose"
-                    className={roadFieldClass}
-                    value={c.kind ?? 'cross-drain'}
-                    onValueChange={(value) => patch('culverts', c.id, { kind: value as Culvert['kind'] })}
-                  >
-                    <option value="cross-drain">Road cross-drain</option>
-                    <option value="stream">Natural stream</option>
-                  </RoadSelect>
-                </Field>
-                <Field label="Inlet side">
-                  <RoadSelect
-                    ariaLabel={`Culvert ${index + 1} inlet side`}
-                    className={roadFieldClass}
-                    value={culvertInletSide(c)}
-                    onValueChange={(value) =>
+
+                <TabBar
+                  label="Selected culvert details"
+                  value={culvertTab}
+                  onChange={setCulvertTab}
+                  stretch
+                  options={[
+                    { value: 'geometry', label: 'Geometry' },
+                    { value: 'levels', label: 'Levels' },
+                    { value: 'review', label: 'Review' },
+                  ]}
+                />
+                <div hidden={culvertTab !== 'geometry'} className="space-y-2">
+                  <Field label="Culvert purpose">
+                    <RoadSelect
+                      ariaLabel="Culvert purpose"
+                      className={roadFieldClass}
+                      value={c.kind ?? 'cross-drain'}
+                      onValueChange={(value) => patch('culverts', c.id, { kind: value as Culvert['kind'] })}
+                    >
+                      <option value="cross-drain">Road cross-drain</option>
+                      <option value="stream">Natural stream</option>
+                    </RoadSelect>
+                  </Field>
+                  <Field label="Inlet side">
+                    <RoadSelect
+                      ariaLabel={`Culvert ${index + 1} inlet side`}
+                      className={roadFieldClass}
+                      value={culvertInletSide(c)}
+                      onValueChange={(value) =>
+                        edit((e) => ({
+                          ...e,
+                          culverts: e.culverts.map((x) =>
+                            x.id === c.id ? withInletSide(x, value as CulvertInletSide) : x,
+                          ),
+                        }))
+                      }
+                    >
+                      <option value="left">Left, flows to the right</option>
+                      <option value="right">Right, flows to the left</option>
+                    </RoadSelect>
+                  </Field>
+                  <Fields<Culvert>
+                    value={c}
+                    fields={[
+                      // A road with a start station or equations places culverts by station name.
+                      hasStationing(alignment.stationing)
+                        ? {
+                            key: 'chainage',
+                            label: `Culvert ${index + 1} station`,
+                            min: -MAX_ROAD_STATION_M,
+                            max: MAX_ROAD_STATION_M,
+                            display: {
+                              to: (chainage) => stationAtChainage(chainage, alignment.stationing),
+                              from: (name) =>
+                                resolveTypedStation(name, alignment.stationing, analysis.length, { near: c.chainage })
+                                  .chainage,
+                            },
+                          }
+                        : { key: 'chainage', label: `Culvert ${index + 1} station (m)` },
+                      {
+                        key: 'skewDegrees',
+                        label: `Culvert ${index + 1} skew from square (°)`,
+                        min: -80,
+                        max: 80,
+                        hint: 'Skew is measured from square to the road: 0° crosses square, and a pipe 75° from the centreline is 15° here. Positive turns the right-hand (outlet) end toward lower stations, negative toward higher ones.',
+                      },
+                      { key: 'lengthM', label: `Culvert ${index + 1} horizontal barrel span (m)`, min: 0.2, max: 500 },
+                      { key: 'diameterM', label: `Culvert ${index + 1} diameter (m)`, min: 0.1, max: 20 },
+                      { key: 'minCoverM', label: `Culvert ${index + 1} required cover (m)`, max: 100 },
+                      { key: 'unitCost', label: `Culvert ${index + 1} installed $/m`, max: 1000000 },
+                      { key: 'fixedCost', label: `Culvert ${index + 1} fixed cost ($)`, max: 1e9 },
+                    ]}
+                    errorFor={errorsFor('culverts', c.id)}
+                    onChange={(p) => patch('culverts', c.id, p)}
+                  />
+                  <EntryProblem
+                    problem={problem}
+                    list="culverts"
+                    id={c.id}
+                    inlineFields={[
+                      'chainage',
+                      'skewDegrees',
+                      'lengthM',
+                      'diameterM',
+                      'minCoverM',
+                      'unitCost',
+                      'fixedCost',
+                    ]}
+                  />
+                  <CulvertOptionFields
+                    culvert={c}
+                    label={`Culvert ${index + 1}`}
+                    error={errorsFor('culverts', c.id)}
+                    onChange={(next) =>
+                      edit((e) => ({ ...e, culverts: e.culverts.map((x) => (x.id === c.id ? next : x)) }))
+                    }
+                  />
+                </div>
+                <div hidden={culvertTab !== 'levels'} className="space-y-2">
+                  <OptionalNumberField
+                    label={`Culvert ${index + 1} ditch dip to inlet (%)`}
+                    placeholder="no dip"
+                    value={c.ditchDipPercent ?? null}
+                    min={0.1}
+                    max={50}
+                    onChange={(dip) =>
                       edit((e) => ({
                         ...e,
-                        culverts: e.culverts.map((x) =>
-                          x.id === c.id ? withInletSide(x, value as CulvertInletSide) : x,
-                        ),
+                        culverts: e.culverts.map((x) => {
+                          if (x.id !== c.id) return x
+                          const { ditchDipPercent: _old, ...rest } = x
+                          void _old
+                          return dip === null ? rest : { ...rest, ditchDipPercent: dip }
+                        }),
                       }))
                     }
-                  >
-                    <option value="left">Left, flows to the right</option>
-                    <option value="right">Right, flows to the left</option>
-                  </RoadSelect>
-                </Field>
-                <Fields<Culvert>
-                  value={c}
-                  fields={[
-                    // A road with a start station or equations places culverts by station name.
-                    hasStationing(alignment.stationing)
-                      ? {
-                          key: 'chainage',
-                          label: `Culvert ${index + 1} station`,
-                          min: -MAX_ROAD_STATION_M,
-                          max: MAX_ROAD_STATION_M,
-                          display: {
-                            to: (chainage) => stationAtChainage(chainage, alignment.stationing),
-                            from: (name) =>
-                              resolveTypedStation(name, alignment.stationing, analysis.length, { near: c.chainage })
-                                .chainage,
-                          },
-                        }
-                      : { key: 'chainage', label: `Culvert ${index + 1} station (m)` },
-                    {
-                      key: 'skewDegrees',
-                      label: `Culvert ${index + 1} skew from square (°)`,
-                      min: -80,
-                      max: 80,
-                      hint: 'Skew is measured from square to the road: 0° crosses square, and a pipe 75° from the centreline is 15° here. Positive turns the right-hand (outlet) end toward lower stations, negative toward higher ones.',
-                    },
-                    { key: 'lengthM', label: `Culvert ${index + 1} horizontal barrel span (m)`, min: 0.2, max: 500 },
-                    { key: 'diameterM', label: `Culvert ${index + 1} diameter (m)`, min: 0.1, max: 20 },
-                    { key: 'minCoverM', label: `Culvert ${index + 1} required cover (m)`, max: 100 },
-                    { key: 'unitCost', label: `Culvert ${index + 1} installed $/m`, max: 1000000 },
-                    { key: 'fixedCost', label: `Culvert ${index + 1} fixed cost ($)`, max: 1e9 },
-                  ]}
-                  errorFor={errorsFor('culverts', c.id)}
-                  onChange={(p) => patch('culverts', c.id, p)}
-                />
-                <EntryProblem
-                  problem={problem}
-                  list="culverts"
-                  id={c.id}
-                  inlineFields={[
-                    'chainage',
-                    'skewDegrees',
-                    'lengthM',
-                    'diameterM',
-                    'minCoverM',
-                    'unitCost',
-                    'fixedCost',
-                  ]}
-                />
-                <OptionalNumberField
-                  label={`Culvert ${index + 1} ditch dip to inlet (%)`}
-                  placeholder="no dip"
-                  value={c.ditchDipPercent ?? null}
-                  min={0.1}
-                  max={50}
-                  onChange={(dip) =>
-                    edit((e) => ({
-                      ...e,
-                      culverts: e.culverts.map((x) => {
-                        if (x.id !== c.id) return x
-                        const { ditchDipPercent: _old, ...rest } = x
-                        void _old
-                        return dip === null ? rest : { ...rest, ditchDipPercent: dip }
-                      }),
-                    }))
-                  }
-                />
-                <CulvertOptionFields
-                  culvert={c}
-                  label={`Culvert ${index + 1}`}
-                  error={errorsFor('culverts', c.id)}
-                  onChange={(next) =>
-                    edit((e) => ({ ...e, culverts: e.culverts.map((x) => (x.id === c.id ? next : x)) }))
-                  }
-                />
-                <label className="flex items-center gap-1 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={c.inletInvertM !== null && c.outletInvertM !== null}
-                    onChange={(e) => {
-                      const station = nearestStation(analysis.stations, c.chainage)
-                      const level = station?.designElevation
-                      patch('culverts', c.id, {
-                        inletInvertM:
-                          e.target.checked && level !== null && level !== undefined
-                            ? level - c.diameterM - c.minCoverM
-                            : null,
-                        outletInvertM:
-                          e.target.checked && level !== null && level !== undefined
-                            ? level - c.diameterM - c.minCoverM
-                            : null,
-                      })
-                    }}
                   />
-                  Enter provisional inverts
-                </label>
-                {c.inletInvertM !== null && c.outletInvertM !== null && (
-                  <>
-                    <Fields<Culvert>
-                      value={c}
-                      fields={[
-                        {
-                          key: 'inletInvertM',
-                          label: `Culvert ${index + 1} ${culvertInletSide(c)} inlet invert (m)`,
-                          min: -12000,
-                          max: 12000,
-                        },
-                        {
-                          key: 'outletInvertM',
-                          label: `Culvert ${index + 1} ${otherSide(culvertInletSide(c))} outlet invert (m)`,
-                          min: -12000,
-                          max: 12000,
-                        },
-                      ]}
-                      errorFor={errorsFor('culverts', c.id)}
-                      onChange={(p) => patch('culverts', c.id, p)}
+                  <label className="flex items-center gap-1 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={c.inletInvertM !== null && c.outletInvertM !== null}
+                      onChange={(e) => {
+                        const station = nearestStation(analysis.stations, c.chainage)
+                        const level = station?.designElevation
+                        patch('culverts', c.id, {
+                          inletInvertM:
+                            e.target.checked && level !== null && level !== undefined
+                              ? level - c.diameterM - c.minCoverM
+                              : null,
+                          outletInvertM:
+                            e.target.checked && level !== null && level !== undefined
+                              ? level - c.diameterM - c.minCoverM
+                              : null,
+                        })
+                      }}
                     />
-                    {/* The same two inverts, entered as a gradient: one end is held and the other follows. */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <NumberField
-                        label={`Culvert ${index + 1} fall, inlet to outlet (%)`}
-                        value={Number((culvertFallPercent(c) ?? 0).toFixed(3))}
-                        min={-50}
-                        max={50}
-                        step={0.5}
-                        hint="The pipe gradient over its horizontal span. Entering it moves one invert and keeps the other; a positive fall puts the outlet below the inlet."
-                        onChange={(fall) => {
-                          const inverts = invertsForFall(c, fall, fallHolds[c.id] ?? 'inlet')
-                          if (inverts) patch('culverts', c.id, inverts)
-                        }}
+                    Enter provisional inverts
+                  </label>
+                  {c.inletInvertM !== null && c.outletInvertM !== null && (
+                    <>
+                      <Fields<Culvert>
+                        value={c}
+                        fields={[
+                          {
+                            key: 'inletInvertM',
+                            label: `Culvert ${index + 1} ${culvertInletSide(c)} inlet invert (m)`,
+                            min: -12000,
+                            max: 12000,
+                          },
+                          {
+                            key: 'outletInvertM',
+                            label: `Culvert ${index + 1} ${otherSide(culvertInletSide(c))} outlet invert (m)`,
+                            min: -12000,
+                            max: 12000,
+                          },
+                        ]}
+                        errorFor={errorsFor('culverts', c.id)}
+                        onChange={(p) => patch('culverts', c.id, p)}
                       />
-                      <Field label={`Culvert ${index + 1} fall keeps`}>
-                        <RoadSelect
-                          ariaLabel={`Culvert ${index + 1} fall keeps`}
-                          className={roadFieldClass}
-                          value={fallHolds[c.id] ?? 'inlet'}
-                          onValueChange={(value) =>
-                            setFallHolds((previous) => ({ ...previous, [c.id]: value as 'inlet' | 'outlet' }))
-                          }
-                        >
-                          <option value="inlet">Inlet invert, sets the outlet</option>
-                          <option value="outlet">Outlet invert, sets the inlet</option>
-                        </RoadSelect>
-                      </Field>
-                    </div>
-                  </>
-                )}
-                <p className="text-2xs leading-4 text-muted-foreground" data-testid="road-culvert-capacity">
-                  {(() => {
-                    const pipe = culvertScreeningCapacity(c, manningN)
-                    return `Full-pipe capacity ${pipe.capacityM3s.toFixed(3)} m³/s at ${(pipe.slope * 100).toFixed(2)} %${pipe.slopeAssumed ? ', assumed until the outlet is below the inlet' : ''} (Manning n ${pipe.manningN}${pipe.approximate ? '; an arch is read as the round pipe of the same end area' : ''}). The peak flow it must carry needs a drainage run.`
-                  })()}
-                </p>
-                {result && (
-                  <p className="text-2xs leading-4">
-                    Grade {result.gradePercent?.toFixed(2) ?? '—'}% · minimum formation cover{' '}
-                    {result.coverM?.toFixed(2) ?? '—'} m · required span {result.requiredLengthM?.toFixed(1) ?? '—'} m
-                    {' · '}inclined barrel {result.barrelLengthM?.toFixed(2) ?? 'unknown'} m
-                    {result.warnings.map((warning) => (
-                      <span key={warning} className="mt-1 block text-warning">
-                        {warning}
-                      </span>
-                    ))}
+                      {/* The same two inverts, entered as a gradient: one end is held and the other follows. */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <NumberField
+                          label={`Culvert ${index + 1} fall, inlet to outlet (%)`}
+                          value={Number((culvertFallPercent(c) ?? 0).toFixed(3))}
+                          min={-50}
+                          max={50}
+                          step={0.5}
+                          hint="The pipe gradient over its horizontal span. Entering it moves one invert and keeps the other; a positive fall puts the outlet below the inlet."
+                          onChange={(fall) => {
+                            const inverts = invertsForFall(c, fall, fallHolds[c.id] ?? 'inlet')
+                            if (inverts) patch('culverts', c.id, inverts)
+                          }}
+                        />
+                        <Field label={`Culvert ${index + 1} fall keeps`}>
+                          <RoadSelect
+                            ariaLabel={`Culvert ${index + 1} fall keeps`}
+                            className={roadFieldClass}
+                            value={fallHolds[c.id] ?? 'inlet'}
+                            onValueChange={(value) =>
+                              setFallHolds((previous) => ({ ...previous, [c.id]: value as 'inlet' | 'outlet' }))
+                            }
+                          >
+                            <option value="inlet">Inlet invert, sets the outlet</option>
+                            <option value="outlet">Outlet invert, sets the inlet</option>
+                          </RoadSelect>
+                        </Field>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div hidden={culvertTab !== 'review'} className="space-y-2">
+                  {c.roadEng && (
+                    <p className="text-2xs text-muted-foreground" data-testid="culvert-roadeng-facts">
+                      {roadEngCulvertFacts(c, project.surveyBooks?.find((b) => b.id === c.roadEng?.bookId)?.name)}
+                    </p>
+                  )}
+                  {c.roadEngDesign && (
+                    <>
+                      <p className="text-2xs text-muted-foreground" data-testid="culvert-roadeng-design-facts">
+                        {roadEngDesignCulvertFacts(c)}
+                      </p>
+                      <RoadEngDesignCulvertGradient
+                        culvert={c}
+                        label={`Culvert ${index + 1} RoadEng gradient (%)`}
+                        onChange={(roadEngDesign) => patch('culverts', c.id, { roadEngDesign })}
+                      />
+                    </>
+                  )}
+                  <p className="text-2xs leading-4 text-muted-foreground" data-testid="road-culvert-capacity">
+                    {(() => {
+                      const pipe = culvertScreeningCapacity(c, manningN)
+                      return `Full-pipe capacity ${pipe.capacityM3s.toFixed(3)} m³/s at ${(pipe.slope * 100).toFixed(2)} %${pipe.slopeAssumed ? ', assumed until the outlet is below the inlet' : ''} (Manning n ${pipe.manningN}${pipe.approximate ? '; an arch is read as the round pipe of the same end area' : ''}). The peak flow it must carry needs a drainage run.`
+                    })()}
                   </p>
-                )}
-                {(() => {
-                  const row = culvertSchedule?.rows.find((item) => item.id === c.id)
-                  return row ? <CulvertStandards row={row} appraisalBasis={culvertSchedule?.appraisal?.basis} /> : null
-                })()}
+                  {result && (
+                    <p className="text-2xs leading-4">
+                      Grade {result.gradePercent?.toFixed(2) ?? '—'}% · minimum formation cover{' '}
+                      {result.coverM?.toFixed(2) ?? '—'} m · required span {result.requiredLengthM?.toFixed(1) ?? '—'} m
+                      {' · '}inclined barrel {result.barrelLengthM?.toFixed(2) ?? 'unknown'} m
+                      {result.warnings.map((warning) => (
+                        <span key={warning} className="mt-1 block text-warning">
+                          {warning}
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                  {(() => {
+                    const row = culvertSchedule?.rows.find((item) => item.id === c.id)
+                    return row ? (
+                      <CulvertStandards row={row} appraisalBasis={culvertSchedule?.appraisal?.basis} />
+                    ) : null
+                  })()}
+                  {onShowDrainage && (
+                    <Button size="sm" variant="outline" onClick={onShowDrainage}>
+                      Open drainage check
+                    </Button>
+                  )}
+                </div>
               </div>
             )
           })}

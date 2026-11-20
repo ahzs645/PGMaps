@@ -12,6 +12,7 @@ import { formatRoadStation } from '../../src/pages/dev-forestry-roads/Charts'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openDrainageInputs } from './road-drainage-inputs'
 import { choose } from './styled-select'
+import { culvertDetails } from './road-culverts'
 
 const root = process.env.PGMAPS_ROAD_DRAINAGE_PROJECT_DIR
 test.skip(!root, 'Supply the directory containing the actual Kamloops and Vernon exported road projects.')
@@ -262,6 +263,7 @@ for (const area of ['kamloops-desktop', 'vernon-mobile'])
               .getByRole('tab', { name: 'Drainage', exact: true })
               .click()
             if (add) await page.getByRole('button', { name: 'Add culvert at station', exact: true }).click()
+            await culvertDetails(page, 'Geometry')
             await page.getByLabel('Culvert 1 name', { exact: true }).fill('Illustrative test pipe; not field data')
             await field(page, 'Culvert 1 station (m)', chainage)
             await field(page, 'Culvert 1 diameter (m)', diameterM)

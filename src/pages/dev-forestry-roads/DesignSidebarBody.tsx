@@ -53,6 +53,8 @@ export interface RoadDrawing {
 }
 export type EngineeringInputTab = 'templates' | 'materials' | 'haul'
 export interface SidebarProps {
+  selectedCulvertId?: string
+  onSelectCulvert?: (id: string) => void
   engineeringInputsRequest?: { tab: EngineeringInputTab; sequence: number }
   onEngineeringInputs?: (tab: EngineeringInputTab) => void
   workspace: RoadWorkspace
@@ -303,6 +305,8 @@ export function DesignSidebar(p: SidebarProps) {
               aggregateOpen={aggregateOpen}
               onAggregateOpenChange={setAggregateOpen}
               culvertRequest={p.engineeringRequest}
+              selectedCulvertId={p.selectedCulvertId}
+              onSelectCulvert={p.onSelectCulvert}
               templateRequest={templateRequest}
               inputsRequest={p.engineeringInputsRequest}
               onShowDrainage={p.onShowDrainage}

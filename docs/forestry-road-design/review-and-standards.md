@@ -212,6 +212,14 @@ is allowed, and a loaded-downhill grade is still held to 18 %: the rule prints a
 8 % adverse; 12 % for adverse pitches up to 100 m". A short-pitch limit at or below every sustained
 limit permits nothing; the field says so, and the rule is applied and printed without it.
 
+**The plan and 3D grade colours use the same reviewed runs.** Their warning colour means
+**Grade standard not met**, including the loaded direction and the short-pitch allowance. In
+the plan's grade-class mode, gentle and moderate breaks are still fractions of the road-wide
+grade limit; higher grades that meet the standard, including permitted short pitches, use the
+steep colour. A simplified 3D face or centreline segment checks every calculated interval it
+covers, so reducing display detail does not hide an intervening breach. The drawn intervals
+follow the same ahead/behind convention as the grade review.
+
 **Confirmation.** The record starts as starting values and the Review list says so until someone
 presses **Confirm standards**. Confirming records the date; it does not lock the fields.
 
@@ -222,8 +230,8 @@ presses **Confirm standards**. Confirming records the date; it does not lock the
   can be inside the standard and still be reported with fewer pitches than it could use.
   `project.routeSearch.haulGrades` and the complete-route comparison's connector checks keep their
   own directional limits.
-- The plan, the 3D view and the mapped-road panel colour grades over the grade limit. A permitted
-  short pitch is still coloured there, although its stations carry no flag.
+- The mapped-road panel still compares grades with the road-wide limit directly. Its steep-grade
+  summary does not apply the short-pitch allowance or the adverse limit.
 - Roads added after the project is created start from the workspace's starting template, not the
   running-surface width. The Review template row raises the difference.
 

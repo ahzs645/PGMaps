@@ -814,8 +814,13 @@ function calculateCulvert(
   const gradePercent = knownInverts ? (100 * (c.outletInvertM! - c.inletInvertM!)) / c.lengthM : null
   if (coverM === null && knownInverts)
     warnings.push('Cover is unknown where the road formation or terrain is unsupported.')
-  if (coverM !== null && coverM < c.minCoverM - EPS)
-    warnings.push(`Minimum sampled subgrade cover (${coverM.toFixed(2)} m) is below ${c.minCoverM.toFixed(2)} m.`)
+  if (coverM !== null && coverM < c.minCoverM - EPS) {
+    const deficit = c.minCoverM - coverM
+    const shortfall = deficit < 0.001 ? 'less than 0.001' : deficit.toFixed(3)
+    warnings.push(
+      `Minimum sampled subgrade cover is ${shortfall} m below the entered minimum (${c.minCoverM.toFixed(2)} m).`,
+    )
+  }
   if (gradePercent !== null && gradePercent >= -EPS)
     warnings.push('The entered outlet is not lower than the inlet; review flow direction and pipe grade.')
   if (profile.some((p) => p.groundElevation === null)) warnings.push('Terrain is missing along part of the barrel.')

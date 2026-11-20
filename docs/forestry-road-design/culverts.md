@@ -1,7 +1,24 @@
 # Culverts: cost, appraisal treatment and design checks
 
-**Engineering → Drainage** lists each culvert of the road. Under its inputs every culvert now
-shows three things, kept on separate lines because they answer different questions:
+**Engineering → Drainage** opens a compact inventory in station order and one selected-culvert
+editor. Select a row or a culvert in the plan, profile, section or 3D view: the same structure is
+selected across the views and the editor, and its station is selected. Opening and selecting do
+not write to the project. A newly added culvert opens in the editor; deleting one leaves another
+available, and undo can restore the removed structure.
+
+The inventory shows size, horizontal span, construction cost and a summary of the existing
+checks. **Needs attention** means a geometry warning, an unmet check or a major culvert;
+**Not fully assessed** means evidence is missing. Unknown checks never count as met, and an
+unpriced culvert says **Unpriced** separately from its design status. A long inventory is
+virtualized and supports arrow-key navigation. Stations use the road's own names and equations.
+
+The selected editor has **Geometry**, **Levels** and **Review** tabs. Geometry holds location,
+dimensions, shape, material and cost; Levels holds provisional inverts, fall and the invert to
+keep; Review keeps the calculated geometry, warnings, source evidence and engineering checks
+together. All existing fields remain available, and invalid inputs stay reachable in the editor.
+Selection and the editor tab are workspace state, never part of a saved road.
+
+The Review tab shows three things, kept on separate lines because they answer different questions:
 
 | Line                    | Question it answers                                                    | Where it comes from                                                                 |
 | ----------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -119,6 +136,9 @@ the modelled capacity as evidence only.
 - **Cover is the manual's rule, not the entered minimum.** The engine's own warning still uses the
   culvert's _required cover_ field; a 1.8 m stream pipe with 0.75 m of cover clears an entered
   0.6 m and fails the manual's 0.9 m. Cover is measured from the top of the pipe to the subgrade.
+  The entered-minimum warning reports the deficit: a shortfall under 0.001 m is stated as such,
+  so rounding the cover display to 0.60 m cannot produce a message saying 0.60 m is below 0.60 m.
+  This wording does not relax either check's numerical tolerance.
 - **Spacing is a note** on each culvert, against all three soil classes at the steepest design grade
   in the run. The road's own reading by soil class, band by band, is the
   [cross-drain spacing guide](#cross-drain-spacing-guide). A grade on a class boundary (3, 6, 9,

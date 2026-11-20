@@ -251,6 +251,23 @@ const GRADE_FLAG = /^(Grade exceeds |Pitch over )/
 /** True for a station flag raised by the grade standard. */
 export const isGradeBreachFlag = (flag: string) => GRADE_FLAG.test(flag)
 
+/**
+ * Whether a drawn interval contains a grade breach already judged by `reviewGrades`. Display
+ * simplification can skip stations, so inspect every interval between the two retained indexes.
+ * Designed grades describe the interval ahead; ground-following grades describe the one behind.
+ */
+export function gradeBreachBetween(
+  stations: readonly Pick<RoadStation, 'flags'>[],
+  fromIndex: number,
+  toIndex: number,
+  span: GradeSpan,
+): boolean {
+  const offset = span === 'ahead' ? 0 : 1
+  for (let i = fromIndex + offset; i < toIndex + offset; i++)
+    if (stations[i]?.flags.some(isGradeBreachFlag)) return true
+  return false
+}
+
 /** The flag one over-limit station carries, or null inside a permitted pitch. */
 function stationFlag(run: GradeRun, gradePercent: number, rule: GradeRule): string | null {
   const pitch = pitchAllowance(rule, run.limitPercent)

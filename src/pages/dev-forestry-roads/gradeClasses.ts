@@ -1,11 +1,13 @@
 /**
- * Grade classes for colouring the plan, set from the project's grade limit. A grade on a class
- * break belongs to the class below it, so a road exactly at the limit is within it, as the grade
- * flag reads it. Classes are judged on the absolute grade: up and down colour the same. The two
- * inner breaks and the three colours within the limit are the person's (`roadColouring.ts`);
- * over the limit and unknown keep the plan's own red and grey. No DOM.
+ * Grade magnitude bands, set from the project's road-wide grade limit. A grade on a class break
+ * belongs to the class below it. The plan applies these bands to grades that meet the reviewed
+ * standard and uses the engine's flags for breaches, including direction and short-pitch length.
+ * The two inner breaks and three band colours are the person's (`roadColouring.ts`); a breach and
+ * an unknown grade keep the plan's own red and grey. No DOM.
  */
 import { DEFAULT_GRADE_COLOURING, GRADE_FIXED_COLORS, type GradeColourSettings } from './roadColouring'
+import { isGradeBreachFlag, type GradeSpan } from './designStandards'
+import type { RoadStation } from './types'
 
 export type GradeClassId = 'gentle' | 'moderate' | 'steep' | 'over' | 'unknown'
 
@@ -60,24 +62,38 @@ export function gradeClassOf(
 }
 
 /**
- * The active road's plan segments recoloured by grade class. Each segment is named by the station
- * that ends it, whose design grade is the interval's. Segments the plan already marks as having no
- * terrain under them keep that colour; other roads keep their own. Each recoloured segment carries
- * its class label for the legend.
+ * The active road's plan segments recoloured by grade class. Each segment is named by its end
+ * station; `span` determines which station carries that interval's grade. The engine's grade flags
+ * decide breaches, including loaded direction and short-pitch length. A permitted pitch above the
+ * road-wide limit uses the steep colour. Segments without terrain and other roads keep their colour.
  */
 export function gradeClassRoadLines(
   roads: GeoJSON.FeatureCollection,
-  stations: readonly { chainage: number; gradePercent: number | null }[],
+  stations: readonly Pick<RoadStation, 'chainage' | 'gradePercent' | 'flags'>[],
   limitPercent: number,
   settings: GradeColourSettings = DEFAULT_GRADE_COLOURING,
+  span: GradeSpan = 'behind',
 ): GeoJSON.FeatureCollection {
-  const grades = new Map(stations.map((station) => [station.chainage, station.gradePercent]))
+  const grades = new Map(
+    stations.slice(1).map((station, i) => [station.chainage, span === 'ahead' ? stations[i] : station]),
+  )
   return {
     ...roads,
     features: roads.features.map((feature) => {
       const p = feature.properties ?? {}
       if (!p.selected || p.chainage === undefined || p.color === GRADE_CLASS_COLORS.unknown) return feature
-      const grade = gradeClassOf(grades.get(Number(p.chainage)) ?? null, limitPercent, settings)
+      const station = grades.get(Number(p.chainage))
+      let grade = gradeClassOf(station?.gradePercent ?? null, limitPercent, settings)
+      if (grade.id !== 'unknown') {
+        if (station?.flags.some(isGradeBreachFlag))
+          grade = { id: 'over', color: GRADE_FIXED_COLORS.over, label: 'Grade standard not met' }
+        else if (grade.id === 'steep' || grade.id === 'over')
+          grade = {
+            id: 'steep',
+            color: settings.colors.steep,
+            label: `Grade above ${percent(settings.breaks[1] * limitPercent)} % · within standard`,
+          }
+      }
       return { ...feature, properties: { ...p, color: grade.color, legendLabel: grade.label } }
     }),
   }

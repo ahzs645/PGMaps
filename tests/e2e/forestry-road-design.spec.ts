@@ -6,6 +6,7 @@ import { choose, optionDisabled, optionEntries, optionLabels } from './styled-se
 import { chooseExport } from './road-files'
 import { pressChartToggle, profilePanel } from './road-chart-toggles'
 import { forceCanvasTerrainPreview } from './road-terrain-renderer'
+import { culvertDetails } from './road-culverts'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -739,6 +740,7 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
   await page.getByLabel('Culvert 1 name', { exact: true }).fill('Cross-drain A')
   await fillNumber(page, 'Culvert 1 horizontal barrel span (m)', 60)
   await fillNumber(page, 'Culvert 1 installed $/m', 200)
+  await culvertDetails(page, 'Levels')
   await page.getByLabel('Enter provisional inverts', { exact: true }).check()
   const inlet = Number(
     await page.getByRole('spinbutton', { name: 'Culvert 1 left inlet invert (m)', exact: true }).inputValue(),
@@ -746,6 +748,7 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
   await fillNumber(page, 'Culvert 1 left inlet invert (m)', inlet - 3)
   await fillNumber(page, 'Culvert 1 right outlet invert (m)', inlet - 3.6)
   const originalBarrel = (await mapState(page))!.structures?.features[0].geometry
+  await culvertDetails(page, 'Geometry')
   await fillNumber(page, 'Culvert 1 skew from square (°)', 20)
   await expect.poll(async () => (await mapState(page))?.structures?.features[0].geometry).not.toEqual(originalBarrel)
   await expect(page.getByRole('button', { name: 'Inspect structure Cross-drain A', exact: true })).toBeVisible()
@@ -809,7 +812,8 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
   await engineeringInput(page, 'Drainage').click()
   await page.getByRole('button', { name: 'Add culvert at station', exact: true }).click()
   await page.getByLabel('Culvert 2 name', { exact: true }).fill('Cross-drain B')
-  await page.getByLabel('Enter provisional inverts', { exact: true }).last().check()
+  await culvertDetails(page, 'Levels')
+  await page.getByLabel('Enter provisional inverts', { exact: true }).check()
   await page.getByRole('button', { name: 'Inspect structure Cross-drain B', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Inspect structure Cross-drain B', exact: true })).toHaveAttribute(
     'aria-pressed',

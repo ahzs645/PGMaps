@@ -34,6 +34,12 @@ Every command is defined once, in [workspaceCommands.ts](../../src/components/in
 
 If the served configuration is unavailable or invalid, the chooser offers the built-in Guided mode.
 
+If the plan map cannot start, including when WebGL 2 is unavailable, only its pane shows
+**Plan map unavailable**. Profile, section, station data and design controls retain their current
+state and remain usable. **Retry map** retries the map without reloading the workspace or project.
+Hiding a pane or changing the screen preset keeps its contents mounted; those view preferences
+are not a workaround for a graphics initialization failure.
+
 ## Separate windows and tabs
 
 Each connected view's title bar has **Open panel separately**, beside its
