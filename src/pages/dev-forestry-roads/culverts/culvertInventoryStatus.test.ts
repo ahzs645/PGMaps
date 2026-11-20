@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEngineeringDesign } from '../engineeringTypes'
-import { culvertInventoryStatus } from './culvertInventory'
+import { culvertInventoryStatus } from './culvertInventoryStatus'
 import { buildCulvertSchedule } from './culvertSchedule'
 import type { CulvertCheckState } from './culvertChecks'
 
