@@ -11,7 +11,7 @@ import { haulUnitCost } from './engineering'
 import type { HaulSettings } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadProject, RoadSettings } from './types'
 import { COST_SETTING_RATE_KEYS, costBreakdownRows, type CostRow, type CostRowRate } from './costBreakdownRows'
-import { BCCostReferences } from './BCCostReferencesPanel'
+import { BCCostReferences, type CulvertReviewRequest } from './BCCostReferencesPanel'
 import { RateSources, type RateAdoptionTarget } from './RateAdoption'
 import { applyAdoption, rateSourceLines, withoutAdoption } from './costEvidence/rateAdoption'
 import { adoptionTargets } from './costEvidence/adoptionTargets'
@@ -169,9 +169,13 @@ export function CostBreakdown({
   onColourBy?: (id: CostSeriesId) => void
 }) {
   const [opened, setOpened] = useState<{ open: boolean; total: number }>({ open, total: analysis.estimatedCost })
-  if (opened.open !== open) setOpened({ open, total: analysis.estimatedCost })
   const [preferences] = useCostPreferences()
-  const [culvertReview, setCulvertReview] = useState<{ sequence: number; targetKey?: string; recordId?: string }>()
+  const [culvertReview, setCulvertReview] = useState<CulvertReviewRequest>()
+  if (opened.open !== open) {
+    setOpened({ open, total: analysis.estimatedCost })
+    // The references panel remounts with the dialog: a request it already answered must not reopen it.
+    if (culvertReview && !culvertReview.spent) setCulvertReview({ ...culvertReview, spent: true })
+  }
   // Session state: the dialog stays mounted while closed, so these hold until the page reloads.
   const [stretchChoice, setStretchChoice] = useState<number | null>(null)
   const stretchLengthM = stretchChoice ?? defaultStretchLength(analysis.length)

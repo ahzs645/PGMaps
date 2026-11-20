@@ -462,7 +462,9 @@ test('unpriced cross-drains receive reviewable estimates, survive reload and ado
   const review = dialog.getByTestId('road-culvert-defaults-review')
   await expect(review).toContainText('Provisional culvert estimates')
   await expect(review).toContainText('Alberta 2026 tender average')
-  await expect(review.locator('li')).toHaveCount(3)
+  // Culverts sharing the same source note are listed on one line by name.
+  await expect(review.locator('li')).toHaveCount(1)
+  await expect(review.locator('li')).toContainText('Cross-drain 1, Cross-drain 2, Cross-drain 3:')
   await expect.poll(async () => (await total()) - beforeTotal).toBeCloseTo(44.5 * 372.67, 1)
   await page.screenshot({ path: testInfo.outputPath('culvert-provisional-estimates.png'), animations: 'disabled' })
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
@@ -555,8 +557,19 @@ test('unpriced cross-drains receive reviewable estimates, survive reload and ado
     'Cross-drain 1 installed cost set to $425.00/m',
   )
   await references.getByRole('button', { name: 'Close', exact: true }).click()
-  await expect(dialog.getByTestId('road-culvert-defaults-review').locator('li')).toHaveCount(2)
+  // The adopted culvert leaves the list; the other two still share one line.
+  const remaining = dialog.getByTestId('road-culvert-defaults-review').locator('li')
+  await expect(remaining).toHaveCount(1)
+  await expect(remaining).toContainText('Cross-drain 2, Cross-drain 3:')
+  await expect(remaining).not.toContainText('Cross-drain 1')
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  // Reopening the estimate does not reopen the references panel the review asked for earlier.
+  await openCosts(page)
+  await expect(page.getByTestId('road-bc-cost-references')).toHaveCount(0)
+  await page
+    .getByRole('dialog', { name: 'Covered estimate', exact: true })
+    .getByRole('button', { name: 'Close', exact: true })
+    .click()
   const adopted = await saveProject(page)
   expect(culverts(adopted)[0].unitCost).toBe(425)
   expect(culverts(adopted)[0].costDefault).toBeUndefined()

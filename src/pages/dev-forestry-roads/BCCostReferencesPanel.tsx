@@ -91,6 +91,17 @@ function useEvidenceWithOwnRecords(state: CostEvidenceState): CostEvidenceState 
  * records and preferences are theirs, in this browser. Every tab stays mounted, so typed inputs
  * survive a switch.
  */
+/**
+ * A request from the covered estimate to open the culvert evidence and adoption form. `spent` marks
+ * one already answered before the dialog closed, so remounting with the dialog does not reopen it.
+ */
+export interface CulvertReviewRequest {
+  sequence: number
+  targetKey?: string
+  recordId?: string
+  spent?: boolean
+}
+
 export function BCCostReferences({
   portalContainer,
   adoption,
@@ -105,7 +116,7 @@ export function BCCostReferences({
   /** The project's cost location. Absent: BC, the pack the catalogue grew from, with no region chosen. */
   place?: CostPlace
   /** Opens the culvert evidence and adoption form; opening it never changes a project rate. */
-  culvertReview?: { sequence: number; targetKey?: string; recordId?: string }
+  culvertReview?: CulvertReviewRequest
 }) {
   const projectPack = packFor(place)
   // A project placed outside every pack reads the evidence by place but has no region guidance.
@@ -127,7 +138,7 @@ export function BCCostReferences({
   const [seenCulvertReview, setSeenCulvertReview] = useState<number>()
   const [focusRecordId, setFocusRecordId] = useState<string>()
   const [preferredTargetKey, setPreferredTargetKey] = useState<string>()
-  if (culvertReview && culvertReview.sequence !== seenCulvertReview) {
+  if (culvertReview && !culvertReview.spent && culvertReview.sequence !== seenCulvertReview) {
     setSeenCulvertReview(culvertReview.sequence)
     setOpen(true)
     setTab('evidence')
