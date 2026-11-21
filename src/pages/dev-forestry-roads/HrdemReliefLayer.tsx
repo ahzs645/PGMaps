@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useMap } from '@/components/ui/map'
 import { MapRasterLayer } from '@/components/ui/map-layers'
-import { basemapReliefBeforeId, useReliefPlace } from './RegionalDemLayer'
+import { useReliefPlace } from '@/components/ui/map-regional-relief'
+import { basemapReliefBeforeId } from '@/lib/mapReliefPlace'
 import { HRDEM_RELIEF_CREDIT, HRDEM_RELIEF_TILES, HRDEM_RELIEF_MIN_ZOOM, HRDEM_RELIEF_MAX_ZOOM } from './hrdem'
 
 const LAYER_ID = 'road-hrdem-relief'

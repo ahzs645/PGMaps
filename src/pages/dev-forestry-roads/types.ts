@@ -481,7 +481,7 @@ export interface ContextFeature {
   /** Catalogue facts and separately entered planning assumptions; tenure dates are not road age. */
   roadEvidence?: ExistingRoadEvidence
   /** Reported or estimated harvest timing and provenance; never stand age or road condition. */
-  harvestEvidence?: import('./harvestHistory').HarvestEvidence
+  harvestEvidence?: import('@/lib/forestry/bcHarvest').HarvestEvidence
 }
 export interface ExistingRoadEvidence {
   source: 'bc-ften' | 'user' | 'scenario'

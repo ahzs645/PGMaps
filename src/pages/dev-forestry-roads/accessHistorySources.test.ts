@@ -23,7 +23,7 @@ import {
 } from './existingRoadEvidence'
 import { importExistingRoads, parseBcExistingRoads } from './existingRoads'
 import { createAccessHistoryState, parseAccessHistoryState } from './accessHistory'
-import { BC_HARVEST_SERVICE } from './harvestHistory'
+import { BC_HARVEST_SERVICE } from '@/lib/forestry/bcHarvest'
 import { SOURCE_IDENTIFIER } from './sourceIdentifier'
 
 /** Route mocks by the configured source, not a layer number, so a service move cannot silently misroute them. */

@@ -1,15 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   BC_HARVEST_SERVICE,
-  buildHarvestHistoryQueryUrl,
   harvestAge,
   harvestAgeSummary,
   harvestHistoryStyle,
+  parseHarvestEvidence,
+} from '@/lib/forestry/bcHarvest'
+import {
+  buildHarvestHistoryQueryUrl,
   importHarvestHistory,
   loadBcHarvestHistory,
   MAX_HARVEST_RESPONSE_BYTES,
   nearbyRoadCandidates,
-  parseHarvestEvidence,
 } from './harvestHistory'
 import { importContextGeoJson, parseProject, projectGeoJson, serializeProject } from './project'
 import { createTrainingScenario } from './scenarios'

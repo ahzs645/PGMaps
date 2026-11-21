@@ -59,6 +59,11 @@ classified separately. A name containing "FSR" or a numeric file identifier is
 never used as proof of FSR identity. The official [Forest Tenure service](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/196)
 publishes the file-type fields, while the [FTA map's road legend](https://delivery.maps.gov.bc.ca/arcgis/rest/services/fta/15000/MapServer/2)
 also distinguishes Forest Service Road from Road Permit and SUP Road categories.
+The service's address, the file type codes and the class read from them
+(`tenureRoadClass`) are shared code, `src/lib/forestry/bcForestRoads.ts`, read
+by the outdoors planner's forest road layer too. The live response is read
+through the shared `readBoundedText` (`src/lib/boundedText.ts`), which the
+designer's harvest, stream, pit and access-source reads also use.
 
 **Search tools** can load nearby FSRs automatically and compare connections from
 the active road's start or end point. `loadNearestBcFsrs` queries active FSR sections

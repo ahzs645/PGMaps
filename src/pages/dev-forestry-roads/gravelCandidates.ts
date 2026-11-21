@@ -1,3 +1,4 @@
+import { readBoundedText } from '@/lib/boundedText'
 import type { Coordinate } from './types'
 
 export const GRAVEL_WFS = 'https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST_TENURE.FTEN_SPEC_USE_PERMIT_POLY_SVW/ows'
@@ -157,28 +158,11 @@ export async function loadGravelCandidates(
     }
   }
   if (!response.ok) throw Error(`BC pit service returned HTTP ${response.status}.`)
-  if (Number(response.headers.get('content-length')) > MAX_GRAVEL_RESPONSE_BYTES)
-    throw Error('BC pit response exceeds the 4 MB limit; use a smaller road area.')
-  const reader = response.body?.getReader()
-  if (!reader) throw Error('BC pit service returned an empty response.')
-  const decoder = new TextDecoder()
-  let bytes = 0,
-    body = ''
-  try {
-    while (true) {
-      const chunk = await reader.read()
-      if (chunk.done) break
-      bytes += chunk.value.byteLength
-      if (bytes > MAX_GRAVEL_RESPONSE_BYTES) {
-        await reader.cancel()
-        throw Error('BC pit response exceeds the 4 MB limit; use a smaller road area.')
-      }
-      body += decoder.decode(chunk.value, { stream: true })
-    }
-    body += decoder.decode()
-  } finally {
-    reader.releaseLock()
-  }
+  const body = await readBoundedText(response, {
+    maxBytes: MAX_GRAVEL_RESPONSE_BYTES,
+    tooLarge: 'BC pit response exceeds the 4 MB limit; use a smaller road area.',
+    empty: 'BC pit service returned an empty response.',
+  })
   const raw = JSON.parse(body) as {
     error?: { message?: string }
     type?: string

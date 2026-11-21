@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { detailWindow, hrdemGeoTiff } from '../../src/pages/dev-forestry-roads/hrdem'
 import { choose } from './styled-select'
-import { BC_ROADS_SERVICE } from '../../src/pages/dev-forestry-roads/existingRoads'
+import { BC_ROADS_SERVICE } from '../../src/lib/forestry/bcForestRoads'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)

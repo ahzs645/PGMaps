@@ -1,6 +1,6 @@
 import { dateColumn, numberColumn, textColumn } from '@/components/map/tableColumns'
 import { defineTableSource } from '@/components/map/useMapTable'
-import { harvestAgeSummary, harvestHistoryStyle } from './harvestHistory'
+import { harvestAgeSummary, harvestHistoryStyle } from '@/lib/forestry/bcHarvest'
 import { roadDeactivationSummary, roadHistoryStyle } from './roadHistory'
 import type { ContextFeature } from './types'
 

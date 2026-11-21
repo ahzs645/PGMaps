@@ -1,7 +1,7 @@
 import { MapPopup } from '@/components/ui/map'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { KeyValueRows } from '@/components/ui/map-panels'
-import { harvestAgeSummary } from './harvestHistory'
+import { harvestAgeSummary } from '@/lib/forestry/bcHarvest'
 import { pathLengthM, polygonAreaM2 } from './mapNotes'
 import type { ContextFeature, Coordinate } from './types'
 

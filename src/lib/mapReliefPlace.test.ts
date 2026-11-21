@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { basemapReliefBeforeId, keepReliefOverImagery, reliefMoveBefore } from './RegionalDemLayer'
+import { basemapReliefBeforeId, keepReliefOverImagery, reliefMoveBefore } from './mapReliefPlace'
+
+const ROAD_RELIEF = ['road-regional-hillshade', 'road-hrdem-relief']
 
 type Layer = { id: string; type: string; 'source-layer'?: string }
 
@@ -43,7 +45,7 @@ describe('relief placement', () => {
       { id: 'imagery', type: 'raster' },
       ...BASEMAP.slice(4),
     ])
-    keepReliefOverImagery(map)
+    keepReliefOverImagery(map, ROAD_RELIEF)
     expect(map.layers.map((l) => l.id).slice(4, 8)).toEqual([
       'imagery',
       'road-regional-hillshade',
@@ -51,7 +53,7 @@ describe('relief placement', () => {
       'waterway_label',
     ])
     const moves = map.moves
-    keepReliefOverImagery(map)
+    keepReliefOverImagery(map, ROAD_RELIEF)
     expect(map.moves).toBe(moves)
   })
 

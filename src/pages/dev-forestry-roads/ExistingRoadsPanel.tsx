@@ -7,13 +7,8 @@ import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Contro
 import { RoadSection } from './SidebarParts'
 import { parseProject } from './project'
 import { refreshExistingRoadFeature, unreviewedRoadEvidence } from './existingRoadEvidence'
-import {
-  BC_ROADS_CATALOGUE,
-  BC_ROADS_SERVICE,
-  existingRoadQueryBounds,
-  loadBcExistingRoads,
-  type RoadQueryBounds,
-} from './existingRoads'
+import { BC_ROADS_CATALOGUE, BC_ROADS_SERVICE } from '@/lib/forestry/bcForestRoads'
+import { existingRoadQueryBounds, loadBcExistingRoads, type RoadQueryBounds } from './existingRoads'
 import type { ContextFeature, ExistingRoadEvidence } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import { SPATIAL_ACCEPT } from './spatialImport'

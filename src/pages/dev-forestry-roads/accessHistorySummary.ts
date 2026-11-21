@@ -15,7 +15,7 @@ import type {
   HistoricalStructureAssessment,
   HistoricalTemporalAssessment,
 } from './accessHistoryTypes'
-import { harvestAgeSummary, type HarvestEvidence } from './harvestHistory'
+import { harvestAgeSummary, type HarvestEvidence } from '@/lib/forestry/bcHarvest'
 import type { ContextFeature } from './types'
 
 type Status = HistoricalTemporalAssessment['status']

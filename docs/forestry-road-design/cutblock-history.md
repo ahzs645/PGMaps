@@ -65,7 +65,12 @@ The map groups known harvest ages into 0–10, 11–30 and 31+ years. A range sp
 groups remains uncertain rather than being assigned to one side of a boundary.
 These are display groups, not silvicultural thresholds or road-condition rules.
 Proposed blocks and unknown harvest history have separate labels. The legend is
-built from the same feature properties as the map.
+built from the same feature properties as the map. The evidence type, its parser
+and these groups (`harvestAge`, `harvestHistoryStyle`, `harvestAgeSummary`,
+`HARVEST_RECENT_YEARS`, `HARVEST_MEDIUM_YEARS`) live in shared code,
+`src/lib/forestry/bcHarvest.ts`, with layer 543's address and the fields read
+from it, because the outdoors planner's cutblock layer ages blocks by the same
+rule; a change here changes both.
 
 ## Road status and deactivation
 

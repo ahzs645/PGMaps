@@ -1,16 +1,15 @@
 /** Live, per-place DataBC query. No catalogue status is treated as proof of a built, usable road. */
+import { readBoundedText } from '@/lib/boundedText'
+import { BC_ROADS_CATALOGUE, BC_ROADS_SERVICE, FSR_FILE_TYPE_CODE, tenureRoadClass } from '@/lib/forestry/bcForestRoads'
 import { importContextGeoJson } from './project'
 import { parseRoadIdentifiers, unreviewedRoadEvidence } from './existingRoadEvidence'
 import type { ContextFeature, Coordinate, ExistingRoadEvidence } from './types'
 
 export type RoadQueryBounds = [number, number, number, number]
-export const BC_ROADS_SERVICE = 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/196'
-export const BC_ROADS_CATALOGUE = 'https://catalogue.data.gov.bc.ca/dataset/243c94a1-f275-41dc-bc37-91d8a2b26e10'
 export const MAX_EXISTING_ROADS = 500
 export const MAX_ROAD_QUERY_SPAN = 0.3
 export const MAX_ROAD_RESPONSE_BYTES = 10 * 1024 * 1024
 export const MAX_FSR_QUERY_SPAN = 0.5
-export const FSR_FILE_TYPE_CODE = 'B40'
 export type BcRoadQueryOptions = { fsrOnly?: boolean; activeOnly?: boolean }
 
 export function existingRoadQueryBounds(coordinates: Coordinate[], paddingKm = 1): RoadQueryBounds {
@@ -50,7 +49,7 @@ export function buildBcRoadsQuery(bounds: RoadQueryBounds, options: BcRoadQueryO
   const params = new URLSearchParams({
     f: 'geojson',
     where: [
-      options.fsrOnly ? "FILE_TYPE_CODE='B40'" : '1=1',
+      options.fsrOnly ? `FILE_TYPE_CODE='${FSR_FILE_TYPE_CODE}'` : '1=1',
       ...(options.activeOnly ? ["LIFE_CYCLE_STATUS_CODE='ACTIVE'"] : []),
     ].join(' AND '),
     geometry: bounds.join(','),
@@ -116,11 +115,7 @@ export function parseBcExistingRoads(raw: unknown, retrievedAt = new Date().toIS
     const evidence: ExistingRoadEvidence = {
       ...unreviewedRoadEvidence('bc-ften'),
       ...sourceRoadIdentifiers(p),
-      ...(p.FILE_TYPE_CODE === FSR_FILE_TYPE_CODE
-        ? { roadClass: 'fsr' as const }
-        : p.FILE_TYPE_CODE === 'B01'
-          ? { roadClass: 'permit' as const }
-          : {}),
+      ...(tenureRoadClass(p.FILE_TYPE_CODE) ? { roadClass: tenureRoadClass(p.FILE_TYPE_CODE) } : {}),
       ...(recordText(p.FILE_TYPE_CODE) ? { fileTypeCode: recordText(p.FILE_TYPE_CODE) } : {}),
       ...(recordText(p.LIFE_CYCLE_STATUS_CODE) ? { lifecycleStatus: recordText(p.LIFE_CYCLE_STATUS_CODE) } : {}),
       sourceId: String(p.OBJECTID ?? f.id ?? i),
@@ -199,28 +194,11 @@ export async function loadBcFsrsNear(
 async function loadRoadQuery(url: string, signal?: AbortSignal): Promise<ContextFeature[]> {
   const response = await fetch(url, { signal })
   if (!response.ok) throw Error(`BC roads query failed (${response.status}). Try again or import your road linework.`)
-  if (Number(response.headers.get('content-length')) > MAX_ROAD_RESPONSE_BYTES)
-    throw Error('BC roads response is too large. Zoom in.')
-  const reader = response.body?.getReader()
-  if (!reader) throw Error('The BC roads service returned an empty response.')
-  const decoder = new TextDecoder()
-  let bytes = 0
-  let text = ''
-  try {
-    while (true) {
-      const chunk = await reader.read()
-      if (chunk.done) break
-      bytes += chunk.value.byteLength
-      if (bytes > MAX_ROAD_RESPONSE_BYTES) {
-        await reader.cancel()
-        throw Error('BC roads response is too large. Zoom in.')
-      }
-      text += decoder.decode(chunk.value, { stream: true })
-    }
-    text += decoder.decode()
-  } finally {
-    reader.releaseLock()
-  }
+  const text = await readBoundedText(response, {
+    maxBytes: MAX_ROAD_RESPONSE_BYTES,
+    tooLarge: 'BC roads response is too large. Zoom in.',
+    empty: 'The BC roads service returned an empty response.',
+  })
   return parseBcExistingRoads(JSON.parse(text))
 }
 
@@ -252,12 +230,7 @@ export function importExistingRoads(raw: unknown): ContextFeature[] {
             : {
                 ...unreviewedRoadEvidence(),
                 ...sourceRoadIdentifiers(f.properties ?? {}),
-                roadClass:
-                  f.properties?.FILE_TYPE_CODE === FSR_FILE_TYPE_CODE
-                    ? 'fsr'
-                    : f.properties?.FILE_TYPE_CODE === 'B01'
-                      ? 'permit'
-                      : 'user',
+                roadClass: tenureRoadClass(f.properties?.FILE_TYPE_CODE) ?? 'user',
                 ...(recordText(f.properties?.FILE_TYPE_CODE)
                   ? { fileTypeCode: recordText(f.properties?.FILE_TYPE_CODE) }
                   : {}),

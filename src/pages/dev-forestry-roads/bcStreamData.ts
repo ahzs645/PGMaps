@@ -1,3 +1,4 @@
+import { readBoundedText } from '@/lib/boundedText'
 import {
   BC_STREAM_SOURCES,
   MAX_PROVINCIAL_STREAM_FEATURES,
@@ -84,28 +85,13 @@ function sourcePage(raw: unknown, expected: string[]): SourceFeature[] {
 async function readJson(url: string, signal: AbortSignal, fetcher: typeof fetch, budget: { bytes: number }) {
   const response = await fetcher(url, { signal })
   if (!response.ok) throw Error(`Provincial stream query failed (${response.status}). Try again or import local data.`)
-  if (Number(response.headers.get('content-length')) > MAX_STREAM_RESPONSE_BYTES)
-    throw Error('Provincial stream response is too large. Use a smaller extent.')
-  const reader = response.body?.getReader()
-  if (!reader) throw Error('The provincial service returned an empty response.')
-  const decoder = new TextDecoder()
-  let text = ''
-  try {
-    while (true) {
-      signal.throwIfAborted()
-      const chunk = await reader.read()
-      if (chunk.done) break
-      budget.bytes += chunk.value.byteLength
-      if (budget.bytes > MAX_STREAM_RESPONSE_BYTES) {
-        await reader.cancel()
-        throw Error('Provincial stream response is too large. Use a smaller extent.')
-      }
-      text += decoder.decode(chunk.value, { stream: true })
-    }
-    text += decoder.decode()
-  } finally {
-    reader.releaseLock()
-  }
+  const text = await readBoundedText(response, {
+    maxBytes: MAX_STREAM_RESPONSE_BYTES,
+    tooLarge: 'Provincial stream response is too large. Use a smaller extent.',
+    empty: 'The provincial service returned an empty response.',
+    signal,
+    budget,
+  })
   try {
     return JSON.parse(text) as unknown
   } catch {

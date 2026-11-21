@@ -3,7 +3,7 @@ import { tableCsvText } from '@/components/map/mapTableModel'
 import type { MapTableSource } from '@/components/map/useMapTable'
 import { contextHistoryBounds, contextHistoryProperties, historyTableSources } from './historyPresentation'
 import type { ContextFeature, ExistingRoadEvidence } from './types'
-import type { HarvestEvidence } from './harvestHistory'
+import type { HarvestEvidence } from '@/lib/forestry/bcHarvest'
 
 // The source factory is a type-erasing identity function; browser table hooks are outside these pure data tests.
 vi.mock('@/components/map/useMapTable', () => ({ defineTableSource: (source: unknown) => source }))

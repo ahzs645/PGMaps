@@ -1,4 +1,5 @@
 /** Bounded official-source adapters. Record linkage is evidence, never proof of a road's original purpose. */
+import { readBoundedText } from '@/lib/boundedText'
 import type { ContextFeature, Coordinate } from './types'
 import type { HistoricalBlockIdentity, HistoricalSource, HistoricalStructure } from './accessHistoryTypes'
 import {
@@ -342,38 +343,12 @@ async function boundedJson(url: string, signal: AbortSignal, limit: number): Pro
   }
   if (!response.ok)
     throw Error(`BC source request failed (${response.status}); current project evidence was not changed.`)
-  if (Number(response.headers.get('content-length')) > limit) {
-    await response.body?.cancel()
-    throw Error('BC source response is too large; narrow the query.')
-  }
-  const reader = response.body?.getReader()
-  if (!reader) throw Error('The BC source returned an empty response.')
-  const decoder = new TextDecoder()
-  let count = 0
-  let body = ''
-  const cancel = () => {
-    void reader.cancel().catch(() => undefined)
-  }
-  signal.addEventListener('abort', cancel, { once: true })
-  try {
-    while (true) {
-      throwIfAborted(signal)
-      const { value, done } = await reader.read()
-      throwIfAborted(signal)
-      if (done) break
-      count += value.byteLength
-      if (count > limit) {
-        await reader.cancel()
-        throw Error('BC source response is too large; narrow the query.')
-      }
-      body += decoder.decode(value, { stream: true })
-    }
-    body += decoder.decode()
-  } finally {
-    signal.removeEventListener('abort', cancel)
-    reader.releaseLock()
-  }
-  throwIfAborted(signal)
+  const body = await readBoundedText(response, {
+    maxBytes: limit,
+    tooLarge: 'BC source response is too large; narrow the query.',
+    empty: 'The BC source returned an empty response.',
+    signal,
+  })
   return JSON.parse(body)
 }
 async function sourceRequest<T>(
