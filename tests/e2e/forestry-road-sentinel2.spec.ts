@@ -383,7 +383,11 @@ test('Wayback timeline respects its deployment flag and only requests the select
     })
   })
   await page.route('https://wayback.maptiles.arcgis.com/**', (route) => {
-    tiles.push(new URL(route.request().url()).pathname.split('/')[2])
+    const path = new URL(route.request().url()).pathname
+    // Every release brings new imagery here, so the local list keeps all three.
+    const tilemap = /\/tilemap\/(\d+)\//.exec(path)
+    if (tilemap) return route.fulfill({ headers, json: { data: [1], select: [Number(tilemap[1])] } })
+    tiles.push(path.split('/')[2])
     return route.fulfill({
       headers,
       contentType: 'image/png',
@@ -435,6 +439,7 @@ test('Wayback timeline respects its deployment flag and only requests the select
   await card.getByRole('button', { name: 'Retry Wayback catalog' }).click()
   const slider = card.getByRole('slider')
   await expect(slider).toHaveAttribute('aria-valuetext', '2024-08-21')
+  await expect(card.getByTestId('road-wayback-count')).toHaveText('3 of 3')
   await expect.poll(() => tiles.includes('2')).toBe(true)
   await expect.poll(async () => (await layer())?.belowContours).toBe(true)
   await expect.poll(async () => (await layer())?.aboveHillshade).toBe(true)
@@ -462,8 +467,83 @@ test('Wayback timeline respects its deployment flag and only requests the select
   expect(errors).toEqual([])
 })
 
+test('Wayback lists only the releases that change the map centre and reads their capture dates', async ({ page }) => {
+  test.skip((process.env.VITE_ROAD_WAYBACK_TIMELINE ?? 'true') !== 'true', 'Wayback is hidden in this deployment')
+  const headers = { 'Access-Control-Allow-Origin': '*' }
+  const releases = ['2016-01-06', '2019-06-12', '2019-11-20', '2024-08-21']
+  // 2024 reuses the November 2019 imagery here; the other three are their own.
+  const from: Record<string, number> = { 0: 0, 1: 1, 2: 2, 3: 2 }
+  const captured: Record<string, number> = { 0: 20150801, 1: 20190515, 2: 20190901, 3: 20240701 }
+  await page.route('**/waybackconfig.json', (route) =>
+    route.fulfill({
+      headers,
+      json: Object.fromEntries(
+        releases.map((date, id) => [
+          id,
+          {
+            itemTitle: `World Imagery (Wayback ${date})`,
+            itemURL: `https://wayback.maptiles.arcgis.com/test/${id}/{level}/{row}/{col}`,
+            metadataLayerUrl: `https://metadata.maptiles.arcgis.com/test${id}/MapServer`,
+          },
+        ]),
+      ),
+    }),
+  )
+  await page.route('https://wayback.maptiles.arcgis.com/**', (route) => {
+    const tilemap = /\/tilemap\/(\d+)\//.exec(new URL(route.request().url()).pathname)
+    if (tilemap) return route.fulfill({ headers, json: { data: [1], select: [from[tilemap[1]]] } })
+    return route.abort()
+  })
+  await page.route('https://metadata.maptiles.arcgis.com/**', (route) => {
+    const id = /\/test(\d+)\//.exec(new URL(route.request().url()).pathname)![1]
+    return route.fulfill({
+      headers,
+      json: {
+        features: [{ attributes: { SRC_DATE: captured[id], SRC_RES: 0.3, SRC_ACC: 5, NICE_DESC: 'Test supplier' } }],
+      },
+    })
+  })
+  const errors = await open(page, { failing: false })
+  await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
+  await page.getByRole('checkbox', { name: 'Historical imagery timeline' }).check()
+  await page.getByRole('button', { name: 'Close map settings' }).click()
+  const card = page.getByRole('region', { name: 'Historical imagery timeline' })
+  const slider = card.getByRole('slider')
+  await expect(card.getByTestId('road-wayback-count')).toHaveText('3 of 4')
+  // The newest release shows November 2019's imagery here, so the timeline stands on it.
+  await expect(slider).toHaveAttribute('aria-valuetext', '2019-11-20')
+  await expect(slider).toHaveAttribute('aria-valuemax', '2')
+  await expect(card.getByTestId('road-wayback-captured')).toHaveText('Captured 2019-09-01 · 30 cm')
+  await expect(card.getByTestId('road-wayback-captured')).toHaveAttribute('title', 'Test supplier')
+  const only = card.getByRole('switch', { name: 'Only releases that change this spot' })
+  await only.click()
+  await expect(only).toHaveAttribute('aria-checked', 'false')
+  await expect(slider).toHaveAttribute('aria-valuetext', '2024-08-21')
+  await expect(slider).toHaveAttribute('aria-valuemax', '3')
+  await expect(card.getByTestId('road-wayback-captured')).toHaveText('Captured 2024-07-01 · 30 cm')
+  await only.click()
+  await slider.press('Home')
+  await expect(slider).toHaveAttribute('aria-valuetext', '2016-01-06')
+  await expect(card.getByTestId('road-wayback-captured')).toHaveText('Captured 2015-08-01 · 30 cm')
+  // A year on the axis opens it on its first release; its dates then select within it.
+  await card.getByRole('button', { name: 'Show 2019', exact: true }).click()
+  await expect(slider).toHaveAttribute('aria-valuetext', '2019-06-12')
+  await expect(slider).toHaveAttribute('aria-valuemax', '1')
+  await expect(card.getByTestId('road-wayback-year')).toHaveText('‹ All years')
+  await card.getByRole('button', { name: 'Show 2019-11-20' }).click()
+  await expect(slider).toHaveAttribute('aria-valuetext', '2019-11-20')
+  await card.getByTestId('road-wayback-year').click()
+  await expect(slider).toHaveAttribute('aria-valuemax', '2')
+  await expect(slider).toHaveAttribute('aria-valuetext', '2019-11-20')
+  // A year with one release is selected, not opened.
+  await card.getByRole('button', { name: 'Show 2016', exact: true }).click()
+  await expect(slider).toHaveAttribute('aria-valuetext', '2016-01-06')
+  await expect(card.getByTestId('road-wayback-year')).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
 for (const layout of ['guided', 'workbench', 'dashboard']) {
-  test(`Wayback timeline docks below the plan in ${layout}`, async ({ page }) => {
+  test(`Wayback timeline runs along the bottom of the plan in ${layout}`, async ({ page }) => {
     const enabled = (process.env.VITE_ROAD_WAYBACK_TIMELINE ?? 'true') === 'true'
     let catalogs = 0
     await page.route('**/waybackconfig.json', (route) => {
@@ -479,6 +559,8 @@ for (const layout of ['guided', 'workbench', 'dashboard']) {
     })
     await page.route('https://wayback.maptiles.arcgis.com/**', (route) => route.abort())
     const errors = await open(page, { failing: false }, layout)
+    const plan = page.getByTestId('road-plan-view')
+    const closedHeight = (await plan.boundingBox())!.height
     const settings = page.getByRole('button', { name: 'Map display settings', exact: true })
     if (layout === 'guided') {
       const guide = page.getByRole('region', { name: 'Road layout guide' })
@@ -500,10 +582,16 @@ for (const layout of ['guided', 'workbench', 'dashboard']) {
     const timeline = page.getByRole('region', { name: 'Historical imagery timeline' })
     await expect(timeline.getByRole('slider')).toHaveAttribute('aria-valuetext', '2024-08-21')
     await expect(timeline.getByRole('button', { name: 'Close timeline' })).toBeInViewport()
-    const map = await page.getByTestId('road-plan-view').boundingBox()
-    const band = await timeline.boundingBox()
-    expect(band!.y).toBeGreaterThanOrEqual(map!.y + map!.height - 1)
-    expect(Math.abs(band!.width - map!.width)).toBeLessThan(2)
+    // On the map along its bottom edge, all the way across: the plan keeps its whole height.
+    const map = (await plan.boundingBox())!
+    const strip = (await timeline.locator('[data-map-timeline]').boundingBox())!
+    expect(Math.abs(map.height - closedHeight)).toBeLessThan(2)
+    expect(Math.abs(strip.width - (map.width - 20))).toBeLessThan(3)
+    expect(map.y + map.height - (strip.y + strip.height)).toBeGreaterThan(0)
+    expect(map.y + map.height - (strip.y + strip.height)).toBeLessThan(16)
+    // The scale bar stacks above it.
+    const scale = (await plan.locator('.road-map-scale').boundingBox())!
+    expect(scale.y + scale.height).toBeLessThanOrEqual(strip.y + 1)
     expect(catalogs).toBe(1)
     expect(errors).toEqual([])
   })

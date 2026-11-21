@@ -301,7 +301,8 @@ export const workspaceCommands = {
   waybackTimeline: {
     label: 'Historical imagery timeline',
     icon: History,
-    description: 'Browse Esri Wayback mosaic releases beneath the road plan.',
+    description:
+      'Step through the Esri Wayback releases that changed the imagery at the map centre, with their capture dates.',
     investigation: true,
   },
   sentinel2: { label: 'Sentinel-2 imagery', icon: Satellite, investigation: true },

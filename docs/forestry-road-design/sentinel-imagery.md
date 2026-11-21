@@ -261,13 +261,37 @@ Catalogue and band caches are local to this map session. There is no polling or 
 In all four interfaces, open a georeferenced Plan and choose **Map display settings → Historical imagery timeline**.
 Ribbon also has **View → Map layers → Historical imagery timeline** and **Find tools**. In Guided map, use **View**.
 
-The timeline spans the width of the Plan pane directly below the map. On first open it shows Esri’s newest mosaic
-beneath the road linework. Drag the slider, use its arrow keys, or select **Play** to advance one release every
-two seconds until the newest. Closing the timeline removes the layer. Opening Sentinel-2 closes Wayback, and
-opening Wayback closes Sentinel-2. A release dates the mosaic. Imagery at a particular road can be older or
-identical across several releases. Like Sentinel-2, Wayback is evidence only: never a constraint, a route-search
-input or proof of a road. Tiles stop at zoom 18, as the satellite basemap's do, because Esri answers deeper rural
-BC requests with a grey placeholder; MapLibre stretches z18 beyond.
+The timeline runs along the bottom of the Plan map, the full width of the map, and the scale, status bar,
+attribution, legend and any tool panel move up above it while it is open. On first open it shows Esri’s newest
+mosaic beneath the road linework.
+
+A release dates the mosaic, not the photograph, and most releases reuse the imagery already there: at the
+reference road by UNBC, 13 of 199 releases change the picture at zoom 16, and 5 at zoom 18. With the count
+switch beside the capture date on (the default, reading for example **13 of 199**; its name is *Only releases
+that change this spot*), the timeline lists just those; select it to list every release (**All 199**). They are
+read from Esri's tile map at the tile under the map centre, at the zoom the plan draws Wayback (at most 18): asked for a release, it names the
+release that tile came from, so the walk back from the newest release makes one request per distinct image, as
+Esri's own Wayback app does. It checks again each time the map stops moving; the last list stays until the next
+one is read, and a place already read this session is not asked again. Each entry is the first release that
+published that imagery. The choice is kept as a date: moving to another place, or switching the option off, shows
+the imagery in effect at that release there. If the tile map cannot be read, the timeline lists every release and
+offers **Retry check**.
+
+Beside the release date the timeline prints what the shown release captured at the map centre, from the
+release's own imagery metadata service: the capture date and ground resolution (*Captured 2023-05-15 · 7.5 cm*),
+with the supplier and source name in its tooltip (*City of Prince George · Prince George 2023 Ortho*). The record
+names one point; other parts of the view can come from other captures. Esri can take several seconds to answer
+for an older release, and until it does the timeline reads *Captured …*, never another release's date. Where a release has no metadata service or
+no dated record at the point, nothing is printed. Capture records are kept for the session.
+
+Drag the slider, use its arrow keys, or select **Play** to advance one entry every two seconds until the newest.
+Select a year under the track to open it: the timeline then lists only that year's entries, labelled by day,
+starts on its first, and plays through that year; select a day to show it, and **‹ All years** to go back to every
+year. A year with one entry is shown, not opened.
+Closing the timeline removes the layer. Opening Sentinel-2 closes Wayback, and opening Wayback closes Sentinel-2.
+Like Sentinel-2, Wayback is evidence only: never a constraint, a route-search input or proof of a road. Tiles stop
+at zoom 18, as the satellite basemap's do, because Esri answers deeper rural BC requests with a grey placeholder;
+MapLibre stretches z18 beyond.
 
 On a design opened on the flat plane (no coordinate system), both imagery commands stay in place, disabled, until
 **Place on map**.
@@ -277,14 +301,17 @@ site to hide it; `deployment.ts` reads it with the designer's other deployment s
 setting it to `true` restores the option. The standalone designer uses the same setting
 ([standalone build](standalone-build.md)).
 
-| Limit             | Value                                                           | Where                                                |
-| ----------------- | --------------------------------------------------------------- | ---------------------------------------------------- |
-| Catalog request   | Gives up after 20 s; **Retry Wayback catalog** asks again       | `src/lib/wayback.ts` `WAYBACK_CATALOG_TIMEOUT_MS`    |
-| Playback          | One release every 2 s                                           | `WaybackTimeline.tsx` `WAYBACK_PLAYBACK_MS`          |
-| Deepest tile zoom | 18                                                              | `PlanView.tsx` (`maxZoom` on `road-wayback`)         |
-| Release hand-off  | Previous release kept until the next has its tiles, at most 4 s | `map-layer-handoff.ts` `LAYER_HANDOFF_TIME_LIMIT_MS` |
+| Limit             | Value                                                                                             | Where                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Catalog request   | Gives up after 20 s; **Retry Wayback catalog** asks again                                         | `src/lib/wayback.ts` `WAYBACK_CATALOG_TIMEOUT_MS`        |
+| Playback          | One entry every 2 s                                                                               | `WaybackTimeline.tsx` `WAYBACK_PLAYBACK_MS`              |
+| Local changes     | One tile-map request per distinct image, one place at a time, after the map stops; 64 places kept | `src/lib/wayback.ts` `WAYBACK_LOCAL_CACHE_SIZE`          |
+| Capture record    | One metadata request per release and place, 150 ms after the release settles; 256 kept            | `WAYBACK_CAPTURE_DELAY_MS`, `WAYBACK_CAPTURE_CACHE_SIZE` |
+| Tile map, record  | Each request gives up after 10 s                                                                  | `WaybackTimeline.tsx` `WAYBACK_SPOT_TIMEOUT_MS`          |
+| Deepest tile zoom | 18                                                                                                | `PlanView.tsx` (`maxZoom` on `road-wayback`)             |
+| Release hand-off  | Previous release kept until the next has its tiles, at most 4 s                                   | `map-layer-handoff.ts` `LAYER_HANDOFF_TIME_LIMIT_MS`     |
 
-Opening Wayback requests the catalog. The plan then requests tiles for the selected release and visible area.
+Opening Wayback requests the catalog, then the tile map at the map centre and the shown release's capture record. The plan requests tiles for the selected release and visible area.
 Tile traffic varies with the viewport, zoom and playback. A new release loads behind the one shown and replaces
 it in one frame once it has its tiles, so stepping and playback never blank the imagery
 ([swapping a tile layer](../shared-ui.md#swapping-a-tile-layer-without-a-blank)). Played faster than its tiles

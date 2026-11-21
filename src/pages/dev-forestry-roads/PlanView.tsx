@@ -3087,7 +3087,7 @@ export function PlanView(input: PlanProps) {
   const plane = isLocalPlane(props.project.terrain) ? (props.project.terrain.localPlane ?? null) : null
   const waybackAvailable = waybackTimelineAvailable(props.project.terrain)
   const waybackActive = waybackAvailable && props.display.showWayback
-  const timeline = useWaybackTimeline(waybackActive)
+  const timeline = useWaybackTimeline(waybackActive, props.display.navigationMap)
   const waybackRelease = waybackActive ? timeline.release : undefined
   const wayback = useMapLayerHandoff(
     'road-wayback',
@@ -3155,6 +3155,8 @@ export function PlanView(input: PlanProps) {
         ref={planView}
         className={`road-plan-view isolate relative min-h-0 flex-1 overflow-hidden rounded-lg ${drawing ? '[&_.maplibregl-marker]:pointer-events-none [&_.maplibregl-marker_*]:pointer-events-none' : ''}`}
         data-testid="road-plan-view"
+        // A layout root, so the Wayback timeline's height also reaches the tool panel beside the map.
+        data-map-layout-root="true"
         data-drawing={drawing}
       >
         <Map
@@ -3477,8 +3479,9 @@ export function PlanView(input: PlanProps) {
           )}
           <MapScaleBar
             position="bottom-left"
-            className="road-map-scale left-2 bottom-[calc(var(--map-bottom-left-controls-height,0px)+0.5rem)]"
+            className="road-map-scale left-2 bottom-[calc(var(--map-timeline-height,0px)+var(--map-bottom-left-controls-height,0px)+0.5rem)]"
           />
+          {waybackActive && <WaybackTimeline timeline={timeline} onClose={() => props.display.setShowWayback(false)} />}
           {table.layout.bottomPane && (
             <div
               className="absolute inset-x-0 bottom-0 z-30 max-h-[70%] overflow-hidden border-t bg-background"
@@ -3699,7 +3702,7 @@ export function PlanView(input: PlanProps) {
           </div>
         )}
         {(showSentinel || showCanopy || props.cornerPanel) && (
-          <div className="absolute right-12 top-12 z-30 flex max-h-[calc(100%-6rem)] max-w-[calc(100%-4rem)] flex-col items-end gap-2 overflow-hidden">
+          <div className="road-plan-corner absolute right-12 z-30 flex max-w-[calc(100%-4rem)] flex-col items-end gap-2 overflow-hidden">
             {props.cornerPanel && (
               <div className="flex min-h-0 max-w-full shrink" style={{ maxHeight: 'inherit' }}>
                 {props.cornerPanel}
@@ -3729,7 +3732,7 @@ export function PlanView(input: PlanProps) {
         {tools.panelSlot}
         {props.toolPanel && (
           <div
-            className="absolute bottom-9 left-2 z-30 max-h-[calc(100%-5.5rem)] w-80 max-w-[calc(100%-1rem)] overflow-y-auto overscroll-none"
+            className="absolute bottom-[calc(var(--map-timeline-height,0px)+2.25rem)] left-2 z-30 max-h-[calc(100%-5.5rem-var(--map-timeline-height,0px))] w-80 max-w-[calc(100%-1rem)] overflow-y-auto overscroll-none"
             data-map-export-ignore
           >
             {props.toolPanel}
@@ -3767,7 +3770,6 @@ export function PlanView(input: PlanProps) {
             </Button>
           ))}
       </div>
-      {waybackActive && <WaybackTimeline timeline={timeline} onClose={() => props.display.setShowWayback(false)} />}
       <div
         ref={setLegendSlot}
         className="road-plan-legend-slot flex max-h-[45%] min-h-0 shrink-0 flex-col pb-2 empty:hidden"

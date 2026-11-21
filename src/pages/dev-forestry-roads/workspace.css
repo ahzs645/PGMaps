@@ -72,10 +72,10 @@
 }
 
 /* This map has no overlaid phone sheet. Its scale stays at the map edge, above MapLibre's own
-   bottom-left corner (the map status bar). */
+   bottom-left corner (the map status bar), and above the Wayback timeline while it is open. */
 .road-workspace [data-testid='road-plan-view'] .road-map-scale {
   left: 0.5rem;
-  bottom: calc(var(--map-bottom-left-controls-height, 0px) + 0.5rem);
+  bottom: calc(var(--map-timeline-height, 0px) + var(--map-bottom-left-controls-height, 0px) + 0.5rem);
 }
 
 .road-plan-view {
@@ -129,6 +129,19 @@
 /* Measured in PlanView, so notes and hints sit under however many rows the toolbar took. */
 .road-plan-toolbar ~ .road-plan-below-toolbar {
   top: calc(var(--road-plan-toolbar-height, 2rem) + 1rem);
+}
+
+/* The imagery cards (Sentinel-2, canopy height, Wayback) and a tool's corner panel. Once the toolbar
+   wraps into a second row it reaches under this column, so the column starts below it. */
+.road-plan-corner {
+  --road-plan-corner-top: max(3rem, calc(var(--road-plan-toolbar-height, 2rem) + 1rem));
+  top: var(--road-plan-corner-top);
+  max-height: calc(100% - var(--road-plan-corner-top) - 3rem);
+}
+
+/* Down the side, the toolbar keeps to the left edge and the column keeps its corner. */
+.road-plan-toolbar[data-layout='side'] ~ .road-plan-corner {
+  --road-plan-corner-top: 3rem;
 }
 
 /* Map settings → Layout → Toolbar. "Along the top" keeps every control in one row and scrolls it
@@ -237,7 +250,7 @@
 .road-workspace [data-testid='road-plan-view'] .maplibregl-ctrl-bottom-right {
   left: 0.5rem;
   right: auto;
-  bottom: calc(var(--map-bottom-left-controls-height, 0px) + 2rem);
+  bottom: calc(var(--map-timeline-height, 0px) + var(--map-bottom-left-controls-height, 0px) + 2rem);
   z-index: 20;
 }
 

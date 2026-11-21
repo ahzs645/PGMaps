@@ -128,7 +128,7 @@ export function PlanLegend({
         className={
           // Corners, shadow and the folded height match the plan's other 32 px controls. While a plan
           // tool's panel (20 rem, bottom left) is up, the legend stops short of it rather than cover it.
-          `road-map-legend bottom-2 right-2 flex max-h-[calc(100%-1rem)] ${toolOpen ? 'max-w-[max(2.5rem,calc(100%-21.5rem))]' : 'max-w-[calc(100%-1rem)]'} flex-col rounded-md p-2 shadow-sm workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:rounded-md workspace-desktop:p-2 data-[collapsed]:h-8 data-[collapsed]:justify-center data-[collapsed]:py-0 workspace-desktop:data-[collapsed]:py-0 [&>div:first-child]:shrink-0`
+          `road-map-legend bottom-[calc(var(--map-timeline-height,0px)+0.5rem)] right-2 flex max-h-[calc(100%-1rem-var(--map-timeline-height,0px))] ${toolOpen ? 'max-w-[max(2.5rem,calc(100%-21.5rem))]' : 'max-w-[calc(100%-1rem)]'} flex-col rounded-md p-2 shadow-sm workspace-desktop:bottom-[calc(var(--map-timeline-height,0px)+0.5rem)] workspace-desktop:right-2 workspace-desktop:rounded-md workspace-desktop:p-2 data-[collapsed]:h-8 data-[collapsed]:justify-center data-[collapsed]:py-0 workspace-desktop:data-[collapsed]:py-0 [&>div:first-child]:shrink-0`
         }
         contentClassName="min-h-0 max-h-64 overflow-y-auto overscroll-none text-2xs"
       >
