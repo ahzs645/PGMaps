@@ -3,8 +3,21 @@ import type { TerrainVertex } from './terrainMesh'
 /** Zoom range of the 3D preview, relative to the fit of the whole display window. */
 export const PREVIEW_MIN_ZOOM = 0.35
 export const PREVIEW_MAX_ZOOM = 16
-/** Below this zoom the whole-window mesh is fine enough; above it a finer window is meshed around the focus. */
+/**
+ * Canvas preview only: below this zoom the whole-window mesh is fine enough; above it a finer window is
+ * meshed around the focus. The accelerated view never meshes again on zoom; it draws a fine band along the road.
+ */
 export const PREVIEW_DETAIL_ZOOM = 2
+/** Stations the canvas preview draws along the whole road; more are thinned evenly. */
+export const PREVIEW_CANVAS_STATIONS = 180
+/**
+ * Stations the accelerated view draws. Up to this many it draws every one, so a road face and the batter strips
+ * beside it always share their stations; past it they are thinned evenly.
+ */
+export const PREVIEW_GPU_MAX_STATIONS = 2000
+
+/** Draw every nth station so that at most `cap` are drawn (the last is always drawn as well). */
+export const previewStationStep = (count: number, cap: number) => Math.max(1, Math.ceil(count / Math.max(1, cap)))
 
 const clamp = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value))
 

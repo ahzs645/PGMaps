@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { createDemoProject } from './terrain'
 import { previewEarthwork } from './previewEarthwork'
+import { sectionSampleAt } from './sectionGeometry'
 import type { Coordinate, RoadStation, TerrainSource } from './types'
 
 const origin: Coordinate = [-122.8, 53.9]
@@ -73,7 +74,7 @@ describe('3D earthwork with incomplete sections', () => {
     const middle = road.stations[Math.floor(road.stations.length / 2)]
     middle.section = middle.section.map((p) => ({ ...p, ground: null }))
     const display = previewEarthwork([road.stations[0], middle, road.stations.at(-1)!], vertex)
-    expect(display).toEqual({ faces: [], edges: [] })
+    expect(display).toEqual({ faces: [], edges: [], seams: [] })
     expect(previewEarthwork(road.stations.slice(0, 2), vertex).faces).toHaveLength(12)
   })
 
@@ -86,5 +87,54 @@ describe('3D earthwork with incomplete sections', () => {
     const display = previewEarthwork(long.stations, vertex)
     expect(display.faces).toHaveLength(12)
     expect(display.edges).toHaveLength(0)
+  })
+
+  it('makes seams where both stations’ batters met the ground and carries the ground under each open edge', () => {
+    const closed = analysis(800, undefined, 40, 32.1)
+    const display = previewEarthwork(closed.stations, vertex)
+    expect(display.edges).toHaveLength(0)
+    expect(display.seams).toHaveLength(2 * (closed.stations.length - 1))
+    for (const { a, b } of display.seams) {
+      // Each end is a station's catch point: at its daylight offset, where the design is the ground.
+      for (const p of [a, b]) {
+        const station = closed.stations.find((s) => s.chainage === p.y)!
+        expect(Math.abs(p.x)).toBeCloseTo(p.x < 0 ? station.leftDaylightM! : station.rightDaylightM!, 9)
+        expect(p.z).toBeCloseTo(sectionSampleAt(station, p.x).ground!, 6)
+      }
+      expect(b.y).toBeGreaterThan(a.y)
+    }
+
+    const open = analysis(770)
+    const stopped = previewEarthwork(open.stations, vertex)
+    expect(stopped.seams).toHaveLength(0)
+    expect(stopped.edges.length).toBeGreaterThan(0)
+    for (const edge of stopped.edges) {
+      const at = (p: { x: number; y: number }) =>
+        sectionSampleAt(open.stations.find((s) => s.chainage === p.y)!, p.x).ground
+      expect(edge.groundA).toBe(at(edge.a))
+      expect(edge.groundB).toBe(at(edge.b))
+      // A deep cut stopped at the reach: the ground stands above the batter's last point.
+      expect(edge.groundA).toBeGreaterThan(edge.a.z)
+    }
+
+    // One side caught, the other stopped at missing terrain: seams on the caught side only.
+    const half = previewEarthwork(analysis(810, { elevationAt: (lng) => (east(lng) > 8 ? NaN : 800) }).stations, vertex)
+    expect(half.seams.length).toBeGreaterThan(0)
+    expect(half.seams.every(({ a, b }) => a.x < 0 && b.x < 0)).toBe(true)
+    expect(half.edges.every(({ a, b }) => a.x > 0 && b.x > 0)).toBe(true)
+  })
+
+  it('makes one straight seam a side where the road edge is itself the catch point', () => {
+    const level = analysis(800)
+    expect(level.stations.every((s) => s.complete && s.leftDaylightM === 3 && s.rightDaylightM === 3)).toBe(true)
+    const display = previewEarthwork(level.stations, vertex)
+    expect(display.faces).toHaveLength(0)
+    expect(display.edges).toHaveLength(0)
+    const first = level.stations[0].chainage,
+      last = level.stations.at(-1)!.chainage
+    expect(display.seams.map(({ a, b }) => [a.x, a.y, b.x, b.y])).toEqual([
+      [-3, first, -3, last],
+      [3, first, 3, last],
+    ])
   })
 })

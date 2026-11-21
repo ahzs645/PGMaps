@@ -24,14 +24,29 @@ import { TerrainGpu } from './TerrainGpu'
 import type { TerrainGpuHandle } from './terrainGpuTypes'
 import type { TerrainRenderQuality } from './terrainRenderQuality'
 import { terrainSceneFrame, terrainSceneGeometry, type TerrainSceneFrame } from './terrainSceneGeometry'
-import { terrainScenePresentation } from './terrainScenePresentation'
+import { bandedScenePresentation, terrainScenePresentation } from './terrainScenePresentation'
 import type { DesignSurfaceKind } from './designSurfaceExport'
 import { stationOffsetCoordinate } from './designExports'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ROAD_CHART_COLORS, formatRoadStation } from './Charts'
 import { sectionCodePoints, sectionSampleAt } from './sectionGeometry'
-import { terrainMesh, cachedTerrainSampler, type TerrainVertex as Vertex } from './terrainMesh'
-import { CUT_BATTER_FILL, FILL_BATTER_FILL, previewEarthwork, type PreviewBatterEdge } from './previewEarthwork'
+import {
+  MAX_CACHED_GPU_TERRAIN_VERTICES,
+  terrainMesh,
+  cachedTerrainSampler,
+  type TerrainVertex as Vertex,
+} from './terrainMesh'
+import { roadBandSegments, terrainBandMesh, TERRAIN_BAND_MAX_CELLS, type TerrainBandSegment } from './terrainBandMesh'
+import { TERRAIN_SLOPE_TEXTURE_SIDES, terrainSlopeTextureSteps, type TerrainSlopeTexture } from './terrainSlopeTexture'
+import { runCooperatively } from './cooperative'
+import {
+  CUT_BATTER_FILL,
+  FILL_BATTER_FILL,
+  UNFINISHED_BATTER_COLOUR,
+  previewEarthwork,
+  type PreviewBatterEdge,
+  type PreviewBatterSeam,
+} from './previewEarthwork'
 import { excavatedGround, occlusionTest, type OcclusionCover } from './terrainOcclusion'
 import {
   autoPreviewExaggeration,
@@ -40,8 +55,11 @@ import {
   focusOnGround,
   groundUnder,
   pixelsPerMetreAtFocus,
+  PREVIEW_CANVAS_STATIONS,
+  PREVIEW_GPU_MAX_STATIONS,
   previewCamera,
   previewDetailWindow,
+  previewStationStep,
   scaleBarLength,
   type CameraFocus,
   type PreviewCamera,
@@ -236,16 +254,21 @@ function displayBounds(analysis: RoadAnalysis, frame: Frame, following: RoadStat
 }
 
 /**
- * Ground, formation, batters and ditches for one display window. With `detail`, the ground inside that
- * window is meshed again at finer spacing and every road station inside it is drawn; the coarse cells
- * it covers are left out. Elevation range, median and ground range always come from the coarse window,
- * so a finer patch never moves the camera fit or the colour scale.
+ * Ground, formation, batters and ditches for one display window. With `detail` (the canvas preview), the ground
+ * inside that window is meshed again at finer spacing and every road station inside it is drawn; the coarse cells
+ * it covers are left out. With `band` (the accelerated view), the coarse cells along the road are meshed finer
+ * once (`terrainBandMesh`), whatever the camera does. Elevation range, median and ground range always come from
+ * the coarse window, so finer ground never moves the camera fit or the colour scale. At most about `stationCap`
+ * stations are drawn, thinned evenly past that. `seams` are the formation's outline edges where the batters met the ground and
+ * `unfinishedEdges` those where they did not, both cut to the window.
  */
 function buildGeometry({
   analysis,
   frame,
   bounds,
   detail: requestedDetail,
+  band,
+  stationCap = PREVIEW_CANVAS_STATIONS,
   elevation,
   fillGaps,
   terrainOnly,
@@ -257,6 +280,8 @@ function buildGeometry({
   frame: Frame
   bounds: number[]
   detail: number[] | null
+  band?: { segments: TerrainBandSegment[]; maxCells: number }
+  stationCap?: number
   elevation: (x: number, y: number) => number
   fillGaps: boolean
   terrainOnly: boolean
@@ -272,14 +297,17 @@ function buildGeometry({
     if (!finite(s.groundElevation)) missing.push([x, y])
     for (const p of s.section) if (!finite(p.ground)) missing.push(frame.point(stationOffsetCoordinate(s, p.offset)))
   }
-  const mesh = terrainMesh(bounds, elevation, missing, fillGaps, meshOptions)
+  const banded = band ? terrainBandMesh(bounds, elevation, missing, fillGaps, { ...meshOptions, ...band }) : null
+  const mesh = banded ?? terrainMesh(bounds, elevation, missing, fillGaps, meshOptions)
   // A window from an earlier display window may reach past this one; keep only the overlap.
-  const detail = requestedDetail && [
-    Math.max(requestedDetail[0], bounds[0] - mesh.spacing),
-    Math.max(requestedDetail[1], bounds[1] - mesh.spacing),
-    Math.min(requestedDetail[2], bounds[2] + mesh.spacing),
-    Math.min(requestedDetail[3], bounds[3] + mesh.spacing),
-  ]
+  const detail = banded
+    ? null
+    : requestedDetail && [
+        Math.max(requestedDetail[0], bounds[0] - mesh.spacing),
+        Math.max(requestedDetail[1], bounds[1] - mesh.spacing),
+        Math.min(requestedDetail[2], bounds[2] + mesh.spacing),
+        Math.min(requestedDetail[3], bounds[3] + mesh.spacing),
+      ]
   const fine =
     detail && detail[2] > detail[0] && detail[3] > detail[1]
       ? terrainMesh(detail, elevation, missing, fillGaps, meshOptions)
@@ -310,7 +338,14 @@ function buildGeometry({
     ...(fine ? clipped(fine.faces).map((vertices) => ({ vertices, fill: '' })) : []),
     ...(fine ? clipped(fine.estimatedFaces).map((vertices) => ({ vertices, fill: '', estimated: true })) : []),
   ]
-  const step = Math.max(1, Math.ceil(analysis.stations.length / 180))
+  // The same ground with no band, for a scene whose band cannot be cut within the drawing budgets.
+  const coarseGround: Face[] = banded?.bandCells
+    ? [
+        ...banded.coarseFaces.map((vertices) => ({ vertices, fill: '' })),
+        ...mesh.estimatedFaces.map((vertices) => ({ vertices, fill: '', estimated: true })),
+      ]
+    : ground
+  const step = previewStationStep(analysis.stations.length, stationCap)
   const selected = analysis.stations.filter((s, i) => {
     if (i % step === 0 || i === analysis.stations.length - 1) return true
     const [x, y] = frame.point(s.coordinate)
@@ -319,6 +354,7 @@ function buildGeometry({
   const road: Face[] = []
   const earthwork: Face[] = []
   const unfinishedEdges: PreviewBatterEdge[] = []
+  const seams: PreviewBatterSeam[] = []
   const line: Array<{ vertex: Vertex | null; chainage: number; connected: boolean }> = []
   for (let i = 0; i < selected.length; i++) {
     const s = selected[i]
@@ -367,7 +403,20 @@ function buildGeometry({
     }
     for (const edge of batters.edges) {
       const clippedEdge = clipLine(edge.a, edge.b, bounds)
-      if (clippedEdge) unfinishedEdges.push({ ...edge, a: clippedEdge[0], b: clippedEdge[1] })
+      // The ground under the edge, cut at the same places: the line is the same in plan.
+      const clippedGround = clipLine({ ...edge.a, z: edge.groundA }, { ...edge.b, z: edge.groundB }, bounds)
+      if (clippedEdge && clippedGround)
+        unfinishedEdges.push({
+          ...edge,
+          a: clippedEdge[0],
+          b: clippedEdge[1],
+          groundA: clippedGround[0].z,
+          groundB: clippedGround[1].z,
+        })
+    }
+    for (const seam of batters.seams) {
+      const clippedSeam = clipLine(seam.a, seam.b, bounds)
+      if (clippedSeam) seams.push({ ...seam, a: clippedSeam[0], b: clippedSeam[1] })
     }
   }
   const zValues = mesh.elevations
@@ -410,16 +459,20 @@ function buildGeometry({
     frame,
     bounds,
     ground,
+    coarseGround,
     road,
     earthwork,
     unfinishedEdges,
+    seams,
     ditches,
     line,
     medianZ,
     low: Number.isFinite(low) ? low : 0,
     high: Number.isFinite(high) ? high : 0,
     meshSpacing: mesh.spacing,
-    detailSpacing: fine?.spacing ?? null,
+    /** The finer spacing drawn: the canvas preview's focus window, or the accelerated view's band. */
+    detailSpacing: fine?.spacing ?? banded?.bandSpacing ?? null,
+    bandCells: banded?.bandCells ?? 0,
     cells: ground.length,
     infilledCells: mesh.infilledCells + (fine?.infilledCells ?? 0),
     openGapCells: mesh.openGapCells + (fine?.openGapCells ?? 0),
@@ -427,6 +480,9 @@ function buildGeometry({
     groundHigh: zValues.length ? Math.max(...zValues) : 0,
   }
 }
+
+/** A mesh spacing as the view states it: to the centimetre, without trailing zeros. */
+const formatSpacing = (value: number | undefined) => (value === undefined ? '—' : String(Number(value.toFixed(2))))
 
 const sameWindow = (a: number[] | null, b: number[] | null) =>
   a === b || (!!a && !!b && a.every((value, i) => value === b[i]))
@@ -570,7 +626,10 @@ export function TerrainPreview({
   )
   const cachedElevation = useMemo(
     () =>
-      cachedTerrainSampler((x, y) => terrain.elevationAt(...frame.coordinate(x, y)), gpuEnabled ? 262144 : undefined),
+      cachedTerrainSampler(
+        (x, y) => terrain.elevationAt(...frame.coordinate(x, y)),
+        gpuEnabled ? MAX_CACHED_GPU_TERRAIN_VERTICES : undefined,
+      ),
     [frame, terrain, gpuEnabled],
   )
   const cachedElevationRef = useRef(cachedElevation)
@@ -649,6 +708,10 @@ export function TerrainPreview({
   const selectedCulvert = terrainOnly
     ? undefined
     : analysis.engineering?.culverts.find((c) => c.id === selectedCulvertId)
+  // The accelerated scene is what will be drawn, unless its ground cannot be cut (`requiresCanvas`, below). After a
+  // renderer failure or context loss the canvas preview draws, and the accelerated scene keeps today's coarse ground.
+  const gpuIntended = gpuEnabled && !rendererReason
+  // The canvas preview's ground mesh.
   const meshOptions = useMemo(
     () =>
       gpuEnabled
@@ -658,6 +721,14 @@ export function TerrainPreview({
           }
         : undefined,
     [gpuEnabled, quality, terrainMetadata?.resolutionM, rendererReason],
+  )
+  // The accelerated view's coarse ground mesh, under its band.
+  const gpuMeshOptions = useMemo(
+    () => ({
+      maxSide: quality === 'efficient' ? 128 : quality === 'high' ? 256 : 192,
+      minSpacing: terrainMetadata?.resolutionM,
+    }),
+    [quality, terrainMetadata?.resolutionM],
   )
   const base = useMemo(() => {
     if (!analysis.stations.length) return null
@@ -685,21 +756,30 @@ export function TerrainPreview({
     gpuEnabled,
     terrainMetadata?.resolutionM,
   ])
-  const sourceGeometry = useMemo(
+  // The road's centreline, each stretch reaching past what is drawn beside it: where the band of fine ground goes.
+  const bandSegments = useMemo(
+    () => (gpuEnabled ? roadBandSegments(analysis.stations, (s) => frame.point(s.coordinate)) : []),
+    [gpuEnabled, analysis, frame],
+  )
+  // The accelerated view's geometry: the coarse grid, fine in a band along the road, meshed once for the window. The
+  // camera never changes it. Every station is drawn, up to `PREVIEW_GPU_MAX_STATIONS`.
+  const gpuGeometry = useMemo(
     () =>
-      base && (detail || gpuEnabled)
+      base && gpuIntended
         ? {
             ...buildGeometry({
               analysis,
               frame,
               bounds: base.bounds,
-              detail,
+              detail: null,
+              band: { segments: bandSegments, maxCells: TERRAIN_BAND_MAX_CELLS[quality] },
+              stationCap: PREVIEW_GPU_MAX_STATIONS,
               elevation: cachedElevation,
               fillGaps,
               terrainOnly,
               maxGradePercent,
               gradeSpan,
-              meshOptions,
+              meshOptions: gpuMeshOptions,
             }),
             low: base.low,
             high: base.high,
@@ -707,19 +787,20 @@ export function TerrainPreview({
             groundHigh: base.groundHigh,
             medianZ: base.medianZ,
           }
-        : base,
+        : null,
     [
       base,
-      detail,
+      gpuIntended,
       analysis,
       frame,
+      bandSegments,
+      quality,
       cachedElevation,
       fillGaps,
       terrainOnly,
       maxGradePercent,
       gradeSpan,
-      meshOptions,
-      gpuEnabled,
+      gpuMeshOptions,
     ],
   )
   // The automatic exaggeration reads the whole road's sections, so it does not change while following.
@@ -743,10 +824,99 @@ export function TerrainPreview({
     return high > low ? autoPreviewExaggeration(high - low, span) : 1
   }, [analysis, frame])
   const exaggeration = exaggerationChoice === 'auto' ? autoExaggeration : exaggerationChoice
+  const design = useMemo(
+    () =>
+      !terrainOnly && alignment && 'epsg' in frame && surfaceKind !== 'formation'
+        ? terrainSceneGeometry({ kind: surfaceKind, alignment, analysis, frame })
+        : null,
+    [terrainOnly, alignment, analysis, frame, surfaceKind],
+  )
+  const sceneInputs = useMemo(
+    () => ({
+      design,
+      analysis,
+      culvertDesigns,
+      terrainOnly,
+      colour: shownColour,
+      ortho: shownColour === 'ortho' ? ortho : undefined,
+      showEarthwork,
+      maxGradePercent,
+      gradeSpan,
+    }),
+    [design, analysis, culvertDesigns, terrainOnly, shownColour, ortho, showEarthwork, maxGradePercent, gradeSpan],
+  )
+  // The accelerated scene with its band; if the band's ground passes a drawing budget, the same scene on coarse ground.
+  const gpuPresentation = useMemo(
+    () =>
+      gpuGeometry
+        ? bandedScenePresentation({ ...sceneInputs, geometry: gpuGeometry, coarseGround: gpuGeometry.coarseGround })
+        : null,
+    [gpuGeometry, sceneInputs],
+  )
+  // The canvas preview draws: without WebGL metadata, after a renderer failure, or when the scene could not be cut.
+  // Before the first accelerated frame it shows the base mesh, which is never denser than before the band.
+  const canvasDraws = !gpuIntended || !!gpuPresentation?.requiresCanvas
+  const canvasDetail = canvasDraws ? detail : null
+  const canvasGeometry = useMemo(
+    () =>
+      base && (canvasDetail || (gpuEnabled && canvasDraws))
+        ? {
+            ...buildGeometry({
+              analysis,
+              frame,
+              bounds: base.bounds,
+              detail: canvasDetail,
+              elevation: cachedElevation,
+              fillGaps,
+              terrainOnly,
+              maxGradePercent,
+              gradeSpan,
+              meshOptions,
+            }),
+            low: base.low,
+            high: base.high,
+            groundLow: base.groundLow,
+            groundHigh: base.groundHigh,
+            medianZ: base.medianZ,
+          }
+        : base,
+    [
+      base,
+      canvasDetail,
+      canvasDraws,
+      analysis,
+      frame,
+      cachedElevation,
+      fillGaps,
+      terrainOnly,
+      maxGradePercent,
+      gradeSpan,
+      meshOptions,
+      gpuEnabled,
+    ],
+  )
+  // While the canvas preview stands in after a failure, the accelerated scene keeps its coarse ground, so a restored
+  // context has something to draw.
+  const fallbackPresentation = useMemo(
+    () =>
+      gpuEnabled && !gpuIntended && canvasGeometry
+        ? terrainScenePresentation({ ...sceneInputs, geometry: canvasGeometry })
+        : null,
+    [gpuEnabled, gpuIntended, canvasGeometry, sceneInputs],
+  )
+  const presentation = gpuIntended ? gpuPresentation : fallbackPresentation
+  const gpuActive = gpuEnabled && !!presentation && !presentation.requiresCanvas && renderer === 'webgl'
+  const gpuDrawsUnfinished = gpuActive && !!presentation?.data.unfinished
+  // What the overlays are drawn from: the accelerated scene's own geometry while it draws, else the canvas preview's.
+  const sourceGeometry = gpuActive && gpuGeometry ? gpuGeometry : canvasGeometry
+  // What the view reports: the accelerated scene's geometry from the start, so its figures do not change at its first
+  // frame. A band left out to stay within the drawing budgets is not reported.
+  const reportedGeometry = gpuIntended && gpuGeometry && !gpuPresentation?.requiresCanvas ? gpuGeometry : canvasGeometry
+  const reportedDetailSpacing = gpuPresentation?.bandDropped ? null : (reportedGeometry?.detailSpacing ?? null)
   const groundFaces = useMemo(() => {
-    if (!sourceGeometry) return NO_FACES
-    const { groundLow, groundHigh } = sourceGeometry
-    return sourceGeometry.ground.map((face) => ({
+    if (!canvasGeometry || gpuActive) return NO_FACES
+    const { groundLow, groundHigh } = canvasGeometry
+    return canvasGeometry.ground.map((face) => ({
       ...face,
       fill: colourFace(
         face.vertices[0],
@@ -758,46 +928,66 @@ export function TerrainPreview({
         exaggeration,
       ),
     }))
-  }, [sourceGeometry, shownColour, exaggeration])
+  }, [canvasGeometry, gpuActive, shownColour, exaggeration])
 
-  const design = useMemo(
-    () =>
-      !terrainOnly && alignment && 'epsg' in frame && surfaceKind !== 'formation'
-        ? terrainSceneGeometry({ kind: surfaceKind, alignment, analysis, frame })
-        : null,
-    [terrainOnly, alignment, analysis, frame, surfaceKind],
-  )
-  const presentation = useMemo(
-    () =>
-      gpuEnabled && sourceGeometry
-        ? terrainScenePresentation({
-            geometry: sourceGeometry,
-            design,
-            analysis,
-            culvertDesigns,
-            terrainOnly,
-            colour: shownColour,
-            ortho: shownColour === 'ortho' ? ortho : undefined,
-            showEarthwork,
-            maxGradePercent,
-            gradeSpan,
-          })
-        : null,
-    [
-      gpuEnabled,
-      sourceGeometry,
-      design,
-      analysis,
-      culvertDesigns,
-      terrainOnly,
-      shownColour,
-      ortho,
-      showEarthwork,
-      maxGradePercent,
-      gradeSpan,
-    ],
-  )
-  const gpuActive = gpuEnabled && !!presentation && !presentation.requiresCanvas && renderer === 'webgl'
+  // Slope colour from a texture baked from the source ground over the window, so the colour belongs to the ground and
+  // not to the mesh. Baked in slices, never blocking the page; cancelled when its inputs change. The texture in hand
+  // stays on the ground until the next one is ready (Around station moves its window), and only the same terrain in
+  // the same frame keeps it.
+  const frameKey = JSON.stringify([frame.coordinate(0, 0), frame.coordinate(1000, 1000)])
+  const bakeKey =
+    gpuIntended && shownColour === 'slope' && base
+      ? JSON.stringify([frameKey, base.bounds, quality, terrainMetadata?.resolutionM ?? null])
+      : null
+  const bakeInputs = useRef({
+    terrain,
+    frame,
+    frameKey,
+    bounds: base?.bounds,
+    quality,
+    minSpacing: terrainMetadata?.resolutionM,
+  })
+  useLayoutEffect(() => {
+    bakeInputs.current = {
+      terrain,
+      frame,
+      frameKey,
+      bounds: base?.bounds,
+      quality,
+      minSpacing: terrainMetadata?.resolutionM,
+    }
+  })
+  const [slopeBake, setSlopeBake] = useState<{
+    terrain: TerrainSource
+    frameKey: string
+    texture: TerrainSlopeTexture
+  } | null>(null)
+  useEffect(() => {
+    const inputs = bakeInputs.current
+    if (!bakeKey || !inputs.bounds) return
+    const { terrain: source, frame: bakeFrame, bounds } = inputs
+    const controller = new AbortController()
+    runCooperatively(
+      terrainSlopeTextureSteps({
+        bounds,
+        // The source itself, not the string-keyed cache: each texel centre is read once.
+        elevationAt: (x, y) => source.elevationAt(...bakeFrame.coordinate(x, y)),
+        minSpacing: inputs.minSpacing,
+        maxSide: TERRAIN_SLOPE_TEXTURE_SIDES[inputs.quality],
+      }),
+      { signal: controller.signal },
+    ).then(
+      (texture) => setSlopeBake({ terrain: source, frameKey: inputs.frameKey, texture }),
+      // Cancelled, or a window it cannot cover: the vertex colours stay, as before the texture was ready.
+      () => {},
+    )
+    return () => controller.abort()
+  }, [bakeKey])
+  const groundTexture =
+    gpuIntended && shownColour === 'slope' && slopeBake?.terrain === terrain && slopeBake.frameKey === frameKey
+      ? slopeBake.texture
+      : null
+
   // Fit the stable whole-window geometry, never the optional detail patch.
   const fitVertices = useMemo(
     () =>
@@ -818,19 +1008,19 @@ export function TerrainPreview({
   // since the display draws it unexcavated over a cut. A terrain-only transect has no footprint and
   // lies on the ground it would be tested against, so it is never culled.
   const occluders = useMemo(() => {
-    if (!sourceGeometry || terrainOnly || gpuActive) return null
-    const footprint = [...sourceGeometry.road, ...sourceGeometry.earthwork].map((face) => face.vertices)
-    const spacing = sourceGeometry.detailSpacing ?? sourceGeometry.meshSpacing
+    if (!canvasGeometry || terrainOnly || gpuActive) return null
+    const footprint = [...canvasGeometry.road, ...canvasGeometry.earthwork].map((face) => face.vertices)
+    const spacing = canvasGeometry.detailSpacing ?? canvasGeometry.meshSpacing
     return {
       ground: excavatedGround(
-        sourceGeometry.ground.map((face) => face.vertices),
+        canvasGeometry.ground.map((face) => face.vertices),
         footprint,
         spacing / 4,
       ),
       // The mesh's error in height is drawn exaggerated, so the allowance grows with the exaggeration.
       tolerance: (spacing / 2) * Math.max(1, exaggeration),
     }
-  }, [sourceGeometry, terrainOnly, exaggeration, gpuActive])
+  }, [canvasGeometry, terrainOnly, exaggeration, gpuActive])
 
   const following = mode === 'follow' && active ? active : undefined
   const activeElevation = terrainOnly ? active?.groundElevation : (active?.designElevation ?? active?.groundElevation)
@@ -859,22 +1049,21 @@ export function TerrainPreview({
         })()
       : null
 
-  // Mesh a finer window around the focus once zooming or panning settles.
+  // Canvas preview only: mesh a finer window around the focus once zooming or panning settles. The accelerated view
+  // draws its band from the start and never meshes again for the camera, so no window and no timer there.
   const focusX = look?.x ?? target[0],
     focusY = look?.y ?? target[1]
+  const canvasSpacing = canvasGeometry?.meshSpacing
   useEffect(() => {
+    // A window kept from an earlier canvas spell is ignored (`canvasDetail`) and replaced if the canvas draws again.
+    if (!canvasDraws) return
     const next = base
-      ? previewDetailWindow(
-          base.bounds,
-          zoom,
-          { x: focusX, y: focusY },
-          sourceGeometry?.meshSpacing ?? base.meshSpacing,
-        )
+      ? previewDetailWindow(base.bounds, zoom, { x: focusX, y: focusY }, canvasSpacing ?? base.meshSpacing)
       : null
     if (sameWindow(next, detail)) return
     const timer = setTimeout(() => setDetail(next), next ? 180 : 0)
     return () => clearTimeout(timer)
-  }, [base, zoom, focusX, focusY, detail, sourceGeometry?.meshSpacing])
+  }, [canvasDraws, base, zoom, focusX, focusY, detail, canvasSpacing])
 
   const centreOnStation = () => {
     if (!activeVertex) return
@@ -905,8 +1094,9 @@ export function TerrainPreview({
         Keys: arrows pan, Shift+arrows rotate and tilt, + and − zoom, Home fits the view.
       </span>
       <span className="mt-1 block">
-        The compass turns the view north up. Zoomed in, the ground around the centre is meshed again at finer spacing.
-        Click the road to select that station.
+        The compass turns the view north up. With acceleration, the ground along the road is drawn finer from the start
+        and zooming never redraws it; the canvas preview meshes the ground around the centre again when zoomed in. Click
+        the road to select that station.
       </span>
     </InfoTip>
   )
@@ -922,11 +1112,11 @@ export function TerrainPreview({
       data-terrain-only={terrainOnly}
       data-zoom={zoom}
       data-exaggeration={exaggeration}
-      data-mesh-spacing={sourceGeometry?.meshSpacing}
-      data-detail-spacing={sourceGeometry?.detailSpacing ?? undefined}
-      data-infilled-cells={sourceGeometry?.infilledCells ?? 0}
-      data-open-gap-cells={sourceGeometry?.openGapCells ?? 0}
-      data-batter-face-count={sourceGeometry?.earthwork.length ?? 0}
+      data-mesh-spacing={reportedGeometry?.meshSpacing}
+      data-detail-spacing={reportedDetailSpacing ?? undefined}
+      data-infilled-cells={reportedGeometry?.infilledCells ?? 0}
+      data-open-gap-cells={reportedGeometry?.openGapCells ?? 0}
+      data-batter-face-count={reportedGeometry?.earthwork.length ?? 0}
       aria-label={`${sourceLabel} 3D preview`}
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-1 gap-y-1 border-b px-1.5 py-1 [&>*]:shrink-0">
@@ -1063,8 +1253,8 @@ export function TerrainPreview({
             aria-label="Fill small gaps in 3D display"
             aria-pressed={fillGaps}
             data-testid="road-terrain-fill-gaps"
-            data-estimated-patches={!!sourceGeometry?.infilledCells}
-            title={`${sourceGeometry?.infilledCells ? 'Showing estimated patches (display only). ' : ''}Fill small gaps: estimate small enclosed gaps for the 3D display only. Turn off to show the original source gaps. Calculations always use the original terrain.`}
+            data-estimated-patches={!!reportedGeometry?.infilledCells}
+            title={`${reportedGeometry?.infilledCells ? 'Showing estimated patches (display only). ' : ''}Fill small gaps: estimate small enclosed gaps for the 3D display only. Turn off to show the original source gaps. Calculations always use the original terrain.`}
             onClick={() => setFillGaps((value) => !value)}
           >
             <PaintBucket className="size-3.5" />
@@ -1182,8 +1372,10 @@ export function TerrainPreview({
               </span>
               <span className="mt-1 block">
                 Source: {terrainMetadata?.resolutionM ?? 'unknown'} m. Display mesh:{' '}
-                {sourceGeometry?.detailSpacing ?? sourceGeometry?.meshSpacing ?? '—'} m. Height ×{exaggeration}.
-                Rendering quality cannot add detail absent from the source.
+                {reportedDetailSpacing !== null
+                  ? `${formatSpacing(reportedDetailSpacing)} m ${reportedGeometry === gpuGeometry ? 'along the road' : 'around the centre'}, ${formatSpacing(reportedGeometry?.meshSpacing)} m elsewhere`
+                  : `${formatSpacing(reportedGeometry?.meshSpacing)} m`}
+                . Height ×{exaggeration}. Rendering quality cannot add detail absent from the source.
               </span>
               <span className="mt-1 block">
                 {terrainOnly
@@ -1519,6 +1711,7 @@ export function TerrainPreview({
                     {gpuEnabled && presentation && !presentation.requiresCanvas && (
                       <TerrainGpu
                         data={presentation.data}
+                        groundTexture={groundTexture}
                         handle={gpuHandle}
                         onStatus={onRendererStatus}
                         projectionKey={projectionKey}
@@ -1593,7 +1786,10 @@ export function TerrainPreview({
                             y1={a.y}
                             x2={b.x}
                             y2={b.y}
-                            stroke="#e11d48"
+                            stroke={UNFINISHED_BATTER_COLOUR}
+                            // The accelerated view draws these edges itself, with their curtains, behind the ground
+                            // in front of them. The marker stays, unstroked, so the edge is still listed here.
+                            strokeOpacity={gpuDrawsUnfinished ? 0 : 1}
                             strokeWidth={1.5}
                             strokeDasharray="4 3"
                             pointerEvents="none"
@@ -1854,6 +2050,7 @@ export function TerrainPreview({
             // The batters are keyed while they are drawn in their cut and fill colours: the canvas preview always, the
             // accelerated view while it draws the formation rather than one exact surface.
             batters={!terrainOnly && showEarthwork && (!gpuActive || surfaceKind === 'formation')}
+            unfinished={!terrainOnly && showEarthwork && sourceGeometry.unfinishedEdges.length > 0}
           />
         )}
       </div>
@@ -1912,6 +2109,7 @@ function TerrainColourLegend({
   maxGradePercent,
   exaggeration,
   batters = false,
+  unfinished = false,
 }: {
   colour: 'slope' | 'elevation'
   low: number
@@ -1920,6 +2118,8 @@ function TerrainColourLegend({
   exaggeration: number
   /** The batters are drawn in their cut and fill colours, so the legend keys them. */
   batters?: boolean
+  /** Some batter in the window stopped short of the ground and is marked so. */
+  unfinished?: boolean
 }) {
   // Folded on a short 3D pane, as the plan's legend starts folded: open, it would cover the middle of the view and take
   // its drags and wheel. A fold or unfold the reader chooses holds. The legend sits over the pane, so folding it never
@@ -1992,13 +2192,16 @@ function TerrainColourLegend({
               />
             </MapLegendSection>
           )}
-          {(maxGradePercent !== undefined || batters) && (
+          {(maxGradePercent !== undefined || batters || unfinished) && (
             <MapLegendSection title="Road">
               {batters && (
                 <>
                   <LegendItem color={CUT_BATTER_FILL} swatchShape="square" label="Cut batter" />
                   <LegendItem color={FILL_BATTER_FILL} swatchShape="square" label="Fill batter" />
                 </>
+              )}
+              {unfinished && (
+                <LegendItem color={UNFINISHED_BATTER_COLOUR} swatchShape="dashed-line" label="Unfinished batter" />
               )}
               {maxGradePercent !== undefined && (
                 <LegendItem color={OVER_GRADE_FILL} swatchShape="square" label="Grade standard not met" />

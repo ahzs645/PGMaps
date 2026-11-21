@@ -2,7 +2,15 @@
 import type { TerrainFace } from './TerrainGround'
 import type { TerrainVertex } from './terrainMesh'
 import type { TerrainGpuData } from './terrainGpuTypes'
-import { clipTerrainToDesign, type TerrainSceneGeometry } from './terrainSceneGeometry'
+import {
+  cutTerrainToDesign,
+  terrainSeamBlendRadius,
+  terrainSkirtDepth,
+  unfinishedBatterCurtains,
+  type DesignSeam,
+  type TerrainSceneGeometry,
+  type TerrainSkirtEdge,
+} from './terrainSceneGeometry'
 import type { Coordinate, RoadAnalysis } from './types'
 import { culvertBarrel } from './culvertBarrel'
 import { culvertBarrels, culvertRiseM, culvertShapeOf, culvertSpanM } from './culverts/culvertShape'
@@ -17,12 +25,45 @@ interface Geometry {
   road: TerrainFace[]
   earthwork: TerrainFace[]
   ditches: Array<{ a: TerrainVertex; b: TerrainVertex; chainage: number }>
+  /** The formation's outline edges where its batters met the ground (`previewEarthwork`'s seams). */
+  seams?: DesignSeam[]
+  /** The formation's batter edges that stopped short of the ground, with the ground under each end. */
+  unfinishedEdges?: Array<{ a: TerrainVertex; b: TerrainVertex; groundA: number; groundB: number }>
+  /** The coarse display mesh's cell size, m: it sets how far the skirt hangs. */
+  meshSpacing?: number
+  /** The finer cell size along the road, m, when the ground has a band: it sets how far the ground is eased to a seam. */
+  detailSpacing?: number | null
   line: Array<{ vertex: TerrainVertex | null; chainage: number; connected: boolean }>
   groundLow: number
   groundHigh: number
   low: number
   bounds: number[]
 }
+
+export interface TerrainScenePresentationInput {
+  geometry: Geometry
+  design: TerrainSceneGeometry | null
+  analysis: RoadAnalysis
+  culvertDesigns?: Culvert[]
+  terrainOnly: boolean
+  colour: TerrainGpuData['colour']
+  ortho?: TerrainBackgroundLayer
+  showEarthwork: boolean
+  maxGradePercent?: number
+  gradeSpan?: GradeSpan
+}
+
+export interface TerrainScenePresentation {
+  data: TerrainGpuData
+  notice?: string
+  requiresCanvas?: boolean
+  /** The fine band's ground passed a drawing budget, so the scene is drawn on the coarse ground instead. */
+  bandDropped?: boolean
+}
+
+/** Said when the band along the road is left out to keep the scene within its drawing budgets. */
+export const BAND_DROPPED_NOTICE =
+  'The finer ground along the road needs more drawing than this view allows, so the ground is drawn at its coarse spacing.'
 
 export function terrainScenePresentation({
   geometry,
@@ -35,33 +76,31 @@ export function terrainScenePresentation({
   showEarthwork,
   maxGradePercent,
   gradeSpan = 'behind',
-}: {
-  geometry: Geometry
-  design: TerrainSceneGeometry | null
-  analysis: RoadAnalysis
-  culvertDesigns?: Culvert[]
-  terrainOnly: boolean
-  colour: TerrainGpuData['colour']
-  ortho?: TerrainBackgroundLayer
-  showEarthwork: boolean
-  maxGradePercent?: number
-  gradeSpan?: GradeSpan
-}): { data: TerrainGpuData; notice?: string; requiresCanvas?: boolean } {
+}: TerrainScenePresentationInput): TerrainScenePresentation {
   let exact = design?.indices.length ? design : null
   let notice = design?.status === 'ready' || terrainOnly ? undefined : (design?.reason ?? design?.notice)
   let ground = geometry.ground
+  let skirt: TerrainSkirtEdge[] = []
   let requiresCanvas = false
   try {
-    if (!terrainOnly)
-      ground = clipTerrainToDesign(
+    if (!terrainOnly) {
+      const exactShown = showEarthwork ? exact : null
+      const cut = cutTerrainToDesign(
         ground,
-        exact && showEarthwork
-          ? exact.footprint
+        exactShown
+          ? exactShown.footprint
           : [...geometry.road, ...(showEarthwork ? geometry.earthwork : [])].map((face) => face.vertices),
-        // With the batters drawn, the footprint's edge is where the design meets the ground: the display ground is
-        // brought to it. A road drawn alone stands above or below the ground, which stays where it is.
-        { stitch: showEarthwork },
+        // With the batters drawn, the outline edges where they reached the ground are seams: the display ground is
+        // brought to them, eased over a cell or two of the ground beside them. A road drawn alone stands above or
+        // below the ground, which stays where it is.
+        {
+          seams: !showEarthwork ? [] : exactShown ? exactShown.seams : (geometry.seams ?? []),
+          blendM: terrainSeamBlendRadius(geometry.detailSpacing ?? geometry.meshSpacing ?? 0),
+        },
       )
+      ground = cut.faces
+      skirt = cut.skirt
+    }
   } catch (error) {
     // A too-complex display remains usable and says which drawing it can show. Never lose source
     // ground or hand a partially cut mesh to the renderer after a budget is reached.
@@ -166,11 +205,21 @@ export function terrainScenePresentation({
       ]
     }
   }
+  // A batter that stopped short of the ground is drawn to it, where the formation itself is drawn.
+  const unfinishedEdges = !terrainOnly && showEarthwork && !exact ? (geometry.unfinishedEdges ?? []) : []
   return {
     notice,
     requiresCanvas,
     data: {
       ground,
+      skirt,
+      skirtDepth: terrainSkirtDepth(geometry.meshSpacing ?? 0),
+      unfinished: unfinishedEdges.length
+        ? {
+            faces: unfinishedBatterCurtains(unfinishedEdges),
+            edges: unfinishedEdges.map(({ a, b }) => ({ a, b })),
+          }
+        : null,
       road: terrainOnly ? [] : geometry.road,
       earthwork: terrainOnly ? [] : geometry.earthwork,
       // With batters hidden retain the established formation-only drawing; it is a display switch.
@@ -185,5 +234,28 @@ export function terrainScenePresentation({
       high: geometry.groundHigh,
       originZ: Math.floor(geometry.low),
     },
+  }
+}
+
+/**
+ * The accelerated scene drawn on ground with a fine band along the road. If cutting that ground passes one of the
+ * drawing budgets (`MAX_TERRAIN_SCENE_*`), the scene is tried again on `coarseGround`, the same ground without the
+ * band, before anything falls back to the canvas preview; only then does the notice say the band was left out.
+ */
+export function bandedScenePresentation({
+  coarseGround,
+  ...input
+}: TerrainScenePresentationInput & { coarseGround?: TerrainFace[] }): TerrainScenePresentation {
+  const banded = terrainScenePresentation(input)
+  if (!banded.requiresCanvas || !coarseGround || coarseGround === input.geometry.ground) return banded
+  const coarse = terrainScenePresentation({
+    ...input,
+    geometry: { ...input.geometry, ground: coarseGround, detailSpacing: null },
+  })
+  if (coarse.requiresCanvas) return coarse
+  return {
+    ...coarse,
+    bandDropped: true,
+    notice: [BAND_DROPPED_NOTICE, coarse.notice].filter(Boolean).join(' '),
   }
 }

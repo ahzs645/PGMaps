@@ -3,10 +3,23 @@ import type { TerrainVertex } from './terrainMesh'
 import type { PreviewCamera } from './previewCamera'
 import type { TerrainBackgroundLayer } from './terrainPreparation'
 import type { TerrainRenderQuality } from './terrainRenderQuality'
+import type { TerrainSlopeTexture } from './terrainSlopeTexture'
 
 /** Display inputs only. Neither the renderer nor a picked point is an engineering terrain source. */
 export interface TerrainGpuData {
   ground: TerrainFace[]
+  /**
+   * Where the clipped ground ends on the design footprint's outline, seam or open: the top edges of a vertical,
+   * ground-coloured skirt, so a gap left between the ground and the design shows ground, not the page.
+   */
+  skirt?: Array<{ a: TerrainVertex; b: TerrainVertex }>
+  /** How far the skirt hangs below those edges, in metres before vertical exaggeration. */
+  skirtDepth?: number
+  /**
+   * The drawn formation's batter edges that stopped short of the ground: a face from each edge to the ground under
+   * it, and the edges themselves. Shown with the batters.
+   */
+  unfinished?: { faces: TerrainVertex[][]; edges: Array<{ a: TerrainVertex; b: TerrainVertex }> } | null
   road: TerrainFace[]
   earthwork: TerrainFace[]
   design?: { positions: Float32Array; indices: Uint32Array; kind: 'finished' | 'subgrade' } | null
@@ -43,6 +56,11 @@ export interface TerrainGpuView {
 export interface TerrainGpuHandle {
   setData(data: TerrainGpuData): void
   setView(view: TerrainGpuView): void
+  /**
+   * The slope texture laid over the ground and skirt while the ground is coloured by slope, or null for vertex colours
+   * alone. Sets no geometry: it requests one frame, and a later `setData` keeps it while the ground is coloured by slope.
+   */
+  setGroundTexture(texture: TerrainSlopeTexture | null): void
   pick(x: number, y: number): { station: number; culvertId?: string } | null
   dispose(): void
 }

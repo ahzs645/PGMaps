@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TerrainGpu } from './TerrainGpu'
 import { previewCamera } from './previewCamera'
 import type { TerrainGpuData, TerrainGpuHandle, TerrainGpuView } from './terrainGpuTypes'
+import type { TerrainSlopeTexture } from './terrainSlopeTexture'
 
 const { createTerrainGpu } = vi.hoisted(() => ({
   createTerrainGpu:
@@ -17,6 +18,7 @@ function gpuStub() {
   return {
     setData: vi.fn<(data: TerrainGpuData) => void>(),
     setView: vi.fn<(view: TerrainGpuView) => void>(),
+    setGroundTexture: vi.fn<TerrainGpuHandle['setGroundTexture']>(),
     pick: vi.fn<TerrainGpuHandle['pick']>(() => null),
     dispose: vi.fn<() => void>(),
   }
@@ -208,5 +210,30 @@ describe('terrain GPU lifecycle', () => {
     renderer = undefined
     expect(input.props.handle.current).toBeNull()
     expect(gpu.dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('hands a slope texture to the renderer without rebuilding the scene', async () => {
+    const input = fixture()
+    const gpu = gpuStub()
+    createTerrainGpu.mockReturnValue(gpu)
+    const texture: TerrainSlopeTexture = {
+      width: 1,
+      height: 1,
+      rgba: new Uint8Array([10, 20, 30, 255]),
+      bounds: [0, 0, 1, 1],
+      texelM: 1,
+    }
+    await act(async () => {
+      renderer = create(createElement(TerrainGpu, { ...input.props, groundTexture: texture }), {
+        createNodeMock: (element) => (element.type === 'canvas' ? input.canvas : null),
+      })
+      await vi.dynamicImportSettled()
+    })
+    // A renderer created after the texture was baked takes it straight away.
+    expect(gpu.setGroundTexture).toHaveBeenLastCalledWith(texture)
+    const builds = gpu.setData.mock.calls.length
+    await act(async () => renderer!.update(createElement(TerrainGpu, { ...input.props, groundTexture: null })))
+    expect(gpu.setGroundTexture).toHaveBeenLastCalledWith(null)
+    expect(gpu.setData).toHaveBeenCalledTimes(builds)
   })
 })

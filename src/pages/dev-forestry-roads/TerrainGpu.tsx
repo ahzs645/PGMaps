@@ -1,9 +1,12 @@
 import { memo, useCallback, useEffect, useRef, type MutableRefObject } from 'react'
 import type { TerrainGpuData, TerrainGpuHandle, TerrainGpuView } from './terrainGpuTypes'
+import type { TerrainSlopeTexture } from './terrainSlopeTexture'
 
 interface Props {
   data: TerrainGpuData
   view: TerrainGpuView
+  /** Laid over the ground while it is coloured by slope; handed over without rebuilding the scene. */
+  groundTexture?: TerrainSlopeTexture | null
   projectionKey: string
   handle: MutableRefObject<TerrainGpuHandle | null>
   onStatus: (status: 'webgl' | 'canvas', reason?: string) => void
@@ -14,11 +17,11 @@ interface Props {
  * owns the canvas; Three never reparents or removes it. Until the first complete frame, the canvas
  * fallback stays visible. A lost context keeps its canvas so the browser can restore it.
  */
-export const TerrainGpu = memo(function TerrainGpu({ data, view, handle, onStatus }: Props) {
+export const TerrainGpu = memo(function TerrainGpu({ data, view, groundTexture = null, handle, onStatus }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const instance = useRef<TerrainGpuHandle | null>(null)
-  const latest = useRef({ data, view, onStatus })
-  latest.current = { data, view, onStatus }
+  const latest = useRef({ data, view, groundTexture, onStatus })
+  latest.current = { data, view, groundTexture, onStatus }
   const dispose = useCallback(() => {
     const renderer = instance.current
     instance.current = null
@@ -45,6 +48,7 @@ export const TerrainGpu = memo(function TerrainGpu({ data, view, handle, onStatu
         instance.current = renderer
         handle.current = renderer
         renderer.setData(latest.current.data)
+        renderer.setGroundTexture(latest.current.groundTexture)
         renderer.setView(latest.current.view)
       })
       .catch((error: unknown) => {
@@ -62,6 +66,13 @@ export const TerrainGpu = memo(function TerrainGpu({ data, view, handle, onStatu
       fail(error)
     }
   }, [data, handle, fail])
+  useEffect(() => {
+    try {
+      handle.current?.setGroundTexture(groundTexture)
+    } catch (error) {
+      fail(error)
+    }
+  }, [groundTexture, handle, fail])
   useEffect(() => {
     try {
       handle.current?.setView(view)

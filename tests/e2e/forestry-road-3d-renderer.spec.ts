@@ -71,7 +71,7 @@ test('GPU terrain renders on changes and sleeps while the view is still', async 
   await preview.getByRole('button', { name: 'Rotate terrain right', exact: true }).click()
   await expect.poll(async () => (await gpuMetrics(preview)).frames).toBeGreaterThan(initial.frames)
   expect((await gpuMetrics(preview)).geometryRevision).toBe(initial.geometryRevision)
-  // One zoom step remains below the finer-patch threshold, so this is a camera-only operation.
+  // A zoom is a camera-only operation: the ground along the road is already meshed finer.
   const beforeZoom = (await gpuMetrics(preview)).frames
   await preview.getByRole('button', { name: 'Zoom terrain in', exact: true }).click()
   await expect.poll(async () => Number(await preview.getAttribute('data-zoom'))).toBeGreaterThan(1)
@@ -107,6 +107,53 @@ test('GPU terrain renders on changes and sleeps while the view is still', async 
     expect((await gpuMetrics(preview)).frames).toBe(before)
   }).toPass({ timeout: 10_000 })
   await preview.screenshot({ path: testInfo.outputPath('gpu-road-view.png'), animations: 'disabled' })
+  expect(errors).toEqual([])
+})
+
+test('zooming far in and out and panning never rebuild the GPU ground', async ({ page }) => {
+  const { preview, errors } = await prepare(page)
+  await expectDrawn(preview)
+  await expect.poll(async () => (await gpuMetrics(preview)).moving).toBe(false)
+  const initial = await gpuMetrics(preview)
+  // The band along the road is there from the start, finer than the ground away from it.
+  const band = Number(await preview.getAttribute('data-detail-spacing'))
+  expect(band).toBeGreaterThan(0)
+  expect(band).toBeLessThan(Number(await preview.getAttribute('data-mesh-spacing')))
+  const zoom = async () => Number(await preview.getAttribute('data-zoom'))
+  const box = (await preview.getByTestId('road-terrain-gpu-canvas').boundingBox())!
+  const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  await page.mouse.move(centre.x, centre.y)
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.wheel(0, -200)
+    await page.waitForTimeout(30)
+  }
+  await expect.poll(zoom).toBeGreaterThan(8)
+  // Past the canvas preview's 180 ms re-mesh delay: the accelerated view has no such step.
+  await page.waitForTimeout(400)
+  const zoomed = await gpuMetrics(preview)
+  expect(zoomed.frames).toBeGreaterThan(initial.frames)
+  expect(zoomed.geometryRevision).toBe(initial.geometryRevision)
+
+  await page.mouse.move(centre.x, centre.y)
+  await page.mouse.down()
+  for (let step = 1; step <= 8; step++) await page.mouse.move(centre.x - step * 25, centre.y - step * 10)
+  await page.mouse.up()
+  await page.waitForTimeout(400)
+  const panned = await gpuMetrics(preview)
+  expect(panned.frames).toBeGreaterThan(zoomed.frames)
+  expect(panned.geometryRevision).toBe(initial.geometryRevision)
+
+  await page.mouse.move(centre.x, centre.y)
+  for (let i = 0; i < 12; i++) {
+    await page.mouse.wheel(0, 200)
+    await page.waitForTimeout(30)
+  }
+  await expect.poll(zoom).toBeLessThan(1)
+  await page.waitForTimeout(400)
+  const out = await gpuMetrics(preview)
+  expect(out.frames).toBeGreaterThan(panned.frames)
+  expect(out.geometryRevision).toBe(initial.geometryRevision)
+  expect(Number(await preview.getAttribute('data-detail-spacing'))).toBe(band)
   expect(errors).toEqual([])
 })
 

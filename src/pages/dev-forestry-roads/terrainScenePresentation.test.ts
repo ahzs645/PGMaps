@@ -8,7 +8,7 @@ import { DEFAULT_ROAD_SETTINGS, roadProjection } from './terrain'
 import { loadTerrainBackground } from './terrainBackgroundImport'
 import { terrainMesh, type TerrainVertex } from './terrainMesh'
 import * as sceneGeometry from './terrainSceneGeometry'
-import { terrainScenePresentation } from './terrainScenePresentation'
+import { BAND_DROPPED_NOTICE, bandedScenePresentation, terrainScenePresentation } from './terrainScenePresentation'
 import type { Alignment, Coordinate, TerrainMetadata } from './types'
 import { DEFAULT_DESIGN_STANDARDS, gradeRule, reviewGrades } from './designStandards'
 
@@ -134,6 +134,20 @@ const culvert = (patch: Partial<Culvert> = {}): Culvert => ({
   fixedCost: 500,
   ...patch,
 })
+
+/** The level of the first seam a point lies on in plan, or null. */
+function seamLevel(v: TerrainVertex, seams: ReadonlyArray<{ a: TerrainVertex; b: TerrainVertex }>) {
+  for (const { a, b } of seams) {
+    const dx = b.x - a.x,
+      dy = b.y - a.y
+    const length = Math.hypot(dx, dy)
+    const t = ((v.x - a.x) * dx + (v.y - a.y) * dy) / (length * length)
+    if (Math.abs((v.y - a.y) * dx - (v.x - a.x) * dy) / length > 1e-6) continue
+    if (t * length < -1e-6 || (t - 1) * length > 1e-6) continue
+    return a.z + (b.z - a.z) * Math.min(1, Math.max(0, t))
+  }
+  return null
+}
 
 describe('the GPU terrain scene presentation', () => {
   it('uses reviewed grade runs on simplified lines, including a skipped adverse breach', () => {
@@ -301,11 +315,56 @@ describe('the GPU terrain scene presentation', () => {
     expect(covers(formationOnly.data.ground, at(50, 20))).toBe(true)
   })
 
+  it('drops the band, not the accelerated scene, when cutting the band passes a drawing budget', () => {
+    const { input } = fixture()
+    const coarseGround = input.geometry.ground
+    // A stand-in band: twice the coarse ground's faces, enough to tell the two apart.
+    const bandGround = [...coarseGround, ...coarseGround.map((face) => ({ ...face }))]
+    const actual = sceneGeometry.cutTerrainToDesign
+    const clip = vi.spyOn(sceneGeometry, 'cutTerrainToDesign').mockImplementation((faces, footprint, options) => {
+      if (faces.length > coarseGround.length) throw Error('This 3D terrain needs too many design-edge cuts.')
+      return actual(faces, footprint, options)
+    })
+    try {
+      const geometry = { ...input.geometry, ground: bandGround, meshSpacing: 2, detailSpacing: 0.5 }
+      const result = bandedScenePresentation({ ...input, geometry, coarseGround })
+      // The band's ground is eased to the seams over its own cells, the coarse ground over the coarse cells.
+      expect(clip.mock.calls.map(([, , options]) => options?.blendM)).toEqual([
+        sceneGeometry.TERRAIN_SEAM_BLEND_MIN_M,
+        sceneGeometry.terrainSeamBlendRadius(2),
+      ])
+      expect(result.requiresCanvas).toBeFalsy()
+      expect(result.bandDropped).toBe(true)
+      expect(result.notice).toContain(BAND_DROPPED_NOTICE)
+      expect(result.notice).not.toContain('design-edge cuts')
+      // The exact surface is still drawn, on the coarse ground.
+      expect(result.data.design).not.toBeNull()
+      expect(result.data.ground).toEqual(
+        terrainScenePresentation({ ...input, geometry: { ...input.geometry, meshSpacing: 2 } }).data.ground,
+      )
+      // A band that fits is kept, and nothing is said.
+      clip.mockImplementation(actual)
+      const banded = bandedScenePresentation({ ...input, geometry, coarseGround })
+      expect(banded.bandDropped).toBeUndefined()
+      expect(banded.notice).toBeUndefined()
+      // With the coarse ground over budget too, the canvas preview is asked for, as before the band.
+      clip.mockImplementation(() => {
+        throw Error('The cut 3D terrain exceeds this view’s face budget.')
+      })
+      const neither = bandedScenePresentation({ ...input, geometry, coarseGround })
+      expect(neither.requiresCanvas).toBe(true)
+      expect(neither.bandDropped).toBeUndefined()
+      expect(neither.notice).toContain('face budget')
+    } finally {
+      clip.mockRestore()
+    }
+  })
+
   it('reports a clipping budget failure and retains the complete ground with a simplified road', () => {
     const { input, source } = fixture()
     const samples = source.mock.calls.length
     const before = JSON.stringify(input.geometry.ground)
-    const clip = vi.spyOn(sceneGeometry, 'clipTerrainToDesign').mockImplementationOnce(() => {
+    const clip = vi.spyOn(sceneGeometry, 'cutTerrainToDesign').mockImplementationOnce(() => {
       throw Error('The cut 3D terrain exceeds this view’s face budget.')
     })
     try {
@@ -315,6 +374,7 @@ describe('the GPU terrain scene presentation', () => {
       expect(result.requiresCanvas).toBe(true)
       expect(result.data.design).toBeNull()
       expect(result.data.ground).toBe(input.geometry.ground)
+      expect(result.data.skirt).toEqual([])
       expect(result.data.road).toBe(input.geometry.road)
       expect(JSON.stringify(input.geometry.ground)).toBe(before)
       expect(source.mock.calls).toHaveLength(samples)
@@ -327,5 +387,94 @@ describe('the GPU terrain scene presentation', () => {
     const { input } = fixture({ culverts: [culvert({ outletInvertM: null })] })
     expect(input.analysis.engineering!.culverts[0].profile.some((p) => p.invertElevation === null)).toBe(true)
     expect(terrainScenePresentation(input).data.culverts).toHaveLength(0)
+  })
+
+  it('stitches rough ground to the exact surface’s seams and hangs a skirt round the cut', () => {
+    // Relief the 2 m display mesh cannot hold, so the ground would stand off the catch lines unstitched.
+    const groundAt = (x: number, y: number) => 800 + 0.25 * x + 0.4 * Math.sin(x / 1.3 + y / 2.1)
+    const { input } = fixture({ groundAt })
+    const design = input.design!
+    expect(design.seams.length).toBeGreaterThan(0)
+    const result = terrainScenePresentation({ ...input, geometry: { ...input.geometry, meshSpacing: 2 } })
+    const levelOn = (v: TerrainVertex) => seamLevel(v, design.seams)
+    const onSeams = result.data.ground.flatMap((face) => face.vertices).filter((v) => levelOn(v) !== null)
+    expect(onSeams.length).toBeGreaterThan(10)
+    for (const v of onSeams) expect(v.z).toBeCloseTo(levelOn(v)!, 9)
+    expect(result.data.skirt!.length).toBeGreaterThan(0)
+    expect(result.data.skirtDepth).toBe(sceneGeometry.terrainSkirtDepth(2))
+    // The exact surface is drawn: its own outline is the seams and ends, and no formation curtain is drawn.
+    expect(result.data.unfinished).toBeNull()
+    // The ground is eased to the seams over a cell and a half of its finest spacing: the band's where there is one.
+    const cut = vi.spyOn(sceneGeometry, 'cutTerrainToDesign')
+    try {
+      terrainScenePresentation({ ...input, geometry: { ...input.geometry, meshSpacing: 10, detailSpacing: 4 } })
+      expect(cut.mock.calls.at(-1)![2]?.blendM).toBe(6)
+      terrainScenePresentation({ ...input, geometry: { ...input.geometry, meshSpacing: 10 } })
+      expect(cut.mock.calls.at(-1)![2]?.blendM).toBe(15)
+      terrainScenePresentation({ ...input, geometry: { ...input.geometry, meshSpacing: 1, detailSpacing: 0.5 } })
+      expect(cut.mock.calls.at(-1)![2]?.blendM).toBe(sceneGeometry.TERRAIN_SEAM_BLEND_MIN_M)
+    } finally {
+      cut.mockRestore()
+    }
+    // A road drawn alone is not stitched: the ground keeps its level, though its cut edge still has a skirt.
+    const alone = terrainScenePresentation({ ...input, showEarthwork: false })
+    for (const face of alone.data.ground) for (const v of face.vertices) expect(v.z).toBeCloseTo(groundAt(v.x, v.y), 0)
+    expect(alone.data.skirt!.length).toBeGreaterThan(0)
+  })
+
+  it('stitches the formation to its own seams and draws curtains only under the formation’s open edges', () => {
+    const { input, at } = fixture()
+    const seams = [
+      { a: { ...at(20, -13), z: 800 }, b: { ...at(30, -13), z: 800.5 } },
+      { a: { ...at(30, -13), z: 800.5 }, b: { ...at(40, -13), z: 800 } },
+    ]
+    const unfinishedEdges = [{ a: at(60, 13), b: at(70, 13), groundA: 800, groundB: 800 }]
+    const earthwork = [
+      {
+        vertices: [at(20, -3), at(40, -3), { ...at(40, -13), z: 800 }, { ...at(20, -13), z: 800 }],
+        fill: '#dca365',
+      },
+    ]
+    const formation = terrainScenePresentation({
+      ...input,
+      design: null,
+      geometry: { ...input.geometry, earthwork, seams, unfinishedEdges },
+    })
+    const raised = formation.data.ground.flatMap((face) => face.vertices).filter((v) => v.z > 800 + 1e-9)
+    expect(raised.filter((v) => seamLevel(v, seams) !== null).length).toBeGreaterThan(0)
+    // On a seam the ground is at its level; beside one it is eased up to it, never past it, within the blend radius.
+    const radius = sceneGeometry.terrainSeamBlendRadius(0)
+    const seamDistance = (v: TerrainVertex) =>
+      Math.min(
+        ...seams.map(({ a, b }) => {
+          const dx = b.x - a.x,
+            dy = b.y - a.y
+          const t = Math.min(1, Math.max(0, ((v.x - a.x) * dx + (v.y - a.y) * dy) / (dx * dx + dy * dy)))
+          return Math.hypot(v.x - a.x - dx * t, v.y - a.y - dy * t)
+        }),
+      )
+    for (const v of raised) {
+      const level = seamLevel(v, seams)
+      if (level !== null) expect(v.z).toBeCloseTo(level, 9)
+      else {
+        expect(seamDistance(v)).toBeLessThan(radius)
+        expect(v.z).toBeLessThanOrEqual(800.5)
+      }
+    }
+    expect(formation.data.unfinished!.edges).toEqual([{ a: at(60, 13), b: at(70, 13) }])
+    expect(formation.data.unfinished!.faces).toEqual(sceneGeometry.unfinishedBatterCurtains(unfinishedEdges))
+    expect(formation.data.unfinished!.faces).toHaveLength(1)
+    // Batters hidden, or the exact surface drawn: no curtains.
+    expect(
+      terrainScenePresentation({
+        ...input,
+        design: null,
+        showEarthwork: false,
+        geometry: { ...input.geometry, unfinishedEdges },
+      }).data.unfinished,
+    ).toBeNull()
+    expect(
+      terrainScenePresentation({ ...input, geometry: { ...input.geometry, unfinishedEdges } }).data.unfinished,
+    ).toBeNull()
   })
 })

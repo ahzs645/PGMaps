@@ -8,8 +8,10 @@ import { analyzeRoad, offsetCoordinate, positionAt } from './engine'
 import { DEFAULT_DESIGN_STANDARDS } from './designStandards'
 import { parseProject } from './project'
 import { createDemoProject, terrainFromMetadata } from './terrain'
+import { PREVIEW_CANVAS_STATIONS, PREVIEW_GPU_MAX_STATIONS } from './previewCamera'
 import type { TerrainFace } from './TerrainGround'
 import type { TerrainVertex } from './terrainMesh'
+import type { TerrainGpuData } from './terrainGpuTypes'
 
 vi.mock('./Controls', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./Controls')>()),
@@ -61,6 +63,10 @@ vi.mock('./TerrainGround', () => ({
       projectedOverlays: props.overlays.map((face) => ({ ...face, projected: face.vertices.map(props.project) })),
     }),
   TerrainCover: () => null,
+}))
+// The accelerated view's canvas: what the scene hands it is recorded, and its status can be reported from a test.
+vi.mock('./TerrainGpu', () => ({
+  TerrainGpu: (props: Record<string, unknown>) => createElement('g', { 'data-gpu-capture': true, ...props }),
 }))
 
 let renderer: ReactTestRenderer | undefined
@@ -316,5 +322,135 @@ describe('terrain preview camera controls', () => {
     expect(button('Face north').props['data-north-degrees']).not.toBe(north)
     await act(async () => plot().props.onKeyDown(key('Home')))
     expect(plot().props['data-camera-focus']).toBe('fit')
+  })
+})
+
+describe('accelerated terrain ground', () => {
+  function gpuProject(stationInterval?: number) {
+    const parsed = parseProject(createDemoProject())
+    const terrain = terrainFromMetadata(parsed.terrain)!
+    const settings = stationInterval ? { ...parsed.settings, stationInterval } : parsed.settings
+    const analysis = analyzeRoad(parsed.alignments[0], terrain, settings, parsed.context)
+    return { parsed, terrain, analysis }
+  }
+  async function mount(stationInterval?: number) {
+    const { parsed, terrain, analysis } = gpuProject(stationInterval)
+    await act(async () => {
+      renderer = create(
+        createElement(TerrainPreview, {
+          terrain,
+          analysis,
+          station: 200,
+          onStation: vi.fn(),
+          alignment: parsed.alignments[0],
+          terrainMetadata: parsed.terrain,
+        }),
+      )
+    })
+    const preview = () => renderer!.root.findByProps({ 'data-testid': 'road-terrain-preview' }).props
+    const plot = () => renderer!.root.findByProps({ role: 'group' })
+    const gpu = () => renderer!.root.findByProps({ 'data-gpu-capture': true }).props
+    const canvasFaces = () =>
+      renderer!.root.findAllByProps({ 'data-ground-capture': true })[0]?.props.projectedFaces as
+        | TerrainFace[]
+        | undefined
+    return { preview, plot, gpu, canvasFaces, analysis }
+  }
+  const extent = (face: TerrainFace) =>
+    Math.max(
+      Math.max(...face.vertices.map((v) => v.x)) - Math.min(...face.vertices.map((v) => v.x)),
+      Math.max(...face.vertices.map((v) => v.y)) - Math.min(...face.vertices.map((v) => v.y)),
+    )
+
+  it('draws a fine band along the road from the start, and never meshes again when the camera zooms', async () => {
+    vi.useFakeTimers()
+    try {
+      const { preview, plot, gpu } = await mount()
+      const coarse = preview()['data-mesh-spacing']
+      const band = preview()['data-detail-spacing']
+      expect(band).toBeGreaterThan(0)
+      expect(band).toBeLessThan(coarse)
+      const data = gpu().data as TerrainGpuData
+      // Fine faces are drawn, and coarse ones away from the road.
+      expect(data.ground.some((face) => extent(face) < coarse / 2)).toBe(true)
+      expect(data.ground.some((face) => extent(face) >= coarse - 1e-9)).toBe(true)
+      for (let i = 0; i < 4; i++) await act(async () => plot().props.onDoubleClick(pointer(420, 90)))
+      expect(preview()['data-zoom']).toBeGreaterThan(8)
+      await act(async () => plot().props.onKeyDown({ key: 'ArrowRight', shiftKey: false, preventDefault: () => {} }))
+      await act(async () => {
+        vi.advanceTimersByTime(1000)
+      })
+      // The same scene object: nothing was rebuilt for the camera.
+      expect(gpu().data).toBe(data)
+      expect(preview()['data-detail-spacing']).toBe(band)
+      expect(preview()['data-mesh-spacing']).toBe(coarse)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('meshes the Around station window once, with its band, and keeps it through a zoom', async () => {
+    vi.useFakeTimers()
+    try {
+      const { preview, plot, gpu } = await mount()
+      const whole = gpu().data as TerrainGpuData
+      await act(async () =>
+        renderer!.root
+          .findAllByType('button')
+          .find((button) => button.children.includes('Around station'))!
+          .props.onClick(),
+      )
+      const around = gpu().data as TerrainGpuData
+      expect(around).not.toBe(whole)
+      const band = preview()['data-detail-spacing']
+      expect(band).toBeGreaterThan(0)
+      expect(band).toBeLessThan(preview()['data-mesh-spacing'])
+      for (let i = 0; i < 3; i++) await act(async () => plot().props.onDoubleClick(pointer(300, 120)))
+      await act(async () => {
+        vi.advanceTimersByTime(1000)
+      })
+      expect(gpu().data).toBe(around)
+      expect(preview()['data-detail-spacing']).toBe(band)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('never hands the band to the canvas preview, before the first frame or after a renderer failure', async () => {
+    vi.useFakeTimers()
+    try {
+      const { preview, plot, gpu, canvasFaces } = await mount()
+      const band = preview()['data-detail-spacing']
+      // Before the first accelerated frame the canvas preview draws the base mesh.
+      expect(canvasFaces()!.length).toBeGreaterThan(0)
+      expect(Math.min(...canvasFaces()!.map(extent))).toBeGreaterThan(band * 1.5)
+      expect(canvasFaces()!.length).toBeLessThan((gpu().data as TerrainGpuData).ground.length)
+      // A renderer failure: the canvas preview takes over, with its camera-following focus window, as before.
+      await act(async () => (gpu().onStatus as (status: string, reason?: string) => void)('canvas', 'No WebGL here.'))
+      expect(preview()['data-renderer']).toBe('canvas')
+      expect(preview()['data-detail-spacing']).toBeUndefined()
+      expect(Math.min(...canvasFaces()!.map(extent))).toBeGreaterThan(band * 1.5)
+      const coarse = preview()['data-mesh-spacing']
+      await act(async () => plot().props.onDoubleClick(pointer(420, 90)))
+      await act(async () => plot().props.onDoubleClick(pointer(420, 90)))
+      await act(async () => {
+        vi.advanceTimersByTime(200)
+      })
+      expect(preview()['data-detail-spacing']).toBeLessThan(coarse)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('draws every station in the accelerated view, where the canvas preview thins them', async () => {
+    const { analysis, gpu, canvasFaces } = await mount(5)
+    expect(analysis.stations.length).toBeGreaterThan(PREVIEW_CANVAS_STATIONS)
+    expect(analysis.stations.length).toBeLessThan(PREVIEW_GPU_MAX_STATIONS)
+    const data = gpu().data as TerrainGpuData
+    const centreline = data.lines.filter((line) => line.color !== '#67bdd4')
+    expect(centreline).toHaveLength(analysis.stations.length - 1)
+    // One road face between each pair of stations, so the batter strips beside it share its stations.
+    expect(data.road).toHaveLength(analysis.stations.length - 1)
+    expect(canvasFaces()).toBeDefined()
   })
 })

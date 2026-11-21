@@ -8,6 +8,13 @@ export interface TerrainVertex {
 export const MAX_TERRAIN_MESH_SIDE = 128
 export const MAX_GPU_TERRAIN_MESH_SIDE = 256
 export const MAX_CACHED_TERRAIN_VERTICES = 65536
+/**
+ * Samples the accelerated 3D scene keeps: the High quality coarse grid (256 a side, 65,536), its fine band along the
+ * road (`TERRAIN_BAND_MAX_CELLS.high`, up to 2.25 vertices a cell), the base fit mesh and the canvas preview's focus
+ * window, with room to spare for a window that moves. A cache smaller than one rebuild's samples would evict each one
+ * before it is read again, so every rebuild would sample the source afresh.
+ */
+export const MAX_CACHED_GPU_TERRAIN_VERTICES = 524_288
 export const MAX_DISPLAY_GAP_M = 80
 export const DISPLAY_GAP_ITERATIONS = 128
 
@@ -18,20 +25,59 @@ export interface TerrainMeshOptions {
   minSpacing?: number
 }
 
-/** Bounded sampler shared by overlapping windows; missing values are cached too. */
+/**
+ * Bounded sampler shared by overlapping windows; missing values are cached too. Positions are looked up by their
+ * numbers (x, then y), not by a string built for each call, and the oldest sample is evicted first.
+ */
 export function cachedTerrainSampler(sample: (x: number, y: number) => number, capacity = MAX_CACHED_TERRAIN_VERTICES) {
-  const cache = new Map<string, number>()
+  const size = Math.max(1, Math.floor(capacity))
+  const columns = new Map<number, Map<number, number>>()
+  // Insertion order, as x, y pairs in a ring: the next slot to write is the oldest entry once the ring is full.
+  const order = new Float64Array(size * 2)
+  let next = 0,
+    count = 0
   return (x: number, y: number) => {
-    const key = `${x}:${y}`
-    if (cache.has(key)) return cache.get(key)!
+    const known = columns.get(x)?.get(y)
+    if (known !== undefined) return known
     const value = sample(x, y)
-    if (cache.size >= capacity) cache.delete(cache.keys().next().value!)
-    cache.set(key, value)
+    if (count === size) {
+      const oldX = order[next * 2],
+        oldY = order[next * 2 + 1]
+      const column = columns.get(oldX)
+      if (column) {
+        column.delete(oldY)
+        if (!column.size) columns.delete(oldX)
+      }
+    } else count++
+    order[next * 2] = x
+    order[next * 2 + 1] = y
+    next = (next + 1) % size
+    let column = columns.get(x)
+    if (!column) {
+      column = new Map()
+      columns.set(x, column)
+    }
+    column.set(y, value)
     return value
   }
 }
 
 export function terrainMesh(
+  bounds: number[],
+  elevationAt: (x: number, y: number) => number,
+  missing: Array<[number, number]>,
+  fillSmallGaps = false,
+  options: TerrainMeshOptions = {},
+) {
+  return terrainMeshGrid(bounds, elevationAt, missing, fillSmallGaps, options).mesh
+}
+
+/**
+ * The regular display grid behind `terrainMesh`: its mesh, plus the grid it was cut from.
+ * Cell `row * columns + col` spans vertices `[row][col]` to `[row + 1][col + 1]`. A cell is drawn
+ * when it is not blocked, or when it is infilled; infilled cells are the estimated ones.
+ */
+export function terrainMeshGrid(
   bounds: number[],
   elevationAt: (x: number, y: number) => number,
   missing: Array<[number, number]>,
@@ -172,11 +218,24 @@ export function terrainMesh(
       if (a && b && c && d) (infilled.has(cell) ? estimatedFaces : faces).push([a, b, c], [a, c, d])
     }
   return {
-    faces,
-    estimatedFaces,
-    infilledCells: infilled.size,
-    openGapCells: blocked.size - infilled.size,
-    elevations,
-    spacing: Math.max(dx, dy),
+    mesh: {
+      faces,
+      estimatedFaces,
+      infilledCells: infilled.size,
+      openGapCells: blocked.size - infilled.size,
+      elevations,
+      spacing: Math.max(dx, dy),
+    },
+    grid: {
+      firstColumn,
+      firstRow,
+      columns,
+      rows,
+      spacing,
+      /** Infilled vertices replace missing ones here; a measured vertex keeps its sampled level. */
+      vertices: vertices as ReadonlyArray<ReadonlyArray<TerrainVertex | null>>,
+      blocked: blocked as ReadonlySet<number>,
+      infilled: infilled as ReadonlySet<number>,
+    },
   }
 }

@@ -7,6 +7,9 @@ import {
   pixelsPerMetreAtFocus,
   previewCamera,
   previewDetailWindow,
+  previewStationStep,
+  PREVIEW_CANVAS_STATIONS,
+  PREVIEW_GPU_MAX_STATIONS,
   scaleBarLength,
 } from './previewCamera'
 
@@ -317,5 +320,17 @@ describe('3D terrain and design camera fit', () => {
     expect(autoPreviewExaggeration(40, 700)).toBe(2)
     expect(autoPreviewExaggeration(10, 700)).toBe(4)
     expect(autoPreviewExaggeration(0, 700)).toBe(1)
+  })
+})
+
+describe('stations drawn in the 3D view', () => {
+  it('draws every station up to the cap and thins evenly past it', () => {
+    expect(previewStationStep(171, PREVIEW_GPU_MAX_STATIONS)).toBe(1)
+    expect(previewStationStep(PREVIEW_GPU_MAX_STATIONS, PREVIEW_GPU_MAX_STATIONS)).toBe(1)
+    expect(previewStationStep(PREVIEW_GPU_MAX_STATIONS + 1, PREVIEW_GPU_MAX_STATIONS)).toBe(2)
+    expect(previewStationStep(5 * PREVIEW_GPU_MAX_STATIONS, PREVIEW_GPU_MAX_STATIONS)).toBe(5)
+    // The canvas preview keeps its own thinning.
+    expect(previewStationStep(290, PREVIEW_CANVAS_STATIONS)).toBe(2)
+    expect(previewStationStep(0, PREVIEW_CANVAS_STATIONS)).toBe(1)
   })
 })
