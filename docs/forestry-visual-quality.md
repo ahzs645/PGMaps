@@ -54,7 +54,7 @@ ribbon's tab row and View tab) changes it without reloading anything.
   `pgmaps-visuals-layout`). The Table button sits on the header's strip or in View.
 - On a phone, Guided mode keeps the steps in the bottom sheet under a one-line header; the Ribbon
   keeps its tab row and opens a step in a side sheet.
-- Panels cannot yet be opened in another window here: moving the road view would rebuild its map
+- Panels cannot yet be opened in another window here (see `docs/workspace-interfaces.md`, **Known limits**): moving the road view would rebuild its map
   and engine (see **Road view performance**), so detaching waits for a design that keeps them.
 
 ## The sidebar follows the VIA handbook's five steps

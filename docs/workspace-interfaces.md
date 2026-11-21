@@ -93,3 +93,39 @@ chooser, or the layout's icon stands in.
    the sidebar should hold them.
 4. Network-first and offline: add the file to `public/sw.js` and to the tool's `offlinePrecache`
    group.
+
+## How the kit came to be shared (20 November 2026)
+
+The ribbon, header and chooser were written for the road designer and imported its registry,
+field captions, lesson anchors, brand and storage keys directly. They were made tool-neutral in
+two steps: the road's vocabulary moved to `src/pages/dev-forestry-roads/interface/` behind
+`ROAD_KIT`, with every browser key (`pgmaps-road-*`) and every lesson anchor unchanged, and
+visual quality became the second tool on the kit. The header's and panel frame's styles moved
+from the road's `workspace.css` to the kit, keyed on `.lp-workspace` (the road's root carries both
+`lp-workspace` and `road-workspace`; the header's class names keep their `road-` prefix because
+the road's tests and lessons read them).
+
+What changed in the shared pieces, for anyone extending them:
+
+- `LayoutVocabulary` gained `editors`, `presets` and `collections`; `LayoutGroup` gained
+  `editorTitle` (the task pane's title, else "<label> settings").
+- `useWorkflowPlacement(layout, investigation, defaultEditor)`; its `selectWorkflow(editor,
+  { reveal: false })` changes the tab without opening or closing the pane.
+- `useWorkspaceLayout(initial, { defaultPane, storeInterface, legacyPresetKey })`.
+- `WorkspaceHeader`'s `roadSwitcher` prop is now `crumb`; `RibbonPaneColumns` takes `viewsLabel`
+  for its divider's name.
+- `ToolbarPopover` gained an opt-in `caption`, for a popover button placed in a ribbon group.
+
+## Known limits
+
+- **Pop-out panels in visual quality.** The road designer's panels open in another window or tab;
+  visual quality's do not yet. Moving the road view to another window would rebuild its map, its
+  terrain and any external engine (the 1.4 s reload the page's `roadViewHeld` exists to avoid), so
+  it waits for a design that keeps them.
+- **Visual quality's Ribbon on a phone.** The ribbon keeps its tab row and opens a step in a side
+  sheet, but the plan map's tool column is taller than the map pane at 390 × 844 and its last
+  tools need the pane enlarged. Guided mode, the default, keeps the phone sheet as before.
+- **Corner grips in visual quality.** Only the plan map has one. The road view's pane has none: the
+  grip's 20 px reserve pushed the road view's bar into its status card at 1280 × 720.
+- **Find tools in visual quality** searches the ribbon's commands and every step's sections (each
+  step panel is a `data-workflow-editor`); it does not search the road view's own bar or popovers.
