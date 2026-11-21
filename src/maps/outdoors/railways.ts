@@ -10,12 +10,12 @@
  * status is shown with its date and never presented as current condition:
  * the planner's imagery and relief are what a person judges the line from.
  *
- * Parsing and the query are pure; `fetchRailways` is the one network call. The
- * bounding box goes in `CQL_FILTER`, never the WFS `bbox` parameter: WFS 2.0
- * with EPSG:4326 is latitude-first and CQL's `BBOX` is longitude-first.
+ * Parsing and the query are pure; `fetchRailways` takes its `fetch`. The bounding
+ * box goes in `CQL_FILTER`, never the WFS `bbox` parameter: WFS 2.0 with EPSG:4326
+ * is latitude-first and CQL's `BBOX` is longitude-first.
  */
+import { BC_WFS, clampBounds, readLayerJson, type Bounds } from './bcLayers'
 
-export const BC_WFS = 'https://openmaps.gov.bc.ca/geo/pub/wfs'
 export const RAILWAY_LAYER = 'WHSE_BASEMAPPING.GBA_RAILWAY_TRACKS_SP'
 export const RAILWAY_ATTRIBUTION = 'Rail lines: GeoBC, Open Government Licence - British Columbia'
 
@@ -37,9 +37,6 @@ const FIELDS = [
   'GEOMETRY_REVISION_DATE',
   'SHAPE',
 ]
-
-/** [west, south, east, north] in WGS84 degrees. */
-export type Bounds = [number, number, number, number]
 
 export interface RailwayProperties {
   id: string
@@ -63,42 +60,12 @@ export type RailwayCollection = GeoJSON.FeatureCollection<
   RailwayProperties
 >
 
-export interface RailwayResult {
-  collection: RailwayCollection
-  /** The service held more segments in the box than it returned. */
-  truncated: boolean
-  /** The box actually asked for, after clamping. */
-  bounds: Bounds
-}
-
 export const EMPTY_RAILWAYS: RailwayCollection = { type: 'FeatureCollection', features: [] }
 
 const THROUGH_CLASSES = new Set(['main', 'connecting', 'ferry route'])
 
-/** Keeps the box centred and no wider than the limit. */
-export function clampRailwayBounds(bounds: Bounds, limit = MAX_RAILWAY_QUERY_DEGREES): Bounds {
-  const [west, south, east, north] = bounds
-  const lng = (west + east) / 2
-  const lat = (south + north) / 2
-  const half = (span: number) => Math.min(Math.max(span, 0), limit) / 2
-  return [lng - half(east - west), lat - half(north - south), lng + half(east - west), lat + half(north - south)]
-}
-
-/** True when `inner` lies wholly inside `outer`, so an earlier answer still covers the view. */
-export function boundsContain(outer: Bounds, inner: Bounds): boolean {
-  return inner[0] >= outer[0] && inner[1] >= outer[1] && inner[2] <= outer[2] && inner[3] <= outer[3]
-}
-
-/** Grows a box about its centre, so small pans stay inside what was fetched. */
-export function padBounds(bounds: Bounds, factor: number): Bounds {
-  const [west, south, east, north] = bounds
-  const dx = ((east - west) * factor) / 2
-  const dy = ((north - south) * factor) / 2
-  return [west - dx, south - dy, east + dx, north + dy]
-}
-
 export function railwayQueryUrl(bounds: Bounds): string {
-  const [west, south, east, north] = clampRailwayBounds(bounds)
+  const [west, south, east, north] = clampBounds(bounds, MAX_RAILWAY_QUERY_DEGREES)
   const round = (value: number) => value.toFixed(5)
   const params = new URLSearchParams({
     service: 'WFS',
@@ -202,10 +169,11 @@ export function describeRailway(properties: Partial<RailwayProperties>): {
   return { title, detail, caution }
 }
 
-export async function fetchRailways(bounds: Bounds, signal?: AbortSignal): Promise<RailwayResult> {
-  const response = await fetch(railwayQueryUrl(bounds), { signal })
-  if (!response.ok) throw new Error(`DataBC answered ${response.status}`)
-  const payload: unknown = await response.json()
-  if ((payload as { exceptions?: unknown } | null)?.exceptions) throw new Error('DataBC refused the query')
-  return { ...parseRailways(payload), bounds: clampRailwayBounds(bounds) }
+/** The rail lines in a box, read through the planner's bounded WFS read. */
+export async function fetchRailways(
+  bounds: Bounds,
+  signal: AbortSignal,
+  fetcher: typeof fetch = fetch,
+): Promise<{ collection: RailwayCollection; truncated: boolean }> {
+  return parseRailways(await readLayerJson(fetcher, railwayQueryUrl(bounds), signal))
 }

@@ -1297,9 +1297,11 @@ const handoff = useMapLayerHandoff('road-wayback', release ? { key: release.id, 
   remount did: hold the last good value until the next is known (`usePublishedTiles`'s
   `shownTileId`).
 - A change of place in the stack is not a swap: change the layer's `beforeId`. `MapRasterLayer`
-  and `MapTerrain` move the layer (`moveLayer`) and keep its tiles; `useReliefPlace` in the road
-  designer's `RegionalDemLayer.tsx` also puts a layer back when something else in the style has
-  moved it since. Nothing survives `setStyle`, which drops every source.
+  and `MapTerrain` move the layer (`moveLayer`) and keep its tiles; `useReliefPlace`
+  (`src/components/ui/map-regional-relief.tsx`) also puts a layer back when something else in the
+  style has moved it since. `RegionalReliefLayer` there is the regional hill shading the road
+  designer and the outdoors planner both draw: under the basemap's water on the plain map, over
+  imagery and under the labels with Satellite on (`src/lib/mapReliefPlace.ts`, DOM-free). Nothing survives `setStyle`, which drops every source.
 - A changed `tiles` on a plain `MapRasterLayer` reloads in place too (`setTiles`), tile by tile, so
   two versions show side by side until the last arrives. Use that where a patchwork is harmless;
   a timeline or a data layer hands over.
@@ -1355,6 +1357,16 @@ says when to use this and when another pattern fits, and how to measure the resu
 The hook re-renders only when the window, `paused` or `moving` changes. The window object stays the
 same while it serves, so it can go straight into effect dependencies. Figures read over the window
 cover more than the visible map: say so where they are shown.
+
+**Features read by box** (a WFS or ArcGIS layer) use `useViewWindowRead`
+(`src/components/ui/map-view-read.ts`) over it: give it a `read(window, signal)` and it returns the
+last answer (`data`), kept while the next window is read and after a failed read (`error`), with
+`loading` and `belowMinZoom` for the layer's status line. A `readKey` (a species, a year) reads the
+window again and drops the old answer. It passes every rule value to `useViewWindow`, because the
+toolkit lets an `undefined` option replace its default. The outdoors planner's layers are its users.
+A response body from such a service is read through `readBoundedText` (`src/lib/boundedText.ts`),
+which refuses an answer past its byte limit rather than drawing part of it; the road designer's
+live BC reads share it.
 
 ## Touch
 

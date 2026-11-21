@@ -1,87 +1,83 @@
 /**
- * Provincial layers the trip planner reads live from DataBC's WFS, all under
- * the Open Government Licence - British Columbia:
+ * Provincial layers the outdoors planner reads live, all under the Open Government Licence - British
+ * Columbia. Forest roads, cutblocks and stands come from the same sources, through the same shared
+ * modules, as the road designer and the visual quality tool; the rest are read from DataBC's WFS.
  *
- * - **Forest roads** (`FTEN_ROAD_SECTION_LINES_SVW`): tenure road sections.
- *   "Forest Service Road" is one file type among several; road permits are
- *   the rest. A RETIRED section is a tenure fact, not proof the road is gone,
- *   and an ACTIVE one is not proof it is passable.
- * - **Cutblocks** (`VEG_CONSOLIDATED_CUT_BLOCKS_SP`): harvested areas with the
- *   year harvest started, from tenure records and satellite change detection.
- * - **Boat launches**: recreation sites whose listed structures include a boat
- *   launch (`FTEN_REC_SITE_POINTS_SVW`), and coastal launches from the 1990s
- *   coastal resource atlas (`CHRA_BOAT_LAUNCHES_POINT`). Neither is a complete
- *   list of launches; municipal and private ramps are not in either.
- * - **Lake depth charts** (`BATH_SURVEY_MAP_SHEETS_SVW`): outlines of lakes
- *   that have a scanned depth chart, with the chart's PDF. Most surveys date
- *   from the 1950s to 1990s.
- * - **Lake depth contours** (`BATH_LAKE_BATHYMETRIC_SP`): the few lakes whose
- *   charts were digitized into depth polygons.
- * - **Limited entry hunting zones** (`WAA_LTD_HNT_ZONE_CURR_YEAR_SVW`): the
- *   zones a management unit is split into for a draw, one set per species.
- *   "Zone A of 7-25" for moose is not the same ground as an elk zone there.
- * - **Forest stands** (`VEG_COMP_LYR_R1_POLY`, the Vegetation Resources
- *   Inventory): crown closure, projected height, age and leading species per
- *   stand, read here as a rough guide to how far a person can see.
+ * - **Forest roads**: tenure road sections, `BC_ROADS_SERVICE` (`src/lib/forestry/bcForestRoads.ts`).
+ *   "Forest Service Road" is one file type among several; road permits are most of the rest. A
+ *   RETIRED section is a tenure fact, not proof the road is gone, and an ACTIVE one is not proof it
+ *   is passable.
+ * - **Cutblocks**: BC's consolidated cutblocks, `BC_HARVEST_SERVICE`, aged by the road designer's
+ *   rule (`src/lib/forestry/bcHarvest.ts`): a block whose recorded years straddle a class break is
+ *   "unknown", never put in the nearer class.
+ * - **Forest stands** (`VEG_COMP_LYR_R1_POLY`, read through `src/lib/forestry/bcVegetationWfs.ts`'s
+ *   limits): crown closure, projected height, age and leading species, read here as a rough guide to
+ *   how far a person can see.
+ * - **Boat launches**: recreation sites whose listed structures include a boat launch
+ *   (`FTEN_REC_SITE_POINTS_SVW`), and coastal launches from the 1990s coastal resource atlas
+ *   (`CHRA_BOAT_LAUNCHES_POINT`). Neither lists municipal or private ramps.
+ * - **Lake depth charts** (`BATH_SURVEY_MAP_SHEETS_SVW`): outlines of lakes with a scanned chart, and
+ *   **depth contours** (`BATH_LAKE_BATHYMETRIC_SP`) for the few lakes digitized.
+ * - **Limited entry hunting zones** (`WAA_LTD_HNT_ZONE_CURR_YEAR_SVW`): one set per species; "Zone A of
+ *   7-25" for moose is not the same ground as an elk zone there.
+ * - **Rail lines** (`GBA_RAILWAY_TRACKS_SP`, in `railways.ts`).
  *
- * Everything here is pure except `fetchBcLayer`. The bounding box goes in
- * `CQL_FILTER`, never the WFS `bbox` parameter: WFS 2.0 with EPSG:4326 is
- * latitude-first and CQL's `BBOX` is longitude-first.
+ * Everything here is free of DOM access, and every read takes its `fetch`. The bounding box of a WFS
+ * read goes in `CQL_FILTER`, never the `bbox` parameter: WFS 2.0 with EPSG:4326 is latitude-first and
+ * CQL's `BBOX` is longitude-first.
  */
+import { readBoundedText } from '@/lib/boundedText'
+import {
+  BC_HARVEST_FIELDS,
+  BC_HARVEST_SERVICE,
+  bcHarvestEvidence,
+  harvestAgeSummary,
+  harvestHistoryStyle,
+} from '@/lib/forestry/bcHarvest'
+import { BC_ROADS_SERVICE, FSR_FILE_TYPE_CODE, tenureRoadClass } from '@/lib/forestry/bcForestRoads'
+import {
+  BC_VEGETATION_WFS,
+  clampVegetationBounds,
+  MAX_VEGETATION_FEATURES,
+  MAX_VEGETATION_QUERY_DEGREES,
+} from '@/lib/forestry/bcVegetationWfs'
 
 export const BC_WFS = 'https://openmaps.gov.bc.ca/geo/pub/wfs'
 export const BC_OPEN_LICENCE = 'Contains information licensed under the Open Government Licence - British Columbia'
 
 /** [west, south, east, north] in WGS84 degrees. */
 export type Bounds = [number, number, number, number]
+type Fetch = typeof fetch
 
-export type BcLayerId =
-  | 'forestRoads'
-  | 'cutblocks'
-  | 'recLaunches'
-  | 'coastalLaunches'
-  | 'depthCharts'
-  | 'depthContours'
-  | 'huntZones'
-  | 'stands'
+/** The most one read of a layer may carry; a larger answer is refused, not drawn in part. */
+export const MAX_LAYER_RESPONSE_BYTES = 16 * 1024 * 1024
+/** Widest box a WFS layer asks for at once, so a stray call cannot ask for the province. */
+export const MAX_BC_QUERY_DEGREES = 12
 
-interface BcLayerSource {
+// ---------------------------------------------------------------------------
+// WFS layers
+
+export type WfsLayerId = 'recLaunches' | 'coastalLaunches' | 'depthCharts' | 'depthContours' | 'huntZones' | 'stands'
+
+interface WfsSource {
+  endpoint: string
   typeName: string
   geometryColumn: string
   fields: string[]
   /** Below this zoom nothing is asked for. Absent, the layer is small enough to read whole. */
   minZoom?: number
   maxFeatures: number
+  /** Widest box asked for at once, in degrees. */
+  maxDegrees?: number
   /** Extra CQL, ANDed with the box. */
   filter?: string
 }
 
 const STRUCTURE_COLUMNS = Array.from({ length: 10 }, (_, index) => `STRUCTURE_DESC${index + 1}`)
 
-export const BC_LAYER_SOURCES: Record<BcLayerId, BcLayerSource> = {
-  forestRoads: {
-    typeName: 'WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW',
-    geometryColumn: 'GEOMETRY',
-    fields: [
-      'FOREST_FILE_ID',
-      'ROAD_SECTION_ID',
-      'ROAD_SECTION_NAME',
-      'FILE_TYPE_DESCRIPTION',
-      'LIFE_CYCLE_STATUS_CODE',
-      'CLIENT_NAME',
-      'OBJECTID',
-    ],
-    minZoom: 9,
-    maxFeatures: 6000,
-  },
-  cutblocks: {
-    typeName: 'WHSE_FOREST_VEGETATION.VEG_CONSOLIDATED_CUT_BLOCKS_SP',
-    geometryColumn: 'SHAPE',
-    fields: ['VCCB_SYSID', 'HARVEST_START_YEAR_CALENDAR', 'PERCENT_CLEARCUT', 'DATA_SOURCE', 'FEATURE_AREA_SQM'],
-    minZoom: 10,
-    maxFeatures: 4000,
-  },
+export const WFS_SOURCES: Record<WfsLayerId, WfsSource> = {
   recLaunches: {
+    endpoint: BC_WFS,
     typeName: 'WHSE_FOREST_TENURE.FTEN_REC_SITE_POINTS_SVW',
     geometryColumn: 'GEOMETRY',
     fields: ['FOREST_FILE_ID', 'PROJECT_NAME', 'SITE_LOCATION', 'MAINTAIN_STD_DESC', ...STRUCTURE_COLUMNS],
@@ -89,12 +85,14 @@ export const BC_LAYER_SOURCES: Record<BcLayerId, BcLayerSource> = {
     filter: STRUCTURE_COLUMNS.map((column) => `${column} LIKE 'Boat Launch%'`).join(' OR '),
   },
   coastalLaunches: {
+    endpoint: BC_WFS,
     typeName: 'WHSE_ENVIRONMENTAL_MONITORING.CHRA_BOAT_LAUNCHES_POINT',
     geometryColumn: 'GEOMETRY',
     fields: ['BOAT_LAUNCH_ID', 'LOCATION', 'COMMENTS'],
     maxFeatures: 1000,
   },
   depthCharts: {
+    endpoint: BC_WFS,
     typeName: 'WHSE_FISH.BATH_SURVEY_MAP_SHEETS_SVW',
     geometryColumn: 'GEOMETRY',
     fields: [
@@ -110,24 +108,15 @@ export const BC_LAYER_SOURCES: Record<BcLayerId, BcLayerSource> = {
     minZoom: 7,
     maxFeatures: 3000,
   },
-  stands: {
-    typeName: 'WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY',
-    geometryColumn: 'GEOMETRY',
-    // The layer has 189 attributes; these seven are what a sightline guess needs.
-    fields: [
-      'FEATURE_ID',
-      'BCLCS_LEVEL_1',
-      'BCLCS_LEVEL_2',
-      'SPECIES_CD_1',
-      'PROJ_HEIGHT_1',
-      'CROWN_CLOSURE',
-      'PROJ_AGE_1',
-    ],
-    // GeoServer does not generalise geometry: a 13 km by 10 km view is about 2 MB.
-    minZoom: 12,
-    maxFeatures: 5000,
+  depthContours: {
+    endpoint: BC_WFS,
+    typeName: 'WHSE_FISH.BATH_LAKE_BATHYMETRIC_SP',
+    geometryColumn: 'SHAPE',
+    fields: ['OBJECTID', 'LAKE_GAZETTED_NAME', 'CONTOUR_DEPTH_M', 'LAKE_MAX_DEPTH_M', 'LAKE_SURVEY_DATE'],
+    maxFeatures: 1000,
   },
   huntZones: {
+    endpoint: BC_WFS,
     typeName: 'WHSE_WILDLIFE_MANAGEMENT.WAA_LTD_HNT_ZONE_CURR_YEAR_SVW',
     geometryColumn: 'GEOMETRY',
     fields: [
@@ -142,17 +131,28 @@ export const BC_LAYER_SOURCES: Record<BcLayerId, BcLayerSource> = {
     minZoom: 8,
     maxFeatures: 400,
   },
-  depthContours: {
-    typeName: 'WHSE_FISH.BATH_LAKE_BATHYMETRIC_SP',
-    geometryColumn: 'SHAPE',
-    fields: ['OBJECTID', 'LAKE_GAZETTED_NAME', 'CONTOUR_DEPTH_M', 'LAKE_MAX_DEPTH_M', 'LAKE_SURVEY_DATE'],
-    maxFeatures: 1000,
+  stands: {
+    endpoint: BC_VEGETATION_WFS,
+    typeName: 'WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY',
+    geometryColumn: 'GEOMETRY',
+    // The layer has 189 attributes; these seven are what a sightline guess needs.
+    fields: [
+      'FEATURE_ID',
+      'BCLCS_LEVEL_1',
+      'BCLCS_LEVEL_2',
+      'SPECIES_CD_1',
+      'PROJ_HEIGHT_1',
+      'CROWN_CLOSURE',
+      'PROJ_AGE_1',
+    ],
+    // GeoServer does not generalise geometry: a 13 km by 10 km view is about 2 MB.
+    minZoom: 13,
+    maxFeatures: MAX_VEGETATION_FEATURES,
+    maxDegrees: MAX_VEGETATION_QUERY_DEGREES,
   },
 }
 
-/** Widest box asked for at once, degrees, so a stray call cannot ask for the province. */
-export const MAX_BC_QUERY_DEGREES = 12
-
+/** Keeps a box centred and no wider than `limit` degrees either way. */
 export function clampBounds(bounds: Bounds, limit = MAX_BC_QUERY_DEGREES): Bounds {
   const [west, south, east, north] = bounds
   const lng = (west + east) / 2
@@ -161,13 +161,19 @@ export function clampBounds(bounds: Bounds, limit = MAX_BC_QUERY_DEGREES): Bound
   return [lng - half(east - west), lat - half(north - south), lng + half(east - west), lat + half(north - south)]
 }
 
+/** The box a layer really asks for: VRI through the shared VRI clamp, the rest through `clampBounds`. */
+export function layerQueryBounds(layer: WfsLayerId, bounds: Bounds): Bounds {
+  if (layer === 'stands') return clampVegetationBounds(bounds)
+  return clampBounds(bounds, WFS_SOURCES[layer].maxDegrees)
+}
+
 /** The query for a layer; `bounds` is required for a layer with a `minZoom` and ignored otherwise. */
-export function bcLayerUrl(layer: BcLayerId, bounds?: Bounds, extraFilter?: string): string {
-  const source = BC_LAYER_SOURCES[layer]
+export function wfsLayerUrl(layer: WfsLayerId, bounds?: Bounds, extraFilter?: string): string {
+  const source = WFS_SOURCES[layer]
   const clauses: string[] = []
   if (source.minZoom != null) {
     if (!bounds) throw new Error(`${layer} needs a bounding box`)
-    const [west, south, east, north] = clampBounds(bounds).map((value) => value.toFixed(5))
+    const [west, south, east, north] = layerQueryBounds(layer, bounds).map((value) => value.toFixed(5))
     clauses.push(`BBOX(${source.geometryColumn},${west},${south},${east},${north},'EPSG:4326')`)
   }
   for (const filter of [source.filter, extraFilter]) if (filter) clauses.push(`(${filter})`)
@@ -182,7 +188,160 @@ export function bcLayerUrl(layer: BcLayerId, bounds?: Bounds, extraFilter?: stri
     count: String(source.maxFeatures),
   })
   if (clauses.length > 0) params.set('CQL_FILTER', clauses.join(' AND '))
-  return `${BC_WFS}?${params.toString()}`
+  return `${source.endpoint}?${params.toString()}`
+}
+
+// ---------------------------------------------------------------------------
+// ArcGIS layers: forest roads and cutblocks, from the designer's sources
+
+/** One ArcGIS page; the services answer at most 1,000 features a request. */
+export const ARCGIS_PAGE_SIZE = 1000
+
+export interface ArcgisRead {
+  service: string
+  where: string
+  fields: readonly string[]
+  orderBy: string
+  /** Pages asked for at most; an answer still over after the last is drawn and called truncated. */
+  maxPages: number
+}
+
+/** Forest Service Roads show from this zoom; they are the main lines and few enough to read wide. */
+export const FSR_MIN_ZOOM = 8
+/** Every other tenure road (permits, special use) joins from this zoom. */
+export const ALL_ROADS_MIN_ZOOM = 11
+export const CUTBLOCK_MIN_ZOOM = 12
+/** Past this zoom a road or block is read at the same detail, so a window is reused. */
+export const MAX_READ_DETAIL_ZOOM = 14
+
+const ROAD_FIELDS = [
+  'OBJECTID',
+  'ROAD_SECTION_NAME',
+  'FOREST_FILE_ID',
+  'FILE_TYPE_CODE',
+  'FILE_TYPE_DESCRIPTION',
+  'LIFE_CYCLE_STATUS_CODE',
+  'CLIENT_NAME',
+] as const
+
+/** The reads for forest roads at a zoom: Forest Service Roads first, then the rest from `ALL_ROADS_MIN_ZOOM`. */
+export function forestRoadReads(zoom: number): ArcgisRead[] {
+  const fsr = `FILE_TYPE_CODE='${FSR_FILE_TYPE_CODE}'`
+  const reads: ArcgisRead[] = [
+    { service: BC_ROADS_SERVICE, where: fsr, fields: ROAD_FIELDS, orderBy: 'OBJECTID', maxPages: 2 },
+  ]
+  if (zoom >= ALL_ROADS_MIN_ZOOM)
+    reads.push({
+      service: BC_ROADS_SERVICE,
+      where: `FILE_TYPE_CODE<>'${FSR_FILE_TYPE_CODE}'`,
+      fields: ROAD_FIELDS,
+      orderBy: 'OBJECTID',
+      maxPages: 3,
+    })
+  return reads
+}
+
+/** Cutblocks, newest harvest first, so a view with more than the cap keeps the youngest blocks. */
+export const CUTBLOCK_READ: ArcgisRead = {
+  service: BC_HARVEST_SERVICE,
+  where: '1=1',
+  fields: BC_HARVEST_FIELDS,
+  orderBy: 'HARVEST_START_YEAR_CALENDAR DESC,OBJECTID',
+  maxPages: 3,
+}
+
+/**
+ * How far the service may move a vertex to simplify a line: half a pixel at `zoom`, in degrees. A
+ * provincial road read at zoom 9 is a fraction of its full detail and looks the same.
+ */
+export function generalisationDegrees(zoom: number): number {
+  return 180 / (256 * 2 ** Math.min(zoom, MAX_READ_DETAIL_ZOOM))
+}
+
+export function arcgisPageUrl(read: ArcgisRead, bounds: Bounds, zoom: number, page: number): string {
+  const [west, south, east, north] = clampBounds(bounds).map((value) => Number(value.toFixed(5)))
+  const params = new URLSearchParams({
+    where: read.where,
+    geometry: [west, south, east, north].join(','),
+    geometryType: 'esriGeometryEnvelope',
+    inSR: '4326',
+    outSR: '4326',
+    spatialRel: 'esriSpatialRelIntersects',
+    outFields: read.fields.join(','),
+    returnGeometry: 'true',
+    maxAllowableOffset: generalisationDegrees(zoom).toPrecision(3),
+    geometryPrecision: '6',
+    orderByFields: read.orderBy,
+    resultOffset: String(page * ARCGIS_PAGE_SIZE),
+    resultRecordCount: String(ARCGIS_PAGE_SIZE),
+    f: 'geojson',
+  })
+  return `${read.service}/query?${params.toString()}`
+}
+
+/** One page of an ArcGIS GeoJSON answer: its features, and whether the service holds more. */
+export function parseArcgisPage(payload: unknown): { features: unknown[]; more: boolean } {
+  const page = payload as {
+    error?: { message?: unknown }
+    features?: unknown
+    exceededTransferLimit?: unknown
+    properties?: { exceededTransferLimit?: unknown } | null
+  } | null
+  if (page?.error) {
+    const message = typeof page.error.message === 'string' ? page.error.message : 'the query was refused'
+    throw new Error(`DataBC: ${message}`)
+  }
+  if (!Array.isArray(page?.features)) throw new Error('DataBC returned no feature collection')
+  return {
+    features: page.features,
+    more: page.exceededTransferLimit === true || page.properties?.exceededTransferLimit === true,
+  }
+}
+
+/** One read of a layer: bounded, and refused when DataBC answers with an exception. */
+export async function readLayerJson(fetcher: Fetch, url: string, signal: AbortSignal): Promise<unknown> {
+  const response = await fetcher(url, { signal })
+  if (!response.ok) throw new Error(`DataBC answered ${response.status}`)
+  const text = await readBoundedText(response, {
+    maxBytes: MAX_LAYER_RESPONSE_BYTES,
+    tooLarge: 'The answer was too large to draw; zoom in.',
+    signal,
+  })
+  const payload: unknown = JSON.parse(text)
+  if ((payload as { exceptions?: unknown } | null)?.exceptions) throw new Error('DataBC refused the query')
+  return payload
+}
+
+/** Every page of the reads, in order, up to each read's page limit. */
+export async function readArcgis(
+  reads: readonly ArcgisRead[],
+  bounds: Bounds,
+  zoom: number,
+  signal: AbortSignal,
+  fetcher: Fetch = fetch,
+): Promise<{ features: unknown[]; truncated: boolean }> {
+  const features: unknown[] = []
+  let truncated = false
+  for (const read of reads) {
+    for (let page = 0; page < read.maxPages; page += 1) {
+      const answer = parseArcgisPage(await readLayerJson(fetcher, arcgisPageUrl(read, bounds, zoom, page), signal))
+      features.push(...answer.features)
+      if (!answer.more) break
+      if (page === read.maxPages - 1) truncated = true
+    }
+  }
+  return { features, truncated }
+}
+
+/** One WFS layer, read for a box (or whole, for a layer without a `minZoom`). */
+export async function readWfs(
+  layer: WfsLayerId,
+  bounds: Bounds | undefined,
+  signal: AbortSignal,
+  extraFilter?: string,
+  fetcher: Fetch = fetch,
+): Promise<unknown> {
+  return readLayerJson(fetcher, wfsLayerUrl(layer, bounds, extraFilter), signal)
 }
 
 // ---------------------------------------------------------------------------
@@ -196,9 +355,7 @@ const GEOMETRY_KINDS = {
   point: ['Point'],
 } as const
 
-function rowsOf(payload: unknown, kind: keyof typeof GEOMETRY_KINDS): { rows: Row[]; returned: number } {
-  const source = payload as { features?: unknown } | null
-  const features = Array.isArray(source?.features) ? source.features : []
+function rowsOf(features: readonly unknown[], kind: keyof typeof GEOMETRY_KINDS): Row[] {
   const allowed: readonly string[] = GEOMETRY_KINDS[kind]
   const rows: Row[] = []
   for (const feature of features) {
@@ -215,12 +372,19 @@ function rowsOf(payload: unknown, kind: keyof typeof GEOMETRY_KINDS): { rows: Ro
         : {}
     rows.push({ geometry: geometry as GeoJSON.Geometry, properties })
   }
-  return { rows, returned: features.length }
+  return rows
 }
 
-function truncatedAnswer(payload: unknown, returned: number, layer: BcLayerId): boolean {
+function wfsFeatures(payload: unknown): unknown[] {
+  const features = (payload as { features?: unknown } | null)?.features
+  return Array.isArray(features) ? features : []
+}
+
+/** GeoServer reports the full match count even when `count` cut the answer short. */
+function wfsTruncated(payload: unknown, layer: WfsLayerId): boolean {
+  const returned = wfsFeatures(payload).length
   const matched = (payload as { numberMatched?: unknown } | null)?.numberMatched
-  return returned >= BC_LAYER_SOURCES[layer].maxFeatures || (typeof matched === 'number' && matched > returned)
+  return returned >= WFS_SOURCES[layer].maxFeatures || (typeof matched === 'number' && matched > returned)
 }
 
 function text(value: unknown): string | null {
@@ -256,19 +420,32 @@ export interface LayerAnswer<P> {
   truncated: boolean
 }
 
-function answer<P>(
+function collect<P>(
+  features: readonly unknown[],
+  kind: keyof typeof GEOMETRY_KINDS,
+  read: (properties: Record<string, unknown>, index: number) => P | null,
+): GeoJSON.FeatureCollection<GeoJSON.Geometry, P> {
+  const out: Array<GeoJSON.Feature<GeoJSON.Geometry, P>> = []
+  rowsOf(features, kind).forEach((row, index) => {
+    const properties = read(row.properties, index)
+    if (properties) out.push({ type: 'Feature', geometry: row.geometry, properties })
+  })
+  return { type: 'FeatureCollection', features: out }
+}
+
+function wfsAnswer<P>(
   payload: unknown,
-  layer: BcLayerId,
+  layer: WfsLayerId,
   kind: keyof typeof GEOMETRY_KINDS,
   read: (properties: Record<string, unknown>, index: number) => P | null,
 ): LayerAnswer<P> {
-  const { rows, returned } = rowsOf(payload, kind)
-  const features: Array<GeoJSON.Feature<GeoJSON.Geometry, P>> = []
-  rows.forEach((row, index) => {
-    const properties = read(row.properties, index)
-    if (properties) features.push({ type: 'Feature', geometry: row.geometry, properties })
-  })
-  return { collection: { type: 'FeatureCollection', features }, truncated: truncatedAnswer(payload, returned, layer) }
+  return { collection: collect(wfsFeatures(payload), kind, read), truncated: wfsTruncated(payload, layer) }
+}
+
+export interface CardText {
+  title: string
+  lines: string[]
+  caution?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -287,9 +464,10 @@ export interface ForestRoadProperties {
   holder: string | null
 }
 
-export function parseForestRoads(payload: unknown): LayerAnswer<ForestRoadProperties> {
-  return answer(payload, 'forestRoads', 'line', (properties, index) => {
-    const tenure = text(properties.FILE_TYPE_DESCRIPTION)
+export function parseForestRoads(
+  features: readonly unknown[],
+): GeoJSON.FeatureCollection<GeoJSON.Geometry, ForestRoadProperties> {
+  return collect(features, 'line', (properties, index) => {
     const status = text(properties.LIFE_CYCLE_STATUS_CODE)
     const name = text(properties.ROAD_SECTION_NAME)
     const file = text(properties.FOREST_FILE_ID)
@@ -297,19 +475,13 @@ export function parseForestRoads(payload: unknown): LayerAnswer<ForestRoadProper
       id: key(properties.OBJECTID, `road-${index}`),
       // A section "name" is often just its file number again; keep real names only.
       name: name && name !== file && /[A-Za-z]{3}/.test(name) ? titleCase(name) : null,
-      tenure,
-      fsr: tenure?.toLowerCase() === 'forest service road',
+      tenure: text(properties.FILE_TYPE_DESCRIPTION),
+      fsr: tenureRoadClass(properties.FILE_TYPE_CODE) === 'fsr',
       tenureStatus: status,
       retired: status?.toUpperCase() === 'RETIRED',
       holder: text(properties.CLIENT_NAME),
     }
   })
-}
-
-export interface CardText {
-  title: string
-  lines: string[]
-  caution?: string
 }
 
 export function describeForestRoad(properties: Partial<ForestRoadProperties>): CardText {
@@ -327,70 +499,55 @@ export function describeForestRoad(properties: Partial<ForestRoadProperties>): C
 // ---------------------------------------------------------------------------
 // Cutblocks
 
-/** Years since harvest started. Young blocks are open forage; older ones have closed in. */
-export type CutblockAge = 'fresh' | 'young' | 'regrowing' | 'old' | 'unknown'
-
-export const CUTBLOCK_AGE_LABELS: Record<CutblockAge, string> = {
-  fresh: '0–5 years',
-  young: '6–15 years',
-  regrowing: '16–30 years',
-  old: 'Over 30 years',
-  unknown: 'Year unknown',
-}
-
-export const CUTBLOCK_AGE_COLORS: Record<CutblockAge, string> = {
-  fresh: '#dc2626',
-  young: '#f59e0b',
-  regrowing: '#84cc16',
-  old: '#15803d',
-  unknown: '#64748b',
-}
-
-export function cutblockAge(harvestYear: number | null, currentYear: number): CutblockAge {
-  if (harvestYear == null) return 'unknown'
-  const age = currentYear - harvestYear
-  if (age <= 5) return 'fresh'
-  if (age <= 15) return 'young'
-  if (age <= 30) return 'regrowing'
-  return 'old'
-}
+/** The road designer's harvest age classes (`harvestHistoryStyle`), in legend order. */
+export const CUTBLOCK_CLASSES = [
+  { key: 'recent', label: '0–10 years since harvest', color: '#d97706' },
+  { key: 'medium', label: '11–30 years', color: '#0d9488' },
+  { key: 'older', label: 'Over 30 years', color: '#166534' },
+  { key: 'unknown', label: 'Age unknown or uncertain', color: '#64748b' },
+] as const
 
 export interface CutblockProperties {
   id: string
-  harvestYear: number | null
-  age: CutblockAge
+  /** `harvestHistoryStyle`'s key and colour for the visit's year. */
+  age: string
+  color: string
+  /** `harvestAgeSummary`'s sentence for the visit's year. */
+  summary: string
   areaHa: number | null
-  clearcutPercent: number | null
   source: string | null
 }
 
-export function parseCutblocks(payload: unknown, currentYear: number): LayerAnswer<CutblockProperties> {
-  return answer(payload, 'cutblocks', 'polygon', (properties, index) => {
-    const harvestYear = year(properties.HARVEST_START_YEAR_CALENDAR)
-    const area = number(properties.FEATURE_AREA_SQM)
+export function parseCutblocks(
+  features: readonly unknown[],
+  currentYear: number,
+): GeoJSON.FeatureCollection<GeoJSON.Geometry, CutblockProperties> {
+  return collect(features, 'polygon', (properties, index) => {
+    let evidence
+    try {
+      evidence = bcHarvestEvidence(properties)
+    } catch {
+      // A record the designer's rule cannot read is drawn as unknown, never guessed at.
+      evidence = undefined
+    }
+    const style = harvestHistoryStyle(evidence, currentYear)
+    const area = number(properties.AREA_HA)
     return {
-      id: key(properties.VCCB_SYSID, `block-${index}`),
-      harvestYear,
-      age: cutblockAge(harvestYear, currentYear),
-      areaHa: area != null ? Math.round(area / 1000) / 10 : null,
-      clearcutPercent: number(properties.PERCENT_CLEARCUT),
+      id: key(properties.VCCB_SYSID ?? properties.OBJECTID, `block-${index}`),
+      age: style.key,
+      color: style.color,
+      summary: harvestAgeSummary(evidence, currentYear),
+      areaHa: area != null ? Math.round(area * 10) / 10 : null,
       source: text(properties.DATA_SOURCE),
     }
   })
 }
 
-export function describeCutblock(properties: Partial<CutblockProperties>, currentYear: number): CardText {
-  const harvestYear = properties.harvestYear ?? null
-  const lines: string[] = []
-  if (harvestYear != null) {
-    const age = currentYear - harvestYear
-    lines.push(age <= 0 ? 'Harvested this year' : `${age} year${age === 1 ? '' : 's'} since harvest started`)
-  }
+export function describeCutblock(properties: Partial<CutblockProperties>): CardText {
+  const lines = [properties.summary ?? 'Harvest date unknown']
   if (properties.areaHa != null) lines.push(`${properties.areaHa.toLocaleString()} ha`)
-  if (properties.clearcutPercent != null && properties.clearcutPercent < 100)
-    lines.push(`${properties.clearcutPercent}% clearcut`)
   if (properties.source) lines.push(`Source: ${properties.source}`)
-  return { title: harvestYear != null ? `Cutblock, harvested ${harvestYear}` : 'Cutblock, year unknown', lines }
+  return { title: 'Cutblock', lines }
 }
 
 // ---------------------------------------------------------------------------
@@ -407,7 +564,7 @@ export interface BoatLaunchProperties {
 }
 
 export function parseRecLaunches(payload: unknown): LayerAnswer<BoatLaunchProperties> {
-  return answer(payload, 'recLaunches', 'point', (properties, index) => {
+  return wfsAnswer(payload, 'recLaunches', 'point', (properties, index) => {
     const launch = STRUCTURE_COLUMNS.map((column) => text(properties[column])).find((value) =>
       value?.toLowerCase().startsWith('boat launch'),
     )
@@ -429,7 +586,7 @@ export function parseRecLaunches(payload: unknown): LayerAnswer<BoatLaunchProper
 }
 
 export function parseCoastalLaunches(payload: unknown): LayerAnswer<BoatLaunchProperties> {
-  return answer(payload, 'coastalLaunches', 'point', (properties, index) => ({
+  return wfsAnswer(payload, 'coastalLaunches', 'point', (properties, index) => ({
     id: `coast-${key(properties.BOAT_LAUNCH_ID, String(index))}`,
     name: text(properties.LOCATION) ?? 'Coastal boat launch',
     source: 'Coastal atlas',
@@ -464,6 +621,11 @@ export interface DepthChartProperties {
   sheets: number | null
   /** The scanned chart. Always https: the inventory lists http, which a secure page cannot open. */
   pdfUrl: string | null
+  /**
+   * Every sheet of the chart this one belongs to, as JSON (`[{ sheet, url }]`), filled once the
+   * answer is read: a map feature's properties cannot hold an array.
+   */
+  chartSheets: string
 }
 
 export function secureUrl(value: unknown): string | null {
@@ -472,8 +634,36 @@ export function secureUrl(value: unknown): string | null {
   return url.replace(/^http:/i, 'https:')
 }
 
+export interface ChartSheet {
+  sheet: number
+  url: string
+}
+
+/**
+ * The sheets of each chart in an answer. A large lake is charted on several sheets, each its own
+ * polygon; they share a lake name and survey year, which is what groups them here.
+ */
+export function chartSheetsByLake(
+  charts: ReadonlyArray<Pick<DepthChartProperties, 'lake' | 'surveyYear' | 'sheet' | 'pdfUrl'>>,
+): Map<string, ChartSheet[]> {
+  const groups = new Map<string, Map<number, string>>()
+  for (const chart of charts) {
+    if (!chart.pdfUrl) continue
+    const group = `${chart.lake}|${chart.surveyYear ?? ''}`
+    const sheets = groups.get(group) ?? new Map<number, string>()
+    sheets.set(chart.sheet ?? sheets.size + 1, chart.pdfUrl)
+    groups.set(group, sheets)
+  }
+  return new Map(
+    [...groups.entries()].map(([group, sheets]) => [
+      group,
+      [...sheets.entries()].sort(([a], [b]) => a - b).map(([sheet, url]) => ({ sheet, url })),
+    ]),
+  )
+}
+
 export function parseDepthCharts(payload: unknown): LayerAnswer<DepthChartProperties> {
-  return answer(payload, 'depthCharts', 'polygon', (properties, index) => {
+  const answer = wfsAnswer<DepthChartProperties>(payload, 'depthCharts', 'polygon', (properties, index) => {
     const name = text(properties.GAZETTED_NAME) ?? text(properties.MAP_TITLE)
     return {
       id: key(properties.OBJECTID, `chart-${index}`),
@@ -483,35 +673,29 @@ export function parseDepthCharts(payload: unknown): LayerAnswer<DepthChartProper
       sheet: number(properties.SHEET_NO),
       sheets: number(properties.NUMBER_OF_MAP_SHEETS),
       pdfUrl: secureUrl(properties.PDF_FILE_URL),
+      chartSheets: '[]',
     }
   })
-}
-
-/** One lake's scanned chart, sheet by sheet, for the in-app viewer. */
-export interface DepthChartSet {
-  lake: string
-  surveyYear: number | null
-  sheets: Array<{ sheet: number; url: string }>
-}
-
-/**
- * Every sheet of the chart a clicked sheet belongs to. A large lake is charted
- * on several sheets, each its own polygon; they share a lake name and survey
- * year, which is what groups them here.
- */
-export function depthChartSet(charts: DepthChartProperties[], clickedId: string): DepthChartSet | null {
-  const clicked = charts.find((chart) => chart.id === clickedId)
-  if (!clicked) return null
-  const sheets = new Map<number, string>()
-  for (const chart of charts) {
-    if (chart.lake !== clicked.lake || chart.surveyYear !== clicked.surveyYear || !chart.pdfUrl) continue
-    sheets.set(chart.sheet ?? sheets.size + 1, chart.pdfUrl)
+  const groups = chartSheetsByLake(answer.collection.features.map((feature) => feature.properties))
+  for (const feature of answer.collection.features) {
+    const { lake, surveyYear } = feature.properties
+    feature.properties.chartSheets = JSON.stringify(groups.get(`${lake}|${surveyYear ?? ''}`) ?? [])
   }
-  if (sheets.size === 0) return null
-  return {
-    lake: clicked.lake,
-    surveyYear: clicked.surveyYear,
-    sheets: [...sheets.entries()].sort(([a], [b]) => a - b).map(([sheet, url]) => ({ sheet, url })),
+  return answer
+}
+
+/** The sheets a clicked chart lists, read back from its feature's properties. */
+export function chartSheetsOf(properties: Record<string, unknown>): ChartSheet[] {
+  try {
+    const parsed: unknown = JSON.parse(typeof properties.chartSheets === 'string' ? properties.chartSheets : '[]')
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((entry: unknown) => {
+      const sheet = entry as { sheet?: unknown; url?: unknown }
+      const url = secureUrl(sheet.url)
+      return typeof sheet.sheet === 'number' && url ? [{ sheet: sheet.sheet, url }] : []
+    })
+  } catch {
+    return []
   }
 }
 
@@ -525,7 +709,7 @@ export function describeDepthChart(properties: Partial<DepthChartProperties>): C
       : null,
   ].filter(Boolean)
   if (facts.length > 0) lines.push(facts.join(' · '))
-  lines.push(properties.pdfUrl ? 'Click to view the depth chart' : 'No chart file is listed')
+  lines.push(properties.pdfUrl ? 'Click for the scanned depth chart' : 'No chart file is listed')
   return {
     title: `${properties.lake ?? 'Lake'} depth chart`,
     lines,
@@ -534,9 +718,8 @@ export function describeDepthChart(properties: Partial<DepthChartProperties>): C
 }
 
 /**
- * Depth bands for the digitized lakes, shallow to deep. A contour polygon is
- * "everything at least this deep", so it takes the colour of the band its own
- * depth starts.
+ * Depth bands for the digitized lakes, shallow to deep. A contour polygon is "everything at least
+ * this deep", so it takes the colour of the band its own depth starts.
  */
 export const DEPTH_BANDS = [
   { fromM: 0, label: '0–3 m', color: '#bae6fd' },
@@ -565,7 +748,7 @@ export interface DepthContourProperties {
 }
 
 export function parseDepthContours(payload: unknown): LayerAnswer<DepthContourProperties> {
-  const parsed = answer<DepthContourProperties>(payload, 'depthContours', 'polygon', (properties, index) => {
+  const parsed = wfsAnswer<DepthContourProperties>(payload, 'depthContours', 'polygon', (properties, index) => {
     const depth = number(properties.CONTOUR_DEPTH_M)
     if (depth == null || depth < 0 || depth > MAX_REAL_DEPTH_M) return null
     const name = text(properties.LAKE_GAZETTED_NAME)
@@ -577,8 +760,8 @@ export function parseDepthContours(payload: unknown): LayerAnswer<DepthContourPr
       surveyYear: year(properties.LAKE_SURVEY_DATE),
     }
   })
-  // Each polygon is "everything at least this deep"; drawn shallow first, the
-  // deeper ones land on top, so each band shows only where the next has not begun.
+  // Each polygon is "everything at least this deep"; drawn shallow first, the deeper ones land on
+  // top, so each band shows only where the next has not begun.
   parsed.collection.features.sort((a, b) => a.properties.depthM - b.properties.depthM)
   return parsed
 }
@@ -630,7 +813,7 @@ export interface HuntZoneProperties {
 }
 
 export function parseHuntZones(payload: unknown): LayerAnswer<HuntZoneProperties> {
-  return answer(payload, 'huntZones', 'polygon', (properties, index) => {
+  return wfsAnswer(payload, 'huntZones', 'polygon', (properties, index) => {
     const species = text(properties.LTD_ENTRY_HUNTING_ZONE_TYPE)
     const label = text(properties.LTD_ENTRY_HUNTING_ZONE_LABEL) ?? text(properties.LIMITED_ENTRY_HUNTING_ZONE)
     if (!species || !label) return null
@@ -648,14 +831,14 @@ export function parseHuntZones(payload: unknown): LayerAnswer<HuntZoneProperties
 // Forest openness
 
 /**
- * How far a person on foot is likely to see through a stand, guessed from the
- * forest inventory. The classes and their thresholds are a screening rule made
- * for this planner, not a published standard and not checked on the ground:
+ * How far a person on foot is likely to see through a stand, guessed from the forest inventory. The
+ * classes and their thresholds are a screening rule made for this planner, not a published standard
+ * and not checked on the ground:
  *
  * - `open`: no tree cover recorded, trees under 2 m, or crown closure under 10%.
  * - `sparse`: crown closure 10 to 25%, trees 2 m or taller.
- * - `brush`: trees 2 to 6 m with crown closure over 25%. Regrowth at eye
- *   height, which blocks sight more than mature timber does.
+ * - `brush`: trees 2 to 6 m with crown closure over 25%. Regrowth at eye height, which blocks sight
+ *   more than mature timber does.
  * - `timber`: trees over 6 m, crown closure 26 to 55%.
  * - `dense`: trees over 6 m, crown closure over 55%.
  */
@@ -713,7 +896,7 @@ export interface StandProperties {
 
 /** Water is left out: a lake is open, but it is not ground to hunt across. */
 export function parseStands(payload: unknown): LayerAnswer<StandProperties> {
-  return answer(payload, 'stands', 'polygon', (properties, index) => {
+  return wfsAnswer(payload, 'stands', 'polygon', (properties, index) => {
     const level2 = text(properties.BCLCS_LEVEL_2)?.toUpperCase() ?? null
     if (level2 === 'W') return null
     // No land-cover call at all means the inventory did not describe the polygon.
@@ -749,24 +932,4 @@ export function describeStand(properties: Partial<StandProperties>): CardText {
     ],
     caution: 'An estimate from the forest inventory, which can be years out of date. Check the imagery.',
   }
-}
-
-// ---------------------------------------------------------------------------
-// The one network call
-
-export async function fetchBcLayer(
-  layer: BcLayerId,
-  bounds: Bounds | undefined,
-  signal?: AbortSignal,
-  extraFilter?: string,
-): Promise<unknown> {
-  const response = await fetch(bcLayerUrl(layer, bounds, extraFilter), { signal })
-  return readWfsResponse(response)
-}
-
-async function readWfsResponse(response: Response): Promise<unknown> {
-  if (!response.ok) throw new Error(`DataBC answered ${response.status}`)
-  const payload: unknown = await response.json()
-  if ((payload as { exceptions?: unknown } | null)?.exceptions) throw new Error('DataBC refused the query')
-  return payload
 }

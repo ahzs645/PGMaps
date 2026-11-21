@@ -36,10 +36,10 @@ Work down the list and take the first that fits.
 |---|---|---|
 | A raster that already is, or can be cut into, XYZ tiles: a tile server, a WMS, a Web Mercator COG whose internal blocks line up with map tiles | **Tiles.** A MapLibre `raster` source. For a file with no tile server, an `addProtocol` handler that reads one block a tile | `MapRasterLayer`; the canopy layer's `chmTileProtocol.ts` is the worked example |
 | The same tile layer, but its *source* changes: a timeline release, a year, a scenario, a species | **Hand-off.** The shown layer stays until the next has its tiles, then they swap in one frame | `useMapLayerHandoff`, `MapRasterHandoff`, `MapHandoffNote` (`@/components/ui/map-raster-handoff`, from the toolkit) |
-| A tile layer that only changes *place* in the stack (Map ↔ Satellite) | **Change its `beforeId`.** `MapRasterLayer` and `MapTerrain` move the layer and keep its tiles; a remount asks the host for every tile again | The layers' own `beforeId`; `useReliefPlace` (`RegionalDemLayer.tsx`) keeps a place as the style changes round it |
+| A tile layer that only changes *place* in the stack (Map ↔ Satellite) | **Change its `beforeId`.** `MapRasterLayer` and `MapTerrain` move the layer and keep its tiles; a remount asks the host for every tile again | The layers' own `beforeId`; `useReliefPlace` (`@/components/ui/map-regional-relief`) keeps a place as the style changes round it |
 | One picture per view that cannot be tiled cheaply: another projection, a search or a rating over the window, pixels computed from several reads | **View window.** Read 1.5 × the view, keep it while the view stays inside, ask for the next during the move | `useViewWindow` (`@/components/ui/map-view-window`, from the toolkit), with `MapImageLayer`'s `image` for the picture |
 | Vector or gridded data cut into blocks on a pyramid | **Blocks in view during the gesture**, a bounded number of GPU uploads a frame, the prefetch ring after it | `MapCategoricalRaster`, `ViewportBlockLoader` scope `'visible'` |
-| Features read by bounding box from a live service (WFS, ArcGIS) | **View window** over the read; keep the features drawn until the next answer; for more than one read a view, snap to a fixed grid and cache by cell | `useViewWindow`; no shared grid reader exists yet (see [Not built](#not-built)) |
+| Features read by bounding box from a live service (WFS, ArcGIS) | **View window** over the read; keep the features drawn until the next answer; for more than one read a view, snap to a fixed grid and cache by cell | `useViewWindowRead` (`@/components/ui/map-view-read`), over `useViewWindow`; no shared grid reader exists yet (see [Not built](#not-built)) |
 | Something drawn from a scene, a block or a click, not from the view | None of this applies | — |
 
 ### Tiles: what MapLibre does for nothing
@@ -115,6 +115,16 @@ const handoff = useMapLayerHandoff('my-layer', value ? { key: value.id, value } 
   search, reset a selection or re-rate a list when the things already listed still cover the new
   window (`catalogueServes`, Sentinel-2).
 - Figures read over the window cover more than the visible map. Print the area.
+- Pass `useViewWindow` every rule value you do not mean to leave at its default as a defined
+  number. The toolkit merges with a spread, so an option given as `undefined` replaces its default:
+  an overscan of 1 and no throttle, which read a new window on every frame of a drag (62 reads in
+  3 s on the outdoors planner's cutblocks). `useViewWindowRead` passes `VIEW_WINDOW_DEFAULTS`; a
+  fix in the toolkit's `viewWindowRule` is in **Not built**.
+- For features read by box, `useViewWindowRead` keeps the last answer drawn while the next is read,
+  keeps it after a failed read and reports the error, aborts the read a newer window supersedes, and
+  takes the layer off only below its `minZoom`, which the caller states. A WFS layer read at full
+  detail reuses its window at every zoom (`level` constant); an ArcGIS layer generalised to the zoom
+  (`maxAllowableOffset`) reads again at each zoom level up to a cap.
 
 ### Blocks
 
@@ -196,6 +206,9 @@ Real Chrome, Metal GPU, live hosts, 19 November 2026. Before is main at fc5abf3f
 | NRCan and regional relief on Map ↔ Satellite | `moveLayer` | Nothing drawn 0.6 s; 16 tiles asked for again | Never gone; no requests |
 | CCISS / portal blocks | Blocks during the gesture | 52% of new ground drawn at release | 97–100%; no long frames; a fast zoom-out 14 → 28 requests |
 | CCISS original tiles, period change | Hand-off + note | Layer removed for the availability check and the reload | 0 frames without it |
+| Outdoors planner cutblocks, forest roads, sightlines (21 November) | View window over the read | First read 3.1 s into the drag, after it stopped; up to 18% (cutblocks) and 27% (sightlines) more of the view empty mid-drag | First read 0.6 s into the drag; 2–6% more empty mid-drag; 4 reads a 3 s drag; never gone |
+| Outdoors planner rail, hunt zones, lake charts (21 November) | View window over the read | Not measured before (same reader as above) | Never gone; 4 reads a 3 s drag, none on a zoom-in inside the window |
+| Outdoors planner recent imagery, day change (21 November) | Hand-off + note | Gone on every frame of each of 4 day changes (a remount per day) | 0 frames without it |
 
 ## Not built
 
@@ -205,6 +218,10 @@ Known gaps, so nobody assumes they are covered.
   shows 6–8% of the view empty for about a second and a zoom-out up to 62%. Not cancelling tiles
   while zooming, 1024 px tiles and a larger cache were measured and did not help; a coarse stand-in
   under a translucent layer double-draws. MapLibre has no ancestor preload.
+- **`viewWindowRule` lets `undefined` replace a default.** `useViewWindow` passes its five rule
+  options through even when unset, so a caller that names only some of them loses the rest's
+  defaults. `useViewWindowRead` works round it; the fix (drop undefined values before the merge)
+  belongs in the toolkit repository.
 - **No shared grid reader for bounding-box vector reads.** The view window covers one read a view.
   Snapping to grid cells, caching by cell and aborting cells that leave the view (OpenLayers' tile
   loading strategy) would be the next building block; nothing in the app needs it yet.
@@ -231,6 +248,11 @@ toolkit (`docs/toolkit-extraction.md`):
 A change to any of these goes to the `ahzs645/geo-toolkit` repository first, through its CI, and
 then the submodule pointer moves. The toolkit has no component tests, so the hand-off's is here
 (`src/components/ui/map-raster-handoff.test.tsx`, mocking the toolkit modules it imports).
+
+`useViewWindowRead` (`src/components/ui/map-view-read.ts`, the box read over the view window) and
+`RegionalReliefLayer` (`src/components/ui/map-regional-relief.tsx`, with its DOM-free placement
+rules in `src/lib/mapReliefPlace.ts`) are app code for now, shared by the road designer and the
+outdoors planner; both could move to the toolkit with the rest.
 
 `MapCategoricalRaster` and the canopy protocol stay in the app: they depend on PGMaps' data paths,
 workers and a domain's files. So does the measuring script, which drives PGMaps' own pages.

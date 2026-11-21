@@ -4,8 +4,11 @@ import {
   huntsForHuntArea,
   huntsForUnit,
   normalizeUnitId,
+  lehCsvUrlFromPackage,
+  LEH_DRAW_CSV_URL,
+  LEH_DRAW_PACKAGE_URL,
+  loadLehDraws,
   oddsText,
-  parseCsv,
   parseLehDraws,
   regulationLinks,
   seasonText,
@@ -26,20 +29,51 @@ const REPORT = [
   '2025,FALL,MOOS,MOOSE,9999,Nowhere,9,ZZZ,09/10/2025,10/05/2025,,,Bull Only,1,1,1,1,1,1,,,1,0,0,0,,',
 ].join('\r\n')
 
-describe('parseCsv', () => {
-  it('reads quoted fields, doubled quotes and both line endings', () => {
-    expect(parseCsv('a,b\r\n"x, y","say ""hi"""\n1,2\n')).toEqual([
-      ['a', 'b'],
-      ['x, y', 'say "hi"'],
-      ['1', '2'],
-    ])
+describe('reading the draw report', () => {
+  it('reads a report that starts with a byte order mark', () => {
+    const { drawYear, hunts } = parseLehDraws(`\uFEFF${REPORT}`)
+    expect(drawYear).toBe(2025)
+    expect(hunts.some((hunt) => hunt.huntCode === '4377')).toBe(true)
   })
 
-  it('drops a byte-order mark and blank lines, and keeps a last line without a newline', () => {
-    expect(parseCsv('﻿a,b\n\n1,2')).toEqual([
-      ['a', 'b'],
-      ['1', '2'],
-    ])
+  it('finds the current CSV in the catalogue record, never the field definitions', () => {
+    const current =
+      'https://catalogue.data.gov.bc.ca/dataset/x/resource/y/download/leh-draw-hunt-code-report-2002-to-fall-2026.csv'
+    expect(
+      lehCsvUrlFromPackage({
+        result: {
+          resources: [
+            {
+              format: 'csv',
+              name: 'Field Definitions - LEH Draw Hunt Code Report',
+              url: 'https://catalogue.data.gov.bc.ca/f.csv',
+            },
+            { format: 'xlsx', name: 'LEH Draw Hunt Code Report', url: 'https://catalogue.data.gov.bc.ca/r.xlsx' },
+            { format: 'csv', name: 'LEH Draw Hunt Code Report 2002 to fall 2026', url: current },
+          ],
+        },
+      }),
+    ).toBe(current)
+    expect(lehCsvUrlFromPackage({ result: { resources: [] } })).toBeNull()
+    expect(
+      lehCsvUrlFromPackage({
+        result: { resources: [{ format: 'csv', name: 'Report', url: 'https://elsewhere.example/r.csv' }] },
+      }),
+    ).toBeNull()
+    expect(lehCsvUrlFromPackage(null)).toBeNull()
+  })
+
+  it('falls back to the address last checked when the catalogue cannot be read', async () => {
+    const asked: string[] = []
+    const fetcher = (async (input: RequestInfo | URL) => {
+      const url = String(input)
+      asked.push(url)
+      if (url === LEH_DRAW_PACKAGE_URL) return new Response('unavailable', { status: 503 })
+      return new Response(REPORT)
+    }) as typeof fetch
+    const { drawYear } = await loadLehDraws(fetcher)
+    expect(drawYear).toBe(2025)
+    expect(asked).toEqual([LEH_DRAW_PACKAGE_URL, LEH_DRAW_CSV_URL])
   })
 })
 

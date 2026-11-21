@@ -5,24 +5,52 @@
  * LEH is BC's lottery for hunts where demand exceeds what the herd can bear:
  * a hunter applies for a hunt code and a fixed number of authorizations are
  * drawn. The province publishes every draw since 2002 as one CSV, the "Limited
- * Entry Hunting Draw Hunt Code Report". It is read here at run time and not
- * copied into the repository: its catalogue record is marked "Access Only",
- * not Open Government Licence, so redistributing it in a product needs the
- * province's permission. The CSV's last year is the most recent *completed*
- * draw; the coming season's hunt codes and tag numbers exist only in the
+ * Entry Hunting Draw Hunt Code Report". It is read here at run time and never
+ * copied into the repository or a cache: its catalogue record is marked "Access
+ * Only", not Open Government Licence, so redistributing it needs the province's
+ * permission. The file's address names its last season ("2002-to-fall-2025"),
+ * so the catalogue record is asked for its current CSV each visit
+ * (`lehCsvUrlFromPackage`), and the address last checked is only the fallback.
+ * The CSV's last year is the most recent *completed* draw; the coming season's hunt codes and tag numbers exist only in the
  * printed synopsis, so everything shown from here is labelled with its year.
  *
  * General open seasons (the ones needing no draw, such as Sitka deer on Haida
  * Gwaii) are published only as PDF tables. This module links to them and
  * never restates a season date.
  *
- * Everything here is pure except `loadLehDraws`.
+ * Everything here is pure except `loadLehDraws`, which takes its `fetch`.
  */
+import { readBoundedText } from '@/lib/boundedText'
+import { parseCsvRows } from '@/lib/parseCsv'
 
 export const LEH_DRAW_CSV_URL =
   'https://catalogue.data.gov.bc.ca/dataset/50555048-1ab7-4f50-bb4a-8b8142f0cba5/resource/321110dd-b95c-4cc0-8a36-b98d9e284a58/download/leh-draw-hunt-code-report-2002-to-fall-2025.csv'
-export const LEH_DRAW_RECORD_URL =
-  'https://catalogue.data.gov.bc.ca/dataset/limited-entry-hunting-draw-hunt-code-report-2002-to-fall-2025'
+/** The catalogue record by its id, which stays when the report is renamed for a new season. */
+export const LEH_DRAW_RECORD_URL = 'https://catalogue.data.gov.bc.ca/dataset/50555048-1ab7-4f50-bb4a-8b8142f0cba5'
+/** The catalogue record, asked for the draw report's current CSV (CKAN's `package_show`). */
+export const LEH_DRAW_PACKAGE_URL =
+  'https://catalogue.data.gov.bc.ca/api/3/action/package_show?id=50555048-1ab7-4f50-bb4a-8b8142f0cba5'
+/** The report is about 3 MB; anything far past that is not the report. */
+export const MAX_LEH_CSV_BYTES = 16 * 1024 * 1024
+const MAX_LEH_PACKAGE_BYTES = 1024 * 1024
+
+/**
+ * The draw report's CSV in a catalogue answer: the CSV resource that is not the field definitions.
+ * Null when the record lists none, so the caller falls back to the address last checked.
+ */
+export function lehCsvUrlFromPackage(payload: unknown): string | null {
+  const resources = (payload as { result?: { resources?: unknown } } | null)?.result?.resources
+  if (!Array.isArray(resources)) return null
+  for (const entry of resources) {
+    const resource = entry as { format?: unknown; name?: unknown; url?: unknown }
+    const format = typeof resource.format === 'string' ? resource.format.toLowerCase() : ''
+    const name = typeof resource.name === 'string' ? resource.name.toLowerCase() : ''
+    const url = typeof resource.url === 'string' ? resource.url : ''
+    if (format !== 'csv' || name.includes('field definition')) continue
+    if (/^https:\/\/catalogue\.data\.gov\.bc\.ca\//.test(url)) return url
+  }
+  return null
+}
 
 const SYNOPSIS_BASE =
   'https://www2.gov.bc.ca/assets/gov/sports-recreation-arts-and-culture/outdoor-recreation/fishing-and-hunting/hunting'
@@ -30,41 +58,6 @@ export const LEH_SYNOPSIS_URL = `${SYNOPSIS_BASE}/limited-entry-hunting/leh-regu
 export const HUNTING_SYNOPSIS_URL = `${SYNOPSIS_BASE}/regulations/hunting-trapping-synopsis.pdf`
 export const REGULATIONS_PAGE_URL =
   'https://www2.gov.bc.ca/gov/content/sports-culture/recreation/fishing-hunting/hunting/regulations-synopsis'
-
-/** A minimal RFC 4180 reader: quoted fields, doubled quotes, CRLF or LF. */
-export function parseCsv(text: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let field = ''
-  let quoted = false
-  const source = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index]
-    if (quoted) {
-      if (char === '"') {
-        if (source[index + 1] === '"') {
-          field += '"'
-          index += 1
-        } else quoted = false
-      } else field += char
-    } else if (char === '"') quoted = true
-    else if (char === ',') {
-      row.push(field)
-      field = ''
-    } else if (char === '\n' || char === '\r') {
-      if (char === '\r' && source[index + 1] === '\n') index += 1
-      row.push(field)
-      field = ''
-      if (row.length > 1 || row[0] !== '') rows.push(row)
-      row = []
-    } else field += char
-  }
-  if (field !== '' || row.length > 0) {
-    row.push(field)
-    rows.push(row)
-  }
-  return rows
-}
 
 /**
  * "725A" → management unit "7-25", zone "A". The planner's unit ids carry no
@@ -134,7 +127,8 @@ function words(value: string | undefined): string | null {
 
 /** Every hunt in the report's most recent draw year. Rows that cannot be placed in a unit are dropped. */
 export function parseLehDraws(csvText: string): { drawYear: number | null; hunts: LehHunt[] } {
-  const [header, ...rows] = parseCsv(csvText)
+  // The catalogue's CSV starts with a byte order mark, which would join the first column's name.
+  const [header, ...rows] = parseCsvRows(csvText.replace(/^\uFEFF/, ''))
   if (!header) return { drawYear: null, hunts: [] }
   const column = new Map(header.map((name, index) => [name.trim(), index]))
   const read = (row: string[], name: string) => {
@@ -282,13 +276,28 @@ export function regulationLinks(unitId: string): RegulationLink[] {
 
 let pending: Promise<{ drawYear: number | null; hunts: LehHunt[] }> | null = null
 
+async function readText(fetcher: typeof fetch, url: string, maxBytes: number): Promise<string> {
+  const response = await fetcher(url)
+  if (!response.ok) throw new Error(`BC Data Catalogue answered ${response.status}`)
+  return readBoundedText(response, { maxBytes, tooLarge: 'The draw report was larger than expected' })
+}
+
+/** The draw report's current address, or the one last checked when the catalogue cannot say. */
+async function lehCsvUrl(fetcher: typeof fetch): Promise<string> {
+  try {
+    return (
+      lehCsvUrlFromPackage(JSON.parse(await readText(fetcher, LEH_DRAW_PACKAGE_URL, MAX_LEH_PACKAGE_BYTES))) ??
+      LEH_DRAW_CSV_URL
+    )
+  } catch {
+    return LEH_DRAW_CSV_URL
+  }
+}
+
 /** The draw report, fetched once per visit and shared by every unit shown. */
-export function loadLehDraws(): Promise<{ drawYear: number | null; hunts: LehHunt[] }> {
-  pending ??= fetch(LEH_DRAW_CSV_URL)
-    .then((response) => {
-      if (!response.ok) throw new Error(`BC Data Catalogue answered ${response.status}`)
-      return response.text()
-    })
+export function loadLehDraws(fetcher: typeof fetch = fetch): Promise<{ drawYear: number | null; hunts: LehHunt[] }> {
+  pending ??= lehCsvUrl(fetcher)
+    .then((url) => readText(fetcher, url, MAX_LEH_CSV_BYTES))
     .then(parseLehDraws)
     .catch((error: unknown) => {
       // A failed read must not be remembered, or the panel could never retry.

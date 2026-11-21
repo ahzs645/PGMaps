@@ -12,6 +12,8 @@
 //   --setup <file.mjs>     Page-specific steps. Exports `setup({ page, findMap })` to turn the layer
 //                          on, and optionally `actions`: [{ name, run({ page }), holdMs? }] measured
 //                          as extra phases (a release change, a basemap switch).
+//                          `setup` may return `{ layers: [ids] }` to follow ids only known once the
+//                          layer is on (the toolkit's generated `fill-layer-…` ids).
 //   --center <lon,lat>     Jump here first.          --zoom <z>   …at this zoom.
 //   --host <text>          Count requests whose URL contains this. Repeat for several.
 //   --journey <list>       Phases to run, default `drag,zoom-in,zoom-out`. `none` runs only actions.
@@ -36,7 +38,7 @@ const flag = (name) => args.includes(`--${name}`)
 const url = one('url')
 const layers = all('layer')
 const prefixes = all('layer-prefix')
-if (!url || (!layers.length && !prefixes.length)) {
+if (!url || (!layers.length && !prefixes.length && !one('setup'))) {
   console.error('Usage: node scripts/map-loading/measure.mjs --url <page> --layer <id> [options]. See the file header.')
   process.exit(2)
 }
@@ -134,7 +136,9 @@ if (center || zoom !== undefined)
       window.__m.jumpTo({ ...(center ? { center } : {}), ...(zoom === undefined ? {} : { zoom }), bearing: 0, pitch: 0 }),
     { center, zoom },
   )
-if (steps.setup) await steps.setup({ page, findMap })
+// A setup may name layers the command line cannot: ids a layer generates when it is switched on.
+const found = steps.setup ? await steps.setup({ page, findMap }) : undefined
+if (Array.isArray(found?.layers)) layers.push(...found.layers)
 
 const target = { layers, prefixes }
 await page

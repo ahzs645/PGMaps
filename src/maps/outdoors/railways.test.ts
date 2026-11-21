@@ -1,17 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  MAX_RAILWAY_FEATURES,
-  MAX_RAILWAY_QUERY_DEGREES,
-  RAILWAY_LAYER,
-  boundsContain,
-  clampRailwayBounds,
-  describeRailway,
-  padBounds,
-  parseRailways,
-  railwayQueryUrl,
-  type Bounds,
-} from './railways'
+import type { Bounds } from './bcLayers'
+import { MAX_RAILWAY_FEATURES, RAILWAY_LAYER, describeRailway, parseRailways, railwayQueryUrl } from './railways'
 
 // The Tachie River, between Trembleur and Stuart lakes: TROPIK's test case.
 const TACHIE: Bounds = [-125.3, 54.5, -124.4, 55.0]
@@ -55,27 +45,6 @@ describe('railwayQueryUrl', () => {
     expect(columns).toContain('SHAPE')
     expect(columns).toContain('STATUS')
     expect(columns.length).toBeLessThan(12)
-  })
-})
-
-describe('bounds helpers', () => {
-  it('clamps a province-wide box about its centre', () => {
-    const [west, south, east, north] = clampRailwayBounds([-140, 40, -110, 62])
-    expect(east - west).toBeCloseTo(MAX_RAILWAY_QUERY_DEGREES)
-    expect(north - south).toBeCloseTo(MAX_RAILWAY_QUERY_DEGREES)
-    expect((west + east) / 2).toBeCloseTo(-125)
-    expect((south + north) / 2).toBeCloseTo(51)
-  })
-
-  it('leaves a small box alone', () => {
-    clampRailwayBounds(TACHIE).forEach((value, index) => expect(value).toBeCloseTo(TACHIE[index], 9))
-  })
-
-  it('knows when an earlier answer still covers the view', () => {
-    const fetched = padBounds(TACHIE, 0.5)
-    expect(boundsContain(fetched, TACHIE)).toBe(true)
-    expect(boundsContain(fetched, [-125.2, 54.6, -124.5, 54.9])).toBe(true)
-    expect(boundsContain(fetched, [-126.5, 54.6, -124.5, 54.9])).toBe(false)
   })
 })
 

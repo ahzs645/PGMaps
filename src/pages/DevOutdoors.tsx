@@ -40,7 +40,7 @@ import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map
 import { Button } from '@/components/ui/button'
 import { Map, MapControls, useMap, type MapRef } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
-import { InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import { InlineAlert, MapSidebarShell, MapSwatch, SidebarSection } from '@/components/ui/map-panels'
 import { BC_CENTER } from '@/components/ui/map-styles'
 import { TabBar } from '@/components/ui/tab-bar'
 import { ToggleRow } from '@/components/ui/toggle-row'
@@ -48,11 +48,12 @@ import { downloadText } from '@/lib/download'
 import { escapeHtml } from '@/lib/escapeHtml'
 import { fetchJson } from '@/lib/fetchJson'
 import {
+  ALL_ROADS_MIN_ZOOM,
   BASE_LAYER_KEYS,
   DEFAULT_BASE_LAYERS,
+  LAYER_MIN_ZOOM,
   OutdoorsBaseLayers,
   PLAN_LAYER_ORDER,
-  isMapClickClaimed,
   type BaseLayerChoices,
   type BaseLayerKey,
   type DataLayerKey,
@@ -60,20 +61,16 @@ import {
   type LayerStatuses,
 } from '@/maps/outdoors/BaseLayers'
 import {
-  CUTBLOCK_AGE_COLORS,
-  CUTBLOCK_AGE_LABELS,
+  CUTBLOCK_CLASSES,
   DEPTH_BANDS,
   HUNT_ZONE_SPECIES,
   OPENNESS_COLORS,
   OPENNESS_LABELS,
   titleCase,
-  type CutblockAge,
-  type DepthChartSet,
   type HuntZoneSpecies,
   type Openness,
 } from '@/maps/outdoors/bcLayers'
 import { clampImageryDate, recentImageryRange, shiftIsoDate, todayIsoDate } from '@/maps/outdoors/recentImagery'
-import { ChartViewer } from '@/maps/outdoors/ChartViewer'
 import { UnitInfo } from '@/maps/outdoors/UnitInfo'
 import {
   AREA_KINDS,
@@ -107,7 +104,7 @@ const WMU_SOURCE_LAYER = 'wildlife_management_units'
 const WMU_ID_PROPERTY = 'managementUnitId'
 const LOCAL_STORAGE_KEY = 'pgmaps.bc-outdoors-plan.v1'
 /** Which base layers are on is a viewer's preference, not part of the plan they share. */
-const BASE_LAYERS_STORAGE_KEY = 'tropik.outdoors-base-layers.v1'
+const BASE_LAYERS_STORAGE_KEY = 'pgmaps.bc-outdoors-layers.v1'
 
 function readBaseLayerChoices(): BaseLayerChoices {
   try {
@@ -137,8 +134,10 @@ function layerStatusText(layer: DataLayerKey, status: LayerStatus | undefined, i
   if (!status) return idle
   const [singular, plural] = LAYER_NOUNS[layer]
   switch (status.state) {
-    case 'zoom-in':
-      return 'Zoom in to load'
+    case 'zoom-in': {
+      const zoom = LAYER_MIN_ZOOM[layer]
+      return zoom != null ? `Zoom in to load (from zoom ${zoom})` : 'Zoom in to load'
+    }
     case 'loading':
       return 'Loading…'
     case 'error':
@@ -147,7 +146,8 @@ function layerStatusText(layer: DataLayerKey, status: LayerStatus | undefined, i
       if (status.count === 0) return `No ${plural} here`
       const counted = `${status.count.toLocaleString()} ${status.count === 1 ? singular : plural}`
       // Whole-province layers are not "in this view"; only say so for the ones that follow the map.
-      const where = layer === 'launches' ? 'in BC' : 'in this view'
+      // The view-bound layers read a little more than the view, so they count what is around it too.
+      const where = layer === 'launches' ? 'in BC' : 'around this view'
       return status.truncated ? `${counted} shown; zoom in for all` : `${counted} ${where}`
     }
     default:
@@ -157,13 +157,19 @@ function layerStatusText(layer: DataLayerKey, status: LayerStatus | undefined, i
 
 const OPENNESS_LEGEND = Object.keys(OPENNESS_LABELS) as Openness[]
 
-/** Places to open the map at while the planner is being built and shown. */
-const TEST_AREAS: Array<{ name: string; center: [number, number]; zoom: number }> = [
-  { name: 'Tachie River', center: [-124.72, 54.68], zoom: 10.5 },
-  { name: 'Haida Gwaii', center: [-132.15, 53.45], zoom: 8.2 },
-]
-
-const CUTBLOCK_LEGEND = (Object.keys(CUTBLOCK_AGE_LABELS) as CutblockAge[]).filter((age) => age !== 'unknown')
+/** A row of legend swatches under a layer's switch. */
+function LayerLegend({ items }: { items: ReadonlyArray<{ label: string; color: string }> }) {
+  return (
+    <ul className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-2xs text-muted-foreground">
+      {items.map((item) => (
+        <li key={item.label} className="flex items-center gap-1">
+          <MapSwatch color={item.color} aria-hidden="true" />
+          {item.label}
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 const ACTIVITY_LABELS: Record<PlanActivity, string> = {
   hunt: 'Hunting',
@@ -487,8 +493,6 @@ function DevOutdoors() {
   const [recentDate, setRecentDate] = useState(imageryRange.latest)
   const chooseRecentDate = useCallback((date: string) => setRecentDate(clampImageryDate(date, todayIsoDate())), [])
   const [zoneSpecies, setZoneSpecies] = useState<HuntZoneSpecies>('MOOSE')
-  const [openChart, setOpenChart] = useState<DepthChartSet | null>(null)
-  const closeChart = useCallback(() => setOpenChart(null), [])
   const handleLayerStatus = useCallback((layer: DataLayerKey, status: LayerStatus) => {
     setLayerStatuses((current) => ({ ...current, [layer]: status }))
   }, [])
@@ -643,18 +647,14 @@ function DevOutdoors() {
 
   const handleWmuClick = useCallback((id: string, _event: unknown, properties: Record<string, unknown>) => {
     if (drawModeRef.current) return
-    // The unit fill lies under every other layer and hears the click first.
-    // Waiting a microtask lets a layer above claim it, so clicking a lake for
-    // its chart does not also add or remove the unit beneath.
-    queueMicrotask(() => {
-      if (isMapClickClaimed()) return
-      setPlan((current) => {
-        if (current.wmus.some((wmu) => wmu.id === id)) {
-          return { ...current, wmus: current.wmus.filter((wmu) => wmu.id !== id) }
-        }
-        const name = typeof properties.boundaryName === 'string' ? properties.boundaryName : undefined
-        return { ...current, wmus: [...current.wmus, { id, ...(name ? { name } : {}) }] }
-      })
+    // A lake chart outranks the unit (its `pickPriority`), so clicking a lake for its chart never
+    // reaches here and never adds or removes the unit beneath.
+    setPlan((current) => {
+      if (current.wmus.some((wmu) => wmu.id === id)) {
+        return { ...current, wmus: current.wmus.filter((wmu) => wmu.id !== id) }
+      }
+      const name = typeof properties.boundaryName === 'string' ? properties.boundaryName : undefined
+      return { ...current, wmus: [...current.wmus, { id, ...(name ? { name } : {}) }] }
     })
   }, [])
 
@@ -1358,21 +1358,6 @@ function DevOutdoors() {
       </SidebarSection>
 
       <SidebarSection title="Map layers">
-        <div className="mb-2 flex flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
-          <span>Go to:</span>
-          {TEST_AREAS.map((area) => (
-            <Button
-              key={area.name}
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-6 px-2 text-2xs"
-              onClick={() => mapRef.current?.flyTo({ center: area.center, zoom: area.zoom })}
-            >
-              {area.name}
-            </Button>
-          ))}
-        </div>
         <div className="space-y-1.5">
           <ToggleRow
             active={baseLayers.satellite}
@@ -1479,7 +1464,7 @@ function DevOutdoors() {
             description={
               baseLayers.forestRoads
                 ? layerStatusText('forestRoads', layerStatuses.forestRoads, 'Loading…')
-                : 'Forest Service Roads and permit roads'
+                : `Forest Service Roads; permit roads from zoom ${ALL_ROADS_MIN_ZOOM}`
             }
             tone="orange"
           />
@@ -1503,24 +1488,11 @@ function DevOutdoors() {
             description={
               baseLayers.cutblocks
                 ? layerStatusText('cutblocks', layerStatuses.cutblocks, 'Loading…')
-                : 'Harvested areas, coloured by years since harvest'
+                : 'Harvested areas, coloured by years since harvest ended'
             }
             tone="lime"
           />
-          {baseLayers.cutblocks && (
-            <ul className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-2xs text-muted-foreground">
-              {CUTBLOCK_LEGEND.map((age) => (
-                <li key={age} className="flex items-center gap-1">
-                  <span
-                    className="h-2.5 w-2.5 rounded-sm"
-                    style={{ backgroundColor: CUTBLOCK_AGE_COLORS[age] }}
-                    aria-hidden="true"
-                  />
-                  {CUTBLOCK_AGE_LABELS[age]}
-                </li>
-              ))}
-            </ul>
-          )}
+          {baseLayers.cutblocks && <LayerLegend items={CUTBLOCK_CLASSES} />}
           <ToggleRow
             active={baseLayers.openness}
             onClick={() => toggleBaseLayer('openness')}
@@ -1535,18 +1507,12 @@ function DevOutdoors() {
           />
           {baseLayers.openness && (
             <div className="space-y-1 px-1">
-              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-2xs text-muted-foreground">
-                {OPENNESS_LEGEND.map((openness) => (
-                  <li key={openness} className="flex items-center gap-1">
-                    <span
-                      className="h-2.5 w-2.5 rounded-sm"
-                      style={{ backgroundColor: OPENNESS_COLORS[openness] }}
-                      aria-hidden="true"
-                    />
-                    {OPENNESS_LABELS[openness]}
-                  </li>
-                ))}
-              </ul>
+              <LayerLegend
+                items={OPENNESS_LEGEND.map((openness) => ({
+                  label: OPENNESS_LABELS[openness],
+                  color: OPENNESS_COLORS[openness],
+                }))}
+              />
               <p className="text-2xs leading-4 text-muted-foreground">
                 A guess at how far you can see, from recorded crown closure and tree height. Yellow and pale green are
                 the likeliest ground for long sightlines; orange is regrowth at eye height. Turn on Cutblocks to see how
@@ -1580,21 +1546,10 @@ function DevOutdoors() {
           />
           {baseLayers.lakeDepth && (
             <div className="space-y-1 px-1">
-              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-2xs text-muted-foreground">
-                {DEPTH_BANDS.map((band) => (
-                  <li key={band.label} className="flex items-center gap-1">
-                    <span
-                      className="h-2.5 w-2.5 rounded-sm"
-                      style={{ backgroundColor: band.color }}
-                      aria-hidden="true"
-                    />
-                    {band.label}
-                  </li>
-                ))}
-              </ul>
+              <LayerLegend items={DEPTH_BANDS} />
               <p className="text-2xs leading-4 text-muted-foreground">
-                Only 28 lakes in BC have depth contours as map data, and those are coloured. Every other surveyed lake
-                is outlined in pale blue: click it to view its scanned depth chart here.
+                Few lakes in BC have depth contours as map data, and those are coloured. Every other surveyed lake is
+                outlined in pale blue: click it for its scanned depth chart, which opens in a new tab.
               </p>
             </div>
           )}
@@ -1703,7 +1658,6 @@ function DevOutdoors() {
           choices={baseLayers}
           recentDate={recentDate}
           zoneSpecies={zoneSpecies}
-          onOpenChart={setOpenChart}
           onStatus={handleLayerStatus}
         />
         {wmuLayer && (
@@ -1779,9 +1733,6 @@ function DevOutdoors() {
         />
       </Map>
       {drawBanner}
-      {openChart && (
-        <ChartViewer key={`${openChart.lake}-${openChart.surveyYear}`} chart={openChart} onClose={closeChart} />
-      )}
     </MapSectionLayout>
   )
 }

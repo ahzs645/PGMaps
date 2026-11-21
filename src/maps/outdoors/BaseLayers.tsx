@@ -1,31 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useMap } from '@/components/ui/map'
-import {
-  MapCircleLayer,
-  MapFillLayer,
-  MapLineLayer,
-  MapRasterLayer,
-  MapTerrain,
-  type MapTerrainProps,
-} from '@/components/ui/map-layers'
+import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
+import { MapHandoffNote, MapRasterHandoff, useMapLayerHandoff } from '@/components/ui/map-raster-handoff'
+import { RegionalReliefLayer } from '@/components/ui/map-regional-relief'
+import { SatelliteImagery } from '@/components/ui/map-satellite-imagery'
+import { useViewWindowRead, type ViewReadState } from '@/components/ui/map-view-read'
+import type { ViewWindow } from '@/components/ui/map-view-window'
 import { escapeHtml } from '@/lib/escapeHtml'
-import { SATELLITE_ATTRIBUTION, SATELLITE_TILES } from '@/pages/dev-forestry/SatelliteImagery'
-import { MAX_DEM_ZOOM, TERRAIN_ATTRIBUTION, TERRARIUM_TILE_URL } from '@/pages/dev-forestry/terrain'
 
 import {
-  BC_LAYER_SOURCES,
-  CUTBLOCK_AGE_COLORS,
+  ALL_ROADS_MIN_ZOOM,
+  chartSheetsOf,
+  CUTBLOCK_MIN_ZOOM,
+  CUTBLOCK_READ,
+  DEPTH_BANDS,
   describeBoatLaunch,
   describeCutblock,
   describeDepthChart,
   describeDepthContour,
   describeForestRoad,
   describeStand,
-  DEPTH_BANDS,
-  depthChartSet,
-  fetchBcLayer,
+  forestRoadReads,
+  FSR_MIN_ZOOM,
   huntZoneFilter,
+  MAX_READ_DETAIL_ZOOM,
   OPENNESS_COLORS,
   parseCoastalLaunches,
   parseCutblocks,
@@ -35,22 +34,15 @@ import {
   parseHuntZones,
   parseRecLaunches,
   parseStands,
-  type BcLayerId,
+  readArcgis,
+  readWfs,
+  WFS_SOURCES,
   type CardText,
-  type DepthChartSet,
   type HuntZoneSpecies,
   type LayerAnswer,
 } from './bcLayers'
 import { huntsForHuntArea, loadLehDraws, oddsText, seasonText, type LehHunt } from './leh'
-import {
-  RAILWAY_MIN_ZOOM,
-  boundsContain,
-  clampRailwayBounds,
-  describeRailway,
-  fetchRailways,
-  padBounds,
-  type Bounds,
-} from './railways'
+import { describeRailway, fetchRailways, RAILWAY_MIN_ZOOM } from './railways'
 import {
   RECENT_IMAGERY_ATTRIBUTION,
   RECENT_IMAGERY_LAYERS,
@@ -58,14 +50,10 @@ import {
   recentImageryTiles,
 } from './recentImagery'
 
-const TERRAIN_ID = 'outdoors'
-const HILLSHADE_LAYER_ID = `${TERRAIN_ID}-hillshade`
-
 /**
- * Draw order, low to high. Every layer here takes a slot, because the
- * management-unit fill covers the province with a hover card and only the
- * topmost card layer under the pointer shows its card: anything left beneath
- * it could never be read. The planner's own features sit at
+ * Draw order, low to high. Every layer here takes a slot, because the management-unit fill covers
+ * the province with a hover card and only the topmost card layer under the pointer shows its card:
+ * anything left beneath it could never be read. The planner's own features sit at
  * `PLAN_LAYER_ORDER` and up, above all of these.
  */
 const ORDER = {
@@ -80,12 +68,8 @@ const ORDER = {
 } as const
 export const PLAN_LAYER_ORDER = 40
 
-const DEM: MapTerrainProps['dem'] = {
-  tiles: [TERRARIUM_TILE_URL],
-  encoding: 'terrarium',
-  maxZoom: MAX_DEM_ZOOM,
-  attribution: TERRAIN_ATTRIBUTION,
-}
+/** A lake chart outranks the management unit beneath it, so clicking a lake opens its chart without adding the unit. */
+const CHART_PICK_PRIORITY = 1
 
 export const BASE_LAYER_KEYS = [
   'satellite',
@@ -126,123 +110,68 @@ export type LayerStatus =
 export type DataLayerKey = Exclude<BaseLayerKey, 'satellite' | 'recent' | 'relief'>
 export type LayerStatuses = Partial<Record<DataLayerKey, LayerStatus>>
 
-/**
- * One click reaches every layer under the pointer, and the management-unit
- * fill under everything toggles its unit on any click. A layer here that acts
- * on a click claims it, and the planner leaves a claimed click alone.
- *
- * MapLibre calls every layer's click listener in one synchronous pass, and the
- * toolkit hands a listener only the modifier keys, not the event, so there is
- * no shared object to mark. The claim is a timestamp instead: the planner
- * checks it a microtask later, after the whole pass, and a claim made in that
- * same pass is at most a few milliseconds old.
- */
-const CLICK_CLAIM_WINDOW_MS = 50
-let clickClaimedAt = Number.NEGATIVE_INFINITY
-
-function claimMapClick() {
-  clickClaimedAt = performance.now()
-}
-
-export function isMapClickClaimed(): boolean {
-  return performance.now() - clickClaimedAt < CLICK_CLAIM_WINDOW_MS
-}
-
-type MapInstance = NonNullable<ReturnType<typeof useMap>['map']>
 type Collection<P> = GeoJSON.FeatureCollection<GeoJSON.Geometry, P>
-
 const EMPTY = { type: 'FeatureCollection', features: [] } as const
-
 function emptyCollection<P>(): Collection<P> {
   return EMPTY as unknown as Collection<P>
 }
 
-function viewBounds(map: MapInstance): Bounds {
-  const bounds = map.getBounds()
-  return [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]
-}
+export const OUTDOORS_RELIEF_ID = 'outdoors-relief'
+const RELIEF_INTENSITY = { plain: 0.6, imagery: 0.35 }
 
-function cardHtml(card: CardText): string {
+function cardHtml(card: CardText, extra = ''): string {
   return `<div class="max-w-64 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg">
     <div class="font-semibold">${escapeHtml(card.title)}</div>
     ${card.lines.map((line) => `<div class="mt-1 text-muted-foreground">${escapeHtml(line)}</div>`).join('')}
-    ${card.caution ? `<div class="mt-1 text-amber-700 dark:text-amber-400">${escapeHtml(card.caution)}</div>` : ''}
+    ${extra}
+    ${card.caution ? `<div class="mt-1 text-warning">${escapeHtml(card.caution)}</div>` : ''}
   </div>`
 }
 
-/**
- * Data for the current view, asked for again only when the map leaves the box
- * the last answer covered. Zoomed out past `minZoom` nothing is asked for and
- * `visible` is false, so the caller hides what it last drew.
- */
-function useViewData<P>(
-  load: (bounds: Bounds, signal: AbortSignal) => Promise<LayerAnswer<P> & { bounds: Bounds }>,
-  minZoom: number,
-  onStatus: (status: LayerStatus) => void,
-): { collection: Collection<P>; visible: boolean } {
-  const { map, isLoaded } = useMap()
-  const [collection, setCollection] = useState<Collection<P>>(emptyCollection)
-  const [visible, setVisible] = useState(false)
-  const coveredRef = useRef<Bounds | null>(null)
-  const loadRef = useRef(load)
+/** A read's answer as the sidebar states it. A failed read keeps the last answer on the map. */
+function statusOf<P>(read: ViewReadState<LayerAnswer<P>>): LayerStatus {
+  if (read.belowMinZoom) return { state: 'zoom-in' }
+  if (read.error && !read.loading) return { state: 'error', message: read.error }
+  if (read.loading || !read.data) return { state: 'loading' }
+  return { state: 'ready', count: read.data.collection.features.length, truncated: read.data.truncated }
+}
+
+function useReportStatus(status: LayerStatus, onStatus: (status: LayerStatus) => void) {
+  const key = JSON.stringify(status)
   const onStatusRef = useRef(onStatus)
-
   useEffect(() => {
-    loadRef.current = load
     onStatusRef.current = onStatus
-  }, [load, onStatus])
-
+  })
   useEffect(() => {
-    if (!map || !isLoaded) return
-    let controller: AbortController | null = null
+    onStatusRef.current(JSON.parse(key) as LayerStatus)
+  }, [key])
+  useEffect(() => () => onStatusRef.current({ state: 'off' }), [])
+}
 
-    const refresh = () => {
-      const near = map.getZoom() >= minZoom
-      setVisible(near)
-      if (!near) {
-        controller?.abort()
-        onStatusRef.current({ state: 'zoom-in' })
-        return
-      }
-      const view = viewBounds(map)
-      if (coveredRef.current && boundsContain(coveredRef.current, view)) return
-      controller?.abort()
-      const request = new AbortController()
-      controller = request
-      onStatusRef.current({ state: 'loading' })
-      loadRef
-        .current(padBounds(view, 0.5), request.signal)
-        .then((result) => {
-          if (request.signal.aborted) return
-          // A truncated answer does not cover its box, so the next move asks again.
-          coveredRef.current = result.truncated ? null : result.bounds
-          setCollection(result.collection)
-          onStatusRef.current({
-            state: 'ready',
-            count: result.collection.features.length,
-            truncated: result.truncated,
-          })
-        })
-        .catch((error: unknown) => {
-          if (request.signal.aborted) return
-          coveredRef.current = null
-          onStatusRef.current({
-            state: 'error',
-            message: error instanceof Error ? error.message : 'The layer could not be loaded',
-          })
-        })
-    }
+/** A WFS layer reads at full detail at every zoom, so one window serves every zoom it holds. */
+const ONE_LEVEL = () => 0
+/** An ArcGIS layer is generalised to the zoom it is read at, up to `MAX_READ_DETAIL_ZOOM`. */
+const detailLevel = (_view: unknown, zoom: number) => Math.min(Math.floor(zoom), MAX_READ_DETAIL_ZOOM)
 
-    refresh()
-    map.on('moveend', refresh)
-    return () => {
-      map.off('moveend', refresh)
-      controller?.abort()
-      onStatusRef.current({ state: 'off' })
-    }
-  }, [map, isLoaded, minZoom])
-
-  return { collection, visible }
+/** A layer read by the view, drawn until the next answer arrives. */
+function useLayerRead<P>(
+  enabled: boolean,
+  minZoom: number,
+  read: (window: ViewWindow, signal: AbortSignal) => Promise<LayerAnswer<P>>,
+  onStatus: (status: LayerStatus) => void,
+  options: { readKey?: string; level?: typeof detailLevel; overscan?: number } = {},
+): { collection: Collection<P>; visible: boolean } {
+  const { map } = useMap()
+  const state = useViewWindowRead(map, {
+    enabled,
+    minZoom,
+    read,
+    level: options.level ?? ONE_LEVEL,
+    readKey: options.readKey,
+    overscan: options.overscan,
+  })
+  useReportStatus(statusOf(state), onStatus)
+  return { collection: state.data?.collection ?? emptyCollection<P>(), visible: !state.belowMinZoom }
 }
 
 /** Data small enough to read whole, once, when the layer is switched on. */
@@ -250,131 +179,89 @@ function useWholeData<P>(
   load: (signal: AbortSignal) => Promise<LayerAnswer<P>>,
   onStatus: (status: LayerStatus) => void,
 ): Collection<P> {
-  const [collection, setCollection] = useState<Collection<P>>(emptyCollection)
+  const [answer, setAnswer] = useState<LayerAnswer<P> | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const loadRef = useRef(load)
-  const onStatusRef = useRef(onStatus)
-
   useEffect(() => {
     loadRef.current = load
-    onStatusRef.current = onStatus
-  }, [load, onStatus])
-
+  })
   useEffect(() => {
     const controller = new AbortController()
-    onStatusRef.current({ state: 'loading' })
     loadRef
       .current(controller.signal)
       .then((result) => {
-        if (controller.signal.aborted) return
-        setCollection(result.collection)
-        onStatusRef.current({
-          state: 'ready',
-          count: result.collection.features.length,
-          truncated: result.truncated,
-        })
+        if (!controller.signal.aborted) setAnswer(result)
       })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        onStatusRef.current({
-          state: 'error',
-          message: error instanceof Error ? error.message : 'The layer could not be loaded',
-        })
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted)
+          setError(reason instanceof Error ? reason.message : 'The layer could not be loaded')
       })
-    return () => {
-      controller.abort()
-      onStatusRef.current({ state: 'off' })
-    }
+    return () => controller.abort()
   }, [])
-
-  return collection
+  const status: LayerStatus = error
+    ? { state: 'error', message: error }
+    : answer
+      ? { state: 'ready', count: answer.collection.features.length, truncated: answer.truncated }
+      : { state: 'loading' }
+  useReportStatus(status, onStatus)
+  return answer?.collection ?? emptyCollection<P>()
 }
 
-function viewLoader<P>(layer: BcLayerId, parse: (payload: unknown) => LayerAnswer<P>) {
-  return async (bounds: Bounds, signal: AbortSignal) => ({
-    ...parse(await fetchBcLayer(layer, bounds, signal)),
-    bounds: clampRailwayBounds(bounds),
-  })
-}
-
-/**
- * Where imagery goes: under the labels, and under the relief shading when that
- * is on, so the hills still read on the photo. A raster added above the
- * hillshade would hide it, and the two can be switched on in either order, so
- * the anchor is looked up after the relief has had its turn to mount.
- */
-function useImageryAnchor(visible: boolean, relief: boolean): { id: string | undefined } | null {
+/** The basemap's first label layer: imagery goes under the labels. */
+function useFirstLabelLayerId(active: boolean): string | undefined {
   const { map, isLoaded } = useMap()
-  const [anchor, setAnchor] = useState<{ id: string | undefined } | null>(null)
-
+  const [id, setId] = useState<string | undefined>(undefined)
   useEffect(() => {
-    if (!map || !isLoaded || !visible) return
-    const find = () => {
-      const firstLabel = map.getStyle()?.layers?.find((layer) => layer.type === 'symbol')?.id
-      setAnchor({ id: map.getLayer(HILLSHADE_LAYER_ID) ? HILLSHADE_LAYER_ID : firstLabel })
-    }
+    if (!map || !isLoaded || !active) return
+    const find = () => setId(map.getStyle()?.layers?.find((layer) => layer.type === 'symbol')?.id)
     find()
     map.on('style.load', find)
     return () => {
       map.off('style.load', find)
-      setAnchor(null)
     }
-    // `relief` is a dependency on purpose: the hillshade layer appears and
-    // disappears with it, and the imagery has to be re-anchored each time.
-  }, [map, isLoaded, visible, relief])
-
-  return visible ? anchor : null
-}
-
-/** The sharp, undated photo. */
-function ImageryLayer({ visible, relief }: { visible: boolean; relief: boolean }) {
-  const anchor = useImageryAnchor(visible, relief)
-  if (!anchor) return null
-  return (
-    <MapRasterLayer
-      key={anchor.id ?? 'top'}
-      tiles={SATELLITE_TILES}
-      tileSize={256}
-      // Esri answers z19 in rural BC with a grey placeholder tile; z18 is real.
-      maxZoom={18}
-      attribution={SATELLITE_ATTRIBUTION}
-      beforeId={anchor.id}
-    />
-  )
+  }, [map, isLoaded, active])
+  return active ? id : undefined
 }
 
 /**
- * One day's satellite passes, drawn over the undated photo. It mounts after
- * `ImageryLayer` and takes the same anchor, so it lands above it; where no
+ * One day's satellite passes over the undated photo, one hand-off for each of the two products, so a
+ * new day loads behind the one shown and swaps in one frame rather than blanking the map. Where no
  * satellite passed that day the tiles are transparent and the photo shows.
  */
-function RecentImageryLayer({ visible, relief, date }: { visible: boolean; relief: boolean; date: string }) {
-  const anchor = useImageryAnchor(visible, relief)
-  if (!anchor) return null
+function RecentImageryLayers({ date, visible }: { date: string; visible: boolean }) {
+  const beforeId = useFirstLabelLayerId(visible)
+  const landsat = useMapLayerHandoff('outdoors-recent-l30', visible ? { key: date, value: date } : null)
+  const sentinel = useMapLayerHandoff('outdoors-recent-s30', visible ? { key: date, value: date } : null)
+  const handoffs = [landsat, sentinel] as const
   return (
     <>
       {RECENT_IMAGERY_LAYERS.map((layer, index) => (
-        <MapRasterLayer
-          // A new day is a new source: MapLibre cannot swap a raster source's tiles in place.
-          key={`${layer}-${date}-${anchor.id ?? 'top'}`}
-          tiles={[recentImageryTiles(layer, date)]}
-          tileSize={256}
-          maxZoom={RECENT_IMAGERY_MAX_ZOOM}
-          attribution={index === 0 ? RECENT_IMAGERY_ATTRIBUTION : undefined}
-          beforeId={anchor.id}
+        <MapRasterHandoff
+          key={layer}
+          handoff={handoffs[index]}
+          layer={(day) => ({
+            tiles: [recentImageryTiles(layer, day)],
+            tileSize: 256,
+            maxZoom: RECENT_IMAGERY_MAX_ZOOM,
+            attribution: index === 0 ? RECENT_IMAGERY_ATTRIBUTION : undefined,
+            beforeId,
+          })}
         />
       ))}
+      {/* The sidebar names the new day at once; the map says when it has not caught up. */}
+      <MapHandoffNote handoff={sentinel}>Loading {date}. The map still shows the previous day.</MapHandoffNote>
     </>
   )
 }
 
-const loadRailways = async (bounds: Bounds, signal: AbortSignal) => fetchRailways(bounds, signal)
 const railwayHoverHtml = (properties: Record<string, unknown>) => {
   const { title, detail, caution } = describeRailway(properties)
   return cardHtml({ title, lines: detail ? [detail] : [], caution })
 }
 
 function RailwayLayer({ onStatus }: { onStatus: (status: LayerStatus) => void }) {
-  const { collection, visible } = useViewData(loadRailways, RAILWAY_MIN_ZOOM, onStatus)
+  const read = useMemo(() => (window: ViewWindow, signal: AbortSignal) => fetchRailways(window.bounds, signal), [])
+  const { collection, visible } = useLayerRead(true, RAILWAY_MIN_ZOOM, read, onStatus)
   if (!visible) return null
   return (
     <>
@@ -394,8 +281,8 @@ function RailwayLayer({ onStatus }: { onStatus: (status: LayerStatus) => void })
         interactive={false}
         layerOrder={ORDER.rail + 1}
       />
-      {/* A line two pixels wide is hard to point at, so a wide, near-invisible
-          copy on top takes the pointer and shows the card. */}
+      {/* A line two pixels wide is hard to point at, so a wide, near-invisible copy on top takes the
+          pointer and shows the card. */}
       <MapLineLayer
         data={collection}
         color="#ffffff"
@@ -408,16 +295,23 @@ function RailwayLayer({ onStatus }: { onStatus: (status: LayerStatus) => void })
   )
 }
 
-const loadForestRoads = viewLoader('forestRoads', parseForestRoads)
 const forestRoadHoverHtml = (properties: Record<string, unknown>) => cardHtml(describeForestRoad(properties))
 
 function ForestRoadLayer({ onStatus }: { onStatus: (status: LayerStatus) => void }) {
-  const { collection, visible } = useViewData(loadForestRoads, BC_LAYER_SOURCES.forestRoads.minZoom ?? 0, onStatus)
+  const read = useMemo(
+    () => async (window: ViewWindow, signal: AbortSignal) => {
+      const zoom = Number(window.level)
+      const answer = await readArcgis(forestRoadReads(zoom), window.bounds, zoom, signal)
+      return { collection: parseForestRoads(answer.features), truncated: answer.truncated }
+    },
+    [],
+  )
+  const { collection, visible } = useLayerRead(true, FSR_MIN_ZOOM, read, onStatus, { level: detailLevel })
   if (!visible) return null
   return (
     <>
-      {/* Forest Service Roads in strong orange; permit roads thinner and paler.
-          Retired tenure fades, since the road may no longer be there. */}
+      {/* Forest Service Roads in strong orange; permit roads thinner and paler. Retired tenure
+          fades, since the road may no longer be there. */}
       <MapLineLayer
         data={collection}
         color={['case', ['get', 'fsr'], '#ea580c', '#fbbf24']}
@@ -438,44 +332,43 @@ function ForestRoadLayer({ onStatus }: { onStatus: (status: LayerStatus) => void
   )
 }
 
-const CUTBLOCK_COLOR = [
-  'match',
-  ['get', 'age'],
-  ...Object.entries(CUTBLOCK_AGE_COLORS).flat(),
-  CUTBLOCK_AGE_COLORS.unknown,
-]
+const cutblockHoverHtml = (properties: Record<string, unknown>) => cardHtml(describeCutblock(properties))
 
 function CutblockLayer({ onStatus }: { onStatus: (status: LayerStatus) => void }) {
   // One year for the whole visit, so a block's age class cannot change mid-session.
-  const currentYear = useMemo(() => new Date().getFullYear(), [])
-  const load = useMemo(() => viewLoader('cutblocks', (payload) => parseCutblocks(payload, currentYear)), [currentYear])
-  const hoverHtml = useMemo(
-    () => (properties: Record<string, unknown>) => cardHtml(describeCutblock(properties, currentYear)),
+  const [currentYear] = useState(() => new Date().getFullYear())
+  const read = useMemo(
+    () => async (window: ViewWindow, signal: AbortSignal) => {
+      const zoom = Number(window.level)
+      const answer = await readArcgis([CUTBLOCK_READ], window.bounds, zoom, signal)
+      return { collection: parseCutblocks(answer.features, currentYear), truncated: answer.truncated }
+    },
     [currentYear],
   )
-  const { collection, visible } = useViewData(load, BC_LAYER_SOURCES.cutblocks.minZoom ?? 0, onStatus)
+  const { collection, visible } = useLayerRead(true, CUTBLOCK_MIN_ZOOM, read, onStatus, { level: detailLevel })
   if (!visible) return null
   return (
     <MapFillLayer
       data={collection}
-      fillColor={CUTBLOCK_COLOR}
+      fillColor={['get', 'color']}
       fillOpacity={0.3}
-      lineColor={CUTBLOCK_COLOR}
+      lineColor={['get', 'color']}
       lineWidth={1.2}
       lineOpacity={0.95}
-      hoverHtml={hoverHtml}
+      hoverHtml={cutblockHoverHtml}
       layerOrder={ORDER.cutblocks}
     />
   )
 }
 
-const loadStands = viewLoader('stands', parseStands)
 const standHoverHtml = (properties: Record<string, unknown>) => cardHtml(describeStand(properties))
 const OPENNESS_COLOR = ['match', ['get', 'openness'], ...Object.entries(OPENNESS_COLORS).flat(), OPENNESS_COLORS.timber]
+const readStands = async (window: ViewWindow, signal: AbortSignal) =>
+  parseStands(await readWfs('stands', window.bounds, signal))
 
 /** Forest stands coloured by how far a person is likely to see through them. */
 function OpennessLayer({ onStatus }: { onStatus: (status: LayerStatus) => void }) {
-  const { collection, visible } = useViewData(loadStands, BC_LAYER_SOURCES.stands.minZoom ?? 0, onStatus)
+  const { collection, visible } = useLayerRead(true, WFS_SOURCES.stands.minZoom ?? 0, readStands, onStatus)
   if (!visible) return null
   return (
     <MapFillLayer
@@ -491,10 +384,9 @@ function OpennessLayer({ onStatus }: { onStatus: (status: LayerStatus) => void }
   )
 }
 
-const loadRecLaunches = async (signal: AbortSignal) =>
-  parseRecLaunches(await fetchBcLayer('recLaunches', undefined, signal))
+const loadRecLaunches = async (signal: AbortSignal) => parseRecLaunches(await readWfs('recLaunches', undefined, signal))
 const loadCoastalLaunches = async (signal: AbortSignal) =>
-  parseCoastalLaunches(await fetchBcLayer('coastalLaunches', undefined, signal))
+  parseCoastalLaunches(await readWfs('coastalLaunches', undefined, signal))
 const boatLaunchHoverHtml = (properties: Record<string, unknown>) => cardHtml(describeBoatLaunch(properties))
 
 function BoatLaunchLayer({ onStatus }: { onStatus: (status: LayerStatus) => void }) {
@@ -505,24 +397,23 @@ function BoatLaunchLayer({ onStatus }: { onStatus: (status: LayerStatus) => void
   })
   const recreation = useWholeData(loadRecLaunches, (rec) => setParts((current) => ({ ...current, rec })))
   const coastal = useWholeData(loadCoastalLaunches, (coast) => setParts((current) => ({ ...current, coast })))
-
-  useEffect(() => {
-    const { rec, coast } = parts
-    if (rec.state === 'error' && coast.state === 'error') onStatus(rec)
-    else if (rec.state === 'loading' || coast.state === 'loading') onStatus({ state: 'loading' })
-    else if (rec.state === 'off' && coast.state === 'off') onStatus({ state: 'off' })
-    else
-      onStatus({
-        state: 'ready',
-        count: (rec.state === 'ready' ? rec.count : 0) + (coast.state === 'ready' ? coast.count : 0),
-        // A failed half means the count is short of what exists.
-        truncated:
-          rec.state === 'error' ||
-          coast.state === 'error' ||
-          (rec.state === 'ready' && rec.truncated) ||
-          (coast.state === 'ready' && coast.truncated),
-      })
-  }, [parts, onStatus])
+  const { rec, coast } = parts
+  const status: LayerStatus =
+    rec.state === 'error' && coast.state === 'error'
+      ? rec
+      : rec.state === 'loading' || coast.state === 'loading'
+        ? { state: 'loading' }
+        : {
+            state: 'ready',
+            count: (rec.state === 'ready' ? rec.count : 0) + (coast.state === 'ready' ? coast.count : 0),
+            // A failed half means the count is short of what exists.
+            truncated:
+              rec.state === 'error' ||
+              coast.state === 'error' ||
+              (rec.state === 'ready' && rec.truncated) ||
+              (coast.state === 'ready' && coast.truncated),
+          }
+  useReportStatus(status, onStatus)
 
   return (
     <>
@@ -542,12 +433,32 @@ function BoatLaunchLayer({ onStatus }: { onStatus: (status: LayerStatus) => void
   )
 }
 
-const loadDepthCharts = viewLoader('depthCharts', parseDepthCharts)
+const readDepthCharts = async (window: ViewWindow, signal: AbortSignal) =>
+  parseDepthCharts(await readWfs('depthCharts', window.bounds, signal))
 const loadDepthContours = async (signal: AbortSignal) =>
-  parseDepthContours(await fetchBcLayer('depthContours', undefined, signal))
+  parseDepthContours(await readWfs('depthContours', undefined, signal))
 const depthChartHoverHtml = (properties: Record<string, unknown>) => cardHtml(describeDepthChart(properties))
 const depthContourHoverHtml = (properties: Record<string, unknown>) => cardHtml(describeDepthContour(properties))
 const ignoreStatus = () => {}
+
+/**
+ * The scanned chart's sheets as links. The province serves them as PDFs without the headers a page
+ * needs to read them, so they open in the browser's own viewer in a new tab. A scan is not
+ * georeferenced and cannot be laid over the map; the few digitized lakes are drawn as depth bands.
+ */
+const depthChartClickHtml = (properties: Record<string, unknown>) => {
+  const sheets = chartSheetsOf(properties)
+  if (sheets.length === 0) return null
+  const links = sheets
+    .map(
+      (sheet) =>
+        `<a class="mt-1 block text-primary underline underline-offset-2" href="${escapeHtml(sheet.url)}" target="_blank" rel="noreferrer">${
+          sheets.length > 1 ? `Sheet ${sheet.sheet} (PDF)` : 'Depth chart (PDF)'
+        }</a>`,
+    )
+    .join('')
+  return cardHtml({ ...describeDepthChart(properties), lines: [] }, links)
+}
 /** `step` reads "this colour until the depth reaches the next band's start". */
 const DEPTH_COLOR = [
   'step',
@@ -556,16 +467,11 @@ const DEPTH_COLOR = [
   ...DEPTH_BANDS.slice(1).flatMap((band) => [band.fromM, band.color]),
 ]
 
-function LakeDepthLayer({
-  onStatus,
-  onOpenChart,
-}: {
-  onStatus: (status: LayerStatus) => void
-  onOpenChart: (chart: DepthChartSet) => void
-}) {
-  const { collection: charts, visible } = useViewData(
-    loadDepthCharts,
-    BC_LAYER_SOURCES.depthCharts.minZoom ?? 0,
+function LakeDepthLayer({ onStatus }: { onStatus: (status: LayerStatus) => void }) {
+  const { collection: charts, visible } = useLayerRead(
+    true,
+    WFS_SOURCES.depthCharts.minZoom ?? 0,
+    readDepthCharts,
     onStatus,
   )
   // The digitized contours cover only a few lakes; the charts carry the count.
@@ -583,14 +489,8 @@ function LakeDepthLayer({
           lineOpacity={0.9}
           idProperty="id"
           hoverHtml={depthChartHoverHtml}
-          onFeatureClick={(id) => {
-            claimMapClick()
-            const chart = depthChartSet(
-              charts.features.map((feature) => feature.properties),
-              String(id),
-            )
-            if (chart) onOpenChart(chart)
-          }}
+          clickHtml={depthChartClickHtml}
+          pickPriority={CHART_PICK_PRIORITY}
           layerOrder={ORDER.depthCharts}
         />
       )}
@@ -613,23 +513,19 @@ function huntLine(hunt: LehHunt): string {
   return [hunt.animalClass, seasonText(hunt), tags, oddsText(hunt)].filter(Boolean).join(' · ')
 }
 
-/**
- * The zones a management unit is split into for one species' draw. The layer
- * remounts when the species changes (its parent keys it), so each species
- * starts from an empty map instead of showing the last one's zones.
- */
+/** The zones a management unit is split into for one species' draw. A new species reads again. */
 function HuntZoneLayer({ species, onStatus }: { species: HuntZoneSpecies; onStatus: (status: LayerStatus) => void }) {
-  const load = useMemo(() => {
+  const read = useMemo(() => {
     const filter = huntZoneFilter(species)
-    return async (bounds: Bounds, signal: AbortSignal) => ({
-      ...parseHuntZones(await fetchBcLayer('huntZones', bounds, signal, filter)),
-      bounds: clampRailwayBounds(bounds),
-    })
+    return async (window: ViewWindow, signal: AbortSignal) =>
+      parseHuntZones(await readWfs('huntZones', window.bounds, signal, filter))
   }, [species])
-  const { collection, visible } = useViewData(load, BC_LAYER_SOURCES.huntZones.minZoom ?? 0, onStatus)
+  const { collection, visible } = useLayerRead(true, WFS_SOURCES.huntZones.minZoom ?? 0, read, onStatus, {
+    readKey: species,
+  })
 
-  // The draw report joins to a zone by its hunt area id. Without it the card
-  // still names the zone; it just cannot list the hunts.
+  // The draw report joins to a zone by its hunt area id. Without it the card still names the zone;
+  // it just cannot list the hunts.
   const [draws, setDraws] = useState<{ drawYear: number | null; hunts: LehHunt[] } | null>(null)
   useEffect(() => {
     let live = true
@@ -678,20 +574,28 @@ function HuntZoneLayer({ species, onStatus }: { species: HuntZoneSpecies; onStat
   )
 }
 
+/** The zoom each data layer starts at, for the sidebar's "zoom in" line. */
+export const LAYER_MIN_ZOOM: Partial<Record<DataLayerKey, number>> = {
+  forestRoads: FSR_MIN_ZOOM,
+  cutblocks: CUTBLOCK_MIN_ZOOM,
+  rail: RAILWAY_MIN_ZOOM,
+  openness: WFS_SOURCES.stands.minZoom,
+  huntZones: WFS_SOURCES.huntZones.minZoom,
+  lakeDepth: WFS_SOURCES.depthCharts.minZoom,
+}
+export { ALL_ROADS_MIN_ZOOM }
+
 /** The trip planner's optional layers. Render inside the planner's `Map`. */
 export function OutdoorsBaseLayers({
   choices,
   recentDate,
   zoneSpecies,
-  onOpenChart,
   onStatus,
 }: {
   choices: BaseLayerChoices
   /** The day shown by the recent-imagery layer, yyyy-mm-dd. */
   recentDate: string
   zoneSpecies: HuntZoneSpecies
-  /** A surveyed lake was clicked: show its scanned chart. */
-  onOpenChart: (chart: DepthChartSet) => void
   onStatus: (layer: DataLayerKey, status: LayerStatus) => void
 }) {
   // One stable reporter per layer, so a layer's effects do not restart on every render.
@@ -707,24 +611,19 @@ export function OutdoorsBaseLayers({
     }),
     [onStatus],
   )
+  const imagery = choices.satellite || choices.recent
   return (
     <>
-      {choices.relief && (
-        <MapTerrain
-          id={TERRAIN_ID}
-          dem={DEM}
-          reliefOnly
-          // Over a photo the shading only has to hint at the slope; on the
-          // pale plan map it carries the whole picture of the ground.
-          hillshadeIntensity={choices.satellite || choices.recent ? 0.35 : 0.6}
-          hillshadeShadowColor="#1e293b"
-          hillshadeHighlightColor="#f8fafc"
-        />
-      )}
-      <ImageryLayer visible={choices.satellite} relief={choices.relief} />
-      <RecentImageryLayer visible={choices.recent} relief={choices.relief} date={recentDate} />
-      {choices.huntZones && <HuntZoneLayer key={zoneSpecies} species={zoneSpecies} onStatus={report.huntZones} />}
-      {choices.lakeDepth && <LakeDepthLayer onStatus={report.lakeDepth} onOpenChart={onOpenChart} />}
+      <SatelliteImagery visible={choices.satellite} />
+      <RecentImageryLayers date={recentDate} visible={choices.recent} />
+      <RegionalReliefLayer
+        id={OUTDOORS_RELIEF_ID}
+        visible={choices.relief}
+        imagery={imagery}
+        intensity={RELIEF_INTENSITY}
+      />
+      {choices.huntZones && <HuntZoneLayer species={zoneSpecies} onStatus={report.huntZones} />}
+      {choices.lakeDepth && <LakeDepthLayer onStatus={report.lakeDepth} />}
       {choices.openness && <OpennessLayer onStatus={report.openness} />}
       {choices.cutblocks && <CutblockLayer onStatus={report.cutblocks} />}
       {choices.forestRoads && <ForestRoadLayer onStatus={report.forestRoads} />}

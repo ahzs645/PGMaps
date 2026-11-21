@@ -1,19 +1,33 @@
 import { describe, expect, it } from 'vitest'
 
+import { BC_HARVEST_SERVICE } from '@/lib/forestry/bcHarvest'
+import { BC_ROADS_SERVICE } from '@/lib/forestry/bcForestRoads'
+import { MAX_VEGETATION_QUERY_DEGREES } from '@/lib/forestry/bcVegetationWfs'
+
 import {
-  BC_LAYER_SOURCES,
-  bcLayerUrl,
-  cutblockAge,
+  ALL_ROADS_MIN_ZOOM,
+  arcgisPageUrl,
+  chartSheetsOf,
+  clampBounds,
+  CUTBLOCK_READ,
   describeBoatLaunch,
   describeCutblock,
   describeDepthChart,
   describeForestRoad,
   depthBandColor,
-  depthChartSet,
   describeStand,
+  forestRoadReads,
+  generalisationDegrees,
+  layerQueryBounds,
+  MAX_BC_QUERY_DEGREES,
+  parseArcgisPage,
+  readArcgis,
+  WFS_SOURCES,
+  wfsLayerUrl,
   huntZoneFilter,
   opennessOf,
   parseCoastalLaunches,
+  CUTBLOCK_CLASSES,
   parseCutblocks,
   parseDepthCharts,
   parseDepthContours,
@@ -50,61 +64,135 @@ const square = {
 const point = { type: 'Point', coordinates: [-124.7, 54.7] }
 const feature = (geometry: unknown, properties: Record<string, unknown>) => ({ type: 'Feature', geometry, properties })
 
-describe('bcLayerUrl', () => {
+describe('wfsLayerUrl', () => {
   it('puts the box in CQL_FILTER with the layer’s own geometry column, longitude first', () => {
-    const roads = new URL(bcLayerUrl('forestRoads', TACHIE)).searchParams
-    expect(roads.get('CQL_FILTER')).toBe("BBOX(GEOMETRY,-124.95000,54.60000,-124.55000,54.80000,'EPSG:4326')")
-    expect(roads.has('bbox')).toBe(false)
-    const blocks = new URL(bcLayerUrl('cutblocks', TACHIE)).searchParams
-    expect(blocks.get('CQL_FILTER')).toMatch(/^BBOX\(SHAPE,/)
+    const charts = new URL(wfsLayerUrl('depthCharts', TACHIE)).searchParams
+    expect(charts.get('CQL_FILTER')).toBe("BBOX(GEOMETRY,-124.95000,54.60000,-124.55000,54.80000,'EPSG:4326')")
+    expect(charts.has('bbox')).toBe(false)
   })
 
   it('reads small layers whole and keeps their own filter', () => {
-    const launches = new URL(bcLayerUrl('recLaunches')).searchParams
+    const launches = new URL(wfsLayerUrl('recLaunches')).searchParams
     expect(launches.get('CQL_FILTER')).toContain("STRUCTURE_DESC1 LIKE 'Boat Launch%'")
     expect(launches.get('CQL_FILTER')).toContain("STRUCTURE_DESC10 LIKE 'Boat Launch%'")
     expect(launches.get('CQL_FILTER')).not.toContain('BBOX')
-    expect(new URL(bcLayerUrl('coastalLaunches')).searchParams.has('CQL_FILTER')).toBe(false)
+    expect(new URL(wfsLayerUrl('coastalLaunches')).searchParams.has('CQL_FILTER')).toBe(false)
   })
 
   it('refuses a view-bound layer without a box', () => {
-    expect(() => bcLayerUrl('cutblocks')).toThrow(/bounding box/)
+    expect(() => wfsLayerUrl('huntZones')).toThrow(/bounding box/)
   })
 
   it('asks for the geometry column alongside the listed fields', () => {
-    for (const [layer, source] of Object.entries(BC_LAYER_SOURCES)) {
-      const columns = new URL(bcLayerUrl(layer as keyof typeof BC_LAYER_SOURCES, TACHIE)).searchParams
+    for (const [layer, source] of Object.entries(WFS_SOURCES)) {
+      const columns = new URL(wfsLayerUrl(layer as keyof typeof WFS_SOURCES, TACHIE)).searchParams
         .get('propertyName')
         ?.split(',')
       expect(columns).toContain(source.geometryColumn)
     }
   })
+
+  it('reads stands from the shared VRI endpoint, inside the shared VRI box limit', () => {
+    const wide: Bounds = [-125.5, 54.2, -124, 55.2]
+    const url = new URL(wfsLayerUrl('stands', wide))
+    expect(url.pathname).toContain('VEG_COMP_LYR_R1_POLY')
+    const [west, south, east, north] = layerQueryBounds('stands', wide)
+    expect(east - west).toBeCloseTo(MAX_VEGETATION_QUERY_DEGREES)
+    expect(north - south).toBeCloseTo(MAX_VEGETATION_QUERY_DEGREES)
+  })
+
+  it('clamps a province-wide box about its centre and leaves a small one alone', () => {
+    const [west, south, east, north] = clampBounds([-140, 40, -110, 62])
+    expect(east - west).toBeCloseTo(MAX_BC_QUERY_DEGREES)
+    expect(north - south).toBeCloseTo(MAX_BC_QUERY_DEGREES)
+    expect((west + east) / 2).toBeCloseTo(-125)
+    clampBounds(TACHIE).forEach((value, index) => expect(value).toBeCloseTo(TACHIE[index], 9))
+  })
+})
+
+describe('ArcGIS reads', () => {
+  it('reads forest roads from the road designer’s source, Forest Service Roads first', () => {
+    const wide = forestRoadReads(9)
+    expect(wide).toHaveLength(1)
+    expect(wide[0].service).toBe(BC_ROADS_SERVICE)
+    expect(wide[0].where).toBe("FILE_TYPE_CODE='B40'")
+    const close = forestRoadReads(ALL_ROADS_MIN_ZOOM)
+    expect(close.map((read) => read.where)).toEqual(["FILE_TYPE_CODE='B40'", "FILE_TYPE_CODE<>'B40'"])
+  })
+
+  it('reads cutblocks from the designer’s harvest source, newest first', () => {
+    expect(CUTBLOCK_READ.service).toBe(BC_HARVEST_SERVICE)
+    expect(CUTBLOCK_READ.orderBy).toMatch(/^HARVEST_START_YEAR_CALENDAR DESC/)
+  })
+
+  it('asks for one page at a time, generalised to the zoom', () => {
+    const url = new URL(arcgisPageUrl(CUTBLOCK_READ, TACHIE, 12, 2))
+    expect(url.origin + url.pathname).toBe(`${BC_HARVEST_SERVICE}/query`)
+    expect(url.searchParams.get('geometry')).toBe('-124.95,54.6,-124.55,54.8')
+    expect(url.searchParams.get('resultOffset')).toBe('2000')
+    expect(url.searchParams.get('resultRecordCount')).toBe('1000')
+    expect(Number(url.searchParams.get('maxAllowableOffset'))).toBeCloseTo(generalisationDegrees(12), 6)
+    expect(generalisationDegrees(20)).toBe(generalisationDegrees(14))
+  })
+
+  it('refuses an error answer and reads whether the service holds more', () => {
+    expect(() => parseArcgisPage({ error: { message: 'Invalid query' } })).toThrow(/Invalid query/)
+    expect(() => parseArcgisPage({})).toThrow(/no feature collection/)
+    expect(parseArcgisPage({ features: [], properties: { exceededTransferLimit: true } }).more).toBe(true)
+    expect(parseArcgisPage({ features: [], exceededTransferLimit: true }).more).toBe(true)
+    expect(parseArcgisPage({ features: [] }).more).toBe(false)
+  })
+
+  it('follows pages to the read’s limit and calls a cut-short answer truncated', async () => {
+    const asked: string[] = []
+    const fetcher = (async (input: RequestInfo | URL) => {
+      asked.push(new URL(String(input)).searchParams.get('resultOffset') ?? '')
+      return new Response(
+        JSON.stringify({ features: [feature(line, {})], properties: { exceededTransferLimit: true } }),
+      )
+    }) as typeof fetch
+    const answer = await readArcgis([CUTBLOCK_READ], TACHIE, 12, new AbortController().signal, fetcher)
+    expect(asked).toEqual(['0', '1000', '2000'])
+    expect(answer.features).toHaveLength(3)
+    expect(answer.truncated).toBe(true)
+  })
+
+  it('stops at the page that holds the rest', async () => {
+    let calls = 0
+    const fetcher = (async () => {
+      calls += 1
+      return new Response(JSON.stringify({ features: [], properties: { exceededTransferLimit: calls < 2 } }))
+    }) as typeof fetch
+    const answer = await readArcgis([CUTBLOCK_READ], TACHIE, 12, new AbortController().signal, fetcher)
+    expect(calls).toBe(2)
+    expect(answer.truncated).toBe(false)
+  })
 })
 
 describe('forest roads', () => {
-  const payload = {
-    features: [
-      feature(line, {
-        OBJECTID: 1,
-        FOREST_FILE_ID: '7470',
-        ROAD_SECTION_NAME: 'PINCHI SOUTH EAST',
-        FILE_TYPE_DESCRIPTION: 'Forest Service Road',
-        LIFE_CYCLE_STATUS_CODE: 'RETIRED',
-        CLIENT_NAME: 'BC TIMBER SALES',
-      }),
-      feature(line, {
-        OBJECTID: 2,
-        FOREST_FILE_ID: 'R19047',
-        ROAD_SECTION_NAME: 'R19047',
-        FILE_TYPE_DESCRIPTION: 'Road Permit',
-        LIFE_CYCLE_STATUS_CODE: 'ACTIVE',
-      }),
-      feature(point, { OBJECTID: 3 }),
-    ],
-  }
+  const features = [
+    feature(line, {
+      OBJECTID: 1,
+      FOREST_FILE_ID: '7470',
+      ROAD_SECTION_NAME: 'PINCHI SOUTH EAST',
+      FILE_TYPE_CODE: 'B40',
+      FILE_TYPE_DESCRIPTION: 'Forest Service Road',
+      LIFE_CYCLE_STATUS_CODE: 'RETIRED',
+      CLIENT_NAME: 'BC TIMBER SALES',
+    }),
+    feature(line, {
+      OBJECTID: 2,
+      FOREST_FILE_ID: 'R19047',
+      ROAD_SECTION_NAME: 'R19047',
+      FILE_TYPE_CODE: 'B01',
+      FILE_TYPE_DESCRIPTION: 'Road Permit',
+      LIFE_CYCLE_STATUS_CODE: 'ACTIVE',
+    }),
+    feature(point, { OBJECTID: 3 }),
+  ]
 
-  it('tells Forest Service Roads from permit roads and keeps only real names', () => {
-    const { collection } = parseForestRoads(payload)
+  it('tells Forest Service Roads from permit roads by file type and keeps only real names', () => {
+    const collection = parseForestRoads(features)
     expect(collection.features).toHaveLength(2)
     expect(collection.features[0].properties).toMatchObject({
       name: 'Pinchi South East',
@@ -117,9 +205,7 @@ describe('forest roads', () => {
   })
 
   it('never reads tenure status as road condition', () => {
-    const [retired, active] = parseForestRoads(payload).collection.features.map((row) =>
-      describeForestRoad(row.properties),
-    )
+    const [retired, active] = parseForestRoads(features).features.map((row) => describeForestRoad(row.properties))
     expect(retired.title).toBe('Pinchi South East (Forest Service Road)')
     expect(retired.caution).toMatch(/Retired tenure/)
     expect(active.title).toBe('Road Permit')
@@ -128,44 +214,31 @@ describe('forest roads', () => {
 })
 
 describe('cutblocks', () => {
-  it('classes a block by years since harvest started', () => {
-    expect(cutblockAge(2024, 2026)).toBe('fresh')
-    expect(cutblockAge(2021, 2026)).toBe('fresh')
-    expect(cutblockAge(2020, 2026)).toBe('young')
-    expect(cutblockAge(2011, 2026)).toBe('young')
-    expect(cutblockAge(2010, 2026)).toBe('regrowing')
-    expect(cutblockAge(1995, 2026)).toBe('old')
-    expect(cutblockAge(null, 2026)).toBe('unknown')
-  })
-
-  it('reads year, area in hectares and source', () => {
-    const { collection } = parseCutblocks(
-      {
-        features: [
-          feature(square, {
-            VCCB_SYSID: 46,
-            HARVEST_START_YEAR_CALENDAR: 2000,
-            PERCENT_CLEARCUT: 100,
-            DATA_SOURCE: 'Satellite Imagery - Change Detection',
-            FEATURE_AREA_SQM: 123456.7,
-          }),
-          feature(square, { VCCB_SYSID: 47 }),
-        ],
-      },
+  it('ages a block by the road designer’s rule, with its colours', () => {
+    const block = (properties: Record<string, unknown>) => feature(square, { OBJECTID: 1, ...properties })
+    const collection = parseCutblocks(
+      [
+        block({ VCCB_SYSID: 46, HARVEST_START_YEAR_CALENDAR: 2020, AREA_HA: 12.34, DATA_SOURCE: 'RESULTS' }),
+        block({ VCCB_SYSID: 47, HARVEST_START_YEAR_CALENDAR: 2000, HARVEST_MID_YEAR_CALENDAR: 2000 }),
+        block({ VCCB_SYSID: 48 }),
+      ],
       2026,
     )
-    expect(collection.features[0].properties).toEqual({
-      id: '46',
-      harvestYear: 2000,
-      age: 'regrowing',
-      areaHa: 12.3,
-      clearcutPercent: 100,
-      source: 'Satellite Imagery - Change Detection',
-    })
-    expect(collection.features[1].properties.age).toBe('unknown')
-    const card = describeCutblock(collection.features[0].properties, 2026)
-    expect(card.title).toBe('Cutblock, harvested 2000')
-    expect(card.lines[0]).toBe('26 years since harvest started')
+    const [started, older, unknown] = collection.features.map((row) => row.properties)
+    // A start year alone gives no completion, so the designer will not class it.
+    expect(started).toMatchObject({ id: '46', age: 'unknown', areaHa: 12.3, source: 'RESULTS' })
+    expect(started.summary).toBe('Harvest started 2020 · completion unknown')
+    expect(older).toMatchObject({ age: 'medium', color: CUTBLOCK_CLASSES[1].color })
+    expect(unknown.age).toBe('unknown')
+    expect(describeCutblock(older).lines[0]).toMatch(/26 calendar years since estimated harvest/)
+  })
+
+  it('draws a record the rule cannot read as unknown rather than dropping it', () => {
+    const collection = parseCutblocks(
+      [feature(square, { VCCB_SYSID: 9, HARVEST_START_YEAR_CALENDAR: 2030, HARVEST_MID_YEAR_CALENDAR: 1990 })],
+      2026,
+    )
+    expect(collection.features[0].properties.age).toBe('unknown')
   })
 })
 
@@ -267,7 +340,7 @@ describe('depth bands and chart sheets', () => {
     expect(collection.features.map((row) => row.properties.depthM)).toEqual([0, 60])
   })
 
-  it('gathers every sheet of the clicked lake’s chart, in order', () => {
+  it('gives every sheet the whole chart it belongs to, in order', () => {
     const sheet = (id: number, lake: string, sheetNo: number, file: string) =>
       feature(square, {
         OBJECTID: id,
@@ -284,19 +357,20 @@ describe('depth bands and chart sheets', () => {
         sheet(3, 'KAZCHEK LAKE', 1, 'k.pdf'),
         sheet(4, 'STUART LAKE', 2, 'b.pdf'),
       ],
-    }).collection.features.map((row) => row.properties)
-    const set = depthChartSet(charts, '4')
-    expect(set?.lake).toBe('Stuart Lake')
-    expect(set?.sheets.map((entry) => entry.sheet)).toEqual([1, 2, 3])
-    expect(set?.sheets[0].url).toBe('https://a100.gov.bc.ca/pub/fidq/downloadBathymetricMap.do?filename=a.pdf')
-    expect(depthChartSet(charts, 'missing')).toBeNull()
+    }).collection.features.map((row) => row.properties as unknown as Record<string, unknown>)
+    const stuart = chartSheetsOf(charts[3])
+    expect(stuart.map((entry) => entry.sheet)).toEqual([1, 2, 3])
+    expect(stuart[0].url).toBe('https://a100.gov.bc.ca/pub/fidq/downloadBathymetricMap.do?filename=a.pdf')
+    expect(chartSheetsOf(charts[2])).toHaveLength(1)
+    expect(chartSheetsOf({ chartSheets: '[{"sheet":1,"url":"https://example.com/x.pdf"}]' })).toEqual([])
+    expect(chartSheetsOf({})).toEqual([])
   })
 })
 
 describe('limited entry zones', () => {
   it('filters by one species from the fixed list and ANDs it with the box', () => {
     expect(huntZoneFilter('MOOSE')).toBe("LTD_ENTRY_HUNTING_ZONE_TYPE='MOOSE'")
-    const filter = new URL(bcLayerUrl('huntZones', TACHIE, huntZoneFilter('MULE DEER'))).searchParams.get('CQL_FILTER')
+    const filter = new URL(wfsLayerUrl('huntZones', TACHIE, huntZoneFilter('MULE DEER'))).searchParams.get('CQL_FILTER')
     expect(filter).toMatch(/^BBOX\(GEOMETRY,.*\) AND \(LTD_ENTRY_HUNTING_ZONE_TYPE='MULE DEER'\)$/)
   })
 

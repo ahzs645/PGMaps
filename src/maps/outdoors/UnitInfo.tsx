@@ -1,6 +1,8 @@
 import { ExternalLink } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { DisclosureCard } from '@/components/ui/disclosure'
+
 import {
   LEH_DRAW_RECORD_URL,
   huntsForUnit,
@@ -63,7 +65,7 @@ function UnitHunts({ unitId, draws }: { unitId: string; draws: DrawState }) {
   if (draws.state === 'loading') return <p className="text-2xs text-muted-foreground">Loading limited entry hunts…</p>
   if (draws.state === 'error')
     return (
-      <p className="text-2xs text-amber-700 dark:text-amber-400">
+      <p className="text-2xs text-warning">
         Limited entry hunts could not be loaded ({draws.message}). Use the synopsis link below.
       </p>
     )
@@ -110,39 +112,39 @@ export function UnitInfo({ units }: { units: Array<{ id: string; name?: string }
   return (
     <div className="mt-3 space-y-2">
       {units.map((unit) => (
-        <details key={unit.id} open={units.length === 1} className="rounded-md border border-border bg-background">
-          <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-foreground">
-            {unit.name ?? `Management Unit ${unit.id}`}
-          </summary>
-          <div className="space-y-3 border-t border-border px-3 py-2">
-            <section>
-              <h4 className="mb-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Limited entry hunts{drawYear ? `, ${drawYear} draw` : ''}
-              </h4>
-              <UnitHunts unitId={unit.id} draws={draws} />
-            </section>
-            <section>
-              <h4 className="mb-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Open seasons and rules
-              </h4>
-              <ul className="space-y-1 text-2xs leading-4">
-                {regulationLinks(unit.id).map((link) => (
-                  <li key={link.url}>
-                    <a
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-start gap-1 text-primary underline-offset-2 hover:underline"
-                    >
-                      <ExternalLink className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
-        </details>
+        <DisclosureCard
+          key={unit.id}
+          title={unit.name ?? `Management Unit ${unit.id}`}
+          defaultOpen={units.length === 1}
+          contentClassName="space-y-3"
+        >
+          <section>
+            <h4 className="mb-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Limited entry hunts{drawYear ? `, ${drawYear} draw` : ''}
+            </h4>
+            <UnitHunts unitId={unit.id} draws={draws} />
+          </section>
+          <section>
+            <h4 className="mb-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Open seasons and rules
+            </h4>
+            <ul className="space-y-1 text-2xs leading-4">
+              {regulationLinks(unit.id).map((link) => (
+                <li key={link.url}>
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-start gap-1 text-primary underline-offset-2 hover:underline"
+                  >
+                    <ExternalLink className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </DisclosureCard>
       ))}
       <p className="text-2xs leading-4 text-muted-foreground">
         Tags are authorizations drawn; odds are first-choice applicants per tag. These are{' '}
