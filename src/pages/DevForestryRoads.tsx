@@ -22,8 +22,18 @@ import { CustomizeRibbonPane } from '@/components/interfaces/CustomizeRibbonPane
 import { useRibbonPreferences } from '@/components/interfaces/ribbonPreferences'
 import { InterfaceChooser } from '@/components/interfaces/InterfaceChooser'
 import { useWorkspaceLayout } from '@/components/interfaces/useWorkspaceLayout'
-import { DEFAULT_INTERFACE_NAME, workspaceHelpSearch } from '@/components/interfaces/interfacePreference'
-import { layoutIcons, type WorkspaceLayout, type WorkspaceWidget } from '@/components/interfaces/workspaceLayouts'
+import {
+  DEFAULT_INTERFACE_NAME,
+  storeInterface,
+  workspaceHelpSearch,
+} from '@/pages/dev-forestry-roads/interface/interfacePreference'
+import {
+  DEFAULT_HEADER_TOOLS,
+  layoutIcons,
+  type WorkspaceLayout,
+  type WorkspaceWidget,
+} from '@/pages/dev-forestry-roads/interface/workspaceLayouts'
+import { workspaceFrameProps } from '@/components/interfaces/workspaceFrame'
 import {
   commandRecord,
   ribbonExports,
@@ -32,15 +42,15 @@ import {
   workspaceCommandIds,
   type EditorCommand,
   type WorkspaceCommand,
-} from '@/components/interfaces/workspaceCommands'
-import { AccessLockup } from '@/components/interfaces/AccessLockup'
+} from '@/pages/dev-forestry-roads/interface/workspaceCommands'
+import { AccessLockup } from '@/pages/dev-forestry-roads/interface/AccessLockup'
 import { ThemeModeButton, useThemeModeItems } from '@/components/interfaces/ThemeModeButton'
 import type { ActionMenuItem } from '@/components/ui/action-menu'
 import { BrandingDialog } from '@/branding/BrandingDialog'
 import { useBranding } from '@/branding/useBranding'
 import { exportBrand } from '@/branding/store'
 import { brandedHtml } from '@/branding/presentation'
-import { DEFAULT_HEADER_TOOLS, WorkspaceHeader } from '@/components/interfaces/WorkspaceHeader'
+import { WorkspaceHeader } from '@/components/interfaces/WorkspaceHeader'
 import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
 import { revealEditorSection } from '@/components/interfaces/ribbonEditorSections'
 import { type CommandState, WorkspaceTools } from '@/components/interfaces/WorkspaceTools'
@@ -113,7 +123,6 @@ import {
   useRef,
   useState,
   type ComponentProps,
-  type CSSProperties,
   type ReactNode,
 } from 'react'
 import {
@@ -566,7 +575,12 @@ export default function DevForestryRoads({
     setControlsOpen,
     focusPane,
     setFocusPane,
-  } = useWorkspaceLayout(initialInterface)
+  } = useWorkspaceLayout(initialInterface, {
+    defaultPane: 'plan' as RoadPaneId,
+    storeInterface,
+    // Earlier standalone versions kept workbench presets under the original PGMaps key.
+    legacyPresetKey: (id) => (id === 'workbench' ? 'pgmaps-road-layout' : undefined),
+  })
   const [choosingInterface, setChoosingInterface] = useState(false)
   const [brandingOpen, setBrandingOpen] = useState(false)
   // Bumped when the browser's style library changes, so a styled export's preview is rebuilt.
@@ -1081,7 +1095,7 @@ export default function DevForestryRoads({
     selectWorkflow: setWorkflowTab,
     editorHost,
     attachEditor,
-  } = useWorkflowPlacement(active, investigation)
+  } = useWorkflowPlacement(active, investigation, 'design')
   const inspectHistoryEvidence = useCallback(
     (selection: Omit<AccessHistorySelection, 'revision'>) => {
       setHistorySelection((previous) => ({ ...selection, revision: (previous?.revision ?? 0) + 1 }))
@@ -6354,7 +6368,7 @@ export default function DevForestryRoads({
       status={projectStatus}
       flags={headerFlags}
       // Only with a second road to switch to: one road leaves the path at the project's name.
-      roadSwitcher={!investigation && project.alignments.length >= 2 && roadSwitcher}
+      crumb={!investigation && project.alignments.length >= 2 && roadSwitcher}
       help={workflowHelp}
       projectInfo={
         <>
@@ -6431,20 +6445,11 @@ export default function DevForestryRoads({
   const workspace = (
     <div
       {...pageDrop.dropProps}
-      data-interface={active.id}
-      data-panel-background={panelFrame?.background}
-      data-panel-inset={panelFrame?.inset !== undefined || undefined}
-      style={
-        {
-          '--workspace-panel-gray': panelFrame?.grayPercent !== undefined ? `${panelFrame.grayPercent}%` : undefined,
-          '--workspace-panel-inset': panelFrame?.inset !== undefined ? `${panelFrame.inset}px` : undefined,
-          '--workspace-panel-gap': panelFrame?.gap !== undefined ? `${panelFrame.gap}px` : undefined,
-        } as CSSProperties
-      }
-      data-tool-dock={toolbar?.dock}
+      // The interface's panel canvas and dock (`workspaceFrame.ts`), read by the shared workspace styles.
+      {...workspaceFrameProps(active)}
       ref={ref}
       data-fullscreen={fullscreen || undefined}
-      className="road-workspace relative flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-muted/20 py-3 [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-menu [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-3"
+      className="lp-workspace road-workspace relative flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-muted/20 py-3 [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-menu [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-3"
       data-testid="road-workspace"
       data-workspace-mode={investigation ? 'access-investigation' : 'design'}
       data-compact={compact || undefined}
@@ -7020,6 +7025,7 @@ export default function DevForestryRoads({
           </div>
         )}
         <RibbonPaneColumns
+          viewsLabel="road views"
           docked={taskPaneDocked}
           storageKey={roadPaneKey(layoutStorageId, `task-column:${active.id}`)}
           slotRef={setPaneHost}

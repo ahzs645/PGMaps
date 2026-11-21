@@ -1,9 +1,20 @@
 import { useCallback, useState } from 'react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import type { WorkflowEditor, WorkspaceLayout } from './workspaceLayouts'
+import type { AnyLayout } from './workspaceLayoutSchema'
 
-/** Route both ribbon clicks and links inside editors through the layout's editor assignments. */
-export function useWorkflowPlacement(layout: WorkspaceLayout, investigation: boolean) {
+type EditorOf<L extends AnyLayout> = NonNullable<NonNullable<L['toolbar']>['groups'][number]['editor']>
+
+/**
+ * Route both ribbon clicks and links inside editors through the layout's editor assignments.
+ * `defaultEditor` is the editor shown before any is chosen; `investigation` (the road designer's
+ * access investigation) keeps every editor out of the ribbon.
+ */
+export function useWorkflowPlacement<L extends AnyLayout>(
+  layout: L,
+  investigation: boolean,
+  defaultEditor: EditorOf<L>,
+) {
+  type E = EditorOf<L>
   // A fixed portal container keeps every editor (including pending optimizations and drafts)
   // mounted when its host moves between the ribbon and the resizable sidebar.
   const [editorHost] = useState(() => {
@@ -26,7 +37,7 @@ export function useWorkflowPlacement(layout: WorkspaceLayout, investigation: boo
     group?: string
     folded?: boolean
     minimized?: boolean
-    workflow: WorkflowEditor
+    workflow: E
     sidebar: boolean
   }>(() => {
     const params = new URLSearchParams(window.location.search)
@@ -34,7 +45,7 @@ export function useWorkflowPlacement(layout: WorkspaceLayout, investigation: boo
       params.get('example') === 'training' && params.get('interface') === layout.id
         ? toolbar?.groups.find((item) => item.label === params.get('ribbonTab'))
         : undefined
-    return { layoutId: layout.id, group: requested?.label, workflow: 'design', sidebar: false }
+    return { layoutId: layout.id, group: requested?.label, workflow: defaultEditor, sidebar: false }
   })
   const groupName =
     (location.layoutId === layout.id && location.group) || toolbar?.startGroup || toolbar?.groups[0].label
@@ -43,31 +54,39 @@ export function useWorkflowPlacement(layout: WorkspaceLayout, investigation: boo
     !investigation &&
     !!toolbar?.groups.some((group) => group.editor) &&
     !(layout.id === location.layoutId && location.sidebar)
-  const workflow = (inRibbon && group?.editor) || location.workflow
+  const workflow = ((inRibbon && group?.editor) || location.workflow) as E
 
   const selectGroup = (name: string, folded?: boolean) => {
     const target = toolbar?.groups.find((group) => group.label === name)
     setLocation({
       layoutId: layout.id,
       group: name,
-      workflow: target?.editor ?? workflow,
+      workflow: (target?.editor as E | undefined) ?? workflow,
       sidebar: false,
       folded,
       minimized: false,
     })
   }
 
+  /**
+   * Show an editor: its ribbon tab with its settings open, else the sidebar. With `reveal: false`
+   * (the tool moving on by itself) the tab changes but an open or folded pane stays as it was.
+   */
   const selectWorkflow = useCallback(
-    (next: WorkflowEditor) => {
+    (next: E, options?: { reveal?: boolean }) => {
+      const reveal = options?.reveal ?? true
       const target = toolbar?.groups.find((group) => group.editor === next)
-      setLocation((previous) => ({
-        layoutId: layout.id,
-        group: target?.label ?? (previous.layoutId === layout.id ? previous.group : undefined),
-        workflow: next,
-        sidebar: !target,
-        folded: false,
-        minimized: false,
-      }))
+      setLocation((previous) => {
+        const same = previous.layoutId === layout.id
+        return {
+          layoutId: layout.id,
+          group: target?.label ?? (same ? previous.group : undefined),
+          workflow: next,
+          sidebar: !target,
+          folded: reveal ? false : same ? previous.folded : undefined,
+          minimized: reveal ? false : same ? previous.minimized : undefined,
+        }
+      })
     },
     [layout.id, toolbar],
   )

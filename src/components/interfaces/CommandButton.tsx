@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { commandTooltip, resolveCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
-import { roadCommandAnchor } from '@/pages/dev-forestry-roads/tours/roadTour'
+import { commandTooltip, resolveCommandIn, useWorkspaceKit, type CommandState } from './workspaceKit'
 
 /**
- * How a renderer presents one registry command. The label and icon always come from
- * `workspaceCommands`; a presentation only decides size, emphasis and when the caption shows.
+ * How a renderer presents one registry command. The label and icon always come from the tool's
+ * registry (`WorkspaceKit.commands`); a presentation only decides size, emphasis and when the caption shows.
  */
 export interface CommandPresentation {
   /** Accessible name when it should say more than the caption, e.g. "Undo road edit". */
@@ -42,7 +41,7 @@ const TOOLBAR_CAPTION = {
   '2xl': { button: '2xl:w-auto 2xl:px-2', caption: 'sr-only 2xl:not-sr-only' },
 } as const
 
-export function CommandButton({
+export function CommandButton<C extends string>({
   id,
   state,
   disabled,
@@ -51,15 +50,17 @@ export function CommandButton({
   presentation = {},
   onRun,
 }: {
-  id: WorkspaceCommand
+  id: C
   state?: CommandState
   disabled?: boolean
   surface: Surface
   primary?: boolean
   presentation?: CommandPresentation
-  onRun: (id: WorkspaceCommand) => void
+  onRun: (id: C) => void
 }) {
-  const command = resolveCommand(id, state, disabled)
+  const kit = useWorkspaceKit()
+  const roadCommandAnchor = (command: string) => kit.anchors?.command?.(command)
+  const command = resolveCommandIn(kit.commands, id, state, disabled)
   if (command.hidden) return null
   const Icon = command.icon
   // A presentation's own title wins; otherwise every surface reads the same tooltip from the registry.

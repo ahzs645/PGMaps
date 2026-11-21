@@ -1,0 +1,156 @@
+[
+  {
+    "id": "guided",
+    "name": "Guided mode",
+    "description": "Work through the VIA handbook's five steps in the sidebar, beside the plan, the road view and the viewpoint summary.",
+    "icon": "panels",
+    "preview": "visuals-guided.webp",
+    "preset": "map-road-summary",
+    "sidebar": "open",
+    "panelFrame": { "background": "white", "inset": 0, "gap": 14, "resizeCorners": true },
+    "headerTools": [
+      "controls",
+      "presets",
+      "table",
+      "simulationSettings",
+      "open",
+      "attachments",
+      "export",
+      "interfaceSwitch",
+      "fullscreen"
+    ]
+  },
+  {
+    "id": "ribbon",
+    "name": "Ribbon",
+    "description": "Find files, the five VIA steps and the road view's tools in a tabbed ribbon; each step's settings open beside the views.",
+    "icon": "ribbon",
+    "preview": "visuals-ribbon.webp",
+    "preset": "map-road-summary",
+    "sidebar": "collapsed",
+    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 12, "gap": 14, "resizeCorners": true },
+    "toolbar": {
+      "dock": "top",
+      "fullWidth": true,
+      "header": "controls",
+      "compact": true,
+      "editorPlacement": "pane",
+      "quickAccess": ["export-project", "export"],
+      "label": "Command ribbon",
+      "tabsLabel": "Ribbon tabs",
+      "startGroup": "File",
+      "groups": [
+        {
+          "label": "File",
+          "sections": [
+            {
+              "label": "Site",
+              "primary": "newSite",
+              "rows": 2,
+              "items": ["newSite", "open", "sampleTabor", "samplePurden", "sampleRoadside"]
+            },
+            { "label": "Current project", "items": ["projectInfo"] },
+            {
+              "label": "Documents",
+              "collect": "documentOutputs",
+              "primary": "export",
+              "rows": 2,
+              "items": ["export", "export-block-note", "export-via-report"]
+            },
+            {
+              "label": "Project files",
+              "collect": "fileOutputs",
+              "rows": 2,
+              "items": ["export-project", "attachments", "referenceMeasurements"]
+            },
+            {
+              "label": "Data exchange",
+              "collect": "exchangeOutputs",
+              "rows": 2,
+              "items": ["export-scene-gis", "export-scene-package"]
+            }
+          ]
+        },
+        {
+          "label": "Identify",
+          "editor": "identify",
+          "editorTitle": "Step 1 · Identify the VQO and viewpoints",
+          "sections": [
+            {
+              "label": "Proposal",
+              "primary": "drawBlock",
+              "rows": 2,
+              "items": ["drawBlock", "drawRoad", "importShapes"]
+            },
+            { "label": "Viewpoints", "primary": "addView", "rows": 2, "items": ["addView", "inventory"] },
+            { "label": "Assessment", "items": ["viaStatus"] }
+          ]
+        },
+        {
+          "label": "Visit",
+          "editor": "visit",
+          "editorTitle": "Step 2 · Visit the viewpoints",
+          "sections": [
+            {
+              "label": "Road view",
+              "primary": "lookFromRoad",
+              "rows": 2,
+              "items": ["lookFromRoad", "saveViewpoint", "downloadImage"]
+            },
+            { "label": "Field", "rows": 2, "items": ["ownPhotos", "export-field-brief"] }
+          ]
+        },
+        {
+          "label": "Simulate",
+          "editor": "design",
+          "editorTitle": "Step 3 · Design and simulate",
+          "sections": [
+            {
+              "label": "Simulation",
+              "primary": "runAssessment",
+              "rows": 2,
+              "items": ["runAssessment", "routePreview"]
+            },
+            { "label": "Inputs", "rows": 2, "items": ["simulationSettings", "drawPatch"] },
+            { "label": "Figures", "rows": 2, "items": ["export-analysis-sheet", "export-worksheet"] }
+          ]
+        },
+        {
+          "label": "Assess",
+          "editor": "assess",
+          "editorTitle": "Step 4 · Assess against the VQO",
+          "sections": [
+            { "label": "Rating", "items": ["viaStatus"] },
+            { "label": "Evidence", "rows": 2, "items": ["export-evidence", "export-via-document"] }
+          ]
+        },
+        {
+          "label": "Rate",
+          "editor": "rate",
+          "editorTitle": "Step 5 · Final rating and package",
+          "sections": [
+            {
+              "label": "Report",
+              "primary": "export-via-report",
+              "rows": 2,
+              "items": ["export-via-report", "export-block-note", "export-fs1252"]
+            },
+            { "label": "Rating", "items": ["viaStatus"] }
+          ]
+        },
+        {
+          "label": "View",
+          "sections": [
+            { "label": "Map", "rows": 2, "items": ["fitScene", "measure", "table"] },
+            { "label": "Screen layout", "items": ["presets"] },
+            {
+              "label": "Workspace",
+              "rows": 2,
+              "items": ["chooseInterface", "customizeRibbon", "fullscreen"]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

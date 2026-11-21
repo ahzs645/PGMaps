@@ -1,0 +1,6 @@
+/* The root of a workspace interface (`workspaceFrameProps`): its side gutter. A layout's
+   `panelFrame` (panel-corner.css) paints the canvas behind the panels and sets the inset. */
+.lp-workspace {
+  --workspace-gutter: 0.75rem;
+  padding-inline: var(--workspace-gutter);
+}

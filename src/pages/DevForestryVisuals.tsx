@@ -1,12 +1,13 @@
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { cn } from '@/lib/utils'
 import { StyledSelect } from '@/components/ui/form-field'
 import { useRouteViewshed } from './dev-forestry/useRouteViewshed'
 import { EXPORT_TIMING_PREFIX, timed } from './dev-forestry/exportTiming'
 import { RouteViewshedControls, routeViewshedSummary } from './dev-forestry/RouteViewshedPanel'
-import { PlanMapToolButtons, PlanMapToolCard, isPlanDrawTool } from './dev-forestry/PlanMapTools'
+import { PlanMapToolButtons, PlanMapToolCard, isPlanDrawTool, type PlanDrawTool } from './dev-forestry/PlanMapTools'
 import { visibilityOutline } from '@/features/terrain-viewshed'
 import { sampleAlongLine } from './dev-forestry/visibility'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -34,7 +35,17 @@ import { FileButton } from '@/components/ui/file-button'
 import { TextButton } from '@/components/ui/text-button'
 import { PG_CENTER } from '@/components/ui/map-styles'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { Bookmark, Crosshair, Download, FileUp, ImageDown, Loader2 } from 'lucide-react'
+import {
+  Bookmark,
+  Crosshair,
+  FileUp,
+  ImageDown,
+  Loader2,
+  Maximize,
+  Minimize,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react'
 import { InfoTip } from '@/components/ui/info-tip'
 
 import {
@@ -47,7 +58,7 @@ import {
 import { queryVisualInventory } from './dev-forestry/visualInventoryQuery'
 import { usePersistentScene } from './dev-forestry/usePersistentScene'
 import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
-import { ProjectAttachmentsButton, ProjectAttachmentsDialog } from './dev-forestry/ProjectAttachments'
+import { ProjectAttachmentsDialog } from './dev-forestry/ProjectAttachments'
 import type { ProjectAttachment } from './dev-forestry/projectArchive'
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
 import { ToolSourcesPanel, TOOL_SOURCES_TITLE, toolSourcesSummary } from './dev-forestry/ToolSourcesPanel'
@@ -424,10 +435,33 @@ import {
   VISUALS_COLUMNS,
   VISUALS_LAYOUT_KEY,
   VISUALS_WORKSPACE,
-  readVisualsLayoutSelection,
   visibleVisualsPanes,
   type VisualsPane,
 } from './dev-forestry/visualsWorkspace'
+import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
+import { CustomizeRibbonPane } from '@/components/interfaces/CustomizeRibbonPane'
+import { InterfaceChooser } from '@/components/interfaces/InterfaceChooser'
+import { RibbonPaneColumns, RibbonPaneHost } from '@/components/interfaces/RibbonTaskPane'
+import { ThemeModeButton } from '@/components/interfaces/ThemeModeButton'
+import { WorkspaceHeader } from '@/components/interfaces/WorkspaceHeader'
+import { WorkspaceTools } from '@/components/interfaces/WorkspaceTools'
+import { useRibbonPreferences } from '@/components/interfaces/ribbonPreferences'
+import { useWorkflowPlacement } from '@/components/interfaces/useWorkflowPlacement'
+import { useWorkspaceLayout } from '@/components/interfaces/useWorkspaceLayout'
+import { workspaceFrameProps } from '@/components/interfaces/workspaceFrame'
+import { layoutIcons, type CommandState } from '@/components/interfaces/workspaceKit'
+import { useElementFullscreen } from '@/components/ui/fullscreen-panel'
+import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
+import { SimulationSettingsButton } from './dev-forestry/SimulationSettings'
+import { AttachmentsIcon } from './dev-forestry/ProjectAttachments'
+import { visualsExportCommands, type VisualsCommand } from './dev-forestry/interface/visualsCommands'
+import {
+  DEFAULT_VISUALS_HEADER_TOOLS,
+  GUIDED_INTERFACE_NAME,
+  visualsInterfaces,
+  type VisualsInterface,
+  type VisualsWidget,
+} from './dev-forestry/interface/visualsLayouts'
 import {
   assessVia,
   fs1252ReviewFromVia,
@@ -439,6 +473,7 @@ import {
   topLevelStep4,
   table2Class,
   viaStepStatuses,
+  VIA_STEPS,
   type ViaReview,
 } from './dev-forestry/via'
 import { groupLeadOf, groupMembers } from './dev-forestry/viewGroups'
@@ -656,7 +691,16 @@ function loadInitialScene(): ForestryScene {
     : createSampleScene()
 }
 
-function DevForestryVisuals() {
+function DevForestryVisuals({
+  layouts,
+  initialInterface,
+  layoutsFallback = false,
+}: {
+  layouts: VisualsInterface[]
+  initialInterface: VisualsInterface
+  /** The served layout file could not be read, so only the built-in Guided mode is offered. */
+  layoutsFallback?: boolean
+}) {
   useDocumentTitle('Visual quality · PGMaps')
   // Opened once online, the page's code and everything it loads later stays available with no network.
   // Its inventory reads still need one unless *Keep inventory copies* is on: docs/app-updates-and-caching.md.
@@ -6455,6 +6499,10 @@ function DevForestryVisuals() {
   // while drawing, when the corner it sits in belongs to the drawing controls.
   const planTableShown = !drive.active && drawMode === 'none'
   const table = useVisualQualityTable({
+    // The Table button sits on the workspace header's strip or in the ribbon's View tab (`table` widget).
+    inlineButton: true,
+    // Quiet on the header's strip, like its other tools; the ribbon draws it as a field.
+    buttonClassName: 'h-7 border-transparent bg-transparent px-2 text-xs shadow-none',
     targets: planTableShown ? scene.targets : NO_TARGETS,
     candidates: planTableShown && showInventory ? viewpointCandidates : NO_CANDIDATES,
     checks: reverseViewpointRows,
@@ -6462,8 +6510,59 @@ function DevForestryVisuals() {
     selectedTargetId,
     onSelectTarget: setSelectedTargetId,
   })
+  // The interface (Guided mode, Ribbon: `public/visuals-layouts.json`) and the screen preset it keeps,
+  // through the shared interface kit, as in the road designer (`docs/workspace-interfaces.md`).
+  const {
+    active,
+    selectLayout: selectInterface,
+    layoutSelection,
+    setLayoutSelection,
+    collapsed: stepsCollapsed,
+    setCollapsed: setStepsCollapsed,
+  } = useWorkspaceLayout(initialInterface, {
+    defaultPane: 'map' as VisualsPane,
+    storeInterface: visualsInterfaces.storeInterface,
+    // Before interfaces, the one layout was kept under this key.
+    legacyPresetKey: (id) => (id === 'guided' ? VISUALS_LAYOUT_KEY : undefined),
+  })
+  const [choosingInterface, setChoosingInterface] = useState(false)
+  const [customizingRibbon, setCustomizingRibbon] = useState(false)
+  const [paneHost, setPaneHost] = useState<HTMLDivElement | null>(null)
+  const [taskPaneDocked, setTaskPaneDocked] = useState(false)
+  const ribbonPreferences = useRibbonPreferences(active)
+  const toolbar = ribbonPreferences.toolbar
+  // The five steps are the workflow editors: the sidebar's tabs in Guided mode, the ribbon's in Ribbon.
+  const {
+    groupName,
+    workflow: viaStep,
+    inRibbon: stepsInRibbon,
+    selectGroup,
+    folded,
+    toggleFold,
+    minimized,
+    toggleMinimized,
+    selectWorkflow: selectViaStep,
+    editorHost,
+    attachEditor,
+  } = useWorkflowPlacement(
+    active,
+    false,
+    // It opens on the step to work on next.
+    VIA_STEPS.find((step) => viaStatuses[step.id] === 'current')?.id ?? 'identify',
+  )
+  const workspaceRoot = useElementFullscreen<HTMLDivElement>()
+  const projectFileInput = useRef<HTMLInputElement>(null)
+  const shapeFileInput = useRef<HTMLInputElement>(null)
+  // Starting the road view from anywhere (the roadside demo, a saved view, the map's tool) brings step 2
+  // forward, where its progress and settings are, without opening the ribbon's pane over the view.
+  // Adjusted during render rather than in an effect, so it lands in one paint.
+  const roadViewStarting = !!pendingPreview || drive.active
+  const [seenRoadViewStarting, setSeenRoadViewStarting] = useState(roadViewStarting)
+  if (roadViewStarting !== seenRoadViewStarting) {
+    setSeenRoadViewStarting(roadViewStarting)
+    if (roadViewStarting) selectViaStep('visit', { reveal: false })
+  }
   // The tiled workspace: the plan map, the road view while it is open, and the viewpoint summary.
-  const [layoutSelection, setLayoutSelection] = useState(readVisualsLayoutSelection)
   const [savedLayouts, setSavedLayouts] = useState(() => readSavedTileLayouts(VISUALS_WORKSPACE))
   const workspaceLayout = resolveTileLayout(VISUALS_WORKSPACE, layoutSelection, savedLayouts)
   const [storedHiddenPanes, setStoredHiddenPanes, restorePreset] = useTilePanels(
@@ -6497,12 +6596,8 @@ function DevForestryVisuals() {
   }
   const selectLayout = (value: string, saved = savedLayouts) => {
     const next = resolveTileLayout(VISUALS_WORKSPACE, value, saved)
+    // Kept per interface on this device (`useWorkspaceLayout`).
     setLayoutSelection(value)
-    try {
-      localStorage.setItem(VISUALS_LAYOUT_KEY, value)
-    } catch {
-      /* A device preference. */
-    }
     if (!value.startsWith('saved:')) {
       restorePreset(next.base)
       if (findPreset(VISUALS_WORKSPACE, next.base).hidden.includes('road') && drive.active) leaveRoadView()
@@ -7174,7 +7269,6 @@ function DevForestryVisuals() {
       }
       scene={scene}
       onViewpointChange={setViewpoint}
-      onSettingsChange={(settings) => setScene((current) => ({ ...current, settings }))}
       onThresholdsChange={(thresholds) => setScene((current) => ({ ...current, thresholds }))}
       onTargetChange={handleTargetChange}
       onOpenPrescription={handleOpenPrescription}
@@ -7335,7 +7429,9 @@ function DevForestryVisuals() {
           onClear={clearLandformForView}
         />
       )}
-      roadViewOpening={!!pendingPreview || drive.active}
+      step={viaStep}
+      onStepChange={(step, reveal) => selectViaStep(step, { reveal })}
+      embedded={stepsInRibbon}
       onClearScene={handleClearScene}
       onOpenProject={(file) => void openProjectFile(file)}
       onReopenPrevious={saved.key !== key && saved.views.length ? reopenPreviousPreview : undefined}
@@ -7355,9 +7451,337 @@ function DevForestryVisuals() {
     />
   )
 
-  return (
+  // The plan map's tools and the ribbon's commands share these, so a tool does one thing wherever it is.
+  const startPlanDraw = (mode: PlanDrawTool | 'none') => {
+    if (mode === 'view') {
+      viewPlacementBlockRef.current = viewAddBlockId
+      assessOnPlaceRef.current = false
+      setViewsMessage(null)
+    } else if (mode === 'none') assessOnPlaceRef.current = false
+    handleDrawModeChange(mode)
+  }
+  const lookFromRoad = () => {
+    if (mapPick?.onPoint === pickBasemapRoad) {
+      setMapPick(null)
+      return
+    }
+    const hasRoad = scene.viewpoint.mode === 'corridor' && scene.viewpoint.coordinates.length >= 2
+    if (drawMode !== 'none') handleDrawModeChange('none')
+    setRoutePreviewOpen(false)
+    if (hasRoad) openPreview()
+    else setMapPick({ onPoint: pickBasemapRoad, hint: 'Click a road on the map to look from it' })
+  }
+  const toggleRoutePreview = (open: boolean) => {
+    if (open) {
+      clearMeasure()
+      if (drawMode !== 'none') handleDrawModeChange('none')
+    }
+    setRoutePreviewOpen(open)
+  }
+
+  // ── The interface: header (Guided mode) or ribbon (Ribbon), from the shared kit ──────────────
+  // Every command is `visualsCommands.ts`'s, with one handler here and one state below; the header,
+  // the ribbon and Find tools only place them (`docs/workspace-interfaces.md`).
+  const exportKinds: Record<string, (typeof visualsExportCommands)[number]['kind']> = Object.fromEntries(
+    visualsExportCommands.map((output) => [output.command, output.kind]),
+  )
+  const running = analysis.state.status === 'running'
+  const addViewDisabled = !viewBlocks.length
+    ? 'Draw or import a cutblock first.'
+    : viewsOfInterest.length >= MAX_VIEWS_OF_INTEREST
+      ? `${MAX_VIEWS_OF_INTEREST} views is the most.`
+      : viewCapture.state.status === 'running'
+        ? 'Wait for the capture to finish.'
+        : null
+  const patchDisabled =
+    (scene.masks ?? []).length >= MAX_ASSESSMENT_MASKS
+      ? `The scene holds ${MAX_ASSESSMENT_MASKS} masks, the most it keeps.`
+      : null
+  const pickingRoad = !!mapPick?.hint && mapPick.onPoint === pickBasemapRoad
+  const siteName = projectTitle ?? scene.targets.find((target) => target.role === 'block')?.name ?? null
+  const ratingLine = viaAssessment?.rating
+    ? `${viaAssessment.rating.label} · ${viaAssessment.objective.code} objective`
+    : result
+      ? `${result.targets.filter((target) => target.role === 'block').length} block(s) simulated · not rated yet`
+      : 'Not rated yet'
+  const cornerKey = (id: string) => tilePaneKey(VISUALS_WORKSPACE.namespace, 'interface', `corner:${active.id}:${id}`)
+  const runCommand = (id: VisualsCommand) => {
+    const output = exportKinds[id]
+    if (output) return exportOpener.openExport(output)
+    switch (id) {
+      case 'controls':
+        return setStepsCollapsed(!stepsCollapsed)
+      case 'newSite':
+        return handleClearScene()
+      case 'sampleTabor':
+        return handleLoadSample()
+      case 'samplePurden':
+        return handleLoadSample('purden')
+      case 'sampleRoadside':
+        return handleLoadSample('roadside', true)
+      case 'open':
+        return projectFileInput.current?.click()
+      case 'export':
+        return exportOpener.openExport()
+      case 'attachments':
+        return setFilesDialog('attachments')
+      case 'referenceMeasurements':
+        return setFilesDialog('reference')
+      case 'drawRoad':
+        return startPlanDraw(drawMode === 'corridor' ? 'none' : 'corridor')
+      case 'drawBlock':
+        return startPlanDraw(drawMode === 'block' ? 'none' : 'block')
+      case 'addView':
+        return startPlanDraw(drawMode === 'view' ? 'none' : 'view')
+      case 'drawPatch':
+        return startPlanDraw(drawMode === 'wildlife-tree-patch' ? 'none' : 'wildlife-tree-patch')
+      case 'importShapes':
+        return shapeFileInput.current?.click()
+      case 'inventory':
+        setShowInventory(true)
+        return void handleLookupInventory()
+      case 'lookFromRoad':
+        return drive.active ? leaveRoadView() : lookFromRoad()
+      case 'saveViewpoint':
+        return void saveView()
+      case 'downloadImage':
+        return saveImage()
+      case 'ownPhotos':
+        return fieldPhoto.openOwnDialog()
+      case 'runAssessment':
+        if (running) return cancelPreview()
+        tools.cancel()
+        return handleRun()
+      case 'routePreview':
+        return toggleRoutePreview(!routePreviewOpen)
+      case 'measure':
+        return toggleMeasure()
+      case 'fitScene':
+        return fitBounds(sceneBounds(scene))
+      case 'customizeRibbon':
+        return setCustomizingRibbon(true)
+      case 'chooseInterface':
+        return setChoosingInterface(true)
+      case 'fullscreen':
+        return void workspaceRoot.toggle()
+    }
+  }
+  const viewBlocker = `Waits for ${saveBlocker}.`
+  const commandStates: Partial<Record<VisualsCommand, CommandState>> = {
+    // The steps' sidebar: Guided mode only, and on a phone its sheet stands in for it.
+    controls: { pressed: !stepsCollapsed, hidden: stepsInRibbon || phone },
+    referenceMeasurements: {
+      disabled: !tools.reference.loaded,
+      reason: 'The assessment workspace is still loading.',
+      label: `Reference measurements (${tools.reference.count})`,
+    },
+    attachments: { label: `Project files (${projectAttachments.length})` },
+    drawRoad: { pressed: drawMode === 'corridor' },
+    drawBlock: { pressed: drawMode === 'block' },
+    addView: { pressed: drawMode === 'view', disabled: !!addViewDisabled, reason: addViewDisabled ?? undefined },
+    drawPatch: {
+      pressed: drawMode === 'wildlife-tree-patch',
+      disabled: !!patchDisabled,
+      reason: patchDisabled ?? undefined,
+    },
+    lookFromRoad: {
+      label: drive.active ? 'Return to map' : undefined,
+      pressed: drive.active || pickingRoad,
+      disabled: !drive.active && !!pendingPreview,
+      reason: 'Preparing the road view…',
+    },
+    saveViewpoint: { disabled: !canSaveView, reason: viewBlocker },
+    downloadImage: { disabled: !canSaveView, reason: viewBlocker },
+    runAssessment: { label: running ? 'Cancel run' : undefined },
+    routePreview: { pressed: routePreviewOpen || routeViewshed.enabled },
+    measure: { pressed: measuring, disabled: drawMode !== 'none', reason: 'Finish or cancel the drawing first.' },
+    customizeRibbon: { hidden: !toolbar },
+    chooseInterface: { hidden: layouts.length < 2 },
+    fullscreen: { label: workspaceRoot.fullscreen ? 'Exit full screen' : undefined, pressed: workspaceRoot.fullscreen },
+  }
+  const InterfaceIcon = layoutIcons[active.icon]
+  const interfaceSwitch = (captionFrom: 'lg' | '2xl', surface: 'header' | 'toolbar' = 'header') => (
+    <CommandButton
+      id="chooseInterface"
+      surface={surface}
+      state={commandStates.chooseInterface}
+      presentation={{
+        ariaLabel: 'Switch workspace interface',
+        title: `Switch workspace · ${active.name}`,
+        captionFrom,
+        caption: active.shortName ?? active.name,
+        icon: (
+          <InterfaceIcon className={surface === 'toolbar' ? 'size-4' : 'size-4 lg:mr-1 lg:size-3'} aria-hidden="true" />
+        ),
+      }}
+      onRun={runCommand}
+    />
+  )
+  const presetPicker = phone ? (
+    phonePaneOptions.length > 1 && (
+      <TabBar
+        label="Visible view"
+        value={focusedPane ?? 'map'}
+        onChange={(value) => choosePhonePane(value as VisualsPane)}
+        options={phonePaneOptions}
+        stretch
+      />
+    )
+  ) : (
+    <TileLayoutPicker
+      config={VISUALS_WORKSPACE}
+      selection={layoutSelection}
+      onSelect={selectLayout}
+      saved={savedLayouts}
+      onSaved={setSavedLayouts}
+      hiddenPanels={storedHiddenPanes}
+      onHiddenPanels={changeHiddenPanes}
+      size={toolbar ? 'ribbon' : 'toolbar'}
+      showButtonLabel={!!toolbar}
+      selectLabel="Visual quality layout"
+      dialogTestId="visuals-layouts-dialog"
+    />
+  )
+  // Each widget is rendered once; the header and ribbon only decide where it sits.
+  const workspaceWidgets: Partial<Record<VisualsWidget, ReactNode>> = {
+    projectInfo: (
+      <div className="lp-project-field">
+        <h1>Visual quality</h1>
+        <span className="truncate text-xs text-muted-foreground">{siteName ?? 'No project open'}</span>
+      </div>
+    ),
+    viaStatus: (
+      <div className="lp-source-field" title={ratingLine}>
+        <strong>{viaAssessment?.rating?.label ?? 'Not rated yet'}</strong>
+        <span>
+          {viaAssessment ? `${viaAssessment.objective.code} objective` : 'No landform'}
+          {isStale ? ' · run is stale' : ''}
+        </span>
+      </div>
+    ),
+    presets: presetPicker,
+    table: table.button,
+    simulationSettings: (
+      <SimulationSettingsButton
+        settings={scene.settings}
+        onSettingsChange={(settings) => setScene((current) => ({ ...current, settings }))}
+        viewpoint={scene.viewpoint}
+        // A captioned button in a ribbon group; an icon on the header's strip, like its neighbours.
+        caption={toolbar ? 'Simulation settings' : undefined}
+        buttonClassName={toolbar ? 'h-6 text-xs font-medium' : 'size-7 text-foreground/80 hover:text-foreground'}
+      />
+    ),
+    interfaceSwitch: toolbar ? interfaceSwitch('lg') : interfaceSwitch('lg', phone ? 'header' : 'toolbar'),
+  }
+  const headerPresentations: Partial<Record<VisualsCommand, CommandPresentation>> = {
+    controls: {
+      ariaLabel: `${stepsCollapsed ? 'Show' : 'Hide'} assessment steps`,
+      captionFrom: 'xl',
+      shortLabel: 'Steps',
+      expanded: !stepsCollapsed,
+      icon: stepsCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />,
+    },
+    open: { captionFrom: 'lg', shortLabel: 'Open' },
+    attachments: {
+      ariaLabel: commandStates.attachments?.label,
+      icon: <AttachmentsIcon count={projectAttachments.length} />,
+    },
+    // Its caption shows from a laptop width; below, the icon keeps "Save & export" as its name.
+    export: { captionFrom: 'lg', emphasis: 'primary' },
+    fullscreen: {
+      ariaLabel: `${workspaceRoot.fullscreen ? 'Exit full screen' : 'Full screen'} visual quality workspace`,
+      icon: workspaceRoot.fullscreen ? <Minimize className="size-4" /> : <Maximize className="size-4" />,
+    },
+  }
+  // On a phone Guided mode's header is one row inside the content, as the strip it replaced was.
+  const headerInContent = phone && !toolbar
+  const header = (
+    // Guided mode's panels keep the page's full width (inset 0), so only the header takes a gutter.
+    <div className={headerInContent ? 'contents' : 'px-3'}>
+      <WorkspaceHeader
+        heading={
+          <>
+            <h1 className="sr-only md:hidden">Visual quality</h1>
+            <div className="road-workspace-heading hidden min-w-0 items-center gap-1 md:flex">
+              <ForestryBackLink />
+              <h1 className="truncate text-sm font-semibold">Visual quality</h1>
+            </div>
+          </>
+        }
+        crumb={siteName && <span className="min-w-0 truncate text-sm text-muted-foreground">{siteName}</span>}
+        flags={
+          isStale &&
+          result && (
+            <span className="hidden shrink-0 whitespace-nowrap rounded-full border border-warning-border bg-warning-surface px-2 text-3xs leading-4 text-warning-foreground sm:block">
+              Run is stale
+            </span>
+          )
+        }
+        status={<span className="truncate text-2xs text-muted-foreground">{ratingLine}</span>}
+        projectInfo={<span className="text-xs">{siteName ?? 'Visual quality'}</span>}
+        tools={active.headerTools ?? DEFAULT_VISUALS_HEADER_TOOLS}
+        widgets={workspaceWidgets}
+        states={commandStates}
+        presentations={headerPresentations}
+        onCommand={runCommand}
+      />
+    </div>
+  )
+  const interfaceChrome = toolbar ? (
+    <>
+      <WorkspaceTools
+        key={active.id}
+        toolbar={toolbar}
+        groupName={groupName}
+        folded={folded}
+        onToggleFold={toggleFold}
+        minimized={minimized}
+        onToggleMinimized={toggleMinimized}
+        onGroupChange={selectGroup}
+        onReorderTabs={(labels) => ribbonPreferences.reorderTabs(labels)}
+        editorsAvailable
+        editorHost={editorHost}
+        editorMount={stepsInRibbon ? attachEditor : undefined}
+        disabled={false}
+        states={commandStates}
+        leading={<ForestryBackLink />}
+        narrowMenu={['chooseInterface']}
+        switcher={
+          <>
+            {interfaceSwitch('lg')}
+            <ThemeModeButton />
+          </>
+        }
+        widgets={workspaceWidgets}
+        onCommand={runCommand}
+      />
+      {customizingRibbon && ribbonPreferences.defaults && (
+        <CustomizeRibbonPane
+          toolbar={toolbar}
+          defaults={ribbonPreferences.defaults}
+          states={commandStates}
+          currentTab={groupName}
+          onClose={() => setCustomizingRibbon(false)}
+          onApply={(draft) => {
+            ribbonPreferences.save(draft)
+            setCustomizingRibbon(false)
+          }}
+        />
+      )}
+    </>
+  ) : (
+    header
+  )
+
+  const workspaceBody = (
     <MapSectionLayout
-      sidebar={sidebar}
+      // Below the workspace's header or ribbon, on the interface's panel canvas.
+      className="bg-transparent"
+      // The steps live in one portal (`editorHost`): this slot in Guided mode, the ribbon's task pane in Ribbon.
+      sidebar={stepsInRibbon ? null : <div className="contents" ref={attachEditor} />}
+      disableSidebar={stepsInRibbon}
+      showDesktopSidebar={!stepsCollapsed}
+      onToggleDesktopSidebar={() => setStepsCollapsed(!stepsCollapsed)}
       table={table}
       desktopSidebarWidth={400}
       mobileInitialSheetState="full"
@@ -7378,47 +7802,17 @@ function DevForestryVisuals() {
       }
     >
       <div
-        className="flex h-full min-h-0 flex-col gap-2 p-2 max-md:pt-[calc(var(--map-mobile-toolbar-height,0px)_+_0.5rem)]"
+        // Under a header or ribbon the panes start at once: the road view's bar and status card need the height.
+        className={cn(
+          'flex h-full min-h-0 flex-col gap-2 p-2 max-md:pt-[calc(var(--map-mobile-toolbar-height,0px)_+_0.5rem)]',
+          !headerInContent && 'md:pt-0',
+        )}
         data-testid="visuals-workspace"
         data-layout={workspaceLayout.base}
       >
-        <div className="flex min-h-8 flex-wrap items-center justify-end gap-2">
-          {phone ? (
-            phonePaneOptions.length > 1 && (
-              <TabBar
-                label="Visible view"
-                value={focusedPane ?? 'map'}
-                onChange={(value) => choosePhonePane(value as VisualsPane)}
-                options={phonePaneOptions}
-                stretch
-              />
-            )
-          ) : (
-            <TileLayoutPicker
-              config={VISUALS_WORKSPACE}
-              selection={layoutSelection}
-              onSelect={selectLayout}
-              saved={savedLayouts}
-              onSaved={setSavedLayouts}
-              hiddenPanels={storedHiddenPanes}
-              onHiddenPanels={changeHiddenPanes}
-              selectLabel="Visual quality layout"
-              dialogTestId="visuals-layouts-dialog"
-            />
-          )}
-          <ProjectAttachmentsButton count={projectAttachments.length} onClick={() => setFilesDialog('attachments')} />
-          {/* Every file the page writes, with what goes into each: one place, as in the road designer. */}
-          <Button
-            // 32 px, the layout select's and the panels button's height beside it.
-            size="field"
-            data-command="export"
-            title="Save & export"
-            onClick={() => exportOpener.openExport()}
-          >
-            <Download className="size-3.5" aria-hidden="true" />
-            Save &amp; export
-          </Button>
-        </div>
+        {/* On a phone Guided mode's header is one row over the plan, under the site's floating
+            navigation, so the map keeps the height its tools need; above everything elsewhere. */}
+        {headerInContent && header}
         {exportDialog}
         <ProjectAttachmentsDialog
           open={filesDialog === 'attachments'}
@@ -7502,7 +7896,12 @@ function DevForestryVisuals() {
             storageKey={(split) => tilePaneKey(VISUALS_WORKSPACE.namespace, workspaceLayout.storageId, split)}
             contents={{
               map: (
-                <TilePane title="Map" actions={paneClose('map')}>
+                <TilePane
+                  title="Map"
+                  actions={paneClose('map')}
+                  cornerKey={active.panelFrame?.resizeCorners && !phone ? cornerKey('map') : undefined}
+                  cornerLabel="map"
+                >
                   {() => (
                     // The photo docks beside the plan while it is laid on it (`DockedPhotoPane`).
                     <div className="flex min-h-0 min-w-0 flex-1 gap-1">
@@ -7545,46 +7944,18 @@ function DevForestryVisuals() {
                                     ? `Draw a wildlife tree patch · the scene holds ${MAX_ASSESSMENT_MASKS} masks, the most it keeps`
                                     : null
                                 }
-                                onDraw={(mode) => {
-                                  if (mode === 'view') {
-                                    viewPlacementBlockRef.current = viewAddBlockId
-                                    assessOnPlaceRef.current = false
-                                    setViewsMessage(null)
-                                  } else if (mode === 'none') assessOnPlaceRef.current = false
-                                  handleDrawModeChange(mode)
-                                }}
+                                onDraw={startPlanDraw}
                                 look={{
                                   open: drive.active,
-                                  picking: !!mapPick?.hint && mapPick.onPoint === pickBasemapRoad,
+                                  picking: pickingRoad,
                                   disabled: drive.active
                                     ? 'The road view is open'
                                     : pendingPreview
                                       ? 'Preparing the road view…'
                                       : null,
-                                  onLook: () => {
-                                    if (mapPick?.onPoint === pickBasemapRoad) {
-                                      setMapPick(null)
-                                      return
-                                    }
-                                    const hasRoad =
-                                      scene.viewpoint.mode === 'corridor' && scene.viewpoint.coordinates.length >= 2
-                                    if (drawMode !== 'none') handleDrawModeChange('none')
-                                    setRoutePreviewOpen(false)
-                                    if (hasRoad) openPreview()
-                                    else
-                                      setMapPick({
-                                        onPoint: pickBasemapRoad,
-                                        hint: 'Click a road on the map to look from it',
-                                      })
-                                  },
+                                  onLook: lookFromRoad,
                                 }}
-                                onRoutePreview={(open) => {
-                                  if (open) {
-                                    clearMeasure()
-                                    if (drawMode !== 'none') handleDrawModeChange('none')
-                                  }
-                                  setRoutePreviewOpen(open)
-                                }}
+                                onRoutePreview={toggleRoutePreview}
                               />
                               <MapLayersControl
                                 basemaps={IMAGERY_BASEMAPS}
@@ -7976,7 +8347,11 @@ function DevForestryVisuals() {
                 </TilePane>
               ),
               road: (
-                <TilePane title="Road view" actions={paneClose('road')}>
+                <TilePane
+                  title="Road view"
+                  actions={paneClose('road')}
+                  // No corner grip: its reserve would take height the road view's bar and status card need.
+                >
                   {() => (
                     <div className="relative min-h-0 flex-1 overflow-hidden rounded-md" data-testid="visuals-road-view">
                       {eyeMapMounted && (
@@ -8468,6 +8843,85 @@ function DevForestryVisuals() {
         </div>
       </div>
     </MapSectionLayout>
+  )
+
+  return (
+    <RibbonPaneHost.Provider
+      value={{
+        slot: paneHost,
+        docked: taskPaneDocked,
+        resizeKey: active.panelFrame?.resizeCorners ? cornerKey('settings') : undefined,
+        onDockChange: setTaskPaneDocked,
+      }}
+    >
+      <div
+        ref={workspaceRoot.ref}
+        // The interface's panel canvas and dock (`workspaceFrame.ts`), read by the shared workspace styles.
+        {...workspaceFrameProps(active)}
+        data-fullscreen={workspaceRoot.fullscreen || undefined}
+        data-testid="visuals-interface"
+        className={cn(
+          'lp-workspace visuals-interface relative flex h-full min-h-0 flex-col gap-2 overflow-hidden pt-1.5',
+          // A ribbon on a phone starts below the site's floating navigation; Guided mode's map runs under it.
+          toolbar && 'max-md:!pt-[calc(env(safe-area-inset-top)+var(--app-navbar-offset,4rem))]',
+          headerInContent && 'py-0',
+          '[&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-menu [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-2',
+        )}
+      >
+        {!headerInContent && interfaceChrome}
+        {layoutsFallback && (
+          <p role="status" className="shrink-0 truncate text-2xs text-warning">
+            Workspace layouts could not be loaded: using the built-in {GUIDED_INTERFACE_NAME}.
+          </p>
+        )}
+        {choosingInterface && (
+          <InterfaceChooser
+            layouts={layouts}
+            current={active}
+            onCancel={() => setChoosingInterface(false)}
+            onChoose={(next) => {
+              setChoosingInterface(false)
+              setCustomizingRibbon(false)
+              selectInterface(next)
+            }}
+          />
+        )}
+        {/* What *Open a project* and *Import* read, for the header and ribbon; the sidebar keeps its own. */}
+        <input
+          ref={projectFileInput}
+          type="file"
+          accept=".json,.zip"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (file) void openProjectFile(file)
+          }}
+        />
+        <input
+          ref={shapeFileInput}
+          type="file"
+          accept=".zip,.geojson,.json"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (file) void handleImportFile(file)
+          }}
+        />
+        <div className="lp-canvas-frame">
+          <RibbonPaneColumns
+            viewsLabel="visual quality views"
+            docked={taskPaneDocked}
+            storageKey={tilePaneKey(VISUALS_WORKSPACE.namespace, 'interface', `task-column:${active.id}`)}
+            slotRef={setPaneHost}
+          >
+            <div className="flex h-full min-h-0 min-w-0 flex-1">{workspaceBody}</div>
+          </RibbonPaneColumns>
+        </div>
+        {createPortal(sidebar, editorHost)}
+      </div>
+    </RibbonPaneHost.Provider>
   )
 }
 

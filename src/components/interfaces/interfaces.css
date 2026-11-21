@@ -167,7 +167,7 @@
   border-inline: 0;
   border-radius: 0;
 }
-.road-workspace:has(> .lp-ribbon[data-full-width]:first-child) {
+.lp-workspace:has(> .lp-ribbon[data-full-width]:first-child) {
   padding-top: 0;
 }
 .lp-ribbon > header {
@@ -306,7 +306,7 @@
   }
 }
 @media (min-width: 768px) and (min-height: 650px) {
-  .road-workspace[data-tool-dock='top'] {
+  .lp-workspace[data-tool-dock='top'] {
     background: hsl(var(--muted) / 0.55);
   }
   .lp-ribbon .lp-tools .lp-command {

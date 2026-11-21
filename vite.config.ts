@@ -114,7 +114,12 @@ export default defineConfig({
           // Read by address at run time (`scripts/road-design/manifest.mjs`, `PUBLIC`).
           extras: ['workspace-layouts.json', 'brand/', 'interface-previews/'],
         },
-        { id: 'visual-quality', roots: /^DevForestryVisuals-/ },
+        {
+          id: 'visual-quality',
+          roots: /^(ForestryVisualsWorkspace|DevForestryVisuals)-/,
+          // Read by address at run time: its workspace layouts and their chooser pictures.
+          extras: ['visuals-layouts.json', 'interface-previews/'],
+        },
       ],
       maxFileBytes: OFFLINE_MAX_FILE_BYTES,
       shellExtras: ['favicon.svg', 'manifest.json'],

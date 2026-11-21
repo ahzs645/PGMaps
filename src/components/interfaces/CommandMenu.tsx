@@ -1,6 +1,6 @@
 import { Ellipsis } from 'lucide-react'
 import { ActionMenu, type ActionMenuItem } from '@/components/ui/action-menu'
-import { resolveCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
+import { resolveCommandIn, useWorkspaceKit, type CommandState } from './workspaceKit'
 
 /**
  * Registry commands folded into one More menu where a bar has no room for their buttons: the
@@ -8,7 +8,7 @@ import { resolveCommand, type CommandState, type WorkspaceCommand } from './work
  * the workspace's states, as on the buttons it stands for. `extraItems` follow them, after a
  * separator, for tools outside the registry that fold in too (the colour scheme, help).
  */
-export function CommandMenu({
+export function CommandMenu<C extends string>({
   commands,
   states,
   disabled,
@@ -17,16 +17,17 @@ export function CommandMenu({
   triggerClassName,
   extraItems = [],
 }: {
-  commands: readonly WorkspaceCommand[]
-  states: Partial<Record<WorkspaceCommand, CommandState>>
+  commands: readonly C[]
+  states: Partial<Record<C, CommandState>>
   disabled?: boolean
-  onCommand: (id: WorkspaceCommand) => void
+  onCommand: (id: C) => void
   label?: string
   triggerClassName?: string
   extraItems?: readonly ActionMenuItem[]
 }) {
+  const kit = useWorkspaceKit()
   const commandItems = commands.flatMap((id): ActionMenuItem[] => {
-    const command = resolveCommand(id, states[id], disabled)
+    const command = resolveCommandIn(kit.commands, id, states[id], disabled)
     if (command.hidden) return []
     const Icon = command.icon
     return [

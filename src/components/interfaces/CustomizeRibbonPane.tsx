@@ -3,10 +3,9 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Pin, PinOff, Settings2, type
 import { Button } from '@/components/ui/button'
 import { AppSelect, compactSelectTriggerClass, workspaceSelectContentClass } from '@/components/ui/select'
 import { RibbonTaskPane, restorePaneFocus } from './RibbonTaskPane'
-import { workspaceCommands, type CommandState, type WorkspaceCommand } from './workspaceCommands'
-import { isRibbonCommand, ribbonToolLabel, type RibbonTool } from './ribbonToolCatalog'
+import { isCommandIn, toolLabelIn, useWorkspaceKit, type CommandState } from './workspaceKit'
 import { groupKey, type RibbonSection, type RibbonTab } from './ribbonPreferences'
-import type { WorkspaceToolbar } from './workspaceLayouts'
+import type { AnyToolbar } from './workspaceLayoutSchema'
 import './ribbonCustomization.css'
 
 function move<T>(list: readonly T[], index: number, direction: number) {
@@ -46,7 +45,9 @@ function Action({
   )
 }
 
-export function CustomizeRibbonPane({
+type RibbonTool = string
+
+export function CustomizeRibbonPane<T extends AnyToolbar>({
   toolbar,
   defaults,
   states,
@@ -54,13 +55,16 @@ export function CustomizeRibbonPane({
   onApply,
   onClose,
 }: {
-  toolbar: WorkspaceToolbar
-  defaults: WorkspaceToolbar
-  states: Partial<Record<WorkspaceCommand, CommandState>>
+  toolbar: T
+  defaults: T
+  states: Partial<Record<string, CommandState>>
   currentTab?: string
-  onApply: (toolbar: WorkspaceToolbar) => void
+  onApply: (toolbar: T) => void
   onClose: () => void
 }) {
+  const kit = useWorkspaceKit()
+  const isRibbonCommand = (id: string) => isCommandIn(kit.commands, id)
+  const ribbonToolLabel = (id: string) => toolLabelIn(kit, id)
   const opener = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null)
   const [draft, setDraft] = useState(toolbar)
   const [tabName, setTabName] = useState(currentTab)
@@ -128,7 +132,7 @@ export function CustomizeRibbonPane({
         <ul>
           {visible.map((id, index) => {
             const caption = ribbonToolLabel(id)
-            const Icon = isRibbonCommand(id) ? workspaceCommands[id].icon : Settings2
+            const Icon = isRibbonCommand(id) ? kit.commands[id].icon : Settings2
             return (
               <li key={id} tabIndex={-1} data-arrange-tool={id}>
                 <Icon size={16} strokeWidth={1.65} aria-hidden="true" />

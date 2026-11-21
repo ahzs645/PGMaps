@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { moveTo, orderTabs, tabOrderFor } from './ribbonPreferences'
-import type { WorkspaceToolbar } from './workspaceLayouts'
+import type { AnyToolbar as WorkspaceToolbar } from './workspaceLayoutSchema'
 
 const toolbar = (...labels: string[]) =>
   ({ dock: 'top', groups: labels.map((label) => ({ label })) }) as WorkspaceToolbar

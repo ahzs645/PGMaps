@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import layouts from '../../../public/workspace-layouts.json'
-import { ribbonWidgetLabels } from '@/components/interfaces/ribbonToolCatalog'
-import { resolveToolbar, type WorkspaceToolbar } from '@/components/interfaces/workspaceLayouts'
-import { ribbonExports, workspaceCommands } from '@/components/interfaces/workspaceCommands'
+import { ribbonWidgetLabels } from '@/pages/dev-forestry-roads/interface/ribbonToolCatalog'
+import { resolveToolbar, type WorkspaceToolbar } from '@/pages/dev-forestry-roads/interface/workspaceLayouts'
+import { ribbonExports, workspaceCommands } from '@/pages/dev-forestry-roads/interface/workspaceCommands'
 
 const hosted = layouts.find((layout) => layout.id === 'ribbon')!.toolbar as WorkspaceToolbar
 const sectionsOf = (toolbar: WorkspaceToolbar) => toolbar.groups.flatMap((tab) => tab.sections ?? [])

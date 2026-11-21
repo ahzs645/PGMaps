@@ -268,8 +268,15 @@ export function SimulationSettingsPanel({
   )
 }
 
-/** The sidebar header's settings icon, right of the title: the run's inputs in a popover, wherever the reviewer is in the steps. */
-export function SimulationSettingsButton(props: Parameters<typeof SimulationSettingsPanel>[0]) {
+/**
+ * The run's inputs in a popover, wherever the reviewer is in the steps: a settings icon on the workspace
+ * header's strip (Guided mode) or in the ribbon's Simulate tab. `buttonClassName` sizes it for its place.
+ */
+export function SimulationSettingsButton({
+  buttonClassName = 'size-8 touch:size-10',
+  caption,
+  ...props
+}: Parameters<typeof SimulationSettingsPanel>[0] & { buttonClassName?: string; caption?: string }) {
   return (
     <ToolbarPopover
       label="Simulation settings"
@@ -277,7 +284,8 @@ export function SimulationSettingsButton(props: Parameters<typeof SimulationSett
       align="end"
       width={344}
       variant="ghost"
-      buttonClassName="size-8 touch:size-10"
+      buttonClassName={buttonClassName}
+      caption={caption}
     >
       <div className="p-3">
         <SimulationSettingsPanel {...props} />

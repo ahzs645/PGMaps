@@ -1,68 +1,31 @@
 import { Fragment, type ReactNode } from 'react'
 import { CommandButton, type CommandPresentation } from './CommandButton'
-import { isWorkspaceCommand, resolveCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
-import type { WorkspaceWidget } from './workspaceLayouts'
+import {
+  DEFAULT_HEADER_GROUPS,
+  isCommandIn,
+  resolveCommandIn,
+  useWorkspaceKit,
+  type CommandState,
+  type HeaderGroup,
+} from './workspaceKit'
 import { ChevronRight, Ellipsis } from 'lucide-react'
 import { ToolbarPopover } from '@/components/ui/toolbar-popover'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-
-type HeaderTool = WorkspaceCommand | WorkspaceWidget
-
-/**
- * The header's tools when a layout names none. A layout can choose its own with `headerTools`
- * (see `docs/forestry-road-design/workspace-layouts.md`); the header places each tool in its
- * group, and the list's order is the order inside a group.
- */
-export const DEFAULT_HEADER_TOOLS: HeaderTool[] = [
-  'controls',
-  'undo',
-  'redo',
-  'history',
-  'presets',
-  'summarySettings',
-  'detachedPanels',
-  'startDesign',
-  'loadMapped',
-  'saveState',
-  'projects',
-  'open',
-  'export',
-  'interfaceSwitch',
-  'branding',
-  'fullscreen',
-]
+import './workspaceHeader.css'
 
 /**
- * Where a tool sits from the tablet width up. The project line ends with the `file` group; the
- * toolbar strip holds `panel`, `edit`, `view` and `start` from its left edge, the save `state`
- * with the notices in its middle and `workspace` at its right. A tool not listed here (a field,
- * a widget a layout adds) joins the strip after `start`, in a group of its own.
+ * Where a tool sits from the tablet width up comes from the kit (`DEFAULT_HEADER_GROUPS`, then the
+ * kit's `headerGroups`). The project line ends with the `file` group; the toolbar strip holds
+ * `panel`, `edit`, `view` and `start` from its left edge, the save `state` with the notices in its
+ * middle and `workspace` at its right. A tool not listed (a field, a widget a layout adds) joins
+ * the strip after `start`, in a group of its own.
  */
-type HeaderGroup = 'panel' | 'edit' | 'view' | 'start' | 'more' | 'file' | 'workspace' | 'state'
-const HEADER_GROUP: Partial<Record<HeaderTool, HeaderGroup>> = {
-  controls: 'panel',
-  undo: 'edit',
-  redo: 'edit',
-  history: 'edit',
-  presets: 'view',
-  summarySettings: 'view',
-  detachedPanels: 'view',
-  startDesign: 'start',
-  loadMapped: 'start',
-  saveState: 'state',
-  projects: 'file',
-  open: 'file',
-  export: 'file',
-  interfaceSwitch: 'workspace',
-  branding: 'workspace',
-  fullscreen: 'workspace',
-}
 const STRIP_GROUPS: readonly HeaderGroup[] = ['panel', 'edit', 'view', 'start', 'more']
 
-/** The phone's one line keeps these four as buttons, in this order; everything else is in More. */
-const PHONE_HEADER_TOOLS: readonly HeaderTool[] = ['presets', 'detachedPanels', 'controls', 'export']
+/** The phone's one line keeps these as buttons, in this order, unless the kit names its own. */
+const PHONE_HEADER_TOOLS: readonly string[] = ['presets', 'detachedPanels', 'controls', 'export']
 
-interface WorkspaceHeaderProps {
+interface WorkspaceHeaderProps<C extends string, W extends string> {
   /** The brand has its own column beside both lines from the tablet width up. */
   brand?: ReactNode
   /** The way back and the project's name; on a phone, the brand that stands in for them. */
@@ -71,17 +34,20 @@ interface WorkspaceHeaderProps {
   status?: ReactNode
   /** Warnings about the project that earn header space (terrain basis, incomplete sections), before the file buttons. */
   flags?: ReactNode
-  /** Kept on the header's line: a row of its own would fold the charts' legends. */
-  roadSwitcher?: ReactNode
+  /**
+   * The next step of the project line's path, after a chevron (the road switcher). Kept on the
+   * header's line: a row of its own would fold the charts' legends.
+   */
+  crumb?: ReactNode
   help?: ReactNode
   /** Project name and save feedback inside the phone's More panel. */
   projectInfo?: ReactNode
-  tools: readonly HeaderTool[]
-  widgets: Partial<Record<WorkspaceWidget, ReactNode>>
-  states: Partial<Record<WorkspaceCommand, CommandState>>
-  presentations: Partial<Record<WorkspaceCommand, CommandPresentation>>
+  tools: readonly (C | W)[]
+  widgets: Partial<Record<W, ReactNode>>
+  states: Partial<Record<C, CommandState>>
+  presentations: Partial<Record<C, CommandPresentation>>
   disabled?: boolean
-  onCommand: (id: WorkspaceCommand) => void
+  onCommand: (id: C) => void
 }
 
 /**
@@ -89,22 +55,22 @@ interface WorkspaceHeaderProps {
  * and state from the workspace, and widgets are the same nodes the ribbon places.
  *
  * From the tablet width up it is two lines beside the brand. The project line reads as a path:
- * the way back, the project's name, then the road being viewed; it ends with the project's
+ * the way back, the project's name, then the item being viewed; it ends with the project's
  * warnings and the file buttons, the one filled button among them. Under it one toolbar strip
  * holds every other tool in groups, so a dozen buttons read as four, with the notices and the
  * save line in the room between them. A phone keeps its single icon row.
  */
-export function WorkspaceHeader(props: WorkspaceHeaderProps) {
+export function WorkspaceHeader<C extends string, W extends string>(props: WorkspaceHeaderProps<C, W>) {
   const desktop = useMediaQuery('(min-width: 768px)')
   return desktop ? <DesktopHeader {...props} /> : <PhoneHeader {...props} />
 }
 
-function DesktopHeader({
+function DesktopHeader<C extends string, W extends string>({
   brand,
   heading,
   status,
   flags,
-  roadSwitcher,
+  crumb,
   help,
   tools,
   widgets,
@@ -112,13 +78,17 @@ function DesktopHeader({
   presentations,
   disabled,
   onCommand,
-}: WorkspaceHeaderProps) {
+}: WorkspaceHeaderProps<C, W>) {
+  type T = C | W
+  const kit = useWorkspaceKit()
+  const isWorkspaceCommand = (tool: T): tool is C => isCommandIn(kit.commands, tool)
+  const widgetOf = (tool: T) => widgets[tool as W]
+  const groupOf = (tool: string) => kit.headerGroups?.[tool] ?? DEFAULT_HEADER_GROUPS[tool] ?? 'more'
   // A hidden command or an absent widget takes no place, so a group of them draws no divider.
-  const present = (tool: HeaderTool) =>
-    isWorkspaceCommand(tool) ? !resolveCommand(tool, states[tool]).hidden : Boolean(widgets[tool])
-  const inGroup = (group: HeaderGroup) =>
-    tools.filter((tool) => (HEADER_GROUP[tool] ?? 'more') === group && present(tool))
-  const render = (tool: HeaderTool) =>
+  const present = (tool: T) =>
+    isWorkspaceCommand(tool) ? !resolveCommandIn(kit.commands, tool, states[tool]).hidden : Boolean(widgetOf(tool))
+  const inGroup = (group: HeaderGroup) => tools.filter((tool) => groupOf(tool) === group && present(tool))
+  const render = (tool: T) =>
     isWorkspaceCommand(tool) ? (
       <CommandButton
         key={tool}
@@ -130,7 +100,7 @@ function DesktopHeader({
         onRun={onCommand}
       />
     ) : (
-      <Fragment key={tool}>{widgets[tool]}</Fragment>
+      <Fragment key={tool}>{widgetOf(tool)}</Fragment>
     )
   const file = inGroup('file')
   const workspace = inGroup('workspace')
@@ -140,10 +110,10 @@ function DesktopHeader({
       {brand && <div className="road-workspace-brand">{brand}</div>}
       <div className="road-header-project">
         {heading}
-        {roadSwitcher && (
+        {crumb && (
           <>
             <ChevronRight className="road-header-crumb" aria-hidden="true" />
-            {roadSwitcher}
+            {crumb}
           </>
         )}
         <div className="road-header-flags">{flags}</div>
@@ -181,10 +151,10 @@ function DesktopHeader({
 }
 
 /** One icon row: the brand or the road switcher, four buttons, and More for everything else. */
-function PhoneHeader({
+function PhoneHeader<C extends string, W extends string>({
   heading,
   status,
-  roadSwitcher,
+  crumb,
   help,
   projectInfo,
   tools,
@@ -193,15 +163,22 @@ function PhoneHeader({
   presentations,
   disabled,
   onCommand,
-}: WorkspaceHeaderProps) {
-  const onLine = PHONE_HEADER_TOOLS.filter((tool) => tools.includes(tool))
+}: WorkspaceHeaderProps<C, W>) {
+  type T = C | W
+  const kit = useWorkspaceKit()
+  const isWorkspaceCommand = (tool: T): tool is C => isCommandIn(kit.commands, tool)
+  const widgetOf = (tool: T) => widgets[tool as W]
+  const phoneTools = kit.phoneHeaderTools ?? PHONE_HEADER_TOOLS
+  const onLine = phoneTools.filter((tool) => tools.includes(tool as T)) as T[]
+  // The interface switch widget becomes its registry command in the More panel's list.
+  const asCommand = (tool: T): T => (tool === 'interfaceSwitch' ? ('chooseInterface' as T) : tool)
   return (
     <header
       className="road-workspace-header flex shrink-0 flex-wrap items-center justify-between gap-2"
       data-testid="road-workspace-header"
     >
       {heading}
-      {roadSwitcher}
+      {crumb}
       {/* Not shown, but still announced: a notice reaches a screen reader on a phone too. */}
       {status && <div className="hidden">{status}</div>}
       <div className="road-workspace-header-tools flex items-center gap-1">
@@ -217,7 +194,7 @@ function PhoneHeader({
               onRun={onCommand}
             />
           ) : (
-            <Fragment key={tool}>{widgets[tool]}</Fragment>
+            <Fragment key={tool}>{widgetOf(tool)}</Fragment>
           ),
         )}
         <ToolbarPopover
@@ -231,27 +208,28 @@ function PhoneHeader({
             <div className="grid gap-1 p-2">
               {projectInfo && <div className="min-w-0 border-b pb-2">{projectInfo}</div>}
               {tools
-                .filter((tool) => !PHONE_HEADER_TOOLS.includes(tool) && !(projectInfo && tool === 'saveState'))
-                .map((tool) =>
-                  isWorkspaceCommand(tool) || tool === 'interfaceSwitch' ? (
+                .filter((tool) => !phoneTools.includes(tool) && !(projectInfo && tool === 'saveState'))
+                .map((tool) => {
+                  const command = asCommand(tool)
+                  return isWorkspaceCommand(command) ? (
                     <CommandButton
                       key={tool}
-                      id={tool === 'interfaceSwitch' ? 'chooseInterface' : tool}
+                      id={command}
                       surface="sidebar"
-                      state={states[tool === 'interfaceSwitch' ? 'chooseInterface' : tool]}
+                      state={states[command]}
                       disabled={disabled}
                       onRun={(id) => {
                         close()
                         onCommand(id)
                       }}
                     />
-                  ) : widgets[tool] ? (
+                  ) : widgetOf(tool) ? (
                     <div key={tool} className="flex items-center gap-2 text-xs">
-                      {widgets[tool]}
+                      {widgetOf(tool)}
                       {tool === 'history' && <span>Edit history and checkpoints</span>}
                     </div>
-                  ) : null,
-                )}
+                  ) : null
+                })}
               {help && (
                 <div className="flex items-center gap-2 border-t pt-1 text-xs">
                   {help}

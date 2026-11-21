@@ -1,30 +1,25 @@
-import { ribbonFieldLabels, type RibbonFieldId } from '@/pages/dev-forestry-roads/roadFieldDefinitions'
 import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronUp, ChevronDown, PanelRightOpen, PanelRightClose } from 'lucide-react'
 import { TabBar } from '@/components/ui/tab-bar'
 import type { ActionMenuItem } from '@/components/ui/action-menu'
-import { AccessLockup } from './AccessLockup'
 import { RibbonFinder, type RibbonResult, type ToolResult } from './RibbonFinder'
 import { editorSections, revealEditorSection } from './ribbonEditorSections'
 import { RibbonGroupSettings, focusRibbonItem, settingsTitleFor } from './RibbonGroupSettings'
 import { RibbonTaskPane } from './RibbonTaskPane'
-import { roadWorkflowAnchor } from '@/pages/dev-forestry-roads/tours/roadTour'
 import { RibbonStrip, RibbonTabs } from './RibbonNavigation'
-import {
-  isRibbonCommand as isCommand,
-  ribbonWidgetLabels as widgetLabels,
-  type RibbonTool as ToolId,
-} from './ribbonToolCatalog'
-import { resolveCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
+import { isCommandIn, layoutIcons, resolveCommandIn, useWorkspaceKit, type CommandState } from './workspaceKit'
 import { CommandButton } from './CommandButton'
 import { CommandMenu } from './CommandMenu'
-import { layoutIcons, type WorkspaceToolbar, type WorkspaceWidget } from './workspaceLayouts'
+import type { LayoutToolbar } from './workspaceLayoutSchema'
 
 export type { CommandState }
-const isQuickField = (id: ToolId): id is RibbonFieldId => Object.prototype.hasOwnProperty.call(ribbonFieldLabels, id)
-type OpenSettings = { tab: string; sectionIndex: number; label: string; focusItem?: ToolId }
+type OpenSettings = { tab: string; sectionIndex: number; label: string; focusItem?: string }
 
-export function WorkspaceTools({
+/**
+ * The ribbon (`dock: "top"`) or the guide (`dock: "side"`) for one layout's toolbar. It owns no
+ * commands: labels and icons come from the kit's registry, behaviour and state from the workspace.
+ */
+export function WorkspaceTools<C extends string, W extends string>({
   toolbar,
   disabled,
   onCommand,
@@ -59,10 +54,10 @@ export function WorkspaceTools({
   editorHost?: HTMLElement
   editorMount?: (node: HTMLDivElement | null) => void
   children?: ReactNode
-  toolbar: WorkspaceToolbar
+  toolbar: LayoutToolbar<string, C, W, string>
   disabled: boolean
-  onCommand: (action: WorkspaceCommand) => void
-  widgets: Partial<Record<WorkspaceWidget, ReactNode>>
+  onCommand: (action: C) => void
+  widgets: Partial<Record<W, ReactNode>>
   /** Before the tabs, e.g. the way back out of the tool. */
   leading?: ReactNode
   /** Right after quick access and shown at every width, e.g. the edit history beside undo and redo. */
@@ -71,13 +66,20 @@ export function WorkspaceTools({
    * Commands whose tab-row buttons fold into the More menu on narrow screens, with quick access
    * (see `.lp-ribbon-more` in interfaces.css), e.g. the interface switch.
    */
-  narrowMenu?: WorkspaceCommand[]
+  narrowMenu?: C[]
   /** Tools outside the command registry that fold into the same More menu (the colour scheme, help). */
   narrowMenuExtras?: readonly ActionMenuItem[]
   /** The end of the tab row, e.g. the save status and the interface switch. */
   switcher?: ReactNode
-  states: Partial<Record<WorkspaceCommand, CommandState>>
+  states: Partial<Record<C, CommandState>>
 }) {
+  type ToolId = C | W
+  const kit = useWorkspaceKit()
+  const isCommand = (id: ToolId): id is C => isCommandIn(kit.commands, id)
+  const isQuickField = (id: ToolId) => !!kit.quickFields?.has(id)
+  const widgetLabels = kit.widgetLabels as Record<string, string>
+  const resolveCommand = (id: C, state: CommandState | undefined, off = false) =>
+    resolveCommandIn(kit.commands, id, state, off)
   const panel = useRef<HTMLDivElement>(null)
   const editorLauncher = useRef<HTMLButtonElement>(null)
   const [focusResult, setFocusResult] = useState<ToolResult | null>(null)
@@ -118,7 +120,7 @@ export function WorkspaceTools({
     activeSection?.label === settings.label &&
     !!activeSection.more?.some(visible)
   if (settings && !settingsVisible) setSettings(null)
-  const productLogo = toolbar.header === 'controls' && <AccessLockup compact />
+  const productLogo = toolbar.header === 'controls' && kit.brand?.compact
   const tabTools = toolbar.tabTools?.map((id) => (
     <Fragment key={id}>
       {isCommand(id) ? (
@@ -185,10 +187,10 @@ export function WorkspaceTools({
       onGroupChange(entry.tab, false)
       const target = entry.target
       requestAnimationFrame(() => revealEditorSection(target))
-    } else if (isCommand(entry.id)) {
+    } else if (isCommand(entry.id as ToolId)) {
       setSettings(null)
       onGroupChange(entry.tab)
-      onCommand(entry.id)
+      onCommand(entry.id as C)
     } else {
       onGroupChange(entry.tab, true)
       if (entry.inSettings && entry.section !== undefined && entry.sectionIndex !== undefined) {
@@ -199,7 +201,7 @@ export function WorkspaceTools({
       }
     }
   }
-  function item(id: ToolId, surface: 'strip' | 'pane', primary?: WorkspaceCommand) {
+  function item(id: ToolId, surface: 'strip' | 'pane', primary?: C) {
     const inSettings = surface === 'pane'
     if (!visible(id)) return null
     if (isQuickField(id)) {
@@ -232,7 +234,7 @@ export function WorkspaceTools({
       )
     return commandButton(id, surface, primary === id)
   }
-  function commandButton(id: WorkspaceCommand, surface: 'strip' | 'pane' | 'quick', primary = false) {
+  function commandButton(id: C, surface: 'strip' | 'pane' | 'quick', primary = false) {
     return (
       <CommandButton
         key={id}
@@ -268,7 +270,7 @@ export function WorkspaceTools({
       options={groups.map((tab, index) => ({
         value: String(index),
         label: tab.label,
-        icon: tab.icon && layoutIcons[tab.icon],
+        icon: tab.icon ? layoutIcons[tab.icon as keyof typeof layoutIcons] : undefined,
       }))}
     />
   )
@@ -360,10 +362,10 @@ export function WorkspaceTools({
             className="lp-fold-editors"
             type="button"
             // The tab's editor opens here, so a lesson's workflow tab (`road.workflow.<editor>`) is this button.
-            data-tutorial-id={roadWorkflowAnchor(group.editor)}
+            data-tutorial-id={kit.anchors?.workflow?.(group.editor)}
             aria-label={editorButtonLabel}
             aria-expanded={!folded}
-            title={paneEditor ? `${editorButtonLabel} · ${group.label}` : editorButtonLabel}
+            title={paneEditor ? `${editorButtonLabel} · ${group.editorTitle ?? group.label}` : editorButtonLabel}
             onClick={() => {
               setSettings(null)
               onToggleFold()
@@ -419,7 +421,7 @@ export function WorkspaceTools({
           (paneEditor && detailed && !minimized ? (
             <RibbonTaskPane
               key={group.editor}
-              title={settingsTitleFor(group.label)}
+              title={group.editorTitle ?? settingsTitleFor(group.label)}
               context={toolbar.label}
               onClose={onToggleFold}
               returnFocusRef={editorLauncher}

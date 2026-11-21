@@ -30,11 +30,14 @@ export function RibbonPaneColumns({
   docked,
   storageKey,
   slotRef,
+  viewsLabel = 'workspace views',
   children,
 }: {
   docked: boolean
   storageKey: string
   slotRef: Ref<HTMLDivElement>
+  /** Names the views in the divider's label, "Resize road views and task panel". */
+  viewsLabel?: string
   children: ReactNode
 }) {
   return (
@@ -44,7 +47,8 @@ export function RibbonPaneColumns({
       storageKey={storageKey}
       className="flex-1"
       panes={[
-        { id: 'road-views', label: 'road views', size: 0.73, min: 420, content: children },
+        // The id names the views' stored width; it stays 'road-views' so earlier road sizes still read.
+        { id: 'road-views', label: viewsLabel, size: 0.73, min: 420, content: children },
         {
           id: 'task-column',
           label: 'task panel',
@@ -193,7 +197,7 @@ export function RibbonTaskPane({
         showClose={false}
         aria-modal="true"
         aria-describedby={undefined}
-        portalContainer={host.closest<HTMLElement>('.road-workspace')}
+        portalContainer={host.closest<HTMLElement>('.lp-workspace')}
         className="lp-task-sheet"
         overlayClassName="lp-task-backdrop"
         onCloseAutoFocus={(event) => event.preventDefault()}

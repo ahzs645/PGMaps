@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseTutorialManifest, readTutorialStatePath, type TutorialManifest } from 'tourkit/core'
 import { validateTutorialLesson } from 'tourkit/validation'
-import { workspaceCommands } from '@/components/interfaces/workspaceCommands'
+import { workspaceCommands } from '@/pages/dev-forestry-roads/interface/workspaceCommands'
 import { analyzeRoad } from '../engine'
 import { createDemoProject, demoTerrain } from '../terrain'
 import { ROAD_LESSONS, roadLesson } from './roadLessons'

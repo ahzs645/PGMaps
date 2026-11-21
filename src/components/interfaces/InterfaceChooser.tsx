@@ -1,23 +1,23 @@
-import { AccessLockup } from './AccessLockup'
-import { roadInterfaceAnchor } from '@/pages/dev-forestry-roads/tours/roadTour'
 import { X } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
-import { layoutIcons, type WorkspaceLayout } from './workspaceLayouts'
-import { workspaceHelpSearch } from './interfacePreference'
+import { layoutIcons, useWorkspaceKit } from './workspaceKit'
+import type { AnyLayout } from './workspaceLayoutSchema'
 import './interfaces.css'
 
 /** The dialog behind "Switch workspace": one card per layout, the open one marked current. */
-export function InterfaceChooser({
+export function InterfaceChooser<L extends AnyLayout>({
   layouts,
   onChoose,
   current,
   onCancel,
 }: {
-  layouts: WorkspaceLayout[]
-  onChoose: (layout: WorkspaceLayout) => void
-  current: WorkspaceLayout
+  layouts: L[]
+  onChoose: (layout: L) => void
+  current: L
   onCancel: () => void
 }) {
+  const kit = useWorkspaceKit()
+  const helpHref = kit.helpHref?.(current.id)
   const dialog = useRef<HTMLDialogElement>(null)
   const titleId = useId()
   useEffect(() => {
@@ -41,12 +41,14 @@ export function InterfaceChooser({
       <div className="lp-launcher">
         <div className="lp-launch-head">
           <div className="lp-mast">
-            <AccessLockup />
+            {kit.brand?.full}
             <h2 id={titleId}>Choose your workspace</h2>
           </div>
-          <a href={`${import.meta.env.BASE_URL}help?${workspaceHelpSearch(current)}`} target="_blank" rel="noopener">
-            Workflow help
-          </a>
+          {helpHref && (
+            <a href={helpHref} target="_blank" rel="noopener">
+              Workflow help
+            </a>
+          )}
           <button className="lp-close" onClick={onCancel} aria-label="Close interface chooser">
             <X size={18} />
           </button>
@@ -54,7 +56,7 @@ export function InterfaceChooser({
         <div className="lp-cards">
           {layouts.map((layout) => {
             const { id, name, description, preview } = layout
-            const Icon = layoutIcons[layout.icon]
+            const Icon = layoutIcons[layout.icon as keyof typeof layoutIcons] ?? layoutIcons.panels
             const isCurrent = current.id === id
             return (
               <button
@@ -62,7 +64,7 @@ export function InterfaceChooser({
                 className="lp-card"
                 data-dock={layout.toolbar?.dock ?? 'none'}
                 aria-label={`Open ${name}`}
-                data-tutorial-id={roadInterfaceAnchor(layout.id)}
+                data-tutorial-id={kit.anchors?.interfaceOption?.(layout.id)}
                 aria-current={isCurrent || undefined}
                 onClick={() => onChoose(layout)}
               >

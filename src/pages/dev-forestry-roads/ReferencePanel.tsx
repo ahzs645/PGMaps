@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { CommandButton } from '@/components/interfaces/CommandButton'
 import { RibbonTaskPane } from '@/components/interfaces/RibbonTaskPane'
-import type { CommandState, WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
+import type { CommandState, WorkspaceCommand } from '@/pages/dev-forestry-roads/interface/workspaceCommands'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { DisclosureRow } from '@/components/ui/disclosure'
