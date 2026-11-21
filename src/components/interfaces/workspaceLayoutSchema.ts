@@ -75,6 +75,8 @@ interface LayoutGroup<
   icon?: I
   hint?: string
   editor?: E
+  /** The editor's task pane title; "<label> settings" when absent. */
+  editorTitle?: string
   commands?: C[]
   sections?: LayoutSection<C, W>[]
 }
@@ -322,6 +324,7 @@ function parseGroup<I extends string, C extends string, W extends string, E exte
     'icon',
     'hint',
     'editor',
+    'editorTitle',
     'commands',
     'sections',
   ])
@@ -331,6 +334,7 @@ function parseGroup<I extends string, C extends string, W extends string, E exte
     icon: optional(source, 'icon', (v) => oneOf(v, `${label} icon`, vocabulary.icons)),
     hint: optional(source, 'hint', (v) => text(v, `${label} hint`, 400)),
     editor: optional(source, 'editor', (v) => oneOf(v, `${label} editor`, vocabulary.editors)),
+    editorTitle: optional(source, 'editorTitle', (v) => text(v, `${label} editorTitle`)),
     commands: optional(source, 'commands', (v) => {
       const ids = list(v, `${label} commands`, 100, 1).map((id) => oneOf(id, `${label} command`, vocabulary.commands))
       distinct(ids, 'Repeated command in group.')
@@ -341,6 +345,7 @@ function parseGroup<I extends string, C extends string, W extends string, E exte
     ),
   })
   if (group.commands && group.sections) throw Error(`${label}: use only one command format.`)
+  if (group.editorTitle && !group.editor) throw Error(`${label}: editorTitle names an editor the group does not have.`)
   if (!group.editor && !group.commands && !group.sections)
     throw Error(`${label} needs an editor, commands or sections.`)
   return group

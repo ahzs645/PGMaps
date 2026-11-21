@@ -25,6 +25,38 @@ sightline from every viewing station to every point on every block, over the
 real shape of the ground. It then reports the visible share against a visual
 quality objective, and lets you stand on the road and look at the result.
 
+## Guided mode and the Ribbon
+
+The page has two interfaces, served from `public/visuals-layouts.json` through the shared
+interface kit the road designer uses (`docs/workspace-interfaces.md`): **Guided mode**, the five
+steps in the sidebar under the road designer's two-line header, and **Ribbon**, a tabbed ribbon
+with one tab per step whose **All settings** opens that step in a task pane beside the views. It
+opens in the interface a `?interface=` link names, else the one this browser last used
+(`pgmaps-visuals-interface`), else Guided mode, and **Switch interface** (the header's strip, the
+ribbon's tab row and View tab) changes it without reloading anything.
+
+- Both interfaces arrange the same commands (`src/pages/dev-forestry/interface/visualsCommands.ts`)
+  and the same steps panel. The page renders the steps once, through a portal into the kit's
+  `editorHost`, which sits in the sidebar slot in Guided mode and in the ribbon's task pane in
+  Ribbon; switching never remounts a step, so nothing typed is lost. The selected step is one
+  value for both (`useWorkflowPlacement`): the sidebar's tabs and the ribbon's tabs are the same
+  choice, and starting the road view brings step 2 forward without opening the pane over it.
+- The sidebar draws no title row: the header (Guided mode) or the ribbon carries the way back, the
+  name and *Simulation settings*, so there is one "Visual quality" heading. In the ribbon, the
+  steps panel hides its own step tabs (`Sidebar`'s `embedded`).
+- Each output of Save & export is a command (`export-<kind>`), placed in File by its group and in
+  the step it belongs to; the dialog still decides what each file holds. *Look from the road*,
+  the drawing tools and *Route preview* are the plan map's own handlers (`lookFromRoad`,
+  `startPlanDraw`, `toggleRoutePreview`), so the map's buttons and the ribbon's do the same thing.
+- Panels keep the tiled workspace (`visualsWorkspace.ts`); a layout's `panelFrame` gives the map
+  and the road view the shared corner grip, and each interface keeps its own screen preset on this
+  device (`pgmaps-visuals-layout-<interface>`; Guided mode reads the earlier
+  `pgmaps-visuals-layout`). The Table button sits on the header's strip or in View.
+- On a phone, Guided mode keeps the steps in the bottom sheet under a one-line header; the Ribbon
+  keeps its tab row and opens a step in a side sheet.
+- Panels cannot yet be opened in another window here: moving the road view would rebuild its map
+  and engine (see **Road view performance**), so detaching waits for a design that keeps them.
+
 ## The sidebar follows the VIA handbook's five steps
 
 The sidebar is laid out as the procedure in the *Visual Impact Assessment

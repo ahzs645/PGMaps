@@ -83,7 +83,12 @@ export function useVisualQualityTable({
   result,
   selectedTargetId,
   onSelectTarget,
+  inlineButton,
+  buttonClassName,
 }: {
+  /** The workspace header or ribbon places the Table button (`useMapTable`'s `inlineButton`). */
+  inlineButton?: boolean
+  buttonClassName?: string
   targets: readonly TargetPolygon[]
   candidates: readonly ViewpointCandidate[]
   /** The last "Check which of them see the block" rows, by candidate key. */
@@ -159,6 +164,8 @@ export function useVisualQualityTable({
 
   return useMapTable({
     sources,
+    inlineButton,
+    buttonClassName,
     selectedRowId: selectedTargetId,
     onSelectRow: (row: TargetPolygon | ViewpointRow | StationRow, source) => {
       if (source.id === 'polygons') onSelectTarget((row as TargetPolygon).id)

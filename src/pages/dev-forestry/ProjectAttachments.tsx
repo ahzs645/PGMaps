@@ -60,29 +60,20 @@ export function AttachmentPreview({ file, page }: { file: ProjectAttachment; pag
  * The header's paperclip: how many files the project carries, and the way to them. A count badge rather than a label,
  * so the bar beside the layout picker stays one row.
  */
-export function ProjectAttachmentsButton({ count, onClick }: { count: number; onClick: () => void }) {
-  const label = `Project attachments (${count})`
+/** The paperclip with the number of files kept, as the workspace header and ribbon draw *Project files*. */
+export function AttachmentsIcon({ count }: { count: number }) {
   return (
-    <Button
-      type="button"
-      size="icon"
-      variant="outline"
-      className="relative size-8"
-      aria-label={label}
-      title={label}
-      data-testid="visuals-attachments-button"
-      onClick={onClick}
-    >
+    <span className="relative inline-flex">
       <Paperclip className="size-4" aria-hidden="true" />
       {count > 0 && (
         <span
           aria-hidden="true"
-          className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full bg-primary px-1 text-center text-3xs font-semibold leading-4 text-primary-foreground tabular-nums"
+          className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-primary px-1 text-center text-3xs font-semibold leading-4 text-primary-foreground tabular-nums"
         >
           {count > 99 ? '99+' : count}
         </span>
       )}
-    </Button>
+    </span>
   )
 }
 

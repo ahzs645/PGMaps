@@ -1,5 +1,4 @@
 import { MAP_SIDEBAR_CLASS } from '@/components/layout/MapSectionLayout'
-import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import {
   CheckboxField,
   FORM_INPUT_CLASS,
@@ -52,8 +51,7 @@ import { summariseUnits, type BcSensitivityUnit } from './bcVisualInventory'
 import { ResultsPanel } from './ResultsPanel'
 import { SubLandformFields } from './ReviewRecordFields'
 import { ROLE_COLORS, targetAreaHectares, type ForestryScene } from './scene'
-import { SimulationSettingsButton } from './SimulationSettings'
-import type { AnalysisSettings, HarvestSystem, TargetPolygon, TargetRole, Viewpoint } from './types'
+import type { HarvestSystem, TargetPolygon, TargetRole, Viewpoint } from './types'
 import type { TreeLook, TreeStyle } from './treeLayer'
 import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
 import { findSceneLandform } from './sceneInput'
@@ -512,7 +510,6 @@ export type SidebarProps = {
   via: ViaSidebarState
   scene: ForestryScene
   onViewpointChange: (viewpoint: Viewpoint) => void
-  onSettingsChange: (settings: AnalysisSettings) => void
   onThresholdsChange: (thresholds: VisualQualityThresholds) => void
   onTargetChange: (targetId: string, patch: Partial<TargetPolygon>) => void
   onRemoveTarget: (targetId: string) => void
@@ -587,8 +584,6 @@ export type SidebarProps = {
    * own landform card to draw a view's landform with.
    */
   viewLandforms?: (renderLandform: (target: TargetPolygon) => ReactNode) => ReactNode
-  /** A road-view preview is being prepared or is open; the sidebar shows step 2, where it is. */
-  roadViewOpening?: boolean
   onClearScene: () => void
   /** Opens a project file saved from Save & export: it replaces what is on the map and the saved views. */
   onOpenProject: (file: File) => void
@@ -687,13 +682,25 @@ export type SidebarProps = {
 
   /** What the basemap said about the road and water, for the drive panel's clearing note. */
   roadClearing?: { roadClass: string | null; widthMeters: number; waterPolygons: number }
+
+  /**
+   * The step shown, held by the page so the sidebar's tabs and the ribbon's tabs are one choice
+   * (`useWorkflowPlacement`). `reveal` is false when the page moves on by itself (the road view
+   * opening brings step 2 forward) rather than at the reviewer's click.
+   */
+  step: ViaStepId
+  onStepChange: (step: ViaStepId, reveal?: boolean) => void
+  /**
+   * Shown in the ribbon's task pane, whose tabs choose the step: the sidebar draws no step tabs of
+   * its own. Its shell stays, so every section keeps its density and its one scroll container.
+   */
+  embedded?: boolean
 }
 
 export function Sidebar({
   via,
   scene,
   onViewpointChange,
-  onSettingsChange,
   onThresholdsChange,
   onTargetChange,
   onRemoveTarget,
@@ -728,7 +735,6 @@ export function Sidebar({
   onActivateLandform,
   siteLandformId,
   viewLandforms,
-  roadViewOpening = false,
   onClearScene,
   onOpenProject,
   onReopenPrevious,
@@ -762,13 +768,16 @@ export function Sidebar({
   assessMode,
   onAssessModeChange,
   roadViewForest,
+  step: activeStep,
+  onStepChange,
+  embedded = false,
 }: SidebarProps) {
   // Which scale the threshold editor is showing. Purely a view concern — both
   // sets are always in the scene and both are always reported.
   const [thresholdBasis, setThresholdBasis] = useState<AlterationBasis>('perspective')
   // The roads list shows the first few; the rest are a click away, and the header says so.
   const [showAllRoads, setShowAllRoads] = useState(false)
-  const { viewpoint, targets, settings, thresholds } = scene
+  const { viewpoint, targets, thresholds } = scene
 
   const blocks = targets.filter((target) => target.role === 'block')
   const hasViewpoint = viewpoint.coordinates.length > 0
@@ -782,20 +791,11 @@ export function Sidebar({
   // Unrated units stay on the map for context but would swamp a list.
   const ratedUnits = inventory.units
 
-  // One step at a time, as tabs. It opens on the step to work on next; after
+  // One step at a time, as tabs. The page opens it on the step to work on next; after
   // that the reviewer moves between them, and the headline's "Go to step"
   // switches for them. Every step stays mounted, so what is typed survives.
-  const currentStep = VIA_STEPS.find((step) => via.statuses[step.id] === 'current')?.id ?? null
-  const [activeStep, setActiveStep] = useState<ViaStepId>(() => currentStep ?? 'identify')
   const tabsRef = useRef<HTMLDivElement | null>(null)
-  // Starting the road view from anywhere — the roadside demo in step 1, a
-  // saved view — brings step 2 forward, where its progress and settings are.
-  // Adjusted during render rather than in an effect, so it lands in one paint.
-  const [seenRoadView, setSeenRoadView] = useState(roadViewOpening)
-  if (roadViewOpening !== seenRoadView) {
-    setSeenRoadView(roadViewOpening)
-    if (roadViewOpening) setActiveStep('visit')
-  }
+  const setActiveStep = (id: ViaStepId) => onStepChange(id)
   const goToStep = (id: ViaStepId) => {
     setActiveStep(id)
     // Back to the top of the step, tabs in view.
@@ -814,6 +814,8 @@ export function Sidebar({
     'aria-labelledby': `via-step-title-${id}`,
     hidden: activeStep !== id,
     'data-via-panel': id,
+    // The ribbon's Find tools reads a step's sections through this (`ribbonEditorSections.ts`).
+    'data-workflow-editor': id,
   })
   const assessment = via.assessment
   const numericalReady = !!result?.quality?.numericalReady
@@ -1024,16 +1026,15 @@ export function Sidebar({
   const openings = targets.filter((target) => target.role === 'harvested')
 
   return (
+    // The workspace's header (Guided mode) or ribbon names the tool and carries the way back and the
+    // simulation settings, so the shell draws no title row of its own: one "Visual quality" heading.
     <MapSidebarShell
-      title="Visual quality"
-      back={<ForestryBackLink />}
-      actions={
-        <SimulationSettingsButton settings={settings} onSettingsChange={onSettingsChange} viewpoint={viewpoint} />
-      }
-      className={MAP_SIDEBAR_CLASS}
-      headerClassName="px-3 py-2.5"
+      title="Assessment steps"
+      className={cn(MAP_SIDEBAR_CLASS, embedded && 'border-r-0 bg-transparent shadow-none backdrop-blur-none')}
+      headerClassName="sr-only"
       titleClassName="text-base"
       density="compact"
+      data-testid="visuals-steps"
     >
       <ViaHeadline
         assessment={via.assessment}
@@ -1049,8 +1050,12 @@ export function Sidebar({
         }}
       />
 
-      {/* The five handbook steps as tabs, pinned while the step scrolls. */}
-      <div ref={tabsRef} className="sticky top-0 z-10 border-b border-border bg-background/95 p-1.5 backdrop-blur">
+      {/* The five handbook steps as tabs, pinned while the step scrolls; in the ribbon its tabs are these. */}
+      <div
+        ref={tabsRef}
+        hidden={embedded}
+        className="sticky top-0 z-10 border-b border-border bg-background/95 p-1.5 backdrop-blur"
+      >
         <TabBar
           label="Assessment steps"
           stretch
@@ -1708,7 +1713,7 @@ export function Sidebar({
             />
           </ToolSection>
         )}
-        {/* Simulation settings are the header's settings icon (`SimulationSettingsButton`), right of the title. */}
+        {/* Simulation settings are the workspace header's settings button (`SimulationSettingsButton`), or the ribbon's in Simulate. */}
         <ToolSection
           title="Planning thresholds"
           summary="Not the handbook’s Table 2"

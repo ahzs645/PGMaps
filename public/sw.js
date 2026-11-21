@@ -153,10 +153,14 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Manifests and catalogs are mutable pointers to data snapshots. The road designer's
-  // workspace layouts are a deploy-time configuration file: a changed file must take
-  // effect on the next load, so it never renders from cache while the network answers.
-  if (/\/(manifest|index|catalog|metadata)\.json$/.test(pathname) || pathname === '/workspace-layouts.json') {
+  // Manifests and catalogs are mutable pointers to data snapshots. A tool's workspace layouts
+  // (the road designer's, visual quality's) are a deploy-time configuration file: a changed file
+  // must take effect on the next load, so it never renders from cache while the network answers.
+  if (
+    /\/(manifest|index|catalog|metadata)\.json$/.test(pathname) ||
+    pathname === '/workspace-layouts.json' ||
+    pathname === '/visuals-layouts.json'
+  ) {
     event.respondWith(networkFirst(request, DATA_CACHE, request, 'no-cache'))
     return
   }

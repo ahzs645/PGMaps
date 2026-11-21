@@ -68,17 +68,25 @@ export function useWorkflowPlacement<L extends AnyLayout>(
     })
   }
 
+  /**
+   * Show an editor: its ribbon tab with its settings open, else the sidebar. With `reveal: false`
+   * (the tool moving on by itself) the tab changes but an open or folded pane stays as it was.
+   */
   const selectWorkflow = useCallback(
-    (next: E) => {
+    (next: E, options?: { reveal?: boolean }) => {
+      const reveal = options?.reveal ?? true
       const target = toolbar?.groups.find((group) => group.editor === next)
-      setLocation((previous) => ({
-        layoutId: layout.id,
-        group: target?.label ?? (previous.layoutId === layout.id ? previous.group : undefined),
-        workflow: next,
-        sidebar: !target,
-        folded: false,
-        minimized: false,
-      }))
+      setLocation((previous) => {
+        const same = previous.layoutId === layout.id
+        return {
+          layoutId: layout.id,
+          group: target?.label ?? (same ? previous.group : undefined),
+          workflow: next,
+          sidebar: !target,
+          folded: reveal ? false : same ? previous.folded : undefined,
+          minimized: reveal ? false : same ? previous.minimized : undefined,
+        }
+      })
     },
     [layout.id, toolbar],
   )

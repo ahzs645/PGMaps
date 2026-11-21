@@ -114,6 +114,14 @@ describe('service worker configuration files', () => {
     expect(network).toHaveBeenCalledWith(request, { cache: 'no-cache' })
     expect(put).toHaveBeenCalledOnce()
   })
+
+  it("serves visual quality's layouts from the network too", async () => {
+    const request = { method: 'GET', url: 'https://example.com/visuals-layouts.json', mode: 'cors' }
+    const network = vi.fn(async () => new Response('[{"id":"fresh"}]'))
+    const { response } = worker(network, async () => ({ put: vi.fn() }), { request })
+    expect(await (await response).text()).toBe('[{"id":"fresh"}]')
+    expect(network).toHaveBeenCalledWith(request, { cache: 'no-cache' })
+  })
 })
 
 // ---------------------------------------------------------------------------------------------

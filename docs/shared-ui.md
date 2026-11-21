@@ -763,19 +763,23 @@ In use: the own photo on `/dev/forestry/visual-quality`'s Camera tab (`PhotoWith
   bottom and right rule, the first cell of a row its left, and `ColumnHeader` its top. A border on
   a `<tr>` does not draw in this mode: give the cells the classes instead, and a cell that sets its
   own `border` should set only the sides the table leaves to it, or the rule doubles.
-- Configurable workspaces (`src/components/interfaces/`): define each command once in
-  `workspaceCommands.ts` (label, icon, `kind`, editor, investigation availability) and render it
-  only through `CommandButton`, whose `surface` (`ribbon`, `quick`, `header`, `toolbar`, `sidebar`)
+- Configurable workspaces (`src/components/interfaces/`, guide `docs/workspace-interfaces.md`):
+  a tool defines each command once in its registry (label, icon, `kind`, editor) and hands it to
+  the shared renderers through a `WorkspaceKit` (`workspaceKit.tsx`), with its storage name, widget
+  captions and, where it has them, its brand, lesson anchors and help. Render a command only
+  through `CommandButton`, whose `surface` (`ribbon`, `quick`, `header`, `toolbar`, `sidebar`)
   and `presentation` (caption breakpoint, short label, accessible name, emphasis) decide how it
   looks. `toolbar` is the borderless 28 px button for a strip of grouped tools, where one border
   round the strip replaces a border per button; `emphasis: 'primary'` fills the one that matters.
-  Layouts in `public/workspace-layouts.json` arrange command and widget IDs; `WorkspaceTools`
-  renders a top ribbon or a side guide and `WorkspaceHeader` a header line from the same IDs, so a
-  new arrangement (a dashboard, a compact bar) is a layout entry, not new components. The page
-  supplies one handler, one `CommandState` and one widget node per ID. Parse the layout file with
-  `workspaceLayoutSchema.ts` (pure, takes the ID vocabulary as an argument). `RibbonTaskPane` /
-  `RibbonPaneHost` give a task pane beside the drawing, and `PanelCorner` (`panel-corner.tsx`) the
-  dotted resize grip the panels share. `/dev/forestry/road-design` is the reference.
+  A tool's layout file (`public/workspace-layouts.json`, `public/visuals-layouts.json`) arranges
+  command and widget IDs; `WorkspaceTools` renders a top ribbon or a side guide and
+  `WorkspaceHeader` a header line from the same IDs, so a new arrangement (a dashboard, a compact
+  bar) is a layout entry, not new components. The page supplies one handler, one `CommandState`
+  and one widget node per ID. Parse the layout file with `workspaceLayoutSchema.ts` (pure, takes
+  the tool's vocabulary as an argument). `RibbonTaskPane` / `RibbonPaneHost` give a task pane
+  beside the drawing, and `PanelCorner` (`panel-corner.tsx`) the dotted resize grip the panels
+  share. `/dev/forestry/road-design` is the reference; `/dev/forestry/visual-quality` the
+  smallest adopter.
 - Tiled workspaces: `TiledWorkspace` (`tiled-workspace.tsx`) lays columns of panes out in nested
   `ResizableSplit`s whose tree is the same in every preset, so a map in one pane stays mounted when
   the layout changes. Describe the tool once as a `TiledWorkspaceConfig` (storage `namespace`, the

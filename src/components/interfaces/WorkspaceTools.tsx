@@ -365,7 +365,7 @@ export function WorkspaceTools<C extends string, W extends string>({
             data-tutorial-id={kit.anchors?.workflow?.(group.editor)}
             aria-label={editorButtonLabel}
             aria-expanded={!folded}
-            title={paneEditor ? `${editorButtonLabel} · ${group.label}` : editorButtonLabel}
+            title={paneEditor ? `${editorButtonLabel} · ${group.editorTitle ?? group.label}` : editorButtonLabel}
             onClick={() => {
               setSettings(null)
               onToggleFold()
@@ -421,7 +421,7 @@ export function WorkspaceTools<C extends string, W extends string>({
           (paneEditor && detailed && !minimized ? (
             <RibbonTaskPane
               key={group.editor}
-              title={settingsTitleFor(group.label)}
+              title={group.editorTitle ?? settingsTitleFor(group.label)}
               context={toolbar.label}
               onClose={onToggleFold}
               returnFocusRef={editorLauncher}
