@@ -18,6 +18,7 @@ export function RoadSummary({
   expanded,
   onExpand,
   onSettings,
+  compactToggle = false,
 }: {
   metrics: RoadSummaryMetric[]
   preferences: SummaryPreferences
@@ -25,6 +26,8 @@ export function RoadSummary({
   expanded: boolean
   onExpand: () => void
   onSettings: (key?: string) => void
+  /** The toggle shares its row with the pane tabs: icon only, settings inside the open rows. */
+  compactToggle?: boolean
 }) {
   return (
     <MetricSummary
@@ -38,6 +41,7 @@ export function RoadSummary({
       onSettings={onSettings}
       popoverContainer=".road-workspace"
       showHeading={false}
+      compactToggle={compactToggle}
     />
   )
 }

@@ -777,9 +777,10 @@ In use: the own photo on `/dev/forestry/visual-quality`'s Camera tab (`PhotoWith
   bar) is a layout entry, not new components. The page supplies one handler, one `CommandState`
   and one widget node per ID. Parse the layout file with `workspaceLayoutSchema.ts` (pure, takes
   the tool's vocabulary as an argument). `RibbonTaskPane` / `RibbonPaneHost` give a task pane
-  beside the drawing, and `PanelCorner` (`panel-corner.tsx`) the dotted resize grip the panels
-  share. `/dev/forestry/road-design` is the reference; `/dev/forestry/visual-quality` the
-  smallest adopter.
+  beside the drawing (a right-hand drawer below 900 px and a bottom sheet with no grip below
+  640 px), and `PanelCorner` (`panel-corner.tsx`) the dotted resize grip the panels share.
+  `/dev/forestry/road-design` is the reference; `/dev/forestry/visual-quality` the smallest
+  adopter.
 - Tiled workspaces: `TiledWorkspace` (`tiled-workspace.tsx`) lays columns of panes out in nested
   `ResizableSplit`s whose tree is the same in every preset, so a map in one pane stays mounted when
   the layout changes. Describe the tool once as a `TiledWorkspaceConfig` (storage `namespace`, the
@@ -802,7 +803,9 @@ In use: the own photo on `/dev/forestry/visual-quality`'s Camera tab (`PhotoWith
   while only its value shows, its note. An optional `toolbar` puts controls that choose what the rows
   read (the Viewpoint summary's planned-view and block switchers) under the heading, wrapping on a
   narrow panel; without it nothing shows. `MetricSummaryLayout` puts it beside (`left`) or above
-  (`top`) the views. Pass the summary through its `summary` slot and opt in with `resize`
+  (`top`) the views. On a small screen its opt-in `bar` puts other controls (the road designer's
+  pane tabs) in the collapsed summary's row; give the summary `compactToggle` with it, so its toggle
+  is its icon at the row's end and its settings sit at the foot of the open rows. Pass the summary through its `summary` slot and opt in with `resize`
   (`storageKey`, `label`, `controls`) while the summary is visible to add a saved-width separator
   on the left stack. It shares `ResizeSeparator` with `ResizableSplit`, supports dragging and
   arrow keys, resets on double-click, and leaves the views mounted; compact and top layouts

@@ -148,6 +148,45 @@
 .metric-summary-layout[data-small][data-placement='top'] .metric-summary {
   width: 100%;
 }
+/* A small screen's opt-in bar: other controls (a pane switcher) fill the row and the summary's
+   icon toggle sits at its end, opening the rows under the row's right edge. */
+.metric-summary-bar {
+  --metric-summary-bar-height: 2.25rem;
+  display: flex;
+  flex: none;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+  height: var(--metric-summary-bar-height);
+}
+.metric-summary-bar > :first-child:not(.metric-summary-panel) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.metric-summary-bar > .metric-summary-panel {
+  align-self: stretch;
+}
+.metric-summary-layout[data-small] .metric-summary-bar .metric-summary-heading {
+  height: 100%;
+  padding: 0 2px;
+}
+.metric-summary-layout[data-small] .metric-summary-bar .metric-summary-heading button {
+  min-height: 0;
+  height: 100%;
+  gap: 2px;
+  padding-inline: 8px;
+}
+.metric-summary-layout[data-small] .metric-summary-bar .metric-summary:not([hidden]) {
+  inset-block-start: calc(var(--metric-summary-bar-height) + 4px);
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  max-height: calc(100% - var(--metric-summary-bar-height) - 5px);
+}
+.metric-summary-settings-action {
+  border-top: 1px solid hsl(var(--border));
+  border-radius: 0;
+  color: hsl(var(--muted-foreground));
+}
 .metric-summary-form {
   padding: 14px;
   font-size: 13px;

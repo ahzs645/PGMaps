@@ -110,8 +110,14 @@ test('mobile settings restore the configured defaults and the stack expands over
   await expect(rail.locator('[data-metric="cost"]')).toHaveCount(0)
   await rail.getByRole('button', { name: 'Hide road summary' }).click()
   await expect(rail.locator('[data-metric="grade"]')).toBeHidden()
-  await rail.getByRole('button', { name: 'Show road summary' }).click()
-  await rail.getByRole('button', { name: 'Configure road summary' }).click()
+  // Beside the pane tabs the toggle is its icon, and the settings sit at the foot of the open rows.
+  const toggle = rail.getByRole('button', { name: 'Show road summary' })
+  const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
+  const [toggleBox, tabsBox] = [await toggle.boundingBox(), await tabs.boundingBox()]
+  expect(Math.abs(toggleBox!.y + toggleBox!.height / 2 - (tabsBox!.y + tabsBox!.height / 2))).toBeLessThan(2)
+  await expect(rail.getByRole('button', { name: 'Configure road summary' })).toHaveCount(0)
+  await toggle.click()
+  await rail.getByRole('button', { name: 'Road summary settings', exact: true }).click()
   await settings.getByRole('button', { name: 'Restore defaults' }).click()
   await settings.getByRole('button', { name: 'Close Road summary settings' }).click()
   await expect(rail).toHaveCount(0)

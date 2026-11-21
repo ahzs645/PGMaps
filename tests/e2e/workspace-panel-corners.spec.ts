@@ -185,7 +185,9 @@ for (const width of [1440, 390]) {
         const panelRadius = await plan.evaluate((element) => getComputedStyle(element).borderTopLeftRadius)
         await expect(layers).toHaveCSS('border-top-left-radius', panelRadius)
         await expect(layers).toHaveCSS('border-top-right-radius', panelRadius)
-        await expect(grip).toHaveCSS('border-bottom-right-radius', `${parseFloat(panelRadius) - 2}px`)
+        // A phone's bottom sheet has no corner to drag.
+        if (phone) await expect(grip).toBeHidden()
+        else await expect(grip).toHaveCSS('border-bottom-right-radius', `${parseFloat(panelRadius) - 2}px`)
       }
     })
 
@@ -200,18 +202,21 @@ for (const width of [1440, 390]) {
       await launcher.click()
       const pane = page.getByRole(phone ? 'dialog' : 'complementary', { name: 'Drainage settings' })
       const grip = pane.getByRole('button', { name: 'Resize settings panel' })
-      await expect(grip).toBeInViewport()
       if (phone) {
-        const inset = await workspace.evaluate((element) =>
-          Math.min(
-            Number.parseFloat(getComputedStyle(element).getPropertyValue('--workspace-panel-inset')),
-            innerWidth * 0.04,
-          ),
-        )
-        await expect.poll(async () => (await pane.boundingBox())!.x).toBeCloseTo(Math.max(12, inset), 0)
+        // A phone opens the pane as a bottom sheet the screen's width, with no corner to drag.
+        await expect(pane).toBeVisible()
+        await expect(grip).toHaveCount(0)
+        await expect
+          .poll(async () => {
+            const box = (await pane.boundingBox())!
+            return [Math.round(box.x), Math.round(box.width), Math.round(box.y + box.height)]
+          })
+          .toEqual([0, width, 900])
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+        return
       }
+      await expect(grip).toBeInViewport()
       const initial = (await pane.boundingBox())!
-      if (phone) expect(width - initial.x - initial.width).toBeCloseTo(initial.x, 0)
       await dragCorner(page, grip, -36, -56, phone)
       const resized = (await pane.boundingBox())!
       expect(resized.width).toBeCloseTo(initial.width - 36, 0)

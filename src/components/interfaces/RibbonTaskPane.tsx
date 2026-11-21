@@ -71,7 +71,10 @@ export function restorePaneFocus(target: HTMLElement | null) {
   })
 }
 
-/** A single workspace slot keeps desktop panels alongside the map. Phones use the same content in a side sheet. */
+/**
+ * A single workspace slot keeps desktop panels alongside the map. Narrower screens use the same content in a
+ * side drawer, and phones in a bottom sheet.
+ */
 export function RibbonTaskPane({
   title,
   context,
@@ -189,6 +192,8 @@ export function RibbonTaskPane({
     >
       <DialogContent
         elevated
+        variant="sheet"
+        sheetWide="end"
         showClose={false}
         aria-modal="true"
         aria-describedby={undefined}
