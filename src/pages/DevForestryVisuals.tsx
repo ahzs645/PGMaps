@@ -782,6 +782,39 @@ function DevForestryVisuals({
   const [projectTitle, setProjectTitle] = useState<string | null>(null)
   const [projectMessage, setProjectMessage] = useState<{ text: string; error?: boolean } | null>(null)
   const [projectAttachments, setProjectAttachments] = useState<ProjectAttachment[]>([])
+  // The latest of those two notices, shown in the header's status line while it is fresh: step 1 (where both are
+  // written) may be folded or another step brought forward, as it is when *Open* is run from the header or ribbon.
+  const [noticesSeen, setNoticesSeen] = useState({ project: projectMessage, import: importMessage })
+  const [headerNotice, setHeaderNotice] = useState<{
+    text: string
+    error: boolean
+    from: 'project' | 'import'
+  } | null>(null)
+  if (noticesSeen.project !== projectMessage || noticesSeen.import !== importMessage) {
+    setNoticesSeen({ project: projectMessage, import: importMessage })
+    const project = noticesSeen.project !== projectMessage
+    const imported = noticesSeen.import !== importMessage
+    const fresh =
+      (project &&
+        projectMessage && { text: projectMessage.text, error: !!projectMessage.error, from: 'project' as const }) ||
+      (imported &&
+        importMessage && {
+          text: importMessage,
+          error: importMessage.startsWith('Could not'),
+          from: 'import' as const,
+        }) ||
+      null
+    // A notice cleared at its source leaves the header too; one cleared elsewhere leaves the header's alone.
+    if (fresh) setHeaderNotice(fresh)
+    else if ((project && headerNotice?.from === 'project') || (imported && headerNotice?.from === 'import'))
+      setHeaderNotice(null)
+  }
+  useEffect(() => {
+    // Work under way ("Reading the project…") stays until what it was doing says how it went.
+    if (!headerNotice || headerNotice.text.endsWith('…')) return
+    const timer = window.setTimeout(() => setHeaderNotice(null), headerNotice.error ? 15_000 : 8_000)
+    return () => window.clearTimeout(timer)
+  }, [headerNotice])
   // The header's paperclip opens the attachments; the historical VIA review opens from there, beside its files.
   const [filesDialog, setFilesDialog] = useState<'attachments' | 'reference' | null>(null)
   // A photo's original names the field record it became (`recordId`), whichever of its two callers reports it first.
@@ -7904,7 +7937,20 @@ function DevForestryVisuals({
             </span>
           )
         }
-        status={<span className="truncate text-2xs text-muted-foreground">{ratingLine}</span>}
+        status={
+          headerNotice ? (
+            <span
+              role={headerNotice.error ? 'alert' : 'status'}
+              data-testid="visuals-header-notice"
+              className={cn('truncate text-2xs', headerNotice.error ? 'text-danger' : 'text-foreground')}
+              title={headerNotice.text}
+            >
+              {headerNotice.text}
+            </span>
+          ) : (
+            <span className="truncate text-2xs text-muted-foreground">{ratingLine}</span>
+          )
+        }
         projectInfo={<span className="text-xs">{siteName ?? 'Visual quality'}</span>}
         tools={active.headerTools ?? DEFAULT_VISUALS_HEADER_TOOLS}
         widgets={workspaceWidgets}

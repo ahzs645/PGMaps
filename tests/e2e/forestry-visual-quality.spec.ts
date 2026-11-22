@@ -1116,7 +1116,10 @@ test.describe('forestry visual quality', () => {
     await (
       await chooser
     ).setFiles({ name: 'preview.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(json)) })
-    await expect(page.getByText(/Opened preview\.json: the scene and one saved view\./)).toBeVisible()
+    // The line is shown in step 1 and, while it is fresh, in the header, wherever the sidebar stands.
+    const opened = /Opened preview\.json: the scene and one saved view\./
+    await expect(page.getByTestId('visuals-header-notice')).toHaveText(opened)
+    await expect(page.getByRole('status').filter({ hasText: opened })).toHaveCount(2)
     await showStep(page, 'visit')
     await reopenSaved()
     await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
