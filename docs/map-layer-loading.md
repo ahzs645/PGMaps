@@ -115,11 +115,10 @@ const handoff = useMapLayerHandoff('my-layer', value ? { key: value.id, value } 
   search, reset a selection or re-rate a list when the things already listed still cover the new
   window (`catalogueServes`, Sentinel-2).
 - Figures read over the window cover more than the visible map. Print the area.
-- Pass `useViewWindow` every rule value you do not mean to leave at its default as a defined
-  number. The toolkit merges with a spread, so an option given as `undefined` replaces its default:
-  an overscan of 1 and no throttle, which read a new window on every frame of a drag (62 reads in
-  3 s on the outdoors planner's cutblocks). `useViewWindowRead` passes `VIEW_WINDOW_DEFAULTS`; a
-  fix in the toolkit's `viewWindowRule` is in **Not built**.
+- An option left unset, or passed as `undefined`, keeps its default (`viewWindowRule`, toolkit
+  8b16710). Before that fix an `undefined` replaced the default with an overscan of 1 and no
+  throttle, which read a new window on every frame of a drag (62 reads in 3 s on the outdoors
+  planner's cutblocks); `map-view-read.test.tsx` and the toolkit's `view-window.test.ts` pin it.
 - For features read by box, `useViewWindowRead` keeps the last answer drawn while the next is read,
   keeps it after a failed read and reports the error, aborts the read a newer window supersedes, and
   takes the layer off only below its `minZoom`, which the caller states. A WFS layer read at full
@@ -219,10 +218,6 @@ Known gaps, so nobody assumes they are covered.
   shows 6–8% of the view empty for about a second and a zoom-out up to 62%. Not cancelling tiles
   while zooming, 1024 px tiles and a larger cache were measured and did not help; a coarse stand-in
   under a translucent layer double-draws. MapLibre has no ancestor preload.
-- **`viewWindowRule` lets `undefined` replace a default.** `useViewWindow` passes its five rule
-  options through even when unset, so a caller that names only some of them loses the rest's
-  defaults. `useViewWindowRead` works round it; the fix (drop undefined values before the merge)
-  belongs in the toolkit repository.
 - **No shared grid reader for bounding-box vector reads.** The view window covers one read a view.
   Snapping to grid cells, caching by cell and aborting cells that leave the view (OpenLayers' tile
   loading strategy) would be the next building block; nothing in the app needs it yet.

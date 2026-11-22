@@ -1362,8 +1362,7 @@ cover more than the visible map: say so where they are shown.
 (`src/components/ui/map-view-read.ts`) over it: give it a `read(window, signal)` and it returns the
 last answer (`data`), kept while the next window is read and after a failed read (`error`), with
 `loading` and `belowMinZoom` for the layer's status line. A `readKey` (a species, a year) reads the
-window again and drops the old answer. It passes every rule value to `useViewWindow`, because the
-toolkit lets an `undefined` option replace its default. The outdoors planner's layers are its users.
+window again and drops the old answer. The outdoors planner's layers are its users.
 A response body from such a service is read through `readBoundedText` (`src/lib/boundedText.ts`),
 which refuses an answer past its byte limit rather than drawing part of it; the road designer's
 live BC reads share it.

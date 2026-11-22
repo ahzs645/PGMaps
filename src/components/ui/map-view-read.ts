@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Map as MapLibreMap } from 'maplibre-gl'
-import {
-  useViewWindow,
-  VIEW_WINDOW_DEFAULTS,
-  type LonLatBounds,
-  type ViewWindow,
-} from '@/components/ui/map-view-window'
+import { useViewWindow, type LonLatBounds, type ViewWindow } from '@/components/ui/map-view-window'
 
 /**
  * Features read by bounding box from a live service (a WFS, an ArcGIS layer), following the map
@@ -53,15 +48,7 @@ const OFF = { data: null, window: null, error: null, answered: null } as const
 
 export function useViewWindowRead<T>(map: MapLibreMap | null, options: UseViewReadOptions<T>): ViewReadState<T> {
   const { enabled, minZoom, overscan, level, readKey = '' } = options
-  // Every rule value is passed: the toolkit merges with a spread, so an option given as undefined
-  // would replace its default (an overscan of 1 and no throttle, a read for every frame of a drag).
-  const view = useViewWindow(map, {
-    ...VIEW_WINDOW_DEFAULTS,
-    ...(overscan !== undefined ? { overscan } : {}),
-    enabled,
-    minZoom,
-    level,
-  })
+  const view = useViewWindow(map, { enabled, minZoom, overscan, level })
   const readRef = useRef(options.read)
   useEffect(() => {
     readRef.current = options.read
