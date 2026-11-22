@@ -82,6 +82,7 @@ import {
   recipeFormat,
   REPORT_RECIPES,
   reportSubtitle,
+  withPicturesNotDrawn,
   withViewsLeftOut,
 } from './viaReport/recipes'
 import { DRAW_HOW, standInGroups, standInUrl, withStandIns } from './viaReport/draftPictures'
@@ -109,7 +110,7 @@ import {
   type RoadVideoScene,
 } from './roadVideo'
 import type { RoadVideoApi, RoadVideoTake } from './useRoadVideo'
-import type { ViewCaptureApi, ViewCaptureReport } from './useViewCapture'
+import { captureAsNeeded, type ViewCaptureApi, type ViewCaptureReport } from './useViewCapture'
 import { isIncluded, viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
 import { useVisualsSheetSettings, VisualsBlockSheetForm } from './VisualsBlockSheetSetup'
 import {
@@ -134,6 +135,7 @@ import {
   savedIdentity,
   unprintedViews,
   viewsLeftOut,
+  sheetOnlyViews,
   type ContextView,
   type ExportAction,
   type ExportAutoRun,
@@ -606,6 +608,7 @@ export function useVisualsExport(input: {
     beforeOwed,
     beforeFailures,
     hasFigure: (id) => !!images[id]?.figure,
+    hasScreenshot: (id) => !!images[id]?.figureAt,
   })
   const packageViews = allViews.filter((view) => pkg.viewIds.has(view.id))
   // The package's views the sheet, the document and the report cannot draw, each named in the file with why.
@@ -794,11 +797,12 @@ export function useVisualsExport(input: {
     })
   // Placeholder figures stand in for the counts only; the file draws each view's figure. Its parts are assembled
   // once the report engine has loaded (the counts wait for it); its subtitle needs no part, so it never waits.
-  const draftContext = reportViews.length
-    ? reportContext(
-        reportViews.map((view) => ({ view: view.name, caption: view.name, dataUrl: '', width: 1, height: 1 })),
-      )
-    : null
+  const draftContext =
+    reportViews.length || packageViews.length
+      ? reportContext(
+          reportViews.map((view) => ({ view: view.name, caption: view.name, dataUrl: '', width: 1, height: 1 })),
+        )
+      : null
   const draftAssembly =
     draftContext && reportEngine.ready
       ? assembleReportParts(reportRecipe, draftContext, scene.viaReview?.reportEdits)
@@ -872,17 +876,18 @@ export function useVisualsExport(input: {
       cameraInfo: resolved.cameraInfo,
       paintBlocks: resolved.paintBlocks,
     },
-    report: reportViews.length
-      ? {
-          recipe: reportRecipe.name,
-          sources: reportRecipe.sources.join(', '),
-          figures: reportViews.length,
-          toComplete: draftReport ? draftReport.toComplete.length : null,
-          ...(reportMapStyle !== SHEET_SYMBOLS_STYLE
-            ? { mapStyle: reportMapStyles().find((style) => style.value === reportMapStyle)?.label ?? reportMapStyle }
-            : {}),
-        }
-      : null,
+    report:
+      reportViews.length || packageViews.length
+        ? {
+            recipe: reportRecipe.name,
+            sources: reportRecipe.sources.join(', '),
+            figures: reportViews.length,
+            toComplete: draftReport ? draftReport.toComplete.length : null,
+            ...(reportMapStyle !== SHEET_SYMBOLS_STYLE
+              ? { mapStyle: reportMapStyles().find((style) => style.value === reportMapStyle)?.label ?? reportMapStyle }
+              : {}),
+          }
+        : null,
     // The report's parts in print order, those switched off at their place, with what each printed once assembled.
     reportContents: {
       recipe: { parts: reportRecipe.parts, leftOut: reportRecipe.leftOut, layout: reportRecipe.layout },
@@ -1199,22 +1204,36 @@ export function useVisualsExport(input: {
     }
     return { images, beforeRenders, notes: beforeRenders.notes, notesBy, drawn }
   }
-  /** Captures every group the file needs and has not kept: the maps, the views' before pictures, the renders. */
-  const ensurePictures = async (named: readonly NamedView[]) => {
-    if (!input.captureReportImages) return
+  /**
+   * Captures every group the file needs and has not kept: the maps, the views' before pictures, the renders. A group
+   * that fails is returned with why, not thrown: the report is written without it, named on its to-complete list
+   * (`withPicturesNotDrawn`), and the next file tries it again (nothing is kept for it).
+   */
+  const ensurePictures = async (named: readonly NamedView[]): Promise<Array<{ what: string; reason: string }>> => {
+    if (!input.captureReportImages) return []
     const keys = pictureKeys(named)
     const missing = (id: string, key: string) => pictureCache.current.get(id)?.key !== key
+    const notDrawn: Array<{ what: string; reason: string }> = []
+    const attempt = async (what: string, draw: () => Promise<void>) => {
+      try {
+        await draw()
+      } catch (error) {
+        notDrawn.push({ what, reason: error instanceof Error ? error.message : String(error) })
+      }
+    }
     // The maps are taken on their own hidden map, the before pictures and renders in the road view: the two run at the
     // same time. Both are waited for, even when one fails, so nothing is still moving a map when the file is written.
-    const maps = missing('maps', keys.maps) ? captureGroup('maps', named) : Promise.resolve()
+    const maps = missing('maps', keys.maps)
+      ? attempt('The maps from the plan', () => captureGroup('maps', named))
+      : Promise.resolve()
     const roadView = (async () => {
       const befores = named.filter((view) => missing(`before:${view.id}`, keys.before(view.id))).map((view) => view.id)
-      if (befores.length) await captureBefores(befores, named)
-      if (missing('renders', keys.renders)) await captureGroup('renders', named)
+      if (befores.length) await attempt('The before-harvest pictures', () => captureBefores(befores, named))
+      if (missing('renders', keys.renders))
+        await attempt('The overhead and oblique renders', () => captureGroup('renders', named))
     })()
-    const settled = await Promise.allSettled([maps, roadView])
-    const failed = settled.find((outcome) => outcome.status === 'rejected')
-    if (failed) throw (failed as PromiseRejectedResult).reason
+    await Promise.all([maps, roadView])
+    return notDrawn
   }
 
   /**
@@ -1226,7 +1245,7 @@ export function useVisualsExport(input: {
     // Every report is assembled over the loaded engine: its JSON parts never print missing.
     await loadReportEngine()
     const { names, withFigure, named } = reportPictureViews()
-    if (mode === 'file') await ensurePictures(named)
+    const notDrawn = mode === 'file' ? await ensurePictures(named) : []
     const captured = keptPictures(named)
     if (mode === 'file') {
       // What could not be captured prints nothing in the file and is listed to complete; the reason goes to the console.
@@ -1400,7 +1419,7 @@ export function useVisualsExport(input: {
     // Every view of the package the report does not print is named at its end, with why.
     const leftOut = viewsLeftOut('via-report', exportContext)
     const assembled = assembleReportParts(reportRecipe, context, scene.viaReview?.reportEdits)
-    const report = withViewsLeftOut(assembled.report, leftOut)
+    const report = withPicturesNotDrawn(withViewsLeftOut(assembled.report, leftOut), notDrawn)
     // Which groups the recipe prints at all, drawn or not: the same report with every group stood in.
     const printed = () => {
       const dry = assembleReport(
@@ -1415,7 +1434,7 @@ export function useVisualsExport(input: {
       return standInGroups(reportHtml(dry, null, { parts: [] }))
     }
     // What the Word file is built from through the recipe engine (`viaReportWord.ts`): the very inputs of `report`.
-    const source = { recipe: reportRecipe, ctx: context, edits: scene.viaReview?.reportEdits, leftOut }
+    const source = { recipe: reportRecipe, ctx: context, edits: scene.viaReview?.reportEdits, leftOut, notDrawn }
     return { report, parts: assembled.parts, edits: assembled.edits, captured, named, printed, source }
   }
   /** The lined-up photographs among the before pictures: drawn without a capture, never stood in. */
@@ -1424,10 +1443,8 @@ export function useVisualsExport(input: {
 
   /** The report's draft (`ReportDraftView`): laid out now, pictures not drawn yet stood in, each part marked. */
   const buildDraft = async (): Promise<ReportDraftResult> => {
-    if (!reportViews.length)
-      throw new Error(
-        'No view in the package has a class pass to draw the report from: capture a view of interest or save one in the road view.',
-      )
+    // A report whose views have no analysis sheet yet is laid out all the same: each figure it lacks prints nothing
+    // and is named on its to-complete list (`withViewsLeftOut`).
     // Nothing assembles a report before its engine has loaded; the draft is laid out again once it has.
     if (!reportEngine.ready)
       throw new Error('The report’s parts are still loading: the draft is laid out once they have.')
@@ -1619,7 +1636,7 @@ export function useVisualsExport(input: {
         return analysisSheetFile(resolved, format === 'png' ? 'png' : 'pdf', await printedLogoRaster(branding), timber)
       }
       case 'via-report': {
-        if (!reportViews.length) throw new Error('No view in the package has a class pass to draw the report from.')
+        // Written whether or not its views have their analysis sheets: what it lacks is on its to-complete list.
         const { report, source } = await composeReport('file')
         const fileName = `forestry-via-report-${reportRecipe.id}`
         if (format === 'md') return textFile(reportMarkdown(report), `${fileName}.md`, 'text/markdown')
@@ -2079,7 +2096,13 @@ export function useVisualsExport(input: {
     const keys = Object.fromEntries(
       plannedViews.filter((view) => ids.includes(view.id)).map((view) => [view.id, viewCaptureKey(view)]),
     )
-    const report = await input.viewCapture.capture(ids, options.before ? { before: true } : {})
+    // A view saved with its screenshot has only its analysis sheet drawn again; the rest are captured whole.
+    const report = await captureAsNeeded(
+      input.viewCapture.capture,
+      ids,
+      sheetOnlyViews({ planned: pkg.planned }, ids),
+      options.before ? { before: true } : {},
+    )
     // Each view captured for its before render is marked tried under its key: when the render was kept, the view no
     // longer owes one and the mark is never read; when it was not, a preview does not capture it again in a loop.
     if (options.before)
@@ -2095,7 +2118,8 @@ export function useVisualsExport(input: {
     setCaptureFailures((current) => {
       const next = { ...current }
       for (const id of report.captured) delete next[id]
-      // A view saved without its sheet still needs capturing (`no-figure`): its reason is kept so a preview does not
+      // A view saved without its sheet still needs capturing (`no-figure`, or its sheet drawn again, `screenshot-only`):
+      // its reason is kept so a preview does not
       // capture it again in a loop. One saved without its before render is a capture all the same.
       for (const failure of report.failures)
         if (failure.warning !== 'before' && keys[failure.viewId])

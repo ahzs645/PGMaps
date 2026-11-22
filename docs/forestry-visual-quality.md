@@ -393,10 +393,13 @@ place's scene key, the road view open on a full run, the look, the lens applied
 to the eye map, the pose within 1° of the facing, terrain and timber ready) must
 hold for 300 ms with the camera's bearing unchanged, and each save is awaited to
 the end of its class pass (or an engine's capture) before the camera moves
-again. Each settled frame of a framed capture waits up to `SETTLE_TIMEOUT_MS`
-(45 s, `mapCapture.ts`) for its tiles, and PGMaps' own analysis sheet is drawn a
-second time when the first try fails: under load a 15 s wait failed about half
-the views of a batch. With `capture(ids, { before: true })` (Save & export's
+again. Each settled frame of a framed capture waits for its tiles by their
+progress (`SETTLE_LIMITS`, `settleGivenUp`, `mapCapture.ts`): at least 45 s, as
+the old fixed wait did; past that only while a tile has loaded within the last
+20 s; and never past 3 minutes. The reason still names the tiles ("no tile
+loaded for 20 s (its tiles were still loading)"). PGMaps' own analysis sheet is
+drawn a second time when the first try fails: under load a 15 s wait failed
+about half the views of a batch. With `capture(ids, { before: true })` (Save & export's
 before pictures) each place's views are also drawn before harvest
 (`captureBeforeRenders`) once they are saved, while the road view still stands
 there; the harvest phase is put back, and the renders are kept by saved view in
@@ -407,13 +410,23 @@ keeps its capture). A recapture removes the view's earlier saves wherever they
 were saved, here or shelved (`withoutPlannedView`), so it replaces the view
 rather than adding a second. A view reads *Captured* while a saved view carries
 its id and current key, *Changed since captured* once its place, block, facing,
-lens, framing or landform has changed, *Saved, no analysis sheet* while its
-current save has no analysis sheet (its class pass failed, or the screenshot and
-sheet went with an earlier session), and *Not captured* otherwise
-(`viewCaptureState(view, saved, hasFigure)`). Only *Captured* is complete:
-`needsCapture` is every other state, so *Capture N views*, the strip's count and
-Save & export's capture all treat a save without its sheet as one still to
-capture.
+lens, framing or landform has changed, *Screenshot, no analysis sheet*
+(`screenshot-only`) while its current save kept its screenshot and the camera it
+was taken from but its class pass failed, *Saved, no analysis sheet* while the
+screenshot and sheet went with an earlier session, and *Not captured* otherwise
+(`viewCaptureState(view, saved, hasFigure, hasScreenshot)`). Only *Captured* is
+complete: `needsCapture` is every other state, so *Capture N views*, the strip's
+count and Save & export's capture all treat a save without its sheet as one
+still to capture. A `screenshot-only` view is not saved again: *Draw analysis
+sheet again* on its row, *Capture N views* and Save & export's capture
+(`captureAsNeeded`, `sheetOnlyViews`) run it with `stage: 'sheet'`, which stands
+at its place, waits only for the run, the road view and its timber
+(`captureWaitingFor(..., 'sheet')`), and calls the page's `redraw`: the class
+pass of that save is drawn from its own `figureAt`, as a background render draws
+one, and fills only its figure, keeping the saved view's id and screenshot
+(`sheetOnlyCapture` picks the latest such save). The camera is put back by
+`captureFramed`'s `finally`, and the batch steps back where the reviewer stood
+as any capture does.
 
 Each wait has its own budget, counted only while the capture waits on it
 (`CAPTURE_TIMEOUTS`): the run 5 minutes, the road view opening and its terrain,
@@ -5229,7 +5242,13 @@ their saves, the inventory read, the overview sheet's style, the recipe's
 oblique pitch and figure-page maps). The draft, Preview and Download share the
 cache, so a file captures only the groups still missing
 (`captureReportImages`'s `only`). The order is unchanged: maps, then before
-pictures, then renders.
+pictures, then renders. A group that fails no longer fails the report: it is
+written without that group, which is named with its reason on the to-complete
+list (`withPicturesNotDrawn`, the Word route's `notDrawn` too), and nothing is
+kept for it, so the next file draws it again. Nor does a package whose views
+have no analysis sheet stop the report: it is laid out and written with the
+figures it has, each view it lacks named on the to-complete list
+(`withViewsLeftOut`), as long as the package holds any view.
 
 **Why a report is quick to write again** (from a 75 s trace of one VIA report
 preview, 15 November 2026: under 2 s of it was the report's own work). Every

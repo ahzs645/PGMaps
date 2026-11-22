@@ -151,6 +151,13 @@ export type CaptureWant = {
 
 export type CaptureWait = 'run' | 'road view' | 'timber' | 'facing' | 'lens' | null
 
+/**
+ * What a capture does at each view: `full` saves the view as *Save viewpoint* does; `sheet` draws again only the
+ * analysis sheet of a view saved with its screenshot (`screenshot-only`), from the camera it was saved with, keeping
+ * the saved view and its screenshot.
+ */
+export type CaptureStage = 'full' | 'sheet'
+
 /** The drawn timber's growth: patches grown of those wanted. */
 export type TimberProgress = { done: number; total: number }
 
@@ -158,11 +165,14 @@ const turn = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
 
 /**
  * What the capture still waits for at a place, or null once the view can be saved as asked: the run for the place's
- * key, the road view open on it, terrain and timber ready, the camera on the facing, the lens on the eye map.
+ * key, the road view open on it, terrain and timber ready, the camera on the facing, the lens on the eye map. Drawing
+ * a sheet again (`stage: 'sheet'`) waits only for the run, the road view and its timber: the sheet is framed from the
+ * camera the view was saved with, whatever the road view faces.
  */
-export function captureWaitingFor(facts: CaptureFacts, want: CaptureWant): CaptureWait {
+export function captureWaitingFor(facts: CaptureFacts, want: CaptureWant, stage: CaptureStage = 'full'): CaptureWait {
   if (facts.key !== want.key || !facts.runFresh) return 'run'
   if (!facts.roadViewOpen) return 'road view'
+  if (stage === 'sheet') return facts.canSave ? null : 'timber'
   if (facts.lookAtTargetId !== want.lookAtTargetId) return 'facing'
   if (want.lookBearing !== null && (facts.lookBearing === null || turn(facts.lookBearing, want.lookBearing) > 0.05))
     return 'facing'
@@ -261,9 +271,9 @@ export function waitFailure(wait: Exclude<CaptureWait, null>, facts: CaptureFact
 
 const minutes = (ms: number) => `${Math.round(ms / 60_000)} minute${ms === 60_000 ? '' : 's'}`
 
-/** "Capturing 2 of 5: VLI 144, arrow 1…" */
-export function captureMessage(index: number, total: number, name: string): string {
-  return `Capturing ${index + 1} of ${total}: ${name}…`
+/** "Capturing 2 of 5: VLI 144, arrow 1…"; drawing sheets again, "Drawing analysis sheet 2 of 5: VLI 144, arrow 1…". */
+export function captureMessage(index: number, total: number, name: string, stage: CaptureStage = 'full'): string {
+  return `${stage === 'sheet' ? 'Drawing analysis sheet' : 'Capturing'} ${index + 1} of ${total}: ${name}…`
 }
 
 /**
@@ -277,15 +287,21 @@ export function captureSummary(
   failed: number,
   cancelled: boolean,
   warned: { sheet?: number; before?: number } = {},
+  stage: CaptureStage = 'full',
 ): string {
   // A view saved without its analysis sheet is not captured yet: the list and *Capture N views* take it again.
-  const head = `Captured ${captured - (warned.sheet ?? 0)} of ${total} view${total === 1 ? '' : 's'}`
+  const head =
+    stage === 'sheet'
+      ? `Drew ${captured - (warned.sheet ?? 0)} of ${total} analysis sheet${total === 1 ? '' : 's'}`
+      : `Captured ${captured - (warned.sheet ?? 0)} of ${total} view${total === 1 ? '' : 's'}`
   const without = (count: number | undefined, what: string) =>
     count ? `${count} saved without ${count === 1 ? 'its' : 'their'} ${what}${count === 1 ? '' : 's'}` : ''
   const parts = [
     cancelled ? 'cancelled' : '',
-    !cancelled && failed ? `${failed} could not be captured` : '',
-    without(warned.sheet, 'analysis sheet'),
+    !cancelled && failed ? `${failed} could not be ${stage === 'sheet' ? 'drawn' : 'captured'}` : '',
+    stage === 'sheet' && warned.sheet
+      ? `${warned.sheet} still without ${warned.sheet === 1 ? 'its' : 'their'} analysis sheet${warned.sheet === 1 ? '' : 's'}`
+      : without(warned.sheet, 'analysis sheet'),
     without(warned.before, 'before-harvest render'),
   ].filter(Boolean)
   return parts.length ? `${head}; ${parts.join('; ')}.` : `${head}.`

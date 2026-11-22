@@ -21,6 +21,7 @@ import {
   uncapturedNote,
   blockNoteWithoutScreenshot,
   viewsToCapture,
+  sheetOnlyViews,
   type ExportPlannedView,
   exportContents,
   exportEditorId,
@@ -1238,6 +1239,33 @@ describe('before-harvest renders taken where each view stands', () => {
       hasFigure: () => true,
     })
     expect(resolved.planned[0]).toMatchObject({ state: 'captured', beforeOwed: true, beforeFailed: null })
+  })
+})
+
+describe('a view saved with its screenshot but not its analysis sheet', () => {
+  it('is listed as one whose sheet alone is drawn again, and goes in the files meanwhile', () => {
+    const a = planned('a')
+    const b = planned('b')
+    const resolved = resolvePackage({
+      choice: { recipeId: null, documentFormatId: null, excludedViews: new Set() },
+      recipes: REPORT_RECIPES,
+      formats: VIA_DOCUMENT_FORMATS,
+      roadViewStyleId: null,
+      planned: [a, b],
+      blocks: [{ id: 'block-1', name: 'Block 1' }],
+      savedViews: [
+        { id: 'a-1', name: 'A', plannedViewId: 'a', plannedKey: viewCaptureKey(a) },
+        { id: 'b-1', name: 'B', plannedViewId: 'b', plannedKey: viewCaptureKey(b) },
+      ],
+      hasFigure: () => false,
+      // Only a's screenshot is held: b's went with an earlier session.
+      hasScreenshot: (id) => id === 'a-1',
+    })
+    expect(resolved.planned.map((view) => view.state)).toEqual(['screenshot-only', 'no-figure'])
+    // Both are taken again before a file; only a's sheet is drawn alone.
+    expect(viewsToCapture('via-report', resolved)).toEqual(['a', 'b'])
+    expect([...sheetOnlyViews(resolved, ['a', 'b'])]).toEqual(['a'])
+    expect([...sheetOnlyViews(resolved, ['b'])]).toEqual([])
   })
 })
 

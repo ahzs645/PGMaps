@@ -151,6 +151,18 @@ describe('waiting for the road view', () => {
     expect(captureWaitNote('lens', { ...ready, timberProgress: { done: 12, total: 40 } })).toBeNull()
   })
 
+  it('waits only for the run, the road view and the timber to draw a sheet again', () => {
+    expect(captureWaitingFor({ ...ready, lookBearing: 200, lensMm: 50, poseBearing: null }, want, 'sheet')).toBeNull()
+    expect(captureWaitingFor({ ...ready, runFresh: false }, want, 'sheet')).toBe('run')
+    expect(captureWaitingFor({ ...ready, roadViewOpen: false }, want, 'sheet')).toBe('road view')
+    expect(captureWaitingFor({ ...ready, canSave: false }, want, 'sheet')).toBe('timber')
+    expect(captureMessage(0, 2, 'VLI 144, arrow 1', 'sheet')).toBe('Drawing analysis sheet 1 of 2: VLI 144, arrow 1…')
+    expect(captureSummary(2, 2, 0, false, { sheet: 1 }, 'sheet')).toBe(
+      'Drew 1 of 2 analysis sheets; 1 still without its analysis sheet.',
+    )
+    expect(captureSummary(1, 2, 1, false, {}, 'sheet')).toBe('Drew 1 of 2 analysis sheets; 1 could not be drawn.')
+  })
+
   it('checks a block facing against the bearing to the block from the camera', () => {
     const block: CaptureWant = { ...want, lookAtTargetId: 'block-1', lookBearing: null }
     const facts = { ...ready, lookAtTargetId: 'block-1', lookBearing: null, poseBearing: 359.6, blockBearing: 0.2 }

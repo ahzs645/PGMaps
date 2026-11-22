@@ -218,6 +218,28 @@ export function withViewsLeftOut(
   }
 }
 
+/**
+ * A report written though some of its pictures could not be drawn: each group that failed (the maps from the plan,
+ * the before pictures, the renders) is named on the to-complete list with why. Nothing is printed in its place: the
+ * parts that would have drawn it print nothing for it.
+ */
+export function withPicturesNotDrawn(
+  report: AssembledReport,
+  notDrawn: ReadonlyArray<{ what: string; reason: string }>,
+): AssembledReport {
+  if (!notDrawn.length) return report
+  return {
+    ...report,
+    toComplete: [
+      ...report.toComplete,
+      ...notDrawn.map((entry) => ({
+        part: 'Figures',
+        what: `${entry.what} could not be drawn (${entry.reason.replace(/[.\s]*$/, '')}): write the report again to draw them`,
+      })),
+    ],
+  }
+}
+
 /** The document format a recipe reads, checked. */
 export function recipeFormat(recipe: ReportRecipe) {
   const format = findDocumentFormat(recipe.format)

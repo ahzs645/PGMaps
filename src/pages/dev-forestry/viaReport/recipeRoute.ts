@@ -45,6 +45,7 @@ import type { ReportContext } from './parts'
 import {
   assembleReportParts,
   partContext,
+  withPicturesNotDrawn,
   withViewsLeftOut,
   type AssembledEdits,
   type AssembledPart,
@@ -292,6 +293,8 @@ export interface RecipeRouteInput {
   edits?: ReportEdits
   /** The package's views the report does not print, with why (`withViewsLeftOut`). */
   leftOut?: ReadonlyArray<{ name: string; reason: string }>
+  /** The groups of pictures that could not be drawn, with why (`withPicturesNotDrawn`). */
+  notDrawn?: ReadonlyArray<{ what: string; reason: string }>
   logo: ReportLogo | null
   options?: WordReportOptions
 }
@@ -315,7 +318,7 @@ export async function recipeReportDocument(kit: RecipeKit, input: RecipeRouteInp
   const recipe = reportRecipeOf(compiled)
   const edits = input.edits ?? {}
   const assembled = assembleReportParts(recipe, input.ctx, edits)
-  const report = withViewsLeftOut(assembled.report, input.leftOut ?? [])
+  const report = withPicturesNotDrawn(withViewsLeftOut(assembled.report, input.leftOut ?? []), input.notDrawn ?? [])
   const pics = await reportPictures(kit)
 
   // Each code part's blocks by their place in the assembled report, its own to-complete on the first of them.
