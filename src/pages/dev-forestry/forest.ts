@@ -555,6 +555,15 @@ export type TreePlacementOptions = {
    * (`driveForestTerrain.ts`) passes it, so a stem beside unread ground does not roof that ground.
    */
   canopyKnownAt?: (lng: number, lat: number) => boolean
+  /**
+   * Inside the inventory's open ground, let the first stand that holds a point decide whether a canopy tile may roof
+   * it, as a stem reads it: open only where that stand is open ground or is not above `CANOPY_CLOSES_AT_METERS` (a
+   * regrowth stand inside its regeneration lag, a young stand). The background band (`growForestPatch`) sets it: its
+   * inventory lists the core read before its own, and the core's answer wins there. Absent, any open polygon holding
+   * the point keeps a tile off it, whatever is listed before it: a regrowth stand listed before the open ground of a
+   * fresh block must not let the canopy over that block.
+   */
+  canopyOpenByFirstStand?: boolean
 }
 
 /**
@@ -791,6 +800,17 @@ export function speciesMixFromInventory(
 const METERS_PER_DEGREE_LAT = 111_320
 
 /**
+ * Whether a stand that wins a point leaves it open to the sky for a canopy tile: open ground, or a stand whose recorded
+ * height is not above `CANOPY_CLOSES_AT_METERS` (a block inside its regeneration lag stands at 0). A stand with no
+ * recorded height is treed at the regional height. No stand at all is open: the point is inside open ground.
+ */
+function standIsOpen(stand: InventoryStand | null): boolean {
+  if (!stand) return true
+  if (stand.cover && TREELESS_COVER.has(stand.cover)) return true
+  return stand.heightMeters !== null && stand.heightMeters <= CANOPY_CLOSES_AT_METERS
+}
+
+/**
  * Grows a patch of forest around a point.
  *
  * Stems sit on a jittered grid rather than at random: true randomness clumps,
@@ -818,6 +838,7 @@ export function placeTrees({
   bounds,
   canopyTileMeters = 0,
   canopyKnownAt,
+  canopyOpenByFirstStand = false,
 }: TreePlacementOptions): TreeInstance[] {
   if (radiusMeters <= 0 || spacingMeters <= 0) return []
   const mixRatio = meanCrownRatio(speciesMix)
@@ -898,11 +919,12 @@ export function placeTrees({
     if (stands.length > 0 && !standsAt.contains(lng, lat)) return true
     if (canopyKnownAt && !canopyKnownAt(lng, lat)) return true
     if (!treelessAt?.contains(lng, lat)) return false
-    // Open only where the stand that wins the point (the first that holds it, as a stem reads it) is open: a stand
-    // listed before the open polygon (a regrowth stand, the core read before the background's) grows timber there,
-    // and its canopy is not held back. Asked only inside open ground, so the fast path above stays fast.
-    const surveyed = surveyedAt(lng, lat)
-    return !!surveyed?.cover && TREELESS_COVER.has(surveyed.cover)
+    if (!canopyOpenByFirstStand) return true
+    // The background band: open only where the stand that wins the point (the first that holds it, as a stem reads
+    // it) is open ground or no closed canopy yet. A taller stand listed before the open polygon (the core read before
+    // the background's) grows timber there, and its canopy is not held back. Asked only inside open ground, so the
+    // fast path above stays fast.
+    return standIsOpen(surveyedAt(lng, lat))
   }
   // A tile is the canopy over the ground its stem stands for, and a coarse band's stem stands for
   // up to 80 m of it: laid whole beside a block, half of it would roof the cut ground. Its ground is
