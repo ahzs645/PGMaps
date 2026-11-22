@@ -282,6 +282,27 @@ describe('capturing planned views', () => {
     expect(clock.elapsed()).toBeLessThan(25_000)
   })
 
+  it('stops a save that runs out of time through its signal, and captures nothing after it', async () => {
+    const views = [view('a'), view('b', { lng: -122.7 })]
+    const { host, log } = fakePage(views)
+    let signal: AbortSignal | undefined
+    host.save = (v, given) => {
+      log.push(`save ${v.id}`)
+      signal = given
+      return new Promise(() => {})
+    }
+    const report = await runViewCapture(() => host, ['a', 'b'], {
+      cancelled: () => false,
+      onState: () => {},
+      clock: fastClock(),
+    })
+    expect(signal?.aborted).toBe(true)
+    expect(report.captured).toEqual([])
+    expect(report.failures.map((failure) => failure.viewId)).toEqual(['a', 'b'])
+    expect(log).toEqual(['stand a', 'save a', 'restore where I stood'])
+    expect(CAPTURE_TIMEOUTS.saveMs).toBeGreaterThan(0)
+  })
+
   it('stops when cancelled and still steps back', async () => {
     const views = [view('a'), view('b', { lng: -122.7 })]
     const { host, log, page } = fakePage(views)

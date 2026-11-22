@@ -290,7 +290,9 @@ import {
 import {
   captureAtCamera,
   captureClassPass,
+  CaptureStopped,
   captureFramed,
+  FRAMED_CAPTURE_DEADLINE_MS,
   FRAMED_WIDTH,
   captureImageUrl,
   captureMapImage,
@@ -502,6 +504,8 @@ import { keptCopySource } from '@/lib/offline/keptReads'
 
 /** The look a road view video's take starts each placement with: no yaw or tilt of the reviewer's on top. */
 const VIDEO_LOOK = { yaw: 0, tilt: 0 }
+/** A second try at an analysis sheet is made only with at least this much of the capture's budget left. */
+const FRAMED_RETRY_MIN_MS = 15_000
 
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 const NO_TARGETS: TargetPolygon[] = []
@@ -4644,6 +4648,11 @@ function DevForestryVisuals({
      * before harvest for a report's before picture. PGMaps' own capture draws the road view as it stands.
      */
     phase: HarvestPhase = drive.harvestPhase,
+    /**
+     * The framed capture's budget (`captureFramed`): one deadline for every settle and class pass, and a signal that
+     * stops it, so a save never outlasts the capture that asked for it.
+     */
+    budget: { signal?: AbortSignal; deadlineMs?: number } = {},
   ): Promise<SavedFigure> => {
     // Frame the landform (or, with none, the blocks), then put the reviewer's camera back (captureFramed).
     const { ground, eye, plan, landform, figureFrame } = figureFramingFor(at)
@@ -4714,6 +4723,7 @@ function DevForestryVisuals({
           zoneLayers.length ? zoneLayers : null,
           thinPoints(visibleBlockPoints),
           otherPasses,
+          budget,
         )
         framed = pgmaps
         otherRasters = pgmaps.landforms
@@ -5059,6 +5069,8 @@ function DevForestryVisuals({
       plannedKey: string
       lensHfov: number
       framing: 'landform' | 'single'
+      /** Stops the analysis sheet's capture: the capture batch's own time limit or cancel. */
+      signal?: AbortSignal
     } | null = null,
   ): Promise<ViewSaveOutcome> => {
     if (!canSaveView) return Promise.resolve({ error: 'The road view was not ready to save.' })
@@ -5244,13 +5256,18 @@ function DevForestryVisuals({
           // Tried twice: under load the framed view's terrain can take longer to settle than one read waits, and the
           // second try finds its tiles loaded. The camera is the drive's again between tries (`captureFramed`).
           let figure: SavedFigure
+          // Both tries share one budget (`FRAMED_CAPTURE_DEADLINE_MS`): a second try gets only the time left, and
+          // a capture stopped by its deadline or the batch's cancel is not tried again.
+          const signal = planned?.signal
+          const startedAt = Date.now()
           try {
-            figure = await captureViewFigure(map, at)
+            figure = await captureViewFigure(map, at, undefined, undefined, { signal })
           } catch (first) {
             // Another engine's capture has its own budget and reports why; it is not drawn twice.
-            if (engine || !onSite()) throw first
+            const left = FRAMED_CAPTURE_DEADLINE_MS - (Date.now() - startedAt)
+            if (engine || !onSite() || first instanceof CaptureStopped || left < FRAMED_RETRY_MIN_MS) throw first
             setPreviewMessage(`Saved ${view.name}. Drawing its analysis sheet again…`)
-            figure = await captureViewFigure(map, at)
+            figure = await captureViewFigure(map, at, undefined, undefined, { signal, deadlineMs: left })
           }
           if (!onSite()) return leftSite
           setViewImages((current) =>
@@ -5397,18 +5414,19 @@ function DevForestryVisuals({
       setPhotoStand(block ? photoStandFor(view, sceneRef.current.viewpoint.id, block) : null)
       updateDrive({ ...standFacing(view), playing: false })
     },
-    save: (view) =>
+    save: (view, signal) =>
       saveView({
         name: view.name,
         plannedViewId: view.id,
         plannedKey: viewCaptureKey(view),
         lensHfov: viewLensHfov(view),
         framing: view.framing,
+        signal,
       }),
     // The analysis sheet of a view saved with its screenshot, drawn again from the camera it was saved with, as a
     // background render draws one (`captureViewFigure` on its `figureAt`): only the figure is filled, the saved view,
     // its id and its screenshot stay, and `captureFramed` puts the eye camera back in its `finally`.
-    redraw: async (view) => {
+    redraw: async (view, signal) => {
       const saved = sheetOnlyCapture(view, savedViews, savedViewHasScreenshot)
       if (!saved)
         return {
@@ -5441,12 +5459,14 @@ function DevForestryVisuals({
         // Read after the phase changed: the stand and class layers of the road view as it is drawn now.
         const capture = captureViewFigureRef.current
         let figure: SavedFigure
+        const startedAt = Date.now()
         try {
-          figure = await capture(map, at, engine, phase)
+          figure = await capture(map, at, engine, phase, { signal })
         } catch (first) {
-          // As at a save: PGMaps' own sheet is tried twice, another engine's capture once.
-          if (engine || !onSite()) throw first
-          figure = await captureViewFigureRef.current(map, at, engine, phase)
+          // As at a save: PGMaps' own sheet is tried twice within one budget, another engine's capture once.
+          const left = FRAMED_CAPTURE_DEADLINE_MS - (Date.now() - startedAt)
+          if (engine || !onSite() || first instanceof CaptureStopped || left < FRAMED_RETRY_MIN_MS) throw first
+          figure = await captureViewFigureRef.current(map, at, engine, phase, { signal, deadlineMs: left })
         }
         if (!onSite()) return leftSite
         // The figure is all that changes: a kept `figureError` is read only while there is none (`unprintedViews`).
@@ -5766,6 +5786,9 @@ function DevForestryVisuals({
             : 'Date unavailable',
           renderer: figure.illustration?.renderer ?? 'PGMaps',
           sightlinePercent: capturedSightline(figure).percent,
+          // How the figure stood when the view was saved, so a comparison reads it as the run did (`comparisonSightline`).
+          ...(figure.sightlineReadiness ? { sightlineReadiness: figure.sightlineReadiness } : {}),
+          ...(figure.sightlineWithheld ? { sightlineWithheld: figure.sightlineWithheld } : {}),
           setup: JSON.stringify({
             pose: image.figureAt?.pose,
             frame: image.figureAt?.figureFrame,

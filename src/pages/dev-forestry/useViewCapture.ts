@@ -113,14 +113,15 @@ export type ViewCaptureHost<Snapshot = unknown> = {
   /** Turns the road view to another view at the same place, with its lens. */
   face: (view: ViewOfInterest) => void
   /** Saves the road view as *Save viewpoint* does, for the view, replacing earlier saves of it. */
-  save: (view: ViewOfInterest) => Promise<ViewSaveOutcome>
+  /** `signal` stops the save's analysis sheet capture: the batch aborts it when the save runs out of time. */
+  save: (view: ViewOfInterest, signal?: AbortSignal) => Promise<ViewSaveOutcome>
   /**
    * Draws again the analysis sheet of the view's save that kept its screenshot (`sheetOnlyCapture`), from the camera
    * it was saved with, as a background render does, and fills only its figure: the saved view, its id and its
    * screenshot stay. Resolves with that saved view's id once the sheet is drawn (or failed, with `warning`); the eye
    * camera is put back in its `finally`. Absent: sheets cannot be drawn again here.
    */
-  redraw?: (view: ViewOfInterest) => Promise<ViewSaveOutcome>
+  redraw?: (view: ViewOfInterest, signal?: AbortSignal) => Promise<ViewSaveOutcome>
   /** Ids of every saved view, shelved ones included: a save is done once the page lists it. */
   savedViewIds: () => readonly string[]
   /**
@@ -355,15 +356,18 @@ export async function runViewCapture<S>(
           continue
         }
         const page = getHost()
+        // Aborted when the save runs out of time, so its analysis sheet capture stops moving the camera too.
+        const stop = new AbortController()
         const saving = !page
           ? Promise.resolve<ViewSaveOutcome>({ error: 'The page closed.' })
           : viewStage === 'sheet'
-            ? (page.redraw?.(view) ??
+            ? (page.redraw?.(view, stop.signal) ??
               Promise.resolve<ViewSaveOutcome>({ error: 'Analysis sheets cannot be drawn again here.' }))
-            : page.save(view)
+            : page.save(view, stop.signal)
         const outcome = await timed('view capture: save', () =>
           Promise.race([saving, clock.sleep(CAPTURE_TIMEOUTS.saveMs).then(() => 'timeout' as const)]),
         )
+        if (outcome === 'timeout') stop.abort()
         if (outcome === 'timeout') {
           // The class pass may still be moving the camera: nothing more is captured, so nothing moves it under it.
           fail(view, 'Its analysis sheet did not finish drawing in time.')
