@@ -22,7 +22,8 @@ import {
   type RoadVideoScene,
   type RoadVideoTakeFacts,
 } from './roadVideo'
-import type { AnalysisResult, HarvestSystem, TargetPolygon } from './types'
+import { DIAGNOSTIC_LABEL, runFigures, withheldText } from './runFigures'
+import type { AnalysisResult, HarvestSystem, RunGap, TargetPolygon } from './types'
 import type { ViaAssessment, ViaStepId } from './via'
 import { recipeContents, type PartFacts, type RecipeContentsSource } from './viaReport/recipeContents'
 import { lineLengthMeters, polygonAreaMeters } from './visibility'
@@ -441,8 +442,13 @@ export type ExportContext = {
   numericalReady: boolean
   /** Run warnings: what the PDF withholds and why. */
   runWarnings: string[]
+  /** The run's figures, only when they are the assessment's (`runFigures`): null while the run is not ready. */
   perspectivePercent: number | null
   planimetricPercent: number | null
+  /** Why the figures are withheld, first gap first (`runFigures`); empty when they are ready. */
+  runGaps: RunGap[]
+  /** The run's raw figures while they are withheld, printed only under the diagnostic label. */
+  diagnosticPercents?: { perspective: number | null; planimetric: number | null }
   rating: string | null
   ratingMissing: string[]
   ocularClass: string | null
@@ -1081,10 +1087,24 @@ function runSection(ctx: ExportContext): ExportSection {
       { label: 'Status', value: status },
       ...(ctx.run === 'none'
         ? []
-        : [
-            { label: 'Perspective alteration', value: percent(ctx.perspectivePercent) },
-            { label: 'Planimetric alteration', value: percent(ctx.planimetricPercent) },
-          ]),
+        : ctx.runGaps.length === 0
+          ? [
+              { label: 'Perspective alteration', value: percent(ctx.perspectivePercent) },
+              { label: 'Planimetric alteration', value: percent(ctx.planimetricPercent) },
+            ]
+          : [
+              // One readiness rule (`runFigures`): a withheld figure names why, never prints as the assessment's.
+              { label: 'Alteration', value: withheldText({ gaps: ctx.runGaps }) },
+              ...(ctx.diagnosticPercents &&
+              (ctx.diagnosticPercents.perspective !== null || ctx.diagnosticPercents.planimetric !== null)
+                ? [
+                    {
+                      label: DIAGNOSTIC_LABEL,
+                      value: `perspective ${percent(ctx.diagnosticPercents.perspective)} · planimetric ${percent(ctx.diagnosticPercents.planimetric)}`,
+                    },
+                  ]
+                : []),
+            ]),
     ],
     note: ctx.runWarnings.length ? ctx.runWarnings.join(' ') : undefined,
   }
@@ -2214,8 +2234,22 @@ export function buildExportContext(input: ContextInput): ExportContext {
     run: result ? 'current' : stale ? 'stale' : 'none',
     numericalReady: !!result?.quality?.numericalReady,
     runWarnings: (result?.quality?.warnings ?? []).slice(0, 3),
-    perspectivePercent: result?.perspectiveAlteration?.cumulativePercent ?? null,
-    planimetricPercent: result?.planimetricAlteration?.cumulativePercent ?? null,
+    ...(() => {
+      const figures = runFigures(result, { stale })
+      return {
+        perspectivePercent: figures.perspective?.cumulativePercent ?? null,
+        planimetricPercent: figures.planimetric?.cumulativePercent ?? null,
+        runGaps: figures.gaps,
+        ...(figures.state === 'provisional'
+          ? {
+              diagnosticPercents: {
+                perspective: figures.diagnostic.perspective?.cumulativePercent ?? null,
+                planimetric: figures.diagnostic.planimetric?.cumulativePercent ?? null,
+              },
+            }
+          : {}),
+      }
+    })(),
     rating: assessment?.rating?.label ?? null,
     ratingMissing: assessment?.missing ?? [],
     ocularClass: assessment?.ocular ? objectiveName(assessment.ocular.classId) : null,

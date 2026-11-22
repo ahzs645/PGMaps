@@ -1166,6 +1166,11 @@ export interface FigureInput {
   landforms?: readonly LandformColumn[] | null
   /** The page's sightline alteration at this station, percent: the assessment's figure. */
   sightlinePercent: number | null
+  /**
+   * Printed in place of the sightline figure when the run's figures were not the assessment's at the save ("Withheld —
+   * …", or that readiness was not recorded): `capturedSightline`. Absent: the figure stands, or there is none.
+   */
+  sightlineWithheld?: string | null
   /** Its Table 2 class name, if any. */
   sightlineClass?: string | null
   /**
@@ -1812,7 +1817,9 @@ function measureLines(
         : ', bare earth'
   const screened = input.screenedClasses ? figurePercent(input, countClasses(input.screenedClasses)) : null
   return [
-    `Sightline measure (PGMaps run, the assessment figure${of}): ${fixed(input.sightlinePercent)}%${input.sightlineClass ? ` (${input.sightlineClass})` : ''}`,
+    input.sightlinePercent === null && input.sightlineWithheld
+      ? `Sightline measure (PGMaps run${of}): ${input.sightlineWithheld}`
+      : `Sightline measure (PGMaps run, the assessment figure${of}): ${fixed(input.sightlinePercent)}%${input.sightlineClass ? ` (${input.sightlineClass})` : ''}`,
     `Pixel measure, this image${of}${ground}: ${fixed(pixel)}%`,
     ...(input.screenedClasses ? [`Pixel measure with the drawn trees in front: ${fixed(screened)}%`] : []),
     ...(timberLine(input) ? [timberLine(input)!] : []),

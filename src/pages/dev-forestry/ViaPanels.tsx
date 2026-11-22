@@ -12,6 +12,7 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { cn } from '@/lib/utils'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 
+import { runFigures } from './runFigures'
 import type { AnalysisResult } from './types'
 import {
   DESIGN_ELEMENTS,
@@ -440,7 +441,7 @@ export function NumericalAssessmentSummary({
   /** Block names by id, for the visible net block rows. */
   blockNames?: Readonly<Record<string, string>>
 }) {
-  const breakdown = result?.quality?.numericalReady ? result.perspectiveAlteration : null
+  const breakdown = runFigures(result).perspective
   if (!breakdown) {
     return (
       <InlineAlert tone={assessment.numericalProvisional ? 'warning' : 'info'}>

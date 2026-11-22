@@ -476,6 +476,7 @@ import {
   VIA_STEPS,
   type ViaReview,
 } from './dev-forestry/via'
+import { capturedSightline, captureSightline, runFigures } from './dev-forestry/runFigures'
 import { groupLeadOf, groupMembers } from './dev-forestry/viewGroups'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
 import { bearingDegrees, lineLengthMeters, polygonAreaMeters, polygonBounds } from './dev-forestry/visibility'
@@ -4656,8 +4657,9 @@ function DevForestryVisuals({
       )
       return parts.length ? [{ role: line.role, parts }] : []
     })
-    const breakdown = result?.perspectiveByStation[at.stationIndex] ?? null
-    const percent = breakdown ? breakdown.cumulativePercent : null
+    // The run's figure at the station only when the run stands behind it (`runFigures`); else why not.
+    const sightline = captureSightline(runFigures(result), at.stationIndex)
+    const percent = sightline.sightlinePercent
     const station = result?.stations[at.stationIndex]
     // Step 1's lookup and the scene's own read (the EVQO drape's, Save & export's), whichever has been made.
     const sceneUnits = sceneInventoryRef.current.units
@@ -4682,7 +4684,7 @@ function DevForestryVisuals({
       ...(frameImage ? { frameImage } : {}),
       callouts,
       stationIndex: at.stationIndex,
-      sightlinePercent: percent,
+      ...sightline,
       sightlineClass: percent === null ? null : (table2Class(percent)?.label ?? null),
       lens,
       distanceKm: nearest.length ? Math.min(...nearest) / 1000 : null,
@@ -5505,7 +5507,7 @@ function DevForestryVisuals({
             ? new Date(image.savedAt).toISOString()
             : 'Date unavailable',
           renderer: figure.illustration?.renderer ?? 'PGMaps',
-          sightlinePercent: figure.sightlinePercent ?? null,
+          sightlinePercent: capturedSightline(figure).percent,
           setup: JSON.stringify({
             pose: image.figureAt?.pose,
             frame: image.figureAt?.figureFrame,

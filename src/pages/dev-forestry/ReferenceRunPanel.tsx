@@ -4,6 +4,7 @@ import { FORM_INPUT_CLASS, SelectField } from '@/components/ui/form-field'
 import { acceptedReferenceStation } from './referenceProjection'
 import { chosenValues, type ReferenceRow } from './referenceMeasurements'
 import type { ProjectAttachment } from './projectArchive'
+import { DIAGNOSTIC_LABEL, runFigures, withheldText } from './runFigures'
 import type { AnalysisInput, AnalysisWorkerRequest, AnalysisWorkerResponse } from './types'
 
 /** A retained run's archive: its inputs, the terrain and inventory it read, its figures and their checksums. */
@@ -116,11 +117,18 @@ export function ReferenceRunPanel({
             actions.retain({ name, rowId: row.id, blob: new Blob([m.archive], { type: 'application/zip' }) })
             setSelected('retained')
           }
-          const value = m.result.perspectiveAlteration?.cumulativePercent
+          // A provisional run's figure is a reference diagnostic, and says so (`runFigures`).
+          const figures = runFigures(m.result)
+          const value = figures.diagnostic.perspective?.cumulativePercent
           const result =
             value == null
               ? 'Perspective result unavailable.'
-              : 'Perspective sightline alteration ' + Number(value.toFixed(3)) + '%.'
+              : 'Perspective sightline alteration ' +
+                Number(value.toFixed(3)) +
+                '%' +
+                (figures.state === 'ready'
+                  ? '.'
+                  : ' (' + DIAGNOSTIC_LABEL.toLowerCase() + '). ' + withheldText(figures))
           const evidence = m.archive
             ? 'Retained ' + name + ' for this session. Save it from Save & export → Sightline replay archive.'
             : m.replayMatches

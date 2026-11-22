@@ -23,6 +23,7 @@
  *
  * Pure: no DOM, no network.
  */
+import { runFigures } from './runFigures'
 import type { AnalysisResult, TargetPolygon, TargetVisibility } from './types'
 import { initialAlterationPercent, table2Range } from './via'
 import {
@@ -833,7 +834,9 @@ export function narrativeInputFromScene({
     .slice(0, 6)
     .map(({ entry }) => entry.name)
 
-  const breakdown = result?.perspectiveAlteration ?? null
+  // Only a run that stands behind its figures gives the desktop review its X (`runFigures`): a provisional run's
+  // number would read as "should meet the requirements" with nothing under it.
+  const breakdown = runFigures(result).perspective
   const x = initialAlterationPercent(breakdown)
   const alteration =
     landform && x !== null && result?.activeLandformId === landform.id

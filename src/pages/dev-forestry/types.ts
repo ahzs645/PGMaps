@@ -215,6 +215,31 @@ export type AlterationBreakdown = {
   proposedPercent: number
   cumulativePercent: number
 }
+/**
+ * One reason a run's numerical figures are withheld, in the order the run found them. `editor` names the part of the
+ * page that supplies what is missing (`ExportEditor`'s ids); `action` a control there that does it.
+ */
+export type RunGap = {
+  id: RunGapId
+  text: string
+  editor?: 'run' | 'landform' | 'cutblocks' | 'viewpoint'
+  action?: 'lookup-inventory'
+}
+export type RunGapId =
+  | 'not-run'
+  | 'stale'
+  | 'provisional'
+  | 'no-landform'
+  | 'green-area'
+  | 'existing-disturbance'
+  | 'unknown-sightlines'
+  | 'under-resolved'
+  | 'screening-incomplete'
+  | 'masks-under-sampled'
+  | 'target-offset'
+  | 'no-green-area'
+  | 'no-station-denominator'
+  | 'screening-collapsed'
 export type AnalysisQuality = {
   terrain: Availability
   vegetation: Availability
@@ -226,6 +251,8 @@ export type AnalysisQuality = {
   largestGroundCellPercent: number | null
   numericalReady: boolean
   warnings: string[]
+  /** Why the figures are withheld, one entry a reason (`runFigures.ts` reads them). Absent on runs saved before it. */
+  gaps?: RunGap[]
 }
 export type AnalysisResult = {
   sightlineProfile?: import('./sightlineProfile').SightlineProfile

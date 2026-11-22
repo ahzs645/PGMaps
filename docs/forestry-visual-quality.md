@@ -1411,6 +1411,31 @@ with the paper form does. `PERCENT_CLEARCUT` on an *existing* opening is not
 volume removed, so existing openings keep their own scaling (below) and are
 never converted through Table 6.
 
+## One readiness rule for every output
+
+A run's alteration figures are the assessment's only while the run is current
+and `quality.numericalReady` holds. Every surface that prints one reads it
+through `runFigures` (`runFigures.ts`, DOM-free): the Results tiles, step 4,
+the Viewpoint summary, the run readout, the station table and its CSV, Save &
+export's *Run* rows, the FS1252 draft, the Markdown worksheet, the Visuals
+paragraph, the saved assessment runs and their evidence, and every saved view.
+It gives the state (`none`, `stale`, `provisional`, `ready`), the figures only
+when ready, and the run's **gaps**: the reasons the run withheld them, each
+with the part of the page that supplies it (`quality.gaps`, emitted by the run
+beside its warnings). A withheld figure prints "Withheld — <first gap>"; a
+surface that shows the raw value labels it *Diagnostic (not for reporting)*.
+`runFigures.test.ts` scans the source and fails on a read of
+`perspectiveAlteration`, `planimetricAlteration` or `perspectiveByStation`
+outside the run, the rule, the replay and the saved-summary record.
+
+A saved view stamps the sightline figure at its station only when the run was
+ready (`captureSightline`), and otherwise the reason (`sightlineWithheld`).
+Views saved before that record carry no readiness, and print *Readiness not
+recorded* in place of their figure (`capturedSightline`): never as the
+assessment's, never as a group's X in step 4 away from the station. Run
+assumptions sit inside the *Run* part's editor, so Save & export supplies a
+gap where it names it.
+
 ## Existing harvest and cumulative alteration
 
 An objective is met or missed by what is on the ground **plus** what is

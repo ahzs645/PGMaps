@@ -160,6 +160,11 @@ export interface DocumentViewpoint {
   /** The run's sightline figure at the station, percent: the assessment's figure. */
   sightlinePercent: number | null
   /**
+   * Printed in place of `sightlinePercent` when the run did not stand behind a figure at the save (`capturedSightline`):
+   * "Withheld — …" or that readiness was not recorded. Absent: the figure stands, or there is none.
+   */
+  sightlineWithheld?: string
+  /**
    * Why the pixel figure and the sightline figure can part, when the picture drew the blocks' ground from much
    * coarser elevation cells than the run walked (`terrainDetailNote`): printed beside the two, neither adjusted.
    */

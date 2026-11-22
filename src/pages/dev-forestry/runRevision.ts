@@ -9,6 +9,7 @@
  */
 import { canonicalInput, resolvedThresholds } from './integrity'
 import { formatPct } from './measureFormat'
+import { runFigures } from './runFigures'
 import type { AnalysisResult, TargetPolygon } from './types'
 import {
   assessObjective,
@@ -126,16 +127,18 @@ export function runHeadline(
   designName: string | null = null,
 ): RunHeadline | null {
   if (!landform || !result.activeLandformId || result.activeLandformId !== landform.id) return null
-  const numericalReady = !!result.quality?.numericalReady
+  // One readiness rule (`runFigures`): the figures are null while the run is provisional.
+  const figures = runFigures(result)
+  const numericalReady = figures.state === 'ready'
   const bases: Array<[AlterationBasis, AnalysisResult['perspectiveAlteration']]> = [
-    ['perspective', result.perspectiveAlteration],
-    ['planimetric', result.planimetricAlteration],
+    ['perspective', figures.perspective],
+    ['planimetric', figures.planimetric],
   ]
   const resolved = Object.fromEntries(
     bases.map(([basis]) => [basis, resolvedThresholds(landform.objectiveId, basis, thresholds, landform.vac)]),
   ) as Record<AlterationBasis, VisualQualityThresholds>
   const scales = bases.map(([basis, breakdown]): HeadlineScale => {
-    const percent = numericalReady && breakdown ? breakdown.cumulativePercent : null
+    const percent = breakdown ? breakdown.cumulativePercent : null
     const floorPercent = rangeFloorFor(landform.objectiveId, basis, resolved[basis]),
       maxPercent = thresholdFor(landform.objectiveId, basis, resolved[basis])
     if (percent === null || !Number.isFinite(percent))

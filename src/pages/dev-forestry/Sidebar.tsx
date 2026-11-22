@@ -51,6 +51,7 @@ import { summariseUnits, type BcSensitivityUnit } from './bcVisualInventory'
 import { ResultsPanel } from './ResultsPanel'
 import { SubLandformFields } from './ReviewRecordFields'
 import { ROLE_COLORS, targetAreaHectares, type ForestryScene } from './scene'
+import { runFigures } from './runFigures'
 import type { HarvestSystem, TargetPolygon, TargetRole, Viewpoint } from './types'
 import type { TreeLook, TreeStyle } from './treeLayer'
 import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
@@ -818,7 +819,10 @@ export function Sidebar({
     'data-workflow-editor': id,
   })
   const assessment = via.assessment
-  const numericalReady = !!result?.quality?.numericalReady
+  // One readiness rule (`runFigures`): the run's first gap is what the step names.
+  const figures = runFigures(result)
+  const numericalReady = figures.state === 'ready'
+  const runGap = result ? (figures.gaps[0] ?? null) : null
   const summaries: Record<ViaStepId, string> = {
     identify: [
       blocks.length ? `${blocks.length} cutblock${blocks.length === 1 ? '' : 's'}` : 'No cutblocks',
@@ -1616,13 +1620,15 @@ export function Sidebar({
       {/* Step 3 — 3.3: delineate the landform, review the design, simulate. */}
       <div {...stepPanelProps('design')}>
         <StepTitle id="design" />
-        <ToolSection
-          title="Run assumptions"
-          help="Handbook 3.3.2: the proposal is measured against the landform it sits on, as it stands in the assessment year."
-        >
-          {landformScope}
-        </ToolSection>
+        {/* The run's assumptions move with it into Save & export: a withheld figure's gap (existing disturbance,
+          green area) is supplied there, under the Run part that names it. */}
         <Projectable id={exportEditorId('run')} away={editedInExport}>
+          <ToolSection
+            title="Run assumptions"
+            help="Handbook 3.3.2: the proposal is measured against the landform it sits on, as it stands in the assessment year."
+          >
+            {landformScope}
+          </ToolSection>
           <ToolSection
             title="Simulation"
             help="Handbook 3.3.4: terrain sightlines from each station on the road to every point on every block. Add the on-screen roads as site disturbance (FS1252 line b): without them the alteration figure is a floor, and on steep ground a road can read as heavily as the block it serves."
@@ -1688,8 +1694,19 @@ export function Sidebar({
                   {numericalReady
                     ? 'Scenario numerical fields available'
                     : 'Provisional result — PDF numerical fields withheld'}
-                  {!numericalReady && result.quality?.warnings.length ? (
-                    <span className="block">{result.quality.warnings[0]}</span>
+                  {!numericalReady && runGap ? <span className="block">{runGap.text}</span> : null}
+                  {/* The gap a lookup fills links to it, whichever step the lookup lives in. */}
+                  {!numericalReady && runGap?.action === 'lookup-inventory' ? (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="xs"
+                      className="p-0 text-2xs"
+                      disabled={inventory.status === 'loading'}
+                      onClick={onLookupInventory}
+                    >
+                      {inventory.status === 'loading' ? 'Looking up existing openings…' : 'Look up existing openings'}
+                    </Button>
                   ) : null}
                 </InlineAlert>
               )}

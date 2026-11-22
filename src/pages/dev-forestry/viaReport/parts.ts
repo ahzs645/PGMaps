@@ -1162,7 +1162,7 @@ export function calculationFields(ctx: ReportContext, vp: DocumentFacts['viewpoi
       : []),
     field(
       'Sightline figure (the assessment’s)',
-      vp.sightlinePercent === null ? null : `${vp.sightlinePercent.toFixed(2)}%`,
+      vp.sightlinePercent === null ? (vp.sightlineWithheld ?? null) : `${vp.sightlinePercent.toFixed(2)}%`,
       'run',
     ),
     // Why the two figures can part, when the picture drew the blocks' ground far coarser than the run walked it.

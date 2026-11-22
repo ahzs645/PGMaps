@@ -50,6 +50,7 @@ import type {
   TargetRole,
   TargetVisibility,
   InventoryEvidence,
+  RunGap,
 } from './types'
 export const MAX_TOTAL_SIGHTLINES = 250_000
 export type TerrainInfo = { tileCount: number; missingTileCount: number; resolutionMeters: number }
@@ -623,18 +624,42 @@ export function computeAnalysis(
   if (input.settings.existingDisturbanceConfirmed) existingInventory = 'scenario-only'
   const existingReady = input.settings.existingDisturbanceConfirmed === true || existingInventory === 'complete'
   const warnings: string[] = []
-  if (!verifiedGreen)
-    warnings.push(
-      'Green-area coverage is unverified. Whole-landform ratios are provisional and are not inserted into the FS1252 numerical fields.',
-    )
-  if (!existingReady)
-    warnings.push(
-      'Existing disturbance coverage has not been confirmed. A missing inventory is not zero existing alteration.',
-    )
-  if (unknownSightlines || unknownStationCount)
-    warnings.push(
-      'Some terrain/surface sightlines are unknown. Unknown is not screened or visible; no complete worst-case result can be asserted.',
-    )
+  // Why the figures are withheld, each with the part of the page that supplies it (`runFigures.ts`).
+  const gaps: RunGap[] = []
+  if (!land)
+    gaps.push({
+      id: 'no-landform',
+      text: 'No active landform: choose or draw the landform the run is measured against.',
+      editor: 'landform',
+    })
+  if (!verifiedGreen) {
+    const text =
+      'Green-area coverage is unverified. Whole-landform ratios are provisional and are not inserted into the FS1252 numerical fields.'
+    warnings.push(text)
+    gaps.push({ id: 'green-area', text, editor: 'run' })
+  }
+  if (!existingReady) {
+    const text =
+      'Existing disturbance coverage has not been confirmed. A missing inventory is not zero existing alteration.'
+    warnings.push(text)
+    gaps.push({
+      id: 'existing-disturbance',
+      text:
+        existingInventory === 'partial'
+          ? 'Existing disturbance coverage has not been confirmed: the harvest inventory read does not cover the whole landform. Look up existing openings again, or confirm the included features.'
+          : existingInventory === 'unavailable'
+            ? 'Existing disturbance coverage has not been confirmed: the harvest inventory could not be read. Look up existing openings again, or confirm the included features.'
+            : 'Existing disturbance coverage has not been confirmed: look up existing openings, or confirm the included features. A missing inventory is not zero existing alteration.',
+      editor: 'run',
+      action: 'lookup-inventory',
+    })
+  }
+  if (unknownSightlines || unknownStationCount) {
+    const text =
+      'Some terrain/surface sightlines are unknown. Unknown is not screened or visible; no complete worst-case result can be asserted.'
+    warnings.push(text)
+    if (unknownStationCount) gaps.push({ id: 'unknown-sightlines', text, editor: 'run' })
+  }
   if (terrain.missingTileCount) warnings.push(`${terrain.missingTileCount} DEM tiles did not load.`)
   // A surveyed eye under the terrain model's ground starts every sightline inside that ground, so the run sees
   // nothing (Marblehead VP4: a lake-level eye on a shore the 12 m model reads 3-12 m higher), while the road view's
@@ -663,12 +688,15 @@ export function computeAnalysis(
     const needed = land
       ? Math.ceil((land.target.areaMeters * MIN_LEDGER_CELLS_PER_PROPOSAL * 1.3) / smallest / 500) * 500
       : null
-    warnings.push(
-      `An alteration covers fewer than ${MIN_LEDGER_CELLS_PER_PROPOSAL} cells of the landform's shared grid, so its share would move in whole-cell steps. Raise the sample points per polygon${needed ? ` to about ${needed.toLocaleString('en-CA')}` : ''} (Simulation settings), or delineate a tighter landform, before exporting numerical fields.`,
-    )
+    const text = `An alteration covers fewer than ${MIN_LEDGER_CELLS_PER_PROPOSAL} cells of the landform's shared grid, so its share would move in whole-cell steps. Raise the sample points per polygon${needed ? ` to about ${needed.toLocaleString('en-CA')}` : ''} (Simulation settings), or delineate a tighter landform, before exporting numerical fields.`
+    warnings.push(text)
+    gaps.push({ id: 'under-resolved', text, editor: 'run' })
   }
-  if (input.settings.screeningEnabled && (!canopy || (!localCanopy && vegetation !== 'complete')))
-    warnings.push('Requested vegetation screening is incomplete; the numerical assessment is provisional.')
+  if (input.settings.screeningEnabled && (!canopy || (!localCanopy && vegetation !== 'complete'))) {
+    const text = 'Requested vegetation screening is incomplete; the numerical assessment is provisional.'
+    warnings.push(text)
+    gaps.push({ id: 'screening-incomplete', text, editor: 'run' })
+  }
   const missedMasks = land
     ? masks.filter((m) => {
         const overlap = intersect(
@@ -682,20 +710,24 @@ export function computeAnalysis(
         )
       })
     : []
-  if (missedMasks.length)
-    warnings.push(
-      `Assessment masks represented by fewer than eight shared-grid cells: ${missedMasks.map((m) => m.name).join(', ')}. Increase sampling before using these figures.`,
-    )
+  if (missedMasks.length) {
+    const text = `Assessment masks represented by fewer than eight shared-grid cells: ${missedMasks.map((m) => m.name).join(', ')}. Increase sampling before using these figures.`
+    warnings.push(text)
+    gaps.push({ id: 'masks-under-sampled', text, editor: 'run' })
+  }
   if (masks.some((m) => m.kind === 'retained'))
     warnings.push(
       'Retained patches are removed geometrically from proposed alteration. No second Table 5 retention credit is applied.',
     )
   const partialScreening =
     !!canopy && prepared.some((t) => t.role === 'harvested' && t.alterationWeight > 0 && t.alterationWeight < 1)
-  if (partialScreening)
-    warnings.push(
-      'Partial-opening fractions do not locate retained patches; retained canopy is not geometrically resolved.',
-    )
+  if (partialScreening) {
+    const text =
+      'Partial-opening fractions do not locate retained patches; retained canopy is not geometrically resolved.'
+    warnings.push(text)
+    if (input.settings.screeningEnabled)
+      gaps.push({ id: 'screening-incomplete', text: `${text} Screened figures are withheld.`, editor: 'run' })
+  }
   warnings.push(
     'Apparent-area integration is a screening approximation, not a calibrated photographic measurement. Grid spacing is not the native accuracy of the elevation source.',
   )
@@ -713,22 +745,32 @@ export function computeAnalysis(
         : 'Recovery uses an explicit percentage where supplied; otherwise the stated green-up-age planning assumption applies. Neither is an automatic field observation.',
     )
   }
-  if (input.settings.targetOffsetMeters !== 0)
-    warnings.push(
-      'Target offset is not zero: the sightline target is not the cut surface. Numerical PDF fields are withheld.',
-    )
-  if (land && !(greenArea > 0)) warnings.push('No assessable green landform area is available as a denominator.')
-  if (land && !perspectiveByStation.some((value) => value !== null))
-    warnings.push('No selected station has a complete visible landform denominator.')
+  if (input.settings.targetOffsetMeters !== 0) {
+    const text =
+      'Target offset is not zero: the sightline target is not the cut surface. Numerical PDF fields are withheld.'
+    warnings.push(text)
+    gaps.push({ id: 'target-offset', text, editor: 'run' })
+  }
+  if (land && !(greenArea > 0)) {
+    const text = 'No assessable green landform area is available as a denominator.'
+    warnings.push(text)
+    gaps.push({ id: 'no-green-area', text, editor: 'landform' })
+  }
+  if (land && !perspectiveByStation.some((value) => value !== null)) {
+    const text = 'No selected station has a complete visible landform denominator.'
+    warnings.push(text)
+    gaps.push({ id: 'no-station-denominator', text, editor: 'viewpoint' })
+  }
   // Screening that hides most of the landform the bare ground shows turns the ratio into noise
   // (one study view went 10.6% to 56.6%): withhold the screened figure.
   const screenedShare =
     input.settings.screeningEnabled && land ? screenedLandformShare(land.any, land.bareEarth, land.areas) : null
   const screeningCollapsed = screenedShare !== null && screenedShare < MIN_SCREENED_LANDFORM_SHARE
-  if (screeningCollapsed)
-    warnings.push(
-      `Screening hides ${Math.round((1 - screenedShare!) * 100)}% of the landform the bare ground shows, so the screened figure is withheld. Turn screening off, or clear more timber round the eye.`,
-    )
+  if (screeningCollapsed) {
+    const text = `Screening hides ${Math.round((1 - screenedShare!) * 100)}% of the landform the bare ground shows, so the screened figure is withheld. Turn screening off, or clear more timber round the eye.`
+    warnings.push(text)
+    gaps.push({ id: 'screening-collapsed', text, editor: 'run' })
+  }
   const numericalReady =
     !screeningCollapsed &&
     input.settings.targetOffsetMeters === 0 &&
@@ -799,6 +841,7 @@ export function computeAnalysis(
       largestGroundCellPercent: land && greenArea > 0 ? (100 * Math.max(...land.areas)) / greenArea : null,
       numericalReady,
       warnings,
+      gaps: numericalReady ? [] : gaps,
     },
   }
 }

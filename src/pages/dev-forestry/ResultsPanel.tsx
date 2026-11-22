@@ -11,6 +11,7 @@ import { VisibilityProfile } from './VisibilityProfile'
 import { greenUpBasisLine, runGreenUpBasis } from './greenUp'
 import { formatHa, formatKm, formatPct } from './measureFormat'
 import { resolvedThresholds, resolveThreshold } from './integrity'
+import { runFigures } from './runFigures'
 import type { AlterationBreakdown, AnalysisResult, TargetPolygon, TargetVisibility } from './types'
 import {
   VIEWING_ZONES,
@@ -122,22 +123,24 @@ export function ResultsPanel({
       })
     }
 
-    if (result.quality?.numericalReady)
+    // One readiness rule (`runFigures`): a provisional run's figures never print here as the assessment's.
+    const figures = runFigures(result)
+    if (figures.state === 'ready')
       add(
         'perspective',
         'Alteration in perspective view',
-        result.perspectiveAlteration,
+        figures.perspective,
         `Estimated apparent-area screening ratio from the selected assessment station; not a calibrated photographic measurement. ${
           result.settings.perspectiveDenominator === 'non-treed-out'
             ? 'Divided by the visible treed landform (the 1998 rule).'
             : 'Divided by the visible landform net of non-vegetated ground (rock, water, ice), as a VIA nets out rock.'
         }${result.settings.privateLandOutOfDenominator ? ' Private land is left out of the landform.' : ''}`,
       )
-    if (result.quality?.numericalReady)
+    if (figures.state === 'ready')
       add(
         'planimetric',
         'Planimetric denudation',
-        result.planimetricAlteration,
+        figures.planimetric,
         `Flat map area, visible or not — the scale timber supply analyses model against.${
           landscape?.forestedAreaMeters !== null && landscape?.forestedAreaMeters !== undefined
             ? ' Divided by the landform\u2019s treed area, which is what the procedure asks for.'

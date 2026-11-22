@@ -13,6 +13,7 @@ import {
 } from './facts'
 import { formatForSource } from './formats'
 import { resolveViaDocument } from './resolve'
+import { READINESS_NOT_RECORDED } from '../runFigures'
 
 /** A 10 × 10 class pass: 80 landform pixels, 4 proposed, 16 private land. */
 function figure(stationIndex: number): SavedFigure {
@@ -29,6 +30,7 @@ function figure(stationIndex: number): SavedFigure {
     stationIndex,
     sightlinePercent: 4.8,
     sightlineClass: 'Partial retention',
+    sightlineReadiness: 'ready',
     lens: '50 mm',
     distanceKm: 3.4,
     hfovDeg: 39.6,
@@ -513,5 +515,35 @@ describe('step 4 per group of views of interest', () => {
     // Another view of that group, away from the station, takes nothing.
     expect(atAssessmentStation(dock)).toBe(false)
     expect(dock.ocular).toBeUndefined()
+  })
+  it('rates no group away from the station on a capture the run did not stand behind', () => {
+    const away = (over: Partial<SavedFigure>) =>
+      documentFacts({
+        project: 'Block X1',
+        objective: 'PR',
+        objectiveId: 'partial-retention',
+        views: [{ name: 'a', figure: { ...figure(3), place: 'Bay', ...over } }],
+        assessmentStation: 7,
+        review: { stations: { 'voi-a': judgement } },
+        assessment: null,
+        breakdown: null,
+        groupOf: (name) => groups[name] ?? null,
+      }).viewpoints[0]
+    // Saved while the run was provisional: no X, so no adjusted figure and no extent, and the reason prints.
+    const provisional = away({
+      sightlinePercent: null,
+      sightlineReadiness: 'withheld',
+      sightlineWithheld: 'Existing disturbance coverage has not been confirmed.',
+    })
+    expect(provisional.sightlinePercent).toBeNull()
+    expect(provisional.sightlineWithheld).toBe('Withheld — Existing disturbance coverage has not been confirmed.')
+    expect(provisional.review?.extent).toBeUndefined()
+    // Saved before readiness was recorded: its number is never taken as the assessment's.
+    const unrecorded = away({ sightlinePercent: 4.8, sightlineReadiness: undefined })
+    expect(unrecorded.sightlinePercent).toBeNull()
+    expect(unrecorded.sightlineWithheld).toBe(READINESS_NOT_RECORDED)
+    expect(unrecorded.review?.extent).toBeUndefined()
+    // The same view saved from a ready run is rated.
+    expect(away({}).review?.extent).toBeTruthy()
   })
 })

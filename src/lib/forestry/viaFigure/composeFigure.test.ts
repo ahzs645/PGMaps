@@ -318,6 +318,21 @@ describe('figure composition', () => {
     expect(a.y + a.h).toBeLessThanOrEqual(200)
   })
 
+  it('prints why the sightline figure is withheld, never a number, when the run did not stand behind it', () => {
+    const withheld = texts(
+      analysisSheet({
+        ...input('analysis-sheet-orange'),
+        sightlinePercent: null,
+        sightlineClass: null,
+        sightlineWithheld: 'Withheld \u2014 Existing disturbance coverage has not been confirmed.',
+      }).ops,
+    ).join('\n')
+    expect(withheld).toMatch(/Sightline measure \(PGMaps run\): Withheld \u2014 Existing disturbance/)
+    expect(withheld).not.toMatch(/the assessment figure/)
+    // The pixel figure still prints beside it.
+    expect(withheld).toMatch(/Pixel measure, this image: 7\.43%/)
+  })
+
   it('composes the analysis sheet: title, both figures, legend of what was drawn, the logo slot', () => {
     const sheet = analysisSheet(input('analysis-sheet-orange'))
     expect(sheet).toMatchObject({ width: 1224, height: 792 })

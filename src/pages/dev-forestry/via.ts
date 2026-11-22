@@ -24,6 +24,7 @@
 
 import { parseRouteCardReview, type RouteCardReview } from '@/lib/forestry/routeCard/review'
 import type { FormReview } from './pdf/fs1252'
+import { runFigures } from './runFigures'
 import type { AlterationBreakdown, AnalysisResult, TargetPolygon } from './types'
 import { designDistanceScore, visibleProposalCentre } from './vqe'
 import { haversineMeters } from './visibility'
@@ -857,7 +858,7 @@ export function assessVia(input: {
   const review = input.review ?? {}
   const objective = visualQualityClass(input.objectiveId)
   const numericalReady = !!input.result?.quality?.numericalReady
-  const clearedPercent = numericalReady ? initialAlterationPercent(input.result?.perspectiveAlteration ?? null) : null
+  const clearedPercent = numericalReady ? initialAlterationPercent(runFigures(input.result).perspective) : null
   const blocks = input.blocks ?? []
   const partialCuts = partialCutEntries(blocks, input.result)
   const partialsMissing = partialCuts.some((cut) => cut.visible && cut.equivalentPercent === null)
@@ -942,8 +943,8 @@ export function assessVia(input: {
 
 /**
  * A group's step 4 read on one of its captured views rather than on the run: X is the view's own sightline figure
- * (`SavedFigure.sightlinePercent`, the run's perspective alteration at its station when it was captured) and the
- * measured distance its own. What only a run gives is left to the reviewer: no number-size-spacing suggestion, no
+ * (`capturedSightline`: the run's perspective alteration at its station when it was captured, null when the
+ * run was provisional then or the save predates the readiness record) and the measured distance its own. What only a run gives is left to the reviewer: no number-size-spacing suggestion, no
  * partial cut's Table 6 figure (a view that sees one gives no adjusted figure), and retention from the review alone.
  */
 export function assessAtCapture(input: {

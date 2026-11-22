@@ -1,4 +1,5 @@
 /** Markdown companion to the exact-template FS1252 PDF, based only on the saved run. */
+import { DIAGNOSTIC_LABEL, runFigures, withheldText } from './runFigures'
 import type { AnalysisResult, TargetPolygon } from './types'
 import type { VisualQualityThresholds } from './vqo'
 import { resolveThreshold } from './integrity'
@@ -32,7 +33,9 @@ export function buildReport({
   evaluator,
 }: ReportInput): string {
   const landform = targets.find((t) => t.id === result.activeLandformId),
-    quality = result.quality
+    quality = result.quality,
+    // One readiness rule for every figure printed here (`runFigures`).
+    figures = runFigures(result)
   const lines = [
     `# Visual Quality Effectiveness Evaluation — simulation draft`,
     '',
@@ -68,7 +71,7 @@ export function buildReport({
     '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ]
   result.stations.forEach((s, i) => {
-    const a = quality?.numericalReady ? result.perspectiveByStation[i] : null
+    const a = figures.atStation(i)
     lines.push(
       `| ${i + 1} | ${n(s.lng, 6)} | ${n(s.lat, 6)} | ${n(s.groundElevationMeters, 1)} | ${a ? n(a.proposedPercent) : 'Withheld'} | ${a ? n(a.disturbancePercent) : 'Withheld'} | ${a ? n(a.existingPercent) : 'Withheld'} | ${a ? n(a.cumulativePercent) : 'Withheld'} | ${a ? formClass(a.cumulativePercent) : 'Undetermined'} |`,
     )
@@ -87,13 +90,14 @@ export function buildReport({
     '## Planimetric timber-supply context — not FS1252 numerical fields',
     '',
   )
-  if (landform && result.planimetricAlteration) {
+  const planimetric = figures.planimetric ?? figures.diagnostic.planimetric
+  if (landform && planimetric) {
     const allowance = resolveThreshold(landform.objectiveId, 'planimetric', thresholds, landform.vac)
     lines.push(
-      `Scenario map-area alteration: ${n(result.planimetricAlteration.cumulativePercent)}%. Planning allowance: ${allowance.value}%. ${allowance.note}`,
-      quality?.numericalReady
+      `${figures.state === 'ready' ? 'Scenario map-area alteration' : `${DIAGNOSTIC_LABEL}: map-area alteration`}: ${n(planimetric.cumulativePercent)}%. Planning allowance: ${allowance.value}%. ${allowance.note}`,
+      figures.state === 'ready'
         ? 'These are planning comparisons only, not a final compliance verdict.'
-        : 'The map-area figure is provisional; no within-range verdict is assigned.',
+        : `The map-area figure is provisional; no within-range verdict is assigned. ${withheldText(figures)}`,
     )
   } else lines.push('No active-landform planimetric result.')
   if (result.landformDesign) {

@@ -281,6 +281,8 @@ const districtSummaryForm: ReportPart = {
     const sightline = ctx.facts.viewpoints
       .filter((vp) => vp.sightlinePercent !== null)
       .map((vp) => `${vp.name} ${vp.sightlinePercent!.toFixed(2)}%`)
+    // A view whose run was provisional at the save names why, never a figure (`capturedSightline`).
+    const sightlineWithheld = ctx.facts.viewpoints.filter((vp) => vp.sightlinePercent === null && vp.sightlineWithheld)
 
     const rating = ctx.assessment?.rating ?? null
     // When the report carries the design rationale, rows 9 and 12 refer to it, as the form's users write them; what
@@ -337,7 +339,12 @@ const districtSummaryForm: ReportPart = {
         ],
         note: `Rows 5-7 measure each view’s class pass as ${ctx.document.format.rule.formula} (${ctx.document.format.rule.basis}); row 8 reads the total on the form’s strict bounds.${
           sightline.length ? ` The run’s sightline figures, the assessment’s: ${sightline.join(', ')}.` : ''
-        }${ctx.facts.viewpoints
+        }${sightlineWithheld
+          .map(
+            (vp) =>
+              ` ${ctx.facts.viewpoints.length > 1 ? `${vp.name}: sightline figure: ` : 'Sightline figure: '}${vp.sightlineWithheld}`,
+          )
+          .join('')}${ctx.facts.viewpoints
           .filter((vp) => vp.terrainNote)
           .map((vp) => ` ${ctx.facts.viewpoints.length > 1 ? `${vp.name}: ` : ''}${vp.terrainNote}`)
           .join('')}`,

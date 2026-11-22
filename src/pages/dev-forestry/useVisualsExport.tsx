@@ -64,6 +64,7 @@ import { reportMapStyleChoices } from './mapStyleSamples'
 import { DEFAULT_OVERVIEW_SHEET_STYLE, OVERVIEW_SHEET_STYLES, type OverviewSheetStyle } from './reportMaps'
 import { documentFacts } from './viaDocument/facts'
 import { runGreenUpBasis } from './greenUp'
+import { runFigures } from './runFigures'
 import { VIA_DOCUMENT_FORMATS, findDocumentFormat } from './viaDocument/formats'
 import { documentMarkdown, viewsLeftOutMarkdown } from './viaDocument/markdown'
 import { resolveViaDocument } from './viaDocument/resolve'
@@ -753,7 +754,7 @@ export function useVisualsExport(input: {
         assessmentStation: result?.assessmentStationIndex ?? null,
         review: scene.viaReview ?? null,
         assessment,
-        breakdown: result?.perspectiveAlteration ?? null,
+        breakdown: runFigures(result).perspective,
         ...(result ? { screeningModelled: !!result.settings.screeningEnabled } : {}),
         greenUp: result ? runGreenUpBasis(result).label : null,
         groupOf: (name) => groupIdForName(scene.viewsOfInterest ?? [], name),
@@ -783,7 +784,7 @@ export function useVisualsExport(input: {
       views,
       assessmentStation: result?.assessmentStationIndex ?? null,
       assessment,
-      breakdown: result?.perspectiveAlteration ?? null,
+      breakdown: runFigures(result).perspective,
       figures,
       ...(images ? { images } : {}),
       ...(readUnits ? { inventoryUnits: readUnits } : {}),
