@@ -174,6 +174,32 @@ export function clampQueryBounds(bounds: Bounds, maxSpan = MAX_QUERY_SPAN_DEGREE
 }
 
 /**
+ * The box *Look up this view* reads: the map view together with the active landform's bounds, so the existing
+ * openings read cover the landform the run measures even when part of it is off screen (a read that stops short of
+ * it leaves the run's existing disturbance `partial`). Capped at `maxSpan` a side like `clampQueryBounds`; when the
+ * union is wider, the cap-sized window keeps the whole landform and sits as near the view's centre as that allows.
+ * A landform wider than the cap is read round its own centre.
+ */
+export function lookupQueryBounds(view: Bounds, landform: Bounds | null, maxSpan = MAX_QUERY_SPAN_DEGREES): Bounds {
+  if (!landform) return clampQueryBounds(view, maxSpan)
+  const axis = (viewLo: number, viewHi: number, landLo: number, landHi: number): [number, number] => {
+    const lo = Math.min(viewLo, landLo),
+      hi = Math.max(viewHi, landHi)
+    if (hi - lo <= maxSpan) return [lo, hi]
+    if (landHi - landLo > maxSpan) {
+      const centre = (landLo + landHi) / 2
+      return [centre - maxSpan / 2, centre + maxSpan / 2]
+    }
+    // The cap-sized window nearest the view's centre that still holds the whole landform.
+    const start = Math.min(landLo, Math.max(landHi - maxSpan, (viewLo + viewHi) / 2 - maxSpan / 2))
+    return [start, start + maxSpan]
+  }
+  const [west, east] = axis(view[0], view[2], landform[0], landform[2])
+  const [south, north] = axis(view[1], view[3], landform[1], landform[3])
+  return [west, south, east, north]
+}
+
+/**
  * DataBC's WFS layer of the same inventory. The ArcGIS layer above stops at
  * 10,000 of its 60,499 polygons (its count reports exactly 10,000, and Purden
  * Lake returns none), and the bcdatamapper snapshot was built from it, so the

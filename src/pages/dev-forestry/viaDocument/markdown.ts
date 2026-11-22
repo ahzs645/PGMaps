@@ -84,6 +84,7 @@ export function documentMarkdown(doc: ResolvedDocument, facts: DocumentFacts): s
       `- Landform: ${source.landform}${source.objective ? `, objective ${source.objective}` : ''}`,
       `- Pixel figure (${format.rule.basis}): ${figure}`,
       `- Sightline figure (PGMaps run, the assessment's figure): ${source.sightlinePercent === null ? (source.sightlineWithheld ?? 'n/a') : `${source.sightlinePercent.toFixed(2)}%`}`,
+      ...(source.existingBasis ? [`- Existing disturbance: ${source.existingBasis}`] : []),
       ...(vp.distance ? [`- Distance: ${vp.distance.km} km (${vp.distance.term})`] : []),
       ...(source.hfovDeg
         ? [`- Lens: ${Math.round(source.lensMm ?? 0)} mm equivalent, ${source.hfovDeg.toFixed(1)}° across`]

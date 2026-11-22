@@ -621,8 +621,10 @@ export function computeAnalysis(
     !containsBounds(input.harvestInventory.bounds, polygonBounds(land.target.geometry))
   )
     existingInventory = 'partial'
-  if (input.settings.existingDisturbanceConfirmed) existingInventory = 'scenario-only'
-  const existingReady = input.settings.existingDisturbanceConfirmed === true || existingInventory === 'complete'
+  // The source's coverage and the reviewer's assumption are kept apart: ticking the assumption over a complete read
+  // leaves the read complete, so the outputs can say which of the two the figure rests on (`runExistingBasis`).
+  const existingAssumed = input.settings.existingDisturbanceConfirmed === true
+  const existingReady = existingAssumed || existingInventory === 'complete'
   const warnings: string[] = []
   // Why the figures are withheld, each with the part of the page that supplies it (`runFigures.ts`).
   const gaps: RunGap[] = []
@@ -834,6 +836,7 @@ export function computeAnalysis(
       terrain: unknownSightlines || unknownStationCount ? 'partial' : 'complete',
       vegetation,
       existingInventory,
+      existingAssumed,
       greenBasis,
       unknownSightlines,
       unknownStationCount,

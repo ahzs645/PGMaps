@@ -174,6 +174,11 @@ export interface DocumentViewpoint {
    * openings, modelled for 12", "field-confirmed …"), printed beside the existing-openings figure. Absent: not given.
    */
   greenUp?: string
+  /**
+   * What the existing openings counted rest on (`runExistingBasis`): the inventory's complete read over the landform,
+   * or the reviewer's assumption that the included features are all of it. Absent: not given.
+   */
+  existingBasis?: string
   distanceKm: number | null
   hfovDeg?: number | null
   lensMm?: number | null

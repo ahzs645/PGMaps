@@ -2,6 +2,7 @@ import { escapeHtml } from '@/lib/escapeHtml'
 import type { FieldRecord, ToolsDocument, ToolRun } from './assessmentTools'
 import { MASK_LABELS } from './assessmentMasks'
 import { DIAGNOSTIC_LABEL, runFigures, withheldText } from './runFigures'
+import { runExistingBasis } from './existingBasis'
 
 export function evidenceGaps(d: ToolsDocument): string[] {
   const missing: string[] = []
@@ -49,7 +50,7 @@ export function runLines(r: ToolRun): string[] {
   return [
     `Viewpoint: ${r.scene.viewpoint.name}; assessment year: ${r.scene.assessmentYear}`,
     `Objective: ${v?.objective.label ?? 'not assessed'}; active landform: ${r.scene.activeLandformId ?? 'not selected'}`,
-    `Source coverage: terrain ${s?.quality?.terrain ?? 'unknown'}; vegetation ${s?.quality?.vegetation ?? 'unknown'}; existing disturbance ${s?.quality?.existingInventory ?? 'unknown'}; green-area basis ${s?.quality?.greenBasis ?? 'unknown'}`,
+    `Source coverage: terrain ${s?.quality?.terrain ?? 'unknown'}; vegetation ${s?.quality?.vegetation ?? 'unknown'}; existing disturbance ${runExistingBasis(s)?.label ?? 'unknown'}; green-area basis ${s?.quality?.greenBasis ?? 'unknown'}`,
     `Numerical readiness: ${s?.quality?.numericalReady ? 'scenario estimates available' : 'provisional / withheld'}`,
     figureLine(s),
     `Proposed block area: ${s?.blockAreaHa?.toFixed(2) ?? '?'} ha; visible block ground: ${s?.visibleHa?.toFixed(2) ?? '?'} ha (descriptive full block outlines, not the net alteration ledger)`,

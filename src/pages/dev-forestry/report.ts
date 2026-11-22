@@ -5,6 +5,7 @@ import type { VisualQualityThresholds } from './vqo'
 import { resolveThreshold } from './integrity'
 import { formClass } from './pdf/fs1252'
 import { greenUpBasisLine, runGreenUpBasis } from './greenUp'
+import { runExistingBasis } from './existingBasis'
 export type ReportInventoryUnit = { polygonNumber: string; vsc: string | null; scenicArea: boolean }
 export type ReportInput = {
   result: AnalysisResult
@@ -50,7 +51,7 @@ export function buildReport({
     '## Evidence and model status',
     '',
     `Numerical form fields: ${quality?.numericalReady ? 'available as modelled scenario estimates' : 'WITHHELD pending missing evidence / resolution checks'}.`,
-    `Green denominator: ${quality?.greenBasis ?? 'unverified'}. Existing disturbance: ${quality?.existingInventory ?? 'unverified'}.`,
+    `Green denominator: ${quality?.greenBasis ?? 'unverified'}. Existing disturbance: ${runExistingBasis(result)?.label ?? 'unverified'}.`,
     `Terrain: ${quality?.terrain ?? 'unverified'}; vegetation inventory: ${quality?.vegetation ?? 'unverified'}.`,
     `DEM sampling interval: ${n(result.demResolutionMeters, 1)} m; this is not the native accuracy of the source.`,
     `Largest landform grid cell: ${n(quality?.largestGroundCellPercent)}% of green map area, a resolution diagnostic rather than an error bound.`,

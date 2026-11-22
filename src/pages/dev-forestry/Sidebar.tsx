@@ -1449,7 +1449,7 @@ export function Sidebar({
           title="Look up this map view"
           summary={inventory.units.length ? `${inventory.units.length} units` : 'BC inventory and existing harvest'}
           toggleProps={{ 'data-forestry-disclosure': 'inventory-lookup' }}
-          help="Provincial sensitivity units read live from DataBC, plus harvest and forest-cover context. Boundaries are candidates: review the visible landform before adopting one."
+          help="Provincial sensitivity units read live from DataBC, plus harvest and forest-cover context, over this map view and the active landform's whole extent, so the existing openings cover what the run measures. Boundaries are candidates: review the visible landform before adopting one."
           actions={
             inventory.units.length > 0 && (
               <Button type="button" variant="ghost" size="xs" className="text-2xs" onClick={onToggleInventory}>

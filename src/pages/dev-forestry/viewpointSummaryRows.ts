@@ -1,6 +1,7 @@
 import type { MetricSummaryItem } from '@/components/ui/metric-summary'
 import { formatMeasure } from '@/lib/format'
 import { resolvedThresholds } from './integrity'
+import { runExistingBasis } from './existingBasis'
 import { runGreenUpBasis } from './greenUp'
 import { runFigures } from './runFigures'
 import { formatKm, formatPct } from './measureFormat'
@@ -65,6 +66,11 @@ function runBlock(result: AnalysisResult, chosen: ViewpointSummaryInput['block']
   if (!chosen) return { block: blocks[0], blockName: 'the block', missing: false }
   const block = blocks.find((target) => target.targetId === chosen.targetId)
   return { block, blockName: chosen.name, missing: !block }
+}
+/** What line c rests on, for a note. */
+const existingNote = (result: AnalysisResult) => {
+  const label = runExistingBasis(result)?.label
+  return label ? `existing disturbance: ${label}` : 'existing disturbance basis not recorded'
 }
 const metres = (value: number, digits = 0) =>
   formatMeasure(value, 'm', { minimumFractionDigits: digits, maximumFractionDigits: digits })
@@ -268,6 +274,18 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
     })
   }
 
+  // What line c rests on, beside the figures: the inventory read, or the reviewer's assumption.
+  const existing = runExistingBasis(result)
+  if (existing && landform)
+    rows.push({
+      key: 'existing',
+      label: 'Existing disturbance',
+      qualifier: 'line c',
+      value: existing.sourceConfirmed ? 'Inventory, complete' : existing.assumed ? 'Assumed' : 'Not confirmed',
+      note: existing.label,
+      tone: existing.sourceConfirmed ? 'default' : existing.assumed ? 'muted' : 'warning',
+    })
+
   rows.push({
     key: 'status',
     label: 'Numerical figures',
@@ -324,7 +342,7 @@ export function runResultMetrics(
         label: 'Existing + proposed',
         qualifier: 'perspective · the run',
         value: `${formatPct(perspective.existingPercent)} + ${formatPct(perspective.proposedPercent)}`,
-        note: `Already harvested and not greened up (green-up ${runGreenUpBasis(result).label}), plus what this proposal adds; the objective is met or missed by the total`,
+        note: `Already harvested and not greened up (green-up ${runGreenUpBasis(result).label}; ${existingNote(result)}), plus what this proposal adds; the objective is met or missed by the total`,
       })
   }
 

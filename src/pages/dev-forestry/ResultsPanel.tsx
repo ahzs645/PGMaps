@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 
 import { VisibilityProfile } from './VisibilityProfile'
 import { greenUpBasisLine, runGreenUpBasis } from './greenUp'
+import { runExistingBasis } from './existingBasis'
 import { formatHa, formatKm, formatPct } from './measureFormat'
 import { resolvedThresholds, resolveThreshold } from './integrity'
 import { runFigures } from './runFigures'
@@ -101,6 +102,8 @@ export function ResultsPanel({
   const isCorridor = result.stations.length > 1
   // Which green-up the existing share rests on: a field check or the model.
   const greenUpLine = greenUpBasisLine(runGreenUpBasis(result))
+  // What line c rests on: the inventory read, or the reviewer's assumption (`runExistingBasis`).
+  const existingLine = runExistingBasis(result)?.label ?? null
 
   // The two scales answer different questions and have different thresholds, so
   // each is judged against its own. Reporting only one of them is how a
@@ -184,6 +187,11 @@ export function ResultsPanel({
                   )}
                   {scale.breakdown.existingPercent > 0 && (
                     <span className="text-2xs leading-4 text-muted-foreground">{greenUpLine}</span>
+                  )}
+                  {existingLine && (
+                    <span className="text-2xs leading-4 text-muted-foreground">
+                      Existing disturbance: {existingLine}
+                    </span>
                   )}
                 </span>
               ),

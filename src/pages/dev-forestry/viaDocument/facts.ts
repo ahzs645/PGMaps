@@ -198,6 +198,8 @@ export function documentFacts(input: {
   screeningModelled?: boolean
   /** What the run's existing openings' green-up rests on (`runGreenUpBasis(result).label`), when there is a run. */
   greenUp?: string | null
+  /** What the run's existing disturbance rests on (`runExistingBasis(result).label`), when there is a run. */
+  existing?: string | null
   /**
    * The group of views of interest a saved view's step 4 is kept under (`groupIdForName`, by the view's name), so
    * each group's judgements reach its own views; absent, or null for a view, reads the review's top-level step 4.
@@ -295,6 +297,7 @@ export function documentFacts(input: {
       ...(terrainNote ? { terrainNote } : {}),
       // The scene's green-up readings decide which openings the class pass paints, so every view names the same basis.
       ...(input.greenUp ? { greenUp: input.greenUp } : {}),
+      ...(input.existing ? { existingBasis: input.existing } : {}),
       distanceKm: figure.distanceKm,
       hfovDeg: figure.hfovDeg,
       // A panorama's lens is one frame's, never the whole span's (three 59 mm frames are not a 15 mm lens).

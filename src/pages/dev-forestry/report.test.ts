@@ -149,7 +149,10 @@ describe('buildReport', () => {
         }),
       }),
     })
-    expect(text).toContain('Green denominator: confirmed-landform. Existing disturbance: not-requested.')
+    // What line c rests on, in words (`runExistingBasis`), never the raw status.
+    expect(text).toContain(
+      'Green denominator: confirmed-landform. Existing disturbance: Not confirmed: DataBC openings, not looked up.',
+    )
     expect(text).toContain('Terrain: partial; vegetation inventory: complete.')
     expect(text).toContain('> Some terrain/surface sightlines are unknown.')
     expect(text).toContain('> 3 DEM tiles did not load.')

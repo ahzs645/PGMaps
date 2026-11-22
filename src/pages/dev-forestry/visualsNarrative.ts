@@ -23,6 +23,7 @@
  *
  * Pure: no DOM, no network.
  */
+import { runExistingBasis } from './existingBasis'
 import { runFigures } from './runFigures'
 import type { AnalysisResult, TargetPolygon, TargetVisibility } from './types'
 import { initialAlterationPercent, table2Range } from './via'
@@ -445,8 +446,15 @@ export type NarrativeInput = {
   /**
    * The landform's percent alteration (initial X, perspective) and the
    * objective it is judged against. Absent before a run with a landform.
+   * `existing` is what line c rests on (`runExistingBasis`), stated in the basis beside X.
    */
-  alteration?: { percent: number; objective: EvqoCode; maxPercent: number; rangeLabel: string } | null
+  alteration?: {
+    percent: number
+    objective: EvqoCode
+    maxPercent: number
+    rangeLabel: string
+    existing?: string
+  } | null
   /** Saved or downloaded views to point the reader to. */
   screenshotCount?: number
 }
@@ -624,14 +632,14 @@ function recommendationSentences(input: NarrativeInput): NarrativeSentence[] {
   const overlaps = input.overlaps
 
   if (input.alteration && overlaps.length) {
-    const { percent: x, objective, maxPercent, rangeLabel } = input.alteration
+    const { percent: x, objective, maxPercent, rangeLabel, existing } = input.alteration
     const meets = x <= maxPercent
     sentences.push({
       id: 'desktop-review',
       text: meets
         ? `Based on desktop review, block should meet the requirements for EVQO ${objective}.`
         : `Based on desktop review, block may not meet the requirements for EVQO ${objective}; redesign before layout.`,
-      basis: `${x.toFixed(1)}% perspective alteration of the landform (initial X) against the ${objective} range of ${rangeLabel}.`,
+      basis: `${x.toFixed(1)}% perspective alteration of the landform (initial X) against the ${objective} range of ${rangeLabel}.${existing ? ` Existing disturbance: ${existing}.` : ''}`,
     })
   }
 
@@ -842,11 +850,13 @@ export function narrativeInputFromScene({
     landform && x !== null && result?.activeLandformId === landform.id
       ? (() => {
           const range = table2Range(landform.objectiveId)
+          const existing = runExistingBasis(result)
           return {
             percent: x,
             objective: EVQO_CODE_FOR_CLASS[landform.objectiveId],
             maxPercent: range.max,
             rangeLabel: range.label,
+            ...(existing ? { existing: existing.label } : {}),
           }
         })()
       : null

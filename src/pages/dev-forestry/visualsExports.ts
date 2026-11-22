@@ -23,6 +23,7 @@ import {
   type RoadVideoTakeFacts,
 } from './roadVideo'
 import { DIAGNOSTIC_LABEL, runFigures, withheldText } from './runFigures'
+import { runExistingBasis } from './existingBasis'
 import type { AnalysisResult, HarvestSystem, RunGap, TargetPolygon } from './types'
 import type { ViaAssessment, ViaStepId } from './via'
 import { recipeContents, type PartFacts, type RecipeContentsSource } from './viaReport/recipeContents'
@@ -449,6 +450,8 @@ export type ExportContext = {
   runGaps: RunGap[]
   /** The run's raw figures while they are withheld, printed only under the diagnostic label. */
   diagnosticPercents?: { perspective: number | null; planimetric: number | null }
+  /** What the run's existing disturbance rests on (`runExistingBasis`); absent with no run. */
+  existingBasis?: string | null
   rating: string | null
   ratingMissing: string[]
   ocularClass: string | null
@@ -1105,6 +1108,7 @@ function runSection(ctx: ExportContext): ExportSection {
                   ]
                 : []),
             ]),
+      ...(ctx.run !== 'none' && ctx.existingBasis ? [{ label: 'Existing disturbance', value: ctx.existingBasis }] : []),
     ],
     note: ctx.runWarnings.length ? ctx.runWarnings.join(' ') : undefined,
   }
@@ -2240,6 +2244,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
         perspectivePercent: figures.perspective?.cumulativePercent ?? null,
         planimetricPercent: figures.planimetric?.cumulativePercent ?? null,
         runGaps: figures.gaps,
+        existingBasis: runExistingBasis(result)?.label ?? null,
         ...(figures.state === 'provisional'
           ? {
               diagnosticPercents: {

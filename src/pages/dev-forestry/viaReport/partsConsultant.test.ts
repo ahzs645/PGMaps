@@ -744,3 +744,27 @@ describe("the viewpoint calculation names what the existing openings' green-up r
     expect(words([calculationFields(ctx, FACTS.viewpoints[0])])).not.toContain('Green-up of existing openings')
   })
 })
+
+describe('the viewpoint calculation names what the existing disturbance rests on', () => {
+  it('prints the basis beside the figures only when the facts give one', () => {
+    const basis = 'DataBC openings (BC consolidated cutblocks), complete over the landform, read 12 Nov 2026'
+    const lake = { ...FACTS.viewpoints[1], existingBasis: basis }
+    const facts: DocumentFacts = { ...FACTS, viewpoints: [FACTS.viewpoints[0], lake] }
+    const ctx = context('perspective-report-net-private', {}, facts)
+    expect(words([calculationFields(ctx, lake)])).toContain(`"Existing disturbance","value":"${basis}"`)
+    expect(words([calculationFields(ctx, FACTS.viewpoints[0])])).not.toContain('"Existing disturbance"')
+  })
+
+  it('prints why a captured sightline figure is withheld in its place', () => {
+    const lake = {
+      ...FACTS.viewpoints[1],
+      sightlinePercent: null,
+      sightlineWithheld: 'Withheld \u2014 Existing disturbance coverage has not been confirmed.',
+    }
+    const facts: DocumentFacts = { ...FACTS, viewpoints: [FACTS.viewpoints[0], lake] }
+    const ctx = context('perspective-report-net-private', {}, facts)
+    expect(words([calculationFields(ctx, lake)])).toContain(
+      '"value":"Withheld \u2014 Existing disturbance coverage has not been confirmed."',
+    )
+  })
+})

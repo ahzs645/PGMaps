@@ -65,6 +65,7 @@ import { DEFAULT_OVERVIEW_SHEET_STYLE, OVERVIEW_SHEET_STYLES, type OverviewSheet
 import { documentFacts } from './viaDocument/facts'
 import { runGreenUpBasis } from './greenUp'
 import { runFigures } from './runFigures'
+import { runExistingBasis } from './existingBasis'
 import { VIA_DOCUMENT_FORMATS, findDocumentFormat } from './viaDocument/formats'
 import { documentMarkdown, viewsLeftOutMarkdown } from './viaDocument/markdown'
 import { resolveViaDocument } from './viaDocument/resolve'
@@ -757,6 +758,7 @@ export function useVisualsExport(input: {
         breakdown: runFigures(result).perspective,
         ...(result ? { screeningModelled: !!result.settings.screeningEnabled } : {}),
         greenUp: result ? runGreenUpBasis(result).label : null,
+        existing: runExistingBasis(result)?.label ?? null,
         groupOf: (name) => groupIdForName(scene.viewsOfInterest ?? [], name),
         objectiveId: landform?.objectiveId ?? null,
       })
@@ -790,6 +792,7 @@ export function useVisualsExport(input: {
       ...(readUnits ? { inventoryUnits: readUnits } : {}),
       reportSetting: input.reportSetting?.() ?? null,
       greenUp: result ? runGreenUpBasis(result).label : null,
+      existing: runExistingBasis(result)?.label ?? null,
       date: new Date(),
       ...(draft ? { draft } : {}),
     })

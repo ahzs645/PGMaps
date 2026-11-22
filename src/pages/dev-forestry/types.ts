@@ -243,7 +243,14 @@ export type RunGapId =
 export type AnalysisQuality = {
   terrain: Availability
   vegetation: Availability
+  /**
+   * What the harvest inventory read covers: `complete` only when DataBC's openings were read whole over the
+   * landform's box. A reviewer's assumption never changes it; that is `existingAssumed`. Runs saved before the two
+   * were kept apart carry `scenario-only` here for a ticked assumption.
+   */
   existingInventory: Availability
+  /** The reviewer ticked that the included features are the existing disturbance. Absent on runs saved before it. */
+  existingAssumed?: boolean
   greenBasis: 'inventory-and-openings' | 'confirmed-landform' | 'unverified-whole-landform'
   unknownSightlines: number
   unknownStationCount: number

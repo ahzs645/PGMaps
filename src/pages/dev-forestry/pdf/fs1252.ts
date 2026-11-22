@@ -8,6 +8,7 @@ import { canonicalInput } from '../integrity'
 import { greenUpBasis, greenUpBasisLine, runGreenUpReadings } from '../greenUp'
 import { templateManifest as m } from './templateManifest'
 import { runFigures } from '../runFigures'
+import { runExistingBasis } from '../existingBasis'
 import type { AnalysisResult, TargetPolygon } from '../types'
 import { bearingDegrees, haversineMeters, polygonBounds } from '../visibility'
 export type FormMetadata = {
@@ -282,7 +283,7 @@ function appendixStreams(request: ExportRequest, inputDigest: string): string[] 
     `Assessment year: ${request.result.inputSnapshot?.assessmentYear ?? 'not available'}. Observer height: ${request.result.settings.observerHeightMeters} m. Display/analysis exaggeration: 1x. DEM sample spacing: ${number(request.result.demResolutionMeters)} m (not a claim of native DEM accuracy).`,
   )
   add(
-    `Green denominator: ${request.result.quality?.greenBasis ?? 'unverified'}. Existing disturbance evidence: ${request.result.quality?.existingInventory ?? 'unverified'}. Vegetation query: ${request.result.quality?.vegetation ?? 'unverified'}.`,
+    `Green denominator: ${request.result.quality?.greenBasis ?? 'unverified'}. Existing disturbance evidence: ${runExistingBasis(request.result)?.label ?? 'unverified'}. Vegetation query: ${request.result.quality?.vegetation ?? 'unverified'}.`,
   )
   for (const warning of request.result.quality?.warnings ?? ['No quality record. Numerical fields were withheld.'])
     add(warning)

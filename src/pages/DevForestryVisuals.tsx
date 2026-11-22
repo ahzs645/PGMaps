@@ -49,7 +49,7 @@ import {
 import { InfoTip } from '@/components/ui/info-tip'
 
 import {
-  clampQueryBounds,
+  lookupQueryBounds,
   fetchCanopyStands,
   fetchHarvestedAreas,
   unitsToGeoJson,
@@ -1197,7 +1197,12 @@ function DevForestryVisuals({
     const epoch = ++lookupEpoch.current
     const sceneAtStart = sceneRef.current
     const view = map.getBounds()
-    const bounds = clampQueryBounds([view.getWest(), view.getSouth(), view.getEast(), view.getNorth()])
+    // The view and the active landform together, so the existing openings read cover what the run measures.
+    const landformAtStart = findSceneLandform(sceneAtStart)
+    const bounds = lookupQueryBounds(
+      [view.getWest(), view.getSouth(), view.getEast(), view.getNorth()],
+      landformAtStart ? polygonBounds(landformAtStart.geometry) : null,
+    )
     setInventory((current) => ({ ...current, status: 'loading', error: null }))
     setShowInventory(true)
     const abort = new AbortController()

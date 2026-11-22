@@ -1454,6 +1454,26 @@ cutblocks and the results report existing + proposed = cumulative.
   that barely exists. Around Prince George
   most recorded harvest is 2003–2005, which sits right on a 20-year default —
   moving it to 25 flips those openings back into the count.
+- **Whether the openings are all of them.** Line c is only as complete as the
+  read under it. The run keeps the source and the reviewer's assumption apart:
+  `quality.existingInventory` is the harvest read's coverage of the landform's
+  box (`complete` only when DataBC's openings were read whole over it, else
+  `partial`, `unavailable` or `not-requested`), and `quality.existingAssumed`
+  is step 3's tick that the included features are the existing disturbance.
+  Ticking it over a complete read leaves the read complete. Either makes the
+  figure usable; neither, and it is withheld with a gap that links to the
+  lookup. Every output prints what line c rests on beside X
+  (`runExistingBasis`, `existingBasis.ts`): "DataBC openings (…), complete
+  over the landform, read 12 Nov 2026", or "Reviewer assumption: the included
+  features are all the existing disturbance (diagnostic; …)" — the Results
+  tiles, step 4's line c, the Viewpoint summary, Save & export's *Run* part,
+  the FS1252 draft and worksheet, the evidence package, the block note, the
+  Visuals paragraph's basis and each viewpoint's calculation in the VIA
+  report. Runs saved before the two were apart carry `scenario-only` and read
+  as an assumption with its coverage not recorded. *Look up this view* reads
+  the map view together with the active landform's bounds
+  (`lookupQueryBounds`), so an opening off screen on the landform is not
+  missed; past the 1.5° cap it keeps the whole landform.
 - **Partial cuts.** `PERCENT_CLEARCUT` scales the contribution, so an opening
   that was 40% clearcut counts 40%. A recorded 0% is a retention-system harvest
   (RESULTS `RETEN`), which is still an opening to the eye, so it counts whole
