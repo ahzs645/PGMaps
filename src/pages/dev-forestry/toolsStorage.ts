@@ -29,7 +29,7 @@ export type StoredPreviousSite = { id: 'previous'; savedAt: string; name: string
 
 class ToolsDatabase extends Dexie {
   documents!: Table<{ id: string; document: ToolsDocument }, string>
-  scenes!: Table<{ id: string; scene: ForestryScene }, string>
+  scenes!: Table<{ id: string; scene: ForestryScene; revision?: number }, string>
   attachments!: Table<StoredAttachment, string>
   ownPhotos!: Table<StoredOwnPhoto, string>
   photoDepth!: Table<StoredPhotoDepth, string>
@@ -67,13 +67,15 @@ export async function saveTools(document: ToolsDocument) {
   await db.documents.put({ id: 'workspace', document })
 }
 
-export async function loadCurrentScene() {
-  return (await db.scenes.get('current'))?.scene ?? null
+/** The scene kept here and its revision (0 for one kept before revisions were), or null. */
+export async function loadCurrentScene(): Promise<{ scene: ForestryScene; revision: number } | null> {
+  const row = await db.scenes.get('current')
+  return row ? { scene: row.scene, revision: row.revision ?? 0 } : null
 }
-export async function saveCurrentScene(scene: ForestryScene) {
+export async function saveCurrentScene(scene: ForestryScene, revision: number) {
   // A scene and its photos kept only here must not be cleared with the browser's caches.
   keepStoragePersistent()
-  await db.scenes.put({ id: 'current', scene })
+  await db.scenes.put({ id: 'current', scene, revision })
 }
 
 /** The attachments and the own-photo set kept from the last visit; empty when nothing was kept or storage is shut. */
