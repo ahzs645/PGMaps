@@ -359,17 +359,12 @@ export function sceneCoverTiles(
 }
 
 /**
- * The ground cover under a scene's terrain (`terrain.cover`, `coverOnGrid`): VRI rank-1's open ground (non-treed,
- * unclassified and sparse polygons, `openGroundOnly`) over the square of `radiusMeters` round the eye, in tiles read
- * four at a time. A tile that came back whole is a complete box, where ground with no open polygon is closed forest;
- * a tile that failed or hit the feature cap is not, and its unread ground stays unknown. Never rejects: a failed read
- * is a source with fewer complete boxes and a note saying so.
- *
- * Beside it, over the same tiles, the BC Wildfire Service perimeters (`fetchFirePerimeters`) since
- * `BURNT_RECENT_YEARS` before `assessmentYear` (default: since `FIRE_READ_YEARS` before this year), for burnt ground;
- * `fires: false` skips them.
+ * VRI rank-1's open ground (non-treed, unclassified and sparse polygons, `openGroundOnly`) over the square of
+ * `radiusMeters` round `eye`, in tiles read four at a time. A tile that came back whole is a complete box, where ground
+ * with no open polygon is closed forest; a tile that failed or hit the feature cap is not, and its unread ground stays
+ * unknown. Never rejects: a failed tile only leaves its box out of `complete`.
  */
-export async function fetchSceneCover(
+export async function fetchOpenGround(
   eye: { lng: number; lat: number },
   radiusMeters: number,
   {
@@ -378,18 +373,22 @@ export async function fetchSceneCover(
     tileDegrees = SCENE_COVER_TILE_DEGREES,
     maxTiles = MAX_SCENE_COVER_TILES,
     timeoutMs = 30_000,
-    fires = true,
-    assessmentYear,
   }: {
     signal?: AbortSignal
     fetchImpl?: typeof fetch
     tileDegrees?: number
     maxTiles?: number
     timeoutMs?: number
-    fires?: boolean
-    assessmentYear?: number
   } = {},
-): Promise<SceneCoverSource> {
+): Promise<{
+  stands: VriStand[]
+  complete: Array<[number, number, number, number]>
+  /** Every tile of the square, and the ones read (at most `maxTiles`). */
+  tiles: Array<[number, number, number, number]>
+  read: Array<[number, number, number, number]>
+  failed: number
+  capped: number
+}> {
   const scale = metersPerDegree(eye.lat)
   const bounds: [number, number, number, number] = [
     eye.lng - radiusMeters / scale.lng,
@@ -435,6 +434,51 @@ export async function fetchSceneCover(
       }
     }
   }
+  await Promise.all(Array.from({ length: Math.min(4, read.length) }, worker))
+  return { stands, complete, tiles, read, failed, capped }
+}
+
+/**
+ * The ground cover under a scene's terrain (`terrain.cover`, `coverOnGrid`): VRI rank-1's open ground
+ * (`fetchOpenGround`) over the square of `radiusMeters` round the eye. A tile that came back whole is a complete box,
+ * where ground with no open polygon is closed forest; a tile that failed or hit the feature cap is not, and its unread
+ * ground stays unknown. Never rejects: a failed read is a source with fewer complete boxes and a note saying so.
+ *
+ * Beside it, over the same tiles, the BC Wildfire Service perimeters (`fetchFirePerimeters`) since
+ * `BURNT_RECENT_YEARS` before `assessmentYear` (default: since `FIRE_READ_YEARS` before this year), for burnt ground;
+ * `fires: false` skips them.
+ */
+export async function fetchSceneCover(
+  eye: { lng: number; lat: number },
+  radiusMeters: number,
+  {
+    signal,
+    fetchImpl = inventoryFetch,
+    tileDegrees = SCENE_COVER_TILE_DEGREES,
+    maxTiles = MAX_SCENE_COVER_TILES,
+    timeoutMs = 30_000,
+    fires = true,
+    assessmentYear,
+  }: {
+    signal?: AbortSignal
+    fetchImpl?: typeof fetch
+    tileDegrees?: number
+    maxTiles?: number
+    timeoutMs?: number
+    fires?: boolean
+    assessmentYear?: number
+  } = {},
+): Promise<SceneCoverSource> {
+  const scale = metersPerDegree(eye.lat)
+  const read = sceneCoverTiles(
+    [
+      eye.lng - radiusMeters / scale.lng,
+      eye.lat - radiusMeters / scale.lat,
+      eye.lng + radiusMeters / scale.lng,
+      eye.lat + radiusMeters / scale.lat,
+    ],
+    tileDegrees,
+  ).slice(0, maxTiles)
   const fireRead = fires
     ? fetchFirePerimeters(
         read,
@@ -444,7 +488,13 @@ export async function fetchSceneCover(
         { signal, fetchImpl, timeoutMs },
       )
     : null
-  await Promise.all(Array.from({ length: Math.min(4, read.length) }, worker))
+  const { stands, complete, tiles, failed, capped } = await fetchOpenGround(eye, radiusMeters, {
+    signal,
+    fetchImpl,
+    tileDegrees,
+    maxTiles,
+    timeoutMs,
+  })
   const burnt = await fireRead
   const km = (radiusMeters / 1000).toFixed(1)
   const gaps = [

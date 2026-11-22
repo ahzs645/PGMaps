@@ -118,6 +118,7 @@ import { useForestHistory } from './dev-forestry/useForestHistory'
 import { RegrowthControls } from './dev-forestry/RegrowthControls'
 import { buildRegrowthStands, DEFAULT_REGROWTH, type ForestHistoryRecord } from './dev-forestry/regrowth'
 import { useDriveTerrain } from './dev-forestry/useDriveTerrain'
+import { forestBackground } from './dev-forestry/driveForestTerrain'
 import type { ForestStatus } from './dev-forestry/ForestOverlay'
 import { treeSunDirection, type TreeInstance } from './dev-forestry/forest'
 import {
@@ -511,6 +512,8 @@ const DEFAULT_DRIVE: DriveState = {
   treeLook: 'lit',
   treeSun: 'fixed',
   treeShadows: true,
+  // The coarse background band out to 8 km (View options → *Distant trees*): off until asked for.
+  distantTrees: false,
   movingResolution: 'full',
   treeColours: 'natural',
   renderer: 'pgmaps',
@@ -2883,12 +2886,16 @@ function DevForestryVisuals({
         : null,
     [photoStandNow],
   )
+  // The background band (View options → *Distant trees*) is read for as long as the stand is kept (`preparePreview`,
+  // the hook's `active`), not while the road view happens to be open: its read leaving with the road view changed the
+  // stand's configuration and regrew it. Nor does it follow the timber switch, for the same reason: its reach is part
+  // of the stand's placement, and switching the timber off and on must give back the stand it had.
   const previewTerrain = useDriveTerrain(
     preparePreview,
     scene.viewpoint.coordinates,
     previewPolygons,
     photoReach,
-    drive.active && drive.forest,
+    drive.distantTrees,
   )
   // The assessment tools' field records, as the photo set needs them: the tools are made further down, so the
   // photo hook reads them through a ref filled once they exist.
@@ -3453,10 +3460,6 @@ function DevForestryVisuals({
     [treatedStemsAt, drive.harvestPhase],
   )
 
-  const previewForestInventory = useMemo(
-    () => [...forestInventory, ...previewTerrain.forestContextOpenGround],
-    [forestInventory, previewTerrain.forestContextOpenGround],
-  )
   const forestConfiguration = useMemo(
     () => ({
       anchorLatitude: scene.viewpoint.coordinates[0]?.[1],
@@ -3466,7 +3469,7 @@ function DevForestryVisuals({
       thinnings: forestThinnings,
       treated: treatedStemsAfterHarvest,
       standHeightMeters: drive.treeHeightMeters,
-      inventory: previewForestInventory,
+      inventory: forestInventory,
       style:
         drive.quality === 'fast'
           ? ('billboard' as const)
@@ -3476,8 +3479,10 @@ function DevForestryVisuals({
       look: drive.treeLook,
       // Faster means cards only, stopped or not.
       detailRadiusMeters: drive.quality === 'fast' ? 0 : drive.detailRadiusMeters,
-      elevation: previewTerrain.forestSource,
+      elevation: previewTerrain.source,
       farRadiusMeters: previewTerrain.radius,
+      // Set when the background band is asked for, before its read comes: the band's own ground and inventory reach
+      // the stand separately (`forestBackground`), so its arrival changes nothing here.
       backgroundRadiusMeters: previewTerrain.forestContextRadius,
     }),
     [
@@ -3488,15 +3493,25 @@ function DevForestryVisuals({
       forestThinnings,
       treatedStemsAfterHarvest,
       drive.treeHeightMeters,
-      previewForestInventory,
+      forestInventory,
       drive.quality,
       drive.treeStyle,
       drive.treeLook,
       drive.detailRadiusMeters,
-      previewTerrain.forestSource,
+      previewTerrain.source,
       previewTerrain.radius,
       previewTerrain.forestContextRadius,
     ],
+  )
+  // The background band's ground and inventory, once its read has come: the road view's own ground and inventory
+  // first, the background's only past them. Never in `forestConfiguration`, the scene package or a figure.
+  const sceneCoverBoxes = result?.sceneCover?.complete
+  const forestBackgroundBand = useMemo(
+    () =>
+      previewTerrain.forestContext && previewTerrain.source
+        ? forestBackground(previewTerrain.forestContext, previewTerrain.source, forestInventory, sceneCoverBoxes)
+        : null,
+    [previewTerrain.forestContext, previewTerrain.source, forestInventory, sceneCoverBoxes],
   )
   /**
    * The road view's forest in a harvest phase without switching the road view to it: what an engine's render of a
@@ -4369,9 +4384,11 @@ function DevForestryVisuals({
               ? `the drawn timber (${currentForestStatus.error})`
               : drive.forest && !currentForestStatus?.ready
                 ? `the drawn timber (${
-                    currentForestStatus
-                      ? `${currentForestStatus.patchCount ?? 0} of ${currentForestStatus.totalPatches ?? '?'} patches`
-                      : `no stand for this configuration yet`
+                    currentForestStatus?.backgroundPending
+                      ? 'distant trees loading'
+                      : currentForestStatus
+                        ? `${currentForestStatus.patchCount ?? 0} of ${currentForestStatus.totalPatches ?? '?'} patches`
+                        : `no stand for this configuration yet`
                   })`
                 : null
   const canSaveView = saveBlocker === null
@@ -6724,8 +6741,9 @@ function DevForestryVisuals({
     treeSun,
     treeShadows: drive.treeShadows,
     facedArrowGeometry,
-    previewTerrainMessage:
-      previewTerrain.message ?? (previewTerrain.forestContextLoading ? 'Loading terrain for distant trees…' : null),
+    previewTerrainMessage: previewTerrain.message,
+    forestBackground: forestBackgroundBand,
+    forestBackgroundPending: previewTerrain.forestContextLoading,
     treeFreeCollection,
     landformVantage,
     forestGround,
@@ -7800,7 +7818,10 @@ function DevForestryVisuals({
       table={table}
       desktopSidebarWidth={400}
       mobileInitialSheetState="full"
-      // Clear the plan for a pick or drawing, and clear the road view while driving.
+      // On a phone the sheet covers the map, so entering the road view with it
+      // up looks like nothing happened. Drop it to the peek for the drive and
+      // hand the sidebar back on the way out. A pick on the plan (a photo's
+      // search area) and a drawing drop it the same way.
       mobileSnapTo={mapPick || drive.active || drawMode !== 'none' ? 'collapsed' : 'full'}
       mobileSnapKey={mapPick ? 'pick-point' : drive.active ? 'road-view' : drawMode !== 'none' ? 'drawing' : 'setup'}
       // The collapsed sheet's line on a phone. (selectedFeatureMobilePeek shows only
@@ -8454,6 +8475,7 @@ function DevForestryVisuals({
                                             jump={roadViewJump}
                                             lensMm={roadViewLens}
                                             onLensChange={setRoadViewLens}
+                                            distantTreesNote={previewTerrain.forestContextNote}
                                           />
                                           <DrawnTimberButton
                                             drive={drive}

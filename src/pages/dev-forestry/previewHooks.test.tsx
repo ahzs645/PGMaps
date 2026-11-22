@@ -11,10 +11,22 @@ import type { ElevationSource, Bounds } from '@/lib/forestry/terrain/terrain'
 import type { PolygonGeometry } from './visibility'
 import type { VisualInventoryResult } from './visualInventoryQuery'
 
-const loaders = vi.hoisted(() => ({ terrain: vi.fn(), history: vi.fn(), inventory: vi.fn() }))
+const loaders = vi.hoisted(() => ({
+  terrain: vi.fn(),
+  history: vi.fn(),
+  inventory: vi.fn(),
+  contextTerrain: vi.fn(),
+  openGround: vi.fn(),
+}))
 vi.mock('./previewTerrainCache', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./previewTerrainCache')>()),
   loadPreviewTerrain: loaders.terrain,
+  // The background band's own mosaic (`useDriveTerrain`'s `loadForestContext`).
+  createPreviewTerrainLoader: () => loaders.contextTerrain,
+}))
+vi.mock('./bcVegetationInventory', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./bcVegetationInventory')>()),
+  fetchOpenGround: loaders.openGround,
 }))
 vi.mock('./bcForestHistory', () => ({ fetchForestHistory: loaders.history }))
 vi.mock('./visualInventoryQuery', () => ({
@@ -52,8 +64,16 @@ function mount(element: React.ReactElement) {
   views.push(view)
   return view
 }
-function Terrain({ active = true, points = road }: { active?: boolean; points?: number[][] }) {
-  return <output data-result={useDriveTerrain(active, points, polygons)} />
+function Terrain({
+  active = true,
+  points = road,
+  distantTrees = false,
+}: {
+  active?: boolean
+  points?: number[][]
+  distantTrees?: boolean
+}) {
+  return <output data-result={useDriveTerrain(active, points, polygons, null, distantTrees)} />
 }
 function History({
   active = true,
@@ -143,6 +163,76 @@ describe('fixed preview terrain requests', () => {
     expect(terrainResult(view).loading).toBe(false)
     expect(terrainResult(view).source).toBeNull()
     expect(terrainResult(view).message).toContain('1 terrain tiles unavailable')
+  })
+})
+
+describe('the background band’s read (Distant trees)', () => {
+  const contextSource: ElevationSource = { elevationAt: () => 650 }
+  const openGround = {
+    stands: [],
+    complete: [[-123, 53, -122, 54]],
+    tiles: [],
+    read: [],
+    failed: 0,
+    capped: 0,
+  }
+
+  it('names its reach before the read comes, and keeps the road view’s own ground apart from it', async () => {
+    loaders.terrain.mockResolvedValue({ source, missingTileCount: 0 })
+    const contextTask = deferred<{ source: ElevationSource; missingTileCount: number }>()
+    loaders.contextTerrain.mockReturnValue(contextTask.promise)
+    loaders.openGround.mockResolvedValue(openGround)
+    let view!: ReturnType<typeof create>
+    await act(async () => {
+      view = create(<Terrain distantTrees />)
+    })
+    views.push(view)
+    // The core stand can grow at once: its ground is there, the background read is still out.
+    expect(terrainResult(view).source).toBe(source)
+    expect(terrainResult(view).forestContext).toBeNull()
+    expect(terrainResult(view).forestContextLoading).toBe(true)
+    const radius = terrainResult(view).forestContextRadius
+    expect(radius).toBe(8000)
+    await act(async () => contextTask.resolve({ source: contextSource, missingTileCount: 0 }))
+    const read = terrainResult(view).forestContext
+    expect(read?.source).toBe(contextSource)
+    // Neither the reach nor the road view's own ground changes when the read comes.
+    expect(terrainResult(view).forestContextRadius).toBe(radius)
+    expect(terrainResult(view).source).toBe(source)
+  })
+
+  it('hands the same read to a remounted page, as reopening the road view keeps the stand', async () => {
+    loaders.terrain.mockResolvedValue({ source, missingTileCount: 0 })
+    loaders.contextTerrain.mockResolvedValue({ source: contextSource, missingTileCount: 0 })
+    loaders.openGround.mockResolvedValue(openGround)
+    let first!: ReturnType<typeof create>
+    await act(async () => {
+      first = create(<Terrain points={otherRoad} distantTrees />)
+    })
+    const read = terrainResult(first).forestContext
+    expect(read).not.toBeNull()
+    act(() => first.unmount())
+    let second!: ReturnType<typeof create>
+    await act(async () => {
+      second = create(<Terrain points={otherRoad} distantTrees />)
+    })
+    views.push(second)
+    // The very read, by identity: the background band's patches are kept under its key and nothing regrows.
+    expect(terrainResult(second).forestContext).toBe(read)
+    expect(loaders.contextTerrain).toHaveBeenCalledTimes(1)
+    expect(loaders.openGround).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads nothing while it is off', async () => {
+    loaders.terrain.mockResolvedValue({ source, missingTileCount: 0 })
+    let view!: ReturnType<typeof create>
+    await act(async () => {
+      view = create(<Terrain />)
+    })
+    views.push(view)
+    expect(terrainResult(view)).toMatchObject({ forestContext: null, forestContextRadius: undefined })
+    expect(loaders.contextTerrain).not.toHaveBeenCalled()
+    expect(loaders.openGround).not.toHaveBeenCalled()
   })
 })
 

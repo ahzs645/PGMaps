@@ -8,7 +8,17 @@ import { haversineMeters } from './visibility'
 // Load beyond visibility before the anchor advances by 75 m.
 export const FOREST_PATCH_GUARD_METERS = 200
 
-export type ForestBand = { size: number; spacing: number; near: number; far: number }
+export type ForestBand = {
+  size: number
+  spacing: number
+  near: number
+  far: number
+  /**
+   * The background band (View options → *Distant trees*): grown on its own ground and inventory
+   * (`ForestBackground`, `driveForestTerrain.ts`), and only once that read has come.
+   */
+  background?: true
+}
 export type ForestPatch = {
   key: string
   band: number
@@ -27,19 +37,28 @@ export function forestBands(farRadius: number, backgroundRadius?: number): Fores
     { size: 512, spacing: 9, near: 250, far: 600 },
     { size: 1024, spacing: 24, near: 550, far: 3000 },
     { size: 2048, spacing: 80, near: 2800, far: coreFar },
+    // The hills behind a small scene: one stem for every 160 m, out to the background read's reach.
     ...(backgroundRadius && backgroundRadius > coreFar
-      ? [{ size: 4096, spacing: 160, near: coreFar - 300, far: backgroundRadius }]
+      ? [{ size: 4096, spacing: 160, near: coreFar - 300, far: backgroundRadius, background: true as const }]
       : []),
   ]
 }
+/**
+ * The patches round the eye. A background band is left out until `backgroundKey` names the read it grows from, and its
+ * patches' keys carry that key: a stand placed from one read is never taken for another's, and every other band's
+ * patches keep their keys whether the background is there or not.
+ */
 export function forestPatches(
   eye: { lng: number; lat: number },
   bands: ForestBand[],
   anchorLatitude: number,
+  backgroundKey: string | null = null,
 ): ForestPatch[] {
   const result: ForestPatch[] = []
   const lngMeters = 111320 * Math.cos((anchorLatitude * Math.PI) / 180)
   bands.forEach((band, index) => {
+    if (band.background && backgroundKey === null) return
+    const suffix = band.background ? `@${backgroundKey}` : ''
     const dx = band.size / lngMeters,
       dy = band.size / 111320
     const cx = eye.lng / dx,
@@ -56,7 +75,7 @@ export function forestPatches(
         )
           continue
         result.push({
-          key: `${index}/${x}/${y}`,
+          key: `${index}/${x}/${y}${suffix}`,
           band: index,
           centre,
           bounds: [x * dx, y * dy, (x + 1) * dx, (y + 1) * dy],
@@ -65,16 +84,17 @@ export function forestPatches(
       }
     }
   })
-  // Make the nearby view usable first, then put trees on distant slopes before filling in the denser middle band.
-  const priority = (band: number) => (band === 2 ? bands.length : band)
-  return result.sort(
-    (a, b) => priority(a.band) - priority(b.band) || haversineMeters(eye, a.centre) - haversineMeters(eye, b.centre),
-  )
+  // Foreground first, then the hillside. Work can be spread across frames. The background band comes last: it reads
+  // ground of its own and arrives after the rest, and a stand at 3–8 km matters less than the hillside before it.
+  return result.sort((a, b) => a.band - b.band || haversineMeters(eye, a.centre) - haversineMeters(eye, b.centre))
 }
 export function growForestPatch(
   patch: ForestPatch,
   band: ForestBand,
-  inputs: Pick<TreePlacementOptions, 'stands' | 'clearings' | 'thinnings' | 'inventory' | 'heightMeters'> & {
+  inputs: Pick<
+    TreePlacementOptions,
+    'stands' | 'clearings' | 'thinnings' | 'inventory' | 'heightMeters' | 'canopyKnownAt'
+  > & {
     /** Cut ground: the coarse bands stand a row of edge stems along it (`placeEdgeTrees`). */
     openings?: ReadonlyArray<PolygonGeometry>
   },

@@ -153,6 +153,11 @@ export type DriveState = {
   /** The nearest trees lay a shadow on the ground, away from the trees' light. Display only. */
   treeShadows: boolean
   /**
+   * A coarse background stand out to 8 km on terrain and inventory read for it (`driveForestTerrain.ts`). It adds
+   * stems, so it is part of the stand's placement; display only: no figure, saved view or scene package reads it.
+   */
+  distantTrees: boolean
+  /**
    * Draw the road view at a lower resolution while it moves and at the screen's own once it holds
    * still. Display only: saved views and images are taken still.
    */

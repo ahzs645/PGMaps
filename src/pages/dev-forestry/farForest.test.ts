@@ -187,3 +187,88 @@ describe('a road through a far stand', () => {
     tilesBeside(30, 80, 100, 1200)
   })
 })
+
+describe('the background band (Distant trees)', () => {
+  const bands = forestBands(3500, 8000)
+  const level: ElevationSource = { elevationAt: () => 700, elevationAtMercator: () => 700 }
+  const patch = forestPatches(CENTRE, bands, CENTRE.lat, 'read').find((each) => each.band === 4)!
+  const middle = {
+    lng: (patch.bounds[0] + patch.bounds[2]) / 2,
+    lat: (patch.bounds[1] + patch.bounds[3]) / 2,
+  }
+  const patchEast = 111_320 * Math.cos((middle.lat * Math.PI) / 180)
+  /** A square of `metres` half-side round the patch's middle. */
+  const middleSquare = (metres: number): GeoJSON.Polygon => {
+    const dLng = metres / patchEast
+    const dLat = metres / 111_320
+    return {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [middle.lng - dLng, middle.lat - dLat],
+          [middle.lng + dLng, middle.lat - dLat],
+          [middle.lng + dLng, middle.lat + dLat],
+          [middle.lng - dLng, middle.lat + dLat],
+          [middle.lng - dLng, middle.lat - dLat],
+        ],
+      ],
+    }
+  }
+  const grow = (inventory: InventoryStand[]) =>
+    growForestPatch(patch, bands[4], { stands: [], clearings: [], inventory, heightMeters: 25 }, level, CENTRE.lat)
+
+  it('is a far band of 160 m stems laying 200 m tiles', () => {
+    expect(isFarBand(bands[4])).toBe(true)
+    expect(bands[4].spacing).toBe(160)
+    expect(canopyTileMeters(bands[4])).toBe(200)
+  })
+
+  it('keeps its canopy tiles off the inventory’s open ground', () => {
+    const meadow = middleSquare(600)
+    const trees = grow([{ geometry: meadow, species: null, heightMeters: null, cover: 'herb' }])
+    expect(trees.length).toBeGreaterThan(200)
+    let shortened = 0
+    for (const tree of trees) {
+      expect(pointInPolygon(meadow, tree.lng, tree.lat)).toBe(false)
+      const half = 100 * (tree.canopy?.reach ?? 0)
+      if ((tree.canopy?.reach ?? 0) < 1) shortened += 1
+      for (const [dx, dy] of [
+        [-1, -1],
+        [1, -1],
+        [1, 1],
+        [-1, 1],
+        [0, -1],
+        [1, 0],
+        [0, 1],
+        [-1, 0],
+      ])
+        expect(pointInPolygon(meadow, tree.lng + (dx * half) / patchEast, tree.lat + (dy * half) / 111_320)).toBe(false)
+    }
+    expect(shortened).toBeGreaterThan(4)
+  })
+
+  it('cuts its tiles out to the stand’s recorded crown closure', () => {
+    const stand: InventoryStand = {
+      geometry: middleSquare(5000),
+      species: 'spruce',
+      heightMeters: 28,
+      crownClosurePercent: 55,
+    }
+    const trees = grow([stand])
+    expect(trees.length).toBeGreaterThan(200)
+    expect(trees.every((tree) => tree.canopy?.reach === 1)).toBe(true)
+    expect(trees.every((tree) => Math.abs((tree.canopy?.cover ?? 0) - 0.55) < 1e-9)).toBe(true)
+  })
+
+  it('lays its tiles over a stand listed before open ground, as the stems read it', () => {
+    // A core stand (a regrowth stand, the core's read) listed before the background's open polygon over the same
+    // ground: the stems grow there, and the canopy is not held back from them.
+    const ground = middleSquare(5000)
+    const trees = grow([
+      { geometry: ground, species: 'spruce', heightMeters: 28, crownClosurePercent: 55 },
+      { geometry: ground, species: null, heightMeters: null, cover: 'herb' },
+    ])
+    expect(trees.length).toBeGreaterThan(200)
+    expect(trees.every((tree) => tree.canopy?.reach === 1)).toBe(true)
+  })
+})

@@ -98,6 +98,10 @@ export type SceneLayerData = {
   forestConfiguration: ComponentProps<typeof ForestOverlay>['configuration']
   /** The stand's placed patches, kept across the road view's map closing and reopening. */
   forestPatches: ComponentProps<typeof ForestOverlay>['patches']
+  /** The background band's ground and inventory once read (View options → *Distant trees*); null until then. */
+  forestBackground: ComponentProps<typeof ForestOverlay>['background']
+  /** The background band's read is still out: the stand is not ready until it comes or fails. */
+  forestBackgroundPending: boolean
   /** Where the drawn trees' light comes from; null the fixed light (`ForestOverlay`'s `sun`). */
   treeSun: ComponentProps<typeof ForestOverlay>['sun']
   /** Whether the nearest trees lay shadows on the ground (`ForestOverlay`'s `shadows`). */
@@ -408,6 +412,8 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             active={drive.forest}
             configuration={forestConfiguration}
             patches={forestPatches}
+            background={data.forestBackground}
+            backgroundPending={data.forestBackgroundPending}
             centre={driveEye}
             gapTarget={
               !drive.viewingGap
