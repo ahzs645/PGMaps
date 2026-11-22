@@ -18,6 +18,7 @@ import {
   serializeTools,
   stabilityJobs,
   summarizeRun,
+  validRunGaps,
   timelineScene,
   withPlannedViews,
   type ToolView,
@@ -423,6 +424,42 @@ describe('independent saved assessments', () => {
     expect(() => parseTools({ ...wire, localRasterPool: [] })).toThrow('missing local raster')
     expect(() => parseTools({ ...d, runs: [{ ...run, summary: { quality: {} } }] })).toThrow('summary')
     expect(() => parseTools({ ...d, options: [{ id: 'bad', name: 'Bad', scene: {} }] })).toThrow('scene')
+  })
+
+  it('keeps only the readiness gaps a saved run can print', () => {
+    const s = scene()
+    const summary = summarizeRun(s, analyse(s))
+    const run = { id: 'run', name: 'Scenario', kind: 'matrix' as const, scene: s, error: null }
+    const read = (gaps: unknown) =>
+      parseTools({
+        ...emptyTools(),
+        runs: [
+          {
+            ...run,
+            generatedAt: new Date().toISOString(),
+            summary: { ...summary, quality: { ...summary.quality!, gaps } },
+          },
+        ],
+      }).runs[0].summary?.quality?.gaps
+    expect(
+      read([
+        { id: 'stale', text: 'The scene changed after the run.', editor: 'run' },
+        { id: 'existing-disturbance', text: 'Look up the openings.', editor: 'nowhere', action: 'erase' },
+        { id: 'green-area' },
+        { text: 'No id' },
+        null,
+        'a string',
+        { id: 'blank', text: '  ' },
+      ]),
+    ).toEqual([
+      { id: 'stale', text: 'The scene changed after the run.', editor: 'run' },
+      { id: 'existing-disturbance', text: 'Look up the openings.' },
+    ])
+    expect(read('not a list')).toBeUndefined()
+    expect(read(undefined)).toBeUndefined()
+    expect(validRunGaps([{ id: 'x', text: 'Shown', action: 'lookup-inventory' }])).toEqual([
+      { id: 'x', text: 'Shown', action: 'lookup-inventory' },
+    ])
   })
 })
 describe('sightline and evidence outputs', () => {

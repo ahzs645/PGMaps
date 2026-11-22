@@ -5,7 +5,7 @@ import { findSceneLandform, sceneFingerprint } from './sceneInput'
 import { polygonAreaMeters } from './visibility'
 import { parseRasters } from '@/lib/forestry/terrain/localRaster'
 import type { LocalRaster } from './types'
-import type { AnalysisResult, Viewpoint } from './types'
+import type { AnalysisResult, RunGap, Viewpoint } from './types'
 import { assessVia, type ViaAssessment, type ViaReview } from './via'
 import { pulloutThrough } from './viewpointInventory'
 import { MAX_VIEWS_OF_INTEREST, blockCentre, type ViewOfInterest } from './viewsOfInterest'
@@ -310,11 +310,10 @@ export function parseTools(raw: unknown): ToolsDocument {
       !Number.isFinite(Date.parse(v.generatedAt))
     )
       throw new Error('A saved run has invalid metadata.')
-    if (v.summary != null) validateRunSummary(v.summary)
     return {
       ...v,
       scene: scene(v.scene),
-      summary: v.summary ?? null,
+      summary: v.summary != null ? validRunSummary(v.summary) : null,
       error: typeof v.error === 'string' ? v.error : null,
     }
   })
@@ -694,7 +693,46 @@ function scalesFor(scene: ForestryScene, result: AnalysisResult): { scales?: Hea
   return headline ? { scales: headline.scales } : {}
 }
 
-/** Imported summaries are historical data, but must be safe to display and export. */
+const RUN_GAP_EDITORS = ['run', 'landform', 'cutblocks', 'viewpoint'] as const satisfies ReadonlyArray<
+  NonNullable<RunGap['editor']>
+>
+
+/**
+ * A saved run's readiness gaps as the surfaces print them ("Withheld — <text>", `withheldText`): only entries with a
+ * string id and text are kept; a field that is not a list is dropped. Absent stays absent (runs saved before gaps).
+ */
+export function validRunGaps(gaps: unknown): RunGap[] | undefined {
+  if (!Array.isArray(gaps)) return undefined
+  return gaps.flatMap((gap: unknown): RunGap[] => {
+    if (!gap || typeof gap !== 'object') return []
+    const { id, text, editor, action } = gap as Record<string, unknown>
+    if (typeof id !== 'string' || typeof text !== 'string' || !text.trim()) return []
+    return [
+      {
+        id: id as RunGap['id'],
+        text,
+        // A link the page cannot follow is left off; the gap's words still print.
+        ...(typeof editor === 'string' && (RUN_GAP_EDITORS as readonly string[]).includes(editor)
+          ? { editor: editor as NonNullable<RunGap['editor']> }
+          : {}),
+        ...(action === 'lookup-inventory' ? { action } : {}),
+      },
+    ]
+  })
+}
+
+/**
+ * Imported summaries are historical data, but must be safe to display and export: a summary that cannot be read
+ * throws, and its readiness gaps are kept only where they can be printed (`validRunGaps`).
+ */
+function validRunSummary(s: RunSummary): RunSummary {
+  validateRunSummary(s)
+  // Checked above: a summary without its quality throws.
+  const { gaps, ...quality } = s.quality!
+  const kept = validRunGaps(gaps)
+  return { ...s, quality: { ...quality, ...(kept ? { gaps: kept } : {}) } }
+}
+
 function validateRunSummary(s: RunSummary) {
   const finiteOrNull = (v: unknown) => v === null || (typeof v === 'number' && Number.isFinite(v))
   const breakdown = (v: AnalysisResult['perspectiveAlteration']) =>
