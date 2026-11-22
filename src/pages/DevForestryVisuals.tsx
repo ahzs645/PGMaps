@@ -100,7 +100,9 @@ import {
   type CaptureFacts,
 } from './dev-forestry/viewCapturePlan'
 import { PreviewWorkflow, UnlistedSavedViews } from './dev-forestry/PreviewWorkflow'
-import { createSiteGeneration } from './dev-forestry/siteTransition'
+import { createSiteGeneration, PREVIOUS_SITE_MAX_BYTES, siteWorthKeeping } from './dev-forestry/siteTransition'
+import { loadPreviousSite, savePreviousSite } from './dev-forestry/toolsStorage'
+import { PanelDialog } from '@/components/ui/dialog-shell'
 import { renderJobKey } from './dev-forestry/renderJobKey'
 import {
   candidateDriveViews,
@@ -817,6 +819,25 @@ function DevForestryVisuals({
     const stored = readPreviewRecord()
     return stored ? { key: sceneFingerprint(stored.scene), views: stored.views.length } : null
   })
+  // The last site as a project file, kept when the page switched away from it (`transitionSite`), and the one
+  // *Reopen previous site* last opened, which is not offered again until another site takes its place.
+  const [previousSite, setPreviousSite] = useState<{ name: string; savedAt: string } | null>(null)
+  const [reopenedSite, setReopenedSite] = useState<string | null>(null)
+  useEffect(() => {
+    let active = true
+    loadPreviousSite()
+      .then((row) => active && row && setPreviousSite({ name: row.name, savedAt: row.savedAt }))
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [])
+  // Leaving a site that could not be kept to reopen: the reviewer saves it, leaves it or stays (`transitionSite`).
+  const [leavingSite, setLeavingSite] = useState<{
+    reason: string
+    file: { blob: Blob; fileName: string } | null
+    answer: (choice: 'save' | 'discard' | 'cancel') => void
+  } | null>(null)
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
   const [previewMessage, setPreviewMessage] = useState<string | null>(null)
   const [cameraStatus, setCameraStatus] = useState<DriveStatus>('waiting-for-terrain')
@@ -5717,7 +5738,8 @@ function DevForestryVisuals({
     }
   }
   /** Opens a project file: the scene, the saved views with their pictures, the workspace and the package's choices. */
-  const openProjectFile = async (file: File) => {
+  /** `label` names the file in the page's line (*Reopen previous site* passes "the previous site"); true once open. */
+  const openProjectFile = async (file: File, label = file.name): Promise<boolean> => {
     const request = ++projectRequest.current
     setProjectMessage({ text: 'Reading the project…' })
     try {
@@ -5725,20 +5747,20 @@ function DevForestryVisuals({
       if (/"type"\s*:\s*"pgmaps-driving-preview"/.test(await file.slice(0, 512).text())) {
         if (file.size > 30 * 1024 * 1024) throw new Error('Use a Saved views file smaller than 30 MB.')
         const restored = parsePreview(JSON.parse(await file.text()))
-        if (request !== projectRequest.current) return
+        if (request !== projectRequest.current) return false
         if (!restored) throw new Error('This Saved views file was written by another version and could not be read.')
-        if (!(await restoreSavedViews(restored))) return
+        if (!(await restoreSavedViews(restored))) return false
         setProjectMessage({
-          text: `Opened ${file.name}: the scene and ${restored.views.length === 1 ? 'one saved view' : `${restored.views.length} saved views`}. A Saved views file keeps no pictures; save a Project to keep them.`,
+          text: `Opened ${label}: the scene and ${restored.views.length === 1 ? 'one saved view' : `${restored.views.length} saved views`}. A Saved views file keeps no pictures; save a Project to keep them.`,
         })
-        return
+        return true
       }
       const [{ openProjectArchive }, { projectOpenedLine }] = await Promise.all([
         import('./dev-forestry/projectArchive'),
         import('./dev-forestry/projectFile'),
       ])
       const { state, summary, media } = await openProjectArchive(file)
-      if (request !== projectRequest.current) return
+      if (request !== projectRequest.current) return false
       let workspaceNote = ''
       const switched = await transitionSiteRef.current({
         scene: state.scene,
@@ -5773,16 +5795,30 @@ function DevForestryVisuals({
             )
         },
       })
-      if (!switched) return
-      setProjectMessage({ text: projectOpenedLine(file.name, summary) + workspaceNote })
+      if (!switched) return false
+      setProjectMessage({ text: projectOpenedLine(label, summary) + workspaceNote })
+      return true
     } catch (error) {
-      if (request !== projectRequest.current) return
+      if (request !== projectRequest.current) return false
       setProjectMessage({
         text: error instanceof Error ? error.message : 'The project could not be opened.',
         error: true,
       })
+      return false
     }
   }
+  /**
+   * *Reopen previous site*: the last site as it was kept when the page left it (a project file in this browser, with its
+   * photos, attachments and pictures), opened as any project is; that is a switch too, so the site open now takes its
+   * place and the two can be swapped back. Without a kept site, this browser's Saved views record.
+   */
+  const reopenPreviousSite = async () => {
+    const kept = await loadPreviousSite().catch(() => null)
+    if (!kept) return reopenPreviousPreview()
+    if (await openProjectFile(new File([kept.blob], 'previous-site.pgvq.zip'), 'the previous site'))
+      setReopenedSite(kept.savedAt)
+  }
+
   // Saved views drawn again by another engine at final quality, in the background (`BackgroundRenders.tsx`).
   const captureViewFigureRef = useRef(captureViewFigure)
   captureViewFigureRef.current = captureViewFigure
@@ -5817,15 +5853,82 @@ function DevForestryVisuals({
       setEngineFigures((current) => ({ ...current, [job.key]: figure }))
     },
   })
+  /** The latest site switch asked for (`transitionSite`). */
+  const siteSwitchRequest = useRef(0)
+  /**
+   * Keeps the site being left as a project file in this browser (`savePreviousSite`), for *Reopen previous site*: its
+   * photos, attachments, pictures and workspace go with a switch, and this is the way back to them. Built before
+   * anything is cleared, while the photos' originals can still be read. Nothing is asked when it is kept or holds
+   * nothing worth keeping (`siteWorthKeeping`); only when it cannot be kept (too large, or storage refused) does the
+   * reviewer choose to save it, leave it or stay. Resolves true when the switch may go on.
+   */
+  const keepLeavingSite = async (request: number): Promise<boolean> => {
+    const counts = tools.evidence.counts
+    const worth = siteWorthKeeping({
+      scene: sceneRef.current,
+      views: savedViews.length + shelvedViews.reduce((sum, entry) => sum + entry.views.length, 0),
+      attachments: projectAttachments.length,
+      ownPhotos: fieldPhoto.ownPhotos.length,
+      workspaceRecords: counts.views + counts.runs + counts.fields > 0 || tools.designOptions.length > 0,
+    })
+    if (!worth) return true
+    const name =
+      projectTitle ?? sceneRef.current.targets.find((target) => target.role === 'block')?.name ?? 'The previous site'
+    setProjectMessage({ text: `Keeping ${name} to reopen…` })
+    let file: { blob: Blob; fileName: string } | null = null
+    let reason: string
+    try {
+      file = await buildProjectFile()
+      if (file.blob.size > PREVIOUS_SITE_MAX_BYTES) {
+        const mb = (bytes: number) => Math.round(bytes / (1024 * 1024))
+        reason = `It is ${mb(file.blob.size)} MB as a project, more than the ${mb(PREVIOUS_SITE_MAX_BYTES)} MB this browser keeps to reopen.`
+      } else {
+        const savedAt = new Date().toISOString()
+        await savePreviousSite({ name, savedAt, blob: file.blob })
+        setPreviousSite({ name, savedAt })
+        return true
+      }
+    } catch (error) {
+      const why = error instanceof Error ? error.message : String(error)
+      reason = file
+        ? `This browser would not keep it to reopen: ${why}`
+        : `It could not be written as a project to keep: ${why}`
+    }
+    if (request !== siteSwitchRequest.current) return false
+    setProjectMessage(null)
+    const choice = await new Promise<'save' | 'discard' | 'cancel'>((answer) =>
+      setLeavingSite({ reason, file, answer }),
+    )
+    setLeavingSite(null)
+    if (choice === 'cancel') return false
+    if (choice === 'save') {
+      // Not written: Save & export makes the file, and the reviewer switches again once it is saved.
+      if (!file) {
+        exportOpener.openExport('project')
+        return false
+      }
+      const url = URL.createObjectURL(file.blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = file.fileName
+      link.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    }
+    return true
+  }
   /**
    * Switches the site: New site, a sample, a Saved views file, a project or *Reopen previous site*. Everything working on
    * the last site stops (a capture, background renders, the preview and the run), every guard taken on it fails from now
    * on (`siteGeneration`), and everything bound to it goes: its saved and shelved views with their pictures,
    * before-harvest renders and engine figures, the photo set, the attachments, the project's title and the workspace's
    * site records. What is the reviewer's rather than the site's stays: the growth curve and Castor library, the profile
-   * and logo, the interface, the engines' options, the inventory-copies switch and own recipes.
+   * and logo, the interface, the engines' options, the inventory-copies switch and own recipes. The site left is kept
+   * first, to reopen (`keepLeavingSite`); resolves false when the switch did not happen.
    */
   const transitionSite = async (next: SiteSwitch): Promise<boolean> => {
+    const request = ++siteSwitchRequest.current
+    // A later switch asked for while this one kept its site takes its place.
+    if (!(await keepLeavingSite(request)) || request !== siteSwitchRequest.current) return false
     siteGeneration.next()
     // A project still being read for the last site is not opened over this one.
     projectRequest.current += 1
@@ -7511,8 +7614,12 @@ function DevForestryVisuals({
       onClearScene={handleClearScene}
       onOpenProject={(file) => void openProjectFile(file)}
       onReopenPrevious={
-        previewRecord && previewRecord.views > 0 && previewRecord.key !== key
-          ? () => void reopenPreviousPreview()
+        (
+          previousSite
+            ? previousSite.savedAt !== reopenedSite
+            : previewRecord && previewRecord.views > 0 && previewRecord.key !== key
+        )
+          ? () => void reopenPreviousSite()
           : undefined
       }
       projectAttachments={
@@ -7894,6 +8001,34 @@ function DevForestryVisuals({
             navigation, so the map keeps the height its tools need; above everything elsewhere. */}
         {headerInContent && header}
         {exportDialog}
+        <PanelDialog
+          open={!!leavingSite}
+          onOpenChange={(open) => !open && leavingSite?.answer('cancel')}
+          title="This site cannot be kept to reopen"
+          size="md"
+          contentProps={{ 'data-testid': 'visuals-leaving-site' }}
+          footer={
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="ghost" onClick={() => leavingSite?.answer('cancel')}>
+                Cancel
+              </Button>
+              <Button variant="outline" onClick={() => leavingSite?.answer('discard')}>
+                Discard
+              </Button>
+              <Button onClick={() => leavingSite?.answer('save')}>Save project</Button>
+            </div>
+          }
+        >
+          <p className="text-sm">
+            {leavingSite?.reason} Its photos, attachments and saved pictures go with the switch: save it as a project to
+            keep them, or discard them.
+          </p>
+          {leavingSite && !leavingSite.file && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Save project opens Save &amp; export on the project; switch again once it is saved.
+            </p>
+          )}
+        </PanelDialog>
         <ProjectAttachmentsDialog
           open={filesDialog === 'attachments'}
           onOpenChange={(open) => setFilesDialog(open ? 'attachments' : null)}

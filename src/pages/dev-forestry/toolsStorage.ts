@@ -21,12 +21,19 @@ export type StoredPhotoDepth = {
   inverse: Float32Array
 }
 
+/**
+ * The last site, written as a project file when the page switched away from it (*New site*, a sample, a file opened),
+ * so *Reopen previous site* brings back its photos, attachments and pictures. One slot: the next switch replaces it.
+ */
+export type StoredPreviousSite = { id: 'previous'; savedAt: string; name: string; blob: Blob }
+
 class ToolsDatabase extends Dexie {
   documents!: Table<{ id: string; document: ToolsDocument }, string>
   scenes!: Table<{ id: string; scene: ForestryScene }, string>
   attachments!: Table<StoredAttachment, string>
   ownPhotos!: Table<StoredOwnPhoto, string>
   photoDepth!: Table<StoredPhotoDepth, string>
+  previousSites!: Table<StoredPreviousSite, string>
   constructor() {
     super('pgmaps.forestry-assessment-tools.v1')
     this.version(1).stores({ documents: 'id' })
@@ -39,6 +46,15 @@ class ToolsDatabase extends Dexie {
       ownPhotos: 'id',
       // A photo's depth estimate, by record and model: a second or more of inference, the same every time.
       photoDepth: 'key, recordId',
+    })
+    // The last site as a project file, for *Reopen previous site*.
+    this.version(4).stores({
+      documents: 'id',
+      scenes: 'id',
+      attachments: 'key',
+      ownPhotos: 'id',
+      photoDepth: 'key, recordId',
+      previousSites: 'id',
     })
   }
 }
@@ -112,4 +128,16 @@ export async function prunePhotoDepth(keepRecordIds: readonly string[]) {
   const keep = new Set(keepRecordIds)
   const gone = (await db.photoDepth.toArray()).filter((row) => !keep.has(row.recordId)).map((row) => row.key)
   if (gone.length) await db.photoDepth.bulkDelete(gone)
+}
+
+/** Keeps the last site's project file in the one slot, replacing what was there. */
+export async function savePreviousSite(site: { name: string; savedAt: string; blob: Blob }) {
+  // The last site's photos and pictures may now be kept only here: they must not go with the browser's caches.
+  keepStoragePersistent()
+  await db.previousSites.put({ id: 'previous', ...site })
+}
+
+/** The last site kept, or null when none was or storage is shut. */
+export async function loadPreviousSite(): Promise<StoredPreviousSite | null> {
+  return (await db.previousSites.get('previous')) ?? null
 }
