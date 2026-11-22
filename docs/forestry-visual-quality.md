@@ -1958,9 +1958,11 @@ street-level photo from Mapillary, or with a photo of your own.
 - **Find the location of a photo without GPS.** In Camera, choose **Pick a search area** and click an approximate
   centre on the plan. PGMaps tests nine locations over a 1 km square, searching every heading against the terrain
   skyline (`photoLocationSearch.ts`). The search keeps the field of view fixed. Set the lens and, for an aerial
-  photo, the altitude before searching. At each location every skyline reader that finds a believable skyline in the
-  photo is tried, as the camera search tries them (`bestReaderFit`: the colour reader alone when its fit settles,
-  else all of them, the best by `searchRank`). When one fit stands clearly ahead it offers up to three starting
+  photo, the altitude before searching. One skyline reader is kept for the whole search, so every location is scored
+  against the same reading of the skyline (`searchByOneReader`): the colour reader at every location, kept alone when
+  its best fit settles; else every reader that finds a believable skyline in the photo, the one whose fits sum to the
+  highest `searchRank` over the locations. Losses read on different readers' lines are never compared, and a near tie
+  is judged within the one reader. When one fit stands clearly ahead it offers up to three starting
   cameras. When fits are about as good as each other (a near tie between places, or a heading with a runner-up as
   close) it lists them with how far apart they are, in metres and as an arc of headings, and offers none of them as
   a start: the top of a tie is not a suggestion. A start taken from the search reads in the Position step as *a
