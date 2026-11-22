@@ -33,6 +33,7 @@ import {
   countsAlteration,
   partialCutLines,
   presetRule,
+  resolveCalc,
   rgbaLuminance,
   ringArea,
   roleOverlays,
@@ -47,7 +48,7 @@ import {
   fittedLines,
   landformNumber,
 } from './composeFigure'
-import { ALTERATION_RULES, sceneSheetRule } from './alteration'
+import { ALTERATION_RULES, sceneSheetRule, type AlterationRule } from './alteration'
 import { presetById, VIA_STYLE_PRESETS } from './presets'
 
 const W = 100,
@@ -304,6 +305,81 @@ describe('figure composition', () => {
     const report = texts(composeFigure({ ...photo, rule: ALTERATION_RULES.netOfRockAndPrivateCm2 }).ops)
     expect(report).toEqual(texts(composeFigure(photo).ops))
     expect(report).toContain(`Rock and Private Land= ${counts.privateLand + counts.rock} px`)
+  })
+
+  describe('one resolved calculation: the formula names the rule it prints', () => {
+    // Made-up areas: 10,000 px of landform, 4,000 private, 1,000 rock, 500 proposed.
+    const counts: FigureCounts = {
+      landform: 10000,
+      privateLand: 4000,
+      rock: 1000,
+      nonVeg: 0,
+      proposed: 500,
+      grossPercent: null,
+      netOfPrivatePercent: null,
+      netOfRockPercent: null,
+    }
+    const withCalc = VIA_STYLE_PRESETS.filter((preset) => preset.calc)
+
+    it('writes every formula line over {denominatorName}, never a fixed denominator', () => {
+      for (const preset of withCalc)
+        for (const line of preset.calc!.lines)
+          if (line.includes('{totalPct}') && line.includes('/')) expect(line, preset.id).toContain('{denominatorName}')
+    })
+
+    it('prints each rule’s figure and its denominator’s words, on every style with a calculation box', () => {
+      for (const preset of withCalc) {
+        const rules: AlterationRule[] = [
+          ...Object.values(ALTERATION_RULES),
+          sceneSheetRule(presetRule(preset), { privateLandOutOfDenominator: true }),
+        ]
+        for (const rule of rules) {
+          const label = `${preset.id} × ${rule.id}`
+          const resolved = resolveCalc({ ...input(preset.id), rule }, counts)
+          const expected = countsAlteration(rule, counts)!
+          expect(resolved.rule, label).toBe(rule)
+          expect(resolved.totalPct, label).toBe(expected.printed)
+          expect(resolved.percent, label).toBe(expected.percent)
+          const formula = resolved.rows.find((row) => row.text.includes(' / ') && row.text.includes('%'))
+          if (preset.calc!.lines.some((line) => line.includes('{totalPct}') && line.includes('/'))) {
+            expect(formula?.text, label).toContain(`/ ${resolved.denominatorLabel} `)
+            expect(formula?.text, label).toContain(`= ${expected.printed}%`)
+          }
+          // Private land is named only where the rule takes it out, as the rule's own formula does.
+          const removesPrivate = rule.deduct.includes('privateLand')
+          expect(/\bPL\b|Private Land/.test(rule.formula), label).toBe(removesPrivate)
+          if (!removesPrivate)
+            for (const row of resolved.rows) expect(row.text, label).not.toMatch(/\bPL\b|Private Land/)
+          if (!rule.deduct.includes('rock')) expect(resolved.denominatorLabel, label).not.toMatch(/\bR\b|Rock/)
+        }
+      }
+    })
+
+    it('reads the orange style’s own box as (LF - PL), a gross rule as LF and the scene’s net rule as (LF - PL - R)', () => {
+      const orange = input('analysis-sheet-orange')
+      const own = resolveCalc(orange, counts)
+      expect(own.denominatorLabel).toBe('(LF - PL)')
+      expect(own.rows.map((row) => row.text)).toEqual([
+        'Area of Landform (LF) = 10000',
+        'Area of Private Land (PL) = 4000',
+        'Area of NonVEG Blocks = 0',
+        'Area of Proposed Blocks = 500',
+        'Total % Alteration:',
+        '(NonVEG + Prop. Blk) / (LF - PL)  = 8.33%*',
+      ])
+      const gross = resolveCalc({ ...orange, rule: ALTERATION_RULES.grossPixels }, counts)
+      expect(gross.denominatorLabel).toBe('LF')
+      expect(gross.rows.at(-1)?.text).toBe('(NonVEG + Prop. Blk) / LF  = 5.00%*')
+      expect(gross.rows.some((row) => row.text.includes('Private Land'))).toBe(false)
+      const scene = sceneSheetRule(presetRule(orange.preset), { privateLandOutOfDenominator: true })
+      const net = resolveCalc({ ...orange, rule: scene }, counts)
+      expect(net.rows.map((row) => row.text)).toContain('Area of Rock (R) = 1000')
+      expect(net.rows.at(-1)?.text).toBe('(NonVEG + Prop. Blk) / (LF - PL - R)  = 10.00%*')
+      // The sheet draws the same rows.
+      const drawn = texts(analysisSheet({ ...orange, rule: ALTERATION_RULES.grossPixels }).ops)
+      expect(drawn.some((t) => t.startsWith('(NonVEG + Prop. Blk) / LF  = '))).toBe(true)
+      expect(drawn.some((t) => t.startsWith('Area of Private Land'))).toBe(false)
+    })
   })
 
   it('lays callouts out above the skyline without overlap', () => {

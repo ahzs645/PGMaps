@@ -4534,7 +4534,15 @@ each entry names:
   of a line. Before this, the net-of-private style printed the gross figure under
   a `(LF - PL)` formula (0.51% where its own areas give 1.14%), and the photo
   styles dropped their `Alteration= x% (class)` line because nothing filled
-  `{class}`.
+  `{class}`. The box is resolved once (`resolveCalc`, `composeFigure.ts`): the
+  rule, the words for its denominator, the filled rows and the total feed the
+  box, each column of a multi-landform box and the pixel figure alike. A style
+  names its denominator per rule (`calc.denominatorNames`, keyed by what the
+  rule removes); the orange style's formula line prints `LF`, `(LF - PL)` or
+  `(LF - PL - R)` with the rule it was handed (a report format's, or the
+  scene's net rule, which adds rock), and its private-land and rock rows
+  (`{privateDeductedPx}`, `{rockDeductedPx}`) print only when that rule takes
+  the ground out.
 - **Scales** (`viaDocument/scales.ts`): the handbook's Table 2 (inclusive at
   1.5/7/18/30, through `table2Class`), a district summary's strict `<` bounds,
   the consultants' size words, a referral's single ceiling, and three distance

@@ -117,8 +117,17 @@ export interface CalcBlockStyle {
    */
   denominator?: string
   deducted?: string
+  /**
+   * The style's short names for the denominator under each rule, by what the rule takes out of the landform
+   * (`denominatorKey`): 22's "(LF - PL)" for its own rule, "LF" when a figure is handed a gross rule, "(LF - PL - R)"
+   * when the scene nets rock out too. Read before `denominator`, so the formula line names the rule it prints.
+   */
+  denominatorNames?: Partial<Record<CalcDenominatorKey, string>>
   footnote?: TextStyle & { text: string }
 }
+
+/** What a rule takes out of the landform, as a key: nothing, private land, rock, or both. */
+export type CalcDenominatorKey = 'gross' | 'privateLand' | 'rock' | 'privateLand+rock'
 
 /** Page frame: paper in points and the page regions as fractions [x0, y0, x1, y1], as `layout.ts`. */
 export interface SheetFrame {
@@ -462,13 +471,17 @@ export const ANALYSIS_SHEET_ORANGE: ViaStylePreset = {
   ),
   calc: {
     ...A_CALC('(LF - PL)', ALTERATION_RULES.netOfPrivatePixels),
+    // 22's own box nets private land; a figure handed another rule names what that rule takes out instead.
+    denominatorNames: { gross: 'LF', privateLand: '(LF - PL)', rock: '(LF - R)', 'privateLand+rock': '(LF - PL - R)' },
     lines: [
       'Area of Landform (LF) = {landformPx}',
-      'Area of Private Land (PL) = {privatePx}',
+      // Each printed only when the figure's rule takes that ground out of the landform.
+      'Area of Private Land (PL) = {privateDeductedPx}',
+      'Area of Rock (R) = {rockDeductedPx}',
       'Area of NonVEG Blocks = {nonVegPx}',
       'Area of Proposed Blocks = {proposedPx}',
       '**Total % Alteration:',
-      '**(NonVEG + Prop. Blk) / (LF - PL)  = {totalPct}%*',
+      '**(NonVEG + Prop. Blk) / {denominatorName}  = {totalPct}%*',
     ],
   },
   titles: A_TITLES('{area} - Landform {n}'),
