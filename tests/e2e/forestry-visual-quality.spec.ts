@@ -1127,6 +1127,79 @@ test.describe('forestry visual quality', () => {
     await expect.poll(async () => (await readMapState(page))?.camera.bearing).toBeCloseTo(savedCamera!.bearing!, 4)
   })
 
+  test('keeps each site’s files and views to itself, and brings the last site back', async ({ page }) => {
+    test.setTimeout(240_000)
+    await stubBasemap(page)
+    await stubTerrain(page)
+    await stubVegetation(page)
+    await page.goto(PAGE_PATH)
+    // Site A: the roadside demo, one saved view and one file of the reviewer's.
+    await showStep(page, 'identify')
+    await page.getByRole('button', { name: 'Roadside demo drive', exact: true }).click()
+    const controls = page.getByRole('region', { name: 'Road view controls' })
+    await expect(controls).toBeVisible({ timeout: 60000 })
+    await showRoadOptions(controls)
+    await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
+    await page.getByRole('button', { name: 'View opening', exact: true }).click()
+    await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 60000 })
+    await controls.getByRole('button', { name: 'Save viewpoint', exact: true }).click()
+    await expect(controls.getByText(/Saved View from .+ (going|looking) [a-z]+/)).toBeVisible()
+    await page.getByRole('button', { name: 'Project files (0)' }).click()
+    const files = page.getByRole('dialog', { name: 'Project attachments' })
+    const attach = page.waitForEvent('filechooser')
+    await files.getByRole('button', { name: 'Attach files…' }).click()
+    await (await attach).setFiles({ name: 'site-a-notes.txt', mimeType: 'text/plain', buffer: Buffer.from('A') })
+    await expect(files.getByText('site-a-notes.txt')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('button', { name: 'Project files (1)' })).toBeVisible()
+    const savedViews = () =>
+      page.evaluate(() => {
+        const views = (window as unknown as { __visualsSavedViews?: { saved: unknown[]; shelved: unknown[] } })
+          .__visualsSavedViews
+        return { saved: views?.saved.length ?? 0, shelved: views?.shelved.length ?? 0 }
+      })
+    await expect.poll(savedViews).toEqual({ saved: 1, shelved: 0 })
+
+    // Site B, from a Saved views file of another place: none of A's files or views come with it.
+    const savedFile = await downloadVisualsExport(page, 'Saved views')
+    const siteA = JSON.parse(await readFile((await savedFile.path())!, 'utf8'))
+    await closeVisualsExport(page)
+    const shift = (point: [number, number]) => [point[0] + 0.05, point[1] + 0.02]
+    const siteB = {
+      ...siteA,
+      scene: {
+        ...siteA.scene,
+        viewpoint: { ...siteA.scene.viewpoint, coordinates: siteA.scene.viewpoint.coordinates.map(shift) },
+      },
+      views: siteA.views.map((view: { id: string }) => ({ ...view, id: `${view.id}-b` })),
+    }
+    await showStep(page, 'identify')
+    const chooser = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Open a project…', exact: true }).click()
+    await (
+      await chooser
+    ).setFiles({ name: 'site-b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(siteB)) })
+    await expect(page.getByTestId('visuals-header-notice')).toHaveText(/Opened site-b\.json/)
+    await expect(page.getByRole('button', { name: 'Project files (0)' })).toBeVisible()
+    await expect.poll(savedViews).toEqual({ saved: 1, shelved: 0 })
+
+    // A was kept as it was left: reopening it swaps the two sites.
+    await page.getByRole('button', { name: 'Reopen previous site', exact: true }).click()
+    await expect(page.getByTestId('visuals-header-notice')).toHaveText(/Opened the previous site: 1 saved view/)
+    await expect(page.getByRole('button', { name: 'Project files (1)' })).toBeVisible()
+    await expect.poll(savedViews).toEqual({ saved: 1, shelved: 0 })
+
+    // New site, then a reload: the site left is still there to reopen, with its file.
+    await page.getByRole('button', { name: 'New site', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Project files (0)' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Reopen previous site', exact: true })).toBeVisible()
+    await page.reload()
+    await showStep(page, 'identify')
+    await page.getByRole('button', { name: 'Reopen previous site', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Project files (1)' })).toBeVisible()
+    await expect.poll(savedViews).toEqual({ saved: 1, shelved: 0 })
+  })
+
   test('keeps the simple setup, drawing and drive controls reachable on a phone', async ({ page }) => {
     test.setTimeout(180_000)
     await page.setViewportSize({ width: 390, height: 844 })
