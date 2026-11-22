@@ -10,6 +10,7 @@ import { TIMBER_ABSENT, type TimberMeasure } from '@/lib/forestry/viaFigure/timb
 
 import type { SavedFigure } from '../FigureSheetPanel'
 import { terrainDetailNote } from '../figureFraming'
+import { capturedSightline } from '../runFigures'
 import type { AlterationBreakdown } from '../types'
 import {
   assessAtCapture,
@@ -197,6 +198,8 @@ export function documentFacts(input: {
   screeningModelled?: boolean
   /** What the run's existing openings' green-up rests on (`runGreenUpBasis(result).label`), when there is a run. */
   greenUp?: string | null
+  /** What the run's existing disturbance rests on (`runExistingBasis(result).label`), when there is a run. */
+  existing?: string | null
   /**
    * The group of views of interest a saved view's step 4 is kept under (`groupIdForName`, by the view's name), so
    * each group's judgements reach its own views; absent, or null for a view, reads the review's top-level step 4.
@@ -222,13 +225,16 @@ export function documentFacts(input: {
     const groupId = input.groupOf?.(view.name) ?? null
     const stepReview = groupId ? reviewAtStation(input.review, groupId) : input.review
     const groupRecord = groupId ? input.review?.stations?.[groupId] : undefined
+    // The captured figure counts only when the run stood behind it at the save (`capturedSightline`): a provisional
+    // capture, or one saved before readiness was recorded, rates nothing away from the station.
+    const sightline = capturedSightline(figure)
     const objectiveId = input.objectiveId ?? input.assessment?.objective.id ?? null
     const elsewhere =
       !atAssessment && groupId && hasStep4(groupRecord) && objectiveId
         ? assessAtCapture({
             objectiveId,
             review: groupRecord,
-            xPercent: figure.sightlinePercent,
+            xPercent: sightline.percent,
             distanceMeters: figure.distanceKm === null ? null : figure.distanceKm * 1000,
             seesPartialCut: (figure.partialCuts ?? []).length > 0,
           })
@@ -286,10 +292,12 @@ export function documentFacts(input: {
       // The blocks with ground in the view's own landform; absent on views saved before it was recorded.
       ...(figure.landformBlocks ? { landformBlocks: figure.landformBlocks.map(blockName) } : {}),
       withTimber: withTimberOf(view),
-      sightlinePercent: figure.sightlinePercent,
+      sightlinePercent: sightline.percent,
+      ...(sightline.note ? { sightlineWithheld: sightline.note } : {}),
       ...(terrainNote ? { terrainNote } : {}),
       // The scene's green-up readings decide which openings the class pass paints, so every view names the same basis.
       ...(input.greenUp ? { greenUp: input.greenUp } : {}),
+      ...(input.existing ? { existingBasis: input.existing } : {}),
       distanceKm: figure.distanceKm,
       hfovDeg: figure.hfovDeg,
       // A panorama's lens is one frame's, never the whole span's (three 59 mm frames are not a 15 mm lens).

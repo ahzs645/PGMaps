@@ -1430,6 +1430,31 @@ with the paper form does. `PERCENT_CLEARCUT` on an *existing* opening is not
 volume removed, so existing openings keep their own scaling (below) and are
 never converted through Table 6.
 
+## One readiness rule for every output
+
+A run's alteration figures are the assessment's only while the run is current
+and `quality.numericalReady` holds. Every surface that prints one reads it
+through `runFigures` (`runFigures.ts`, DOM-free): the Results tiles, step 4,
+the Viewpoint summary, the run readout, the station table and its CSV, Save &
+export's *Run* rows, the FS1252 draft, the Markdown worksheet, the Visuals
+paragraph, the saved assessment runs and their evidence, and every saved view.
+It gives the state (`none`, `stale`, `provisional`, `ready`), the figures only
+when ready, and the run's **gaps**: the reasons the run withheld them, each
+with the part of the page that supplies it (`quality.gaps`, emitted by the run
+beside its warnings). A withheld figure prints "Withheld — <first gap>"; a
+surface that shows the raw value labels it *Diagnostic (not for reporting)*.
+`runFigures.test.ts` scans the source and fails on a read of
+`perspectiveAlteration`, `planimetricAlteration` or `perspectiveByStation`
+outside the run, the rule, the replay and the saved-summary record.
+
+A saved view stamps the sightline figure at its station only when the run was
+ready (`captureSightline`), and otherwise the reason (`sightlineWithheld`).
+Views saved before that record carry no readiness, and print *Readiness not
+recorded* in place of their figure (`capturedSightline`): never as the
+assessment's, never as a group's X in step 4 away from the station. Run
+assumptions sit inside the *Run* part's editor, so Save & export supplies a
+gap where it names it.
+
 ## Existing harvest and cumulative alteration
 
 An objective is met or missed by what is on the ground **plus** what is
@@ -1448,6 +1473,26 @@ cutblocks and the results report existing + proposed = cumulative.
   that barely exists. Around Prince George
   most recorded harvest is 2003–2005, which sits right on a 20-year default —
   moving it to 25 flips those openings back into the count.
+- **Whether the openings are all of them.** Line c is only as complete as the
+  read under it. The run keeps the source and the reviewer's assumption apart:
+  `quality.existingInventory` is the harvest read's coverage of the landform's
+  box (`complete` only when DataBC's openings were read whole over it, else
+  `partial`, `unavailable` or `not-requested`), and `quality.existingAssumed`
+  is step 3's tick that the included features are the existing disturbance.
+  Ticking it over a complete read leaves the read complete. Either makes the
+  figure usable; neither, and it is withheld with a gap that links to the
+  lookup. Every output prints what line c rests on beside X
+  (`runExistingBasis`, `existingBasis.ts`): "DataBC openings (…), complete
+  over the landform, read 12 Nov 2026", or "Reviewer assumption: the included
+  features are all the existing disturbance (diagnostic; …)" — the Results
+  tiles, step 4's line c, the Viewpoint summary, Save & export's *Run* part,
+  the FS1252 draft and worksheet, the evidence package, the block note, the
+  Visuals paragraph's basis and each viewpoint's calculation in the VIA
+  report. Runs saved before the two were apart carry `scenario-only` and read
+  as an assumption with its coverage not recorded. *Look up this view* reads
+  the map view together with the active landform's bounds
+  (`lookupQueryBounds`), so an opening off screen on the landform is not
+  missed; past the 1.5° cap it keeps the whole landform.
 - **Partial cuts.** `PERCENT_CLEARCUT` scales the contribution, so an opening
   that was 40% clearcut counts 40%. A recorded 0% is a retention-system harvest
   (RESULTS `RETEN`), which is still an opening to the eye, so it counts whole

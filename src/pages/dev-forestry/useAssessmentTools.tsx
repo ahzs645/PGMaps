@@ -25,6 +25,7 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { FieldRecordDialog, ToolFieldPanel } from './ToolFieldPanel'
 import { importFieldImage } from './toolImports'
 import { formatPct } from './measureFormat'
+import { DIAGNOSTIC_LABEL, runFigures, withheldText } from './runFigures'
 import { SightlineProfileChart } from './SightlineProfileChart'
 import { createId, type ForestryScene } from './scene'
 import {
@@ -810,10 +811,7 @@ export function useAssessmentTools({
                 <p className="font-medium">{r.name}</p>
                 {r.summary ? (
                   <>
-                    <p>
-                      Perspective: {formatPct(r.summary.perspectiveAlteration?.cumulativePercent, 2, 'withheld')} ·
-                      planimetric: {formatPct(r.summary.planimetricAlteration?.cumulativePercent, 2, 'withheld')}
-                    </p>
+                    <SavedRunFigures summary={r.summary} />
                     <p>
                       {r.summary.quality?.numericalReady ? 'Scenario estimate available' : 'Provisional'} · measured
                       class {r.summary.numericalClass ?? 'withheld'} · reviewer rating{' '}
@@ -1214,4 +1212,25 @@ export function useAssessmentTools({
     /** Saved design alternatives, so a saved view can say which one it shows. */
     designOptions: d.options,
   }
+}
+
+/** A saved run's figures through the one readiness rule (`runFigures`): a provisional run's only as diagnostic. */
+function SavedRunFigures({ summary }: { summary: Parameters<typeof runFigures>[0] }) {
+  const figures = runFigures(summary)
+  if (figures.state === 'ready')
+    return (
+      <p>
+        Perspective: {formatPct(figures.perspective?.cumulativePercent, 2, 'withheld')} · planimetric:{' '}
+        {formatPct(figures.planimetric?.cumulativePercent, 2, 'withheld')}
+      </p>
+    )
+  return (
+    <>
+      <p>{withheldText(figures)}</p>
+      <p className="text-muted-foreground">
+        {DIAGNOSTIC_LABEL}: perspective {formatPct(figures.diagnostic.perspective?.cumulativePercent, 2, 'withheld')} ·
+        planimetric {formatPct(figures.diagnostic.planimetric?.cumulativePercent, 2, 'withheld')}
+      </p>
+    </>
+  )
 }

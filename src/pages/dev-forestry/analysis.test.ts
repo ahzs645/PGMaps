@@ -770,3 +770,86 @@ describe('a surveyed eye under the terrain model', () => {
     expect(buried(result.quality!.warnings)).toEqual([])
   })
 })
+
+describe('existing disturbance: the source and the assumption kept apart', () => {
+  const block = box(0.004, -0.001, 0.006, 0.001)
+  const run = (harvestInventory: AnalysisInput['harvestInventory'], existingDisturbanceConfirmed: boolean) =>
+    computeAnalysis(
+      FLAT,
+      {
+        viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]] },
+        targets: [
+          {
+            id: 'landform',
+            name: 'landform',
+            role: 'landscape',
+            geometry: LANDFORM,
+            harvestYear: null,
+            clearcutPercent: null,
+          },
+          { id: 'block', name: 'block', role: 'block', geometry: block, harvestYear: null, clearcutPercent: null },
+        ],
+        settings: {
+          ...DEFAULT_ANALYSIS_SETTINGS,
+          observerHeightMeters: 3000,
+          maxViewDistanceMeters: 40000,
+          sampleBudget: 10000,
+          greenAreaConfirmed: true,
+          existingDisturbanceConfirmed,
+        },
+        assessmentYear: 2026,
+        ...(harvestInventory ? { harvestInventory } : {}),
+      },
+      TERRAIN,
+    )
+  const whole: AnalysisInput['harvestInventory'] = {
+    status: 'complete',
+    bounds: [-0.05, -0.05, 0.05, 0.05],
+    retrievedAt: '2026-11-12T18:00:00.000Z',
+    source: 'BC consolidated cutblocks',
+  }
+
+  it('keeps a complete read complete when the reviewer also ticks the assumption', () => {
+    const both = run(whole, true)
+    expect(both.quality!.existingInventory).toBe('complete')
+    expect(both.quality!.existingAssumed).toBe(true)
+    expect(both.quality!.numericalReady).toBe(true)
+    const sourceOnly = run(whole, false)
+    expect(sourceOnly.quality!.existingInventory).toBe('complete')
+    expect(sourceOnly.quality!.existingAssumed).toBe(false)
+    expect(sourceOnly.quality!.numericalReady).toBe(true)
+  })
+
+  it('reads a read that stops short of the landform as partial, and withholds the figure with a gap to the lookup', () => {
+    const short = run({ ...whole, bounds: [-0.01, -0.05, 0.05, 0.05] }, false)
+    expect(short.quality!.existingInventory).toBe('partial')
+    expect(short.quality!.numericalReady).toBe(false)
+    expect(short.quality!.gaps?.find((gap) => gap.id === 'existing-disturbance')).toMatchObject({
+      editor: 'run',
+      action: 'lookup-inventory',
+    })
+    // The assumption makes the figure usable, but the read stays partial.
+    const assumed = run({ ...whole, bounds: [-0.01, -0.05, 0.05, 0.05] }, true)
+    expect(assumed.quality!.existingInventory).toBe('partial')
+    expect(assumed.quality!.existingAssumed).toBe(true)
+    expect(assumed.quality!.numericalReady).toBe(true)
+    expect(assumed.quality!.gaps).toEqual([])
+  })
+
+  it('names no landform as a gap that opens the landform', () => {
+    const none = computeAnalysis(
+      FLAT,
+      {
+        viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]] },
+        targets: [
+          { id: 'block', name: 'block', role: 'block', geometry: block, harvestYear: null, clearcutPercent: null },
+        ],
+        settings: { ...DEFAULT_ANALYSIS_SETTINGS, observerHeightMeters: 3000, maxViewDistanceMeters: 40000 },
+        assessmentYear: 2026,
+      },
+      TERRAIN,
+    )
+    expect(none.quality!.numericalReady).toBe(false)
+    expect(none.quality!.gaps?.[0]).toMatchObject({ id: 'no-landform', editor: 'landform' })
+  })
+})

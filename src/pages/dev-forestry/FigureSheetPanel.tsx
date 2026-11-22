@@ -39,6 +39,7 @@ import { illustrationLine, missingLine, type FigureIllustration } from './engine
 import type { BlockCallout } from './figureCallouts'
 import type { InventoryBadgeInput } from './inventoryBadge'
 import { cropImageRows } from './mapCapture'
+import { capturedSightline } from './runFigures'
 import { table2Class } from './via'
 
 /** A printed percent read against Table 2, for a calculation line's `{class}`, titled as the forms print it. */
@@ -60,9 +61,16 @@ export type SavedFigure = {
   frameImage?: NoteImage
   callouts: BlockCallout[]
   stationIndex: number
-  /** The run's perspective alteration at that station, percent, and its Table 2 class. */
+  /**
+   * The run's perspective alteration at that station, percent, and its Table 2 class: kept only when the run's
+   * figures were the assessment's when the view was saved (`captureSightline`). Read it through `capturedSightline`.
+   */
   sightlinePercent: number | null
   sightlineClass: string | null
+  /** Whether the save checked the run's readiness (`runFigures`). Absent on views saved before it. */
+  sightlineReadiness?: 'ready' | 'withheld'
+  /** Why the sightline figure was withheld when the view was saved: the run's first gap. */
+  sightlineWithheld?: string
   lens: string
   /** Nearest visible block, km, and the view's horizontal field of view, degrees. */
   distanceKm: number | null
@@ -233,6 +241,7 @@ export async function figureInput(
   // (the same rows of the picture, the class and zone passes, the callouts and lines) unless the
   // style keeps its sky.
   let image = figure?.frameImage ? { ...figure.frameImage, caption: screenshot.caption } : screenshot
+  const sightline = capturedSightline(figure)
   const crop = figure?.frameImage && figure.crop && preset.cropToLandform !== false ? figure.crop : null
   if (crop) image = { ...(await cropImageRows(image, crop)), caption: image.caption }
   const callouts = (figure?.callouts ?? []).flatMap((callout) => {
@@ -290,8 +299,10 @@ export async function figureInput(
       : {}),
     callouts,
     lines,
-    sightlinePercent: figure?.sightlinePercent ?? null,
-    sightlineClass: figure?.sightlineClass ?? null,
+    // The assessment's figure only when the run was ready at the save; else why not (`capturedSightline`).
+    sightlinePercent: sightline.percent,
+    sightlineClass: sightline.percent === null ? null : (figure?.sightlineClass ?? null),
+    ...(sightline.note ? { sightlineWithheld: sightline.note } : {}),
     ...(figure?.partialCuts?.length ? { partialCuts: figure.partialCuts } : {}),
     ...(figure?.landforms?.length
       ? {

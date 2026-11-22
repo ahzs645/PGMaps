@@ -6,6 +6,7 @@ import { formatMeasure } from '@/lib/format'
 
 import { ASSESSMENT_VIEWPOINT_COLOR, INVENTORY_COLORS } from './planMapStyle'
 import type { ReverseRoadResult } from './reverseViewshed'
+import { runFigures, withheldText } from './runFigures'
 import { ROLE_COLORS, targetAreaHectares } from './scene'
 import type { AnalysisResult, TargetPolygon, TargetRole } from './types'
 import type { ViewpointCandidate } from './viewpointInventory'
@@ -53,7 +54,10 @@ type StationRow = {
   lat: number
   alongKm: number
   groundMeters: number
+  /** The run's figure at the station, only when the run stands behind it (`runFigures`). */
   alterationPercent: number | null
+  /** Why the figure is withheld, while it is. */
+  alterationWithheld: string | null
   assessment: boolean
 }
 
@@ -68,6 +72,7 @@ const STATION_COLUMNS = [
   numberColumn<StationRow>('alteration', 'Alteration in view (%)', (row) => row.alterationPercent, {
     format: (value) => formatMeasure(value, null, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
   }),
+  textColumn<StationRow>('alteration-status', 'Alteration status', (row) => row.alterationWithheld),
   textColumn<StationRow>('assessment', 'Assessment viewpoint', (row) => (row.assessment ? 'Yes' : null)),
 ]
 
@@ -102,6 +107,8 @@ export function useVisualQualityTable({
       ...candidate,
       seenPercent: checks.get(candidate.key)?.maxVisiblePercent ?? null,
     }))
+    const figures = runFigures(result)
+    const withheld = figures.state === 'ready' ? null : withheldText(figures)
     const stationRows: StationRow[] = (result?.stations ?? []).map((station, index) => ({
       id: `station-${index + 1}`,
       number: index + 1,
@@ -109,7 +116,8 @@ export function useVisualQualityTable({
       lat: station.lat,
       alongKm: station.distanceAlongMeters / 1000,
       groundMeters: station.groundElevationMeters,
-      alterationPercent: result?.perspectiveByStation[index]?.cumulativePercent ?? null,
+      alterationPercent: figures.atStation(index)?.cumulativePercent ?? null,
+      alterationWithheld: withheld,
       assessment: index === result?.assessmentStationIndex,
     }))
     return [

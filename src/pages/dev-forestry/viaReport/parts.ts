@@ -1143,6 +1143,7 @@ export function calculationFields(ctx: ReportContext, vp: DocumentFacts['viewpoi
     field('Existing openings not greened up', a ? `${a.nonVeg} px` : null, 'run'),
     // What decided which openings count: the green-up age, a supplied estimate or a field check, as the run names it.
     ...(vp.greenUp ? [field('Green-up of existing openings', vp.greenUp, 'run' as const)] : []),
+    ...(vp.existingBasis ? [field('Existing disturbance', vp.existingBasis, 'run' as const)] : []),
     field(
       `Alteration, ${rule.formula}`,
       out?.printed
@@ -1162,7 +1163,7 @@ export function calculationFields(ctx: ReportContext, vp: DocumentFacts['viewpoi
       : []),
     field(
       'Sightline figure (the assessment’s)',
-      vp.sightlinePercent === null ? null : `${vp.sightlinePercent.toFixed(2)}%`,
+      vp.sightlinePercent === null ? (vp.sightlineWithheld ?? null) : `${vp.sightlinePercent.toFixed(2)}%`,
       'run',
     ),
     // Why the two figures can part, when the picture drew the blocks' ground far coarser than the run walked it.

@@ -7,6 +7,8 @@
 import { canonicalInput } from '../integrity'
 import { greenUpBasis, greenUpBasisLine, runGreenUpReadings } from '../greenUp'
 import { templateManifest as m } from './templateManifest'
+import { runFigures } from '../runFigures'
+import { runExistingBasis } from '../existingBasis'
 import type { AnalysisResult, TargetPolygon } from '../types'
 import { bearingDegrees, haversineMeters, polygonBounds } from '../visibility'
 export type FormMetadata = {
@@ -133,8 +135,9 @@ function contentsRefs(value: string) {
   return s.startsWith('[') ? s.slice(1, -1).trim() : s
 }
 function numericFields(request: ExportRequest, station: number) {
-  const value = request.result.perspectiveByStation[station]
-  return request.result.quality?.numericalReady && value && Object.values(value).every(Number.isFinite) ? value : null
+  // One readiness rule (`runFigures`): a provisional run fills no numerical field.
+  const value = runFigures(request.result).atStation(station)
+  return value && Object.values(value).every(Number.isFinite) ? value : null
 }
 function formStream(request: ExportRequest, stationIndex: number, ordinal: number, count: number): string {
   const station = request.result.stations[stationIndex],
@@ -280,7 +283,7 @@ function appendixStreams(request: ExportRequest, inputDigest: string): string[] 
     `Assessment year: ${request.result.inputSnapshot?.assessmentYear ?? 'not available'}. Observer height: ${request.result.settings.observerHeightMeters} m. Display/analysis exaggeration: 1x. DEM sample spacing: ${number(request.result.demResolutionMeters)} m (not a claim of native DEM accuracy).`,
   )
   add(
-    `Green denominator: ${request.result.quality?.greenBasis ?? 'unverified'}. Existing disturbance evidence: ${request.result.quality?.existingInventory ?? 'unverified'}. Vegetation query: ${request.result.quality?.vegetation ?? 'unverified'}.`,
+    `Green denominator: ${request.result.quality?.greenBasis ?? 'unverified'}. Existing disturbance evidence: ${runExistingBasis(request.result)?.label ?? 'unverified'}. Vegetation query: ${request.result.quality?.vegetation ?? 'unverified'}.`,
   )
   for (const warning of request.result.quality?.warnings ?? ['No quality record. Numerical fields were withheld.'])
     add(warning)
@@ -449,7 +452,15 @@ export async function exportFs1252(request: ExportRequest): Promise<Uint8Array> 
         metadata: request.metadata ?? {},
         reviews: request.reviews ?? {},
         quality: request.result.quality,
-        perspectiveByStation: indices.map((i) => ({ station: i, ...request.result.perspectiveByStation[i] })),
+        // A provisional run's per-station values are kept as a labelled diagnostic, never as the form's figures.
+        perspectiveByStation: (() => {
+          const figures = runFigures(request.result)
+          return indices.map((i) =>
+            figures.state === 'ready'
+              ? { station: i, ...figures.atStation(i) }
+              : { station: i, withheld: figures.gaps[0]?.text ?? null, diagnostic: figures.diagnostic.atStation(i) },
+          )
+        })(),
       },
       null,
       2,

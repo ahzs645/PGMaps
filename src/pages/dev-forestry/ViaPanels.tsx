@@ -12,6 +12,7 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { cn } from '@/lib/utils'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 
+import { runFigures } from './runFigures'
 import type { AnalysisResult } from './types'
 import {
   DESIGN_ELEMENTS,
@@ -36,6 +37,7 @@ import {
 import { LAYOUT_STAGES, type LayoutStage } from './fieldChecklist'
 import { viewpointImportance } from './vqe'
 import { greenUpBasisLine, runGreenUpBasis } from './greenUp'
+import { runExistingBasis } from './existingBasis'
 import { VISUAL_QUALITY_CLASSES, visualQualityClass, type VisualQualityClassId } from './vqo'
 
 const SELECT_CLASS =
@@ -440,7 +442,7 @@ export function NumericalAssessmentSummary({
   /** Block names by id, for the visible net block rows. */
   blockNames?: Readonly<Record<string, string>>
 }) {
-  const breakdown = result?.quality?.numericalReady ? result.perspectiveAlteration : null
+  const breakdown = runFigures(result).perspective
   if (!breakdown) {
     return (
       <InlineAlert tone={assessment.numericalProvisional ? 'warning' : 'info'}>
@@ -464,6 +466,10 @@ export function NumericalAssessmentSummary({
                 {/* Which green-up the run used: a field check, or the model. */}
                 <span className="block text-3xs leading-4" data-green-up-basis>
                   {greenUpBasisLine(runGreenUpBasis(result))}
+                </span>
+                {/* Whether the openings counted are the source's whole read or the reviewer's assumption. */}
+                <span className="block text-3xs leading-4" data-existing-basis>
+                  {runExistingBasis(result)?.label}
                 </span>
               </span>
             ),

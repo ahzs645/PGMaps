@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 
 import type { BcSensitivityUnit } from './bcVisualInventory'
 import type { ForestryScene } from './scene'
+import { runFigures, withheldText } from './runFigures'
 import type { AnalysisResult, TargetPolygon } from './types'
 import type { ViaAssessment, ViaReview } from './via'
 import {
@@ -235,8 +236,16 @@ export function VisualsParagraphPanel({
           label: 'Landform alteration',
           value: alteration
             ? `${formatPercentValue(alteration.percent, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} in perspective view (initial X) · ${alteration.objective} range ${alteration.rangeLabel}`
-            : 'Not measured: run the assessment with this landform',
+            : // A run that does not stand behind its figure says why (`runFigures`), never "not measured".
+              (() => {
+                const figures = runFigures(result, { stale })
+                return figures.state === 'provisional' || figures.state === 'stale'
+                  ? withheldText(figures)
+                  : 'Not measured: run the assessment with this landform'
+              })(),
         },
+        // What line c rests on, beside X: the inventory read, or the reviewer's assumption (`runExistingBasis`).
+        ...(alteration?.existing ? [{ label: 'Existing disturbance', value: alteration.existing }] : []),
       ]
     : [{ label: 'Landform', value: 'None adopted' }]
   const viewpointRow = { label: 'Viewpoint', value: scene.viewpoint.name || 'Unnamed' }

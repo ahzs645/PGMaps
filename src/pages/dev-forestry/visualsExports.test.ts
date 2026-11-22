@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { createEmptyScene, createSampleScene, type ForestryScene } from './scene'
+import type { AnalysisResult } from './types'
 import { findSceneLandform } from './sceneInput'
 import { createViewOfInterestId, viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
 import { partLabel } from './viaReport/recipeMakeup'
@@ -1264,5 +1265,64 @@ describe('a view drawn again by an engine', () => {
     const placeless = savedIdentity(drawn, { viewpoint: 'Road view', facts: [] })
     expect('place' in placeless).toBe(false)
     expect(savedIdentity(drawn, undefined)).toBe(drawn)
+  })
+})
+
+describe('the Run part reads one readiness rule', () => {
+  const breakdown = (cumulativePercent: number) => ({
+    existingPercent: 2,
+    disturbancePercent: 0,
+    proposedPercent: cumulativePercent - 2,
+    cumulativePercent,
+  })
+  const run = (ready: boolean) =>
+    ({
+      stations: [{ lng: -122.7, lat: 54.5, groundElevationMeters: 600, distanceAlongMeters: 0 }],
+      assessmentStationIndex: 0,
+      activeLandformId: null,
+      targets: [],
+      settings: {},
+      perspectiveAlteration: breakdown(12.34),
+      perspectiveByStation: [breakdown(12.34)],
+      planimetricAlteration: breakdown(5.67),
+      quality: {
+        numericalReady: ready,
+        warnings: ready ? [] : ['Existing disturbance coverage has not been confirmed.'],
+        gaps: ready
+          ? []
+          : [
+              {
+                id: 'existing-disturbance',
+                text: 'Existing disturbance coverage has not been confirmed: look up existing openings.',
+                editor: 'run',
+                action: 'lookup-inventory',
+              },
+            ],
+      },
+    }) as unknown as AnalysisResult
+
+  it('prints a provisional run’s figures as withheld, naming its first gap, and the raw ones only as diagnostic', () => {
+    const ctx = buildExportContext(input(createEmptyScene(), { result: run(false) }))
+    expect(ctx.perspectivePercent).toBeNull()
+    expect(ctx.planimetricPercent).toBeNull()
+    const sections = exportContents('fs1252', ctx)
+    expect(rowValue(sections, 'Run', 'Perspective alteration')).toBeUndefined()
+    expect(rowValue(sections, 'Run', 'Alteration')).toBe(
+      'Withheld — Existing disturbance coverage has not been confirmed: look up existing openings.',
+    )
+    expect(rowValue(sections, 'Run', 'Diagnostic (not for reporting)')).toBe('perspective 12.34% · planimetric 5.67%')
+    // No other row prints a figure under a plain label.
+    const part = sections.find((section) => section.title === 'Run')!
+    expect(
+      part.rows!.filter((row) => row.label !== 'Diagnostic (not for reporting)').some((row) => /%/.test(row.value)),
+    ).toBe(false)
+    expect(part.editor).toBe('run')
+  })
+
+  it('prints a ready run’s figures under their scales', () => {
+    const sections = exportContents('fs1252', buildExportContext(input(createEmptyScene(), { result: run(true) })))
+    expect(rowValue(sections, 'Run', 'Perspective alteration')).toBe('12.34%')
+    expect(rowValue(sections, 'Run', 'Planimetric alteration')).toBe('5.67%')
+    expect(rowValue(sections, 'Run', 'Diagnostic (not for reporting)')).toBeUndefined()
   })
 })

@@ -1,6 +1,8 @@
 import { escapeHtml } from '@/lib/escapeHtml'
 import type { FieldRecord, ToolsDocument, ToolRun } from './assessmentTools'
 import { MASK_LABELS } from './assessmentMasks'
+import { DIAGNOSTIC_LABEL, runFigures, withheldText } from './runFigures'
+import { runExistingBasis } from './existingBasis'
 
 export function evidenceGaps(d: ToolsDocument): string[] {
   const missing: string[] = []
@@ -34,15 +36,23 @@ export function evidenceGaps(d: ToolsDocument): string[] {
     missing.push('Some saved runs failed or have provisional numerical results.')
   return missing
 }
+/** The saved run's figures through the one readiness rule (`runFigures`): a provisional run's are labelled diagnostic. */
+function figureLine(s: ToolRun['summary']): string {
+  const figures = runFigures(s)
+  const pct = (value: number | null | undefined) => (value == null ? 'withheld' : `${value.toFixed(2)}%`)
+  if (figures.state === 'ready')
+    return `Scenario perspective cumulative: ${pct(figures.perspective?.cumulativePercent)}; planimetric cumulative: ${pct(figures.planimetric?.cumulativePercent)} (different measurement scales)`
+  return `${withheldText(figures)} ${DIAGNOSTIC_LABEL}: perspective cumulative ${pct(figures.diagnostic.perspective?.cumulativePercent)}; planimetric cumulative ${pct(figures.diagnostic.planimetric?.cumulativePercent)} (different measurement scales)`
+}
 export function runLines(r: ToolRun): string[] {
   const s = r.summary,
     v = s?.via
   return [
     `Viewpoint: ${r.scene.viewpoint.name}; assessment year: ${r.scene.assessmentYear}`,
     `Objective: ${v?.objective.label ?? 'not assessed'}; active landform: ${r.scene.activeLandformId ?? 'not selected'}`,
-    `Source coverage: terrain ${s?.quality?.terrain ?? 'unknown'}; vegetation ${s?.quality?.vegetation ?? 'unknown'}; existing disturbance ${s?.quality?.existingInventory ?? 'unknown'}; green-area basis ${s?.quality?.greenBasis ?? 'unknown'}`,
+    `Source coverage: terrain ${s?.quality?.terrain ?? 'unknown'}; vegetation ${s?.quality?.vegetation ?? 'unknown'}; existing disturbance ${runExistingBasis(s)?.label ?? 'unknown'}; green-area basis ${s?.quality?.greenBasis ?? 'unknown'}`,
     `Numerical readiness: ${s?.quality?.numericalReady ? 'scenario estimates available' : 'provisional / withheld'}`,
-    `${s?.quality?.numericalReady ? 'Scenario' : 'Provisional diagnostic'} perspective cumulative: ${s?.perspectiveAlteration?.cumulativePercent?.toFixed(2) ?? 'withheld'}%; planimetric cumulative: ${s?.planimetricAlteration?.cumulativePercent?.toFixed(2) ?? 'withheld'}% (different measurement scales)`,
+    figureLine(s),
     `Proposed block area: ${s?.blockAreaHa?.toFixed(2) ?? '?'} ha; visible block ground: ${s?.visibleHa?.toFixed(2) ?? '?'} ha (descriptive full block outlines, not the net alteration ledger)`,
     `Settings: eye ${r.scene.settings.observerHeightMeters} m; screening ${r.scene.settings.screeningEnabled ? 'enabled' : 'off'}; sampling budget ${r.scene.settings.sampleBudget}; green-up age assumption ${r.scene.settings.greenUpAgeYears} years`,
     `Measured X: ${v?.initialPercent == null ? 'withheld' : `${v.initialPercent.toFixed(2)}%`}; ocular class: ${v?.ocular?.classId ?? 'review required'}`,

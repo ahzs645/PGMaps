@@ -364,6 +364,8 @@ describe('narrativeInputFromScene', () => {
     assessmentStationIndex: 0,
     activeLandformId: 'lf',
     perspectiveAlteration: { existingPercent: 1, disturbancePercent: 0, proposedPercent: 4, cumulativePercent: 5 },
+    perspectiveByStation: [{ existingPercent: 1, disturbancePercent: 0, proposedPercent: 4, cumulativePercent: 5 }],
+    quality: { numericalReady: true, warnings: [] },
     targets: [
       {
         targetId: 'b1',
@@ -392,6 +394,41 @@ describe('narrativeInputFromScene', () => {
     expect(input.overlaps.map((o) => o.code)).toEqual(['M'])
     expect(input.adjacentBlocks).toEqual(['DK552'])
     expect(input.alteration).toEqual({ percent: 5, objective: 'M', maxPercent: 18, rangeLabel: '7.1–18%' })
+  })
+
+  it('gives a provisional run no X, so the paragraph makes no desktop-review claim', () => {
+    const provisional = {
+      ...result,
+      quality: {
+        numericalReady: false,
+        warnings: ['Existing disturbance coverage has not been confirmed.'],
+        gaps: [{ id: 'existing-disturbance', text: 'Existing disturbance coverage has not been confirmed.' }],
+      },
+    } as unknown as AnalysisResult
+    const input = narrativeInputFromScene({
+      block,
+      targets: [block, landform, neighbour, far],
+      result: provisional,
+      viewpoint: { name: 'Highway 97', mode: 'corridor' },
+      units: [{ code: 'M', geometry: box(-123, 54, -122, 55) }],
+      landform,
+    })
+    expect(input.alteration).toBeNull()
+    const narrative = visualsNarrative(input)
+    expect(narrative.sentences.some((sentence) => sentence.id === 'desktop-review')).toBe(false)
+    expect(narrative.paragraph).not.toMatch(/meet the requirements/)
+    // The same scene from a ready run makes the claim, on its X.
+    const ready = visualsNarrative(
+      narrativeInputFromScene({
+        block,
+        targets: [block, landform, neighbour, far],
+        result,
+        viewpoint: { name: 'Highway 97', mode: 'corridor' },
+        units: [{ code: 'M', geometry: box(-123, 54, -122, 55) }],
+        landform,
+      }),
+    )
+    expect(ready.sentences.some((sentence) => sentence.id === 'desktop-review')).toBe(true)
   })
 
   it('leaves the run out when there is none, and the figure out when another landform was run', () => {

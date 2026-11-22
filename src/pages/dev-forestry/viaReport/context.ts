@@ -208,6 +208,8 @@ export function buildReportContext(input: {
   reportSetting?: ReportSetting | null
   /** What the run's existing openings' green-up rests on (`runGreenUpBasis(result).label`), when there is a run. */
   greenUp?: string | null
+  /** What the run's existing disturbance rests on (`runExistingBasis(result).label`), when there is a run. */
+  existing?: string | null
   date: Date
   /** Save & export's draft: a missing picture keeps its place with a box saying what goes there (`ReportContext.draft`). */
   draft?: boolean
@@ -229,6 +231,7 @@ export function buildReportContext(input: {
     assessment: input.assessment,
     breakdown: input.breakdown,
     greenUp: input.greenUp ?? null,
+    existing: input.existing ?? null,
     // Each group of views of interest carries its own step 4 to its views.
     groupOf: (name) => groupIdForName(scene.viewsOfInterest ?? [], name),
     objectiveId: landform?.objectiveId ?? null,

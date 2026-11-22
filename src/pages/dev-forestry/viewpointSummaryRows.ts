@@ -1,7 +1,9 @@
 import type { MetricSummaryItem } from '@/components/ui/metric-summary'
 import { formatMeasure } from '@/lib/format'
 import { resolvedThresholds } from './integrity'
+import { runExistingBasis } from './existingBasis'
 import { runGreenUpBasis } from './greenUp'
+import { runFigures } from './runFigures'
 import { formatKm, formatPct } from './measureFormat'
 import type { AlterationBreakdown, AnalysisResult, TargetPolygon } from './types'
 import type { ViaAssessment } from './via'
@@ -17,8 +19,8 @@ import {
 
 /**
  * The visual-quality "Viewpoint summary" rows. Everything here is read from the run, never
- * recomputed: per-station values from `perspectiveByStation` and each block's `stations`, run-wide
- * values from the run and the VIA assessment. Every percentage names the scale it was measured on
+ * recomputed: per-station and run-wide alteration through `runFigures` (the one readiness rule), each
+ * block's `stations`, and the VIA assessment. Every percentage names the scale it was measured on
  * in its `qualifier`, the line under its label, because the perspective and planimetric ranges are
  * not interchangeable (`vqo.ts`). Rows that the run only has as a whole say so there too. Labels
  * stay short enough for a card; the explanation is the note. Why a provisional run withholds its
@@ -65,6 +67,11 @@ function runBlock(result: AnalysisResult, chosen: ViewpointSummaryInput['block']
   const block = blocks.find((target) => target.targetId === chosen.targetId)
   return { block, blockName: chosen.name, missing: !block }
 }
+/** What line c rests on, for a note. */
+const existingNote = (result: AnalysisResult) => {
+  const label = runExistingBasis(result)?.label
+  return label ? `existing disturbance: ${label}` : 'existing disturbance basis not recorded'
+}
 const metres = (value: number, digits = 0) =>
   formatMeasure(value, 'm', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 
@@ -96,7 +103,8 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
   const index = Math.max(0, Math.min(input.stationIndex, result.stations.length - 1))
   const station = result.stations[index]
   const corridor = result.stations.length > 1
-  const numericalReady = !!result.quality?.numericalReady
+  const figures = runFigures(result)
+  const numericalReady = figures.state === 'ready'
   const { block, blockName, missing } = runBlock(result, input.block)
   const here = input.driving ? 'road view station' : 'assessment station'
   const withheld = 'Withheld while the run is provisional; see Numerical figures'
@@ -148,7 +156,7 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
   }
 
   if (landform) {
-    const atStation = result.perspectiveByStation[index] ?? null
+    const atStation = figures.atStation(index)
     // A planned view with a landform of its own: the figures here are still the run's landform's.
     const otherLandform = input.viewLandformName
       ? ` · against ${landform.name}, not this view's landform (${input.viewLandformName}); run against that one for its figures`
@@ -178,8 +186,8 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
       })
     }
 
-    const planimetric = result.planimetricAlteration
-    if (numericalReady && planimetric) {
+    const planimetric = figures.planimetric
+    if (planimetric) {
       const verdict = verdictNote(result, planimetric, 'planimetric', landform.objectiveId, landform.vac, thresholds)
       rows.push({
         key: 'planimetric',
@@ -197,8 +205,8 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
         label: 'Denudation',
         qualifier: 'planimetric scale',
         value: 'Withheld',
-        note: planimetric ? withheld : 'The run has no landform area to divide by',
-        tone: planimetric ? 'muted' : 'warning',
+        note: figures.diagnostic.planimetric ? withheld : 'The run has no landform area to divide by',
+        tone: figures.diagnostic.planimetric ? 'muted' : 'warning',
       })
     }
 
@@ -266,13 +274,25 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
     })
   }
 
+  // What line c rests on, beside the figures: the inventory read, or the reviewer's assumption.
+  const existing = runExistingBasis(result)
+  if (existing && landform)
+    rows.push({
+      key: 'existing',
+      label: 'Existing disturbance',
+      qualifier: 'line c',
+      value: existing.sourceConfirmed ? 'Inventory, complete' : existing.assumed ? 'Assumed' : 'Not confirmed',
+      note: existing.label,
+      tone: existing.sourceConfirmed ? 'default' : existing.assumed ? 'muted' : 'warning',
+    })
+
   rows.push({
     key: 'status',
     label: 'Numerical figures',
     value: numericalReady ? 'Ready' : 'Provisional',
     note: numericalReady
       ? 'The run meets the conditions for numerical figures'
-      : `${result.quality?.warnings[0] ?? 'The run did not record why it is provisional.'} Alteration figures are withheld until its warnings are resolved in Assessment & report.`,
+      : `${figures.gaps[0]?.text ?? 'The run did not record why it is provisional.'} Alteration figures are withheld until its warnings are resolved in Assessment & report.`,
     tone: numericalReady ? 'default' : 'warning',
   })
   return rows
@@ -291,7 +311,8 @@ export function runResultMetrics(
   input: Pick<ViewpointSummaryInput, 'result' | 'block' | 'landform' | 'thresholds'>,
 ): MetricSummaryItem[] {
   const { result, landform, thresholds } = input
-  const numericalReady = !!result.quality?.numericalReady
+  const figures = runFigures(result)
+  const numericalReady = figures.state === 'ready'
   const corridor = result.stations.length > 1
   const whole = corridor ? 'whole road' : 'the viewpoint'
   const { block, blockName } = runBlock(result, input.block)
@@ -299,7 +320,8 @@ export function runResultMetrics(
   const station = result.stations[result.assessmentStationIndex]
   const rows: MetricSummaryItem[] = []
 
-  const perspective = result.perspectiveAlteration
+  // The row shows while the run has a figure at all, withheld when the run does not stand behind it.
+  const perspective = figures.perspective ?? figures.diagnostic.perspective
   if (landform && perspective) {
     const verdict = numericalReady
       ? verdictNote(result, perspective, 'perspective', landform.objectiveId, landform.vac, thresholds)
@@ -320,7 +342,7 @@ export function runResultMetrics(
         label: 'Existing + proposed',
         qualifier: 'perspective · the run',
         value: `${formatPct(perspective.existingPercent)} + ${formatPct(perspective.proposedPercent)}`,
-        note: `Already harvested and not greened up (green-up ${runGreenUpBasis(result).label}), plus what this proposal adds; the objective is met or missed by the total`,
+        note: `Already harvested and not greened up (green-up ${runGreenUpBasis(result).label}; ${existingNote(result)}), plus what this proposal adds; the objective is met or missed by the total`,
       })
   }
 
