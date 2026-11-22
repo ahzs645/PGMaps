@@ -31,9 +31,10 @@ export const FS1252_OFFICE_FIELDS: ReadonlyArray<[keyof FormMetadata, string]> =
   ['vsc', 'Visual sensitivity class'],
   ['evc', 'Existing visual condition'],
   ['recommendedVqc', 'Recommended VQC'],
-  ['sourceDocument', 'Objective source document'],
+  ['sourceDocument', 'Objective established by (order or plan)'],
   ['evaluator', 'Prepared/evaluated by (optional)'],
   // Not printed on the FS1252; the VIA reports read them.
+  ['referenceDocument', 'Historical reference — not the objective’s authority (optional)'],
   ['evaluatorDesignation', 'Evaluator’s designation, e.g. RPF #4521'],
   ['evaluatorOrganisation', 'Evaluator’s organisation'],
   ['lakeManagementZone', 'Lake or landscape management zone (LMZ)'],

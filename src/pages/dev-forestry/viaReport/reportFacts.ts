@@ -24,6 +24,8 @@ export interface ReportFacts {
     licence: string | null
     cuttingPermit: string | null
     district: string | null
+    /** A historical reference the reviewer read, printed only in the references: never the objective's authority. */
+    referenceDocument: string | null
   }
   /** The evaluator as a sign-off names them: "Name, designation, organisation" (`preparerText`), scene. */
   preparer: string | null
@@ -75,6 +77,7 @@ export function reportFacts(ctx: ReportContext): ReportFacts {
       licence: blank(office.licence),
       cuttingPermit: blank(office.cuttingPermit),
       district: blank(office.district),
+      referenceDocument: blank(office.referenceDocument),
     },
     preparer: preparerText(office, true),
     evaluator: {

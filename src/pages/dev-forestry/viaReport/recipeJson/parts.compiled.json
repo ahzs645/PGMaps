@@ -545,9 +545,9 @@
       "from": {
         "code": [],
         "components": [
-          { "hash": "sha256:cf2d100a8641767c3b22f25f007332a6da02f3784200120fabe29105bfb59166", "id": "references" }
+          { "hash": "sha256:a5c25c8319d7486c0776828bb2c315c224ae03d4a9fb723ee1d48c97e1ef9235", "id": "references" }
         ],
-        "hash": "sha256:a839a4cd54b36acc1ea59520c264ca98a0a0677f831afe962b262d4a9c7e49ae",
+        "hash": "sha256:ec5854fc04c2ce0a5a9918c2b71e348df0a1c6a88b1cadcddf4ec74b387c569d",
         "recipes": [
           { "hash": "sha256:25dc253045d41bc92dae7da2787108030f94a949951f2c5f2f849d15b6d1188d", "id": "part.references" }
         ]
@@ -582,6 +582,25 @@
             { "at": "sections[0].parts[0].blocks[1].items[3]", "inLoop": false, "part": "references", "use": "value" }
           ],
           "uses": ["value"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.office.referenceDocument",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[1].items[4].if",
+              "inLoop": false,
+              "part": "references",
+              "use": "condition"
+            },
+            {
+              "at": "sections[0].parts[0].blocks[1].items[4].then[0]",
+              "inLoop": false,
+              "part": "references",
+              "use": "value"
+            }
+          ],
+          "uses": ["condition", "value"]
         }
       ],
       "options": {},
@@ -605,7 +624,13 @@
                         "BC Geographic Warehouse: Visual Landscape Inventory (REC_VISUAL_LANDSCAPE_INVENTORY), read live from DataBC for this report."
                       ]
                     },
-                    "Terrain: {{ facts.method.terrain }}. Timber: {{ facts.method.vegetation }}."
+                    "Terrain: {{ facts.method.terrain }}. Timber: {{ facts.method.vegetation }}.",
+                    {
+                      "if": "facts.office.referenceDocument",
+                      "then": [
+                        "Historical reference, not the objective's authority: {{ facts.office.referenceDocument }}."
+                      ]
+                    }
                   ],
                   "source": "fixed",
                   "type": "list"

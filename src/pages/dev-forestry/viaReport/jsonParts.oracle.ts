@@ -125,6 +125,9 @@ const references: ReportPart = {
             ? 'BC Geographic Warehouse: Visual Landscape Inventory (REC_VISUAL_LANDSCAPE_INVENTORY), read live from DataBC for this report.'
             : 'BC Geographic Warehouse: Visual Landscape Inventory (REC_VISUAL_LANDSCAPE_INVENTORY): not read for this report; inventory values are the office fields.',
           `Terrain: ${ctx.method.terrain}. Timber: ${ctx.method.vegetation}.`,
+          ...(blank(ctx.office.referenceDocument)
+            ? [`Historical reference, not the objective's authority: ${blank(ctx.office.referenceDocument)}.`]
+            : []),
         ],
         source: 'fixed',
       },

@@ -22,7 +22,13 @@ export type FormMetadata = {
   vsc?: string
   evc?: string
   recommendedVqc?: string
+  /** The order or plan that established the objective (the form's source-document box). */
   sourceDocument?: string
+  /**
+   * Not on the FS1252: a historical reference the reviewer read (an earlier VIA, a sheet), printed only in a report's
+   * references. Never the objective's authority, and never in an "established by" sentence.
+   */
+  referenceDocument?: string
   evaluator?: string
   /** Not on the FS1252: the evaluator's designation ("RPF #4521") and own organisation, which VIA reports print. */
   evaluatorDesignation?: string

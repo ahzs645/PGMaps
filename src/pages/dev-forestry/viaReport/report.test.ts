@@ -654,3 +654,52 @@ describe('views of the package a report or document does not print', () => {
     )
   })
 })
+
+describe('the objective’s authority', () => {
+  const sentences = (ctx: ReportContext, id: string) => all(findReportPart(id)!.build(ctx).blocks)
+  const gaps = (ctx: ReportContext, id: string) => findReportPart(id)!.build(ctx).toComplete ?? []
+  const noObjective: Partial<ReportContext> = {
+    landform: { name: 'Landform 1', objective: null, vac: 'M', areaHa: 410, source: 'drawn' },
+    inventory: null,
+  }
+
+  it('names the order or plan only when the objective is recorded too', () => {
+    const both = context('perspective-report-net-private', { office: { sourceDocument: 'a made-up land use order' } })
+    expect(sentences(both, 'regulatory-frame')).toContain(
+      'is Partial Retention (PR), established by a made-up land use order.',
+    )
+    expect(sentences(both, 'design-rationale')).toContain('The objective is established by a made-up land use order.')
+    expect(gaps(both, 'regulatory-frame')).toEqual([])
+
+    const authorityOnly = context('perspective-report-net-private', {
+      ...noObjective,
+      office: { sourceDocument: 'a made-up land use order' },
+    })
+    for (const id of ['regulatory-frame', 'design-rationale']) {
+      expect(sentences(authorityOnly, id), id).not.toContain('established by')
+      expect(sentences(authorityOnly, id), id).not.toContain('a made-up land use order')
+      expect(gaps(authorityOnly, id), id).toContain('Established visual quality objective')
+    }
+    expect(sentences(authorityOnly, 'regulatory-frame')).toContain('for the landform is not recorded.')
+
+    const neither = context('perspective-report-net-private', { ...noObjective, office: {} })
+    expect(gaps(neither, 'regulatory-frame')).toEqual([
+      'Established visual quality objective',
+      'Objective source document',
+    ])
+  })
+
+  it('prints a historical reference only among the references, never as the objective’s authority', () => {
+    const ctx = context('perspective-report-net-private', {
+      office: { referenceDocument: 'a made-up earlier assessment' },
+    })
+    for (const id of ['regulatory-frame', 'design-rationale', 'inventory'])
+      expect(sentences(ctx, id), id).not.toContain('a made-up earlier assessment')
+    expect(sentences(ctx, 'regulatory-frame')).not.toContain('established by')
+    expect(gaps(ctx, 'regulatory-frame')).toEqual(['Objective source document'])
+    expect(sentences(ctx, 'references')).toContain(
+      "Historical reference, not the objective's authority: a made-up earlier assessment.",
+    )
+    expect(sentences(context('perspective-report-net-private'), 'references')).not.toContain('Historical reference')
+  })
+})

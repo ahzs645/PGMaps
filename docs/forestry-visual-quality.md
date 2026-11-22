@@ -4611,6 +4611,17 @@ office information and under the VIA report's options, copies Your details
 designation fills the sign-off's designation line; the seal, signature and date
 stay to complete. The worksheet's *Evaluator* line prints the same name.
 
+**The objective's authority is the order or plan, never a reference.** The
+office field *Objective established by (order or plan)* (`sourceDocument`, the
+FS1252's source-document box) is the only value an "established by" sentence
+prints, and only beside a recorded objective: with no objective the report
+says the objective "is not recorded" and lists the objective (and the
+authority, when it is blank too) to complete. A document the reviewer read for
+context, such as an earlier assessment, goes in *Historical reference — not
+the objective's authority* (`referenceDocument`), which prints only among the
+references. Values typed into the source-document field before the two were
+separated stay where they are.
+
 **Nothing is invented.** Office fields come from the FS1252 office information;
 the reviewer's judgements from step 4 at the assessment station's view only;
 anything else prints as a blank line and is listed under _To complete before
