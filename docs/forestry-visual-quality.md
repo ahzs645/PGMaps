@@ -1539,7 +1539,9 @@ cutblocks and the results report existing + proposed = cumulative.
   lookup. Every output prints what line c rests on beside X
   (`runExistingBasis`, `existingBasis.ts`): "DataBC openings (…), complete
   over the landform, read 12 Nov 2026", or "Reviewer assumption: the included
-  features are all the existing disturbance (diagnostic; …)" — the Results
+  features are all the existing disturbance (not confirmed by a complete
+  inventory read: …)", never "diagnostic", which marks a withheld figure; a
+  read that could not be made, or was not asked for, carries no date — the Results
   tiles, step 4's line c, the Viewpoint summary, Save & export's *Run* part,
   the FS1252 draft and worksheet, the evidence package, the block note, the
   Visuals paragraph's basis and each viewpoint's calculation in the VIA

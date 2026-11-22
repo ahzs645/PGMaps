@@ -77,11 +77,22 @@ describe('runExistingBasis', () => {
     const assumed = runExistingBasis(run({ existingInventory: 'partial', existingAssumed: true }))!
     expect(assumed.sourceConfirmed).toBe(false)
     expect(assumed.label).toMatch(/^Reviewer assumption: the included features are all the existing disturbance/)
-    expect(assumed.label).toContain('diagnostic')
+    // A ready figure: never called diagnostic beside X, which `DIAGNOSTIC_LABEL` marks a withheld figure by.
+    expect(assumed.label).not.toContain('diagnostic')
+    expect(assumed.label).toContain('not confirmed by a complete inventory read')
     expect(assumed.label).toContain('partial: the read does not cover the whole landform')
     expect(runExistingBasis(run({ existingInventory: 'not-requested' }))!.label).toBe(
       'Not confirmed: DataBC openings (BC consolidated cutblocks), not looked up',
     )
+  })
+
+  it('gives a read date only for a read that came back', () => {
+    for (const inventory of ['unavailable', 'not-requested'] as const)
+      expect(runExistingBasis(run({ existingInventory: inventory }))!.label, inventory).not.toContain('read 12 Nov')
+    expect(runExistingBasis(run({ existingInventory: 'unavailable' }))!.label).toBe(
+      'Not confirmed: DataBC openings (BC consolidated cutblocks), could not be read',
+    )
+    expect(runExistingBasis(run({ existingInventory: 'partial' }))!.label).toContain(', read 12 Nov 2026')
   })
 
   it('reads a run saved before the two were apart as an assumption with its coverage not recorded', () => {
