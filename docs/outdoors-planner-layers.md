@@ -18,7 +18,7 @@ sidebar says so.
 | Layer | Source | Read through |
 |---|---|---|
 | Satellite imagery | Esri World Imagery | `SatelliteImagery`, shared with the road designer and visual quality |
-| Dated imagery | A feed from `IMAGERY_FEEDS`: Esri Wayback releases, or NASA GIBS's daily Landsat and Sentinel-2 passes at 30 m | The shared `ImageryTimeline` and `ImageryFrameLayers` ([imagery feeds](imagery-feeds.md)), as the road designer's Wayback timeline |
+| Dated imagery | A feed from `IMAGERY_FEEDS`: Esri Wayback releases, Sentinel-2 scenes at 10 m, or NASA GIBS's daily Landsat and Sentinel-2 passes at 30 m | The shared `ImageryTimeline` and `ImageryFrameLayers` ([imagery feeds](imagery-feeds.md)), as the road designer's Wayback timeline |
 | Terrain relief | Open Terrarium elevation tiles | `RegionalReliefLayer`, shared with the road designer |
 | Forest roads | Forest Tenure Road Section Lines, BCGW MapServer layer 196 | `BC_ROADS_SERVICE`, `tenureRoadClass` (`src/lib/forestry/bcForestRoads.ts`), as the designer's existing roads |
 | Cutblocks | Consolidated cutblocks, BCGW MapServer layer 543 | `BC_HARVEST_SERVICE`, `bcHarvestEvidence`, `harvestHistoryStyle` (`src/lib/forestry/bcHarvest.ts`), as the designer's harvest history |
@@ -99,8 +99,15 @@ Choosing another feed keeps the last picture drawn until the new feed's newest d
 Closing the strip switches the layer off. A new feed added to `IMAGERY_FEEDS` appears in the chooser
 with nothing else to change here.
 
+## Tests
+
+`tests/e2e/outdoors-layers.spec.ts` runs the planner against stubbed DataBC, catalogue, NASA and Esri
+services (the management units stay live): cutblocks read from the designer's source newest first and
+wait below their least zoom; a lake opens its chart sheets and leaves the unit beneath alone, while a
+click off it adds the unit; a hunt zone card lists the last draw's hunts; and dated imagery steps
+NASA's days and switches to Wayback with its local changes. It runs by hand, like the other e2e suites.
+
 ## Not done
 
 - No layer here is kept for offline use, and none is in the map's table view.
 - The draw report is read whole (about 3 MB) the first time a zone card or a unit's panel needs it.
-- There is no end-to-end spec for the planner's layers.
