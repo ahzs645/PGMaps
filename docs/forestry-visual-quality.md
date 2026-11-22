@@ -420,7 +420,14 @@ Each wait has its own budget, counted only while the capture waits on it
 and timber loading 2 minutes, the facing and the lens 20 s, the save 5 minutes.
 A run that fails or runs out of time, or a road view that does not open, fails
 every view at that place with the reason; terrain, timber, a facing or a lens
-that does not take fails that view alone. A save that runs out of time stops
+that does not take fails that view alone. A run cancelled under the capture
+ends with no error, so nothing would finish the wait: once no run is running,
+pending or failed for `runAbandonMs` (3 s; `runPending`, `waitAbandoned`) the
+place fails with *The run for this place was cancelled.* While a capture runs,
+*Run visibility* (the ribbon's, the sidebar's and the export's) waits with "Wait
+for the capture to finish, or cancel it.", since a run closes the road view the
+capture stands in, and stopping a run the capture started cancels the capture
+with it. A save that runs out of time stops
 the batch, because its class pass may still be moving the camera, and the rest
 are reported as not captured. A save whose screenshot or class pass could not
 be taken is kept, with a warning (`warning: 'sheet'` in the batch's failures)

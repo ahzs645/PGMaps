@@ -538,6 +538,8 @@ export type SidebarProps = {
 
   analysis: AnalysisState
   onRun: () => void
+  /** Why *Run visibility* waits (views of interest being captured), or null/absent when it can run. */
+  runBlocked?: string | null
   onCancel: () => void
 
   reverse: ReverseState
@@ -713,6 +715,7 @@ export function Sidebar({
   snapMessage,
   analysis,
   onRun,
+  runBlocked = null,
   onCancel,
   reverse,
   onRunReverse,
@@ -1633,7 +1636,8 @@ export function Sidebar({
                   type="button"
                   size="sm"
                   className={GRID_BUTTON}
-                  disabled={!hasViewpoint || blocks.length === 0 || running}
+                  disabled={!hasViewpoint || blocks.length === 0 || running || !!runBlocked}
+                  title={runBlocked ?? undefined}
                   onClick={onRun}
                 >
                   {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
@@ -1676,6 +1680,7 @@ export function Sidebar({
                 />
               )}
 
+              {runBlocked && !running && <p className="text-2xs text-muted-foreground">{runBlocked}</p>}
               {!hasViewpoint && <p className="text-2xs text-muted-foreground">Place a viewpoint to run.</p>}
               {hasViewpoint && blocks.length === 0 && (
                 <p className="text-2xs text-muted-foreground">Add at least one block to assess.</p>

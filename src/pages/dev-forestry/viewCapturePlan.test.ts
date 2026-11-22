@@ -15,6 +15,7 @@ import {
   standPlace,
   viewLensHfov,
   viewPhotoRecord,
+  waitAbandoned,
   waitFailure,
   withoutPlannedView,
   type CaptureFacts,
@@ -94,6 +95,18 @@ describe('waiting for the road view', () => {
     expect(captureWaitingFor({ ...ready, lensApplied: false }, want)).toBe('lens')
     expect(captureWaitingFor({ ...ready, poseBearing: 250 }, want)).toBe('facing')
     expect(captureWaitingFor({ ...ready, canSave: false }, want)).toBe('timber')
+  })
+
+  it('calls a run wait abandoned only when nothing is running, pending or failed', () => {
+    const idle = { ...ready, runFresh: false, runRunning: false, runPending: false }
+    expect(waitAbandoned('run', idle)).toBe(true)
+    expect(waitAbandoned('run', { ...idle, runRunning: true })).toBe(false)
+    expect(waitAbandoned('run', { ...idle, runPending: true })).toBe(false)
+    // A failed run is reported as failed, not cancelled.
+    expect(waitAbandoned('run', { ...idle, runError: 'No terrain.' })).toBe(false)
+    // A page that does not say what is pending is never judged.
+    expect(waitAbandoned('run', { ...idle, runPending: undefined })).toBe(false)
+    expect(waitAbandoned('road view', idle)).toBe(false)
   })
 
   it('checks a block facing against the bearing to the block from the camera', () => {

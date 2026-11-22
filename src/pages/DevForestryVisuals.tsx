@@ -4268,6 +4268,17 @@ function DevForestryVisuals({
       ? (scene.targets.find((target) => target.id === summaryView.landformId)?.name ?? null)
       : null
   const captureRunning = viewCapture.state.status === 'running'
+  // A run started by hand while views are captured would close the road view the capture stands in: Run waits for the
+  // capture, and stopping a run the capture started stops the capture with it.
+  const runBlockedByCapture = captureRunning ? 'Wait for the capture to finish, or cancel it.' : null
+  const cancelRun = () => {
+    if (captureRunning) {
+      viewCapture.cancel()
+      // Only a run or a road view still on its way is stopped: the run a save reads stays.
+      if (analysis.state.status !== 'running' && !pendingPreview) return
+    }
+    cancelPreview()
+  }
   const summaryViewSwitcher = viewsOfInterest.length
     ? {
         label: summaryView?.name ?? (standingNow ? standingNow.name : scene.viewpoint.name || 'The road'),
@@ -5148,6 +5159,11 @@ function DevForestryVisuals({
         runFresh: !!result,
         runRunning: analysis.state.status === 'running',
         runError: analysis.state.status === 'error' ? (analysis.state.error ?? 'the run failed.') : null,
+        // A stand not yet acted on starts its run on the next effect; a pending preview with a run going or done
+        // opens the road view. A pending preview with nothing running was cancelled under it.
+        runPending:
+          (!!standRequest && standRequest.serial !== handledStand.current) ||
+          (!!pendingPreview && (analysis.state.status === 'running' || !!result)),
         roadViewOpen: drive.active && !preliminaryDrive,
         canSave: canSaveViewRef.current,
         saveBlocker: saveBlockerRef.current,
@@ -5415,7 +5431,7 @@ function DevForestryVisuals({
     active: drive.active,
     preparing: !!pendingPreview,
     onPreview: () => openPreview(),
-    onCancel: cancelPreview,
+    onCancel: cancelRun,
     onSample: () => handleLoadSample('roadside', true),
     onNew: handleClearScene,
     onDraw: handleDrawModeChange,
@@ -6413,13 +6429,15 @@ function DevForestryVisuals({
       status: analysis.state.status,
       progress: analysis.state.progress,
       error: analysis.state.error,
-      blocker: !key
-        ? 'The scene has an invalid input: check it in step 1.'
-        : !scene.viewpoint.coordinates.length
-          ? 'Draw or import the road or viewpoint in step 1 first.'
-          : !scene.targets.some((target) => target.role === 'block' || target.role === 'landscape')
-            ? 'Add a cutblock or landform in step 1 first.'
-            : null,
+      blocker: runBlockedByCapture
+        ? runBlockedByCapture
+        : !key
+          ? 'The scene has an invalid input: check it in step 1.'
+          : !scene.viewpoint.coordinates.length
+            ? 'Draw or import the road or viewpoint in step 1 first.'
+            : !scene.targets.some((target) => target.role === 'block' || target.role === 'landscape')
+              ? 'Add a cutblock or landform in step 1 first.'
+              : null,
       run: () => {
         tools.cancel()
         handleRun()
@@ -7281,10 +7299,12 @@ function DevForestryVisuals({
       snapMessage={snapMessage}
       analysis={{ ...analysis.state, result }}
       onRun={() => {
+        if (runBlockedByCapture) return
         tools.cancel()
         handleRun()
       }}
-      onCancel={cancelPreview}
+      runBlocked={runBlockedByCapture}
+      onCancel={cancelRun}
       reverse={reverseForRoads}
       onRunReverse={handleRunReverse}
       roadViewForest={
@@ -7549,7 +7569,8 @@ function DevForestryVisuals({
       case 'ownPhotos':
         return fieldPhoto.openOwnDialog()
       case 'runAssessment':
-        if (running) return cancelPreview()
+        if (running) return cancelRun()
+        if (runBlockedByCapture) return
         tools.cancel()
         return handleRun()
       case 'routePreview':
@@ -7592,7 +7613,11 @@ function DevForestryVisuals({
     },
     saveViewpoint: { disabled: !canSaveView, reason: viewBlocker },
     downloadImage: { disabled: !canSaveView, reason: viewBlocker },
-    runAssessment: { label: running ? 'Cancel run' : undefined },
+    runAssessment: {
+      label: running ? 'Cancel run' : undefined,
+      disabled: !running && !!runBlockedByCapture,
+      reason: runBlockedByCapture ?? undefined,
+    },
     routePreview: { pressed: routePreviewOpen || routeViewshed.enabled },
     measure: { pressed: measuring, disabled: drawMode !== 'none', reason: 'Finish or cancel the drawing first.' },
     customizeRibbon: { hidden: !toolbar },

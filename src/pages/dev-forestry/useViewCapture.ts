@@ -14,6 +14,7 @@ import { timed } from './exportTiming'
 import {
   CAPTURE_TIMEOUTS,
   FACING_SETTLE_MS,
+  RUN_CANCELLED,
   beforeMessage,
   beforeWarning,
   captureMessage,
@@ -21,6 +22,7 @@ import {
   captureWaitingFor,
   planCapture,
   standFacing,
+  waitAbandoned,
   waitFailure,
   type CaptureFacts,
   type CaptureWait,
@@ -156,6 +158,8 @@ async function waitReady<S>(
   let steadySince: number | null = null
   let steadyBearing: number | null = null
   let sawRunning = false
+  // Since when the run wait has had nothing running or about to start (`waitAbandoned`), or null.
+  let abandonedSince: number | null = null
   const started = clock.now()
   let last = started
   for (;;) {
@@ -176,6 +180,11 @@ async function waitReady<S>(
       (sawRunning || now - started > RUN_START_GRACE_MS)
     )
       return { ok: false, reason: waitFailure('run', facts), place: true }
+    // A run cancelled under the capture (or never started) ends with no error: nothing would finish the wait.
+    if (waitAbandoned(wait, facts)) {
+      abandonedSince ??= now
+      if (now - abandonedSince > CAPTURE_TIMEOUTS.runAbandonMs) return { ok: false, reason: RUN_CANCELLED, place: true }
+    } else abandonedSince = null
     if (wait === null) {
       if (steadySince === null || facts.poseBearing !== steadyBearing) {
         steadySince = now

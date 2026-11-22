@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { CaptureFacts } from './viewCapturePlan'
-import { standFacing } from './viewCapturePlan'
+import { CAPTURE_TIMEOUTS, standFacing } from './viewCapturePlan'
 import { runViewCapture, type CaptureClock, type ViewCaptureHost, type ViewCaptureState } from './useViewCapture'
 import type { ViewOfInterest } from './viewsOfInterest'
 
@@ -35,13 +35,17 @@ function fastClock(): CaptureClock & { elapsed: () => number } {
  * A page that runs for a few polls after each stand, then opens its road view; it faces and takes lenses at once,
  * and lists each save as it is made.
  */
-function fakePage(views: ViewOfInterest[], options: { runError?: string; lens?: boolean } = {}) {
+function fakePage(
+  views: ViewOfInterest[],
+  options: { runError?: string; lens?: boolean; runCancelled?: boolean } = {},
+) {
   const log: string[] = []
   const page = {
     key: 'home' as string,
     runFresh: true,
     runRunning: false,
     runError: null as string | null,
+    runPending: false,
     roadViewOpen: false,
     lookAtTargetId: null as string | null,
     lookBearing: null as number | null,
@@ -54,7 +58,10 @@ function fakePage(views: ViewOfInterest[], options: { runError?: string; lens?: 
     facts: (): CaptureFacts => {
       if (polls > 0 && --polls === 0) {
         page.runRunning = false
+        page.runPending = false
         if (options.runError) page.runError = options.runError
+        // Cancelled by hand: the analysis goes back to idle with no error, and nothing starts it again.
+        else if (options.runCancelled) page.runFresh = false
         else {
           page.runFresh = true
           page.roadViewOpen = true
@@ -65,6 +72,7 @@ function fakePage(views: ViewOfInterest[], options: { runError?: string; lens?: 
         runFresh: page.runFresh,
         runRunning: page.runRunning,
         runError: page.runError,
+        runPending: page.runPending,
         roadViewOpen: page.roadViewOpen,
         canSave: page.roadViewOpen,
         lookAtTargetId: page.lookAtTargetId,
@@ -81,6 +89,7 @@ function fakePage(views: ViewOfInterest[], options: { runError?: string; lens?: 
       page.key = `at ${v.lng}`
       page.runFresh = false
       page.runRunning = true
+      page.runPending = true
       page.roadViewOpen = false
       Object.assign(page, standFacing(v), { lensMm: v.focalMm })
       polls = 3
@@ -159,6 +168,38 @@ describe('capturing planned views', () => {
       'The run for this place failed: No terrain under the viewpoint.',
     ])
     expect(log.at(-1)).toBe('restore where I stood')
+  })
+
+  it('fails a place whose run was cancelled under it within seconds, not after the run’s budget', async () => {
+    const views = [view('a'), view('b', { lng: -122.7 })]
+    const { host, log } = fakePage(views, { runCancelled: true })
+    const clock = fastClock()
+    const report = await runViewCapture(() => host, ['a', 'b'], { cancelled: () => false, onState: () => {}, clock })
+    expect(report.captured).toEqual([])
+    expect(report.failures.map((failure) => failure.reason)).toEqual([
+      'The run for this place was cancelled.',
+      'The run for this place was cancelled.',
+    ])
+    expect(log).toEqual(['stand a', 'stand b', 'restore where I stood'])
+    // Two places, each given the grace and no more: far inside one run's five minutes.
+    expect(clock.elapsed()).toBeLessThan(2 * (CAPTURE_TIMEOUTS.runAbandonMs + 1000))
+  })
+
+  it('keeps waiting on a run whose page does not say what is pending', async () => {
+    const { host } = fakePage([view('a')])
+    const facts = host.facts
+    let polls = 0
+    // The run is idle for ten seconds before it starts, with no word on what is pending.
+    host.facts = () => {
+      const now = facts()
+      return ++polls < 100 ? { ...now, runRunning: false, runPending: undefined } : now
+    }
+    const report = await runViewCapture(() => host, ['a'], {
+      cancelled: () => false,
+      onState: () => {},
+      clock: fastClock(),
+    })
+    expect(report.captured).toEqual(['a'])
   })
 
   it('gives up on a view whose lens never takes, after its own time limit', async () => {

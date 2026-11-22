@@ -36,6 +36,11 @@ export const CAPTURE_TIMEOUTS = {
   facingMs: 20_000,
   /** The save: the screenshot, then the framed class pass (another engine's drawing can take minutes). */
   saveMs: 300_000,
+  /**
+   * A wait for the run with no run running and none about to start (`waitAbandoned`) for this long: the run was
+   * cancelled, and nothing will start it again.
+   */
+  runAbandonMs: 3_000,
 } as const
 
 /** Settle time after a facing or lens change, so the regrown stand's loading shows before readiness is judged. */
@@ -99,6 +104,11 @@ export type CaptureFacts = {
   runRunning: boolean
   /** The run's error, when the last run failed. */
   runError: string | null
+  /**
+   * A run is about to start or a road view about to open on one: a stand not yet acted on, or the page's pending
+   * preview. Absent: not known, and a run wait is never judged abandoned (`waitAbandoned`).
+   */
+  runPending?: boolean
   /** The road view is open on a full run (not the preliminary terrain look). */
   roadViewOpen: boolean
   /** `canSaveView`: terrain, camera and drawn timber are ready. */
@@ -144,6 +154,18 @@ export function captureWaitingFor(facts: CaptureFacts, want: CaptureWant): Captu
   if (!facts.canSave) return 'timber'
   return null
 }
+
+/**
+ * Whether a wait for the run has nothing left to end it: no run for the place is running or about to start
+ * (`runPending`), and none failed (a failed run is reported as such). The capture gives it `runAbandonMs` before it
+ * says the run was cancelled. Never when the page does not say what is pending.
+ */
+export function waitAbandoned(wait: CaptureWait, facts: CaptureFacts): boolean {
+  return wait === 'run' && facts.runPending === false && !facts.runRunning && !facts.runError
+}
+
+/** Why a capture gave up on a place whose run nothing will finish (`waitAbandoned`). */
+export const RUN_CANCELLED = 'The run for this place was cancelled.'
 
 /** The page's words for what a step timed out waiting for. */
 export function waitFailure(wait: Exclude<CaptureWait, null>, facts: CaptureFacts): string {
