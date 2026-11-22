@@ -23,7 +23,7 @@
  */
 
 import { parseRouteCardReview, type RouteCardReview } from '@/lib/forestry/routeCard/review'
-import type { FormReview } from './pdf/fs1252'
+import type { DesignSource, FormReview } from './pdf/fs1252'
 import type { AlterationBreakdown, AnalysisResult, TargetPolygon } from './types'
 import { designDistanceScore, visibleProposalCentre } from './vqe'
 import { haversineMeters } from './visibility'
@@ -770,7 +770,15 @@ export function viewpointTypeOf(
   return own ?? (atAssessmentStation ? (review?.viewpointType ?? null) : null)
 }
 
-export type DesignSuggestion = { rating: DesignRating; basis: string }
+export type DesignSuggestion = {
+  rating: DesignRating
+  basis: string
+  /** The distance measured, for the distance element: to the centre of the visible proposal (FS1252 Table 2 row 4). */
+  distance?: { meters: number; band: string }
+}
+
+/** What the modelled distance is measured between, as the FS1252 appendix states it. */
+export const MODELLED_DISTANCE_MEASURED_TO = 'the centre of the visible proposal, from the assessment station'
 
 /**
  * The design elements a run can measure rather than judge. Distance is a
@@ -805,6 +813,7 @@ export function measuredDesignRatings(
       out.distance = {
         rating: score.score,
         basis: `${(distance / 1000).toFixed(1)} km to the visible proposal (${score.band})`,
+        distance: { meters: distance, band: score.band },
       }
   }
   const openings = result.targets.filter(
@@ -1119,14 +1128,25 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
 /**
  * The FS1252 (2008) form has five design rows — it predates number, size and
  * spacing — so that element stays on the VIA record and out of the PDF's rows.
+ * Each row says whose it is: the reviewer's step 4 entry, or the model's
+ * suggestion standing in for one (only distance is ever measured), and a
+ * modelled distance carries what it was measured to, so the form never marks a
+ * measurement as an observation.
  */
 export function fs1252ReviewFromVia(assessment: ViaAssessment, review: ViaReview | null | undefined): FormReview {
   const order: DesignElementId[] = ['force-lines', 'natural-character', 'edge-treatment', 'distance', 'position']
   const retention = review?.retention
     ? (RETENTION_LEVELS.find((level) => level.id === review.retention)?.factor ?? null)
     : null
+  const sourceOf = (id: DesignElementId): DesignSource | null =>
+    review?.design?.[id] != null ? 'reviewer' : assessment.design[id].rating !== null ? 'modelled' : null
+  const measured = assessment.design.distance.measured?.distance
   return {
     design: order.map((id) => assessment.design[id].rating),
+    designSource: order.map(sourceOf),
+    modelledDistance: measured
+      ? { km: measured.meters / 1000, band: measured.band, measuredTo: MODELLED_DISTANCE_MEASURED_TO }
+      : null,
     roads: assessment.roads,
     // FS1252 needs a Table 5 row even when netting makes it irrelevant.
     retention: review?.retentionNetted ? (retention ?? 0) : retention,

@@ -1250,7 +1250,14 @@ scene but, like the FS1252 office fields, is left out of the run's fingerprint:
 editing a judgement never withdraws the run it judges. The FS1252 export takes
 step 4's ratings for the assessment station unless a station's own inputs are
 set; the form's five design rows leave number, size and spacing on the VIA
-record.
+record. Each row keeps whose it is (`fs1252ReviewFromVia`'s `designSource`):
+a row step 4 left blank that the model filled is marked `X*` on the form, never
+the reviewer's `X`, and only distance is ever filled. Its appendix states the
+distance, what it was measured to (the centre of the visible proposal, from the
+assessment station), FS1252 Table 2 row 4's bands and that it is not a field
+observation; the adjustment is called reviewer-supplied only when all five rows
+are the reviewer's. The form's own *Viewing Distance* is a different measure:
+to the centre of the landform's bounding box.
 
 ## Two percentage scales, and why both are reported
 

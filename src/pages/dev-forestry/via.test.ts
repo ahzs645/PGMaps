@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { AlterationBreakdown, AnalysisResult } from './types'
 import {
   adjustedPercent,
+  alterationDistanceMeters,
   assessVia,
   existingOpeningContribution,
   finalRating,
@@ -364,6 +365,37 @@ describe('review storage and FS1252 hand-off', () => {
       retentionAlreadyNetted: false,
       notes: 'Opening follows the hollow.',
     })
+  })
+
+  it('says which design rows are the reviewer’s and which the model measured', () => {
+    // No distance in step 4: the row is the model's measurement, with what it was measured to.
+    const assessment = assessVia({ objectiveId: 'partial-retention', result: fakeResult(), review: FULL_REVIEW })
+    const form = fs1252ReviewFromVia(assessment, FULL_REVIEW)
+    expect(form.designSource).toEqual(['reviewer', 'reviewer', 'reviewer', 'modelled', 'reviewer'])
+    expect(form.modelledDistance).toMatchObject({
+      band: '> 1 and < 8 km',
+      measuredTo: 'the centre of the visible proposal, from the assessment station',
+    })
+    expect(form.modelledDistance!.km).toBeCloseTo(alterationDistanceMeters(fakeResult())! / 1000, 9)
+    // The reviewer's own distance: every row theirs.
+    const own: ViaReview = { ...FULL_REVIEW, design: { ...FULL_REVIEW.design, distance: 1 } }
+    const reviewed = fs1252ReviewFromVia(
+      assessVia({ objectiveId: 'partial-retention', result: fakeResult(), review: own }),
+      own,
+    )
+    expect(reviewed.design).toEqual([0, 0, 0, 1, 0])
+    expect(reviewed.designSource).toEqual(['reviewer', 'reviewer', 'reviewer', 'reviewer', 'reviewer'])
+    // No reviewer entries and no run: nothing given, nothing modelled.
+    const empty = fs1252ReviewFromVia(assessVia({ objectiveId: 'partial-retention', result: null, review: {} }), {})
+    expect(empty.design).toEqual([null, null, null, null, null])
+    expect(empty.designSource).toEqual([null, null, null, null, null])
+    expect(empty.modelledDistance).toBeNull()
+    // No reviewer entries with a run: only distance is ever modelled.
+    const modelledOnly = fs1252ReviewFromVia(
+      assessVia({ objectiveId: 'partial-retention', result: fakeResult(), review: {} }),
+      {},
+    )
+    expect(modelledOnly.designSource).toEqual([null, null, null, 'modelled', null])
   })
 
   it('still gives FS1252 a retention row when netting made it irrelevant', () => {
