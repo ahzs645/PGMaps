@@ -12,7 +12,10 @@ import type { PolygonGeometry } from './visibility'
 import type { VisualInventoryResult } from './visualInventoryQuery'
 
 const loaders = vi.hoisted(() => ({ terrain: vi.fn(), history: vi.fn(), inventory: vi.fn() }))
-vi.mock('./previewTerrainCache', () => ({ loadPreviewTerrain: loaders.terrain }))
+vi.mock('./previewTerrainCache', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./previewTerrainCache')>()),
+  loadPreviewTerrain: loaders.terrain,
+}))
 vi.mock('./bcForestHistory', () => ({ fetchForestHistory: loaders.history }))
 vi.mock('./visualInventoryQuery', () => ({
   queryVisualInventory: loaders.inventory,

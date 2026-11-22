@@ -1,12 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { loadPreviewTerrain } from './previewTerrainCache'
+import { createPreviewTerrainLoader, loadPreviewTerrain } from './previewTerrainCache'
+import {
+  DRIVE_FOREST_CONTEXT_METERS,
+  driveForestTerrainRange,
+  forestContextCover,
+  forestGround,
+} from './driveForestTerrain'
+import { fetchSceneCover } from './bcVegetationInventory'
 import { demTileRange, type Bounds, type ElevationSource } from '@/lib/forestry/terrain/terrain'
-import { haversineMeters, polygonBounds, type PolygonGeometry } from './visibility'
+import { haversineMeters, metersPerDegree, polygonBounds, type PolygonGeometry } from './visibility'
 
 /** Most decoded tiles one road view mosaic holds (~32 MB). */
 export const DRIVE_TERRAIN_MAX_TILES = 128
 /** The finest and coarsest zooms the mosaic is loaded at. */
 export const DRIVE_TERRAIN_ZOOMS = { finest: 14, coarsest: 10 } as const
+
+// Kept separately so the background never evicts a decoded road-view mosaic.
+const loadForestContext = createPreviewTerrainLoader()
+const NO_OPEN_GROUND: ReturnType<typeof forestContextCover>['openGround'] = []
 
 /**
  * The tiles the road view loads: the road and blocks' box, widened by `reach` when given (a photo viewpoint's wedge,
@@ -38,6 +49,7 @@ export function useDriveTerrain(
   road: number[][],
   polygons: PolygonGeometry[],
   reach: Bounds | null = null,
+  drawForestContext = false,
 ) {
   const [attempt, setAttempt] = useState(0)
   const retry = useCallback(() => setAttempt((value) => value + 1), [])
@@ -130,6 +142,43 @@ export function useDriveTerrain(
       })
     return () => abort.abort()
   }, [request])
+  const contextRequest = useMemo(() => {
+    if (!active || !drawForestContext || !extent || extent.radius >= DRIVE_FOREST_CONTEXT_METERS) return null
+    const range = driveForestTerrainRange(extent.bounds)
+    if (!range) return null
+    const [w, s, e, n] = extent.bounds
+    const centre = { lng: (w + e) / 2, lat: (s + n) / 2 }
+    const radius = DRIVE_FOREST_CONTEXT_METERS + extent.radius / 2
+    const scale = metersPerDegree(centre.lat)
+    const box: Bounds = [
+      centre.lng - radius / scale.lng,
+      centre.lat - radius / scale.lat,
+      centre.lng + radius / scale.lng,
+      centre.lat + radius / scale.lat,
+    ]
+    return { range, centre, radius, box, attempt }
+  }, [active, drawForestContext, extent, attempt])
+  const [context, setContext] = useState<{
+    request: typeof contextRequest
+    source: ElevationSource | null
+    cover: ReturnType<typeof forestContextCover> | null
+  } | null>(null)
+  useEffect(() => {
+    if (!contextRequest) return
+    const controller = new AbortController()
+    const { range, centre, radius, box, attempt } = contextRequest
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)])
+    const finish = (source: ElevationSource | null, cover: ReturnType<typeof forestContextCover> | null) => {
+      if (!controller.signal.aborted) setContext({ request: contextRequest, source, cover })
+    }
+    void Promise.all([
+      loadForestContext({ range, signal, concurrency: 2 }, attempt > 0),
+      fetchSceneCover(centre, radius, { signal, fires: false, maxTiles: 9, timeoutMs: 8000 }),
+    ])
+      .then(([{ source }, cover]) => finish(cover.complete.length ? source : null, forestContextCover(cover, box)))
+      .catch(() => finish(null, null))
+    return () => controller.abort()
+  }, [contextRequest])
   const visible = !request
     ? { source: null, message: null, progress: 0, loading: false }
     : request.tooLarge
@@ -142,8 +191,23 @@ export function useDriveTerrain(
       : state && state.request === request
         ? state
         : { source: null, message: pendingMessage, progress: 0, loading: true }
+  const activeContext = contextRequest && context?.request === contextRequest ? context : null
+  const contextReady = !contextRequest || !!activeContext
+  const contextSource = activeContext?.source ?? null
+  const contextCover = activeContext?.cover ?? null
+  const forestSource = useMemo(
+    () =>
+      visible.source && contextSource && contextCover
+        ? forestGround(visible.source, contextSource, contextCover.treedAt)
+        : visible.source,
+    [visible.source, contextSource, contextCover],
+  )
   return {
     source: visible.source,
+    forestSource: contextReady ? forestSource : null,
+    forestContextRadius: contextSource ? DRIVE_FOREST_CONTEXT_METERS : undefined,
+    forestContextLoading: !contextReady,
+    forestContextOpenGround: contextSource ? (contextCover?.openGround ?? NO_OPEN_GROUND) : NO_OPEN_GROUND,
     message: visible.message,
     progress: visible.progress,
     loading: visible.loading,

@@ -406,7 +406,7 @@ export async function fetchSceneCover(
   let capped = 0
   let next = 0
   const worker = async () => {
-    while (next < read.length) {
+    while (!signal?.aborted && next < read.length) {
       const tile = read[next++]
       const abort = new AbortController()
       const stop = () => abort.abort()

@@ -2883,7 +2883,13 @@ function DevForestryVisuals({
         : null,
     [photoStandNow],
   )
-  const previewTerrain = useDriveTerrain(preparePreview, scene.viewpoint.coordinates, previewPolygons, photoReach)
+  const previewTerrain = useDriveTerrain(
+    preparePreview,
+    scene.viewpoint.coordinates,
+    previewPolygons,
+    photoReach,
+    drive.active && drive.forest,
+  )
   // The assessment tools' field records, as the photo set needs them: the tools are made further down, so the
   // photo hook reads them through a ref filled once they exist.
   const photoRecordsRef = useRef<OwnPhotoRecordsBridge | null>(null)
@@ -3447,6 +3453,10 @@ function DevForestryVisuals({
     [treatedStemsAt, drive.harvestPhase],
   )
 
+  const previewForestInventory = useMemo(
+    () => [...forestInventory, ...previewTerrain.forestContextOpenGround],
+    [forestInventory, previewTerrain.forestContextOpenGround],
+  )
   const forestConfiguration = useMemo(
     () => ({
       anchorLatitude: scene.viewpoint.coordinates[0]?.[1],
@@ -3456,7 +3466,7 @@ function DevForestryVisuals({
       thinnings: forestThinnings,
       treated: treatedStemsAfterHarvest,
       standHeightMeters: drive.treeHeightMeters,
-      inventory: forestInventory,
+      inventory: previewForestInventory,
       style:
         drive.quality === 'fast'
           ? ('billboard' as const)
@@ -3466,8 +3476,9 @@ function DevForestryVisuals({
       look: drive.treeLook,
       // Faster means cards only, stopped or not.
       detailRadiusMeters: drive.quality === 'fast' ? 0 : drive.detailRadiusMeters,
-      elevation: previewTerrain.source,
+      elevation: previewTerrain.forestSource,
       farRadiusMeters: previewTerrain.radius,
+      backgroundRadiusMeters: previewTerrain.forestContextRadius,
     }),
     [
       scene.viewpoint.coordinates,
@@ -3477,13 +3488,14 @@ function DevForestryVisuals({
       forestThinnings,
       treatedStemsAfterHarvest,
       drive.treeHeightMeters,
-      forestInventory,
+      previewForestInventory,
       drive.quality,
       drive.treeStyle,
       drive.treeLook,
       drive.detailRadiusMeters,
-      previewTerrain.source,
+      previewTerrain.forestSource,
       previewTerrain.radius,
+      previewTerrain.forestContextRadius,
     ],
   )
   /**
@@ -6667,6 +6679,7 @@ function DevForestryVisuals({
       forestConfiguration.standHeightMeters,
       forestConfiguration.elevation,
       forestConfiguration.farRadiusMeters,
+      forestConfiguration.backgroundRadiusMeters,
     ]
     return new globalThis.Map<string, TreeInstance[]>()
   }, [
@@ -6679,6 +6692,7 @@ function DevForestryVisuals({
     forestConfiguration.standHeightMeters,
     forestConfiguration.elevation,
     forestConfiguration.farRadiusMeters,
+    forestConfiguration.backgroundRadiusMeters,
   ])
   // The legend folds while the map shares the screen with the road view or the summary, where it
   // would cover much of a half-width map; a click opens it, until the arrangement changes again.
@@ -6710,7 +6724,8 @@ function DevForestryVisuals({
     treeSun,
     treeShadows: drive.treeShadows,
     facedArrowGeometry,
-    previewTerrainMessage: previewTerrain.message,
+    previewTerrainMessage:
+      previewTerrain.message ?? (previewTerrain.forestContextLoading ? 'Loading terrain for distant trees…' : null),
     treeFreeCollection,
     landformVantage,
     forestGround,
@@ -7785,11 +7800,9 @@ function DevForestryVisuals({
       table={table}
       desktopSidebarWidth={400}
       mobileInitialSheetState="full"
-      // On a phone the sheet covers the map, so entering the road view with it
-      // up looks like nothing happened. Drop it to the peek for the drive and
-      // hand the sidebar back on the way out.
-      mobileSnapTo={drive.active || drawMode !== 'none' ? 'collapsed' : 'full'}
-      mobileSnapKey={drive.active ? 'road-view' : drawMode !== 'none' ? 'drawing' : 'setup'}
+      // Clear the plan for a pick or drawing, and clear the road view while driving.
+      mobileSnapTo={mapPick || drive.active || drawMode !== 'none' ? 'collapsed' : 'full'}
+      mobileSnapKey={mapPick ? 'pick-point' : drive.active ? 'road-view' : drawMode !== 'none' ? 'drawing' : 'setup'}
       // The collapsed sheet's line on a phone. (selectedFeatureMobilePeek shows only
       // while a feature card is open, which this page never opens.)
       mobilePeekTitle="Visual quality"

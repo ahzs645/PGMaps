@@ -46,6 +46,7 @@ import type { StartPlanPick } from './PhotoCameraTools'
 import { PhotoCompare } from './PhotoCompare'
 import { PhotoCombinedPanel } from './PhotoCombinedPanel'
 import { PhotoFlightMatchPanel } from './PhotoFlightMatchPanel'
+import { PhotoLocationPanel } from './PhotoLocationPanel'
 import { PhotoOptionsCard, ownAcceptancePose } from './PhotoOptionsCard'
 import { photoStripState } from './photoOptions'
 import { scenePhotoLayers } from './photoPageFeatures'
@@ -469,6 +470,9 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                 {photo.ownStatus.error && <InlineAlert tone="error">{photo.ownStatus.error}</InlineAlert>}
                 {entry && <PhotoNeeds part="line" entry={entry} />}
                 <PhotoOptionsCard photo={photo} onAdjust={() => setAdjust(true)} />
+                {startPick && (!current || own.sources.position === 'road-view' || adjust || photo.locationSearch) && (
+                  <PhotoLocationPanel own={own} photo={photo} startPick={startPick} />
+                )}
                 {/* What the comparison of cameras offers comes under the options, not over them: it is worked out
                     after a photo opens (a second or more), and above the options it pushed them down the window
                     under the reviewer's pointer. */}

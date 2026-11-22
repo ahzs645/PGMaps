@@ -97,6 +97,7 @@ export type ForestConfiguration = {
    */
   detailRadiusMeters?: number
   farRadiusMeters?: number
+  backgroundRadiusMeters?: number
   elevation: ElevationSource | null
 }
 export type ForestOverlayProps = {
@@ -160,6 +161,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
     look = 'flat',
     detailRadiusMeters = 0,
     farRadiusMeters = 3500,
+    backgroundRadiusMeters,
     elevation,
   } = configuration
   // Placement and readiness share an identity. A source/geometry change must
@@ -203,7 +205,8 @@ export function ForestOverlay(props: ForestOverlayProps) {
     const initialEye = eyeRef.current
     if (!initialEye) return
     const anchorLatitude = sceneLatitude ?? initialEye.lat
-    const bands = forestBands(farRadiusMeters)
+    const bands = forestBands(farRadiusMeters, backgroundRadiusMeters)
+    const coverageMeters = bands.at(-1)!.far
     // Coarse bands draw clumps of trees per card, not one stretched tree.
     const clumpBand = (i: number) => isFarBand(bands[i])
     const distantLayers = bands.map((_, i) =>
@@ -413,7 +416,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
         return patchCount
       },
       get coverageMeters() {
-        return farRadiusMeters
+        return coverageMeters
       },
       get error() {
         return layers.find((layer) => layer.error)?.error ?? null
@@ -512,7 +515,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
         reusedPatches,
         nearTreeCount: nearCount,
         patchCount,
-        coverageMeters: farRadiusMeters,
+        coverageMeters,
         inventoryStandCount: inventory?.length ?? 0,
         detailTreeCount: detailCount,
         trianglesPerTree: count ? Math.ceil(triangles / count) : 0,
@@ -618,6 +621,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
     look,
     detailRadiusMeters,
     farRadiusMeters,
+    backgroundRadiusMeters,
   ])
   return null
 }

@@ -16,7 +16,8 @@ export type ForestPatch = {
   bounds: [number, number, number, number]
   radius: number
 }
-export function forestBands(farRadius: number): ForestBand[] {
+export function forestBands(farRadius: number, backgroundRadius?: number): ForestBand[] {
+  const coreFar = Math.max(3500, farRadius)
   return [
     // 4 m holds up to 625 stems/ha, enough for the region's mature stands
     // (VRI median 426–664), so the first 300 m is drawn stem for stem. Past
@@ -25,7 +26,10 @@ export function forestBands(farRadius: number): ForestBand[] {
     { size: 256, spacing: 4, near: 0, far: 300 },
     { size: 512, spacing: 9, near: 250, far: 600 },
     { size: 1024, spacing: 24, near: 550, far: 3000 },
-    { size: 2048, spacing: 80, near: 2800, far: Math.max(3500, farRadius) },
+    { size: 2048, spacing: 80, near: 2800, far: coreFar },
+    ...(backgroundRadius && backgroundRadius > coreFar
+      ? [{ size: 4096, spacing: 160, near: coreFar - 300, far: backgroundRadius }]
+      : []),
   ]
 }
 export function forestPatches(
@@ -61,8 +65,11 @@ export function forestPatches(
       }
     }
   })
-  // Foreground first, then the hillside. Work can be spread across frames.
-  return result.sort((a, b) => a.band - b.band || haversineMeters(eye, a.centre) - haversineMeters(eye, b.centre))
+  // Make the nearby view usable first, then put trees on distant slopes before filling in the denser middle band.
+  const priority = (band: number) => (band === 2 ? bands.length : band)
+  return result.sort(
+    (a, b) => priority(a.band) - priority(b.band) || haversineMeters(eye, a.centre) - haversineMeters(eye, b.centre),
+  )
 }
 export function growForestPatch(
   patch: ForestPatch,

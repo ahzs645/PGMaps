@@ -1842,6 +1842,13 @@ street-level photo from Mapillary, or with a photo of your own.
   camera is looking, with how far ahead or back it was taken; **Line up**
   jumps to it. It stays hidden while a photo is lined up.
 
+- **Find the location of a photo without GPS.** In Camera, choose **Pick a search area** and click an approximate
+  centre on the plan. PGMaps tests nine locations over a 1 km square, searching every heading against the terrain
+  skyline. The search keeps the field of view fixed. Set the lens and, for an aerial photo, the altitude before
+  searching. It offers up to three starting cameras and marks close fits as ambiguous. Check the chosen camera
+  against recognizable terrain and mapped features before accepting it. A cropped or obscured ridge can still need
+  paired landmarks. The photo stays in the browser.
+
 - **A photo of your own.** *Line up photos of my own…* (under the Mapillary
   part, and available without a Mapillary token, at the head of the one block
   that also attaches simulation, map and design images and lists every field
@@ -2822,6 +2829,14 @@ plan's near-black, which a metre from the eye is ink. It moves and re-lights
 the terrain component's layer and adds none. Display only.
 
 ### The far forest
+
+The built-in road view loads an optional coarse terrain mosaic to draw background trees out to 8 km
+when the road and assessment terrain cover a smaller scene. The mosaic uses up to 25 DEM tiles at
+zoom 9–11. It supplies ground heights for trees beyond the road mosaic in areas covered by the BC
+vegetation inventory, with water, rock and other mapped open ground left clear. If the background
+read is unavailable, the existing forest extent is used. The road-view camera and visibility run
+continue to use their original elevation sources. The nearest trees draw first, followed by the
+coarse background and then the denser middle-distance trees.
 
 Across a valley is where a block is judged, and past 600 m a drawn stem stands
 for many. Five things make that hillside read as one (November 2026; the view

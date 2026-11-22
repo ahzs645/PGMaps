@@ -24,6 +24,14 @@ import {
 import type { MatchedCamera } from './matchedCamera'
 import { comparePhotoCameras, type CombinedResult, type CombinedSettings } from './photoCombinedSearch'
 import { depthModelStored, estimatePhotoDepth, type DepthGrid, type PhotoDepthModel } from './photoDepth'
+import {
+  hasLocationRelief,
+  photoLocationTrials,
+  rankPhotoLocations,
+  type PhotoLocation,
+  type PhotoLocationCandidate,
+  type PhotoLocationSearch,
+} from './photoLocationSearch'
 import type { PhotoMatcher } from './photoMatchers'
 import { openPhotoFeatureMatcher } from './photoFeatureClient'
 import {
@@ -63,6 +71,8 @@ import {
 } from './skylineFit'
 import { wrapSigned } from './skylineAlign'
 import {
+  frameHalfDiagonal,
+  horizonSlice,
   MIN_SKYLINE_COLUMNS,
   READER_SETTLED_AGREEMENT,
   searchRank,
@@ -700,7 +710,15 @@ export function useFieldPhoto({
     }
   }, [])
 
+  const locationAbort = useRef<AbortController | null>(null)
+  const [locationSearch, setLocationSearch] = useState<{ id: string; state: PhotoLocationSearch } | null>(null)
+  useEffect(() => () => locationAbort.current?.abort(), [])
+
   const activate = useCallback((id: string | null) => {
+    if (activeRef.current !== id) {
+      locationAbort.current?.abort()
+      setLocationSearch(null)
+    }
     activeRef.current = id
     setActiveId(id)
   }, [])
@@ -1534,7 +1552,7 @@ export function useFieldPhoto({
       return null
     }
     if (!positioned(first))
-      return stop('No position: pick where it was taken on the plan, or type it, then run it again.', {
+      return stop('No position: search an approximate area, or pick or enter a known camera location.', {
         lens: first.lens,
         stopped: 'No position yet',
       })
@@ -3078,6 +3096,124 @@ export function useFieldPhoto({
   // ---------------------------------------------------------------------------------------------------------------
   // The hand tools, on the active photo.
 
+  const findLocation = async (id: string, centre: PhotoLocation) => {
+    const photo = photoById(id)
+    if (!photo || activeRef.current !== id) return
+    locationAbort.current?.abort()
+    const controller = new AbortController()
+    locationAbort.current = controller
+    const { signal } = controller
+    const show = (state: PhotoLocationSearch) => {
+      if (!signal.aborted && activeRef.current === id) setLocationSearch({ id, state })
+    }
+    const locations = photoLocationTrials(centre)
+    show({ status: 'searching', checked: 0, total: locations.length })
+    try {
+      const pixels = await readPixels(photo)
+      const reader = SKYLINE_READERS.map((reader) => ({ reader, skyline: skylineRead(photo, pixels, reader) }))
+        .filter(
+          ({ skyline }) => skyline.filter(Boolean).length >= MIN_SKYLINE_COLUMNS && believableSkyline(pixels, skyline),
+        )
+        .sort((a, b) => b.skyline.filter(Boolean).length - a.skyline.filter(Boolean).length)[0]?.reader
+      if (!reader) {
+        show({
+          status: 'error',
+          message:
+            'There is too little clear skyline to locate this photo. Set a rough camera location in Adjust and pair landmarks.',
+        })
+        return
+      }
+      const spec = photoTerrainSpec(centre.lng, centre.lat, PHOTO_TERRAIN_RINGS)
+      const terrain = await loadOwnTerrain(centre.lng, centre.lat, signal)
+      const candidates: PhotoLocationCandidate[] = []
+      const { hfov, eyeHeightMeters, altitudeMeters } = photo.pose
+      let knownGround = 0
+      let belowGround = 0
+      let sampled = 0
+      for (const [index, location] of locations.entries()) {
+        signal.throwIfAborted()
+        const ground = terrain.elevationAt(location.lng, location.lat)
+        if (Number.isFinite(ground)) {
+          knownGround += 1
+          if (altitudeMeters != null && altitudeMeters <= ground) belowGround += 1
+        }
+        if (Number.isFinite(ground) && (altitudeMeters == null || altitudeMeters > ground)) {
+          const base = ownPhotoPose({ ...photo.pose, ...location }, ground, photo.width, photo.height)
+          const profile = await photoHorizon(
+            { eye: base, terrain: spec, maxDistanceMeters: WIDE_RADIUS_METERS * 0.95 },
+            signal,
+          )
+          if (profile.length) sampled += 1
+          if (hasLocationRelief(profile)) {
+            const fit = await runWideOrientation(
+              {
+                pose: { ...base, roll: 0 },
+                profile,
+                skyline: skylineOf(photo, pixels, base, reader),
+                pitchRange: pitchRangeFor({ tilt: undefined, airborne: altitudeMeters != null }),
+                rollRange: [-15, 15],
+                headingSpan: 180,
+              },
+              signal,
+            )
+            if (fit && hasLocationRelief(horizonSlice(profile, fit.bearing, frameHalfDiagonal(base)))) {
+              candidates.push({ ...location, fit })
+            }
+          }
+        }
+        show({ status: 'searching', checked: index + 1, total: locations.length })
+      }
+      if (knownGround > 0 && belowGround === knownGround) {
+        show({ status: 'error', message: 'The camera altitude is below the terrain in this area. Check it in Adjust.' })
+        return
+      }
+      show({
+        status: 'done',
+        ...rankPhotoLocations(candidates),
+        sampled,
+        basis: { hfov, eyeHeightMeters, altitudeMeters: altitudeMeters ?? null },
+      })
+    } catch (error) {
+      show({ status: 'error', message: `The location search stopped: ${reason(error)}` })
+    }
+  }
+
+  const useLocation = (id: string, candidate: PhotoLocationCandidate) => {
+    const photo = photoById(id)
+    const search = locationSearch?.id === id ? locationSearch.state : null
+    if (!photo || activeRef.current !== id || search?.status !== 'done' || !search.candidates.includes(candidate))
+      return
+    const { hfov, eyeHeightMeters, altitudeMeters } = search.basis
+    if (
+      photo.pose.hfov !== hfov ||
+      photo.pose.eyeHeightMeters !== eyeHeightMeters ||
+      (photo.pose.altitudeMeters ?? null) !== altitudeMeters
+    ) {
+      setLocationSearch({
+        id,
+        state: { status: 'error', message: 'The lens or eye height changed. Search again with the current settings.' },
+      })
+      return
+    }
+    setOwnPose(
+      {
+        lng: candidate.lng,
+        lat: candidate.lat,
+        bearing: candidate.fit.bearing,
+        pitch: candidate.fit.pitch,
+        roll: candidate.fit.roll,
+      },
+      'skyline',
+    )
+    patchWork(id, (current) => ({
+      ...current,
+      search: { status: 'idle' },
+      features: EMPTY_WORK.features,
+      controlSolve: null,
+    }))
+    setLocationSearch(null)
+  }
+
   /**
    * Finds heading, pitch and roll from the active photo's skyline over every heading (`wideOrientation.ts`, in a
    * worker), within the reviewer's priors: for a photo from the air, or any photo whose recorded heading is not
@@ -3800,6 +3936,13 @@ export function useFieldPhoto({
     alignment,
     autoAlign,
     cameraSearch,
+    locationSearch: locationSearch?.id === activeId ? locationSearch.state : null,
+    findLocation,
+    useLocation,
+    cancelLocationSearch: () => {
+      locationAbort.current?.abort()
+      setLocationSearch(null)
+    },
     findCamera,
     priors,
     setPriors,
@@ -3878,7 +4021,13 @@ export function useFieldPhoto({
     /** The own photo's dialog: whether it is open, and on which step. */
     ownDialog,
     openOwnDialog: (step?: OwnPhotoPlace) => setOwnDialog((current) => ({ open: true, step: step ?? current.step })),
-    closeOwnDialog: () => setOwnDialog((current) => ({ ...current, open: false })),
+    closeOwnDialog: () => {
+      if (locationSearch?.state.status === 'searching') {
+        locationAbort.current?.abort()
+        setLocationSearch(null)
+      }
+      setOwnDialog((current) => ({ ...current, open: false }))
+    },
     /** The terrain skyline for the active photo's camera, in its pixels; null until its terrain is loaded. */
     ownSkyline,
     ownSkylineStatus,
