@@ -335,29 +335,83 @@ export function settleFailure(what: string, why: 'stalled' | 'too long', limits:
 const SETTLE_CHECK_MS = 1000
 
 /**
- * Waits for the map to settle (tiles loaded), then reads the next frame. A tile loading is progress: the wait goes on
- * while tiles keep arriving, within `limits` (`settleGivenUp`). On giving up its listeners are taken off, so a frame
- * that settles late is not read for nothing.
+ * The most a framed capture (`captureFramed`: every frame's display and every class, zone and landform pass) takes in
+ * all, ms. Each settle alone may wait `SETTLE_LIMITS.maxMs`, and a capture settles once per frame and pass, so without
+ * one deadline shared by all of them a capture outlived the save's own limit (`CAPTURE_TIMEOUTS.saveMs`, 300 s): the
+ * capture of views gave up and moved on while the framed capture went on moving the eye camera. Kept below that limit,
+ * which also covers the screenshot taken before the framed capture.
  */
-function readSettledFrame<T>(
-  map: MapLibreMap,
+export const FRAMED_CAPTURE_DEADLINE_MS = 240_000
+
+/**
+ * What a capture may still spend: a deadline on `performance.now()`'s clock, and the caller's signal to stop at once.
+ * Shared by every settle one capture makes.
+ */
+export type CaptureBudget = { deadline: number; signal?: AbortSignal }
+
+/** A capture that ran out of its budget (`CaptureBudget`) or was stopped by its caller: never a partial result. */
+export class CaptureStopped extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'CaptureStopped'
+  }
+}
+
+/** Throws `CaptureStopped` when the budget's signal has fired or its deadline has passed at `now`. */
+export function checkCaptureBudget(budget: CaptureBudget | undefined, what: string, now = performance.now()): void {
+  if (!budget) return
+  if (budget.signal?.aborted) throw new CaptureStopped(`${what} was stopped: the capture was cancelled.`)
+  if (now > budget.deadline)
+    throw new CaptureStopped(
+      `${what} did not finish drawing: the capture ran past its ${Math.round(FRAMED_CAPTURE_DEADLINE_MS / 1000)} s limit.`,
+    )
+}
+
+/**
+ * Waits for the map to settle (tiles loaded), then reads the next frame. A tile loading is progress: the wait goes on
+ * while tiles keep arriving, within `limits` (`settleGivenUp`) and within `budget` (its deadline, checked with the
+ * limits; its signal, at once). On giving up its listeners are taken off, so a frame that settles late is not read
+ * for nothing.
+ */
+export function readSettledFrame<T>(
+  map: Pick<MapLibreMap, 'on' | 'off' | 'once' | 'triggerRepaint'>,
   read: () => T,
   what: string,
   limits: SettleLimits = SETTLE_LIMITS,
+  budget?: CaptureBudget,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
+    try {
+      checkCaptureBudget(budget, what)
+    } catch (error) {
+      reject(error as Error)
+      return
+    }
     let finished = false
     const startedAt = performance.now()
     let lastTileAt: number | null = null
     const onData = (event: { dataType?: string; tile?: unknown }) => {
       if (event.dataType === 'source' && event.tile) lastTileAt = performance.now()
     }
+    const onIdle = () => {
+      if (finished) return
+      map.once('render', onRender)
+      map.triggerRepaint()
+    }
     const stop = () => {
       finished = true
-      window.clearInterval(timer)
+      clearInterval(timer)
       map.off('data', onData)
+      budget?.signal?.removeEventListener('abort', onAbort)
     }
-    const onRender = () => {
+    const giveUp = (error: Error) => {
+      if (finished) return
+      stop()
+      map.off('idle', onIdle)
+      map.off('render', onRender)
+      reject(error)
+    }
+    function onRender() {
       if (finished) return
       stop()
       try {
@@ -366,20 +420,26 @@ function readSettledFrame<T>(
         reject(error instanceof Error ? error : new Error(String(error)))
       }
     }
-    const onIdle = () => {
-      if (finished) return
-      map.once('render', onRender)
-      map.triggerRepaint()
+    function onAbort() {
+      try {
+        checkCaptureBudget(budget, what)
+      } catch (error) {
+        giveUp(error as Error)
+      }
     }
-    const timer = window.setInterval(() => {
+    const timer = setInterval(() => {
       if (finished) return
-      const why = settleGivenUp({ now: performance.now(), startedAt, lastTileAt }, limits)
-      if (!why) return
-      stop()
-      map.off('idle', onIdle)
-      map.off('render', onRender)
-      reject(new Error(settleFailure(what, why, limits)))
+      const now = performance.now()
+      try {
+        checkCaptureBudget(budget, what, now)
+      } catch (error) {
+        giveUp(error as Error)
+        return
+      }
+      const why = settleGivenUp({ now, startedAt, lastTileAt }, limits)
+      if (why) giveUp(new Error(settleFailure(what, why, limits)))
     }, SETTLE_CHECK_MS)
+    budget?.signal?.addEventListener('abort', onAbort)
     map.on('data', onData)
     map.once('idle', onIdle)
     map.triggerRepaint()
@@ -390,6 +450,7 @@ function readSettledFrame<T>(
 function readFrameRgba(
   map: MapLibreMap,
   target: number | CaptureRegion,
+  budget?: CaptureBudget,
 ): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
   return readSettledFrame(
     map,
@@ -402,6 +463,8 @@ function readFrameRgba(
       }
     },
     'The class pass',
+    SETTLE_LIMITS,
+    budget,
   )
 }
 
@@ -419,6 +482,7 @@ export async function captureClassPass(
   map: MapLibreMap,
   layers: readonly ClassPassLayer[],
   target: number | CaptureRegion = MAX_SIDE,
+  budget?: CaptureBudget,
 ): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
   const style = map.getStyle()
   // Every layer, custom layers too: `getStyle().layers` leaves out the 3D trees (a custom layer), which then stayed
@@ -446,7 +510,7 @@ export async function captureClassPass(
       })
       added.push(id)
     }
-    return await readFrameRgba(map, target)
+    return await readFrameRgba(map, target, budget)
   } finally {
     for (const id of [...added].reverse()) {
       if (map.getLayer(id)) map.removeLayer(id)
@@ -587,6 +651,11 @@ export function capturePixelRatio(input: {
  * Frames are joined side by side. The camera and field of view are put back as they were, even on
  * failure. `probe` points (the blocks' ground the run sees) are read for the DEM detail each frame draws there.
  * `landformPasses` are further class passes at each frame's camera, one per other landform the sheet calculates.
+ *
+ * Every settle of the capture shares one budget: `deadlineMs` from the start (`FRAMED_CAPTURE_DEADLINE_MS` by
+ * default) and the caller's `signal`. Past it, or once the signal fires, the capture stops at its next check (at most
+ * `SETTLE_CHECK_MS`) with `CaptureStopped`, never a partial picture, and puts the camera back before it returns: a
+ * caller that gives up on a save must abort this signal, so nothing moves the camera after its own restore.
  */
 export async function captureFramed(
   map: MapLibreMap,
@@ -596,6 +665,7 @@ export async function captureFramed(
   zoneLayers: readonly ClassPassLayer[] | null = null,
   probe: ReadonlyArray<readonly [number, number]> = [],
   landformPasses: ReadonlyArray<readonly ClassPassLayer[]> = [],
+  { signal, deadlineMs = FRAMED_CAPTURE_DEADLINE_MS }: { signal?: AbortSignal; deadlineMs?: number } = {},
 ): Promise<FramedCapture> {
   const centre = map.getCenter()
   const before = {
@@ -615,6 +685,8 @@ export async function captureFramed(
     frameWidth * (Math.tan((first.vfovDeg * Math.PI) / 360) / Math.tan((first.hfovDeg * Math.PI) / 360)),
   )
   const started = performance.now()
+  const budget: CaptureBudget = { deadline: started + deadlineMs, ...(signal ? { signal } : {}) }
+  checkCaptureBudget(budget, 'The framed view')
   // Draw at the pixel ratio the frame width needs, put back in `finally`. A null override (`devicePixelRatio`
   // followed) is restored as null, so the map keeps following the display it is on.
   const override = (map as unknown as { _overridePixelRatio?: number | null })._overridePixelRatio ?? null
@@ -667,7 +739,13 @@ export async function captureFramed(
       )
       map.jumpTo({ ...camera, roll: 0 })
       const region: CaptureRegion = { crop: window_.crop, width: frameWidth, height }
-      const display = await readSettledFrame(map, () => drawCanvas(map, region, true).canvas, 'The framed view')
+      const display = await readSettledFrame(
+        map,
+        () => drawCanvas(map, region, true).canvas,
+        'The framed view',
+        SETTLE_LIMITS,
+        budget,
+      )
       joinedContext.drawImage(display, i * frameWidth, 0)
       // Read at the frame's camera, before the class pass: the detail the ground at the probe points is drawn from.
       try {
@@ -682,17 +760,23 @@ export async function captureFramed(
             (row * joined.width + i * frameWidth) * 4,
           )
       }
+      // A pass that fails leaves its figure out; one stopped by the budget stops the whole capture.
+      const passFailed = (error: unknown) => {
+        if (error instanceof CaptureStopped) throw error
+      }
       if (classes && layers) {
         try {
-          join(classes, await captureClassPass(map, layers, region))
-        } catch {
+          join(classes, await captureClassPass(map, layers, region, budget))
+        } catch (error) {
+          passFailed(error)
           classes = null
         }
       }
       if (zones && zoneLayers?.length) {
         try {
-          join(zones, await captureClassPass(map, zoneLayers, region))
-        } catch {
+          join(zones, await captureClassPass(map, zoneLayers, region, budget))
+        } catch (error) {
+          passFailed(error)
           zones = null
         }
       }
@@ -700,8 +784,9 @@ export async function captureFramed(
         const target = landforms[k]
         if (!target) continue
         try {
-          join(target, await captureClassPass(map, landformPasses[k], region))
-        } catch {
+          join(target, await captureClassPass(map, landformPasses[k], region, budget))
+        } catch (error) {
+          passFailed(error)
           landforms[k] = null
         }
       }

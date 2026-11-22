@@ -397,7 +397,13 @@ again. Each settled frame of a framed capture waits for its tiles by their
 progress (`SETTLE_LIMITS`, `settleGivenUp`, `mapCapture.ts`): at least 45 s, as
 the old fixed wait did; past that only while a tile has loaded within the last
 20 s; and never past 3 minutes. The reason still names the tiles ("no tile
-loaded for 20 s (its tiles were still loading)"). PGMaps' own analysis sheet is
+loaded for 20 s (its tiles were still loading)"). All of one framed capture's
+settles (each frame's display and every class, zone and landform pass) share
+one budget (`CaptureBudget`): 240 s from its start
+(`FRAMED_CAPTURE_DEADLINE_MS`, below the save's 300 s, which also covers the
+screenshot) and the caller's `signal`. Past it, or once the signal fires, the
+capture stops at its next check with `CaptureStopped`, never a partial figure,
+and puts the camera back itself. PGMaps' own analysis sheet is
 drawn a second time when the first try fails: under load a 15 s wait failed
 about half the views of a batch. With `capture(ids, { before: true })` (Save & export's
 before pictures) each place's views are also drawn before harvest
