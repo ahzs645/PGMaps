@@ -212,7 +212,8 @@ export async function captureAtCamera(
         map,
         () => (atCamera() ? drawCanvas(map, region, true).canvas : null),
         'The map',
-        40_000,
+        // The road view as it stands: its tiles are mostly loaded, and three tries follow one another.
+        { minMs: 40_000, stallMs: SETTLE_LIMITS.stallMs, maxMs: 40_000 },
       )
     }
     if (!canvas) throw new Error('The map kept moving off the capture’s camera.')
@@ -296,23 +297,69 @@ function drawCanvas(map: MapLibreMap, target: number | CaptureRegion, smooth: bo
 }
 
 /**
- * How long a capture waits for the map to settle before reading a frame. A framed view at a new bearing loads
- * terrain and imagery tiles first; under load (a capture of several views, other tabs) that took over 15 s, which
- * failed about half the framed views of a batch with "did not draw".
+ * How long a capture waits for the map to settle before reading a frame, judged by the tiles it loads. A framed view
+ * at a new bearing loads terrain and imagery tiles first; under load (a capture of several views, other tabs) that
+ * took over 15 s, which failed about half the framed views of a batch with "did not draw", and a fixed 45 s still
+ * failed class passes whose tiles were arriving. It waits at least `minMs`; past that, only while a tile has loaded
+ * within `stallMs`; and never past `maxMs`.
  */
-export const SETTLE_TIMEOUT_MS = 45_000
+export const SETTLE_LIMITS = { minMs: 45_000, stallMs: 20_000, maxMs: 180_000 } as const
+
+export type SettleLimits = { minMs: number; stallMs: number; maxMs: number }
+
+/** The old fixed wait, kept as the least a settle waits. */
+export const SETTLE_TIMEOUT_MS = SETTLE_LIMITS.minMs
 
 /**
- * Waits for the map to settle (tiles loaded), then reads the next frame. On a timeout its listeners are taken off, so
- * a frame that settles late is not read for nothing.
+ * Whether a settle wait gives up (`settleGivenUp`): `stalled` once past `minMs` with no tile loaded for `stallMs`,
+ * `too long` past `maxMs`; else null. Times in milliseconds from the same clock.
  */
-function readSettledFrame<T>(map: MapLibreMap, read: () => T, what: string, timeoutMs = SETTLE_TIMEOUT_MS): Promise<T> {
+export function settleGivenUp(
+  at: { now: number; startedAt: number; lastTileAt: number | null },
+  limits: SettleLimits = SETTLE_LIMITS,
+): 'stalled' | 'too long' | null {
+  const waited = at.now - at.startedAt
+  if (waited > limits.maxMs) return 'too long'
+  if (waited <= limits.minMs) return null
+  return at.now - Math.max(at.startedAt, at.lastTileAt ?? at.startedAt) > limits.stallMs ? 'stalled' : null
+}
+
+/** The page's words for a settle given up: what did not draw, and that its tiles were still loading. */
+export function settleFailure(what: string, why: 'stalled' | 'too long', limits: SettleLimits = SETTLE_LIMITS): string {
+  return why === 'too long'
+    ? `${what} did not finish drawing within ${Math.round(limits.maxMs / 1000)} s (its tiles were still loading).`
+    : `${what} did not finish drawing: no tile loaded for ${Math.round(limits.stallMs / 1000)} s (its tiles were still loading).`
+}
+
+/** How often a settle wait checks whether to give up. */
+const SETTLE_CHECK_MS = 1000
+
+/**
+ * Waits for the map to settle (tiles loaded), then reads the next frame. A tile loading is progress: the wait goes on
+ * while tiles keep arriving, within `limits` (`settleGivenUp`). On giving up its listeners are taken off, so a frame
+ * that settles late is not read for nothing.
+ */
+function readSettledFrame<T>(
+  map: MapLibreMap,
+  read: () => T,
+  what: string,
+  limits: SettleLimits = SETTLE_LIMITS,
+): Promise<T> {
   return new Promise((resolve, reject) => {
     let finished = false
+    const startedAt = performance.now()
+    let lastTileAt: number | null = null
+    const onData = (event: { dataType?: string; tile?: unknown }) => {
+      if (event.dataType === 'source' && event.tile) lastTileAt = performance.now()
+    }
+    const stop = () => {
+      finished = true
+      window.clearInterval(timer)
+      map.off('data', onData)
+    }
     const onRender = () => {
       if (finished) return
-      finished = true
-      window.clearTimeout(timer)
+      stop()
       try {
         resolve(read())
       } catch (error) {
@@ -324,17 +371,16 @@ function readSettledFrame<T>(map: MapLibreMap, read: () => T, what: string, time
       map.once('render', onRender)
       map.triggerRepaint()
     }
-    const timer = window.setTimeout(() => {
+    const timer = window.setInterval(() => {
       if (finished) return
-      finished = true
+      const why = settleGivenUp({ now: performance.now(), startedAt, lastTileAt }, limits)
+      if (!why) return
+      stop()
       map.off('idle', onIdle)
       map.off('render', onRender)
-      reject(
-        new Error(
-          `${what} did not finish drawing within ${Math.round(timeoutMs / 1000)} s (its tiles were still loading).`,
-        ),
-      )
-    }, timeoutMs)
+      reject(new Error(settleFailure(what, why, limits)))
+    }, SETTLE_CHECK_MS)
+    map.on('data', onData)
     map.once('idle', onIdle)
     map.triggerRepaint()
   })

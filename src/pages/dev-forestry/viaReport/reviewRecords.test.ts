@@ -10,7 +10,7 @@ import { parseViaReview, type ViaReview } from '../via'
 import { buildReportContext } from './context'
 import type { ReportBlock } from './model'
 import { findReportPart } from './registry'
-import { REPORT_RECIPES } from './recipes'
+import { assembleReportParts, REPORT_RECIPES, withViewsLeftOut } from './recipes'
 
 const square = (lng: number, lat: number, size = 0.01): TargetPolygon['geometry'] => ({
   type: 'Polygon',
@@ -150,5 +150,31 @@ describe('reviewer records are review records', () => {
     } as ForestryScene
     expect(sceneFingerprint(scene)).not.toBeNull()
     expect(sceneFingerprint(edited)).toBe(sceneFingerprint(scene))
+  })
+})
+
+describe('a report whose views have no analysis sheet', () => {
+  it('still prints, every recipe, with each missing figure on the to-complete list', () => {
+    const leftOut = [
+      { name: 'View 1', reason: 'its analysis sheet could not be drawn: The framed view did not finish drawing' },
+    ]
+    for (const entry of REPORT_RECIPES) {
+      const ctx = buildReportContext({
+        recipe: entry,
+        scene,
+        views: [],
+        assessmentStation: 5,
+        assessment: null,
+        breakdown: null,
+        figures: [],
+        date: new Date('2026-11-14T12:00:00Z'),
+      })
+      const report = withViewsLeftOut(assembleReportParts(entry, ctx).report, leftOut)
+      expect(report.blocks.length, entry.id).toBeGreaterThan(0)
+      expect(
+        report.toComplete.some((item) => item.what.startsWith('View 1 is not in the report')),
+        entry.id,
+      ).toBe(true)
+    }
   })
 })

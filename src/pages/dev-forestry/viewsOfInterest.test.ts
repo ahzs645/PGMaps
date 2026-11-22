@@ -15,6 +15,8 @@ import {
   viewCaptureKey,
   viewCaptureState,
   needsCapture,
+  needsSheetOnly,
+  sheetOnlyCapture,
   viewsForCandidate,
   viewFromAcceptedPhoto,
   focalForHfov,
@@ -147,6 +149,55 @@ describe('capture state', () => {
     expect(viewCaptureState({ ...view, focalMm: 35 }, saved, () => true)).toBe('outdated')
     expect(needsCapture('no-figure')).toBe(true)
     expect(needsCapture('captured')).toBe(false)
+  })
+  it('reads a capture whose screenshot is kept without its sheet as one whose sheet alone is drawn again', () => {
+    const view = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, [])
+    const key = viewCaptureKey(view)
+    const saved = [
+      { id: 'old', plannedViewId: view.id, plannedKey: key },
+      { id: 'new', plannedViewId: view.id, plannedKey: key },
+    ]
+    // The screenshot is held: only the sheet is owed, and it is drawn for the latest save that has one.
+    expect(
+      viewCaptureState(
+        view,
+        saved,
+        () => false,
+        () => true,
+      ),
+    ).toBe('screenshot-only')
+    expect(sheetOnlyCapture(view, saved, () => true)?.id).toBe('new')
+    expect(sheetOnlyCapture(view, saved, (id) => id === 'old')?.id).toBe('old')
+    // Gone with an earlier session: a whole capture again.
+    expect(
+      viewCaptureState(
+        view,
+        saved,
+        () => false,
+        () => false,
+      ),
+    ).toBe('no-figure')
+    // A sheet drawn wins; an earlier key's screenshot does not count.
+    expect(
+      viewCaptureState(
+        view,
+        saved,
+        () => true,
+        () => true,
+      ),
+    ).toBe('captured')
+    expect(
+      viewCaptureState(
+        { ...view, focalMm: 35 },
+        saved,
+        () => false,
+        () => true,
+      ),
+    ).toBe('outdated')
+    expect(sheetOnlyCapture({ ...view, focalMm: 35 }, saved, () => true)).toBeNull()
+    expect(needsCapture('screenshot-only')).toBe(true)
+    expect(needsSheetOnly('screenshot-only')).toBe(true)
+    expect(needsSheetOnly('no-figure')).toBe(false)
   })
 })
 

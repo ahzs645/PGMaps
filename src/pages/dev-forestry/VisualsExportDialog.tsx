@@ -624,13 +624,15 @@ type PackageSelect = {
 const CAPTURE_LABELS: Record<ExportPlannedView['state'], string> = {
   captured: 'Captured',
   outdated: 'Changed since its capture: captured again on Preview or Download',
+  'screenshot-only':
+    'Saved with its screenshot, without its analysis sheet: the sheet is drawn again on Preview or Download',
   'no-figure': 'Captured without its analysis sheet: captured again on Preview or Download',
   'not-captured': 'To capture on Preview or Download',
 }
 
 /** A view of interest's capture state as the package lists it: "Captured", or a sentence saying what happens next. */
 function plannedCaptureState(view: ExportPlannedView): string {
-  if (view.failed && view.state === 'no-figure')
+  if (view.failed && (view.state === 'no-figure' || view.state === 'screenshot-only'))
     return `Captured without its analysis sheet: ${view.failed.replace(/^Saved, but /, '').replace(/[.\s]*$/, '')}`
   if (view.failed && view.state !== 'captured') return `Not captured: ${view.failed.replace(/[.\s]*$/, '')}`
   return CAPTURE_LABELS[view.state]

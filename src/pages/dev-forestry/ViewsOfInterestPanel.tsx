@@ -1,4 +1,4 @@
-import { Camera, Download, Footprints, History, Loader2, Trash2 } from 'lucide-react'
+import { Camera, Download, Footprints, History, Loader2, PenLine, Trash2 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 
 import { VIEW_OF_INTEREST_COLORS } from './planMapStyle'
 import { groupLeadOf, groupMembers, groupSuggestion, handOver, joinGroup, leaveGroup } from './viewGroups'
-import type { ViewCaptureApi } from './useViewCapture'
+import { captureAsNeeded, type ViewCaptureApi } from './useViewCapture'
 import { arrowLabel } from './ViewpointFinderPanel'
 import { ARROW_AIM_DEGREES, type CandidateArrow, type ViewpointInventory } from './viewpointInventory'
 import { bearingDegrees, type PolygonGeometry } from './visibility'
@@ -30,6 +30,7 @@ import {
   isIncluded,
   LENS_FOCAL_LENGTHS,
   needsCapture,
+  needsSheetOnly,
   lensLabel,
   normalizeBearing,
   orphanedViews,
@@ -64,6 +65,11 @@ export type ViewsOfInterestPanelProps = {
    * analysis sheet* and is captured again (`viewCaptureState`).
    */
   hasFigure?: (savedViewId: string) => boolean
+  /**
+   * Whether a saved view's screenshot is held with its camera (`viewImages[id].figureAt`): one saved without its
+   * sheet then reads *Screenshot, no analysis sheet*, and only the sheet is drawn again (`stage: 'sheet'`).
+   */
+  hasScreenshot?: (savedViewId: string) => boolean
   capture: ViewCaptureApi
   /** The view whose row is open, highlighted on the plan. */
   openViewId: string | null
@@ -150,6 +156,7 @@ export function viewSourceLabel(view: Pick<ViewOfInterest, 'source' | 'photo'>):
 
 const CAPTURE_LABELS: Record<ViewCaptureState, string> = {
   captured: 'Captured',
+  'screenshot-only': 'Screenshot, no analysis sheet',
   'no-figure': 'Saved, no analysis sheet',
   outdated: 'Changed since captured',
   'not-captured': 'Not captured',
@@ -334,9 +341,11 @@ function NameField({ view, onCommit }: { view: ViewOfInterest; onCommit: (name: 
  * writes from those. How many are captured shows in the headline's *Views captured* tile.
  */
 export function ViewsOfInterestPanel(props: ViewsOfInterestPanelProps) {
-  const { views, savedViews, hasFigure, unlistedSaves, ...listProps } = props
+  const { views, savedViews, hasFigure, hasScreenshot, unlistedSaves, ...listProps } = props
   const included = views.filter(isIncluded)
-  const captured = included.filter((view) => viewCaptureState(view, savedViews, hasFigure) === 'captured').length
+  const captured = included.filter(
+    (view) => viewCaptureState(view, savedViews, hasFigure, hasScreenshot) === 'captured',
+  ).length
   return (
     <ToolSection
       title="Views of interest"
@@ -360,7 +369,13 @@ export function ViewsOfInterestPanel(props: ViewsOfInterestPanelProps) {
         </>
       }
     >
-      <ViewsOfInterestList views={views} savedViews={savedViews} hasFigure={hasFigure} {...listProps} />
+      <ViewsOfInterestList
+        views={views}
+        savedViews={savedViews}
+        hasFigure={hasFigure}
+        hasScreenshot={hasScreenshot}
+        {...listProps}
+      />
       {unlistedSaves}
     </ToolSection>
   )
@@ -377,6 +392,7 @@ export function ViewsOfInterestList({
   targets,
   savedViews,
   hasFigure,
+  hasScreenshot,
   capture,
   openViewId,
   onOpenView,
@@ -406,8 +422,12 @@ export function ViewsOfInterestList({
   const blockById = useMemo(() => new Map(blocks.map((block) => [block.id, block])), [blocks])
   const orphans = useMemo(() => orphanedViews(views, targets), [views, targets])
   const states = useMemo(
-    () => new Map(views.map((view) => [view.id, viewCaptureState(view, savedViews, hasFigure)])),
-    [views, savedViews, hasFigure],
+    () => new Map(views.map((view) => [view.id, viewCaptureState(view, savedViews, hasFigure, hasScreenshot)])),
+    [views, savedViews, hasFigure, hasScreenshot],
+  )
+  // Views saved with their screenshot but not their sheet: only the sheet is drawn again (`captureAsNeeded`).
+  const sheetOnly = new Set(
+    views.filter((view) => needsSheetOnly(states.get(view.id) ?? 'not-captured')).map((v) => v.id),
   )
   const included = views.filter(isIncluded)
   // A view saved without its analysis sheet is taken again with the rest.
@@ -565,7 +585,7 @@ export function ViewsOfInterestList({
                             ? 'text-danger'
                             : state === 'captured'
                               ? 'text-success'
-                              : state === 'outdated' || state === 'no-figure'
+                              : state === 'outdated' || state === 'no-figure' || state === 'screenshot-only'
                                 ? 'text-warning'
                                 : 'text-muted-foreground',
                       )}
@@ -586,6 +606,13 @@ export function ViewsOfInterestList({
                       </InlineAlert>
                     )}
                     {failure && <InlineAlert tone="error">{failure}</InlineAlert>}
+                    {state === 'screenshot-only' && (
+                      <InlineAlert tone="warning">
+                        {warning ?? 'Saved with its screenshot, but its analysis sheet was not drawn.'}{' '}
+                        <em>Draw analysis sheet again</em> draws it from the camera the view was saved with, keeping the
+                        saved view and its screenshot.
+                      </InlineAlert>
+                    )}
                     {state === 'no-figure' && (
                       <InlineAlert tone="warning">
                         {warning ??
@@ -627,6 +654,19 @@ export function ViewsOfInterestList({
                         <Camera className="h-3.5 w-3.5" />
                         {state === 'not-captured' ? 'Capture' : 'Capture again'}
                       </Button>
+                      {state === 'screenshot-only' && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="2xs"
+                          disabled={running || missingBlock}
+                          title="Stand at the view and draw its analysis sheet from the camera it was saved with"
+                          onClick={() => void capture.capture([view.id], { stage: 'sheet' })}
+                        >
+                          <PenLine className="h-3.5 w-3.5" />
+                          Draw analysis sheet again
+                        </Button>
+                      )}
                       {onReopenSaved && canReopenSaved?.(view.id) && (
                         <Button
                           type="button"
@@ -883,7 +923,13 @@ export function ViewsOfInterestList({
             size="xs"
             disabled={running || placing || toCapture.length === 0}
             title="Stand at each view, run and save it, without driving the road view"
-            onClick={() => void capture.capture(batch.map((view) => view.id))}
+            onClick={() =>
+              void captureAsNeeded(
+                capture.capture,
+                batch.map((view) => view.id),
+                sheetOnly,
+              )
+            }
           >
             <Camera className="h-3.5 w-3.5" />
             {toCapture.length

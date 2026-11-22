@@ -14,15 +14,23 @@ import { timed } from './exportTiming'
 import {
   CAPTURE_TIMEOUTS,
   FACING_SETTLE_MS,
+  RUN_CANCELLED,
+  TIMBER_WATCH_START,
   beforeMessage,
   beforeWarning,
   captureMessage,
   captureSummary,
+  captureWaitNote,
   captureWaitingFor,
   planCapture,
   standFacing,
+  timberFailure,
+  timberGivenUp,
+  waitAbandoned,
   waitFailure,
+  watchTimber,
   type CaptureFacts,
+  type CaptureStage,
   type CaptureWait,
   type CaptureWant,
 } from './viewCapturePlan'
@@ -57,15 +65,25 @@ export type ViewCaptureReport = {
   cancelled: boolean
 }
 
+/** What a batch is asked for beyond its views. */
+export type ViewCaptureOptions = {
+  /**
+   * Also take each view's before-harvest render while standing there (the page's `captureBeforeRenders`), cached by
+   * saved view id in the page's `capturedBefore`, so an export can pair views away from where the reviewer stands.
+   * Off when absent.
+   */
+  before?: boolean
+  /**
+   * `sheet`: draw again only the analysis sheet of views saved with their screenshot (`screenshot-only`), standing at
+   * each place and waiting only for its run, road view and timber (`ViewCaptureHost.redraw`). Absent: `full`.
+   */
+  stage?: CaptureStage
+}
+
 export type ViewCaptureApi = {
   state: ViewCaptureState
   /** Captures the given planned views in list order, grouped by place; resolves when all are tried or cancelled. */
-  /**
-   * `before`: also take each view's before-harvest render while standing there (the page's `captureBeforeRenders`),
-   * cached by saved view id in the page's `capturedBefore`, so an export can pair views away from where the reviewer
-   * stands. Off when absent.
-   */
-  capture: (viewIds: readonly string[], options?: { before?: boolean }) => Promise<ViewCaptureReport>
+  capture: (viewIds: readonly string[], options?: ViewCaptureOptions) => Promise<ViewCaptureReport>
   cancel: () => void
   /**
    * Stands at one planned view (run, then the road view facing it), as the finder's *Stand here* does. With
@@ -91,6 +109,13 @@ export type ViewCaptureHost<Snapshot = unknown> = {
   face: (view: ViewOfInterest) => void
   /** Saves the road view as *Save viewpoint* does, for the view, replacing earlier saves of it. */
   save: (view: ViewOfInterest) => Promise<ViewSaveOutcome>
+  /**
+   * Draws again the analysis sheet of the view's save that kept its screenshot (`sheetOnlyCapture`), from the camera
+   * it was saved with, as a background render does, and fills only its figure: the saved view, its id and its
+   * screenshot stay. Resolves with that saved view's id once the sheet is drawn (or failed, with `warning`); the eye
+   * camera is put back in its `finally`. Absent: sheets cannot be drawn again here.
+   */
+  redraw?: (view: ViewOfInterest) => Promise<ViewSaveOutcome>
   /** Ids of every saved view, shelved ones included: a save is done once the page lists it. */
   savedViewIds: () => readonly string[]
   /**
@@ -130,11 +155,13 @@ const BROWSER_CLOCK: CaptureClock = {
   sleep: (ms) => new Promise<void>((resolve) => window.setTimeout(resolve, ms)),
 }
 
-/** How long each kind of wait may last in all at one view. */
-const BUDGET: Record<Exclude<CaptureWait, null>, number> = {
+/**
+ * How long each kind of wait may last in all at one view. The timber is judged by its progress instead
+ * (`timberGivenUp`): a stand still growing is waited for.
+ */
+const BUDGET: Record<Exclude<CaptureWait, null | 'timber'>, number> = {
   run: CAPTURE_TIMEOUTS.runMs,
   'road view': CAPTURE_TIMEOUTS.roadViewMs,
-  timber: CAPTURE_TIMEOUTS.roadViewMs,
   facing: CAPTURE_TIMEOUTS.facingMs,
   lens: CAPTURE_TIMEOUTS.facingMs,
 }
@@ -143,19 +170,26 @@ type WaitResult = { ok: true } | { ok: false; reason: string; place: boolean } |
 
 /**
  * Waits until the page can save `want`, or a step runs out of time; null when cancelled. Each kind of wait (the run,
- * the road view, the timber, the facing, the lens) has its own budget, counted only while the capture waits on it,
- * and readiness must hold `STEADY_MS` with the camera's bearing unchanged.
+ * the road view, the facing, the lens) has its own budget, counted only while the capture waits on it; the timber
+ * is given up only once it stops growing (`timberGivenUp`). Readiness must hold `STEADY_MS` with the camera's bearing
+ * unchanged. `onNote` hears what the wait is doing in words ("Preparing timber 12 of 40"), or null.
  */
 async function waitReady<S>(
   getHost: () => ViewCaptureHost<S> | null,
   want: CaptureWant,
   cancelled: () => boolean,
   clock: CaptureClock,
+  onNote: (note: string | null) => void = () => {},
+  stage: CaptureStage = 'full',
 ): Promise<WaitResult> {
-  const spent: Partial<Record<Exclude<CaptureWait, null>, number>> = {}
+  const spent: Partial<Record<Exclude<CaptureWait, null | 'timber'>, number>> = {}
+  let timber = TIMBER_WATCH_START
+  let note: string | null = null
   let steadySince: number | null = null
   let steadyBearing: number | null = null
   let sawRunning = false
+  // Since when the run wait has had nothing running or about to start (`waitAbandoned`), or null.
+  let abandonedSince: number | null = null
   const started = clock.now()
   let last = started
   for (;;) {
@@ -167,7 +201,7 @@ async function waitReady<S>(
     const elapsed = now - last
     last = now
     if (facts.runRunning) sawRunning = true
-    const wait = captureWaitingFor(facts, want)
+    const wait = captureWaitingFor(facts, want, stage)
     if (
       wait === 'run' &&
       facts.runError &&
@@ -176,17 +210,30 @@ async function waitReady<S>(
       (sawRunning || now - started > RUN_START_GRACE_MS)
     )
       return { ok: false, reason: waitFailure('run', facts), place: true }
+    // A run cancelled under the capture (or never started) ends with no error: nothing would finish the wait.
+    if (waitAbandoned(wait, facts)) {
+      abandonedSince ??= now
+      if (now - abandonedSince > CAPTURE_TIMEOUTS.runAbandonMs) return { ok: false, reason: RUN_CANCELLED, place: true }
+    } else abandonedSince = null
     if (wait === null) {
       if (steadySince === null || facts.poseBearing !== steadyBearing) {
         steadySince = now
         steadyBearing = facts.poseBearing
       } else if (now - steadySince >= STEADY_MS) return { ok: true }
+    } else if (wait === 'timber') {
+      steadySince = null
+      const progress = facts.timberProgress ?? null
+      timber = watchTimber(timber, progress, elapsed)
+      const givenUp = timberGivenUp(timber, progress)
+      if (givenUp) return { ok: false, reason: timberFailure(givenUp, timber, facts), place: false }
     } else {
       steadySince = null
       spent[wait] = (spent[wait] ?? 0) + elapsed
       if (spent[wait]! > BUDGET[wait])
         return { ok: false, reason: waitFailure(wait, facts), place: wait === 'run' || wait === 'road view' }
     }
+    const nextNote = captureWaitNote(wait, facts)
+    if (nextNote !== note) onNote((note = nextNote))
     await clock.sleep(POLL_MS)
   }
 }
@@ -205,9 +252,12 @@ export async function runViewCapture<S>(
     clock?: CaptureClock
     /** Also take each view's before-harvest render at its place (`ViewCaptureHost.before`). */
     before?: boolean
+    /** `sheet`: draw only the views' analysis sheets again (`ViewCaptureOptions.stage`). */
+    stage?: CaptureStage
   },
 ): Promise<ViewCaptureReport> {
   const clock = control.clock ?? BROWSER_CLOCK
+  const stage = control.stage ?? 'full'
   const host = getHost()
   if (!host)
     return {
@@ -232,7 +282,7 @@ export async function runViewCapture<S>(
     done: 0,
     total,
     failures: [...failures],
-    message: captureMessage(0, total, places[0].views[0].name),
+    message: captureMessage(0, total, places[0].views[0].name, stage),
   }
   const update = (patch: Partial<ViewCaptureState>) => {
     state = { ...state, ...patch, failures: [...failures] }
@@ -251,7 +301,7 @@ export async function runViewCapture<S>(
     placeLoop: for (const place of places) {
       if (control.cancelled()) break
       const first = place.views[0]
-      update({ currentViewId: first.id, message: captureMessage(done, total, first.name) })
+      update({ currentViewId: first.id, message: captureMessage(done, total, first.name, stage) })
       const stood = getHost()?.stand(first) ?? { error: 'The page closed.' }
       if ('error' in stood) {
         for (const view of place.views) fail(view, stood.error)
@@ -262,15 +312,25 @@ export async function runViewCapture<S>(
       for (let index = 0; index < place.views.length; index++) {
         if (control.cancelled()) break placeLoop
         const view = place.views[index]
-        update({ currentViewId: view.id, message: captureMessage(done, total, view.name) })
-        if (index > 0) {
+        update({ currentViewId: view.id, message: captureMessage(done, total, view.name, stage) })
+        // A sheet drawn again is framed from the camera the view was saved with: the road view is not turned.
+        if (index > 0 && stage === 'full') {
           getHost()?.face(view)
           await clock.sleep(FACING_SETTLE_MS)
         }
+        const message = captureMessage(done, total, view.name, stage)
         const ready = await timed('view capture: stand and run', () =>
-          waitReady(getHost, { key: stood.key, ...standFacing(view), lensMm: view.focalMm }, control.cancelled, clock),
+          waitReady(
+            getHost,
+            { key: stood.key, ...standFacing(view), lensMm: view.focalMm },
+            control.cancelled,
+            clock,
+            (note) => update({ message: note ? `${message} ${note}` : message }),
+            stage,
+          ),
         )
         if (!ready) break placeLoop
+        if (state.message !== message) update({ message })
         if (!ready.ok) {
           // A place whose run or road view failed fails its other views for the same reason.
           if (ready.place) {
@@ -280,7 +340,13 @@ export async function runViewCapture<S>(
           fail(view, ready.reason)
           continue
         }
-        const saving = getHost()?.save(view) ?? Promise.resolve<ViewSaveOutcome>({ error: 'The page closed.' })
+        const page = getHost()
+        const saving = !page
+          ? Promise.resolve<ViewSaveOutcome>({ error: 'The page closed.' })
+          : stage === 'sheet'
+            ? (page.redraw?.(view) ??
+              Promise.resolve<ViewSaveOutcome>({ error: 'Analysis sheets cannot be drawn again here.' }))
+            : page.save(view)
         const outcome = await timed('view capture: save', () =>
           Promise.race([saving, clock.sleep(CAPTURE_TIMEOUTS.saveMs).then(() => 'timeout' as const)]),
         )
@@ -347,12 +413,40 @@ export async function runViewCapture<S>(
     status,
     currentViewId: null,
     done,
-    message: captureSummary(captured.length, total, notCaptured.size, cancelled, {
-      sheet: warnedBy('sheet'),
-      before: warnedBy('before'),
-    }),
+    message: captureSummary(
+      captured.length,
+      total,
+      notCaptured.size,
+      cancelled,
+      { sheet: warnedBy('sheet'), before: warnedBy('before') },
+      stage,
+    ),
   })
   return { captured, failures, cancelled }
+}
+
+/**
+ * Captures views as each needs: the views in `sheetIds` (saved with their screenshot, `screenshot-only`) have only
+ * their analysis sheet drawn again (`stage: 'sheet'`), then the rest are captured whole. One report for both: a view
+ * is captured when either batch captured it, and a cancelled sheet batch leaves the whole captures untried.
+ */
+export async function captureAsNeeded(
+  capture: ViewCaptureApi['capture'],
+  viewIds: readonly string[],
+  sheetIds: ReadonlySet<string>,
+  options: Omit<ViewCaptureOptions, 'stage'> = {},
+): Promise<ViewCaptureReport> {
+  const sheets = viewIds.filter((id) => sheetIds.has(id))
+  const whole = viewIds.filter((id) => !sheetIds.has(id))
+  const reports: ViewCaptureReport[] = []
+  if (sheets.length) reports.push(await capture(sheets, { ...options, stage: 'sheet' }))
+  if (whole.length && !reports.some((report) => report.cancelled)) reports.push(await capture(whole, options))
+  if (reports.length === 1) return reports[0]
+  return {
+    captured: reports.flatMap((report) => report.captured),
+    failures: reports.flatMap((report) => report.failures),
+    cancelled: reports.some((report) => report.cancelled),
+  }
 }
 
 export function useViewCapture<Snapshot>(hostRef: {
@@ -363,7 +457,7 @@ export function useViewCapture<Snapshot>(hostRef: {
   const cancelledRef = useRef(false)
 
   const capture = useCallback(
-    async (viewIds: readonly string[], options: { before?: boolean } = {}): Promise<ViewCaptureReport> => {
+    async (viewIds: readonly string[], options: ViewCaptureOptions = {}): Promise<ViewCaptureReport> => {
       if (runningRef.current)
         return {
           captured: [],
@@ -377,6 +471,7 @@ export function useViewCapture<Snapshot>(hostRef: {
           cancelled: () => cancelledRef.current,
           onState: setState,
           before: options.before,
+          stage: options.stage,
         })
       } finally {
         runningRef.current = false

@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import type { CaptureFacts } from './viewCapturePlan'
-import { standFacing } from './viewCapturePlan'
-import { runViewCapture, type CaptureClock, type ViewCaptureHost, type ViewCaptureState } from './useViewCapture'
+import { CAPTURE_TIMEOUTS, standFacing } from './viewCapturePlan'
+import {
+  captureAsNeeded,
+  runViewCapture,
+  type CaptureClock,
+  type ViewCaptureHost,
+  type ViewCaptureReport,
+  type ViewCaptureState,
+} from './useViewCapture'
 import type { ViewOfInterest } from './viewsOfInterest'
 
 const view = (id: string, patch: Partial<ViewOfInterest> = {}): ViewOfInterest => ({
@@ -35,13 +42,17 @@ function fastClock(): CaptureClock & { elapsed: () => number } {
  * A page that runs for a few polls after each stand, then opens its road view; it faces and takes lenses at once,
  * and lists each save as it is made.
  */
-function fakePage(views: ViewOfInterest[], options: { runError?: string; lens?: boolean } = {}) {
+function fakePage(
+  views: ViewOfInterest[],
+  options: { runError?: string; lens?: boolean; runCancelled?: boolean } = {},
+) {
   const log: string[] = []
   const page = {
     key: 'home' as string,
     runFresh: true,
     runRunning: false,
     runError: null as string | null,
+    runPending: false,
     roadViewOpen: false,
     lookAtTargetId: null as string | null,
     lookBearing: null as number | null,
@@ -54,7 +65,10 @@ function fakePage(views: ViewOfInterest[], options: { runError?: string; lens?: 
     facts: (): CaptureFacts => {
       if (polls > 0 && --polls === 0) {
         page.runRunning = false
+        page.runPending = false
         if (options.runError) page.runError = options.runError
+        // Cancelled by hand: the analysis goes back to idle with no error, and nothing starts it again.
+        else if (options.runCancelled) page.runFresh = false
         else {
           page.runFresh = true
           page.roadViewOpen = true
@@ -65,6 +79,7 @@ function fakePage(views: ViewOfInterest[], options: { runError?: string; lens?: 
         runFresh: page.runFresh,
         runRunning: page.runRunning,
         runError: page.runError,
+        runPending: page.runPending,
         roadViewOpen: page.roadViewOpen,
         canSave: page.roadViewOpen,
         lookAtTargetId: page.lookAtTargetId,
@@ -81,6 +96,7 @@ function fakePage(views: ViewOfInterest[], options: { runError?: string; lens?: 
       page.key = `at ${v.lng}`
       page.runFresh = false
       page.runRunning = true
+      page.runPending = true
       page.roadViewOpen = false
       Object.assign(page, standFacing(v), { lensMm: v.focalMm })
       polls = 3
@@ -159,6 +175,101 @@ describe('capturing planned views', () => {
       'The run for this place failed: No terrain under the viewpoint.',
     ])
     expect(log.at(-1)).toBe('restore where I stood')
+  })
+
+  it('fails a place whose run was cancelled under it within seconds, not after the run’s budget', async () => {
+    const views = [view('a'), view('b', { lng: -122.7 })]
+    const { host, log } = fakePage(views, { runCancelled: true })
+    const clock = fastClock()
+    const report = await runViewCapture(() => host, ['a', 'b'], { cancelled: () => false, onState: () => {}, clock })
+    expect(report.captured).toEqual([])
+    expect(report.failures.map((failure) => failure.reason)).toEqual([
+      'The run for this place was cancelled.',
+      'The run for this place was cancelled.',
+    ])
+    expect(log).toEqual(['stand a', 'stand b', 'restore where I stood'])
+    // Two places, each given the grace and no more: far inside one run's five minutes.
+    expect(clock.elapsed()).toBeLessThan(2 * (CAPTURE_TIMEOUTS.runAbandonMs + 1000))
+  })
+
+  it('keeps waiting on a run whose page does not say what is pending', async () => {
+    const { host } = fakePage([view('a')])
+    const facts = host.facts
+    let polls = 0
+    // The run is idle for ten seconds before it starts, with no word on what is pending.
+    host.facts = () => {
+      const now = facts()
+      return ++polls < 100 ? { ...now, runRunning: false, runPending: undefined } : now
+    }
+    const report = await runViewCapture(() => host, ['a'], {
+      cancelled: () => false,
+      onState: () => {},
+      clock: fastClock(),
+    })
+    expect(report.captured).toEqual(['a'])
+  })
+
+  /**
+   * The page's drawn timber grows one patch every `everyMs` once the road view opens, up to `stopAt` patches of
+   * `total` (all of them when absent), as a slow GPU grows it.
+   */
+  function growingTimber(
+    host: ViewCaptureHost<string>,
+    clock: ReturnType<typeof fastClock>,
+    growth: { total: number; everyMs: number; stopAt?: number },
+  ) {
+    const facts = host.facts
+    let openedAt: number | null = null
+    host.facts = () => {
+      const now = facts()
+      if (!now.roadViewOpen) return now
+      openedAt ??= clock.elapsed()
+      const grown = Math.floor((clock.elapsed() - openedAt) / growth.everyMs)
+      const done = Math.min(grown, growth.stopAt ?? growth.total, growth.total)
+      return done >= growth.total
+        ? { ...now, timberProgress: null }
+        : {
+            ...now,
+            canSave: false,
+            saveBlocker: `the drawn timber (${done} of ${growth.total} patches)`,
+            timberProgress: { done, total: growth.total },
+          }
+    }
+  }
+
+  it('keeps waiting on drawn timber that keeps growing, past the road view’s two minutes', async () => {
+    const { host, log } = fakePage([view('a')])
+    const clock = fastClock()
+    // 40 patches, one every 5 s: 200 s in all, as under software rendering.
+    growingTimber(host, clock, { total: 40, everyMs: 5000 })
+    const states: ViewCaptureState[] = []
+    const report = await runViewCapture(() => host, ['a'], {
+      cancelled: () => false,
+      onState: (state) => states.push(state),
+      clock,
+    })
+    expect(report.failures).toEqual([])
+    expect(report.captured).toEqual(['a'])
+    expect(clock.elapsed()).toBeGreaterThan(CAPTURE_TIMEOUTS.roadViewMs)
+    expect(log).toContain('save a facing block-1 at 50 mm')
+    expect(states.some((state) => state.message === 'Capturing 1 of 1: View a… Preparing timber 12 of 40')).toBe(true)
+  })
+
+  it('gives up on drawn timber that stops growing, naming how far it got', async () => {
+    const { host, log } = fakePage([view('a')])
+    const clock = fastClock()
+    growingTimber(host, clock, { total: 40, everyMs: 1000, stopAt: 17 })
+    const report = await runViewCapture(() => host, ['a'], { cancelled: () => false, onState: () => {}, clock })
+    expect(report.captured).toEqual([])
+    expect(report.failures).toEqual([
+      {
+        viewId: 'a',
+        reason: "The road view's drawn timber stopped growing at 17 of 40 patches: no patch was added for 30 s.",
+      },
+    ])
+    expect(log).not.toContain('save a facing block-1 at 50 mm')
+    // It stopped at 17 s and was given up 30 s later, not after two minutes.
+    expect(clock.elapsed()).toBeLessThan(17_000 + CAPTURE_TIMEOUTS.timberStallMs + 5000)
   })
 
   it('gives up on a view whose lens never takes, after its own time limit', async () => {
@@ -247,6 +358,95 @@ describe('capturing planned views', () => {
         warning: 'before',
       },
     ])
+  })
+
+  it('draws again only the analysis sheet of a view saved without one, keeping the saved view', async () => {
+    const views = [view('a'), view('b', { facing: { kind: 'bearing', degrees: 10 } })]
+    const { host, log, page } = fakePage(views)
+    // Each save's sheet as the page holds it, by saved view id: the first save of `a` draws none.
+    const figures: Record<string, boolean> = {}
+    const save = host.save
+    host.save = async (v) => {
+      const outcome = await save(v)
+      if (!('viewId' in outcome)) return outcome
+      figures[outcome.viewId] = v.id !== 'a'
+      return v.id === 'a'
+        ? { ...outcome, warning: 'Saved, but its analysis sheet could not be drawn: The framed view did not draw.' }
+        : outcome
+    }
+    host.redraw = async (v) => {
+      const savedId = `saved-${v.id}`
+      log.push(`redraw ${savedId}`)
+      figures[savedId] = true
+      return { viewId: savedId }
+    }
+    const first = await runViewCapture(() => host, ['a', 'b'], {
+      cancelled: () => false,
+      onState: () => {},
+      clock: fastClock(),
+    })
+    expect(first.failures.map((failure) => failure.warning)).toEqual(['sheet'])
+    expect(figures).toEqual({ 'saved-a': false, 'saved-b': true })
+
+    log.length = 0
+    const states: ViewCaptureState[] = []
+    const again = await runViewCapture(() => host, ['a'], {
+      cancelled: () => false,
+      onState: (state) => states.push(state),
+      clock: fastClock(),
+      stage: 'sheet',
+    })
+    expect(again).toEqual({ captured: ['a'], failures: [], cancelled: false })
+    // It stood at the place and drew the sheet of the same saved view: no second save, no facing.
+    expect(log).toEqual(['stand a', 'redraw saved-a', 'restore where I stood'])
+    expect(page.saved).toEqual(['saved-a', 'saved-b'])
+    expect(figures['saved-a']).toBe(true)
+    expect(states.some((state) => state.message === 'Drawing analysis sheet 1 of 1: View a…')).toBe(true)
+    expect(states.at(-1)?.message).toBe('Drew 1 of 1 analysis sheet.')
+  })
+
+  it('draws a sheet again without waiting for the facing or the lens', async () => {
+    const { host, log } = fakePage([view('a')], { lens: false })
+    host.redraw = async (v) => {
+      log.push(`redraw ${v.id}`)
+      return { viewId: `saved-${v.id}` }
+    }
+    const clock = fastClock()
+    const report = await runViewCapture(() => host, ['a'], {
+      cancelled: () => false,
+      onState: () => {},
+      clock,
+      stage: 'sheet',
+    })
+    expect(report.captured).toEqual(['a'])
+    // The lens never takes here, which fails a whole capture (above): a sheet is framed from the saved camera.
+    expect(log).toEqual(['stand a', 'redraw a', 'restore where I stood'])
+  })
+
+  it('draws the sheets alone first, then captures the rest whole, as one report', async () => {
+    const calls: Array<{ ids: readonly string[]; stage?: string }> = []
+    const capture = async (ids: readonly string[], options: { stage?: 'full' | 'sheet' } = {}) => {
+      calls.push({ ids, stage: options.stage })
+      return { captured: [...ids], failures: [], cancelled: false } satisfies ViewCaptureReport
+    }
+    const report = await captureAsNeeded(capture, ['a', 'b', 'c'], new Set(['b']), { before: true })
+    expect(calls).toEqual([
+      { ids: ['b'], stage: 'sheet' },
+      { ids: ['a', 'c'], stage: undefined },
+    ])
+    expect(report).toEqual({ captured: ['b', 'a', 'c'], failures: [], cancelled: false })
+    // A cancelled sheet batch leaves the whole captures untried.
+    calls.length = 0
+    const cancelled = await captureAsNeeded(
+      async (ids, options = {}) => {
+        calls.push({ ids, stage: options.stage })
+        return { captured: [], failures: [], cancelled: true }
+      },
+      ['a', 'b'],
+      new Set(['b']),
+    )
+    expect(calls).toEqual([{ ids: ['b'], stage: 'sheet' }])
+    expect(cancelled.cancelled).toBe(true)
   })
 
   it('takes no before render unless asked', async () => {

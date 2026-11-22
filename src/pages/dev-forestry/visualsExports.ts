@@ -693,7 +693,17 @@ export const FOR_ONE_BLOCK: ReadonlySet<VisualsExport> = new Set(['block-note', 
 export const NEEDS_BEFORE: ReadonlySet<VisualsExport> = new Set(['via-report', 'analysis-sheet'])
 
 /** A view of interest with a current capture the files can take: drawn (`captured`), or saved without its sheet. */
-const hasCurrentCapture = (view: ExportPlannedView) => view.state === 'captured' || view.state === 'no-figure'
+const hasCurrentCapture = (view: ExportPlannedView) =>
+  view.state === 'captured' || view.state === 'no-figure' || view.state === 'screenshot-only'
+
+/**
+ * The views of interest among `ids` whose analysis sheet alone is drawn again (`screenshot-only`) rather than captured
+ * whole: an export's capture hands them to `captureAsNeeded`.
+ */
+export function sheetOnlyViews(ctx: Pick<ExportContext, 'planned'>, ids: readonly string[]): Set<string> {
+  const wanted = new Set(ids)
+  return new Set(ctx.planned.filter((view) => wanted.has(view.id) && view.state === 'screenshot-only').map((v) => v.id))
+}
 
 type PlannedContext = Pick<ExportContext, 'planned'> &
   Partial<Pick<ExportContext, 'blockNote' | 'brief' | 'figure' | 'unprinted'>>
@@ -1209,6 +1219,10 @@ function plannedStatus(view: ExportPlannedView, kind: VisualsExport, ctx: Export
     ctx.views.some((saved) => saved.id === view.savedViewId && !saved.hasScreenshot)
   )
     return 'Captured, but with no screenshot in this session: not in the note. Capture it again'
+  if (view.state === 'screenshot-only')
+    return view.failed
+      ? `Saved without its analysis sheet (${view.failed.replace(/[.\s]*$/, '')}): in the file as its screenshot. Download draws it again`
+      : 'Saved with its screenshot: its analysis sheet is drawn again before the file is written'
   if (view.state === 'no-figure')
     return view.failed
       ? `Captured without its analysis sheet (${view.failed.replace(/[.\s]*$/, '')}): in the file as its screenshot. Download tries again`
@@ -2424,6 +2438,11 @@ export type PackageInput = {
    * `no-figure` and is captured again (`viewCaptureState`). Absent: every current capture reads `captured`.
    */
   hasFigure?: (savedViewId: string) => boolean
+  /**
+   * Whether a saved view's screenshot is held with its camera (`viewImages[id]?.figureAt`): a current capture without
+   * its sheet then reads `screenshot-only`, and only its sheet is drawn again. Absent: such a capture reads `no-figure`.
+   */
+  hasScreenshot?: (savedViewId: string) => boolean
 }
 
 export type ResolvedPackage = {
@@ -2461,7 +2480,7 @@ export function resolvePackage(input: PackageInput): ResolvedPackage {
       .at(-1)
     const failure = input.failures?.[view.id]
     const beforeFailure = input.beforeFailures?.[view.id]
-    const state = viewCaptureState(view, input.savedViews, input.hasFigure)
+    const state = viewCaptureState(view, input.savedViews, input.hasFigure, input.hasScreenshot)
     const owed = state === 'captured' && !!capture && !!input.beforeOwed?.has(capture.id)
     return {
       id: view.id,

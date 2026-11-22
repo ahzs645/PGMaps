@@ -15,6 +15,13 @@ import {
   standPlace,
   viewLensHfov,
   viewPhotoRecord,
+  CAPTURE_TIMEOUTS,
+  TIMBER_WATCH_START,
+  captureWaitNote,
+  timberFailure,
+  timberGivenUp,
+  watchTimber,
+  waitAbandoned,
   waitFailure,
   withoutPlannedView,
   type CaptureFacts,
@@ -94,6 +101,66 @@ describe('waiting for the road view', () => {
     expect(captureWaitingFor({ ...ready, lensApplied: false }, want)).toBe('lens')
     expect(captureWaitingFor({ ...ready, poseBearing: 250 }, want)).toBe('facing')
     expect(captureWaitingFor({ ...ready, canSave: false }, want)).toBe('timber')
+  })
+
+  it('calls a run wait abandoned only when nothing is running, pending or failed', () => {
+    const idle = { ...ready, runFresh: false, runRunning: false, runPending: false }
+    expect(waitAbandoned('run', idle)).toBe(true)
+    expect(waitAbandoned('run', { ...idle, runRunning: true })).toBe(false)
+    expect(waitAbandoned('run', { ...idle, runPending: true })).toBe(false)
+    // A failed run is reported as failed, not cancelled.
+    expect(waitAbandoned('run', { ...idle, runError: 'No terrain.' })).toBe(false)
+    // A page that does not say what is pending is never judged.
+    expect(waitAbandoned('run', { ...idle, runPending: undefined })).toBe(false)
+    expect(waitAbandoned('road view', idle)).toBe(false)
+  })
+
+  it('waits on drawn timber while it grows, and gives up once it stops or takes too long', () => {
+    const step = (watch: typeof TIMBER_WATCH_START, done: number | null, ms: number) =>
+      watchTimber(watch, done === null ? null : { done, total: 40 }, ms)
+    // Growing a patch every 20 s keeps the wait going, however long in all.
+    let watch = TIMBER_WATCH_START
+    for (let done = 0; done < 20; done++) watch = step(watch, done, 20_000)
+    expect(watch.spentMs).toBe(400_000)
+    expect(timberGivenUp(watch, { done: 19, total: 40 })).toBeNull()
+    // Then nothing for 31 s.
+    const stalled = step(step(watch, 19, 16_000), 19, 15_000)
+    expect(timberGivenUp(stalled, { done: 19, total: 40 })).toBe('stalled')
+    expect(timberFailure('stalled', stalled, { ...ready, timberProgress: { done: 19, total: 40 } })).toBe(
+      "The road view's drawn timber stopped growing at 19 of 40 patches: no patch was added for 30 s.",
+    )
+    // A regrown stand starting again from none counts as growth.
+    expect(step(stalled, 0, 1000).quietMs).toBe(0)
+    // Past the cap it is given up whatever it does.
+    const long = { spentMs: CAPTURE_TIMEOUTS.timberMaxMs + 1, quietMs: 0, progress: { done: 39, total: 40 } }
+    expect(timberGivenUp(long, { done: 39, total: 40 })).toBe('too long')
+    expect(timberFailure('too long', long, ready)).toBe(
+      "The road view's drawn timber did not finish growing within 10 minutes (39 of 40 patches).",
+    )
+    // Waiting on the forest records or the camera, with no patches to count, the road view's budget holds.
+    const records = step(TIMBER_WATCH_START, null, 100_000)
+    expect(timberGivenUp(records, null)).toBeNull()
+    expect(timberGivenUp(step(records, null, 21_000), null)).toBe('stalled')
+  })
+
+  it('says how far the timber has grown while it waits on it', () => {
+    expect(captureWaitNote('timber', { ...ready, timberProgress: { done: 12, total: 40 } })).toBe(
+      'Preparing timber 12 of 40',
+    )
+    expect(captureWaitNote('timber', ready)).toBeNull()
+    expect(captureWaitNote('lens', { ...ready, timberProgress: { done: 12, total: 40 } })).toBeNull()
+  })
+
+  it('waits only for the run, the road view and the timber to draw a sheet again', () => {
+    expect(captureWaitingFor({ ...ready, lookBearing: 200, lensMm: 50, poseBearing: null }, want, 'sheet')).toBeNull()
+    expect(captureWaitingFor({ ...ready, runFresh: false }, want, 'sheet')).toBe('run')
+    expect(captureWaitingFor({ ...ready, roadViewOpen: false }, want, 'sheet')).toBe('road view')
+    expect(captureWaitingFor({ ...ready, canSave: false }, want, 'sheet')).toBe('timber')
+    expect(captureMessage(0, 2, 'VLI 144, arrow 1', 'sheet')).toBe('Drawing analysis sheet 1 of 2: VLI 144, arrow 1…')
+    expect(captureSummary(2, 2, 0, false, { sheet: 1 }, 'sheet')).toBe(
+      'Drew 1 of 2 analysis sheets; 1 still without its analysis sheet.',
+    )
+    expect(captureSummary(1, 2, 1, false, {}, 'sheet')).toBe('Drew 1 of 2 analysis sheets; 1 could not be drawn.')
   })
 
   it('checks a block facing against the bearing to the block from the camera', () => {

@@ -30,12 +30,28 @@ export const MAX_SAVED_VIEWS = MAX_VIEWS_OF_INTEREST
 export const CAPTURE_TIMEOUTS = {
   /** The run for the place (it is the full sightline analysis). */
   runMs: 300_000,
-  /** The road view opening on the place, its terrain and drawn timber loading. */
+  /**
+   * The road view opening on the place; and its terrain, forest records and camera while no drawn timber is growing
+   * (`timberGivenUp`).
+   */
   roadViewMs: 120_000,
+  /**
+   * Drawn timber that is growing: how long it may go without another patch before the capture gives up on it. Patches
+   * grow one or more a frame, so a slow GPU (about a frame a second under software rendering) still adds one well
+   * inside this; a stand that stops growing is stuck, not slow.
+   */
+  timberStallMs: 30_000,
+  /** The most the drawn timber is waited for in all at one view, however steadily it grows. */
+  timberMaxMs: 600_000,
   /** The camera turning to the view's facing and lens. */
   facingMs: 20_000,
   /** The save: the screenshot, then the framed class pass (another engine's drawing can take minutes). */
   saveMs: 300_000,
+  /**
+   * A wait for the run with no run running and none about to start (`waitAbandoned`) for this long: the run was
+   * cancelled, and nothing will start it again.
+   */
+  runAbandonMs: 3_000,
 } as const
 
 /** Settle time after a facing or lens change, so the regrown stand's loading shows before readiness is judged. */
@@ -99,12 +115,22 @@ export type CaptureFacts = {
   runRunning: boolean
   /** The run's error, when the last run failed. */
   runError: string | null
+  /**
+   * A run is about to start or a road view about to open on one: a stand not yet acted on, or the page's pending
+   * preview. Absent: not known, and a run wait is never judged abandoned (`waitAbandoned`).
+   */
+  runPending?: boolean
   /** The road view is open on a full run (not the preliminary terrain look). */
   roadViewOpen: boolean
   /** `canSaveView`: terrain, camera and drawn timber are ready. */
   canSave: boolean
   /** What the road view still waits for, in words, while it cannot save (`saveBlocker`); absent when not known. */
   saveBlocker?: string | null
+  /**
+   * The drawn timber's patches grown of those wanted, while it is what the road view waits for; null (or absent) when
+   * it waits for something else or nothing.
+   */
+  timberProgress?: TimberProgress | null
   /** What the drive faces. */
   lookAtTargetId: string | null
   lookBearing: number | null
@@ -125,15 +151,28 @@ export type CaptureWant = {
 
 export type CaptureWait = 'run' | 'road view' | 'timber' | 'facing' | 'lens' | null
 
+/**
+ * What a capture does at each view: `full` saves the view as *Save viewpoint* does; `sheet` draws again only the
+ * analysis sheet of a view saved with its screenshot (`screenshot-only`), from the camera it was saved with, keeping
+ * the saved view and its screenshot.
+ */
+export type CaptureStage = 'full' | 'sheet'
+
+/** The drawn timber's growth: patches grown of those wanted. */
+export type TimberProgress = { done: number; total: number }
+
 const turn = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
 
 /**
  * What the capture still waits for at a place, or null once the view can be saved as asked: the run for the place's
- * key, the road view open on it, terrain and timber ready, the camera on the facing, the lens on the eye map.
+ * key, the road view open on it, terrain and timber ready, the camera on the facing, the lens on the eye map. Drawing
+ * a sheet again (`stage: 'sheet'`) waits only for the run, the road view and its timber: the sheet is framed from the
+ * camera the view was saved with, whatever the road view faces.
  */
-export function captureWaitingFor(facts: CaptureFacts, want: CaptureWant): CaptureWait {
+export function captureWaitingFor(facts: CaptureFacts, want: CaptureWant, stage: CaptureStage = 'full'): CaptureWait {
   if (facts.key !== want.key || !facts.runFresh) return 'run'
   if (!facts.roadViewOpen) return 'road view'
+  if (stage === 'sheet') return facts.canSave ? null : 'timber'
   if (facts.lookAtTargetId !== want.lookAtTargetId) return 'facing'
   if (want.lookBearing !== null && (facts.lookBearing === null || turn(facts.lookBearing, want.lookBearing) > 0.05))
     return 'facing'
@@ -143,6 +182,71 @@ export function captureWaitingFor(facts: CaptureFacts, want: CaptureWant): Captu
   if (aim === null || turn(facts.poseBearing, aim) > FACING_TOLERANCE_DEG) return 'facing'
   if (!facts.canSave) return 'timber'
   return null
+}
+
+/**
+ * Whether a wait for the run has nothing left to end it: no run for the place is running or about to start
+ * (`runPending`), and none failed (a failed run is reported as such). The capture gives it `runAbandonMs` before it
+ * says the run was cancelled. Never when the page does not say what is pending.
+ */
+export function waitAbandoned(wait: CaptureWait, facts: CaptureFacts): boolean {
+  return wait === 'run' && facts.runPending === false && !facts.runRunning && !facts.runError
+}
+
+/** Why a capture gave up on a place whose run nothing will finish (`waitAbandoned`). */
+export const RUN_CANCELLED = 'The run for this place was cancelled.'
+
+/**
+ * How long the capture has waited on the drawn timber at one view, and how long since it last saw it grow. Any change
+ * in the patch count is growth: a stand regrown for a new configuration starts again from none, and is waited for
+ * again (within `timberMaxMs`).
+ */
+export type TimberWatch = { spentMs: number; quietMs: number; progress: TimberProgress | null }
+
+export const TIMBER_WATCH_START: TimberWatch = { spentMs: 0, quietMs: 0, progress: null }
+
+/** The watch after another `elapsedMs` of waiting on the timber, with the page's progress now. */
+export function watchTimber(watch: TimberWatch, progress: TimberProgress | null, elapsedMs: number): TimberWatch {
+  const before = watch.progress
+  const grew = !!progress && (!before || progress.done !== before.done || progress.total !== before.total)
+  return {
+    spentMs: watch.spentMs + elapsedMs,
+    quietMs: grew ? 0 : watch.quietMs + elapsedMs,
+    progress: progress ?? before,
+  }
+}
+
+/**
+ * Whether the capture gives up on the timber: `stalled` when nothing grew for `timberStallMs` while patches are what
+ * it waits for (or for `roadViewMs` while it waits on the terrain, the forest records or the camera), `too long` past
+ * `timberMaxMs` in all; else null. Progress, not the clock, decides: a stand growing a patch every few seconds on a
+ * slow GPU is waited for.
+ */
+export function timberGivenUp(watch: TimberWatch, progressNow: TimberProgress | null): 'stalled' | 'too long' | null {
+  if (watch.spentMs > CAPTURE_TIMEOUTS.timberMaxMs) return 'too long'
+  const quietLimit = progressNow ? CAPTURE_TIMEOUTS.timberStallMs : CAPTURE_TIMEOUTS.roadViewMs
+  return watch.quietMs > quietLimit ? 'stalled' : null
+}
+
+/** The page's words for giving up on the timber (`timberGivenUp`), with the patch count where it was growing. */
+export function timberFailure(why: 'stalled' | 'too long', watch: TimberWatch, facts: CaptureFacts): string {
+  const now = facts.timberProgress ?? null
+  const count = (progress: TimberProgress) => `${progress.done} of ${progress.total} patches`
+  if (why === 'too long')
+    return `The road view's drawn timber did not finish growing within ${minutes(CAPTURE_TIMEOUTS.timberMaxMs)}${
+      watch.progress ? ` (${count(now ?? watch.progress)})` : ''
+    }.`
+  if (now)
+    return `The road view's drawn timber stopped growing at ${count(now)}: no patch was added for ${Math.round(
+      CAPTURE_TIMEOUTS.timberStallMs / 1000,
+    )} s.`
+  return waitFailure('timber', facts)
+}
+
+/** What the capture is doing while it waits, for its status line: "Preparing timber 12 of 40"; else null. */
+export function captureWaitNote(wait: CaptureWait, facts: CaptureFacts): string | null {
+  if (wait !== 'timber' || !facts.timberProgress) return null
+  return `Preparing timber ${facts.timberProgress.done} of ${facts.timberProgress.total}`
 }
 
 /** The page's words for what a step timed out waiting for. */
@@ -167,9 +271,9 @@ export function waitFailure(wait: Exclude<CaptureWait, null>, facts: CaptureFact
 
 const minutes = (ms: number) => `${Math.round(ms / 60_000)} minute${ms === 60_000 ? '' : 's'}`
 
-/** "Capturing 2 of 5: VLI 144, arrow 1…" */
-export function captureMessage(index: number, total: number, name: string): string {
-  return `Capturing ${index + 1} of ${total}: ${name}…`
+/** "Capturing 2 of 5: VLI 144, arrow 1…"; drawing sheets again, "Drawing analysis sheet 2 of 5: VLI 144, arrow 1…". */
+export function captureMessage(index: number, total: number, name: string, stage: CaptureStage = 'full'): string {
+  return `${stage === 'sheet' ? 'Drawing analysis sheet' : 'Capturing'} ${index + 1} of ${total}: ${name}…`
 }
 
 /**
@@ -183,15 +287,21 @@ export function captureSummary(
   failed: number,
   cancelled: boolean,
   warned: { sheet?: number; before?: number } = {},
+  stage: CaptureStage = 'full',
 ): string {
   // A view saved without its analysis sheet is not captured yet: the list and *Capture N views* take it again.
-  const head = `Captured ${captured - (warned.sheet ?? 0)} of ${total} view${total === 1 ? '' : 's'}`
+  const head =
+    stage === 'sheet'
+      ? `Drew ${captured - (warned.sheet ?? 0)} of ${total} analysis sheet${total === 1 ? '' : 's'}`
+      : `Captured ${captured - (warned.sheet ?? 0)} of ${total} view${total === 1 ? '' : 's'}`
   const without = (count: number | undefined, what: string) =>
     count ? `${count} saved without ${count === 1 ? 'its' : 'their'} ${what}${count === 1 ? '' : 's'}` : ''
   const parts = [
     cancelled ? 'cancelled' : '',
-    !cancelled && failed ? `${failed} could not be captured` : '',
-    without(warned.sheet, 'analysis sheet'),
+    !cancelled && failed ? `${failed} could not be ${stage === 'sheet' ? 'drawn' : 'captured'}` : '',
+    stage === 'sheet' && warned.sheet
+      ? `${warned.sheet} still without ${warned.sheet === 1 ? 'its' : 'their'} analysis sheet${warned.sheet === 1 ? '' : 's'}`
+      : without(warned.sheet, 'analysis sheet'),
     without(warned.before, 'before-harvest render'),
   ].filter(Boolean)
   return parts.length ? `${head}; ${parts.join('; ')}.` : `${head}.`

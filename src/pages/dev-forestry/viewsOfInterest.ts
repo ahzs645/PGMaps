@@ -306,12 +306,14 @@ export function groupByPlace(views: readonly ViewOfInterest[]): ViewOfInterest[]
 export const isIncluded = (view: ViewOfInterest) => view.include !== false
 
 /**
- * A planned view's capture: `captured` (a saved view with its current key, with its analysis sheet), `no-figure`
- * (saved with its current key, but its analysis sheet could not be drawn, or its screenshot and sheet are gone with
- * the session), `outdated` (captured before an edit) or `not-captured`. Only `captured` is complete: every other
- * state needs capturing, and *Capture N views* and an export's capture take it again (`needsCapture`).
+ * A planned view's capture: `captured` (a saved view with its current key, with its analysis sheet),
+ * `screenshot-only` (saved with its current key and its screenshot, but its analysis sheet could not be drawn: only
+ * the sheet is drawn again, `needsSheetOnly`), `no-figure` (saved with its current key, but neither sheet nor
+ * screenshot is held, gone with an earlier session), `outdated` (captured before an edit) or `not-captured`. Only
+ * `captured` is complete: every other state needs capturing, and *Capture N views* and an export's capture take it
+ * again (`needsCapture`).
  */
-export type ViewCaptureState = 'captured' | 'no-figure' | 'outdated' | 'not-captured'
+export type ViewCaptureState = 'captured' | 'screenshot-only' | 'no-figure' | 'outdated' | 'not-captured'
 
 /** A saved view as the capture state reads it: which planned view it captured, under which key. */
 export type SavedViewCapture = { id?: string; plannedViewId?: string; plannedKey?: string }
@@ -319,19 +321,47 @@ export type SavedViewCapture = { id?: string; plannedViewId?: string; plannedKey
 /**
  * The planned view's capture state. `hasFigure` says whether a saved view has its analysis sheet (the page's
  * `viewImages[id]?.figure`); without it every current capture reads `captured`, as before the sheet was checked.
+ * `hasScreenshot` says whether a saved view's screenshot is held with the camera it was taken from (the page's
+ * `viewImages[id]?.figureAt`), so its sheet can be drawn again alone; without it a capture lacking its sheet reads
+ * `no-figure`.
  */
 export function viewCaptureState(
   view: ViewOfInterest,
   savedViews: ReadonlyArray<SavedViewCapture>,
   hasFigure?: (savedViewId: string) => boolean,
+  hasScreenshot?: (savedViewId: string) => boolean,
 ): ViewCaptureState {
-  const mine = savedViews.filter((saved) => saved.plannedViewId === view.id)
-  if (!mine.length) return 'not-captured'
-  const key = viewCaptureKey(view)
-  const current = mine.filter((saved) => saved.plannedKey === key)
+  const current = currentCaptures(view, savedViews)
+  if (!current) return 'not-captured'
   if (!current.length) return 'outdated'
   if (!hasFigure) return 'captured'
-  return current.some((saved) => saved.id !== undefined && hasFigure(saved.id)) ? 'captured' : 'no-figure'
+  if (current.some((saved) => saved.id !== undefined && hasFigure(saved.id))) return 'captured'
+  return sheetOnlyCapture(view, savedViews, hasScreenshot) ? 'screenshot-only' : 'no-figure'
+}
+
+/** The view's saves under its current key, oldest first; null when it was never saved. */
+function currentCaptures<S extends SavedViewCapture>(view: ViewOfInterest, savedViews: ReadonlyArray<S>): S[] | null {
+  const mine = savedViews.filter((saved) => saved.plannedViewId === view.id)
+  if (!mine.length) return null
+  const key = viewCaptureKey(view)
+  return mine.filter((saved) => saved.plannedKey === key)
+}
+
+/**
+ * The saved view whose analysis sheet is drawn again for a `screenshot-only` view: its latest save under the current
+ * key whose screenshot is held (`hasScreenshot`). Null when there is none, or no way to tell.
+ */
+export function sheetOnlyCapture<S extends SavedViewCapture>(
+  view: ViewOfInterest,
+  savedViews: ReadonlyArray<S>,
+  hasScreenshot?: (savedViewId: string) => boolean,
+): (S & { id: string }) | null {
+  if (!hasScreenshot) return null
+  const current = currentCaptures(view, savedViews) ?? []
+  return (
+    current.filter((saved): saved is S & { id: string } => saved.id !== undefined && hasScreenshot(saved.id)).at(-1) ??
+    null
+  )
 }
 
 /** What a capture key records, in `viewCaptureKey`'s order, as a reviewer names it. */
@@ -387,6 +417,9 @@ export function captureChangeText(parts: readonly CaptureKeyPart[]): string {
 
 /** Whether a planned view needs (re)capturing: anything short of a current capture with its analysis sheet. */
 export const needsCapture = (state: ViewCaptureState) => state !== 'captured'
+
+/** Whether a planned view needs only its analysis sheet drawn again (`screenshot-only`), not a whole capture. */
+export const needsSheetOnly = (state: ViewCaptureState) => state === 'screenshot-only'
 
 /** Reads a stored list leniently: a malformed entry is dropped, never repaired into another view. */
 export function parseViewsOfInterest(raw: unknown): ViewOfInterest[] {

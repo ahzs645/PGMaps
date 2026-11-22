@@ -29,6 +29,40 @@ export function driveTerrainRange(bounds: Bounds, reach: Bounds | null = null) {
   return { zoom, range, tooLarge: range.tileCount > DRIVE_TERRAIN_MAX_TILES }
 }
 
+/** How many loaded mosaics the road view holds by their tile range: where the reviewer stood and where a capture stands. */
+export const DRIVE_TERRAIN_HELD = 2
+
+/** A mosaic's tile range as a key: two requests over the same tiles load the same ground. */
+export const driveTerrainKey = (range: ReturnType<typeof driveTerrainRange>['range']) =>
+  `${range.zoom}/${range.minX}/${range.minY}/${range.maxX}/${range.maxY}`
+
+/**
+ * The last `limit` loaded mosaics by tile range, the most recently used kept longest. Standing at a view and back
+ * again asks for the same tiles: the road view takes the very `ElevationSource` it had, at once, so the drawn timber
+ * keyed to it (`forestPatches`) is not grown again from nothing.
+ */
+export function createHeldTerrain<T>(limit = DRIVE_TERRAIN_HELD) {
+  const held = new Map<string, T>()
+  return {
+    get(key: string): T | undefined {
+      const value = held.get(key)
+      if (value !== undefined) {
+        held.delete(key)
+        held.set(key, value)
+      }
+      return value
+    },
+    set(key: string, value: T) {
+      held.delete(key)
+      held.set(key, value)
+      while (held.size > limit) held.delete(held.keys().next().value!)
+    },
+    /** The value without counting it as used: for reading in a render. */
+    peek: (key: string): T | undefined => held.get(key),
+    clear: () => held.clear(),
+  }
+}
+
 /** A bounded, fixed DEM mosaic is loaded before growing trees. Camera movement
  * cannot change a stem's elevation or turn an unloaded tile into sea level.
  * Fetching the whole route also warms the browser's terrain cache ahead of travel.
@@ -40,7 +74,12 @@ export function useDriveTerrain(
   reach: Bounds | null = null,
 ) {
   const [attempt, setAttempt] = useState(0)
-  const retry = useCallback(() => setAttempt((value) => value + 1), [])
+  // Complete mosaics by tile range (`createHeldTerrain`); a retry loads afresh, so it lets them all go.
+  const [held] = useState(() => createHeldTerrain<ElevationSource>())
+  const retry = useCallback(() => {
+    held.clear()
+    setAttempt((value) => value + 1)
+  }, [held])
   const extent = useMemo(() => {
     const points = [...road]
     for (const polygon of polygons) {
@@ -81,8 +120,11 @@ export function useDriveTerrain(
     loading: boolean
   } | null>(null)
   const pendingMessage = 'Loading terrain along the road and assessment hillside…'
+  const heldKey = request && !request.tooLarge ? driveTerrainKey(request.range) : null
   useEffect(() => {
     if (!request || request.tooLarge) return
+    // A held mosaic is shown as it is (below), never loaded again.
+    if (held.get(driveTerrainKey(request.range))) return
     const abort = new AbortController()
     loadPreviewTerrain(
       {
@@ -104,6 +146,8 @@ export function useDriveTerrain(
     )
       .then(({ source, missingTileCount }) => {
         if (!abort.signal.aborted) {
+          // Only a whole mosaic is held: one with tiles missing is asked for again, as the loader's cache does.
+          if (source && !missingTileCount) held.set(driveTerrainKey(request.range), source)
           setState((current) => ({
             request,
             extent: request.extent,
@@ -129,7 +173,7 @@ export function useDriveTerrain(
           }))
       })
     return () => abort.abort()
-  }, [request])
+  }, [request, held])
   const visible = !request
     ? { source: null, message: null, progress: 0, loading: false }
     : request.tooLarge
@@ -141,7 +185,12 @@ export function useDriveTerrain(
         }
       : state && state.request === request
         ? state
-        : { source: null, message: pendingMessage, progress: 0, loading: true }
+        : (() => {
+            const source = heldKey ? held.peek(heldKey) : undefined
+            return source
+              ? { source, message: null, progress: 100, loading: false, extent: request.extent }
+              : { source: null, message: pendingMessage, progress: 0, loading: true }
+          })()
   return {
     source: visible.source,
     message: visible.message,
