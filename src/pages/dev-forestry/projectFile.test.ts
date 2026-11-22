@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
 
-import { parseProject, PROJECT_FORMAT, projectOpenedLine, serializeProject, type ProjectState } from './projectFile'
-import { emptyProjectMedia, openProjectArchive, writeProjectArchive } from './projectArchive'
+import {
+  packProject,
+  parseProject,
+  PROJECT_FORMAT,
+  projectOpenedLine,
+  reachableProjectState,
+  serializeProject,
+  type ProjectState,
+} from './projectFile'
+import { emptyProjectMedia, openProjectArchive, projectArchiveFileList, writeProjectArchive } from './projectArchive'
+import { renderJobKey } from './renderJobKey'
 import type { SavedDriveView } from './previewState'
 import { createEmptyScene } from './scene'
 import { emptyTools, parseTools, serializeTools } from './assessmentTools'
@@ -98,6 +107,43 @@ describe('the project file', () => {
       'Here: its screenshot is not a picture',
       'Elsewhere’s analysis sheet: its figure’s class pass is not the size it states',
     ])
+  })
+
+  it('writes only the pictures, renders and engine figures a saved or shelved view holds', async () => {
+    const written = state()
+    // What another site's views left behind: a picture, a before render and engine figures for views not in the file.
+    written.capturedBefore.gone = {
+      plannedKey: 'k',
+      render: { dataUrl: 'data:image/png;base64,Z29uZQ==', width: 1, height: 1, caption: '' },
+    }
+    const gone = renderJobKey({ viewId: 'gone', engine: 'worldgen', sceneKey: 'site-a', optionsKey: 'o' })
+    // A view whose id begins with a held view's id is still another view.
+    const lookalike = renderJobKey({ viewId: 'view-bb', engine: 'nanite', sceneKey: null, optionsKey: 'o' })
+    written.engineFigures[gone] = { classes: classes(), facts: [] }
+    written.engineFigures[lookalike] = { classes: classes(), facts: [] }
+    const reachable = reachableProjectState(written)
+    expect(Object.keys(reachable.images).sort()).toEqual(['view-a', 'view-b'])
+    expect(Object.keys(reachable.capturedBefore)).toEqual(['view-b'])
+    expect(Object.keys(reachable.engineFigures)).toEqual(['view-b|worldgen|k'])
+    const doc = await packProject(written)
+    expect(Object.keys(doc.images as object).sort()).toEqual(['view-a', 'view-b'])
+    expect(Object.keys(doc.capturedBefore as object)).toEqual(['view-b'])
+    expect(Object.keys(doc.engineFigures as object)).toEqual(['view-b|worldgen|k'])
+    // The archive's file list carries no capture for them either.
+    const archive = await writeProjectArchive(written, emptyProjectMedia())
+    const files = (await projectArchiveFileList(archive)).split('\n')
+    expect(files.filter((path) => path.startsWith('captures/before/'))).toHaveLength(0)
+    const entries = unzipSync(new Uint8Array(await archive.arrayBuffer()))
+    expect(strFromU8(entries['project.json'])).not.toContain('No view holds it.')
+    expect(strFromU8(entries['project.json'])).not.toContain(gone)
+  })
+
+  it('leaves out an engine figure for a view the file does not hold, and names it', async () => {
+    const raw = JSON.parse(await serializeProject(state()))
+    raw.engineFigures['stranger|worldgen|k'] = raw.engineFigures['view-b|worldgen|k']
+    const { state: read, summary } = await parseProject(JSON.stringify(raw))
+    expect(Object.keys(read.engineFigures)).toEqual(['view-b|worldgen|k'])
+    expect(summary.dropped).toEqual(['1 engine figure for a view not in the project'])
   })
 
   it('refuses a file that is not a project, or is from a newer PGMaps', async () => {

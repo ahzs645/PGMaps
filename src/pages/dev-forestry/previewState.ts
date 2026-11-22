@@ -31,6 +31,11 @@ export type SavedDriveView = {
   plannedKey?: string
 }
 export const PREVIEW_STORAGE_KEY = 'pgmaps.forestry-driving-views.v1'
+/**
+ * Set by a site switch to the fingerprint of the site the record above holds: that record is then the previous site,
+ * offered by *Reopen previous site*, not the open site's saved views. Removed when the record is next written.
+ */
+export const PREVIOUS_SITE_MARKER_KEY = 'pgmaps.forestry-driving-views.previous.v1'
 
 function validPosition(value: unknown): value is [number, number] {
   return (

@@ -10,6 +10,7 @@
  * gzip is the platform's `CompressionStream`, which Node has too.
  */
 import { MAX_SAVED_VIEWS } from './viewCapturePlan'
+import { renderJobIsFor } from './renderJobKey'
 import type { SavedDriveView } from './previewState'
 import { parseScene, serializeScene, type ForestryScene } from './scene'
 
@@ -132,8 +133,26 @@ async function unpack(value: unknown): Promise<unknown> {
   return out
 }
 
+/**
+ * The project as far as its views reach: each picture, before-harvest render and engine figure kept only while a saved
+ * or shelved view in the file holds it. What a view left behind (a view removed, a site switched mid-save) is never
+ * written, so the file never carries another site's pictures.
+ */
+export function reachableProjectState(state: ProjectState): ProjectState {
+  const ids = new Set([...state.views, ...state.shelved.flatMap((entry) => entry.views)].map((view) => view.id))
+  const held = <T>(record: Record<string, T>, keep: (key: string) => boolean) =>
+    Object.fromEntries(Object.entries(record).filter(([key]) => keep(key)))
+  return {
+    ...state,
+    images: held(state.images, (id) => ids.has(id)),
+    capturedBefore: held(state.capturedBefore, (id) => ids.has(id)),
+    engineFigures: held(state.engineFigures, (key) => renderJobIsFor(key, ids)),
+  }
+}
+
 /** The same project document underlies standalone JSON and the project ZIP. */
-export async function packProject(state: ProjectState, savedAt = new Date()) {
+export async function packProject(whole: ProjectState, savedAt = new Date()) {
+  const state = reachableProjectState(whole)
   return {
     format: PROJECT_FORMAT,
     version: PROJECT_VERSION,
@@ -300,8 +319,17 @@ export async function readProject(
     (id) => `${known.get(id) ?? id}’s before-harvest render`,
     (entry) => (isPicture((entry as { render?: unknown } | null)?.render) ? entry : 'it is not a picture'),
   )
+  // An engine's figure is kept only for a view the file holds; one for any other view is named, not opened.
+  const engineEntries = Object.entries(
+    raw.engineFigures && typeof raw.engineFigures === 'object' && !Array.isArray(raw.engineFigures)
+      ? raw.engineFigures
+      : {},
+  )
+  const strayFigures = engineEntries.filter(([key]) => !renderJobIsFor(key, known.keys())).length
+  if (strayFigures)
+    dropped.push(`${strayFigures} engine figure${strayFigures === 1 ? '' : 's'} for a view not in the project`)
   const engineFigures = await records<unknown>(
-    raw.engineFigures,
+    Object.fromEntries(engineEntries.filter(([key]) => renderJobIsFor(key, known.keys()))),
     () => 'An engine’s figure',
     (entry) => figureProblem(entry) ?? (entry === undefined ? 'it is empty' : entry),
   )
