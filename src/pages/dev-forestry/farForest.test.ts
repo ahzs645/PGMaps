@@ -304,6 +304,15 @@ describe('the background band (Distant trees)', () => {
   const grow = (inventory: InventoryStand[]) =>
     growForestPatch(patch, bands[4], { stands: [], clearings: [], inventory, heightMeters: 25 }, level, CENTRE.lat)
 
+  it('leaves every core patch as it was: turning it on or off regrows only its own band', () => {
+    const without = forestPatches(CENTRE, forestBands(3500), CENTRE.lat)
+    const withIt = forestPatches(CENTRE, bands, CENTRE.lat, 'read')
+    const core = withIt.filter((each) => !bands[each.band].background)
+    expect(core).toEqual(without)
+    expect(withIt.filter((each) => bands[each.band].background).every((each) => each.key.endsWith('@read'))).toBe(true)
+    expect(forestBands(3500, 8000).slice(0, 4)).toEqual(forestBands(3500))
+  })
+
   it('is a far band of 160 m stems laying 200 m tiles', () => {
     expect(isFarBand(bands[4])).toBe(true)
     expect(bands[4].spacing).toBe(160)

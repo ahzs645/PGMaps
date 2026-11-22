@@ -717,9 +717,10 @@ export function RoadViewOptions({
             <InfoTip label="About distant trees">
               Out to 8 km stands a coarse stand on the hills behind a small scene, one tree for every 160 m, on coarser
               terrain and the inventory&apos;s open ground read for the purpose: water, rock, meadow and other open
-              ground stay clear, and ground that could not be read stays empty. It adds trees, so turning it on or off
-              places the stand again. A drawing only: the camera, the sightline run, saved figures and the scene given
-              to another renderer keep the road view&apos;s own ground and timber.
+              ground stay clear, and ground that could not be read stays empty. A drawing only: a saved view&apos;s
+              pictures show the distant trees (and its <em>with drawn timber</em> figure counts them), but its pixel
+              figure, the camera, the sightline run and the scene given to another renderer keep the road view&apos;s
+              own ground and timber.
             </InfoTip>
           }
         >

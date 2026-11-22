@@ -2846,7 +2846,8 @@ Settings beside *Display quality*, all display only:
   hands the other renderers, which have no spray sheet.
 - **Distant trees.** *Off* (default) or *Out to 8 km*: a coarse background
   stand on the hills behind a small scene, on terrain and open ground read for
-  it. It adds stems, so changing it places the stand again; see **The far
+  it. Changing it grows or drops the background band's patches only: the core
+  stand's patches never depend on it; see **The far
   forest** for what it reads and what it leaves to the road view's own ground.
   The sightline run, the camera and the scene package never read it. A saved
   view is a picture of what the road view draws, so one saved with it on shows
@@ -2972,11 +2973,15 @@ non-treed ground grow nothing, tall shrub a low thicket, a sparse stand its own 
 polygon whose record does not say what covers it is unknown, not open, so it grows the regional
 stand as the core does. They are listed after the road view's own inventory, and a polygon wholly
 inside the run's own read is dropped, so the core read decides wherever it has an answer; a canopy
-tile reads the stand that wins its ground, as a stem does, so a core stand listed first is never
-held back by an open polygon of the background's.
+tile in this band reads the stand that wins its ground, as a stem does (`canopyOpenByFirstStand`), so
+a taller core stand listed first is never held back by an open polygon of the background's, and a
+winning stand not above canopy closure (a block's regrowth inside its regeneration lag) is open. The
+core bands keep the stricter rule: any open polygon keeps a tile off its ground, whatever is listed
+first, so a fresh block listed as regrowth before its herb polygon is never roofed.
 
-Turning it on places the stand again (it adds stems, so its reach is part of the stand's placement,
-`forestPatches`' key). The reach is set as soon as it is asked for, and the band's ground and
+Turning it on or off grows or drops only the background band's patches: their keys carry the read
+(`@key`), every core band keeps its patches, and the reach is not part of `forestPatches`' key. The
+reach is set as soon as it is asked for, and the band's ground and
 inventory reach `ForestOverlay` apart from the forest configuration (`background`): the core stand
 is drawn as soon as the road view's terrain loads, and when the background read comes only the
 background band's patches grow, keyed to that read, with nothing else regrown. The read is asked for

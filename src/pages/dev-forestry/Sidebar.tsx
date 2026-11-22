@@ -155,7 +155,7 @@ export type DriveState = {
   treeShadows: boolean
   /**
    * A coarse background stand out to 8 km on terrain and inventory read for it (`driveForestTerrain.ts`). It adds
-   * stems, so it is part of the stand's placement; display only: no figure, saved view or scene package reads it.
+   * stems; display only: a saved view's pictures show them, never its pixel or sightline figure or the scene package.
    */
   distantTrees: boolean
   /**
