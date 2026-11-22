@@ -43,6 +43,7 @@ import {
   type LegendStyle,
   type TextStyle,
   type ViaRole,
+  type CalcDenominatorKey,
   type ViaStylePreset,
 } from './presets'
 
@@ -1274,27 +1275,102 @@ const DEDUCTED_WORDS: Record<AlterationDeduction, string> = { rock: 'Rock', priv
 const sameDeductions = (a: AlterationRule, b: AlterationRule) =>
   a.deduct.length === b.deduct.length && a.deduct.every((d) => b.deduct.includes(d))
 
+/** The key a style's short name for a denominator is kept under (`CalcBlockStyle.denominatorNames`): what the rule removes. */
+export const denominatorKey = (rule: Pick<AlterationRule, 'deduct'>): CalcDenominatorKey => {
+  const ordered = (['privateLand', 'rock'] as const).filter((d) => rule.deduct.includes(d))
+  return ordered.length ? (ordered.join('+') as CalcDenominatorKey) : 'gross'
+}
+
+/**
+ * The words for the denominator a rule divides by: the style's short name for that rule's deductions
+ * (`calc.denominatorNames`), else the style's own words while the rule is the style's, else "Net" and the style's
+ * word for the landform when the rule deducts (the lines above it say what), the plain word when it deducts nothing.
+ */
+function denominatorLabel(preset: ViaStylePreset, rule: AlterationRule): string {
+  const calc = preset.calc
+  const own = presetRule(preset)
+  const short = calc?.denominatorNames?.[denominatorKey(rule)]
+  if (short) return short
+  if (sameDeductions(rule, own) && calc?.denominator) return calc.denominator
+  const gross = own.deduct.length ? 'Landform' : (calc?.denominator ?? 'Landform')
+  return rule.deduct.length ? `Net ${gross}` : gross
+}
+
 /**
  * The calculation's values under the figure's rule, with the words for what it takes out: `{deductedName}` and
- * `{netLandformPx}` only when it takes something out (so a gross sheet leaves those lines out), and
- * `{denominatorName}`, the style's own words while the rule is the style's, else "Net" and the style's word for the
- * landform when the rule deducts (the lines above it say what), the plain word when it deducts nothing.
+ * `{netLandformPx}` only when it takes something out (so a gross sheet leaves those lines out),
+ * `{privateDeductedPx}` and `{rockDeductedPx}` only when the rule takes that ground out, and `{denominatorName}`
+ * (`denominatorLabel`).
  */
-function calcLineValues(input: FigureInput, counts: FigureCounts | null, n: string | undefined) {
-  const rule = figureRule(input)
+function calcLineValues(input: FigureInput, counts: FigureCounts | null, n: string | undefined, rule: AlterationRule) {
   const own = presetRule(input.preset)
   const calc = input.preset.calc
   const same = sameDeductions(rule, own)
   const ordered = (['rock', 'privateLand'] as const).filter((d) => rule.deduct.includes(d))
   const words = ordered.map((d) => DEDUCTED_WORDS[d]).join(' and ')
-  const gross = own.deduct.length ? 'Landform' : (calc?.denominator ?? 'Landform')
   const values = calcValues(counts, n, rule, input.classify)
   return {
     ...values,
     ...(ordered.length && counts
       ? { deductedName: same && calc?.deducted ? calc.deducted : words, netLandformPx: values.netPx }
       : {}),
-    denominatorName: same && calc?.denominator ? calc.denominator : ordered.length ? `Net ${gross}` : gross,
+    ...(counts && rule.deduct.includes('privateLand') ? { privateDeductedPx: counts.privateLand } : {}),
+    ...(counts && rule.deduct.includes('rock') ? { rockDeductedPx: counts.rock } : {}),
+    denominatorName: denominatorLabel(input.preset, rule),
+    ...(input.distanceKm != null ? { distanceKm: input.distanceKm.toFixed(1) } : {}),
+    ...(input.hfovDeg != null ? { hfov: Math.round(input.hfovDeg) } : {}),
+  }
+}
+
+/** One printed line of a calculation box: `bold` where its template starts with `**`, `boldStart` opening a bold run. */
+export interface CalcRow {
+  text: string
+  bold: boolean
+  boldStart: boolean
+}
+
+/**
+ * A figure's calculation, resolved once: the rule it prints (`figureRule`), the words for that rule's denominator,
+ * the box's lines filled under it, and its total. The box's rows, every column of a multi-landform box and the pixel
+ * figure all read this, so the formula's words, the rows and the number cannot disagree. A line whose fields the
+ * view or the rule cannot fill is left out rather than printed with braces.
+ */
+export interface ResolvedCalc {
+  rule: AlterationRule
+  denominatorLabel: string
+  rows: CalcRow[]
+  /** The total as printed (the rule's decimals and rounding); null without counts or with an empty denominator. */
+  totalPct: string | null
+  /** The total unrounded, as the pixel figure prints it. */
+  percent: number | null
+}
+
+export function resolveCalc(
+  input: FigureInput,
+  counts: FigureCounts | null,
+  n: string | undefined = input.titles.n,
+): ResolvedCalc {
+  const rule = figureRule(input)
+  const result = countsAlteration(rule, counts)
+  const calc = input.preset.calc
+  const rows: CalcRow[] = []
+  if (calc) {
+    const values = calcLineValues(input, counts, n, rule)
+    let previousBold = false
+    for (const template of calc.lines) {
+      const bold = template.startsWith('**')
+      const text = fillTemplate(bold ? template.slice(2) : template, values)
+      if (/\{\w+\}/.test(text)) continue
+      rows.push({ text, bold, boldStart: bold && !previousBold })
+      previousBold = bold
+    }
+  }
+  return {
+    rule,
+    denominatorLabel: denominatorLabel(input.preset, rule),
+    rows,
+    totalPct: result?.printed ?? null,
+    percent: result?.percent ?? null,
   }
 }
 
@@ -1649,25 +1725,14 @@ function calcOps(input: FigureInput, counts: FigureCounts | null, x: number, y: 
   const calc = input.preset.calc
   const ops: DrawOp[] = []
   if (!calc) return { ops, bottom: y }
-  const values = {
-    ...calcLineValues(input, counts, input.titles.n),
-    ...(input.distanceKm != null ? { distanceKm: input.distanceKm.toFixed(1) } : {}),
-    ...(input.hfovDeg != null ? { hfov: Math.round(input.hfovDeg) } : {}),
-  }
   if (calc.title.text) {
     ops.push(...textOps(x, y, calc.title.text, calc.title, align))
     y += lineHeight(calc.title) * 1.6
   }
-  let previousBold = false
-  for (const template of calc.lines) {
-    const bold = template.startsWith('**')
-    if (bold && !previousBold) y += 4
-    previousBold = bold
-    const style = bold ? (calc.emphasis ?? calc.line) : calc.line
-    const text = fillTemplate(bold ? template.slice(2) : template, values)
-    // A field the view cannot fill leaves its line out rather than printing braces.
-    if (/\{\w+\}/.test(text)) continue
-    ops.push(...textOps(x, y, text, style, align))
+  for (const row of resolveCalc(input, counts).rows) {
+    if (row.boldStart) y += 4
+    const style = row.bold ? (calc.emphasis ?? calc.line) : calc.line
+    ops.push(...textOps(x, y, row.text, style, align))
     y += lineHeight(style)
   }
   return { ops, bottom: y }
@@ -1687,22 +1752,15 @@ function calcColumnsOps(
   if (!calc) return []
   const GAP = 8
   const width = (box.width - GAP * (columns.length - 1)) / columns.length
-  const extra = {
-    ...(input.distanceKm != null ? { distanceKm: input.distanceKm.toFixed(1) } : {}),
-    ...(input.hfovDeg != null ? { hfov: Math.round(input.hfovDeg) } : {}),
-  }
   type Row = { text: string; style: TextStyle; title?: boolean; boldStart?: boolean }
   const filled = columns.map((column) => {
-    const values = { ...calcLineValues(input, column.counts, column.n), ...extra }
     const rows: Row[] = calc.title.text ? [{ text: calc.title.text, style: calc.title, title: true }] : []
-    let previousBold = false
-    for (const template of calc.lines) {
-      const bold = template.startsWith('**')
-      const text = fillTemplate(bold ? template.slice(2) : template, values)
-      if (/\{\w+\}/.test(text)) continue
-      rows.push({ text, style: bold ? (calc.emphasis ?? calc.line) : calc.line, boldStart: bold && !previousBold })
-      previousBold = bold
-    }
+    for (const row of resolveCalc(input, column.counts, column.n).rows)
+      rows.push({
+        text: row.text,
+        style: row.bold ? (calc.emphasis ?? calc.line) : calc.line,
+        boldStart: row.boldStart,
+      })
     return rows
   })
   const layout = (scale: number) =>
@@ -1807,7 +1865,7 @@ function measureLines(
   landforms?: { primary: string | null; unaltered: readonly string[] },
 ): string[] {
   const of = landforms?.primary ? `, ${landforms.primary.replace(/\s*\([^)]*\)\s*$/, '').trim()}` : ''
-  const pixel = figurePercent(input, counts)
+  const pixel = resolveCalc(input, counts).percent
   const ground = input.screenedClasses
     ? ', the ground under the trees'
     : !input.camera

@@ -2,7 +2,7 @@
   "kind": "component",
   "id": "references",
   "title": "References",
-  "description": "The handbook, the regulation, the inventory as read (or not) and how the pictures were drawn.",
+  "description": "The handbook, the regulation, the inventory as read (or not), how the pictures were drawn and the office's historical reference, which is never the objective's authority.",
   "meta": { "reportPart": true, "sources": ["22", "23", "26"] },
   "blocks": [
     { "type": "heading", "level": 2, "content": "References" },
@@ -21,7 +21,11 @@
             "BC Geographic Warehouse: Visual Landscape Inventory (REC_VISUAL_LANDSCAPE_INVENTORY): not read for this report; inventory values are the office fields."
           ]
         },
-        "Terrain: {{ facts.method.terrain }}. Timber: {{ facts.method.vegetation }}."
+        "Terrain: {{ facts.method.terrain }}. Timber: {{ facts.method.vegetation }}.",
+        {
+          "if": "facts.office.referenceDocument",
+          "then": ["Historical reference, not the objective's authority: {{ facts.office.referenceDocument }}."]
+        }
       ]
     }
   ]

@@ -24,7 +24,13 @@ export type FormMetadata = {
   vsc?: string
   evc?: string
   recommendedVqc?: string
+  /** The order or plan that established the objective (the form's source-document box). */
   sourceDocument?: string
+  /**
+   * Not on the FS1252: a historical reference the reviewer read (an earlier VIA, a sheet), printed only in a report's
+   * references. Never the objective's authority, and never in an "established by" sentence.
+   */
+  referenceDocument?: string
   evaluator?: string
   /** Not on the FS1252: the evaluator's designation ("RPF #4521") and own organisation, which VIA reports print. */
   evaluatorDesignation?: string
@@ -33,9 +39,31 @@ export type FormMetadata = {
   lakeManagementZone?: string
   inventoryDate?: string
 }
+/** Who gave a design row: the reviewer, or the model's measurement. */
+export type DesignSource = 'reviewer' | 'modelled'
+export type ModelledDistance = {
+  km: number
+  /** FS1252 Table 2 row 4's band the distance falls in ("> 1 and < 8 km"). */
+  band: string
+  /** What the distance was measured between, in words. */
+  measuredTo: string
+}
+/** FS1252 Table 2, row 4 (distance between alteration and viewpoint): its bands, as the appendix states them. */
+export const TABLE_2_DISTANCE_BANDS = 'Good (-1) over 8 km; Moderate (0) over 1 and under 8 km; Poor (+1) under 1 km'
+/** Each design row's source: the review's own, else every given row the reviewer's. */
+export function designSources(review: FormReview | undefined): Array<DesignSource | null> {
+  return (review?.design ?? []).map((value, i) => (value == null ? null : (review?.designSource?.[i] ?? 'reviewer')))
+}
 /** Five items because the supplied 2008 form is not the six-item 2022 VIA form. */
 export type FormReview = {
   design?: Array<-1 | 0 | 1 | null>
+  /**
+   * Where each design row came from: the reviewer's step 4 entry, the run's measurement (row 4, distance, only), or
+   * nothing. Absent: every given row is the reviewer's, as the Save & export options enter them.
+   */
+  designSource?: Array<DesignSource | null>
+  /** The run's measurement behind a modelled distance row (FS1252 Table 2, row 4); null when there is none. */
+  modelledDistance?: ModelledDistance | null
   roads?: 0 | 1 | 2 | 3 | null
   retention?: -2 | -1 | 0 | null
   retentionAlreadyNetted?: boolean
@@ -194,12 +222,30 @@ function formStream(request: ExportRequest, stationIndex: number, ordinal: numbe
     put(number(values.existingPercent), 273, 543, 24)
     put(number(values.cumulativePercent), 138, 555, 27)
     put(formClass(values.cumulativePercent), 273, 555, 25)
-  } else put('Numerical fields withheld: see appendix.', 368, 360, 163, 7)
+  }
   const review = request.reviews?.[stationIndex]
+  const sources = designSources(review)
   if (review?.design?.length === 5)
+    // A modelled row is marked X*, never the plain X a reviewer's observation takes ("M" is the form's Moderate).
     review.design.forEach((value, i) => {
-      if (value !== null) put('X', value === -1 ? 205 : value === 0 ? 242 : 278, 409 + i * 13.45, 10)
+      if (value !== null)
+        put(sources[i] === 'modelled' ? 'X*' : 'X', value === -1 ? 205 : value === 0 ? 242 : 278, 409 + i * 13.45, 10)
     })
+  // The notes box has room for one more line under the modelled-view line.
+  const modelled = review?.design?.length === 5 && sources.includes('modelled')
+  put(
+    !values
+      ? modelled
+        ? 'Numbers withheld; X* = modelled: see appendix.'
+        : 'Numerical fields withheld: see appendix.'
+      : modelled
+        ? 'X* = modelled, not observed: see appendix.'
+        : '',
+    368,
+    360,
+    163,
+    7,
+  )
   const adjustment = reviewAdjustment(values?.cumulativePercent ?? null, review)
   if (adjustment) {
     put(number(adjustment.roads, 0), 263, 598, 23)
@@ -227,6 +273,8 @@ function formStream(request: ExportRequest, stationIndex: number, ordinal: numbe
   )
   return s + 'Q\n'
 }
+/** The form's five design rows, in order, as the appendix names them. */
+const DESIGN_ROWS = ['force lines', 'natural character', 'edge treatment', 'distance', 'position on landform']
 function appendixStreams(request: ExportRequest, inputDigest: string): string[] {
   const streams: string[] = []
   let stream = '',
@@ -310,11 +358,18 @@ function appendixStreams(request: ExportRequest, inputDigest: string): string[] 
         : 'No complete supported numerical value for this station. The form intentionally leaves numerical fields blank.',
     )
     const adj = reviewAdjustment(values?.cumulativePercent ?? null, review)
+    const sources = designSources(review)
+    const modelled = DESIGN_ROWS.filter((_, i) => sources[i] === 'modelled')
     add(
       adj
-        ? `Explicit reviewer-supplied FS1252 five-factor adjustment: design ${adj.design}; roads ${adj.roads}; retention ${adj.retention}; Y=${adj.y}; adjusted ${number(adj.adjusted, 3)}%. No final EE rating inferred.`
+        ? `${modelled.length ? `FS1252 five-factor adjustment, ${modelled.join(', ')} modelled and the rest reviewer-supplied` : 'Explicit reviewer-supplied FS1252 five-factor adjustment'}: design ${adj.design}; roads ${adj.roads}; retention ${adj.retention}; Y=${adj.y}; adjusted ${number(adj.adjusted, 3)}%. No final EE rating inferred.`
         : 'Adjusted numerical class withheld because a complete set of five design ratings, road-impact rating and retention rating was not supplied.',
     )
+    const distance = review?.modelledDistance
+    if (distance && sources[3] === 'modelled')
+      add(
+        `Design row 4 (distance between alteration and viewpoint) is modelled, not a field observation: ${number(distance.km, 1)} km measured to ${distance.measuredTo}, in FS1252 Table 2 row 4's band ${distance.band} (${TABLE_2_DISTANCE_BANDS}). The form's Viewing Distance is a different measure: to the bounding-box centre of the selected landform.`,
+      )
     if (review?.retentionAlreadyNetted)
       add('Retention was already netted out of the alteration geometry; no second retention adjustment was applied.')
     if (review?.notes) add(`Reviewer notes: ${review.notes}`)

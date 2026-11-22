@@ -201,6 +201,7 @@ export async function comparisonCase(recipe: ReportRecipe, variant: ComparisonVa
             blockIds: 'X1, X2',
             generalLocation: 'Made-up Lake',
             sourceDocument: 'a made-up higher level plan',
+            referenceDocument: 'a made-up earlier assessment',
             evaluator: 'A. Person',
             evaluatorDesignation: 'RPF',
             evaluatorOrganisation: 'Made-up Consulting',

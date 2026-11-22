@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { FORM_INPUT_CLASS, SelectField } from '@/components/ui/form-field'
 import { acceptedReferenceStation } from './referenceProjection'
 import { chosenValues, type ReferenceRow } from './referenceMeasurements'
+import { replayEvidence } from './replayComparison'
 import type { ProjectAttachment } from './projectArchive'
 import { DIAGNOSTIC_LABEL, runFigures, withheldText } from './runFigures'
 import type { AnalysisInput, AnalysisWorkerRequest, AnalysisWorkerResponse } from './types'
@@ -131,9 +132,7 @@ export function ReferenceRunPanel({
                   : ' (' + DIAGNOSTIC_LABEL.toLowerCase() + '). ' + withheldText(figures))
           const evidence = m.archive
             ? 'Retained ' + name + ' for this session. Save it from Save & export → Sightline replay archive.'
-            : m.replayMatches
-              ? 'Replayed the saved numerical results.'
-              : 'Replayed figures differ from the saved run.'
+            : replayEvidence(m)
           finish(
             [
               evidence,

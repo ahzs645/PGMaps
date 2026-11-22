@@ -84,6 +84,7 @@ export type OfficeFields = Partial<
     | 'evc'
     | 'recommendedVqc'
     | 'sourceDocument'
+    | 'referenceDocument'
     | 'evaluator'
     | 'evaluatorDesignation'
     | 'evaluatorOrganisation'
@@ -883,23 +884,44 @@ const currentEvc: ReportPart = {
   },
 }
 
+/**
+ * The order or plan that established the objective, when both the objective and its authority are recorded. The
+ * office's historical reference (`referenceDocument`) is never this authority, and an objective that is not recorded
+ * is established by nothing this report can name.
+ */
+function establishedBy(ctx: ReportContext): string | null {
+  const authority = blank(ctx.office.sourceDocument)
+  return objectiveOf(ctx) && authority ? authority : null
+}
+
+/** What a report still needs to state the objective and its authority, each gap once. */
+function objectiveGaps(ctx: ReportContext, authorityItem: string): string[] {
+  return [
+    ...(objectiveOf(ctx) ? [] : ['Established visual quality objective']),
+    ...(blank(ctx.office.sourceDocument) ? [] : [authorityItem]),
+  ]
+}
+
 const regulatoryFrame: ReportPart = {
   id: 'regulatory-frame',
   title: 'Regulatory frame',
   sources: ['06', '21', '22', '23'],
-  build: (ctx) => ({
-    blocks: [
-      heading('Visual quality objectives'),
-      text(
-        `The visual quality objective for the landform is ${objectiveName(ctx) ?? 'not recorded'}${
-          ctx.office.sourceDocument ? `, established by ${ctx.office.sourceDocument}` : ''
-        }. FPPR s. 1.1 defines each objective by how visible, how large and how designed an alteration may be when assessed from a significant public viewpoint.`,
-        'scene',
-      ),
-      criteriaMatrix(objectiveOf(ctx)),
-    ],
-    toComplete: ctx.office.sourceDocument ? [] : ['Objective source document'],
-  }),
+  build: (ctx) => {
+    const authority = establishedBy(ctx)
+    return {
+      blocks: [
+        heading('Visual quality objectives'),
+        text(
+          `The visual quality objective for the landform is ${objectiveName(ctx) ?? 'not recorded'}${
+            authority ? `, established by ${authority}` : ''
+          }. FPPR s. 1.1 defines each objective by how visible, how large and how designed an alteration may be when assessed from a significant public viewpoint.`,
+          'scene',
+        ),
+        criteriaMatrix(objectiveOf(ctx)),
+      ],
+      toComplete: objectiveGaps(ctx, 'Objective source document'),
+    }
+  },
 }
 
 /** three-elements: defined once in JSON (`recipeJson/components/three-elements.json`), read by `kitBlocks.ts`. */
@@ -2369,7 +2391,7 @@ const designRationale: ReportPart = {
           'scene',
         ),
         heading('Higher level plans', 3),
-        text(ctx.office.sourceDocument ? `The objective is established by ${ctx.office.sourceDocument}.` : '', 'scene'),
+        text(establishedBy(ctx) ? `The objective is established by ${establishedBy(ctx)}.` : '', 'scene'),
         heading('Legislative framework', 3),
         text(`The landform's objective is ${objectiveName(ctx) ?? 'not recorded'}; FPPR s. 1.1 defines it.`, 'scene'),
         heading('Field observations and comments', 3),
@@ -2377,7 +2399,7 @@ const designRationale: ReportPart = {
         text(ctx.review?.rationale ?? '', 'reviewer'),
       ],
       toComplete: [
-        ...(ctx.office.sourceDocument ? [] : ['Higher level plans: objective source document']),
+        ...objectiveGaps(ctx, 'Higher level plans: objective source document'),
         ...(ctx.review?.rationale ? [] : ['Field observations (step 4 rationale)']),
       ],
     }

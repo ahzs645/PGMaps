@@ -1107,7 +1107,15 @@ and saved comparisons travel in **Save & export → Project**.
   file. Replay takes this session's archive, a chosen `.sightline.zip`, or one an
   earlier project attached, checks the SHA-256 hashes and recomputes the
   numerical figures without a data service. The archived figures allow a reviewer
-  to detect a change in the calculation.
+  to detect a change in the calculation. The comparison (`compareReplayFigures`,
+  `replayComparison.ts`) holds the assessment station, the sightline count, the
+  number of stations and which figures are present or null exactly, and lets a
+  percentage differ by `REPLAY_TOLERANCE_PP`, 1e-6 points: summing in another
+  order moves a figure by about 1e-14 points, while one sightline of 21,348
+  moves it by about 0.0047. The input checksums stay exact. The panel prints the
+  largest difference and the archive's calculation version (`calcVersion`,
+  `SIGHTLINE_CALC_VERSION`; "not recorded" in archives written before it), and
+  names what differs when the replay fails.
 - **Compare with a saved PGMaps figure** uses the class counts from a saved
   after-harvest sheet for the linked view and mapped landform. The original
   percentage, source calculation and selected comparison stay visible. Choose
@@ -1261,7 +1269,14 @@ scene but, like the FS1252 office fields, is left out of the run's fingerprint:
 editing a judgement never withdraws the run it judges. The FS1252 export takes
 step 4's ratings for the assessment station unless a station's own inputs are
 set; the form's five design rows leave number, size and spacing on the VIA
-record.
+record. Each row keeps whose it is (`fs1252ReviewFromVia`'s `designSource`):
+a row step 4 left blank that the model filled is marked `X*` on the form, never
+the reviewer's `X`, and only distance is ever filled. Its appendix states the
+distance, what it was measured to (the centre of the visible proposal, from the
+assessment station), FS1252 Table 2 row 4's bands and that it is not a field
+observation; the adjustment is called reviewer-supplied only when all five rows
+are the reviewer's. The form's own *Viewing Distance* is a different measure:
+to the centre of the landform's bounding box.
 
 ## Two percentage scales, and why both are reported
 
@@ -4598,7 +4613,15 @@ each entry names:
   of a line. Before this, the net-of-private style printed the gross figure under
   a `(LF - PL)` formula (0.51% where its own areas give 1.14%), and the photo
   styles dropped their `Alteration= x% (class)` line because nothing filled
-  `{class}`.
+  `{class}`. The box is resolved once (`resolveCalc`, `composeFigure.ts`): the
+  rule, the words for its denominator, the filled rows and the total feed the
+  box, each column of a multi-landform box and the pixel figure alike. A style
+  names its denominator per rule (`calc.denominatorNames`, keyed by what the
+  rule removes); the orange style's formula line prints `LF`, `(LF - PL)` or
+  `(LF - PL - R)` with the rule it was handed (a report format's, or the
+  scene's net rule, which adds rock), and its private-land and rock rows
+  (`{privateDeductedPx}`, `{rockDeductedPx}`) print only when that rule takes
+  the ground out.
 - **Scales** (`viaDocument/scales.ts`): the handbook's Table 2 (inclusive at
   1.5/7/18/30, through `table2Class`), a district summary's strict `<` bounds,
   the consultants' size words, a referral's single ceiling, and three distance
@@ -4674,6 +4697,17 @@ office information and under the VIA report's options, copies Your details
 (the first row of Save & export) into those fields where they are blank. A
 designation fills the sign-off's designation line; the seal, signature and date
 stay to complete. The worksheet's *Evaluator* line prints the same name.
+
+**The objective's authority is the order or plan, never a reference.** The
+office field *Objective established by (order or plan)* (`sourceDocument`, the
+FS1252's source-document box) is the only value an "established by" sentence
+prints, and only beside a recorded objective: with no objective the report
+says the objective "is not recorded" and lists the objective (and the
+authority, when it is blank too) to complete. A document the reviewer read for
+context, such as an earlier assessment, goes in *Historical reference — not
+the objective's authority* (`referenceDocument`), which prints only among the
+references. Values typed into the source-document field before the two were
+separated stay where they are.
 
 **Nothing is invented.** Office fields come from the FS1252 office information;
 the reviewer's judgements from step 4 at the assessment station's view only;

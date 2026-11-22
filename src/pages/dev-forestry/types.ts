@@ -356,7 +356,14 @@ export type AnalysisWorkerResponse =
       requestId: number
       result: AnalysisResult
       archive?: Blob
+      /** A replay's figures within `REPLAY_TOLERANCE_PP` of the archive's (`compareReplayFigures`). */
       replayMatches?: boolean
+      /** The largest difference between a saved and a replayed percentage, in points. */
+      replayMaxDeltaPp?: number
+      /** What differs, each as "path: saved → replayed". */
+      replayMismatches?: string[]
+      /** The archive's `calcVersion`; null for an archive written before it was recorded. */
+      replayCalcVersion?: number | null
       replayRowId?: string
     }
   | { type: 'reverse-result'; requestId: number; result: ReverseViewshedResult }

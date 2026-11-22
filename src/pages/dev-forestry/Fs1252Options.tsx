@@ -31,9 +31,10 @@ export const FS1252_OFFICE_FIELDS: ReadonlyArray<[keyof FormMetadata, string]> =
   ['vsc', 'Visual sensitivity class'],
   ['evc', 'Existing visual condition'],
   ['recommendedVqc', 'Recommended VQC'],
-  ['sourceDocument', 'Objective source document'],
+  ['sourceDocument', 'Objective established by (order or plan)'],
   ['evaluator', 'Prepared/evaluated by (optional)'],
   // Not printed on the FS1252; the VIA reports read them.
+  ['referenceDocument', 'Historical reference — not the objective’s authority (optional)'],
   ['evaluatorDesignation', 'Evaluator’s designation, e.g. RPF #4521'],
   ['evaluatorOrganisation', 'Evaluator’s organisation'],
   ['lakeManagementZone', 'Lake or landscape management zone (LMZ)'],
@@ -179,8 +180,12 @@ export function Fs1252Options({
                             </p>
                           )}
                           <p className="text-muted-foreground">
-                            Optional reviewer-supplied design inputs. These five judgements are not inferred by the
-                            model. They are labelled as supplied review inputs, not a field visit.
+                            Optional reviewer-supplied design inputs, labelled as supplied review inputs, not a field
+                            visit. Four are judgements the model never makes. Distance is measured: where step 4 leaves
+                            it blank, the form takes the model’s distance from the assessment station to the centre of
+                            the visible proposal (FS1252 Table 2 row 4), marked X* rather than X and stated in the
+                            appendix. The form’s Viewing Distance is a different measure, to the centre of the
+                            landform’s bounding box.
                           </p>
                           {DESIGN_LABELS.map((label, i) => (
                             <label className="flex items-center justify-between gap-2" key={label}>

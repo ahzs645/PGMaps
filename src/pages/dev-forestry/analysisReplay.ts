@@ -13,6 +13,7 @@ import { computeAnalysis, type TerrainInfo, type AnalysisContext } from './analy
 import type { CanopyStand } from './canopy'
 import type { AnalysisInput, AnalysisResult } from './types'
 import type { PolygonGeometry } from './visibility'
+import { compareReplayFigures, SIGHTLINE_CALC_VERSION } from './replayComparison'
 
 export type RunInputs = {
   input: AnalysisInput
@@ -32,6 +33,8 @@ const figures = (r: AnalysisResult) => ({
   station: r.assessmentStationIndex,
   sightlines: r.actualSightlineCount,
 })
+type ReplayFigures = ReturnType<typeof figures>
+
 const tileName = (x: number, y: number) => 'dem/' + x + '-' + y + '.f32'
 export async function retainRun(data: RunInputs, tiles: Map<string, Uint8Array>, result: AnalysisResult, ref: RunRef) {
   const entries = { 'inputs.json': json(data), ...Object.fromEntries(tiles) } as Record<string, Uint8Array>
@@ -43,6 +46,7 @@ export async function retainRun(data: RunInputs, tiles: Map<string, Uint8Array>,
     format,
     ref,
     createdAt: new Date().toISOString(),
+    calcVersion: SIGHTLINE_CALC_VERSION,
     expected: figures(result),
     checksums,
   })
@@ -154,9 +158,14 @@ export async function replayRun(file: Blob) {
     grid = mosaic
   }
   const result = computeAnalysis(grid, d.input, d.terrain, undefined, d.canopy, d.forested, d.context)
+  const replayed: ReplayFigures = JSON.parse(JSON.stringify(figures(result)))
+  const comparison = compareReplayFigures(manifest.expected, replayed)
   return {
     result,
-    replayMatches: JSON.stringify(figures(result)) === JSON.stringify(manifest.expected),
+    replayMatches: comparison.matches,
+    replayMaxDeltaPp: comparison.maxAbsDeltaPp,
+    replayMismatches: comparison.mismatches,
+    replayCalcVersion: Number.isSafeInteger(manifest.calcVersion) ? (manifest.calcVersion as number) : null,
     replayRowId: manifest.ref.rowId as string,
   }
 }
