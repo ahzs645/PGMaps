@@ -156,6 +156,8 @@ const SIGHTLINE_READERS = new Set([
   'src/pages/dev-forestry/viaReport/partsDistrict.ts',
   'src/pages/dev-forestry/viaDocument/markdown.ts',
   'src/pages/dev-forestry/referenceComparison.ts',
+  // Builds a stamp from a ready run (`captureSightline`): a stamp site, not a reader of a saved figure.
+  'src/pages/dev-forestry/sightlineStamp.ts',
 ])
 const SIGHTLINE_STAMP_SITES: Record<string, RegExp> = {
   'src/pages/DevForestryVisuals.tsx': /^const percent = sightline\.sightlinePercent$/,

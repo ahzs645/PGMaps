@@ -7403,10 +7403,11 @@ function DevForestryVisuals({
         ? { ...current, [savedId]: { ...current[savedId], figure: withSightlineStamp(figure, stamp) } }
         : current
     })
+    const recorded = capturedSightline(stamp).percent
     setPreviewMessage(
-      stamp.sightlinePercent === null
+      recorded === null
         ? `Recorded the run's figure for ${name}: the run sees no complete view from its station.`
-        : `Recorded the run's figure for ${name}: ${stamp.sightlinePercent.toFixed(2)}%${stamp.sightlineClass ? ` (${stamp.sightlineClass})` : ''}.`,
+        : `Recorded the run's figure for ${name}: ${recorded.toFixed(2)}%${stamp.sightlineClass ? ` (${stamp.sightlineClass})` : ''}.`,
     )
   }
   const runFigureControl = (savedId: string | undefined, name: string): ReactNode =>
