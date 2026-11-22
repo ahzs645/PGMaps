@@ -21,12 +21,19 @@ export type StoredPhotoDepth = {
   inverse: Float32Array
 }
 
+/**
+ * The last site, written as a project file when the page switched away from it (*New site*, a sample, a file opened),
+ * so *Reopen previous site* brings back its photos, attachments and pictures. One slot: the next switch replaces it.
+ */
+export type StoredPreviousSite = { id: 'previous'; savedAt: string; name: string; blob: Blob }
+
 class ToolsDatabase extends Dexie {
   documents!: Table<{ id: string; document: ToolsDocument }, string>
-  scenes!: Table<{ id: string; scene: ForestryScene }, string>
+  scenes!: Table<{ id: string; scene: ForestryScene; revision?: number }, string>
   attachments!: Table<StoredAttachment, string>
   ownPhotos!: Table<StoredOwnPhoto, string>
   photoDepth!: Table<StoredPhotoDepth, string>
+  previousSites!: Table<StoredPreviousSite, string>
   constructor() {
     super('pgmaps.forestry-assessment-tools.v1')
     this.version(1).stores({ documents: 'id' })
@@ -40,6 +47,15 @@ class ToolsDatabase extends Dexie {
       // A photo's depth estimate, by record and model: a second or more of inference, the same every time.
       photoDepth: 'key, recordId',
     })
+    // The last site as a project file, for *Reopen previous site*.
+    this.version(4).stores({
+      documents: 'id',
+      scenes: 'id',
+      attachments: 'key',
+      ownPhotos: 'id',
+      photoDepth: 'key, recordId',
+      previousSites: 'id',
+    })
   }
 }
 const db = new ToolsDatabase()
@@ -51,13 +67,15 @@ export async function saveTools(document: ToolsDocument) {
   await db.documents.put({ id: 'workspace', document })
 }
 
-export async function loadCurrentScene() {
-  return (await db.scenes.get('current'))?.scene ?? null
+/** The scene kept here and its revision (0 for one kept before revisions were), or null. */
+export async function loadCurrentScene(): Promise<{ scene: ForestryScene; revision: number } | null> {
+  const row = await db.scenes.get('current')
+  return row ? { scene: row.scene, revision: row.revision ?? 0 } : null
 }
-export async function saveCurrentScene(scene: ForestryScene) {
+export async function saveCurrentScene(scene: ForestryScene, revision: number) {
   // A scene and its photos kept only here must not be cleared with the browser's caches.
   keepStoragePersistent()
-  await db.scenes.put({ id: 'current', scene })
+  await db.scenes.put({ id: 'current', scene, revision })
 }
 
 /** The attachments and the own-photo set kept from the last visit; empty when nothing was kept or storage is shut. */
@@ -112,4 +130,16 @@ export async function prunePhotoDepth(keepRecordIds: readonly string[]) {
   const keep = new Set(keepRecordIds)
   const gone = (await db.photoDepth.toArray()).filter((row) => !keep.has(row.recordId)).map((row) => row.key)
   if (gone.length) await db.photoDepth.bulkDelete(gone)
+}
+
+/** Keeps the last site's project file in the one slot, replacing what was there. */
+export async function savePreviousSite(site: { name: string; savedAt: string; blob: Blob }) {
+  // The last site's photos and pictures may now be kept only here: they must not go with the browser's caches.
+  keepStoragePersistent()
+  await db.previousSites.put({ id: 'previous', ...site })
+}
+
+/** The last site kept, or null when none was or storage is shut. */
+export async function loadPreviousSite(): Promise<StoredPreviousSite | null> {
+  return (await db.previousSites.get('previous')) ?? null
 }

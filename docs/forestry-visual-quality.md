@@ -1018,6 +1018,25 @@ viewpoints, block curve assignments and reference measurements go; the growth
 curve and the Castor curve library stay, as the reviewer's inputs rather than
 the site's records.
 
+Every switch of site (*New site*, a sample, a Saved views file, a project,
+*Reopen previous site*) is one `transitionSite` in the page. It bumps the
+session's site generation (`siteTransition.ts`), and every piece of work that
+awaits (a save's screenshot, photo and analysis sheet, a capture's before
+renders and its step back, a background render, a geometry import) checks the
+guard it took when it started, so nothing finished for one site lands in the
+next. The last site's saved and shelved views go with their pictures, before
+renders and engine figures, and the project file writes only what a saved or
+shelved view holds (`reachableProjectState`); an engine figure for a view the
+file does not hold is left out and named when it is opened. Before anything is
+cleared, the site left is written as a project file into this browser
+(`previousSites`, one slot, `savePreviousSite`), so its photos, attachments and
+pictures are not lost: *Reopen previous site* opens it as a project, which is a
+switch too, so the two sites swap. Nothing is asked. An empty new site, or a
+sample as it opened with nothing saved at it, is not kept (`siteWorthKeeping`)
+and leaves the slot as it was; only a site whose project would pass
+`PREVIOUS_SITE_MAX_BYTES` (150 MB), or that the browser will not store, asks
+once: save it as a project, discard it, or stay.
+
 **Reviewing a historical VIA.** Open the project ZIP in **Step 1 → Start from**,
 then open **Project attachments** (the paperclip) and choose **Reference
 measurements**. Earlier converted projects import their attached `case.json` on

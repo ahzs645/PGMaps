@@ -45,6 +45,11 @@ import { parsePrescription } from './stand/prescription'
 import { parseViewsOfInterest, type ViewOfInterest } from './viewsOfInterest'
 
 export const SCENE_STORAGE_KEY = 'pgmaps.forestry-visual-quality.v1'
+/**
+ * The revision of the scene under `SCENE_STORAGE_KEY`, written after it. The IndexedDB copy carries its own, and on
+ * load the newer of the two wins (`usePersistentScene`): a reload before IndexedDB's write commits keeps the edit.
+ */
+export const SCENE_REVISION_KEY = 'pgmaps.forestry-visual-quality.revision.v1'
 
 export type ForestryScene = {
   masks?: AssessmentMask[]
@@ -627,9 +632,21 @@ export function loadStoredScene(): ForestryScene | null {
   }
 }
 
-export function storeScene(scene: ForestryScene): void {
+/** The revision of the scene in localStorage (`SCENE_REVISION_KEY`); 0 for one kept before revisions were. */
+export function loadStoredSceneRevision(): number {
+  try {
+    const revision = Number(window.localStorage.getItem(SCENE_REVISION_KEY))
+    return Number.isFinite(revision) && revision > 0 ? revision : 0
+  } catch {
+    return 0
+  }
+}
+
+/** Keeps the scene in localStorage; with `revision`, that too, once the scene itself is written. */
+export function storeScene(scene: ForestryScene, revision?: number): void {
   try {
     window.localStorage.setItem(SCENE_STORAGE_KEY, serializeScene(scene))
+    if (revision !== undefined) window.localStorage.setItem(SCENE_REVISION_KEY, String(revision))
   } catch {
     // A full or blocked storage quota is not worth interrupting the page for.
   }

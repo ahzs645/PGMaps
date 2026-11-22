@@ -100,10 +100,15 @@ import {
   type CaptureFacts,
 } from './dev-forestry/viewCapturePlan'
 import { PreviewWorkflow, UnlistedSavedViews } from './dev-forestry/PreviewWorkflow'
+import { createSiteGeneration, PREVIOUS_SITE_MAX_BYTES, siteWorthKeeping } from './dev-forestry/siteTransition'
+import { loadPreviousSite, savePreviousSite } from './dev-forestry/toolsStorage'
+import { PanelDialog } from '@/components/ui/dialog-shell'
+import { renderJobKey } from './dev-forestry/renderJobKey'
 import {
   candidateDriveViews,
   parsePreview,
   PREVIEW_STORAGE_KEY,
+  PREVIOUS_SITE_MARKER_KEY,
   previewInputError,
   serializePreview,
   type SavedDriveView,
@@ -583,7 +588,20 @@ type FigureAt = {
 }
 
 /** Where the reviewer stood before a capture of planned views (`useViewCapture`), to step back to afterwards. */
+/** A site switch (`transitionSite`): the next site's scene and saved views, and what fills it once the last is cleared. */
+type SiteSwitch = {
+  scene: ForestryScene
+  views?: SavedDriveView[]
+  drive?: Partial<DriveState>
+  /** Runs the assessment at once (the roadside demo). */
+  preview?: boolean
+  /** Fills what the next site brings besides its scene and views (a project's pictures, workspace and photos). */
+  fill?: () => void
+}
+
 type ViewCaptureReturn = {
+  /** The site generation the capture started on: a capture never puts the reviewer back on another site. */
+  generation: number
   viewpoint: Viewpoint
   activeLandformId: string | null | undefined
   standing: { previous: Viewpoint; name: string; point: [number, number] } | null
@@ -679,6 +697,25 @@ function ringToPolygon(coordinates: Array<[number, number]>): GeoJSON.Polygon | 
   return { type: 'Polygon', coordinates: [ring] }
 }
 
+/** This browser's Saved views record (`PREVIEW_STORAGE_KEY`): the last site with saved views, or null. */
+function readPreviewRecord(): ReturnType<typeof parsePreview> {
+  try {
+    return parsePreview(JSON.parse(localStorage.getItem(PREVIEW_STORAGE_KEY) ?? 'null'))
+  } catch {
+    /* Unavailable or old storage is recoverable by importing a preview. */
+    return null
+  }
+}
+/** Whether a site switch left the record behind as the previous site's (`PREVIOUS_SITE_MARKER_KEY`). */
+function previewRecordIsPrevious(record: NonNullable<ReturnType<typeof parsePreview>>): boolean {
+  try {
+    const marker = localStorage.getItem(PREVIOUS_SITE_MARKER_KEY)
+    return marker !== null && marker === sceneFingerprint(record.scene)
+  } catch {
+    return false
+  }
+}
+
 /**
  * The last scene the browser saved, or the worked example — the page opening on
  * a blank map teaches nothing about what it does.
@@ -745,6 +782,39 @@ function DevForestryVisuals({
   const [projectTitle, setProjectTitle] = useState<string | null>(null)
   const [projectMessage, setProjectMessage] = useState<{ text: string; error?: boolean } | null>(null)
   const [projectAttachments, setProjectAttachments] = useState<ProjectAttachment[]>([])
+  // The latest of those two notices, shown in the header's status line while it is fresh: step 1 (where both are
+  // written) may be folded or another step brought forward, as it is when *Open* is run from the header or ribbon.
+  const [noticesSeen, setNoticesSeen] = useState({ project: projectMessage, import: importMessage })
+  const [headerNotice, setHeaderNotice] = useState<{
+    text: string
+    error: boolean
+    from: 'project' | 'import'
+  } | null>(null)
+  if (noticesSeen.project !== projectMessage || noticesSeen.import !== importMessage) {
+    setNoticesSeen({ project: projectMessage, import: importMessage })
+    const project = noticesSeen.project !== projectMessage
+    const imported = noticesSeen.import !== importMessage
+    const fresh =
+      (project &&
+        projectMessage && { text: projectMessage.text, error: !!projectMessage.error, from: 'project' as const }) ||
+      (imported &&
+        importMessage && {
+          text: importMessage,
+          error: importMessage.startsWith('Could not'),
+          from: 'import' as const,
+        }) ||
+      null
+    // A notice cleared at its source leaves the header too; one cleared elsewhere leaves the header's alone.
+    if (fresh) setHeaderNotice(fresh)
+    else if ((project && headerNotice?.from === 'project') || (imported && headerNotice?.from === 'import'))
+      setHeaderNotice(null)
+  }
+  useEffect(() => {
+    // Work under way ("Reading the project…") stays until what it was doing says how it went.
+    if (!headerNotice || headerNotice.text.endsWith('…')) return
+    const timer = window.setTimeout(() => setHeaderNotice(null), headerNotice.error ? 15_000 : 8_000)
+    return () => window.clearTimeout(timer)
+  }, [headerNotice])
   // The header's paperclip opens the attachments; the historical VIA review opens from there, beside its files.
   const [filesDialog, setFilesDialog] = useState<'attachments' | 'reference' | null>(null)
   // A photo's original names the field record it became (`recordId`), whichever of its two callers reports it first.
@@ -764,19 +834,43 @@ function DevForestryVisuals({
     [],
   )
   const projectRequest = useRef(0)
+  // The session's site generation (`siteTransition.ts`): bumped by every site switch, read by every guard.
+  const [siteGeneration] = useState(createSiteGeneration)
   const [pendingPreview, setPendingPreview] = useState<{ key: string; view?: SavedDriveView } | null>(null)
   // Swapping viewpoints with the road view open keeps its map (WebGL context, style, tiles, terrain and
   // the drawn stand) while the new run is made, rather than closing it and building it all again.
   const [roadViewHeld, setRoadViewHeld] = useState(false)
   const [saved, setSaved] = useState<{ key: string | null; views: SavedDriveView[] }>(() => {
-    try {
-      const stored = parsePreview(JSON.parse(localStorage.getItem(PREVIEW_STORAGE_KEY) ?? 'null'))
-      if (stored) return { key: sceneFingerprint(stored.scene), views: stored.views }
-    } catch {
-      /* Unavailable or old storage is recoverable by importing a preview. */
-    }
+    const stored = readPreviewRecord()
+    // A record a site switch left behind is the previous site's, offered by *Reopen previous site*: its views are not
+    // this site's, and a save here must not shelve them into it.
+    if (stored && !previewRecordIsPrevious(stored)) return { key: sceneFingerprint(stored.scene), views: stored.views }
     return { key: sceneFingerprint(scene), views: [] }
   })
+  // The site this browser's Saved views record holds, when it is not the one open: *Reopen previous site* offers it.
+  const [previewRecord, setPreviewRecord] = useState(() => {
+    const stored = readPreviewRecord()
+    return stored ? { key: sceneFingerprint(stored.scene), views: stored.views.length } : null
+  })
+  // The last site as a project file, kept when the page switched away from it (`transitionSite`), and the one
+  // *Reopen previous site* last opened, which is not offered again until another site takes its place.
+  const [previousSite, setPreviousSite] = useState<{ name: string; savedAt: string } | null>(null)
+  const [reopenedSite, setReopenedSite] = useState<string | null>(null)
+  useEffect(() => {
+    let active = true
+    loadPreviousSite()
+      .then((row) => active && row && setPreviousSite({ name: row.name, savedAt: row.savedAt }))
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [])
+  // Leaving a site that could not be kept to reopen: the reviewer saves it, leaves it or stays (`transitionSite`).
+  const [leavingSite, setLeavingSite] = useState<{
+    reason: string
+    file: { blob: Blob; fileName: string } | null
+    answer: (choice: 'save' | 'discard' | 'cancel') => void
+  } | null>(null)
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
   const [previewMessage, setPreviewMessage] = useState<string | null>(null)
   const [cameraStatus, setCameraStatus] = useState<DriveStatus>('waiting-for-terrain')
@@ -911,9 +1005,17 @@ function DevForestryVisuals({
     [setScene],
   )
   useEffect(() => {
-    if (saved.key !== key) return
+    // A site that cannot be previewed (a new site still empty) is not written: the record would not read back, and it
+    // would take the place of the last site's.
+    if (saved.key !== key || previewInputError(scene)) return
     try {
+      // After a site switch the record is the previous site's: it stays until this site has a saved view of its own.
+      if (!saved.views.length && localStorage.getItem(PREVIOUS_SITE_MARKER_KEY) !== null) return
       localStorage.setItem(PREVIEW_STORAGE_KEY, serializePreview(scene, saved.views))
+      localStorage.removeItem(PREVIOUS_SITE_MARKER_KEY)
+      setPreviewRecord((current) =>
+        current?.key === key && current.views === saved.views.length ? current : { key, views: saved.views.length },
+      )
       setStorageWarning(null)
     } catch {
       setStorageWarning('Browser storage is unavailable: save a Project from Save & export to keep your saved views.')
@@ -2328,24 +2430,25 @@ function DevForestryVisuals({
 
   // A Saved views file (Save & export → *Saved views*, or this browser's last site): the scene and its saved views,
   // without their pictures. It opens through step 1's *Open a project…* and *Reopen previous site*.
+  // Every switch of site goes through `transitionSite` (below, once everything it clears exists): New site, the samples,
+  // a Saved views file, a project and *Reopen previous site*. Resolves true once the next site is in place.
+  const transitionSiteRef = useRef<(next: SiteSwitch) => Promise<boolean>>(async () => false)
   const restoreSavedViews = useCallback(
-    (restored: NonNullable<ReturnType<typeof parsePreview>>) => {
-      cancelPreview()
-      setDrive(DEFAULT_DRIVE)
-      setCameraEye(null)
-      setScene(restored.scene)
-      setSaved({ key: sceneFingerprint(restored.scene), views: restored.views })
-      setSelectedTargetId(restored.scene.targets.find((t) => t.role === 'block')?.id ?? null)
-      window.setTimeout(() => fitBounds(sceneBounds(restored.scene)), 50)
-    },
-    [cancelPreview, setScene, fitBounds],
+    (restored: NonNullable<ReturnType<typeof parsePreview>>) =>
+      transitionSiteRef.current({ scene: restored.scene, views: restored.views }),
+    [],
   )
   const importPreviewGeometry = useCallback(
     async (file: File, kind: 'road' | 'blocks') => {
+      const onSite = siteGeneration.guard()
       setImportMessage('Reading file…')
       try {
         if (file.size > 30 * 1024 * 1024) throw new Error('Use a file smaller than 30 MB.')
         const imported = await readShapeFile(file)
+        // Read for the site it was asked on: after a switch it belongs to no site here.
+        if (!onSite()) return
+        // The scene as it is now, not as it was when the file was picked.
+        const scene = sceneRef.current
         const road = imported.lines.reduce<(typeof imported.lines)[number] | null>(
           (best, line) =>
             !best || lineLengthMeters(line.coordinates) > lineLengthMeters(best.coordinates) ? line : best,
@@ -2393,59 +2496,24 @@ function DevForestryVisuals({
         )
         window.setTimeout(() => fitBounds(sceneBounds(next)), 50)
       } catch (error) {
+        if (!onSite()) return
         setImportMessage(`Could not import: ${error instanceof Error ? error.message : String(error)}`)
       }
     },
-    [scene, cancelPreview, setScene, fitBounds],
+    [siteGeneration, cancelPreview, setScene, fitBounds],
   )
 
-  // What a new site leaves behind besides the scene: the photo set, the field records and the rest of the workspace's
-  // site records, the originals and the stand. Filled once the photo set and the tools exist, below.
-  const resetSiteRecordsRef = useRef<() => void>(() => {})
-  const handleLoadSample = useCallback(
-    (kind: 'tabor' | 'roadside' | 'purden' = 'tabor', preview = false) => {
-      const roadside = kind === 'roadside'
-      const sample =
-        kind === 'roadside'
-          ? createRoadsideDriveScene()
-          : kind === 'purden'
-            ? createPurdenLakeScene()
-            : createSampleScene()
-      analysis.reset()
-      resetSiteRecordsRef.current()
-      setTerrainCandidates([])
-      setReplacedLandform(null)
-      setPendingPreview(null)
-      setPreviewMessage(null)
-      setScene(sample)
-      setSelectedTargetId(sample.targets.find((target) => target.role === 'block')?.id ?? null)
-      setDrive({ ...DEFAULT_DRIVE, speedKmh: roadside ? 40 : 60 })
-      setCameraEye(null)
-      setImportMessage(null)
-      window.setTimeout(() => fitBounds(sceneBounds(sample)), 50)
-      if (preview) {
-        setPendingPreview({ key: sceneFingerprint(sample)! })
-        runForScene(sample)
-      }
-    },
-    [analysis, fitBounds, runForScene, setScene],
-  )
+  const handleLoadSample = useCallback((kind: 'tabor' | 'roadside' | 'purden' = 'tabor', preview = false) => {
+    const sample =
+      kind === 'roadside'
+        ? createRoadsideDriveScene()
+        : kind === 'purden'
+          ? createPurdenLakeScene()
+          : createSampleScene()
+    void transitionSiteRef.current({ scene: sample, drive: { speedKmh: kind === 'roadside' ? 40 : 60 }, preview })
+  }, [])
 
-  const handleClearScene = useCallback(() => {
-    analysis.reset()
-    resetSiteRecordsRef.current()
-    setTerrainCandidates([])
-    setReplacedLandform(null)
-    setPendingPreview(null)
-    setPreviewMessage(null)
-    setCameraEye(null)
-    setScene(createEmptyScene())
-    setSelectedTargetId(null)
-    setDrive(DEFAULT_DRIVE)
-    setImportMessage(null)
-    setDrawMode('none')
-    setDraftCoordinates([])
-  }, [analysis, setScene])
+  const handleClearScene = useCallback(() => void transitionSiteRef.current({ scene: createEmptyScene() }), [])
 
   const blockCollection = useMemo(() => targetsToGeoJson(scene.targets, 'block'), [scene.targets])
   // Haze rings around the eye, redrawn when it has moved about 50 m.
@@ -4885,6 +4953,9 @@ function DevForestryVisuals({
     } | null = null,
   ): Promise<ViewSaveOutcome> => {
     if (!canSaveView) return Promise.resolve({ error: 'The road view was not ready to save.' })
+    // Everything this save writes after an await is the site's it was started on: never the next one's.
+    const onSite = siteGeneration.guard()
+    const leftSite = { error: 'The site changed before the view was saved.' } as const
     // A view saved by hand is a view of interest too (`handSaveLink`): the capture of the planned view stood at, or
     // a view listed where the eye stands. It is tagged as that view's capture; its picture is framed as before.
     const caption = captionForView(eyeMapRef.current?.getBearing() ?? null).replace(/\.$/, '')
@@ -5023,16 +5094,18 @@ function DevForestryVisuals({
         try {
           image = await captureMapImage(map)
         } catch {
+          if (!onSite()) return leftSite
           setPreviewMessage(`Saved ${view.name}, but its screenshot could not be taken.`)
           return { viewId: view.id, warning: 'Saved, but its screenshot could not be taken.' }
         }
+        if (!onSite()) return leftSite
         setViewImages((current) => ({
           ...current,
           [view.id]: { ...image, caption, savedAt, viewpoint, figureAt: at },
         }))
         if (photoCapture) {
           void photoCapture.then((image) => {
-            if (!image) return
+            if (!image || !onSite()) return
             const takenOn =
               photo?.capturedAt?.slice(0, 10) ??
               ownPhoto?.exif?.takenAt?.slice(0, 10) ??
@@ -5066,10 +5139,11 @@ function DevForestryVisuals({
             figure = await captureViewFigure(map, at)
           } catch (first) {
             // Another engine's capture has its own budget and reports why; it is not drawn twice.
-            if (engine) throw first
+            if (engine || !onSite()) throw first
             setPreviewMessage(`Saved ${view.name}. Drawing its analysis sheet again…`)
             figure = await captureViewFigure(map, at)
           }
+          if (!onSite()) return leftSite
           setViewImages((current) =>
             current[view.id] ? { ...current, [view.id]: { ...current[view.id], figure } } : current,
           )
@@ -5078,6 +5152,7 @@ function DevForestryVisuals({
           else setPreviewMessage(`Saved ${view.name}. Its analysis sheet is ready.`)
           return { viewId: view.id }
         } catch (error) {
+          if (!onSite()) return leftSite
           const why = error instanceof Error ? error.message : String(error)
           const warning = engine
             ? `${engine.label} could not draw its analysis sheet: ${why}`
@@ -5219,7 +5294,9 @@ function DevForestryVisuals({
     // Each view's before-harvest render, taken while the road view still stands at its place; `captureBeforeRenders`
     // puts the harvest phase back. Kept by saved view id with the planned view's key it was taken under.
     before: async (saved) => {
+      const onSite = siteGeneration.guard()
       const { renders, notes } = await captureBeforeRenders(saved)
+      if (!onSite()) return { taken: [], notes: ['The site changed before its renders were kept.'] }
       const taken = saved.filter((entry) => renders[entry.id])
       if (taken.length)
         setCapturedBefore((current) => ({
@@ -5239,6 +5316,7 @@ function DevForestryVisuals({
             : scene.activeLandformId,
       }
       return {
+        generation: siteGeneration.current,
         viewpoint: scene.viewpoint,
         activeLandformId: scene.activeLandformId,
         standing,
@@ -5253,6 +5331,9 @@ function DevForestryVisuals({
     },
     restore: (back) => {
       captureBaseLandform.current = null
+      // The site changed during the capture (New site, a project opened): where the reviewer stood belongs to the last
+      // site, and moving there would merge its road into this one.
+      if (back.generation !== siteGeneration.current) return
       setRoadViewLens(back.lens)
       setPhotoStand(back.photoStand)
       const nextKey = moveViewpoint(back.viewpoint, { activeLandformId: back.activeLandformId })
@@ -5343,21 +5424,19 @@ function DevForestryVisuals({
       ],
     })
   }
-  const reopenPreviousPreview = () => {
-    projectRequest.current += 1
-    try {
-      const previous = parsePreview(JSON.parse(localStorage.getItem(PREVIEW_STORAGE_KEY) ?? 'null'))
-      if (!previous) throw new Error('No previous site is kept in this browser.')
-      restoreSavedViews(previous)
-      setProjectMessage({
-        text: `Reopened the previous site with ${previous.views.length === 1 ? 'its saved view' : `its ${previous.views.length} saved views`}.`,
-      })
-    } catch {
+  const reopenPreviousPreview = async () => {
+    const previous = readPreviewRecord()
+    if (!previous) {
       setProjectMessage({
         text: 'The previous site could not be read. Open a project or Saved views file instead.',
         error: true,
       })
+      return
     }
+    if (await restoreSavedViews(previous))
+      setProjectMessage({
+        text: `Reopened the previous site with ${previous.views.length === 1 ? 'its saved view' : `its ${previous.views.length} saved views`}.`,
+      })
   }
   const saveImage = () => {
     const map = eyeMapRef.current
@@ -5598,18 +5677,6 @@ function DevForestryVisuals({
     },
     analysisRunning: analysis.state.status === 'running' || analysis.reverseState.status === 'running',
   })
-  resetSiteRecordsRef.current = () => {
-    cancelPreview()
-    runSnapshotRef.current = null
-    setStanding(null)
-    setOpenViewId(null)
-    setMapPick(null)
-    fieldPhoto.clear()
-    setProjectAttachments([])
-    setProjectTitle(null)
-    setProjectMessage(null)
-    tools.startNewSite()
-  }
   // The photo set's way to the field records (`useFieldPhoto`'s `records`), filled now the tools exist.
   photoRecordsRef.current = {
     fieldCount: tools.fieldCount,
@@ -5704,7 +5771,8 @@ function DevForestryVisuals({
     }
   }
   /** Opens a project file: the scene, the saved views with their pictures, the workspace and the package's choices. */
-  const openProjectFile = async (file: File) => {
+  /** `label` names the file in the page's line (*Reopen previous site* passes "the previous site"); true once open. */
+  const openProjectFile = async (file: File, label = file.name): Promise<boolean> => {
     const request = ++projectRequest.current
     setProjectMessage({ text: 'Reading the project…' })
     try {
@@ -5712,75 +5780,78 @@ function DevForestryVisuals({
       if (/"type"\s*:\s*"pgmaps-driving-preview"/.test(await file.slice(0, 512).text())) {
         if (file.size > 30 * 1024 * 1024) throw new Error('Use a Saved views file smaller than 30 MB.')
         const restored = parsePreview(JSON.parse(await file.text()))
-        if (request !== projectRequest.current) return
+        if (request !== projectRequest.current) return false
         if (!restored) throw new Error('This Saved views file was written by another version and could not be read.')
-        restoreSavedViews(restored)
+        if (!(await restoreSavedViews(restored))) return false
         setProjectMessage({
-          text: `Opened ${file.name}: the scene and ${restored.views.length === 1 ? 'one saved view' : `${restored.views.length} saved views`}. A Saved views file keeps no pictures; save a Project to keep them.`,
+          text: `Opened ${label}: the scene and ${restored.views.length === 1 ? 'one saved view' : `${restored.views.length} saved views`}. A Saved views file keeps no pictures; save a Project to keep them.`,
         })
-        return
+        return true
       }
       const [{ openProjectArchive }, { projectOpenedLine }] = await Promise.all([
         import('./dev-forestry/projectArchive'),
         import('./dev-forestry/projectFile'),
       ])
       const { state, summary, media } = await openProjectArchive(file)
-      if (request !== projectRequest.current) return
-      cancelPreview()
-      analysis.reset()
-      runSnapshotRef.current = null
-      setTerrainCandidates([])
-      setReplacedLandform(null)
-      setPendingPreview(null)
-      setPreviewMessage(null)
-      setCameraEye(null)
-      setDrive(DEFAULT_DRIVE)
-      setDrawMode('none')
-      setDraftCoordinates([])
-      setStanding(null)
-      setOpenViewId(null)
-      setProjectAttachments(media.attachments)
-      setProjectTitle(media.title)
-      fieldPhoto.clear()
-      setScene(state.scene)
-      setSaved({ key: sceneFingerprint(state.scene), views: state.views })
-      setShelvedViews(state.shelved)
-      setViewImages(state.images as typeof viewImages)
-      setCapturedBefore(state.capturedBefore as typeof capturedBefore)
-      setEngineFigures(state.engineFigures as typeof engineFigures)
-      setSelectedTargetId(state.scene.targets.find((target) => target.role === 'block')?.id ?? null)
-      exportOpener.setFigureRenderer(
-        state.pkg.renderer === 'worldgen' || state.pkg.renderer === 'nanite' ? state.pkg.renderer : 'pgmaps',
-      )
-      exportOpener.setPackageRecipeId(state.pkg.recipeId)
+      if (request !== projectRequest.current) return false
       let workspaceNote = ''
-      try {
-        tools.restoreWorkspace(state.workspace)
-      } catch (error) {
-        tools.restoreWorkspace(null)
-        workspaceNote = ` The assessment workspace was not read: ${error instanceof Error ? error.message : 'it is not a workspace'}.`
-      }
-      // Every own photo the project kept comes back into the set, the one that was open active. Their acceptances and
-      // jobs live on their field records, which the workspace restored above (`getRecord`).
-      const keptPhotos = [...(media.photo ? [media.photo] : []), ...(media.photos ?? [])]
-      if (keptPhotos.length)
-        void fieldPhoto.openSavedPhotos(
-          keptPhotos.map(({ blob, name, pose, recordId, sources, search }) => ({
-            file: new File([blob], name),
-            saved: { pose, recordId, blob, sources, search },
-          })),
-          media.photo?.recordId ?? null,
-        )
-      setProjectMessage({ text: projectOpenedLine(file.name, summary) + workspaceNote })
-      window.setTimeout(() => fitBounds(sceneBounds(state.scene)), 50)
+      const switched = await transitionSiteRef.current({
+        scene: state.scene,
+        views: state.views,
+        fill: () => {
+          setShelvedViews(state.shelved)
+          setViewImages(state.images as typeof viewImages)
+          setCapturedBefore(state.capturedBefore as typeof capturedBefore)
+          setEngineFigures(state.engineFigures as typeof engineFigures)
+          setProjectAttachments(media.attachments)
+          setProjectTitle(media.title)
+          exportOpener.setFigureRenderer(
+            state.pkg.renderer === 'worldgen' || state.pkg.renderer === 'nanite' ? state.pkg.renderer : 'pgmaps',
+          )
+          exportOpener.setPackageRecipeId(state.pkg.recipeId)
+          try {
+            tools.restoreWorkspace(state.workspace)
+          } catch (error) {
+            tools.restoreWorkspace(null)
+            workspaceNote = ` The assessment workspace was not read: ${error instanceof Error ? error.message : 'it is not a workspace'}.`
+          }
+          // Every own photo the project kept comes back into the set, the one that was open active. Their acceptances
+          // and jobs live on their field records, which the workspace restored above (`getRecord`).
+          const keptPhotos = [...(media.photo ? [media.photo] : []), ...(media.photos ?? [])]
+          if (keptPhotos.length)
+            void fieldPhoto.openSavedPhotos(
+              keptPhotos.map(({ blob, name, pose, recordId, sources, search }) => ({
+                file: new File([blob], name),
+                saved: { pose, recordId, blob, sources, search },
+              })),
+              media.photo?.recordId ?? null,
+            )
+        },
+      })
+      if (!switched) return false
+      setProjectMessage({ text: projectOpenedLine(label, summary) + workspaceNote })
+      return true
     } catch (error) {
-      if (request !== projectRequest.current) return
+      if (request !== projectRequest.current) return false
       setProjectMessage({
         text: error instanceof Error ? error.message : 'The project could not be opened.',
         error: true,
       })
+      return false
     }
   }
+  /**
+   * *Reopen previous site*: the last site as it was kept when the page left it (a project file in this browser, with its
+   * photos, attachments and pictures), opened as any project is; that is a switch too, so the site open now takes its
+   * place and the two can be swapped back. Without a kept site, this browser's Saved views record.
+   */
+  const reopenPreviousSite = async () => {
+    const kept = await loadPreviousSite().catch(() => null)
+    if (!kept) return reopenPreviousPreview()
+    if (await openProjectFile(new File([kept.blob], 'previous-site.pgvq.zip'), 'the previous site'))
+      setReopenedSite(kept.savedAt)
+  }
+
   // Saved views drawn again by another engine at final quality, in the background (`BackgroundRenders.tsx`).
   const captureViewFigureRef = useRef(captureViewFigure)
   captureViewFigureRef.current = captureViewFigure
@@ -5798,7 +5869,9 @@ function DevForestryVisuals({
       // The road view's terrain reloads whenever the scene's polygons change (a report's run, an import): a job
       // started in that window had no terrain to frame on and drew the unframed road view instead of the engine's
       // frames. Wait it out; `captureViewFigureRef` is read after, so it holds the reloaded terrain.
+      const onSite = siteGeneration.guard()
       await waitUntil(() => !!eyeMapRef.current && !!roadTerrainRef.current, ROAD_VIEW_SETTLE_MS)
+      if (!onSite()) throw new Error('the site changed before it was drawn.')
       const map = eyeMapRef.current
       if (!map) throw new Error('the road view is closed: open it, the engine draws from its terrain.')
       if (!roadTerrainRef.current) throw new Error('the road view’s terrain did not load: open the road view again.')
@@ -5808,9 +5881,142 @@ function DevForestryVisuals({
       const figure = await captureViewFigureRef.current(map, image.figureAt, handle, phase)
       if (job.phase === 'before' && !(figure.illustration && figure.frameImage))
         throw new Error('the before picture could not be framed: the view has no pose or no terrain under it.')
+      // Drawn for a site that is no longer open: its figure belongs to no view here.
+      if (!onSite()) throw new Error('the site changed before it was kept.')
       setEngineFigures((current) => ({ ...current, [job.key]: figure }))
     },
   })
+  /** The latest site switch asked for (`transitionSite`). */
+  const siteSwitchRequest = useRef(0)
+  /**
+   * Keeps the site being left as a project file in this browser (`savePreviousSite`), for *Reopen previous site*: its
+   * photos, attachments, pictures and workspace go with a switch, and this is the way back to them. Built before
+   * anything is cleared, while the photos' originals can still be read. Nothing is asked when it is kept or holds
+   * nothing worth keeping (`siteWorthKeeping`); only when it cannot be kept (too large, or storage refused) does the
+   * reviewer choose to save it, leave it or stay. Resolves true when the switch may go on.
+   */
+  const keepLeavingSite = async (request: number): Promise<boolean> => {
+    const counts = tools.evidence.counts
+    const worth = siteWorthKeeping({
+      scene: sceneRef.current,
+      views: savedViews.length + shelvedViews.reduce((sum, entry) => sum + entry.views.length, 0),
+      attachments: projectAttachments.length,
+      ownPhotos: fieldPhoto.ownPhotos.length,
+      workspaceRecords: counts.views + counts.runs + counts.fields > 0 || tools.designOptions.length > 0,
+    })
+    if (!worth) return true
+    const name =
+      projectTitle ?? sceneRef.current.targets.find((target) => target.role === 'block')?.name ?? 'The previous site'
+    setProjectMessage({ text: `Keeping ${name} to reopen…` })
+    let file: { blob: Blob; fileName: string } | null = null
+    let reason: string
+    try {
+      file = await buildProjectFile()
+      if (file.blob.size > PREVIOUS_SITE_MAX_BYTES) {
+        const mb = (bytes: number) => Math.round(bytes / (1024 * 1024))
+        reason = `It is ${mb(file.blob.size)} MB as a project, more than the ${mb(PREVIOUS_SITE_MAX_BYTES)} MB this browser keeps to reopen.`
+      } else {
+        const savedAt = new Date().toISOString()
+        await savePreviousSite({ name, savedAt, blob: file.blob })
+        setPreviousSite({ name, savedAt })
+        return true
+      }
+    } catch (error) {
+      const why = error instanceof Error ? error.message : String(error)
+      reason = file
+        ? `This browser would not keep it to reopen: ${why}`
+        : `It could not be written as a project to keep: ${why}`
+    }
+    if (request !== siteSwitchRequest.current) return false
+    setProjectMessage(null)
+    const choice = await new Promise<'save' | 'discard' | 'cancel'>((answer) =>
+      setLeavingSite({ reason, file, answer }),
+    )
+    setLeavingSite(null)
+    if (choice === 'cancel') return false
+    if (choice === 'save') {
+      // Not written: Save & export makes the file, and the reviewer switches again once it is saved.
+      if (!file) {
+        exportOpener.openExport('project')
+        return false
+      }
+      const url = URL.createObjectURL(file.blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = file.fileName
+      link.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    }
+    return true
+  }
+  /**
+   * Switches the site: New site, a sample, a Saved views file, a project or *Reopen previous site*. Everything working on
+   * the last site stops (a capture, background renders, the preview and the run), every guard taken on it fails from now
+   * on (`siteGeneration`), and everything bound to it goes: its saved and shelved views with their pictures,
+   * before-harvest renders and engine figures, the photo set, the attachments, the project's title and the workspace's
+   * site records. What is the reviewer's rather than the site's stays: the growth curve and Castor library, the profile
+   * and logo, the interface, the engines' options, the inventory-copies switch and own recipes. The site left is kept
+   * first, to reopen (`keepLeavingSite`); resolves false when the switch did not happen.
+   */
+  const transitionSite = async (next: SiteSwitch): Promise<boolean> => {
+    const request = ++siteSwitchRequest.current
+    // A later switch asked for while this one kept its site takes its place.
+    if (!(await keepLeavingSite(request)) || request !== siteSwitchRequest.current) return false
+    siteGeneration.next()
+    // A project still being read for the last site is not opened over this one.
+    projectRequest.current += 1
+    // The Saved views record now holds the last site, not this one: offered by *Reopen previous site*.
+    try {
+      const record = readPreviewRecord()
+      const recordKey = record ? sceneFingerprint(record.scene) : null
+      if (recordKey) localStorage.setItem(PREVIOUS_SITE_MARKER_KEY, recordKey)
+    } catch {
+      /* Storage shut: the record, if any, is offered as it is. */
+    }
+    viewCapture.cancel()
+    backgroundRenders.cancel()
+    cancelPreview()
+    analysis.reset()
+    runSnapshotRef.current = null
+    captureBaseLandform.current = null
+    setTerrainCandidates([])
+    setReplacedLandform(null)
+    setPendingPreview(null)
+    setPreviewMessage(null)
+    setImportMessage(null)
+    setViewsMessage(null)
+    setCameraEye(null)
+    setDrive({ ...DEFAULT_DRIVE, ...next.drive })
+    setDrawMode('none')
+    setDraftCoordinates([])
+    setStanding(null)
+    setPhotoStand(null)
+    setOpenViewId(null)
+    setMapPick(null)
+    setRoadViewLens(null)
+    setAssessViewPending(null)
+    fieldPhoto.clear()
+    setProjectAttachments([])
+    setProjectTitle(null)
+    setProjectMessage(null)
+    setViewImages({})
+    setCapturedBefore({})
+    setEngineFigures({})
+    setShelvedViews([])
+    tools.startNewSite()
+    const nextKey = sceneFingerprint(next.scene)
+    setScene(next.scene)
+    setSaved({ key: nextKey, views: next.views ?? [] })
+    setSelectedTargetId(next.scene.targets.find((target) => target.role === 'block')?.id ?? null)
+    next.fill?.()
+    window.setTimeout(() => fitBounds(sceneBounds(next.scene)), 50)
+    if (next.preview && nextKey) {
+      setPendingPreview({ key: nextKey })
+      runForScene(next.scene)
+    }
+    return true
+  }
+  transitionSiteRef.current = transitionSite
   /**
    * The render job for a saved view by `engine`, sized from the figure it already has: its figure, or (`before`) the
    * same framing before harvest for a report's before picture. No before job for a view saved before harvest (its
@@ -5831,7 +6037,13 @@ function DevForestryVisuals({
     const frames = figure.camera?.frames ?? 1
     const name = savedViews.find((view) => view.id === viewId)?.name ?? image.caption.replace(/\.$/, '')
     return {
-      key: `${viewId}|${engine}|${key ?? ''}${phase ? `|${phase}` : ''}|${engineCaptureOptionsKey(engineBrowserOptions.render[engine])}`,
+      key: renderJobKey({
+        viewId,
+        engine,
+        sceneKey: key,
+        phase,
+        optionsKey: engineCaptureOptionsKey(engineBrowserOptions.render[engine]),
+      }),
       viewId,
       viewName: phase ? `${name}, before harvest` : name,
       engine,
@@ -7434,7 +7646,15 @@ function DevForestryVisuals({
       embedded={stepsInRibbon}
       onClearScene={handleClearScene}
       onOpenProject={(file) => void openProjectFile(file)}
-      onReopenPrevious={saved.key !== key && saved.views.length ? reopenPreviousPreview : undefined}
+      onReopenPrevious={
+        (
+          previousSite
+            ? previousSite.savedAt !== reopenedSite
+            : previewRecord && previewRecord.views > 0 && previewRecord.key !== key
+        )
+          ? () => void reopenPreviousSite()
+          : undefined
+      }
       projectAttachments={
         <>
           {projectMessage && (
@@ -7717,7 +7937,20 @@ function DevForestryVisuals({
             </span>
           )
         }
-        status={<span className="truncate text-2xs text-muted-foreground">{ratingLine}</span>}
+        status={
+          headerNotice ? (
+            <span
+              role={headerNotice.error ? 'alert' : 'status'}
+              data-testid="visuals-header-notice"
+              className={cn('truncate text-2xs', headerNotice.error ? 'text-danger' : 'text-foreground')}
+              title={headerNotice.text}
+            >
+              {headerNotice.text}
+            </span>
+          ) : (
+            <span className="truncate text-2xs text-muted-foreground">{ratingLine}</span>
+          )
+        }
         projectInfo={<span className="text-xs">{siteName ?? 'Visual quality'}</span>}
         tools={active.headerTools ?? DEFAULT_VISUALS_HEADER_TOOLS}
         widgets={workspaceWidgets}
@@ -7814,6 +8047,34 @@ function DevForestryVisuals({
             navigation, so the map keeps the height its tools need; above everything elsewhere. */}
         {headerInContent && header}
         {exportDialog}
+        <PanelDialog
+          open={!!leavingSite}
+          onOpenChange={(open) => !open && leavingSite?.answer('cancel')}
+          title="This site cannot be kept to reopen"
+          size="md"
+          contentProps={{ 'data-testid': 'visuals-leaving-site' }}
+          footer={
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="ghost" onClick={() => leavingSite?.answer('cancel')}>
+                Cancel
+              </Button>
+              <Button variant="outline" onClick={() => leavingSite?.answer('discard')}>
+                Discard
+              </Button>
+              <Button onClick={() => leavingSite?.answer('save')}>Save project</Button>
+            </div>
+          }
+        >
+          <p className="text-sm">
+            {leavingSite?.reason} Its photos, attachments and saved pictures go with the switch: save it as a project to
+            keep them, or discard them.
+          </p>
+          {leavingSite && !leavingSite.file && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Save project opens Save &amp; export on the project; switch again once it is saved.
+            </p>
+          )}
+        </PanelDialog>
         <ProjectAttachmentsDialog
           open={filesDialog === 'attachments'}
           onOpenChange={(open) => setFilesDialog(open ? 'attachments' : null)}
