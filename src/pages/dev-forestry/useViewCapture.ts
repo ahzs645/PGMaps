@@ -15,15 +15,20 @@ import {
   CAPTURE_TIMEOUTS,
   FACING_SETTLE_MS,
   RUN_CANCELLED,
+  TIMBER_WATCH_START,
   beforeMessage,
   beforeWarning,
   captureMessage,
   captureSummary,
+  captureWaitNote,
   captureWaitingFor,
   planCapture,
   standFacing,
+  timberFailure,
+  timberGivenUp,
   waitAbandoned,
   waitFailure,
+  watchTimber,
   type CaptureFacts,
   type CaptureWait,
   type CaptureWant,
@@ -132,11 +137,13 @@ const BROWSER_CLOCK: CaptureClock = {
   sleep: (ms) => new Promise<void>((resolve) => window.setTimeout(resolve, ms)),
 }
 
-/** How long each kind of wait may last in all at one view. */
-const BUDGET: Record<Exclude<CaptureWait, null>, number> = {
+/**
+ * How long each kind of wait may last in all at one view. The timber is judged by its progress instead
+ * (`timberGivenUp`): a stand still growing is waited for.
+ */
+const BUDGET: Record<Exclude<CaptureWait, null | 'timber'>, number> = {
   run: CAPTURE_TIMEOUTS.runMs,
   'road view': CAPTURE_TIMEOUTS.roadViewMs,
-  timber: CAPTURE_TIMEOUTS.roadViewMs,
   facing: CAPTURE_TIMEOUTS.facingMs,
   lens: CAPTURE_TIMEOUTS.facingMs,
 }
@@ -145,16 +152,20 @@ type WaitResult = { ok: true } | { ok: false; reason: string; place: boolean } |
 
 /**
  * Waits until the page can save `want`, or a step runs out of time; null when cancelled. Each kind of wait (the run,
- * the road view, the timber, the facing, the lens) has its own budget, counted only while the capture waits on it,
- * and readiness must hold `STEADY_MS` with the camera's bearing unchanged.
+ * the road view, the facing, the lens) has its own budget, counted only while the capture waits on it; the timber
+ * is given up only once it stops growing (`timberGivenUp`). Readiness must hold `STEADY_MS` with the camera's bearing
+ * unchanged. `onNote` hears what the wait is doing in words ("Preparing timber 12 of 40"), or null.
  */
 async function waitReady<S>(
   getHost: () => ViewCaptureHost<S> | null,
   want: CaptureWant,
   cancelled: () => boolean,
   clock: CaptureClock,
+  onNote: (note: string | null) => void = () => {},
 ): Promise<WaitResult> {
-  const spent: Partial<Record<Exclude<CaptureWait, null>, number>> = {}
+  const spent: Partial<Record<Exclude<CaptureWait, null | 'timber'>, number>> = {}
+  let timber = TIMBER_WATCH_START
+  let note: string | null = null
   let steadySince: number | null = null
   let steadyBearing: number | null = null
   let sawRunning = false
@@ -190,12 +201,20 @@ async function waitReady<S>(
         steadySince = now
         steadyBearing = facts.poseBearing
       } else if (now - steadySince >= STEADY_MS) return { ok: true }
+    } else if (wait === 'timber') {
+      steadySince = null
+      const progress = facts.timberProgress ?? null
+      timber = watchTimber(timber, progress, elapsed)
+      const givenUp = timberGivenUp(timber, progress)
+      if (givenUp) return { ok: false, reason: timberFailure(givenUp, timber, facts), place: false }
     } else {
       steadySince = null
       spent[wait] = (spent[wait] ?? 0) + elapsed
       if (spent[wait]! > BUDGET[wait])
         return { ok: false, reason: waitFailure(wait, facts), place: wait === 'run' || wait === 'road view' }
     }
+    const nextNote = captureWaitNote(wait, facts)
+    if (nextNote !== note) onNote((note = nextNote))
     await clock.sleep(POLL_MS)
   }
 }
@@ -276,10 +295,18 @@ export async function runViewCapture<S>(
           getHost()?.face(view)
           await clock.sleep(FACING_SETTLE_MS)
         }
+        const message = captureMessage(done, total, view.name)
         const ready = await timed('view capture: stand and run', () =>
-          waitReady(getHost, { key: stood.key, ...standFacing(view), lensMm: view.focalMm }, control.cancelled, clock),
+          waitReady(
+            getHost,
+            { key: stood.key, ...standFacing(view), lensMm: view.focalMm },
+            control.cancelled,
+            clock,
+            (note) => update({ message: note ? `${message} ${note}` : message }),
+          ),
         )
         if (!ready) break placeLoop
+        if (state.message !== message) update({ message })
         if (!ready.ok) {
           // A place whose run or road view failed fails its other views for the same reason.
           if (ready.place) {

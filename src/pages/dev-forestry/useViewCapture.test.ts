@@ -202,6 +202,69 @@ describe('capturing planned views', () => {
     expect(report.captured).toEqual(['a'])
   })
 
+  /**
+   * The page's drawn timber grows one patch every `everyMs` once the road view opens, up to `stopAt` patches of
+   * `total` (all of them when absent), as a slow GPU grows it.
+   */
+  function growingTimber(
+    host: ViewCaptureHost<string>,
+    clock: ReturnType<typeof fastClock>,
+    growth: { total: number; everyMs: number; stopAt?: number },
+  ) {
+    const facts = host.facts
+    let openedAt: number | null = null
+    host.facts = () => {
+      const now = facts()
+      if (!now.roadViewOpen) return now
+      openedAt ??= clock.elapsed()
+      const grown = Math.floor((clock.elapsed() - openedAt) / growth.everyMs)
+      const done = Math.min(grown, growth.stopAt ?? growth.total, growth.total)
+      return done >= growth.total
+        ? { ...now, timberProgress: null }
+        : {
+            ...now,
+            canSave: false,
+            saveBlocker: `the drawn timber (${done} of ${growth.total} patches)`,
+            timberProgress: { done, total: growth.total },
+          }
+    }
+  }
+
+  it('keeps waiting on drawn timber that keeps growing, past the road view’s two minutes', async () => {
+    const { host, log } = fakePage([view('a')])
+    const clock = fastClock()
+    // 40 patches, one every 5 s: 200 s in all, as under software rendering.
+    growingTimber(host, clock, { total: 40, everyMs: 5000 })
+    const states: ViewCaptureState[] = []
+    const report = await runViewCapture(() => host, ['a'], {
+      cancelled: () => false,
+      onState: (state) => states.push(state),
+      clock,
+    })
+    expect(report.failures).toEqual([])
+    expect(report.captured).toEqual(['a'])
+    expect(clock.elapsed()).toBeGreaterThan(CAPTURE_TIMEOUTS.roadViewMs)
+    expect(log).toContain('save a facing block-1 at 50 mm')
+    expect(states.some((state) => state.message === 'Capturing 1 of 1: View a… Preparing timber 12 of 40')).toBe(true)
+  })
+
+  it('gives up on drawn timber that stops growing, naming how far it got', async () => {
+    const { host, log } = fakePage([view('a')])
+    const clock = fastClock()
+    growingTimber(host, clock, { total: 40, everyMs: 1000, stopAt: 17 })
+    const report = await runViewCapture(() => host, ['a'], { cancelled: () => false, onState: () => {}, clock })
+    expect(report.captured).toEqual([])
+    expect(report.failures).toEqual([
+      {
+        viewId: 'a',
+        reason: "The road view's drawn timber stopped growing at 17 of 40 patches: no patch was added for 30 s.",
+      },
+    ])
+    expect(log).not.toContain('save a facing block-1 at 50 mm')
+    // It stopped at 17 s and was given up 30 s later, not after two minutes.
+    expect(clock.elapsed()).toBeLessThan(17_000 + CAPTURE_TIMEOUTS.timberStallMs + 5000)
+  })
+
   it('gives up on a view whose lens never takes, after its own time limit', async () => {
     const { host } = fakePage([view('a')], { lens: false })
     const clock = fastClock()

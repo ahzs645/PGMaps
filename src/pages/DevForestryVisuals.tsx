@@ -4374,6 +4374,15 @@ function DevForestryVisuals({
                   })`
                 : null
   const canSaveView = saveBlocker === null
+  // The drawn timber's growth while it is the last thing a save waits for: a capture keeps waiting while it grows
+  // (`timberGivenUp`) and says how far it has got.
+  const timberProgress =
+    saveBlocker?.startsWith('the drawn timber (') &&
+    currentForestStatus &&
+    !currentForestStatus.error &&
+    currentForestStatus.totalPatches
+      ? { done: currentForestStatus.patchCount ?? 0, total: currentForestStatus.totalPatches }
+      : null
   useEffect(() => {
     try {
       performance.mark(`${EXPORT_TIMING_PREFIX}road view waits for ${saveBlocker ?? 'nothing'}`)
@@ -5167,6 +5176,7 @@ function DevForestryVisuals({
         roadViewOpen: drive.active && !preliminaryDrive,
         canSave: canSaveViewRef.current,
         saveBlocker: saveBlockerRef.current,
+        timberProgress,
         lookAtTargetId: drive.lookAtTargetId,
         lookBearing: drive.lookBearing,
         poseBearing: pose ? wrapBearing(pose.bearing) : null,

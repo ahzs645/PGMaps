@@ -30,8 +30,19 @@ export const MAX_SAVED_VIEWS = MAX_VIEWS_OF_INTEREST
 export const CAPTURE_TIMEOUTS = {
   /** The run for the place (it is the full sightline analysis). */
   runMs: 300_000,
-  /** The road view opening on the place, its terrain and drawn timber loading. */
+  /**
+   * The road view opening on the place; and its terrain, forest records and camera while no drawn timber is growing
+   * (`timberGivenUp`).
+   */
   roadViewMs: 120_000,
+  /**
+   * Drawn timber that is growing: how long it may go without another patch before the capture gives up on it. Patches
+   * grow one or more a frame, so a slow GPU (about a frame a second under software rendering) still adds one well
+   * inside this; a stand that stops growing is stuck, not slow.
+   */
+  timberStallMs: 30_000,
+  /** The most the drawn timber is waited for in all at one view, however steadily it grows. */
+  timberMaxMs: 600_000,
   /** The camera turning to the view's facing and lens. */
   facingMs: 20_000,
   /** The save: the screenshot, then the framed class pass (another engine's drawing can take minutes). */
@@ -115,6 +126,11 @@ export type CaptureFacts = {
   canSave: boolean
   /** What the road view still waits for, in words, while it cannot save (`saveBlocker`); absent when not known. */
   saveBlocker?: string | null
+  /**
+   * The drawn timber's patches grown of those wanted, while it is what the road view waits for; null (or absent) when
+   * it waits for something else or nothing.
+   */
+  timberProgress?: TimberProgress | null
   /** What the drive faces. */
   lookAtTargetId: string | null
   lookBearing: number | null
@@ -134,6 +150,9 @@ export type CaptureWant = {
 }
 
 export type CaptureWait = 'run' | 'road view' | 'timber' | 'facing' | 'lens' | null
+
+/** The drawn timber's growth: patches grown of those wanted. */
+export type TimberProgress = { done: number; total: number }
 
 const turn = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
 
@@ -166,6 +185,59 @@ export function waitAbandoned(wait: CaptureWait, facts: CaptureFacts): boolean {
 
 /** Why a capture gave up on a place whose run nothing will finish (`waitAbandoned`). */
 export const RUN_CANCELLED = 'The run for this place was cancelled.'
+
+/**
+ * How long the capture has waited on the drawn timber at one view, and how long since it last saw it grow. Any change
+ * in the patch count is growth: a stand regrown for a new configuration starts again from none, and is waited for
+ * again (within `timberMaxMs`).
+ */
+export type TimberWatch = { spentMs: number; quietMs: number; progress: TimberProgress | null }
+
+export const TIMBER_WATCH_START: TimberWatch = { spentMs: 0, quietMs: 0, progress: null }
+
+/** The watch after another `elapsedMs` of waiting on the timber, with the page's progress now. */
+export function watchTimber(watch: TimberWatch, progress: TimberProgress | null, elapsedMs: number): TimberWatch {
+  const before = watch.progress
+  const grew = !!progress && (!before || progress.done !== before.done || progress.total !== before.total)
+  return {
+    spentMs: watch.spentMs + elapsedMs,
+    quietMs: grew ? 0 : watch.quietMs + elapsedMs,
+    progress: progress ?? before,
+  }
+}
+
+/**
+ * Whether the capture gives up on the timber: `stalled` when nothing grew for `timberStallMs` while patches are what
+ * it waits for (or for `roadViewMs` while it waits on the terrain, the forest records or the camera), `too long` past
+ * `timberMaxMs` in all; else null. Progress, not the clock, decides: a stand growing a patch every few seconds on a
+ * slow GPU is waited for.
+ */
+export function timberGivenUp(watch: TimberWatch, progressNow: TimberProgress | null): 'stalled' | 'too long' | null {
+  if (watch.spentMs > CAPTURE_TIMEOUTS.timberMaxMs) return 'too long'
+  const quietLimit = progressNow ? CAPTURE_TIMEOUTS.timberStallMs : CAPTURE_TIMEOUTS.roadViewMs
+  return watch.quietMs > quietLimit ? 'stalled' : null
+}
+
+/** The page's words for giving up on the timber (`timberGivenUp`), with the patch count where it was growing. */
+export function timberFailure(why: 'stalled' | 'too long', watch: TimberWatch, facts: CaptureFacts): string {
+  const now = facts.timberProgress ?? null
+  const count = (progress: TimberProgress) => `${progress.done} of ${progress.total} patches`
+  if (why === 'too long')
+    return `The road view's drawn timber did not finish growing within ${minutes(CAPTURE_TIMEOUTS.timberMaxMs)}${
+      watch.progress ? ` (${count(now ?? watch.progress)})` : ''
+    }.`
+  if (now)
+    return `The road view's drawn timber stopped growing at ${count(now)}: no patch was added for ${Math.round(
+      CAPTURE_TIMEOUTS.timberStallMs / 1000,
+    )} s.`
+  return waitFailure('timber', facts)
+}
+
+/** What the capture is doing while it waits, for its status line: "Preparing timber 12 of 40"; else null. */
+export function captureWaitNote(wait: CaptureWait, facts: CaptureFacts): string | null {
+  if (wait !== 'timber' || !facts.timberProgress) return null
+  return `Preparing timber ${facts.timberProgress.done} of ${facts.timberProgress.total}`
+}
 
 /** The page's words for what a step timed out waiting for. */
 export function waitFailure(wait: Exclude<CaptureWait, null>, facts: CaptureFacts): string {

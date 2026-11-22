@@ -416,8 +416,22 @@ Save & export's capture all treat a save without its sheet as one still to
 capture.
 
 Each wait has its own budget, counted only while the capture waits on it
-(`CAPTURE_TIMEOUTS`): the run 5 minutes, the road view opening and its terrain
-and timber loading 2 minutes, the facing and the lens 20 s, the save 5 minutes.
+(`CAPTURE_TIMEOUTS`): the run 5 minutes, the road view opening and its terrain,
+forest records and camera 2 minutes, the facing and the lens 20 s, the save 5
+minutes. The drawn timber is judged by its progress, not the clock
+(`watchTimber`, `timberGivenUp`): the page reports the patches grown of those
+wanted (`timberProgress`), the status line reads "Preparing timber 12 of 40",
+and the wait goes on while the count changes. It gives up after
+`timberStallMs` (30 s) without another patch, naming the count ("stopped
+growing at 17 of 40 patches"), or after `timberMaxMs` (10 minutes) in all.
+Patches grow on the frame loop, so under software rendering, about a frame a
+second, a far stand took longer than the old fixed two minutes while still
+growing. Growing them off the frame loop or in a worker is left for later. The
+road view also holds its last two whole terrain mosaics by tile range
+(`createHeldTerrain`, `useDriveTerrain.ts`): standing at a view, stepping back
+and standing there again gives the very same `ElevationSource`, at once, with
+no moment without ground, so the elevation the stand's patches are kept by
+(`forestPatches`) does not change under it.
 A run that fails or runs out of time, or a road view that does not open, fails
 every view at that place with the reason; terrain, timber, a facing or a lens
 that does not take fails that view alone. A run cancelled under the capture
