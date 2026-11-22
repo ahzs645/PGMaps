@@ -100,10 +100,15 @@ import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
 import { sectionCodePoints } from './sectionGeometry'
 import { safeAnalyzeRoad } from './analysisResult'
 import { TerrainRasterLayers } from './TerrainRasterLayers'
-import { MapRasterHandoff, useMapLayerHandoff } from '@/components/ui/map-raster-handoff'
 import { commandDef } from '@/pages/dev-forestry-roads/interface/workspaceCommands'
-import { waybackCredit } from '@/lib/wayback'
-import { waybackTimelineAvailable, useWaybackTimeline, WaybackTimeline } from './WaybackTimeline'
+import {
+  ImageryFrameLayers,
+  ImageryTimeline,
+  useImageryFrameHandoffs,
+  useImageryTimeline,
+} from '@/components/ui/imagery-timeline'
+import { WAYBACK_FEED } from '@/lib/imageryFeeds/waybackFeed'
+import { waybackTimelineAvailable } from './WaybackTimeline'
 import { SENTINEL_ANCHOR_LAYER_ID } from './sentinel/planOrder'
 import { usePlanImageryOrder } from './usePlanImageryOrder'
 import { Sentinel2Layer } from './sentinel/Sentinel2Layer'
@@ -3087,15 +3092,12 @@ export function PlanView(input: PlanProps) {
   const plane = isLocalPlane(props.project.terrain) ? (props.project.terrain.localPlane ?? null) : null
   const waybackAvailable = waybackTimelineAvailable(props.project.terrain)
   const waybackActive = waybackAvailable && props.display.showWayback
-  const timeline = useWaybackTimeline(waybackActive, props.display.navigationMap)
-  const waybackRelease = waybackActive ? timeline.release : undefined
-  const wayback = useMapLayerHandoff(
-    'road-wayback',
-    waybackRelease ? { key: waybackRelease.id, value: waybackRelease } : null,
-  )
+  const timeline = useImageryTimeline(WAYBACK_FEED, waybackActive, props.display.navigationMap)
+  const wayback = useImageryFrameHandoffs('road-wayback', waybackActive ? timeline.frame : undefined)
   // Only the shown release is ordered: the one loading is drawn at opacity 0, and ordering both
-  // would have each move the other above itself on every style change.
-  usePlanImageryOrder(props.display.navigationMap, !!wayback.shownLayerId, wayback.shownLayerId ?? 'road-wayback')
+  // would have each move the other above itself on every style change. Wayback draws one layer.
+  const waybackShownId = wayback[0].shownLayerId
+  usePlanImageryOrder(props.display.navigationMap, !!waybackShownId, waybackShownId ?? 'road-wayback')
   const planeGrid = useMemo(() => {
     if (!plane) return EMPTY_COLLECTION
     const b = terrainBounds(props.project.terrain)
@@ -3388,17 +3390,7 @@ export function PlanView(input: PlanProps) {
             </>
           )}
           {/* The shown release stays until the next has its tiles, so stepping and playback never blank the imagery. */}
-          <MapRasterHandoff
-            handoff={wayback}
-            layer={(release) => ({
-              tiles: [release.tiles],
-              beforeId: SENTINEL_ANCHOR_LAYER_ID,
-              attribution: waybackCredit(release),
-              fadeDuration: 0,
-              // As the satellite basemap (`map-satellite-imagery.tsx`): past z18 rural BC gets Esri's grey placeholder.
-              maxZoom: 18,
-            })}
-          />
+          <ImageryFrameLayers handoffs={wayback} beforeId={SENTINEL_ANCHOR_LAYER_ID} />
           {tools.mapLayer}
           <ReferenceLabels features={visibleReference} />
           <NotesLayer
@@ -3481,7 +3473,13 @@ export function PlanView(input: PlanProps) {
             position="bottom-left"
             className="road-map-scale left-2 bottom-[calc(var(--map-timeline-height,0px)+var(--map-bottom-left-controls-height,0px)+0.5rem)]"
           />
-          {waybackActive && <WaybackTimeline timeline={timeline} onClose={() => props.display.setShowWayback(false)} />}
+          {waybackActive && (
+            <ImageryTimeline
+              timeline={timeline}
+              testId="road-wayback"
+              onClose={() => props.display.setShowWayback(false)}
+            />
+          )}
           {table.layout.bottomPane && (
             <div
               className="absolute inset-x-0 bottom-0 z-30 max-h-[70%] overflow-hidden border-t bg-background"

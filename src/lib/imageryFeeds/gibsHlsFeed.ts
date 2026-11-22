@@ -12,6 +12,7 @@
  * the undated Esri imagery is far finer (under a metre in places) but can be
  * years old.
  */
+import { shiftIsoDate, type ImageryFeed, type ImageryFrame } from './feed'
 
 const GIBS = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best'
 
@@ -39,16 +40,6 @@ export function isIsoDate(value: string): boolean {
   return ISO_DATE.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`))
 }
 
-/** yyyy-mm-dd, `days` away from `date`, in UTC so a time zone cannot shift the day. */
-export function shiftIsoDate(date: string, days: number): string {
-  const shifted = new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000)
-  return shifted.toISOString().slice(0, 10)
-}
-
-export function todayIsoDate(now: Date = new Date()): string {
-  return now.toISOString().slice(0, 10)
-}
-
 /** The newest day likely to be served, and the oldest still archived. */
 export function recentImageryRange(today: string): { earliest: string; latest: string } {
   return {
@@ -57,17 +48,47 @@ export function recentImageryRange(today: string): { earliest: string; latest: s
   }
 }
 
-/** Keeps a date inside what GIBS serves; anything unreadable becomes the newest day. */
-export function clampImageryDate(date: string, today: string): string {
-  const { earliest, latest } = recentImageryRange(today)
-  if (!isIsoDate(date)) return latest
-  if (date > latest) return latest
-  if (date < earliest) return earliest
-  return date
-}
-
 /** The tile template for one layer on one day. Note GIBS orders the path {z}/{y}/{x}. */
 export function recentImageryTiles(layer: (typeof RECENT_IMAGERY_LAYERS)[number], date: string): string {
   if (!isIsoDate(date)) throw new Error(`Not a date: ${date}`)
   return `${GIBS}/${layer}/default/${date}/GoogleMapsCompatible_Level${RECENT_IMAGERY_MAX_ZOOM}/{z}/{y}/{x}.png`
+}
+
+export type GibsHlsFrame = ImageryFrame<null>
+
+/** One frame a day, Landsat drawn under Sentinel-2, from the oldest archived day to the newest served. */
+export function gibsHlsFrames(today: string): GibsHlsFrame[] {
+  const { earliest, latest } = recentImageryRange(today)
+  const frames: GibsHlsFrame[] = []
+  for (let date = earliest; date <= latest; date = shiftIsoDate(date, 1))
+    frames.push({
+      id: date,
+      date,
+      layers: RECENT_IMAGERY_LAYERS.map((layer, index) => ({
+        tiles: recentImageryTiles(layer, date),
+        tileSize: 256,
+        maxZoom: RECENT_IMAGERY_MAX_ZOOM,
+        attribution: index === 0 ? RECENT_IMAGERY_ATTRIBUTION : undefined,
+      })),
+      source: null,
+    })
+  return frames
+}
+
+/** Play shows each day this long before the next, ms: long enough for a day's tiles to land. */
+export const GIBS_HLS_PLAYBACK_MS = 1_500
+
+export const GIBS_HLS_FEED: ImageryFeed<null> = {
+  id: 'nasa-gibs-hls',
+  label: 'NASA daily passes',
+  description:
+    'Landsat and Sentinel-2 at 30 m, one picture a day for the last eight months. A day shows only the strips flown, cloud included; images arrive about a week after the pass.',
+  dateMeaning: 'Landsat and Sentinel-2 pass date',
+  loadingText: 'Loading NASA daily passes…',
+  retryLabel: 'Retry NASA daily passes',
+  period: 'month',
+  playbackMs: GIBS_HLS_PLAYBACK_MS,
+  placeMaxZoom: RECENT_IMAGERY_MAX_ZOOM,
+  // The days are known without asking: GIBS serves every day in its rolling archive.
+  listFrames: async ({ today }) => gibsHlsFrames(today),
 }

@@ -2,6 +2,8 @@ import { xyzTileTemplate } from '@pgmaps/geo-toolkit/map'
 
 /** How long the release catalog may take before the request gives up, ms. */
 export const WAYBACK_CATALOG_TIMEOUT_MS = 20_000
+/** One tile-map or capture request gives up after this long, ms. */
+export const WAYBACK_SPOT_TIMEOUT_MS = 10_000
 export const WAYBACK_CATALOG = 'https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json'
 
 /**
@@ -16,10 +18,6 @@ export const WAYBACK_MAX_TILE_ZOOM = 18
 /** Esri's metadata layers run from 1.9 cm (layer 0, zoom 23) to 150 m (layer 13, zoom 10). */
 const METADATA_MAX_ZOOM = 23
 const METADATA_MIN_ZOOM = 10
-/** Places whose local changes are kept for the session. */
-export const WAYBACK_LOCAL_CACHE_SIZE = 64
-/** Capture records kept for the session (release, metadata layer and place). */
-export const WAYBACK_CAPTURE_CACHE_SIZE = 256
 
 export interface WaybackRelease {
   id: string
@@ -62,8 +60,8 @@ export function waybackReleases(catalog: unknown): WaybackRelease[] {
   return releases.sort((a, b) => b.date.localeCompare(a.date))
 }
 
-export async function loadWaybackReleases(signal: AbortSignal) {
-  const response = await fetch(WAYBACK_CATALOG, {
+export async function loadWaybackReleases(signal: AbortSignal, fetcher: typeof fetch = fetch) {
+  const response = await fetcher(WAYBACK_CATALOG, {
     signal: AbortSignal.any([signal, AbortSignal.timeout(WAYBACK_CATALOG_TIMEOUT_MS)]),
   })
   if (!response.ok) throw new Error(`Esri returned HTTP ${response.status}.`)
@@ -135,15 +133,6 @@ export async function waybackLocalChanges(
   return changes
 }
 
-/** The release in `changes` whose imagery release `date` shows here: the newest not after it. */
-export function waybackShownChange<T extends { date: string }>(changes: readonly T[], date: string): T | undefined {
-  let shown: T | undefined
-  for (const change of changes) if (change.date <= date && (!shown || change.date > shown.date)) shown = change
-  return (
-    shown ?? changes.reduce<T | undefined>((oldest, c) => (!oldest || c.date < oldest.date ? c : oldest), undefined)
-  )
-}
-
 export interface WaybackCapture {
   /** When the imagery was captured, YYYY-MM-DD, if Esri records it. */
   date: string | null
@@ -204,10 +193,4 @@ export function parseWaybackCapture(json: unknown): WaybackCapture | null {
     provider: text(attributes.NICE_DESC),
     source: text(attributes.SRC_DESC),
   }
-}
-
-/** "7.5 cm", "60 cm", "1.2 m", "15 m". */
-export function formatWaybackResolution(metres: number) {
-  if (metres < 1) return `${Number((metres * 100).toPrecision(2))} cm`
-  return `${Number(metres.toPrecision(2))} m`
 }

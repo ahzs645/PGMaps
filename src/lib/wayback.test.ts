@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { formatResolution, shownChange } from './imageryFeeds/feed'
 import {
-  formatWaybackResolution,
   parseWaybackCapture,
   parseWaybackTilemap,
   waybackCaptureUrl,
   waybackLocalChanges,
   waybackMetadataLayer,
   waybackReleases,
-  waybackShownChange,
   waybackTileAt,
   waybackTilemapUrl,
   type WaybackRelease,
@@ -65,16 +64,16 @@ describe('waybackLocalChanges', () => {
   })
 })
 
-describe('waybackShownChange', () => {
+describe('shownChange', () => {
   const changes = [release('10', '2014-02-20'), release('20', '2019-09-18'), release('50', '2025-10-23')]
   it('is the newest change not after the release date', () => {
-    expect(waybackShownChange(changes, '2026-11-18')?.id).toBe('50')
-    expect(waybackShownChange(changes, '2024-10-10')?.id).toBe('20')
-    expect(waybackShownChange(changes, '2019-09-18')?.id).toBe('20')
+    expect(shownChange(changes, '2026-11-18')?.id).toBe('50')
+    expect(shownChange(changes, '2024-10-10')?.id).toBe('20')
+    expect(shownChange(changes, '2019-09-18')?.id).toBe('20')
   })
   it('falls back to the oldest change before the first', () => {
-    expect(waybackShownChange(changes, '2010-01-01')?.id).toBe('10')
-    expect(waybackShownChange([], '2010-01-01')).toBeUndefined()
+    expect(shownChange(changes, '2010-01-01')?.id).toBe('10')
+    expect(shownChange([], '2010-01-01')).toBeUndefined()
   })
 })
 
@@ -145,10 +144,10 @@ describe('tilemap and capture', () => {
   })
 
   it('formats resolution', () => {
-    expect(formatWaybackResolution(0.075)).toBe('7.5 cm')
-    expect(formatWaybackResolution(0.6)).toBe('60 cm')
-    expect(formatWaybackResolution(1.2)).toBe('1.2 m')
-    expect(formatWaybackResolution(15)).toBe('15 m')
+    expect(formatResolution(0.075)).toBe('7.5 cm')
+    expect(formatResolution(0.6)).toBe('60 cm')
+    expect(formatResolution(1.2)).toBe('1.2 m')
+    expect(formatResolution(15)).toBe('15 m')
   })
 })
 

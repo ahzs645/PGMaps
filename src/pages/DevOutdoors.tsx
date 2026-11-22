@@ -4,8 +4,6 @@ import type * as MapLibreGL from 'maplibre-gl'
 import {
   CalendarClock,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Copy,
   Crosshair,
   Download,
@@ -70,7 +68,7 @@ import {
   type HuntZoneSpecies,
   type Openness,
 } from '@/maps/outdoors/bcLayers'
-import { clampImageryDate, recentImageryRange, shiftIsoDate, todayIsoDate } from '@/maps/outdoors/recentImagery'
+import { IMAGERY_FEEDS, imageryFeedById, GIBS_HLS_FEED } from '@/lib/imageryFeeds'
 import { UnitInfo } from '@/maps/outdoors/UnitInfo'
 import {
   AREA_KINDS,
@@ -105,6 +103,17 @@ const WMU_ID_PROPERTY = 'managementUnitId'
 const LOCAL_STORAGE_KEY = 'pgmaps.bc-outdoors-plan.v1'
 /** Which base layers are on is a viewer's preference, not part of the plan they share. */
 const BASE_LAYERS_STORAGE_KEY = 'pgmaps.bc-outdoors-layers.v1'
+
+/** The source the dated imagery shows: also a viewer's preference. */
+const DATED_FEED_STORAGE_KEY = 'pgmaps.bc-outdoors-imagery-feed.v1'
+
+function readDatedFeedId(): string {
+  try {
+    return window.localStorage.getItem(DATED_FEED_STORAGE_KEY) ?? GIBS_HLS_FEED.id
+  } catch {
+    return GIBS_HLS_FEED.id
+  }
+}
 
 function readBaseLayerChoices(): BaseLayerChoices {
   try {
@@ -489,16 +498,23 @@ function DevOutdoors() {
   const [baseLayers, setBaseLayers] = useState<BaseLayerChoices>(readBaseLayerChoices)
   const [layerStatuses, setLayerStatuses] = useState<LayerStatuses>({})
   // The day is read once per visit, so the date limits cannot move while the page is open.
-  const imageryRange = useMemo(() => recentImageryRange(todayIsoDate()), [])
-  const [recentDate, setRecentDate] = useState(imageryRange.latest)
-  const chooseRecentDate = useCallback((date: string) => setRecentDate(clampImageryDate(date, todayIsoDate())), [])
+  const [datedFeedId, setDatedFeedId] = useState(readDatedFeedId)
+  const datedFeed = imageryFeedById(datedFeedId) ?? GIBS_HLS_FEED
+  const chooseDatedFeed = useCallback((id: string) => {
+    setDatedFeedId(id)
+    try {
+      window.localStorage.setItem(DATED_FEED_STORAGE_KEY, id)
+    } catch {
+      // Private browsing or a full quota: the choice still holds for this visit.
+    }
+  }, [])
   const [zoneSpecies, setZoneSpecies] = useState<HuntZoneSpecies>('MOOSE')
   const handleLayerStatus = useCallback((layer: DataLayerKey, status: LayerStatus) => {
     setLayerStatuses((current) => ({ ...current, [layer]: status }))
   }, [])
-  const toggleBaseLayer = useCallback((layer: BaseLayerKey) => {
+  const setBaseLayer = useCallback((layer: BaseLayerKey, on?: boolean) => {
     setBaseLayers((current) => {
-      const next = { ...current, [layer]: !current[layer] }
+      const next = { ...current, [layer]: on ?? !current[layer] }
       try {
         window.localStorage.setItem(BASE_LAYERS_STORAGE_KEY, JSON.stringify(next))
       } catch {
@@ -507,6 +523,8 @@ function DevOutdoors() {
       return next
     })
   }, [])
+  const toggleBaseLayer = useCallback((layer: BaseLayerKey) => setBaseLayer(layer), [setBaseLayer])
+  const closeDated = useCallback(() => setBaseLayer('dated', false), [setBaseLayer])
   const [wmuLayer, setWmuLayer] = useState<WmuLayerInfo | null>(null)
   const [wmuLayerError, setWmuLayerError] = useState<string | null>(null)
   const [drawMode, setDrawMode] = useState<DrawMode | null>(null)
@@ -1368,56 +1386,32 @@ function DevOutdoors() {
             tone="emerald"
           />
           <ToggleRow
-            active={baseLayers.recent}
-            onClick={() => toggleBaseLayer('recent')}
+            active={baseLayers.dated}
+            onClick={() => toggleBaseLayer('dated')}
             icon={CalendarClock}
-            label="Recent satellite passes"
+            label="Dated imagery"
             description={
-              baseLayers.recent
-                ? `Sentinel-2 and Landsat on ${recentDate}`
-                : 'Dated images from the last days, 30 m detail'
+              baseLayers.dated
+                ? `${datedFeed.label}; step through its dates on the map`
+                : 'Imagery by date, on a timeline'
             }
             tone="cyan"
           />
-          {baseLayers.recent && (
+          {baseLayers.dated && (
             <div className="space-y-1 px-1">
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-7 w-7 shrink-0"
-                  aria-label="Previous day"
-                  disabled={recentDate <= imageryRange.earliest}
-                  onClick={() => chooseRecentDate(shiftIsoDate(recentDate, -1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <input
-                  type="date"
-                  aria-label="Image date"
-                  className={INPUT_CLASS}
-                  value={recentDate}
-                  min={imageryRange.earliest}
-                  max={imageryRange.latest}
-                  onChange={(event) => chooseRecentDate(event.target.value)}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-7 w-7 shrink-0"
-                  aria-label="Next day"
-                  disabled={recentDate >= imageryRange.latest}
-                  onClick={() => chooseRecentDate(shiftIsoDate(recentDate, 1))}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-2xs leading-4 text-muted-foreground">
-                Each day shows only the strips a satellite flew, cloud included. Step back a day or two if the view is
-                blank or cloudy. Images arrive about a week after the pass.
-              </p>
+              <StyledSelect
+                className={INPUT_CLASS}
+                value={datedFeed.id}
+                aria-label="Dated imagery source"
+                onChange={(event) => chooseDatedFeed(event.target.value)}
+              >
+                {IMAGERY_FEEDS.map((feed) => (
+                  <option key={feed.id} value={feed.id}>
+                    {feed.label}
+                  </option>
+                ))}
+              </StyledSelect>
+              <p className="text-2xs leading-4 text-muted-foreground">{datedFeed.description}</p>
             </div>
           )}
           <ToggleRow
@@ -1656,7 +1650,8 @@ function DevOutdoors() {
         <MapClickCapture active={drawMode != null} onMapClick={handleDrawClick} />
         <OutdoorsBaseLayers
           choices={baseLayers}
-          recentDate={recentDate}
+          datedFeed={datedFeed}
+          onCloseDated={closeDated}
           zoneSpecies={zoneSpecies}
           onStatus={handleLayerStatus}
         />

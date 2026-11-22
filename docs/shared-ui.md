@@ -1368,6 +1368,14 @@ A response body from such a service is read through `readBoundedText` (`src/lib/
 which refuses an answer past its byte limit rather than drawing part of it; the road designer's
 live BC reads share it.
 
+## Imagery by date
+
+A map that steps through imagery by date uses `ImageryTimeline` (`src/components/ui/imagery-timeline.tsx`)
+over a feed from `src/lib/imageryFeeds/`, never a page's own date picker or timeline. `useImageryTimeline`
+holds the feed's dates and what it can say about the map centre, `useImageryFrameHandoffs` and
+`ImageryFrameLayers` draw the chosen date with a hand-off, and `ImageryTimeline` is the strip.
+`docs/imagery-feeds.md` is the feed contract and the recipe for adding a source.
+
 ## Touch
 
 `touch:` is a Tailwind variant for `(pointer: coarse)`. Use it to grow hit

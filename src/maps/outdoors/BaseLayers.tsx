@@ -2,7 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useMap } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
-import { MapHandoffNote, MapRasterHandoff, useMapLayerHandoff } from '@/components/ui/map-raster-handoff'
+import {
+  ImageryFrameLayers,
+  ImageryTimeline,
+  useImageryFrameHandoffs,
+  useImageryTimeline,
+} from '@/components/ui/imagery-timeline'
+import { MapHandoffNote } from '@/components/ui/map-raster-handoff'
 import { RegionalReliefLayer } from '@/components/ui/map-regional-relief'
 import { SatelliteImagery } from '@/components/ui/map-satellite-imagery'
 import { useViewWindowRead, type ViewReadState } from '@/components/ui/map-view-read'
@@ -43,12 +49,7 @@ import {
 } from './bcLayers'
 import { huntsForHuntArea, loadLehDraws, oddsText, seasonText, type LehHunt } from './leh'
 import { describeRailway, fetchRailways, RAILWAY_MIN_ZOOM } from './railways'
-import {
-  RECENT_IMAGERY_ATTRIBUTION,
-  RECENT_IMAGERY_LAYERS,
-  RECENT_IMAGERY_MAX_ZOOM,
-  recentImageryTiles,
-} from './recentImagery'
+import type { ImageryFeed } from '@/lib/imageryFeeds/feed'
 
 /**
  * Draw order, low to high. Every layer here takes a slot, because the management-unit fill covers
@@ -73,7 +74,7 @@ const CHART_PICK_PRIORITY = 1
 
 export const BASE_LAYER_KEYS = [
   'satellite',
-  'recent',
+  'dated',
   'relief',
   'huntZones',
   'forestRoads',
@@ -88,7 +89,7 @@ export type BaseLayerChoices = Record<BaseLayerKey, boolean>
 
 export const DEFAULT_BASE_LAYERS: BaseLayerChoices = {
   satellite: false,
-  recent: false,
+  dated: false,
   relief: false,
   huntZones: false,
   forestRoads: false,
@@ -107,7 +108,7 @@ export type LayerStatus =
   | { state: 'error'; message: string }
 
 /** The layers that load data and so have something to report. */
-export type DataLayerKey = Exclude<BaseLayerKey, 'satellite' | 'recent' | 'relief'>
+export type DataLayerKey = Exclude<BaseLayerKey, 'satellite' | 'dated' | 'relief'>
 export type LayerStatuses = Partial<Record<DataLayerKey, LayerStatus>>
 
 type Collection<P> = GeoJSON.FeatureCollection<GeoJSON.Geometry, P>
@@ -224,32 +225,24 @@ function useFirstLabelLayerId(active: boolean): string | undefined {
 }
 
 /**
- * One day's satellite passes over the undated photo, one hand-off for each of the two products, so a
- * new day loads behind the one shown and swaps in one frame rather than blanking the map. Where no
- * satellite passed that day the tiles are transparent and the photo shows.
+ * Dated imagery from a feed (`src/lib/imageryFeeds/`), with the shared timeline strip along the
+ * map's bottom. Each frame's layers hand over to the next date without blanking the map, under the
+ * labels and over the undated photo; where a feed has no picture that date the photo shows.
  */
-function RecentImageryLayers({ date, visible }: { date: string; visible: boolean }) {
-  const beforeId = useFirstLabelLayerId(visible)
-  const landsat = useMapLayerHandoff('outdoors-recent-l30', visible ? { key: date, value: date } : null)
-  const sentinel = useMapLayerHandoff('outdoors-recent-s30', visible ? { key: date, value: date } : null)
-  const handoffs = [landsat, sentinel] as const
+function DatedImagery({ feed, onClose }: { feed: ImageryFeed; onClose: () => void }) {
+  const { map } = useMap()
+  const timeline = useImageryTimeline(feed, true, map)
+  // A new feed lists its dates first: the last frame stays drawn until its first frame has tiles.
+  const [last, setLast] = useState(timeline.frame)
+  if (timeline.frame && timeline.frame !== last) setLast(timeline.frame)
+  const handoffs = useImageryFrameHandoffs('outdoors-dated', timeline.frame ?? last)
+  const beforeId = useFirstLabelLayerId(true)
   return (
     <>
-      {RECENT_IMAGERY_LAYERS.map((layer, index) => (
-        <MapRasterHandoff
-          key={layer}
-          handoff={handoffs[index]}
-          layer={(day) => ({
-            tiles: [recentImageryTiles(layer, day)],
-            tileSize: 256,
-            maxZoom: RECENT_IMAGERY_MAX_ZOOM,
-            attribution: index === 0 ? RECENT_IMAGERY_ATTRIBUTION : undefined,
-            beforeId,
-          })}
-        />
-      ))}
-      {/* The sidebar names the new day at once; the map says when it has not caught up. */}
-      <MapHandoffNote handoff={sentinel}>Loading {date}. The map still shows the previous day.</MapHandoffNote>
+      <ImageryFrameLayers handoffs={handoffs} beforeId={beforeId} />
+      {/* The strip names the new date at once; the map says when it has not caught up. */}
+      <MapHandoffNote handoff={handoffs[0]}>Loading that date. The map still shows the previous one.</MapHandoffNote>
+      <ImageryTimeline timeline={timeline} onClose={onClose} testId="outdoors-dated" />
     </>
   )
 }
@@ -588,13 +581,16 @@ export { ALL_ROADS_MIN_ZOOM }
 /** The trip planner's optional layers. Render inside the planner's `Map`. */
 export function OutdoorsBaseLayers({
   choices,
-  recentDate,
+  datedFeed,
+  onCloseDated,
   zoneSpecies,
   onStatus,
 }: {
   choices: BaseLayerChoices
-  /** The day shown by the recent-imagery layer, yyyy-mm-dd. */
-  recentDate: string
+  /** The feed the dated imagery and its timeline show. */
+  datedFeed: ImageryFeed
+  /** The timeline's close button: switches dated imagery off. */
+  onCloseDated: () => void
   zoneSpecies: HuntZoneSpecies
   onStatus: (layer: DataLayerKey, status: LayerStatus) => void
 }) {
@@ -611,11 +607,11 @@ export function OutdoorsBaseLayers({
     }),
     [onStatus],
   )
-  const imagery = choices.satellite || choices.recent
+  const imagery = choices.satellite || choices.dated
   return (
     <>
       <SatelliteImagery visible={choices.satellite} />
-      <RecentImageryLayers date={recentDate} visible={choices.recent} />
+      {choices.dated && <DatedImagery feed={datedFeed} onClose={onCloseDated} />}
       <RegionalReliefLayer
         id={OUTDOORS_RELIEF_ID}
         visible={choices.relief}

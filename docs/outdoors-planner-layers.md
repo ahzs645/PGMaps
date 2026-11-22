@@ -1,7 +1,7 @@
 # Outdoors planner: map layers
 
 The **Map layers** section of `/dev/outdoors` adds optional layers under the plan: satellite and
-recent imagery, terrain relief, limited entry hunting zones, forest roads, rail lines, cutblocks,
+dated imagery, terrain relief, limited entry hunting zones, forest roads, rail lines, cutblocks,
 a sightline guess from the forest inventory, boat launches and lake depth charts. They came from
 TROPIK (ddcnorth's trip planner built on PGMaps) in November 2026 and were reworked onto PGMaps'
 shared parts, so the planner and the road designer read the same sources the same way.
@@ -18,7 +18,7 @@ sidebar says so.
 | Layer | Source | Read through |
 |---|---|---|
 | Satellite imagery | Esri World Imagery | `SatelliteImagery`, shared with the road designer and visual quality |
-| Recent satellite passes | NASA GIBS, HLS L30 and S30 daily true colour, 30 m | `recentImagery.ts`; one hand-off a product (`useMapLayerHandoff`) |
+| Dated imagery | A feed from `IMAGERY_FEEDS`: Esri Wayback releases, or NASA GIBS's daily Landsat and Sentinel-2 passes at 30 m | The shared `ImageryTimeline` and `ImageryFrameLayers` ([imagery feeds](imagery-feeds.md)), as the road designer's Wayback timeline |
 | Terrain relief | Open Terrarium elevation tiles | `RegionalReliefLayer`, shared with the road designer |
 | Forest roads | Forest Tenure Road Section Lines, BCGW MapServer layer 196 | `BC_ROADS_SERVICE`, `tenureRoadClass` (`src/lib/forestry/bcForestRoads.ts`), as the designer's existing roads |
 | Cutblocks | Consolidated cutblocks, BCGW MapServer layer 543 | `BC_HARVEST_SERVICE`, `bcHarvestEvidence`, `harvestHistoryStyle` (`src/lib/forestry/bcHarvest.ts`), as the designer's harvest history |
@@ -74,7 +74,7 @@ blocks are the ones kept.
 | Any other WFS box at most 12° a side | `MAX_BC_QUERY_DEGREES` |
 | At most 16 MB in one answer | `MAX_LAYER_RESPONSE_BYTES` |
 | Draw report at most 16 MB (it is about 3 MB) | `MAX_LEH_CSV_BYTES` (`leh.ts`) |
-| Recent imagery: newest day a week back, archive 240 days, tiles to zoom 12 | `RECENT_IMAGERY_LAG_DAYS`, `RECENT_IMAGERY_ARCHIVE_DAYS`, `RECENT_IMAGERY_MAX_ZOOM` (`recentImagery.ts`) |
+| Dated imagery | Each feed's own, in [imagery feeds](imagery-feeds.md#limits) |
 
 ## What was measured
 
@@ -88,11 +88,19 @@ WFS for roads and cutblocks, a remount for each imagery day) with only its two b
 | Forest roads, zoom 11.5 | First read 3.1 s into the drag | First read 0.6 s in; 8 reads a drag (two reads a window) |
 | Sightlines, zoom 14 | First read 3.1 s into the drag; up to 27% more empty mid-drag | First read 0.6 s in; 2.5% more empty; 4 reads a drag |
 | Rail, hunt zones, lake charts, zoom 10 | Not measured | Never gone; 4 reads a drag; none on a zoom-in inside the window |
-| Recent imagery, four day changes | Gone on every frame of each change | Never gone; the old day stays until the new one has tiles |
+| Dated imagery, four date steps (both feeds) | Gone on every frame of each day change | Never gone; the old date stays until the new one has tiles |
+
+## Dated imagery
+
+**Dated imagery** draws one feed at a time under the labels, over the undated photo, with the shared
+timeline strip along the map's bottom. The sidebar chooses the feed (`IMAGERY_FEEDS`); the choice is
+this browser's (`pgmaps.bc-outdoors-imagery-feed.v1`), NASA's daily passes by default, as TROPIK had.
+Choosing another feed keeps the last picture drawn until the new feed's newest date has tiles.
+Closing the strip switches the layer off. A new feed added to `IMAGERY_FEEDS` appears in the chooser
+with nothing else to change here.
 
 ## Not done
 
-- Esri Wayback's dated releases, which the road designer shows (`WaybackTimeline.tsx`), are not
-  offered here; the planner's dated imagery is the 30 m daily passes.
 - No layer here is kept for offline use, and none is in the map's table view.
 - The draw report is read whole (about 3 MB) the first time a zone card or a unit's panel needs it.
+- There is no end-to-end spec for the planner's layers.

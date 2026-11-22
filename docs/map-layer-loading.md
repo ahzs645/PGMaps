@@ -208,7 +208,7 @@ Real Chrome, Metal GPU, live hosts, 19 November 2026. Before is main at fc5abf3f
 | CCISS original tiles, period change | Hand-off + note | Layer removed for the availability check and the reload | 0 frames without it |
 | Outdoors planner cutblocks, forest roads, sightlines (21 November) | View window over the read | First read 3.1 s into the drag, after it stopped; up to 18% (cutblocks) and 27% (sightlines) more of the view empty mid-drag | First read 0.6 s into the drag; 2–6% more empty mid-drag; 4 reads a 3 s drag; never gone |
 | Outdoors planner rail, hunt zones, lake charts (21 November) | View window over the read | Not measured before (same reader as above) | Never gone; 4 reads a 3 s drag, none on a zoom-in inside the window |
-| Outdoors planner recent imagery, day change (21 November) | Hand-off + note | Gone on every frame of each of 4 day changes (a remount per day) | 0 frames without it |
+| Outdoors planner dated imagery, date change (21 November) | Hand-off + note, the shared imagery timeline | Gone on every frame of each of 4 day changes (a remount per day) | 0 frames without it, Wayback and NASA feeds; the road designer's Wayback on the same code 0 of 37 |
 
 ## Not built
 
@@ -249,7 +249,9 @@ A change to any of these goes to the `ahzs645/geo-toolkit` repository first, thr
 then the submodule pointer moves. The toolkit has no component tests, so the hand-off's is here
 (`src/components/ui/map-raster-handoff.test.tsx`, mocking the toolkit modules it imports).
 
-`useViewWindowRead` (`src/components/ui/map-view-read.ts`, the box read over the view window) and
+`ImageryTimeline` and its frame hand-offs (`src/components/ui/imagery-timeline.tsx`, over the feeds in
+`src/lib/imageryFeeds/`; `docs/imagery-feeds.md`), `useViewWindowRead` (`src/components/ui/map-view-read.ts`,
+the box read over the view window) and
 `RegionalReliefLayer` (`src/components/ui/map-regional-relief.tsx`, with its DOM-free placement
 rules in `src/lib/mapReliefPlace.ts`) are app code for now, shared by the road designer and the
 outdoors planner; both could move to the toolkit with the rest.

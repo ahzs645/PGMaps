@@ -293,6 +293,10 @@ Like Sentinel-2, Wayback is evidence only: never a constraint, a route-search in
 at zoom 18, as the satellite basemap's do, because Esri answers deeper rural BC requests with a grey placeholder;
 MapLibre stretches z18 beyond.
 
+The timeline is the shared `ImageryTimeline` over the Esri Wayback feed (`WAYBACK_FEED`); the
+outdoors planner draws the same strip, and [imagery feeds](../imagery-feeds.md) is its contract and
+the recipe for another feed.
+
 On a design opened on the flat plane (no coordinate system), both imagery commands stay in place, disabled, until
 **Place on map**.
 
@@ -304,11 +308,11 @@ setting it to `true` restores the option. The standalone designer uses the same 
 | Limit             | Value                                                                                             | Where                                                    |
 | ----------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | Catalog request   | Gives up after 20 s; **Retry Wayback catalog** asks again                                         | `src/lib/wayback.ts` `WAYBACK_CATALOG_TIMEOUT_MS`        |
-| Playback          | One entry every 2 s                                                                               | `WaybackTimeline.tsx` `WAYBACK_PLAYBACK_MS`              |
-| Local changes     | One tile-map request per distinct image, one place at a time, after the map stops; 64 places kept | `src/lib/wayback.ts` `WAYBACK_LOCAL_CACHE_SIZE`          |
-| Capture record    | One metadata request per release and place, 150 ms after the release settles; 256 kept            | `WAYBACK_CAPTURE_DELAY_MS`, `WAYBACK_CAPTURE_CACHE_SIZE` |
-| Tile map, record  | Each request gives up after 10 s                                                                  | `WaybackTimeline.tsx` `WAYBACK_SPOT_TIMEOUT_MS`          |
-| Deepest tile zoom | 18                                                                                                | `PlanView.tsx` (`maxZoom` on `road-wayback`)             |
+| Playback          | One entry every 2 s                                                                               | `src/lib/imageryFeeds/waybackFeed.ts` `WAYBACK_PLAYBACK_MS` |
+| Local changes     | One tile-map request per distinct image, one place at a time, after the map stops; 64 places kept | `imagery-timeline.tsx` `IMAGERY_PLACE_CACHE_SIZE`        |
+| Capture record    | One metadata request per release and place, 150 ms after the release settles; 256 kept            | `IMAGERY_CAPTURE_DELAY_MS`, `IMAGERY_CAPTURE_CACHE_SIZE` |
+| Tile map, record  | Each request gives up after 10 s                                                                  | `src/lib/wayback.ts` `WAYBACK_SPOT_TIMEOUT_MS`           |
+| Deepest tile zoom | 18                                                                                                | `src/lib/wayback.ts` `WAYBACK_MAX_TILE_ZOOM` (the feed's layer `maxZoom`) |
 | Release hand-off  | Previous release kept until the next has its tiles, at most 4 s                                   | `map-layer-handoff.ts` `LAYER_HANDOFF_TIME_LIMIT_MS`     |
 
 Opening Wayback requests the catalog, then the tile map at the map centre and the shown release's capture record. The plan requests tiles for the selected release and visible area.
