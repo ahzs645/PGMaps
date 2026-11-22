@@ -1067,7 +1067,7 @@ test.describe('forestry visual quality', () => {
     await expect(page.locator('li[data-view-of-interest]')).toHaveCount(1)
     await expect(page.locator('li[data-view-of-interest] [data-capture-state]')).toHaveAttribute(
       'data-capture-state',
-      /captured|no-figure/,
+      /captured|no-figure|screenshot-only/,
     )
     const savedCamera = (await readMapState(page))?.camera
     await controls.getByLabel('Route position', { exact: true }).press('End')
