@@ -141,6 +141,8 @@ export function UnlistedSavedViews(props: {
   onRestore: (view: SavedDriveView) => void
   onRemove: (id: string) => void
   storageWarning: string | null
+  /** What a row offers beside reopening it (*Record the run's figure*), under the row; null for nothing. */
+  control?: (view: SavedDriveView) => ReactNode
 }) {
   if (!props.views.length && !props.storageWarning) return null
   return (
@@ -156,23 +158,26 @@ export function UnlistedSavedViews(props: {
             </InfoTip>
           </p>
           {props.views.map((view) => (
-            <div key={view.id} className="flex items-center gap-2">
-              <ActionButton
-                className="h-auto min-h-9 flex-1 justify-start whitespace-normal py-2 text-left touch:h-auto touch:min-h-10"
-                disabled={props.busy}
-                onClick={() => props.onRestore(view)}
-              >
-                {view.name} · {formatKm(view.positionMeters)}
-              </ActionButton>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-9 shrink-0 touch:size-10"
-                aria-label={`Remove ${view.name}`}
-                onClick={() => props.onRemove(view.id)}
-              >
-                <X aria-hidden="true" />
-              </Button>
+            <div key={view.id} className="space-y-1">
+              <div className="flex items-center gap-2">
+                <ActionButton
+                  className="h-auto min-h-9 flex-1 justify-start whitespace-normal py-2 text-left touch:h-auto touch:min-h-10"
+                  disabled={props.busy}
+                  onClick={() => props.onRestore(view)}
+                >
+                  {view.name} · {formatKm(view.positionMeters)}
+                </ActionButton>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0 touch:size-10"
+                  aria-label={`Remove ${view.name}`}
+                  onClick={() => props.onRemove(view.id)}
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </div>
+              {props.control?.(view)}
             </div>
           ))}
         </>

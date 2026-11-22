@@ -18,6 +18,7 @@ import {
   unprintedViews,
   viewsLeftOut,
   resolvePackage,
+  runSectionEditor,
   savedIdentity,
   uncapturedNote,
   blockNoteWithoutScreenshot,
@@ -1293,6 +1294,61 @@ describe('a view drawn again by an engine', () => {
     const placeless = savedIdentity(drawn, { viewpoint: 'Road view', facts: [] })
     expect('place' in placeless).toBe(false)
     expect(savedIdentity(drawn, undefined)).toBe(drawn)
+  })
+
+  it('keeps the view’s own sightline record, never the run’s at render time', () => {
+    type Stamped = {
+      viewpoint: string
+      facts: Array<{ label: string; value: string }>
+      sightlinePercent: number | null
+      sightlineClass: string | null
+      sightlineReadiness?: 'ready' | 'withheld'
+      sightlineWithheld?: string
+    }
+    // Rendered before any run: the engine's figure was stamped withheld.
+    const drawn: Stamped = {
+      viewpoint: 'Road',
+      facts: [],
+      sightlinePercent: null,
+      sightlineClass: null,
+      sightlineReadiness: 'withheld',
+      sightlineWithheld: 'Not run: run visibility in step 3.',
+    }
+    const own: Stamped = {
+      viewpoint: 'Road',
+      facts: [],
+      sightlinePercent: 6.1,
+      sightlineClass: 'Partial Retention',
+      sightlineReadiness: 'ready',
+    }
+    const named = savedIdentity(drawn, own)
+    expect(named.sightlinePercent).toBe(6.1)
+    expect(named.sightlineReadiness).toBe('ready')
+    expect('sightlineWithheld' in named).toBe(false)
+    // A view saved before readiness was recorded keeps its unrecorded record, not the run's ready one.
+    const ready: Stamped = { ...own, sightlinePercent: 7, sightlineClass: 'Modification' }
+    const unrecorded = savedIdentity(ready, {
+      viewpoint: 'Road',
+      facts: [],
+      sightlinePercent: 6.1,
+      sightlineClass: null,
+    })
+    expect('sightlineReadiness' in unrecorded).toBe(false)
+    expect(unrecorded.sightlinePercent).toBe(6.1)
+  })
+})
+
+describe('the Run part’s editor', () => {
+  it('opens where the first gap is mended', () => {
+    expect(runSectionEditor([])).toEqual({ editor: 'run', step: 'design' })
+    expect(runSectionEditor([{ id: 'no-landform', text: 'No active landform.', editor: 'landform' }])).toEqual({
+      editor: 'landform',
+      step: 'identify',
+    })
+    expect(
+      runSectionEditor([{ id: 'no-station-denominator', text: 'No station has a denominator.', editor: 'viewpoint' }]),
+    ).toEqual({ editor: 'viewpoint', step: 'identify' })
+    expect(runSectionEditor([{ id: 'provisional', text: 'Provisional.' }])).toEqual({ editor: 'run', step: 'design' })
   })
 })
 

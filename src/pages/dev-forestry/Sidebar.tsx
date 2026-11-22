@@ -51,7 +51,7 @@ import { summariseUnits, type BcSensitivityUnit } from './bcVisualInventory'
 import { ResultsPanel } from './ResultsPanel'
 import { SubLandformFields } from './ReviewRecordFields'
 import { ROLE_COLORS, targetAreaHectares, type ForestryScene } from './scene'
-import { runFigures } from './runFigures'
+import { gapsAsk, runFigures } from './runFigures'
 import type { HarvestSystem, TargetPolygon, TargetRole, Viewpoint } from './types'
 import type { TreeLook, TreeStyle } from './treeLayer'
 import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
@@ -832,6 +832,8 @@ export function Sidebar({
   const figures = runFigures(result)
   const numericalReady = figures.state === 'ready'
   const runGap = result ? (figures.gaps[0] ?? null) : null
+  // A lookup that fills any of the gaps is offered, whichever gap is named first.
+  const lookupFills = !!result && gapsAsk(figures.gaps, 'lookup-inventory')
   const summaries: Record<ViaStepId, string> = {
     identify: [
       blocks.length ? `${blocks.length} cutblock${blocks.length === 1 ? '' : 's'}` : 'No cutblocks',
@@ -1707,7 +1709,7 @@ export function Sidebar({
                     : 'Provisional result — PDF numerical fields withheld'}
                   {!numericalReady && runGap ? <span className="block">{runGap.text}</span> : null}
                   {/* The gap a lookup fills links to it, whichever step the lookup lives in. */}
-                  {!numericalReady && runGap?.action === 'lookup-inventory' ? (
+                  {!numericalReady && lookupFills ? (
                     <Button
                       type="button"
                       variant="link"

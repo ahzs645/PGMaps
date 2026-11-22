@@ -23,6 +23,7 @@ import {
   type RoadVideoTakeFacts,
 } from './roadVideo'
 import { DIAGNOSTIC_LABEL, runFigures, withheldText } from './runFigures'
+import { withSightlineStamp, type SightlineStamp } from './sightlineStamp'
 import { runExistingBasis } from './existingBasis'
 import type { AnalysisResult, HarvestSystem, RunGap, TargetPolygon } from './types'
 import type { ViaAssessment, ViaStepId } from './via'
@@ -1083,6 +1084,23 @@ const rendererRow = (ctx: ExportContext, kind: VisualsExport = 'analysis-sheet')
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
+/** Where each of a run's gaps is fixed: the section editor that supplies it and the step that holds it. */
+const GAP_EDITOR_STEP: Record<NonNullable<RunGap['editor']>, ViaStepId> = {
+  run: 'design',
+  landform: 'identify',
+  viewpoint: 'identify',
+  cutblocks: 'identify',
+}
+
+/**
+ * The Run part's editor and step: those of the run's first gap (`RunGap.editor`: a missing landform is mended in the
+ * landform's controls, a station with no denominator at the viewpoint), else the run's own.
+ */
+export function runSectionEditor(gaps: readonly RunGap[]): { editor: ExportEditor; step: ViaStepId } {
+  const editor = gaps.find((gap) => gap.editor)?.editor ?? 'run'
+  return { editor, step: GAP_EDITOR_STEP[editor] }
+}
+
 function runSection(ctx: ExportContext): ExportSection {
   const status =
     ctx.run === 'current'
@@ -1094,8 +1112,7 @@ function runSection(ctx: ExportContext): ExportSection {
         : 'Not run'
   return {
     title: 'Run',
-    step: 'design',
-    editor: 'run',
+    ...runSectionEditor(ctx.runGaps),
     rows: [
       { label: 'Status', value: status },
       ...(ctx.run === 'none'
@@ -2604,16 +2621,21 @@ export function viewsLeftOut(kind: VisualsExport, ctx: PlannedContext): Array<{ 
 
 /**
  * An engine's render of a saved view under the names the view was saved with: where it stood (`place`, the facts'
- * Viewpoint line) and its own name. The engine draws the picture again; who and where the view is stay the saved
- * record's, never the page's as it stands while the render runs.
+ * Viewpoint line) and its own name, and the view's own sightline record (`withSightlineStamp`). The engine draws the
+ * picture again; who and where the view is, and the run's figure it was saved with, stay the saved record's, never
+ * the page's or the run's as they stand while the render runs.
  */
 export function savedIdentity<
-  F extends { place?: string; viewpoint: string; facts: ReadonlyArray<{ label: string; value: string }> },
+  F extends {
+    place?: string
+    viewpoint: string
+    facts: ReadonlyArray<{ label: string; value: string }>
+  } & Partial<SightlineStamp>,
 >(drawn: F, own: F | undefined): F {
   if (!own) return drawn
   const ownLine = own.facts.find((fact) => fact.label === 'Viewpoint')
   const named: F = {
-    ...drawn,
+    ...withSightlineStamp(drawn, own),
     viewpoint: own.viewpoint,
     facts: drawn.facts.map((fact) => (fact.label === 'Viewpoint' && ownLine ? ownLine : fact)),
   }

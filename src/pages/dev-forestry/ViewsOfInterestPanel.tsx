@@ -98,6 +98,11 @@ export type ViewsOfInterestPanelProps = {
    */
   standingViewId?: string | null
   standingControl?: (view: ViewOfInterest) => ReactNode
+  /**
+   * *Record the run's figure* for the view's capture (`restampSightline`), in its open row: offered only while its
+   * capture lacks the run's figure and a ready run of the same scene stands. Optional, one click.
+   */
+  sightlineControl?: (view: ViewOfInterest) => ReactNode
   /** Reopens the view's saved capture in the road view, where it was saved under the current scene. */
   onReopenSaved?: (viewId: string) => void
   /** Whether a capture of the view is saved under the current scene, so it can be reopened. */
@@ -407,6 +412,7 @@ export function ViewsOfInterestList({
   fieldCheckControl,
   standingViewId = null,
   standingControl,
+  sightlineControl,
   onReopenSaved,
   canReopenSaved,
   assessedGroups,
@@ -621,6 +627,7 @@ export function ViewsOfInterestList({
                       </InlineAlert>
                     )}
                     {state === 'captured' && warning && <InlineAlert tone="warning">{warning}</InlineAlert>}
+                    {state !== 'not-captured' && state !== 'outdated' && sightlineControl?.(view)}
                     {changedText && (
                       <p className="text-2xs text-warning">
                         {changedText} <em>Capture again</em> brings it up to date, as Save &amp; export would.

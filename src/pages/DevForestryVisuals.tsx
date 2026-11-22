@@ -493,6 +493,7 @@ import {
   type ViaReview,
 } from './dev-forestry/via'
 import { capturedSightline, captureSightline, runFigures } from './dev-forestry/runFigures'
+import { restampSightline, withSightlineStamp } from './dev-forestry/sightlineStamp'
 import { groupLeadOf, groupMembers } from './dev-forestry/viewGroups'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
 import { bearingDegrees, lineLengthMeters, polygonAreaMeters, polygonBounds } from './dev-forestry/visibility'
@@ -4827,7 +4828,12 @@ function DevForestryVisuals({
       return parts.length ? [{ role: line.role, parts }] : []
     })
     // The run's figure at the station only when the run stands behind it (`runFigures`); else why not.
-    const sightline = captureSightline(runFigures(result), at.stationIndex)
+    // A stale run reads "Out of date", never "Not run"; the stamp keeps the run's scene and the view's, so a figure
+    // stamped from another scene's run is never passed off as the view's (`sightlineStampCurrent`).
+    const sightline = captureSightline(runFigures(result, { stale: isStale }), at.stationIndex, {
+      runKey: result ? (runSnapshotRef.current?.key ?? null) : null,
+      captureKey: key,
+    })
     const percent = sightline.sightlinePercent
     const station = result?.stations[at.stationIndex]
     // Step 1's lookup and the scene's own read (the EVQO drape's, Save & export's), whichever has been made.
@@ -7350,6 +7356,51 @@ function DevForestryVisuals({
       }}
     />
   )
+  // *Record the run's figure*: a view saved here before its run's readiness was recorded (or while the run was
+  // provisional) takes the ready run's sightline figure at its station, with nothing else of it captured again. Only
+  // for a view saved under the scene open now, with a ready run of that same scene (`restampSightline`). Optional:
+  // the view prints its note until it is used, and nothing waits on it.
+  const runFiguresNow = runFigures(result, { stale: isStale })
+  const runFigureStamp = (savedId: string | undefined) => {
+    if (!savedId || !savedViews.some((view) => view.id === savedId)) return null
+    const figure = viewImages[savedId]?.figure
+    if (!figure) return null
+    return restampSightline(
+      figure,
+      runFiguresNow,
+      figure.stationIndex,
+      { runKey: result ? (runSnapshotRef.current?.key ?? null) : null, captureKey: key },
+      (percent) => table2Class(percent)?.label ?? null,
+    )
+  }
+  const recordRunFigure = (savedId: string, name: string) => {
+    const stamp = runFigureStamp(savedId)
+    if (!stamp) return
+    setViewImages((current) => {
+      const figure = current[savedId]?.figure
+      return figure
+        ? { ...current, [savedId]: { ...current[savedId], figure: withSightlineStamp(figure, stamp) } }
+        : current
+    })
+    setPreviewMessage(
+      stamp.sightlinePercent === null
+        ? `Recorded the run's figure for ${name}: the run sees no complete view from its station.`
+        : `Recorded the run's figure for ${name}: ${stamp.sightlinePercent.toFixed(2)}%${stamp.sightlineClass ? ` (${stamp.sightlineClass})` : ''}.`,
+    )
+  }
+  const runFigureControl = (savedId: string | undefined, name: string): ReactNode =>
+    runFigureStamp(savedId) ? (
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Button type="button" variant="outline" size="2xs" onClick={() => recordRunFigure(savedId!, name)}>
+          Record the run&apos;s figure
+        </Button>
+        <InfoTip label="About recording the run's figure">
+          The view was saved without the run&apos;s sightline figure (before readiness was recorded, or while the run
+          was provisional). The run here is ready and of the same scene, so its figure at the view&apos;s station can be
+          recorded on the view; its picture and analysis sheet stay as saved.
+        </InfoTip>
+      </div>
+    ) : null
   // Step 2's section and Save & export's *Views* entry show one list over the same page state; the dialog's copy
   // leaves out the Export button (it is the dialog) and what belongs to the road view stood at.
   const renderViewsOfInterest = (Shown: typeof ViewsOfInterestPanel | typeof ViewsOfInterestList, inDialog = false) => (
@@ -7375,6 +7426,9 @@ function DevForestryVisuals({
       onChangeRenderer={exportOpener.openPackage}
       capturedHere={(viewId) => savedViews.some((saved) => saved.plannedViewId === viewId)}
       canReopenSaved={(viewId) => savedViews.some((saved) => saved.plannedViewId === viewId)}
+      sightlineControl={(view) =>
+        runFigureControl(savedViews.filter((saved) => saved.plannedViewId === view.id).at(-1)?.id, view.name)
+      }
       onReopenSaved={(viewId) => {
         const latest = savedViews.filter((saved) => saved.plannedViewId === viewId).at(-1)
         if (latest) openPreview(latest)
@@ -7485,6 +7539,7 @@ function DevForestryVisuals({
             busy={!!pendingPreview || analysis.state.status === 'running'}
             onRestore={openPreview}
             onRemove={(id) => setSaved({ key, views: savedViews.filter((v) => v.id !== id) })}
+            control={(view) => runFigureControl(view.id, view.name)}
             storageWarning={sceneStorageWarning ?? storageWarning}
           />
         )

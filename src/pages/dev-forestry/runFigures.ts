@@ -97,6 +97,11 @@ export function runFigures(result: RunFigureSource | null | undefined, options: 
   }
 }
 
+/** Whether any of the gaps is filled by `action` (a lookup), wherever it stands in the list: not only the first. */
+export function gapsAsk(gaps: readonly RunGap[], action: NonNullable<RunGap['action']>): boolean {
+  return gaps.some((gap) => gap.action === action)
+}
+
 /** "Withheld — <first gap>": what a surface prints in place of a figure the run does not stand behind. */
 export function withheldText(figures: Pick<RunFigures, 'gaps'>): string {
   const gap = figures.gaps[0]
@@ -115,22 +120,58 @@ export type CapturedSightlineRecord = {
   sightlinePercent: number | null
   sightlineReadiness?: 'ready' | 'withheld'
   sightlineWithheld?: string
+  /**
+   * The scene fingerprint of the run the stamp was read from, and of the scene the view was captured under. Absent on
+   * views saved before they were kept; a `ready` stamp whose two keys differ is not the view's figure.
+   */
+  sightlineRunKey?: string
+  sightlineCaptureKey?: string
 }
 
+/** The run's scene and the view's, for a stamp (`captureSightline`). */
+export type SightlineKeys = { runKey: string | null; captureKey: string | null }
+
 /** The record a save stamps from the run as it stands (`runFigures`). */
-export function captureSightline(figures: RunFigures, stationIndex: number): CapturedSightlineRecord {
+export function captureSightline(
+  figures: RunFigures,
+  stationIndex: number,
+  keys?: SightlineKeys,
+): CapturedSightlineRecord {
+  const stamped = {
+    ...(keys?.runKey ? { sightlineRunKey: keys.runKey } : {}),
+    ...(keys?.captureKey ? { sightlineCaptureKey: keys.captureKey } : {}),
+  }
   if (figures.state === 'ready')
-    return { sightlinePercent: figures.atStation(stationIndex)?.cumulativePercent ?? null, sightlineReadiness: 'ready' }
+    return {
+      sightlinePercent: figures.atStation(stationIndex)?.cumulativePercent ?? null,
+      sightlineReadiness: 'ready',
+      ...stamped,
+    }
   return {
     sightlinePercent: null,
     sightlineReadiness: 'withheld',
     sightlineWithheld: figures.gaps[0]?.text ?? 'The run was provisional when the view was saved.',
+    ...stamped,
   }
 }
 
 /** Printed where a view saved before readiness was recorded would have shown its sightline figure. */
 export const READINESS_NOT_RECORDED =
-  'Readiness not recorded: the view was saved before the run’s readiness was checked. Save it again for the assessment’s figure.'
+  'Readiness not recorded: the view was saved before the run’s readiness was checked. Stand at it with a current run and record the run’s figure, or save it again, for the assessment’s figure.'
+
+/** Printed where a view's stamp came from a run of another scene than the one it was captured under. */
+export const SIGHTLINE_NOT_CURRENT =
+  'Out of date: the figure was read from a run of another scene than the view’s. Stand at it with a current run and record the run’s figure.'
+
+/** Whether a stamp is the view's own current figure: `ready`, from a run of the scene the view was captured under. */
+export function sightlineStampCurrent(record: CapturedSightlineRecord | null | undefined): boolean {
+  if (record?.sightlineReadiness !== 'ready') return false
+  return !(
+    record.sightlineRunKey &&
+    record.sightlineCaptureKey &&
+    record.sightlineRunKey !== record.sightlineCaptureKey
+  )
+}
 
 /**
  * A saved view's sightline figure as the assessment's (`percent`), or what to print in its place (`note`). A view
@@ -141,7 +182,10 @@ export function capturedSightline(record: CapturedSightlineRecord | null | undef
   note: string | null
 } {
   if (!record) return { percent: null, note: null }
-  if (record.sightlineReadiness === 'ready') return { percent: record.sightlinePercent, note: null }
+  if (record.sightlineReadiness === 'ready')
+    return sightlineStampCurrent(record)
+      ? { percent: record.sightlinePercent, note: null }
+      : { percent: null, note: SIGHTLINE_NOT_CURRENT }
   if (record.sightlineReadiness === 'withheld')
     return {
       percent: null,
