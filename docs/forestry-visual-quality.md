@@ -1088,7 +1088,15 @@ and saved comparisons travel in **Save & export → Project**.
   file. Replay takes this session's archive, a chosen `.sightline.zip`, or one an
   earlier project attached, checks the SHA-256 hashes and recomputes the
   numerical figures without a data service. The archived figures allow a reviewer
-  to detect a change in the calculation.
+  to detect a change in the calculation. The comparison (`compareReplayFigures`,
+  `replayComparison.ts`) holds the assessment station, the sightline count, the
+  number of stations and which figures are present or null exactly, and lets a
+  percentage differ by `REPLAY_TOLERANCE_PP`, 1e-6 points: summing in another
+  order moves a figure by about 1e-14 points, while one sightline of 21,348
+  moves it by about 0.0047. The input checksums stay exact. The panel prints the
+  largest difference and the archive's calculation version (`calcVersion`,
+  `SIGHTLINE_CALC_VERSION`; "not recorded" in archives written before it), and
+  names what differs when the replay fails.
 - **Compare with a saved PGMaps figure** uses the class counts from a saved
   after-harvest sheet for the linked view and mapped landform. The original
   percentage, source calculation and selected comparison stay visible. Choose
