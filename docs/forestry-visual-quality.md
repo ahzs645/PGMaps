@@ -2965,7 +2965,9 @@ the terrain component's layer and adds none. Display only.
 one stem for every 160 m, out to 8 km when the road and assessment terrain cover a smaller scene.
 It reads its own coarse terrain mosaic (up to 25 DEM tiles at zoom 9–11) and VRI's open ground over
 the same square, each kept by request so a road view closed and opened again gets the very read it
-had. The band's ground is the road view's own where it has one and the mosaic only past it, and only
+had. Only a whole read is kept (no terrain tile missing, no inventory tile failed, capped or cut
+short by the time limit); a partial one is drawn but read again next time, and a retry reads afresh
+once, its read then kept like any other. The band's ground is the road view's own where it has one and the mosaic only past it, and only
 inside a box the open-ground read came back whole for: ground that could not be read stays empty,
 and a stem beside it stops its canopy tile short of it (`placeTrees`' `canopyKnownAt`). Its stands
 follow the core's rules (`groundCoverFromBclcs`): water, wetland, rock, herb, low shrub and other

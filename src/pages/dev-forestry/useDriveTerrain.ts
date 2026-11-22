@@ -15,9 +15,11 @@ const loadForestContext = createPreviewTerrainLoader()
 /**
  * The background reads made, by request: its terrain and its inventory together, so a road view closed and opened
  * again, or a page that asks for the same ground twice, gets the very read it had (and the background band's patches,
- * kept under its key, are reused). Two, as the terrain loader keeps two mosaics; a failed read is not kept.
+ * kept under its key, are reused). Two, as the terrain loader keeps two mosaics. Only a whole read is kept (no terrain
+ * tile missing, no inventory tile failed, capped or cut short by the time limit): a partial one is shown but asked for
+ * again next time. Each is kept with the retry it was read on, and a later retry reads it afresh, once.
  */
-const forestContextReads = new Map<string, ForestContextRead>()
+const forestContextReads = new Map<string, { read: ForestContextRead; attempt: number }>()
 let forestContextReadCount = 0
 const FOREST_CONTEXT_READS_KEPT = 2
 
@@ -220,13 +222,14 @@ export function useDriveTerrain(
     const finish = (read: ForestContextRead | null) => {
       if (!controller.signal.aborted) setContext({ request: contextRequest, read })
     }
-    if (attempt > 0) forestContextReads.delete(key)
     const kept = forestContextReads.get(key)
-    if (kept) {
+    // A read made before the reviewer's latest retry is read again; one made on it (or a later one) is kept.
+    if (kept && kept.attempt < attempt) forestContextReads.delete(key)
+    else if (kept) {
       // Most recently used last, so the other one is the one let go.
       forestContextReads.delete(key)
       forestContextReads.set(key, kept)
-      void Promise.resolve().then(() => finish(kept))
+      void Promise.resolve().then(() => finish(kept.read))
       return () => controller.abort()
     }
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)])
@@ -234,7 +237,7 @@ export function useDriveTerrain(
       loadForestContext({ range, signal, concurrency: 2 }, attempt > 0),
       fetchOpenGround(centre, radius, { signal, maxTiles: 9, timeoutMs: 8000 }),
     ])
-      .then(([{ source }, cover]) => {
+      .then(([{ source, missingTileCount }, cover]) => {
         if (!source || !cover.complete.length) return finish(null)
         const read: ForestContextRead = {
           key: `${key}#${++forestContextReadCount}`,
@@ -242,9 +245,14 @@ export function useDriveTerrain(
           complete: cover.complete,
           stands: cover.stands,
         }
-        forestContextReads.set(key, read)
-        while (forestContextReads.size > FOREST_CONTEXT_READS_KEPT)
-          forestContextReads.delete(forestContextReads.keys().next().value!)
+        // Shown either way (unread ground stays empty), kept only whole: the time limit cuts the inventory short
+        // without counting a tile failed, so a read whose signal has run out is partial too.
+        const whole = !missingTileCount && !cover.failed && !cover.capped && !signal.aborted
+        if (whole) {
+          forestContextReads.set(key, { read, attempt })
+          while (forestContextReads.size > FOREST_CONTEXT_READS_KEPT)
+            forestContextReads.delete(forestContextReads.keys().next().value!)
+        }
         finish(read)
       })
       .catch(() => finish(null))
@@ -267,7 +275,14 @@ export function useDriveTerrain(
               ? { source, message: null, progress: 100, loading: false, extent: request.extent }
               : { source: null, message: pendingMessage, progress: 0, loading: true }
           })()
-  const activeContext = contextRequest && context?.request === contextRequest ? context : null
+  // Matched by the request's key, not its identity: a new extent over the same read keeps the band. A failed read
+  // answers only the attempt it was made on, so a retry shows as loading rather than as the old failure.
+  const activeContext =
+    contextRequest &&
+    context?.request?.key === contextRequest.key &&
+    (context.read || context.request.attempt === contextRequest.attempt)
+      ? context
+      : null
   const forestContextNote = !contextWanted
     ? null
     : !contextRequest
