@@ -7,6 +7,7 @@ import {
   runViewCapture,
   type CaptureClock,
   type ViewCaptureHost,
+  type ViewCaptureOptions,
   type ViewCaptureReport,
   type ViewCaptureState,
 } from './useViewCapture'
@@ -423,30 +424,60 @@ describe('capturing planned views', () => {
     expect(log).toEqual(['stand a', 'redraw a', 'restore where I stood'])
   })
 
-  it('draws the sheets alone first, then captures the rest whole, as one report', async () => {
-    const calls: Array<{ ids: readonly string[]; stage?: string }> = []
-    const capture = async (ids: readonly string[], options: { stage?: 'full' | 'sheet' } = {}) => {
-      calls.push({ ids, stage: options.stage })
+  it('draws the sheets and captures the rest whole in one batch, as one report', async () => {
+    const calls: Array<{ ids: readonly string[]; stage?: string; sheets?: string[]; before?: boolean }> = []
+    const capture = async (ids: readonly string[], options: ViewCaptureOptions = {}) => {
+      calls.push({
+        ids,
+        stage: options.stage,
+        sheets: options.sheetIds ? [...options.sheetIds] : undefined,
+        before: options.before,
+      })
       return { captured: [...ids], failures: [], cancelled: false } satisfies ViewCaptureReport
     }
-    const report = await captureAsNeeded(capture, ['a', 'b', 'c'], new Set(['b']), { before: true })
-    expect(calls).toEqual([
-      { ids: ['b'], stage: 'sheet' },
-      { ids: ['a', 'c'], stage: undefined },
-    ])
-    expect(report).toEqual({ captured: ['b', 'a', 'c'], failures: [], cancelled: false })
-    // A cancelled sheet batch leaves the whole captures untried.
+    const report = await captureAsNeeded(capture, ['a', 'b', 'c'], new Set(['b', 'z']), { before: true })
+    expect(calls).toEqual([{ ids: ['a', 'b', 'c'], stage: undefined, sheets: ['b'], before: true }])
+    expect(report).toEqual({ captured: ['a', 'b', 'c'], failures: [], cancelled: false })
     calls.length = 0
-    const cancelled = await captureAsNeeded(
-      async (ids, options = {}) => {
-        calls.push({ ids, stage: options.stage })
-        return { captured: [], failures: [], cancelled: true }
-      },
-      ['a', 'b'],
-      new Set(['b']),
-    )
-    expect(calls).toEqual([{ ids: ['b'], stage: 'sheet' }])
-    expect(cancelled.cancelled).toBe(true)
+    await captureAsNeeded(capture, ['a'], new Set(['b']))
+    expect(calls).toEqual([{ ids: ['a'], stage: undefined, sheets: undefined, before: undefined }])
+  })
+
+  it('stands back once when a batch draws some sheets and captures other views whole', async () => {
+    const views = [view('a'), view('b', { facing: { kind: 'bearing', degrees: 10 } }), view('c', { lng: -122.7 })]
+    const { host, log } = fakePage(views)
+    let snapshots = 0
+    const snapshot = host.snapshot
+    host.snapshot = () => {
+      snapshots += 1
+      return snapshot()
+    }
+    host.redraw = async (v) => {
+      log.push(`redraw ${v.id}`)
+      return { viewId: `saved-${v.id}` }
+    }
+    const states: ViewCaptureState[] = []
+    const report = await runViewCapture(() => host, ['a', 'b', 'c'], {
+      cancelled: () => false,
+      onState: (state) => states.push(state),
+      clock: fastClock(),
+      sheetIds: new Set(['a']),
+    })
+    expect(report).toEqual({ captured: ['a', 'b', 'c'], failures: [], cancelled: false })
+    // `a`'s sheet is drawn from its saved camera, `b` at the same place is faced and saved, then `c`; one step back.
+    expect(log).toEqual([
+      'stand a',
+      'redraw a',
+      'face b',
+      'save b facing 10 at 50 mm',
+      'stand c',
+      'save c facing block-1 at 50 mm',
+      'restore where I stood',
+    ])
+    expect(snapshots).toBe(1)
+    expect(states.some((state) => state.message === 'Drawing analysis sheet 1 of 3: View a…')).toBe(true)
+    expect(states.some((state) => state.message?.startsWith('Capturing 2 of 3: View b'))).toBe(true)
+    expect(states.at(-1)?.message).toBe('Captured 3 of 3 views.')
   })
 
   it('takes no before render unless asked', async () => {

@@ -78,6 +78,11 @@ export type ViewCaptureOptions = {
    * each place and waiting only for its run, road view and timber (`ViewCaptureHost.redraw`). Absent: `full`.
    */
   stage?: CaptureStage
+  /**
+   * Views whose analysis sheet alone is drawn again (`sheet`) in a batch that captures the rest whole (`stage`): one
+   * batch, one step back to where the reviewer stood (`captureAsNeeded`).
+   */
+  sheetIds?: ReadonlySet<string>
 }
 
 export type ViewCaptureApi = {
@@ -254,10 +259,13 @@ export async function runViewCapture<S>(
     before?: boolean
     /** `sheet`: draw only the views' analysis sheets again (`ViewCaptureOptions.stage`). */
     stage?: CaptureStage
+    /** Views drawn at `sheet` whatever `stage` says (`ViewCaptureOptions.sheetIds`). */
+    sheetIds?: ReadonlySet<string>
   },
 ): Promise<ViewCaptureReport> {
   const clock = control.clock ?? BROWSER_CLOCK
-  const stage = control.stage ?? 'full'
+  const stageOf = (view: Pick<ViewOfInterest, 'id'>): CaptureStage =>
+    control.sheetIds?.has(view.id) ? 'sheet' : (control.stage ?? 'full')
   const host = getHost()
   if (!host)
     return {
@@ -272,6 +280,10 @@ export async function runViewCapture<S>(
     reason: 'The view is no longer listed.',
   }))
   const captured: string[] = []
+  // The batch's words: sheets only when every view in it is a sheet drawn again.
+  const stage: CaptureStage = places.every((place) => place.views.every((view) => stageOf(view) === 'sheet'))
+    ? 'sheet'
+    : 'full'
   if (!total) {
     control.onState({ ...IDLE_VIEW_CAPTURE, status: 'done', failures: [...failures] })
     return { captured, failures, cancelled: false }
@@ -282,7 +294,7 @@ export async function runViewCapture<S>(
     done: 0,
     total,
     failures: [...failures],
-    message: captureMessage(0, total, places[0].views[0].name, stage),
+    message: captureMessage(0, total, places[0].views[0].name, stageOf(places[0].views[0])),
   }
   const update = (patch: Partial<ViewCaptureState>) => {
     state = { ...state, ...patch, failures: [...failures] }
@@ -301,7 +313,7 @@ export async function runViewCapture<S>(
     placeLoop: for (const place of places) {
       if (control.cancelled()) break
       const first = place.views[0]
-      update({ currentViewId: first.id, message: captureMessage(done, total, first.name, stage) })
+      update({ currentViewId: first.id, message: captureMessage(done, total, first.name, stageOf(first)) })
       const stood = getHost()?.stand(first) ?? { error: 'The page closed.' }
       if ('error' in stood) {
         for (const view of place.views) fail(view, stood.error)
@@ -312,13 +324,15 @@ export async function runViewCapture<S>(
       for (let index = 0; index < place.views.length; index++) {
         if (control.cancelled()) break placeLoop
         const view = place.views[index]
-        update({ currentViewId: view.id, message: captureMessage(done, total, view.name, stage) })
-        // A sheet drawn again is framed from the camera the view was saved with: the road view is not turned.
-        if (index > 0 && stage === 'full') {
+        const viewStage = stageOf(view)
+        update({ currentViewId: view.id, message: captureMessage(done, total, view.name, viewStage) })
+        // A sheet drawn again is framed from the camera the view was saved with: the road view is not turned. A view
+        // captured whole is faced unless the stand just faced it (the place's first).
+        if (index > 0 && viewStage === 'full') {
           getHost()?.face(view)
           await clock.sleep(FACING_SETTLE_MS)
         }
-        const message = captureMessage(done, total, view.name, stage)
+        const message = captureMessage(done, total, view.name, viewStage)
         const ready = await timed('view capture: stand and run', () =>
           waitReady(
             getHost,
@@ -326,7 +340,7 @@ export async function runViewCapture<S>(
             control.cancelled,
             clock,
             (note) => update({ message: note ? `${message} ${note}` : message }),
-            stage,
+            viewStage,
           ),
         )
         if (!ready) break placeLoop
@@ -343,7 +357,7 @@ export async function runViewCapture<S>(
         const page = getHost()
         const saving = !page
           ? Promise.resolve<ViewSaveOutcome>({ error: 'The page closed.' })
-          : stage === 'sheet'
+          : viewStage === 'sheet'
             ? (page.redraw?.(view) ??
               Promise.resolve<ViewSaveOutcome>({ error: 'Analysis sheets cannot be drawn again here.' }))
             : page.save(view)
@@ -426,27 +440,19 @@ export async function runViewCapture<S>(
 }
 
 /**
- * Captures views as each needs: the views in `sheetIds` (saved with their screenshot, `screenshot-only`) have only
- * their analysis sheet drawn again (`stage: 'sheet'`), then the rest are captured whole. One report for both: a view
- * is captured when either batch captured it, and a cancelled sheet batch leaves the whole captures untried.
+ * Captures views as each needs, in one batch: the views in `sheetIds` (saved with their screenshot,
+ * `screenshot-only`) have only their analysis sheet drawn again, the rest are captured whole. One batch takes one
+ * snapshot of where the reviewer stood and puts them back once, at its end: two batches back to back took the second
+ * snapshot before the page had drawn the first one's step back, and left the reviewer at the last place.
  */
 export async function captureAsNeeded(
   capture: ViewCaptureApi['capture'],
   viewIds: readonly string[],
   sheetIds: ReadonlySet<string>,
-  options: Omit<ViewCaptureOptions, 'stage'> = {},
+  options: Omit<ViewCaptureOptions, 'stage' | 'sheetIds'> = {},
 ): Promise<ViewCaptureReport> {
-  const sheets = viewIds.filter((id) => sheetIds.has(id))
-  const whole = viewIds.filter((id) => !sheetIds.has(id))
-  const reports: ViewCaptureReport[] = []
-  if (sheets.length) reports.push(await capture(sheets, { ...options, stage: 'sheet' }))
-  if (whole.length && !reports.some((report) => report.cancelled)) reports.push(await capture(whole, options))
-  if (reports.length === 1) return reports[0]
-  return {
-    captured: reports.flatMap((report) => report.captured),
-    failures: reports.flatMap((report) => report.failures),
-    cancelled: reports.some((report) => report.cancelled),
-  }
+  const sheets = new Set(viewIds.filter((id) => sheetIds.has(id)))
+  return capture(viewIds, sheets.size ? { ...options, sheetIds: sheets } : options)
 }
 
 export function useViewCapture<Snapshot>(hostRef: {
@@ -472,6 +478,7 @@ export function useViewCapture<Snapshot>(hostRef: {
           onState: setState,
           before: options.before,
           stage: options.stage,
+          sheetIds: options.sheetIds,
         })
       } finally {
         runningRef.current = false
