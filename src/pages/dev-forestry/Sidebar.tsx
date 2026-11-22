@@ -73,6 +73,7 @@ import type { LabelStyleId } from '@/lib/mapSheet/callouts'
 import type { EngineEnvironmentChoice, RoadRendererId } from './externalRenderers'
 import { landformAssignments } from './viewLandform'
 import { exportEditorId, type VisualsExport } from './visualsExports'
+import { importNoticeIsError, type ImportNotice } from './importNotice'
 import { VIA_STEPS, type ViaAssessment, type ViaReview, type ViaStepId, type ViaStepStatus } from './via'
 import {
   ALTERATION_BASIS_LABELS,
@@ -563,7 +564,7 @@ export type SidebarProps = {
   onDriveChange: (patch: Partial<DriveState>) => void
 
   onImportFile: (file: File) => void
-  importMessage: string | null
+  importMessage: ImportNotice | null
 
   inventory: InventoryState
   showInventory: boolean
@@ -1351,8 +1352,8 @@ export function Sidebar({
                 Import
               </FileButton>
               {importMessage && (
-                <InlineAlert tone={importMessage.startsWith('Could not') ? 'error' : 'info'}>
-                  {importMessage}
+                <InlineAlert tone={importNoticeIsError(importMessage) ? 'error' : 'info'}>
+                  {importMessage.text}
                 </InlineAlert>
               )}
               {blocks.length === 0 ? (
