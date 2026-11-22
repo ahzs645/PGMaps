@@ -1844,8 +1844,14 @@ street-level photo from Mapillary, or with a photo of your own.
 
 - **Find the location of a photo without GPS.** In Camera, choose **Pick a search area** and click an approximate
   centre on the plan. PGMaps tests nine locations over a 1 km square, searching every heading against the terrain
-  skyline. The search keeps the field of view fixed. Set the lens and, for an aerial photo, the altitude before
-  searching. It offers up to three starting cameras and marks close fits as ambiguous. Check the chosen camera
+  skyline (`photoLocationSearch.ts`). The search keeps the field of view fixed. Set the lens and, for an aerial
+  photo, the altitude before searching. At each location every skyline reader that finds a believable skyline in the
+  photo is tried, as the camera search tries them (`bestReaderFit`: the colour reader alone when its fit settles,
+  else all of them, the best by `searchRank`). When one fit stands clearly ahead it offers up to three starting
+  cameras. When fits are about as good as each other (a near tie between places, or a heading with a runner-up as
+  close) it lists them with how far apart they are, in metres and as an arc of headings, and offers none of them as
+  a start: the top of a tie is not a suggestion. A start taken from the search reads in the Position step as *a
+  start from the location search*, still to confirm, never as where the photo was taken. Check the chosen camera
   against recognizable terrain and mapped features before accepting it. A cropped or obscured ridge can still need
   paired landmarks. The photo stays in the browser.
 
@@ -2723,6 +2729,15 @@ Settings beside *Display quality*, all display only:
   mesh for each drawing and each of two trees of it, so the stem that stops is
   the tree that was moving. The solid build is what the scene package still
   hands the other renderers, which have no spray sheet.
+- **Distant trees.** *Off* (default) or *Out to 8 km*: a coarse background
+  stand on the hills behind a small scene, on terrain and open ground read for
+  it. It adds stems, so changing it places the stand again; see **The far
+  forest** for what it reads and what it leaves to the road view's own ground.
+  The sightline run, the camera and the scene package never read it. A saved
+  view is a picture of what the road view draws, so one saved with it on shows
+  the distant trees, and its *with drawn timber* figure counts them; while the
+  read is out the stand is not ready (*distant trees loading*), so no saved
+  view has them in one of its pictures and not the other.
 
 These follow techniques surveyed in `forestry-visual-tools-trial-2026-11-12.md`
 §10 (Sylva's canopy cards, VistaWASM's wrap and back-light, OpenWorldGen-SDK's
@@ -2830,13 +2845,34 @@ the terrain component's layer and adds none. Display only.
 
 ### The far forest
 
-The built-in road view loads an optional coarse terrain mosaic to draw background trees out to 8 km
-when the road and assessment terrain cover a smaller scene. The mosaic uses up to 25 DEM tiles at
-zoom 9–11. It supplies ground heights for trees beyond the road mosaic in areas covered by the BC
-vegetation inventory, with water, rock and other mapped open ground left clear. If the background
-read is unavailable, the existing forest extent is used. The road-view camera and visibility run
-continue to use their original elevation sources. The nearest trees draw first, followed by the
-coarse background and then the denser middle-distance trees.
+**Distant trees** (View options, off by default; `driveForestTerrain.ts`) adds a background band,
+one stem for every 160 m, out to 8 km when the road and assessment terrain cover a smaller scene.
+It reads its own coarse terrain mosaic (up to 25 DEM tiles at zoom 9–11) and VRI's open ground over
+the same square, each kept by request so a road view closed and opened again gets the very read it
+had. The band's ground is the road view's own where it has one and the mosaic only past it, and only
+inside a box the open-ground read came back whole for: ground that could not be read stays empty,
+and a stem beside it stops its canopy tile short of it (`placeTrees`' `canopyKnownAt`). Its stands
+follow the core's rules (`groundCoverFromBclcs`): water, wetland, rock, herb, low shrub and other
+non-treed ground grow nothing, tall shrub a low thicket, a sparse stand its own closure, and a
+polygon whose record does not say what covers it is unknown, not open, so it grows the regional
+stand as the core does. They are listed after the road view's own inventory, and a polygon wholly
+inside the run's own read is dropped, so the core read decides wherever it has an answer; a canopy
+tile reads the stand that wins its ground, as a stem does, so a core stand listed first is never
+held back by an open polygon of the background's.
+
+Turning it on places the stand again (it adds stems, so its reach is part of the stand's placement,
+`forestPatches`' key). The reach is set as soon as it is asked for, and the band's ground and
+inventory reach `ForestOverlay` apart from the forest configuration (`background`): the core stand
+is drawn as soon as the road view's terrain loads, and when the background read comes only the
+background band's patches grow, keyed to that read, with nothing else regrown. The read is asked for
+while the stand is kept, not while the road view is open, so closing the road view or holding it
+across a swap keeps it. The bands still grow nearest first, 0 to 3, the background last. If the
+background read is unavailable the road view keeps its own extent and View options says so. While
+the read is out the stand is not ready, so a saved view waits for it. The camera, the sightline run,
+the scene package and other renderers keep the road view's own ground and inventory and never read
+the background band; a saved view's picture shows what the road view draws. Not yet built: ground
+inside 3.5 km that the road view's own mosaic does not cover stays empty, as before, because
+filling it would regrow the 80 m band when the read comes.
 
 Across a valley is where a block is judged, and past 600 m a drawn stem stands
 for many. Five things make that hillside read as one (November 2026; the view
