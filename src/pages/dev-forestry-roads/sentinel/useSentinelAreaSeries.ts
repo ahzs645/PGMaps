@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { findDrop, readAreaSeries, shortDips, thinScenes, type AreaGeometry, type SeriesPoint } from './areaSeries'
 import { SENTINEL_INDICES, type SentinelIndex } from './indices'
-import { SENTINEL_SERIES_MAX_SCENES } from './limits'
-import { SentinelError, type SentinelScene } from './stac'
-import type { RasterReader } from './window'
+import { SENTINEL_SERIES_MAX_SCENES } from '@/lib/sentinel2/limits'
+import { SentinelError, type SentinelScene } from '@/lib/sentinel2/stac'
+import type { RasterReader } from '@/lib/sentinel2/window'
 
 /** The area a series is read over: a cutblock or a drawn polygon. Kept for this map session only. */
 export type SentinelArea = {

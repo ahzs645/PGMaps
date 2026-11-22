@@ -1,20 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ViewWindow } from '@/components/ui/map-view-window'
 import { catalogueServes, sceneReaches, type SceneCatalogue } from './catalogue'
-import { createCogReader } from './cogReader'
+import { createCogReader } from '@/lib/sentinel2/cogReader'
 import { createSentinelSearch } from './searchCache'
 import {
   SENTINEL_BAND_CACHE_ENTRIES,
   SENTINEL_CLOUD_MAX_PERCENT,
   SENTINEL_LIST_CONCURRENCY,
   SENTINEL_RECENT_DAYS,
-} from './limits'
+} from '@/lib/sentinel2/limits'
 import { defaultPair, defaultScene, type RatedScene } from './sceneChoice'
 import { firstSeenLabel, trueColourRgba } from './render'
 import { indexChange, indexChangeRgba, indexRgba, indexValues, SENTINEL_INDICES, type SentinelIndex } from './indices'
 import { readIndexBands } from './resample'
 import { useSentinelAreaSeries, type SentinelArea } from './useSentinelAreaSeries'
-import { recentRange, sentinelCredit, SentinelError, seasonRange, type FetchLike, type SentinelScene } from './stac'
+import {
+  recentRange,
+  sentinelCredit,
+  SentinelError,
+  seasonRange,
+  type FetchLike,
+  type SentinelScene,
+} from '@/lib/sentinel2/stac'
 import {
   readSceneClearShare,
   sceneWindow,
@@ -26,7 +33,7 @@ import {
   type RasterReader,
   type RasterRequest,
   type SceneWindow,
-} from './window'
+} from '@/lib/sentinel2/window'
 
 /** True colour, one index on one scene, or an index's change between two scenes. */
 export type SentinelMode = 'true-colour' | SentinelIndex | `${SentinelIndex}-change`

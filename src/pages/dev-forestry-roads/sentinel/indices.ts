@@ -8,9 +8,9 @@ import {
   SENTINEL_CLEARING_NDVI_DROP,
   SENTINEL_DNBR_UNBURNED,
   SENTINEL_DRYING_NDMI_DROP,
-} from './limits'
-import type { BandScaling, SentinelScene } from './stac'
-import { SCL_CLEAR } from './window'
+} from '@/lib/sentinel2/limits'
+import type { BandScaling, SentinelScene } from '@/lib/sentinel2/stac'
+import { SCL_CLEAR } from '@/lib/sentinel2/window'
 
 export type SentinelIndex = 'ndvi' | 'nbr' | 'ndmi'
 export type ReflectanceBand = 'red' | 'nir' | 'swir16' | 'swir22'

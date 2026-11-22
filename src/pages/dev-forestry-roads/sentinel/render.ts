@@ -12,9 +12,9 @@ import {
   normalizedDifference,
   rampColour,
 } from './indices'
-import { SENTINEL_CLEARING_NDVI_DROP } from './limits'
-import type { BandScaling } from './stac'
-import type { NdviBands } from './window'
+import { SENTINEL_CLEARING_NDVI_DROP } from '@/lib/sentinel2/limits'
+import type { BandScaling } from '@/lib/sentinel2/stac'
+import type { NdviBands } from '@/lib/sentinel2/window'
 
 /** True colour from the TCI's three bands. A pixel with all three at 0 is no data and drawn clear. */
 export function trueColourRgba(bands: ArrayLike<number>[], width: number, height: number): Uint8ClampedArray {

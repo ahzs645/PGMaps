@@ -3,6 +3,7 @@ import type { Map as MapLibreMap } from 'maplibre-gl'
 import { X } from 'lucide-react'
 import { MapTimeline } from '@pgmaps/geo-toolkit/ui/map-timeline'
 import { Button } from '@/components/ui/button'
+import { ensureImageryProtocol } from '@/components/ui/imagery-protocols'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { MapRasterHandoff, useMapLayerHandoff, type MapLayerHandoff } from '@/components/ui/map-raster-handoff'
 import {
@@ -101,21 +102,32 @@ export function useImageryTimeline<S>(
 ) {
   // Everything below belongs to one feed; a new feed starts clean in the same render.
   const [owner, setOwner] = useState(feed)
-  const [frames, setFrames] = useState<ImageryFrame<S>[]>([])
-  const [error, setError] = useState('')
+  // The last list and the area it was made for ('all' for a feed whose dates do not depend on place).
+  const [listed, setListed] = useState<{ area: string; frames: ImageryFrame<S>[] } | null>(null)
+  // The render that notices a new feed still holds the old feed's list: never hand it to the new feed.
+  const ownList = owner === feed ? listed : null
+  const frames = useMemo(() => ownList?.frames ?? [], [ownList])
+  const [failure, setFailure] = useState<{ area: string; message: string } | null>(null)
   // The frame the person chose; null follows the newest. In "changes here" mode the map shows the
-  // change in effect at that frame's date, which is the same picture.
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // change in effect at that frame's date, which is the same picture. Its date carries the choice
+  // across a new list, where a located feed's ids change.
+  const [selected, setSelected] = useState<{ id: string; date: string } | null>(null)
   const [localOnly, setLocalOnly] = useState(true)
   const [openPeriod, setOpenPeriod] = useState<string | null>(null)
   if (owner !== feed) {
     setOwner(feed)
-    setFrames([])
-    setError('')
-    setSelectedId(null)
+    setListed(null)
+    setFailure(null)
+    setSelected(null)
     setOpenPeriod(null)
   }
+  // Before any layer of this feed is drawn; registering is idempotent.
+  ensureImageryProtocol(feed.tileProtocol)
   const place = usePlace(feed, map, active)
+  const placeRef = useRef(place)
+  useEffect(() => {
+    placeRef.current = place
+  })
   const fetcherRef = useRef(fetcher)
   useEffect(() => {
     fetcherRef.current = fetcher
@@ -133,21 +145,42 @@ export function useImageryTimeline<S>(
     [],
   )
 
+  // A located feed lists at the map centre and again only in another area; the rest list once.
+  const located = !!feed.listFramesAt
+  const area = !located ? 'all' : place && feed.listAreaKey ? `${feed.id}|${feed.listAreaKey(place)}` : null
+  const listedArea = listed?.area ?? null
+  const failedArea = failure?.area ?? null
   useEffect(() => {
-    if (!active || frames.length || error) return
+    const at = placeRef.current
+    if (!active || !area || area === listedArea || area === failedArea) return
     const controller = new AbortController()
-    feed.listFrames(context(controller.signal)).then(
+    const list = feed.listFramesAt
+      ? at
+        ? feed.listFramesAt(at, context(controller.signal))
+        : Promise.resolve([])
+      : feed.listFrames
+        ? feed.listFrames(context(controller.signal))
+        : Promise.reject(new Error(`${feed.label} lists no imagery dates.`))
+    list.then(
       (oldestFirst) => {
         if (controller.signal.aborted) return
-        if (oldestFirst.length) setFrames(oldestFirst)
-        else setError(`${feed.label} offers no imagery dates.`)
+        if (oldestFirst.length) {
+          setListed({ area, frames: oldestFirst })
+          setFailure(null)
+        } else
+          setFailure({
+            area,
+            message: located ? `${feed.label} has no imagery here.` : `${feed.label} offers no imagery dates.`,
+          })
       },
       (reason) => {
-        if (!controller.signal.aborted) setError(message(reason, `Could not load ${feed.label}.`))
+        if (!controller.signal.aborted) setFailure({ area, message: message(reason, `Could not load ${feed.label}.`) })
       },
     )
     return () => controller.abort()
-  }, [active, feed, frames.length, error, context])
+  }, [active, feed, area, listedArea, failedArea, located, context])
+  // A failure here reads as an error only while there is nothing to show; otherwise the last list stays.
+  const error = failure && failure.area === area ? failure.message : ''
 
   // ------ the frames that change the picture at the map centre --------------
 
@@ -159,10 +192,6 @@ export function useImageryTimeline<S>(
   const [localAttempt, setLocalAttempt] = useState(0)
   const checksPlaces = !!feed.framesChangingAt
   const placeKey = place ? `${feed.id}|${place.key}` : undefined
-  const placeRef = useRef(place)
-  useEffect(() => {
-    placeRef.current = place
-  })
   useEffect(() => {
     const at = placeRef.current
     if (!active || !checksPlaces || !frames.length || !placeKey || !at || !feed.framesChangingAt) return
@@ -195,8 +224,12 @@ export function useImageryTimeline<S>(
   const filtering = localOnly && !!changes
   const shown = filtering ? changes : frames
 
-  const selected = frames.find((frame) => frame.id === selectedId) ?? frames[frames.length - 1]
-  const frame = selected && (filtering ? shownChange(shown, selected.date) : selected)
+  const chosen =
+    (selected &&
+      (frames.find((entry) => entry.id === selected.id) ??
+        (located ? shownChange(frames, selected.date) : undefined))) ??
+    frames[frames.length - 1]
+  const frame = chosen && (filtering ? shownChange(shown, chosen.date) : chosen)
 
   // A period (a year, or a month for a daily feed) the timeline is opened on by clicking its label.
   // It holds only while that period has two or more entries and the shown frame is in it.
@@ -216,7 +249,7 @@ export function useImageryTimeline<S>(
   })
   const setIndex = useCallback((next: number) => {
     const entry = entriesRef.current[next]
-    if (entry) setSelectedId(entry.id)
+    if (entry) setSelected({ id: entry.id, date: entry.date })
   }, [])
 
   // An axis label: across periods, a period opens on its first entry (one with a single entry is
@@ -225,7 +258,7 @@ export function useImageryTimeline<S>(
     (next: number) => {
       const entry = entriesRef.current[next]
       if (!entry) return
-      setSelectedId(entry.id)
+      setSelected({ id: entry.id, date: entry.date })
       if (period) return
       const tickPeriod = periodOf(entry.date)
       const many = entriesRef.current.filter((e) => periodOf(e.date) === tickPeriod).length > 1
@@ -318,7 +351,7 @@ export function useImageryTimeline<S>(
     period,
     closePeriod: () => setOpenPeriod(null),
     error,
-    retry: () => setError(''),
+    retry: () => setFailure(null),
     frameCount: frames.length,
     /** Frames that change the picture at the map centre, once read there; null before, or when the feed cannot say. */
     changeCount: ownLocal ? ownLocal.changes.length : null,
@@ -383,6 +416,7 @@ export function ImageryFrameLayers({
           layer={(layer) => ({
             tiles: [layer.tiles],
             tileSize: layer.tileSize ?? 256,
+            minZoom: layer.minZoom,
             maxZoom: layer.maxZoom,
             attribution: layer.attribution,
             beforeId,

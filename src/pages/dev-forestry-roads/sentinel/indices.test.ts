@@ -8,9 +8,9 @@ import {
   sceneHasIndex,
   SENTINEL_INDICES,
 } from './indices'
-import { SENTINEL_BURN_DNBR, SENTINEL_DNBR_UNBURNED, SENTINEL_DRYING_NDMI_DROP } from './limits'
+import { SENTINEL_BURN_DNBR, SENTINEL_DNBR_UNBURNED, SENTINEL_DRYING_NDMI_DROP } from '@/lib/sentinel2/limits'
 import { ndviValues } from './render'
-import { parseSentinelItem } from './stac'
+import { parseSentinelItem } from '@/lib/sentinel2/stac'
 
 const BASELINE_04 = { scale: 0.0001, offset: -0.1 }
 const APPLIED = { scale: 0.0001, offset: 0 }

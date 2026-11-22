@@ -44,7 +44,7 @@ const PLACE = { lon: -122.75, lat: 53.92, zoom: 15 }
 
 describe('WAYBACK_FEED', () => {
   it('lists the releases oldest first, each one Esri layer to zoom 18 with its credit', async () => {
-    const frames = checkFrames(WAYBACK_FEED, await WAYBACK_FEED.listFrames(context()))
+    const frames = checkFrames(WAYBACK_FEED, await WAYBACK_FEED.listFrames!(context()))
     expect(frames.map((frame) => [frame.id, frame.date])).toEqual([
       ['10', '2014-02-20'],
       ['20', '2019-09-18'],
@@ -56,14 +56,14 @@ describe('WAYBACK_FEED', () => {
 
   it('finds the releases that change the picture at a place, one tile-map request per image', async () => {
     const asked: string[] = []
-    const frames = await WAYBACK_FEED.listFrames(context())
+    const frames = await WAYBACK_FEED.listFrames!(context())
     const changes = await WAYBACK_FEED.framesChangingAt!(frames, PLACE, context(asked))
     expect(changes.map((frame) => frame.id)).toEqual(['10', '20'])
     expect(asked.filter((url) => url.startsWith(WAYBACK_TILEMAP))).toHaveLength(2)
   })
 
   it('reads what a release captured, and says which releases can tell', async () => {
-    const [oldest, , newest] = await WAYBACK_FEED.listFrames(context())
+    const [oldest, , newest] = await WAYBACK_FEED.listFrames!(context())
     expect(WAYBACK_FEED.describes!(oldest)).toBe(false)
     expect(WAYBACK_FEED.describes!(newest)).toBe(true)
     await expect(WAYBACK_FEED.captureAt!(newest, PLACE, context())).resolves.toMatchObject({

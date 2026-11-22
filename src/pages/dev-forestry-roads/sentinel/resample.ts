@@ -9,14 +9,14 @@
  * gives the same pixels.
  */
 import { SENTINEL_INDICES, type IndexBands, type ReflectanceBand, type SentinelIndex } from './indices'
-import { SentinelError, type SentinelScene } from './stac'
+import { SentinelError, type SentinelScene } from '@/lib/sentinel2/stac'
 import {
   SENTINEL_NATIVE_PIXEL_M,
   type RasterBands,
   type RasterReader,
   type RasterRequest,
   type SceneWindow,
-} from './window'
+} from '@/lib/sentinel2/window'
 
 /** The ground size of Sentinel-2's SWIR and scene-classification pixels. */
 export const SENTINEL_20M_PIXEL_M = 20

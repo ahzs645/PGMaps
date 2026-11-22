@@ -100,3 +100,13 @@ export const SENTINEL_BAND_CACHE_ENTRIES = 8
 
 /** British Columbia lies in UTM zones 7 to 11 (WGS84 / UTM north, EPSG:32607–32611). */
 export const SENTINEL_BC_UTM_ZONES = [7, 11] as const
+
+/** Map tiles of a scene (`tiles.ts`) are drawn from this zoom; shallower, a tile would read most of a scene. */
+export const SENTINEL_TILE_MIN_ZOOM = 9
+/** The deepest tile read: 10 m pixels are about zoom 13 at BC's latitudes; MapLibre stretches beyond. */
+export const SENTINEL_TILE_MAX_ZOOM = 14
+/** Simultaneous tile reads; a view needs a dozen or two, each one or two byte ranges of a scene's TCI. */
+export const SENTINEL_TILE_READ_CONCURRENCY = 6
+/** The imagery feed's dates at a place: the search asks for this many items and keeps one a date. */
+export const SENTINEL_FEED_SEARCH_LIMIT = 100
+export const SENTINEL_FEED_MAX_SCENES = 48

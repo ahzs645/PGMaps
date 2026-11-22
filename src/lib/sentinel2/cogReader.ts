@@ -16,9 +16,15 @@ const openRemote = (href: string, signal: AbortSignal) =>
 export function createCogReader({
   timeoutMs = SENTINEL_REQUEST_TIMEOUT_MS,
   openFile = openRemote,
-}: { timeoutMs?: number; openFile?: (href: string, signal: AbortSignal) => Promise<GeoTIFF> } = {}): RasterReader {
+  concurrency = SENTINEL_READ_CONCURRENCY,
+}: {
+  timeoutMs?: number
+  openFile?: (href: string, signal: AbortSignal) => Promise<GeoTIFF>
+  /** Simultaneous reads (`SENTINEL_READ_CONCURRENCY` unless given). */
+  concurrency?: number
+} = {}): RasterReader {
   const files = new Map<string, Promise<GeoTIFF>>()
-  const queued = createReadQueue(SENTINEL_READ_CONCURRENCY)
+  const queued = createReadQueue(concurrency)
   const open = (href: string, signal: AbortSignal) => {
     let file = files.get(href)
     if (!file) {

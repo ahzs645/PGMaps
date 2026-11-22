@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 import { writeArrayBuffer } from 'geotiff'
 import { DEMO_BOUNDS } from '../../src/pages/dev-forestry-roads/terrain'
-import { sceneWindow } from '../../src/pages/dev-forestry-roads/sentinel/window'
+import { sceneWindow } from '../../src/lib/sentinel2/window'
 import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 20_000, viewport: { width: 1512, height: 982 } })

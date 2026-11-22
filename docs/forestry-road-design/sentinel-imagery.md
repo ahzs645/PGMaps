@@ -182,6 +182,11 @@ also move with season and leaf colour, and a short spur cannot be told apart fro
 
 ## Limits and budgets
 
+The scene search, the UTM window, the COG reader, the read queue and `limits.ts` are shared code in
+`src/lib/sentinel2/`, because the imagery feed (`src/lib/imageryFeeds/sentinel2Feed.ts`,
+[imagery feeds](../imagery-feeds.md)) draws scenes as map tiles from the same search and reader. The
+plan layer, indices, renders and the area series stay in this folder.
+
 | Limit                           | Value                     | Enforced in                                                             | When exceeded                                          |
 | ------------------------------- | ------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------ |
 | Minimum map zoom                | 12                        | `limits.ts` `SENTINEL_MIN_ZOOM`                                         | Layer paused and hidden; no search or COG read         |
@@ -213,6 +218,9 @@ also move with season and leaf colour, and a short spur cannot be told apart fro
 | Area series size                | 10 km a side              | `limits.ts` `SENTINEL_AREA_MAX_KM`                                      | "The area spans … km; a Sentinel-2 series reads at most 10 km", no read |
 | Area series scenes              | 12                        | `limits.ts` `SENTINEL_SERIES_MAX_SCENES`                                | Thinned evenly over time, both ends kept               |
 | Series gap: clear / cover       | under 80 % / 95 % of the area | `limits.ts` `SENTINEL_SERIES_MIN_CLEAR_SHARE`, `SENTINEL_SERIES_MIN_COVERAGE` | Gap with its reason, never a value                     |
+| Scene as map tiles (imagery feed) | zooms 9–14                 | `limits.ts` `SENTINEL_TILE_MIN_ZOOM`, `SENTINEL_TILE_MAX_ZOOM`          | Shallower: no tile; deeper: zoom 14 stretched          |
+| Tile reads at once (feed)       | 6, in a worker            | `limits.ts` `SENTINEL_TILE_READ_CONCURRENCY`                            | Further tiles queue; a tile leaving the view is aborted |
+| Feed dates at a place           | 100 items asked, 48 kept  | `limits.ts` `SENTINEL_FEED_SEARCH_LIMIT`, `SENTINEL_FEED_MAX_SCENES`    | Older dates left out                                   |
 | Histogram bins                  | 40                        | `limits.ts` `SENTINEL_HISTOGRAM_BINS`                                   | —                                                      |
 | Request time                    | 30 s per search or read   | `limits.ts` `SENTINEL_REQUEST_TIMEOUT_MS`                               | "… took longer than 30 s", with Retry                  |
 | Band windows kept in memory     | 8                         | `limits.ts` `SENTINEL_BAND_CACHE_ENTRIES`                               | Older windows read again                               |

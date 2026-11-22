@@ -1,7 +1,7 @@
 import { loadBcExistingRoads } from './existingRoads'
-import { createReadQueue } from './sentinel/readQueue'
+import { createReadQueue } from '@/lib/sentinel2/readQueue'
 import type { DemBox } from './hrdem'
-import type { LonLatBounds } from './sentinel/stac'
+import type { LonLatBounds } from '@/lib/sentinel2/stac'
 
 /** Coalesce overlapping local requests; never query the huge envelope between scattered blocks. */
 export function nearbyFsrBounds(boxes: readonly DemBox[]): LonLatBounds[] {

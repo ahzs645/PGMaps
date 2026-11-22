@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SENTINEL_CLEARING_NDVI_DROP } from './limits'
+import { SENTINEL_CLEARING_NDVI_DROP } from '@/lib/sentinel2/limits'
 import {
   crossesSnowSeason,
   firstSeenLabel,

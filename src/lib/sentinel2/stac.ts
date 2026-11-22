@@ -223,6 +223,8 @@ export async function searchSentinelScenes({
   signal,
   preferEpsg,
   timeoutMs = SENTINEL_REQUEST_TIMEOUT_MS,
+  limit,
+  max,
 }: {
   window: LonLatBounds
   range: DateRange
@@ -230,6 +232,10 @@ export async function searchSentinelScenes({
   signal?: AbortSignal
   preferEpsg?: number
   timeoutMs?: number
+  /** Items the search asks for (`SENTINEL_SEARCH_LIMIT` unless given). */
+  limit?: number
+  /** Scenes kept, one a date (`SENTINEL_MAX_SCENES` unless given). */
+  max?: number
 }): Promise<SentinelScene[]> {
   const timed = timeoutSignal(signal, timeoutMs)
   let body: unknown
@@ -237,7 +243,7 @@ export async function searchSentinelScenes({
     const response = await fetch(SENTINEL_STAC_SEARCH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sentinelSearchBody(window, range)),
+      body: JSON.stringify(sentinelSearchBody(window, range, limit === undefined ? {} : { limit })),
       signal: timed.signal,
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
@@ -257,7 +263,7 @@ export async function searchSentinelScenes({
   } finally {
     timed.done()
   }
-  return parseSentinelScenes(body, window, { preferEpsg })
+  return parseSentinelScenes(body, window, { preferEpsg, ...(max === undefined ? {} : { max }) })
 }
 
 /** The Copernicus credit for the scenes shown: "Contains modified Copernicus Sentinel data 2021, 2025". */

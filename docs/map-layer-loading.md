@@ -209,6 +209,7 @@ Real Chrome, Metal GPU, live hosts, 19 November 2026. Before is main at fc5abf3f
 | Outdoors planner cutblocks, forest roads, sightlines (21 November) | View window over the read | First read 3.1 s into the drag, after it stopped; up to 18% (cutblocks) and 27% (sightlines) more of the view empty mid-drag | First read 0.6 s into the drag; 2–6% more empty mid-drag; 4 reads a 3 s drag; never gone |
 | Outdoors planner rail, hunt zones, lake charts (21 November) | View window over the read | Not measured before (same reader as above) | Never gone; 4 reads a 3 s drag, none on a zoom-in inside the window |
 | Outdoors planner dated imagery, date change (21 November) | Hand-off + note, the shared imagery timeline | Gone on every frame of each of 4 day changes (a remount per day) | 0 frames without it, Wayback and NASA feeds; the road designer's Wayback on the same code 0 of 37 |
+| Sentinel-2 scenes as tiles (21 November) | Tiles through `pgmaps-s2` (`addProtocol`), read and warped in a worker | Read on the page's thread: 7–11 long frames a date step, worst 311 ms | 0 of 106 frames without it; at most one long frame (68 ms) |
 
 ## Not built
 

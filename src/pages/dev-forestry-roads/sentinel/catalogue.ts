@@ -2,7 +2,7 @@
  * When a pan needs a new scene search, and which listed scenes still apply to a new window.
  * DOM-free and network-free.
  */
-import type { LonLatBounds, SentinelScene } from './stac'
+import type { LonLatBounds, SentinelScene } from '@/lib/sentinel2/stac'
 
 export const boundsContain = (outer: LonLatBounds | null, inner: LonLatBounds) =>
   !!outer && outer[0] <= inner[0] && outer[1] <= inner[1] && outer[2] >= inner[2] && outer[3] >= inner[3]

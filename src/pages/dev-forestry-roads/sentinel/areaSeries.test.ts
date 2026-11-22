@@ -10,9 +10,9 @@ import {
   thinScenes,
   type SeriesPoint,
 } from './areaSeries'
-import { SENTINEL_CLEARING_NDVI_DROP, SENTINEL_SERIES_MAX_SCENES } from './limits'
-import type { SentinelScene } from './stac'
-import { utm, type RasterReader, type SceneWindow } from './window'
+import { SENTINEL_CLEARING_NDVI_DROP, SENTINEL_SERIES_MAX_SCENES } from '@/lib/sentinel2/limits'
+import type { SentinelScene } from '@/lib/sentinel2/stac'
+import { utm, type RasterReader, type SceneWindow } from '@/lib/sentinel2/window'
 
 const WINDOW: SceneWindow = { epsg: 32610, pixelM: 10, bbox: [0, 0, 50, 50], width: 5, height: 5 }
 

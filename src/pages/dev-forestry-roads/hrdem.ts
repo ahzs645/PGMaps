@@ -2,8 +2,8 @@
 import { BaseClient, type BaseResponse, type GeoTIFF, fromCustomClient } from 'geotiff'
 import { preparedTerrain, roadProjection, MAX_ROAD_RASTER_CELLS } from './terrain'
 import type { Coordinate, RoadProject } from './types'
-import type { LonLatBounds } from './sentinel/stac'
-import { createReadQueue } from './sentinel/readQueue'
+import type { LonLatBounds } from '@/lib/sentinel2/stac'
+import { createReadQueue } from '@/lib/sentinel2/readQueue'
 
 export const HRDEM_COLLECTION = 'hrdem-mosaic-1m'
 export const HRDEM_SEARCH_URL = 'https://datacube.services.geo.ca/stac/api/search'

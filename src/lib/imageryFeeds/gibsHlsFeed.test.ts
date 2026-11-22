@@ -44,7 +44,7 @@ describe('what GIBS serves', () => {
       'HLS_L30_Nadir_BRDF_Adjusted_Reflectance',
       'HLS_S30_Nadir_BRDF_Adjusted_Reflectance',
     ])
-    const listed = await GIBS_HLS_FEED.listFrames({
+    const listed = await GIBS_HLS_FEED.listFrames!({
       today: '2026-11-11',
       signal: new AbortController().signal,
       fetch: () => Promise.reject(new Error('no network needed')),

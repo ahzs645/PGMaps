@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { nativeRequest, readBandOnWindow, readIndexBands, resampleNearest } from './resample'
-import type { SentinelScene } from './stac'
-import type { RasterReader, RasterRequest, SceneWindow } from './window'
+import type { SentinelScene } from '@/lib/sentinel2/stac'
+import type { RasterReader, RasterRequest, SceneWindow } from '@/lib/sentinel2/window'
 
 // A 10 m window whose west and north edges fall halfway across a 20 m pixel.
 const WINDOW: SceneWindow = { epsg: 32610, pixelM: 10, bbox: [510, 990, 550, 1030], width: 4, height: 4 }

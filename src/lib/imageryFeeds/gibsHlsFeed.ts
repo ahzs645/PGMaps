@@ -68,6 +68,7 @@ export function gibsHlsFrames(today: string): GibsHlsFrame[] {
         tiles: recentImageryTiles(layer, date),
         tileSize: 256,
         maxZoom: RECENT_IMAGERY_MAX_ZOOM,
+        name: layer.startsWith('HLS_L30') ? 'Landsat' : 'Sentinel-2',
         attribution: index === 0 ? RECENT_IMAGERY_ATTRIBUTION : undefined,
       })),
       source: null,
@@ -81,6 +82,8 @@ export const GIBS_HLS_PLAYBACK_MS = 1_500
 export const GIBS_HLS_FEED: ImageryFeed<null> = {
   id: 'nasa-gibs-hls',
   label: 'NASA daily passes',
+  shortLabel: 'NASA',
+  frameNoun: { one: 'day', many: 'days' },
   description:
     'Landsat and Sentinel-2 at 30 m, one picture a day for the last eight months. A day shows only the strips flown, cloud included; images arrive about a week after the pass.',
   dateMeaning: 'Landsat and Sentinel-2 pass date',

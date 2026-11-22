@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { makeViewWindow, viewWindowRule, windowServes, type LonLatBounds } from '@/components/ui/map-view-window'
 import { createSentinelSearch } from './searchCache'
-import { createReadQueue } from './readQueue'
+import { createReadQueue } from '@/lib/sentinel2/readQueue'
 import { catalogueServes, sceneReaches, type SceneCatalogue } from './catalogue'
 import {
   SENTINEL_MAX_READ_PX,
@@ -9,10 +9,10 @@ import {
   SENTINEL_VIEW_EDGE_SHARE,
   SENTINEL_VIEW_GRID_DEG,
   SENTINEL_VIEW_OVERSCAN,
-} from './limits'
-import { parseSentinelScenes } from './stac'
-import { sceneWindow, viewPixelM } from './window'
-import fixture from './stacSearch.fixture.json'
+} from '@/lib/sentinel2/limits'
+import { parseSentinelScenes } from '@/lib/sentinel2/stac'
+import { sceneWindow, viewPixelM } from '@/lib/sentinel2/window'
+import fixture from '@/lib/sentinel2/stacSearch.fixture.json'
 
 afterEach(() => vi.useRealTimers())
 

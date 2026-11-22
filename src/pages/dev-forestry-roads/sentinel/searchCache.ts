@@ -1,5 +1,9 @@
-import { SENTINEL_SEARCH_CACHE_ENTRIES, SENTINEL_SEARCH_CACHE_MS, SENTINEL_SEARCH_INTERVAL_MS } from './limits'
-import { searchSentinelScenes, type FetchLike, type SentinelScene } from './stac'
+import {
+  SENTINEL_SEARCH_CACHE_ENTRIES,
+  SENTINEL_SEARCH_CACHE_MS,
+  SENTINEL_SEARCH_INTERVAL_MS,
+} from '@/lib/sentinel2/limits'
+import { searchSentinelScenes, type FetchLike, type SentinelScene } from '@/lib/sentinel2/stac'
 
 function waitUntil(time: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {

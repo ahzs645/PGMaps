@@ -46,6 +46,8 @@ export function waybackFrame(release: WaybackRelease): WaybackFrame {
 export const WAYBACK_FEED: ImageryFeed<WaybackRelease> = {
   id: 'esri-wayback',
   label: 'Esri Wayback',
+  shortLabel: 'Wayback',
+  frameNoun: { one: 'release', many: 'releases' },
   description:
     'Archived releases of Esri World Imagery, sharp but often years apart. A release dates the mosaic; the capture date is read for the map centre.',
   dateMeaning: 'Esri Wayback mosaic release date',

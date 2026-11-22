@@ -1,7 +1,7 @@
 /** Which scenes the Sentinel-2 layer picks by default. DOM-free. */
-import { SENTINEL_MIN_CLEAR_SHARE, SENTINEL_MIN_COVERAGE } from './limits'
-import type { SentinelScene } from './stac'
-import type { ClearShare } from './window'
+import { SENTINEL_MIN_CLEAR_SHARE, SENTINEL_MIN_COVERAGE } from '@/lib/sentinel2/limits'
+import type { SentinelScene } from '@/lib/sentinel2/stac'
+import type { ClearShare } from '@/lib/sentinel2/window'
 
 export type RatedScene = SentinelScene & {
   /** Clear share over the terrain window; undefined while rating, null when the read failed. */

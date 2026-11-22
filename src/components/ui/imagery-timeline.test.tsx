@@ -21,6 +21,8 @@ function testFeed(id: string, frames: ImageryFrame<null>[], extra: Partial<Image
   return {
     id,
     label: `Feed ${id}`,
+    shortLabel: id,
+    frameNoun: { one: 'date', many: 'dates' },
     description: '',
     dateMeaning: 'Test date',
     loadingText: 'Loading…',
@@ -41,13 +43,13 @@ const map = {
   off: () => undefined,
 } as unknown as MapLibreMap
 
-function render(feed: ImageryFeed<null>) {
+function render(feed: ImageryFeed<null>, onMap: MapLibreMap = map) {
   const latest: { timeline: ImageryTimelineState | null; requests: Array<string | null> } = {
     timeline: null,
     requests: [],
   }
   function Harness({ feed }: { feed: ImageryFeed<null> }) {
-    const timeline = useImageryTimeline(feed, true, map)
+    const timeline = useImageryTimeline(feed, true, onMap)
     const handoffs = useImageryFrameHandoffs('dated', timeline.frame)
     useEffect(() => {
       latest.timeline = timeline
@@ -134,7 +136,17 @@ describe('useImageryTimeline', () => {
   it('starts a new feed from its newest frame, never showing the old feed’s dates', async () => {
     const view = render(testFeed('e', [frame('old', '2019-01-01')]))
     await view.mount()
-    await view.switchTo(testFeed('f', [frame('x', '2025-01-01'), frame('y', '2026-01-01')]))
+    // A feed that reads its own frames' records, as Wayback does, must never be handed another feed's.
+    const own = new Set(['x', 'y'])
+    await view.switchTo(
+      testFeed('f', [frame('x', '2025-01-01'), frame('y', '2026-01-01')], {
+        describes: (entry) => {
+          if (!own.has(entry.id)) throw new Error(`Feed f was handed ${entry.id}`)
+          return false
+        },
+        captureAt: async () => null,
+      }),
+    )
     expect(view.latest.timeline?.frame?.id).toBe('y')
     expect(view.latest.timeline?.feed.id).toBe('f')
   })
@@ -150,5 +162,42 @@ describe('useImageryTimeline', () => {
     await act(async () => view.latest.timeline!.selectTick(0))
     expect(view.latest.timeline?.period).toBe('2026-09')
     expect(view.latest.timeline?.buckets.map((bucket) => bucket.tickLabel)).toEqual(['Sep 29', 'Sep 30'])
+  })
+
+  it('lists a located feed at the map centre, again only in another area, keeping the chosen date', async () => {
+    const centre = { lng: -122.7, lat: 53.9 }
+    const handlers = new Set<() => void>()
+    const moving = {
+      ...map,
+      getCenter: () => centre,
+      on: (_type: string, handler: () => void) => handlers.add(handler),
+      off: (_type: string, handler: () => void) => handlers.delete(handler),
+    } as unknown as MapLibreMap
+    const listedAt: string[] = []
+    const feed = testFeed('located', [], {
+      listFrames: undefined,
+      listFramesAt: async (place) => {
+        listedAt.push(`${place.lon},${place.lat}`)
+        // The second area has its own scenes, one of them on a date the first area also had.
+        return place.lon < -122.5
+          ? [frame('a1', '2024-06-01'), frame('a2', '2025-06-01'), frame('a3', '2025-08-01')]
+          : [frame('b1', '2025-06-01'), frame('b2', '2025-09-01')]
+      },
+      listAreaKey: (place) => (place.lon < -122.5 ? 'west' : 'east'),
+    })
+    const view = render(feed, moving)
+    await view.mount()
+    expect(listedAt).toEqual(['-122.7,53.9'])
+    await act(async () => view.latest.timeline!.setIndex(1))
+    expect(view.latest.timeline?.frame?.id).toBe('a2')
+    // A move inside the area reads nothing new.
+    centre.lng = -122.65
+    await act(async () => handlers.forEach((handler) => handler()))
+    expect(listedAt).toHaveLength(1)
+    // Into another area: listed again, and the chosen date (2025-06-01) holds on the new list.
+    centre.lng = -122.4
+    await act(async () => handlers.forEach((handler) => handler()))
+    expect(listedAt).toHaveLength(2)
+    expect(view.latest.timeline?.frame?.id).toBe('b1')
   })
 })

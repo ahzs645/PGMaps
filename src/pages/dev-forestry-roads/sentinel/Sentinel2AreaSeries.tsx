@@ -11,7 +11,7 @@ import {
   SENTINEL_SERIES_MAX_SCENES,
   SENTINEL_SERIES_MIN_CLEAR_SHARE,
   SENTINEL_SERIES_MIN_COVERAGE,
-} from './limits'
+} from '@/lib/sentinel2/limits'
 import type { SeriesPoint } from './areaSeries'
 import type { SentinelArea, SentinelAreaSeries } from './useSentinelAreaSeries'
 

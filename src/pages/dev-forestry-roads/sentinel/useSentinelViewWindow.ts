@@ -7,9 +7,9 @@ import {
   SENTINEL_VIEW_OVERSCAN,
   SENTINEL_VIEW_SETTLE_MS,
   SENTINEL_VIEW_THROTTLE_MS,
-} from './limits'
-import type { LonLatBounds } from './stac'
-import { viewPixelM } from './window'
+} from '@/lib/sentinel2/limits'
+import type { LonLatBounds } from '@/lib/sentinel2/stac'
+import { viewPixelM } from '@/lib/sentinel2/window'
 
 /** A window is reused only at the pixel size its view needs (10, 20, 40… m), never coarser. */
 const sentinelLevel = (view: LonLatBounds) => viewPixelM(view) ?? 'outside'

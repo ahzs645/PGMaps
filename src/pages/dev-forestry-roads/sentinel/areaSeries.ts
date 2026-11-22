@@ -14,11 +14,11 @@ import {
   SENTINEL_SERIES_MAX_SCENES,
   SENTINEL_SERIES_MIN_CLEAR_SHARE,
   SENTINEL_SERIES_MIN_COVERAGE,
-} from './limits'
+} from '@/lib/sentinel2/limits'
 import { firstSeenLabel } from './render'
 import { readIndexBands } from './resample'
-import { SentinelError, type LonLatBounds, type SentinelScene } from './stac'
-import { SCL_CLEAR, SENTINEL_NATIVE_PIXEL_M, utm, type RasterReader, type SceneWindow } from './window'
+import { SentinelError, type LonLatBounds, type SentinelScene } from '@/lib/sentinel2/stac'
+import { SCL_CLEAR, SENTINEL_NATIVE_PIXEL_M, utm, type RasterReader, type SceneWindow } from '@/lib/sentinel2/window'
 
 export type AreaGeometry = GeoJSON.Polygon | GeoJSON.MultiPolygon
 

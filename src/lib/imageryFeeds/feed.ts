@@ -18,6 +18,10 @@ export interface ImageryTileLayer {
   /** An XYZ template, `{z}/{x}/{y}` in the order the service wants them. */
   tiles: string
   tileSize?: number
+  /** What the layer is, where a frame has several (`Landsat`, `Sentinel-2`). */
+  name?: string
+  /** The shallowest zoom it is drawn at; shallower, the layer draws nothing. */
+  minZoom?: number
   /** The deepest zoom the service has real tiles for; the map stretches beyond it. */
   maxZoom: number
   /** The credit, as text or the HTML MapLibre's attribution control takes. */
@@ -69,6 +73,10 @@ export interface ImageryFeed<S = unknown> {
   id: string
   /** The feed's name in a chooser: "Esri Wayback". */
   label: string
+  /** A short name for labels and layer names: "Wayback". */
+  shortLabel: string
+  /** What one date of the feed is called: release, day, scene. */
+  frameNoun: { one: string; many: string }
   /** One line on what it is and how far to trust its dates. */
   description: string
   /** The timeline's accessible name: what a frame's date means ("Esri Wayback mosaic release date"). */
@@ -84,8 +92,24 @@ export interface ImageryFeed<S = unknown> {
   period: 'year' | 'month'
   /** Play shows each frame this long before the next, ms. */
   playbackMs: number
-  /** Every frame, oldest first. Throws with a message a person can act on. */
-  listFrames(context: ImageryFeedContext): Promise<ImageryFrame<S>[]>
+  /**
+   * Every frame, oldest first. Throws with a message a person can act on. A feed gives this or
+   * `listFramesAt`, never neither.
+   */
+  listFrames?(context: ImageryFeedContext): Promise<ImageryFrame<S>[]>
+  /**
+   * For a feed whose dates depend on where the map is (scenes searched over a place): the frames
+   * covering the map centre, oldest first. The timeline lists again only when the centre moves to
+   * another `listAreaKey`, keeping the last list (and the shown date) meanwhile.
+   */
+  listFramesAt?(place: ImageryPlace, context: ImageryFeedContext): Promise<ImageryFrame<S>[]>
+  /** Places with one key share a list. Required with `listFramesAt`. */
+  listAreaKey?(place: ImageryPlace): string
+  /**
+   * The MapLibre protocol the feed's tiles are served through (`pgmaps-s2`), when they are not plain
+   * HTTPS: the map registers its handler before drawing them (`imagery-protocols.ts`).
+   */
+  tileProtocol?: string
   /** The deepest zoom a place is read at (the feed's deepest real tiles). */
   placeMaxZoom: number
   /**
