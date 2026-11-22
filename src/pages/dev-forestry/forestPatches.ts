@@ -135,6 +135,9 @@ export function growForestPatch(
       // The patch is a square tile: grow only it, not the circle around it.
       bounds: [west, south, east, north],
       ...(far ? { canopyTileMeters: canopyTileMeters(band) } : {}),
+      // The background band lists the core read before its own: there the first stand decides open ground. The core
+      // bands keep any open polygon's word, so a regrowth stand listed first never lets a tile over a fresh block.
+      ...(band.background ? { canopyOpenByFirstStand: true } : {}),
     }),
     ...edges,
   ].flatMap((tree) => {

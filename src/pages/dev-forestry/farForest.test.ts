@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { placeTrees, type InventoryStand } from './forest'
+import { CANOPY_CLOSES_AT_METERS, placeTrees, type InventoryStand } from './forest'
 import { canopyTileMeters, forestBands, forestPatches, growForestPatch, isFarBand } from './forestPatches'
 import { lightBearing } from './GroundRelief'
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
@@ -137,6 +137,93 @@ describe('the far bands of a grown patch', () => {
   })
 })
 
+describe('a fresh block listed as regrowth over the inventory’s open ground', () => {
+  // The page lists a recently cut block's regrowth stand (height 0 inside its regeneration lag) before the inventory,
+  // whose VRI polygon over the same ground is herb. No canopy tile may roof the block.
+  const level: ElevationSource = { elevationAt: () => 700, elevationAtMercator: () => 700 }
+  const reachingInto = (
+    trees: ReturnType<typeof growForestPatch>,
+    tileMeters: number,
+    middle: { lng: number; lat: number },
+    half: number,
+  ) => {
+    const east = 111_320 * Math.cos((middle.lat * Math.PI) / 180)
+    const inside = (lng: number, lat: number) =>
+      Math.abs(lng - middle.lng) < half / east && Math.abs(lat - middle.lat) < half / 111_320
+    return {
+      stems: trees.filter((tree) => inside(tree.lng, tree.lat)).length,
+      tiles: trees.filter((tree) => {
+        const reach = (tileMeters / 2) * (tree.canopy?.reach ?? 0)
+        return (
+          reach > 0 &&
+          [
+            [-1, -1],
+            [1, -1],
+            [1, 1],
+            [-1, 1],
+            [0, -1],
+            [1, 0],
+            [0, 1],
+            [-1, 0],
+          ].some(([dx, dy]) => inside(tree.lng + (dx * reach) / east, tree.lat + (dy * reach) / 111_320))
+        )
+      }).length,
+    }
+  }
+  const squareAt = (middle: { lng: number; lat: number }, metres: number): GeoJSON.Polygon => {
+    const dLng = metres / (111_320 * Math.cos((middle.lat * Math.PI) / 180))
+    const dLat = metres / 111_320
+    return {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [middle.lng - dLng, middle.lat - dLat],
+          [middle.lng + dLng, middle.lat - dLat],
+          [middle.lng + dLng, middle.lat + dLat],
+          [middle.lng - dLng, middle.lat + dLat],
+          [middle.lng - dLng, middle.lat - dLat],
+        ],
+      ],
+    }
+  }
+  const inventoryOver = (block: GeoJSON.Polygon, regrowthHeight: number): InventoryStand[] => [
+    { geometry: block, species: null, heightMeters: regrowthHeight, regenerationFraction: 1 },
+    { geometry: block, species: null, heightMeters: null, cover: 'herb' },
+  ]
+
+  it('is not roofed in a core far band, as it was before the background band', () => {
+    const bands = forestBands(3500)
+    const patch = forestPatches(CENTRE, bands, CENTRE.lat).find((each) => each.band === 3)!
+    const middle = { lng: (patch.bounds[0] + patch.bounds[2]) / 2, lat: (patch.bounds[1] + patch.bounds[3]) / 2 }
+    const block = squareAt(middle, 300)
+    const grow = (inventory: InventoryStand[]) =>
+      growForestPatch(patch, bands[3], { stands: [], clearings: [], inventory, heightMeters: 25 }, level, CENTRE.lat)
+    const herbOnly = grow([{ geometry: block, species: null, heightMeters: null, cover: 'herb' }])
+    expect(herbOnly.length).toBeGreaterThan(50)
+    expect(reachingInto(herbOnly, canopyTileMeters(bands[3]), middle, 300).tiles).toBe(0)
+    // Listed first, a regrowth stand grows its own stems (as a stem reads the inventory), but any open polygon keeps
+    // the tiles off in the core bands, even where the regrowth stand has grown past canopy closure.
+    for (const height of [0, 8, 20]) {
+      const trees = grow(inventoryOver(block, height))
+      expect(reachingInto(trees, canopyTileMeters(bands[3]), middle, 300).tiles).toBe(0)
+    }
+  })
+
+  it('is not roofed in the background band while its regrowth has not closed canopy', () => {
+    const bands = forestBands(3500, 8000)
+    const patch = forestPatches(CENTRE, bands, CENTRE.lat, 'read').find((each) => each.band === 4)!
+    const middle = { lng: (patch.bounds[0] + patch.bounds[2]) / 2, lat: (patch.bounds[1] + patch.bounds[3]) / 2 }
+    const block = squareAt(middle, 600)
+    const grow = (inventory: InventoryStand[]) =>
+      growForestPatch(patch, bands[4], { stands: [], clearings: [], inventory, heightMeters: 25 }, level, CENTRE.lat)
+    for (const height of [0, CANOPY_CLOSES_AT_METERS]) {
+      const seen = reachingInto(grow(inventoryOver(block, height)), canopyTileMeters(bands[4]), middle, 600)
+      if (height === 0) expect(seen.stems).toBe(0)
+      expect(seen.tiles).toBe(0)
+    }
+  })
+})
+
 describe('lightBearing', () => {
   it('gives where a light comes from, clockwise from north, for a direction in the mercator frame', () => {
     // x east, y south: a light in the south is +y.
@@ -216,6 +303,15 @@ describe('the background band (Distant trees)', () => {
   }
   const grow = (inventory: InventoryStand[]) =>
     growForestPatch(patch, bands[4], { stands: [], clearings: [], inventory, heightMeters: 25 }, level, CENTRE.lat)
+
+  it('leaves every core patch as it was: turning it on or off regrows only its own band', () => {
+    const without = forestPatches(CENTRE, forestBands(3500), CENTRE.lat)
+    const withIt = forestPatches(CENTRE, bands, CENTRE.lat, 'read')
+    const core = withIt.filter((each) => !bands[each.band].background)
+    expect(core).toEqual(without)
+    expect(withIt.filter((each) => bands[each.band].background).every((each) => each.key.endsWith('@read'))).toBe(true)
+    expect(forestBands(3500, 8000).slice(0, 4)).toEqual(forestBands(3500))
+  })
 
   it('is a far band of 160 m stems laying 200 m tiles', () => {
     expect(isFarBand(bands[4])).toBe(true)

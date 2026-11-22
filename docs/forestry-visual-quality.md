@@ -397,7 +397,13 @@ again. Each settled frame of a framed capture waits for its tiles by their
 progress (`SETTLE_LIMITS`, `settleGivenUp`, `mapCapture.ts`): at least 45 s, as
 the old fixed wait did; past that only while a tile has loaded within the last
 20 s; and never past 3 minutes. The reason still names the tiles ("no tile
-loaded for 20 s (its tiles were still loading)"). PGMaps' own analysis sheet is
+loaded for 20 s (its tiles were still loading)"). All of one framed capture's
+settles (each frame's display and every class, zone and landform pass) share
+one budget (`CaptureBudget`): 240 s from its start
+(`FRAMED_CAPTURE_DEADLINE_MS`, below the save's 300 s, which also covers the
+screenshot) and the caller's `signal`. Past it, or once the signal fires, the
+capture stops at its next check with `CaptureStopped`, never a partial figure,
+and puts the camera back itself. PGMaps' own analysis sheet is
 drawn a second time when the first try fails: under load a 15 s wait failed
 about half the views of a batch. With `capture(ids, { before: true })` (Save & export's
 before pictures) each place's views are also drawn before harvest
@@ -1156,7 +1162,10 @@ and saved comparisons travel in **Save & export → Project**.
   the source and capture measurement bases and check framing, treatment and
   exclusions. A percentage-point difference requires matching bases. The run's
   sightline figure at capture is printed beside the pixel figure, never replaced
-  by it. A saved review keeps the selected values, source, counts, reviewer and
+  by it, and called the assessment's figure only where the capture recorded
+  that the run stood behind it (`comparisonSightline` over `capturedSightline`);
+  a figure kept without that record is labelled as the run's reading at
+  capture. A saved review keeps the selected values, source, counts, reviewer and
   evidence hashes.
 - **Study exhibits** searches the figure catalogue by caption, document, page,
   viewpoint or recorded date and opens the selected exhibit and its source.
@@ -1533,7 +1542,9 @@ cutblocks and the results report existing + proposed = cumulative.
   lookup. Every output prints what line c rests on beside X
   (`runExistingBasis`, `existingBasis.ts`): "DataBC openings (…), complete
   over the landform, read 12 Nov 2026", or "Reviewer assumption: the included
-  features are all the existing disturbance (diagnostic; …)" — the Results
+  features are all the existing disturbance (not confirmed by a complete
+  inventory read: …)", never "diagnostic", which marks a withheld figure; a
+  read that could not be made, or was not asked for, carries no date — the Results
   tiles, step 4's line c, the Viewpoint summary, Save & export's *Run* part,
   the FS1252 draft and worksheet, the evidence package, the block note, the
   Visuals paragraph's basis and each viewpoint's calculation in the VIA
@@ -1958,9 +1969,11 @@ street-level photo from Mapillary, or with a photo of your own.
 - **Find the location of a photo without GPS.** In Camera, choose **Pick a search area** and click an approximate
   centre on the plan. PGMaps tests nine locations over a 1 km square, searching every heading against the terrain
   skyline (`photoLocationSearch.ts`). The search keeps the field of view fixed. Set the lens and, for an aerial
-  photo, the altitude before searching. At each location every skyline reader that finds a believable skyline in the
-  photo is tried, as the camera search tries them (`bestReaderFit`: the colour reader alone when its fit settles,
-  else all of them, the best by `searchRank`). When one fit stands clearly ahead it offers up to three starting
+  photo, the altitude before searching. One skyline reader is kept for the whole search, so every location is scored
+  against the same reading of the skyline (`searchByOneReader`): the colour reader at every location, kept alone when
+  its best fit settles; else every reader that finds a believable skyline in the photo, the one whose fits sum to the
+  highest `searchRank` over the locations. Losses read on different readers' lines are never compared, and a near tie
+  is judged within the one reader. When one fit stands clearly ahead it offers up to three starting
   cameras. When fits are about as good as each other (a near tie between places, or a heading with a runner-up as
   close) it lists them with how far apart they are, in metres and as an arc of headings, and offers none of them as
   a start: the top of a tie is not a suggestion. A start taken from the search reads in the Position step as *a
@@ -2844,7 +2857,8 @@ Settings beside *Display quality*, all display only:
   hands the other renderers, which have no spray sheet.
 - **Distant trees.** *Off* (default) or *Out to 8 km*: a coarse background
   stand on the hills behind a small scene, on terrain and open ground read for
-  it. It adds stems, so changing it places the stand again; see **The far
+  it. Changing it grows or drops the background band's patches only: the core
+  stand's patches never depend on it; see **The far
   forest** for what it reads and what it leaves to the road view's own ground.
   The sightline run, the camera and the scene package never read it. A saved
   view is a picture of what the road view draws, so one saved with it on shows
@@ -2962,7 +2976,9 @@ the terrain component's layer and adds none. Display only.
 one stem for every 160 m, out to 8 km when the road and assessment terrain cover a smaller scene.
 It reads its own coarse terrain mosaic (up to 25 DEM tiles at zoom 9–11) and VRI's open ground over
 the same square, each kept by request so a road view closed and opened again gets the very read it
-had. The band's ground is the road view's own where it has one and the mosaic only past it, and only
+had. Only a whole read is kept (no terrain tile missing, no inventory tile failed, capped or cut
+short by the time limit); a partial one is drawn but read again next time, and a retry reads afresh
+once, its read then kept like any other. The band's ground is the road view's own where it has one and the mosaic only past it, and only
 inside a box the open-ground read came back whole for: ground that could not be read stays empty,
 and a stem beside it stops its canopy tile short of it (`placeTrees`' `canopyKnownAt`). Its stands
 follow the core's rules (`groundCoverFromBclcs`): water, wetland, rock, herb, low shrub and other
@@ -2970,11 +2986,15 @@ non-treed ground grow nothing, tall shrub a low thicket, a sparse stand its own 
 polygon whose record does not say what covers it is unknown, not open, so it grows the regional
 stand as the core does. They are listed after the road view's own inventory, and a polygon wholly
 inside the run's own read is dropped, so the core read decides wherever it has an answer; a canopy
-tile reads the stand that wins its ground, as a stem does, so a core stand listed first is never
-held back by an open polygon of the background's.
+tile in this band reads the stand that wins its ground, as a stem does (`canopyOpenByFirstStand`), so
+a taller core stand listed first is never held back by an open polygon of the background's, and a
+winning stand not above canopy closure (a block's regrowth inside its regeneration lag) is open. The
+core bands keep the stricter rule: any open polygon keeps a tile off its ground, whatever is listed
+first, so a fresh block listed as regrowth before its herb polygon is never roofed.
 
-Turning it on places the stand again (it adds stems, so its reach is part of the stand's placement,
-`forestPatches`' key). The reach is set as soon as it is asked for, and the band's ground and
+Turning it on or off grows or drops only the background band's patches: their keys carry the read
+(`@key`), every core band keeps its patches, and the reach is not part of `forestPatches`' key. The
+reach is set as soon as it is asked for, and the band's ground and
 inventory reach `ForestOverlay` apart from the forest configuration (`background`): the core stand
 is drawn as soon as the road view's terrain loads, and when the background read comes only the
 background band's patches grow, keyed to that read, with nothing else regrown. The read is asked for

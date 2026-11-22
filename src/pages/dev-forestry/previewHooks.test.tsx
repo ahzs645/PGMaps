@@ -223,6 +223,92 @@ describe('the background band’s read (Distant trees)', () => {
     expect(loaders.openGround).toHaveBeenCalledTimes(1)
   })
 
+  // Each test stands somewhere of its own: whole reads are kept for the module, by request.
+  const roadAt = (lng: number, lat: number) => [
+    [lng, lat],
+    [lng + 0.01, lat + 0.01],
+  ]
+
+  it('reads afresh once on a retry, then keeps that read for a new request over the same ground', async () => {
+    const here = roadAt(-121.6, 52.9)
+    loaders.terrain.mockResolvedValue({ source, missingTileCount: 0 })
+    loaders.contextTerrain.mockResolvedValue({ source: contextSource, missingTileCount: 0 })
+    loaders.openGround.mockResolvedValue(openGround)
+    let view!: ReturnType<typeof create>
+    await act(async () => {
+      view = create(<Terrain points={here} distantTrees />)
+    })
+    views.push(view)
+    const first = terrainResult(view).forestContext
+    expect(first).not.toBeNull()
+    await act(async () => terrainResult(view).retry())
+    const retried = terrainResult(view).forestContext
+    expect(retried).not.toBe(first)
+    expect(loaders.contextTerrain).toHaveBeenCalledTimes(2)
+    // The same ground asked for again (a new extent with the same key) takes the retried read: no third read.
+    await act(async () => view.update(<Terrain points={here.map((point) => [...point])} distantTrees />))
+    expect(terrainResult(view).forestContext).toBe(retried)
+    expect(loaders.contextTerrain).toHaveBeenCalledTimes(2)
+    expect(loaders.openGround).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows a partial read but keeps only a whole one', async () => {
+    const here = roadAt(-120.6, 51.9)
+    loaders.terrain.mockResolvedValue({ source, missingTileCount: 0 })
+    loaders.contextTerrain.mockResolvedValue({ source: contextSource, missingTileCount: 0 })
+    loaders.openGround.mockResolvedValue({ ...openGround, failed: 1 })
+    let first!: ReturnType<typeof create>
+    await act(async () => {
+      first = create(<Terrain points={here} distantTrees />)
+    })
+    const partial = terrainResult(first).forestContext
+    expect(partial?.source).toBe(contextSource)
+    act(() => first.unmount())
+    // A terrain tile missing is partial too.
+    loaders.openGround.mockResolvedValue(openGround)
+    loaders.contextTerrain.mockResolvedValue({ source: contextSource, missingTileCount: 2 })
+    let second!: ReturnType<typeof create>
+    await act(async () => {
+      second = create(<Terrain points={here} distantTrees />)
+    })
+    const missing = terrainResult(second).forestContext
+    expect(missing).not.toBeNull()
+    expect(missing).not.toBe(partial)
+    act(() => second.unmount())
+    loaders.contextTerrain.mockResolvedValue({ source: contextSource, missingTileCount: 0 })
+    let third!: ReturnType<typeof create>
+    await act(async () => {
+      third = create(<Terrain points={here} distantTrees />)
+    })
+    const whole = terrainResult(third).forestContext
+    expect(whole).not.toBe(missing)
+    act(() => third.unmount())
+    let fourth!: ReturnType<typeof create>
+    await act(async () => {
+      fourth = create(<Terrain points={here} distantTrees />)
+    })
+    views.push(fourth)
+    expect(terrainResult(fourth).forestContext).toBe(whole)
+    expect(loaders.contextTerrain).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps the band through a new extent with the same key, before the kept read is handed back', async () => {
+    const here = roadAt(-119.6, 50.9)
+    loaders.terrain.mockResolvedValue({ source, missingTileCount: 0 })
+    loaders.contextTerrain.mockResolvedValue({ source: contextSource, missingTileCount: 0 })
+    loaders.openGround.mockResolvedValue(openGround)
+    let view!: ReturnType<typeof create>
+    await act(async () => {
+      view = create(<Terrain points={here} distantTrees />)
+    })
+    views.push(view)
+    const read = terrainResult(view).forestContext
+    expect(read).not.toBeNull()
+    act(() => view.update(<Terrain points={here.map((point) => [...point])} distantTrees />))
+    expect(terrainResult(view).forestContext).toBe(read)
+    expect(terrainResult(view).forestContextLoading).toBe(false)
+  })
+
   it('reads nothing while it is off', async () => {
     loaders.terrain.mockResolvedValue({ source, missingTileCount: 0 })
     let view!: ReturnType<typeof create>

@@ -300,7 +300,26 @@ export const generalLocationRow = (ctx: ReportContext, label = 'General location
   if (given) return field(label, given, 'scene')
   return field(label, ctx.setting ? settingLocation(ctx.setting) : null, 'run')
 }
-export const missingFields = (rows: FieldRow[]) => rows.filter((row) => row.value === null).map((row) => row.label)
+export const missingFields = (rows: FieldRow[]) =>
+  rows.filter((row) => row.value === null && !WITHHELD_AUTHORITY.has(row)).map((row) => row.label)
+
+/**
+ * Authority rows printed blank only because the objective beside them is blank (`authorityField`): the objective is
+ * what the report still needs, so the row is not listed again.
+ */
+const WITHHELD_AUTHORITY = new WeakSet<FieldRow>()
+
+/**
+ * The objective's authority as a form row, through `establishedBy`: the office's source document only where the
+ * site's objective is recorded and the form prints an objective beside it (`objective`), else blank. A recorded
+ * authority held back that way is not a gap of its own: the objective is.
+ */
+function authorityField(ctx: ReportContext, label: string, objective: string | null | undefined): FieldRow {
+  const authority = objective ? establishedBy(ctx) : null
+  const row = field(label, authority, 'scene')
+  if (!authority && blank(ctx.office.sourceDocument)) WITHHELD_AUTHORITY.add(row)
+  return row
+}
 
 /**
  * Where a figure stands against the objective's range, in words: within it, over it, or below it (a figure under the
@@ -681,7 +700,7 @@ const inventory: ReportPart = {
       const rows = [
         field('Landform', ctx.landform?.name, 'scene'),
         field('Established VQO', objectiveName(ctx), 'scene'),
-        field('Objective source', ctx.office.sourceDocument, 'scene'),
+        authorityField(ctx, 'Objective source', objectiveName(ctx)),
         date,
       ]
       const blocks: ReportBlock[] = [
@@ -722,7 +741,7 @@ const inventory: ReportPart = {
       field('Visual absorption capability', unit?.vac ?? ctx.landform?.vac, 'run'),
       field('Existing visual condition', unit?.evc ?? ctx.office.evc, unit?.evc ? 'run' : 'scene'),
       field('Established VQO', objectiveName(ctx), 'scene'),
-      field('Objective source', ctx.office.sourceDocument, 'scene'),
+      authorityField(ctx, 'Objective source', objectiveName(ctx)),
     ]
     const blocks: ReportBlock[] = [heading('Visual resource management'), fields(rows)]
     const adopted = inventoryAdoption(ctx)
@@ -1627,14 +1646,15 @@ function appendixSite(ctx: ReportContext, vp: FactsViewpoint | null) {
   const unit = (vp ? viewpointInventory(ctx, vp) : null) ?? (sameLandform ? ctx.inventory : null)
   const office = (key: keyof OfficeFields) => (sameLandform ? blank(ctx.office[key]) : null)
   const from = (value: string | undefined) => (value ? 'run' : 'scene') as 'run' | 'scene'
+  const evqo = unit?.vqo ?? vp?.objective ?? objectiveOf(ctx)
   const objective = [
     field('VLI polygon no.', unit?.vsu ?? office('vliPolygon'), from(unit?.vsu)),
     field('EVC', unit?.evc ?? office('evc'), from(unit?.evc)),
     field('VAC', unit?.vac ?? (sameLandform ? ctx.landform?.vac : null), 'run'),
     field('VSC', unit?.vsc ?? office('vsc'), from(unit?.vsc)),
-    field('EVQO', unit?.vqo ?? vp?.objective ?? objectiveOf(ctx), from(unit?.vqo)),
+    field('EVQO', evqo, from(unit?.vqo)),
     inventoryDateField(ctx, 'Date established'),
-    officeRow(ctx, 'sourceDocument', 'Source document'),
+    authorityField(ctx, 'Source document', evqo),
   ]
   return { site, objective }
 }
@@ -2219,15 +2239,26 @@ const figuresAppendix: ReportPart = {
   build: (ctx) => {
     // A report with a calculations part shows each analysis figure there, once; it is not printed twice.
     if (ctx.recipeParts?.includes('calculations')) return { blocks: [] }
+    // With no figure the request to save one is the draft's alone: a file prints no empty appendix and names the gap
+    // in its to-complete list only, as the figure parts do (`noViewpoint`).
+    if (!ctx.figures.length)
+      return {
+        blocks: showsMissing(ctx)
+          ? [
+              { kind: 'pageBreak' },
+              heading('Figures'),
+              text('No saved view has a figure yet: save a viewpoint in the road view.', 'run'),
+            ]
+          : [],
+        toComplete: ['Figures: save a viewpoint'],
+      }
     return {
       blocks: [
         { kind: 'pageBreak' },
         heading('Figures'),
-        ...(ctx.figures.length
-          ? ctx.figures.map((figure): ReportBlock => ({ kind: 'figure', figure, caption: figure.caption }))
-          : [text('No saved view has a figure yet: save a viewpoint in the road view.', 'run')]),
+        ...ctx.figures.map((figure): ReportBlock => ({ kind: 'figure', figure, caption: figure.caption })),
       ],
-      toComplete: ctx.figures.length ? [] : ['Figures: save a viewpoint'],
+      toComplete: [],
     }
   },
 }

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  bestReaderFit,
   hasLocationRelief,
   headingArc,
   photoLocationTrials,
   rankPhotoLocations,
+  searchByOneReader,
   type PhotoLocationCandidate,
 } from './photoLocationSearch'
 import { haversineMeters } from './visibility'
@@ -80,31 +80,54 @@ describe('photo location search', () => {
   })
 })
 
-describe('the skyline readers at one place', () => {
-  it('stops at the first reader when its fit settles', async () => {
-    const tryReader = vi.fn(async (reader: string) => (reader === 'colour' ? fit(0.2, { agreement: 0.97 }) : null))
-    const best = await bestReaderFit(['colour', 'bright', 'smooth'], tryReader)
-    expect(best?.reader).toBe('colour')
-    expect(tryReader).toHaveBeenCalledTimes(1)
+describe('one skyline reader for the whole search', () => {
+  it('keeps the colour reader alone when its best fit settles, trying no other reader', async () => {
+    const tryAt = vi.fn(async (reader: string, place: number) =>
+      reader === 'colour' && place === 1 ? fit(0.2, { agreement: 0.97 }) : reader === 'colour' ? fit(0.3) : null,
+    )
+    const passes: string[] = []
+    const chosen = await searchByOneReader(['colour', 'bright', 'smooth'], 3, tryAt, (pass) => passes.push(pass))
+    expect(chosen?.reader).toBe('colour')
+    expect(chosen?.results.map((result) => result?.meanLoss)).toEqual([0.3, 0.2, 0.3])
+    expect(tryAt.mock.calls.every(([reader]) => reader === 'colour')).toBe(true)
+    expect(passes).toEqual(['first', 'first', 'first'])
   })
 
-  it('searches every reader when the first does not settle, and keeps the best by searchRank', async () => {
-    const results = new Map<string, WideSearchResult | null>([
-      ['colour', fit(0.2, { agreeing: 20, agreement: 0.6 })],
-      ['bright', fit(0.25, { agreeing: 60, agreement: 0.9 })],
-      ['smooth', fit(0.1, { agreeing: 40, agreement: 0.9, trustworthy: false })],
-      ['dim', null],
-    ])
-    const tryReader = vi.fn(async (reader: string) => results.get(reader) ?? null)
-    const best = await bestReaderFit([...results.keys()], tryReader)
-    expect(tryReader.mock.calls.map(([reader]) => reader)).toEqual(['colour', 'bright', 'smooth', 'dim'])
-    expect(best?.reader).toBe('bright')
+  it('compares places on one reader only, chosen by searchRank summed over the places', async () => {
+    // At place 0 the bright reader fits best by far; at places 1 and 2 the smooth reader does, and it sums higher.
+    // A per-place choice would rank place 0's bright fit (loss 0.40) against smooth's fits elsewhere (0.20): a loss
+    // measured against another line. One reader throughout keeps place 0 at smooth's own fit there.
+    const table: Record<string, Array<WideSearchResult | null>> = {
+      colour: [fit(0.1, { agreeing: 10, agreement: 0.5 }), null, null],
+      bright: [fit(0.4, { agreeing: 90, agreement: 0.9 }), fit(0.5, { agreeing: 10, agreement: 0.5 }), null],
+      smooth: [
+        fit(0.6, { agreeing: 30, agreement: 0.8 }),
+        fit(0.2, { agreeing: 60, agreement: 0.9 }),
+        fit(0.25, { agreeing: 60, agreement: 0.9 }),
+      ],
+    }
+    const passes: string[] = []
+    const chosen = await searchByOneReader(
+      ['colour', 'bright', 'smooth'],
+      3,
+      async (reader, place) => table[reader][place],
+      (pass, done) => passes.push(`${pass}${done}`),
+    )
+    expect(chosen?.reader).toBe('smooth')
+    expect(chosen?.results).toEqual(table.smooth)
+    expect(passes).toEqual(['first1', 'first2', 'first3', 'others1', 'others2', 'others3'])
+    const ranked = rankPhotoLocations(
+      chosen!.results.flatMap((result, place) =>
+        result ? [{ ...photoLocationTrials(centre)[place], fit: result }] : [],
+      ),
+    )
+    expect(ranked.candidates.map(({ fit }) => fit.meanLoss)).toEqual([0.2, 0.25, 0.6])
   })
 
-  it('keeps the earlier reader on a tie, and answers null when no reader reads a skyline', async () => {
+  it('keeps the earlier reader on a tie, and answers null when no reader fits anywhere', async () => {
     const same = fit(0.2, { agreeing: 30, agreement: 0.5 })
-    expect((await bestReaderFit(['colour', 'bright'], async () => same))?.reader).toBe('colour')
-    expect(await bestReaderFit(['colour', 'bright'], async () => null)).toBeNull()
-    expect(await bestReaderFit([], async () => same)).toBeNull()
+    expect((await searchByOneReader(['colour', 'bright'], 2, async () => same))?.reader).toBe('colour')
+    expect(await searchByOneReader(['colour', 'bright'], 2, async () => null)).toBeNull()
+    expect(await searchByOneReader([], 2, async () => same)).toBeNull()
   })
 })

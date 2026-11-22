@@ -25,10 +25,10 @@ import type { MatchedCamera } from './matchedCamera'
 import { comparePhotoCameras, type CombinedResult, type CombinedSettings } from './photoCombinedSearch'
 import { depthModelStored, estimatePhotoDepth, type DepthGrid, type PhotoDepthModel } from './photoDepth'
 import {
-  bestReaderFit,
   hasLocationRelief,
   photoLocationTrials,
   rankPhotoLocations,
+  searchByOneReader,
   type PhotoLocation,
   type PhotoLocationCandidate,
   type PhotoLocationSearch,
@@ -3111,8 +3111,8 @@ export function useFieldPhoto({
     show({ status: 'searching', checked: 0, total: locations.length })
     try {
       const pixels = await readPixels(photo)
-      // Every reader that finds a believable skyline in this photo is searched at each place, as the camera search does
-      // (`bestReaderFit`): a sky lit from behind or hazy is read by the brightness readers, not the colour reader.
+      // Every reader that finds a believable skyline in this photo may be searched, as the camera search tries them; one
+      // reader is kept for the whole search (`searchByOneReader`), so every place's fit measures the same skyline.
       const readers = SKYLINE_READERS.filter((reader) => {
         const skyline = skylineRead(photo, pixels, reader)
         return skyline.filter(Boolean).length >= MIN_SKYLINE_COLUMNS && believableSkyline(pixels, skyline)
@@ -3127,14 +3127,17 @@ export function useFieldPhoto({
       }
       const spec = photoTerrainSpec(centre.lng, centre.lat, PHOTO_TERRAIN_RINGS)
       const terrain = await loadOwnTerrain(centre.lng, centre.lat, signal)
-      const candidates: PhotoLocationCandidate[] = []
       const { hfov, eyeHeightMeters, altitudeMeters } = photo.pose
       let knownGround = 0
       let belowGround = 0
       let sampled = 0
-      for (const [index, location] of locations.entries()) {
-        signal.throwIfAborted()
+      // Each place's terrain horizon, read once on the first reader's pass; null where the place cannot be searched.
+      const horizons: Array<{ base: ReturnType<typeof ownPhotoPose>; profile: ProfilePoint[] } | null> = []
+      const horizonAt = async (place: number) => {
+        if (place < horizons.length) return horizons[place]
+        const location = locations[place]
         const ground = terrain.elevationAt(location.lng, location.lat)
+        let horizon: (typeof horizons)[number] = null
         if (Number.isFinite(ground)) {
           knownGround += 1
           if (altitudeMeters != null && altitudeMeters <= ground) belowGround += 1
@@ -3146,31 +3149,47 @@ export function useFieldPhoto({
             signal,
           )
           if (profile.length) sampled += 1
-          if (hasLocationRelief(profile)) {
-            const best = await bestReaderFit(readers, async (reader) => {
-              const skyline = skylineOf(photo, pixels, base, reader)
-              if (skyline.filter(Boolean).length < MIN_SKYLINE_COLUMNS) return null
-              return runWideOrientation(
-                {
-                  pose: { ...base, roll: 0 },
-                  profile,
-                  skyline,
-                  pitchRange: pitchRangeFor({ tilt: undefined, airborne: altitudeMeters != null }),
-                  rollRange: [-15, 15],
-                  headingSpan: 180,
-                },
-                signal,
-              )
-            })
-            signal.throwIfAborted()
-            const fit = best?.result ?? null
-            if (fit && hasLocationRelief(horizonSlice(profile, fit.bearing, frameHalfDiagonal(base)))) {
-              candidates.push({ ...location, fit })
-            }
-          }
+          if (hasLocationRelief(profile)) horizon = { base, profile }
         }
-        show({ status: 'searching', checked: index + 1, total: locations.length })
+        horizons[place] = horizon
+        return horizon
       }
+      const chosen = await searchByOneReader(
+        readers,
+        locations.length,
+        async (reader, place) => {
+          signal.throwIfAborted()
+          const horizon = await horizonAt(place)
+          if (!horizon) return null
+          const { base, profile } = horizon
+          const skyline = skylineOf(photo, pixels, base, reader)
+          if (skyline.filter(Boolean).length < MIN_SKYLINE_COLUMNS) return null
+          const fit = await runWideOrientation(
+            {
+              pose: { ...base, roll: 0 },
+              profile,
+              skyline,
+              pitchRange: pitchRangeFor({ tilt: undefined, airborne: altitudeMeters != null }),
+              rollRange: [-15, 15],
+              headingSpan: 180,
+            },
+            signal,
+          )
+          signal.throwIfAborted()
+          // A fit is a candidate only where the terrain it faces has relief enough to tell places apart.
+          return fit && hasLocationRelief(horizonSlice(profile, fit.bearing, frameHalfDiagonal(base))) ? fit : null
+        },
+        (pass, done) =>
+          show({
+            status: 'searching',
+            checked: done,
+            total: locations.length,
+            ...(pass === 'others' ? { otherReaders: true as const } : {}),
+          }),
+      )
+      const candidates: PhotoLocationCandidate[] = (chosen?.results ?? []).flatMap((fit, place) =>
+        fit ? [{ ...locations[place], fit }] : [],
+      )
       if (knownGround > 0 && belowGround === knownGround) {
         show({ status: 'error', message: 'The camera altitude is below the terrain in this area. Check it in Adjust.' })
         return

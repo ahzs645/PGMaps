@@ -6,6 +6,7 @@ import { FORM_INPUT_CLASS } from '@/components/ui/form-field'
 import { amount, chosenValues, referenceArithmetic, type ReferenceRow } from './referenceMeasurements'
 import {
   comparisonFigures,
+  comparisonSightline,
   numeratorChoices,
   denominatorChoices,
   type ReferenceComparison,
@@ -41,6 +42,7 @@ function Pick<T extends string>({
 }
 function Result({ record }: { record: ReferenceComparison }) {
   const { result, reference, difference } = comparisonFigures(record)
+  const sightline = comparisonSightline(record.capture)
   const check = referenceArithmetic(record.source),
     chosen = referenceArithmetic(record.selected)
   return (
@@ -62,9 +64,12 @@ function Result({ record }: { record: ReferenceComparison }) {
       </p>
       <p>
         Run sightline figure at capture{' '}
-        {record.capture.sightlinePercent == null
-          ? 'not recorded with this figure'
-          : pct(record.capture.sightlinePercent) + ' (perspective, the assessment’s figure)'}
+        {sightline.percent === null
+          ? sightline.note
+          : pct(sightline.percent) +
+            (sightline.assessment
+              ? ' (perspective, the assessment’s figure)'
+              : ' (perspective, as the run read it at capture; whether the run stood behind it was not recorded with this comparison)')}
       </p>
       <p>
         {difference === null

@@ -29,7 +29,13 @@ export type PhotoLocationBasis = { hfov: number; eyeHeightMeters: number; altitu
 export type PhotoLocationSpread = { metres: number; headings: { from: number; to: number } }
 
 export type PhotoLocationSearch =
-  | { status: 'searching'; checked: number; total: number }
+  | {
+      status: 'searching'
+      checked: number
+      total: number
+      /** Set while the other skyline readers are tried, the colour reader not having settled (`searchByOneReader`). */
+      otherReaders?: true
+    }
   | {
       status: 'done'
       candidates: PhotoLocationCandidate[]
@@ -67,27 +73,52 @@ export function photoLocationTrials(centre: PhotoLocation): PhotoLocation[] {
 }
 
 /**
- * The best fit at one place over the skyline readers (`SKYLINE_READERS`), by the rule the camera search uses: the
- * first reader (colour) alone when its fit settles (`READER_SETTLED_AGREEMENT`, trusted), else every reader, keeping
- * the best by `searchRank` and, on a tie, the earlier reader. `tryReader` answers null for a reader whose skyline is
- * too short or not believable there.
+ * One skyline reader for the whole search, so every place is scored against the same reading of the photo's skyline:
+ * a mean loss is a distance between that reading and a place's terrain, and two places scored on different readers'
+ * skylines are not comparable. The rule is the camera search's (`SKYLINE_READERS`), applied over the places: the first
+ * reader (colour) is tried at every place and kept alone when its best fit settles (`READER_SETTLED_AGREEMENT`,
+ * trusted); else every other reader is tried at every place, and the reader kept is the one whose fits sum to the
+ * highest `searchRank` over the places (a place it cannot read adds nothing), the earlier reader on a tie.
+ *
+ * `tryAt` answers a reader's fit at a place, or null where the reader's skyline is too short or not believable there,
+ * or the place gives no usable fit. `onPlace` hears each place finished, by pass. Answers that reader's result at each
+ * place (null where it has none), or null when no reader fits anywhere.
  */
-export async function bestReaderFit<R>(
+export async function searchByOneReader<R>(
   readers: ReadonlyArray<R>,
-  tryReader: (reader: R) => Promise<WideSearchResult | null>,
-): Promise<{ reader: R; result: WideSearchResult } | null> {
+  places: number,
+  tryAt: (reader: R, place: number) => Promise<WideSearchResult | null>,
+  onPlace?: (pass: 'first' | 'others', done: number) => void,
+): Promise<{ reader: R; results: Array<WideSearchResult | null> } | null> {
   const [first, ...others] = readers
   if (first === undefined) return null
-  const firstResult = await tryReader(first)
-  let chosen: { reader: R; result: WideSearchResult } | null = firstResult
-    ? { reader: first, result: firstResult }
-    : null
-  if (chosen && chosen.result.fit.trustworthy && chosen.result.fit.agreement >= READER_SETTLED_AGREEMENT) return chosen
-  const more = await Promise.all(others.map((reader) => tryReader(reader)))
-  more.forEach((result, k) => {
-    if (result && (!chosen || searchRank(result) > searchRank(chosen.result))) chosen = { reader: others[k], result }
+  const firstResults: Array<WideSearchResult | null> = []
+  for (let place = 0; place < places; place++) {
+    firstResults.push(await tryAt(first, place))
+    onPlace?.('first', place + 1)
+  }
+  const bestOf = (results: ReadonlyArray<WideSearchResult | null>) =>
+    results.reduce<WideSearchResult | null>(
+      (best, result) => (result && (!best || searchRank(result) > searchRank(best)) ? result : best),
+      null,
+    )
+  const firstBest = bestOf(firstResults)
+  if (firstBest && firstBest.fit.trustworthy && firstBest.fit.agreement >= READER_SETTLED_AGREEMENT)
+    return { reader: first, results: firstResults }
+  const perReader: Array<Array<WideSearchResult | null>> = [firstResults, ...others.map(() => [])]
+  for (let place = 0; place < places; place++) {
+    const atPlace = await Promise.all(others.map((reader) => tryAt(reader, place)))
+    atPlace.forEach((result, k) => perReader[k + 1].push(result))
+    onPlace?.('others', place + 1)
+  }
+  const total = (results: ReadonlyArray<WideSearchResult | null>) =>
+    results.reduce((sum, result) => sum + (result ? searchRank(result) : 0), 0)
+  let chosen = -1
+  perReader.forEach((results, k) => {
+    if (!results.some(Boolean)) return
+    if (chosen < 0 || total(results) > total(perReader[chosen])) chosen = k
   })
-  return chosen
+  return chosen < 0 ? null : { reader: readers[chosen], results: perReader[chosen] }
 }
 
 const wrap = (degrees: number) => ((degrees % 360) + 360) % 360
@@ -108,7 +139,10 @@ export function headingArc(bearings: ReadonlyArray<number>): { from: number; to:
   return { from: sorted[after], to: sorted[(after + sorted.length - 1) % sorted.length] }
 }
 
-/** Rank positions using the same photographed ridge and fixed lens at every trial. */
+/**
+ * Rank positions using the same photographed ridge and fixed lens at every trial: every fit must come from one skyline
+ * reader (`searchByOneReader`), so the mean losses compared here and the near tie judged on them measure the same line.
+ */
 export function rankPhotoLocations(trials: PhotoLocationCandidate[]): {
   candidates: PhotoLocationCandidate[]
   ambiguous: boolean

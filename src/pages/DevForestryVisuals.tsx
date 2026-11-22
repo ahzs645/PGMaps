@@ -7111,7 +7111,6 @@ function DevForestryVisuals({
       forestConfiguration.standHeightMeters,
       forestConfiguration.elevation,
       forestConfiguration.farRadiusMeters,
-      forestConfiguration.backgroundRadiusMeters,
     ]
     return new globalThis.Map<string, TreeInstance[]>()
   }, [
@@ -7124,7 +7123,6 @@ function DevForestryVisuals({
     forestConfiguration.standHeightMeters,
     forestConfiguration.elevation,
     forestConfiguration.farRadiusMeters,
-    forestConfiguration.backgroundRadiusMeters,
   ])
   // The legend folds while the map shares the screen with the road view or the summary, where it
   // would cover much of a half-width map; a click opens it, until the arrangement changes again.

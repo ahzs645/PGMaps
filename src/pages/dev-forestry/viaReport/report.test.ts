@@ -655,6 +655,19 @@ describe('views of the package a report or document does not print', () => {
   })
 })
 
+describe('the figures appendix with no figure', () => {
+  const build = (ctx: ReportContext) => findReportPart('figures')!.build(ctx)
+
+  it('asks for a saved view only on the draft; a file prints nothing and lists the gap', () => {
+    const file = build(context('perspective-report-net-private'))
+    expect(file.blocks).toEqual([])
+    expect(file.toComplete).toEqual(['Figures: save a viewpoint'])
+    const draft = build(context('perspective-report-net-private', { draft: true }))
+    expect(all(draft.blocks)).toContain('No saved view has a figure yet')
+    expect(draft.toComplete).toEqual(['Figures: save a viewpoint'])
+  })
+})
+
 describe('the objective’s authority', () => {
   const sentences = (ctx: ReportContext, id: string) => all(findReportPart(id)!.build(ctx).blocks)
   const gaps = (ctx: ReportContext, id: string) => findReportPart(id)!.build(ctx).toComplete ?? []
@@ -687,6 +700,33 @@ describe('the objective’s authority', () => {
       'Established visual quality objective',
       'Objective source document',
     ])
+  })
+
+  it('leaves the form rows’ authority blank beside a blank objective, without listing it as a gap', () => {
+    const rowsOf = (ctx: ReportContext, id: string, label: string) =>
+      findReportPart(id)!
+        .build(ctx)
+        .blocks.flatMap((block) => (block.kind === 'fields' ? block.rows : []))
+        .filter((row) => row.label === label)
+    const both = context('perspective-report-net-private', { office: { sourceDocument: 'a made-up land use order' } })
+    const authorityOnly = context('perspective-report-net-private', {
+      ...noObjective,
+      office: { sourceDocument: 'a made-up land use order' },
+    })
+    // The inventory part, with the inventory's units and with the office fields alone.
+    for (const over of [{ inventoryUnits: [] }, { inventoryUnits: null }] as Partial<ReportContext>[]) {
+      expect(rowsOf({ ...both, ...over }, 'inventory', 'Objective source')[0].value).toBe('a made-up land use order')
+      const withheld = { ...authorityOnly, ...over }
+      expect(rowsOf(withheld, 'inventory', 'Objective source')[0].value).toBeNull()
+      expect(sentences(withheld, 'inventory')).not.toContain('a made-up land use order')
+      expect(gaps(withheld, 'inventory')).not.toContain('Objective source')
+    }
+    // Appendix 1's 3.1.3 lines: the source document beside the EVQO the form prints.
+    expect(sentences(both, 'appendix-1')).toContain('a made-up land use order')
+    expect(sentences(authorityOnly, 'appendix-1')).not.toContain('a made-up land use order')
+    expect(gaps(authorityOnly, 'appendix-1')).not.toContain('Source document')
+    const neither = context('perspective-report-net-private', { ...noObjective, office: {} })
+    expect(gaps(neither, 'appendix-1')).toContain('Source document')
   })
 
   it('prints a historical reference only among the references, never as the objective’s authority', () => {

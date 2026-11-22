@@ -38,12 +38,15 @@ export function runExistingBasis(
   const assumed = quality.existingAssumed ?? inventory === 'scenario-only'
   const date = evidence?.retrievedAt ? formatFieldDate(evidence.retrievedAt.slice(0, 10)) : null
   const source = `DataBC openings${evidence?.source ? ` (${evidence.source})` : ''}`
-  const read = `${source}, ${SOURCE_STATUS[inventory]}${date && inventory !== 'not-requested' ? `, read ${date}` : ''}`
+  // A date says when a read came back: a source never looked up, or one that could not be read, has none to give.
+  const dated = date && inventory !== 'not-requested' && inventory !== 'unavailable'
+  const read = `${source}, ${SOURCE_STATUS[inventory]}${dated ? `, read ${date}` : ''}`
   const sourceConfirmed = inventory === 'complete'
   const label = sourceConfirmed
     ? `${read}${assumed ? '; the reviewer also confirmed the included features' : ''}`
     : assumed
-      ? `Reviewer assumption: the included features are all the existing disturbance (diagnostic; ${read})`
+      ? // The assumption makes X ready (`runFigures`): it is the reviewer's, never the diagnostic figure's label.
+        `Reviewer assumption: the included features are all the existing disturbance (not confirmed by a complete inventory read: ${read})`
       : `Not confirmed: ${read}`
   return { inventory, assumed, sourceConfirmed, label }
 }

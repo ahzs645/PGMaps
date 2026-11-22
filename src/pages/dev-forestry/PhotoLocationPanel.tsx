@@ -31,7 +31,9 @@ export function PhotoLocationPanel({
       {search?.status === 'searching' ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p role="status" className="text-xs">
-            Checking terrain at {search.checked} of {search.total} locations
+            {search.otherReaders
+              ? `Reading the skyline another way at ${search.checked} of ${search.total} locations`
+              : `Checking terrain at ${search.checked} of ${search.total} locations`}
           </p>
           <Button type="button" variant="outline" size="sm" onClick={photo.cancelLocationSearch}>
             Cancel
