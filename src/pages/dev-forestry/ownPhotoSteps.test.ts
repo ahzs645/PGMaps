@@ -43,6 +43,16 @@ describe('ownPhotoSteps', () => {
     expect(next).toBe('position')
   })
 
+  it('calls a position from the location search a start to confirm, never the road view’s spot', () => {
+    const { steps, next } = ownPhotoSteps({ ...base, position: 'skyline' })
+    expect(steps.position).toEqual({
+      state: 'todo',
+      note: 'a start from the location search: confirm where it was taken',
+    })
+    expect(steps.position.note).not.toContain('road view')
+    expect(next).toBe('position')
+  })
+
   it('reads a trusted skyline search as done, and an unsettled one as wanting attention', () => {
     const found = ownPhotoSteps({ ...base, heading: 'skyline', search: { trustworthy: true, ambiguous: false } })
     expect(found.steps.direction).toEqual({ state: 'done', note: 'fitted to the skyline' })

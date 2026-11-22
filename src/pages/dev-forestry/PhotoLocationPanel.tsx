@@ -3,7 +3,13 @@ import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 
 import type { StartPlanPick } from './PhotoCameraTools'
+import type { PhotoLocationSpread } from './photoLocationSearch'
 import type { OwnPhoto, FieldPhotoState } from './useFieldPhoto'
+
+/** The headings a tie leaves open, as words: one heading, or the arc clockwise from one to the other. */
+function headingSpan({ from, to }: PhotoLocationSpread['headings']) {
+  return Math.round(from) === Math.round(to) ? `${Math.round(from)}°` : `${Math.round(from)}° to ${Math.round(to)}°`
+}
 
 export function PhotoLocationPanel({
   own,
@@ -68,13 +74,24 @@ export function PhotoLocationPanel({
       {search?.status === 'done' &&
         (search.candidates.length ? (
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">
-              Searched at {search.basis.hfov.toFixed(0)}° across.{' '}
-              {search.ambiguous
-                ? 'Several locations or headings fit closely. Compare landmarks before choosing.'
-                : 'Use a candidate as a starting camera and check the model view against recognizable landmarks.'}
-            </p>
-            <ol className="space-y-1">
+            {search.ambiguous ? (
+              // A near tie: the fits are listed so the reviewer can look, and none is offered as a start. The top of a
+              // tie is not a suggestion.
+              <InlineAlert tone="warning">
+                Searched at {search.basis.hfov.toFixed(0)}° across. Several places fit about as well
+                {search.spread
+                  ? `: up to ${Math.round(search.spread.metres)} m apart, facing ${headingSpan(search.spread.headings)}`
+                  : ''}
+                . None is offered as a start. Search a smaller area round a place you know, or set a rough position and
+                pair landmarks.
+              </InlineAlert>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Searched at {search.basis.hfov.toFixed(0)}° across. Use a candidate as a starting camera and check the
+                model view against recognizable landmarks.
+              </p>
+            )}
+            <ol className="space-y-1" aria-label={search.ambiguous ? 'Fits about as good as each other' : 'Candidates'}>
               {search.candidates.map((candidate, index) => (
                 <li
                   key={`${candidate.lng},${candidate.lat}`}
@@ -84,16 +101,18 @@ export function PhotoLocationPanel({
                     {candidate.lat.toFixed(5)}, {candidate.lng.toFixed(5)} · {candidate.fit.bearing.toFixed(1)}° ·{' '}
                     {candidate.fit.fit.agreeing} skyline samples aligned
                   </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="xs"
-                    className="touch:h-10"
-                    aria-label={`Use candidate ${index + 1} as a starting camera`}
-                    onClick={() => photo.useLocation(own.id, candidate)}
-                  >
-                    Use as a start
-                  </Button>
+                  {!search.ambiguous && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      className="touch:h-10"
+                      aria-label={`Use candidate ${index + 1} as a starting camera`}
+                      onClick={() => photo.useLocation(own.id, candidate)}
+                    >
+                      Use as a start
+                    </Button>
+                  )}
                 </li>
               ))}
             </ol>

@@ -65,6 +65,9 @@ function positionStep({ position, airborne }: OwnPhotoStepsInput): OwnPhotoStepR
       return { state: 'done', note: 'solved from the paired points' }
     case 'reviewer':
       return { state: 'done', note: `set by you${height}` }
+    case 'skyline':
+      // *Find the photo location*: one of nine places 500 m apart that fit the skyline best, a start to work from.
+      return { state: 'todo', note: 'a start from the location search: confirm where it was taken' }
     default:
       // The road view's spot or a default: a start, not where the photo was taken.
       return { state: 'todo', note: 'the road view’s spot: set where the photo was taken' }

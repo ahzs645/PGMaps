@@ -25,6 +25,7 @@ import type { MatchedCamera } from './matchedCamera'
 import { comparePhotoCameras, type CombinedResult, type CombinedSettings } from './photoCombinedSearch'
 import { depthModelStored, estimatePhotoDepth, type DepthGrid, type PhotoDepthModel } from './photoDepth'
 import {
+  bestReaderFit,
   hasLocationRelief,
   photoLocationTrials,
   rankPhotoLocations,
@@ -3110,12 +3111,13 @@ export function useFieldPhoto({
     show({ status: 'searching', checked: 0, total: locations.length })
     try {
       const pixels = await readPixels(photo)
-      const reader = SKYLINE_READERS.map((reader) => ({ reader, skyline: skylineRead(photo, pixels, reader) }))
-        .filter(
-          ({ skyline }) => skyline.filter(Boolean).length >= MIN_SKYLINE_COLUMNS && believableSkyline(pixels, skyline),
-        )
-        .sort((a, b) => b.skyline.filter(Boolean).length - a.skyline.filter(Boolean).length)[0]?.reader
-      if (!reader) {
+      // Every reader that finds a believable skyline in this photo is searched at each place, as the camera search does
+      // (`bestReaderFit`): a sky lit from behind or hazy is read by the brightness readers, not the colour reader.
+      const readers = SKYLINE_READERS.filter((reader) => {
+        const skyline = skylineRead(photo, pixels, reader)
+        return skyline.filter(Boolean).length >= MIN_SKYLINE_COLUMNS && believableSkyline(pixels, skyline)
+      })
+      if (!readers.length) {
         show({
           status: 'error',
           message:
@@ -3145,17 +3147,23 @@ export function useFieldPhoto({
           )
           if (profile.length) sampled += 1
           if (hasLocationRelief(profile)) {
-            const fit = await runWideOrientation(
-              {
-                pose: { ...base, roll: 0 },
-                profile,
-                skyline: skylineOf(photo, pixels, base, reader),
-                pitchRange: pitchRangeFor({ tilt: undefined, airborne: altitudeMeters != null }),
-                rollRange: [-15, 15],
-                headingSpan: 180,
-              },
-              signal,
-            )
+            const best = await bestReaderFit(readers, async (reader) => {
+              const skyline = skylineOf(photo, pixels, base, reader)
+              if (skyline.filter(Boolean).length < MIN_SKYLINE_COLUMNS) return null
+              return runWideOrientation(
+                {
+                  pose: { ...base, roll: 0 },
+                  profile,
+                  skyline,
+                  pitchRange: pitchRangeFor({ tilt: undefined, airborne: altitudeMeters != null }),
+                  rollRange: [-15, 15],
+                  headingSpan: 180,
+                },
+                signal,
+              )
+            })
+            signal.throwIfAborted()
+            const fit = best?.result ?? null
             if (fit && hasLocationRelief(horizonSlice(profile, fit.bearing, frameHalfDiagonal(base)))) {
               candidates.push({ ...location, fit })
             }
@@ -3181,7 +3189,14 @@ export function useFieldPhoto({
   const useLocation = (id: string, candidate: PhotoLocationCandidate) => {
     const photo = photoById(id)
     const search = locationSearch?.id === id ? locationSearch.state : null
-    if (!photo || activeRef.current !== id || search?.status !== 'done' || !search.candidates.includes(candidate))
+    // A near tie offers no start: the top of a tie is not a suggestion (`undecidedHeadings`).
+    if (
+      !photo ||
+      activeRef.current !== id ||
+      search?.status !== 'done' ||
+      search.ambiguous ||
+      !search.candidates.includes(candidate)
+    )
       return
     const { hfov, eyeHeightMeters, altitudeMeters } = search.basis
     if (
