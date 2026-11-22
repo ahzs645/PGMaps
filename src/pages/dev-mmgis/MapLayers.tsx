@@ -109,6 +109,7 @@ export function MissionLayers({
           visible={l.visible}
           opacity={l.opacity}
           attribution={l.attribution}
+          maxZoom={l.maxZoom}
           layerOrder={i}
         />
       ))}

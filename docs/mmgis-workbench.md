@@ -120,12 +120,17 @@ availability of any remote deployment or the scientific accuracy of source data.
 
 ## Terrain Viewer and historical imagery
 
-In **Rasters → Browse Wayback releases**, pick a date and add its imagery to the
-mission. Add a second release and adjust the upper layer's opacity to compare
-the same place. The mission stores each release's tile URL and attribution, so a
-saved mission reopens that release even if the catalog has since changed. Tiles
-are fetched from Esri each time they are needed. The catalog is fetched on
-request, with a 20-second timeout and a retry control.
+In **Rasters → Historical imagery**, choose an **Imagery source** (the shared imagery feeds,
+`docs/imagery-feeds.md`: Esri Wayback first, NASA's daily Landsat and Sentinel-2 passes), browse its
+dates, pick one and add it to the mission (**Browse Wayback releases**, **Add Wayback layer** for
+Wayback). A date with two layers (NASA's Landsat and Sentinel-2) adds two overlays. Add a second date
+and adjust the upper layer's opacity to compare the same place. The mission stores each layer's
+tile URL, attribution and deepest zoom (`maxZoom`, so a deeper view stretches the last real tile
+instead of asking for tiles the service does not have), so a saved mission reopens that date even if
+the catalogue has since changed. Tiles are fetched from the source each time they are needed. The
+catalogue is fetched on request, with a 20-second timeout and a retry control. Sentinel-2 scenes are
+not offered: PGMaps draws them through its own tile reader, and a saved mission holds only plain
+HTTPS tile addresses.
 
 In **Terrain**, **Shade terrain relief** draws hillshade from the workbench's
 AWS Terrarium DEM, independently of 3D terrain. Either panel can open the

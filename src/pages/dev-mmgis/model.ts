@@ -25,6 +25,8 @@ export interface TileOverlay {
   visible: boolean
   opacity: number
   attribution: string
+  /** The deepest zoom the service has tiles for; the map stretches beyond. Absent: the map's own limit. */
+  maxZoom?: number
   /** A COG and TiTiler base used for raw-value queries, not inferred tile colors. */
   cog?: { url: string; service: string; band: number }
 }

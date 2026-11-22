@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { xyzTileTemplate } from '@pgmaps/geo-toolkit/map'
-import { WaybackPanel } from './WaybackPanel'
+import { DatedImageryPanel } from './DatedImageryPanel'
 import { Plus, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
@@ -87,7 +87,7 @@ export function RasterPanel({
   }
   return (
     <>
-      <WaybackPanel mission={mission} change={change} />
+      <DatedImageryPanel mission={mission} change={change} />
       <SidebarSection title="Raster sources">
         <p className="mm-help">Connect tiled imagery or a Cloud Optimized GeoTIFF through a TiTiler service.</p>
         <label className="mm-field">

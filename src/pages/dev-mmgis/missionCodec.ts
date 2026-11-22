@@ -208,6 +208,7 @@ export function parseMission(value: unknown): Mission {
         visible: t.visible === true,
         opacity: finite(t.opacity, 0, 1),
         attribution: label(t.attribution, 2000),
+        ...(t.maxZoom !== undefined && { maxZoom: Math.round(finite(t.maxZoom, 0, 24)) }),
         ...(cog
           ? {
               cog: {
