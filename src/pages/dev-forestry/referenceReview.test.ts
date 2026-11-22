@@ -7,7 +7,7 @@ import {
   referenceArithmetic,
   referenceClass,
 } from './referenceMeasurements'
-import { comparisonFigures, type ReferenceComparison } from './referenceComparison'
+import { comparisonFigures, comparisonSightline, type ReferenceComparison } from './referenceComparison'
 import {
   imagePixel,
   imageRay,
@@ -221,4 +221,20 @@ it('keeps a traced rock deduction on its adopted face after reopening', () => {
   expect(masksForLandform(masks, 'face-a').map((m) => m.id)).toEqual(['retention', 'rock'])
   expect(masksForLandform(masks, 'face-b').map((m) => m.id)).toEqual(['retention'])
   expect(masks[1].mappedRock).toBe(true)
+})
+
+describe('the run’s sightline figure beside a comparison', () => {
+  it('is the assessment’s only where the capture recorded that the run stood behind it', () => {
+    expect(comparisonSightline({ sightlinePercent: 4.2, sightlineReadiness: 'ready' })).toEqual({
+      percent: 4.2,
+      assessment: true,
+      note: null,
+    })
+    expect(
+      comparisonSightline({ sightlinePercent: null, sightlineReadiness: 'withheld', sightlineWithheld: 'A gap.' }),
+    ).toEqual({ percent: null, assessment: false, note: 'Withheld — A gap.' })
+    // Kept without the readiness record: the run's reading, never called the assessment's figure.
+    expect(comparisonSightline({ sightlinePercent: 4.2 })).toEqual({ percent: 4.2, assessment: false, note: null })
+    expect(comparisonSightline({})).toEqual({ percent: null, assessment: false, note: 'not recorded with this figure' })
+  })
 })

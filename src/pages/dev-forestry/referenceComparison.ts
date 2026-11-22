@@ -3,6 +3,7 @@
 import { alteration, ALTERATION_RULES } from '@/lib/forestry/viaFigure/alteration'
 import type { ReferenceValues } from './referenceMeasurements'
 import { amount, readValues, referenceArithmetic } from './referenceMeasurements'
+import { capturedSightline } from './runFigures'
 
 export const numeratorChoices = { proposed: 'Proposed only', cumulative: 'Proposed and existing non-green' }
 export const denominatorChoices = {
@@ -27,6 +28,9 @@ export type CaptureMeasurement = {
    * the assessment's figure, printed beside the pixel figure, never replaced by it. Absent on older comparisons.
    */
   sightlinePercent?: number | null
+  /** Whether the run stood behind that figure at the save, as the saved view recorded it (`capturedSightline`). */
+  sightlineReadiness?: 'ready' | 'withheld'
+  sightlineWithheld?: string
 }
 export type ComparisonBasis = {
   numerator: keyof typeof numeratorChoices
@@ -50,6 +54,28 @@ export type ReferenceComparison = {
   evidence: Array<{ name: string; sha256: string }>
 }
 export type ReferenceCapture = Omit<CaptureMeasurement, 'counts'> & { readCounts: () => PixelAreas }
+
+/**
+ * The run's sightline figure a comparison prints beside its pixel figure: the assessment's only where the capture
+ * recorded that the run stood behind it, read through `capturedSightline`; a figure kept without that record is the
+ * run's reading at the capture, never called the assessment's (`assessment: false`). `note` says why there is none.
+ */
+export function comparisonSightline(
+  capture: Pick<CaptureMeasurement, 'sightlinePercent' | 'sightlineReadiness' | 'sightlineWithheld'>,
+): { percent: number | null; assessment: boolean; note: string | null } {
+  const percent = capture.sightlinePercent ?? null
+  if (capture.sightlineReadiness) {
+    const read = capturedSightline({ ...capture, sightlinePercent: percent })
+    return {
+      percent: read.percent,
+      assessment: read.percent !== null,
+      note: read.note ?? (read.percent === null ? 'not recorded with this figure' : null),
+    }
+  }
+  return percent === null
+    ? { percent: null, assessment: false, note: 'not recorded with this figure' }
+    : { percent, assessment: false, note: null }
+}
 export function comparisonFigures(c: ReferenceComparison) {
   const result = alteration(
     {
@@ -103,6 +129,10 @@ export function parseComparisons(raw: unknown): ReferenceComparison[] {
       (c.capture.setup !== undefined && !str(c.capture.setup)) ||
       (c.capture.sightlinePercent != null &&
         (typeof c.capture.sightlinePercent !== 'number' || !Number.isFinite(c.capture.sightlinePercent))) ||
+      (c.capture.sightlineReadiness !== undefined &&
+        c.capture.sightlineReadiness !== 'ready' &&
+        c.capture.sightlineReadiness !== 'withheld') ||
+      (c.capture.sightlineWithheld !== undefined && !str(c.capture.sightlineWithheld)) ||
       !Array.isArray(c.evidence) ||
       ![
         c.reviewer,

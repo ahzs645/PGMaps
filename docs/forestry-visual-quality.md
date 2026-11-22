@@ -1162,7 +1162,10 @@ and saved comparisons travel in **Save & export → Project**.
   the source and capture measurement bases and check framing, treatment and
   exclusions. A percentage-point difference requires matching bases. The run's
   sightline figure at capture is printed beside the pixel figure, never replaced
-  by it. A saved review keeps the selected values, source, counts, reviewer and
+  by it, and called the assessment's figure only where the capture recorded
+  that the run stood behind it (`comparisonSightline` over `capturedSightline`);
+  a figure kept without that record is labelled as the run's reading at
+  capture. A saved review keeps the selected values, source, counts, reviewer and
   evidence hashes.
 - **Study exhibits** searches the figure catalogue by caption, document, page,
   viewpoint or recorded date and opens the selected exhibit and its source.
