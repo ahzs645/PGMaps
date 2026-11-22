@@ -109,6 +109,7 @@ export function RoadViewOptions({
   jump,
   lensMm = null,
   onLensChange,
+  distantTreesNote = null,
 }: {
   drive: DriveState
   onDriveChange: (patch: Partial<DriveState>) => void
@@ -123,6 +124,8 @@ export function RoadViewOptions({
    */
   lensMm?: number | null
   onLensChange?: (focalMm: number | null) => void
+  /** *Distant trees*: why none are drawn yet, or at all (`useDriveTerrain`'s `forestContextNote`); null says nothing. */
+  distantTreesNote?: string | null
 }) {
   const arrowAt = (bearing: number) => lookArrows.find((entry) => Math.abs(entry.bearing - bearing) < 0.5)
   const engineOptions = useEngineBrowserOptions()
@@ -708,6 +711,33 @@ export function RoadViewOptions({
             <option value="250">Within 250 m</option>
           </StyledSelect>
         </Row>
+        <Row
+          label="Distant trees"
+          info={
+            <InfoTip label="About distant trees">
+              Out to 8 km stands a coarse stand on the hills behind a small scene, one tree for every 160 m, on coarser
+              terrain and the inventory&apos;s open ground read for the purpose: water, rock, meadow and other open
+              ground stay clear, and ground that could not be read stays empty. It adds trees, so turning it on or off
+              places the stand again. A drawing only: the camera, the sightline run, saved figures and the scene given
+              to another renderer keep the road view&apos;s own ground and timber.
+            </InfoTip>
+          }
+        >
+          <StyledSelect
+            aria-label="Distant trees"
+            className={SELECT_CLASS}
+            value={drive.distantTrees ? 'on' : 'off'}
+            onChange={(event) => onDriveChange({ distantTrees: event.target.value === 'on' })}
+          >
+            <option value="off">Off</option>
+            <option value="on">Out to 8 km</option>
+          </StyledSelect>
+        </Row>
+        {drive.distantTrees && distantTreesNote && (
+          <p className="text-2xs text-muted-foreground" role="status">
+            {distantTreesNote}
+          </p>
+        )}
       </Group>
     </div>
   )

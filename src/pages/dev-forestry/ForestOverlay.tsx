@@ -54,6 +54,7 @@ const DETAIL_BLEND_METERS = 0
 import { canopyRange, canopyTileMeters, forestBands, forestPatches, growForestPatch, isFarBand } from './forestPatches'
 import { haversineMeters, type PolygonGeometry } from './visibility'
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
+import type { ForestBackground } from './driveForestTerrain'
 
 export type ForestStatus = {
   configuration?: ForestConfiguration
@@ -70,6 +71,11 @@ export type ForestStatus = {
   inventoryStandCount?: number
   /** Stems drawn in detail when the view holds still (0 with detail off). */
   detailTreeCount?: number
+  /**
+   * The background band (*Distant trees*) is asked for and its read has not come or failed yet: the stand is not
+   * `ready` meanwhile, so a saved view is never taken with the distant trees in one of its pictures and not another.
+   */
+  backgroundPending?: boolean
 }
 export type ForestConfiguration = {
   anchorLatitude?: number
@@ -97,6 +103,11 @@ export type ForestConfiguration = {
    */
   detailRadiusMeters?: number
   farRadiusMeters?: number
+  /**
+   * How far the background band (View options → *Distant trees*) reaches, metres; absent draws none. Set from the
+   * start, before its read has come, so the stand's placement does not change when it arrives (`background`).
+   */
+  backgroundRadiusMeters?: number
   elevation: ElevationSource | null
 }
 export type ForestOverlayProps = {
@@ -124,6 +135,14 @@ export type ForestOverlayProps = {
    * `configuration` changes; without it the overlay keeps its own.
    */
   patches?: Map<string, TreeInstance[]>
+  /**
+   * The background band's ground and inventory, once its read has come (`forestBackground`). Read each frame, never
+   * part of `configuration`: its arrival grows the background band's patches and nothing else, and the stand already
+   * drawn stays drawn. Null or absent until then.
+   */
+  background?: ForestBackground | null
+  /** The background band's read is still out (`useDriveTerrain`'s `forestContextLoading`). Read each frame. */
+  backgroundPending?: boolean
 }
 const LAYER_ID = 'forestry-trees'
 /** How often a whole stand looks at the eye again, ms: no frame is asked for while nothing moves. */
@@ -141,6 +160,10 @@ export function ForestOverlay(props: ForestOverlayProps) {
   sunRef.current = props.sun ?? null
   const shadowsRef = useRef(props.shadows ?? false)
   shadowsRef.current = props.shadows ?? false
+  const backgroundRef = useRef(props.background ?? null)
+  backgroundRef.current = props.background ?? null
+  const backgroundPendingRef = useRef(props.backgroundPending ?? false)
+  backgroundPendingRef.current = props.backgroundPending ?? false
   statusRef.current = props.onStatus
   const { active, configuration, terrainMessage } = props
   // The stand is grown round the eye, so it starts once there is one. Without this in the effect's dependencies, a
@@ -160,6 +183,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
     look = 'flat',
     detailRadiusMeters = 0,
     farRadiusMeters = 3500,
+    backgroundRadiusMeters,
     elevation,
   } = configuration
   // Placement and readiness share an identity. A source/geometry change must
@@ -203,7 +227,13 @@ export function ForestOverlay(props: ForestOverlayProps) {
     const initialEye = eyeRef.current
     if (!initialEye) return
     const anchorLatitude = sceneLatitude ?? initialEye.lat
-    const bands = forestBands(farRadiusMeters)
+    const bands = forestBands(farRadiusMeters, backgroundRadiusMeters)
+    const coreBands = bands.filter((band) => !band.background)
+    // The background band counts once its read has come.
+    let background: ForestBackground | null = backgroundRadiusMeters ? backgroundRef.current : null
+    let backgroundPending = !!backgroundRadiusMeters && backgroundPendingRef.current
+    const coverageOf = () => (background ? bands : coreBands).at(-1)!.far
+    let coverageMeters = coverageOf()
     // Coarse bands draw clumps of trees per card, not one stretched tree.
     const clumpBand = (i: number) => isFarBand(bands[i])
     const distantLayers = bands.map((_, i) =>
@@ -413,7 +443,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
         return patchCount
       },
       get coverageMeters() {
-        return farRadiusMeters
+        return coverageMeters
       },
       get error() {
         return layers.find((layer) => layer.error)?.error ?? null
@@ -427,7 +457,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
       frame = 0,
       dirty = true,
       lastUpload = -Infinity
-    let wanted = forestPatches(initialEye, bands, anchorLatitude)
+    let wanted = forestPatches(initialEye, bands, anchorLatitude, background?.key ?? null)
     const wantedKeys = new Set(wanted.map((patch) => patch.key))
     for (const key of cache.keys()) if (!wantedKeys.has(key)) cache.delete(key)
     const reusedPatches = cache.size
@@ -506,13 +536,14 @@ export function ForestOverlay(props: ForestOverlayProps) {
       statusRef.current?.({
         configuration,
         treeCount: count,
-        ready: cache.size === wanted.length,
+        ready: cache.size === wanted.length && !backgroundPending,
+        backgroundPending,
         nearbyReady: wanted.filter((patch) => patch.band <= 1).every((patch) => cache.has(patch.key)),
         totalPatches: wanted.length,
         reusedPatches,
         nearTreeCount: nearCount,
         patchCount,
-        coverageMeters: farRadiusMeters,
+        coverageMeters,
         inventoryStandCount: inventory?.length ?? 0,
         detailTreeCount: detailCount,
         trianglesPerTree: count ? Math.ceil(triangles / count) : 0,
@@ -532,9 +563,21 @@ export function ForestOverlay(props: ForestOverlayProps) {
       }
       // Its own key says whether anything changed: the eye, the light, or shadows switched on.
       refreshShadows(nearestTrees)
-      if (eye && haversineMeters(lastEye, eye) > 75) {
-        lastEye = eye
-        wanted = forestPatches(eye, bands, anchorLatitude)
+      // The background's read came (or went): only the background band's patches join or leave.
+      const nextBackground = backgroundRadiusMeters ? backgroundRef.current : null
+      const backgroundChanged = nextBackground !== background
+      if (backgroundChanged) {
+        background = nextBackground
+        coverageMeters = coverageOf()
+      }
+      const nextPending = !!backgroundRadiusMeters && backgroundPendingRef.current
+      if (nextPending !== backgroundPending) {
+        backgroundPending = nextPending
+        dirty = true
+      }
+      if (backgroundChanged || (eye && haversineMeters(lastEye, eye) > 75)) {
+        if (eye) lastEye = eye
+        wanted = forestPatches(lastEye, bands, anchorLatitude, background?.key ?? null)
         const keys = new Set(wanted.map((patch) => patch.key))
         for (const key of cache.keys()) if (!keys.has(key)) cache.delete(key)
         dirty = true
@@ -542,13 +585,25 @@ export function ForestOverlay(props: ForestOverlayProps) {
       const start = performance.now()
       for (const patch of wanted) {
         if (cache.has(patch.key)) continue
+        const band = bands[patch.band]
+        // The background band stands on its own ground, reads its own inventory after the core's, and lays no canopy
+        // over ground its read does not know.
+        const own = band.background && background ? background : null
         cache.set(
           patch.key,
           growForestPatch(
             patch,
-            bands[patch.band],
-            { stands, clearings, openings, thinnings, inventory, heightMeters: standHeightMeters },
-            elevation,
+            band,
+            {
+              stands,
+              clearings,
+              openings,
+              thinnings,
+              inventory: own ? own.inventory : inventory,
+              heightMeters: standHeightMeters,
+              ...(own ? { canopyKnownAt: own.knownAt } : {}),
+            },
+            own ? own.elevation : elevation,
             anchorLatitude,
           ),
         )
@@ -618,6 +673,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
     look,
     detailRadiusMeters,
     farRadiusMeters,
+    backgroundRadiusMeters,
   ])
   return null
 }

@@ -549,6 +549,12 @@ export type TreePlacementOptions = {
    * stem moves, and none is added or taken away.
    */
   canopyTileMeters?: number
+  /**
+   * Where the ground is known at all (it has a height to stand a stem on). A canopy tile stops short of ground
+   * this answers false for, as it does of open ground; absent, all ground is known. The background band's ground
+   * (`driveForestTerrain.ts`) passes it, so a stem beside unread ground does not roof that ground.
+   */
+  canopyKnownAt?: (lng: number, lat: number) => boolean
 }
 
 /**
@@ -811,6 +817,7 @@ export function placeTrees({
   anchorLatitude,
   bounds,
   canopyTileMeters = 0,
+  canopyKnownAt,
 }: TreePlacementOptions): TreeInstance[] {
   if (radiusMeters <= 0 || spacingMeters <= 0) return []
   const mixRatio = meanCrownRatio(speciesMix)
@@ -889,7 +896,13 @@ export function placeTrees({
   const openAt = (lng: number, lat: number) => {
     if (clearingsAt.contains(lng, lat)) return true
     if (stands.length > 0 && !standsAt.contains(lng, lat)) return true
-    return !!treelessAt && treelessAt.contains(lng, lat)
+    if (canopyKnownAt && !canopyKnownAt(lng, lat)) return true
+    if (!treelessAt?.contains(lng, lat)) return false
+    // Open only where the stand that wins the point (the first that holds it, as a stem reads it) is open: a stand
+    // listed before the open polygon (a regrowth stand, the core read before the background's) grows timber there,
+    // and its canopy is not held back. Asked only inside open ground, so the fast path above stays fast.
+    const surveyed = surveyedAt(lng, lat)
+    return !!surveyed?.cover && TREELESS_COVER.has(surveyed.cover)
   }
   // A tile is the canopy over the ground its stem stands for, and a coarse band's stem stands for
   // up to 80 m of it: laid whole beside a block, half of it would roof the cut ground. Its ground is

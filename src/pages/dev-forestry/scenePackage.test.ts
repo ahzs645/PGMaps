@@ -10,6 +10,7 @@ import {
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { metersPerDegree } from './visibility'
 import { DEFAULT_ENGINE_ENVIRONMENT, engineEnvironment } from './externalRenderers'
+import { forestBackground } from './driveForestTerrain'
 
 const EYE = { lng: -122.6, lat: 53.9 }
 const m = metersPerDegree(EYE.lat)
@@ -221,6 +222,26 @@ describe('the road view as a scene package', () => {
       expect(widest).toBeCloseTo(0.5, 2)
     }
     expect(buildScenePackage({ ...input, includeModels: false }).models).toBeUndefined()
+  })
+
+  it('is the same package whether or not the background band (Distant trees) has been read', () => {
+    // The road view's configuration carries only the background band's reach, set before its read comes; its ground
+    // and inventory reach the drawing alone (`forestBackground`), never the configuration a package is built from.
+    const inventory = [{ geometry: block, species: 'spruce' as const, heightMeters: 30 }]
+    const forest = { ...input.forest, inventory }
+    const plain = buildScenePackage({ ...input, forest })
+    const background = forestBackground(
+      { key: 'k', source: { elevationAt: () => 900 }, complete: [[-180, -90, 180, 90]], stands: [] },
+      slope,
+      inventory,
+    )
+    // The page hands its whole configuration over; the package reads none of the background band from it.
+    const configuration = { ...forest, backgroundRadiusMeters: 8000 }
+    const withBackground = buildScenePackage({ ...input, forest: configuration })
+    expect(withBackground).toEqual(plain)
+    // The background reads the core inventory without changing it.
+    expect(background.inventory[0]).toBe(inventory[0])
+    expect(inventory).toHaveLength(1)
   })
 
   it('reads back, and refuses what is not a package', () => {

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { loadPreviewTerrain } from './previewTerrainCache'
+import { createPreviewTerrainLoader, loadPreviewTerrain } from './previewTerrainCache'
+import { DRIVE_FOREST_CONTEXT_METERS, driveForestTerrainRange, type ForestContextRead } from './driveForestTerrain'
+import { fetchOpenGround } from './bcVegetationInventory'
 import { demTileRange, type Bounds, type ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { haversineMeters, polygonBounds, type PolygonGeometry } from './visibility'
 
@@ -7,6 +9,17 @@ import { haversineMeters, polygonBounds, type PolygonGeometry } from './visibili
 export const DRIVE_TERRAIN_MAX_TILES = 128
 /** The finest and coarsest zooms the mosaic is loaded at. */
 export const DRIVE_TERRAIN_ZOOMS = { finest: 14, coarsest: 10 } as const
+
+// Kept separately so the background never evicts a decoded road-view mosaic.
+const loadForestContext = createPreviewTerrainLoader()
+/**
+ * The background reads made, by request: its terrain and its inventory together, so a road view closed and opened
+ * again, or a page that asks for the same ground twice, gets the very read it had (and the background band's patches,
+ * kept under its key, are reused). Two, as the terrain loader keeps two mosaics; a failed read is not kept.
+ */
+const forestContextReads = new Map<string, ForestContextRead>()
+let forestContextReadCount = 0
+const FOREST_CONTEXT_READS_KEPT = 2
 
 /**
  * The tiles the road view loads: the road and blocks' box, widened by `reach` when given (a photo viewpoint's wedge,
@@ -72,6 +85,7 @@ export function useDriveTerrain(
   road: number[][],
   polygons: PolygonGeometry[],
   reach: Bounds | null = null,
+  drawForestContext = false,
 ) {
   const [attempt, setAttempt] = useState(0)
   // Complete mosaics by tile range (`createHeldTerrain`); a retry loads afresh, so it lets them all go.
@@ -174,6 +188,68 @@ export function useDriveTerrain(
       })
     return () => abort.abort()
   }, [request, held])
+  // The background band's read (View options → *Distant trees*): asked for only while the caller keeps the stand
+  // (`drawForestContext`), and only where the road view's own ground stops short of its reach.
+  const contextWanted = active && drawForestContext && !!extent
+  const contextRequest = useMemo(() => {
+    if (!contextWanted || !extent || extent.radius >= DRIVE_FOREST_CONTEXT_METERS) return null
+    const range = driveForestTerrainRange(extent.bounds)
+    if (!range) return null
+    const [w, s, e, n] = extent.bounds
+    const centre = { lng: (w + e) / 2, lat: (s + n) / 2 }
+    const radius = DRIVE_FOREST_CONTEXT_METERS + extent.radius / 2
+    const key = [
+      range.zoom,
+      range.minX,
+      range.minY,
+      range.maxX,
+      range.maxY,
+      centre.lng.toFixed(6),
+      centre.lat.toFixed(6),
+      Math.round(radius),
+    ].join('/')
+    return { key, range, centre, radius, attempt }
+  }, [contextWanted, extent, attempt])
+  const [context, setContext] = useState<{ request: typeof contextRequest; read: ForestContextRead | null } | null>(
+    null,
+  )
+  useEffect(() => {
+    if (!contextRequest) return
+    const controller = new AbortController()
+    const { key, range, centre, radius, attempt } = contextRequest
+    const finish = (read: ForestContextRead | null) => {
+      if (!controller.signal.aborted) setContext({ request: contextRequest, read })
+    }
+    if (attempt > 0) forestContextReads.delete(key)
+    const kept = forestContextReads.get(key)
+    if (kept) {
+      // Most recently used last, so the other one is the one let go.
+      forestContextReads.delete(key)
+      forestContextReads.set(key, kept)
+      void Promise.resolve().then(() => finish(kept))
+      return () => controller.abort()
+    }
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)])
+    void Promise.all([
+      loadForestContext({ range, signal, concurrency: 2 }, attempt > 0),
+      fetchOpenGround(centre, radius, { signal, maxTiles: 9, timeoutMs: 8000 }),
+    ])
+      .then(([{ source }, cover]) => {
+        if (!source || !cover.complete.length) return finish(null)
+        const read: ForestContextRead = {
+          key: `${key}#${++forestContextReadCount}`,
+          source,
+          complete: cover.complete,
+          stands: cover.stands,
+        }
+        forestContextReads.set(key, read)
+        while (forestContextReads.size > FOREST_CONTEXT_READS_KEPT)
+          forestContextReads.delete(forestContextReads.keys().next().value!)
+        finish(read)
+      })
+      .catch(() => finish(null))
+    return () => controller.abort()
+  }, [contextRequest])
   const visible = !request
     ? { source: null, message: null, progress: 0, loading: false }
     : request.tooLarge
@@ -191,8 +267,30 @@ export function useDriveTerrain(
               ? { source, message: null, progress: 100, loading: false, extent: request.extent }
               : { source: null, message: pendingMessage, progress: 0, loading: true }
           })()
+  const activeContext = contextRequest && context?.request === contextRequest ? context : null
+  const forestContextNote = !contextWanted
+    ? null
+    : !contextRequest
+      ? extent && extent.radius >= DRIVE_FOREST_CONTEXT_METERS
+        ? 'The road view’s own ground already reaches past 8 km.'
+        : 'The scene is too wide for the distant-tree terrain.'
+      : !activeContext
+        ? 'Loading terrain and inventory for distant trees…'
+        : activeContext.read
+          ? null
+          : 'Distant trees could not be read; the road view keeps its own extent.'
   return {
     source: visible.source,
+    /**
+     * How far the background band reaches, metres: set as soon as it is asked for, never when its read comes, so the
+     * stand's placement (and its kept patches) do not change on arrival. Undefined while it is off or not needed.
+     */
+    forestContextRadius: contextRequest ? DRIVE_FOREST_CONTEXT_METERS : undefined,
+    /** The background read, once it has come; null while it loads, failed or is off. */
+    forestContext: activeContext?.read ?? null,
+    forestContextLoading: !!contextRequest && !activeContext,
+    /** One line for View options → *Distant trees*: why there are none yet, or none at all. */
+    forestContextNote,
     message: visible.message,
     progress: visible.progress,
     loading: visible.loading,
