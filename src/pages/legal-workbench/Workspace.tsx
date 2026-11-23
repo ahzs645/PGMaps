@@ -201,7 +201,9 @@ export default function LegalWorkbench({ plan }: { plan?: PlanReview } = {}) {
             (data?.format === 'pgmaps-patch-assessment-v1'
               ? await (await import('../forest-patches/legacyFacts')).legacyPatchFacts(data)
               : data)
-          const p = library.find((p) => p.id === raw?.pack && p.version === raw?.version)
+          // Read the library as stored now: an install started just before may not have reached this render.
+          const current = await loadLibrary()
+          const p = current.find((p) => p.id === raw?.pack && p.version === raw?.version)
           if (!p) throw Error('Install the matching pack release before importing its fact set.')
           const incoming = parseFacts(raw, p)
           const old = sets[releaseKey(p)] ?? blank(p)

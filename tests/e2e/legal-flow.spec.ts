@@ -12,6 +12,7 @@ test('a JSON pack drives the shared findings graph and its Mermaid evidence expo
     buffer: Buffer.from(JSON.stringify(value)),
   })
   await page.getByLabel('Install JSON packs').setInputFiles(upload('water.json', example))
+  await expect(page.getByRole('status').filter({ hasText: /^Installed / })).toBeVisible()
   await page.getByLabel('Open facts or assessment').setInputFiles(upload('facts.json', facts))
   const finding = page
     .locator('details')
