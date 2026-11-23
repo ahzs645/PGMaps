@@ -87,8 +87,10 @@ import { createPurdenLakeScene } from './dev-forestry/purdenLakeScenario'
 import { lensHfovDeg, viewCaptureKey, type ViewOfInterest } from './dev-forestry/viewsOfInterest'
 import {
   eyeCheck,
+  followedViewLens,
   lensEntryLabel,
   lensEntryNote,
+  lensEntryUsed,
   viewCaptureCamera,
   viewEyeLabel,
   type ViewEye,
@@ -629,7 +631,7 @@ type FigureAt = {
   checkEye?: boolean
   /** The view's typed place, when the eye stood on it (`placeEntryOf`): printed with the figure. */
   typedPlace?: { line: string; zone?: number }
-  /** The view's own lens as entered (`lensEntryLabel`), when it has one. */
+  /** The view's own lens as entered (`lensEntryLabel`), when it has one and was captured with it (`lensEntryUsed`). */
   lensEntered?: string
 }
 
@@ -5238,7 +5240,9 @@ function DevForestryVisuals({
     const typedHere = typed && savePose && haversineMeters(savePose, typed) <= 1 ? typed : null
     const eyeHeightM = !photoLook && viewEyeHeightNow ? viewEyeHeightNow.meters : undefined
     const viewEye: ViewEye | null = viewFor && !viewFor.photo ? (viewFor.eye ?? null) : null
-    const lensEntered = viewFor?.lens && !viewFor.photo && !photoLook ? lensEntryLabel(viewFor.lens) : undefined
+    // Its lens as entered only when the picture was taken with it: View options → *Lens* may have changed it since.
+    const enteredLens = viewFor && !viewFor.photo && !photoLook ? lensEntryUsed(viewFor.lens, lensHfov) : null
+    const lensEntered = enteredLens ? lensEntryLabel(enteredLens) : undefined
     let finished: Promise<ViewSaveOutcome> = Promise.resolve({ viewId: view.id })
     if (map) {
       const caption = `${view.name}.`
@@ -5303,7 +5307,7 @@ function DevForestryVisuals({
         ...(eyeHeightM !== undefined ? { eyeHeightM } : {}),
         ...(atPhoto ? {} : { checkEye: true }),
         ...(typedHere ? { typedPlace: { line: placeEntryLine(typedHere), zone: typedHere.zone } } : {}),
-        ...(viewFor?.lens && lensEntered ? { lensEntered: lensEntryNote(viewFor.lens) } : {}),
+        ...(enteredLens ? { lensEntered: lensEntryNote(enteredLens) } : {}),
         // The frame and landform it is saved with: an earlier view keeps its own after the viewpoint changes.
         figureFrame: scene.figureFrame ?? null,
         landform: sceneLandform
@@ -7607,12 +7611,28 @@ function DevForestryVisuals({
     />
   )
   /**
+   * Changes the views of interest; an edit of the lens of the view stood at sets the road view's lens to it, as
+   * standing there did (`followedViewLens`), wherever the lens was edited (its row's *Lens*, or its own lens).
+   */
+  const changeViewsOfInterest = (update: (views: ViewOfInterest[]) => ViewOfInterest[]) => {
+    const stoodAt = standingNow ? summaryView?.id : undefined
+    if (stoodAt) {
+      const next = update(viewsOfInterest)
+      const focal = followedViewLens(
+        viewsOfInterest.find((entry) => entry.id === stoodAt),
+        next.find((entry) => entry.id === stoodAt),
+      )
+      if (focal !== null) setRoadViewLens(focal)
+    }
+    setViewsOfInterest(update)
+  }
+  /**
    * Writes a view's place, lens or eye (`ViewCameraFields`). The views are out of the run; but the eye of the view
    * stood at is its stand's too, as a capture would stand it: an elevation is the stand's surveyed eye (a run input,
    * as a photo viewpoint's altitude), a height above the ground the road view's eye alone.
    */
   const updateViewCamera = (view: ViewOfInterest, patch: Partial<ViewOfInterest>) => {
-    setViewsOfInterest((views) => views.map((entry) => (entry.id === view.id ? { ...entry, ...patch } : entry)))
+    changeViewsOfInterest((views) => views.map((entry) => (entry.id === view.id ? { ...entry, ...patch } : entry)))
     if (!('eye' in patch) || view.photo || view.id !== summaryView?.id || !standingNow) return
     const eye = patch.eye ?? null
     const elevation = eye?.reference === 'elevation' ? surveyedEyeFor(scene.viewpoint, eye.meters) : undefined
@@ -7677,7 +7697,7 @@ function DevForestryVisuals({
   const renderViewsOfInterest = (Shown: typeof ViewsOfInterestPanel | typeof ViewsOfInterestList, inDialog = false) => (
     <Shown
       views={viewsOfInterest}
-      onChange={setViewsOfInterest}
+      onChange={changeViewsOfInterest}
       photoOf={(view) => {
         const record = viewPhotoRecord(view, tools.photoRecords)
         return { name: record?.name ?? 'Photo no longer in the workspace', thumbUrl: record?.image ?? null }

@@ -95,6 +95,36 @@ export function lensEntryNote(entry: ViewLensEntry): string {
     : `${focalLabel(entry.focalMm)} lens x ${entry.cropFactor} crop`
 }
 
+/** How near, degrees, a camera's field across must be to an entered lens to be that lens: arithmetic noise only. */
+export const LENS_ENTRY_MATCH_DEG = 0.01
+
+/**
+ * The entry a saved view may print "as entered", or null: only when the camera drew with that lens (`hfovDeg`, the
+ * field across it was captured with; null for MapLibre's own field). Standing at a view with View options → *Lens*
+ * changed since, the picture is the other lens's, and its camera information must say so.
+ */
+export function lensEntryUsed(
+  entry: ViewLensEntry | null | undefined,
+  hfovDeg: number | null | undefined,
+): ViewLensEntry | null {
+  if (!entry || typeof hfovDeg !== 'number' || !Number.isFinite(hfovDeg)) return null
+  return Math.abs(lensEntryHfov(entry) - hfovDeg) <= LENS_ENTRY_MATCH_DEG ? entry : null
+}
+
+/**
+ * The road view's lens after the view stood at is edited, full-frame-equivalent millimetres, or null to leave it as
+ * it is: only when that view's lens changed, and never for a photo viewpoint, whose photo's field holds the road view.
+ * Standing at a view sets its lens; an edit of it there does the same, as an edit of its eye does.
+ */
+export function followedViewLens(
+  before: { focalMm: number; photo?: unknown } | null | undefined,
+  after: { focalMm: number; photo?: unknown } | null | undefined,
+): number | null {
+  // An entered lens always sets the equivalent focal length beside it, which is what the road view is set to.
+  if (!before || !after || after.photo || before.focalMm === after.focalMm) return null
+  return after.focalMm
+}
+
 /** Reads a kept entry; one that does not read, or names a lens a view cannot hold, is dropped. */
 export function parseViewLens(raw: unknown): ViewLensEntry | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null

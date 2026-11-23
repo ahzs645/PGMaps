@@ -9,14 +9,17 @@ import {
   eyeCheckText,
   fieldsOfView,
   focalForHfov,
+  followedViewLens,
   lensEntryHfov,
   lensEntryLabel,
   lensEntryProblem,
+  lensEntryUsed,
   lensHfovDeg,
   parseViewEye,
   parseViewLens,
   viewCaptureCamera,
   viewEyeProblem,
+  type ViewLensEntry,
 } from './viewCamera'
 import { readPlaceInput } from './viewCoordinates'
 import { viewLensHfov } from './viewCapturePlan'
@@ -178,5 +181,34 @@ describe('a planned view with its own lens and surveyed eye', () => {
     const [kept] = parseViewsOfInterest([{ ...view(), focalMm: 28, lens: { kind: 'hfov', hfovDeg: 'wide' } }])
     expect(kept.focalMm).toBe(28)
     expect(kept.lens).toBeUndefined()
+  })
+})
+
+describe('the lens a saved view prints', () => {
+  const across: ViewLensEntry = { kind: 'hfov', hfovDeg: 25.4 }
+  const cropped: ViewLensEntry = { kind: 'focal', focalMm: 50, cropFactor: 1.6 }
+
+  it('prints the entry only for the lens the picture was taken with', () => {
+    // Stood at the view: the road view takes its equivalent focal length, whose field is the entry's.
+    expect(lensEntryUsed(across, lensHfovDeg(equivalentFocalMm(across)))).toBe(across)
+    expect(lensEntryUsed(cropped, lensHfovDeg(equivalentFocalMm(cropped)))).toBe(cropped)
+    // View options → Lens changed to 24 mm since: the picture is 24 mm's, not the entry's.
+    expect(lensEntryUsed(across, lensHfovDeg(24))).toBeNull()
+    // MapLibre's own field, no lens at all.
+    expect(lensEntryUsed(across, null)).toBeNull()
+    expect(lensEntryUsed(null, 25.4)).toBeNull()
+  })
+
+  it('sets the road view to the lens of the view stood at when that lens is edited', () => {
+    const before = { focalMm: equivalentFocalMm(across), lens: across }
+    const after = { focalMm: equivalentFocalMm(cropped), lens: cropped }
+    expect(followedViewLens(before, after)).toBe(equivalentFocalMm(cropped))
+    // The row's Lens choosing a listed focal length drops the entry and sets that length.
+    expect(followedViewLens(before, { focalMm: 35 })).toBe(35)
+    // Nothing about its lens changed (its name, its eye): the road view keeps the lens the reviewer chose.
+    expect(followedViewLens(before, { ...before })).toBeNull()
+    // A photo viewpoint's photo holds the road view's lens; a view removed changes nothing.
+    expect(followedViewLens(before, { ...after, photo: { hfov: 40 } })).toBeNull()
+    expect(followedViewLens(before, undefined)).toBeNull()
   })
 })
