@@ -189,9 +189,12 @@ export function parseLatLon(input: string): ParsedPlace {
   return { ok: true, lng: lon.value, lat: lat.value, precisionMeters, warnings: placeWarnings(lon.value, lat.value) }
 }
 
+/** A typed easting or northing without its thousands separators (spaces, commas, underscores): "512 345.6" → "512345.6". */
+const withoutSeparators = (input: string) => input.trim().replace(/[\s,_]/g, '')
+
 /** A typed easting or northing: digits, an optional decimal part, thousands separated by spaces or commas. */
 function parseMetres(input: string, what: string): { value: number; decimals: number } | string {
-  const text = input.trim().replace(/[\s,_]/g, '')
+  const text = withoutSeparators(input)
   if (!text) return `Type the ${what} in metres.`
   if (!/^\d+(?:\.\d+)?$/.test(text)) return `The ${what} “${input.trim()}” is not a number of metres.`
   return { value: Number(text), decimals: decimalsOf(text) }
@@ -338,7 +341,8 @@ export function readPlaceInput(input: PlaceInput): { parsed: ParsedPlace; entry:
   const text =
     input.system === 'latlon'
       ? input.text.trim().replace(/\s+/g, ' ')
-      : `${input.zone} ${input.easting.trim()} ${input.northing.trim()}`
+      : // Each number without its separators: the kept text is split on its spaces (`placeInputOf`).
+        `${input.zone} ${withoutSeparators(input.easting)} ${withoutSeparators(input.northing)}`
   return {
     parsed,
     entry: {
@@ -356,8 +360,26 @@ export function readPlaceInput(input: PlaceInput): { parsed: ParsedPlace; entry:
 /** The input an entry was made from, to edit it again. */
 export function placeInputOf(entry: ViewPlaceEntry): PlaceInput {
   if (entry.system === 'latlon') return { system: 'latlon', datum: entry.datum, text: entry.text }
-  const [, easting = '', northing = ''] = entry.text.split(' ')
+  const [, ...numbers] = entry.text.split(' ')
+  const [easting = '', northing = ''] = numbers.length === 2 ? numbers : splitSpacedUtm(numbers)
   return { system: 'utm', datum: entry.datum, zone: entry.zone ?? 10, easting, northing }
+}
+
+/**
+ * An easting and a northing kept with their thousands separators ("512 345.6 5 973 210.4", as an earlier build kept
+ * them): the one split at which the first reads as an easting and the second as a northing in BC, else the first two.
+ */
+function splitSpacedUtm(numbers: string[]): [string, string] {
+  const reads = (parts: string[], low: number, high: number) => {
+    const text = parts.join('')
+    return /^\d+(?:\.\d+)?$/.test(text) && Number(text) >= low && Number(text) <= high ? text : null
+  }
+  const splits = numbers.slice(1).flatMap((_, index) => {
+    const easting = reads(numbers.slice(0, index + 1), 100_000, 900_000)
+    const northing = reads(numbers.slice(index + 1), 5_300_000, 6_700_000)
+    return easting && northing ? [[easting, northing] as [string, string]] : []
+  })
+  return splits.length === 1 ? splits[0] : [numbers[0] ?? '', numbers[1] ?? '']
 }
 
 /**

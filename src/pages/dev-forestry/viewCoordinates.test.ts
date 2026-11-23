@@ -186,6 +186,23 @@ describe('a view’s typed place', () => {
     expect(parseViewPlaceEntry({ ...entry, datum: 'NAD27' })).toBeNull()
   })
 
+  it('reads an easting and northing typed with thousands separators back as the same numbers', () => {
+    const typed = { system: 'utm', datum: 'NAD83', zone: 10, easting: '512 345.6', northing: '5,973,210.4' } as const
+    const { parsed, entry } = readPlaceInput(typed)
+    // The kept text is split on its spaces: each number is kept without its separators, digits and decimals unchanged.
+    expect(entry!.text).toBe('10 512345.6 5973210.4')
+    const reopened = placeInputOf(entry!)
+    expect(reopened).toEqual({ ...typed, easting: '512345.6', northing: '5973210.4' })
+    const again = readPlaceInput(reopened)
+    expect(again.entry).toEqual(entry)
+    expect(again.parsed.ok && parsed.ok && again.parsed.precisionMeters).toBe(parsed.ok && parsed.precisionMeters)
+    // A text kept with its spaces by an earlier build still opens as the easting and northing it was.
+    expect(placeInputOf({ ...entry!, text: '10 512 345.6 5 973 210.4' })).toMatchObject({
+      easting: '512345.6',
+      northing: '5973210.4',
+    })
+  })
+
   it('describes the view only while it still stands there', () => {
     const { entry } = readPlaceInput({ system: 'latlon', datum: 'WGS84', text: ' 53.91234 ,  -122.71234 ' })
     expect(entry!.text).toBe('53.91234 , -122.71234')
