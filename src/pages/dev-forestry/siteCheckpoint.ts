@@ -190,6 +190,28 @@ export function mergeCheckpoint(
   }
 }
 
+/**
+ * The sets a restore adds to the page's shelved views: the merge's sets the page's shelf does not hold (`shelf`, the
+ * shelved state itself), less the page's saved set while it stays the saved set. The saved set is listed among the
+ * page's shelved places while it is under another scene (`shelvedWithSaved`) but lives in no shelf; when the restore
+ * replaces it with views under another key (`openKey`), it is shelved here, as a design change shelves it, or the next
+ * checkpoint keeps it nowhere.
+ */
+export function restoredShelves<V>(
+  merged: { views: V[] | null; shelved: Array<{ key: string; views: V[] }> },
+  saved: { key: string | null; views: readonly V[] },
+  openKey: string | null,
+  shelf: ReadonlyArray<{ key: string }>,
+): Array<{ key: string; views: V[] }> {
+  const savedStays = !merged.views || saved.key === openKey
+  return merged.shelved.filter(
+    (entry) =>
+      entry.views.length > 0 &&
+      !shelf.some((held) => held.key === entry.key) &&
+      !(savedStays && entry.key === saved.key),
+  )
+}
+
 /** The page's line for the checkpoint, or null when there is nothing to say. `time` formats an instant for the page. */
 export function checkpointLine(status: CheckpointStatus, time: (iso: string) => string): string | null {
   if (status.kind === 'kept')

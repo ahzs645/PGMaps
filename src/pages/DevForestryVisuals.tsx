@@ -61,7 +61,7 @@ import {
 import { queryVisualInventory } from './dev-forestry/visualInventoryQuery'
 import { usePersistentScene } from './dev-forestry/usePersistentScene'
 import { useSiteCheckpoint } from './dev-forestry/useSiteCheckpoint'
-import { checkpointLine, comparableFingerprint, mergeCheckpoint } from './dev-forestry/siteCheckpoint'
+import { checkpointLine, comparableFingerprint, mergeCheckpoint, restoredShelves } from './dev-forestry/siteCheckpoint'
 import type { ProjectState } from './dev-forestry/projectFile'
 import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
 import { ProjectAttachmentsDialog } from './dev-forestry/ProjectAttachments'
@@ -6121,12 +6121,11 @@ function DevForestryVisuals({
       const openKey = merged.scene ? sceneFingerprint(merged.scene) : key
       if (merged.scene) setScene(merged.scene)
       if (merged.views) setSaved({ key: openKey, views: merged.views })
-      const fresh = merged.shelved.filter((entry) => !awayViews.some((away) => away.key === entry.key))
-      if (fresh.length)
-        setShelvedViews((current) => [
-          ...current,
-          ...fresh.filter((entry) => !current.some((c) => c.key === entry.key)),
-        ])
+      // The checkpoint's shelved places, and the saved set replaced just now when it was another scene's.
+      setShelvedViews((current) => {
+        const fresh = restoredShelves(merged, saved, openKey, current)
+        return fresh.length ? [...current, ...fresh] : current
+      })
       setViewImages((current) => ({ ...(merged.images as typeof viewImages), ...current }))
       setCapturedBefore((current) => ({ ...(merged.capturedBefore as typeof capturedBefore), ...current }))
       setEngineFigures((current) => ({ ...(merged.engineFigures as typeof engineFigures), ...current }))

@@ -13,6 +13,7 @@ import {
   comparableFingerprint,
   mergeCheckpoint,
   newSiteId,
+  restoredShelves,
   type PageParts,
 } from './siteCheckpoint'
 import {
@@ -255,6 +256,33 @@ describe('the site checkpoint', () => {
     expect(ahead.views).toBeNull()
     expect(ahead.shelved.find((entry) => entry.key === key)?.views).toEqual(kept.views)
     expect(Object.keys(ahead.images).sort()).toEqual(['view-away', 'view-here'])
+  })
+
+  it('shelves the saved set a restore replaces when it was saved under an earlier design', () => {
+    const kept = site()
+    const keptKey = comparableFingerprint(kept.scene)
+    // This browser's Saved views record holds views saved under an earlier design; the page has moved on since, so
+    // the set is listed among its shelved places (`shelvedWithSaved`) but sits in no shelf.
+    const earlier = { key: '{"earlier":"design"}', views: [view('view-earlier', 'Old pullout', 'after', 80)] }
+    const page: PageParts = { ...emptyPage('{"read":"scene"}', 4), shelved: [earlier] }
+    const merged = mergeCheckpoint(page, { state: kept, title: null, key: keptKey, sceneRevision: 5 })
+    // The checkpoint's newer scene opens with its views, which replace the saved set.
+    expect(merged.views).toEqual(kept.views)
+    const shelf = [{ key: '{"made":"up"}', views: kept.shelved[0].views }]
+    const added = restoredShelves(merged, earlier, keptKey, shelf)
+    expect(added).toEqual([earlier])
+    // Kept nowhere else, it would be lost at the next checkpoint; a set already on the shelf is not added twice.
+    expect(added.some((entry) => entry.key === '{"made":"up"}')).toBe(false)
+
+    // The saved set stays where nothing replaces it: shelving it as well would hold it twice.
+    expect(restoredShelves({ ...merged, views: null }, earlier, keptKey, shelf)).toEqual([])
+    // Replaced by views of its own scene, it is that scene's, not a shelved place.
+    const own = { key: keptKey!, views: earlier.views }
+    const reopened = mergeCheckpoint(
+      { ...emptyPage('{"read":"scene"}', 4), shelved: [own] },
+      { state: kept, title: null, key: keptKey, sceneRevision: 5 },
+    )
+    expect(restoredShelves(reopened, own, keptKey, shelf)).toEqual([])
   })
 
   it('says quietly whether the site is kept', () => {
