@@ -218,6 +218,10 @@ function PhoneHeader<C extends string, W extends string>({
                       surface="sidebar"
                       state={states[command]}
                       disabled={disabled}
+                      // The header's accessible name ("Undo road edit") carries over; its sizing does not.
+                      presentation={
+                        presentations[command]?.ariaLabel ? { ariaLabel: presentations[command].ariaLabel } : undefined
+                      }
                       onRun={(id) => {
                         close()
                         onCommand(id)

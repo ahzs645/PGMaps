@@ -181,12 +181,15 @@ test.describe('field navigation', () => {
     expect(
       await settings.evaluate((node) => node.matches(':modal') || node.getAttribute('aria-modal') === 'true'),
     ).toBe(true)
-    const rightInset = await page
-      .getByTestId('road-workspace')
-      .evaluate((node) => parseFloat(getComputedStyle(node).paddingRight))
+    // On a phone a task pane is a bottom sheet across the screen (808bf258), not an inset drawer.
     await expect
-      .poll(() => settings.evaluate((node) => innerWidth - node.getBoundingClientRect().right))
-      .toBeCloseTo(rightInset, 0)
+      .poll(() =>
+        settings.evaluate((node) => {
+          const box = node.getBoundingClientRect()
+          return [Math.round(box.left), Math.round(innerWidth - box.right), Math.round(innerHeight - box.bottom)]
+        }),
+      )
+      .toEqual([0, 0, 0])
     await expect(field).toBeFocused()
     await expect(field).toBeInViewport()
     const initial = await field.inputValue()
@@ -208,8 +211,12 @@ test.describe('field navigation', () => {
     await button(commands, 'More workspace commands').tap()
     await page.getByRole('menuitem', { name: 'Switch interface' }).tap()
     await page.getByRole('button', { name: 'Open Guided mode', exact: true }).tap()
+    // A phone's header keeps Undo and the interface switch in its More panel.
+    const more = page.getByRole('button', { name: 'More workspace commands' })
+    await more.tap()
     await page.getByRole('button', { name: 'Undo road edit', exact: true }).tap()
-    await page.getByRole('button', { name: 'Switch workspace interface' }).tap()
+    await more.tap()
+    await page.getByRole('button', { name: 'Switch interface', exact: true }).tap()
     await page.getByRole('button', { name: 'Open Ribbon', exact: true }).tap()
     await tab(page, 'Terrain').tap()
     await launcher.tap()
