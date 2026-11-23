@@ -18,6 +18,9 @@ import { chooseRelease, instrumentOf, setFact } from './caseEdits'
 import { findingCounts, questions, type Finding, type Question } from './questions'
 import { describeCheck, formatValue, STATUS_WORDS, type Status } from './wording'
 
+/** Open questions first, then what the planner measured, then what has been answered. */
+const QUESTION_HEADINGS = { open: 'Needs an answer', measured: 'Measured by the planner', answered: 'Answered' }
+
 const RuleFlow = lazy(() => import('../../legal-workbench/RuleFlow'))
 
 const STATUS_TONE: Record<Status, BadgeTone> = {
@@ -257,33 +260,41 @@ export function CaseReview({
                 {counts.notApplicable} do not apply
               </span>
             </p>
-            <div className="space-y-2">
-              {asked.map((q) =>
-                q.state === 'measured' ? (
-                  <p key={q.fact.id} className="rounded border border-dashed p-2 text-xs">
-                    <span className="font-medium">{q.fact.label}:</span> {formatValue(q.fact, value(q.fact))}
-                    <span className="block text-muted-foreground">
-                      Measured by the planner · {release.facts.facts.find((f) => f.id === q.fact.id)?.evidence}
-                    </span>
+            {(['open', 'measured', 'answered'] as const).map((state) => {
+              const group = asked.filter((q) => q.state === state)
+              if (state === 'open' && !group.length)
+                return (
+                  <p key={state} className="text-xs text-muted-foreground">
+                    No rule is waiting on an answer.
                   </p>
-                ) : (
-                  <div
-                    key={q.fact.id}
-                    className={cn(q.state === 'open' && 'rounded-md border-l-2 border-primary pl-2')}
-                  >
-                    <Answer
-                      question={q}
-                      value={value(q.fact)}
-                      hint={hints[q.fact.id]}
-                      onChange={(v) => onChange(setFact(review, release.pack, q.fact.id, v))}
-                    />
-                  </div>
-                ),
-              )}
-              {!asked.some((q) => q.state === 'open') && (
-                <p className="text-xs text-muted-foreground">No rule is waiting on an answer.</p>
-              )}
-            </div>
+                )
+              if (!group.length) return null
+              return (
+                <div key={state} className="space-y-2" data-questions={state}>
+                  <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {QUESTION_HEADINGS[state]} · {group.length}
+                  </p>
+                  {group.map((q) =>
+                    state === 'measured' ? (
+                      <p key={q.fact.id} className="text-xs">
+                        <span className="font-medium">{q.fact.label}:</span> {formatValue(q.fact, value(q.fact))}
+                        <span className="block text-muted-foreground">
+                          {release.facts.facts.find((f) => f.id === q.fact.id)?.evidence}
+                        </span>
+                      </p>
+                    ) : (
+                      <Answer
+                        key={q.fact.id}
+                        question={q}
+                        value={value(q.fact)}
+                        hint={hints[q.fact.id]}
+                        onChange={(v) => onChange(setFact(review, release.pack, q.fact.id, v))}
+                      />
+                    ),
+                  )}
+                </div>
+              )
+            })}
             <div className="space-y-1">
               {active.map((f) => (
                 <FindingRow key={f.rule} pack={release.pack} finding={f} facts={release.facts} date={review.date} />

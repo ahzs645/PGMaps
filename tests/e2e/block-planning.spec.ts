@@ -61,10 +61,22 @@ test('a drawn block is timed per schedule and saved with the plan', async ({ pag
   await timing.getByLabel('Year Proposed cuts Block 2').press('Enter')
   await expect(timing.getByLabel('Year Deferred 10 years cuts Block 2')).toHaveAttribute('placeholder', '2041')
 
-  const download = page.waitForEvent('download')
   await button(page, 'Save & export').click()
+  const dialog = page.getByTestId('block-planning-export')
+  await expect(dialog.locator('iframe')).toBeVisible()
+  const download = page.waitForEvent('download')
+  await dialog.getByRole('button', { name: 'Download', exact: true }).click()
   const plan = JSON.parse(await readFile((await (await download).path())!, 'utf8'))
   expect(plan.format).toBe('pgmaps-block-plan/v2')
   const block = plan.blocks.find((b: { name: string }) => b.name === 'Block 2')
   expect(plan.schedules.find((s: { id: string }) => s.id === 'proposed').entries[block.id]).toEqual({ year: 2031 })
+
+  // The assessment record waits for the run and carries the index, marked as no legal test.
+  await dialog.getByRole('button', { name: 'Assessment record' }).click()
+  const record = page.waitForEvent('download')
+  await dialog.getByRole('button', { name: 'Download', exact: true }).click()
+  const saved = JSON.parse(await readFile((await (await record).path())!, 'utf8'))
+  expect(saved.format).toBe('pgmaps-block-assessment/v1')
+  expect(saved.planningIndex.notALegalTest).toBe(true)
+  expect(saved.schedules).toHaveLength(3)
 })

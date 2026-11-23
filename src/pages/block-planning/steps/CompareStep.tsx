@@ -6,13 +6,85 @@ import { explainPatches } from '../../forest-patches/explanation'
 import { movementTowardTarget, table } from '../../forest-patches/project'
 import { FieldPriorities } from '../FieldPriorities'
 import { PatchExplanation } from '../PatchExplanation'
+import { CalculationFormula, CalculationTable } from '@/components/ui/calculation-results'
+import { NumberField } from '@/components/ui/form-field'
 import { publishedUnit, type PublishedUnit } from '../observations'
+import {
+  DEFAULT_INDEX_WEIGHTS,
+  INDEX_INDICATORS,
+  indexFormula,
+  MAX_INDEX_WEIGHT,
+  planningIndex,
+  type IndexWeights,
+} from '../planningIndex'
 import { footprintName, periodYears } from '../plan'
 import { scheduleProject, type PlanAnalysis } from '../planAnalysis'
 import { shownResult } from '../usePlanAnalysis'
 import type { StepProps } from './types'
 
 const pct = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 })
+
+const raw = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 })
+
+/** Index Lab's way of ranking options, over the schedules; labelled as a planning aid throughout. */
+function PlanningIndexSection({ plan, edit, result }: Pick<StepProps, 'plan' | 'edit'> & { result: PlanAnalysis }) {
+  const weights: IndexWeights = { ...DEFAULT_INDEX_WEIGHTS, ...plan.indexWeights }
+  const { rows, leftOut } = planningIndex(plan, result, weights)
+  const names = Object.fromEntries(plan.schedules.map((s) => [s.id, s.name]))
+  return (
+    <ToolSection
+      title="Planning index"
+      help="Ranks the schedules on measured indicators, each scaled from the worst schedule (0) to the best (1), weighted and averaged. It is for weighing options, as Index Lab weighs places."
+      summary={rows[0]?.score == null ? 'No score' : `${names[rows[0].schedule]} ranks first`}
+    >
+      <InlineAlert tone="warning" title="Not a legal test">
+        The order sets a trend toward each class’s target and no score. This index never feeds the review, a D.5 pathway
+        or a finding.
+      </InlineAlert>
+      <div className="grid grid-cols-2 gap-2">
+        {INDEX_INDICATORS.map((ind) => (
+          <NumberField
+            key={ind.id}
+            label={`${ind.label} (${ind.better} is better)`}
+            description={ind.explain}
+            value={weights[ind.id]}
+            min={0}
+            max={MAX_INDEX_WEIGHT}
+            step={1}
+            updateOn="commit"
+            onValueChange={(w) => edit((p) => ({ ...p, indexWeights: { ...weights, [ind.id]: w } }))}
+          />
+        ))}
+      </div>
+      <CalculationFormula expression={indexFormula(weights)} />
+      <div data-testid="block-planning-index">
+        <CalculationTable
+          caption="Schedules ranked by the planning index · raw value (scaled 0–1)"
+          rows={rows}
+          rowKey={(r) => r.schedule}
+          columns={[
+            { label: 'Schedule', render: (r) => names[r.schedule] },
+            { label: 'Index', render: (r) => (r.score === null ? null : raw.format(r.score)) },
+            ...INDEX_INDICATORS.map((ind, i) => ({
+              label: `${ind.label} (${ind.unit})`,
+              render: (r: (typeof rows)[number]) => {
+                const part = r.parts[i]
+                return part.raw === null
+                  ? null
+                  : `${raw.format(part.raw)}${part.scaled === null ? '' : ` (${part.scaled.toFixed(2)})`}`
+              },
+            })),
+          ]}
+        />
+      </div>
+      {leftOut.length > 0 && (
+        <p className="text-2xs text-muted-foreground">
+          Left out because a schedule has no value: {leftOut.join(', ')}.
+        </p>
+      )}
+    </ToolSection>
+  )
+}
 
 /** The Board's 2015 and 2018 shares for the reporting unit, with what changed between them. */
 function PublishedFigures({ unit }: { unit: PublishedUnit }) {
@@ -107,7 +179,7 @@ function Movement({ before, after, target }: { before: number | null; after: num
 }
 
 /** Step 4: the schedules side by side at the year on the map, and the tools that explain a figure. */
-export function CompareStep({ plan, analysis, shown, setShown }: StepProps) {
+export function CompareStep({ plan, edit, analysis, shown, setShown }: StepProps) {
   const result = shownResult(analysis)
   const years = periodYears(plan.area.startYear)
   const names = Object.fromEntries(plan.schedules.map((s) => [s.id, s.name]))
@@ -199,6 +271,8 @@ export function CompareStep({ plan, analysis, shown, setShown }: StepProps) {
       </ToolSection>
 
       {published && <PublishedFigures unit={published} />}
+
+      <PlanningIndexSection plan={plan} edit={edit} result={result} />
 
       <ToolSection
         title="Explain a figure"

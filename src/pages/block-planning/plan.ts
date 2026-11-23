@@ -151,6 +151,8 @@ export interface Plan {
   zones?: { source: string; layer: unknown }
   /** Rule pack releases the reviews use that are not built in, so the file opens anywhere. */
   packs: unknown[]
+  /** The planning index's weights, by indicator (`planningIndex.ts`). Absent: equal weights. */
+  indexWeights?: Record<string, number>
 }
 
 export const periodYears = (start: number) =>
@@ -516,5 +518,10 @@ export function parsePlan(value: unknown): Plan {
       return { source: text(z.source, 'zones.source', 2000), layer: z.layer }
     }),
     packs: list(p.packs ?? [], 'packs', 100),
+    indexWeights: optional(p, 'indexWeights', (v) =>
+      Object.fromEntries(
+        Object.entries(object(v, 'indexWeights')).map(([k, w]) => [k, int(w, `indexWeights.${k}`, 0, 5)]),
+      ),
+    ),
   }
 }

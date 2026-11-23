@@ -26,10 +26,11 @@ import { TabBar } from '@/components/ui/tab-bar'
 import { TilePane, TiledWorkspace, tilePaneKey, useTilePanels } from '@/components/ui/tiled-workspace'
 import { TileLayoutPicker, readSavedTileLayouts, resolveTileLayout } from '@/components/ui/tile-layout-picker'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { downloadText } from '@/lib/download'
 import { sketchPolygon } from '@/lib/geo/mapSketch'
 import { cn } from '@/lib/utils'
-import { installPacks } from '../legal-workbench/registry'
+import { defaults, installPacks } from '../legal-workbench/registry'
+import { useLibrary } from './review/CaseReview'
+import { SaveExportDialog } from './SaveExportDialog'
 import { addBlock, addDisturbance, addShape } from './edits'
 import { importBaseline, importBlocks } from './imports'
 import { PLANNING_STEPS, type PlanningCommand, type PlanningEditor } from './interface/commands'
@@ -213,7 +214,8 @@ export default function BlockPlanner({
       setNotice({ text: failure(e), error: true })
     }
   }
-  const savePlanFile = () => downloadText(JSON.stringify(plan, null, 2), 'block-plan.json', 'application/json')
+  const [exportOpen, setExportOpen] = useState(false)
+  const library = useLibrary(defaults)
 
   // --- Interface -------------------------------------------------------------------------------
   const {
@@ -292,7 +294,7 @@ export default function BlockPlanner({
       case 'open':
         return planFileInput.current?.click()
       case 'export':
-        return savePlanFile()
+        return setExportOpen(true)
       case 'area':
       case 'blocks':
       case 'schedules':
@@ -737,6 +739,14 @@ export default function BlockPlanner({
             Workspace layouts could not be loaded: using the built-in {GUIDED_INTERFACE_NAME}.
           </p>
         )}
+        <SaveExportDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          plan={plan}
+          result={analysis.status === 'ready' ? analysis.result : undefined}
+          running={analysis.status === 'running'}
+          library={library}
+        />
         {choosingInterface && (
           <InterfaceChooser
             layouts={layouts}
