@@ -1,4 +1,3 @@
-import { CalculationTable } from '@/components/ui/calculation-results'
 import { useMemo } from 'react'
 import { Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -586,42 +585,42 @@ export function ScoreBuilderRegionInsightDialog({
 
             <div className="space-y-3">
               {Object.entries(groupedRows).map(([category, rows]) => (
-                <CalculationTable
-                  key={category}
-                  caption={METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
-                  rows={rows}
-                  rowKey={(r) => r.key}
-                  columns={[
-                    {
-                      label: 'Indicator',
-                      render: (r) => (
-                        <>
-                          {r.intentLabel}
-                          {!isMobile && <span className="block text-muted-foreground">{getMetricLabel(r.key)}</span>}
-                        </>
-                      ),
-                    },
-                    { label: 'Weight', render: (r) => r.weight },
-                    { label: 'Normalized', render: (r) => (r.normalizedValue * 100).toFixed(1) + '%' },
-                    { label: 'Metric value', render: (r) => formatMetricValue(r.key, r.metricValue, true) },
-                    {
-                      label: 'Contribution',
-                      render: (r) => (
-                        <span
-                          className={cn(
-                            'font-semibold',
-                            r.scoreDelta >= 0
-                              ? 'text-emerald-700 dark:text-emerald-300'
-                              : 'text-rose-700 dark:text-rose-300',
+                <div key={category}>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {METRIC_CATEGORY_LABELS[category as keyof typeof METRIC_CATEGORY_LABELS] || category}
+                  </div>
+                  <div className="space-y-1.5">
+                    {rows.map((row) => {
+                      const positive = row.scoreDelta >= 0
+                      return (
+                        <div key={row.key} className="rounded border border-border bg-muted/15 px-2 py-1.5 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-foreground">{row.intentLabel}</span>
+                            <span
+                              className={cn(
+                                'font-semibold',
+                                positive
+                                  ? 'text-emerald-700 dark:text-emerald-300'
+                                  : 'text-rose-700 dark:text-rose-300',
+                              )}
+                            >
+                              {positive ? '+' : ''}
+                              {row.scoreDelta.toFixed(2)} pts
+                            </span>
+                          </div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            <span>weight {row.weight}</span>
+                            <span>norm {(row.normalizedValue * 100).toFixed(1)}%</span>
+                            <span>{formatMetricValue(row.key, row.metricValue, true)}</span>
+                          </div>
+                          {!isMobile && (
+                            <div className="mt-0.5 text-xs text-muted-foreground">{getMetricLabel(row.key)}</div>
                           )}
-                        >
-                          {r.scoreDelta >= 0 ? '+' : ''}
-                          {r.scoreDelta.toFixed(2)} pts
-                        </span>
-                      ),
-                    },
-                  ]}
-                />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               ))}
 
               {visibleContributionRows.length === 0 && (

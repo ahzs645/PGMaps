@@ -1,6 +1,6 @@
-import { CalculationFormula } from '@/components/ui/calculation-results'
+import { useClipboardText } from '@/hooks/useClipboardText'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, ChevronDown, ChevronUp, Info, Plus, X } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Copy, Info, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/maps/airquality'
 import type {
@@ -46,9 +46,15 @@ export function ScoreBuilderEquationBar({
   const [metricDialogOpen, setMetricDialogOpen] = useState(false)
   const [formulaOpen, setFormulaOpen] = useState(false)
   const [equationOpen, setEquationOpen] = useState(true)
+  const { copy, status: copyStatus } = useClipboardText()
+  const equationCopied = copyStatus === 'copied'
   const [editingMetricState, setEditingMetric] = useState<ScoreMetricKey | null>(null)
   // A removed term has no popover to keep open.
   const editingMetric = editingMetricState && weights[editingMetricState] !== 0 ? editingMetricState : null
+
+  const handleCopyEquation = () => {
+    void copy(equationPreview)
+  }
 
   const activeTerms = useMemo(() => metrics.filter((metric) => weights[metric.key] !== 0), [metrics, weights])
   // Terms that are in the equation but contributing nothing — either their data source
@@ -171,8 +177,18 @@ export function ScoreBuilderEquationBar({
         </div>
 
         {(isHealthyPlanMode || activeTerms.length > 0) && formulaOpen && equationOpen && (
-          <div className="mt-2">
-            <CalculationFormula expression={formulaText} copyText={equationPreview} />
+          <div className="mt-2 flex items-start gap-2 rounded-md bg-muted px-3 py-2">
+            <div className="min-w-0 flex-1 overflow-x-auto font-mono text-xs text-muted-foreground">{formulaText}</div>
+            <button
+              type="button"
+              onClick={handleCopyEquation}
+              disabled={copyStatus === 'pending'}
+              title="Copy equation to clipboard"
+              className="inline-flex shrink-0 items-center gap-1 rounded border border-input bg-background px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {equationCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              {equationCopied ? 'Copied' : copyStatus === 'failed' ? 'Select formula to copy' : 'Copy'}
+            </button>
           </div>
         )}
       </div>
