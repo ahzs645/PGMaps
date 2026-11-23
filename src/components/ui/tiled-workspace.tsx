@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
@@ -281,7 +281,15 @@ export function TilePane({
       className={cn('flex min-h-0 flex-1 flex-col', className)}
       actions={actions}
     >
-      {children}
+      {(fullscreen) => (
+        // Full screen, the pane covers a phone's bottom sheet: the map's chrome stops reserving its height.
+        <div
+          className="contents"
+          style={fullscreen ? ({ '--map-mobile-sheet-visible-height': '0px' } as CSSProperties) : undefined}
+        >
+          {children(fullscreen)}
+        </div>
+      )}
     </FullscreenPanel>
   )
 }

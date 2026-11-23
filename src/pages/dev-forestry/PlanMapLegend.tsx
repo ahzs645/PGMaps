@@ -133,6 +133,11 @@ function Row({
 }
 
 export type PlanMapLegendProps = {
+  /**
+   * Beside the plan's tool stack rather than under it: on a short plan an open legend reaches the top of the map, and
+   * in the stack's columns (two, when the stack folds that far) it would cover the tools.
+   */
+  besideTools?: boolean
   /** Blocks drawn; `customColors` when any carries its own colour. */
   blocks: { count: number; customColors: boolean }
   landform: boolean
@@ -216,6 +221,7 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
         collapsed={props.collapsed}
         onCollapsedChange={props.onCollapsedChange}
         width="sm"
+        className={props.besideTools ? 'right-28' : undefined}
         data-testid="visual-quality-legend"
         contentClassName="max-h-72 overflow-y-auto overscroll-contain"
       >

@@ -10,8 +10,13 @@
  *
  * Render `MapSketchLayers` inside `<Map>`. While it captures clicks, the page's own click handlers
  * stand aside: a plan layer that acts on click must not also act on a vertex.
+ *
+ * Every sketch can be drawn without a pointer (`MapKeyboardPlacement`): with the map focused, the
+ * arrow keys move the map under a cross at its centre, Enter or Space adds the point under the cross,
+ * Backspace takes the last one back and Shift + Enter finishes. Escape stays the page's cancel.
  */
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type * as MapLibreGL from 'maplibre-gl'
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
@@ -112,6 +117,8 @@ export interface MapSketchLayersProps {
   /** A click on the first vertex or a double-click, once the shape has enough points. */
   onFinish: () => void
   onCursor?: (point: LngLat | null) => void
+  /** Backspace with the map focused takes the last point back; without it Backspace does nothing here. */
+  onRemoveLast?: () => void
   /**
    * Off when the page's own click handler places the vertices (it can still close the polygon with
    * `nearFirstVertex`); the sketch is then drawn only.
@@ -132,6 +139,7 @@ export function MapSketchLayers({
   onAdd,
   onFinish,
   onCursor,
+  onRemoveLast,
   capture = true,
   color = SKETCH_COLOR,
   circleOutline = true,
@@ -145,6 +153,15 @@ export function MapSketchLayers({
     <>
       {capture && drawing && (
         <SketchClickCapture shape={shape} points={points} onAdd={onAdd} onFinish={onFinish} onCursor={onCursor} />
+      )}
+      {capture && drawing && (
+        <MapKeyboardPlacement
+          active
+          onPlace={onAdd}
+          onRemoveLast={onRemoveLast}
+          onFinish={canFinish ? onFinish : undefined}
+          onCursor={onCursor}
+        />
       )}
       <MapFillLayer
         data={features.fill}
@@ -231,6 +248,7 @@ export function MapSketch({
       onAdd={sketch.add}
       onFinish={sketch.finish}
       onCursor={sketch.setCursor}
+      onRemoveLast={sketch.undo}
     />
   )
 }
@@ -246,7 +264,8 @@ export function MapSketchDraft({
   onFinish,
   color,
   testId,
-}: Pick<MapSketchLayersProps, 'shape' | 'points' | 'onAdd' | 'onFinish' | 'color' | 'testId'>) {
+  onRemoveLast,
+}: Pick<MapSketchLayersProps, 'shape' | 'points' | 'onAdd' | 'onFinish' | 'onRemoveLast' | 'color' | 'testId'>) {
   const [cursor, setCursor] = useState<LngLat | null>(null)
   return (
     <MapSketchLayers
@@ -257,6 +276,7 @@ export function MapSketchDraft({
       onCursor={setCursor}
       onAdd={onAdd}
       onFinish={onFinish}
+      onRemoveLast={onRemoveLast}
       color={color}
       testId={testId}
     />
@@ -337,4 +357,101 @@ function SketchClickCapture({
   }, [isLoaded, map])
 
   return null
+}
+
+/**
+ * Placing points without a pointer, on any map tool that places them (a sketch's vertices, a one-click point).
+ * While `active` and the map holds keyboard focus, a cross marks the map's centre; the arrow keys move the map under
+ * it (MapLibre's own keyboard panning), Enter or Space places the point under the cross, Backspace takes the last one
+ * back and Shift + Enter finishes. A tool started from the keyboard hands focus to the map, so the next key places.
+ * The keys are the map's own: typing in a field or a menu never reaches them.
+ */
+export function MapKeyboardPlacement({
+  active,
+  onPlace,
+  onRemoveLast,
+  onFinish,
+  onCursor,
+}: {
+  active: boolean
+  onPlace: (point: LngLat) => void
+  onRemoveLast?: () => void
+  /** Shift + Enter; leave it out while the shape cannot finish yet. */
+  onFinish?: () => void
+  /** Follows the cross, so a sketch's rubber band runs to it. */
+  onCursor?: (point: LngLat | null) => void
+}) {
+  const { map, isLoaded } = useMap()
+  const latest = useRef({ onPlace, onRemoveLast, onFinish, onCursor })
+  useEffect(() => {
+    latest.current = { onPlace, onRemoveLast, onFinish, onCursor }
+  })
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    if (!map || !isLoaded || !active) return
+    const canvas = map.getCanvas()
+    const centre = (): LngLat => {
+      const { lng, lat } = map.getCenter()
+      return [lng, lat]
+    }
+    const from = canvas.ownerDocument.activeElement as HTMLElement | null
+    const isFocused = () => canvas.ownerDocument.activeElement === canvas
+    const follow = () => {
+      if (isFocused()) latest.current.onCursor?.(centre())
+    }
+    // The cross is for the keyboard: a tap also focuses the map, and must not leave a cross on it.
+    const onFocus = () => {
+      setFocused(canvas.matches(':focus-visible'))
+      follow()
+    }
+    const onBlur = () => setFocused(false)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return
+      // MapLibre pans on the arrows; the cross shows from the first key.
+      if (event.key.startsWith('Arrow')) setFocused(true)
+      if (event.key === 'Enter' && event.shiftKey) {
+        if (!latest.current.onFinish) return
+        event.preventDefault()
+        latest.current.onFinish()
+      } else if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        latest.current.onPlace(centre())
+      } else if (event.key === 'Backspace' || event.key === 'Delete') {
+        if (!latest.current.onRemoveLast) return
+        event.preventDefault()
+        latest.current.onRemoveLast()
+      } else return
+      event.stopPropagation()
+      setFocused(true)
+    }
+    canvas.addEventListener('focus', onFocus)
+    canvas.addEventListener('blur', onBlur)
+    canvas.addEventListener('keydown', onKey)
+    map.on('move', follow)
+    // Started from the keyboard (a focused control on or beside the map): the map takes focus, so the next key places.
+    if (from && from !== canvas && from.matches(':focus-visible') && !from.closest('input, textarea, select')) {
+      canvas.focus({ preventScroll: true })
+    } else if (isFocused()) queueMicrotask(onFocus)
+    return () => {
+      canvas.removeEventListener('focus', onFocus)
+      canvas.removeEventListener('blur', onBlur)
+      canvas.removeEventListener('keydown', onKey)
+      map.off('move', follow)
+      setFocused(false)
+    }
+  }, [active, isLoaded, map])
+
+  if (!active || !focused || !map) return null
+  return createPortal(
+    <div
+      aria-hidden="true"
+      data-testid="map-keyboard-cross"
+      className="pointer-events-none absolute left-1/2 top-1/2 z-10 size-8 -translate-x-1/2 -translate-y-1/2"
+    >
+      <span className="absolute left-1/2 top-0 h-full w-0.5 -translate-x-1/2 bg-foreground shadow-[0_0_0_1px_hsl(var(--background))]" />
+      <span className="absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 bg-foreground shadow-[0_0_0_1px_hsl(var(--background))]" />
+    </div>,
+    map.getContainer(),
+  )
 }

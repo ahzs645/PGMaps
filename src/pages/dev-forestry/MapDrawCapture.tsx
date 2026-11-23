@@ -2,6 +2,7 @@ import type * as MapLibreGL from 'maplibre-gl'
 import { useEffect, useRef } from 'react'
 
 import { useMap } from '@/components/ui/map'
+import { MapKeyboardPlacement } from '@/components/ui/map-sketch'
 
 type MapDrawCaptureProps = {
   active: boolean
@@ -15,7 +16,8 @@ type MapDrawCaptureProps = {
  *
  * Double-click zoom is suspended for the duration so finishing a shape does not
  * also jump the camera, and the handler holds its callbacks in refs so a
- * re-render between clicks cannot detach the listener mid-draw.
+ * re-render between clicks cannot detach the listener mid-draw. The point can be
+ * placed from the keyboard too (`MapKeyboardPlacement`): Enter at the map's centre.
  */
 export function MapDrawCapture({ active, onPoint, onFinish }: MapDrawCaptureProps) {
   const { map, isLoaded } = useMap()
@@ -79,5 +81,5 @@ export function MapDrawCapture({ active, onPoint, onFinish }: MapDrawCaptureProp
     }
   }, [isLoaded, map])
 
-  return null
+  return <MapKeyboardPlacement active={active} onPlace={onPoint} onFinish={onFinish} />
 }

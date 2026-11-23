@@ -37,7 +37,9 @@ export function MapToolToggle({
           disabled={disabled}
           onClick={onToggle}
           className={cn(
-            'relative flex size-11 items-center justify-center transition-colors hover:bg-accent disabled:opacity-50 dark:hover:bg-accent/40 workspace-desktop:size-8',
+            'relative flex items-center justify-center transition-colors hover:bg-accent disabled:opacity-50 dark:hover:bg-accent/40',
+            // 44 px on a phone and under a finger anywhere; 32 px in a desktop workspace with a mouse.
+            'size-11 workspace-desktop:size-8 touch:!size-11',
             active && 'bg-accent text-accent-foreground dark:bg-accent/40',
           )}
         >

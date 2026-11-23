@@ -1,4 +1,4 @@
-import { Camera, Download, Footprints, History, Loader2, PenLine, Trash2 } from 'lucide-react'
+import { Camera, Download, Footprints, History, Loader2, MapPinPlus, PenLine, Trash2 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -80,6 +80,11 @@ export type ViewsOfInterestPanelProps = {
   inventory: ViewpointInventory | null
   /** Opens Save & export. Absent (the list shown inside Save & export): no *Export…* button. */
   onOpenExport?: () => void
+  /**
+   * Puts the plan map's *Add a view of interest* tool in hand (on a phone the sheet drops to show the map). Absent:
+   * the empty list only names the tool.
+   */
+  onPlaceView?: () => void
   /** Brings a view into sight on the plan. */
   onShowView?: (view: ViewOfInterest) => void
   /** Extra control in the open row, such as the landform seen from the view. */
@@ -404,6 +409,7 @@ export function ViewsOfInterestList({
   placing = false,
   inventory,
   onOpenExport,
+  onPlaceView,
   onShowView,
   landformControl,
   recordControl,
@@ -480,10 +486,24 @@ export function ViewsOfInterestList({
       )}
 
       {views.length === 0 && blocks.length > 0 && (
-        <p className="text-2xs text-muted-foreground">
-          No views yet. Place one with the map&apos;s <em>Add a view of interest</em> tool, or with <em>Add</em> on the
-          viewpoints and rec sites below.
-        </p>
+        <div className="space-y-1.5">
+          <p className="text-2xs text-muted-foreground">
+            No views yet. Place one on the map, or with <em>Add</em> on the viewpoints and rec sites below.
+          </p>
+          {onPlaceView && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={onPlaceView}
+              disabled={placing}
+            >
+              <MapPinPlus className="size-3.5" aria-hidden="true" />
+              {placing ? 'Placing on the map…' : 'Add a view of interest on the map'}
+            </Button>
+          )}
+        </div>
       )}
 
       {views.length > 0 && (

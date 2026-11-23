@@ -163,6 +163,8 @@ export type SceneLayerData = {
   setSelectedTargetId: (id: string) => void
   handleMapPoint: (point: [number, number]) => void
   finishDraft: () => void
+  /** Takes the draft's last point back (Backspace with the map focused). */
+  removeLastDraftPoint: () => void
   handleAdoptUnit: (id: string) => void
   /** Stands at an inventory viewpoint, facing the block, or along one of its arrows when given. */
   handleUseViewpoint: (candidate: ViewpointCandidate, arrow?: CandidateArrow | null) => void
@@ -268,6 +270,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     setSelectedTargetId,
     handleMapPoint,
     finishDraft,
+    removeLastDraftPoint,
     handleAdoptUnit,
     handleUseViewpoint,
     onInspectSample,
@@ -531,6 +534,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
               points={draftCoordinates}
               onAdd={handleMapPoint}
               onFinish={finishDraft}
+              onRemoveLast={removeLastDraftPoint}
               color={DRAFT_COLOR}
               testId="visuals-draft"
             />
