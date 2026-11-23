@@ -506,7 +506,11 @@ inline in `InlineAlert`.
   the list's `children` rather than above the list, where it lands out of view;
   rows are re-measured, so they can grow. Wrap it in `ResultRowDetail`, which
   continues the row's tint and left bar, rather than a card of its own. BC
-  Assessment is the reference.
+  Assessment is the reference. It scrolls by the nearest
+  `data-map-sidebar-scroll` ancestor and draws no row without one: a list that
+  can be shown away from a sidebar (a `Projectable` piece moved into a dialog)
+  sits in `SidebarScrollFallback` (`sidebar-scroll-fallback.tsx`), which adds
+  nothing inside a sidebar and is a bounded scroller of its own elsewhere.
 - `ResultRow` for a row (marker, title, subtitle, meta, trailing value,
   `selected` + `accent`, aria-pressed).
 - `ListHeader` for the "N items" line, `ListState` for loading / error / empty
