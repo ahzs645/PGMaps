@@ -3,19 +3,13 @@ import type { ForestryScene } from './scene'
 import type { AnalysisInput, TargetPolygon } from './types'
 import { activeLandform, canonicalInput } from './integrity'
 import { fieldGreenUpInput } from './greenUp'
-import { surveyedEyeElevation } from './viewpointStand'
+import { standEyeHeight, surveyedEyeElevation } from './viewpointStand'
 /** The same builder is used for the worker request and stale-result checks. */
 export function buildSceneInput(scene: ForestryScene): AnalysisInput {
   const masks = masksForLandform(scene.masks, findSceneLandform(scene)?.id)
   const forms = scene.targets.filter((t) => t.role === 'landscape')
-  // A surveyed eye elevation is a run input only while it applies to where the eye stands.
-  const eyeElevationMeters = surveyedEyeElevation(scene.viewpoint)
   return {
-    viewpoint: {
-      mode: scene.viewpoint.mode,
-      coordinates: scene.viewpoint.coordinates,
-      ...(eyeElevationMeters !== null ? { eyeElevationMeters } : {}),
-    },
+    viewpoint: { mode: scene.viewpoint.mode, coordinates: scene.viewpoint.coordinates, ...standEye(scene.viewpoint) },
     targets: scene.targets.map(
       ({
         id,
@@ -53,6 +47,16 @@ export function buildSceneInput(scene: ForestryScene): AnalysisInput {
     ...(scene.localRasters?.length ? { localRasters: scene.localRasters } : {}),
   }
 }
+/**
+ * The stand's own eye as the run reads it: a surveyed elevation, else a height above the terrain model's ground, each
+ * only while it applies to where the eye stands (the elevation wins where both do). Empty for every other viewpoint.
+ */
+function standEye(viewpoint: ForestryScene['viewpoint']): { eyeElevationMeters?: number; eyeHeightMeters?: number } {
+  const eyeElevationMeters = surveyedEyeElevation(viewpoint)
+  if (eyeElevationMeters !== null) return { eyeElevationMeters }
+  const eyeHeightMeters = standEyeHeight(viewpoint)
+  return eyeHeightMeters !== null ? { eyeHeightMeters } : {}
+}
 /** This also binds the report labels, objectives and thresholds to the run. */
 export function sceneFingerprint(scene: ForestryScene): string | null {
   try {
@@ -69,13 +73,15 @@ export function sceneFingerprint(scene: ForestryScene): string | null {
     delete assessed.figureFrame
     // The planned views are a plan: capturing one stands there and runs again, editing the list never stales the run.
     delete assessed.viewsOfInterest
-    // A surveyed eye elevation counts as the run reads it: only while it applies to where the eye
-    // stands, so one left behind by a moved viewpoint does not stale the run.
+    // A surveyed eye elevation, or a stand's own eye height, counts as the run reads it: only while it
+    // applies to where the eye stands, so one left behind by a moved viewpoint does not stale the run.
     const viewpoint = { ...scene.viewpoint }
     delete viewpoint.surveyedEye
-    const eyeElevationMeters = surveyedEyeElevation(scene.viewpoint)
-    const counted: ForestryScene['viewpoint'] & { eyeElevationMeters?: number } =
-      eyeElevationMeters === null ? viewpoint : { ...viewpoint, eyeElevationMeters }
+    delete viewpoint.standEyeHeight
+    const counted: ForestryScene['viewpoint'] & { eyeElevationMeters?: number; eyeHeightMeters?: number } = {
+      ...viewpoint,
+      ...standEye(scene.viewpoint),
+    }
     assessed.viewpoint = counted
     // Likewise a block's retention and partial-cut figures (Tables 5 and 6);
     // only whether a block is a partial cut changes what the run clears.

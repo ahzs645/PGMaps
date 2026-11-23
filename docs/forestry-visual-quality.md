@@ -223,10 +223,25 @@ rules in `viewCoordinates.ts` and `viewCamera.ts`, both DOM-free):
   above sea level, or a height above the model's ground (`ViewOfInterest.eye`).
   A capture stands on it (`viewCaptureCamera`): an elevation becomes the
   stand's surveyed eye, a run input at that stand as a photo viewpoint's
-  altitude is, so the road view, the run and the figure stand there together;
-  a height above the ground moves only the road view's eye and the capture
-  (`viewEyeHeight`), never the run's stations, and the camera information
-  prints it as the observer height. Views at one place with different eyes are
+  altitude is, so the road view, the run and the figure stand there together.
+  A height above the ground does the same as the stand's own eye height
+  (`Viewpoint.standEyeHeight`, read through `standEyeHeight`): the run's
+  stations at that stand stand that high in place of the scene's eye height
+  (`AnalysisInput.viewpoint.eyeHeightMeters`), so an analysis sheet's picture
+  and its sightline figure always stand at the same eye, and the run's
+  `settings.observerHeightMeters` is the eye it used, which the camera
+  information and every figure print as the observer height. Where a stand
+  holds both, the elevation wins and the height is not sent. Roads and views
+  without an eye of their own keep the scene's eye height, and `buildStations`
+  is unchanged. Like the elevation, the height is kept with the point it was
+  set for and lapses when the viewpoint moves; editing the eye of the view
+  stood at changes its stand's input and stales the run (the road view is held
+  open through the new run), while editing any other view's eye never does.
+  The stability check's *Eye 0.5 m lower/higher* move a stand's own height by
+  the same half metre. The VIA report's Methods never print one eye height a
+  view did not use (`reportEyes`, `eyeClause`): they state the scene's eye
+  height and name each view that stood at its own eye, read from its figure's
+  camera information, or each view's eye when none stood at the scene's. Views at one place with different eyes are
   separate stands (`groupByPlace`). A surveyed elevation more than
   `EYE_GROUND_TOLERANCE_METERS` (3 m, a screen) from the terrain model's eye
   is flagged on the row with both numbers (`eyeCheck`), never refused, and the

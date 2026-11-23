@@ -445,9 +445,10 @@ function EyeFields({
               On the terrain model, the eye stands the run&apos;s eye height ({metres(observerHeightMeters)}) over the
               regional DEM. A surveyed elevation (a VIA&apos;s camera block, a GPS reading plus your eye height) stands
               it there instead, for the road view, the capture and the run at this stand, as a stood-at viewpoint&apos;s
-              surveyed eye does. A height above the ground raises or lowers the road view&apos;s eye and the capture
-              only; the run&apos;s stations keep the run&apos;s eye height. A surveyed elevation more than{' '}
-              {EYE_GROUND_TOLERANCE_METERS} m from the terrain model&apos;s eye is flagged, never refused.
+              surveyed eye does. A height above the ground (a truck cab, a lookout&apos;s deck) is this stand&apos;s eye
+              height in the same way: the road view, the capture and the run all stand at it, so the picture and the
+              sightline figure share one eye. A surveyed elevation more than {EYE_GROUND_TOLERANCE_METERS} m from the
+              terrain model&apos;s eye is flagged, never refused.
             </InfoTip>
           }
           onValueChange={(value) => {

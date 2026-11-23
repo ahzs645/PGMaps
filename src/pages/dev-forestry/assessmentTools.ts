@@ -8,6 +8,7 @@ import type { LocalRaster } from './types'
 import type { AnalysisResult, RunGap, Viewpoint } from './types'
 import { assessVia, type ViaAssessment, type ViaReview } from './via'
 import { pulloutThrough } from './viewpointInventory'
+import { standEyeHeight } from './viewpointStand'
 import { MAX_VIEWS_OF_INTEREST, blockCentre, type ViewOfInterest } from './viewsOfInterest'
 import type { PolygonGeometry } from './visibility'
 import { heightCurveProblem, MAX_LIBRARY_CURVES, type LibraryCurve } from './castorCurves'
@@ -518,11 +519,25 @@ export function stabilityJobs(scene: ForestryScene): ToolJob[] {
     ['Eye 0.5 m higher', { observerHeightMeters: scene.settings.observerHeightMeters + 0.5 }],
     ['Vegetation screening comparison', { screeningEnabled: !scene.settings.screeningEnabled }],
   ]
+  // A stand with its own eye height stands there in place of the scene's (`standEyeHeight`): the eye variants move
+  // that eye by the same half metre, or they would change nothing at it.
+  const ownHeight = standEyeHeight(scene.viewpoint)
+  const shiftedEye = (settings: Partial<ForestryScene['settings']>): Pick<ForestryScene, 'viewpoint'> | null => {
+    if (ownHeight === null || settings.observerHeightMeters === undefined || !scene.viewpoint.standEyeHeight)
+      return null
+    const shift = settings.observerHeightMeters - scene.settings.observerHeightMeters
+    return {
+      viewpoint: {
+        ...scene.viewpoint,
+        standEyeHeight: { ...scene.viewpoint.standEyeHeight, heightMeters: Math.max(0.1, ownHeight + shift) },
+      },
+    }
+  }
   const jobs: ToolJob[] = variants.map(([name, settings], i) => ({
     id: `stability-${i}`,
     name,
     kind: 'stability',
-    scene: { ...scene, settings: { ...scene.settings, ...settings }, viaReview: {} },
+    scene: { ...scene, settings: { ...scene.settings, ...settings }, ...shiftedEye(settings), viaReview: {} },
   }))
   if (scene.localRasters?.some((r) => r.kind === 'terrain'))
     jobs.push({

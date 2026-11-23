@@ -211,6 +211,17 @@ describe('independent saved assessments', () => {
     expect(stabilityJobs({ ...base, localRasters: [raster] })).toHaveLength(7)
     expect(stabilityJobs(base)[1].scene.settings.sampleBudget).toBe(2400)
   })
+  it("moves a stand's own eye height with the eye variants, which would otherwise change nothing there", () => {
+    const base = scene()
+    base.viewpoint = { ...base.viewpoint, standEyeHeight: { heightMeters: 3, lng: -0.04, lat: 0 } }
+    const eye = (name: string) =>
+      buildSceneInput(stabilityJobs(base).find((job) => job.name === name)!.scene).viewpoint.eyeHeightMeters
+    expect(eye('Baseline')).toBe(3)
+    expect(eye('Eye 0.5 m lower')).toBe(2.5)
+    expect(eye('Eye 0.5 m higher')).toBe(3.5)
+    // Without one the variants move the scene's eye height alone, as before.
+    expect(stabilityJobs(scene()).every((job) => job.scene.viewpoint.standEyeHeight === undefined)).toBe(true)
+  })
   it('schedules harvest and applies supplied height curves without extrapolation', () => {
     const base = scene()
     base.targets[1].plannedHarvestYear = 2030

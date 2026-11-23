@@ -10,12 +10,19 @@ export type ViewpointMode = 'spot' | 'corridor'
  * so it lapses when the viewpoint moves (`viewpointStand.ts`).
  */
 export type SurveyedEye = { elevationMeters: number; lng: number; lat: number }
+/**
+ * A view of interest's own eye height above the terrain model's ground (a truck cab, a lookout's deck), kept on the
+ * stand made for it with the point it was set for, so it lapses as a `SurveyedEye` does when the viewpoint moves
+ * (`standEyeHeight`, `viewpointStand.ts`). A run input at that stand, in place of the scene's eye height.
+ */
+export type StandEyeHeight = { heightMeters: number; lng: number; lat: number }
 export type Viewpoint = {
   id: string
   name: string
   mode: ViewpointMode
   coordinates: Array<[number, number]>
   surveyedEye?: SurveyedEye
+  standEyeHeight?: StandEyeHeight
 }
 export type TargetRole = 'block' | 'landscape' | 'harvested'
 /**
@@ -133,8 +140,11 @@ export type AnalysisInput = {
   /**
    * `eyeElevationMeters`: a surveyed eye elevation that applies (`surveyedEyeElevation`), absolute
    * metres. Every station's eye stands there in place of the terrain model's ground + eye height.
+   * `eyeHeightMeters`: a stand's own eye height above the terrain model's ground that applies
+   * (`standEyeHeight`), in place of `settings.observerHeightMeters` for every station of this
+   * viewpoint. A surveyed elevation wins over it: `buildSceneInput` never sends both.
    */
-  viewpoint: Pick<Viewpoint, 'mode' | 'coordinates'> & { eyeElevationMeters?: number }
+  viewpoint: Pick<Viewpoint, 'mode' | 'coordinates'> & { eyeElevationMeters?: number; eyeHeightMeters?: number }
   targets: Array<
     Pick<
       TargetPolygon,
@@ -265,6 +275,11 @@ export type AnalysisResult = {
   sightlineProfile?: import('./sightlineProfile').SightlineProfile
   sourceNotes?: string[]
   landformDesign?: import('./landformDesign').LandformDesignReview | null
+  /**
+   * The settings the run used. `observerHeightMeters` is the eye height every station stood at: the stand's own
+   * (`AnalysisInput.viewpoint.eyeHeightMeters`) where it had one, so everything that prints or stands at the run's eye
+   * height reads the eye the run used; `inputSnapshot` keeps the scene's setting.
+   */
   settings: AnalysisSettings
   /**
    * `groundElevationMeters` is the ground the eye stands on. With a surveyed eye elevation it is that

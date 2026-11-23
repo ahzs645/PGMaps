@@ -18,13 +18,17 @@ import {
   photoStandReach,
   STOOD_AT_MAX_LENGTH_METERS,
   SURVEYED_EYE_REACH_METERS,
+  parseStandEyeHeight,
   parseSurveyedEye,
+  standEyeHeight,
+  standEyeHeightFor,
   standingPoint,
   surveyedEyeAt,
   surveyedEyeElevation,
   surveyedEyeFor,
 } from './viewpointStand'
 import { haversineMeters, pointInPolygon, polygonAreaMeters } from './visibility'
+import { viewCaptureCamera } from './viewCamera'
 
 // Marblehead VP2, Duncan Dam Scenic Viewpoint, as printed in its VIA.
 const VP2 = { lng: -116.95101397, lat: 50.25611033 }
@@ -177,6 +181,164 @@ describe('the surveyed eye elevation in the scene and the run', () => {
     )
     expect(surveyed.stations[0].terrainGroundElevationMeters).toBe(0)
     expect(surveyed.targets[0].stations[0].visiblePercent).toBeGreaterThan(90)
+  })
+})
+
+describe("a view's eye height above the ground, at its stand", () => {
+  // A made-up place: a pullout through a lookout, square to a block to the east.
+  const LOOKOUT = { lng: -122.4, lat: 54.2 }
+  const pullout = pulloutThrough(LOOKOUT, { lng: -122.35, lat: 54.2 })
+  const stand = { id: 'stand-lookout', name: 'Lookout', mode: 'corridor' as const, coordinates: pullout }
+  const height = (meters: number, at = LOOKOUT) => ({ heightMeters: meters, lng: at.lng, lat: at.lat })
+
+  it('applies only at the point it was set for, and a surveyed elevation wins over it', () => {
+    const record = standEyeHeightFor(stand, 3)!
+    expect(haversineMeters(record, LOOKOUT)).toBeLessThan(0.01)
+    expect(standEyeHeight({ ...stand, standEyeHeight: record })).toBe(3)
+    // Moved 50 m: kept, but it no longer applies.
+    expect(standEyeHeight({ ...stand, standEyeHeight: height(3, { ...LOOKOUT, lng: LOOKOUT.lng + 0.0007 }) })).toBe(
+      null,
+    )
+    // A road is not stood at; a height out of range or blank is no record.
+    const road: Array<[number, number]> = [
+      [LOOKOUT.lng, LOOKOUT.lat],
+      [LOOKOUT.lng + 0.01, LOOKOUT.lat],
+    ]
+    expect(standEyeHeightFor({ mode: 'corridor', coordinates: road }, 3)).toBeUndefined()
+    expect(standEyeHeightFor(stand, 0)).toBeUndefined()
+    expect(standEyeHeightFor(stand, null)).toBeUndefined()
+    const both = { ...stand, standEyeHeight: record, surveyedEye: surveyedEyeFor(stand, 812.4) }
+    expect(standEyeHeight(both)).toBeNull()
+    expect(surveyedEyeElevation(both)).toBe(812.4)
+  })
+
+  it("is what standing at a view with its own height above the ground sets, and the elevation's wins", () => {
+    const view = { focalMm: 50, eye: { reference: 'ground' as const, meters: 3 } }
+    const camera = viewCaptureCamera(view)
+    expect(camera).toMatchObject({ eyeHeightMeters: 3, surveyedEyeMeters: null })
+    const scene = sceneAt({ ...stand, standEyeHeight: standEyeHeightFor(stand, camera.eyeHeightMeters) })
+    expect(buildSceneInput(scene).viewpoint).toEqual({ mode: 'corridor', coordinates: pullout, eyeHeightMeters: 3 })
+    const surveyed = viewCaptureCamera({ focalMm: 50, eye: { reference: 'elevation', meters: 812.4 } })
+    expect(surveyed).toMatchObject({ eyeHeightMeters: null, surveyedEyeMeters: 812.4 })
+    // A stand holding both reads the elevation alone.
+    const both = sceneAt({ ...scene.viewpoint, surveyedEye: surveyedEyeFor(stand, 812.4) })
+    expect(buildSceneInput(both).viewpoint).toEqual({
+      mode: 'corridor',
+      coordinates: pullout,
+      eyeElevationMeters: 812.4,
+    })
+    expect(sceneFingerprint(both)).toBe(
+      sceneFingerprint(sceneAt({ ...stand, surveyedEye: both.viewpoint.surveyedEye })),
+    )
+  })
+
+  it('is a run input at its stand: it reaches the analysis input and the fingerprint, and a lapsed one does not', () => {
+    const plain = sceneAt(stand)
+    const raised = sceneAt({ ...stand, standEyeHeight: height(3) })
+    expect(buildSceneInput(plain).viewpoint.eyeHeightMeters).toBeUndefined()
+    expect('eyeHeightMeters' in buildSceneInput(plain).viewpoint).toBe(false)
+    expect(sceneFingerprint(raised)).not.toBe(sceneFingerprint(plain))
+    expect(sceneFingerprint(sceneAt({ ...stand, standEyeHeight: height(4) }))).not.toBe(sceneFingerprint(raised))
+    const lapsed = sceneAt({ ...stand, standEyeHeight: height(3, { ...LOOKOUT, lng: LOOKOUT.lng + 0.001 }) })
+    expect(buildSceneInput(lapsed)).toEqual(buildSceneInput(plain))
+    expect(sceneFingerprint(lapsed)).toBe(sceneFingerprint(plain))
+  })
+
+  it('survives a save, drops a malformed record rather than the scene, and a scene without one still reads', () => {
+    const scene = sceneAt({ ...stand, standEyeHeight: height(3) })
+    expect(parseScene(JSON.parse(serializeScene(scene)))!.viewpoint.standEyeHeight).toEqual(height(3))
+    expect(parseScene(JSON.parse(serializeScene(sceneAt(stand))))!.viewpoint).toEqual(stand)
+    expect(parseStandEyeHeight({ heightMeters: 'tall', ...LOOKOUT })).toBeUndefined()
+    expect(parseStandEyeHeight({ heightMeters: 0, ...LOOKOUT })).toBeUndefined()
+    expect(parseStandEyeHeight({ heightMeters: 3 })).toBeUndefined()
+    expect(parseStandEyeHeight(null)).toBeUndefined()
+  })
+
+  describe('in the run', () => {
+    // Flat ground with a low bank between the eye and the block: 1.6 m up cannot see over it, 3 m up can.
+    const BANK_METERS = 1.2
+    const bank: ElevationSource = { elevationAt: (lng) => (lng > -0.0405 && lng < -0.0395 ? BANK_METERS : 0) }
+    const input = (viewpoint: Partial<AnalysisInput['viewpoint']> = {}, observerHeightMeters = 1.6): AnalysisInput => ({
+      viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]], ...viewpoint },
+      targets: [
+        {
+          id: 'landform',
+          name: 'Landform',
+          role: 'landscape',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [-0.025, -0.01],
+                [-0.005, -0.01],
+                [-0.005, 0.01],
+                [-0.025, 0.01],
+                [-0.025, -0.01],
+              ],
+            ],
+          },
+          harvestYear: null,
+          clearcutPercent: null,
+        },
+        {
+          id: 'block',
+          name: 'Block',
+          role: 'block',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [-0.02, -0.005],
+                [-0.01, -0.005],
+                [-0.01, 0.005],
+                [-0.02, 0.005],
+                [-0.02, -0.005],
+              ],
+            ],
+          },
+          harvestYear: null,
+          clearcutPercent: null,
+        },
+      ],
+      settings: { ...DEFAULT_ANALYSIS_SETTINGS, observerHeightMeters, sampleBudget: 200, maxViewDistanceMeters: 20000 },
+      assessmentYear: 2026,
+      activeLandformId: 'landform',
+    })
+    const terrain = { tileCount: 1, missingTileCount: 0, resolutionMeters: 25 }
+    const block = (result: ReturnType<typeof computeAnalysis>) => result.targets.find((t) => t.targetId === 'block')!
+    // Everything a result holds but the time it took and the input it echoes.
+    const figures = (result: ReturnType<typeof computeAnalysis>) => {
+      const rest: Partial<typeof result> = { ...result }
+      delete rest.elapsedMs
+      delete rest.inputSignature
+      delete rest.inputSnapshot
+      return JSON.parse(JSON.stringify(rest))
+    }
+
+    it('sees from the stand’s own eye height, as the scene’s set to it would, and says so in its settings', () => {
+      const scenes = computeAnalysis(bank, input(), terrain)
+      expect(block(scenes).stations[0].visiblePercent).toBe(0)
+      const own = computeAnalysis(bank, input({ eyeHeightMeters: 3 }), terrain)
+      expect(block(own).stations[0].visiblePercent).toBeGreaterThan(90)
+      // The figure a sheet prints beside a picture taken from 3 m is the figure from 3 m.
+      expect(own.settings.observerHeightMeters).toBe(3)
+      expect(own.inputSnapshot!.settings.observerHeightMeters).toBe(1.6)
+      expect(own.inputSnapshot!.viewpoint.eyeHeightMeters).toBe(3)
+      expect(figures(own)).toEqual(figures(computeAnalysis(bank, input({}, 3), terrain)))
+    })
+
+    it('leaves a run without one exactly as it was', () => {
+      const result = computeAnalysis(bank, input(), terrain)
+      expect(result.settings).toEqual(input().settings)
+      expect(result.inputSignature).not.toContain('eyeHeightMeters')
+    })
+
+    it('takes the elevation where both are given, the stand’s height only placing the ground under it', () => {
+      const surveyed = computeAnalysis(bank, input({ eyeElevationMeters: 1.6 }), terrain)
+      const both = computeAnalysis(bank, input({ eyeElevationMeters: 1.6, eyeHeightMeters: 3 }), terrain)
+      expect(block(both).stations[0].visiblePercent).toBe(block(surveyed).stations[0].visiblePercent)
+      expect(both.stations[0].groundElevationMeters).toBeCloseTo(1.6 - 3, 9)
+    })
   })
 })
 

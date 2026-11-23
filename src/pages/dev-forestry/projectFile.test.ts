@@ -117,6 +117,35 @@ describe('the project file', () => {
     ])
   })
 
+  it("keeps the stand's own eye, and names one that does not read", async () => {
+    // A made-up spot stood at with a view's own eye height above the ground (`standEyeHeight`).
+    const written = state()
+    const at = { lng: -122.4, lat: 54.2 }
+    written.scene.viewpoint = {
+      id: 'stand-lookout',
+      name: 'Lookout',
+      mode: 'spot',
+      coordinates: [[at.lng, at.lat]],
+      standEyeHeight: { heightMeters: 3, ...at },
+    }
+    const { state: read, summary } = await parseProject(await serializeProject(written))
+    expect(read.scene.viewpoint).toEqual(written.scene.viewpoint)
+    expect(summary.dropped).toEqual([])
+    // An older file, without one, reads as it always has.
+    const old = state()
+    expect((await parseProject(await serializeProject(old))).state.scene.viewpoint).toEqual(old.scene.viewpoint)
+    const raw = JSON.parse(await serializeProject(written))
+    raw.scene.viewpoint.standEyeHeight.heightMeters = -2
+    raw.scene.viewpoint.surveyedEye = { elevationMeters: 'high', ...at }
+    const bad = await parseProject(JSON.stringify(raw))
+    expect(bad.state.scene.viewpoint.standEyeHeight).toBeUndefined()
+    expect(bad.state.scene.viewpoint.surveyedEye).toBeUndefined()
+    expect(bad.summary.dropped).toEqual([
+      'the surveyed eye elevation where the eye stands: it is not an elevation',
+      'the eye height above the ground where the eye stands: it is not a height',
+    ])
+  })
+
   it('writes only the pictures, renders and engine figures a saved or shelved view holds', async () => {
     const written = state()
     // What another site's views left behind: a picture, a before render and engine figures for views not in the file.

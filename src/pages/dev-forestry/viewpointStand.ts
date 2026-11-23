@@ -7,12 +7,18 @@
  * metres off the surveyed ground, so the reviewer may enter the eye's own elevation. It is a run
  * input — every station's eye stands there — and the road view and its captures stand there too.
  *
+ * A view of interest stood at may instead carry its own eye height above the terrain model's ground
+ * (`StandEyeHeight`: a truck cab, a lookout's deck). It is a run input at that stand in the same way,
+ * in place of the scene's eye height, and lapses the same way when the viewpoint moves; where a
+ * surveyed elevation applies too, the elevation wins, as a photo's altitude does.
+ *
  * Kept free of DOM and network access.
  */
 import type { Bounds } from '@/lib/forestry/terrain/terrain'
-import type { SurveyedEye, Viewpoint } from './types'
+import type { StandEyeHeight, SurveyedEye, Viewpoint } from './types'
 import { haversineMeters, lineLengthMeters } from './visibility'
 import { pointAlongBearing, roadPath, roadPlacement } from './driveMath'
+import { MAX_EYE_HEIGHT_METERS, MIN_EYE_HEIGHT_METERS } from './viewCamera'
 
 /**
  * The longest viewpoint still stood at rather than driven: twice `PULLOUT_METERS`, the road view's
@@ -65,6 +71,47 @@ export function surveyedEyeFor(viewpoint: Placed, elevationMeters: number | null
   const stand = standingPoint(viewpoint)
   if (!stand || elevationMeters === null || !isElevation(elevationMeters)) return undefined
   return { elevationMeters, lng: stand.lng, lat: stand.lat }
+}
+
+/**
+ * The stand's own eye height above the terrain model's ground that applies now, or null: none, a road, set for
+ * another point, or a surveyed elevation applies (the elevation wins). The run, the road view and the captures all
+ * stand at it in place of the scene's eye height.
+ */
+export function standEyeHeight(
+  viewpoint: Placed & { surveyedEye?: SurveyedEye; standEyeHeight?: StandEyeHeight },
+): number | null {
+  const own = viewpoint.standEyeHeight
+  if (!own || surveyedEyeElevation(viewpoint) !== null) return null
+  const stand = standingPoint(viewpoint)
+  if (!stand || haversineMeters(stand, own) > SURVEYED_EYE_MATCH_METERS) return null
+  return own.heightMeters
+}
+
+/** The record to keep for an eye height set at this viewpoint; undefined clears it (none, a road, or out of range). */
+export function standEyeHeightFor(viewpoint: Placed, heightMeters: number | null): StandEyeHeight | undefined {
+  const stand = standingPoint(viewpoint)
+  if (!stand || heightMeters === null || !isEyeHeight(heightMeters)) return undefined
+  return { heightMeters, lng: stand.lng, lat: stand.lat }
+}
+
+function isEyeHeight(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= MIN_EYE_HEIGHT_METERS &&
+    value <= MAX_EYE_HEIGHT_METERS
+  )
+}
+
+/** Reads a saved record, dropping it rather than the scene when it is malformed. */
+export function parseStandEyeHeight(raw: unknown): StandEyeHeight | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const value = raw as Partial<StandEyeHeight>
+  if (!isEyeHeight(value.heightMeters)) return undefined
+  if (typeof value.lng !== 'number' || typeof value.lat !== 'number') return undefined
+  if (!(Math.abs(value.lng) <= 180) || !(Math.abs(value.lat) <= 85)) return undefined
+  return { heightMeters: value.heightMeters, lng: value.lng, lat: value.lat }
 }
 
 /** The road view's eye elevation at `point`: the surveyed one near its point, else null for the terrain model's. */

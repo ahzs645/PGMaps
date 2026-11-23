@@ -97,6 +97,9 @@ function validate(input: AnalysisInput) {
     throw new Error('Duplicate target IDs. Re-import the scene before analysis.')
   const eye = input.viewpoint.eyeElevationMeters
   if (eye !== undefined && !(Math.abs(eye) < 10_000)) throw new Error('The surveyed eye elevation is not a height.')
+  const height = input.viewpoint.eyeHeightMeters
+  if (height !== undefined && !(height > 0 && height < 10_000))
+    throw new Error("The stand's eye height is not a height above the ground.")
   for (const point of input.viewpoint.coordinates)
     if (point.length !== 2 || Math.abs(point[0]) > 180 || Math.abs(point[1]) > 85)
       throw new Error('The viewpoint must use WGS84 longitude and latitude.')
@@ -225,6 +228,10 @@ export function computeAnalysis(
   const inputSignature = canonicalInput(input),
     stations = buildStations(input)
   if (!stations.length) throw new Error('Place a viewpoint before running an analysis.')
+  // The eye height every station of this viewpoint stands at: the stand's own (a view's height above
+  // the ground) where it has one, else the scene's. Every sightline, solid angle, profile and the
+  // result's settings read this one figure, so a sheet's camera and its sightline figure agree.
+  const eyeHeightMeters = input.viewpoint.eyeHeightMeters ?? input.settings.observerHeightMeters
   // A surveyed eye elevation stands every station's eye there: its ground becomes the surveyed
   // elevation less the eye height, so every sightline, solid angle and profile reads the same eye,
   // and the terrain model's own ground is kept beside it for the summary.
@@ -235,7 +242,7 @@ export function computeAnalysis(
       ? { ...s, groundElevationMeters: ground }
       : {
           ...s,
-          groundElevationMeters: surveyedEye - input.settings.observerHeightMeters,
+          groundElevationMeters: surveyedEye - eyeHeightMeters,
           terrainGroundElevationMeters: ground,
         }
   })
@@ -287,7 +294,7 @@ export function computeAnalysis(
     : null
   const options = {
     ...DEFAULT_SIGHTLINE_OPTIONS,
-    observerHeightMeters: input.settings.observerHeightMeters,
+    observerHeightMeters: eyeHeightMeters,
     targetOffsetMeters: input.settings.targetOffsetMeters,
     maxDistanceMeters: input.settings.maxViewDistanceMeters,
     stepMeters: Math.max(5, terrain.resolutionMeters * 0.9),
@@ -448,12 +455,7 @@ export function computeAnalysis(
         missing = true
         return
       }
-      const angle = apparentSolidAngle(
-        { ...station, eyeHeightMeters: input.settings.observerHeightMeters },
-        land.surface[i],
-        land.areas[i],
-        land.normals[i],
-      )
+      const angle = apparentSolidAngle({ ...station, eyeHeightMeters }, land.surface[i], land.areas[i], land.normals[i])
       denominator += angle
       sum.existing += angle * cell.existing
       sum.proposed += angle * cell.proposed
@@ -530,12 +532,7 @@ export function computeAnalysis(
       }
       if (pass.any[i] === 2) unknownArea += area
       for (let s = 0; s < stations.length; s++) {
-        const angle = apparentSolidAngle(
-          { ...stationPoints[s], eyeHeightMeters: input.settings.observerHeightMeters },
-          pass.surface[i],
-          area,
-          normal,
-        )
+        const angle = apparentSolidAngle({ ...stationPoints[s], eyeHeightMeters }, pass.surface[i], area, normal)
         totalAngles[s] += angle
         if (pass.matrix[s * n + i] === 1) {
           angles[s] += angle
@@ -807,9 +804,13 @@ export function computeAnalysis(
       land,
       passes.filter((p) => p.target.role === 'block'),
       stationPoints,
-      input.settings.observerHeightMeters,
+      eyeHeightMeters,
     ),
-    settings: { ...input.settings },
+    // The eye height the run stood at, where a stand had its own (`AnalysisResult.settings`).
+    settings:
+      input.viewpoint.eyeHeightMeters === undefined
+        ? { ...input.settings }
+        : { ...input.settings, observerHeightMeters: eyeHeightMeters },
     stations: stationPoints,
     corridorLengthMeters: input.viewpoint.mode === 'corridor' ? lineLengthMeters(input.viewpoint.coordinates) : 0,
     assessmentStationIndex,

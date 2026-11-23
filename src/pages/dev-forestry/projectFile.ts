@@ -251,6 +251,13 @@ export async function readProject(
   const scene = parseScene(raw.scene)
   if (!scene) throw new Error('The project’s scene could not be read.')
   const dropped: string[] = []
+  // The stand's own eye (a surveyed elevation, a view's height above the ground) is a run input: one that does not read
+  // is left out, the eye standing at the scene's eye height, and named.
+  const rawViewpoint = (raw.scene as { viewpoint?: Record<string, unknown> } | null)?.viewpoint
+  if (rawViewpoint?.surveyedEye !== undefined && !scene.viewpoint.surveyedEye)
+    dropped.push('the surveyed eye elevation where the eye stands: it is not an elevation')
+  if (rawViewpoint?.standEyeHeight !== undefined && !scene.viewpoint.standEyeHeight)
+    dropped.push('the eye height above the ground where the eye stands: it is not a height')
 
   const views = readViews(raw.views)
   const shelved = (Array.isArray(raw.shelved) ? raw.shelved : []).slice(0, MAX_PLACES).flatMap((entry) => {

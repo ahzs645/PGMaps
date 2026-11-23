@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 
 import { OptionRow } from './RoadViewOptions'
 import type { AnalysisSettings, Viewpoint } from './types'
-import { surveyedEyeElevation } from './viewpointStand'
+import { standEyeHeight, surveyedEyeElevation } from './viewpointStand'
 
 const CONTROL_CLASS =
   'h-7 w-full min-w-0 rounded-md border border-border bg-background px-1.5 text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
@@ -84,6 +84,7 @@ export function SimulationSettingsPanel({
   const latitude = viewpoint.coordinates[0]?.[1] ?? 54
   // Shown, never edited here: it belongs to one viewpoint's point and is entered in that view's row.
   const surveyedEye = surveyedEyeElevation(viewpoint)
+  const ownEyeHeight = standEyeHeight(viewpoint)
   return (
     <div className="space-y-2.5" data-testid="simulation-settings">
       <p className="text-2xs text-muted-foreground">Run inputs: changing one makes the run out of date.</p>
@@ -105,6 +106,13 @@ export function SimulationSettingsPanel({
             Eye at a surveyed {formatMeasure(surveyedEye, 'm', { maximumFractionDigits: 1 })} at this viewpoint, so the
             ground is taken {formatMeasure(settings.observerHeightMeters, 'm', { maximumFractionDigits: 1 })} below it.
             Change it in step 2&apos;s <span className="text-foreground">Where you stand</span>.
+          </p>
+        )}
+        {ownEyeHeight !== null && (
+          <p className="text-2xs text-muted-foreground" data-testid="simulation-stand-eye-height">
+            The view stood at has its own eye, {formatMeasure(ownEyeHeight, 'm', { maximumFractionDigits: 1 })} above
+            the ground, and the run stands there; this eye height is for roads and views without one. Change it in the
+            view&apos;s row.
           </p>
         )}
         {viewpoint.mode === 'corridor' && (
