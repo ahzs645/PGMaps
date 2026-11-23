@@ -99,6 +99,34 @@ export function planSheetSymbolSet(own: PlanSheetOverrides = {}): {
   return { symbols, wholeDeactivated: symbols.deactivated !== PLAN_SHEET_SYMBOLS.deactivated }
 }
 
+/** The inks a dark plan draws in place of the sheets' black and white (stone-200 and stone-900). */
+export const DARK_PLAN_INK = { black: '#e7e5e4', white: '#1c1917' } as const
+const INK_KEYS = new Set(['color', 'secondary', 'fill'])
+const swapInk = (value: string) => {
+  const v = value.toLowerCase()
+  return v === '#000000' || v === '#000'
+    ? DARK_PLAN_INK.black
+    : v === '#ffffff' || v === '#fff'
+      ? DARK_PLAN_INK.white
+      : value
+}
+const withSwappedInk = (value: unknown, key?: string): unknown =>
+  typeof value === 'string'
+    ? key && INK_KEYS.has(key)
+      ? swapInk(value)
+      : value
+    : Array.isArray(value)
+      ? value.map((item) => withSwappedInk(item))
+      : value && typeof value === 'object'
+        ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withSwappedInk(v, k)]))
+        : value
+/**
+ * A symbol as the dark plan draws it: the sheets' black ink light and their white ink dark, every
+ * other colour as printed. Printed on white, a black block outline or road casing vanished against
+ * the dark hillshade. Display only: the block sheet, exports and printed legends keep the symbol.
+ */
+export const darkPlanSymbol = <S extends SheetSymbol>(symbol: S): S => withSwappedInk(symbol) as S
+
 const POLYGON: ExpressionSpecification = ['==', ['geometry-type'], 'Polygon']
 const LINE: ExpressionSpecification = ['==', ['geometry-type'], 'LineString']
 
@@ -163,8 +191,19 @@ export interface PlanSheetLayerSet {
 }
 
 /** The sheet layers of `source` with a person's chosen symbols; without any, the sheet's own. */
-export function planSheetLayerSet(source: string, own: PlanSheetOverrides = {}): PlanSheetLayerSet {
-  const { symbols, wholeDeactivated } = planSheetSymbolSet(own)
+export function planSheetLayerSet(
+  source: string,
+  own: PlanSheetOverrides = {},
+  { dark = false }: { dark?: boolean } = {},
+): PlanSheetLayerSet {
+  const chosen = planSheetSymbolSet(own)
+  const { wholeDeactivated } = chosen
+  const symbols = dark
+    ? (Object.fromEntries(PLAN_SHEET_KEYS.map((key) => [key, darkPlanSymbol(chosen.symbols[key])])) as Record<
+        PlanSheetKey,
+        SheetSymbol
+      >)
+    : chosen.symbols
   const layers = planSheetLayers(source, symbols, wholeDeactivated)
   const ids = layers.map((layer) => layer.id)
   const hit = [...PLAN_SHEET_ROAD_HIT_LAYER_IDS, ...(wholeDeactivated ? ['road-sheet-deactivated-0'] : [])]

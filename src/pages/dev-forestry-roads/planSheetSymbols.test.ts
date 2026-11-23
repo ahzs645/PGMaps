@@ -4,6 +4,8 @@ import { CONSTRAINT_AREA, RIPARIAN_SCREEN, ROAD_DEACTIVATION } from '@/lib/fores
 import { buildPlanLegend, type PlanLegendSources } from './planLegendModel'
 import {
   contextSheetKey,
+  DARK_PLAN_INK,
+  darkPlanSymbol,
   PLAN_SHEET_LAYER_IDS,
   PLAN_SHEET_ROAD_HIT_LAYER_IDS,
   PLAN_SHEET_SYMBOLS,
@@ -199,5 +201,31 @@ describe('road tool context with block sheet symbols', () => {
     ])
     expect(on[0].label).toBe('Riparian reserve zone (screen)')
     expect(build(false).every((entry) => !entry.sheetSymbol)).toBe(true)
+  })
+})
+
+describe('the dark plan', () => {
+  it("draws the sheets' black ink light and their white ink dark, every other colour as printed", () => {
+    const fsr = darkPlanSymbol(PLAN_SHEET_SYMBOLS.fsr)
+    expect(fsr.kind === 'line' && fsr.layers.map((layer) => layer.color)).toEqual([
+      DARK_PLAN_INK.black,
+      DARK_PLAN_INK.white,
+    ])
+    const block = darkPlanSymbol(PLAN_SHEET_SYMBOLS.otherBlock)
+    expect(block.kind === 'area' && block.outline[0].color).toBe(DARK_PLAN_INK.black)
+    expect(darkPlanSymbol(PLAN_SHEET_SYMBOLS.stream)).toEqual(PLAN_SHEET_SYMBOLS.stream)
+    expect(darkPlanSymbol(CONSTRAINT_AREA)).toEqual(CONSTRAINT_AREA)
+    // The printed symbol is untouched.
+    expect(PLAN_SHEET_SYMBOLS.otherBlock.kind === 'area' && PLAN_SHEET_SYMBOLS.otherBlock.outline[0].color).toBe(
+      '#000000',
+    )
+  })
+  it('keeps the layer ids and the deactivated rule, and only changes ink', () => {
+    const light = planSheetLayerSet('road-context')
+    const dark = planSheetLayerSet('road-context', {}, { dark: true })
+    expect(dark.ids).toEqual(light.ids)
+    expect(dark.wholeDeactivated).toBe(false)
+    const outline = dark.layers.find((layer) => layer.id === 'road-sheet-otherBlock-outline-0')
+    expect(outline?.type === 'line' && outline.paint?.['line-color']).toBe(DARK_PLAN_INK.black)
   })
 })

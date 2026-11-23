@@ -309,6 +309,8 @@ const planSymbolStyle = (value: string | null): PlanSymbolStyle =>
   value === 'road-plan' || value === 'saved-styles' ? value : 'block-sheet'
 /** The sheet symbols as PGMaps defines them: what the plan draws unless saved styles are asked for. */
 const PLAN_SHEET_SET = planSheetLayerSet('road-context')
+/** The same on the dark plan, where the sheets' black ink is drawn light (`darkPlanSymbol`). */
+const DARK_PLAN_SHEET_SET = planSheetLayerSet('road-context', {}, { dark: true })
 /** The plan's own context colours, hidden while the block sheet's symbols draw the context. */
 const PLAN_CONTEXT_LINE_LAYER_IDS = ['road-context-line', ...ROAD_HISTORY_LAYER_IDS]
 const CONTEXT_FILL_OPACITY = 0.18
@@ -2873,14 +2875,18 @@ export function PlanView(input: PlanProps) {
     window.addEventListener(STYLE_LIBRARY_CHANGED, changed)
     return () => window.removeEventListener(STYLE_LIBRARY_CHANGED, changed)
   }, [])
+  const { resolvedTheme: planTheme, forcedTheme: planForcedTheme } = useTheme()
+  const dark = (planForcedTheme ?? planTheme) === 'dark'
   const sheetLayerSet = useMemo(
     () =>
       symbolStyle === 'saved-styles'
-        ? planSheetLayerSet('road-context', roleOverrides(readStoredStyleLibrary()))
-        : PLAN_SHEET_SET,
+        ? planSheetLayerSet('road-context', roleOverrides(readStoredStyleLibrary()), { dark })
+        : dark
+          ? DARK_PLAN_SHEET_SET
+          : PLAN_SHEET_SET,
     // The revision is the library's: the memo reads storage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [symbolStyle, styleLibraryRevision],
+    [symbolStyle, styleLibraryRevision, dark],
   )
   const chooseSymbolStyle = (value: string) => {
     const style = planSymbolStyle(value)
@@ -3085,8 +3091,6 @@ export function PlanView(input: PlanProps) {
     } else props.onContextSelect?.(feature)
   }
   const hasTerrainBounds = !!terrainBounds(props.project.terrain)
-  const { resolvedTheme: planTheme, forcedTheme: planForcedTheme } = useTheme()
-  const dark = (planForcedTheme ?? planTheme) === 'dark'
   // A project on the flat plane has no place on Earth: no basemap, online relief or imagery, and
   // a grid at round file coordinates instead.
   const plane = isLocalPlane(props.project.terrain) ? (props.project.terrain.localPlane ?? null) : null
