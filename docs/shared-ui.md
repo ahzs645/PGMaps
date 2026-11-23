@@ -594,6 +594,12 @@ Logic for these pages lives in `src/lib/` and has no DOM access:
   `GeoFileImportError` messages are written for the person who dropped the
   file.
 
+## Explaining a calculation
+
+Index Lab and Block Planning share `CalculationFormula` and `CalculationTable` from `@/components/ui/calculation-results`. Use the formula component for a selectable, copyable expression. Supply `copyText` when surrounding notes belong only on screen. Pass the table its caption, ordered rows, stable row keys and labelled column renderers. It uses the forestry tools’ `EngineeringTable`, identifies each row for screen readers, and displays missing readings as unknown while preserving zero.
+
+Each tool supplies its units, assumptions and the meaning of a change. Index Lab compares rank and score across its stress tests. Block Planning compares class movement and changes to its review flag across disturbance dates. A tool that runs an on-demand comparison in a dedicated worker can use `useWorkerCalculation` with a worker factory and a result callback. Clearing or replacing a calculation discards old replies, and unmounting terminates the worker.
+
 ## Table view
 
 Any map page with rows offers the same table: a docked pane on desktop, a

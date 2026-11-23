@@ -1,0 +1,108 @@
+[
+  {
+    "id": "limit-40",
+    "title": "Cutblock size · 40 ha regions",
+    "source": "instrument",
+    "provision": "64(1)(a) and 64(2)–(4)",
+    "scope": [
+      [
+        {
+          "fact": "applicable",
+          "value": true,
+          "op": "eq"
+        },
+        {
+          "fact": "holder",
+          "value": true,
+          "op": "eq"
+        },
+        {
+          "fact": "minor",
+          "value": false,
+          "op": "eq"
+        },
+        {
+          "fact": "region",
+          "value": [
+            "Kootenay Boundary",
+            "South Coast",
+            "Thompson Okanagan",
+            "West Coast"
+          ],
+          "op": "in"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "nar",
+          "value": {
+            "parameter": "limit-40"
+          },
+          "op": "gt"
+        }
+      ]
+    ],
+    "finding": "Net area exceeds the regional screening threshold.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Review §64(2) harvest purpose/design and retained structure, §64(3) basal-area retention, or §64(4) tree-length and reserve geometry against supporting evidence."
+      }
+    ]
+  },
+  {
+    "id": "limit-60",
+    "title": "Cutblock size · 60 ha regions",
+    "source": "instrument",
+    "provision": "64(1)(b) and 64(2)–(4)",
+    "scope": [
+      [
+        {
+          "fact": "applicable",
+          "value": true,
+          "op": "eq"
+        },
+        {
+          "fact": "holder",
+          "value": true,
+          "op": "eq"
+        },
+        {
+          "fact": "minor",
+          "value": false,
+          "op": "eq"
+        },
+        {
+          "fact": "region",
+          "value": [
+            "Cariboo",
+            "Northeast",
+            "Omineca",
+            "Skeena"
+          ],
+          "op": "in"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "nar",
+          "value": {
+            "parameter": "limit-60"
+          },
+          "op": "gt"
+        }
+      ]
+    ],
+    "finding": "Net area exceeds the regional screening threshold.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Review §64(2) harvest purpose/design and retained structure, §64(3) basal-area retention, or §64(4) tree-length and reserve geometry against supporting evidence."
+      }
+    ]
+  }
+]

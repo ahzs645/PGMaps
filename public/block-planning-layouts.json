@@ -1,0 +1,41 @@
+[
+  {
+    "id": "guided",
+    "name": "Guided mode",
+    "description": "Edit the selected block, landscape or legal review alongside the map.",
+    "icon": "panels",
+    "headerTools": ["controls", "blocks", "landscape", "review", "open", "export", "chooseInterface"],
+    "panelFrame": { "background": "white", "inset": 4, "gap": 8 }
+  },
+  {
+    "id": "ribbon",
+    "name": "Ribbon",
+    "description": "Use a tab for each planning step and open its editor beside the map.",
+    "icon": "ribbon",
+    "toolbar": {
+      "dock": "top",
+      "header": "controls",
+      "fullWidth": true,
+      "compact": true,
+      "editorPlacement": "pane",
+      "label": "Planning ribbon",
+      "tabsLabel": "Planning steps",
+      "quickAccess": ["open", "export", "chooseInterface"],
+      "groups": [
+        {
+          "label": "Blocks",
+          "editor": "blocks",
+          "editorTitle": "Plan blocks",
+          "commands": ["blocks", "open", "export"]
+        },
+        {
+          "label": "Landscape",
+          "editor": "landscape",
+          "editorTitle": "Compare harvest schedules",
+          "commands": ["landscape"]
+        },
+        { "label": "Legal review", "editor": "review", "editorTitle": "Rules and evidence", "commands": ["review"] }
+      ]
+    }
+  }
+]

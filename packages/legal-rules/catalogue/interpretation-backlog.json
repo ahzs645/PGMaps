@@ -1,0 +1,292 @@
+{
+  "schemaVersion": "1.0.0",
+  "lastReviewed": "2026-11-22",
+  "status": "interpretation-backlog-not-legally-reviewed",
+  "workstreams": [
+    {
+      "id": "forest-operations-plans",
+      "title": "FOP content, mapping, engagement and plan transition",
+      "provisions": [
+        "bc.frpa:2.35",
+        "bc.frpa:2.36",
+        "bc.frpa:2.39",
+        "bc.frpa:2.47",
+        "bc.fppr:4.03",
+        "bc.fppr:4.11",
+        "bc.fppr:4.17",
+        "bc.fppr:4.18",
+        "bc.fppr:4.19"
+      ],
+      "evaluationKind": "document-check",
+      "requiredFacts": [
+        "plan regime at assessment date",
+        "licence/agreement holder",
+        "approved and effective plans",
+        "cutblock/road maps"
+      ],
+      "limitations": "Plans and amendments must be checked against actual authorizations, approval dates and transitional provisions.",
+      "state": "not-implemented"
+    },
+    {
+      "id": "net-area-to-reforest",
+      "title": "Cutblock size and §64 exceptions",
+      "provisions": [
+        "bc.fppr:64"
+      ],
+      "evaluationKind": "numeric-screen",
+      "requiredFacts": [
+        "forest region polygon",
+        "tenure category",
+        "net area to be reforested",
+        "natural-disturbance/salvage evidence",
+        "retained basal area",
+        "reserve-tree geometry"
+      ],
+      "limitations": "Only 60-ha Omineca numeric trigger is drafted. Other regions, exception paths and historical amendments need reviewer approval.",
+      "state": "seed-model"
+    },
+    {
+      "id": "adjacent-greenup",
+      "title": "Adjacent harvest openings and regeneration",
+      "provisions": [
+        "bc.fppr:65"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "adjacent existing and new cutblocks",
+        "immediately adjacent nonconforming portions",
+        "NAR areas",
+        "stocking survey",
+        "height/stocking thresholds"
+      ],
+      "limitations": "Adjacency has a contextual statutory meaning; fixed-buffer spatial proximity alone is not proof.",
+      "state": "not-implemented"
+    },
+    {
+      "id": "wildlife-tree-retention",
+      "title": "Wildlife tree retention within block and reporting area",
+      "provisions": [
+        "bc.fppr:66"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "retention polygons",
+        "associated blocks and time periods",
+        "NAR",
+        "retention design"
+      ],
+      "limitations": "Individual and annual landscape calculations have different denominators and exceptions.",
+      "state": "not-implemented"
+    },
+    {
+      "id": "soils",
+      "title": "Soil disturbance and permanent access",
+      "provisions": [
+        "bc.fppr:35",
+        "bc.fppr:36"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "sensitive soils classification",
+        "disturbed area",
+        "roadside work areas",
+        "permanent access structures"
+      ],
+      "limitations": "DEM slope cannot establish soil sensitivity, compaction or permanent access by itself.",
+      "state": "not-implemented"
+    },
+    {
+      "id": "riparian",
+      "title": "Riparian classes, setbacks and restricted activities",
+      "provisions": [
+        "bc.fppr:47",
+        "bc.fppr:48",
+        "bc.fppr:49",
+        "bc.fppr:50",
+        "bc.fppr:51",
+        "bc.fppr:52"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "field-classified streams",
+        "wetlands and lakes",
+        "slope distance",
+        "riparian boundaries",
+        "road footprint and crossings"
+      ],
+      "limitations": "Mapped centreline distance without stream classification, slope distance and exceptions is only a preliminary screen.",
+      "state": "not-implemented"
+    },
+    {
+      "id": "fish-passage",
+      "title": "Stream protection, fish passage and crossings",
+      "provisions": [
+        "bc.fppr:55",
+        "bc.fppr:56",
+        "bc.fppr:57"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "fish-stream classifications",
+        "crossing design",
+        "flow/drainage model",
+        "professional assessments"
+      ],
+      "limitations": "Absence of mapped fish habitat is not evidence of absence.",
+      "state": "not-implemented"
+    },
+    {
+      "id": "water",
+      "title": "Community watersheds and potable water constraints",
+      "provisions": [
+        "bc.fppr:60",
+        "bc.fppr:61",
+        "bc.fppr:62",
+        "bc.gar:8"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "designated watershed polygons",
+        "water intake and springs",
+        "water quality objectives",
+        "hydrology"
+      ],
+      "limitations": "Orders and field conditions can add constraints beyond base regulation.",
+      "state": "not-implemented"
+    },
+    {
+      "id": "roads",
+      "title": "Road construction, bridges and deactivation",
+      "provisions": [
+        "bc.fppr:70.1",
+        "bc.fppr:72",
+        "bc.fppr:73",
+        "bc.fppr:74",
+        "bc.fppr:75"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "road permits",
+        "engineering documents",
+        "bridge design",
+        "peak-flow evidence",
+        "deactivation obligations"
+      ],
+      "limitations": "Engineering manual recommendations and binding regulations must remain separately identified.",
+      "state": "not-implemented"
+    },
+    {
+      "id": "wildlife-orders",
+      "title": "WHA, UWR, wildlife measures and sensitive features",
+      "provisions": [
+        "bc.gar:9",
+        "bc.gar:9.1",
+        "bc.gar:10",
+        "bc.gar:11",
+        "bc.fppr:69",
+        "bc.fppr:70"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "order IDs and versions",
+        "WHA/UWR polygons",
+        "species-specific measures",
+        "restricted feature evidence"
+      ],
+      "limitations": "Some protected features are intentionally confidential; never treat absent public polygons as unregulated.",
+      "state": "not-implemented"
+    },
+    {
+      "id": "visual-quality",
+      "title": "Scenic areas and visual quality",
+      "provisions": [
+        "bc.gar:7"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "scenic-area polygons",
+        "visual quality objectives",
+        "viewshed and landscape alteration"
+      ],
+      "limitations": "A modeled viewshed is supporting evidence, not a substitute for the legal objective and professional assessment.",
+      "state": "not-implemented"
+    },
+    {
+      "id": "old-forest",
+      "title": "Prince George TSA old-forest retention",
+      "provisions": [
+        "bc.pgtsa.2004:A",
+        "bc.pgtsa.2004:D.1",
+        "bc.pgtsa.2004:D.2",
+        "bc.pgtsa.2004:D.3",
+        "bc.pgtsa.2004:D.4",
+        "bc.pgtsa.2004:D.5"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "historic mBEC map",
+        "CFLB",
+        "old forest inventory",
+        "countable protected areas",
+        "supersession orders"
+      ],
+      "limitations": "25 Prince George old-retention percentages extracted, but current order applicability and qualifying old-forest accounting are not established.",
+      "state": "seed-model"
+    },
+    {
+      "id": "interior-old-forest",
+      "title": "Prince George TSA old interior forest",
+      "provisions": [
+        "bc.pgtsa.2004:B",
+        "bc.pgtsa.2004:D.1",
+        "bc.pgtsa.2004:D.5"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "historic mBEC map",
+        "old forest required",
+        "interior age/species edge buffers",
+        "existing disturbances"
+      ],
+      "limitations": "25 interior shares extracted. Divide by required old forest, not total landbase; guidance buffering is not legal text.",
+      "state": "seed-model"
+    },
+    {
+      "id": "young-patches",
+      "title": "Prince George TSA Table 7 young forest patch trends",
+      "provisions": [
+        "bc.pgtsa.2004:C",
+        "bc.pgtsa.2004:D.5(b)"
+      ],
+      "evaluationKind": "spatial-screen",
+      "requiredFacts": [
+        "historic NDU subunits",
+        "young forest inventory",
+        "disturbance history",
+        "patch merge policy",
+        "before/after scenario"
+      ],
+      "limitations": "9 target vectors extracted. The legal objective is a trend, not pass/fail by nearest target; exact 50-ha boundary needs interpretation.",
+      "state": "seed-model"
+    },
+    {
+      "id": "exception-process",
+      "title": "Approved alternatives, record of reasoning and order replacement",
+      "provisions": [
+        "bc.pgtsa.2004:D.5",
+        "bc.pgtsa.2004:E",
+        "bc.fppr:64"
+      ],
+      "evaluationKind": "human-review",
+      "requiredFacts": [
+        "approval/decision document",
+        "date",
+        "spatial footprint",
+        "evidence hash",
+        "reviewer"
+      ],
+      "limitations": "A source link or claimed exception never substitutes for a legally valid approval.",
+      "state": "not-implemented"
+    }
+  ]
+}

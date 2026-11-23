@@ -124,7 +124,7 @@ describe('offlineToolSummary', () => {
   })
 
   it('has a row for every tool a page can ask for', () => {
-    expect(OFFLINE_TOOLS.map((tool) => tool.id).sort()).toEqual(['road-design', 'visual-quality'])
+    expect(OFFLINE_TOOLS.map((tool) => tool.id).sort()).toEqual(['block-planning', 'road-design', 'visual-quality'])
   })
 })
 

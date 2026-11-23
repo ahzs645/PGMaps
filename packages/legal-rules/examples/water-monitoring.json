@@ -1,0 +1,75 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "example.water",
+  "version": "1.0.0",
+  "title": "Water monitoring · teaching example",
+  "description": "Fictional monitoring policy for testing a new domain.",
+  "coverage": {
+    "from": "2020-01-01",
+    "through": "2035-12-31"
+  },
+  "sources": [
+    {
+      "id": "instrument",
+      "title": "Water monitoring · teaching example",
+      "url": "https://example.org/fictional-water-policy",
+      "asOf": "2020-01-01"
+    }
+  ],
+  "facts": [
+    {
+      "id": "site",
+      "label": "Site is in the monitoring program",
+      "type": "boolean"
+    },
+    {
+      "id": "reading",
+      "label": "Measured turbidity",
+      "type": "number",
+      "min": 0,
+      "unit": "NTU"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "limit",
+      "value": 12,
+      "unit": "NTU"
+    }
+  ],
+  "rules": [
+    {
+      "id": "sampling",
+      "title": "Follow-up sample",
+      "source": "instrument",
+      "provision": "Teaching policy §1",
+      "scope": [
+        [
+          {
+            "fact": "site",
+            "value": true,
+            "op": "eq"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "reading",
+            "value": {
+              "parameter": "limit"
+            },
+            "op": "gt"
+          }
+        ]
+      ],
+      "finding": "Reading exceeds the example threshold.",
+      "actions": [
+        {
+          "kind": "monitor",
+          "description": "Collect and record a follow-up sample."
+        }
+      ]
+    }
+  ]
+}

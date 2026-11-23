@@ -40,8 +40,11 @@ const spaRoutes = [
     'data',
     'restoration',
   ].map((tool) => `dev/lidar/${tool}`),
+  'dev/legal-rules',
   'dev/forestry',
   ...[
+    'block-planning',
+    'patches',
     'road-design',
     'roads',
     'visual-quality',

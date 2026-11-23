@@ -115,6 +115,11 @@ export default defineConfig({
           extras: ['workspace-layouts.json', 'brand/', 'interface-previews/'],
         },
         {
+          id: 'block-planning',
+          roots: /^(BlockPlanningWorkspace|patch\.worker|field\.worker)-/,
+          extras: ['block-planning-layouts.json'],
+        },
+        {
           id: 'visual-quality',
           roots: /^(ForestryVisualsWorkspace|DevForestryVisuals)-/,
           // Read by address at run time: its workspace layouts and their chooser pictures.
@@ -138,10 +143,17 @@ export default defineConfig({
       { find: /^maplibre-gl$/, replacement: path.resolve(__dirname, './src/lib/maplibre-gl-entry.ts') },
     ],
   },
-  // Only imported dynamically from a worker; pre-bundle at startup so the first LAZ/PDF import does
-  // not hit a mid-session re-optimisation ("Failed to fetch dynamically imported module").
+  // Pre-bundle libraries used by lazy imports and workers so a first field calculation, LAZ or PDF
+  // import does not reload a plan in the middle of a drawing.
   optimizeDeps: {
-    include: ['whitebox-wasm', 'whitebox-wasm/tools', 'laz-perf', 'pdfjs-dist', 'pdf-lib'],
+    include: [
+      'whitebox-wasm',
+      'whitebox-wasm/tools',
+      'laz-perf',
+      'pdfjs-dist',
+      'pdf-lib',
+      'jsts/org/locationtech/jts/operation/relate/RelateOp.js',
+    ],
     // Vite scans every HTML file for imports to pre-bundle. The visual tools
     // trial bench is a separate project with its own packages (EZ-Tree,
     // maplibre-gl-three, Giro3D); scanned from here they fail to resolve and

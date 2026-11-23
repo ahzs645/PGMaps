@@ -2,10 +2,11 @@
 
 A tool with workspace interfaces lets the person choose how its controls are arranged (a guided
 sidebar, a tabbed ribbon, a dashboard) without the tool becoming two tools. Each interface is an
-arrangement of the same commands, the same panels and the same project. Two tools use it:
+arrangement of the same commands, the same panels and the same project. Three tools use it:
 
 | Tool | Layout file | Kit | Interfaces |
 | --- | --- | --- | --- |
+| Block planning (`/dev/forestry/block-planning`) | `public/block-planning-layouts.json` | `src/pages/block-planning/layouts.ts` | Guided mode, Ribbon |
 | Road design (`/dev/forestry/road-design`) | `public/workspace-layouts.json` | `src/pages/dev-forestry-roads/interface/roadKit.tsx` | Ribbon, Guided map, Guided mode, Dashboard |
 | Visual quality (`/dev/forestry/visual-quality`) | `public/visuals-layouts.json` | `src/pages/dev-forestry/interface/visualsKit.tsx` | Guided mode, Ribbon |
 

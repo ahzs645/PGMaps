@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PGMaps legal-screen result (never a permit)",
+  "type": "object",
+  "required": [
+    "ruleId",
+    "status",
+    "bindingDecision",
+    "reasons",
+    "source",
+    "sourceSection"
+  ],
+  "properties": {
+    "ruleId": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "indeterminate",
+        "not_applicable",
+        "within_threshold_only",
+        "review_required",
+        "exception_review_required"
+      ]
+    },
+    "bindingDecision": {
+      "const": false
+    },
+    "reasons": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "type": "string",
+      "format": "uri"
+    },
+    "sourceSection": {
+      "type": "string"
+    },
+    "sourceConsolidationCurrentTo": {
+      "type": "string",
+      "format": "date"
+    },
+    "netAreaToBeReforestedHa": {
+      "type": "number",
+      "minimum": 0
+    },
+    "exceptionReferences": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

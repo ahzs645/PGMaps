@@ -1,0 +1,13 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "example.mapped-zones",
+  "version": "1.0.0",
+  "title": "Mapped zone screening example",
+  "description": "Fictional planning policy for demonstrating spatial evidence binding.",
+  "coverage": { "from": "2026-01-01", "through": "2026-12-31" },
+  "sources": [{"id":"example","title":"PGMaps block planning worked example","url":"https://github.com/ahzs645/PGMaps/pull/144","asOf":"2026-11-23"}],
+  "facts": [{"id":"overlap","label":"Overlap with supplied zones","type":"number","unit":"ha","min":0}],
+  "parameters": [],
+  "spatialBindings": [{"fact":"overlap","operation":"mapped-riparian-overlap-v1","output":"overlap-ha"}],
+  "rules":[{"id":"mapped-overlap","title":"Mapped zone intersection","source":"example","provision":"Example policy 1","when":[[{"fact":"overlap","op":"gt","value":0}]],"finding":"The proposed footprint intersects supplied zones.","actions":[{"kind":"review","description":"Review the mapped intersection and the zone inventory."}]}]
+}

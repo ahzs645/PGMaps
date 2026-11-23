@@ -1,0 +1,43 @@
+[
+  {
+    "id": "adjacency",
+    "title": "Adjacent cutblocks",
+    "source": "instrument",
+    "provision": "65",
+    "scope": [
+      [
+        {
+          "fact": "applicable",
+          "value": true,
+          "op": "eq"
+        },
+        {
+          "fact": "holder",
+          "value": true,
+          "op": "eq"
+        },
+        {
+          "fact": "minor",
+          "value": false,
+          "op": "eq"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "adjacency",
+          "value": true,
+          "op": "eq"
+        }
+      ]
+    ],
+    "finding": "Adjacent harvesting needs a stocking, height and exceptions review.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Examine §65 definitions, adjacent stand measurements, alternatives and the governing plan."
+      }
+    ]
+  }
+]

@@ -249,6 +249,8 @@ const devEntries: DevEntry[] = [
     color: 'bg-emerald-700',
     label: '/dev/forestry',
     subpages: [
+      { label: 'Block planning', href: '/dev/forestry/block-planning' },
+      { label: 'Legal rules workbench', href: '/dev/legal-rules' },
       { label: 'Castor scenarios', href: '/dev/forestry/castor' },
       { label: 'Drought risk', href: '/dev/forestry/drought-risk' },
       { label: 'Road restoration', href: '/dev/forestry/road-restoration' },

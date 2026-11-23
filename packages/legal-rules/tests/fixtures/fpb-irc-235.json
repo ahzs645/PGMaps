@@ -1,0 +1,390 @@
+{
+  "source": "https://www.bcfpb.ca/wp-content/uploads/2021/05/IRC235-PG-TSA-Biodiversity.pdf",
+  "oldForest2019": {
+    "appendix": 1,
+    "page": 18,
+    "district": "Prince George",
+    "units": [
+      {
+        "unit": "A1",
+        "cflbHa": 8316,
+        "minimumAge": 141,
+        "oldPercent": 33,
+        "interiorPercent": 40,
+        "requiredOldHa": 2744,
+        "oldHa": 7124,
+        "requiredInteriorHa": 1098,
+        "interiorHa": 6037
+      },
+      {
+        "unit": "A2",
+        "cflbHa": 12742,
+        "minimumAge": 141,
+        "oldPercent": 26,
+        "interiorPercent": 40,
+        "requiredOldHa": 3313,
+        "oldHa": 7155,
+        "requiredInteriorHa": 1325,
+        "interiorHa": 5173
+      },
+      {
+        "unit": "A3",
+        "cflbHa": 67077,
+        "minimumAge": 121,
+        "oldPercent": 12,
+        "interiorPercent": 25,
+        "requiredOldHa": 8049,
+        "oldHa": 20623,
+        "requiredInteriorHa": 2012,
+        "interiorHa": 4622
+      },
+      {
+        "unit": "A4",
+        "cflbHa": 206769,
+        "minimumAge": 141,
+        "oldPercent": 26,
+        "interiorPercent": 10,
+        "requiredOldHa": 53760,
+        "oldHa": 49295,
+        "requiredInteriorHa": 5376,
+        "interiorHa": 15448
+      },
+      {
+        "unit": "A5",
+        "cflbHa": 13478,
+        "minimumAge": 141,
+        "oldPercent": 29,
+        "interiorPercent": 40,
+        "requiredOldHa": 3909,
+        "oldHa": 4534,
+        "requiredInteriorHa": 1564,
+        "interiorHa": 2303
+      },
+      {
+        "unit": "A6",
+        "cflbHa": 16344,
+        "minimumAge": 141,
+        "oldPercent": 29,
+        "interiorPercent": 40,
+        "requiredOldHa": 4740,
+        "oldHa": 7124,
+        "requiredInteriorHa": 1896,
+        "interiorHa": 3573
+      },
+      {
+        "unit": "A7",
+        "cflbHa": 4959,
+        "minimumAge": 121,
+        "oldPercent": 17,
+        "interiorPercent": 10,
+        "requiredOldHa": 843,
+        "oldHa": 2757,
+        "requiredInteriorHa": 84,
+        "interiorHa": 1128
+      },
+      {
+        "unit": "A8",
+        "cflbHa": 9162,
+        "minimumAge": 121,
+        "oldPercent": 12,
+        "interiorPercent": 25,
+        "requiredOldHa": 1099,
+        "oldHa": 1867,
+        "requiredInteriorHa": 275,
+        "interiorHa": 395
+      },
+      {
+        "unit": "A9",
+        "cflbHa": 32152,
+        "minimumAge": 121,
+        "oldPercent": 12,
+        "interiorPercent": 10,
+        "requiredOldHa": 3858,
+        "oldHa": 5499,
+        "requiredInteriorHa": 386,
+        "interiorHa": 1912
+      },
+      {
+        "unit": "A10",
+        "cflbHa": 39145,
+        "minimumAge": 121,
+        "oldPercent": 17,
+        "interiorPercent": 25,
+        "requiredOldHa": 6655,
+        "oldHa": 11515,
+        "requiredInteriorHa": 1664,
+        "interiorHa": 4585
+      },
+      {
+        "unit": "A11",
+        "cflbHa": 124930,
+        "minimumAge": 121,
+        "oldPercent": 12,
+        "interiorPercent": 25,
+        "requiredOldHa": 14992,
+        "oldHa": 34237,
+        "requiredInteriorHa": 3748,
+        "interiorHa": 9274
+      },
+      {
+        "unit": "A12",
+        "cflbHa": 172430,
+        "minimumAge": 121,
+        "oldPercent": 12,
+        "interiorPercent": 10,
+        "requiredOldHa": 20692,
+        "oldHa": 47547,
+        "requiredInteriorHa": 2069,
+        "interiorHa": 14617
+      },
+      {
+        "unit": "A13",
+        "cflbHa": 357733,
+        "minimumAge": 121,
+        "oldPercent": 12,
+        "interiorPercent": 25,
+        "requiredOldHa": 42928,
+        "oldHa": 86281,
+        "requiredInteriorHa": 10732,
+        "interiorHa": 22148
+      },
+      {
+        "unit": "A14",
+        "cflbHa": 125190,
+        "minimumAge": 141,
+        "oldPercent": 50,
+        "interiorPercent": 40,
+        "requiredOldHa": 62595,
+        "oldHa": 108950,
+        "requiredInteriorHa": 25038,
+        "interiorHa": 94705
+      },
+      {
+        "unit": "A15",
+        "cflbHa": 15604,
+        "minimumAge": 141,
+        "oldPercent": 84,
+        "interiorPercent": 40,
+        "requiredOldHa": 13108,
+        "oldHa": 13118,
+        "requiredInteriorHa": 5243,
+        "interiorHa": 10823
+      },
+      {
+        "unit": "A16",
+        "cflbHa": 34089,
+        "minimumAge": 141,
+        "oldPercent": 26,
+        "interiorPercent": 25,
+        "requiredOldHa": 8863,
+        "oldHa": 14502,
+        "requiredInteriorHa": 2216,
+        "interiorHa": 7417
+      },
+      {
+        "unit": "A17",
+        "cflbHa": 118720,
+        "minimumAge": 141,
+        "oldPercent": 50,
+        "interiorPercent": 25,
+        "requiredOldHa": 59360,
+        "oldHa": 84854,
+        "requiredInteriorHa": 14840,
+        "interiorHa": 48901
+      },
+      {
+        "unit": "A18",
+        "cflbHa": 43925,
+        "minimumAge": 141,
+        "oldPercent": 80,
+        "interiorPercent": 40,
+        "requiredOldHa": 35140,
+        "oldHa": 38383,
+        "requiredInteriorHa": 14056,
+        "interiorHa": 29275
+      },
+      {
+        "unit": "A19",
+        "cflbHa": 64085,
+        "minimumAge": 141,
+        "oldPercent": 48,
+        "interiorPercent": 40,
+        "requiredOldHa": 30761,
+        "oldHa": 55791,
+        "requiredInteriorHa": 12304,
+        "interiorHa": 44846
+      },
+      {
+        "unit": "A20",
+        "cflbHa": 93734,
+        "minimumAge": 141,
+        "oldPercent": 80,
+        "interiorPercent": 40,
+        "requiredOldHa": 74987,
+        "oldHa": 86242,
+        "requiredInteriorHa": 29995,
+        "interiorHa": 71389
+      },
+      {
+        "unit": "A21",
+        "cflbHa": 112750,
+        "minimumAge": 141,
+        "oldPercent": 48,
+        "interiorPercent": 40,
+        "requiredOldHa": 54120,
+        "oldHa": 66309,
+        "requiredInteriorHa": 21648,
+        "interiorHa": 44566
+      },
+      {
+        "unit": "A22",
+        "cflbHa": 27530,
+        "minimumAge": 141,
+        "oldPercent": 53,
+        "interiorPercent": 40,
+        "requiredOldHa": 14591,
+        "oldHa": 17631,
+        "requiredInteriorHa": 5836,
+        "interiorHa": 9616
+      },
+      {
+        "unit": "A23",
+        "cflbHa": 145047,
+        "minimumAge": 141,
+        "oldPercent": 53,
+        "interiorPercent": 40,
+        "requiredOldHa": 76875,
+        "oldHa": 91831,
+        "requiredInteriorHa": 30750,
+        "interiorHa": 59308
+      },
+      {
+        "unit": "A24",
+        "cflbHa": 127340,
+        "minimumAge": 141,
+        "oldPercent": 30,
+        "interiorPercent": 10,
+        "requiredOldHa": 38202,
+        "oldHa": 37315,
+        "requiredInteriorHa": 3820,
+        "interiorHa": 10791
+      },
+      {
+        "unit": "A25",
+        "cflbHa": 154933,
+        "minimumAge": 141,
+        "oldPercent": 46,
+        "interiorPercent": 25,
+        "requiredOldHa": 71269,
+        "oldHa": 75633,
+        "requiredInteriorHa": 17817,
+        "interiorHa": 34634
+      }
+    ]
+  },
+  "youngForest": {
+    "appendix": 4,
+    "page": 21,
+    "classOrder": ["under50ha", "between51and100ha", "between101and1000ha", "over1000ha"],
+    "distributions": [
+      {
+        "district": "Fort St. James",
+        "ndu": "Moist Interior - Mountain",
+        "target": [20.0, 10.0, 30.0, 40.0],
+        "observed2015": [22.7, 35.0, 3.9, 38.4],
+        "observed2018": [17.9, 1.7, 76.7, 3.7]
+      },
+      {
+        "district": "Fort St. James",
+        "ndu": "Moist Interior - Plateau",
+        "target": [5.0, 5.0, 20.0, 70.0],
+        "observed2015": [5.8, 6.9, 15.0, 71.4],
+        "observed2018": [4.8, 5.4, 14.0, 75.9]
+      },
+      {
+        "district": "Fort St. James",
+        "ndu": "Northern Boreal Mountains",
+        "target": [5.0, 5.0, 30.0, 60.0],
+        "observed2015": null,
+        "observed2018": null
+      },
+      {
+        "district": "Fort St. James",
+        "ndu": "Omineca - Mountain",
+        "target": [20.0, 10.0, 30.0, 40.0],
+        "observed2015": [17.7, 27.8, 25.9, 28.5],
+        "observed2018": [15.4, 28.4, 21.7, 34.5]
+      },
+      {
+        "district": "Fort St. James",
+        "ndu": "Omineca - Valley",
+        "target": [5.0, 5.0, 30.0, 60.0],
+        "observed2015": [11.7, 14.5, 39.2, 34.6],
+        "observed2018": [10.1, 10.3, 27.5, 52.1]
+      },
+      {
+        "district": "Prince George",
+        "ndu": "Boreal Foothills - Mountain",
+        "target": null,
+        "observed2015": null,
+        "observed2018": null
+      },
+      {
+        "district": "Prince George",
+        "ndu": "McGregor Plateau",
+        "target": [10.0, 5.0, 45.0, 40.0],
+        "observed2015": [10.4, 13.2, 27.6, 48.9],
+        "observed2018": [8.5, 9.0, 34.8, 47.7]
+      },
+      {
+        "district": "Prince George",
+        "ndu": "Moist Interior - Mountain",
+        "target": [20.0, 10.0, 30.0, 40.0],
+        "observed2015": [7.7, 14.9, 32.0, 45.3],
+        "observed2018": [4.3, 6.1, 35.7, 53.9]
+      },
+      {
+        "district": "Prince George",
+        "ndu": "Moist Interior - Plateau",
+        "target": [5.0, 5.0, 20.0, 70.0],
+        "observed2015": [5.1, 4.0, 10.9, 80.0],
+        "observed2018": [4.3, 3.2, 9.2, 83.3]
+      },
+      {
+        "district": "Prince George",
+        "ndu": "Wet Mountain",
+        "target": [20.0, 10.0, 60.0, 10.0],
+        "observed2015": [23.9, 40.4, 35.7, 0.0],
+        "observed2018": [17.9, 28.6, 42.4, 11.1]
+      },
+      {
+        "district": "Prince George",
+        "ndu": "Wet Trench - Mountain",
+        "target": [20.0, 10.0, 60.0, 10.0],
+        "observed2015": [29.3, 42.1, 20.1, 8.6],
+        "observed2018": [22.1, 20.6, 42.4, 14.9]
+      },
+      {
+        "district": "Prince George",
+        "ndu": "Wet Trench - Valley",
+        "target": [20.0, 10.0, 60.0, 10.0],
+        "observed2015": [24.8, 32.1, 33.5, 9.7],
+        "observed2018": [25.7, 26.2, 32.4, 15.7]
+      },
+      {
+        "district": "Vanderhoof",
+        "ndu": "Moist Interior - Mountain",
+        "target": [20.0, 10.0, 30.0, 40.0],
+        "observed2015": [6.1, 9.1, 10.5, 74.3],
+        "observed2018": [4.8, 5.1, 9.2, 80.9]
+      },
+      {
+        "district": "Vanderhoof",
+        "ndu": "Moist Interior - Plateau",
+        "target": [5.0, 5.0, 20.0, 70.0],
+        "observed2015": [6.4, 3.8, 10.5, 79.2],
+        "observed2018": [6.4, 3.6, 10.0, 80.0]
+      }
+    ]
+  }
+}

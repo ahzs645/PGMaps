@@ -1,0 +1,53 @@
+{
+  "id": "bc.fppr.64.cutblock-size",
+  "schemaVersion": "1.0.0",
+  "status": "draft",
+  "source": {
+    "sourceId": "bc.fppr",
+    "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004",
+    "asOf": "2026-11-17"
+  },
+  "provision": "64(1)-(4)",
+  "kind": "numeric-screen",
+  "scope": {
+    "jurisdiction": "Omineca Forest Region",
+    "tenure": "agreement holder other than holder of minor tenure",
+    "geometryLayerId": null
+  },
+  "screen": {
+    "input": "netAreaToBeReforestedHa",
+    "comparison": "greaterThan",
+    "parameterId": "bc.fppr.s64.max-net-area-to-be-reforested",
+    "whenMissing": "indeterminate"
+  },
+  "exceptions": [
+    {
+      "provision": "64(2)",
+      "reviewRequired": true,
+      "evidence": [
+        "salvage/sanitation or natural-disturbance design",
+        "post-harvest structural resemblance to natural disturbance to extent practicable"
+      ]
+    },
+    {
+      "provision": "64(3)",
+      "reviewRequired": true,
+      "evidence": [
+        "pre-harvest and retained basal-area measurements >= 40%"
+      ]
+    },
+    {
+      "provision": "64(4)",
+      "reviewRequired": true,
+      "evidence": [
+        "two/one tree-length geometry",
+        "reserved groups' measured area; >=0.25 ha vs <0.25 ha"
+      ]
+    }
+  ],
+  "review": {
+    "legalVerified": false,
+    "spatialVerified": false,
+    "notes": "Screen uses NAR, not gross polygon size. Requires tenure, administrative forest region, and applicable authorizations. Over-threshold never by itself means illegal; human-review exceptions. No historical clearance."
+  }
+}

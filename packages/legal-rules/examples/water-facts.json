@@ -1,0 +1,10 @@
+{
+  "format": "pgmaps-legal-facts/v1",
+  "pack": "example.water",
+  "version": "1.0.0",
+  "source": "Fictional site visit, 2026-10-15",
+  "facts": [
+    {"id": "site", "value": true, "evidence": "Example site register A1"},
+    {"id": "reading", "value": 15, "evidence": "Example sample A1-16"}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@pgmaps/legal-rules",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Prototype legal-rule models and forestry screening fixtures (not legal authorization)",
+  "scripts": {
+    "test": "node --test tests/screen.test.mjs",
+    "test:engines": "node --test tests/engine-parity.test.mjs"
+  },
+  "devDependencies": {
+    "@gorules/zen-engine": "^2.1.9",
+    "json-rules-engine": "^7.3.1"
+  }
+}

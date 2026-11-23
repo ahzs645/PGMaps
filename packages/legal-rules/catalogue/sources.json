@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0.0",
+  "compiledOn": "2026-11-22",
+  "notes": "An inventory, not a complete transcription or a legal opinion. Current BC Laws consolidations are not point-in-time histories. Fetch section inventory from CiviX and separately verify applicable orders and supersession.",
+  "sources": [
+    {
+      "id": "bc.frpa",
+      "title": "Forest and Range Practices Act, SBC 2002 c. 69",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/02069_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "02069_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/02069_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.fppr",
+      "title": "Forest Planning and Practices Regulation, BC Reg 14/2004",
+      "kind": "regulation",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "14_2004",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.gar",
+      "title": "Government Actions Regulation, BC Reg 582/2004",
+      "kind": "regulation",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/582_2004",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "582_2004",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/582_2004/xml"
+      },
+      "consolidationCurrentTo": "2026-09-22",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.pgtsa.2004",
+      "title": "Order Establishing Landscape Biodiversity Objectives for the Prince George Timber Supply Area, 20 October 2004",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/princegeorge_tsa_fpc_20oct2004.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2004-10-20",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.pgtsa.policy.2005",
+      "title": "Prince George TSA Landscape Biodiversity Objectives Implementation Policy, revised December 2005",
+      "kind": "guidance",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/princegeorge_tsa_fpc_20oct2004.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "binding": false,
+      "embeddedAfterOrder": true
+    }
+  ]
+}

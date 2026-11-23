@@ -8,6 +8,7 @@ proj4.defs(
 )
 const albers = proj4('EPSG:3005', 'EPSG:4326')
 
+export const lngLatToAlbers = (lng: number, lat: number) => albers.inverse([lng, lat]) as [number, number]
 export const albersToLngLat = (x: number, y: number) => albers.forward([x, y]) as [number, number]
 
 export function multiPolygonToLngLat(geometry: MultiPolygonCoords): GeoJSON.MultiPolygon {
