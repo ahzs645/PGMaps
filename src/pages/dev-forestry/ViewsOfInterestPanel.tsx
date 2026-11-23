@@ -25,6 +25,7 @@ import { arrowLabel } from './ViewpointFinderPanel'
 import { ARROW_AIM_DEGREES, type CandidateArrow, type ViewpointInventory } from './viewpointInventory'
 import { bearingDegrees, type PolygonGeometry } from './visibility'
 import { compassPoint } from './visualsNarrative'
+import { focalLabel } from './viewCamera'
 import {
   blockCentre,
   isIncluded,
@@ -594,7 +595,7 @@ export function ViewsOfInterestList({
                   subtitle={
                     <span className="whitespace-normal text-3xs leading-4">
                       {viewSourceLabel(view)} · {block?.name ?? 'block missing'} · {facingSummary(view, arrows)} ·{' '}
-                      {view.focalMm} mm
+                      {focalLabel(view.focalMm)}
                       {isIncluded(view) ? '' : ' · left out of exports'}
                       {assessedGroups && groupLeadOf(view, views).id !== view.id
                         ? ` · assessed with ${groupLeadOf(view, views).name}`
