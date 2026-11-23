@@ -6568,9 +6568,16 @@ function DevForestryVisuals({
       } else toRender.push({ id: view.id, name: view.name, at: image.figureAt })
     }
     if (!toRender.length) return { renders, absent, notes }
+    // An open road view reloads its terrain after a capture steps back to the reviewer, or when the scene's polygons
+    // change: a sheet downloaded in that window once printed "the road view was closed" with the road view open, and
+    // the next download, after the terrain came, measured the view. Wait it out, as the background renders do; read
+    // through refs, since this function's own render may predate the reload.
+    if (eyeMapRef.current && driveRef.current.active && !roadTerrainRef.current)
+      await waitUntil(() => !driveRef.current.active || !!roadTerrainRef.current, ROAD_VIEW_SETTLE_MS)
     const eyeMap = eyeMapRef.current as unknown as import('maplibre-gl').Map | null
-    if (!eyeMap || !driveRef.current.active || !previewTerrain.source) {
-      for (const entry of toRender) absent[entry.id] = TIMBER_ABSENT.roadViewClosed
+    if (!eyeMap || !driveRef.current.active || !roadTerrainRef.current) {
+      const reason = eyeMap && driveRef.current.active ? TIMBER_ABSENT.terrainLoading : TIMBER_ABSENT.roadViewClosed
+      for (const entry of toRender) absent[entry.id] = reason
       return { renders, absent, notes }
     }
     const phaseBefore = driveRef.current.harvestPhase

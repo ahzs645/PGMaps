@@ -31,6 +31,7 @@ export interface RgbaPixels {
 export const TIMBER_ABSENT = {
   noBefore: 'no before-harvest render of this view',
   roadViewClosed: 'the road view was closed, so no before-harvest render was taken',
+  terrainLoading: 'the road view’s terrain was still loading, so no before-harvest render was taken',
   elsewhere:
     'the view was saved at another place and no before-harvest render was taken there (the road view draws only where you stand): capture it again, or save it again standing there',
   savedBefore: 'the view was saved before harvest',
