@@ -17,7 +17,13 @@ export function explainPatches(result: Analysis, year: number, scenario: Scenari
         sharePoints: (100 * Number(f.properties!.youngHa)) / selected.totalHa,
       }))
       .sort((a, b) => b.youngHa - a.youngHa || a.id - b.id)
-    return { ...c, label: table.labels[i], movement: movements?.[i] ?? null, patches }
+    return {
+      ...c,
+      label: table.labels[i],
+      priorGapPoints: previous?.classes.find((prior) => prior.bin === c.bin)?.gapPoints ?? null,
+      movement: movements?.[i] ?? null,
+      patches,
+    }
   })
   return { classes, totalHa: selected.totalHa, unclassifiedHa: selected.unclassifiedHa, screen: trendsAway(movements) }
 }

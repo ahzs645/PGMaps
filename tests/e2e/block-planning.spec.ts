@@ -111,6 +111,8 @@ test('a field date sensitivity run exports the calculation alongside independent
     'Prince George',
   )
   await choose(page.getByRole('combobox', { name: 'Map year' }), '2031')
+  await expect(page.getByTitle('Copy equation to clipboard')).toBeVisible()
+  await expect(page.locator('code').filter({ hasText: '× 100' })).toBeVisible()
   await choose(page.getByRole('combobox', { name: 'Footprint to check' }), 'Opening A')
   await page.getByLabel('Earliest disturbance year').fill('2010')
   await page.getByLabel('Latest disturbance year').fill('2011')

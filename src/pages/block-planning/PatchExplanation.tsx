@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { CalculationFormula, CalculationTable } from '@/components/ui/calculation-results'
+import { useWorkerCalculation } from '@/hooks/useWorkerCalculation'
+import { createFieldWorker } from '../forest-patches/fieldWorker'
+import type { FieldInput } from '../forest-patches/fieldComparison'
+import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { DisclosureCard, DisclosureRow } from '@/components/ui/disclosure'
 import { FORM_INPUT_CLASS, FormField, SelectField } from '@/components/ui/form-field'
-import type { Analysis } from '../forest-patches/analysis'
-import { explainPatches, type FieldComparison } from '../forest-patches/explanation'
+import type { explainPatches, FieldComparison } from '../forest-patches/explanation'
 import { disturbanceBasis, type Project, type Scenario } from '../forest-patches/project'
 
 type Props = {
   project: Project
-  result: Analysis
+  explanation: ReturnType<typeof explainPatches>
   year: number
   scenario: Scenario
   onComparison: (comparison: FieldComparison | null) => void
@@ -20,8 +23,7 @@ const points = (value: number | null) =>
 const screenLabel = (value: boolean | null) =>
   value === null ? 'Missing evidence' : value ? 'One or more classes moved farther' : 'No class moved farther'
 
-export function PatchExplanation({ project, result, year, scenario, onComparison }: Props) {
-  const explanation = useMemo(() => explainPatches(result, year, scenario), [result, year, scenario])
+export function PatchExplanation({ project, explanation, year, scenario, onComparison }: Props) {
   const { classes, totalHa, unclassifiedHa, screen } = explanation
   const byGap = [...classes]
     .filter((c) => c.gapPoints !== null)
@@ -37,9 +39,6 @@ export function PatchExplanation({ project, result, year, scenario, onComparison
   const [selectedBin, setSelectedBin] = useState('')
   const selectedClass = classes.find((c) => c.bin === selectedBin) ?? widest[0] ?? classes[0]
   const patches = selectedClass?.patches ?? []
-  const priorClass = result.timeline
-    .find((row) => row.year === year - 5 && row.scenario === scenario)
-    ?.classes.find((c) => c.bin === selectedClass?.bin)
   const footprints = project.features.filter(
     (f) => f.properties.scenario === 'reference' || f.properties.scenario === scenario,
   )
@@ -49,31 +48,16 @@ export function PatchExplanation({ project, result, year, scenario, onComparison
   const [earliest, setEarliest] = useState('')
   const [latest, setLatest] = useState('')
   const [source, setSource] = useState('')
-  const [comparison, setComparison] = useState<FieldComparison | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const workerRef = useRef<Worker | null>(null)
-
-  useEffect(
-    () => () => {
-      workerRef.current?.terminate()
-      workerRef.current = null
-    },
-    [],
-  )
-
-  function clearRun() {
-    workerRef.current?.terminate()
-    workerRef.current = null
-    setBusy(false)
-    setError('')
-    setComparison(null)
-    onComparison(null)
-  }
+  const {
+    result: comparison,
+    busy,
+    error,
+    clear: clearRun,
+    run,
+  } = useWorkerCalculation<FieldInput, FieldComparison>(createFieldWorker, onComparison)
 
   function compare(event: FormEvent) {
     event.preventDefault()
-    clearRun()
     const from = Number(earliest),
       through = Number(latest)
     if (
@@ -87,38 +71,10 @@ export function PatchExplanation({ project, result, year, scenario, onComparison
       through > 2250 ||
       from > through
     ) {
-      setError('Choose a footprint, enter an ordered range of years from 1600 to 2250, and describe the evidence.')
+      clearRun('Choose a footprint, enter an ordered range of years from 1600 to 2250, and describe the evidence.')
       return
     }
-    try {
-      const worker = new Worker(new URL('../forest-patches/field.worker.ts', import.meta.url), { type: 'module' })
-      workerRef.current = worker
-      setBusy(true)
-      function finish() {
-        worker.terminate()
-        const current = workerRef.current === worker
-        if (current) {
-          workerRef.current = null
-          setBusy(false)
-        }
-        return current
-      }
-      worker.onmessage = ({ data }: MessageEvent<{ comparison: FieldComparison } | { error: string }>) => {
-        if (!finish()) return
-        if ('error' in data) setError(data.error)
-        else {
-          setComparison(data.comparison)
-          onComparison(data.comparison)
-        }
-      }
-      worker.onerror = (e) => {
-        if (finish()) setError(e.message || 'The field comparison could not run.')
-      }
-      worker.postMessage({ project, year, scenario, id, earliest: from, latest: through, source: source.trim() })
-    } catch (e) {
-      clearRun()
-      setError(e instanceof Error ? e.message : 'The field comparison could not start.')
-    }
+    run({ project, year, scenario, id, earliest: from, latest: through, source: source.trim() })
   }
 
   return (
@@ -140,23 +96,28 @@ export function PatchExplanation({ project, result, year, scenario, onComparison
           ))}
         </SelectField>
       )}
-      {selectedClass && (
+      {selectedClass &&
+        (selectedClass.percent === null || totalHa <= 0 ? (
+          <p>{selectedClass.label} · Class share unavailable.</p>
+        ) : (
+          <CalculationFormula
+            expression={
+              selectedClass.label +
+              ' · ' +
+              format(selectedClass.ha) +
+              ' ha ÷ ' +
+              format(totalHa) +
+              ' ha × 100 = ' +
+              format(selectedClass.percent) +
+              '%. Target ' +
+              format(selectedClass.target) +
+              '%.'
+            }
+          />
+        ))}
+      {selectedClass?.movement != null && selectedClass.gapPoints != null && selectedClass.priorGapPoints != null && (
         <p>
-          <strong>{selectedClass.label}</strong>
-          {' · '}
-          {selectedClass.percent === null || totalHa <= 0 ? (
-            'Class share unavailable.'
-          ) : (
-            <>
-              {format(selectedClass.ha)} ha ÷ {format(totalHa)} ha × 100 = {format(selectedClass.percent)}%. Target{' '}
-              {format(selectedClass.target)}%.
-            </>
-          )}
-        </p>
-      )}
-      {selectedClass?.movement != null && selectedClass.gapPoints != null && priorClass?.gapPoints != null && (
-        <p>
-          Distance to target in {year - 5} minus distance in {year} = {points(priorClass.gapPoints)} −{' '}
+          Distance to target in {year - 5} minus distance in {year} = {points(selectedClass.priorGapPoints)} −{' '}
           {points(selectedClass.gapPoints)} points.{' '}
           {Math.abs(selectedClass.movement) <= 1e-8 ? (
             'The distance held steady.'
@@ -196,35 +157,24 @@ export function PatchExplanation({ project, result, year, scenario, onComparison
       )}
       <DisclosureRow title="Mapped patches contributing to this class" defaultOpen>
         {patches.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <caption className="text-left text-muted-foreground">
-                Largest {Math.min(5, patches.length)} of {patches.length} mapped patches in {selectedClass?.label},
-                ranked by young hectares.
-              </caption>
-              <thead>
-                <tr>
-                  {['Mapped patch', 'Young hectares', 'Contribution to class share (points)'].map((h) => (
-                    <th scope="col" key={h} className="p-1">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {patches.slice(0, 5).map((p) => (
-                  <tr key={p.id} className="border-t">
-                    <th scope="row" className="p-1">
-                      Patch {p.id}
-                      <span className="block text-xs font-normal">{p.footprintIds.join(', ')}</span>
-                    </th>
-                    <td className="p-1">{format(p.youngHa)}</td>
-                    <td className="p-1">{points(p.sharePoints)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <CalculationTable
+            caption={`Largest ${Math.min(5, patches.length)} of ${patches.length} mapped patches in ${selectedClass?.label}, ranked by young hectares.`}
+            rows={patches.slice(0, 5)}
+            rowKey={(p) => p.id}
+            columns={[
+              {
+                label: 'Mapped patch',
+                render: (p) => (
+                  <>
+                    Patch {p.id}
+                    <span className="block text-xs font-normal">{p.footprintIds.join(', ')}</span>
+                  </>
+                ),
+              },
+              { label: 'Young hectares', render: (p) => format(p.youngHa) },
+              { label: 'Contribution to class share (points)', render: (p) => points(p.sharePoints) },
+            ]}
+          />
         ) : (
           <p>No mapped patch contributes to this class in {year}.</p>
         )}
@@ -342,41 +292,24 @@ export function PatchExplanation({ project, result, year, scenario, onComparison
             {comparison.canLoseEvidence && (
               <p>A tested disturbance year leaves insufficient evidence to compare both periods.</p>
             )}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <caption className="text-left text-muted-foreground">
-                  Tested disturbance years and their effect on the {year} distribution.
-                </caption>
-                <thead>
-                  <tr>
-                    {[
-                      'Disturbance year',
-                      'Trend screen',
-                      'Largest class shift from inventory (points)',
-                      'Most affected class in selected year',
-                      'Largest change in movement over the interval (points)',
-                    ].map((h) => (
-                      <th scope="col" key={h} className="p-1">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparison.cases.map((c) => (
-                    <tr className="border-t" key={c.from}>
-                      <th scope="row" className="p-1">
-                        {c.from === c.through ? c.from : c.from + '–' + c.through}
-                      </th>
-                      <td className="p-1">{screenLabel(c.screen)}</td>
-                      <td className="p-1">{points(c.maxClassShift)}</td>
-                      <td className="p-1">{c.mostAffected ?? '—'}</td>
-                      <td className="p-1">{points(c.maxTrendShift)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <CalculationTable
+              caption={`Tested disturbance years and their effect on the ${year} distribution.`}
+              rows={comparison.cases}
+              rowKey={(c) => c.from}
+              columns={[
+                {
+                  label: 'Disturbance year',
+                  render: (c) => (c.from === c.through ? c.from : c.from + '–' + c.through),
+                },
+                { label: 'Trend screen', render: (c) => screenLabel(c.screen) },
+                { label: 'Largest class shift from inventory (points)', render: (c) => points(c.maxClassShift) },
+                { label: 'Most affected class in selected year', render: (c) => c.mostAffected ?? '—' },
+                {
+                  label: 'Largest change in movement over the interval (points)',
+                  render: (c) => points(c.maxTrendShift),
+                },
+              ]}
+            />
           </div>
         )}
       </DisclosureRow>

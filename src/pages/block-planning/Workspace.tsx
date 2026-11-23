@@ -1,3 +1,4 @@
+import { CalculationTable } from '@/components/ui/calculation-results'
 import { PatchExplanation } from './PatchExplanation'
 import { FieldPriorities } from './FieldPriorities'
 import { explainPatches, type FieldComparison } from '../forest-patches/explanation'
@@ -20,7 +21,6 @@ import { patchFacts } from '../forest-patches/legalEvidence'
 import { PatchMap } from '../forest-patches/PatchMap'
 import type { Analysis } from '../forest-patches/analysis'
 import {
-  movementTowardTarget,
   districts,
   exampleProject,
   emptyProject,
@@ -121,7 +121,7 @@ export default function Workspace({
   const error = answer?.request === request ? answer.error : undefined
   const periods = periodYears(project.startYear)
   const selected = result?.timeline.find((row) => row.year === year && row.scenario === scenario)
-  const previous = result?.timeline.find((row) => row.scenario === scenario && row.year === year - 5)
+  const explanation = useMemo(() => result && explainPatches(result, year, scenario), [result, year, scenario])
   const reference = result?.timeline.find((row) => row.year === year && row.scenario === 'reference')
   const add = useCallback((p: Position) => setVertices((v) => (v ? [...v, p] : null)), [])
   const displayed = project.features.filter(
@@ -249,7 +249,7 @@ export default function Workspace({
   function calculationEvidence() {
     return (
       result && {
-        patchContributions: explainPatches(result, year, scenario),
+        patchContributions: explanation,
         testedDisturbanceDates: fieldCase?.request === request ? fieldCase.value : null,
         fieldPriorities: fieldRanking?.request === request ? fieldRanking.value : null,
       }
@@ -422,7 +422,7 @@ export default function Workspace({
           <h2 className="text-xl font-semibold">Patch distribution · {year}</h2>
           {error ? (
             <p role="alert">{error}</p>
-          ) : !selected ? (
+          ) : !selected || !explanation ? (
             <p role="status">Calculating patch geometry…</p>
           ) : (
             <>
@@ -430,52 +430,27 @@ export default function Workspace({
                 {selected.patches} {selected.patches === 1 ? 'patch' : 'patches'} · {format(selected.totalHa)} ha young
                 forest · {format(selected.unclassifiedHa)} ha with unresolved size class
               </p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr>
-                      {[
-                        'Patch size',
-                        'Young ha',
-                        'Baseline %',
-                        'Selected %',
-                        'Target %',
-                        'Gap (points)',
-                        'Closer since prior period (points)',
-                      ].map((h) => (
-                        <th className="p-2" key={h}>
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selected.classes.map((c, i) => (
-                      <tr className="border-t" key={c.bin}>
-                        <th className="p-2">{table.labels[i]}</th>
-                        {[
-                          c.ha,
-                          reference?.classes[i].percent ?? null,
-                          c.percent,
-                          c.target,
-                          c.gapPoints,
-                          selected.unclassifiedHa || previous?.unclassifiedHa
-                            ? null
-                            : movementTowardTarget(previous?.classes[i].percent ?? null, c.percent, c.target),
-                        ].map((n, k) => (
-                          <td className="p-2" key={k}>
-                            {format(n)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <CalculationTable
+                caption={`${project.district} · ${project.ndu} · ${names[scenario]}`}
+                rows={explanation.classes}
+                rowKey={(c) => c.bin}
+                columns={[
+                  { label: 'Patch size', render: (c) => c.label },
+                  { label: 'Young ha', render: (c) => format(c.ha) },
+                  {
+                    label: 'Baseline %',
+                    render: (c) => format(reference?.classes.find((row) => row.bin === c.bin)?.percent ?? null),
+                  },
+                  { label: 'Selected %', render: (c) => format(c.percent) },
+                  { label: 'Target %', render: (c) => format(c.target) },
+                  { label: 'Gap (points)', render: (c) => format(c.gapPoints) },
+                  { label: 'Closer since prior period (points)', render: (c) => format(c.movement) },
+                ]}
+              />
               <PatchExplanation
                 key={year + scenario}
                 project={project}
-                result={result!}
+                explanation={explanation}
                 year={year}
                 scenario={scenario}
                 onComparison={rememberCase}
@@ -489,42 +464,21 @@ export default function Workspace({
               />
               <details>
                 <summary>Compare all periods and schedules</summary>
-                <div className="overflow-x-auto">
-                  <table className="mt-2 w-full text-left text-sm">
-                    <thead>
-                      <tr>
-                        {[
-                          'Year',
-                          'Schedule',
-                          'Young ha',
-                          ...table.labels.map((l) => l + ' (%)'),
-                          'Unclassified ha',
-                        ].map((h) => (
-                          <th key={h} className="p-1">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {periods.flatMap((y) =>
-                        result!.timeline
-                          .filter((r) => r.year === y)
-                          .map((r) => (
-                            <tr key={r.year + r.scenario} className="border-t">
-                              <td>{y}</td>
-                              <td>{names[r.scenario]}</td>
-                              <td>{format(r.totalHa)}</td>
-                              {r.classes.map((c) => (
-                                <td key={c.bin}>{format(c.percent)}</td>
-                              ))}
-                              <td>{format(r.unclassifiedHa)}</td>
-                            </tr>
-                          )),
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                <CalculationTable
+                  caption={`Projected distribution by period in ${project.ndu}`}
+                  rows={periods.flatMap((y) => result!.timeline.filter((r) => r.year === y))}
+                  rowKey={(r) => r.scenario + r.year}
+                  columns={[
+                    { label: 'Year', render: (r) => r.year },
+                    { label: 'Schedule', render: (r) => names[r.scenario] },
+                    { label: 'Young ha', render: (r) => format(r.totalHa) },
+                    ...table.labels.map((label, i) => ({
+                      label: label + ' (%)',
+                      render: (r: Analysis['timeline'][number]) => format(r.classes[i].percent),
+                    })),
+                    { label: 'Unclassified ha', render: (r) => format(r.unclassifiedHa) },
+                  ]}
+                />
               </details>
             </>
           )}
