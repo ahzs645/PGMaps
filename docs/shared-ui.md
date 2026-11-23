@@ -70,6 +70,9 @@ brand colour or built-in theme. Map symbols and reports have their own settings.
   `data-selected-card`; under a theme it takes `accent` with a `primary` edge. The built-in
   theme never has the attribute, so it looks as before. A theme's `muted` colour leaves
   `muted-foreground` (the hint-text grey) at its default rather than deriving black or white.
+  On a grey track (`bg-secondary`, `bg-muted`: a tab list, a segmented control) the hint grey
+  is one step darker (`--muted-foreground-on-track`, 40% in the light theme), because 45.1%
+  reads 4.35:1 there, under WCAG's 4.5:1 for 11–12 px text.
   The toolkit's UI-state tokens follow a theme too: `selected`, `selected-border`,
   `selected-focus` and `selected-alpha` (a `ResultRow` with the default `accent="theme"`),
   `link` and `link-hover` (`TextButton tone="accent"`) and `map-surround`
@@ -1003,6 +1006,14 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
     (selecting, adopting, inspecting, moving the road view): a vertex click must
     do nothing else. Read areas with `sketchStats` and print them with
     `formatSketchArea` / `formatSketchDistance`.
+  - Every sketch can be drawn without a pointer (`MapKeyboardPlacement`, in
+    `map-sketch.tsx`; `MapSketchLayers` mounts it while it captures, and a
+    one-click point tool mounts it itself, as the visual-quality page's
+    `MapDrawCapture` does): with the map focused, a cross marks its centre, the
+    arrow keys move the map under it, Enter or Space places the point there,
+    Backspace takes the last one back (`onRemoveLast`) and Shift + Enter
+    finishes. A tool started from the keyboard hands focus to the map. Escape
+    stays the page's cancel.
 
 - Tool cards: `MapToolPanel` (`map-tool-panel.tsx`) is the card a map tool shows while it
   is in hand (pegging, extending, sketching, measuring a point). It floats over the map, so
@@ -1028,6 +1039,17 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   A tool started from the map's control stack is a `MapToolToggle` (`map-tool-toggle.tsx`,
   the button `MapMeasureControl` is built on): pressed while its card is open, with `on` for
   an effect that stays on the map after the card closes.
+  A stack of tools that can outgrow a short map (a phone on its side, a short window, an open
+  legend) goes in `MapControlOverflow` (`map-control-overflow.tsx`, rule in the DOM-free
+  `mapControlOverflow.ts`) inside `MapControls` with `showZoom={false}` and
+  `className="items-end"`: it measures the room above the bottom-right chrome (the sheet, the
+  attribution, the legend, read from the same variables they stack on and from where the legend
+  is drawn), keeps the highest-`priority` tools in the stack and folds the rest into a
+  *More map tools* menu under the same names. A control with no `menu` row (Layers) never folds;
+  when even it and More do not fit, the stack takes a second column towards the map's middle.
+  Its `zoom` draws the zoom pair as one of its items, so a touch screen, which pinches, can
+  fold it first. The visual-quality plan is the reference. Stack squares are 44 px under a
+  finger at every width (`touch:!size-11`), 32 px in a desktop workspace with a mouse.
 - Overlays: `MapOverlay` (`position`). Pass `clearChrome` rather than writing
   your own `calc(…)` offsets: it keeps clear of the phone toolbar above, the
   bottom sheet, safe area and timeline below, and the corner controls and
@@ -1380,6 +1402,12 @@ holds the feed's dates and what it can say about the map centre, `useImageryFram
 `touch:` is a Tailwind variant for `(pointer: coarse)`. Use it to grow hit
 areas on phones and tablets (`touch:min-h-10`, `touch:p-2`) without changing
 the mouse layout. The shared controls above already do.
+
+A control's accessible name starts with the words it shows, so a speech user
+can say what they see (WCAG 2.5.3): a row named by its own content rather than
+an `aria-label` that drops its subtitle, a tab named by its label with its
+step and state in `aria-describedby`. `InfoTip`'s (i) keeps a 20 px icon with a
+44 px touch area.
 
 ## Helpers (`src/lib/`)
 

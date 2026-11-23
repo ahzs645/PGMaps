@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type * as MapLibreGL from 'maplibre-gl'
 
@@ -49,6 +49,7 @@ export function MapStatusBar() {
     return element
   })
   const coordinateRef = useRef<HTMLButtonElement>(null)
+  const describedBy = useId()
   const elevationRef = useRef<HTMLSpanElement>(null)
   const cameraRef = useRef<HTMLSpanElement>(null)
   const formatRef = useRef<CoordinateFormat>(format)
@@ -178,9 +179,13 @@ export function MapStatusBar() {
         data-testid="map-status-coordinate"
         className="truncate rounded-sm text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         title={`${COORDINATE_FORMAT_LABELS[format]} — click for ${COORDINATE_FORMAT_LABELS[nextCoordinateFormat(format)].toLowerCase()}`}
-        aria-label={`Pointer coordinate in ${COORDINATE_FORMAT_LABELS[format].toLowerCase()}. Show ${COORDINATE_FORMAT_LABELS[nextCoordinateFormat(format)].toLowerCase()} instead`}
+        // Named by the coordinate it shows, so a speech user can say it; what a click does is its description.
+        aria-describedby={describedBy}
         onClick={() => setMapCoordinateFormat(nextCoordinateFormat(format))}
       />
+      <span id={describedBy} hidden>
+        {`Pointer coordinate in ${COORDINATE_FORMAT_LABELS[format].toLowerCase()}. Click to show ${COORDINATE_FORMAT_LABELS[nextCoordinateFormat(format)].toLowerCase()} instead.`}
+      </span>
       <span
         ref={elevationRef}
         hidden

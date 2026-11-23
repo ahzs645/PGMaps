@@ -6,7 +6,8 @@ export async function openVisualsExport(page: Page, output: string | RegExp) {
   const dialog = page.getByTestId('visuals-export-dialog')
   if (!(await dialog.isVisible())) await page.getByRole('button', { name: 'Save & export', exact: true }).click()
   await expect(dialog).toBeVisible()
-  const name = typeof output === 'string' ? new RegExp(`^${output}(,|$)`) : output
+  // A row is named by what it shows: its title, then why it is unavailable or its file type.
+  const name = typeof output === 'string' ? new RegExp(`^${output}(\\s|$)`) : output
   await dialog.getByRole('navigation', { name: 'Files' }).getByRole('button', { name }).click()
   return dialog
 }
@@ -21,7 +22,7 @@ export async function openVisualsExportPackage(page: Page) {
   await expect(dialog).toBeVisible()
   await dialog
     .getByRole('navigation', { name: 'Files' })
-    .getByRole('button', { name: /^Package:/ })
+    .getByRole('button', { name: /^Package\b/ })
     .click()
   await expect(dialog.getByRole('region', { name: 'Package', exact: true })).toBeVisible()
   return dialog

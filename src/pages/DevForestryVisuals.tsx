@@ -8921,7 +8921,7 @@ function DevForestryVisuals({
                         </Map>
                         {
                           <PlanMapLegend
-                            besideTools={planShort}
+                            besideTools={planShort ? 'wide' : 'one'}
                             collapsed={legendCollapsed}
                             onCollapsedChange={(collapsed) => setLegendChoice({ shared: legendFolds, collapsed })}
                             blocks={{

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { encode } from 'fast-png'
+import { takePlanTool } from './visuals-plan-tools'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15000 })
 test.setTimeout(150000)
@@ -37,8 +38,8 @@ async function setup(page: Page, fail = false) {
   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.55)
   await expect(page.getByRole('button', { name: 'Finish drawing', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Finish drawing', exact: true }).click()
-  // The route preview is a plan map tool: its icon opens its card.
-  await page.getByRole('button', { name: 'Route preview', exact: true }).click()
+  // The route preview is a plan map tool: its icon (or its row under More map tools) opens its card.
+  await takePlanTool(page, 'Route preview')
   await page.getByRole('button', { name: 'Road viewshed', exact: true }).click()
   return host
 }

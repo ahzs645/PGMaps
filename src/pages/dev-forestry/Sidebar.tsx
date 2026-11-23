@@ -44,7 +44,7 @@ import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, MapSidebarShell } from '@/components/ui/map-panels'
 import { Projectable } from '@/components/ui/movable-content'
 import { ToolSection, ToolSubsection } from '@/components/ui/tool-section'
-import { StepMarker, stepStatusText } from '@/components/ui/step-section'
+import { StepMarker } from '@/components/ui/step-section'
 import { TabBar } from '@/components/ui/tab-bar'
 import { cn } from '@/lib/utils'
 
@@ -212,7 +212,13 @@ const VIA_CLASS_CODES = {
   'maximum-modification': 'MM',
 } as const
 
-/** Short tab labels; each tab's accessible name carries the handbook title. */
+/**
+ * A step tab's state in its description. The headline's *Next* names the step the handbook asks for next; the tab
+ * says the same, never "current", which reads as the tab that is open.
+ */
+const STEP_TAB_STATUS: Record<ViaStepStatus, string> = { done: 'done', current: 'next to do', todo: 'to do' }
+
+/** Short tab labels, each the tab's accessible name; its description carries the handbook title. */
 const STEP_TAB_LABELS: Record<ViaStepId, string> = {
   identify: 'Identify',
   visit: 'Visit',
@@ -1056,7 +1062,13 @@ export function Sidebar({
     // simulation settings, so the shell draws no title row of its own: one "Visual quality" heading.
     <MapSidebarShell
       title="Assessment steps"
-      className={cn(MAP_SIDEBAR_CLASS, embedded && 'border-r-0 bg-transparent shadow-none backdrop-blur-none')}
+      // On a phone the shell sits in the sheet under its Hide panel button: no stacking of its own there, or it covers
+      // the one visible way back to the map.
+      className={cn(
+        MAP_SIDEBAR_CLASS,
+        'max-md:z-auto',
+        embedded && 'border-r-0 bg-transparent shadow-none backdrop-blur-none',
+      )}
       headerClassName="sr-only"
       titleClassName="text-base"
       density="compact"
@@ -1089,14 +1101,26 @@ export function Sidebar({
           idPrefix="via-steps"
           value={activeStep}
           onChange={setActiveStep}
+          // The open step is set in bold as well as raised, so it never reads as the next step by colour alone.
+          activeClassName="font-semibold"
           options={VIA_STEPS.map((step) => ({
             value: step.id,
+            // Named by the word it shows, so a speech user can say it; the step's full title, its state and summary
+            // are its description.
             label: STEP_TAB_LABELS[step.id],
-            ariaLabel: `Step ${step.number}: ${step.title} (${stepStatusText(via.statuses[step.id])})`,
             marker: <StepMarker step={step.number} status={via.statuses[step.id]} className="h-4 w-4 text-3xs" />,
           }))}
-          getTabProps={(option) => ({ 'data-via-step': option.value, title: summaries[option.value] })}
+          getTabProps={(option) => ({
+            'data-via-step': option.value,
+            title: summaries[option.value],
+            'aria-describedby': `via-steps-about-${option.value}`,
+          })}
         />
+        {VIA_STEPS.map((step) => (
+          <span key={step.id} id={`via-steps-about-${step.id}`} hidden>
+            {`Step ${step.number} of ${VIA_STEPS.length}: ${step.title}, ${STEP_TAB_STATUS[via.statuses[step.id]]}. ${summaries[step.id] ?? ''}`}
+          </span>
+        ))}
       </div>
 
       {/* Step 1 — 3.1: the proposal, its objective, and where it may be seen from. */}
@@ -1901,7 +1925,13 @@ export function Sidebar({
                 type="button"
                 size="sm"
                 className={GRID_BUTTON}
-                onClick={() => (onOpenPackage ? onOpenPackage() : onOpenExport())}
+                onClick={(event) => {
+                  // Focused first, so closing the dialog hands focus back here (a tap does not focus a button in
+                  // Safari).
+                  event.currentTarget.focus()
+                  if (onOpenPackage) onOpenPackage()
+                  else onOpenExport()
+                }}
               >
                 <Download className="h-3.5 w-3.5" />
                 Rate and package…
