@@ -58,6 +58,20 @@ export interface Area {
   snapshotDate?: string
   /** Plan, tenure and order versions the planner relied on, for the reviewer to check. */
   applicabilityEvidence?: string
+  /**
+   * The reporting unit's boundary, supplied by the planner: the order's Map 1 sub-unit within the
+   * historic district. Past disturbances read from DataBC are clipped to it.
+   */
+  unit?: { source: string; geometry: Shape }
+  /**
+   * With a unit: `whole` (the default) builds patches from disturbances inside the unit and beyond it,
+   * classes each by its whole size and counts its young area inside; `clipped` cuts patches at the
+   * boundary. Whole reproduced the Board's largest class for Prince George, Moist Interior - Mountain
+   * within about a point in 2015 and 2018; clipped found none.
+   */
+  patchExtent?: 'whole' | 'clipped'
+  /** The last DataBC read: from which year, how far past the unit, and when. */
+  baselineRead?: { fromYear: number; marginMetres: number; readOn: string }
 }
 
 export interface Disturbance {
@@ -154,6 +168,10 @@ export interface Plan {
   /** The planning index's weights, by indicator (`planningIndex.ts`). Absent: equal weights. */
   indexWeights?: Record<string, number>
 }
+
+/** The unit the patch calculation counts within, or none: the plan's unit unless patches are cut at it. */
+export const countingUnit = (plan: Pick<Plan, 'area'>) =>
+  plan.area.unit && plan.area.patchExtent !== 'clipped' ? plan.area.unit.geometry : undefined
 
 export const periodYears = (start: number) =>
   Array.from({ length: PERIOD_COUNT }, (_, i) => start + i * PERIOD_STEP_YEARS)
@@ -372,6 +390,24 @@ function parseArea(value: unknown): Area {
       return v
     }),
     applicabilityEvidence: optionalText(a, 'applicabilityEvidence', 'area.applicabilityEvidence'),
+    patchExtent: optional(a, 'patchExtent', (v) => oneOf(v, 'area.patchExtent', ['whole', 'clipped'] as const)),
+    baselineRead: optional(a, 'baselineRead', (v) => {
+      const r = object(v, 'area.baselineRead')
+      if (typeof r.readOn !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.readOn))
+        throw Error('area.baselineRead.readOn must be YYYY-MM-DD.')
+      return {
+        fromYear: int(r.fromYear, 'area.baselineRead.fromYear', ...YEAR_RANGE),
+        marginMetres: int(r.marginMetres, 'area.baselineRead.marginMetres', 0, 50_000),
+        readOn: r.readOn,
+      }
+    }),
+    unit: optional(a, 'unit', (v) => {
+      const u = object(v, 'area.unit')
+      return {
+        source: text(u.source, 'area.unit.source', 2000),
+        geometry: parseShape(u.geometry, 'area.unit.geometry'),
+      }
+    }),
   }
 }
 

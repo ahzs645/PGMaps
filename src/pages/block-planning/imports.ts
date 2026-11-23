@@ -7,7 +7,8 @@
  */
 import { object } from '@/lib/jsonGuards'
 import { addBlock, addDisturbance, setEntry } from './edits'
-import { disturbanceKinds, parseShape, YEAR_RANGE, type DisturbanceKind, type Plan } from './plan'
+import type { Position } from 'geojson'
+import { disturbanceKinds, parseShape, YEAR_RANGE, type DisturbanceKind, type Plan, type Shape } from './plan'
 
 function featuresOf(data: unknown) {
   const root = object(data, 'file')
@@ -85,4 +86,22 @@ export function importBaseline(plan: Plan, data: unknown, fileName: string, assu
     }).plan
   }
   return { plan: next, added: features.length, assumed }
+}
+
+/**
+ * A reporting unit's boundary from a GeoJSON file: every polygon in it, as one shape. Lines and
+ * points are refused rather than skipped, because a boundary that lost a part would clip wrongly.
+ */
+export function importUnit(data: unknown, fileName: string): { source: string; geometry: Shape } {
+  const polygons: Position[][][] = []
+  for (const { feature, label } of featuresOf(data)) {
+    const shape = parseShape(feature.geometry, `${fileName} ${label}`)
+    if (shape.type === 'Polygon') polygons.push(shape.coordinates)
+    else polygons.push(...shape.coordinates)
+  }
+  const geometry: Shape =
+    polygons.length === 1
+      ? { type: 'Polygon', coordinates: polygons[0] }
+      : { type: 'MultiPolygon', coordinates: polygons }
+  return { source: fileName, geometry }
 }

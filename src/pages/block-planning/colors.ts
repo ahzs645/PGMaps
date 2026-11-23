@@ -29,5 +29,6 @@ export const MAP_COLOURS = {
   blockUncut: '#78716c',
   disturbance: '#7c5c3b',
   zone: '#0e7490',
+  unit: '#334155',
   selected: '#111827',
 }

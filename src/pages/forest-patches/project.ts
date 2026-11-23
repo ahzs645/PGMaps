@@ -33,6 +33,12 @@ export type Project = FeatureCollection<Footprint['geometry'], Footprint['proper
   startYear: number
   applicabilityEvidence?: string
   rationale?: string
+  /**
+   * A reporting unit (WGS84). When set, patches are built from every footprint, inside the unit and
+   * beyond it, each is classed by its whole size, and only its young area inside the unit counts.
+   * Absent, every footprint counts in full, as before.
+   */
+  countWithin?: Polygon | MultiPolygon
 }
 export const districts = ['Fort St. James', 'Prince George', 'Vanderhoof']
 export const periodYears = (start: number) => Array.from({ length: 11 }, (_, i) => start + i * 5)

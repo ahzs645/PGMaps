@@ -25,6 +25,7 @@ type BlockState = 'cut' | 'later' | 'uncut'
 /** Every corner of every shape in the plan, for framing it. */
 function planPoints(plan: Plan): [number, number][] {
   const shapes = [
+    ...(plan.area.unit ? [plan.area.unit.geometry] : []),
     ...plan.baseline.map((d) => d.geometry),
     ...plan.blocks.flatMap((b) => b.shapes.map((s) => s.geometry)),
   ]
@@ -114,6 +115,13 @@ export function PlanMap({
     }),
     [patches],
   )
+  const unitOutline = useMemo<FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: plan.area.unit ? [{ type: 'Feature', geometry: plan.area.unit.geometry, properties: {} }] : [],
+    }),
+    [plan.area.unit],
+  )
   const zones = (plan.zones?.layer as FeatureCollection | undefined) ?? EMPTY
   const classColour = [
     'match',
@@ -193,6 +201,15 @@ export function PlanMap({
           interactive={false}
           visible={!!plan.zones}
         />
+        <MapLineLayer
+          data={unitOutline}
+          sourceKey="planning-unit"
+          color={MAP_COLOURS.unit}
+          width={2}
+          dashArray={[4, 2]}
+          interactive={false}
+          visible={!!plan.area.unit}
+        />
         <MapSketch sketch={sketch} color={sketchColour} testId="block-planning-sketch" />
         <FitToPlan plan={plan} fitKey={fitKey} />
       </Map>
@@ -205,6 +222,9 @@ export function PlanMap({
           <MapLegendItem key={bin} color={CLASS_COLOURS[bin]} label={`Young patch ${table.labels[i]}`} />
         ))}
         {plan.zones && <MapLegendItem color={MAP_COLOURS.zone} label="Mapped riparian zone" />}
+        {plan.area.unit && (
+          <MapLegendItem color={MAP_COLOURS.unit} swatchShape="line" label="Reporting unit boundary" />
+        )}
       </MapLegend>
     </div>
   )

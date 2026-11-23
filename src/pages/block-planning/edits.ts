@@ -109,6 +109,20 @@ export function updateDisturbance(plan: Plan, id: string, change: Partial<Omit<D
   return { ...plan, baseline: plan.baseline.map((d) => (d.id === id ? { ...d, ...change } : d)) }
 }
 
+/**
+ * Puts a fresh read of some sources in place of what those sources wrote before, so reading again
+ * replaces rather than duplicates. Disturbances the planner drew or imported are kept.
+ */
+export function replaceBaseline(
+  plan: Plan,
+  isReplaced: (d: Disturbance) => boolean,
+  fresh: Omit<Disturbance, 'id'>[],
+): Plan {
+  let next: Plan = { ...plan, baseline: plan.baseline.filter((d) => !isReplaced(d)) }
+  for (const d of fresh) next = addDisturbance(next, d).plan
+  return next
+}
+
 export function removeDisturbance(plan: Plan, id: string): Plan {
   return { ...plan, baseline: plan.baseline.filter((d) => d.id !== id) }
 }

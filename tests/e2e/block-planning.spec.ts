@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { choose } from './styled-select'
 
 const button = (page: Page, name: string | RegExp) =>
   page.getByRole('button', { name, exact: typeof name === 'string' }).first()
@@ -79,4 +80,89 @@ test('a drawn block is timed per schedule and saved with the plan', async ({ pag
   expect(saved.format).toBe('pgmaps-block-assessment/v1')
   expect(saved.planningIndex.notALegalTest).toBe(true)
   expect(saved.schedules).toHaveLength(3)
+})
+
+/** A square of `size` degrees, for the stubbed DataBC answers. */
+const square = (west: number, south: number, size: number) => ({
+  type: 'Polygon',
+  coordinates: [
+    [
+      [west, south],
+      [west + size, south],
+      [west + size, south + size],
+      [west, south + size],
+      [west, south],
+    ],
+  ],
+})
+
+test('the order’s unit and past disturbances are read from DataBC and checked against the Board', async ({ page }) => {
+  test.setTimeout(150_000)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const asked: string[] = []
+  // DataBC is stubbed: the reads run in a worker, which the browser context's routes also serve.
+  await page.context().route(/RMP_PLAN_LEGAL_POLY_SVW/, (route) => {
+    asked.push('unit')
+    return route.fulfill({
+      json: {
+        type: 'FeatureCollection',
+        features: [
+          {
+            geometry: square(-122.6, 53.9, 0.2),
+            properties: {
+              LEGAL_FEAT_ATRB_2_NAME: 'NDZ_NAME',
+              LEGAL_FEAT_ATRB_3_NAME: 'ORG_CODE',
+              LEGAL_FEAT_ATRB_5_VALUE: 'A5',
+              LEGAL_FEAT_ATRB_6_NAME: 'NDZ_SUB',
+            },
+          },
+        ],
+      },
+    })
+  })
+  await page.context().route(/MapServer\/543\/query/, (route) => {
+    asked.push('cutblocks')
+    return route.fulfill({
+      json: {
+        type: 'FeatureCollection',
+        features: [
+          { geometry: square(-122.55, 53.95, 0.02), properties: { VCCB_SYSID: 1, HARVEST_START_YEAR_CALENDAR: 2005 } },
+          { geometry: square(-122.5, 53.95, 0.03), properties: { VCCB_SYSID: 2, HARVEST_START_YEAR_CALENDAR: 2012 } },
+        ],
+      },
+    })
+  })
+  await page.context().route(/PROT_HISTORICAL_FIRE_POLYS_SP/, (route) => {
+    asked.push('fires')
+    return route.fulfill({
+      json: {
+        type: 'FeatureCollection',
+        features: [
+          { id: 'f.1', geometry: square(-122.45, 54.0, 0.05), properties: { FIRE_NUMBER: 'G1', FIRE_YEAR: 2010 } },
+        ],
+      },
+    })
+  })
+  await page.goto('/dev/forestry/block-planning?interface=guided')
+  const steps = page.getByTestId('block-planning-steps')
+  await choose(steps.getByRole('combobox', { name: 'Historic forest district' }), 'Prince George')
+  await choose(steps.getByRole('combobox', { name: 'Natural disturbance sub-unit' }), 'Moist Interior - Mountain')
+  await button(page, 'Read the order’s unit').click()
+  await expect(page.getByTestId('block-planning-unit')).toContainText('Order units, Prince George')
+  await expect(page.getByTestId('block-planning-order-unit')).toContainText('landscape units A5')
+  await button(page, 'Read past disturbances').click()
+  const read = page.getByTestId('block-planning-databc-read')
+  await expect(read).toContainText('DataBC consolidated cutblocks: 2 kept of 2 read')
+  await expect(read).toContainText('DataBC historical fire perimeters: 1 kept of 1 read')
+  await expect(read).toContainText('years from 1995, 5 km past the unit')
+  expect(asked).toEqual(expect.arrayContaining(['unit', 'cutblocks', 'fires']))
+
+  await page.getByRole('tab', { name: 'Compare' }).click()
+  await button(page, /^Published 2015 and 2018/).click()
+  await button(page, 'Check the method against these figures').click()
+  await button(page, 'Run the check').click()
+  const check = page.getByTestId('block-planning-board-check')
+  await expect(check.getByRole('table')).toContainText('>1,000 ha', { timeout: 60_000 })
+  await expect(check).toContainText('2015')
+  await expect(check).not.toContainText('was not read from DataBC')
 })

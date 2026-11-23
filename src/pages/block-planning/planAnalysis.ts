@@ -14,7 +14,7 @@ import type { Feature, MultiPolygon } from 'geojson'
 import { periodCalculator, type Period } from '../forest-patches/analysis'
 import { classMovements, trendsAway } from '../forest-patches/legalEvidence'
 import type { Footprint, Project } from '../forest-patches/project'
-import { baselineFootprintId, blockFootprintId, periodYears, scheduleHarvests, type Plan } from './plan'
+import { baselineFootprintId, blockFootprintId, countingUnit, periodYears, scheduleHarvests, type Plan } from './plan'
 
 /** Whether the area is set well enough for the Objective C calculation to run. */
 export function landscapeReady(plan: Plan): string | null {
@@ -54,6 +54,7 @@ export function scheduleProject(plan: Plan, scheduleId: string): Project {
     source: plan.area.source.trim() || 'Inventory source not stated.',
     startYear: plan.area.startYear,
     features: [...baseline, ...harvests],
+    countWithin: countingUnit(plan),
   }
 }
 

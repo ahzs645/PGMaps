@@ -7,6 +7,7 @@ import BufferOp from 'jsts/org/locationtech/jts/operation/buffer/BufferOp.js'
 import RelateOp from 'jsts/org/locationtech/jts/operation/relate/RelateOp.js'
 import DistanceOp from 'jsts/org/locationtech/jts/operation/distance/DistanceOp.js'
 import UnaryUnionOp from 'jsts/org/locationtech/jts/operation/union/UnaryUnionOp.js'
+import OverlayOp from 'jsts/org/locationtech/jts/operation/overlay/OverlayOp.js'
 import type { Polygon, MultiPolygon, Feature } from 'geojson'
 import { albersToLngLat, lngLatToAlbers } from '../dev-avast/projection'
 import {
@@ -115,6 +116,24 @@ export function periodCalculator(input: Project, selectedYear: number, selectedS
   if (!periodYears(project.startYear).includes(selectedYear) || !scenarios.includes(selectedScenario))
     throw Error('Invalid projection period or schedule.')
   const inputs = prepareFootprints(project)
+  // With a reporting unit, patches are built from every footprint (inside and beyond it) and counted inside.
+  const within: Geometry | null = project.countWithin
+    ? reader.read(projectGeometry(project.countWithin, lngLatToAlbers))
+    : null
+  const insideCache = new WeakMap<Patch, number>()
+  const youngInside = (p: Patch) => {
+    let value = insideCache.get(p)
+    if (value === undefined) {
+      const box = within!.getEnvelopeInternal()
+      value = p.parts.reduce(
+        (sum, part) =>
+          part.getEnvelopeInternal().intersects(box) ? sum + ha(OverlayOp.intersection(part, within!)) : sum,
+        0,
+      )
+      insideCache.set(p, value)
+    }
+    return value
+  }
   const target = table.targets.find((t) => t.ndu === project.ndu)!.percent
   const [minAge, maxAge] = order.implementationPolicy.youngForestAgeYearsInclusive
   const cache = new Map<string, Patch[]>()
@@ -133,13 +152,18 @@ export function periodCalculator(input: Project, selectedYear: number, selectedS
     }
     const areaByBin = Object.fromEntries(bins.map((k) => [k, 0])) as Record<Bin, number>
     let totalHa = 0,
-      unclassifiedHa = 0
+      unclassifiedHa = 0,
+      counted = 0
     for (const p of patches) {
       const sizeHa = ha(p.shape),
         bin = sizeClass(sizeHa)
-      totalHa += p.youngHa
-      if (bin) areaByBin[bin] += p.youngHa
-      else unclassifiedHa += p.youngHa
+      // A patch is classed by its whole size; with a reporting unit only its young area inside counts.
+      const countedHa = within ? youngInside(p) : p.youngHa
+      if (within && !(countedHa > 0)) continue
+      counted++
+      totalHa += countedHa
+      if (bin) areaByBin[bin] += countedHa
+      else unclassifiedHa += countedHa
       if (map) {
         // Match original young interiors before buffering. Shared edges and artificial bridges add no source records.
         const footprintIds = young
@@ -154,7 +178,7 @@ export function periodCalculator(input: Project, selectedYear: number, selectedS
         map.push({
           type: 'Feature',
           geometry: projectGeometry(writer.write(p.shape) as Polygon | MultiPolygon, albersToLngLat),
-          properties: { id: map.length + 1, bin, sizeHa, youngHa: p.youngHa, footprintIds },
+          properties: { id: map.length + 1, bin, sizeHa, youngHa: countedHa, footprintIds },
         })
       }
     }
@@ -168,7 +192,7 @@ export function periodCalculator(input: Project, selectedYear: number, selectedS
         gapPoints: percent === null ? null : percent - target[bin],
       }
     })
-    return { scenario, year, totalHa, unclassifiedHa, patches: patches.length, classes }
+    return { scenario, year, totalHa, unclassifiedHa, patches: counted, classes }
   }
 }
 export function analyze(project: Project, selectedYear: number, selectedScenario: Scenario) {

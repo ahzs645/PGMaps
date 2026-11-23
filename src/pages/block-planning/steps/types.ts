@@ -2,7 +2,7 @@ import type { Plan } from '../plan'
 import type { AnalysisState } from '../usePlanAnalysis'
 
 export type Drawing = 'block' | 'shape' | 'disturbance'
-export type ImportKind = 'blocks' | 'baseline' | 'zones'
+export type ImportKind = 'blocks' | 'baseline' | 'zones' | 'unit'
 
 /** What every step editor is handed by the page. Edits go through `edit` and nothing else. */
 export interface StepProps {

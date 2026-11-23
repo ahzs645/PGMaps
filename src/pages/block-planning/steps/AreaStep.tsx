@@ -15,6 +15,7 @@ import {
   yearBasisLabels,
   type DisturbanceKind,
 } from '../plan'
+import { DataBcBaseline } from './DataBcBaseline'
 import type { StepProps } from './types'
 
 /** Step 1: the reporting unit Objective C is measured over, the projection's start, and the baseline. */
@@ -86,6 +87,8 @@ export function AreaStep({ plan, edit, drawing, startDrawing, importFiles, onCom
           <InlineAlert tone="info">Choose both to calculate the young-forest patches.</InlineAlert>
         )}
       </ToolSection>
+
+      <DataBcBaseline plan={plan} edit={edit} importFiles={importFiles} />
 
       <ToolSection
         title="Inventory and applicability"

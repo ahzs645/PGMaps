@@ -28,6 +28,27 @@ describe('plan v2', () => {
     expect(scheduleHarvests(plan, 'none')).toEqual([])
   })
 
+  it('keeps the unit, the patch extent and the DataBC read through a file', () => {
+    const plan = samplePlan()
+    const unit = { source: 'Order units', geometry: plan.blocks[0].shapes[0].geometry }
+    const withUnit: Plan = {
+      ...plan,
+      area: {
+        ...plan.area,
+        unit,
+        patchExtent: 'clipped',
+        baselineRead: { fromYear: 1995, marginMetres: 5000, readOn: '2026-11-23' },
+      },
+    }
+    const read = parsePlan(JSON.parse(JSON.stringify(withUnit)))
+    expect(read.area.unit).toEqual(unit)
+    expect(read.area.patchExtent).toBe('clipped')
+    expect(read.area.baselineRead).toEqual({ fromYear: 1995, marginMetres: 5000, readOn: '2026-11-23' })
+    const bad = JSON.parse(JSON.stringify(withUnit))
+    bad.area.patchExtent = 'buffered'
+    expect(() => parsePlan(bad)).toThrow(/patchExtent/)
+  })
+
   it('refuses a schedule that follows itself, and names a missing block', () => {
     const plan = samplePlan()
     const loop = {

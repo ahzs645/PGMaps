@@ -31,8 +31,8 @@ import { cn } from '@/lib/utils'
 import { defaults, installPacks } from '../legal-workbench/registry'
 import { useLibrary } from './review/CaseReview'
 import { SaveExportDialog } from './SaveExportDialog'
-import { addBlock, addDisturbance, addShape } from './edits'
-import { importBaseline, importBlocks } from './imports'
+import { addBlock, addDisturbance, addShape, setArea } from './edits'
+import { importBaseline, importBlocks, importUnit } from './imports'
 import { PLANNING_STEPS, type PlanningCommand, type PlanningEditor } from './interface/commands'
 import {
   DEFAULT_PLANNING_HEADER_TOOLS,
@@ -203,6 +203,10 @@ export default function BlockPlanner({
             `Added ${made.added} past disturbance(s) from ${file.name}.` +
             (made.assumed ? ` ${made.assumed} had no year; ${plan.area.startYear - 5} is assumed and marked.` : ''),
         })
+      } else if (kind === 'unit') {
+        const unit = importUnit(data, file.name)
+        setPlan((p) => setArea(p, { unit }))
+        setNotice({ text: `Loaded the unit boundary from ${file.name}. Read past disturbances from DataBC in step 1.` })
       } else {
         const { readZones } = await import('./riparian')
         const zones = readZones(data, file.name)
