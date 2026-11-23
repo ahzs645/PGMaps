@@ -42,6 +42,51 @@ describe('importing a road of several parts', () => {
   })
 })
 
+describe('Forest Operations Map layers', () => {
+  const fom = (fileName: string, properties: Record<string, unknown>, geometry: GeoJSON.Geometry): SpatialFile => ({
+    fileName,
+    format: 'shapefile',
+    crs: 'EPSG:3005',
+    collection: { type: 'FeatureCollection', features: [{ type: 'Feature', properties, geometry }] },
+  })
+  const line: GeoJSON.LineString = {
+    type: 'LineString',
+    coordinates: [
+      [-118.79, 51.17],
+      [-118.78, 51.16],
+    ],
+  }
+  const square: GeoJSON.Polygon = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-118.79, 51.17],
+        [-118.78, 51.17],
+        [-118.78, 51.16],
+        [-118.79, 51.17],
+      ],
+    ],
+  }
+  it('suggests a published road section as a proposed road and a cutblock as a planned block', () => {
+    // Full names, as the WFS and GeoJSON downloads write them.
+    expect(
+      suggestedLayerRole(
+        fom('road.geojson', { FOM_RS_SYSID: 1, FOM_ID: 2, ROAD_SECTION_ID: '3', NAME: 'Made up 1' }, line),
+      ),
+    ).toBe('proposed-road')
+    // A shapefile's DBF cuts field names to ten characters.
+    expect(
+      suggestedLayerRole(fom('a/boundary.shp', { FOM_C_SYSI: 1, FOM_ID: 2, CUT_BLOCK_: '3', NAME: 'X' }, square)),
+    ).toBe('planned-block')
+  })
+  it('leaves other FOM layers and look-alikes as reference', () => {
+    expect(suggestedLayerRole(fom('wtra.shp', { FOM_RA_SYSI: 1, FOM_ID: 2 }, square))).toBe('reference')
+    expect(suggestedLayerRole(fom('road.shp', { ROAD_SECTI: '3', NAME: 'X' }, line))).toBe('reference')
+    // A cutblock record is never offered as a road.
+    expect(suggestedLayerRole(fom('odd.shp', { FOM_C_SYSI: 1, FOM_ID: 2 }, line))).toBe('reference')
+  })
+})
+
 describe('the ground an import designs on', () => {
   it('spans proposed roads and planned blocks, never reference layers', () => {
     const far: GeoJSON.LineString = {

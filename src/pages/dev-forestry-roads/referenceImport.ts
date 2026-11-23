@@ -197,10 +197,32 @@ export function groupNotes(notes: readonly string[]): string[] {
 const isCopyName = (path: string) =>
   /(?: - Copy(?: \(\d+\))?| copy| \(\d+\))\.[a-z]+$/i.test(path) || /(?:^|\/)Copy of /i.test(path)
 
-/** Conservative suggestions shown for review: numbered operational roads and a canonical block file. */
+/**
+ * Which Forest Operations Map layer a record comes from, by the published schema's own keys
+ * (`WHSE_FOREST_TENURE.FOM_ROAD_SECTION_SP` and `FOM_CUTBLOCK_SP`). A shapefile's DBF cuts field
+ * names to ten characters (`FOM_RS_SYS`, `CUT_BLOCK_`), so the keys are matched by prefix. Every FOM
+ * road section and cutblock is a proposal; its retention areas are not matched and stay reference.
+ */
+export function fomLayerOf(feature: GeoJSON.Feature): 'road-section' | 'cutblock' | null {
+  const keys = Object.keys(feature.properties ?? {}).map((key) => key.toUpperCase())
+  if (!keys.includes('FOM_ID')) return null
+  if (keys.some((key) => key.startsWith('FOM_RS_SYS') || key.startsWith('ROAD_SECTI'))) return 'road-section'
+  if (keys.some((key) => key.startsWith('FOM_C_SYS') || key.startsWith('CUT_BLOCK_'))) return 'cutblock'
+  return null
+}
+
+/**
+ * Conservative suggestions shown for review: numbered operational roads, a canonical block file, and
+ * the Forest Operations Map's own road sections and cutblocks.
+ */
 export function suggestedLayerRole(file: SpatialFile): LayerImportRole {
   const options = layerImportOptions(file)
   if (options.length === 1) return options[0]
+  const fom = file.collection.features.length ? fomLayerOf(file.collection.features[0]) : null
+  if (fom && file.collection.features.every((f) => fomLayerOf(f) === fom)) {
+    if (fom === 'road-section' && options.includes('proposed-road')) return 'proposed-road'
+    if (fom === 'cutblock' && options.includes('planned-block')) return 'planned-block'
+  }
   const stem = file.fileName
     .split('/')
     .at(-1)!
