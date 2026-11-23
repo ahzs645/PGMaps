@@ -1,0 +1,9 @@
+{
+  "id": "mapped-riparian-overlap-v1",
+  "title": "Overlap with supplied riparian zone polygons",
+  "inputs": ["block polygon", "mapped riparian zone polygons", "zone source"],
+  "crs": "EPSG:3005",
+  "outputs": [{"id":"overlap-ha","type":"number","unit":"ha"}],
+  "method": "Dissolve supplied zone polygons and intersect with the selected block, excluding holes. Zero means no measured overlap with these features.",
+  "missing": "Unknown without both a block and a sourced zone layer. Stream class, legal width and inventory completeness require independent evidence."
+}

@@ -1,0 +1,9 @@
+{
+  "format":"pgmaps-legal-facts/v1","pack":"bc.pgtsa.biodiversity","version":"1.1.0",
+  "source":"Fictional worked example for the pack authoring guide",
+  "facts":[
+    {"id":"applicable","value":true,"evidence":"Assumed geographic and temporal applicability for this exercise"},
+    {"id":"patch-class-away","value":true,"evidence":"Illustrative comparison of two periods"},
+    {"id":"patch-unachievable","value":null,"evidence":"No professional determination supplied"}
+  ]
+}

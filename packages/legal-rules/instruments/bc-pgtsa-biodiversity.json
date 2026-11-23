@@ -1,0 +1,53 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.pgtsa.biodiversity",
+  "version": "1.1.0",
+  "title": "Prince George TSA biodiversity order",
+  "description": "2004 instrument. Case-specific geographic and legal applicability needs review. D.5 pathways are independent of FPPR §64.",
+  "coverage": {
+    "from": "2004-10-20",
+    "through": "2026-11-23"
+  },
+  "facts": [
+    {
+      "id": "applicable",
+      "label": "Reviewer verified the order applies to the footprint, tenure, date and plan, including exclusions and supersession",
+      "type": "boolean"
+    },
+    {
+      "id": "patch-class-away",
+      "label": "At least one measured patch class moved farther from target over the selected interval",
+      "type": "boolean"
+    },
+    {
+      "id": "old-unachievable",
+      "label": "Reviewer determined old or old-interior objectives cannot be achieved, considering timely and economic harvesting of timber rights",
+      "type": "boolean"
+    },
+    {
+      "id": "patch-unachievable",
+      "label": "Reviewer determined the young-forest patch objective cannot be achieved",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [],
+  "relatedPacks": [
+    {
+      "id": "bc.fppr",
+      "relationship": "Assess applicable FPPR requirements separately for the same operation. D.5 does not decide a section 64 exception."
+    }
+  ],
+  "sourceFiles": [
+    "sources/bc/prince-george-tsa-order.json"
+  ],
+  "ruleFiles": [
+    "rules/bc/prince-george/biodiversity.json"
+  ],
+  "spatialBindings": [
+    {
+      "fact": "patch-class-away",
+      "operation": "pg-2005-buffer-v1",
+      "output": "patch-class-away"
+    }
+  ]
+}

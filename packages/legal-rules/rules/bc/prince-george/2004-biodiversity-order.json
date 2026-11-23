@@ -312,8 +312,8 @@
   "youngForestPatchDistribution": {
     "bins": [
       "under50ha",
-      "51to100ha",
-      "101to1000ha",
+      "between51and100ha",
+      "between101and1000ha",
       "over1000ha"
     ],
     "targets": [
@@ -399,7 +399,36 @@
         }
       }
     ],
-    "boundaryNote": "Order uses <50, 51-100, 101-1000 and >1000 ha. Treat exact category boundaries (notably 50 ha) as requiring verified GIS implementation interpretation; do not silently assign."
+    "boundaryNote": "Order uses <50, 51-100, 101-1000 and >1000 ha. Treat exact category boundaries (notably 50 ha) as requiring verified GIS implementation interpretation; do not silently assign.",
+    "labels": [
+      "<50 ha",
+      "51–100 ha",
+      "101–1,000 ha",
+      ">1,000 ha"
+    ],
+    "packageMember": "data/prince-george-objective-c.json",
+    "sha256": "0d6b21b0db9b06b1c0e97851d71f58d5552ee181242ce42757779f9b47df1423",
+    "classLimitsHa": [
+      {
+        "key": "under50ha",
+        "minInclusive": 0,
+        "maxExclusive": 50
+      },
+      {
+        "key": "between51and100ha",
+        "minInclusive": 51,
+        "maxInclusive": 100
+      },
+      {
+        "key": "between101and1000ha",
+        "minInclusive": 101,
+        "maxInclusive": 1000
+      },
+      {
+        "key": "over1000ha",
+        "minExclusive": 1000
+      }
+    ]
   },
   "alternativesAndInterpretations": [
     {
@@ -431,13 +460,21 @@
       "id": "D.5(a)",
       "kind": "approved-recruitment-strategy",
       "requiresReview": true,
-      "summary": "If old or interior old objective cannot be achieved, specified recruitment strategy requires approval."
+      "summary": "If retention of old forest or old interior forest cannot be achieved, the recruitment strategy must be submitted, approved by the designate and followed.",
+      "requiredActions": [
+        "submit",
+        "obtain-approval",
+        "implement"
+      ]
     },
     {
       "id": "D.5(b)",
       "kind": "young-patch-rationale",
       "requiresReview": true,
-      "summary": "If young patch distribution cannot be achieved, rationale with results or strategies must be submitted."
+      "summary": "If the young-patch objective cannot be achieved, submit a rationale that sets out results or strategies for achieving a consistent forest condition in the shortest practicable time, considering timely and economic harvesting of timber rights.",
+      "requiredActions": [
+        "submit-rationale"
+      ]
     }
   ],
   "implementationPolicy": {
@@ -475,7 +512,7 @@
         "joinDistanceMetres": 800
       }
     ],
-    "spatialAlgorithmStatus": "not-implemented; inspect full policy stages and threshold ordering before use"
+    "spatialAlgorithmStatus": "planning implementation v1; historical GIS replay pending"
   },
   "validationNeeds": [
     "Confirm currently applicable local orders and geographically partial replacements",

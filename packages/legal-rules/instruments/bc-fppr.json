@@ -1,0 +1,116 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.fppr",
+  "version": "1.0.0",
+  "title": "BC Forest Planning and Practices Regulation",
+  "description": "Draft screens for cutblock size, adjacency review and wildlife tree retention. Case applicability and exceptions require supporting evidence.",
+  "coverage": {
+    "from": "2026-01-01",
+    "through": "2026-11-17"
+  },
+  "facts": [
+    {
+      "id": "applicable",
+      "label": "Reviewer confirmed this FPPR regime applies to the operation, date and plan",
+      "type": "boolean"
+    },
+    {
+      "id": "holder",
+      "label": "Agreement holder harvesting timber",
+      "type": "boolean"
+    },
+    {
+      "id": "minor",
+      "label": "Minor tenure",
+      "type": "boolean"
+    },
+    {
+      "id": "region",
+      "label": "Administrative forest region",
+      "type": "choice",
+      "choices": [
+        "Kootenay Boundary",
+        "South Coast",
+        "Thompson Okanagan",
+        "West Coast",
+        "Cariboo",
+        "Northeast",
+        "Omineca",
+        "Skeena"
+      ]
+    },
+    {
+      "id": "nar",
+      "label": "Verified net area to be reforested",
+      "type": "number",
+      "min": 0,
+      "unit": "ha"
+    },
+    {
+      "id": "adjacency",
+      "label": "New cutblock is adjacent to an existing cutblock as defined in §65(1)",
+      "type": "boolean"
+    },
+    {
+      "id": "fibre",
+      "label": "Fibre recovery tenure holder",
+      "type": "boolean"
+    },
+    {
+      "id": "completed",
+      "label": "Harvesting on this cutblock is complete",
+      "type": "boolean"
+    },
+    {
+      "id": "period-ended",
+      "label": "April–March period has ended with at least one completed cutblock",
+      "type": "boolean"
+    },
+    {
+      "id": "retention-block",
+      "label": "Related wildlife tree retention area as a share of the completed cutblock",
+      "type": "number",
+      "min": 0,
+      "max": 100,
+      "unit": "%"
+    },
+    {
+      "id": "retention-period",
+      "label": "Related wildlife tree retention area as a share of total completed cutblock area for that holder and period",
+      "type": "number",
+      "min": 0,
+      "max": 100,
+      "unit": "%"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "limit-40",
+      "value": 40,
+      "unit": "ha"
+    },
+    {
+      "id": "limit-60",
+      "value": 60,
+      "unit": "ha"
+    },
+    {
+      "id": "retention-period",
+      "value": 7,
+      "unit": "%"
+    },
+    {
+      "id": "retention-block",
+      "value": 3.5,
+      "unit": "%"
+    }
+  ],
+  "sourceFiles": [
+    "sources/bc/fppr.json"
+  ],
+  "ruleFiles": [
+    "rules/bc/fppr/section-64.json",
+    "rules/bc/fppr/section-65.json",
+    "rules/bc/fppr/section-66.json"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "format":"pgmaps-legal-facts/v1", "pack":"bc.fppr","version":"1.0.0",
+  "source":"Fictional worked example for the pack authoring guide",
+  "facts":[
+    {"id":"applicable","value":true,"evidence":"Assumed FPPR applicability for this exercise"},
+    {"id":"holder","value":true},{"id":"minor","value":false},
+    {"id":"region","value":"Omineca"},{"id":"nar","value":63,"evidence":"Illustrative net reforestation area in hectares"}
+  ]
+}

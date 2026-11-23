@@ -43,6 +43,8 @@ const DevInteractSewage = lazy(() => import('@/pages/DevInteractSewage'))
 const DevWait = lazy(() => import('@/pages/DevWait'))
 const DevWaitSpecialist = lazy(() => import('@/pages/DevWaitSpecialist'))
 const DevFallout = lazy(() => import('@/pages/DevFallout'))
+const BlockPlanning = lazy(() => import('@/pages/BlockPlanningWorkspace'))
+const LegalWorkbench = lazy(() => import('@/pages/legal-workbench/Workspace'))
 const DevForestryVisuals = lazy(() => import('@/pages/ForestryVisualsWorkspace'))
 const DevCcissSuitability = lazy(() => import('@/pages/DevCcissSuitability'))
 const DevAcknowledgement = lazy(() => import('@/pages/DevAcknowledgement'))
@@ -171,6 +173,9 @@ function App() {
             <Route path="/dev/forestry/drought-risk" element={<DevForestDrought />} />
             <Route path="/dev/forestry/road-restoration" element={<DevLidarRestoration />} />
             <Route path="/dev/forestry/castor" element={<DevForestryCastor />} />
+            <Route path="/dev/forestry/block-planning" element={<BlockPlanning />} />
+            <Route path="/dev/forestry/patches" element={<LegacyRedirect to="/dev/forestry/block-planning" />} />
+            <Route path="/dev/legal-rules" element={<LegalWorkbench />} />
             <Route path="/dev/forestry/road-design" element={<DevForestryRoads />} />
             {/* The road designer's help; `/help/*` also takes the old static help's addresses. */}
             <Route path="/help" element={<Help />} />

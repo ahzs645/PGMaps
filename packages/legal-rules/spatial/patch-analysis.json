@@ -1,0 +1,9 @@
+{
+  "id": "pg-2005-buffer-v1",
+  "title": "Prince George young-forest patch distribution",
+  "inputs": ["dated disturbance polygons", "schedule", "historic district", "natural disturbance sub-unit", "two successive projection periods"],
+  "crs": "EPSG:3005",
+  "outputs": [{"id":"patch-class-away","type":"boolean"}],
+  "method": "Compare changes in absolute distance to Table 7 targets. Use the merge stages and young ages in the 2004 order record's 2005 implementation policy.",
+  "missing": "Unknown for missing periods, empty denominators or unresolved size classes."
+}

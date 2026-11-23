@@ -6,7 +6,7 @@ import { useEffect } from 'react'
  * `offline-precache.json` (`vite.config.ts`); the service worker fetches every file of it, lazily
  * loaded ones included, and keeps doing so for later builds.
  */
-export type OfflineToolId = 'road-design' | 'visual-quality'
+export type OfflineToolId = 'road-design' | 'visual-quality' | 'block-planning'
 
 /** The offline tools as a person knows them, for the storage dialog. */
 export const OFFLINE_TOOLS: ReadonlyArray<{ id: OfflineToolId; label: string; href: string; limits: string }> = [
@@ -15,6 +15,12 @@ export const OFFLINE_TOOLS: ReadonlyArray<{ id: OfflineToolId; label: string; hr
     label: 'Road designer',
     href: '/dev/forestry/road-design',
     limits: 'Satellite imagery and the live BC layers still need a connection.',
+  },
+  {
+    id: 'block-planning',
+    label: 'Block planning',
+    href: '/dev/forestry/block-planning',
+    limits: 'The basemap needs a connection. Local shapes, packs and projections work offline.',
   },
   {
     id: 'visual-quality',

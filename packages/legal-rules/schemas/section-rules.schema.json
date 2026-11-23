@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rule entries for one instrument provision",
+  "type": "array",
+  "minItems": 1,
+  "items": {"$ref": "legal-pack-v1.schema.json#/properties/rules/items"}
+}

@@ -19,6 +19,7 @@ export default defineConfig({
     // The forestry regression suite is plain ESM (.mjs) against the real modules.
     include: [
       'src/**/*.test.ts',
+      'packages/legal-rules/tests/**/*.test.ts',
       'src/**/*.test.tsx',
       'src/**/*.test.mjs',
       'packages/geo-toolkit/src/**/*.test.ts',

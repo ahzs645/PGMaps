@@ -159,6 +159,7 @@ self.addEventListener('fetch', (event) => {
   if (
     /\/(manifest|index|catalog|metadata)\.json$/.test(pathname) ||
     pathname === '/workspace-layouts.json' ||
+    pathname === '/block-planning-layouts.json' ||
     pathname === '/visuals-layouts.json'
   ) {
     event.respondWith(networkFirst(request, DATA_CACHE, request, 'no-cache'))

@@ -1,0 +1,361 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.fppr",
+  "version": "1.0.0",
+  "title": "BC Forest Planning and Practices Regulation",
+  "description": "Draft screens for cutblock size, adjacency review and wildlife tree retention. Case applicability and exceptions require supporting evidence.",
+  "coverage": {
+    "from": "2026-01-01",
+    "through": "2026-11-17"
+  },
+  "facts": [
+    {
+      "id": "applicable",
+      "label": "Reviewer confirmed this FPPR regime applies to the operation, date and plan",
+      "type": "boolean"
+    },
+    {
+      "id": "holder",
+      "label": "Agreement holder harvesting timber",
+      "type": "boolean"
+    },
+    {
+      "id": "minor",
+      "label": "Minor tenure",
+      "type": "boolean"
+    },
+    {
+      "id": "region",
+      "label": "Administrative forest region",
+      "type": "choice",
+      "choices": [
+        "Kootenay Boundary",
+        "South Coast",
+        "Thompson Okanagan",
+        "West Coast",
+        "Cariboo",
+        "Northeast",
+        "Omineca",
+        "Skeena"
+      ]
+    },
+    {
+      "id": "nar",
+      "label": "Verified net area to be reforested",
+      "type": "number",
+      "min": 0,
+      "unit": "ha"
+    },
+    {
+      "id": "adjacency",
+      "label": "New cutblock is adjacent to an existing cutblock as defined in §65(1)",
+      "type": "boolean"
+    },
+    {
+      "id": "fibre",
+      "label": "Fibre recovery tenure holder",
+      "type": "boolean"
+    },
+    {
+      "id": "completed",
+      "label": "Harvesting on this cutblock is complete",
+      "type": "boolean"
+    },
+    {
+      "id": "period-ended",
+      "label": "April–March period has ended with at least one completed cutblock",
+      "type": "boolean"
+    },
+    {
+      "id": "retention-block",
+      "label": "Related wildlife tree retention area as a share of the completed cutblock",
+      "type": "number",
+      "min": 0,
+      "max": 100,
+      "unit": "%"
+    },
+    {
+      "id": "retention-period",
+      "label": "Related wildlife tree retention area as a share of total completed cutblock area for that holder and period",
+      "type": "number",
+      "min": 0,
+      "max": 100,
+      "unit": "%"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "limit-40",
+      "value": 40,
+      "unit": "ha"
+    },
+    {
+      "id": "limit-60",
+      "value": 60,
+      "unit": "ha"
+    },
+    {
+      "id": "retention-period",
+      "value": 7,
+      "unit": "%"
+    },
+    {
+      "id": "retention-block",
+      "value": 3.5,
+      "unit": "%"
+    }
+  ],
+  "sources": [
+    {
+      "id": "instrument",
+      "title": "BC Forest Planning and Practices Regulation",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004",
+      "asOf": "2026-11-17"
+    }
+  ],
+  "rules": [
+    {
+      "id": "limit-40",
+      "title": "Cutblock size · 40 ha regions",
+      "source": "instrument",
+      "provision": "64(1)(a) and 64(2)–(4)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "holder",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "minor",
+            "value": false,
+            "op": "eq"
+          },
+          {
+            "fact": "region",
+            "value": [
+              "Kootenay Boundary",
+              "South Coast",
+              "Thompson Okanagan",
+              "West Coast"
+            ],
+            "op": "in"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "nar",
+            "value": {
+              "parameter": "limit-40"
+            },
+            "op": "gt"
+          }
+        ]
+      ],
+      "finding": "Net area exceeds the regional screening threshold.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Review §64(2) harvest purpose/design and retained structure, §64(3) basal-area retention, or §64(4) tree-length and reserve geometry against supporting evidence."
+        }
+      ]
+    },
+    {
+      "id": "limit-60",
+      "title": "Cutblock size · 60 ha regions",
+      "source": "instrument",
+      "provision": "64(1)(b) and 64(2)–(4)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "holder",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "minor",
+            "value": false,
+            "op": "eq"
+          },
+          {
+            "fact": "region",
+            "value": [
+              "Cariboo",
+              "Northeast",
+              "Omineca",
+              "Skeena"
+            ],
+            "op": "in"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "nar",
+            "value": {
+              "parameter": "limit-60"
+            },
+            "op": "gt"
+          }
+        ]
+      ],
+      "finding": "Net area exceeds the regional screening threshold.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Review §64(2) harvest purpose/design and retained structure, §64(3) basal-area retention, or §64(4) tree-length and reserve geometry against supporting evidence."
+        }
+      ]
+    },
+    {
+      "id": "adjacency",
+      "title": "Adjacent cutblocks",
+      "source": "instrument",
+      "provision": "65",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "holder",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "minor",
+            "value": false,
+            "op": "eq"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "adjacency",
+            "value": true,
+            "op": "eq"
+          }
+        ]
+      ],
+      "finding": "Adjacent harvesting needs a stocking, height and exceptions review.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Examine §65 definitions, adjacent stand measurements, alternatives and the governing plan."
+        }
+      ]
+    },
+    {
+      "id": "retention-period",
+      "title": "Wildlife tree retention · annual group",
+      "source": "instrument",
+      "provision": "66(1), (3)–(4)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "holder",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "fibre",
+            "value": false,
+            "op": "eq"
+          },
+          {
+            "fact": "period-ended",
+            "value": true,
+            "op": "eq"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "retention-period",
+            "value": {
+              "parameter": "retention-period"
+            },
+            "op": "lt"
+          }
+        ]
+      ],
+      "finding": "Reported retention is below the numeric minimum.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Check related retention geometry, collective accounting under subsection (3), exemptions and plan evidence."
+        }
+      ]
+    },
+    {
+      "id": "retention-block",
+      "title": "Wildlife tree retention · individual cutblock",
+      "source": "instrument",
+      "provision": "66(2), (3)–(4)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "holder",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "fibre",
+            "value": false,
+            "op": "eq"
+          },
+          {
+            "fact": "completed",
+            "value": true,
+            "op": "eq"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "retention-block",
+            "value": {
+              "parameter": "retention-block"
+            },
+            "op": "lt"
+          }
+        ]
+      ],
+      "finding": "Reported retention is below the numeric minimum.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Check related retention geometry, collective accounting under subsection (3), exemptions and plan evidence."
+        }
+      ]
+    }
+  ]
+}

@@ -7,6 +7,15 @@ import { ToolPageHeader } from '@/components/ui/tool-page-header'
 
 const forestryTools: DevEntry[] = [
   {
+    title: 'Block planning',
+    description:
+      'Draw cutblocks, compare harvest schedules, and assess versioned legal rules with evidence from the plan.',
+    href: '/dev/forestry/block-planning',
+    label: '/dev/forestry/block-planning',
+    icon: Layers,
+    color: 'bg-emerald-700',
+  },
+  {
     title: 'Castor forest scenarios',
     description:
       'Explore harvest flows, forest growth and management constraints. Run local landscape scenarios, compare outcomes, and export harvest maps, reports and candidate landings.',

@@ -115,6 +115,11 @@ export default defineConfig({
           extras: ['workspace-layouts.json', 'brand/', 'interface-previews/'],
         },
         {
+          id: 'block-planning',
+          roots: /^(BlockPlanningWorkspace|patch.worker)-/,
+          extras: ['block-planning-layouts.json'],
+        },
+        {
           id: 'visual-quality',
           roots: /^(ForestryVisualsWorkspace|DevForestryVisuals)-/,
           // Read by address at run time: its workspace layouts and their chooser pictures.

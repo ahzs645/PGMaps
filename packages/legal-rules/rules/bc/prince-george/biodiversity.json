@@ -1,0 +1,103 @@
+[
+  {
+    "id": "trend",
+    "title": "Young-forest distribution",
+    "source": "instrument",
+    "provision": "C / Table 7",
+    "scope": [
+      [
+        {
+          "fact": "applicable",
+          "value": true,
+          "op": "eq"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "patch-class-away",
+          "value": true,
+          "op": "eq"
+        }
+      ]
+    ],
+    "finding": "At least one class moved farther from its target. Review all classes, land coverage, geography and method.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Compare patch structure, locations and schedules across periods. Record the professional interpretation of trend."
+      }
+    ]
+  },
+  {
+    "id": "recruitment",
+    "title": "Old or old-interior forest recruitment",
+    "source": "instrument",
+    "provision": "D.5(a)",
+    "scope": [
+      [
+        {
+          "fact": "applicable",
+          "value": true,
+          "op": "eq"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "old-unachievable",
+          "value": true,
+          "op": "eq"
+        }
+      ]
+    ],
+    "finding": "An old-forest recruitment strategy is required under the entered circumstances.",
+    "actions": [
+      {
+        "kind": "submit",
+        "description": "Document the shortest practicable recovery strategy, considering timely and economic harvesting of timber rights."
+      },
+      {
+        "kind": "obtain-approval",
+        "description": "Record approval by the responsible designate."
+      },
+      {
+        "kind": "implement",
+        "description": "Track the commitments and evidence of performance."
+      }
+    ]
+  },
+  {
+    "id": "rationale",
+    "title": "Young-forest patch rationale",
+    "source": "instrument",
+    "provision": "D.5(b)",
+    "scope": [
+      [
+        {
+          "fact": "applicable",
+          "value": true,
+          "op": "eq"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "patch-unachievable",
+          "value": true,
+          "op": "eq"
+        }
+      ]
+    ],
+    "finding": "The entered determination calls for submission of a rationale.",
+    "actions": [
+      {
+        "kind": "submit",
+        "description": "Describe results or strategies for reaching a consistent forest condition in the shortest practicable time, considering timely and economic harvesting of timber rights."
+      }
+    ]
+  }
+]
