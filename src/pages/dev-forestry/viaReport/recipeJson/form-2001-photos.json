@@ -91,6 +91,12 @@
     },
     {
       "add": {
+        "use": "assessment-scope"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
         "use": "limitations"
       },
       "before": "closing"

@@ -2,6 +2,7 @@ import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { adoptViewLandform } from './viewLandform'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID } from './vqo'
 import { withDrawnMask } from './assessmentMasks'
+import { assessmentScope } from './assessmentScope'
 import { treatmentTargets } from './referenceTreatment'
 import { chosenValues } from './referenceMeasurements'
 import type { ReferenceCapture } from './referenceComparison'
@@ -1018,6 +1019,15 @@ export function useAssessmentTools({
               throw Error('Choose an available view and mapped landform.')
             return buildSceneInput({ ...scene, viewpoint: v.viewpoint, activeLandformId: row.landformId })
           },
+          scope: (row, result) =>
+            assessmentScope({
+              targets: scene.targets,
+              masks: scene.masks,
+              settings: scene.settings,
+              landformId: row.landformId,
+              review: scene.viaReview,
+              result,
+            }).statement,
         }}
         rows={d.referenceMeasurements}
         loaded={loaded}

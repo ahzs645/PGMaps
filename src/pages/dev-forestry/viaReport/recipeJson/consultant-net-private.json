@@ -59,6 +59,12 @@
     },
     {
       "add": {
+        "use": "assessment-scope"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
         "use": "assessment-method"
       },
       "before": "closing"

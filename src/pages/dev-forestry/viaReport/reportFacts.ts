@@ -6,6 +6,7 @@
  * prints both. A value nobody gave is `null`, never a guess: the component prints it blank and lists it to complete
  * in the same words a code part used. No DOM or network access.
  */
+import { scopeRows, type ScopeRow } from '../assessmentScope'
 import { harvestYearLine, systemsLine } from './formLines'
 import type { Provenance } from './model'
 import { blank, generalLocationRow, preparerText, proposedBlocks, type ReportContext } from './parts'
@@ -60,6 +61,12 @@ export interface ReportFacts {
     /** The 2001 summary form's notes are printed: its header asks the year and type of operation. */
     summaryForm: boolean
   }
+  /**
+   * The reviewed scope the figures are measured on (`assessmentScope.ts`): its one-line statement and its rows, each
+   * with its source; a row nobody gave (the reviewer's statement of what the landform is) is null. Null when the
+   * context carries no scope.
+   */
+  scope: { statement: string; rows: ScopeRow[] } | null
   /** Fixed wording several parts share, code and JSON alike (`recipeJson/wording.json`). */
   wording: typeof wording
 }
@@ -96,6 +103,7 @@ export function reportFacts(ctx: ReportContext): ReportFacts {
     method: { terrain: ctx.method.terrain, vegetation: ctx.method.vegetation },
     inventoryRead: ctx.inventoryRead,
     recipe: { summaryForm: !!ctx.recipeParts?.includes('notes-2001') },
+    scope: ctx.scope ? { statement: ctx.scope.statement, rows: scopeRows(ctx.scope) } : null,
     wording,
   }
 }

@@ -1,5 +1,194 @@
 {
   "parts": {
+    "assessment-scope": {
+      "code": [],
+      "customKinds": [],
+      "document": {},
+      "filters": [],
+      "from": {
+        "code": [],
+        "components": [
+          {
+            "hash": "sha256:67b646cc0a0da414573552f9d8ce1015d3b718201b310bf492190b0b7f08675a",
+            "id": "assessment-scope"
+          },
+          { "hash": "sha256:4f474c20728256639367e7164d2398b7ab18403875cd81f112c04e4f7f1d755f", "id": "via-fields" }
+        ],
+        "hash": "sha256:754b33808b05e48e367c32ff25ff8794ce778164da22c227186f8cd2dda182e9",
+        "recipes": [
+          {
+            "hash": "sha256:239950fece72efe7715b53ade0d9d71e953598b55f7779cb378037e85a2173ef",
+            "id": "part.assessment-scope"
+          }
+        ]
+      },
+      "kind": "compiled-recipe",
+      "needs": [
+        {
+          "inLoop": false,
+          "path": "facts.scope",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].if",
+              "inLoop": false,
+              "part": "assessment-scope",
+              "use": "condition"
+            }
+          ],
+          "uses": ["condition"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.scope.rows",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].then[2].params.rows",
+              "inLoop": false,
+              "part": "assessment-scope",
+              "use": "value"
+            },
+            {
+              "at": "sections[0].parts[0].blocks[0].then[2].blocks[0].rows[0].for",
+              "inLoop": false,
+              "part": "assessment-scope",
+              "use": "list"
+            },
+            {
+              "at": "sections[0].parts[0].blocks[0].then[2].blocks[0].pending[0].then[0].for",
+              "inLoop": false,
+              "part": "assessment-scope",
+              "use": "list"
+            }
+          ],
+          "uses": ["value", "list"]
+        },
+        {
+          "inLoop": true,
+          "path": "facts.scope.rows[].label",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].then[2].blocks[0].rows[0].do[0].label",
+              "inLoop": true,
+              "part": "assessment-scope",
+              "use": "value"
+            },
+            {
+              "at": "sections[0].parts[0].blocks[0].then[2].blocks[0].pending[0].then[0].do[0].else[0].what",
+              "inLoop": true,
+              "part": "assessment-scope",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": true,
+          "path": "facts.scope.rows[].source",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].then[2].blocks[0].rows[0].do[0].source",
+              "inLoop": true,
+              "part": "assessment-scope",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        },
+        {
+          "inLoop": true,
+          "path": "facts.scope.rows[].value",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].then[2].blocks[0].rows[0].do[0].value",
+              "inLoop": true,
+              "part": "assessment-scope",
+              "use": "value"
+            },
+            {
+              "at": "sections[0].parts[0].blocks[0].then[2].blocks[0].pending[0].then[0].do[0].if",
+              "inLoop": true,
+              "part": "assessment-scope",
+              "use": "condition"
+            }
+          ],
+          "uses": ["value", "condition"]
+        },
+        {
+          "inLoop": false,
+          "path": "facts.scope.statement",
+          "places": [
+            {
+              "at": "sections[0].parts[0].blocks[0].then[1].content",
+              "inLoop": false,
+              "part": "assessment-scope",
+              "use": "value"
+            }
+          ],
+          "uses": ["value"]
+        }
+      ],
+      "options": {},
+      "recipe": { "id": "part.assessment-scope", "name": "Scope of the assessment" },
+      "sections": [
+        {
+          "parts": [
+            {
+              "blocks": [
+                {
+                  "if": "facts.scope",
+                  "then": [
+                    { "content": "Scope of the assessment", "level": 2, "type": "heading" },
+                    {
+                      "content": "Every percent alteration in this report is measured on this scope: {{ facts.scope.statement }}. A figure measured on another landform, on gross rather than net blocks, or with other exclusions is not the same measurement.",
+                      "source": "run",
+                      "type": "paragraph"
+                    },
+                    {
+                      "blocks": [
+                        {
+                          "layout": "table",
+                          "pending": [
+                            {
+                              "if": "params.listBlanks",
+                              "then": [
+                                {
+                                  "do": [{ "else": [{ "what": "{{ row.label }}" }], "if": "row.value", "then": [] }],
+                                  "for": "row in params.rows"
+                                }
+                              ]
+                            },
+                            { "do": [{ "what": "{{ item }}" }], "for": "item in params.toComplete" }
+                          ],
+                          "rows": [
+                            {
+                              "do": [
+                                { "label": "{{ row.label }}", "source": "{{ row.source }}", "value": "{{ row.value }}" }
+                              ],
+                              "for": "row in params.rows"
+                            }
+                          ],
+                          "type": "fields"
+                        }
+                      ],
+                      "component": "via-fields",
+                      "params": { "listBlanks": true, "rows": "{{ facts.scope.rows }}", "toComplete": [] }
+                    }
+                  ]
+                }
+              ],
+              "params": {},
+              "part": {
+                "component": "assessment-scope",
+                "componentMeta": { "reportPart": true, "sources": [] },
+                "id": "assessment-scope",
+                "title": "Scope of the assessment"
+              }
+            }
+          ]
+        }
+      ],
+      "version": 1
+    },
     "cover": {
       "code": [],
       "customKinds": [],

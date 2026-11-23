@@ -7,6 +7,7 @@ import { groupIdForName } from '../viewGroups'
 import type { TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
 import type { SavedFigure } from '../FigureSheetPanel'
 import { assessmentAlterationClipper } from '../assessmentMaskGeometry'
+import { assessmentScope, type ScopeInput } from '../assessmentScope'
 import { unitValues, type BadgeUnit } from '../inventoryBadge'
 import type { ForestryScene } from '../scene'
 import { findSceneLandform } from '../sceneInput'
@@ -213,6 +214,8 @@ export function buildReportContext(input: {
   date: Date
   /** Save & export's draft: a missing picture keeps its place with a box saying what goes there (`ReportContext.draft`). */
   draft?: boolean
+  /** The run the figures come from, for the scope's denominators (`assessmentScope.ts`); absent before a run. */
+  run?: ScopeInput['result']
 }): ReportContext {
   const { scene } = input
   const landform = findSceneLandform(scene)
@@ -297,6 +300,16 @@ export function buildReportContext(input: {
     figures: input.figures,
     ...(input.images ? { images: input.images } : {}),
     ...(input.reportSetting ? { setting: input.reportSetting } : {}),
+    // What every figure is measured on: the run's landform, its units, the blocks gross and net, the denominators.
+    scope: assessmentScope({
+      targets: scene.targets,
+      masks: scene.masks,
+      settings: scene.settings,
+      landformId: landform?.id ?? null,
+      review: scene.viaReview,
+      result: input.run ?? null,
+      ...(input.inventoryUnits ? { inventoryUnits: input.inventoryUnits } : {}),
+    }),
     ...(input.draft ? { draft: true } : {}),
   }
 }

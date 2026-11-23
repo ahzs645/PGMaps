@@ -1,0 +1,21 @@
+{
+  "kind": "component",
+  "id": "assessment-scope",
+  "title": "Scope of the assessment",
+  "description": "What every figure in the report is measured on: the landform and the inventory units it came from, each block gross and net of its masks and how it is treated, the masks and exclusions and what each does to the planimetric and perspective denominators, each with its source. The reviewer's statement of what the landform is prints blank and is listed to complete when not given.",
+  "meta": { "reportPart": true, "sources": [] },
+  "blocks": [
+    {
+      "if": "facts.scope",
+      "then": [
+        { "type": "heading", "level": 2, "content": "Scope of the assessment" },
+        {
+          "type": "paragraph",
+          "source": "run",
+          "content": "Every percent alteration in this report is measured on this scope: {{ facts.scope.statement }}. A figure measured on another landform, on gross rather than net blocks, or with other exclusions is not the same measurement."
+        },
+        { "use": "via-fields", "with": { "rows": "{{ facts.scope.rows }}" } }
+      ]
+    }
+  ]
+}

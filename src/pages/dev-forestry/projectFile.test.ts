@@ -40,7 +40,12 @@ const classes = () => {
 }
 const state = (): ProjectState => {
   const scene = createEmptyScene()
-  scene.viaReview = { ...scene.viaReview, reportEdits: { 'cover||field|Licence': 'A12345' } }
+  scene.viaReview = {
+    ...scene.viaReview,
+    reportEdits: { 'cover||field|Licence': 'A12345' },
+    // The reviewed scope's statement and note (`assessmentScope.ts`), a review record kept on the landform.
+    landformRecords: { 'Made-up face': { reviewedAs: 'part-of-unit', scopeNote: 'East of the draw.' } },
+  }
   return {
     scene,
     views: [view('view-a', 'Here')],
@@ -79,6 +84,9 @@ describe('the project file', () => {
     expect(read.views.map((entry) => entry.id)).toEqual(['view-a'])
     expect(read.shelved).toEqual(written.shelved)
     expect(read.scene.viaReview?.reportEdits).toEqual({ 'cover||field|Licence': 'A12345' })
+    expect(read.scene.viaReview?.landformRecords).toEqual({
+      'Made-up face': { reviewedAs: 'part-of-unit', scopeNote: 'East of the draw.' },
+    })
     const figure = read.images['view-b'].figure as { classes: { codes: Uint8Array } }
     expect(figure).toMatchObject({ camera: { renderedOn: new Date('2026-11-12T10:00:00.000Z') } })
     expect(figure.classes.codes).toBeInstanceOf(Uint8Array)

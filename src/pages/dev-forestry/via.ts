@@ -635,8 +635,24 @@ export type ViewpointRecord = {
 /** A key viewpoint the reviewer chose for the report: a saved view's name, and why. */
 export type KeyViewpointRecord = { view: string; reason?: string }
 
-/** Where a sub-landform sits: the landform it is part of, and what divides it from the rest (a draw, a creek). */
-export type LandformRecord = { parent?: string; divider?: string }
+/**
+ * What the reviewer says the landform they assessed is, against the visual landscape inventory (`assessmentScope.ts`):
+ * the whole unit, a face or sub-landform inside one, parts of several joined, or a landform the inventory does not hold.
+ */
+export const REVIEWED_EXTENTS = {
+  'whole-unit': 'The whole inventory unit',
+  'part-of-unit': 'Part of one inventory unit (a face or sub-landform)',
+  'several-units': 'Parts of several inventory units, joined',
+  'not-from-inventory': 'A landform not read from the inventory',
+} as const
+export type ReviewedExtent = keyof typeof REVIEWED_EXTENTS
+
+/**
+ * Where a sub-landform sits: the landform it is part of, and what divides it from the rest (a draw, a creek). And the
+ * reviewed scope (`assessmentScope.ts`): what the landform is against the inventory (`reviewedAs`) and the reviewer's
+ * own note on what was assessed (`scopeNote`). A record of review: never a run input.
+ */
+export type LandformRecord = { parent?: string; divider?: string; reviewedAs?: ReviewedExtent; scopeNote?: string }
 
 export type ViaReview = {
   ocular?: OcularInput
@@ -1086,7 +1102,15 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
   const keyViewpoints = parseKeyViewpoints(value.keyViewpoints)
   const reportEdits = parseReportEdits(value.reportEdits)
   const landformRecords = namedRecords(value.landformRecords, (entry) =>
-    strip<LandformRecord>({ parent: text(entry.parent, 200), divider: text(entry.divider) }),
+    strip<LandformRecord>({
+      parent: text(entry.parent, 200),
+      divider: text(entry.divider),
+      reviewedAs:
+        typeof entry.reviewedAs === 'string' && Object.prototype.hasOwnProperty.call(REVIEWED_EXTENTS, entry.reviewedAs)
+          ? (entry.reviewedAs as ReviewedExtent)
+          : undefined,
+      scopeNote: text(entry.scopeNote, 4000),
+    }),
   )
   // Each group's step 4 is read as a review's own would be, keeping only its step 4 fields.
   const routeCard = parseRouteCardReview(value.routeCard)

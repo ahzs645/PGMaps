@@ -62,6 +62,13 @@ function Result({ record }: { record: ReferenceComparison }) {
         {record.capture.renderer} {pct(result?.percent)} ({result?.numerator ?? '—'} / {result?.denominator ?? '—'} px)
         · {numeratorChoices[record.basis.numerator]} · {denominatorChoices[record.basis.denominator]}
       </p>
+      <p data-comparison-scope="">
+        PGMaps scope at review:{' '}
+        {record.capture.scope ??
+          'not recorded with this comparison; check the landform, net blocks and exclusions before reading the two figures together'}
+        {' · '}source denominator:{' '}
+        {record.referenceDenominator ? denominatorChoices[record.referenceDenominator] : 'unresolved'}
+      </p>
       <p>
         Run sightline figure at capture{' '}
         {sightline.percent === null
@@ -107,6 +114,7 @@ export function ReferenceComparisonPanel({
   const stamp = JSON.stringify([
     cap?.id,
     cap?.savedAt,
+    cap?.scope,
     row.viewId,
     row.landformId,
     selected,
@@ -145,6 +153,7 @@ export function ReferenceComparisonPanel({
           renderer: cap.renderer,
           savedAt: cap.savedAt,
           setup: cap.setup,
+          ...(cap.scope ? { scope: cap.scope } : {}),
           counts: cap.readCounts(),
         },
       }
@@ -273,7 +282,8 @@ export function ReferenceComparisonPanel({
             checked={confirmed}
             onChange={(e) => setConfirmedStamp(e.target.checked ? stamp : '')}
           />
-          I checked the camera framing, study-date treatment, visible face and exclusions against this capture.
+          I checked the camera framing, study-date treatment, visible face, net blocks and exclusions (the scope above)
+          against this capture.
         </label>
         {record && <Result record={record} />}
         {error && <p role="alert">{error}</p>}

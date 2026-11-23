@@ -125,6 +125,8 @@ import {
 import type { DriveStatus } from './dev-forestry/driveController'
 import { DriveCamera } from './dev-forestry/DriveCamera'
 import { AssessmentPanel } from './dev-forestry/AssessmentPanel'
+import { AssessmentScopePanel } from './dev-forestry/AssessmentScopePanel'
+import { assessmentScope } from './dev-forestry/assessmentScope'
 import { buildSceneInput, sceneFingerprint, findSceneLandform } from './dev-forestry/sceneInput'
 import { alterationWeight, resultMatchesInput } from './dev-forestry/integrity'
 import { carryFieldGreenUp } from './dev-forestry/greenUp'
@@ -1027,6 +1029,21 @@ function DevForestryVisuals({
   const assessmentMasks = useMemo(
     () => masksForLandform(scene.masks, sceneLandform?.id),
     [scene.masks, sceneLandform?.id],
+  )
+  // The reviewed scope of the run's landform (`assessmentScope.ts`): what every figure is measured against, shown in
+  // step 1, named in the Viewpoint summary and printed with the figures.
+  const runScope = useMemo(
+    () =>
+      assessmentScope({
+        targets: scene.targets,
+        masks: scene.masks,
+        settings: scene.settings,
+        landformId: sceneLandform?.id ?? null,
+        review: scene.viaReview,
+        result,
+        inventoryUnits: inventory.units,
+      }),
+    [scene.targets, scene.masks, scene.settings, scene.viaReview, sceneLandform?.id, result, inventory.units],
   )
   // ParcelMap BC's private parcels round the landform: listed in step 3, drawn on the plan, ticked in either.
   const privateParcels = usePrivateParcels(sceneLandform?.geometry ?? null, scene.masks)
@@ -4474,6 +4491,7 @@ function DevForestryVisuals({
               objectiveSource,
               thresholds: scene.thresholds,
               via: viaAssessment,
+              scope: runScope,
             }),
             ...runResultMetrics({
               result,
@@ -4501,6 +4519,7 @@ function DevForestryVisuals({
       objectiveSource,
       scene.thresholds,
       viaAssessment,
+      runScope,
     ],
   )
   // What a view still waits for before it can be saved, in words, or null once it can: the road view, the forest
@@ -5771,6 +5790,26 @@ function DevForestryVisuals({
     setViewsOfInterest(() => added.views)
     return view.id
   }
+  // Each landform's reviewed scope (`assessmentScope.ts`), kept with a historical comparison when it is signed.
+  const scopeOfLandform = useMemo(() => {
+    const scopes = new globalThis.Map<string, string>()
+    return (landformId: string) => {
+      let statement = scopes.get(landformId)
+      if (statement === undefined) {
+        statement = assessmentScope({
+          targets: scene.targets,
+          masks: scene.masks,
+          settings: scene.settings,
+          landformId,
+          review: scene.viaReview,
+          result,
+          inventoryUnits: inventory.units,
+        }).statement
+        scopes.set(landformId, statement)
+      }
+      return statement
+    }
+  }, [scene.targets, scene.masks, scene.settings, scene.viaReview, result, inventory.units])
   const referenceCaptures = useMemo(
     () =>
       capturedViewSources.flatMap((view) => {
@@ -5812,7 +5851,15 @@ function DevForestryVisuals({
         const mainId = main?.id || (matches.length === 1 ? matches[0].id : null)
         return [
           ...(main && mainId
-            ? [{ ...base, landformId: mainId, landform: main.name, readCounts: () => countClasses(figure.classes) }]
+            ? [
+                {
+                  ...base,
+                  landformId: mainId,
+                  landform: main.name,
+                  scope: scopeOfLandform(mainId),
+                  readCounts: () => countClasses(figure.classes),
+                },
+              ]
             : []),
           ...(figure.landforms ?? [])
             .filter((l) => l.id !== mainId)
@@ -5820,11 +5867,12 @@ function DevForestryVisuals({
               ...base,
               landformId: l.id,
               landform: l.name,
+              scope: scopeOfLandform(l.id),
               readCounts: () => l.counts,
             })),
         ]
       }),
-    [capturedViewSources, viewImages, scene.targets],
+    [capturedViewSources, viewImages, scene.targets, scopeOfLandform],
   )
   const tools = useAssessmentTools({
     referenceTerrain: previewTerrain.source,
@@ -7939,6 +7987,9 @@ function DevForestryVisuals({
       onImportRoad={(file) => void importPreviewGeometry(file, 'road')}
       onActivateLandform={setSiteLandform}
       siteLandformId={siteLandform?.id ?? null}
+      assessmentScope={
+        <AssessmentScopePanel scope={runScope} review={scene.viaReview ?? {}} onReviewChange={updateViaReview} />
+      }
       viewLandforms={(renderLandform) => (
         <ViewLandforms
           scene={scene}

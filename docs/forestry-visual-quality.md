@@ -1378,6 +1378,51 @@ the parts of blocks falling inside it count toward its alteration. Without a
 landform the page reports per-block visibility and says the denominator is
 missing rather than inventing one.
 
+### The reviewed scope
+
+Two percentages are the same measurement only when they were measured on the
+same scope: the same landform, the same block footprint and the same
+exclusions. A run against a whole inventory unit with gross blocks and a
+historical figure measured on one face with net blocks can differ several
+times over with neither being wrong, so the page states the scope beside the
+figures (`assessmentScope.ts`, DOM-free).
+
+Step 1's *Landform and objective* ends with a folded **Reviewed scope**
+(`AssessmentScopePanel.tsx`): the run's landform with its gross area and where
+it came from (the inventory, an adopted terrain candidate, drawn, imported, a
+sample), the inventory units under it with the share of its ground in each
+(read from the live inventory when it has been looked up), each block gross
+and net of the masks over it (masks that overlap are taken once) with its
+treatment, the masks by kind with where each came from and what it does to the
+two denominators, and the two denominators' rules, the planimetric one with
+the run's own treed area. Each row says whose it is: the scene's, the run's or
+the reviewer's.
+
+| Piece | Read from |
+| --- | --- |
+| Landform, its gross area and provenance | The scene's landform target (`inventoryUnitId`, `source`) |
+| Inventory units under it | The live inventory read, sampled over the landform; never stored |
+| Blocks gross and net | The scene's block and mask geometry; a partial cut is never cleared ground (its Table 6 equivalent counts only where seen), dispersed retention keeps its geometry |
+| Masks and their effect | `MASK_LABELS` and the run's ledger: natural non-green ground leaves both denominators, private land leaves them only with `privateLandOutOfDenominator`, permanent disturbance and *Wildlife tree patch / retention* stay in them; none counts alteration. A mask traced on another landform is out of this scope |
+| Planimetric denominator | The run's `landformForestedAreaMeters` (VRI treed area), read, never recomputed |
+| Perspective denominator | The run's `perspectiveDenominator` rule; an apparent size, not an area |
+| *The landform assessed is* and *Scope note* | The reviewer: `viaReview.landformRecords[name].reviewedAs` and `.scopeNote` |
+
+The geometry only suggests what the landform is against the inventory (one
+unit adopted whole, a face inside one unit, parts of several joined); the
+suggestion is the select's placeholder and is never written. The statement
+and note are review records: optional, never a gate, carried by the project
+file and kept out of `sceneFingerprint`, so editing them never stales the run.
+
+The scope's one-line statement is printed beside the figures: the Viewpoint
+summary's **Scope** row (both scales), the VIA report's *Scope of the
+assessment* part (a JSON component, `assessment-scope`, in the handbook
+report, the consultant reports, the Board comparison and the 2001 photo form;
+the reviewer's blank statement goes in the to-complete list), each signed
+historical comparison (*PGMaps scope at review*, kept with the comparison as
+it stood at sign-off, beside the source's denominator basis), and the
+reference run's message.
+
 ### A landform from the terrain
 
 Step 1's **From the terrain** reads each of the guide's four edges off the
