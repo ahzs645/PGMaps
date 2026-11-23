@@ -29,13 +29,18 @@ const IDLE_REVERSE: ReverseState = { status: 'idle', progress: null, result: nul
  *
  * Forward and reverse runs share the worker and the id counter, so starting one
  * cancels the other: both are the same terrain fetch and the same arithmetic,
- * and running them at once only makes each slower.
+ * and running them at once only makes each slower. A run that is replaced
+ * before it answers is settled as cancelled (`idle`) by `supersede`: its worker
+ * is terminated and its id is no longer current, so nothing else ever would,
+ * and a forward run left `running` held the road view and the batch tools.
  */
 export function useVisibilityAnalysis() {
   const [state, setState] = useState<AnalysisState>(IDLE_STATE)
   const [reverseState, setReverseState] = useState<ReverseState>(IDLE_REVERSE)
   const workerRef = useRef<Worker | null>(null)
   const requestIdRef = useRef(0)
+  /** Settles the run in flight as cancelled; cleared once that run settles on its own. */
+  const settleRef = useRef<(() => void) | null>(null)
 
   const disposeWorker = useCallback(() => {
     workerRef.current?.terminate()
@@ -43,6 +48,13 @@ export function useVisibilityAnalysis() {
   }, [])
 
   useEffect(() => disposeWorker, [disposeWorker])
+
+  /** Settles whichever run is still in flight before another replaces it. */
+  const supersede = useCallback(() => {
+    const settle = settleRef.current
+    settleRef.current = null
+    settle?.()
+  }, [])
 
   /**
    * Starts a worker for one request. `onMessage` sees only messages from the
@@ -62,6 +74,7 @@ export function useVisibilityAnalysis() {
       try {
         worker = new Worker(new URL('./analysis.worker.ts', import.meta.url), { type: 'module' })
       } catch (error) {
+        settleRef.current = null
         onFailure(`Could not start the analysis worker: ${error instanceof Error ? error.message : String(error)}`)
         return
       }
@@ -69,11 +82,13 @@ export function useVisibilityAnalysis() {
 
       worker.onmessage = (event: MessageEvent<AnalysisWorkerResponse>) => {
         if (event.data.requestId !== requestIdRef.current) return
+        if (event.data.type !== 'progress') settleRef.current = null
         onMessage(event.data)
       }
 
       worker.onerror = (event) => {
         if (requestId !== requestIdRef.current) return
+        settleRef.current = null
         onFailure(event.message || 'The analysis worker stopped unexpectedly')
       }
 
@@ -84,8 +99,10 @@ export function useVisibilityAnalysis() {
 
   const run = useCallback(
     (input: AnalysisInput) => {
+      supersede()
       setReverseState(IDLE_REVERSE)
       setState({ status: 'running', progress: null, result: null, error: null })
+      settleRef.current = () => setState((current) => (current.status === 'running' ? IDLE_STATE : current))
       startWorker(
         { type: 'analyze', input },
         (message) => {
@@ -100,12 +117,14 @@ export function useVisibilityAnalysis() {
         (error) => setState({ status: 'error', progress: null, result: null, error }),
       )
     },
-    [startWorker],
+    [startWorker, supersede],
   )
 
   const runReverse = useCallback(
     (input: ReverseInput) => {
+      supersede()
       setReverseState({ status: 'running', progress: null, result: null, error: null })
+      settleRef.current = () => setReverseState((current) => (current.status === 'running' ? IDLE_REVERSE : current))
       startWorker(
         { type: 'reverse', input },
         (message) => {
@@ -120,10 +139,11 @@ export function useVisibilityAnalysis() {
         (error) => setReverseState({ status: 'error', progress: null, result: null, error }),
       )
     },
-    [startWorker],
+    [startWorker, supersede],
   )
 
   const cancel = useCallback(() => {
+    settleRef.current = null
     requestIdRef.current += 1
     disposeWorker()
     setState(IDLE_STATE)

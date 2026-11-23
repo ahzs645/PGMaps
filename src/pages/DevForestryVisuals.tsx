@@ -1633,7 +1633,8 @@ function DevForestryVisuals({
       cancelPreview()
       return
     }
-    if (analysis.state.status === 'error') {
+    // A run that failed, or was cancelled (a reverse search replaced it), never brings the road view: stop waiting.
+    if (analysis.state.status === 'error' || analysis.state.status === 'idle') {
       setPendingPreview(null)
       setRoadViewHeld(false)
       return
