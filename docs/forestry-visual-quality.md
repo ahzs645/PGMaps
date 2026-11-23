@@ -211,9 +211,10 @@ rules in `viewCoordinates.ts` and `viewCamera.ts`, both DOM-free):
   sheet's *Entered as* fact, the camera information block's position in the
   typed zone, Scene for GIS's `coord_text`, `coord_crs` and `coord_prec`, and
   the field brief's viewpoint line. Standing there, the row also says how far
-  the run's stations stand from this eye: a stood-at view's run stations are
-  at the pullout's two ends (`buildStations`), about 15 m away, and stay there;
-  the capture is taken from the typed eye.
+  the run's stations stand from this eye under calculation 1, where a
+  stood-at view's run stations are at the pullout's two ends (`buildStations`),
+  about 15 m away; under calculation 2 the run stands at the eye and the row
+  says nothing (see **Where a view's stations stand**).
 - *Lens* has a fifth choice, *Own lens*, which opens the lens as entered
   (`ViewOfInterest.lens`): a horizontal field of view in degrees, or a focal
   length with its crop factor (1 for a figure stated as 35 mm equivalent). The
@@ -1993,6 +1994,35 @@ clearing* turns it off or sets the radius (15–500 m), kept as
 plan, in `forest.clearings` and so in the engines' scene package, and out of
 `AnalysisInput` and `sceneFingerprint`. The run's own screening clearing
 (`screeningEyeClearingMeters`) is separate.
+
+**Where a view's stations stand.** A viewpoint stood at (a spot, or a
+pullout no longer than `STOOD_AT_MAX_LENGTH_METERS`) is assessed from the eye
+itself: one station where the eye stands (`standingPoint`), as the handbook
+assesses from the viewpoint. This is calculation 2
+(`settings.stationsAt: 'eye'`, `stationCalculation`, `runCalcVersion` in
+`replayComparison.ts`). Before it, every run stood such a view on the 30 m
+pullout's own stations, its two ends 15 m either side of the eye, so the eye
+height was the picture's but the sightline figure came from 15 m away. That is
+calculation 1, and a scene or a run saved without the setting reads as it
+(`parseScene` never gives an absent value the eye): old projects, archives and
+sightline replay archives replay exactly, and the replay names the
+calculation its archive used. New scenes start at the eye; *Simulation
+settings → Views stood at* switches either way, and the choice is a run input.
+Roads and spots are assessed the same under both. The Methods table prints
+the calculation (*Views stood at*), and a view's row, standing there under
+calculation 1, still says how far the run's stations are from its eye.
+
+Measured on the Purden Lake sample before the switch (23 November 2026; 14
+stands along Hwy 16, each a pullout square to the line of sight to the block,
+terrain zoom 13, bare earth): the perspective figure moved a median 0.07
+points, under 0.5 points at 11 stands, 0.5–0.8 at two, and 3.8 and 9.3 points
+at two. Those two are stands where one end of the pullout saw over near ground
+that the eye does not: at one, the block was 26% visible from the ends and
+hidden from the eye. The block's visible share moved a median 0.3 points, and
+the landform's a median 2.1 (up to 14.8): two stations 30 m apart see more of
+the landform between them than one does. The planimetric figure does not
+depend on the station and did not move. The figures from real assessments are
+still to be measured, when the VIA research folder is back.
 
 **A surveyed eye elevation.** At a stood-at viewpoint, step 2's *Where you
 stand* takes the eye's absolute elevation (`viewpoint.surveyedEye`,

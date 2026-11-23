@@ -13,7 +13,7 @@ import { computeAnalysis, type TerrainInfo, type AnalysisContext } from './analy
 import type { CanopyStand } from './canopy'
 import type { AnalysisInput, AnalysisResult } from './types'
 import type { PolygonGeometry } from './visibility'
-import { compareReplayFigures, SIGHTLINE_CALC_VERSION } from './replayComparison'
+import { compareReplayFigures, runCalcVersion } from './replayComparison'
 
 export type RunInputs = {
   input: AnalysisInput
@@ -46,7 +46,7 @@ export async function retainRun(data: RunInputs, tiles: Map<string, Uint8Array>,
     format,
     ref,
     createdAt: new Date().toISOString(),
-    calcVersion: SIGHTLINE_CALC_VERSION,
+    calcVersion: runCalcVersion(data.input.settings),
     expected: figures(result),
     checksums,
   })

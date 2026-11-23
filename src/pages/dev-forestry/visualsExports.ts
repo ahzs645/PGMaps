@@ -39,6 +39,7 @@ import {
   type ViewOfInterest,
 } from './viewsOfInterest'
 import type { VisualQualityClassId } from './vqo'
+import { stationCalculation } from './viewpointStand'
 
 export type VisualsExport =
   | 'block-note'
@@ -2206,6 +2207,7 @@ export function settingsRows(scene: ForestryScene): Row[] {
   return [
     { label: 'Eye height', value: `${s.observerHeightMeters} m` },
     { label: 'Station spacing', value: `${s.stationSpacingMeters} m` },
+    { label: 'Views stood at', value: stationCalculation(s).label },
     { label: 'Farthest view', value: `${(s.maxViewDistanceMeters / 1000).toLocaleString('en-CA')} km` },
     { label: 'Green-up age', value: `${s.greenUpAgeYears} years` },
     {

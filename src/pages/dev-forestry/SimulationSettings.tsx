@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 
 import { OptionRow } from './RoadViewOptions'
 import type { AnalysisSettings, Viewpoint } from './types'
-import { standEyeHeight, surveyedEyeElevation } from './viewpointStand'
+import { stationCalculation, standEyeHeight, surveyedEyeElevation } from './viewpointStand'
 
 const CONTROL_CLASS =
   'h-7 w-full min-w-0 rounded-md border border-border bg-background px-1.5 text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
@@ -127,6 +127,28 @@ export function SimulationSettingsPanel({
             onChange={(stationSpacingMeters) => set({ stationSpacingMeters })}
           />
         )}
+        <OptionRow
+          label="Views stood at"
+          info={
+            <Tip label="Views stood at">
+              Where the run stands at a view of interest or an inventory viewpoint. <em>From the eye</em> (calculation
+              2) assesses from the one point the picture is taken from, as the handbook assesses from the viewpoint.{' '}
+              <em>From the pullout&apos;s ends</em> (calculation 1) stands at the 30 m pullout&apos;s two ends, 15 m
+              either side of the eye, as every run did before; scenes saved before the choice keep it, so their runs
+              replay exactly. A road is assessed along its stations either way.
+            </Tip>
+          }
+        >
+          <StyledSelect
+            aria-label="Views stood at"
+            className={CONTROL_CLASS}
+            value={stationCalculation(settings).stationsAt}
+            onChange={(event) => set({ stationsAt: event.target.value === 'eye' ? 'eye' : 'pullout' })}
+          >
+            <option value="eye">From the eye (calculation 2)</option>
+            <option value="pullout">From the pullout&apos;s ends (calculation 1)</option>
+          </StyledSelect>
+        </OptionRow>
         <NumberRow
           label="Max view distance"
           value={settings.maxViewDistanceMeters / 1000}

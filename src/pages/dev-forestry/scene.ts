@@ -621,6 +621,10 @@ export function parseScene(input: unknown): ForestryScene | null {
         150,
         Math.max(0, numeric(raw.settings?.screeningEyeClearingMeters, base.settings.screeningEyeClearingMeters ?? 50)),
       ),
+      // Never the new scene's default: a scene saved without it ran with the pullout's stations.
+      ...(raw.settings?.stationsAt === 'eye' || raw.settings?.stationsAt === 'pullout'
+        ? { stationsAt: raw.settings.stationsAt }
+        : {}),
     },
     thresholds: parseThresholds(raw.thresholds),
   }

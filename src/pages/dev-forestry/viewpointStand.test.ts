@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeAnalysis } from './analysis'
+import { buildStations, computeAnalysis } from './analysis'
 import { createEmptyScene, parseScene, serializeScene, type ForestryScene } from './scene'
 import { buildSceneInput, sceneFingerprint } from './sceneInput'
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
@@ -23,6 +23,7 @@ import {
   standEyeHeight,
   standEyeHeightFor,
   standingPoint,
+  stationCalculation,
   surveyedEyeAt,
   surveyedEyeElevation,
   surveyedEyeFor,
@@ -98,6 +99,76 @@ describe('a stood-at viewpoint', () => {
     expect(surveyedEyeAt(surveyed, metresEast(SURVEYED_EYE_REACH_METERS - 1))).toBe(637.6)
     expect(surveyedEyeAt(surveyed, metresEast(SURVEYED_EYE_REACH_METERS + 1))).toBeNull()
     expect(surveyedEyeAt(null, VP2)).toBeNull()
+  })
+})
+
+describe("where a view's stations stand (calculation 1 or 2)", () => {
+  const pullout = pulloutThrough(VP2, { lng: VP2.lng - 0.01, lat: VP2.lat })
+  const input = (stationsAt?: 'eye' | 'pullout'): AnalysisInput => {
+    const settings = { ...DEFAULT_ANALYSIS_SETTINGS, stationSpacingMeters: 10 }
+    delete settings.stationsAt
+    return {
+      viewpoint: { mode: 'corridor', coordinates: pullout },
+      targets: [],
+      settings: stationsAt ? { ...settings, stationsAt } : settings,
+      assessmentYear: 2026,
+    }
+  }
+
+  it("stands a pullout's run at the eye under calculation 2, and at its ends under 1 or none", () => {
+    const eye = buildStations(input('eye'))
+    expect(eye).toHaveLength(1)
+    expect(haversineMeters(eye[0], VP2)).toBeLessThan(0.01)
+    for (const legacy of [input(), input('pullout')]) {
+      const ends = buildStations(legacy)
+      expect(ends.length).toBeGreaterThan(1)
+      expect(haversineMeters(ends[0], VP2)).toBeCloseTo(PULLOUT_METERS / 2, 0)
+      expect(haversineMeters(ends[ends.length - 1], VP2)).toBeCloseTo(PULLOUT_METERS / 2, 0)
+    }
+  })
+
+  it('leaves a road and a spot as they were', () => {
+    const road: Array<[number, number]> = [
+      [VP2.lng, VP2.lat],
+      [VP2.lng + 0.02, VP2.lat],
+    ]
+    const along = (stationsAt?: 'eye' | 'pullout') =>
+      buildStations({ ...input(stationsAt), viewpoint: { mode: 'corridor', coordinates: road } })
+    expect(along('eye')).toEqual(along())
+    expect(along('eye').length).toBeGreaterThan(2)
+    const spot = (stationsAt?: 'eye' | 'pullout') =>
+      buildStations({ ...input(stationsAt), viewpoint: { mode: 'spot', coordinates: [[VP2.lng, VP2.lat]] } })
+    expect(spot('eye')).toEqual(spot())
+  })
+
+  it('names the calculation, absent reading as 1', () => {
+    expect(stationCalculation({}).version).toBe(1)
+    expect(stationCalculation({ stationsAt: 'pullout' }).version).toBe(1)
+    expect(stationCalculation({ stationsAt: 'eye' }).version).toBe(2)
+  })
+
+  it('starts a new scene at the eye and keeps an older scene on the pullout', () => {
+    expect(createEmptyScene().settings.stationsAt).toBe('eye')
+    const raw = JSON.parse(serializeScene(createEmptyScene()))
+    delete raw.settings.stationsAt
+    expect(parseScene(raw)!.settings.stationsAt).toBeUndefined()
+    raw.settings.stationsAt = 'pullout'
+    expect(parseScene(raw)!.settings.stationsAt).toBe('pullout')
+    raw.settings.stationsAt = 'somewhere'
+    expect(parseScene(raw)!.settings.stationsAt).toBeUndefined()
+    expect(parseScene(JSON.parse(serializeScene(createEmptyScene())))!.settings.stationsAt).toBe('eye')
+  })
+
+  it('keeps a run saved before the choice the same input, and makes the choice a run input', () => {
+    const old = {
+      ...createEmptyScene(),
+      viewpoint: { id: 'v', name: 'V', mode: 'corridor' as const, coordinates: pullout },
+    }
+    delete old.settings.stationsAt
+    const legacy = buildSceneInput(old)
+    expect('stationsAt' in legacy.settings).toBe(false)
+    const eye = { ...old, settings: { ...old.settings, stationsAt: 'eye' as const } }
+    expect(sceneFingerprint(eye)).not.toBe(sceneFingerprint(old))
   })
 })
 

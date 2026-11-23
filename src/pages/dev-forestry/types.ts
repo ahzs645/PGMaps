@@ -119,6 +119,14 @@ export type AnalysisSettings = {
   privateLandOutOfDenominator?: boolean
   /** With screening on, timber this close to each station is cleared, metres (VRI stands cover roads and shores). */
   screeningEyeClearingMeters?: number
+  /**
+   * Where a viewpoint stood at (a spot, or a pullout of at most `STOOD_AT_MAX_LENGTH_METERS`) puts
+   * the run's stations: `eye`, one station where the eye stands (`standingPoint`), calculation 2;
+   * `pullout` (absent reads as this, so every run saved before it replays exactly), the pullout's
+   * own stations, its two ends 15 m either side of the eye, calculation 1. A road is unaffected.
+   * See `stationCalculation` and the doc's **Where a view's stations stand**.
+   */
+  stationsAt?: 'eye' | 'pullout'
 }
 export const DEFAULT_ANALYSIS_SETTINGS: AnalysisSettings = {
   demZoom: DEFAULT_DEM_ZOOM,
@@ -135,6 +143,7 @@ export const DEFAULT_ANALYSIS_SETTINGS: AnalysisSettings = {
   perspectiveDenominator: 'non-vegetated-out',
   privateLandOutOfDenominator: false,
   screeningEyeClearingMeters: 50,
+  stationsAt: 'eye',
 }
 export type AnalysisInput = {
   /**

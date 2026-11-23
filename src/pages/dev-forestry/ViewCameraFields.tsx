@@ -66,7 +66,7 @@ export type ViewCameraFieldsProps = {
   observerHeightMeters: number
   /** The road view's canvas while it is open, for the lens's vertical field there. */
   roadViewCanvas?: { width: number; height: number } | null
-  /** The run's stations, when the run stands at this view: they stand at the pullout's ends, not at the eye. */
+  /** The run's stations, when the run stands at this view: at the eye (calculation 2), or at the pullout's ends (1). */
   runStations?: ReadonlyArray<{ lng: number; lat: number }> | null
   /**
    * A surveyed eye the stand holds that this view does not (entered before views kept their own): offered once, to
@@ -184,10 +184,11 @@ function PlaceFields({
           it and is not printed.
         </p>
       )}
-      {gaps && (
+      {gaps && gaps.some((gap) => gap >= 0.5) && (
         <p className="text-2xs text-muted-foreground" data-view-station-gap={view.id}>
           The run&apos;s stations stand {gaps.map((gap) => metres(gap)).join(' and ')} from this eye, at the
-          pullout&apos;s ends: its figures are read there, the capture here.
+          pullout&apos;s ends (calculation 1): its figures are read there, the capture here. Simulation settings →{' '}
+          <span className="text-foreground">Views stood at</span> stands the run at the eye.
         </p>
       )}
       <DisclosureRow

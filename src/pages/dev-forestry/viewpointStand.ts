@@ -15,10 +15,11 @@
  * Kept free of DOM and network access.
  */
 import type { Bounds } from '@/lib/forestry/terrain/terrain'
-import type { StandEyeHeight, SurveyedEye, Viewpoint } from './types'
+import type { AnalysisSettings, StandEyeHeight, SurveyedEye, Viewpoint } from './types'
 import { haversineMeters, lineLengthMeters } from './visibility'
 import { pointAlongBearing, roadPath, roadPlacement } from './driveMath'
 import { MAX_EYE_HEIGHT_METERS, MIN_EYE_HEIGHT_METERS } from './viewCamera'
+import { runCalcVersion } from './replayComparison'
 
 /**
  * The longest viewpoint still stood at rather than driven: twice `PULLOUT_METERS`, the road view's
@@ -55,6 +56,25 @@ export function standingPoint(viewpoint: Placed): { lng: number; lat: number } |
   } catch {
     return null
   }
+}
+
+/**
+ * Which station calculation a run's settings name. Calculation 2 stands a viewpoint stood at on one
+ * station at the eye; calculation 1, every run saved before the setting existed, stands it on the
+ * pullout's own stations, its two ends. Roads and spots are the same under both.
+ */
+export function stationCalculation(settings: Pick<AnalysisSettings, 'stationsAt'>): {
+  version: 1 | 2
+  stationsAt: 'eye' | 'pullout'
+  label: string
+} {
+  return runCalcVersion(settings) === 2
+    ? { version: 2, stationsAt: 'eye', label: 'Calculation 2: a viewpoint stood at is assessed from the eye' }
+    : {
+        version: 1,
+        stationsAt: 'pullout',
+        label: "Calculation 1: a viewpoint stood at is assessed from the pullout's two ends",
+      }
 }
 
 /** The surveyed eye elevation that applies to this viewpoint now, or null (none, a road, or entered for another point). */

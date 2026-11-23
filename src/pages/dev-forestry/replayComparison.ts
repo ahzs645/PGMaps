@@ -4,12 +4,22 @@
  * calculation. No DOM or network access.
  */
 
+import type { AnalysisSettings } from './types'
+
 /**
- * The version of the sightline calculation an archive's figures came from, written in its manifest. Raise it when a
- * change to `computeAnalysis` is meant to move the figures, so a replay that differs says which calculation it ran.
- * Archives written before it carry none ("not recorded").
+ * The newest version of the sightline calculation. An archive's manifest records the version its own run used
+ * (`runCalcVersion`), so a replay says which calculation it ran. Raise it with a new branch in `runCalcVersion` when a
+ * change to `computeAnalysis` is meant to move the figures, keyed to a setting a saved run does not carry, so every
+ * saved run keeps its own calculation and replays exactly. Archives written before it carry none ("not recorded").
+ *
+ * 1: a viewpoint stood at is assessed from the pullout's two ends. 2: from the eye (`settings.stationsAt: 'eye'`).
  */
-export const SIGHTLINE_CALC_VERSION = 1
+export const SIGHTLINE_CALC_VERSION = 2
+
+/** The calculation a run's settings name: 2 when a viewpoint stood at is assessed from the eye, else 1. */
+export function runCalcVersion(settings: Pick<AnalysisSettings, 'stationsAt'>): 1 | 2 {
+  return settings.stationsAt === 'eye' ? 2 : 1
+}
 
 /**
  * How far a replayed percentage may sit from the saved one, in percentage points. Summing in another order moves a

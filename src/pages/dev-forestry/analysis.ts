@@ -42,6 +42,7 @@ import {
 /** Fewest landform-grid cells a proposed opening may cover and still have its share of the landform measured. */
 export const MIN_LEDGER_CELLS_PER_PROPOSAL = 8
 import { VIEWING_ZONES, vegHeightForSlope, viewingZoneFor } from './vqo'
+import { standingPoint } from './viewpointStand'
 import type {
   AlterationBreakdown,
   AnalysisInput,
@@ -91,6 +92,9 @@ function validate(input: AnalysisInput) {
     'greenUpAgeYears',
   ] as const)
     if (!(input.settings[key] > 0)) throw new Error(`${key} must be positive.`)
+  const stationsAt = input.settings.stationsAt
+  if (stationsAt !== undefined && stationsAt !== 'eye' && stationsAt !== 'pullout')
+    throw new Error('Choose where a viewpoint stood at puts its stations.')
   if (input.settings.sampleBudget > 100_000 || input.targets.length > 3000)
     throw new Error('This scenario exceeds the browser analysis limits. Split it into smaller assessments.')
   if (new Set(input.targets.map((t) => t.id)).size !== input.targets.length)
@@ -113,6 +117,12 @@ export function buildStations(input: AnalysisInput): CorridorStation[] {
   if (!coordinates.length) return []
   if (input.viewpoint.mode === 'spot' || coordinates.length === 1)
     return [{ lng: coordinates[0][0], lat: coordinates[0][1], distanceAlongMeters: 0 }]
+  // Calculation 2: a pullout stood at is assessed from where the eye stands, as the handbook
+  // assesses from the viewpoint; calculation 1 (absent) keeps the pullout's own two ends.
+  if (input.settings.stationsAt === 'eye') {
+    const eye = standingPoint(input.viewpoint)
+    if (eye) return [{ lng: eye.lng, lat: eye.lat, distanceAlongMeters: 0 }]
+  }
   return sampleAlongLine(coordinates, Math.max(10, input.settings.stationSpacingMeters))
 }
 export function prepareTargets(input: AnalysisInput, stations: CorridorStation[]): PreparedTarget[] {

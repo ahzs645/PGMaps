@@ -93,6 +93,20 @@ it('recomputes the stored figures offline and detects a changed terrain cell', a
   expect(older.replayMatches).toBe(true)
   expect(older.replayCalcVersion).toBeNull()
   expect(replayEvidence(older)).toContain('Calculation version not recorded')
+  // A run saved before stations stood at the eye (no `stationsAt`) is calculation 1, and replays as it ran.
+  const legacySettings = { ...data.input.settings }
+  delete legacySettings.stationsAt
+  const legacy = { ...data, input: { ...data.input, settings: legacySettings } }
+  const legacyRun = computeAnalysis(grid, legacy.input, legacy.terrain, undefined, legacy.canopy, legacy.forested)
+  const legacyFile = await retainRun(legacy, new Map([['dem/0-0.f32', new Uint8Array(cells.buffer)]]), legacyRun, {
+    viewId: 'v',
+    rowId: 'sheet',
+    landformId: 'face',
+  })
+  const legacyReplay = await replayRun(legacyFile)
+  expect(legacyReplay.replayMatches).toBe(true)
+  expect(legacyReplay.replayCalcVersion).toBe(1)
+  expect(replayEvidence(legacyReplay)).toContain('Calculation version 1')
   const entries = unzipSync(new Uint8Array(await file.arrayBuffer()))
   entries['dem/0-0.f32'][0] ^= 1
   await expect(replayRun(new Blob([zipSync(entries) as BlobPart]))).rejects.toThrow('checksum mismatch')

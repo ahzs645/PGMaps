@@ -125,8 +125,8 @@ unless it says otherwise.
   that figure fed the analysis sheet, the report and step 4's groups away from
   the station. It is now read through `capturedSightline` (`5a1321cd`,
   `7bb3643a`).
-- A view stood at is run from the pull-out's two ends, 15 m from the eye, never
-  from the eye itself. Changing that changes run figures: decision 1.
+- A view stood at was run from the pull-out's two ends, 15 m from the eye, never
+  from the eye itself. Decision 1 moved new runs to the eye.
 - The VIA report throws when no view has a class pass. Whether it should print
   with no figures at all is decision 4.
 
@@ -166,10 +166,16 @@ eye: they suggest candidates and record pictures, and print no figure.
 
 **Open, for the owner** (with the recommendation made at triage):
 
-1. **Run stations at the eye.** Stand a view's stations at the eye rather than
-   at the pull-out's two ends. It changes run figures, so the recommendation is
-   yes, after measuring the change on the reference cases, as calculation
-   version 2.
+1. **Run stations at the eye.** Taken on 23 November 2026: yes, as
+   calculation version 2, with version 1 kept for every run already saved. A
+   view stood at now runs from one station at its eye
+   (`settings.stationsAt: 'eye'`); a scene or archive without the setting is
+   calculation 1 and replays exactly, and *Simulation settings → Views stood
+   at* switches either way. Measured on the Purden Lake sample first: the
+   perspective figure moved a median 0.07 points over 14 stands, and 3.8 and
+   9.3 points at two where one pull-out end saw over near ground the eye does
+   not (the main doc's **Where a view's stations stand**). The real cases are
+   still to be measured, when the VIA research folder is back.
 2. **Old archives' reference field.** Move the historical reference out of the
    old `sourceDocument` field. Recommended: a one-click move when the archive
    opens, and fix the converter that writes the old field.
