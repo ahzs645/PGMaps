@@ -731,7 +731,8 @@ test.describe('forestry visual quality', () => {
     // than the page's defaults.
     const adopted = page.locator('li').filter({ hasText: 'VLI 1668 · R (established)' })
     await expect(adopted).toBeVisible()
-    await expect(page.getByText('BC visual landscape inventory', { exact: false })).toBeVisible()
+    // The adopted row names its source (the reviewed scope's summary names it too, so read the row's own).
+    await expect(adopted.getByText('BC visual landscape inventory', { exact: false }).first()).toBeVisible()
     await expectSelected(adopted.locator('[data-select-trigger][aria-label*="objective"]'), 'retention')
     await expectSelected(adopted.locator('[data-select-trigger][aria-label*="absorption"]'), 'low')
     // Adopting it makes it the active assessment landform, displacing the sample's.
