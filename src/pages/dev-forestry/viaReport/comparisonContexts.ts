@@ -6,6 +6,8 @@
  */
 import { encodePng } from '@/lib/mapSheet/png'
 
+import { assessmentScope } from '../assessmentScope'
+import { DEFAULT_ANALYSIS_SETTINGS, type TargetPolygon } from '../types'
 import { assessVia, DESIGN_ELEMENTS, finalRating, type ViaAssessment, type ViaReview } from '../via'
 import { findDocumentFormat } from '../viaDocument/formats'
 import { resolveViaDocument, type DocumentFacts } from '../viaDocument/resolve'
@@ -182,6 +184,52 @@ function images(names: readonly string[], p: Pictures, sheets: boolean): ReportI
   }
 }
 
+const square = (lng: number, lat: number, size: number): GeoJSON.Polygon => ({
+  type: 'Polygon',
+  coordinates: [
+    [
+      [lng, lat],
+      [lng + size, lat],
+      [lng + size, lat + size],
+      [lng, lat + size],
+      [lng, lat],
+    ],
+  ],
+})
+const made = (id: string, role: TargetPolygon['role'], geometry: GeoJSON.Polygon, patch: Partial<TargetPolygon> = {}) =>
+  ({
+    id,
+    name: id,
+    role,
+    objectiveId: 'partial-retention',
+    vac: null,
+    harvestYear: null,
+    clearcutPercent: null,
+    geometry,
+    source: 'Drawn here',
+    ...patch,
+  }) as TargetPolygon
+
+/** A made-up scope: a drawn landform, a clearcut with a drawn wildlife tree patch, a partial cut. */
+const SCOPE = assessmentScope({
+  targets: [
+    made('Landform 1', 'landscape', square(-122.5, 53.9, 0.05)),
+    made('X1', 'block', square(-122.49, 53.91, 0.01)),
+    made('X2', 'block', square(-122.47, 53.93, 0.008), { harvestSystem: 'partial', volumeRemovedPercent: 40 }),
+  ],
+  masks: [
+    {
+      id: 'wtp',
+      name: 'Wildlife tree patch 1',
+      kind: 'retained',
+      geometry: square(-122.485, 53.915, 0.002),
+      source: 'Drawn on the plan map',
+    },
+  ],
+  settings: DEFAULT_ANALYSIS_SETTINGS,
+  landformId: 'Landform 1',
+})
+
 /** The assessment `variant` as `recipe` reads it. */
 export async function comparisonCase(recipe: ReportRecipe, variant: ComparisonVariant): Promise<ComparisonCase> {
   const p = await drawn()
@@ -272,6 +320,7 @@ export async function comparisonCase(recipe: ReportRecipe, variant: ComparisonVa
               : figure(name, p.photo),
           ),
     ...(variant === 'bare' ? {} : { images: images(names, p, variant === 'single') }),
+    ...(rich ? { scope: SCOPE } : {}),
     ...(rich
       ? {
           setting: {

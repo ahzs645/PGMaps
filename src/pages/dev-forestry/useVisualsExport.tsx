@@ -798,6 +798,7 @@ export function useVisualsExport(input: {
       existing: runExistingBasis(result)?.label ?? null,
       date: new Date(),
       ...(draft ? { draft } : {}),
+      run: result,
     })
   // Placeholder figures stand in for the counts only; the file draws each view's figure. Its parts are assembled
   // once the report engine has loaded (the counts wait for it); its subtitle needs no part, so it never waits.

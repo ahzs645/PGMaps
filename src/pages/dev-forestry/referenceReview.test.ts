@@ -7,7 +7,12 @@ import {
   referenceArithmetic,
   referenceClass,
 } from './referenceMeasurements'
-import { comparisonFigures, comparisonSightline, type ReferenceComparison } from './referenceComparison'
+import {
+  comparisonFigures,
+  comparisonSightline,
+  parseComparisons,
+  type ReferenceComparison,
+} from './referenceComparison'
 import {
   imagePixel,
   imageRay,
@@ -101,6 +106,18 @@ describe('historical review and sign-off', () => {
       '100',
     )
     expect(referenceClass('P=0%, R<1.5%, PR<7%, M<18%, MM<30%', 1.5)).toBe('PR')
+  })
+  it('keeps the scope PGMaps’ figures were measured on with a signed comparison, and refuses one that is not text', () => {
+    const scope = 'Made-up face (40.0 ha; drawn) · 1 block, 12.0 ha gross, 10.5 ha net of 1 mask'
+    const kept = parseComparisons(
+      JSON.parse(JSON.stringify([{ ...comparison, capture: { ...comparison.capture, scope } }])),
+    )
+    expect(kept[0].capture.scope).toBe(scope)
+    // A comparison saved before the scope was kept reads as it did.
+    expect(parseComparisons(JSON.parse(JSON.stringify([comparison])))[0].capture.scope).toBeUndefined()
+    expect(() => parseComparisons([{ ...comparison, capture: { ...comparison.capture, scope: 4 } }])).toThrow(
+      /Invalid historical comparison/,
+    )
   })
   it('compares counts only for matching confirmed bases', () => {
     expect(comparisonFigures(comparison).difference).toBe(4)

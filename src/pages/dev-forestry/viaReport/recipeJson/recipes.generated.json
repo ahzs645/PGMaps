@@ -91,6 +91,7 @@
         "summary-boxed",
         "notes-2001",
         "recommendations",
+        "assessment-scope",
         "limitations",
         "figures",
         "overview-sheet",
@@ -113,6 +114,7 @@
         "overview-map",
         "purpose",
         "methodology",
+        "assessment-scope",
         "viewpoint-pages",
         "photo-simulation-pairs",
         "calculations",
@@ -135,6 +137,7 @@
         "regulatory-frame",
         "board-comparison",
         "methodology",
+        "assessment-scope",
         "overview-map",
         "photo-simulation-pairs",
         "references"
@@ -157,6 +160,7 @@
         "extent-scale",
         "vocabulary",
         "methodology",
+        "assessment-scope",
         "assessment-method",
         "landforms-and-viewpoints",
         "table-1-vsu",
@@ -190,6 +194,7 @@
         "extent-scale",
         "vocabulary",
         "methodology",
+        "assessment-scope",
         "assessment-method",
         "landforms-and-viewpoints",
         "table-1-vsu",
@@ -222,6 +227,7 @@
     }
   ],
   "parts": [
+    { "id": "assessment-scope", "title": "Scope of the assessment", "sources": [] },
     { "id": "cover", "title": "Cover", "sources": ["01", "02", "03", "05", "06", "22", "23", "26"] },
     { "id": "form-header-2001", "title": "Form header", "sources": ["01", "03", "05"] },
     { "id": "limitations", "title": "Limitations", "sources": ["02", "22", "23"] },

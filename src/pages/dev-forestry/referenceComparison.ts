@@ -31,6 +31,13 @@ export type CaptureMeasurement = {
   /** Whether the run stood behind that figure at the save, as the saved view recorded it (`capturedSightline`). */
   sightlineReadiness?: 'ready' | 'withheld'
   sightlineWithheld?: string
+  /**
+   * The reviewed scope PGMaps' figures for this landform were measured on (`assessmentScope.ts`'s statement), as it
+   * stood when the comparison was signed: the landform and its inventory units, the blocks gross and net, the
+   * denominators. Printed beside PGMaps' figures so they are never read against a historical figure measured on
+   * another scope without saying so. Absent on comparisons saved before it.
+   */
+  scope?: string
 }
 export type ComparisonBasis = {
   numerator: keyof typeof numeratorChoices
@@ -133,6 +140,7 @@ export function parseComparisons(raw: unknown): ReferenceComparison[] {
         c.capture.sightlineReadiness !== 'ready' &&
         c.capture.sightlineReadiness !== 'withheld') ||
       (c.capture.sightlineWithheld !== undefined && !str(c.capture.sightlineWithheld)) ||
+      (c.capture.scope !== undefined && !str(c.capture.scope)) ||
       !Array.isArray(c.evidence) ||
       ![
         c.reviewer,

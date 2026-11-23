@@ -47,6 +47,12 @@
     },
     {
       "add": {
+        "use": "assessment-scope"
+      },
+      "before": "closing"
+    },
+    {
+      "add": {
         "use": "viewpoint-pages"
       },
       "before": "closing"

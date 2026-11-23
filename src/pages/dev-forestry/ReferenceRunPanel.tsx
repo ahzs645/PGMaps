@@ -6,7 +6,7 @@ import { chosenValues, type ReferenceRow } from './referenceMeasurements'
 import { replayEvidence } from './replayComparison'
 import type { ProjectAttachment } from './projectArchive'
 import { DIAGNOSTIC_LABEL, runFigures, withheldText } from './runFigures'
-import type { AnalysisInput, AnalysisWorkerRequest, AnalysisWorkerResponse } from './types'
+import type { AnalysisInput, AnalysisResult, AnalysisWorkerRequest, AnalysisWorkerResponse } from './types'
 
 /** A retained run's archive: its inputs, the terrain and inventory it read, its figures and their checksums. */
 export type SightlineArchive = { name: string; rowId: string; blob: Blob }
@@ -22,6 +22,11 @@ export type ReferenceRunActions = {
   retained: SightlineArchive | null
   /** Opens Save & export on the archive's output. */
   onSaveArchive?: () => void
+  /**
+   * The reviewed scope the run measured its figure on (`assessmentScope.ts`'s statement), printed beside it so it is
+   * never read against the row's historical figure without saying what it was measured on.
+   */
+  scope?: (row: ReferenceRow, result: AnalysisResult) => string
 }
 
 const STATION_OPTIONS = [
@@ -133,10 +138,12 @@ export function ReferenceRunPanel({
           const evidence = m.archive
             ? 'Retained ' + name + ' for this session. Save it from Save & export → Sightline replay archive.'
             : replayEvidence(m)
+          const scope = actions.scope ? 'Scope: ' + actions.scope(row, m.result) + '.' : null
           finish(
             [
               evidence,
               result,
+              ...(scope ? [scope] : []),
               ...(m.result.quality?.warnings ?? []),
               ...(m.replayRowId && m.replayRowId !== row.id ? ['Archive belongs to ' + m.replayRowId + '.'] : []),
             ].join(' '),

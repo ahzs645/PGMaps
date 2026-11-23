@@ -593,6 +593,11 @@ export type SidebarProps = {
    * own landform card to draw a view's landform with.
    */
   viewLandforms?: (renderLandform: (target: TargetPolygon) => ReactNode) => ReactNode
+  /**
+   * Step 1's *Reviewed scope* (`AssessmentScopePanel`): the run's landform, the blocks gross and net, the masks and the
+   * denominators, each with its source. Under the sub-landforms.
+   */
+  assessmentScope?: ReactNode
   onClearScene: () => void
   /** Opens a project file saved from Save & export: it replaces what is on the map and the saved views. */
   onOpenProject: (file: File) => void
@@ -745,6 +750,7 @@ export function Sidebar({
   onActivateLandform,
   siteLandformId,
   viewLandforms,
+  assessmentScope,
   onClearScene,
   onOpenProject,
   onReopenPrevious,
@@ -1440,6 +1446,7 @@ export function Sidebar({
                   onReviewChange={via.onReviewChange}
                 />
               )}
+              {assessmentScope}
             </div>
           </ToolSection>
         </Projectable>

@@ -67,6 +67,7 @@ import {
   type ReportItemToComplete,
 } from './model'
 import wording from './recipeJson/wording.json'
+import type { AssessmentScope } from '../assessmentScope'
 
 /** The FS1252 office information, as the scene keeps it (`FormMetadata`). */
 export type OfficeFields = Partial<
@@ -200,6 +201,12 @@ export interface ReportContext {
    * slope, the inventory's stands. Absent when the page read none; a part then lists what it could not say.
    */
   setting?: ReportSetting
+  /**
+   * The reviewed scope the figures are measured on (`assessmentScope.ts`): the landform and its inventory units, the
+   * blocks gross and net, the masks and the denominators, each with its source. Absent when the context was built
+   * without it.
+   */
+  scope?: AssessmentScope | null
   /**
    * The report is Save & export's draft, the editing surface: a picture nobody has given keeps its place with a box
    * saying what goes there (`FigureSlot.placeholder`). Absent or false, as for every file: a missing picture and its own
@@ -2226,6 +2233,9 @@ export function runConclusion(ctx: ReportContext): Sentence[] {
 /** limitations: defined once in JSON (`recipeJson/components/limitations.json`), read by `kitBlocks.ts`. */
 const limitations = jsonPart('limitations')
 
+/** The reviewed scope every figure is measured on (`assessmentScope.ts`), laid out by its JSON component. */
+const assessmentScopePart = jsonPart('assessment-scope')
+
 /** sign-off: defined once in JSON (`recipeJson/components/sign-off.json`), read by `kitBlocks.ts`. */
 const signOff = jsonPart('sign-off')
 
@@ -2772,6 +2782,7 @@ export const CORE_PARTS: readonly ReportPart[] = [
   recommendations,
   conclusion,
   limitations,
+  assessmentScopePart,
   signOff,
   references,
   figuresAppendix,

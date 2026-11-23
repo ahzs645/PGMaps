@@ -165,6 +165,31 @@ describe('viewpoint summary rows', () => {
     expect(own?.note).toContain("against Davie ridge, not this view's landform (Visible face round CHU_26_1)")
     expect(row(viewpointSummaryMetrics(input()), 'perspective')?.tone).toBe('default')
   })
+
+  it('names the scope both figures are measured on, only when it is given', () => {
+    const statement = 'Made-up face (40.0 ha; drawn) · 1 block, 12.0 ha gross, 10.5 ha net of 1 mask'
+    const scope = {
+      statement,
+      landform: {
+        id: 'lf',
+        name: 'Made-up face',
+        grossHa: 40,
+        provenance: { origin: 'drawn' as const, label: 'Drawn', detail: 'Drawn here' },
+        adoptedUnitId: null,
+        units: [{ id: 'u', label: '901', sharePercent: 100, adopted: false }],
+        suggestedExtent: 'part-of-unit' as const,
+        reviewedAs: null,
+        note: null,
+      },
+    }
+    expect(row(viewpointSummaryMetrics(input({ scope })), 'scope')).toMatchObject({
+      label: 'Scope',
+      qualifier: 'both scales',
+      value: 'VLI 901',
+      note: statement,
+    })
+    expect(row(viewpointSummaryMetrics(input()), 'scope')).toBeUndefined()
+  })
 })
 
 describe('the run results as summary cards', () => {

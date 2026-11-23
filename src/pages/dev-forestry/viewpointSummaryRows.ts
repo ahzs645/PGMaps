@@ -1,6 +1,7 @@
 import type { MetricSummaryItem } from '@/components/ui/metric-summary'
 import { formatMeasure } from '@/lib/format'
 import { resolvedThresholds } from './integrity'
+import { unitsText, type AssessmentScope } from './assessmentScope'
 import { runExistingBasis } from './existingBasis'
 import { runGreenUpBasis } from './greenUp'
 import { runFigures } from './runFigures'
@@ -53,6 +54,11 @@ export type ViewpointSummaryInput = {
   objectiveSource: 'established' | 'recommended' | 'chosen'
   thresholds: VisualQualityThresholds
   via: ViaAssessment | null
+  /**
+   * The run's reviewed scope (`assessmentScope.ts`): the landform, its inventory units, the blocks gross and net and the
+   * denominators the figures are measured on, named in its own row beside them. Absent: no row.
+   */
+  scope?: Pick<AssessmentScope, 'statement' | 'landform'> | null
 }
 
 const km = (meters: number) => formatKm(meters, 2)
@@ -228,6 +234,15 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
             ? `Recommended in the visual landscape inventory; no objective is established for ${landform.name}`
             : `Set for ${landform.name} in this assessment, not read from the inventory`,
     })
+    // What both figures above are measured on, so neither is read against a figure measured on another scope.
+    if (input.scope?.landform)
+      rows.push({
+        key: 'scope',
+        label: 'Scope',
+        qualifier: 'both scales',
+        value: unitsText(input.scope.landform.units) ?? input.scope.landform.provenance.label,
+        note: input.scope.statement,
+      })
   }
 
   if (block && block.nearestVisibleDistanceMeters !== null && block.farthestVisibleDistanceMeters !== null) {
