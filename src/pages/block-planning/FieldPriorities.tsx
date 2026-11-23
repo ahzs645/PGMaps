@@ -71,7 +71,7 @@ export function FieldPriorities({
             class share. Consider the reliability of each source when assigning field work.
           </p>
           <CalculationTable
-            caption={`Footprint priorities for ${year}, tested at ±${result.tolerance} years`}
+            caption={`Footprint priorities for ${year}, tested at ±${result.tolerance} yr`}
             rows={result.rows}
             rowKey={(r) => r.id}
             columns={[
