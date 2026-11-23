@@ -5013,7 +5013,17 @@ authority, when it is blank too) to complete. A document the reviewer read for
 context, such as an earlier assessment, goes in *Historical reference — not
 the objective's authority* (`referenceDocument`), which prints only among the
 references. Values typed into the source-document field before the two were
-separated stay where they are.
+separated stay where they are until the reviewer moves them: when
+*Objective established by* names only files the project carries (each
+" | "-separated part the name of one of its attachments, `referenceMoveOffer`,
+`referenceMove.ts`), it reads as the historical VIA's reference, as older
+project archives wrote it. Opening such a project says so in step 1's receipt
+and the header, and both that receipt and the field in the FS1252 office
+information offer *Move to Historical reference*: one click appends the text to
+*Historical reference* (a part it already holds is not repeated) and clears
+*Objective established by*, as one ordinary edit (`movedReference`). Nothing
+moves on open, a field naming anything other than the project's files (an order,
+a plan, a file it does not carry) is never offered, and nothing else changes.
 
 **Nothing is invented.** Office fields come from the FS1252 office information;
 the reviewer's judgements from step 4 at the assessment station's view only;

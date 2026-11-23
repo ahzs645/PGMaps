@@ -1,6 +1,7 @@
 /** The portable project: project.json plus ordinary files for photographs, captures and supporting evidence. */
 import { unzip, zip, type Unzipped, type Zippable } from 'fflate'
 import { emptyTools } from './assessmentTools'
+import { projectAttachmentName } from './projectAttachmentName'
 import { parseReferenceRows, importReferenceCase, mergeReferences, readReferenceCase } from './referenceMeasurements'
 import type { OwnPose, OwnPoseSources } from './exifPose'
 import { parseOwnPoseSources, parseOwnSearchSummary, type OwnSearchSummary } from './photoRecords'
@@ -34,6 +35,7 @@ export type ProjectMedia = {
   /** The other own photos open in the set, each with its own pose, sources and search; absent or empty: none. */
   photos?: ProjectPhoto[]
 }
+export { projectAttachmentName }
 export const emptyProjectMedia = (): ProjectMedia => ({ title: null, attachments: [], photo: null, photos: [] })
 
 const MANIFEST = 'archive.json'
@@ -43,16 +45,6 @@ const MAX_PHOTO_BYTES = 25 * 1024 * 1024
 const imageType = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/
 const imageExtension = (type: string) => (type === 'image/jpeg' ? 'jpg' : type.slice('image/'.length))
 const imageTypes: Record<string, string> = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' }
-
-export function projectAttachmentName(name: string) {
-  return (
-    Array.from(name.replace(/[<>:"/\\|?*]/g, '-'), (char) => (char.charCodeAt(0) < 32 ? '-' : char))
-      .join('')
-      .trim()
-      .replace(/^\.+|\.+$/g, '')
-      .slice(0, 200) || 'attachment'
-  )
-}
 
 function checkBytes(total: number) {
   if (total > MAX_PROJECT_FILE_BYTES)

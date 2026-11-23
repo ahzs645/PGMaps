@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { ChevronDown, Eye } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,7 @@ import { useBranding } from '@/branding/useBranding'
 import { cn } from '@/lib/utils'
 
 import { formatKm, formatPct } from './measureFormat'
+import { movedReference, referenceMoveLine, referenceMoveOffer } from './referenceMove'
 import type { FormMetadata, FormReview } from './pdf/fs1252'
 import type { AnalysisResult } from './types'
 
@@ -82,6 +83,7 @@ export function Fs1252Options({
   viaReview,
   metadata,
   onMetadata,
+  attachmentNames = [],
 }: {
   result: AnalysisResult | null
   choice: Fs1252Choice
@@ -92,6 +94,11 @@ export function Fs1252Options({
   viaReview: FormReview | null
   metadata: FormMetadata
   onMetadata: (metadata: FormMetadata) => void
+  /**
+   * The files the project carries, by name. When *Objective established by* names only these, as projects saved before
+   * *Historical reference* did, the field offers to move its text there (`referenceMoveOffer`); it never moves itself.
+   */
+  attachmentNames?: readonly string[]
 }) {
   const { profile } = useBranding()
   const [pick, setPick] = useState<number | null>(null)
@@ -102,6 +109,7 @@ export function Fs1252Options({
   const changeReview = (index: number, patch: Partial<FormReview>) =>
     onChoice({ ...choice, reviews: { ...reviews, [index]: { ...reviews[index], ...patch } } })
   const picked = pick ?? result?.assessmentStationIndex ?? 0
+  const referenceMove = referenceMoveOffer(metadata, attachmentNames)
 
   return (
     <section className="space-y-3 text-xs" aria-label="FS1252 options">
@@ -305,13 +313,30 @@ export function Fs1252Options({
         />
         <div className="grid gap-2 sm:grid-cols-2">
           {FS1252_OFFICE_FIELDS.map(([key, label]) => (
-            <FormField label={label} key={key}>
-              <input
-                maxLength={2000}
-                value={metadata[key] ?? ''}
-                onChange={(e) => onMetadata({ ...metadata, [key]: e.target.value })}
-              />
-            </FormField>
+            <Fragment key={key}>
+              <FormField label={label}>
+                <input
+                  maxLength={2000}
+                  value={metadata[key] ?? ''}
+                  onChange={(e) => onMetadata({ ...metadata, [key]: e.target.value })}
+                />
+              </FormField>
+              {/* Beside the field it would empty, offered and never done unasked. */}
+              {key === 'sourceDocument' && referenceMove && (
+                <InlineAlert className="sm:col-span-2" title="Reads as a historical reference">
+                  <p>{referenceMoveLine(referenceMove)}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-1.5"
+                    data-testid="fs1252-move-reference"
+                    onClick={() => onMetadata(movedReference(metadata))}
+                  >
+                    Move to Historical reference
+                  </Button>
+                </InlineAlert>
+              )}
+            </Fragment>
           ))}
         </div>
       </ToolDisclosure>

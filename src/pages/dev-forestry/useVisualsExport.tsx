@@ -1884,6 +1884,7 @@ export function useVisualsExport(input: {
         viaReview={fs1252Review}
         metadata={scene.reportMetadata ?? {}}
         onMetadata={(reportMetadata) => setScene((current) => ({ ...current, reportMetadata }))}
+        attachmentNames={input.attachments?.map((file) => file.name)}
       />
     ),
     ...(figureViews.some((view) => view.image)

@@ -73,6 +73,7 @@ import type { ProjectState } from './dev-forestry/projectFile'
 import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
 import { ProjectAttachmentsDialog } from './dev-forestry/ProjectAttachments'
 import type { ProjectAttachment } from './dev-forestry/projectArchive'
+import { movedReference, referenceMoveLine, referenceMoveOffer } from './dev-forestry/referenceMove'
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
 import { ToolSourcesPanel, TOOL_SOURCES_TITLE, toolSourcesSummary } from './dev-forestry/ToolSourcesPanel'
 import { MapToolToggle } from '@/components/ui/map-tool-toggle'
@@ -864,7 +865,13 @@ function DevForestryVisuals({
   )
   const [importMessage, setImportMessage] = useState<ImportNotice | null>(null)
   const [projectTitle, setProjectTitle] = useState<string | null>(null)
-  const [projectMessage, setProjectMessage] = useState<{ text: string; error?: boolean } | null>(null)
+  // `referenceMove`: the opened project's *Objective established by* reads as a historical reference
+  // (`referenceMoveOffer`), and the line offers to move it while it still does.
+  const [projectMessage, setProjectMessage] = useState<{
+    text: string
+    error?: boolean
+    referenceMove?: boolean
+  } | null>(null)
   const [projectAttachments, setProjectAttachments] = useState<ProjectAttachment[]>([])
   // The latest of those two notices, shown in the header's status line while it is fresh: step 1 (where both are
   // written) may be folded or another step brought forward, as it is when *Open* is run from the header or ribbon.
@@ -6255,7 +6262,18 @@ function DevForestryVisuals({
         },
       })
       if (!switched) return false
-      setProjectMessage({ text: projectOpenedLine(label, summary) + workspaceNote })
+      // An older project's historical reference in the objective's authority field: said, and offered, never moved.
+      const referenceMove = referenceMoveOffer(
+        state.scene.reportMetadata,
+        media.attachments.map((entry) => entry.name),
+      )
+      setProjectMessage({
+        text:
+          projectOpenedLine(label, summary) +
+          workspaceNote +
+          (referenceMove ? ` ${referenceMoveLine(referenceMove)}` : ''),
+        ...(referenceMove ? { referenceMove: true } : {}),
+      })
       return true
     } catch (error) {
       if (!openRequests.current(request)) return false
@@ -8288,7 +8306,32 @@ function DevForestryVisuals({
           )}
           {projectMessage && (
             <div role="status" className="mt-2">
-              <InlineAlert tone={projectMessage.error ? 'error' : 'info'}>{projectMessage.text}</InlineAlert>
+              <InlineAlert tone={projectMessage.error ? 'error' : 'info'}>
+                {projectMessage.text}
+                {projectMessage.referenceMove &&
+                  referenceMoveOffer(
+                    scene.reportMetadata,
+                    projectAttachments.map((entry) => entry.name),
+                  ) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-1.5 flex"
+                      data-testid="visuals-move-reference"
+                      onClick={() => {
+                        setScene((current) => ({
+                          ...current,
+                          reportMetadata: movedReference(current.reportMetadata ?? {}),
+                        }))
+                        setProjectMessage({
+                          text: 'Moved Objective established by to Historical reference (Save & export → FS1252 office information). Objective established by is blank.',
+                        })
+                      }}
+                    >
+                      Move to Historical reference
+                    </Button>
+                  )}
+              </InlineAlert>
             </div>
           )}
           {projectTitle && <p className="mt-2 text-xs font-medium">{projectTitle}</p>}

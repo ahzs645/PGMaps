@@ -38,7 +38,7 @@ them; the benchmark items are described by what they ask, not by case.
 | VQ-01 | Keep each site's evidence on its own site              | Done   | `51157a5d`, `feb3e7fa`, `e022b6c2` |
 | VQ-02 | One readiness rule for every output                    | Done   | `58381887`, `5a1321cd`, `986eda39` |
 | VQ-03 | One resolved formula on every analysis figure          | Done   | `27ee8747` |
-| VQ-04 | Reference evidence apart from the objective's authority | Done; old archives wait on decision 2 | `b044572e`, `8e7a4f77` |
+| VQ-04 | Reference evidence apart from the objective's authority | Done, decision 2 included | `b044572e`, `8e7a4f77` |
 | VQ-05 | Recover work when starting a different site            | Done   | `8ae9de24` |
 | VQ-06 | Competing runs never strand a capture                  | Done   | `93874ccf`, `39802eb9` |
 | VQ-07 | Drawn timber and retries recoverable                   | Done   | `64521717` |
@@ -73,7 +73,7 @@ them; the benchmark items are described by what they ask, not by case.
 - **VQ-04.** The authority sentence now prints only beside a recorded
   objective, and the figures request and a withheld authority stay out of the
   report files. Archives saved before the change still carry the historical
-  reference in the old field; moving it is decision 2.
+  reference in the old field; decision 2 offers to move it (see Decisions).
 - **VQ-12 and VQ-13.** A view of interest takes a typed place (`viewCoordinates.ts`:
   WGS84, or NAD83 UTM zones 7N to 11N, keeping the precision it was typed to),
   its own lens (`viewCamera.ts`) and a surveyed eye, either an elevation or a
@@ -127,8 +127,8 @@ unless it says otherwise.
   `7bb3643a`).
 - A view stood at was run from the pull-out's two ends, 15 m from the eye, never
   from the eye itself. Decision 1 moved new runs to the eye.
-- The VIA report throws when no view has a class pass. Whether it should print
-  with no figures at all is decision 4.
+- The VIA document threw when no view had a class pass, and the VIA report was
+  recorded as doing the same. Decision 4 settled both: they print.
 
 The real-GPU check in the second pass found four more, all fixed:
 
@@ -164,6 +164,27 @@ and the VIA report's Methods names each view that stood at its own eye
 The two landform-finding tools and the road view video still use the scene's
 eye: they suggest candidates and record pictures, and print no figure.
 
+**Taken, 23 November 2026: old archives' reference field (decision 2).** When a
+project opens whose *Objective established by* (`sourceDocument`) names only
+files the project carries, each " | "-separated part an attachment's name
+(`referenceMoveOffer`, `referenceMove.ts`), step 1's receipt and the header say
+so, and the receipt and the FS1252 office field offer *Move to Historical
+reference*: one click appends the text to `referenceDocument` and clears
+`sourceDocument`, as one ordinary edit (`movedReference`). Nothing moves on open,
+a field that names anything else is never offered, and nothing else changes.
+The converter that wrote the old field is not in this repository and was not
+changed.
+
+**Taken, 23 November 2026: a report with no figures prints (decision 4).** The
+VIA report and the VIA document are written when no view of the package has a
+class pass: every figure and picture nobody gave prints nothing, and each view
+is named on the report's to-complete list (`withViewsLeftOut`) or under the
+document's *Reviewer to complete* (`withViewsToComplete`), with why at the file's
+end. The document no longer throws; the report's assembly already wrote every
+format with no figure (`viaReport/noClassPass.test.ts`,
+`viaDocument/noClassPass.test.ts`). A package holding no view at all is still
+refused, with the reason.
+
 **Open, for the owner** (with the recommendation made at triage):
 
 1. **Run stations at the eye.** Taken on 23 November 2026: yes, as
@@ -176,19 +197,16 @@ eye: they suggest candidates and record pictures, and print no figure.
    9.3 points at two where one pull-out end saw over near ground the eye does
    not (the main doc's **Where a view's stations stand**). The real cases are
    still to be measured, when the VIA research folder is back.
-2. **Old archives' reference field.** Move the historical reference out of the
-   old `sourceDocument` field. Recommended: a one-click move when the archive
-   opens, and fix the converter that writes the old field.
+2. **Old archives' reference field.** Done, 23 November 2026 (above).
 3. **Earlier captures.** Captures saved under an earlier version of a planned
    view no longer count as its capture and are dropped from the saved views.
    Recommended: list them read-only as *Earlier captures*, each with *Keep as
    its own saved view*. This settles VQ-11.
-4. **A report with no figures.** Whether the VIA report prints when no view has
-   a class pass, or refuses with the reason.
+4. **A report with no figures.** Done, 23 November 2026 (above): it prints.
 
 ## Still open
 
-- Decisions 1 to 4, and VQ-11 with decision 3.
+- Decisions 1 and 3, and VQ-11 with decision 3.
 - VQ-20's partial-acceptance counts, degenerate rings and empty import message.
 - VQ-29 to VQ-31: the benchmarks need the VIA research folder, which was not on
   the machine.
