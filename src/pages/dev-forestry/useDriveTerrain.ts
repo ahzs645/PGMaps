@@ -24,6 +24,20 @@ let forestContextReadCount = 0
 const FOREST_CONTEXT_READS_KEPT = 2
 
 /**
+ * The background read that answers `request`, or null while its read is still to come. A read that came is matched by
+ * the request's key, not its identity: a new extent over the same ground keeps the band. A failed read answers only
+ * the very request it was made for: every new request starts a new read (failures are never kept), so a retry, or the
+ * option switched off and on again, shows as loading rather than as the old failure.
+ */
+export function answeringContext<R extends { key: string }, T extends { request: R | null; read: unknown }>(
+  context: T | null,
+  request: R | null,
+): T | null {
+  if (!request || !context?.request || context.request.key !== request.key) return null
+  return context.read || context.request === request ? context : null
+}
+
+/**
  * The tiles the road view loads: the road and blocks' box, widened by `reach` when given (a photo viewpoint's wedge,
  * `photoStandReach`), at the finest zoom that keeps within `DRIVE_TERRAIN_MAX_TILES`. A wider reach costs detail,
  * never more tiles; finer near-road data is not fabricated.
@@ -275,14 +289,7 @@ export function useDriveTerrain(
               ? { source, message: null, progress: 100, loading: false, extent: request.extent }
               : { source: null, message: pendingMessage, progress: 0, loading: true }
           })()
-  // Matched by the request's key, not its identity: a new extent over the same read keeps the band. A failed read
-  // answers only the attempt it was made on, so a retry shows as loading rather than as the old failure.
-  const activeContext =
-    contextRequest &&
-    context?.request?.key === contextRequest.key &&
-    (context.read || context.request.attempt === contextRequest.attempt)
-      ? context
-      : null
+  const activeContext = answeringContext(context, contextRequest)
   const forestContextNote = !contextWanted
     ? null
     : !contextRequest
