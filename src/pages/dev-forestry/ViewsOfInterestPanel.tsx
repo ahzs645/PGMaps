@@ -44,6 +44,9 @@ import {
   type ViewOfInterestFacing,
 } from './viewsOfInterest'
 
+/** The Lens choice that opens the view's own lens (`ViewOfInterest.lens`). */
+const OWN_LENS = 'own'
+
 /** Number of planned views to capture in one batch. */
 const MAX_CAPTURE_BATCH = 12
 const CAPTURE_BATCH_SIZES = [1, 3, 6, MAX_CAPTURE_BATCH] as const
@@ -84,6 +87,11 @@ export type ViewsOfInterestPanelProps = {
   onShowView?: (view: ViewOfInterest) => void
   /** Extra control in the open row, such as the landform seen from the view. */
   landformControl?: (view: ViewOfInterest) => ReactNode
+  /**
+   * The view's place and camera (`ViewCameraFields`): its coordinates in both systems and typed, its own lens, its
+   * surveyed eye; in the View tab under the lens.
+   */
+  cameraControl?: (view: ViewOfInterest) => ReactNode
   /** The view's Table 3 record (significance, type, why chosen, experience, duration), in its open row. */
   recordControl?: (view: ViewOfInterest) => ReactNode
   /** Whether the view is its block's (or the blocks') key viewpoint for the reports, in its open row. */
@@ -406,6 +414,7 @@ export function ViewsOfInterestList({
   onOpenExport,
   onShowView,
   landformControl,
+  cameraControl,
   recordControl,
   keyControl,
   photoControl,
@@ -792,20 +801,32 @@ export function ViewsOfInterestList({
                       <div className="grid grid-cols-2 gap-1.5">
                         <SelectField
                           label="Lens"
-                          value={String(view.focalMm)}
+                          value={view.lens && !view.photo ? OWN_LENS : String(view.focalMm)}
                           // A photo viewpoint keeps its photo's lens: the camera is changed by accepting it again.
                           disabled={!!view.photo}
                           title={view.photo ? 'The photo’s lens: accept its camera again to change it.' : undefined}
-                          onValueChange={(value) => update(view.id, { focalMm: Number(value) })}
+                          onValueChange={(value) =>
+                            // Its own lens starts as the lens it has, so choosing it changes nothing until typed.
+                            value === OWN_LENS
+                              ? update(view.id, { lens: { kind: 'focal', focalMm: view.focalMm, cropFactor: 1 } })
+                              : update(view.id, { focalMm: Number(value), lens: undefined })
+                          }
                         >
                           {[
                             ...LENS_FOCAL_LENGTHS,
-                            ...((LENS_FOCAL_LENGTHS as readonly number[]).includes(view.focalMm) ? [] : [view.focalMm]),
+                            ...((LENS_FOCAL_LENGTHS as readonly number[]).includes(view.focalMm) || view.lens
+                              ? []
+                              : [view.focalMm]),
                           ].map((focal) => (
                             <option key={focal} value={String(focal)}>
                               {lensLabel(focal)}
                             </option>
                           ))}
+                          {!view.photo && (
+                            <option value={OWN_LENS}>
+                              {view.lens ? `Own: ${lensLabel(view.focalMm)}` : 'Own lens: a field or focal length'}
+                            </option>
+                          )}
                         </SelectField>
                         <SelectField
                           label="Framing"
@@ -818,6 +839,7 @@ export function ViewsOfInterestList({
                           <option value="single">One frame along the facing</option>
                         </SelectField>
                       </div>
+                      {cameraControl?.(view)}
                       {landformControl?.(view)}
                       {standingHere && standingControl && (
                         <section

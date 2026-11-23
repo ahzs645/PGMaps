@@ -78,6 +78,16 @@ import type { CanopyStand } from './dev-forestry/canopy'
 import { createRoadsideDriveScene, ROADSIDE_DEMO_ID, roadsideDriveCue } from './dev-forestry/driveScenario'
 import { createPurdenLakeScene } from './dev-forestry/purdenLakeScenario'
 import { lensHfovDeg, viewCaptureKey, type ViewOfInterest } from './dev-forestry/viewsOfInterest'
+import {
+  eyeCheck,
+  lensEntryLabel,
+  lensEntryNote,
+  viewCaptureCamera,
+  viewEyeLabel,
+  type ViewEye,
+} from './dev-forestry/viewCamera'
+import { placeEntryLine, placeEntryOf } from './dev-forestry/viewCoordinates'
+import { ViewCameraFields, ViewPlacePreviewMarker } from './dev-forestry/ViewCameraFields'
 import { AssessFromView } from './dev-forestry/AssessFromView'
 import { useViewCapture, type ViewCaptureHost, type ViewSaveOutcome } from './dev-forestry/useViewCapture'
 import {
@@ -396,7 +406,7 @@ import {
   targetsToGeoJson,
   type ForestryScene,
 } from './dev-forestry/scene'
-import type { ReverseInput, TargetPolygon, Viewpoint } from './dev-forestry/types'
+import type { ReverseInput, SurveyedEye, TargetPolygon, Viewpoint } from './dev-forestry/types'
 import { PlanMapLegend } from './dev-forestry/PlanMapLegend'
 import { PlanClickToMove, PlanViewerHandles } from './dev-forestry/PlanViewerHandles'
 import { ViewsOfInterestLayers } from './dev-forestry/ViewsOfInterestLayers'
@@ -604,6 +614,14 @@ type FigureAt = {
   framing?: 'landform' | 'single'
   /** A photo viewpoint's pitch above the horizon: its single frame is centred on it. */
   framePitch?: number | null
+  /** A view's own eye height above the terrain model's ground it was saved with, metres; absent: the run's. */
+  eyeHeightM?: number
+  /** Whether the camera information compares a surveyed eye with the terrain model (not for a photo's camera). */
+  checkEye?: boolean
+  /** The view's typed place, when the eye stood on it (`placeEntryOf`): printed with the figure. */
+  typedPlace?: { line: string; zone?: number }
+  /** The view's own lens as entered (`lensEntryLabel`), when it has one. */
+  lensEntered?: string
 }
 
 /** Where the reviewer stood before a capture of planned views (`useViewCapture`), to step back to afterwards. */
@@ -634,6 +652,8 @@ type ViewCaptureReturn = {
   lens: number | null
   /** The photo viewpoint stood at, when one was (`photoStand`): its look comes back with it. */
   photoStand: PhotoStand | null
+  /** A view's own eye height held when the capture started (`viewEyeHeight`). */
+  viewEyeHeight: ViewEyeHeight | null
 }
 
 /**
@@ -653,6 +673,9 @@ type PhotoStand = {
   roll: number
   hfov: number
 }
+
+/** A view of interest's own eye height over the ground, held while its stand is stood at (`viewEyeHeight`). */
+type ViewEyeHeight = { viewpointId: string; viewId: string; meters: number }
 
 /** Longest a background render waits for the road view and its terrain to come back (a reload after a run). */
 const ROAD_VIEW_SETTLE_MS = 90_000
@@ -1822,6 +1845,12 @@ function DevForestryVisuals({
   // (the stand's surveyed eye) and the road view holds the photo's heading, pitch, roll and lens. Tied to the stand's
   // viewpoint: any other viewpoint (the road again, another view) ends it without being told.
   const [photoStand, setPhotoStand] = useState<PhotoStand | null>(null)
+  // Standing at a view of interest with its own eye height above the ground (`ViewOfInterest.eye`, `ground`): the road
+  // view's eye, and the capture with it, stand that high over the terrain model; the run's stations keep the run's.
+  // Tied to the stand's viewpoint, as `photoStand` is.
+  const [viewEyeHeight, setViewEyeHeight] = useState<ViewEyeHeight | null>(null)
+  // A view's typed place shown on the plan before it is applied (`ViewCameraFields`).
+  const [placePreview, setPlacePreview] = useState<{ lng: number; lat: number } | null>(null)
   const [shelvedViews, setShelvedViews] = useState<Array<{ key: string; views: SavedDriveView[] }>>([])
   // Back to a design (or a road) whose views were shelved: they come back.
   useEffect(() => {
@@ -2997,6 +3026,8 @@ function DevForestryVisuals({
   const preparePreview = drive.active || !!pendingPreview || !!result
   // The photo viewpoint stood at now; null once the viewpoint is anything else.
   const photoStandNow = photoStand && scene.viewpoint.id === photoStand.viewpointId ? photoStand : null
+  // A view's own eye height while its stand is stood at; null once the viewpoint is anything else.
+  const viewEyeHeightNow = viewEyeHeight && scene.viewpoint.id === viewEyeHeight.viewpointId ? viewEyeHeight : null
   // The road view's lens across: a photo viewpoint's own field, else View options → *Lens* (or a planned view's).
   const roadViewHfov = photoStandNow?.hfov ?? (roadViewLens ? lensHfovDeg(roadViewLens) : null)
   // A photo from the air looks kilometres past the road and its blocks: its road view loads the ground ahead of the
@@ -3189,6 +3220,8 @@ function DevForestryVisuals({
   }, [photoDocked, linkedPose, linkedHits, linkedGround])
   const [lookBearing, setLookBearing] = useState(0)
   const [viewerFov, setViewerFov] = useState(60)
+  // The road view's canvas in CSS pixels, for a view's own lens's vertical field there (`ViewCameraFields`).
+  const [roadViewCanvas, setRoadViewCanvas] = useState<{ width: number; height: number } | null>(null)
   // The road view's viewer on the plan: the viewing station (the pose's ground position, never the
   // eye map's centre, which sits on the skyline), to about 10 m, so the plan redraws a few times a
   // second while driving rather than every frame.
@@ -4859,6 +4892,16 @@ function DevForestryVisuals({
       landform: landform?.geometry ?? null,
     }
     const badge = inventoryBadge(badgeUnits, { ...inventoryAt, read: inventoryRead })
+    // A surveyed eye against the terrain model's eye under it (the drive's own ground there), flagged past the
+    // tolerance with both numbers on the camera information; never for a photo's camera.
+    const surveyedEyeCheck =
+      at.checkEye && at.pose?.eyeSurveyed
+        ? eyeCheck(
+            { reference: 'elevation', meters: at.pose.eyeElevationMeters },
+            at.pose.groundElevationMeters,
+            scene.settings.observerHeightMeters,
+          )
+        : null
     const partialCuts = figurePartialCuts()
     const nearest = callouts
       .filter((callout) => !callout.secondary)
@@ -4880,6 +4923,7 @@ function DevForestryVisuals({
           value: `${scene.viewpoint.name || 'Road'}${station ? `, ${(station.distanceAlongMeters / 1000).toFixed(2)} km` : ''}`,
         },
         ...(at.eye ? [{ label: 'Location', value: `${at.eye.lat.toFixed(5)}, ${at.eye.lng.toFixed(5)}` }] : []),
+        ...(at.typedPlace ? [{ label: 'Entered as', value: at.typedPlace.line }] : []),
         ...(nearest.length
           ? [{ label: 'Distance to block', value: `${(Math.min(...nearest) / 1000).toFixed(1)} km` }]
           : []),
@@ -4915,12 +4959,17 @@ function DevForestryVisuals({
         frames,
         focalMm: focalForHfov(hfovDeg / frames),
         fovDeg: hfovDeg,
-        observerHeightM: scene.settings.observerHeightMeters,
+        observerHeightM: at.eyeHeightM ?? scene.settings.observerHeightMeters,
         above: eye && basemap.water.some((water) => pointInPolygon(water, eye.lng, eye.lat)) ? 'lake level' : 'ground',
         lng: eye?.lng ?? at.eye?.lng ?? scene.viewpoint.coordinates[0]?.[0] ?? 0,
         lat: eye?.lat ?? at.eye?.lat ?? scene.viewpoint.coordinates[0]?.[1] ?? 0,
         elevationM: eye?.elevation ?? 0,
         ...(at.pose?.eyeSurveyed ? { surveyed: true } : {}),
+        ...(surveyedEyeCheck?.flagged
+          ? { modelEyeM: surveyedEyeCheck.modelEyeMeters, eyeToleranceM: surveyedEyeCheck.toleranceMeters }
+          : {}),
+        ...(at.typedPlace?.zone ? { utmZone: at.typedPlace.zone } : {}),
+        ...(at.lensEntered ? { lensEntered: at.lensEntered } : {}),
         azimuthDeg: azimuth,
         maxTreeHeightM:
           engineTreeHeight !== undefined
@@ -5143,6 +5192,15 @@ function DevForestryVisuals({
     const atPhoto = photoStandNow && savedFor === photoStandNow.viewId ? photoStandNow : null
     const photoView = atPhoto ? viewsOfInterest.find((entry) => entry.id === atPhoto.viewId) : null
     const photoRecord = photoView ? viewPhotoRecord(photoView, tools.photoRecords) : null
+    // The view of interest saved, for its own camera: its typed place (printed only while the eye stands on it), its
+    // lens as entered and its eye.
+    const viewFor = savedFor ? (viewsOfInterest.find((entry) => entry.id === savedFor) ?? null) : null
+    const savePose = drivePoseRef.current
+    const typed = viewFor ? placeEntryOf(viewFor) : null
+    const typedHere = typed && savePose && haversineMeters(savePose, typed) <= 1 ? typed : null
+    const eyeHeightM = !photoLook && viewEyeHeightNow ? viewEyeHeightNow.meters : undefined
+    const viewEye: ViewEye | null = viewFor && !viewFor.photo ? (viewFor.eye ?? null) : null
+    const lensEntered = viewFor?.lens && !viewFor.photo && !photoLook ? lensEntryLabel(viewFor.lens) : undefined
     let finished: Promise<ViewSaveOutcome> = Promise.resolve({ viewId: view.id })
     if (map) {
       const caption = `${view.name}.`
@@ -5170,13 +5228,18 @@ function DevForestryVisuals({
                 label: 'Eye height',
                 value: `${Math.round(atPhoto.altitudeMeters)} m above sea level, the photo's camera`,
               }
-            : { label: 'Eye height', value: `${result?.settings.observerHeightMeters ?? '—'} m above the road` },
+            : viewEye && (viewEye.reference === 'ground' ? eyeHeightM !== undefined : savePose?.eyeSurveyed)
+              ? { label: 'Eye height', value: `${viewEyeLabel(viewEye)}, this view's own` }
+              : { label: 'Eye height', value: `${result?.settings.observerHeightMeters ?? '—'} m above the road` },
           {
             label: 'Lens',
-            value: lensHfov
-              ? `${Math.round(focalForHfov(lensHfov))} mm full-frame equivalent, ${lensHfov.toFixed(1)}° across`
-              : `${Math.round(map.getVerticalFieldOfView())}° vertical field of view`,
+            value: lensEntered
+              ? lensEntered
+              : lensHfov
+                ? `${Math.round(focalForHfov(lensHfov))} mm full-frame equivalent, ${lensHfov.toFixed(1)}° across`
+                : `${Math.round(map.getVerticalFieldOfView())}° vertical field of view`,
           },
+          ...(typedHere ? [{ label: 'Entered as', value: placeEntryLine(typedHere) }] : []),
           {
             label: 'Timber',
             value: `VRI species mix and heights where recorded; ${view.treeHeightMeters} m elsewhere`,
@@ -5199,6 +5262,10 @@ function DevForestryVisuals({
         ...(lensHfov ? { lensHfov } : {}),
         ...(planned ? { framing: planned.framing } : {}),
         ...(atPhoto ? { framePitch: atPhoto.pitch } : {}),
+        ...(eyeHeightM !== undefined ? { eyeHeightM } : {}),
+        ...(atPhoto ? {} : { checkEye: true }),
+        ...(typedHere ? { typedPlace: { line: placeEntryLine(typedHere), zone: typedHere.zone } } : {}),
+        ...(viewFor?.lens && lensEntered ? { lensEntered: lensEntryNote(viewFor.lens) } : {}),
         // The frame and landform it is saved with: an earlier view keeps its own after the viewpoint changes.
         figureFrame: scene.figureFrame ?? null,
         landform: sceneLandform
@@ -5396,22 +5463,34 @@ function DevForestryVisuals({
       // started, or, standing at views one after another, the one active before the first view's was made active.
       const base = captureBaseLandform.current ?? (standing?.landform ? { id: standing.landform.reviewer } : null)
       const place = { ...standPlace(view, candidate?.name), lng: view.lng, lat: view.lat }
-      // A photo viewpoint stands the eye at the photo's altitude (the stand's surveyed eye, so the run stands there
-      // too), not the 2 km walk off a road.
+      // A photo viewpoint stands the eye at the photo's altitude, and a view with a surveyed elevation at that (the
+      // stand's surveyed eye, so the run stands there too), not the 2 km walk off a road. A view's height above the
+      // ground stands only the road view's eye (`viewEyeHeight`).
+      const camera = viewCaptureCamera(view)
       const nextKey = standAtPlace(
         place,
         block,
         standFacing(view),
         view.landformId ? { activeLandformId: view.landformId } : base ? { activeLandformId: base.id } : {},
-        { ...options, surveyedEyeMeters: view.photo?.altitudeMeters ?? null },
+        { ...options, surveyedEyeMeters: camera.surveyedEyeMeters },
       )
       setPhotoStand(nextKey ? photoStandFor(view, `stand-${place.key}`, block) : null)
+      setViewEyeHeight(
+        nextKey && camera.eyeHeightMeters !== null
+          ? { viewpointId: `stand-${place.key}`, viewId: view.id, meters: camera.eyeHeightMeters }
+          : null,
+      )
       return nextKey ? { key: nextKey } : { error: 'Its block has no centre to face.' }
     },
     face: (view) => {
       setRoadViewLens(view.focalMm)
       const block = scene.targets.find((target) => target.id === view.blockId && target.role === 'block')
       setPhotoStand(block ? photoStandFor(view, sceneRef.current.viewpoint.id, block) : null)
+      // Views at one place share their eye (`groupByPlace`), so this only follows the view faced.
+      const height = viewCaptureCamera(view).eyeHeightMeters
+      setViewEyeHeight(
+        height !== null ? { viewpointId: sceneRef.current.viewpoint.id, viewId: view.id, meters: height } : null,
+      )
       updateDrive({ ...standFacing(view), playing: false })
     },
     save: (view, signal) =>
@@ -5528,6 +5607,7 @@ function DevForestryVisuals({
         lookBearing: drive.lookBearing,
         lens: roadViewLens,
         photoStand,
+        viewEyeHeight,
       }
     },
     restore: (back) => {
@@ -5537,6 +5617,7 @@ function DevForestryVisuals({
       if (back.generation !== siteGeneration.current) return
       setRoadViewLens(back.lens)
       setPhotoStand(back.photoStand)
+      setViewEyeHeight(back.viewEyeHeight)
       const nextKey = moveViewpoint(back.viewpoint, { activeLandformId: back.activeLandformId })
       setStanding(back.standing)
       if (back.roadViewOpen) {
@@ -7347,7 +7428,28 @@ function DevForestryVisuals({
       }}
     />
   )
-  // Where the eye stands and the surveyed eye there: in the row of the view of interest stood at, else in step 2.
+  /** Sets the stood-at viewpoint's surveyed eye (a run input), holding the road view open through the new run. */
+  const setStandSurveyedEye = (eye: SurveyedEye | undefined) => {
+    setScene((current) => {
+      const viewpoint = { ...current.viewpoint }
+      if (eye) viewpoint.surveyedEye = eye
+      else delete viewpoint.surveyedEye
+      return { ...current, viewpoint }
+    })
+    // A run input: the run goes stale and closes the road view, so, as for a stand, it is
+    // held open and reopens where it was once the run is made again.
+    const open = driveRef.current
+    if (!open.active) return
+    setRoadViewHeld(true)
+    setStandRequest((request) => ({
+      serial: (request?.serial ?? 0) + 1,
+      positionMeters: open.positionMeters,
+      lookAtTargetId: open.lookAtTargetId,
+      lookBearing: open.lookBearing ?? null,
+    }))
+  }
+  // Where the eye stands and the surveyed eye there: in step 2 for a road or a place that is no view of interest. A
+  // view of interest keeps its own eye in its row (`ViewCameraFields`).
   const stoodViewpointPanel = (bare: boolean) => (
     <StoodViewpointPanel
       bare={bare}
@@ -7356,27 +7458,29 @@ function DevForestryVisuals({
         standPoint && previewTerrain.source ? previewTerrain.source.elevationAt(standPoint.lng, standPoint.lat) : null
       }
       observerHeightMeters={scene.settings.observerHeightMeters}
-      onSurveyedEyeChange={(eye) => {
-        setScene((current) => {
-          const viewpoint = { ...current.viewpoint }
-          if (eye) viewpoint.surveyedEye = eye
-          else delete viewpoint.surveyedEye
-          return { ...current, viewpoint }
-        })
-        // A run input: the run goes stale and closes the road view, so, as for a stand, it is
-        // held open and reopens where it was once the run is made again.
-        const open = driveRef.current
-        if (!open.active) return
-        setRoadViewHeld(true)
-        setStandRequest((request) => ({
-          serial: (request?.serial ?? 0) + 1,
-          positionMeters: open.positionMeters,
-          lookAtTargetId: open.lookAtTargetId,
-          lookBearing: open.lookBearing ?? null,
-        }))
-      }}
+      onSurveyedEyeChange={setStandSurveyedEye}
     />
   )
+  /**
+   * Writes a view's place, lens or eye (`ViewCameraFields`). The views are out of the run; but the eye of the view
+   * stood at is its stand's too, as a capture would stand it: an elevation is the stand's surveyed eye (a run input,
+   * as a photo viewpoint's altitude), a height above the ground the road view's eye alone.
+   */
+  const updateViewCamera = (view: ViewOfInterest, patch: Partial<ViewOfInterest>) => {
+    setViewsOfInterest((views) => views.map((entry) => (entry.id === view.id ? { ...entry, ...patch } : entry)))
+    if (!('eye' in patch) || view.photo || view.id !== summaryView?.id || !standingNow) return
+    const eye = patch.eye ?? null
+    const elevation = eye?.reference === 'elevation' ? surveyedEyeFor(scene.viewpoint, eye.meters) : undefined
+    if ((elevation?.elevationMeters ?? null) !== surveyedEyeElevation(scene.viewpoint)) setStandSurveyedEye(elevation)
+    setViewEyeHeight(
+      eye?.reference === 'ground' ? { viewpointId: scene.viewpoint.id, viewId: view.id, meters: eye.meters } : null,
+    )
+  }
+  /** The terrain model's ground at a point, where the road view's ground is loaded; null elsewhere. */
+  const modelGroundAt = (point: { lng: number; lat: number }) => {
+    const ground = previewTerrain.source?.elevationAt(point.lng, point.lat)
+    return typeof ground === 'number' && Number.isFinite(ground) ? ground : null
+  }
   // *Record the run's figure*: a view saved here before its run's readiness was recorded (or while the run was
   // provisional) takes the ready run's sightline figure at its station, with nothing else of it captured again. Only
   // for a view saved under the scene open now, with a ready run of that same scene (`restampSightline`). Optional:
@@ -7462,6 +7566,22 @@ function DevForestryVisuals({
         })
       }
       landformControl={renderViewLandform}
+      cameraControl={(view) => (
+        <ViewCameraFields
+          key={view.id}
+          view={view}
+          onUpdate={(patch) => updateViewCamera(view, patch)}
+          onPreview={inDialog ? undefined : setPlacePreview}
+          onShowPoint={(point) =>
+            mapRef.current?.flyTo({ center: [point.lng, point.lat], zoom: Math.max(14, mapRef.current.getZoom()) })
+          }
+          modelGroundMeters={modelGroundAt(view)}
+          observerHeightMeters={scene.settings.observerHeightMeters}
+          roadViewCanvas={drive.active ? roadViewCanvas : null}
+          runStations={view.id === summaryView?.id && standingNow && result ? result.stations : null}
+          standEyeMeters={view.id === summaryView?.id && !view.eye ? surveyedEyeElevation(scene.viewpoint) : null}
+        />
+      )}
       recordControl={(view) => (
         <ViewpointRecordFields
           name={view.name}
@@ -7540,13 +7660,11 @@ function DevForestryVisuals({
         inDialog
           ? undefined
           : () => (
-              <>
-                {stoodViewpointPanel(true)}
-                <div className="space-y-1.5 border-t border-border/60 pt-2">
-                  <p className="text-2xs font-medium text-foreground">Field photo</p>
-                  {streetPhotoPanel}
-                </div>
-              </>
+              // The surveyed eye is the view's own (`ViewCameraFields`, above): only the field photo belongs here.
+              <div className="space-y-1.5">
+                <p className="text-2xs font-medium text-foreground">Field photo</p>
+                {streetPhotoPanel}
+              </div>
             )
       }
       onRenamed={(from, to) => {
@@ -8699,6 +8817,7 @@ function DevForestryVisuals({
                             }
                             standingViewId={drive.active ? (summaryView?.id ?? null) : null}
                           />
+                          {placePreview && <ViewPlacePreviewMarker point={placePreview} />}
                           <MapSketch sketch={measure} testId="visuals-measure" />
                           {measuring && (
                             <MapOverlay
@@ -9215,6 +9334,7 @@ function DevForestryVisuals({
                                       preliminaryDrive
                                         ? 150
                                         : ((photoLook && !videoDrive ? fieldPhoto.standEyeHeightMeters : null) ??
+                                          (!videoDrive && viewEyeHeightNow ? viewEyeHeightNow.meters : null) ??
                                           result?.settings.observerHeightMeters ??
                                           scene.settings.observerHeightMeters)
                                     }
@@ -9263,6 +9383,13 @@ function DevForestryVisuals({
                                           ),
                                         )
                                         setViewerFov((current) => (current === fov ? current : fov))
+                                        const width = canvas.clientWidth
+                                        const height = canvas.clientHeight
+                                        setRoadViewCanvas((current) =>
+                                          current?.width === width && current.height === height
+                                            ? current
+                                            : { width, height },
+                                        )
                                       }
                                       // A video's take drives the camera without moving the reviewer's place, and its last
                                       // reports before the camera is back are not the reviewer's either.

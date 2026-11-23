@@ -23,6 +23,19 @@ import {
 import { ARROW_AIM_DEGREES, type CandidateArrow, type ViewpointCandidate } from './viewpointInventory'
 import { acceptanceLapsed, type AcceptancePose } from './photoAcceptance'
 import type { FieldRecord } from './assessmentTools'
+import {
+  equivalentFocalMm,
+  focalForHfov,
+  focalLabel,
+  lensHfovDeg,
+  parseViewEye,
+  parseViewLens,
+  type ViewEye,
+  type ViewLensEntry,
+} from './viewCamera'
+import { parseViewPlaceEntry, type ViewPlaceEntry } from './viewCoordinates'
+
+export { focalForHfov, lensHfovDeg }
 
 /** Where a view stands: picked on the map, or one of BC's inventory viewpoints or rec sites. */
 export type ViewOfInterestSource =
@@ -77,6 +90,22 @@ export type ViewOfInterest = {
    * tilt, roll and lens, which a map view does not otherwise hold. The view's place and facing are the camera's.
    */
   photo?: ViewOfInterestPhoto | null
+  /**
+   * The place as typed (`viewCoordinates.ts`): the text, its system, datum and zone, and the precision its digits
+   * state. It describes the view only while the view still stands where it put it (`placeEntryOf`): a drag on the plan
+   * leaves it behind, unprinted.
+   */
+  place?: ViewPlaceEntry | null
+  /**
+   * The lens as entered (`viewCamera.ts`): a field across, or a focal length with its crop factor. `focalMm` is its
+   * full-frame equivalent, which older readers and the capture key read. Absent: one of `LENS_FOCAL_LENGTHS`.
+   */
+  lens?: ViewLensEntry | null
+  /**
+   * A surveyed eye (`viewCamera.ts`): an elevation above sea level, or a height above the terrain model's ground. Out of
+   * the run's stations; the capture and the road view stand there. Absent: the run's eye height over the model.
+   */
+  eye?: ViewEye | null
 }
 
 /**
@@ -102,26 +131,14 @@ export type ViewOfInterestPhoto = {
 /** The lenses offered: 50 mm is the reference sheets' lens (39.6° across), the default. */
 export const LENS_FOCAL_LENGTHS = [50, 35, 28, 24] as const
 export const DEFAULT_FOCAL_MM = 50
-/** A full-frame sensor's half width, millimetres, as `figureFraming.ts` reads focal lengths. */
-const HALF_FRAME_MM = 18
 /** Study capacity, independent of the number of views rendered in one batch. */
 export const MAX_VIEWS_OF_INTEREST = 24
 /** Inventory arrows aimed at the block that a viewpoint adds by default. */
 export const DEFAULT_ARROWS_PER_VIEWPOINT = 2
 
-/** The horizontal field of a full-frame-equivalent focal length, degrees. */
-export function lensHfovDeg(focalMm: number): number {
-  return (2 * Math.atan(HALF_FRAME_MM / focalMm) * 180) / Math.PI
-}
-
-/** The full-frame-equivalent focal length of a field across, millimetres: `lensHfovDeg`'s inverse. */
-export function focalForHfov(hfovDeg: number): number {
-  return HALF_FRAME_MM / Math.tan((hfovDeg * Math.PI) / 360)
-}
-
-/** "50 mm · 39.6° across". */
+/** "50 mm · 39.6° across" ("79.9 mm · 25.4° across" for a lens entered by its field). */
 export function lensLabel(focalMm: number): string {
-  return `${focalMm} mm · ${lensHfovDeg(focalMm).toFixed(1)}° across`
+  return `${focalLabel(focalMm)} · ${lensHfovDeg(focalMm).toFixed(1)}° across`
 }
 
 let counter = 0
@@ -278,6 +295,8 @@ export function viewCaptureKey(view: ViewOfInterest): string {
           tenth(view.photo.hfov),
         ]
       : []),
+    // A surveyed eye only when the view has one (and no photo, whose camera is its own), tagged so it is read by name.
+    ...(view.eye && !view.photo ? [['eye', view.eye.reference, tenth(view.eye.meters)]] : []),
   ])
 }
 
@@ -288,7 +307,9 @@ export function viewCaptureKey(view: ViewOfInterest): string {
  */
 export function groupByPlace(views: readonly ViewOfInterest[]): ViewOfInterest[][] {
   const groups: ViewOfInterest[][] = []
-  const eyeOf = (view: ViewOfInterest) => view.photo?.altitudeMeters ?? null
+  // A surveyed eye is a stand of its own too: an elevation is the stand's run input, a height the road view's eye.
+  const eyeOf = (view: ViewOfInterest) =>
+    view.photo ? view.photo.altitudeMeters : view.eye ? `${view.eye.reference}:${view.eye.meters}` : null
   for (const view of views) {
     const group = groups.find(
       (entry) =>
@@ -378,7 +399,21 @@ const CAPTURE_KEY_PARTS = [
   'roll',
   'lens',
 ] as const
-export type CaptureKeyPart = (typeof CAPTURE_KEY_PARTS)[number]
+export type CaptureKeyPart = (typeof CAPTURE_KEY_PARTS)[number] | 'eye'
+
+/** A key part's name: a tagged part (`['eye', …]`) by its tag, the rest by place. */
+const keyPartName = (part: unknown, index: number): CaptureKeyPart | undefined =>
+  Array.isArray(part) && part[0] === 'eye' ? 'eye' : CAPTURE_KEY_PARTS[index]
+
+/** A key's parts by name. */
+function namedKeyParts(parts: readonly unknown[]): Map<CaptureKeyPart, string[]> {
+  const named = new Map<CaptureKeyPart, string[]>()
+  parts.forEach((part, index) => {
+    const name = keyPartName(part, index)
+    if (name) named.set(name, [...(named.get(name) ?? []), JSON.stringify(part)])
+  })
+  return named
+}
 
 /**
  * What changed since an outdated view was captured: the parts of its latest capture's key that differ from its key
@@ -396,14 +431,20 @@ export function captureKeyChanges(view: ViewOfInterest, savedViews: ReadonlyArra
     return []
   }
   const now = JSON.parse(key) as unknown[]
-  if (!Array.isArray(before) || before.length > CAPTURE_KEY_PARTS.length) return []
-  // A photo's camera lengthens the key: a part one key lacks reads as changed (a photo linked or unlinked).
+  if (!Array.isArray(before) || before.length > CAPTURE_KEY_PARTS.length + 1) return []
+  // A photo's camera or a surveyed eye lengthens the key: a part one key lacks reads as changed (a photo linked or
+  // unlinked, an eye surveyed or cleared).
+  const was = namedKeyParts(before)
+  const is = namedKeyParts(now)
+  // In key order, each part named once, at the first place it changes.
   const changed: CaptureKeyPart[] = []
   for (let index = 0; index < Math.max(now.length, before.length); index += 1) {
-    const part = CAPTURE_KEY_PARTS[index]
-    const was = index < before.length ? JSON.stringify(before[index]) : undefined
-    const is = index < now.length ? JSON.stringify(now[index]) : undefined
-    if (part && was !== is && !changed.includes(part)) changed.push(part)
+    for (const part of [keyPartName(before[index], index), keyPartName(now[index], index)]) {
+      if (!part || changed.includes(part)) continue
+      const differs = JSON.stringify(was.get(part) ?? null) !== JSON.stringify(is.get(part) ?? null)
+      const here = JSON.stringify(before[index]) !== JSON.stringify(now[index])
+      if (differs && here) changed.push(part)
+    }
   }
   return changed
 }
@@ -451,10 +492,18 @@ export function parseViewsOfInterest(raw: unknown): ViewOfInterest[] {
             }
           : null
     if (!parsedFacing) continue
-    const focalMm =
-      finite(value.focalMm) && value.focalMm >= 10 && value.focalMm <= 300 ? value.focalMm : DEFAULT_FOCAL_MM
+    // A lens entered by its field or focal length sets the equivalent focal length it was saved with; one that does not
+    // read is dropped and the stored focal length kept.
+    const lens = parseViewLens(value.lens)
+    const focalMm = lens
+      ? equivalentFocalMm(lens)
+      : finite(value.focalMm) && value.focalMm >= 10 && value.focalMm <= 300
+        ? value.focalMm
+        : DEFAULT_FOCAL_MM
     // A photo link that does not read is dropped and the view kept: it stands where the photo was, facing its way.
     const photo = parseViewPhoto(value.photo)
+    const place = parseViewPlaceEntry(value.place)
+    const eye = parseViewEye(value.eye)
     views.push({
       id: value.id,
       name: value.name,
@@ -471,6 +520,9 @@ export function parseViewsOfInterest(raw: unknown): ViewOfInterest[] {
         ? { assessedWith: value.assessedWith }
         : {}),
       ...(photo ? { photo } : {}),
+      ...(place ? { place } : {}),
+      ...(lens ? { lens } : {}),
+      ...(eye ? { eye } : {}),
     })
     if (views.length >= MAX_VIEWS_OF_INTEREST) break
   }
@@ -636,7 +688,8 @@ export function viewFromAcceptedPhoto(
       hfov: pose.hfov,
     },
   }
-  if (existing) return { kind: 'update', view: { ...existing, ...camera } }
+  // The photo's camera replaces a lens or eye entered by hand: the view is the photo's now.
+  if (existing) return { kind: 'update', view: { ...existing, ...camera, lens: undefined, eye: undefined } }
   if (views.length >= MAX_VIEWS_OF_INTEREST)
     return {
       kind: 'none',

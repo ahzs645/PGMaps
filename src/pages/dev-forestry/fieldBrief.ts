@@ -36,6 +36,8 @@ import type { SavedDriveView } from './previewState'
 import type { AnalysisResult, TargetPolygon, Viewpoint } from './types'
 import { table2Range, type ViaAssessment, type ViaReview } from './via'
 import { viewBearing, type ViewOfInterest } from './viewsOfInterest'
+import { viewEyeLabel } from './viewCamera'
+import { placeEntryLine, placeEntryOf as typedPlace } from './viewCoordinates'
 import {
   bearingDegrees,
   haversineMeters,
@@ -220,7 +222,12 @@ export function briefViewpoints(input: {
       key: viewOfInterestCheckKey(view.id),
       ...(capture ? { savedViewId: capture.id } : {}),
       name: view.name,
-      where: view.id === standing ? 'View of interest · assessing from here' : 'View of interest',
+      where: [
+        view.id === standing ? 'View of interest · assessing from here' : 'View of interest',
+        // The place as typed, so the crew stands where the record says, not where a rounded coordinate does.
+        ...(typedPlace(view) ? [`entered as ${placeEntryLine(typedPlace(view)!)}`] : []),
+        ...(view.eye && !view.photo ? [`eye ${viewEyeLabel(view.eye)}`] : []),
+      ].join(' · '),
       location: { lng: view.lng, lat: view.lat },
       facing: viewBearing(view, centreOf(target)),
     })

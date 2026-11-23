@@ -26,7 +26,9 @@ import type { ForestryScene } from './scene'
 import { findSceneLandform } from './sceneInput'
 import type { AssessmentMaskKind, HarvestSystem, TargetPolygon } from './types'
 import { surveyedEyeElevation } from './viewpointStand'
-import { lensHfovDeg, type ViewOfInterest } from './viewsOfInterest'
+import { type ViewOfInterest } from './viewsOfInterest'
+import { viewCaptureCamera } from './viewCamera'
+import { placeCrsLabel, placeEntryOf } from './viewCoordinates'
 import { viewConeLengthMeters, viewsOfInterestPlan, type PlannedViewMark } from './viewsOfInterestGeometry'
 import { lineLengthMeters } from './visibility'
 import { EVQO_CODE_FOR_CLASS, EVQO_NAMES } from './visualsNarrative'
@@ -351,6 +353,16 @@ function plannedViews(scene: ForestryScene) {
   return { entries, wedges }
 }
 
+/** A view's typed place, while it still stands there (`placeEntryOf`). */
+function placeAttributes(view: ViewOfInterest) {
+  const entry = placeEntryOf(view)
+  return {
+    coord_text: entry?.text ?? null,
+    coord_crs: entry ? placeCrsLabel(entry) : null,
+    coord_prec: entry ? round(entry.precisionMeters, 3) : null,
+  }
+}
+
 const bearingValue = (bearing: number | null) => (bearing === null ? null : round(bearing, 1))
 const blockName = (scene: ForestryScene, id: string) =>
   scene.targets.find((target) => target.role === 'block' && target.id === id)?.name ?? null
@@ -386,6 +398,29 @@ const views: LayerSpec<PlannedView> = {
     { name: 'from', type: 'text', title: 'Placed from', description: 'map, vli (inventory viewpoint) or rec-site.' },
     { name: 'included', type: 'boolean', title: 'In the exports' },
     { name: 'landform', type: 'text', title: 'Landform', description: 'The landform adopted for this view.' },
+    {
+      name: 'coord_text',
+      type: 'text',
+      title: 'Coordinates entered',
+      description: 'The place as typed, while the view still stands there; blank for a view placed on the map.',
+    },
+    { name: 'coord_crs', type: 'text', title: 'Entered in', description: 'The system and datum it was typed in.' },
+    {
+      name: 'coord_prec',
+      type: 'real',
+      title: 'Entered precision (± m)',
+      description:
+        'Half the last digit given, in metres: what the digits resolve, not how well the point was measured. NAD83 and WGS84 are taken as the same, with no shift.',
+      decimals: 3,
+    },
+    {
+      name: 'eye_ref',
+      type: 'text',
+      title: 'Eye',
+      description:
+        'elevation: a surveyed eye above sea level; ground: a height above the terrain model; blank: the run’s eye height.',
+    },
+    { name: 'eye_m', type: 'real', title: 'Eye (m)', description: 'The surveyed eye, metres.', decimals: 1 },
   ],
   items: (scene) => plannedViews(scene).entries,
   feature: ({ view, mark }, scene) => ({
@@ -398,11 +433,14 @@ const views: LayerSpec<PlannedView> = {
       facing: view.facing.kind,
       bearing: bearingValue(mark.bearing),
       lens_mm: Math.round(view.focalMm),
-      hfov_deg: round(lensHfovDeg(view.focalMm), 1),
+      hfov_deg: round(viewCaptureCamera(view).hfovDeg, 1),
       framing: view.framing,
       from: view.source.kind,
       included: mark.included,
       landform: landformName(scene, view.landformId),
+      ...placeAttributes(view),
+      eye_ref: view.eye && !view.photo ? view.eye.reference : null,
+      eye_m: view.eye && !view.photo ? round(view.eye.meters, 1) : null,
     },
     geometry: [[view.lng, view.lat]],
   }),
@@ -429,7 +467,7 @@ const wedges: LayerSpec<PlannedView & { ring: GisPosition[][] }> = {
       number: mark.number,
       name: view.name,
       bearing: bearingValue(mark.bearing),
-      hfov_deg: round(lensHfovDeg(view.focalMm), 1),
+      hfov_deg: round(viewCaptureCamera(view).hfovDeg, 1),
       reach_m: Math.round(
         viewConeLengthMeters(
           view,
