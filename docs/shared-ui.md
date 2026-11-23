@@ -1031,7 +1031,9 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   (`help`) and a close button naming its key; an optional one-line `hint` (what to click); the
   tool's fields and readouts (`ReadoutGrid`) as children; a `status` line; and `actions` in a
   footer with the primary action last. Don't put a tool's live state in a banner above the map
-  or repeat it in a sidebar with a second Finish button. The host positions the card.
+  or repeat it in a sidebar with a second Finish button. The host positions the card. On a short
+  map (a phone held sideways) pass `compact`: the actions join the header row and the hint becomes
+  the title's tooltip, so the card leaves the map free to tap.
   A panel whose state must outlive the place that shows it (a dialog pane mounted only while
   open) renders once through `MovableContent` (`movable-content.tsx`) and is moved into the
   pane's slot, rather than mounted in the pane.

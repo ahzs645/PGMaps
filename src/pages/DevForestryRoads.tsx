@@ -5285,6 +5285,7 @@ export default function DevForestryRoads({
       aria-label="Sketch road"
       data-testid="sketch-feedback"
       hint="Press and drag on the plan."
+      compact={tinyHeight}
       help={
         <>
           A stroke that starts or ends at the active road&apos;s end continues it; corners take the{' '}
@@ -5312,6 +5313,8 @@ export default function DevForestryRoads({
       icon={DRAW_MODE_ICONS[mode] ?? PencilLine}
       aria-label="Drawing"
       data-testid="pegging-feedback"
+      // A phone held sideways leaves the plan about 250 px: the card keeps to one row of controls.
+      compact={tinyHeight}
       hint={
         mode === 'avoid'
           ? measureHint('polygon', true, draft.length, shortRibbon)

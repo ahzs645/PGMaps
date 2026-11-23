@@ -17,6 +17,10 @@ import { cn } from '@/lib/utils'
  *
  * Long help goes in `help`, never in the body. The host positions the card (`MapOverlay`, a pane's
  * corner); the card takes the width it is given.
+ *
+ * `compact` is for a short map (a phone held sideways): the actions move into the header row and the
+ * hint becomes the title's tooltip, so the card is about a third of its height and leaves the map
+ * free to tap. The tool's readouts and status stay.
  */
 export function MapToolPanel({
   title,
@@ -33,6 +37,7 @@ export function MapToolPanel({
   actions,
   children,
   className,
+  compact = false,
   ...props
 }: {
   title: ReactNode
@@ -52,6 +57,7 @@ export function MapToolPanel({
   actions?: ReactNode
   children?: ReactNode
   className?: string
+  compact?: boolean
   'aria-label': string
   'data-testid'?: string
 }) {
@@ -67,17 +73,21 @@ export function MapToolPanel({
     >
       <header className="flex min-h-9 items-center gap-1.5 py-1 pl-3 pr-1">
         {Icon && <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />}
-        <h3 className="min-w-0 truncate text-xs font-semibold" title={typeof title === 'string' ? title : undefined}>
+        <h3
+          className="min-w-0 truncate text-xs font-semibold"
+          title={compact && typeof hint === 'string' ? hint : typeof title === 'string' ? title : undefined}
+        >
           {title}
         </h3>
         {help && (
           <InfoTip label={helpLabel ?? `About ${typeof title === 'string' ? title : 'this tool'}`}>{help}</InfoTip>
         )}
+        {compact && actions && <div className="ml-auto flex shrink-0 items-center gap-1">{actions}</div>}
         {onClose && (
           <Button
             size="icon"
             variant="ghost"
-            className="ml-auto size-7 shrink-0"
+            className={cn('size-7 shrink-0', !(compact && actions) && 'ml-auto')}
             aria-label={closeLabel ?? 'Close'}
             data-tutorial-id={closeTutorialId}
             title={closeKeys ? `${closeLabel ?? 'Close'} · ${closeKeys}` : closeLabel}
@@ -87,9 +97,9 @@ export function MapToolPanel({
           </Button>
         )}
       </header>
-      {(hint || children || status) && (
-        <div className="space-y-2 px-3 pb-2.5">
-          {hint && <p className="text-muted-foreground">{hint}</p>}
+      {((hint && !compact) || children || status) && (
+        <div className={cn('space-y-2 px-3', compact ? 'pb-1.5' : 'pb-2.5')}>
+          {hint && !compact && <p className="text-muted-foreground">{hint}</p>}
           {children}
           {status && (
             <p
@@ -102,7 +112,7 @@ export function MapToolPanel({
           )}
         </div>
       )}
-      {actions && (
+      {actions && !compact && (
         <footer className="flex flex-wrap items-center justify-end gap-1.5 border-t bg-muted/40 px-3 py-2">
           {actions}
         </footer>
