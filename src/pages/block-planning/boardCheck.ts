@@ -63,10 +63,11 @@ export function boardCheck(plan: Plan): BoardCheck | null {
   const unit = publishedUnit(plan.area.district, plan.area.ndu)
   if (!unit || !plan.baseline.length) return null
   const years = unit.observations.map((published) => {
-    const modelled = periodCalculator(baselineProject(plan, published.year), published.year, 'proposed')(
+    const modelled = periodCalculator(
+      baselineProject(plan, published.year),
       published.year,
       'proposed',
-    )
+    )(published.year, 'proposed')
     return {
       year: published.year,
       published,
