@@ -238,7 +238,10 @@ rules in `viewCoordinates.ts` and `viewCamera.ts`, both DOM-free):
   stood at changes its stand's input and stales the run (the road view is held
   open through the new run), while editing any other view's eye never does.
   The stability check's *Eye 0.5 m lower/higher* move a stand's own height by
-  the same half metre. Views at one place with different eyes are
+  the same half metre. The VIA report's Methods never print one eye height a
+  view did not use (`reportEyes`, `eyeClause`): they state the scene's eye
+  height and name each view that stood at its own eye, read from its figure's
+  camera information, or each view's eye when none stood at the scene's. Views at one place with different eyes are
   separate stands (`groupByPlace`). A surveyed elevation more than
   `EYE_GROUND_TOLERANCE_METERS` (3 m, a screen) from the terrain model's eye
   is flagged on the row with both numbers (`eyeCheck`), never refused, and the

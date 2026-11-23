@@ -17,6 +17,7 @@ import {
 } from './parts'
 import { CONSULTANT_RECIPE_PARTS } from './partsConsultant'
 import { findReportPart, REPORT_PARTS } from './registry'
+import { reportEyes, type ReportView } from './context'
 import { assembleReport, recipeFormat, REPORT_RECIPES, withViewsLeftOut } from './recipes'
 import { viewsLeftOutMarkdown } from '../viaDocument/markdown'
 
@@ -741,5 +742,68 @@ describe('the objective’s authority', () => {
       "Historical reference, not the objective's authority: a made-up earlier assessment.",
     )
     expect(sentences(context('perspective-report-net-private'), 'references')).not.toContain('Historical reference')
+  })
+})
+
+describe("the Methods' eye height", () => {
+  // Made-up views: only the camera information each figure was saved with matters here.
+  const view = (name: string, camera?: Partial<NonNullable<ReportView['figure']['camera']>>) =>
+    ({
+      name,
+      figure: camera ? { camera: { observerHeightM: 1.6, above: 'ground', elevationM: 700, ...camera } } : {},
+    }) as unknown as ReportView
+  const methods = (eyes: ReturnType<typeof reportEyes>) => {
+    const recipe = REPORT_RECIPES.find((entry) => entry.parts.includes('methodology'))!
+    const ctx = context(recipe.format, {
+      method: { terrain: 'a made-up terrain', vegetation: 'made-up timber', eyeHeightM: 1.6, eyes },
+    })
+    return all(findReportPart('methodology')!.build(ctx).blocks)
+  }
+
+  it('prints the one eye every view stood at', () => {
+    const eyes = reportEyes([view('Bridge', {}), view('Pullout', {})], 1.6, 1.6)
+    expect(eyes).toEqual({ baseM: 1.6, own: [] })
+    expect(methods(eyes)).toContain('at an eye height of 1.6 m and a 50 mm')
+  })
+
+  it("names each view that stood at its own eye beside the scene's eye height", () => {
+    const eyes = reportEyes(
+      [
+        view('Bridge', {}),
+        view('Lookout deck', { observerHeightM: 3 }),
+        view('Dam crest', { surveyed: true, elevationM: 812.4 }),
+      ],
+      1.6,
+      3,
+    )
+    expect(eyes).toEqual({
+      baseM: 1.6,
+      own: [
+        { view: 'Lookout deck', eye: '3.0 m above the ground' },
+        { view: 'Dam crest', eye: 'a surveyed eye elevation of 812.4 m' },
+      ],
+    })
+    const text = methods(eyes)
+    expect(text).toContain(
+      'at an eye height of 1.6 m, except Lookout deck (3.0 m above the ground) and Dam crest (a surveyed eye elevation of 812.4 m)',
+    )
+  })
+
+  it("never prints the scene's height when no view stood at it", () => {
+    // The run stood at the lookout's own 3 m: a view saved before its camera was recorded takes the run's eye.
+    const one = reportEyes([view('Lookout deck', { observerHeightM: 3 }), view('Older save')], 1.6, 3)
+    expect(one).toEqual({ baseM: 3, own: [] })
+    expect(methods(one)).toContain('at an eye height of 3.0 m and a 50 mm')
+    expect(methods(one)).not.toContain('1.6 m')
+    const each = reportEyes(
+      [view('Lookout deck', { observerHeightM: 3 }), view('Cab', { observerHeightM: 2.4, above: 'lake level' })],
+      1.6,
+      null,
+    )
+    expect(each.baseM).toBeNull()
+    expect(methods(each)).toContain(
+      'each from its own eye: Lookout deck (3.0 m above the ground) and Cab (2.4 m above lake level)',
+    )
+    expect(methods(each)).not.toContain('1.6 m')
   })
 })

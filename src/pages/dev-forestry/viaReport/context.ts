@@ -19,7 +19,7 @@ import type { ClassCode } from '../viaDocument/scales'
 import { pointInPolygon, polygonAreaMeters, polygonBounds, preparePolygons, type PolygonGeometry } from '../visibility'
 import { EVQO_CODE_FOR_CLASS } from '../visualsNarrative'
 import type { ReportFigure } from './model'
-import type { InventoryUnitRow, OfficeFields, ReportBlockFacts, ReportContext, ReportImages } from './parts'
+import type { InventoryUnitRow, OfficeFields, ReportBlockFacts, ReportContext, ReportEyes, ReportImages } from './parts'
 import { recipeFormat, type ReportRecipe } from './recipes'
 import type { ReportSetting } from './setting'
 
@@ -181,6 +181,46 @@ function drawnBy(views: readonly ReportView[]): string | null {
   }`
 }
 
+/** Heights closer than this are one eye, metres: arithmetic noise, never a measured difference. */
+const SAME_EYE_M = 1e-6
+
+/**
+ * Which eye each view stood at, read from its figure's camera information (what its picture and its sightline figure
+ * were taken from): a surveyed elevation, or a height above the ground. `sceneEyeM` is the scene's eye height and
+ * `runEyeM` the eye the current run used (its `settings.observerHeightMeters`, the stand's own where it had one), which
+ * stands in for a view saved before its camera was recorded. The base is the scene's eye height while any view stood
+ * at it, else the run's while any did, else none: every view is then named with its own.
+ */
+export function reportEyes(
+  views: readonly Pick<ReportView, 'name' | 'figure'>[],
+  sceneEyeM: number,
+  runEyeM: number | null,
+): ReportEyes {
+  const metres = (value: number) => `${value.toFixed(1)} m`
+  const read = views.map((view) => {
+    const camera = view.figure.camera
+    if (camera?.surveyed)
+      return { view: view.name, heightM: null, eye: `a surveyed eye elevation of ${metres(camera.elevationM)}` }
+    const heightM = camera ? camera.observerHeightM : (runEyeM ?? sceneEyeM)
+    const above = camera?.above === 'lake level' ? 'lake level' : 'the ground'
+    return { view: view.name, heightM, eye: `${metres(heightM)} above ${above}` }
+  })
+  const at = (eye: number) => read.some((entry) => entry.heightM !== null && Math.abs(entry.heightM - eye) < SAME_EYE_M)
+  const baseM = !read.length
+    ? (runEyeM ?? sceneEyeM)
+    : at(sceneEyeM)
+      ? sceneEyeM
+      : runEyeM !== null && at(runEyeM)
+        ? runEyeM
+        : null
+  return {
+    baseM,
+    own: read
+      .filter((entry) => baseM === null || entry.heightM === null || Math.abs(entry.heightM - baseM) >= SAME_EYE_M)
+      .map(({ view, eye }) => ({ view, eye })),
+  }
+}
+
 export interface ReportView {
   name: string
   figure: SavedFigure
@@ -291,6 +331,11 @@ export function buildReportContext(input: {
       terrain: setting('Terrain') ?? 'AWS Open Data terrain (CDEM/SRTM)',
       vegetation: setting('Timber') ?? 'the provincial vegetation inventory',
       eyeHeightM: scene.settings.observerHeightMeters,
+      eyes: reportEyes(
+        input.views,
+        scene.settings.observerHeightMeters,
+        input.run?.settings.observerHeightMeters ?? null,
+      ),
       drawnBy: drawnBy(input.views),
     },
     measures: (scene.viaReview?.visualMeasures ?? '')

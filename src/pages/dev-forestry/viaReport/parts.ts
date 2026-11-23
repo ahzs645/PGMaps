@@ -167,8 +167,12 @@ export interface ReportContext {
   review: ViaReview | null
   /** The run's breakdown at the assessment station: (a) proposed, (b) roads, (c) existing. */
   breakdown: AlterationBreakdown | null
-  /** `drawnBy`: who drew the figures when it was not PGMaps' own map ("threejs-worldgen, final quality, 24 samples"). */
-  method: { terrain: string; vegetation: string; eyeHeightM: number; drawnBy?: string | null }
+  /**
+   * `drawnBy`: who drew the figures when it was not PGMaps' own map ("threejs-worldgen, final quality, 24 samples").
+   * `eyeHeightM`: the eye height the views stood at; `eyes`, when given, says which views stood at it and which at
+   * their own eye (`reportEyes`), so the Methods never print one height a view did not use.
+   */
+  method: { terrain: string; vegetation: string; eyeHeightM: number; eyes?: ReportEyes; drawnBy?: string | null }
   /** The reviewer's signed visual measures, one per line. */
   measures: readonly string[]
   figures: readonly ReportFigure[]
@@ -992,6 +996,22 @@ export const PRIVATE_LAND_NETTED =
   'Private land inside the landform is left out of the percent alteration’s denominator: the objective does not govern it, and its cover may change without notice.'
 export const ROCK_NETTED = 'Rock and other non-vegetated ground is left out of the denominator too.'
 
+/**
+ * The eyes a report's views stood at: `baseM`, the eye height above the ground shared by every view not in `own`
+ * (null when every view stood at its own), and `own`, each view that stood elsewhere with its eye as printed.
+ */
+export type ReportEyes = { baseM: number | null; own: Array<{ view: string; eye: string }> }
+
+/** "at an eye height of 1.6 m", naming any view that stood at its own eye, or each view's eye when all did. */
+export function eyeClause(method: Pick<ReportContext['method'], 'eyeHeightM' | 'eyes'>): string {
+  const eyes = method.eyes
+  const own = eyes?.own ?? []
+  const listed = andList(own.map((entry) => `${entry.view} (${entry.eye})`))
+  if (eyes && eyes.baseM === null && own.length) return `each from its own eye: ${listed}`
+  const base = `at an eye height of ${(eyes?.baseM ?? method.eyeHeightM).toFixed(1)} m`
+  return own.length ? `${base}, except ${listed}` : base
+}
+
 const methodology: ReportPart = {
   id: 'methodology',
   title: 'Methods',
@@ -1003,7 +1023,7 @@ const methodology: ReportPart = {
       blocks: [
         heading('Methods'),
         text(
-          `Each viewpoint was simulated in PGMaps from ${ctx.method.terrain}, with timber drawn from ${ctx.method.vegetation}, at an eye height of ${ctx.method.eyeHeightM.toFixed(1)} m${
+          `Each viewpoint was simulated in PGMaps from ${ctx.method.terrain}, with timber drawn from ${ctx.method.vegetation}, ${eyeClause(ctx.method)}${
             ctx.method.drawnBy ? `; the figures were drawn by ${ctx.method.drawnBy} from the same scene and camera` : ''
           }${lens ? ` and a ${Math.round(lens)} mm (35 mm equivalent) lens` : ''}. ${landformBounding(ctx)}`,
           'run',
