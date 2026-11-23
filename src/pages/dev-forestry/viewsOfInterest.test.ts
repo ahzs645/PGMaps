@@ -5,7 +5,11 @@ import {
   blockCentre,
   captureChangeText,
   captureKeyChanges,
+  earlierCaptureCount,
+  earlierCaptures,
+  earlierCaptureText,
   groupByPlace,
+  keptAsOwnView,
   handSaveLink,
   lensHfovDeg,
   MAX_VIEWS_OF_INTEREST,
@@ -236,6 +240,60 @@ describe('what changed since a capture', () => {
       'Changed since captured: place, lens and landform.',
     )
     expect(captureKeyChanges(edited, [])).toEqual([])
+  })
+})
+
+describe('earlier captures', () => {
+  const view = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, [])
+  const oldKey = viewCaptureKey(view)
+  const edited = { ...view, focalMm: 28 }
+  const lens = viewCaptureKey(edited)
+  const moved = { ...edited, lng: view.lng + 0.01, lat: view.lat + 0.01 }
+
+  it('lists saves under an earlier key, newest first, with what changed since each', () => {
+    const saved = [
+      { id: 'first', plannedViewId: view.id, plannedKey: oldKey },
+      { id: 'other', plannedViewId: 'another-view', plannedKey: oldKey },
+      { id: 'second', plannedViewId: view.id, plannedKey: lens },
+      { id: 'hand', name: 'By hand' },
+    ]
+    const listed = earlierCaptures(moved, saved)
+    expect(listed.map((entry) => entry.saved.id)).toEqual(['second', 'first'])
+    expect(listed.map((entry) => entry.changes)).toEqual([['place'], ['place', 'lens']])
+    expect(earlierCaptureText(listed[1].changes)).toBe('Since then its place and lens changed.')
+    // The save under the key the view has now is its capture, not an earlier one.
+    expect(earlierCaptures(edited, saved).map((entry) => entry.saved.id)).toEqual(['first'])
+    expect(earlierCaptureCount([moved, edited], saved)).toBe(3)
+  })
+
+  it('lists a save whose key is missing or unreadable, naming nothing', () => {
+    const saved = [
+      { id: 'no-key', plannedViewId: view.id },
+      { id: 'garbled', plannedViewId: view.id, plannedKey: 'not json' },
+    ]
+    expect(earlierCaptures(view, saved).map((entry) => [entry.saved.id, entry.changes])).toEqual([
+      ['garbled', []],
+      ['no-key', []],
+    ])
+    expect(earlierCaptureText([])).toBe('Taken under an earlier version of this view.')
+  })
+
+  it('keeps one as its own saved view, changing nothing else', () => {
+    const here = [
+      { id: 'a', name: 'A', plannedViewId: view.id, plannedKey: oldKey },
+      { id: 'b', name: 'B', plannedViewId: view.id, plannedKey: lens },
+    ]
+    const shelved = [{ id: 'c', name: 'C', plannedViewId: view.id, plannedKey: oldKey }]
+    const kept = keptAsOwnView([here, shelved], 'a')!
+    expect(kept[0][0]).toEqual({ id: 'a', name: 'A' })
+    expect(kept[0][1]).toBe(here[1])
+    expect(kept[1]).toBe(shelved)
+    // No longer the view's earlier capture: an ordinary saved view.
+    expect(earlierCaptures(moved, [...kept[0], ...kept[1]]).map((entry) => entry.saved.id)).toEqual(['c', 'b'])
+    expect(keptAsOwnView([shelved], 'c')![0][0]).toEqual({ id: 'c', name: 'C' })
+    // Nothing to keep: a view with no planned view, or no such view.
+    expect(keptAsOwnView([kept[0]], 'a')).toBeNull()
+    expect(keptAsOwnView([here], 'missing')).toBeNull()
   })
 })
 

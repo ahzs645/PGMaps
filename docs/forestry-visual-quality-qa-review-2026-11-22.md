@@ -45,7 +45,7 @@ them; the benchmark items are described by what they ask, not by case.
 | VQ-08 | Screenshot, class pass and sheet tracked apart         | Done   | `ddff7b88`, `dc4dc6fb`, `6939f662`, `ce4c09f7`, `bf530ecf`, `7bb3643a` |
 | VQ-09 | Map actions reachable at small heights                 | Done   | `cc2730ae`, toolkit #22 |
 | VQ-10 | Open the requested package editor directly             | Done   | `9458d77e` |
-| VQ-11 | Archive readiness and provenance on open               | Open: decision 3 | — |
+| VQ-11 | Archive readiness and provenance on open               | Done   | see **Decisions**, decision 3 |
 | VQ-12 | Exact named viewpoint in WGS84 or NAD83 UTM            | Done   | `aa3c9e2f`, `8d6332c6` |
 | VQ-13 | Numeric lens and surveyed eye on planned views         | Done   | `aa3c9e2f`, `21949dac`, `4537e1a1`, `415b73ee`, `af25dcee` |
 | VQ-14 | Reviewed landform and net footprint explicit           | Done   | `9900822f` |
@@ -164,6 +164,17 @@ and the VIA report's Methods names each view that stood at its own eye
 The two landform-finding tools and the road view video still use the scene's
 eye: they suggest candidates and record pictures, and print no figure.
 
+**Taken, 23 November 2026: a view's run stands at the eye, as calculation 2
+(decision 1).** A view stood at now runs from one station at its eye
+(`settings.stationsAt: 'eye'`, `runCalcVersion`); a scene or archive without
+the setting is calculation 1, the pull-out's two ends, and replays exactly, and
+a replay names the calculation its archive used. New scenes start at the eye;
+*Simulation settings → Views stood at* switches either way. Measured on the
+Purden Lake sample first: over 14 stands the perspective figure moved a median
+0.07 points, and 3.8 and 9.3 points at two where one pull-out end saw over near
+ground the eye does not (the main doc's **Where a view's stations stand**). The
+real cases are still to be measured, when the VIA research folder is back.
+
 **Taken, 23 November 2026: old archives' reference field (decision 2).** When a
 project opens whose *Objective established by* (`sourceDocument`) names only
 files the project carries, each " | "-separated part an attachment's name
@@ -185,28 +196,23 @@ format with no figure (`viaReport/noClassPass.test.ts`,
 `viaDocument/noClassPass.test.ts`). A package holding no view at all is still
 refused, with the reason.
 
-**Open, for the owner** (with the recommendation made at triage):
-
-1. **Run stations at the eye.** Taken on 23 November 2026: yes, as
-   calculation version 2, with version 1 kept for every run already saved. A
-   view stood at now runs from one station at its eye
-   (`settings.stationsAt: 'eye'`); a scene or archive without the setting is
-   calculation 1 and replays exactly, and *Simulation settings → Views stood
-   at* switches either way. Measured on the Purden Lake sample first: the
-   perspective figure moved a median 0.07 points over 14 stands, and 3.8 and
-   9.3 points at two where one pull-out end saw over near ground the eye does
-   not (the main doc's **Where a view's stations stand**). The real cases are
-   still to be measured, when the VIA research folder is back.
-2. **Old archives' reference field.** Done, 23 November 2026 (above).
-3. **Earlier captures.** Captures saved under an earlier version of a planned
-   view no longer count as its capture and are dropped from the saved views.
-   Recommended: list them read-only as *Earlier captures*, each with *Keep as
-   its own saved view*. This settles VQ-11.
-4. **A report with no figures.** Done, 23 November 2026 (above): it prints.
+**Taken, 23 November 2026: earlier captures are listed, never dropped.**
+Captures saved under an earlier version of a planned view no longer count as
+its capture, and the outputs still leave them out, but each view's open row
+now lists them read-only as *Earlier captures (n)*, with the screenshot, when
+it was saved and what has changed since (`earlierCaptures`,
+`viewsOfInterest.ts`). Each has one action, *Keep as its own saved view*,
+which clears its planned view's id and key and nothing else (`keptAsOwnView`).
+This settles VQ-11: opening a project or archive now says, in the same line,
+whether its saved figures are the scene's as it opens or come from an earlier
+calculation of it (the file keeps the scene's fingerprint as `sceneKey`), that
+there is no run yet, where its recipe is found (shipped, yours in this
+browser, or not here), and how many earlier captures are listed
+(`projectOpenStatus`, `projectFile.ts`).
 
 ## Still open
 
-- Decisions 1 and 3, and VQ-11 with decision 3.
+- Decision 1 measured on the real cases, when the VIA research folder is back.
 - VQ-20's partial-acceptance counts, degenerate rings and empty import message.
 - VQ-29 to VQ-31: the benchmarks need the VIA research folder, which was not on
   the machine.

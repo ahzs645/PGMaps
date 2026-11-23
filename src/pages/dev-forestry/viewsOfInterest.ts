@@ -424,9 +424,14 @@ export function captureKeyChanges(view: ViewOfInterest, savedViews: ReadonlyArra
   const key = viewCaptureKey(view)
   const mine = savedViews.filter((saved) => saved.plannedViewId === view.id && saved.plannedKey)
   if (!mine.length || mine.some((saved) => saved.plannedKey === key)) return []
+  return keyChanges(mine[mine.length - 1].plannedKey!, key)
+}
+
+/** The parts of `now` that differ from `before`, two capture keys, each named once in key order; empty when unread. */
+function keyChanges(beforeKey: string, key: string): CaptureKeyPart[] {
   let before: unknown
   try {
-    before = JSON.parse(mine[mine.length - 1].plannedKey!)
+    before = JSON.parse(beforeKey)
   } catch {
     return []
   }
@@ -447,6 +452,61 @@ export function captureKeyChanges(view: ViewOfInterest, savedViews: ReadonlyArra
     }
   }
   return changed
+}
+
+/**
+ * A planned view's earlier captures: its saves made under an earlier version of it (another `plannedKey`, or none),
+ * newest first, each with what has changed since (`changes`, empty when its key cannot be read). They no longer count
+ * as the view's capture (`viewCaptureState`), and no output draws them while they carry its id (`resolvePackage`):
+ * they are listed read-only under the view, and only *Keep as its own saved view* (`keptAsOwnView`) changes one.
+ */
+export function earlierCaptures<S extends SavedViewCapture & { id: string }>(
+  view: ViewOfInterest,
+  savedViews: ReadonlyArray<S>,
+): Array<{ saved: S; changes: CaptureKeyPart[] }> {
+  const key = viewCaptureKey(view)
+  return savedViews
+    .filter((saved) => saved.plannedViewId === view.id && saved.plannedKey !== key)
+    .map((saved) => ({ saved, changes: saved.plannedKey ? keyChanges(saved.plannedKey, key) : [] }))
+    .reverse()
+}
+
+/** How many saves, across every planned view, are earlier captures (`earlierCaptures`): for a summary line. */
+export function earlierCaptureCount(
+  views: readonly ViewOfInterest[],
+  savedViews: ReadonlyArray<SavedViewCapture & { id: string }>,
+): number {
+  return views.reduce((sum, view) => sum + earlierCaptures(view, savedViews).length, 0)
+}
+
+/** "Since then its place and lens changed." for an earlier capture; a key that cannot be read names nothing. */
+export function earlierCaptureText(parts: readonly CaptureKeyPart[]): string {
+  if (!parts.length) return 'Taken under an earlier version of this view.'
+  const listed = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+  return `Since then its ${listed} changed.`
+}
+
+/**
+ * *Keep as its own saved view*: the saved view `id` without its `plannedViewId` and `plannedKey`, so it is an ordinary
+ * saved view again (listed, and drawn by the outputs, as any other). Only that view changes, wherever it is (the open
+ * place's list or a shelved one); every other entry and list keeps its identity. Null when no list holds a view with
+ * that id carrying a planned view's id: nothing to keep.
+ */
+export function keptAsOwnView<V extends SavedViewCapture & { id: string }>(
+  lists: ReadonlyArray<readonly V[]>,
+  id: string,
+): V[][] | null {
+  let found = false
+  const next = lists.map((list) => {
+    const at = list.findIndex((view) => view.id === id && view.plannedViewId !== undefined)
+    if (at < 0) return list as V[]
+    found = true
+    const kept = { ...list[at] }
+    delete kept.plannedViewId
+    delete kept.plannedKey
+    return list.map((view, index) => (index === at ? kept : view))
+  })
+  return found ? next : null
 }
 
 /** "Changed since captured: lens and landform." */

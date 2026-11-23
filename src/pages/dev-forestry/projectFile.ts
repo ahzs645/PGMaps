@@ -13,6 +13,9 @@ import { MAX_SAVED_VIEWS } from './viewCapturePlan'
 import { renderJobIsFor } from './renderJobKey'
 import type { SavedDriveView } from './previewState'
 import { parseScene, serializeScene, type ForestryScene } from './scene'
+import { sceneFingerprint } from './sceneInput'
+import { earlierCaptureCount } from './viewsOfInterest'
+import { OWN_RECIPE_PREFIX } from './viaReport/userRecipes'
 
 export const PROJECT_FORMAT = 'pgmaps-visual-quality-project'
 export const PROJECT_VERSION = 1
@@ -50,6 +53,13 @@ export interface ProjectSummary {
   pictures: number
   /** What was in the file and could not be read, each named. */
   dropped: string[]
+  /**
+   * Whether the figures saved with the views at the scene's place were made under the scene as this PGMaps reads it:
+   * `current` when the file's `sceneKey` is the opened scene's fingerprint, `earlier` when it differs (a PGMaps that
+   * fingerprinted the scene otherwise), `not-stated` for a file written before the key was kept, `none` with no views
+   * there. Read from the file only; nothing is run.
+   */
+  figures: 'current' | 'earlier' | 'not-stated' | 'none'
 }
 
 const TYPED = {
@@ -153,12 +163,18 @@ export function reachableProjectState(state: ProjectState): ProjectState {
 /** The same project document underlies standalone JSON and the project ZIP. */
 export async function packProject(whole: ProjectState, savedAt = new Date()) {
   const state = reachableProjectState(whole)
+  const scene = JSON.parse(serializeScene(state.scene))
+  // The scene the views here were saved under, as it reads back: compared on open with the opened scene's fingerprint,
+  // so a file whose figures came from another calculation of the scene says so (`ProjectSummary.figures`).
+  const read = parseScene(scene)
+  const sceneKey = read ? sceneFingerprint(read) : null
   return {
     format: PROJECT_FORMAT,
     version: PROJECT_VERSION,
     savedAt: savedAt.toISOString(),
     note: 'A PGMaps visual-quality project. Terrain, the inventories and the run are not in the file: they are read and made again when it is opened.',
-    scene: JSON.parse(serializeScene(state.scene)),
+    scene,
+    ...(sceneKey ? { sceneKey } : {}),
     views: state.views,
     shelved: state.shelved,
     images: await pack(state.images),
@@ -357,15 +373,101 @@ export async function readProject(
       views: known.size,
       pictures: [...known.keys()].filter((id) => images[id]).length,
       dropped,
+      figures: !views.length
+        ? 'none'
+        : typeof raw.sceneKey !== 'string'
+          ? 'not-stated'
+          : raw.sceneKey === sceneFingerprint(scene)
+            ? 'current'
+            : 'earlier',
     },
   }
 }
 
-/** One line for the page after a project opens: what came back, and what did not. */
-export function projectOpenedLine(name: string, summary: ProjectSummary): string {
+/** The package's recipe as the file names it, against the recipes this PGMaps ships and this browser keeps. */
+export type ProjectRecipeStatus =
+  | { kind: 'format' }
+  | { kind: 'shipped'; name: string }
+  | { kind: 'own'; name: string }
+  | { kind: 'own-missing' }
+  | { kind: 'unknown' }
+
+/**
+ * Where the file's recipe (`pkg.recipeId`) is found: none chosen (the document format's recipe is used), a shipped
+ * recipe, the reviewer's own recipe kept in this browser, an own recipe this browser does not hold, or an id this
+ * PGMaps does not know. Own recipes never travel in a project file, so `own-missing` is common on another machine.
+ */
+export function projectRecipeStatus(
+  recipeId: string | null,
+  shipped: ReadonlyArray<{ id: string; name: string }>,
+  own: ReadonlyArray<{ id: string; name: string }>,
+): ProjectRecipeStatus {
+  if (!recipeId) return { kind: 'format' }
+  const found = shipped.find((recipe) => recipe.id === recipeId)
+  if (found) return { kind: 'shipped', name: found.name }
+  const mine = own.find((recipe) => recipe.id === recipeId)
+  if (mine) return { kind: 'own', name: mine.name }
+  return recipeId.startsWith(OWN_RECIPE_PREFIX) ? { kind: 'own-missing' } : { kind: 'unknown' }
+}
+
+/** What the open receipt says beyond the file's own summary, all read from the opened state (`projectOpenStatus`). */
+export type ProjectOpenStatus = {
+  recipe: ProjectRecipeStatus
+  /** Saves of planned views made before the view was edited (`earlierCaptures`), listed under their views. */
+  earlierCaptures: number
+}
+
+/** The open receipt's extra facts, from the opened state and the recipes known here; nothing is run or computed anew. */
+export function projectOpenStatus(
+  state: Pick<ProjectState, 'scene' | 'views' | 'shelved' | 'pkg'>,
+  recipes: { shipped: ReadonlyArray<{ id: string; name: string }>; own: ReadonlyArray<{ id: string; name: string }> },
+): ProjectOpenStatus {
+  return {
+    recipe: projectRecipeStatus(state.pkg.recipeId, recipes.shipped, recipes.own),
+    earlierCaptures: earlierCaptureCount(state.scene.viewsOfInterest ?? [], [
+      ...state.views,
+      ...state.shelved.flatMap((entry) => entry.views),
+    ]),
+  }
+}
+
+const FIGURES_LINE: Record<ProjectSummary['figures'], string> = {
+  current: ' Their figures are as saved for this scene.',
+  earlier:
+    ' Their figures were saved under an earlier calculation of this scene: they are kept as saved, and a new run may differ.',
+  'not-stated': ' The file does not say which calculation its figures came from.',
+  none: '',
+}
+
+function recipeLine(recipe: ProjectRecipeStatus): string {
+  switch (recipe.kind) {
+    case 'format':
+      return ''
+    case 'shipped':
+      return ` Recipe: ${recipe.name}.`
+    case 'own':
+      return ` Recipe: your own ${recipe.name}.`
+    case 'own-missing':
+      return ' Its own recipe is not in this browser: the format’s recipe is used until it is added.'
+    case 'unknown':
+      return ' Its recipe is not in this PGMaps: the format’s recipe is used.'
+  }
+}
+
+/**
+ * One line for the page after a project opens: what came back, and what did not; with `status`, also whether the saved
+ * figures are the scene's as it opens, that the run is still to be made, the recipe, and any earlier captures.
+ */
+export function projectOpenedLine(name: string, summary: ProjectSummary, status?: ProjectOpenStatus): string {
   const views = summary.views
     ? `${summary.views} saved view${summary.views === 1 ? '' : 's'}, ${summary.pictures} with ${summary.pictures === 1 ? 'its picture' : 'their pictures'}`
     : 'no saved views'
+  const figures = FIGURES_LINE[summary.figures] ?? ''
+  const run = ' No run yet: it is made again when a file needs it.'
+  const recipe = status ? recipeLine(status.recipe) : ''
+  const earlier = status?.earlierCaptures
+    ? ` ${status.earlierCaptures === 1 ? 'One earlier capture is' : `${status.earlierCaptures} earlier captures are`} listed under ${status.earlierCaptures === 1 ? 'its view' : 'their views'}.`
+    : ''
   const left = summary.dropped.length ? ` Not read: ${summary.dropped.join('; ')}.` : ''
-  return `Opened ${name}: ${views}. The run is made again when a file needs it.${left}`
+  return `Opened ${name}: ${views}.${figures}${run}${recipe}${earlier}${left}`
 }

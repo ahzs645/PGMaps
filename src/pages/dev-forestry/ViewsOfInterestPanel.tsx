@@ -2,6 +2,7 @@ import { Camera, Download, Footprints, History, Loader2, MapPinPlus, PenLine, Tr
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { DisclosureRow } from '@/components/ui/disclosure'
 import {
   CheckboxField,
   FORM_INPUT_CLASS,
@@ -37,6 +38,8 @@ import {
   orphanedViews,
   captureChangeText,
   captureKeyChanges,
+  earlierCaptures,
+  earlierCaptureText,
   viewBearing,
   viewCaptureState,
   type SavedViewCapture,
@@ -150,6 +153,16 @@ export type ViewsOfInterestPanelProps = {
    * storage warning. Save & export's copy of the list leaves it out.
    */
   unlistedSaves?: ReactNode
+  /**
+   * A saved view's name, thumbnail (its screenshot) and when it was saved, for a view's *Earlier captures*; null when
+   * the page holds none of it.
+   */
+  savedViewDetails?: (savedViewId: string) => { name: string; thumbUrl: string | null; savedAt: number | null } | null
+  /**
+   * *Keep as its own saved view* on an earlier capture (`keptAsOwnView`): clears its `plannedViewId` and `plannedKey`
+   * and nothing else. Absent: the earlier captures are listed without the action.
+   */
+  onKeepEarlierCapture?: (savedViewId: string) => void
 }
 
 const SOURCE_LABELS: Record<ViewOfInterest['source']['kind'], string> = {
@@ -400,6 +413,81 @@ export function ViewsOfInterestPanel(props: ViewsOfInterestPanelProps) {
   )
 }
 
+const savedAtFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+
+/**
+ * A planned view's *Earlier captures* (`earlierCaptures`): its saves made before it was edited, read-only, newest first,
+ * each with what has changed since and one action, *Keep as its own saved view*. Nothing here deletes or converts a
+ * save unasked; capturing the view again replaces them, as it replaces every earlier save of the view.
+ */
+export function EarlierCaptures({
+  view,
+  savedViews,
+  details,
+  onKeep,
+  busy,
+}: {
+  view: ViewOfInterest
+  savedViews: ReadonlyArray<SavedViewCapture>
+  details?: ViewsOfInterestPanelProps['savedViewDetails']
+  onKeep?: (savedViewId: string) => void
+  busy: boolean
+}) {
+  const listed = earlierCaptures(
+    view,
+    savedViews.filter((saved): saved is SavedViewCapture & { id: string } => saved.id !== undefined),
+  )
+  if (!listed.length) return null
+  return (
+    <DisclosureRow
+      title={`Earlier captures (${listed.length})`}
+      summary="Saved before this view was changed"
+      toggleProps={{ 'data-earlier-captures': view.id }}
+      help={
+        <>
+          Saves of this view made before it was changed. They no longer count as its capture, and no file draws them
+          while they belong to it. <em>Keep as its own saved view</em> makes one an ordinary saved view, listed with the
+          views saved by hand and drawn by the outputs like them. <em>Capture again</em> replaces the ones not kept.
+        </>
+      }
+    >
+      <ul className="space-y-1.5" aria-label={`Earlier captures of ${view.name}`}>
+        {listed.map(({ saved, changes }) => {
+          const about = details?.(saved.id) ?? null
+          return (
+            <li key={saved.id} className="flex items-start gap-2" data-earlier-capture={saved.id}>
+              {about?.thumbUrl ? (
+                <img src={about.thumbUrl} alt="" className="h-8 w-12 shrink-0 rounded-sm object-cover" />
+              ) : (
+                <span className="h-8 w-12 shrink-0 rounded-sm bg-muted" aria-hidden="true" />
+              )}
+              <span className="min-w-0 flex-1 space-y-0.5">
+                <span className="block truncate text-2xs text-foreground">{about?.name ?? view.name}</span>
+                <span className="block text-3xs leading-4 text-muted-foreground">
+                  {about?.savedAt ? `${savedAtFormat.format(about.savedAt)} · ` : ''}
+                  {earlierCaptureText(changes)}
+                </span>
+                {onKeep && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="2xs"
+                    disabled={busy}
+                    title="Make this save an ordinary saved view: it no longer belongs to this view"
+                    onClick={() => onKeep(saved.id)}
+                  >
+                    Keep as its own saved view
+                  </Button>
+                )}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+    </DisclosureRow>
+  )
+}
+
 /**
  * The views of interest themselves: one row a view, opened for everything about it, and capturing them. Step 2's
  * section (`ViewsOfInterestPanel`) and Save & export's *Views* entry show this same list over the same page state.
@@ -439,6 +527,8 @@ export function ViewsOfInterestList({
   onChangeRenderer,
   capturedHere,
   photoOf,
+  savedViewDetails,
+  onKeepEarlierCapture,
 }: ViewsOfInterestPanelProps) {
   const engine = !!renderer && renderer.id !== 'pgmaps'
   const blockById = useMemo(() => new Map(blocks.map((block) => [block.id, block])), [blocks])
@@ -669,6 +759,13 @@ export function ViewsOfInterestList({
                         picture, and the files say so. Stand here to have {renderer!.label} draw it.
                       </p>
                     )}
+                    <EarlierCaptures
+                      view={view}
+                      savedViews={savedViews}
+                      details={savedViewDetails}
+                      onKeep={onKeepEarlierCapture}
+                      busy={running}
+                    />
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Button
                         type="button"

@@ -344,7 +344,8 @@ import {
 import { figureMapStyle } from './dev-forestry/visualsBlockSheet'
 import { captureReportMap, waitUntil } from './dev-forestry/reportMapCapture'
 import type { ReportImages } from './dev-forestry/viaReport/parts'
-import { DEFAULT_OBLIQUE_PITCH } from './dev-forestry/viaReport/recipes'
+import { DEFAULT_OBLIQUE_PITCH, REPORT_RECIPES } from './dev-forestry/viaReport/recipes'
+import { ownRecipesNow } from './dev-forestry/userRecipeStore'
 import type { ReportFigure } from './dev-forestry/viaReport/model'
 import { matchingDesign, plannedToolViews } from './dev-forestry/assessmentTools'
 import {
@@ -435,6 +436,7 @@ import {
   addViews,
   handSaveLink,
   isIncluded,
+  keptAsOwnView,
   MAX_VIEWS_OF_INTEREST,
   sheetOnlyCapture,
   viewAtPoint,
@@ -6220,7 +6222,7 @@ function DevForestryVisuals({
         })
         return true
       }
-      const [{ openProjectArchive }, { projectOpenedLine }] = await Promise.all([
+      const [{ openProjectArchive }, { projectOpenedLine, projectOpenStatus }] = await Promise.all([
         import('./dev-forestry/projectArchive'),
         import('./dev-forestry/projectFile'),
       ])
@@ -6267,9 +6269,12 @@ function DevForestryVisuals({
         state.scene.reportMetadata,
         media.attachments.map((entry) => entry.name),
       )
+      // The receipt reads the opened state only: the saved figures against the scene, the run still to make, the recipe
+      // (shipped, yours in this browser, or not here) and any earlier captures of edited views.
+      const status = projectOpenStatus(state, { shipped: REPORT_RECIPES, own: ownRecipesNow().recipes })
       setProjectMessage({
         text:
-          projectOpenedLine(label, summary) +
+          projectOpenedLine(label, summary, status) +
           workspaceNote +
           (referenceMove ? ` ${referenceMoveLine(referenceMove)}` : ''),
         ...(referenceMove ? { referenceMove: true } : {}),
@@ -7731,6 +7736,24 @@ function DevForestryVisuals({
     ) : null
   // Step 2's section and Save & export's *Views* entry show one list over the same page state; the dialog's copy
   // leaves out the Export button (it is the dialog) and what belongs to the road view stood at.
+  // *Keep as its own saved view* on a planned view's earlier capture: that save loses its planned view's id and key,
+  // wherever it is kept (here or shelved), and nothing else changes.
+  const keepEarlierCapture = (savedViewId: string) => {
+    const lists = keptAsOwnView([saved.views, ...shelvedViews.map((entry) => entry.views)], savedViewId)
+    if (!lists) return
+    const [here, ...shelved] = lists
+    if (here !== saved.views) setSaved({ key: saved.key, views: here })
+    if (shelved.some((views, index) => views !== shelvedViews[index].views))
+      setShelvedViews(shelvedViews.map((entry, index) => ({ key: entry.key, views: shelved[index] })))
+    const name = capturedViewSources.find((view) => view.id === savedViewId)?.name ?? 'The capture'
+    setViewsMessage(`Kept ${name} as its own saved view.`)
+  }
+  const savedViewDetails = (savedViewId: string) => {
+    const view = capturedViewSources.find((entry) => entry.id === savedViewId)
+    if (!view) return null
+    const image = viewImages[savedViewId]
+    return { name: view.name, thumbUrl: image?.dataUrl ?? null, savedAt: image?.savedAt ?? null }
+  }
   const renderViewsOfInterest = (Shown: typeof ViewsOfInterestPanel | typeof ViewsOfInterestList, inDialog = false) => (
     <Shown
       views={viewsOfInterest}
@@ -7742,6 +7765,8 @@ function DevForestryVisuals({
       blocks={viewBlocks}
       targets={scene.targets}
       savedViews={capturedViewSources}
+      savedViewDetails={savedViewDetails}
+      onKeepEarlierCapture={keepEarlierCapture}
       hasFigure={savedViewHasFigure}
       hasScreenshot={savedViewHasScreenshot}
       capture={viewCapture}

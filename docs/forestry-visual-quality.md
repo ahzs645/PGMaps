@@ -284,6 +284,23 @@ its latest capture's key against its key now (`captureKeyChanges`): place,
 block, facing, lens, framing or landform ("Changed since captured: lens and
 landform."), on the row's state and in the open row.
 
+**Earlier captures.** A save made under an earlier version of a planned view
+(another `plannedKey`) no longer counts as the view's capture, and no output
+draws it while it carries the view's id (`resolvePackage`). It is not lost: the
+view's open row lists it under *Earlier captures (n)*, a fold
+(`DisclosureRow`), newest first (`earlierCaptures`, DOM-free), each with its
+screenshot, its name, when it was saved and what has changed since in plain
+words ("Since then its place and lens changed.", `earlierCaptureText`; a key
+that does not read names nothing). The list is read-only with one action a
+save, *Keep as its own saved view* (`keptAsOwnView`), which clears its
+`plannedViewId` and `plannedKey` in whichever list holds it, here or shelved,
+and changes nothing else: it is then an ordinary saved view, listed under
+*Saved, not listed as a view* and drawn by the outputs like one saved by hand.
+Nothing is deleted or converted unasked. *Capture again* still replaces every
+save of the view that has not been kept (`withoutPlannedView`), so keep one
+first to hold on to it. The cleared fields round-trip through the project file
+like any other absent field.
+
 **Who draws the figures.** The strip under the list says *Figures drawn by* and
 links to *Save & export → Package* (`openPackage`); the renderer is held by the
 export opener (`useExportOpener`) so the panel can say it while the dialog is
@@ -1129,6 +1146,19 @@ picture that is not a PNG or JPEG data URL, or a figure whose class pass is not
 the size it states is left out and named in the line the page shows after
 opening, never repaired, and a view whose figure fails keeps its screenshot and
 says its analysis sheet was not read. A file from a newer PGMaps is refused.
+The file also keeps `sceneKey`, the fingerprint of its scene as it reads back,
+which the views at the scene's place were saved under. The line shown after
+opening (step 1 and the header's status line) is the open receipt, read from
+the opened state only, with nothing run (`projectOpenedLine`,
+`projectOpenStatus`): the views and pictures that came back; whether the saved
+figures are the scene's as it opens (`ProjectSummary.figures`: the same key, an
+earlier calculation of the scene, which keeps them as saved and warns that a new
+run may differ, or not stated by a file written before the key was kept); that
+there is no run yet, since the file never holds one; the package's recipe
+(`projectRecipeStatus`: a shipped recipe by name, your own one kept in this
+browser, or an own recipe this browser does not hold, or an id this PGMaps does
+not know, either way with the format's recipe used meanwhile); how many earlier
+captures of edited views are listed under their views; and what was not read.
 Views keep their ids, so each finds its picture; *Saved views* renumbers them,
 needs a road and keeps no pictures, which is why it could not serve. The other
 three files stay for their own uses: *Scene* for the scene alone, *Saved views*

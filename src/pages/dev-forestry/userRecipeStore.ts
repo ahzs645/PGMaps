@@ -99,6 +99,9 @@ export function deleteOwnRecipe(target: { id: string } | { index: number }) {
   )
 }
 
+/** Your own recipes as stored in this browser now, read once outside React (a project's open receipt). */
+export const ownRecipesNow = (): OwnRecipes => getSnapshot()
+
 /** Your own recipes, as stored in this browser, kept current across tabs. */
 export function useOwnRecipes(): OwnRecipes {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)

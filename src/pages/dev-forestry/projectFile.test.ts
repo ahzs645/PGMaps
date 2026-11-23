@@ -6,6 +6,8 @@ import {
   parseProject,
   PROJECT_FORMAT,
   projectOpenedLine,
+  projectOpenStatus,
+  projectRecipeStatus,
   reachableProjectState,
   serializeProject,
   type ProjectState,
@@ -14,6 +16,7 @@ import { emptyProjectMedia, openProjectArchive, projectArchiveFileList, writePro
 import { renderJobKey } from './renderJobKey'
 import type { SavedDriveView } from './previewState'
 import { createEmptyScene } from './scene'
+import { viewAtPoint, viewCaptureKey } from './viewsOfInterest'
 import { emptyTools, parseTools, serializeTools } from './assessmentTools'
 import { linkPhotoJob, photoRecordFromOwn, withFlights, type OwnSearchSummary } from './photoRecords'
 import type { OwnPoseSources } from './exifPose'
@@ -80,7 +83,13 @@ describe('the project file', () => {
     const written = state()
     const text = await serializeProject(written, new Date('2026-11-16T12:00:00Z'))
     const { state: read, summary } = await parseProject(text)
-    expect(summary).toEqual({ savedAt: '2026-11-16T12:00:00.000Z', views: 2, pictures: 2, dropped: [] })
+    expect(summary).toEqual({
+      savedAt: '2026-11-16T12:00:00.000Z',
+      views: 2,
+      pictures: 2,
+      dropped: [],
+      figures: 'current',
+    })
     expect(read.views.map((entry) => entry.id)).toEqual(['view-a'])
     expect(read.shelved).toEqual(written.shelved)
     expect(read.scene.viaReview?.reportEdits).toEqual({ 'cover||field|Licence': 'A12345' })
@@ -190,6 +199,67 @@ describe('the project file', () => {
   })
 })
 
+describe('the open receipt', () => {
+  it('says whether the saved figures are the scene’s as it opens, from the key the file kept', async () => {
+    const raw = JSON.parse(await serializeProject(state()))
+    expect(typeof raw.sceneKey).toBe('string')
+    expect((await parseProject(JSON.stringify(raw))).summary.figures).toBe('current')
+    // Another calculation of the scene (another PGMaps): the figures are kept as saved and said to be earlier.
+    expect((await parseProject(JSON.stringify({ ...raw, sceneKey: '{"other":1}' }))).summary.figures).toBe('earlier')
+    const { sceneKey: _key, ...older } = raw
+    void _key
+    expect((await parseProject(JSON.stringify(older))).summary.figures).toBe('not-stated')
+    expect((await parseProject(JSON.stringify({ ...raw, views: [] }))).summary.figures).toBe('none')
+  })
+
+  it('names the recipe: none chosen, shipped, yours here, yours elsewhere, or unknown', () => {
+    const shipped = [{ id: 'district-rationale', name: 'District rationale' }]
+    const own = [{ id: 'own-mine-abcd', name: 'Mine' }]
+    expect(projectRecipeStatus(null, shipped, own)).toEqual({ kind: 'format' })
+    expect(projectRecipeStatus('district-rationale', shipped, own)).toEqual({
+      kind: 'shipped',
+      name: 'District rationale',
+    })
+    expect(projectRecipeStatus('own-mine-abcd', shipped, own)).toEqual({ kind: 'own', name: 'Mine' })
+    expect(projectRecipeStatus('own-theirs-wxyz', shipped, own)).toEqual({ kind: 'own-missing' })
+    expect(projectRecipeStatus('retired-recipe', shipped, own)).toEqual({ kind: 'unknown' })
+  })
+
+  it('counts earlier captures of edited views and keeps them, and a kept one, through the file', async () => {
+    const written = state()
+    const planned = viewAtPoint({ lng: -122.7, lat: 53.9 }, { id: 'block-1', name: 'Block' }, [])
+    const before = viewCaptureKey(planned)
+    written.scene = { ...written.scene, viewsOfInterest: [{ ...planned, focalMm: 28 }] }
+    written.views = [
+      { ...view('view-a', 'Here'), plannedViewId: planned.id, plannedKey: before },
+      // Kept as its own saved view: no planned view's id or key.
+      { ...view('view-c', 'Kept'), plannedViewId: undefined, plannedKey: undefined },
+    ]
+    const text = await serializeProject(written)
+    const { state: read, summary } = await parseProject(text)
+    expect(read.views[0]).toMatchObject({ plannedViewId: planned.id, plannedKey: before })
+    expect(read.views[1]).not.toHaveProperty('plannedViewId')
+    expect(read.views[1]).not.toHaveProperty('plannedKey')
+    const status = projectOpenStatus(read, {
+      shipped: [{ id: 'district-rationale', name: 'District rationale' }],
+      own: [],
+    })
+    expect(status).toEqual({ recipe: { kind: 'shipped', name: 'District rationale' }, earlierCaptures: 1 })
+    expect(projectOpenedLine('a.pgvq.zip', summary, status)).toBe(
+      'Opened a.pgvq.zip: 3 saved views, 2 with their pictures. Their figures are as saved for this scene. No run yet: it is made again when a file needs it. Recipe: District rationale. One earlier capture is listed under its view.',
+    )
+    expect(
+      projectOpenedLine(
+        'b',
+        { ...summary, figures: 'earlier' },
+        { recipe: { kind: 'own-missing' }, earlierCaptures: 0 },
+      ),
+    ).toBe(
+      'Opened b: 3 saved views, 2 with their pictures. Their figures were saved under an earlier calculation of this scene: they are kept as saved, and a new run may differ. No run yet: it is made again when a file needs it. Its own recipe is not in this browser: the format’s recipe is used until it is added.',
+    )
+  })
+})
+
 describe('the project ZIP', () => {
   it('opens the original photo, supporting files, field images and captured figures with their original bytes', async () => {
     const written = state()
@@ -234,6 +304,8 @@ describe('the project ZIP', () => {
     expect(Object.keys(entries).filter((path) => path.endsWith('Camera original.JPG'))).toHaveLength(1)
     const read = await openProjectArchive(blob)
     expect(read.summary.dropped).toEqual([])
+    // The scene's key travels in the archive's project.json too.
+    expect(read.summary.figures).toBe('current')
     expect(read.state.workspace).toBe(written.workspace)
     expect(read.state.capturedBefore).toEqual(written.capturedBefore)
     expect(read.state.images['view-b']).toEqual(written.images['view-b'])
