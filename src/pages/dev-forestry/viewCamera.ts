@@ -8,8 +8,9 @@
  *
  * The eye a view is captured from can be surveyed (`ViewEye`): an elevation above sea level, or a height above the
  * terrain model's ground. An elevation stands the eye there as a stood-at viewpoint's surveyed eye does (a run input
- * at that stand, as a photo viewpoint's altitude is); a height above the ground raises or lowers only the road view's
- * eye while it stands at the view, and the capture with it, never the run's stations. Where the surveyed elevation
+ * at that stand, as a photo viewpoint's altitude is); a height above the ground is the stand's eye height in place of
+ * the scene's, a run input at that stand in the same way, so the road view, the capture and the run's sightline
+ * figure all stand at the same eye (an elevation wins where both would apply). Where the surveyed elevation
  * and the terrain model disagree by more than `EYE_GROUND_TOLERANCE_METERS` it is flagged, never refused: the
  * reviewer sees both numbers on the view's row and on the figure's camera information.
  *
@@ -237,7 +238,7 @@ export function eyeCheckText(check: EyeCheck): string {
 /**
  * What a planned view is captured with: its field across (a photo's own, else its lens entry's, else its focal
  * length's), its full-frame-equivalent focal length, and its eye: an elevation the stand's eye stands at (a photo's
- * altitude, else a surveyed elevation), or a height above the terrain model's ground for the road view's eye. The
+ * altitude, else a surveyed elevation), or a height above the terrain model's ground for the stand's eye height. The
  * page's stand, facing and save all read it, so the capture is the camera the row shows.
  */
 export type ViewCaptureCamera = {
@@ -245,7 +246,7 @@ export type ViewCaptureCamera = {
   focalMm: number
   /** Metres above sea level; null: the eye stands on the terrain model. */
   surveyedEyeMeters: number | null
-  /** Metres above the terrain model's ground; null: the run's eye height. */
+  /** Metres above the terrain model's ground, the stand's eye height (a run input there); null: the scene's. */
   eyeHeightMeters: number | null
 }
 

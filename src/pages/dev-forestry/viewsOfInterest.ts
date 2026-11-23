@@ -307,7 +307,7 @@ export function viewCaptureKey(view: ViewOfInterest): string {
  */
 export function groupByPlace(views: readonly ViewOfInterest[]): ViewOfInterest[][] {
   const groups: ViewOfInterest[][] = []
-  // A surveyed eye is a stand of its own too: an elevation is the stand's run input, a height the road view's eye.
+  // A surveyed eye is a stand of its own too: an elevation or a height above the ground is the stand's run input.
   const eyeOf = (view: ViewOfInterest) =>
     view.photo ? view.photo.altitudeMeters : view.eye ? `${view.eye.reference}:${view.eye.meters}` : null
   for (const view of views) {

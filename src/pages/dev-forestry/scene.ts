@@ -38,7 +38,7 @@ import {
   type TreeFreeArea,
   type ViewpointClearingSetting,
 } from './treeFreeAreas'
-import { parseSurveyedEye } from './viewpointStand'
+import { parseStandEyeHeight, parseSurveyedEye } from './viewpointStand'
 import { parseFieldGreenUp } from './greenUp'
 import { parseFigureFrame, type FigureFrame } from './figureFraming'
 import { parsePrescription } from './stand/prescription'
@@ -581,6 +581,9 @@ export function parseScene(input: unknown): ForestryScene | null {
       coordinates,
       ...(parseSurveyedEye(raw.viewpoint?.surveyedEye)
         ? { surveyedEye: parseSurveyedEye(raw.viewpoint?.surveyedEye) }
+        : {}),
+      ...(parseStandEyeHeight(raw.viewpoint?.standEyeHeight)
+        ? { standEyeHeight: parseStandEyeHeight(raw.viewpoint?.standEyeHeight) }
         : {}),
     },
     targets,
