@@ -116,7 +116,7 @@ export default defineConfig({
         },
         {
           id: 'block-planning',
-          roots: /^(BlockPlanningWorkspace|patch\.worker|field\.worker)-/,
+          roots: /^(BlockPlanningWorkspace|BlockPlanner)-/,
           extras: ['block-planning-layouts.json'],
         },
         {
