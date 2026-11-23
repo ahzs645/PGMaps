@@ -6,6 +6,7 @@ import { FORM_INPUT_CLASS, FormField, NullableNumberField, StyledSelect } from '
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
 import { cn } from '@/lib/utils'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import type { ForestryScene } from './scene'
 import type { TargetPolygon } from './types'
 import {
@@ -16,6 +17,7 @@ import {
   type FieldGreenUpFinding,
 } from './greenUp'
 import { formatPct } from './measureFormat'
+import { keepFieldKeysInRow } from './virtualRowKeys'
 
 const INLINE_FIELD = 'flex-row items-center justify-between gap-3'
 
@@ -88,148 +90,154 @@ export function ExistingOpeningGreenUp({
         supplied estimate, else the green-up age. A field check with a date and an observer overrides it; the modelled
         share is kept beside it.
       </p>
-      <ul
-        className="max-h-96 divide-y overflow-y-auto rounded-md border"
-        aria-label="Existing openings and their green-up"
-      >
-        {openings.map((t) => {
-          const reading = greenUpReading(t, year, scene.settings.greenUpAgeYears)
-          const open = openId === t.id
-          const field = t.fieldGreenUp ?? null
-          return (
-            <li key={t.id}>
-              <ResultRow
-                className="py-2"
-                title={t.name}
-                subtitle={`${share(reading.greenedUpPercent)} · ${reading.used === 'field' ? reading.label : 'modelled'}`}
-                leading={
-                  <Sprout
-                    aria-hidden="true"
-                    className={cn('mt-1 size-3', reading.used === 'field' ? 'text-success' : 'text-muted-foreground')}
-                  />
-                }
-                trailing={
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={cn('mt-1 size-4 text-muted-foreground transition-transform', open && 'rotate-180')}
-                  />
-                }
-                selected={open}
-                aria-expanded={open}
-                onClick={() => setOpenId(open ? null : t.id)}
-              />
-              {open && (
-                <ResultRowDetail className="space-y-2">
-                  <p>
-                    <span className="text-muted-foreground">Modelled: </span>
-                    {share(reading.modelled.greenedUpPercent)} — {reading.modelled.detail}
-                    {reading.used === 'field' ? ' (kept for the record, not used)' : ' (used)'}
-                  </p>
-                  <NullableNumberField
-                    label="Supplied recovery estimate"
-                    aria-label={`Recovery percent for ${t.name}`}
-                    contentClassName={INLINE_FIELD}
-                    inputClassName={cn(FORM_INPUT_CLASS, 'w-20')}
-                    suffix="%"
-                    placeholder="Age"
-                    min={0}
-                    max={100}
-                    value={t.recoveryPercent ?? null}
-                    onValueChange={(recoveryPercent) => update(t.id, { recoveryPercent })}
-                  />
-                  {/* A VIA's existing-alteration line is an ocular judgement: one click records it, dated. */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="xs"
-                    onClick={() =>
-                      setField(t, {
-                        finding: 'yes',
-                        observedOn: new Date().toISOString().slice(0, 10),
-                        note: [VISUAL_JUDGEMENT_NOTE, field?.note].filter(Boolean).join(' '),
-                      })
-                    }
-                  >
-                    Judged visually greened up from the viewpoint photo
-                  </Button>
-                  <FormField label="Field check" contentClassName={INLINE_FIELD}>
-                    <StyledSelect
-                      aria-label={`Field check for ${t.name}`}
-                      className="rounded-md border bg-background"
-                      value={field?.finding ?? ''}
-                      onChange={(e) =>
-                        setField(t, e.target.value ? { finding: e.target.value as FieldGreenUpFinding } : null)
+      {/* A row per opening, of which an archive can hold a thousand: only those near the view are mounted. */}
+      <div className="overflow-hidden rounded-md border">
+        <VirtualResultList
+          items={openings}
+          getKey={(t) => t.id}
+          estimateSize={52}
+          label="Existing openings and their green-up"
+          revealKey={openId}
+        >
+          {(t) => {
+            const reading = greenUpReading(t, year, scene.settings.greenUpAgeYears)
+            const open = openId === t.id
+            const field = t.fieldGreenUp ?? null
+            return (
+              <div onKeyDown={keepFieldKeysInRow}>
+                <ResultRow
+                  className="py-2"
+                  title={t.name}
+                  subtitle={`${share(reading.greenedUpPercent)} · ${reading.used === 'field' ? reading.label : 'modelled'}`}
+                  leading={
+                    <Sprout
+                      aria-hidden="true"
+                      className={cn('mt-1 size-3', reading.used === 'field' ? 'text-success' : 'text-muted-foreground')}
+                    />
+                  }
+                  trailing={
+                    <ChevronDown
+                      aria-hidden="true"
+                      className={cn('mt-1 size-4 text-muted-foreground transition-transform', open && 'rotate-180')}
+                    />
+                  }
+                  selected={open}
+                  aria-expanded={open}
+                  onClick={() => setOpenId(open ? null : t.id)}
+                />
+                {open && (
+                  <ResultRowDetail className="space-y-2">
+                    <p>
+                      <span className="text-muted-foreground">Modelled: </span>
+                      {share(reading.modelled.greenedUpPercent)} — {reading.modelled.detail}
+                      {reading.used === 'field' ? ' (kept for the record, not used)' : ' (used)'}
+                    </p>
+                    <NullableNumberField
+                      label="Supplied recovery estimate"
+                      aria-label={`Recovery percent for ${t.name}`}
+                      contentClassName={INLINE_FIELD}
+                      inputClassName={cn(FORM_INPUT_CLASS, 'w-20')}
+                      suffix="%"
+                      placeholder="Age"
+                      min={0}
+                      max={100}
+                      value={t.recoveryPercent ?? null}
+                      onValueChange={(recoveryPercent) => update(t.id, { recoveryPercent })}
+                    />
+                    {/* A VIA's existing-alteration line is an ocular judgement: one click records it, dated. */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() =>
+                        setField(t, {
+                          finding: 'yes',
+                          observedOn: new Date().toISOString().slice(0, 10),
+                          note: [VISUAL_JUDGEMENT_NOTE, field?.note].filter(Boolean).join(' '),
+                        })
                       }
                     >
-                      <option value="">Not checked</option>
-                      <option value="yes">Greened up</option>
-                      <option value="no">Not greened up</option>
-                      <option value="percent">Partly: share greened up</option>
-                    </StyledSelect>
-                  </FormField>
-                  {field && (
-                    <>
-                      {field.finding === 'percent' && (
-                        <NullableNumberField
-                          label="Share greened up"
-                          aria-label={`Field share greened up for ${t.name}`}
-                          contentClassName={INLINE_FIELD}
-                          inputClassName={cn(FORM_INPUT_CLASS, 'w-20')}
-                          suffix="%"
-                          min={0}
-                          max={100}
-                          value={field.greenedUpPercent}
-                          onValueChange={(greenedUpPercent) => setField(t, { greenedUpPercent })}
-                        />
-                      )}
-                      <FormField label="Checked on" contentClassName={INLINE_FIELD}>
-                        <input
-                          type="date"
-                          aria-label={`Field check date for ${t.name}`}
-                          className={cn(FORM_INPUT_CLASS, 'w-36')}
-                          value={field.observedOn}
-                          onChange={(e) => setField(t, { observedOn: e.target.value })}
-                        />
-                      </FormField>
-                      <FormField label="Checked by" contentClassName={INLINE_FIELD}>
-                        <PersonInput
-                          aria-label={`Field check observer for ${t.name}`}
-                          className={cn(FORM_INPUT_CLASS, 'w-36')}
-                          maxLength={FIELD_GREEN_UP_OBSERVER_MAX}
-                          value={field.observedBy}
-                          onValueChange={(observedBy) => setField(t, { observedBy })}
-                        />
-                      </FormField>
-                      <FormField label={`Field note for ${t.name}`} hideLabel>
-                        <textarea
-                          className={FORM_INPUT_CLASS}
-                          rows={2}
-                          maxLength={FIELD_GREEN_UP_NOTE_MAX}
-                          placeholder="Note (stand height, stocking, photo IDs). Not a run input."
-                          value={field.note ?? ''}
-                          onChange={(e) => setField(t, { note: e.target.value })}
-                        />
-                      </FormField>
-                    </>
-                  )}
-                  {reading.fieldIssue ? (
-                    <InlineAlert tone="warning">
-                      Field check not used: {reading.fieldIssue} The model applies.
-                    </InlineAlert>
-                  ) : (
-                    <p>
-                      <span className="text-muted-foreground">The run uses: </span>
-                      <span className="font-medium">
-                        {share(reading.greenedUpPercent)}, {reading.label}
-                      </span>
-                    </p>
-                  )}
-                </ResultRowDetail>
-              )}
-            </li>
-          )
-        })}
-      </ul>
+                      Judged visually greened up from the viewpoint photo
+                    </Button>
+                    <FormField label="Field check" contentClassName={INLINE_FIELD}>
+                      <StyledSelect
+                        aria-label={`Field check for ${t.name}`}
+                        className="rounded-md border bg-background"
+                        value={field?.finding ?? ''}
+                        onChange={(e) =>
+                          setField(t, e.target.value ? { finding: e.target.value as FieldGreenUpFinding } : null)
+                        }
+                      >
+                        <option value="">Not checked</option>
+                        <option value="yes">Greened up</option>
+                        <option value="no">Not greened up</option>
+                        <option value="percent">Partly: share greened up</option>
+                      </StyledSelect>
+                    </FormField>
+                    {field && (
+                      <>
+                        {field.finding === 'percent' && (
+                          <NullableNumberField
+                            label="Share greened up"
+                            aria-label={`Field share greened up for ${t.name}`}
+                            contentClassName={INLINE_FIELD}
+                            inputClassName={cn(FORM_INPUT_CLASS, 'w-20')}
+                            suffix="%"
+                            min={0}
+                            max={100}
+                            value={field.greenedUpPercent}
+                            onValueChange={(greenedUpPercent) => setField(t, { greenedUpPercent })}
+                          />
+                        )}
+                        <FormField label="Checked on" contentClassName={INLINE_FIELD}>
+                          <input
+                            type="date"
+                            aria-label={`Field check date for ${t.name}`}
+                            className={cn(FORM_INPUT_CLASS, 'w-36')}
+                            value={field.observedOn}
+                            onChange={(e) => setField(t, { observedOn: e.target.value })}
+                          />
+                        </FormField>
+                        <FormField label="Checked by" contentClassName={INLINE_FIELD}>
+                          <PersonInput
+                            aria-label={`Field check observer for ${t.name}`}
+                            className={cn(FORM_INPUT_CLASS, 'w-36')}
+                            maxLength={FIELD_GREEN_UP_OBSERVER_MAX}
+                            value={field.observedBy}
+                            onValueChange={(observedBy) => setField(t, { observedBy })}
+                          />
+                        </FormField>
+                        <FormField label={`Field note for ${t.name}`} hideLabel>
+                          <textarea
+                            className={FORM_INPUT_CLASS}
+                            rows={2}
+                            maxLength={FIELD_GREEN_UP_NOTE_MAX}
+                            placeholder="Note (stand height, stocking, photo IDs). Not a run input."
+                            value={field.note ?? ''}
+                            onChange={(e) => setField(t, { note: e.target.value })}
+                          />
+                        </FormField>
+                      </>
+                    )}
+                    {reading.fieldIssue ? (
+                      <InlineAlert tone="warning">
+                        Field check not used: {reading.fieldIssue} The model applies.
+                      </InlineAlert>
+                    ) : (
+                      <p>
+                        <span className="text-muted-foreground">The run uses: </span>
+                        <span className="font-medium">
+                          {share(reading.greenedUpPercent)}, {reading.label}
+                        </span>
+                      </p>
+                    )}
+                  </ResultRowDetail>
+                )}
+              </div>
+            )
+          }}
+        </VirtualResultList>
+      </div>
     </div>
   )
 }
