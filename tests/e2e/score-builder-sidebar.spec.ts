@@ -98,7 +98,6 @@ async function openPanels(page: Page) {
   }
 }
 
-
 test.describe('Score Builder preset model', () => {
   test('presets have coherent metadata, source derivation, and active matching', () => {
     const metricKeys = new Set(SCORE_METRICS.map((metric) => metric.key))
@@ -165,6 +164,10 @@ test.describe('Score Builder desktop interface', () => {
     const preview = page.locator('[data-score-builder-results-preview="true"]')
     await expect(preview).toContainText('Score=')
     await expect(preview).not.toContainText('|weights|')
+    await preview.getByRole('button', { name: 'Equation details' }).click()
+    await expect(preview.getByTitle('Copy equation to clipboard')).toBeVisible()
+    await expect(preview.locator('code')).toContainText('for each region')
+    await preview.getByRole('button', { name: 'Equation details' }).click()
     await expect(page.locator('[data-score-builder-equation-term]')).toHaveCount(5)
 
     await preview.getByRole('button', { name: 'Hide equation' }).click()
@@ -181,9 +184,7 @@ test.describe('Score Builder desktop interface', () => {
     await dialog.getByRole('button', { name: /Air Monitoring Gaps \(Tract\)/ }).click()
     await expect(page.getByRole('dialog', { name: 'Recipes' })).toHaveCount(0)
 
-    await expect(page.locator('[data-index-lab-header="true"]').first()).toContainText(
-      'Air Monitoring Gaps (Tract)',
-    )
+    await expect(page.locator('[data-index-lab-header="true"]').first()).toContainText('Air Monitoring Gaps (Tract)')
     await expect(dataSourceButton(page, 'Air Quality')).toContainText('ON')
     await expect(dataSourceButton(page, 'Parks & Trails')).toContainText('OFF')
     await expect(dataSourceButton(page, 'Demographics')).toContainText('ON')
@@ -206,7 +207,13 @@ test.describe('Score Builder desktop interface', () => {
 
     await chooseBoundarySource(page, 'census')
     await expect(regionStats).toContainText('23 of 23 regions', { timeout: 20_000 })
-    await expectLevelOptions(page, ['Census Division', 'Census Subdivision', 'Census Tract', 'Dissemination Area', 'Dissemination Block'])
+    await expectLevelOptions(page, [
+      'Census Division',
+      'Census Subdivision',
+      'Census Tract',
+      'Dissemination Area',
+      'Dissemination Block',
+    ])
 
     await selectLevel(page, 'Dissemination Area')
     await expect(levelTrigger).toContainText('Dissemination Area')
@@ -233,7 +240,10 @@ test.describe('Score Builder desktop interface', () => {
 
     for (const [source, levels] of Object.entries(boundaryMatrix)) {
       await chooseBoundarySource(page, source)
-      await expectLevelOptions(page, levels.map((entry) => entry.label))
+      await expectLevelOptions(
+        page,
+        levels.map((entry) => entry.label),
+      )
 
       for (const entry of levels) {
         await selectLevel(page, entry.label)
@@ -419,6 +429,7 @@ test.describe('Score Builder desktop interface', () => {
     const dialog = page.locator('[data-score-builder-region-insight-dialog="true"]')
     await expect(dialog).toBeVisible()
 
+    await expect(dialog.getByRole('columnheader', { name: 'Contribution', exact: true }).first()).toBeVisible()
     await dialog.getByRole('button', { name: 'Close' }).click()
     await expect(dialog).toBeHidden()
   })

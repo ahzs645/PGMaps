@@ -1,3 +1,4 @@
+import { CalculationTable } from '@/components/ui/calculation-results'
 import { Badge } from '@/components/ui/badge'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { EmptyHint } from '@/components/ui/result-list'
@@ -32,36 +33,35 @@ export function RobustnessTab({ className = 'p-4', robustnessResults, scenarioCo
       )}
 
       <div className="space-y-2">
-        {robustnessResults.map((result) => (
-          <div key={result.regionId} className="rounded-lg border border-border bg-background p-3 text-xs">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="font-semibold text-foreground">
-                  #{result.baseRank} {result.regionName}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  median rank {result.medianRank.toFixed(1)} · interval #{result.rankInterval[0]}-#
-                  {result.rankInterval[1]}
-                </div>
-              </div>
-              <Badge
-                size="sm"
-                tone={
-                  result.stability === 'stable' ? 'success' : result.stability === 'moderate' ? 'warning' : 'danger'
-                }
-                className="font-semibold"
-              >
-                {result.stability}
-              </Badge>
-            </div>
-            <div className="mt-2 text-xs text-muted-foreground">
-              Score interval {formatScore(result.scoreInterval[0])}-{formatScore(result.scoreInterval[1])}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Drivers: {result.topDrivers.map(getMetricLabel).join(', ')}
-            </div>
-          </div>
-        ))}
+        {robustnessResults.length > 0 && (
+          <CalculationTable
+            caption="Rank and score sensitivity across the tested scenarios"
+            rows={robustnessResults}
+            rowKey={(r) => r.regionId}
+            columns={[
+              { label: 'Area and baseline rank', render: (r) => `#${r.baseRank} ${r.regionName}` },
+              { label: 'Median rank', render: (r) => r.medianRank.toFixed(1) },
+              { label: 'Rank interval', render: (r) => `#${r.rankInterval[0]}–#${r.rankInterval[1]}` },
+              {
+                label: 'Score interval',
+                render: (r) => `${formatScore(r.scoreInterval[0])}–${formatScore(r.scoreInterval[1])}`,
+              },
+              {
+                label: 'Stability',
+                render: (r) => (
+                  <Badge
+                    size="sm"
+                    tone={r.stability === 'stable' ? 'success' : r.stability === 'moderate' ? 'warning' : 'danger'}
+                    className="font-semibold"
+                  >
+                    {r.stability}
+                  </Badge>
+                ),
+              },
+              { label: 'Drivers', render: (r) => r.topDrivers.map(getMetricLabel).join(', ') },
+            ]}
+          />
+        )}
         {robustnessResults.length === 0 && (
           <EmptyHint className="p-3">
             Turn on sensitivity testing in the Model tab to generate robustness results.
