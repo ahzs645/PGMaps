@@ -2,40 +2,257 @@
   {
     "id": "guided",
     "name": "Guided mode",
-    "description": "Edit the selected block, landscape or legal review alongside the map.",
+    "description": "Work through the five planning steps in the sidebar, beside the map and the patch classes over time.",
     "icon": "panels",
-    "headerTools": ["controls", "blocks", "landscape", "review", "open", "export", "chooseInterface"],
-    "panelFrame": { "background": "white", "inset": 4, "gap": 8 }
+    "preset": "map-trend",
+    "sidebar": "open",
+    "panelFrame": {
+      "background": "white",
+      "inset": 0,
+      "gap": 14,
+      "resizeCorners": true
+    },
+    "headerTools": [
+      "controls",
+      "schedulePicker",
+      "periodPicker",
+      "presets",
+      "newPlan",
+      "openSample",
+      "open",
+      "export",
+      "interfaceSwitch",
+      "fullscreen"
+    ]
   },
   {
     "id": "ribbon",
     "name": "Ribbon",
-    "description": "Use a tab for each planning step and open its editor beside the map.",
+    "description": "Find files, the five planning steps and the map's tools in a tabbed ribbon; each step's settings open beside the views.",
     "icon": "ribbon",
+    "preset": "map-trend",
+    "sidebar": "collapsed",
+    "panelFrame": {
+      "background": "gray",
+      "grayPercent": 19,
+      "inset": 12,
+      "gap": 14,
+      "resizeCorners": true
+    },
     "toolbar": {
       "dock": "top",
-      "header": "controls",
       "fullWidth": true,
+      "header": "controls",
       "compact": true,
       "editorPlacement": "pane",
+      "quickAccess": ["export"],
       "label": "Planning ribbon",
-      "tabsLabel": "Planning steps",
-      "quickAccess": ["open", "export", "chooseInterface"],
+      "tabsLabel": "Ribbon tabs",
+      "startGroup": "Blocks",
       "groups": [
+        {
+          "label": "File",
+          "sections": [
+            {
+              "label": "Plan",
+              "primary": "newPlan",
+              "rows": 2,
+              "items": ["newPlan", "open", "openSample"]
+            },
+            {
+              "label": "Current plan",
+              "items": ["projectInfo"]
+            },
+            {
+              "label": "Save",
+              "primary": "export",
+              "items": ["export"]
+            }
+          ]
+        },
+        {
+          "label": "Area",
+          "editor": "area",
+          "editorTitle": "Step 1 \u00b7 Reporting unit and baseline",
+          "sections": [
+            {
+              "label": "Settings",
+              "primary": "area",
+              "items": ["area"]
+            },
+            {
+              "label": "Baseline",
+              "rows": 2,
+              "items": ["drawDisturbance", "importBaseline"]
+            }
+          ]
+        },
         {
           "label": "Blocks",
           "editor": "blocks",
-          "editorTitle": "Plan blocks",
-          "commands": ["blocks", "open", "export"]
+          "editorTitle": "Step 2 \u00b7 Blocks",
+          "sections": [
+            {
+              "label": "Draw",
+              "primary": "drawBlock",
+              "rows": 2,
+              "items": ["drawBlock", "drawShape"]
+            },
+            {
+              "label": "Files",
+              "rows": 2,
+              "items": ["importBlocks", "importZones"]
+            },
+            {
+              "label": "List",
+              "primary": "blocks",
+              "items": ["blocks"]
+            }
+          ]
         },
         {
-          "label": "Landscape",
-          "editor": "landscape",
-          "editorTitle": "Compare harvest schedules",
-          "commands": ["landscape"]
+          "label": "Schedules",
+          "editor": "schedules",
+          "editorTitle": "Step 3 \u00b7 Schedules",
+          "sections": [
+            {
+              "label": "Timing",
+              "primary": "schedules",
+              "items": ["schedules"]
+            },
+            {
+              "label": "On the map",
+              "items": ["schedulePicker"]
+            }
+          ]
         },
-        { "label": "Legal review", "editor": "review", "editorTitle": "Rules and evidence", "commands": ["review"] }
+        {
+          "label": "Compare",
+          "editor": "compare",
+          "editorTitle": "Step 4 \u00b7 Compare schedules",
+          "sections": [
+            {
+              "label": "Results",
+              "primary": "compare",
+              "items": ["compare"]
+            },
+            {
+              "label": "Year",
+              "rows": 2,
+              "items": ["previousPeriod", "nextPeriod"]
+            },
+            {
+              "label": "On the map",
+              "items": ["periodPicker"]
+            }
+          ]
+        },
+        {
+          "label": "Review",
+          "editor": "review",
+          "editorTitle": "Step 5 \u00b7 Review",
+          "sections": [
+            {
+              "label": "Rules and evidence",
+              "primary": "review",
+              "items": ["review"]
+            }
+          ]
+        },
+        {
+          "label": "View",
+          "sections": [
+            {
+              "label": "Map",
+              "items": ["fitAll"]
+            },
+            {
+              "label": "Screen",
+              "items": ["presets"]
+            },
+            {
+              "label": "Workspace",
+              "rows": 2,
+              "items": ["interfaceSwitch", "customizeRibbon", "fullscreen"]
+            }
+          ]
+        }
       ]
     }
+  },
+  {
+    "id": "guided-map",
+    "name": "Guided map",
+    "description": "A short guide beside the map: set the area, draw blocks, time them, then compare the schedules.",
+    "icon": "compass",
+    "preset": "map-trend",
+    "panelFrame": {
+      "background": "gray",
+      "grayPercent": 19,
+      "inset": 12,
+      "gap": 14,
+      "resizeCorners": true
+    },
+    "toolbar": {
+      "dock": "side",
+      "title": "Block planning",
+      "label": "Planning guide",
+      "tabsLabel": "Planning guide steps",
+      "groups": [
+        {
+          "label": "Area",
+          "icon": "map",
+          "hint": "Choose the reporting unit and add what has already been cut or burned.",
+          "commands": ["area", "drawDisturbance", "importBaseline"]
+        },
+        {
+          "label": "Blocks",
+          "icon": "route",
+          "hint": "Draw or import the blocks, and any reconfigured shapes.",
+          "commands": ["blocks", "drawBlock", "drawShape", "importBlocks"]
+        },
+        {
+          "label": "Timing",
+          "icon": "ruler",
+          "hint": "Say when each schedule cuts each block, then compare the patch classes over time.",
+          "commands": ["schedules", "compare", "review"]
+        },
+        {
+          "label": "View",
+          "icon": "panels",
+          "hint": "Change how the workspace is laid out.",
+          "commands": ["fitAll", "chooseInterface", "fullscreen"]
+        }
+      ]
+    }
+  },
+  {
+    "id": "dashboard",
+    "name": "Dashboard",
+    "description": "The map, the patch classes over time and the period table side by side, with the steps folded away.",
+    "icon": "dashboard",
+    "preset": "all",
+    "sidebar": "collapsed",
+    "panelFrame": {
+      "background": "gray",
+      "grayPercent": 19,
+      "inset": 12,
+      "gap": 14,
+      "resizeCorners": true
+    },
+    "headerTools": [
+      "controls",
+      "schedulePicker",
+      "periodPicker",
+      "previousPeriod",
+      "nextPeriod",
+      "presets",
+      "newPlan",
+      "openSample",
+      "open",
+      "export",
+      "interfaceSwitch",
+      "fullscreen"
+    ]
   }
 ]

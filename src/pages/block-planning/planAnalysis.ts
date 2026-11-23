@@ -51,7 +51,7 @@ export function scheduleProject(plan: Plan, scheduleId: string): Project {
     type: 'FeatureCollection',
     district: plan.area.district,
     ndu: plan.area.ndu,
-    source: plan.area.source,
+    source: plan.area.source.trim() || 'Inventory source not stated.',
     startYear: plan.area.startYear,
     features: [...baseline, ...harvests],
   }

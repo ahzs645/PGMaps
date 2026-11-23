@@ -15,6 +15,8 @@ type Props = {
   year: number
   scenario: Scenario
   onComparison: (comparison: FieldComparison | null) => void
+  /** The planner's name for an engine footprint id. */
+  nameOf?: (id: string) => string
 }
 
 const format = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 2 })
@@ -23,7 +25,7 @@ const points = (value: number | null) =>
 const screenLabel = (value: boolean | null) =>
   value === null ? 'Missing evidence' : value ? 'One or more classes moved farther' : 'No class moved farther'
 
-export function PatchExplanation({ project, explanation, year, scenario, onComparison }: Props) {
+export function PatchExplanation({ project, explanation, year, scenario, onComparison, nameOf = (id) => id }: Props) {
   const { classes, totalHa, unclassifiedHa, screen } = explanation
   const byGap = [...classes]
     .filter((c) => c.gapPoints !== null)
@@ -167,7 +169,7 @@ export function PatchExplanation({ project, explanation, year, scenario, onCompa
                 render: (p) => (
                   <>
                     Patch {p.id}
-                    <span className="block text-xs font-normal">{p.footprintIds.join(', ')}</span>
+                    <span className="block text-xs font-normal">{p.footprintIds.map(nameOf).join(', ')}</span>
                   </>
                 ),
               },
@@ -208,7 +210,7 @@ export function PatchExplanation({ project, explanation, year, scenario, onCompa
             <option value="">Select a footprint</option>
             {footprints.map((f) => (
               <option key={f.properties.id} value={f.properties.id}>
-                {f.properties.id}
+                {nameOf(f.properties.id)}
                 {f.properties.yearBasis === 'editor-default' ? ' · missing source year' : ''}
               </option>
             ))}

@@ -143,7 +143,7 @@ export function openPlanFile(raw: unknown): Opened {
         review: {
           selected: r.selected as string[],
           date: text(r.date, 'review date'),
-          sets: object(r.sets ?? {}, 'facts'),
+          sets: object(r.sets ?? {}, 'facts') as ReviewCase['sets'],
         },
       })
     }

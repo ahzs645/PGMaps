@@ -1,22 +1,34 @@
 # Block planning and Prince George forest patch scenarios
 
-Open **Forestry tools → Block planning** at `/dev/forestry/block-planning`. New plans open with an empty inventory and the FPPR profile. Under **Landscape**, choose **Load Prince George sample** for the synthetic worked example or enter the reporting unit for your own inventory. Select the historic forest district and natural disturbance sub-unit, then record the source, snapshot date and coverage. Clip GIS layers to that reporting unit before import.
+Open **Forestry tools → Block planning** at `/dev/forestry/block-planning`. The planner answers one question: if a block is cut now, later, in another shape or not at all, how does the shared landscape's young-forest patch distribution move against the 2004 Prince George order's Objective C targets over the next fifty years? An empty plan opens on step 1 with **Open the sample** (a synthetic teaching landscape) and **Open a plan file**.
 
-## Review a block
+## The plan
 
-Choose **Blocks**, enter a name, click **Draw block**, place the corners on the map, then click **Finish block**. Select any footprint to see its gross area measured with the shared block-sheet calculation. Import mapped riparian zones to measure overlap in BC Albers. Overlapping zones count once. The inventory file determines coverage and reserve boundaries. Stream classification, statutory buffers and completeness require source evidence.
+A plan (`pgmaps-block-plan/v2`, `src/pages/block-planning/plan.ts`) has five parts, and only the last two are opinions:
 
-Open **Legal review** for that block, schedule and projection year. Confirm instrument applicability and enter the legal assessment date and evidence, including verified net area to be reforested where relevant. The legal date is independent of the projected forest year. The Prince George pack reads its trend directly from the worker’s comparison with the preceding five-year period. A missing baseline leaves it unknown. Use **Export reproducible assessment** for the instrument snapshots, facts, traces and actions. **Export assessment JSON** saves the detailed landscape calculations and draft rationale.
+| Part      | What it holds                                                                                                                                                                                             |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Area      | Historic forest district and natural disturbance sub-unit (the Objective C reporting unit), the first projection year, the inventory's source and date, and the plan, tenure and order versions relied on |
+| Baseline  | Past harvests and stand-replacing disturbances every schedule shares, each with a kind, a year and whether that year came from the source, was entered, or was assumed                                    |
+| Blocks    | Each proposed block: a name and one or more shapes. A second shape is a reconfigured version of the same block                                                                                            |
+| Schedules | When each schedule cuts each block, or that it does not, and which shape. A schedule can follow another moved by a number of years; its own entries override the followed schedule block by block         |
+| Reviews   | Per block, the rule packs chosen and the evidence entered; and the landscape's D.5 rationale draft                                                                                                        |
 
-**Switch interface** changes between the same guided and ribbon controls as the road-design and visual-quality workspaces. Project data belongs to the plan. The browser remembers the chosen interface per tool.
+One schedule is marked as the proposal under review; new blocks start in it at the first projection year. Every edit is a function in `edits.ts`, so each interface does exactly the same thing. Files written by the planner before blocks and schedules were separate (`pgmaps-patches-v1`, `pgmaps-block-plan/v1`) open through `migrate.ts`, which turns reference footprints into the baseline, merges a polygon drawn identically in the proposed and alternative schedules into one block, and says what it changed.
 
-## Edit and compare
+## The five steps
 
-Choose **Shared baseline** for harvests and stand-replacing disturbances shared by every run. Choose **Proposed harvest** or **Alternative harvest** for events specific to a schedule. Enter the disturbance year and draw vertices on the map, then finish the footprint. To compare immediate and deferred harvest of the same polygon, import the same geometry in each schedule with a different ID and year. Orange outlines show input events across all dates in the selected schedule. Green shapes represent patches derived for the displayed year.
+1. **Area.** Choose the district and sub-unit (Table 7's targets show under the choice), the first year, and the baseline: draw a past disturbance or import GeoJSON polygons with a `year` property (a missing year is assumed five years before the start and marked).
+2. **Blocks.** Draw a block with the shared map sketch (click corners; click the first corner or double-click to finish; Backspace takes a corner back) or import GeoJSON. Select a block for its gross area, its shapes, **Draw another shape**, and its overlap with loaded riparian zones.
+3. **Schedules.** Add a schedule that follows another moved by some years, a copy to edit, or one that cuts nothing. The grid gives each block's year per schedule; a blank in a following schedule reads through (shown in italics), **Not cut here** overrides it and **Follow again** clears the override.
+4. **Compare.** Every schedule's class shares at the year on the map, each class marked closer to or farther from its target since the period before, and how many periods each schedule moved a class away. **Explain a figure** opens the patch contributions and the field-date priorities for one schedule.
+5. **Review.** The D.5(a)/(b) text and the rationale draft, and the rule review of the selected block, which reads the patch trend from the schedule under review at the year on the map.
 
-**Add disturbance GeoJSON** appends WGS84 Polygon and MultiPolygon features, including holes. A feature can specify `properties.id`, `properties.year` and `properties.scenario` (one of `reference`, `proposed`, `alternative`). Missing year and scenario use the editor controls. A missing ID uses the feature ID or the file name and row number. Each input must have a distinct ID. Record whether dates are observations or assumptions in the source notes. The model only represents stand-replacing disturbances.
+The views are the map (the schedule and year chosen in the header, with a year player under it), **Patch classes over time** (one small chart per size class, one line per schedule, the order's target drawn grey) and **Periods and schedules** (every figure as a table). Every schedule is calculated in a worker; editing a review or the rationale never starts a run.
 
-**Save plan** writes the block boundaries, scenarios, zone layer, reviewer inputs, cited releases and selected view into one portable JSON project. **Open plan** also accepts earlier `pgmaps-patches-v1` GeoJSON projects. **Export schedule polygons** writes an ordinary GeoJSON layer for GIS exchange. The current draft is saved in IndexedDB on this device. The initial year defaults to 2026 and is configurable in the project. Use **First projection year** to change it in the editor. To reschedule a footprint, enter its new disturbance year and use **Set year** under **Manage footprints**. Eleven five-year snapshots compare all three schedules on the shared baseline. Exported assessment JSON includes the input project, complete order snapshot, calculation method ID, per-period areas and targets, selected derived geometries and rationale draft. Geometry is shown in WGS84 and measured in BC Albers (EPSG:3005).
+## Interfaces
+
+Guided mode, Ribbon, Guided map and Dashboard (`public/block-planning-layouts.json`, registry in `src/pages/block-planning/interface/`) arrange the same commands and the same five step editors through the shared workspace kit (`docs/workspace-interfaces.md`). Switching keeps the plan, the selection and the year shown. The plan is kept in this browser (`pgmaps-block-planning`); **Save & export** writes the plan file.
 
 ## Explain a result and prioritize a field visit
 

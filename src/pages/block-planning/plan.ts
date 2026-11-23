@@ -17,6 +17,7 @@
  */
 import type { MultiPolygon, Polygon, Position } from 'geojson'
 import { int, list, object, oneOf, optional, text, type JsonObject } from '@/lib/jsonGuards'
+import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { districts, table } from '../forest-patches/project'
 
 export const PLAN_FORMAT = 'pgmaps-block-plan/v2'
@@ -103,7 +104,8 @@ export interface Schedule {
 export interface ReviewCase {
   selected: string[]
   date: string
-  sets: Record<string, unknown>
+  /** Checked against their packs when the review opens (`parseFacts`). */
+  sets: Record<string, FactSet>
 }
 
 export interface LandscapeReview {
@@ -334,7 +336,11 @@ function parseArea(value: unknown): Area {
     district,
     ndu,
     startYear: int(a.startYear, 'area.startYear', ...START_YEAR_RANGE),
-    source: text(a.source, 'area.source', 2000),
+    source: (() => {
+      if (typeof a.source !== 'string' || a.source.length > 2000)
+        throw Error('area.source must be text of at most 2000 characters.')
+      return a.source
+    })(),
     snapshotDate: optional(a, 'snapshotDate', (v) => {
       if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw Error('area.snapshotDate must be YYYY-MM-DD.')
       return v
@@ -426,7 +432,7 @@ function parseReview(value: unknown, label: string): ReviewCase {
   const selected = list(r.selected, `${label} releases`, 100).map((v) => text(v, `${label} release`))
   if (typeof r.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.date))
     throw Error(`${label} date must be YYYY-MM-DD.`)
-  return { selected, date: r.date, sets: object(r.sets ?? {}, `${label} facts`) }
+  return { selected, date: r.date, sets: object(r.sets ?? {}, `${label} facts`) as Record<string, FactSet> }
 }
 
 /** Reads a v2 plan. Fact sets inside reviews are checked against their packs by the caller. */

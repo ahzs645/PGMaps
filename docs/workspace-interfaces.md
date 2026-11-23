@@ -4,11 +4,11 @@ A tool with workspace interfaces lets the person choose how its controls are arr
 sidebar, a tabbed ribbon, a dashboard) without the tool becoming two tools. Each interface is an
 arrangement of the same commands, the same panels and the same project. Three tools use it:
 
-| Tool | Layout file | Kit | Interfaces |
-| --- | --- | --- | --- |
-| Block planning (`/dev/forestry/block-planning`) | `public/block-planning-layouts.json` | `src/pages/block-planning/layouts.ts` | Guided mode, Ribbon |
-| Road design (`/dev/forestry/road-design`) | `public/workspace-layouts.json` | `src/pages/dev-forestry-roads/interface/roadKit.tsx` | Ribbon, Guided map, Guided mode, Dashboard |
-| Visual quality (`/dev/forestry/visual-quality`) | `public/visuals-layouts.json` | `src/pages/dev-forestry/interface/visualsKit.tsx` | Guided mode, Ribbon |
+| Tool                                            | Layout file                          | Kit                                                  | Interfaces                                 |
+| ----------------------------------------------- | ------------------------------------ | ---------------------------------------------------- | ------------------------------------------ |
+| Block planning (`/dev/forestry/block-planning`) | `public/block-planning-layouts.json` | `src/pages/block-planning/interface/`                | Guided mode, Ribbon, Guided map, Dashboard |
+| Road design (`/dev/forestry/road-design`)       | `public/workspace-layouts.json`      | `src/pages/dev-forestry-roads/interface/roadKit.tsx` | Ribbon, Guided map, Guided mode, Dashboard |
+| Visual quality (`/dev/forestry/visual-quality`) | `public/visuals-layouts.json`        | `src/pages/dev-forestry/interface/visualsKit.tsx`    | Guided mode, Ribbon                        |
 
 The road designer's guide to its own file is
 [forestry-road-design/workspace-layouts.md](forestry-road-design/workspace-layouts.md); the
@@ -111,7 +111,7 @@ What changed in the shared pieces, for anyone extending them:
 - `LayoutVocabulary` gained `editors`, `presets` and `collections`; `LayoutGroup` gained
   `editorTitle` (the task pane's title, else "<label> settings").
 - `useWorkflowPlacement(layout, investigation, defaultEditor)`; its `selectWorkflow(editor,
-  { reveal: false })` changes the tab without opening or closing the pane.
+{ reveal: false })` changes the tab without opening or closing the pane.
 - `useWorkspaceLayout(initial, { defaultPane, storeInterface, legacyPresetKey })`.
 - `WorkspaceHeader`'s `roadSwitcher` prop is now `crumb`; `RibbonPaneColumns` takes `viewsLabel`
   for its divider's name.

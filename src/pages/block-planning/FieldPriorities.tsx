@@ -13,11 +13,14 @@ export function FieldPriorities({
   year,
   scenario,
   onResult,
+  nameOf = (id) => id,
 }: {
   project: Project
   year: number
   scenario: Scenario
   onResult: (r: Results | null) => void
+  /** The planner's name for an engine footprint id. */
+  nameOf?: (id: string) => string
 }) {
   const [tolerance, setTolerance] = useState('')
   const { result, busy, error, clear, run } = useWorkerCalculation<PriorityInput, Results>(createFieldWorker, onResult)
@@ -75,7 +78,7 @@ export function FieldPriorities({
             rows={result.rows}
             rowKey={(r) => r.id}
             columns={[
-              { label: 'Footprint', render: (r) => r.id },
+              { label: 'Footprint', render: (r) => nameOf(r.id) },
               { label: 'Mapped year and source', render: (r) => r.year + ' · ' + r.basis + ' · ' + r.source },
               {
                 label: 'Effect on trend flag',

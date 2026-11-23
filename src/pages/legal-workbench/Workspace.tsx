@@ -1,6 +1,5 @@
 import { statusLabels } from '../../../packages/legal-rules/engine/explain'
 import { spatialFacts, type Measurement } from '../../../packages/legal-rules/engine/spatialFacts'
-import type { ReviewCase } from '../block-planning/document'
 import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Button } from '@/components/ui/button'
@@ -21,6 +20,13 @@ import {
 import profile from '../../../packages/legal-rules/forestry-profile.json'
 import example from '../../../packages/legal-rules/examples/water-monitoring.json'
 import { defaults, loadLibrary, installPacks } from './registry'
+
+/** One case: the releases chosen, the legal assessment date and the facts entered per release. */
+export interface ReviewCase {
+  selected: string[]
+  date: string
+  sets: Record<string, FactSet>
+}
 
 const save = (data: unknown, file: string) => downloadText(JSON.stringify(data, null, 2), file, 'application/json')
 const blank = (p: Pack): FactSet => ({

@@ -1,49 +1,87 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { WorkspaceKitProvider } from '@/components/interfaces/workspaceKit'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useOfflineTool } from '@/lib/offline/offlineTools'
-import { kit, loadLayouts, preferences, type Layout } from './block-planning/layouts'
-import { freshPlan, loadPlan, readPlan, type Plan } from './block-planning/document'
+import {
+  loadPlanningLayouts,
+  PLANNING_KIT,
+  planningInterfaces,
+  type PlanningInterface,
+} from './block-planning/interface/layouts'
+import { emptyPlan, type Plan } from './block-planning/plan'
+import { loadStoredPlan } from './block-planning/store'
 import { installPacks } from './legal-workbench/registry'
-import Workspace from './block-planning/Workspace'
 
+const BlockPlanner = lazy(() => import('./block-planning/BlockPlanner'))
+
+type Opening = {
+  layouts: PlanningInterface[]
+  initial: PlanningInterface
+  fallback: boolean
+  plan: Plan
+  notes: string[]
+  storageBroken: boolean
+}
+
+/**
+ * Opens the block planner straight into the interface last chosen (or the one a link names) with
+ * the plan kept in this browser, as road design and visual quality open theirs.
+ */
 export default function BlockPlanningWorkspace() {
-  useDocumentTitle('Block planning')
+  useDocumentTitle('Block planning · PGMaps')
   useOfflineTool('block-planning')
-  const [catalog, setCatalog] = useState<{
-    layouts: Layout[]
-    initial: Layout
-    fallback: boolean
-    initialPlan: Plan
-    warning: string
-  }>()
+  const [opening, setOpening] = useState<Opening | null>(null)
   useEffect(() => {
     const controller = new AbortController()
     async function restore() {
       try {
-        const saved = await loadPlan()
-        const plan = saved ? await readPlan(saved) : freshPlan()
-        if (plan.packs.length) await installPacks(plan.packs)
-        return { initialPlan: plan, warning: '' }
-      } catch {
+        const stored = await loadStoredPlan()
+        if (stored?.plan.packs.length) await installPacks(stored.plan.packs)
+        return { plan: stored?.plan ?? emptyPlan(), notes: stored?.notes ?? [], storageBroken: false }
+      } catch (e) {
         return {
-          initialPlan: freshPlan(),
-          warning: 'The stored plan could not be opened. Automatic saving is paused. Open an exported plan to resume.',
+          plan: emptyPlan(),
+          notes: [
+            `The plan kept in this browser could not be opened: ${e instanceof Error ? e.message : 'unreadable'}.`,
+          ],
+          storageBroken: true,
         }
       }
     }
-    void Promise.all([loadLayouts(controller.signal), restore()]).then(([{ layouts, fallback }, restored]) => {
+    void Promise.all([loadPlanningLayouts(controller.signal), restore()]).then(([{ layouts, fallback }, restored]) => {
       if (controller.signal.aborted) return
-      const id = preferences.initialInterfaceId(layouts, location.search, preferences.readStoredInterface())
-      setCatalog({ ...restored, layouts, initial: layouts.find((layout) => layout.id === id) ?? layouts[0], fallback })
+      const id = planningInterfaces.initialInterfaceId(
+        layouts,
+        window.location.search,
+        planningInterfaces.readStoredInterface(),
+      )
+      setOpening({ ...restored, layouts, initial: layouts.find((l) => l.id === id) ?? layouts[0], fallback })
     })
     return () => controller.abort()
   }, [])
-  return catalog ? (
-    <WorkspaceKitProvider kit={kit}>
-      <Workspace {...catalog} />
-    </WorkspaceKitProvider>
-  ) : (
-    <p role="status">Opening block planning…</p>
+  const loading = (
+    <p className="p-6" role="status">
+      Opening block planning…
+    </p>
+  )
+  return (
+    <div className="h-full">
+      {opening ? (
+        <Suspense fallback={loading}>
+          <WorkspaceKitProvider kit={PLANNING_KIT}>
+            <BlockPlanner
+              layouts={opening.layouts}
+              initialInterface={opening.initial}
+              layoutsFallback={opening.fallback}
+              initialPlan={opening.plan}
+              initialNotes={opening.notes}
+              storageBroken={opening.storageBroken}
+            />
+          </WorkspaceKitProvider>
+        </Suspense>
+      ) : (
+        loading
+      )}
+    </div>
   )
 }
