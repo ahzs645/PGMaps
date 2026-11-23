@@ -63,3 +63,32 @@ describe('review questions', () => {
     expect(STATUS_WORDS.review_required).toBe('Needs review')
   })
 })
+
+describe('grouping by provision', () => {
+  it('puts shared questions under the whole case and the rest under their provisions', async () => {
+    const { groupQuestions, ruleTopic, sectionOf } = await import('./topics')
+    expect(sectionOf('64(1)(b) and 64(2)–(4)')).toBe('64')
+    expect(sectionOf('4.33(1)–(3)')).toBe('4.33')
+    expect(sectionOf('D.5(a)')).toBe('D.5')
+    expect(sectionOf('C / Table 7')).toBe('C')
+    // Every FPPR rule falls under a named topic, none under a bare section.
+    expect(pack.rules.filter((r) => ruleTopic(pack, r).id.startsWith('section-'))).toEqual([])
+    const { asked } = run(pack, [
+      { id: 'applicable', value: true },
+      { id: 'holder', value: true },
+    ])
+    const groups = groupQuestions(
+      pack,
+      asked.filter((q) => q.state === 'open'),
+    )
+    expect(groups.length).toBeGreaterThan(1)
+    // A question is in exactly one group, and the groups keep the evaluator's questions.
+    expect(groups.flatMap((g) => g.questions).length).toBe(asked.filter((q) => q.state === 'open').length)
+  })
+
+  it('groups an installed pack with no table by its sections', async () => {
+    const { ruleTopic } = await import('./topics')
+    const other = { ...pack, id: 'example.other' }
+    expect(ruleTopic(other, pack.rules[0])).toEqual({ id: 'section-64', label: 'Section 64' })
+  })
+})

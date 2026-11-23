@@ -158,6 +158,18 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - The field brief's "stand at" coordinates are PDF links (`mapsLinkUrl`, `fieldBrief.ts`) that carry only the coordinate as printed; the link sits over the text, so the page prints the same.
 - Save as… beside Download (`saveFileAs`, `src/lib/saveFile.ts`) opens the save dialog first, inside the click, then makes the file through the same path Download uses (`fileToSave`). Download itself must stay as it is: the e2e suites wait for its download event. Copy image is offered only for the file already previewed and current, and never starts a run, a capture or a render.
 
+## Forestry block planning
+
+- `docs/forestry-patch-scenarios.md` is the contract for `/dev/forestry/block-planning`. The interfaces (Guided mode, Ribbon, Guided map, Dashboard) are `public/block-planning-layouts.json` over the shared kit (`src/pages/block-planning/interface/`); a command is one registry entry, one `runCommand` case and one state in `BlockPlanner.tsx`.
+- A plan (`plan.ts`, `pgmaps-block-plan/v2`) keeps blocks apart from schedules: a block is a name and shapes, a schedule says when it is cut (or not) and which shape, and a schedule may follow another moved by some years. Past harvests and fires are the baseline, never blocks. Every change goes through `edits.ts`; older files open only through `migrate.ts`, which says what it changed.
+- The patch calculation (`forest-patches/analysis.ts`, `pg-2005-buffer-v1`) runs unchanged: a schedule reaches it only through `scheduleProject` (`planAnalysis.ts`), and `plan.test.ts` pins the migrated PR sample to the engine's own figures. Reviews, the rationale and the index weights never start a run.
+- Nothing in the planner says a block complies, an exception applies, the order applies or a pathway is met. A D.5 determination is always the reviewer's answer (`review/pathways.ts`); D.5(b) ends at submission and names no approval, D.5(a) records approval by the minister's designate. Old and old-interior forest are not modelled, and the D.5(a) checklist says so.
+- Review questions come from the evaluator's trace (`review/questions.ts`): a settled rule asks nothing and an open one asks the first unknown of each open alternative; never list every fact of a pack. Questions and findings are grouped by provision through `review/topics.ts` (a pack without a table groups by section); a provision that comes to need an answer opens again.
+- The Forest Practices Board's 2015 and 2018 figures (`packages/legal-rules/observations/`) are drawn as their own series and tabled beside the projection, never joined to it, and always with the 2018 method change stated.
+- The planning index (`planningIndex.ts`) prints "not a legal test" wherever it appears and never feeds a review, pathway or finding.
+- Every file the planner writes comes from Save & export (`exports.ts`, `SaveExportDialog.tsx`); the preview is the file that downloads. The rule-pack library is administered on `/dev/legal-rules`, never in the planner.
+- Keep `plan.ts`, `migrate.ts`, `edits.ts`, `imports.ts`, `planAnalysis.ts`, `planningIndex.ts`, `observations.ts`, `exports.ts` and `review/{questions,wording,topics,pathways,caseEdits}.ts` free of DOM and network access.
+
 ## Forestry road design
 
 - `docs/forestry-road-design.md` is the contract for `/dev/forestry/road-design`.

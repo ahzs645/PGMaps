@@ -86,6 +86,7 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
           review={landscape}
           measurements={measurements}
           onChange={(review) => edit((p) => keepPacks({ ...p, landscape: { ...p.landscape, review } }))}
+          caseLabel="Whole landscape"
           testId="block-planning-landscape-review"
         />
       </ToolSection>
@@ -115,6 +116,7 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
               nar: `The drawing’s gross area is ${area.format(blockAreaHa(block.shapes[0].geometry))} ha. Net area to be reforested needs its own survey and exclusions.`,
             }}
             onChange={(review) => edit((p) => keepPacks({ ...p, reviews: { ...p.reviews, [block.id]: review } }))}
+            caseLabel="Whole block"
             testId="block-planning-block-review"
           />
         ) : (

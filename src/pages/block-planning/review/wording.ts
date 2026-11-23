@@ -16,7 +16,7 @@ export type Status =
 /** The planner's words for each finding status. Never "complies" or "approved": the rules are screens. */
 export const STATUS_WORDS: Record<Status, string> = {
   review_required: 'Needs review',
-  missing_evidence: 'Needs an answer',
+  missing_evidence: 'To answer',
   condition_not_triggered: 'Not triggered',
   outside_scope: 'Does not apply',
   outside_source_window: 'Outside the release’s dates',

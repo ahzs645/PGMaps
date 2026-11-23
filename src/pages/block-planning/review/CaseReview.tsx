@@ -3,6 +3,7 @@ import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { DisclosureRow } from '@/components/ui/disclosure'
 import { FORM_INPUT_CLASS, FormField, NullableNumberField, StyledSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { ToolDisclosure } from '@/components/ui/tool-section'
 import { cn } from '@/lib/utils'
 import { assess } from '../../../../packages/legal-rules/engine/evaluate'
 import { spatialFacts, type Measurement } from '../../../../packages/legal-rules/engine/spatialFacts'
@@ -16,10 +17,8 @@ import {
 import type { ReviewCase } from '../plan'
 import { chooseRelease, instrumentOf, setFact } from './caseEdits'
 import { findingCounts, questions, type Finding, type Question } from './questions'
+import { topicSections } from './topics'
 import { describeCheck, formatValue, STATUS_WORDS, type Status } from './wording'
-
-/** Open questions first, then what the planner measured, then what has been answered. */
-const QUESTION_HEADINGS = { open: 'Needs an answer', measured: 'Measured by the planner', answered: 'Answered' }
 
 const RuleFlow = lazy(() => import('../../legal-workbench/RuleFlow'))
 
@@ -166,6 +165,8 @@ export interface CaseReviewProps {
   measurements: Measurement[]
   /** A line under a question, by fact id. */
   hints?: Partial<Record<string, ReactNode>>
+  /** What the questions shared by several provisions are grouped under: "Whole block", "Whole landscape". */
+  caseLabel?: string
   testId?: string
 }
 
@@ -181,6 +182,7 @@ export function CaseReview({
   onChange,
   measurements,
   hints = {},
+  caseLabel,
   testId,
 }: CaseReviewProps) {
   const packs = library.filter((p) => instruments.includes(p.id) && review.selected.includes(releaseKey(p)))
@@ -203,7 +205,6 @@ export function CaseReview({
   } catch (e) {
     problem = e instanceof Error ? e.message : 'The review could not be evaluated.'
   }
-  const [showSettled, setShowSettled] = useState(false)
   return (
     <div className="space-y-3" data-testid={testId}>
       <div className="grid grid-cols-2 gap-2">
@@ -248,10 +249,9 @@ export function CaseReview({
         const asked = questions(release.pack, release.facts, release.findings, measured)
         const counts = findingCounts(release.findings)
         const value = (fact: Fact) => release.facts.facts.find((f) => f.id === fact.id)?.value ?? null
-        const active = release.findings.filter((f) => f.status === 'review_required' || f.status === 'missing_evidence')
-        const settled = release.findings.filter((f) => !active.includes(f))
+        const sections = topicSections(release.pack, asked, release.findings, caseLabel)
         return (
-          <section key={releaseKey(release.pack)} className="space-y-2" aria-label={release.pack.title}>
+          <section key={releaseKey(release.pack)} className="space-y-1" aria-label={release.pack.title}>
             <p className="text-xs font-medium">
               {release.pack.title} {release.pack.version}
               <span className="font-normal text-muted-foreground">
@@ -260,26 +260,51 @@ export function CaseReview({
                 {counts.notApplicable} do not apply
               </span>
             </p>
-            {(['open', 'measured', 'answered'] as const).map((state) => {
-              const group = asked.filter((q) => q.state === state)
-              if (state === 'open' && !group.length)
-                return (
-                  <p key={state} className="text-xs text-muted-foreground">
-                    No rule is waiting on an answer.
-                  </p>
-                )
-              if (!group.length) return null
+            {!asked.some((q) => q.state === 'open') && (
+              <p className="text-xs text-muted-foreground">No rule is waiting on an answer.</p>
+            )}
+            {sections.map(({ topic, questions: asks, findings }) => {
+              const open = asks.filter((q) => q.state === 'open')
+              const rest = asks.filter((q) => q.state !== 'open')
+              const active = findings.filter((f) => f.status === 'review_required' || f.status === 'missing_evidence')
+              const reviewing = findings.filter((f) => f.status === 'review_required').length
+              const settled = findings.filter((f) => !active.includes(f))
+              const summary =
+                [
+                  open.length ? `${open.length} to answer` : '',
+                  reviewing ? `${reviewing} need${reviewing === 1 ? 's' : ''} review` : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || (findings.length ? 'Settled' : `${rest.length} answered`)
               return (
-                <div key={state} className="space-y-2" data-questions={state}>
-                  <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {QUESTION_HEADINGS[state]} · {group.length}
-                  </p>
-                  {group.map((q) =>
-                    state === 'measured' ? (
+                <ToolDisclosure
+                  // A provision that comes to need an answer or a review opens again, so a question
+                  // the last answer unlocked is never hidden in a folded section.
+                  key={`${topic.id}:${open.length > 0 || reviewing > 0}`}
+                  label={topic.label}
+                  summary={summary}
+                  defaultOpen={open.length > 0 || reviewing > 0}
+                  toggleProps={{ 'data-topic': topic.id }}
+                  contentClassName="space-y-2"
+                >
+                  {open.map((q) => (
+                    <Answer
+                      key={q.fact.id}
+                      question={q}
+                      value={value(q.fact)}
+                      hint={hints[q.fact.id]}
+                      onChange={(v) => onChange(setFact(review, release.pack, q.fact.id, v))}
+                    />
+                  ))}
+                  {rest.length > 0 && open.length > 0 && (
+                    <p className="text-2xs font-medium text-muted-foreground">Answered</p>
+                  )}
+                  {rest.map((q) =>
+                    q.state === 'measured' ? (
                       <p key={q.fact.id} className="text-xs">
                         <span className="font-medium">{q.fact.label}:</span> {formatValue(q.fact, value(q.fact))}
                         <span className="block text-muted-foreground">
-                          {release.facts.facts.find((f) => f.id === q.fact.id)?.evidence}
+                          Measured by the planner · {release.facts.facts.find((f) => f.id === q.fact.id)?.evidence}
                         </span>
                       </p>
                     ) : (
@@ -292,26 +317,25 @@ export function CaseReview({
                       />
                     ),
                   )}
-                </div>
-              )
-            })}
-            <div className="space-y-1">
-              {active.map((f) => (
-                <FindingRow key={f.rule} pack={release.pack} finding={f} facts={release.facts} date={review.date} />
-              ))}
-              {settled.length > 0 && (
-                <DisclosureRow
-                  title={`Settled rules (${settled.length})`}
-                  summary="Not triggered, or not applying"
-                  open={showSettled}
-                  onOpenChange={setShowSettled}
-                >
-                  {settled.map((f) => (
+                  {active.map((f) => (
                     <FindingRow key={f.rule} pack={release.pack} finding={f} facts={release.facts} date={review.date} />
                   ))}
-                </DisclosureRow>
-              )}
-            </div>
+                  {settled.length > 0 && (
+                    <DisclosureRow title={`Settled rules (${settled.length})`} summary="Not triggered, or not applying">
+                      {settled.map((f) => (
+                        <FindingRow
+                          key={f.rule}
+                          pack={release.pack}
+                          finding={f}
+                          facts={release.facts}
+                          date={review.date}
+                        />
+                      ))}
+                    </DisclosureRow>
+                  )}
+                </ToolDisclosure>
+              )
+            })}
           </section>
         )
       })}
