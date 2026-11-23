@@ -108,6 +108,9 @@ canvas,
     --secondary-foreground: var(--interface-secondary-foreground, 0 0% 9%);
     --muted: var(--interface-muted, 0 0% 96.1%);
     --muted-foreground: var(--interface-muted-foreground, 0 0% 45.1%);
+    /* Hint text on a grey track (tabs, a segmented control): 45.1% reads 4.35:1 on secondary, under WCAG's
+       4.5:1 for small text; 40% reads 5.3:1. A theme's own muted text still wins. */
+    --muted-foreground-on-track: var(--interface-muted-foreground, 0 0% 40%);
     --accent: var(--interface-accent, 0 0% 96.1%);
     --accent-foreground: var(--interface-accent-foreground, 0 0% 9%);
     --destructive: 0 84.2% 60.2%;
@@ -222,6 +225,7 @@ canvas,
     --secondary-foreground: var(--interface-secondary-foreground, 0 0% 98%);
     --muted: var(--interface-muted, 0 0% 14.9%);
     --muted-foreground: var(--interface-muted-foreground, 0 0% 63.9%);
+    --muted-foreground-on-track: var(--interface-muted-foreground, 0 0% 63.9%);
     --accent: var(--interface-accent, 0 0% 14.9%);
     --accent-foreground: var(--interface-accent-foreground, 0 0% 98%);
     --destructive: 0 62.8% 30.6%;
@@ -311,6 +315,13 @@ canvas,
   --muted: var(--interface-muted, var(--raised-muted));
   --secondary: var(--interface-secondary, var(--raised-muted));
   --accent: var(--interface-accent, var(--raised-muted));
+}
+
+/* Unselected tabs and segments are muted text on a grey track (`bg-secondary`, `bg-muted`): there the muted grey
+   is one step darker, so 11–12 px labels keep 4.5:1 (`--muted-foreground-on-track`). docs/shared-ui.md, Design
+   tokens. */
+:is([class~='bg-secondary'], [class~='bg-muted']) {
+  --muted-foreground: var(--muted-foreground-on-track);
 }
 
 /* An Appearance theme can give the page a colour of its own (Coast's #f2f7fb) while cards stay

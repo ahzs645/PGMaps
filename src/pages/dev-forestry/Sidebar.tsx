@@ -34,6 +34,7 @@ import { ColorField } from '@/components/ui/color-field'
 import { FileButton } from '@/components/ui/file-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ListHeader, ResultRow } from '@/components/ui/result-list'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { ExternalLink, TextButton } from '@/components/ui/text-button'
 import { formatMeasure, formatNumber, formatPercentValue } from '@/lib/format'
 import { HoverTip, InfoTip } from '@/components/ui/info-tip'
@@ -43,7 +44,7 @@ import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, MapSidebarShell } from '@/components/ui/map-panels'
 import { Projectable } from '@/components/ui/movable-content'
 import { ToolSection, ToolSubsection } from '@/components/ui/tool-section'
-import { StepMarker, stepStatusText } from '@/components/ui/step-section'
+import { StepMarker } from '@/components/ui/step-section'
 import { TabBar } from '@/components/ui/tab-bar'
 import { cn } from '@/lib/utils'
 
@@ -72,6 +73,8 @@ import { layoutStageOf } from './fieldChecklist'
 import type { LabelStyleId } from '@/lib/mapSheet/callouts'
 import type { EngineEnvironmentChoice, RoadRendererId } from './externalRenderers'
 import { landformAssignments } from './viewLandform'
+import { keepFieldKeysInRow } from './virtualRowKeys'
+import { StepShownContext } from './stepShown'
 import { exportEditorId, type VisualsExport } from './visualsExports'
 import { importNoticeIsError, type ImportNotice } from './importNotice'
 import { VIA_STEPS, type ViaAssessment, type ViaReview, type ViaStepId, type ViaStepStatus } from './via'
@@ -209,7 +212,13 @@ const VIA_CLASS_CODES = {
   'maximum-modification': 'MM',
 } as const
 
-/** Short tab labels; each tab's accessible name carries the handbook title. */
+/**
+ * A step tab's state in its description. The headline's *Next* names the step the handbook asks for next; the tab
+ * says the same, never "current", which reads as the tab that is open.
+ */
+const STEP_TAB_STATUS: Record<ViaStepStatus, string> = { done: 'done', current: 'next to do', todo: 'to do' }
+
+/** Short tab labels, each the tab's accessible name; its description carries the handbook title. */
 const STEP_TAB_LABELS: Record<ViaStepId, string> = {
   identify: 'Identify',
   visit: 'Visit',
@@ -793,6 +802,9 @@ export function Sidebar({
   const [thresholdBasis, setThresholdBasis] = useState<AlterationBasis>('perspective')
   // The roads list shows the first few; the rest are a click away, and the header says so.
   const [showAllRoads, setShowAllRoads] = useState(false)
+  // An archive can hold a thousand existing openings: their rows mount only while the section is open, and then only
+  // those near the view (`VirtualResultList`). Folded, each tap re-rendered every row (about 2.3 s on a phone).
+  const [openingsOpen, setOpeningsOpen] = useState(false)
   const { viewpoint, targets, thresholds } = scene
 
   const blocks = targets.filter((target) => target.role === 'block')
@@ -876,18 +888,23 @@ export function Sidebar({
       : 0
 
   // One polygon's row: name, area and source, zoom and remove, then its role,
-  // objective and whichever of VAC or harvest system applies.
-  const renderTarget = (target: TargetPolygon) => {
+  // objective and whichever of VAC or harvest system applies. `flat` is a row of a long
+  // list (`VirtualResultList`), which draws its own rules between rows, rather than a card.
+  const renderTarget = (target: TargetPolygon, { flat = false }: { flat?: boolean } = {}) => {
     const selected = selectedTargetId === target.id
+    const Row = flat ? 'div' : 'li'
     // The whole card carries the selection (a tinted fill and border, no accent
     // stripe), so the row, its icon buttons and its fields read as one piece.
     return (
-      <li
+      <Row
         key={target.id}
         className={cn(
-          insetBox({ padding: 'none' }),
+          !flat && insetBox({ padding: 'none' }),
           'overflow-hidden',
-          selected && 'border-sky-300 bg-sky-50/70 dark:border-sky-800 dark:bg-sky-950/30',
+          selected &&
+            (flat
+              ? 'bg-sky-50/70 dark:bg-sky-950/30'
+              : 'border-sky-300 bg-sky-50/70 dark:border-sky-800 dark:bg-sky-950/30'),
         )}
         data-target-card={target.id}
         data-selected-card={selected || undefined}
@@ -1029,7 +1046,7 @@ export function Sidebar({
             </div>
           )}
         </PlainRowDetail>
-      </li>
+      </Row>
     )
   }
   // Where a section stood while Save & export shows it under the part it sets (`Projectable`, `ContentsSection`).
@@ -1051,7 +1068,13 @@ export function Sidebar({
     // simulation settings, so the shell draws no title row of its own: one "Visual quality" heading.
     <MapSidebarShell
       title="Assessment steps"
-      className={cn(MAP_SIDEBAR_CLASS, embedded && 'border-r-0 bg-transparent shadow-none backdrop-blur-none')}
+      // On a phone the shell sits in the sheet under its Hide panel button: no stacking of its own there, or it covers
+      // the one visible way back to the map.
+      className={cn(
+        MAP_SIDEBAR_CLASS,
+        'max-md:z-auto',
+        embedded && 'border-r-0 bg-transparent shadow-none backdrop-blur-none',
+      )}
       headerClassName="sr-only"
       titleClassName="text-base"
       density="compact"
@@ -1084,14 +1107,26 @@ export function Sidebar({
           idPrefix="via-steps"
           value={activeStep}
           onChange={setActiveStep}
+          // The open step is set in bold as well as raised, so it never reads as the next step by colour alone.
+          activeClassName="font-semibold"
           options={VIA_STEPS.map((step) => ({
             value: step.id,
+            // Named by the word it shows, so a speech user can say it; the step's full title, its state and summary
+            // are its description.
             label: STEP_TAB_LABELS[step.id],
-            ariaLabel: `Step ${step.number}: ${step.title} (${stepStatusText(via.statuses[step.id])})`,
             marker: <StepMarker step={step.number} status={via.statuses[step.id]} className="h-4 w-4 text-3xs" />,
           }))}
-          getTabProps={(option) => ({ 'data-via-step': option.value, title: summaries[option.value] })}
+          getTabProps={(option) => ({
+            'data-via-step': option.value,
+            title: summaries[option.value],
+            'aria-describedby': `via-steps-about-${option.value}`,
+          })}
         />
+        {VIA_STEPS.map((step) => (
+          <span key={step.id} id={`via-steps-about-${step.id}`} hidden>
+            {`Step ${step.number} of ${VIA_STEPS.length}: ${step.title}, ${STEP_TAB_STATUS[via.statuses[step.id]]}. ${summaries[step.id] ?? ''}`}
+          </span>
+        ))}
       </div>
 
       {/* Step 1 — 3.1: the proposal, its objective, and where it may be seen from. */}
@@ -1369,7 +1404,7 @@ export function Sidebar({
                   None yet. Draw one with the map&apos;s block tool, or import a file.
                 </p>
               ) : (
-                <ul className="space-y-1.5">{blocks.map(renderTarget)}</ul>
+                <ul className="space-y-1.5">{blocks.map((target) => renderTarget(target))}</ul>
               )}
             </div>
           </ToolSection>
@@ -1434,7 +1469,7 @@ export function Sidebar({
                       title="Other landforms"
                       help="In the scene, but nothing is assessed against them: neither the site landform nor a view's own. They stay out of every figure until one is made the site landform or adopted for a view."
                     >
-                      <ul className="space-y-1.5">{landformUse.unused.map(renderTarget)}</ul>
+                      <ul className="space-y-1.5">{landformUse.unused.map((target) => renderTarget(target))}</ul>
                     </ToolSubsection>
                   )}
                 </>
@@ -1454,9 +1489,22 @@ export function Sidebar({
           <ToolSection
             title="Existing openings"
             summary={`${openings.length} on the map`}
+            open={openingsOpen}
+            onOpenChange={setOpeningsOpen}
             toggleProps={{ 'data-forestry-disclosure': 'existing-openings' }}
           >
-            <ul className="space-y-1.5">{openings.map(renderTarget)}</ul>
+            {/* Never in a hidden step panel (`stepShown.ts`). */}
+            {openingsOpen && activeStep === 'identify' && (
+              <VirtualResultList
+                items={openings}
+                getKey={(target) => target.id}
+                estimateSize={124}
+                label="Existing openings"
+                revealKey={openings.some((target) => target.id === selectedTargetId) ? selectedTargetId : null}
+              >
+                {(target) => <div onKeyDown={keepFieldKeysInRow}>{renderTarget(target, { flat: true })}</div>}
+              </VirtualResultList>
+            )}
           </ToolSection>
         )}
         {landformFinder}
@@ -1645,7 +1693,7 @@ export function Sidebar({
             title="Run assumptions"
             help="Handbook 3.3.2: the proposal is measured against the landform it sits on, as it stands in the assessment year."
           >
-            {landformScope}
+            <StepShownContext.Provider value={activeStep === 'design'}>{landformScope}</StepShownContext.Provider>
           </ToolSection>
           <ToolSection
             title="Simulation"
@@ -1884,7 +1932,13 @@ export function Sidebar({
                 type="button"
                 size="sm"
                 className={GRID_BUTTON}
-                onClick={() => (onOpenPackage ? onOpenPackage() : onOpenExport())}
+                onClick={(event) => {
+                  // Focused first, so closing the dialog hands focus back here (a tap does not focus a button in
+                  // Safari).
+                  event.currentTarget.focus()
+                  if (onOpenPackage) onOpenPackage()
+                  else onOpenExport()
+                }}
               >
                 <Download className="h-3.5 w-3.5" />
                 Rate and package…

@@ -171,7 +171,8 @@ export function ViaHeadline({
 
   return (
     <section className="border-b border-border bg-background/95 p-3" aria-label="VIA headline result">
-      <div className="flex items-start justify-between gap-3">
+      {/* On a phone the sheet's Hide panel button sits over this row's right end. */}
+      <div className="flex items-start justify-between gap-3 max-md:pr-11">
         <div className="min-w-0">
           <p className="text-3xs font-medium uppercase tracking-wide text-muted-foreground">VIA rating</p>
           <p className="text-base font-semibold leading-6 text-foreground" data-via-rating={rating?.id ?? 'none'}>
@@ -233,8 +234,20 @@ export function ViaHeadline({
           variant="tiles"
           size="sm"
           columns={stats.length === 4 ? 4 : 3}
-          // Tiles are cards: one step above the sidebar they sit on.
-          items={stats.map((stat) => ({ ...stat, className: 'bg-card' }))}
+          // Tiles are cards: one step above the sidebar they sit on. A label wraps rather than clip ("Measured (X)",
+          // "Views captured" in a quarter-width tile), and its note is drawn in the term: a `dl` entry holds only its
+          // term and description.
+          items={stats.map(({ note, ...stat }) => ({
+            ...stat,
+            key: typeof stat.label === 'string' ? stat.label : undefined,
+            label: (
+              <>
+                {stat.label}
+                {note && <span className="block text-2xs leading-snug">{note}</span>}
+              </>
+            ),
+            className: 'bg-card [&>dt]:whitespace-normal [&>dt]:text-balance',
+          }))}
         />
       )}
 
@@ -266,13 +279,13 @@ export function ViaHeadline({
       {next && next.id !== activeStep && (
         // One line: the tab bar below already marks the current step, so this
         // only says what is left there and takes you to it.
+        // Named by what it shows, and wrapping rather than clipping the step it names.
         <button
           type="button"
           onClick={() => onOpenStep(next.id)}
-          aria-label={`Go to step ${next.number}`}
           className="mt-2 flex w-full items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-2 py-1.5 text-left text-xs text-foreground hover:bg-primary/10 touch:min-h-10"
         >
-          <span className="min-w-0 flex-1 truncate">
+          <span className="min-w-0 flex-1">
             <span className="font-semibold">Next: step {next.number}</span>
             <span className="text-muted-foreground">
               {' · '}

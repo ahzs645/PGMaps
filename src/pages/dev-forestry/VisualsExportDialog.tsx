@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Circle, Download, Loader2, Save, Square } from 'lucide-react'
+import { ChevronUp, Circle, Download, Loader2, Save, Square } from 'lucide-react'
 
 import { PreparerProfileHostProvider, PreparerProfilePane, PreparerProfileRow } from '@/branding/PreparerProfile'
 import { Button } from '@/components/ui/button'
@@ -942,6 +942,40 @@ export function VisualsExportDialog({
     pane.current = element
     setPaneElement(element)
   }
+  // Stacked on a phone, the list comes first and a pane opens under it, below the fold. Opened on a pane (*Rate and
+  // package…*), the dialog starts at that pane with focus on its heading; every pane has *All files* back to the list.
+  const filesNav = useRef<HTMLElement>(null)
+  const paneHeading = useRef<HTMLHeadingElement>(null)
+  const [focusPane, setFocusPane] = useState(open && initialPackage && !!packagePane)
+  if (open !== wasOpen && open && initialPackage && !!packagePane && !focusPane) setFocusPane(true)
+  useEffect(() => {
+    if (!focusPane) return
+    // After the dialog's own first focus (Radix focuses its first control as it opens).
+    const frame = requestAnimationFrame(() => {
+      setFocusPane(false)
+      pane.current?.scrollIntoView({ block: 'start' })
+      paneHeading.current?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [focusPane])
+  const backToFiles = () => {
+    filesNav.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    filesNav.current?.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus({ preventScroll: true })
+  }
+  // On a phone only: side by side the list is always in view.
+  const allFiles = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="-ml-2 self-start sm:hidden"
+      onClick={backToFiles}
+      data-testid="visuals-export-all-files"
+    >
+      <ChevronUp className="size-3.5" aria-hidden="true" />
+      All files
+    </Button>
+  )
   const { width: paneWidth } = useElementSize(paneElement)
   const narrowPane = useSizeFold(paneWidth, SIDE_BY_SIDE_FOLD, true)
   const sideBySide = !narrowPane && !draftOf
@@ -1699,6 +1733,7 @@ export function VisualsExportDialog({
         {/* One column on a phone that never grows past the dialog: a long option or row text wraps or ellipsizes. */}
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] sm:h-full sm:min-h-[24rem] sm:grid-cols-[15rem_minmax(0,1fr)]">
           <nav
+            ref={filesNav}
             aria-label="Files"
             className="border-b border-border py-1 sm:min-h-0 sm:overflow-y-auto overscroll-none sm:border-b-0 sm:border-r"
           >
@@ -1715,7 +1750,6 @@ export function VisualsExportDialog({
                     title="Package"
                     subtitle={packageSummary(context)}
                     className="py-2"
-                    aria-label={`Package: ${packageSummary(context)}`}
                     onClick={openPackage}
                   />
                 )}
@@ -1726,12 +1760,13 @@ export function VisualsExportDialog({
                     title="Views"
                     subtitle={viewsSummary}
                     className="py-2"
-                    aria-label={viewsSummary ? `Views: ${viewsSummary}` : 'Views'}
                     onClick={openViews}
                   />
                 )}
               </div>
             )}
+            {/* Each row is named by what it shows (its title, why it is unavailable, its file type), so a speech user
+                can say what they see. */}
             {GROUPS.map((group) => (
               <div key={group}>
                 <h3 className="px-3 pb-1 pt-3 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1749,7 +1784,6 @@ export function VisualsExportDialog({
                       subtitle={reason ?? undefined}
                       trailing={<span className="text-3xs font-normal text-muted-foreground">{shown.extension}</span>}
                       className={`py-2 ${reason ? '[&_span]:text-muted-foreground' : ''}`}
-                      aria-label={reason ? `${entry.label}, unavailable: ${reason}` : entry.label}
                       onClick={() => select(entry.kind)}
                     />
                   )
@@ -1760,6 +1794,7 @@ export function VisualsExportDialog({
           <PreparerProfilePane hidden={!detailsOpen} sectionRef={detailsPane} />
           {detailsOpen ? null : viewsOpen && viewsPane ? (
             <section ref={paneRef} aria-label="Views" className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5">
+              {allFiles}
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold">Views</h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -1771,9 +1806,12 @@ export function VisualsExportDialog({
             </section>
           ) : packageOpen && packagePane ? (
             <section ref={paneRef} aria-label="Package" className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5">
+              {allFiles}
               <div className="min-w-0">
                 <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-sm font-semibold">Package</h3>
+                  <h3 ref={paneHeading} tabIndex={-1} className="text-sm font-semibold focus-visible:outline-none">
+                    Package
+                  </h3>
                   {drafts?.['via-report'] && (
                     <Button
                       variant="outline"
@@ -1810,6 +1848,7 @@ export function VisualsExportDialog({
               aria-label={`${item.label} export`}
               className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5"
             >
+              {allFiles}
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <h3 className="min-w-0 truncate text-sm font-semibold">
@@ -1822,7 +1861,8 @@ export function VisualsExportDialog({
                   {!unavailable && current?.file?.copyPng && (
                     <CopyImageButton
                       size="default"
-                      aria-label={`Copy ${item.label} as an image`}
+                      // Named from the visible words first, so a speech user can say what they see.
+                      aria-label={`Copy image of ${item.label}`}
                       png={current.file.copyPng}
                     />
                   )}
@@ -1830,7 +1870,7 @@ export function VisualsExportDialog({
                     <Button
                       variant="outline"
                       disabled={!!unavailable || saving || takeRunning || (!!recordingOf && !recordingOf.file)}
-                      aria-label={`Save ${item.label} as…`}
+                      aria-label={`Save as… ${item.label}`}
                       onClick={saveAs}
                     >
                       <Save className="size-4" />

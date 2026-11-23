@@ -9,6 +9,8 @@ export type ActionMenuItem =
       id: string
       label: string
       ariaLabel?: string
+      /** A second line under the label: what the action does, or why it is off. Read as the item's description. */
+      description?: string
       icon?: ReactNode
       /** Draw the icon after the label, for a forward action such as "Next". The shortcut then leads. */
       iconPosition?: 'start' | 'end'
@@ -183,6 +185,7 @@ export function ActionMenu({
                 aria-label={item.ariaLabel}
                 aria-keyshortcuts={item.keyShortcuts ?? item.shortcut}
                 aria-checked={checkable ? item.checked : undefined}
+                aria-describedby={item.description ? `${menuId}-${item.id}-description` : undefined}
                 disabled={item.disabled}
                 className={cn(
                   'flex w-full min-w-0 items-center gap-2.5 px-3 py-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:cursor-not-allowed disabled:opacity-50 touch:py-3',
@@ -206,7 +209,16 @@ export function ActionMenu({
                   menuIcon
                 ) : null}
                 {iconAtEnd && shortcut}
-                <span className={cn('min-w-0 flex-1 truncate', iconAtEnd && 'text-right')}>{item.label}</span>
+                {item.description ? (
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{item.label}</span>
+                    <span id={`${menuId}-${item.id}-description`} className="block text-xs text-muted-foreground">
+                      {item.description}
+                    </span>
+                  </span>
+                ) : (
+                  <span className={cn('min-w-0 flex-1 truncate', iconAtEnd && 'text-right')}>{item.label}</span>
+                )}
                 {!iconAtEnd && shortcut}
                 {iconAtEnd && menuIcon}
               </button>

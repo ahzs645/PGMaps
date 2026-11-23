@@ -268,7 +268,7 @@ export function PreparerProfileRow({
         subtitle={summary}
         leading={<IdCard className="mt-0.5 size-4 text-muted-foreground" aria-hidden="true" />}
         className="py-2"
-        aria-label={`Your details: ${summary}`}
+        // Named by what it shows (its title and summary), so a speech user can say it.
         data-testid="preparer-profile-row"
         onClick={details.open}
       />

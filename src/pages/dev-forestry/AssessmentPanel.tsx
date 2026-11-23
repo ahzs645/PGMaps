@@ -2,10 +2,12 @@ import { CheckboxField, FORM_INPUT_CLASS, StyledSelect, NumberField } from '@/co
 import { ToolDisclosure } from '@/components/ui/tool-section'
 import { InfoTip } from '@/components/ui/info-tip'
 import { cn } from '@/lib/utils'
+import { useState } from 'react'
 import type { ForestryScene } from './scene'
 import { findSceneLandform } from './sceneInput'
 import { resolveThreshold } from './integrity'
 import { ExistingOpeningGreenUp, greenUpSummary } from './ExistingOpeningGreenUp'
+import { useStepShown } from './stepShown'
 /**
  * `scope` is handbook 3.3.2 — which landform the run measures against and what
  * counts as its green area. The FS1252 draft (4.0) is in Save & export
@@ -19,6 +21,9 @@ type Props = {
 /** A label beside its field rather than above it, for short numbers. */
 const INLINE_FIELD = 'flex-row items-center justify-between gap-3'
 export function AssessmentPanel({ scene, onChange }: Props) {
+  const [greenUpOpen, setGreenUpOpen] = useState(false)
+  // Its list is a `VirtualResultList`, which must not render in a hidden step panel (`stepShown.ts`).
+  const shown = useStepShown()
   const landform = findSceneLandform(scene),
     forms = scene.targets.filter((t) => t.role === 'landscape')
   return (
@@ -92,9 +97,12 @@ export function AssessmentPanel({ scene, onChange }: Props) {
       <ToolDisclosure
         label="Existing-opening green-up"
         summary={greenUpSummary(scene)}
+        open={greenUpOpen}
+        onOpenChange={setGreenUpOpen}
         toggleProps={{ 'data-forestry-disclosure': 'recovery-overrides' }}
       >
-        <ExistingOpeningGreenUp scene={scene} onChange={onChange} />
+        {/* A row per opening, of which an archive can hold a thousand: mounted only while unfolded and shown. */}
+        {greenUpOpen && shown && <ExistingOpeningGreenUp scene={scene} onChange={onChange} />}
       </ToolDisclosure>
     </section>
   )

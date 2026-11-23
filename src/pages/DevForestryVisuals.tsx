@@ -4,7 +4,7 @@ import { StyledSelect } from '@/components/ui/form-field'
 import { useRouteViewshed } from './dev-forestry/useRouteViewshed'
 import { EXPORT_TIMING_PREFIX, timed } from './dev-forestry/exportTiming'
 import { RouteViewshedControls, routeViewshedSummary } from './dev-forestry/RouteViewshedPanel'
-import { PlanMapToolButtons, PlanMapToolCard, isPlanDrawTool, type PlanDrawTool } from './dev-forestry/PlanMapTools'
+import { planMapToolItems, PlanMapToolCard, isPlanDrawTool, type PlanDrawTool } from './dev-forestry/PlanMapTools'
 import { visibilityOutline } from '@/features/terrain-viewshed'
 import { sampleAlongLine } from './dev-forestry/visibility'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/tiled-workspace'
 import { TileLayoutPicker, readSavedTileLayouts, resolveTileLayout } from '@/components/ui/tile-layout-picker'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useElementSize } from '@/hooks/useElementSize'
+import { useSizeFold } from '@/hooks/useSizeFold'
 import { MapTableBridge } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
 import { Map, MapControls, MapLayersControl, type MapRef } from '@/components/ui/map'
@@ -45,6 +47,7 @@ import {
   Minimize,
   PanelLeftClose,
   PanelLeftOpen,
+  Ruler,
 } from 'lucide-react'
 import { InfoTip } from '@/components/ui/info-tip'
 
@@ -66,6 +69,7 @@ import type { ProjectAttachment } from './dev-forestry/projectArchive'
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
 import { ToolSourcesPanel, TOOL_SOURCES_TITLE, toolSourcesSummary } from './dev-forestry/ToolSourcesPanel'
 import { MapToolToggle } from '@/components/ui/map-tool-toggle'
+import { MapControlOverflow } from '@/components/ui/map-control-overflow'
 import { WildlifeTreePatchPanel } from './dev-forestry/WildlifeTreePatchPanel'
 import { MAX_ASSESSMENT_MASKS, withDrawnMask, masksForLandform } from './dev-forestry/assessmentMasks'
 import { LandformDesignPanel } from './dev-forestry/LandformDesignPanel'
@@ -1228,6 +1232,8 @@ function DevForestryVisuals({
     },
     [drawMode, setScene],
   )
+
+  const removeLastDraftPoint = useCallback(() => setDraftCoordinates((current) => current.slice(0, -1)), [])
 
   const finishDraft = useCallback(() => {
     if (drawMode === 'corridor') {
@@ -7253,6 +7259,9 @@ function DevForestryVisuals({
     workspaceLayout.base,
   )
   const phone = useMediaQuery('(max-width: 767px)')
+  const coarsePointer = useMediaQuery('(pointer: coarse)')
+  // A phone on its side: the sheet's peek is one line, so the plan keeps the height its tools need.
+  const shortPhone = useMediaQuery('(max-width: 767px) and (max-height: 480px)')
   const [phonePane, setPhonePane] = useState<VisualsPane>('map')
   // Held through a viewpoint swap until the new run opens it again (or fails, or is cancelled).
   if (roadViewHeld && drive.active) setRoadViewHeld(false)
@@ -7366,13 +7375,14 @@ function DevForestryVisuals({
   // would cover much of a half-width map; a click opens it, until the arrangement changes again.
   const mapSharesScreen =
     !phone && !hiddenPanes.includes('map') && (!hiddenPanes.includes('road') || !hiddenPanes.includes('summary'))
+  // It also folds on a plan map too short for it beside the tool stack (a short window, a phone on its side): open,
+  // it would cover the tools. The legend floats over the map, so folding it cannot change the height measured.
+  const [planBox, setPlanBox] = useState<HTMLDivElement | null>(null)
+  const planShort = useSizeFold(useElementSize(planBox).height, { foldBelow: 380, unfoldFrom: 400 })
+  const legendFolds = mapSharesScreen || planShort
   const [legendChoice, setLegendChoice] = useState<{ shared: boolean; collapsed: boolean } | null>(null)
   const legendCollapsed =
-    legendChoice && legendChoice.shared === mapSharesScreen
-      ? legendChoice.collapsed
-      : phone
-        ? undefined
-        : mapSharesScreen
+    legendChoice && legendChoice.shared === legendFolds ? legendChoice.collapsed : phone ? undefined : legendFolds
   const layerData: SceneLayerData = {
     drive,
     scene,
@@ -7435,6 +7445,7 @@ function DevForestryVisuals({
     setMapPick,
     setSelectedTargetId,
     handleMapPoint,
+    removeLastDraftPoint,
     finishDraft,
     handleAdoptUnit,
     handleUseViewpoint,
@@ -7682,6 +7693,8 @@ function DevForestryVisuals({
       placing={drawMode === 'view'}
       inventory={viewpointInventory.data}
       onOpenExport={inDialog ? undefined : () => exportOpener.openExport()}
+      // In the dialog the map is behind it; on the page this is the map's own tool, so on a phone the sheet drops.
+      onPlaceView={inDialog ? undefined : () => startPlanDraw('view')}
       renderer={roadRendererInfo(exportOpener.figureRenderer)}
       onChangeRenderer={exportOpener.openPackage}
       capturedHere={(viewId) => savedViews.some((saved) => saved.plannedViewId === viewId)}
@@ -8408,7 +8421,8 @@ function DevForestryVisuals({
       surface={surface}
       state={commandStates.chooseInterface}
       presentation={{
-        ariaLabel: 'Switch workspace interface',
+        // Starts with the caption it shows ("Guided mode"), so a speech user can say what they see.
+        ariaLabel: `${active.shortName ?? active.name}, switch workspace interface`,
         title: `Switch workspace · ${active.name}`,
         captionFrom,
         caption: active.shortName ?? active.name,
@@ -8600,6 +8614,7 @@ function DevForestryVisuals({
       table={table}
       desktopSidebarWidth={400}
       mobileInitialSheetState="full"
+      mobileCollapsedVisibleHeight={shortPhone ? 68 : undefined}
       // On a phone the sheet covers the map, so entering the road view with it
       // up looks like nothing happened. Drop it to the peek for the drive and
       // hand the sidebar back on the way out. A pick on the plan (a photo's
@@ -8763,6 +8778,7 @@ function DevForestryVisuals({
                     // The photo docks beside the plan while it is laid on it (`DockedPhotoPane`).
                     <div className="flex min-h-0 min-w-0 flex-1 gap-1">
                       <div
+                        ref={setPlanBox}
                         className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-md"
                         data-testid="visuals-plan-map"
                       >
@@ -8772,87 +8788,126 @@ function DevForestryVisuals({
                           zoom={9}
                           maxPitch={85}
                           controls={
-                            <MapControls position="top-right" showZoom showCompass>
-                              <MapMeasureControl
-                                active={measuring}
-                                onToggle={toggleMeasure}
-                                disabled={drawMode !== 'none'}
-                                title={
-                                  drawMode !== 'none'
-                                    ? 'Measure · finish or cancel the drawing first'
-                                    : 'Measure a distance, an area or a circle'
-                                }
-                              />
-                              <PlanMapToolButtons
-                                drawMode={drawMode}
-                                routePreviewOpen={routePreviewOpen}
-                                routePreviewOn={routeViewshed.enabled}
-                                addViewDisabled={
-                                  !viewBlocks.length
-                                    ? 'Add a view of interest · draw or import a cutblock first'
-                                    : viewsOfInterest.length >= MAX_VIEWS_OF_INTEREST
-                                      ? `Add a view of interest · ${MAX_VIEWS_OF_INTEREST} views is the most`
-                                      : viewCapture.state.status === 'running'
-                                        ? 'Add a view of interest · wait for the capture to finish'
-                                        : null
-                                }
-                                patchDisabled={
-                                  (scene.masks ?? []).length >= MAX_ASSESSMENT_MASKS
-                                    ? `Draw a wildlife tree patch · the scene holds ${MAX_ASSESSMENT_MASKS} masks, the most it keeps`
-                                    : null
-                                }
-                                onDraw={startPlanDraw}
-                                look={{
-                                  open: drive.active,
-                                  picking: pickingRoad,
-                                  disabled: drive.active
-                                    ? 'The road view is open'
-                                    : pendingPreview
-                                      ? 'Preparing the road view…'
-                                      : null,
-                                  onLook: lookFromRoad,
-                                }}
-                                onRoutePreview={toggleRoutePreview}
-                              />
-                              <MapLayersControl
-                                basemaps={IMAGERY_BASEMAPS}
-                                basemap={planShow.basemap}
-                                onBasemapChange={(value: PlanBasemap) =>
-                                  setPlanShow((current) => ({ ...current, basemap: value }))
-                                }
-                                overlays={[
+                            // `items-end`: a stack folded into two columns does not stretch the zoom buttons.
+                            <MapControls position="top-right" showZoom={false} showCompass className="items-end">
+                              <MapControlOverflow
+                                label="More map tools"
+                                // A finger pinches to zoom, so under one the zoom pair folds first; a mouse keeps it.
+                                zoom={{ priority: coarsePointer ? 1 : 11 }}
+                                items={[
                                   {
-                                    id: 'hillshade',
-                                    label: 'Hillshade',
-                                    checked: planShow.hillshade,
-                                    onCheckedChange: (checked) =>
-                                      setPlanShow((current) => ({ ...current, hillshade: checked })),
+                                    id: 'measure',
+                                    priority: 3,
+                                    node: (
+                                      <MapMeasureControl
+                                        active={measuring}
+                                        onToggle={toggleMeasure}
+                                        disabled={drawMode !== 'none'}
+                                        title={
+                                          drawMode !== 'none'
+                                            ? 'Measure · finish or cancel the drawing first'
+                                            : 'Measure a distance, an area or a circle'
+                                        }
+                                      />
+                                    ),
+                                    menu: {
+                                      icon: Ruler,
+                                      label: 'Measure',
+                                      description:
+                                        drawMode !== 'none' ? 'Finish or cancel the drawing first' : undefined,
+                                      pressed: measuring,
+                                      disabled: drawMode !== 'none',
+                                      onSelect: toggleMeasure,
+                                    },
+                                  },
+                                  ...planMapToolItems({
+                                    drawMode: drawMode,
+                                    routePreviewOpen: routePreviewOpen,
+                                    routePreviewOn: routeViewshed.enabled,
+                                    addViewDisabled: !viewBlocks.length
+                                      ? 'Add a view of interest · draw or import a cutblock first'
+                                      : viewsOfInterest.length >= MAX_VIEWS_OF_INTEREST
+                                        ? `Add a view of interest · ${MAX_VIEWS_OF_INTEREST} views is the most`
+                                        : viewCapture.state.status === 'running'
+                                          ? 'Add a view of interest · wait for the capture to finish'
+                                          : null,
+                                    patchDisabled:
+                                      (scene.masks ?? []).length >= MAX_ASSESSMENT_MASKS
+                                        ? `Draw a wildlife tree patch · the scene holds ${MAX_ASSESSMENT_MASKS} masks, the most it keeps`
+                                        : null,
+                                    onDraw: startPlanDraw,
+                                    look: {
+                                      open: drive.active,
+                                      picking: pickingRoad,
+                                      disabled: drive.active
+                                        ? 'The road view is open'
+                                        : pendingPreview
+                                          ? 'Preparing the road view…'
+                                          : null,
+                                      onLook: lookFromRoad,
+                                    },
+                                    onRoutePreview: toggleRoutePreview,
+                                  }),
+                                  {
+                                    // Never folded: it opens its own panel, which a menu row cannot hold.
+                                    id: 'layers',
+                                    priority: 10,
+                                    node: (
+                                      <MapLayersControl
+                                        basemaps={IMAGERY_BASEMAPS}
+                                        basemap={planShow.basemap}
+                                        onBasemapChange={(value: PlanBasemap) =>
+                                          setPlanShow((current) => ({ ...current, basemap: value }))
+                                        }
+                                        overlays={[
+                                          {
+                                            id: 'hillshade',
+                                            label: 'Hillshade',
+                                            checked: planShow.hillshade,
+                                            onCheckedChange: (checked) =>
+                                              setPlanShow((current) => ({ ...current, hillshade: checked })),
+                                          },
+                                          {
+                                            id: 'evqo',
+                                            label: 'Established VQO polygons',
+                                            description: !planShow.evqo
+                                              ? 'BC visual landscape inventory'
+                                              : !evqoCurrent
+                                                ? 'Loading…'
+                                                : evqoCurrent.error
+                                                  ? `Unavailable: ${evqoCurrent.error}`
+                                                  : evqoCurrent.collection.features.length
+                                                    ? `${evqoCurrent.collection.features.length} polygons around the scene`
+                                                    : 'None established around the scene',
+                                            checked: planShow.evqo,
+                                            onCheckedChange: (checked) =>
+                                              setPlanShow((current) => ({ ...current, evqo: checked })),
+                                          },
+                                        ]}
+                                      />
+                                    ),
                                   },
                                   {
-                                    id: 'evqo',
-                                    label: 'Established VQO polygons',
-                                    description: !planShow.evqo
-                                      ? 'BC visual landscape inventory'
-                                      : !evqoCurrent
-                                        ? 'Loading…'
-                                        : evqoCurrent.error
-                                          ? `Unavailable: ${evqoCurrent.error}`
-                                          : evqoCurrent.collection.features.length
-                                            ? `${evqoCurrent.collection.features.length} polygons around the scene`
-                                            : 'None established around the scene',
-                                    checked: planShow.evqo,
-                                    onCheckedChange: (checked) =>
-                                      setPlanShow((current) => ({ ...current, evqo: checked })),
+                                    id: 'sources',
+                                    priority: 5,
+                                    node: (
+                                      <MapToolToggle
+                                        icon={FileUp}
+                                        label={TOOL_SOURCES_TITLE}
+                                        title={`${TOOL_SOURCES_TITLE} · ${toolSourcesSummary(scene)}`}
+                                        active={sourcesOpen}
+                                        on={!!(scene.masks?.length || scene.localRasters?.length)}
+                                        onToggle={() => setSourcesOpen((open) => !open)}
+                                      />
+                                    ),
+                                    menu: {
+                                      icon: FileUp,
+                                      label: TOOL_SOURCES_TITLE,
+                                      pressed: sourcesOpen,
+                                      onSelect: () => setSourcesOpen((open) => !open),
+                                    },
                                   },
                                 ]}
-                              />
-                              <MapToolToggle
-                                icon={FileUp}
-                                label={TOOL_SOURCES_TITLE}
-                                title={`${TOOL_SOURCES_TITLE} · ${toolSourcesSummary(scene)}`}
-                                active={sourcesOpen}
-                                on={!!(scene.masks?.length || scene.localRasters?.length)}
-                                onToggle={() => setSourcesOpen((open) => !open)}
                               />
                             </MapControls>
                           }
@@ -8981,9 +9036,10 @@ function DevForestryVisuals({
                             <MapOverlay
                               position="top-left"
                               clearChrome
-                              className="max-h-[calc(100%-1rem)] w-80 max-w-[calc(100%-4.5rem)] overflow-y-auto overscroll-none border-0 bg-transparent shadow-none backdrop-blur-none"
+                              className="max-h-[calc(100%_-_1rem_-_var(--map-mobile-sheet-visible-height,0px))] w-80 max-w-[calc(100%-4.5rem)] overflow-y-auto overscroll-none border-0 bg-transparent shadow-none backdrop-blur-none"
                             >
                               <PlanMapToolCard
+                                compact={phone || planShort}
                                 drawMode={drawMode}
                                 pointCount={draftCoordinates.length}
                                 onFinish={finishDraft}
@@ -9035,7 +9091,7 @@ function DevForestryVisuals({
                             <MapOverlay
                               position="top-right"
                               clearChrome
-                              className="right-16 max-h-[calc(100%-1rem)] w-80 max-w-[calc(100%-5rem)] overflow-y-auto overscroll-none border-0 bg-transparent shadow-none backdrop-blur-none workspace-desktop:right-14"
+                              className="right-16 max-h-[calc(100%_-_1rem_-_var(--map-mobile-sheet-visible-height,0px))] w-80 max-w-[calc(100%-5rem)] overflow-y-auto overscroll-none border-0 bg-transparent shadow-none backdrop-blur-none workspace-desktop:right-14"
                             >
                               <ToolSourcesPanel
                                 scene={scene}
@@ -9133,8 +9189,9 @@ function DevForestryVisuals({
                         </Map>
                         {
                           <PlanMapLegend
+                            besideTools={planShort ? 'wide' : 'one'}
                             collapsed={legendCollapsed}
-                            onCollapsedChange={(collapsed) => setLegendChoice({ shared: mapSharesScreen, collapsed })}
+                            onCollapsedChange={(collapsed) => setLegendChoice({ shared: legendFolds, collapsed })}
                             blocks={{
                               count: blockCollection.features.length,
                               customColors: scene.targets.some(

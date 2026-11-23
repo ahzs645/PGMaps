@@ -466,9 +466,10 @@ test.describe('forestry visual quality', () => {
     // The page opens on the step to work on next, so the headline has no
     // "go to" prompt for it; from another step it offers one.
     await expect(page.locator('[data-via-step="visit"]')).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByRole('button', { name: 'Go to step 2' })).toHaveCount(0)
+    // Named by what it shows: "Next: step 2 · …".
+    await expect(page.getByRole('button', { name: /^Next: step 2\b/ })).toHaveCount(0)
     await showStep(page, 'identify')
-    await page.getByRole('button', { name: 'Go to step 2' }).click()
+    await page.getByRole('button', { name: /^Next: step 2\b/ }).click()
     await expect(page.locator('[data-via-step="visit"]')).toHaveAttribute('aria-selected', 'true')
     await expect(page.locator('[data-via-step="assess"]')).toHaveAttribute('aria-selected', 'false')
 

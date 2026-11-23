@@ -133,6 +133,11 @@ function Row({
 }
 
 export type PlanMapLegendProps = {
+  /**
+   * How far the legend keeps left of the plan's tool stack: an open legend in the stack's column would cover tools or
+   * fold them into More. `wide` clears two columns, which a short plan's stack can take.
+   */
+  besideTools?: 'one' | 'wide'
   /** Blocks drawn; `customColors` when any carries its own colour. */
   blocks: { count: number; customColors: boolean }
   landform: boolean
@@ -216,6 +221,7 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
         collapsed={props.collapsed}
         onCollapsedChange={props.onCollapsedChange}
         width="sm"
+        className={props.besideTools === 'wide' ? 'right-28' : props.besideTools === 'one' ? 'right-14' : undefined}
         data-testid="visual-quality-legend"
         contentClassName="max-h-72 overflow-y-auto overscroll-contain"
       >
