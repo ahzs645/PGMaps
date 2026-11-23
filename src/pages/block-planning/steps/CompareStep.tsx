@@ -6,12 +6,76 @@ import { explainPatches } from '../../forest-patches/explanation'
 import { movementTowardTarget, table } from '../../forest-patches/project'
 import { FieldPriorities } from '../FieldPriorities'
 import { PatchExplanation } from '../PatchExplanation'
+import { publishedUnit, type PublishedUnit } from '../observations'
 import { footprintName, periodYears } from '../plan'
 import { scheduleProject, type PlanAnalysis } from '../planAnalysis'
 import { shownResult } from '../usePlanAnalysis'
 import type { StepProps } from './types'
 
 const pct = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 })
+
+/** The Board's 2015 and 2018 shares for the reporting unit, with what changed between them. */
+function PublishedFigures({ unit }: { unit: PublishedUnit }) {
+  return (
+    <ToolSection
+      title="Published 2015 and 2018"
+      help="The Forest Practices Board's measured distributions for this district and sub-unit. They came from other inventories; the 2018 interim analysis used the revised 2017 guidance, so the change between them mixes the landscape's change with the method's. Comparability is unconfirmed."
+      summary={unit.source.label}
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs" data-testid="block-planning-published">
+          <thead>
+            <tr className="text-left">
+              <th className="py-1 pr-2 font-medium">Patch size</th>
+              <th className="py-1 pr-2 font-medium">Target</th>
+              {unit.observations.map((o) => (
+                <th key={o.year} className="py-1 pr-2 font-medium">
+                  {o.year}
+                </th>
+              ))}
+              {unit.movement && <th className="py-1 pr-2 font-medium">2015 → 2018</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {table.labels.map((label, b) => (
+              <tr key={label} className="border-t">
+                <th scope="row" className="py-1 pr-2 text-left font-normal">
+                  {label}
+                </th>
+                <td className="py-1 pr-2">{pct.format(unit.target[b])}%</td>
+                {unit.observations.map((o) => (
+                  <td key={o.year} className="py-1 pr-2">
+                    {pct.format(o.shares[b])}%
+                  </td>
+                ))}
+                {unit.movement && (
+                  <td className="py-1 pr-2">
+                    <Movement
+                      before={unit.observations[0].shares[b]}
+                      after={unit.observations[1].shares[b]}
+                      target={unit.target[b]}
+                    />
+                    <span className="text-muted-foreground"> {pct.format(Math.abs(unit.movement[b] ?? 0))} pts</span>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ul className="text-2xs text-muted-foreground">
+        {unit.observations.map((o) => (
+          <li key={o.year}>
+            {o.year}: {o.method}
+          </li>
+        ))}
+      </ul>
+      <a className="text-2xs underline" href={unit.source.url} target="_blank" rel="noreferrer">
+        {unit.source.label}
+      </a>
+    </ToolSection>
+  )
+}
 
 /** The engine's own result shape for one schedule, so its explanation tools read it unchanged. */
 export function asEngineAnalysis(result: PlanAnalysis, schedule: string) {
@@ -48,6 +112,7 @@ export function CompareStep({ plan, analysis, shown, setShown }: StepProps) {
   const years = periodYears(plan.area.startYear)
   const names = Object.fromEntries(plan.schedules.map((s) => [s.id, s.name]))
   const nameOf = (id: string) => footprintName(plan, id)
+  const published = publishedUnit(plan.area.district, plan.area.ndu)
   const project = scheduleProject(plan, shown.schedule)
   const engine =
     result && result.shown.schedule === shown.schedule && result.shown.year === shown.year
@@ -132,6 +197,8 @@ export function CompareStep({ plan, analysis, shown, setShown }: StepProps) {
           .
         </p>
       </ToolSection>
+
+      {published && <PublishedFigures unit={published} />}
 
       <ToolSection
         title="Explain a figure"

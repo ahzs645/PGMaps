@@ -1,13 +1,16 @@
-import { useMemo } from 'react'
 import { useTheme } from 'next-themes'
 import { LineBandChart, type XYDomain } from '@pgmaps/geo-toolkit/visualizations/react'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { bins, table } from '../forest-patches/project'
 import { MAX_COLOURED_SCHEDULES, scheduleColour } from './colors'
+import { publishedUnit } from './observations'
 import { periodYears, type Plan } from './plan'
 import type { PlanAnalysis } from './planAnalysis'
 
 const TARGET_COLOUR = '#6b6b67'
+/** The Board's published figures: ink, not a schedule's colour, because they are not a schedule. */
+const OBSERVED_LIGHT = '#2b2b29'
+const OBSERVED_DARK = '#e4e4e0'
 const percent = (value: number) => `${value.toFixed(value < 10 ? 1 : 0)}%`
 
 type Point = { x: number; y: number | null; schedule: string }
@@ -23,32 +26,40 @@ export function TrendChart({ plan, result, year }: { plan: Plan; result: PlanAna
   const dark = resolvedTheme === 'dark'
   const years = periodYears(plan.area.startYear)
   const names = Object.fromEntries(plan.schedules.map((s) => [s.id, s.name]))
-  const panels = useMemo(
-    () =>
-      bins.map((bin, b) => {
-        const target = result.runs[0]?.periods[0]?.classes[b]?.target ?? null
-        const series = result.runs.map((run, i) => ({
-          id: run.schedule,
-          label: names[run.schedule] ?? run.schedule,
-          color: scheduleColour(i, dark),
-          strokeWidth: run.schedule === plan.reviewSchedule ? 2.5 : 2,
-          points: run.periods.map((p) => ({ x: p.year, y: p.classes[b].percent, schedule: run.schedule })),
-        }))
-        if (target !== null)
-          series.push({
-            id: 'target',
-            label: 'Order target',
-            color: TARGET_COLOUR,
-            strokeWidth: 1,
-            points: years.map((y) => ({ x: y, y: target, schedule: 'target' })),
-          })
-        const ys = series.flatMap((s) => s.points.map((p) => p.y)).filter((v): v is number => v !== null)
-        const high = Math.min(100, Math.max(10, ...ys) + 5)
-        const extent: XYDomain = [years[0] - 1, years.at(-1)! + 1, 0, high]
-        return { bin, label: table.labels[b], target, series, extent }
-      }),
-    [result, dark, years, names, plan.reviewSchedule],
-  )
+  const published = publishedUnit(plan.area.district, plan.area.ndu)
+  const observedColour = dark ? OBSERVED_DARK : OBSERVED_LIGHT
+  const panels = bins.map((bin, b) => {
+    const target = result.runs[0]?.periods[0]?.classes[b]?.target ?? null
+    const series = result.runs.map((run, i) => ({
+      id: run.schedule,
+      label: names[run.schedule] ?? run.schedule,
+      color: scheduleColour(i, dark),
+      strokeWidth: run.schedule === plan.reviewSchedule ? 2.5 : 2,
+      points: run.periods.map((p) => ({ x: p.year, y: p.classes[b].percent, schedule: run.schedule })),
+    }))
+    if (target !== null)
+      series.push({
+        id: 'target',
+        label: 'Order target',
+        color: TARGET_COLOUR,
+        strokeWidth: 1,
+        points: years.map((y) => ({ x: y, y: target, schedule: 'target' })),
+      })
+    // A separate series: the Board's two years are never joined to the projection's first period.
+    if (published)
+      series.push({
+        id: 'published',
+        label: 'Published (Forest Practices Board)',
+        color: observedColour,
+        strokeWidth: 1.5,
+        points: published.observations.map((o) => ({ x: o.year, y: o.shares[b], schedule: 'published' })),
+      })
+    const ys = series.flatMap((s) => s.points.map((p) => p.y)).filter((v): v is number => v !== null)
+    const high = Math.min(100, Math.max(10, ...ys) + 5)
+    const first = published ? Math.min(years[0], published.observations[0].year) : years[0]
+    const extent: XYDomain = [first - 1, years.at(-1)! + 1, 0, high]
+    return { bin, label: table.labels[b], target, series, extent }
+  })
   const overflow = plan.schedules.length > MAX_COLOURED_SCHEDULES
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-2" data-testid="block-planning-trend">
@@ -66,6 +77,12 @@ export function TrendChart({ plan, result, year }: { plan: Plan; result: PlanAna
           <span className="inline-block h-px w-4" style={{ background: TARGET_COLOUR }} />
           <span>Order target</span>
         </li>
+        {published && (
+          <li className="flex items-center gap-1.5">
+            <span className="inline-block h-0.5 w-4 rounded" style={{ background: observedColour }} />
+            <span>Published 2015 and 2018 (Forest Practices Board)</span>
+          </li>
+        )}
       </ul>
       {overflow && (
         <InlineAlert tone="info">
@@ -86,7 +103,10 @@ export function TrendChart({ plan, result, year }: { plan: Plan; result: PlanAna
               height={150}
               extent={panel.extent}
               label={`Share of young forest in patches ${panel.label}, ${plan.area.ndu}, ${years[0]}–${years.at(-1)}, by schedule`}
-              xAxis={{ format: (v) => String(Math.round(v)), ticks: years.filter((_, i) => i % 2 === 0) }}
+              xAxis={{
+                format: (v) => String(Math.round(v)),
+                ticks: [...(published ? [published.observations[0].year] : []), ...years.filter((_, i) => i % 2 === 0)],
+              }}
               yAxis={{ width: 56, format: (v) => `${Math.round(v)}%` }}
               highlightOnHover
               renderTooltip={(point, series) => (
@@ -105,6 +125,8 @@ export function TrendChart({ plan, result, year }: { plan: Plan; result: PlanAna
       <p className="shrink-0 text-2xs text-muted-foreground">
         Share of young forest (0–20 years) in each patch size class, method pg-2005-buffer-v1. A class moving toward its
         target is the order’s test; no figure here combines the four.
+        {published &&
+          ` The published 2015 and 2018 shares are the Board’s, from other inventories; 2018 used the revised 2017 guidance, so the two years and this projection are not one series.`}
       </p>
     </div>
   )

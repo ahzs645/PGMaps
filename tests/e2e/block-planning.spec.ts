@@ -21,6 +21,9 @@ test('the sample compares every schedule over time, in every interface', async (
   const compare = page.getByTestId('block-planning-compare')
   await expect(compare).toContainText('Deferred 10 years')
   await expect(compare).toContainText('33.3%')
+  // The Board's published 2015 and 2018 shares for the sample's unit sit beside the projection.
+  await expect(page.getByTestId('block-planning-published')).toContainText('2018')
+  await expect(legend).toContainText('Published 2015 and 2018')
 
   for (const id of ['ribbon', 'guided-map', 'dashboard']) {
     await page.goto(`/dev/forestry/block-planning?interface=${id}`)

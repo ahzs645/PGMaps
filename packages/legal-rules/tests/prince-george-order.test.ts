@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import benchmark from './fixtures/fpb-irc-235.json'
+import benchmark from '../observations/fpb-irc-235.json'
 import regional from '../packs/bc-pgtsa-biodiversity.json'
 import { parsePack } from '../src/contract'
 import { assess } from '../engine/evaluate'
