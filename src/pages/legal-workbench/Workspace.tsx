@@ -1,3 +1,4 @@
+import RuleFlow from './RuleFlow'
 import { statusLabels } from '../../../packages/legal-rules/engine/explain'
 import { spatialFacts, type Measurement } from '../../../packages/legal-rules/engine/spatialFacts'
 import { useEffect, useState } from 'react'
@@ -372,6 +373,13 @@ export default function LegalWorkbench({ plan }: { plan?: PlanReview } = {}) {
                       {row.source.title}, {row.provision}
                     </a>
                   </p>
+                  <RuleFlow
+                    pack={release.pack}
+                    rule={release.pack.rules.find((r) => r.id === row.rule)!}
+                    finding={row}
+                    facts={release.facts}
+                    date={date}
+                  />
                   {'finding' in row && <p>{row.finding}</p>}
                   {'actions' in row &&
                     row.actions.map((a, i) => (

@@ -108,9 +108,33 @@ export interface ReviewCase {
   sets: Record<string, FactSet>
 }
 
+/** D.5(a): the old-forest recruitment strategy, which the order has submitted, approved and followed. */
+export interface RecruitmentRecord {
+  /** The recruitment analysis relied on: PGMaps does not model old forest yet. */
+  analysis?: string
+  strategy?: string
+  submitted?: string
+  approved?: string
+  /** Who approved it: the minister's designate the order names. */
+  approver?: string
+  reference?: string
+}
+
+/** D.5(b): the young-forest patch rationale, which the order has submitted (no approval step). */
+export interface RationaleRecord {
+  submitted?: string
+  reference?: string
+}
+
+/** The landscape-level review: the order's pack, the measured trend and the D.5 records. */
 export interface LandscapeReview {
-  /** The planner's draft D.5 rationale or recruitment strategy. */
+  /** The planner's draft D.5(b) rationale. */
   rationale?: string
+  /** The Prince George order's case: applicability, determinations and D.1–D.4 claims. */
+  review?: ReviewCase
+  /** The later year of the five-year interval the trend is measured over. */
+  trendYear?: number
+  pathways?: { a?: RecruitmentRecord; b?: RationaleRecord }
 }
 
 export interface Plan {
@@ -465,7 +489,28 @@ export function parsePlan(value: unknown): Plan {
     schedules,
     reviewSchedule,
     reviews,
-    landscape: { rationale: optionalText(l, 'rationale', 'landscape.rationale', 100_000) },
+    landscape: {
+      rationale: optionalText(l, 'rationale', 'landscape.rationale', 100_000),
+      review: optional(l, 'review', (v) => parseReview(v, 'landscape review')),
+      trendYear: optional(l, 'trendYear', (v) => int(v, 'landscape.trendYear', ...YEAR_RANGE)),
+      pathways: optional(l, 'pathways', (v) => {
+        const w = object(v, 'landscape.pathways')
+        const record = (key: 'a' | 'b', fields: string[]) =>
+          optional(w, key, (r) => {
+            const o = object(r, `landscape.pathways.${key}`)
+            return Object.fromEntries(
+              fields.flatMap((f) => {
+                const value = optionalText(o, f, `landscape.pathways.${key}.${f}`, 100_000)
+                return value === undefined ? [] : [[f, value]]
+              }),
+            )
+          })
+        return {
+          a: record('a', ['analysis', 'strategy', 'submitted', 'approved', 'approver', 'reference']),
+          b: record('b', ['submitted', 'reference']),
+        }
+      }),
+    },
     zones: optional(p, 'zones', (v) => {
       const z = object(v, 'zones')
       return { source: text(z.source, 'zones.source', 2000), layer: z.layer }

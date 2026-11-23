@@ -1,0 +1,2203 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.fppr",
+  "version": "1.1.0",
+  "title": "BC Forest Planning and Practices Regulation",
+  "description": "Selected evidence and threshold screens across planning, practice and roads. Consult the complete source catalogue for companion duties, discretion and exceptions.",
+  "coverage": {
+    "from": "2026-01-01",
+    "through": "2026-11-17"
+  },
+  "facts": [
+    {
+      "id": "applicable",
+      "label": "Reviewer confirmed this FPPR regime applies to the operation, date and plan",
+      "type": "boolean"
+    },
+    {
+      "id": "holder",
+      "label": "Agreement holder harvesting timber",
+      "type": "boolean"
+    },
+    {
+      "id": "minor",
+      "label": "Minor tenure",
+      "type": "boolean"
+    },
+    {
+      "id": "region",
+      "label": "Administrative forest region",
+      "type": "choice",
+      "choices": [
+        "Kootenay Boundary",
+        "South Coast",
+        "Thompson Okanagan",
+        "West Coast",
+        "Cariboo",
+        "Northeast",
+        "Omineca",
+        "Skeena"
+      ]
+    },
+    {
+      "id": "nar",
+      "label": "Verified net area to be reforested",
+      "type": "number",
+      "min": 0,
+      "unit": "ha"
+    },
+    {
+      "id": "adjacency",
+      "label": "New cutblock is adjacent to an existing cutblock as defined in §65(1)",
+      "type": "boolean"
+    },
+    {
+      "id": "fibre",
+      "label": "Fibre recovery tenure holder",
+      "type": "boolean"
+    },
+    {
+      "id": "completed",
+      "label": "Harvesting on this cutblock is complete",
+      "type": "boolean"
+    },
+    {
+      "id": "period-ended",
+      "label": "April–March period has ended with at least one completed cutblock",
+      "type": "boolean"
+    },
+    {
+      "id": "retention-block",
+      "label": "Related wildlife tree retention area as a share of the completed cutblock",
+      "type": "number",
+      "min": 0,
+      "max": 100,
+      "unit": "%"
+    },
+    {
+      "id": "retention-period",
+      "label": "Related wildlife tree retention area as a share of total completed cutblock area for that holder and period",
+      "type": "number",
+      "min": 0,
+      "max": 100,
+      "unit": "%"
+    },
+    {
+      "id": "landscape-default",
+      "label": "§64(1) / §65(2) default applies here after checking §12.4, applicable plans and authorized exemptions",
+      "type": "boolean"
+    },
+    {
+      "id": "stand-default",
+      "label": "§66 / §67 default applies here after checking §12.5, applicable plans and authorized exemptions",
+      "type": "boolean"
+    },
+    {
+      "id": "soil-scope",
+      "label": "§35(3) applies to this harvesting holder and NAR after excluding minor tenure, fibre supply licence to cut and applicable substitutions",
+      "type": "boolean"
+    },
+    {
+      "id": "soil-class",
+      "label": "Standards unit predominantly sensitive under §35(1)",
+      "type": "choice",
+      "choices": [
+        "Sensitive",
+        "Other"
+      ]
+    },
+    {
+      "id": "soil-disturbance",
+      "label": "Disturbed share of standards unit excluding roadside work area",
+      "type": "number",
+      "min": 0,
+      "unit": "%",
+      "max": 100
+    },
+    {
+      "id": "roadside-disturbance",
+      "label": "Disturbed share of roadside work area",
+      "type": "number",
+      "min": 0,
+      "unit": "%",
+      "max": 100
+    },
+    {
+      "id": "overlap-scope",
+      "label": "§35(4.1) overlapping authorizations confirmed with permanent access excluded under (4.2)",
+      "type": "boolean"
+    },
+    {
+      "id": "overlap-pct",
+      "label": "Cumulative disturbance on applicable overlap",
+      "type": "number",
+      "min": 0,
+      "unit": "%",
+      "max": 100
+    },
+    {
+      "id": "access-scope",
+      "label": "Agreement holder and §36 permanent-access default apply to this cutblock",
+      "type": "boolean"
+    },
+    {
+      "id": "access-pct",
+      "label": "Cutblock share occupied by permanent access built or used by holder",
+      "type": "number",
+      "min": 0,
+      "unit": "%",
+      "max": 100
+    },
+    {
+      "id": "debris-scope",
+      "label": "§68(1) harvesting requirement applies after checking agreement, authorized burn, fibre recovery and other relief",
+      "type": "boolean"
+    },
+    {
+      "id": "logs",
+      "label": "Qualifying retained logs per hectare (Coast ≥5 m and ≥30 cm at one end, Interior ≥2 m and ≥7.5 cm)",
+      "type": "number",
+      "min": 0,
+      "unit": "logs/ha"
+    },
+    {
+      "id": "wt-harvest",
+      "label": "Proposed harvest is inside the related wildlife tree retention area",
+      "type": "boolean"
+    },
+    {
+      "id": "mature",
+      "label": "Trees on the related cutblock NAR have attributes consistent with a mature seral condition",
+      "type": "boolean"
+    },
+    {
+      "id": "fop-public",
+      "label": "§4.33 public review of a forest operations plan applies",
+      "type": "boolean"
+    },
+    {
+      "id": "review-days",
+      "label": "Days the plan was publicly available",
+      "type": "number",
+      "min": 0,
+      "unit": "days"
+    },
+    {
+      "id": "short-authorized",
+      "label": "Minister authorized this exact shorter period under §4.33(2), and the dated decision is on file",
+      "type": "boolean"
+    },
+    {
+      "id": "amendment-scope",
+      "label": "§4.43 amendment confirmed, §4.45 checked, all four §4.44 documents delivered",
+      "type": "boolean"
+    },
+    {
+      "id": "amendment-days",
+      "label": "Days since the complete documents were delivered",
+      "type": "number",
+      "min": 0,
+      "unit": "days"
+    },
+    {
+      "id": "map-record",
+      "label": "FSP holder published a §34.2(1) notice and proposes disposal of this map record",
+      "type": "boolean"
+    },
+    {
+      "id": "map-years",
+      "label": "Elapsed years since the §34.2(3)(a) date",
+      "type": "number",
+      "min": 0,
+      "unit": "years"
+    },
+    {
+      "id": "road-notice",
+      "label": "Proposed road construction or deactivation in a community watershed with affected water licensees or water purveyors",
+      "type": "boolean"
+    },
+    {
+      "id": "notice-hours",
+      "label": "Hours from notice to affected parties to commencement",
+      "type": "number",
+      "min": 0,
+      "unit": "hours"
+    },
+    {
+      "id": "riparian-class",
+      "label": "Verified riparian class of the feature being measured",
+      "type": "choice",
+      "choices": [
+        "S1-A",
+        "S1-B",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "W1",
+        "W2",
+        "W3",
+        "W4",
+        "W5",
+        "L1-A",
+        "L1-B",
+        "L2",
+        "L3",
+        "L4"
+      ]
+    },
+    {
+      "id": "riparian-area-width",
+      "label": "Minimum mapped management area width on the assessed side, measured from its statutory origin",
+      "type": "number",
+      "unit": "m",
+      "min": 0
+    },
+    {
+      "id": "width-47-default",
+      "label": "§47 default table applies after checking active flood plain, S1-A ministerial specification and measurement origin and any applicable plan or relief",
+      "type": "boolean"
+    },
+    {
+      "id": "width-48-default",
+      "label": "§48 default table applies after checking W5 complexes, enclosed upland rules, ministerial specifications and measurement origin and any applicable plan or relief",
+      "type": "boolean"
+    },
+    {
+      "id": "width-49-default",
+      "label": "§49 default table applies after checking L1-A ministerial specifications and measurement origin and any applicable plan or relief",
+      "type": "boolean"
+    },
+    {
+      "id": "riparian-reserve-width",
+      "label": "Minimum mapped reserve zone width on the assessed side, measured from its statutory origin",
+      "type": "number",
+      "unit": "m",
+      "min": 0
+    },
+    {
+      "id": "riparian-management-width",
+      "label": "Minimum mapped management zone width on the assessed side, measured from its statutory origin",
+      "type": "number",
+      "unit": "m",
+      "min": 0
+    },
+    {
+      "id": "minor-rmz",
+      "label": "Minor tenure holder felling in this class of riparian management zone as described by §52(1)",
+      "type": "boolean"
+    },
+    {
+      "id": "basal-pct",
+      "label": "Share of total management-zone basal area retained standing",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100
+    },
+    {
+      "id": "fsp-landscape",
+      "label": "A §12.4(1)–(4) FSP exemption is claimed for this area and tenure",
+      "type": "boolean"
+    },
+    {
+      "id": "fsp-stand",
+      "label": "A §12.5 exemption is claimed for this area and tenure",
+      "type": "boolean"
+    },
+    {
+      "id": "fop-relief",
+      "label": "A §4.51 exemption is claimed for a listed practice provision",
+      "type": "boolean"
+    },
+    {
+      "id": "objective-conflict",
+      "label": "A §92.1 conflict with a Part 4 or Part 5 requirement is asserted",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "limit-40",
+      "value": 40,
+      "unit": "ha"
+    },
+    {
+      "id": "limit-60",
+      "value": 60,
+      "unit": "ha"
+    },
+    {
+      "id": "retention-period",
+      "value": 7,
+      "unit": "%"
+    },
+    {
+      "id": "retention-block",
+      "value": 3.5,
+      "unit": "%"
+    },
+    {
+      "id": "sensitive-soil-threshold",
+      "value": 5,
+      "unit": "%"
+    },
+    {
+      "id": "other-soil-threshold",
+      "value": 10,
+      "unit": "%"
+    },
+    {
+      "id": "roadside-soil-threshold",
+      "value": 25,
+      "unit": "%"
+    },
+    {
+      "id": "overlap-soil-threshold",
+      "value": 25,
+      "unit": "%"
+    },
+    {
+      "id": "access-threshold",
+      "value": 7,
+      "unit": "%"
+    },
+    {
+      "id": "logs-threshold",
+      "value": 4,
+      "unit": "logs/ha"
+    },
+    {
+      "id": "short-floor-threshold",
+      "value": 10,
+      "unit": "days"
+    },
+    {
+      "id": "amendment-threshold",
+      "value": 30,
+      "unit": "days"
+    },
+    {
+      "id": "map-retention-threshold",
+      "value": 5,
+      "unit": "years"
+    },
+    {
+      "id": "watershed-notice-threshold",
+      "value": 48,
+      "unit": "hours"
+    }
+  ],
+  "sources": [
+    {
+      "id": "instrument",
+      "title": "BC Forest Planning and Practices Regulation",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004",
+      "asOf": "2026-11-17"
+    }
+  ],
+  "rules": [
+    {
+      "id": "limit-40",
+      "title": "Cutblock size · 40 ha regions",
+      "source": "instrument",
+      "provision": "64(1)(a) and 64(2)–(4)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "holder",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "minor",
+            "value": false,
+            "op": "eq"
+          },
+          {
+            "fact": "region",
+            "value": [
+              "Kootenay Boundary",
+              "South Coast",
+              "Thompson Okanagan",
+              "West Coast"
+            ],
+            "op": "in"
+          },
+          {
+            "fact": "landscape-default",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "nar",
+            "value": {
+              "parameter": "limit-40"
+            },
+            "op": "gt"
+          }
+        ]
+      ],
+      "finding": "Net area exceeds the regional screening threshold.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Review §64(2) harvest purpose/design and retained structure, §64(3) basal-area retention, or §64(4) tree-length and reserve geometry against supporting evidence."
+        }
+      ]
+    },
+    {
+      "id": "limit-60",
+      "title": "Cutblock size · 60 ha regions",
+      "source": "instrument",
+      "provision": "64(1)(b) and 64(2)–(4)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "holder",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "minor",
+            "value": false,
+            "op": "eq"
+          },
+          {
+            "fact": "region",
+            "value": [
+              "Cariboo",
+              "Northeast",
+              "Omineca",
+              "Skeena"
+            ],
+            "op": "in"
+          },
+          {
+            "fact": "landscape-default",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "nar",
+            "value": {
+              "parameter": "limit-60"
+            },
+            "op": "gt"
+          }
+        ]
+      ],
+      "finding": "Net area exceeds the regional screening threshold.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Review §64(2) harvest purpose/design and retained structure, §64(3) basal-area retention, or §64(4) tree-length and reserve geometry against supporting evidence."
+        }
+      ]
+    },
+    {
+      "id": "adjacency",
+      "title": "Adjacent cutblocks",
+      "source": "instrument",
+      "provision": "65",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "holder",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "minor",
+            "value": false,
+            "op": "eq"
+          },
+          {
+            "fact": "landscape-default",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "adjacency",
+            "value": true,
+            "op": "eq"
+          }
+        ]
+      ],
+      "finding": "Adjacent harvesting needs a stocking, height and exceptions review.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Examine §65 definitions, adjacent stand measurements, alternatives and the governing plan."
+        }
+      ]
+    },
+    {
+      "id": "retention-period",
+      "title": "Wildlife tree retention · annual group",
+      "source": "instrument",
+      "provision": "66(1), (3)–(4)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "holder",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "fibre",
+            "value": false,
+            "op": "eq"
+          },
+          {
+            "fact": "period-ended",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "stand-default",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "retention-period",
+            "value": {
+              "parameter": "retention-period"
+            },
+            "op": "lt"
+          }
+        ]
+      ],
+      "finding": "Reported retention is below the numeric minimum.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Check related retention geometry, collective accounting under subsection (3), exemptions and plan evidence."
+        }
+      ]
+    },
+    {
+      "id": "retention-block",
+      "title": "Wildlife tree retention · individual cutblock",
+      "source": "instrument",
+      "provision": "66(2), (3)–(4)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "holder",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "fibre",
+            "value": false,
+            "op": "eq"
+          },
+          {
+            "fact": "completed",
+            "value": true,
+            "op": "eq"
+          },
+          {
+            "fact": "stand-default",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "retention-block",
+            "value": {
+              "parameter": "retention-block"
+            },
+            "op": "lt"
+          }
+        ]
+      ],
+      "finding": "Reported retention is below the numeric minimum.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Check related retention geometry, collective accounting under subsection (3), exemptions and plan evidence."
+        }
+      ]
+    },
+    {
+      "id": "sensitive-soil",
+      "title": "Predominantly sensitive soils",
+      "source": "instrument",
+      "provision": "35(3)(a)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "soil-scope",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "soil-class",
+            "op": "eq",
+            "value": "Sensitive"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "soil-disturbance",
+            "op": "gt",
+            "value": {
+              "parameter": "sensitive-soil-threshold"
+            }
+          }
+        ]
+      ],
+      "finding": "The entered measurement triggers the 5 % review screen.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Review stump removal, windthrow, temporary access and rehabilitation under §35(4). Record the measured area, denominator and conditions."
+        }
+      ]
+    },
+    {
+      "id": "other-soil",
+      "title": "Other soils",
+      "source": "instrument",
+      "provision": "35(3)(b)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "soil-scope",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "soil-class",
+            "op": "eq",
+            "value": "Other"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "soil-disturbance",
+            "op": "gt",
+            "value": {
+              "parameter": "other-soil-threshold"
+            }
+          }
+        ]
+      ],
+      "finding": "The entered measurement triggers the 10 % review screen.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Review stump removal, windthrow, temporary access and rehabilitation under §35(4). Record the measured area, denominator and conditions."
+        }
+      ]
+    },
+    {
+      "id": "roadside-soil",
+      "title": "Roadside work area",
+      "source": "instrument",
+      "provision": "35(3)(c)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "soil-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "roadside-disturbance",
+            "op": "gt",
+            "value": {
+              "parameter": "roadside-soil-threshold"
+            }
+          }
+        ]
+      ],
+      "finding": "The entered measurement triggers the 25 % review screen.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Document roadside footprint and disturbance. Check §35(4) and the scope of each alternative."
+        }
+      ]
+    },
+    {
+      "id": "overlap-soil",
+      "title": "Cumulative disturbance on overlapping authorizations",
+      "source": "instrument",
+      "provision": "35(4.1)–(4.2)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "overlap-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "overlap-pct",
+            "op": "gt",
+            "value": {
+              "parameter": "overlap-soil-threshold"
+            }
+          }
+        ]
+      ],
+      "finding": "The entered measurement triggers the 25 % review screen.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Reconcile disturbances from both holders and verify the overlap denominator."
+        }
+      ]
+    },
+    {
+      "id": "access",
+      "title": "Permanent access footprint",
+      "source": "instrument",
+      "provision": "36(1)–(2)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "access-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "access-pct",
+            "op": "gt",
+            "value": {
+              "parameter": "access-threshold"
+            }
+          }
+        ]
+      ],
+      "finding": "The entered measurement triggers the 7 % review screen.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Document constraints or access beyond the block. Show why exceedance is as little as practicable."
+        }
+      ]
+    },
+    {
+      "id": "logs",
+      "title": "Coarse woody debris",
+      "source": "instrument",
+      "provision": "68(1)–(2)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "debris-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "logs",
+            "op": "lt",
+            "value": {
+              "parameter": "logs-threshold"
+            }
+          }
+        ]
+      ],
+      "finding": "The entered measurement triggers the 4 logs/ha review screen.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify region, log dimensions, count and denominator. Record any §68(2) exemption."
+        }
+      ]
+    },
+    {
+      "id": "wt-harvest",
+      "title": "Harvest in a wildlife tree retention area",
+      "source": "instrument",
+      "provision": "67",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "holder",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "stand-default",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "wt-harvest",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "mature",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "Mature seral attributes are recorded as absent.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Review field evidence for the related cutblock and §67 restriction."
+        }
+      ]
+    },
+    {
+      "id": "short-floor",
+      "title": "Minimum shortened public review",
+      "source": "instrument",
+      "provision": "4.33(2)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "fop-public",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "review-days",
+            "op": "lt",
+            "value": {
+              "parameter": "short-floor-threshold"
+            }
+          }
+        ]
+      ],
+      "finding": "The entered measurement triggers the 10 days review screen.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify the publication and closure dates. Even an authorized shorter period has a ten-day floor."
+        }
+      ]
+    },
+    {
+      "id": "short-review",
+      "title": "Shortened public review authorization",
+      "source": "instrument",
+      "provision": "4.33(1)–(3)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "fop-public",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "review-days",
+            "op": "lt",
+            "value": 60
+          },
+          {
+            "fact": "review-days",
+            "op": "gte",
+            "value": 10
+          },
+          {
+            "fact": "short-authorized",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "The shortened period lacks a recorded authorization.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Obtain the ministerial decision, grounds and evidence of notice on both required channels."
+        }
+      ]
+    },
+    {
+      "id": "amendment",
+      "title": "Amendment effective date",
+      "source": "instrument",
+      "provision": "4.44",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "amendment-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "amendment-days",
+            "op": "lt",
+            "value": {
+              "parameter": "amendment-threshold"
+            }
+          }
+        ]
+      ],
+      "finding": "The entered measurement triggers the 30 days review screen.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Check submission receipts and any ministerial determination before relying on the amendment."
+        }
+      ]
+    },
+    {
+      "id": "map-retention",
+      "title": "Forest operations map record",
+      "source": "instrument",
+      "provision": "34.6",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "map-record",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "map-years",
+            "op": "lt",
+            "value": {
+              "parameter": "map-retention-threshold"
+            }
+          }
+        ]
+      ],
+      "finding": "The entered measurement triggers the 5 years review screen.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify the triggering date and keep the map record for the required period."
+        }
+      ]
+    },
+    {
+      "id": "watershed-notice",
+      "title": "Community watershed road notice",
+      "source": "instrument",
+      "provision": "84",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "road-notice",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "notice-hours",
+            "op": "lt",
+            "value": {
+              "parameter": "watershed-notice-threshold"
+            }
+          }
+        ]
+      ],
+      "finding": "The entered measurement triggers the 48 hours review screen.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify recipients, notice delivery and planned start. Record any missing delivery separately."
+        }
+      ]
+    },
+    {
+      "id": "width-47-area",
+      "title": "Stream management area width",
+      "provision": "47(4)",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "width-47-default",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "S1-A",
+              "S1-B",
+              "S2",
+              "S3",
+              "S4",
+              "S5",
+              "S6"
+            ]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S1-A"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 100
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S1-B"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 70
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S2"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 50
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S3"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 40
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S4"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S5"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S6"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 20
+          }
+        ]
+      ],
+      "finding": "Entered width is below the table minimum for this class.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify active flood plain, S1-A ministerial specification and measurement origin. Assess each bank or feature edge separately."
+        }
+      ]
+    },
+    {
+      "id": "width-48-area",
+      "title": "Wetland management area width",
+      "provision": "48(3)",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "width-48-default",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "W1",
+              "W2",
+              "W3",
+              "W4",
+              "W5"
+            ]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W1"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 50
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W2"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W3"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W4"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W5"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 50
+          }
+        ]
+      ],
+      "finding": "Entered width is below the table minimum for this class.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify W5 complexes, enclosed upland rules, ministerial specifications and measurement origin. Assess each bank or feature edge separately."
+        }
+      ]
+    },
+    {
+      "id": "width-49-area",
+      "title": "Lake management area width",
+      "provision": "49(2)",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "width-49-default",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "L1-A",
+              "L1-B",
+              "L2",
+              "L3",
+              "L4"
+            ]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "L1-B"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 10
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "L2"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "L3"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "L4"
+          },
+          {
+            "fact": "riparian-area-width",
+            "op": "lt",
+            "value": 30
+          }
+        ]
+      ],
+      "finding": "Entered width is below the table minimum for this class.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify L1-A ministerial specifications and measurement origin. Assess each bank or feature edge separately."
+        }
+      ]
+    },
+    {
+      "id": "width-47-reserve",
+      "title": "Stream reserve zone width",
+      "provision": "47(4)",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "width-47-default",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "S1-A",
+              "S1-B",
+              "S2",
+              "S3",
+              "S4",
+              "S5",
+              "S6"
+            ]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S1-B"
+          },
+          {
+            "fact": "riparian-reserve-width",
+            "op": "lt",
+            "value": 50
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S2"
+          },
+          {
+            "fact": "riparian-reserve-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S3"
+          },
+          {
+            "fact": "riparian-reserve-width",
+            "op": "lt",
+            "value": 20
+          }
+        ]
+      ],
+      "finding": "Entered width is below the table minimum for this class.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify active flood plain, S1-A ministerial specification and measurement origin. Assess each bank or feature edge separately."
+        }
+      ]
+    },
+    {
+      "id": "width-48-reserve",
+      "title": "Wetland reserve zone width",
+      "provision": "48(3)",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "width-48-default",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "W1",
+              "W2",
+              "W3",
+              "W4",
+              "W5"
+            ]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W1"
+          },
+          {
+            "fact": "riparian-reserve-width",
+            "op": "lt",
+            "value": 10
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W2"
+          },
+          {
+            "fact": "riparian-reserve-width",
+            "op": "lt",
+            "value": 10
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W5"
+          },
+          {
+            "fact": "riparian-reserve-width",
+            "op": "lt",
+            "value": 10
+          }
+        ]
+      ],
+      "finding": "Entered width is below the table minimum for this class.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify W5 complexes, enclosed upland rules, ministerial specifications and measurement origin. Assess each bank or feature edge separately."
+        }
+      ]
+    },
+    {
+      "id": "width-49-reserve",
+      "title": "Lake reserve zone width",
+      "provision": "49(2)",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "width-49-default",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "L1-A",
+              "L1-B",
+              "L2",
+              "L3",
+              "L4"
+            ]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "L1-B"
+          },
+          {
+            "fact": "riparian-reserve-width",
+            "op": "lt",
+            "value": 10
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "L2"
+          },
+          {
+            "fact": "riparian-reserve-width",
+            "op": "lt",
+            "value": 10
+          }
+        ]
+      ],
+      "finding": "Entered width is below the table minimum for this class.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify L1-A ministerial specifications and measurement origin. Assess each bank or feature edge separately."
+        }
+      ]
+    },
+    {
+      "id": "width-47-management",
+      "title": "Stream management zone width",
+      "provision": "47(4)",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "width-47-default",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "S1-A",
+              "S1-B",
+              "S2",
+              "S3",
+              "S4",
+              "S5",
+              "S6"
+            ]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S1-A"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 100
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S1-B"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 20
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S2"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 20
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S3"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 20
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S4"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S5"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "S6"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 20
+          }
+        ]
+      ],
+      "finding": "Entered width is below the table minimum for this class.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify active flood plain, S1-A ministerial specification and measurement origin. Assess each bank or feature edge separately."
+        }
+      ]
+    },
+    {
+      "id": "width-48-management",
+      "title": "Wetland management zone width",
+      "provision": "48(3)",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "width-48-default",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "W1",
+              "W2",
+              "W3",
+              "W4",
+              "W5"
+            ]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W1"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 40
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W2"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 20
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W3"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W4"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "W5"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 40
+          }
+        ]
+      ],
+      "finding": "Entered width is below the table minimum for this class.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify W5 complexes, enclosed upland rules, ministerial specifications and measurement origin. Assess each bank or feature edge separately."
+        }
+      ]
+    },
+    {
+      "id": "width-49-management",
+      "title": "Lake management zone width",
+      "provision": "49(2)",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "width-49-default",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "L1-A",
+              "L1-B",
+              "L2",
+              "L3",
+              "L4"
+            ]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "L2"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 20
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "L3"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 30
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "eq",
+            "value": "L4"
+          },
+          {
+            "fact": "riparian-management-width",
+            "op": "lt",
+            "value": 30
+          }
+        ]
+      ],
+      "finding": "Entered width is below the table minimum for this class.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify L1-A ministerial specifications and measurement origin. Assess each bank or feature edge separately."
+        }
+      ]
+    },
+    {
+      "id": "basal-retention",
+      "title": "Standing basal area in riparian management zone",
+      "provision": "52(1)",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "minor-rmz",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "S1-A",
+              "S1-B",
+              "S2",
+              "S3",
+              "S4",
+              "S5",
+              "W1",
+              "W2",
+              "W3",
+              "W4",
+              "W5",
+              "L1-A",
+              "L1-B",
+              "L2",
+              "L3",
+              "L4"
+            ]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "S1-A",
+              "S1-B",
+              "S2",
+              "S3"
+            ]
+          },
+          {
+            "fact": "basal-pct",
+            "op": "lt",
+            "value": 20
+          }
+        ],
+        [
+          {
+            "fact": "riparian-class",
+            "op": "in",
+            "value": [
+              "S4",
+              "S5",
+              "W1",
+              "W2",
+              "W3",
+              "W4",
+              "W5",
+              "L1-A",
+              "L1-B",
+              "L2",
+              "L3",
+              "L4"
+            ]
+          },
+          {
+            "fact": "basal-pct",
+            "op": "lt",
+            "value": 10
+          }
+        ]
+      ],
+      "finding": "Standing basal area is below the applicable table percentage.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify the preharvest denominator and representativeness under (1)(b). Review stream-bank stability under §52(2), including applicable S6 sites."
+        }
+      ]
+    },
+    {
+      "id": "fsp-landscape",
+      "title": "Approved FSP landscape result or strategy",
+      "provision": "12.4",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fsp-landscape",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Approved FSP landscape result or strategy needs a case-specific determination.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify whether the agreement holder or timber sales manager submitted the proposed plan with the §9 result or strategy for the relevant area and obtained approval. Record the exact §64(1) or §65(2) consequence."
+        }
+      ]
+    },
+    {
+      "id": "fsp-stand",
+      "title": "Approved FSP stand-level result or strategy",
+      "provision": "12.5",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fsp-stand",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Approved FSP stand-level result or strategy needs a case-specific determination.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify the submitted and approved §9.1 result or strategy, activity area, plan holder and tenure. Record the consequence for §66 or §67."
+        }
+      ]
+    },
+    {
+      "id": "fop-relief",
+      "title": "Ministerial FOP practice exemption",
+      "provision": "4.51",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fop-relief",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Ministerial FOP practice exemption needs a case-specific determination.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Use the source table to match the exact subsection and matter. Verify the FOP measure, ministerial assessment of equivalent effectiveness and actual decision."
+        }
+      ]
+    },
+    {
+      "id": "objective-conflict",
+      "title": "Conflict with an established objective",
+      "provision": "92.1",
+      "source": "instrument",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "objective-conflict",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Conflict with an established objective needs a case-specific determination.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify the approved FSP result or strategy, established objective, conflict, exemption and any conditions. Check instruments already in effect under (3)."
+        }
+      ]
+    }
+  ]
+}

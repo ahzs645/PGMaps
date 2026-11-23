@@ -1,5 +1,5 @@
 {
   "assessmentDate": "2026-11-17",
-  "blockReleases": ["bc.fppr@1.0.0"],
-  "releases": ["bc.fppr@1.0.0", "bc.pgtsa.biodiversity@1.1.0"]
+  "blockReleases": ["bc.fppr@1.1.0"],
+  "releases": ["bc.fppr@1.1.0", "bc.pgtsa.biodiversity@1.2.0"]
 }
