@@ -111,6 +111,12 @@ export type CheckpointMerge = {
   renderer: string | null
   recipeId: string | null
   title: string | null
+  /**
+   * The page's shelved places (`PageParts.shelved`) whose views took back the ids the checkpoint kept for them
+   * (`withKeptIds`), under the page's keys: the page puts them where it holds each set, the saved set or the shelf
+   * (`restoredSaved`, `withRestoredIds`).
+   */
+  renamed: Array<{ key: string; views: SavedDriveView[] }>
 }
 
 /** A saved view's content without its id, as the Saved views record and the project file both read it back. */
@@ -137,6 +143,30 @@ function withKeptIds(views: SavedDriveView[], kept: SavedDriveView[]): SavedDriv
     return { ...view, id: match.id }
   })
   return changed ? out : null
+}
+
+/**
+ * The checkpoint's set for each of the page's shelved places, or null: the one under the same key, else the one set
+ * left whose views share content with the place's. The second is for a set saved under a scene made in the page: its
+ * key was that scene's fingerprint in memory, which spells out less than the same scene read back from this browser's
+ * Saved views record (`comparableFingerprint`), so a capture at a view of interest, saved where the capture stood and
+ * shelved when the reviewer was put back, comes back from the record under another key than the checkpoint kept.
+ * Several sets sharing content (the same view saved under two designs) name none: the page keeps its own.
+ */
+function keptPlaces(
+  places: ReadonlyArray<{ key: string; views: SavedDriveView[] }>,
+  kept: ReadonlyArray<{ key: string; views: SavedDriveView[] }>,
+): Array<{ key: string; views: SavedDriveView[] } | null> {
+  const byKey = places.map((place) => kept.find((candidate) => candidate.key === place.key) ?? null)
+  const left = kept.filter((candidate) => !byKey.includes(candidate))
+  return byKey.map((found, index) => {
+    if (found) return found
+    const contents = new Set(places[index].views.map(withoutId))
+    const sharing = left.filter((candidate) => candidate.views.some((view) => contents.has(withoutId(view))))
+    if (sharing.length !== 1) return null
+    left.splice(left.indexOf(sharing[0]), 1)
+    return sharing[0]
+  })
 }
 
 /**
@@ -170,8 +200,24 @@ export function mergeCheckpoint(
     ...kept.shelved,
     ...(!sameScene && keptKey !== null && kept.views.length ? [{ key: keptKey, views: kept.views }] : []),
   ]
+  // Each of the page's places takes the ids its set kept in the checkpoint (the Saved views record renumbered them),
+  // and that set is then the page's: the page's views stand, so a view removed since is not brought back.
+  const places = keptPlaces(page.shelved, keptAway)
+  const matched = new Set(places)
+  const renamed: CheckpointMerge['renamed'] = []
+  const pageShelved = page.shelved.map((entry, index) => {
+    const place = places[index]
+    const views = place && withKeptIds(entry.views, place.views)
+    if (!views) return entry
+    const back = { key: entry.key, views }
+    renamed.push(back)
+    return back
+  })
   const shelvedKeys = new Set(page.shelved.map((entry) => entry.key))
-  const shelved = [...page.shelved, ...keptAway.filter((entry) => entry.key !== openKey && !shelvedKeys.has(entry.key))]
+  const shelved = [
+    ...pageShelved,
+    ...keptAway.filter((entry) => !matched.has(entry) && entry.key !== openKey && !shelvedKeys.has(entry.key)),
+  ]
   const held = new Set([...(views ?? page.views), ...shelved.flatMap((entry) => entry.views)].map((view) => view.id))
   const under = (mine: Record<string, unknown>, theirs: Record<string, unknown>, holds: (key: string) => boolean) => ({
     ...Object.fromEntries(Object.entries(theirs).filter(([key]) => holds(key))),
@@ -187,7 +233,32 @@ export function mergeCheckpoint(
     renderer: page.pkg.renderer ?? kept.pkg.renderer,
     recipeId: page.pkg.recipeId ?? kept.pkg.recipeId,
     title: page.title ?? checkpoint.title,
+    renamed,
   }
+}
+
+/**
+ * The saved set after a restore, or null when it stands: the checkpoint's views for the scene open (`views`), else the
+ * saved set under the ids it kept when it is under another scene and took them back (`renamed`).
+ */
+export function restoredSaved<V>(
+  merged: { views: V[] | null; renamed: Array<{ key: string; views: V[] }> },
+  saved: { key: string | null; views: readonly V[] },
+  openKey: string | null,
+): { key: string | null; views: V[] } | null {
+  if (merged.views) return { key: openKey, views: merged.views }
+  if (saved.key === null || saved.key === openKey) return null
+  const back = merged.renamed.find((entry) => entry.key === saved.key)
+  return back ? { key: saved.key, views: back.views } : null
+}
+
+/** The page's shelf with each set that took back its kept ids (`renamed`) under them. */
+export function withRestoredIds<V>(
+  shelf: Array<{ key: string; views: V[] }>,
+  renamed: ReadonlyArray<{ key: string; views: V[] }>,
+): Array<{ key: string; views: V[] }> {
+  if (!renamed.length) return shelf
+  return shelf.map((entry) => renamed.find((back) => back.key === entry.key) ?? entry)
 }
 
 /**

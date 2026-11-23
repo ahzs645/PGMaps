@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest'
 
 import { emptyProjectMedia, openProjectArchive, writeProjectArchive } from './projectArchive'
 import type { ProjectState } from './projectFile'
-import type { SavedDriveView } from './previewState'
+import { parsePreview, serializePreview, type SavedDriveView } from './previewState'
 import { renderJobKey } from './renderJobKey'
 import { createSampleScene } from './scene'
+import { sceneFingerprint } from './sceneInput'
+import { shelvedWithSaved } from './siteTransition'
 import {
   checkpointLine,
   checkpointMayReplace,
@@ -13,7 +15,9 @@ import {
   comparableFingerprint,
   mergeCheckpoint,
   newSiteId,
+  restoredSaved,
   restoredShelves,
+  withRestoredIds,
   type PageParts,
 } from './siteCheckpoint'
 import {
@@ -283,6 +287,87 @@ describe('the site checkpoint', () => {
       { state: kept, title: null, key: keptKey, sceneRevision: 5 },
     )
     expect(restoredShelves(reopened, own, keptKey, shelf)).toEqual([])
+  })
+
+  it('brings back a view of interest captured where it stood, shelved when the reviewer was put back', async () => {
+    // The open site, a sample made in the page, and the scene a capture stood at for a view of interest: also made in
+    // the page, so its key in memory spells out less than the same scene read back from storage.
+    const open = createSampleScene()
+    const coordinates = open.viewpoint.coordinates
+    const standAt = {
+      ...open,
+      viewpoint: { ...open.viewpoint, name: 'At a view of interest', coordinates: coordinates.slice(1) },
+    }
+    const capture = { ...view('view-captured', 'Looking up the draw', 'after', 60), id: 'view-7f3a' }
+    // The capture saved under the stand-at scene, then shelved by the reviewer's return (`shelvedWithSaved`).
+    const atCapture = { key: sceneFingerprint(standAt)!, views: [capture] }
+    const written: ProjectState = {
+      scene: open,
+      views: [],
+      shelved: shelvedWithSaved(atCapture, sceneFingerprint(open), []),
+      images: {
+        [capture.id]: {
+          dataUrl: PIXEL,
+          width: 1,
+          height: 1,
+          caption: 'Looking up the draw.',
+          savedAt: 5,
+          figure: {
+            classes: classes(),
+            frameImage: { dataUrl: PIXEL, width: 8, height: 5, caption: '' },
+            facts: [],
+            camera: { renderedOn: new Date('2026-11-20T09:30:00Z') },
+          },
+        },
+      },
+      capturedBefore: {
+        [capture.id]: { plannedKey: 'key-view-captured', render: { dataUrl: PIXEL, width: 8, height: 5, caption: '' } },
+      },
+      engineFigures: {},
+      workspace: null,
+      pkg: { renderer: null, recipeId: null },
+    }
+    // The Saved views record still holds the stand-at scene (written while it was open) and reads its view back as
+    // view-0; the scene store holds the open site.
+    const record = parsePreview(JSON.parse(serializePreview(standAt, [capture])))!
+    const saved = { key: sceneFingerprint(record.scene)!, views: record.views }
+    expect(saved.views.map((entry) => entry.id)).toEqual(['view-0'])
+    const { state } = await openProjectArchive(await writeProjectArchive(written, emptyProjectMedia(), new Date()))
+
+    // The reload: the page holds the record's set as a shelved place, under the key it read back.
+    const here = comparableFingerprint(open)
+    const openKey = sceneFingerprint(parsePreview(JSON.parse(serializePreview(open, [])))!.scene)
+    for (const pageKey of [saved.key, atCapture.key]) {
+      const page = { ...saved, key: pageKey }
+      const merged = mergeCheckpoint(
+        { ...emptyPage(here), shelved: shelvedWithSaved(page, openKey, []) },
+        { state, title: null, key: comparableFingerprint(state.scene), sceneRevision: 5 },
+      )
+      // Held once, under the page's key, with the id its pictures are kept by.
+      expect(merged.shelved).toEqual([{ key: pageKey, views: [{ ...record.views[0], id: 'view-7f3a' }] }])
+      const images = merged.images as Record<string, { caption: string; figure?: unknown }>
+      expect(images['view-7f3a'].caption).toBe('Looking up the draw.')
+      expect(images['view-7f3a'].figure).toBeTruthy()
+      expect(Object.keys(merged.capturedBefore)).toEqual(['view-7f3a'])
+      // The page's saved set takes the kept id; nothing is added to the shelf, which would hold the set twice.
+      expect(restoredSaved(merged, page, openKey)).toEqual({ key: pageKey, views: merged.shelved[0].views })
+      expect(restoredShelves(merged, page, openKey, [])).toEqual([])
+      expect(withRestoredIds([page], merged.renamed)).toEqual(merged.shelved)
+    }
+
+    // A view the reviewer removed since is not brought back: the record's set stands, with only its own views.
+    const second = { ...view('view-second', 'Second look', 'after', 90), id: 'view-91bc' }
+    const both = {
+      ...state,
+      shelved: [{ key: state.shelved[0].key, views: [...state.shelved[0].views, second] }],
+      images: { ...state.images, [second.id]: { dataUrl: PIXEL, width: 1, height: 1, caption: 'Removed since.' } },
+    }
+    const removed = mergeCheckpoint(
+      { ...emptyPage(here), shelved: shelvedWithSaved(saved, openKey, []) },
+      { state: both, title: null, key: comparableFingerprint(state.scene), sceneRevision: 5 },
+    )
+    expect(removed.shelved.flatMap((entry) => entry.views.map((entry) => entry.id))).toEqual(['view-7f3a'])
+    expect(Object.keys(removed.images)).toEqual(['view-7f3a'])
   })
 
   it('says quietly whether the site is kept', () => {

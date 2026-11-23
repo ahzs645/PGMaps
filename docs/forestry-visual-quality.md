@@ -1153,8 +1153,13 @@ never erases it. Opening it keeps whatever the page already holds and fills
 only what it lacks (`mergeCheckpoint`): a picture taken or a view saved since
 the page opened stays, the Saved views record (written at once) outranks the
 checkpoint's views but takes back the ids it renumbers (`view-0`…) from the
-checkpoint's views of the same content, so each finds its picture again, and
-its scene is taken only when built at a later scene
+checkpoint's views of the same content, so each finds its picture again. That
+holds for a set the record keeps under another scene too (a view of interest's
+capture, saved where the capture stood and shelved when the reviewer was put
+back): it is the checkpoint's set under the same key, else the one set whose
+views share its content, because a scene made in the page and the same scene
+read back from the record have different keys; the record's set is then held
+once, under the kept ids. Its scene is taken only when built at a later scene
 revision than the one read (`usePersistentScene`'s `revisions`). A write never
 replaces a stored checkpoint of the same site built at a later revision
 (`checkpointMayReplace`). Each site has a random id kept beside the scene
