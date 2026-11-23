@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { DriveController, type DriveMap, type DriveOptions } from './driveController'
+import { roadPath } from './driveMath'
 import {
+  atCaptureCamera,
   capturePixelRatio,
+  type ComparedCamera,
   CaptureStopped,
   checkCaptureBudget,
   demZoomAt,
@@ -132,5 +136,93 @@ describe('the DEM detail the map draws a point from', () => {
   it('is null where no drawn tile covers the point', () => {
     expect(demZoomAt([{ z: 11, x: 359, y: 692, overscaledZ: 11 }], point[0], point[1], terrain)).toBeNull()
     expect(demZoomAt([], point[0], point[1], terrain)).toBeNull()
+  })
+})
+
+describe('each frame of a framed capture read from its own camera', () => {
+  const camera = (bearing: number, extra: Partial<ComparedCamera> = {}): ComparedCamera => ({
+    center: [-122.7, 54.5],
+    zoom: 19,
+    bearing,
+    pitch: 89.8,
+    ...extra,
+  })
+
+  it('tells a frame’s camera from another', () => {
+    expect(atCaptureCamera(camera(10), camera(10))).toBe(true)
+    expect(atCaptureCamera({ ...camera(-179.9), center: { lng: -122.7, lat: 54.5 } }, camera(180.05))).toBe(true)
+    expect(atCaptureCamera(camera(25), camera(10))).toBe(false)
+    expect(atCaptureCamera(camera(10, { zoom: 18.5 }), camera(10))).toBe(false)
+    expect(atCaptureCamera(camera(10, { center: [-122.7001, 54.5] }), camera(10))).toBe(false)
+  })
+
+  it('catches the drive camera moving the first frame only, as the capture changes its field of view', () => {
+    // A structural map whose camera is where it was last put, and a drive camera looking at bearing 0.
+    let state: ComparedCamera = camera(0)
+    let fov = 36.87
+    const gesture = { isEnabled: () => true, disable: () => undefined, enable: () => undefined }
+    const map: DriveMap = {
+      getCenter: () => {
+        const [lng, lat] = state.center as [number, number]
+        return { lng, lat }
+      },
+      getZoom: () => state.zoom,
+      getBearing: () => state.bearing,
+      getPitch: () => state.pitch,
+      getMaxPitch: () => 85,
+      setMaxPitch: () => undefined,
+      getCenterClampedToGround: () => true,
+      setCenterClampedToGround: () => undefined,
+      getTerrain: () => ({}),
+      queryTerrainElevation: () => 0,
+      getVerticalFieldOfView: () => fov,
+      calculateCameraOptionsFromCameraLngLatAltRotation: (point, altitude, bearing, pitch, roll) => ({
+        center: [point.lng, point.lat],
+        zoom: 19,
+        bearing,
+        pitch,
+        roll,
+        elevation: altitude,
+      }),
+      jumpTo: (options) => {
+        state = { ...state, ...(options as Partial<ComparedCamera>) }
+      },
+      stop: () => undefined,
+      dragPan: gesture,
+    }
+    const road = roadPath([
+      [-122.7, 54.5],
+      [-122.7, 54.51],
+    ])
+    const drive = new DriveController(map, road, [], { elevationAt: () => 600 })
+    const options: DriveOptions = {
+      playing: false,
+      speedMetersPerSecond: 10,
+      eyeHeightMeters: 1.6,
+      lookAt: null,
+      spotBearing: 0,
+      yaw: 0,
+      tilt: 0,
+      onPosition: () => undefined,
+    }
+    drive.start(0)
+    drive.tick(0, options)
+    const driveBearing = state.bearing
+    // The capture widens the field and stands at its first frame, 40° left of the drive's look; the tiles loading
+    // under it wake the drive camera, which places itself again on the new field.
+    fov = 75
+    const first = { ...state, bearing: driveBearing - 40 }
+    map.jumpTo(first)
+    drive.tick(16, options)
+    expect(atCaptureCamera(state, first)).toBe(false)
+    // Placed again, the frame stays: the drive camera's pose is the same as when it last placed itself.
+    map.jumpTo(first)
+    drive.tick(32, options)
+    expect(atCaptureCamera(state, first)).toBe(true)
+    // The second frame, at the same field, is never moved.
+    const second = { ...state, bearing: driveBearing }
+    map.jumpTo(second)
+    drive.tick(48, options)
+    expect(atCaptureCamera(state, second)).toBe(true)
   })
 })
