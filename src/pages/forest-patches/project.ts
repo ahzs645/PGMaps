@@ -7,10 +7,24 @@ export type Bin = keyof (typeof table.targets)[number]['percent']
 export const bins = table.bins as Bin[]
 export const scenarios = ['reference', 'proposed', 'alternative'] as const
 export type Scenario = (typeof scenarios)[number]
+const yearBases = ['editor-default', 'source-attribute', 'plan-entry'] as const
+type YearBasis = (typeof yearBases)[number]
 export type Footprint = Feature<
   Polygon | MultiPolygon,
-  { id: string; scenario: Scenario; year: number; source?: string }
+  { id: string; scenario: Scenario; year: number; source?: string; yearBasis?: YearBasis }
 >
+export function disturbanceBasis(feature: Footprint) {
+  switch (feature.properties.yearBasis) {
+    case 'editor-default':
+      return 'Source year missing · editor fallback'
+    case 'source-attribute':
+      return 'Year supplied by the imported feature'
+    case 'plan-entry':
+      return 'Year entered in the plan'
+    default:
+      return 'Origin of date unrecorded'
+  }
+}
 export type Project = FeatureCollection<Footprint['geometry'], Footprint['properties']> & {
   format: 'pgmaps-patches-v1'
   district: string
@@ -39,14 +53,14 @@ function rectangle(west: number, south: number, width: number, height: number): 
 export function exampleProject(): Project {
   const block = (id: string, scenario: Scenario, year: number, west: number, south: number): Footprint => ({
     type: 'Feature',
-    properties: { id, scenario, year },
+    properties: { id, scenario, year, yearBasis: 'plan-entry' },
     geometry: rectangle(west, south, 0.009, 0.005),
   })
   return {
     format: 'pgmaps-patches-v1',
     type: 'FeatureCollection',
     startYear: 2026,
-    district: districts[0],
+    district: 'Prince George',
     ndu: 'Moist Interior - Mountain',
     source: 'Synthetic demonstration near Prince George. Reporting unit selected for illustration.',
     features: [
@@ -110,6 +124,8 @@ export function parseProject(value: unknown): Project {
       typeof props.id !== 'string' ||
       !props.id.trim() ||
       ids.has(props.id) ||
+      (props.yearBasis !== undefined && !yearBases.includes(props.yearBasis)) ||
+      (props.source !== undefined && typeof props.source !== 'string') ||
       !scenarios.includes(props.scenario) ||
       !Number.isInteger(props.year) ||
       props.year < 1600 ||
@@ -163,6 +179,7 @@ export function importLayer(
       properties: {
         id: String(props?.id ?? f?.id ?? fileName + ' #' + (i + 1)),
         year: props?.year ?? year,
+        yearBasis: props?.year == null ? 'editor-default' : (props.yearBasis ?? 'source-attribute'),
         scenario: props?.scenario ?? scenario,
         source: fileName,
       },

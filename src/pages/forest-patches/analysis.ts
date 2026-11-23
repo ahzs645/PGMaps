@@ -4,6 +4,7 @@ import GeometryFactory from 'jsts/org/locationtech/jts/geom/GeometryFactory.js'
 import type Geometry from 'jsts/org/locationtech/jts/geom/Geometry.js'
 import IsValidOp from 'jsts/org/locationtech/jts/operation/valid/IsValidOp.js'
 import BufferOp from 'jsts/org/locationtech/jts/operation/buffer/BufferOp.js'
+import RelateOp from 'jsts/org/locationtech/jts/operation/relate/RelateOp.js'
 import DistanceOp from 'jsts/org/locationtech/jts/operation/distance/DistanceOp.js'
 import UnaryUnionOp from 'jsts/org/locationtech/jts/operation/union/UnaryUnionOp.js'
 import type { Polygon, MultiPolygon, Feature } from 'geojson'
@@ -34,7 +35,7 @@ function projectGeometry(
     coordinates: polygons.map((poly) => poly.map((ring) => ring.map(([x, y]) => transform(x, y)))),
   }
 }
-type Patch = { shape: Geometry; youngHa: number }
+type Patch = { shape: Geometry; youngHa: number; parts: Geometry[] }
 export function sizeClass(hectares: number): Bin | null {
   // Suppress sub-square-centimetre projection noise at printed boundaries.
   const area = Math.round(hectares * 1e8) / 1e8
@@ -73,7 +74,7 @@ function mergeStage(patches: Patch[], radius: number, joinDistance: number): Pat
       const expanded = dissolve(group.map((p) => BufferOp.bufferOp(p.shape, radius)))
       const shape = BufferOp.bufferOp(expanded, -radius)
       if (!(shape.getArea() > 0)) throw new Error('A patch disappeared during buffering. Review the input geometry.')
-      merged.push({ shape, youngHa: group.reduce((n, p) => n + p.youngHa, 0) })
+      merged.push({ shape, parts: group.flatMap((p) => p.parts), youngHa: group.reduce((n, p) => n + p.youngHa, 0) })
     }
   }
   return merged
@@ -83,7 +84,7 @@ function patchesAt(shapes: Geometry[]) {
   const disjoint = dissolve(shapes)
   let patches: Patch[] = Array.from({ length: disjoint.getNumGeometries() }, (_, i) => {
     const shape = disjoint.getGeometryN(i)
-    return { shape, youngHa: ha(shape) }
+    return { shape, youngHa: ha(shape), parts: [shape] }
   })
   for (const stage of order.implementationPolicy.patchMergeStages) {
     const active: Patch[] = [],
@@ -106,60 +107,79 @@ export function prepareFootprints(project: Project) {
     return { shape, id: f.properties.id, scenario: f.properties.scenario, year: f.properties.year }
   })
 }
-export function analyze(input: Project, selectedYear: number, selectedScenario: Scenario) {
+// Each perturbation uses the same age filter, union, staged merges and area denominator as the map.
+export function periodCalculator(input: Project, selectedYear: number, selectedScenario: Scenario) {
   const project = parseProject(input)
   if (!project.district || !project.ndu)
     throw Error('Select a historic district and sub-unit for Prince George patch analysis.')
-  const periods = periodYears(project.startYear)
-  if (!periods.includes(selectedYear) || !scenarios.includes(selectedScenario))
-    throw new Error('Invalid projection period or schedule.')
+  if (!periodYears(project.startYear).includes(selectedYear) || !scenarios.includes(selectedScenario))
+    throw Error('Invalid projection period or schedule.')
   const inputs = prepareFootprints(project)
-  const cache = new Map<string, Patch[]>()
   const target = table.targets.find((t) => t.ndu === project.ndu)!.percent
   const [minAge, maxAge] = order.implementationPolicy.youngForestAgeYearsInclusive
-  const mapFeatures: Feature<MultiPolygon>[] = []
+  const cache = new Map<string, Patch[]>()
+  return (year: number, scenario: Scenario, override?: { id: string; year: number }, map?: Feature<MultiPolygon>[]) => {
+    const young = inputs.filter((f) => {
+      const age = year - (override?.id === f.id ? override.year : f.year)
+      return (f.scenario === 'reference' || f.scenario === scenario) && age >= minAge && age <= maxAge
+    })
+    const key = JSON.stringify(young.map((f) => f.id))
+    let patches = cache.get(key)
+    if (!patches) {
+      patches = patchesAt(young.map((f) => f.shape))
+      // A field comparison can generate many distinct landscapes. Bound the retained JSTS geometry.
+      if (cache.size >= 33) cache.delete(cache.keys().next().value!)
+      cache.set(key, patches)
+    }
+    const areaByBin = Object.fromEntries(bins.map((k) => [k, 0])) as Record<Bin, number>
+    let totalHa = 0,
+      unclassifiedHa = 0
+    for (const p of patches) {
+      const sizeHa = ha(p.shape),
+        bin = sizeClass(sizeHa)
+      totalHa += p.youngHa
+      if (bin) areaByBin[bin] += p.youngHa
+      else unclassifiedHa += p.youngHa
+      if (map) {
+        // Match original young interiors before buffering. Shared edges and artificial bridges add no source records.
+        const footprintIds = young
+          .filter((f) =>
+            p.parts.some(
+              (part) =>
+                part.getEnvelopeInternal().intersects(f.shape.getEnvelopeInternal()) &&
+                RelateOp.relate(part, f.shape).matches('T********'),
+            ),
+          )
+          .map((f) => f.id)
+        map.push({
+          type: 'Feature',
+          geometry: projectGeometry(writer.write(p.shape) as Polygon | MultiPolygon, albersToLngLat),
+          properties: { id: map.length + 1, bin, sizeHa, youngHa: p.youngHa, footprintIds },
+        })
+      }
+    }
+    const classes = bins.map((bin) => {
+      const percent = totalHa > 0 ? (100 * areaByBin[bin]) / totalHa : null
+      return {
+        bin,
+        ha: areaByBin[bin],
+        percent,
+        target: target[bin],
+        gapPoints: percent === null ? null : percent - target[bin],
+      }
+    })
+    return { scenario, year, totalHa, unclassifiedHa, patches: patches.length, classes }
+  }
+}
+export function analyze(project: Project, selectedYear: number, selectedScenario: Scenario) {
+  const period = periodCalculator(project, selectedYear, selectedScenario)
+  const features: Feature<MultiPolygon>[] = []
   const timeline = scenarios.flatMap((scenario) =>
-    periods.map((year) => {
-      const young = inputs.filter(
-        (f) =>
-          (f.scenario === 'reference' || f.scenario === scenario) && year - f.year >= minAge && year - f.year <= maxAge,
-      )
-      const key = JSON.stringify(young.map((f) => f.id))
-      let patches = cache.get(key)
-      if (!patches) {
-        patches = patchesAt(young.map((f) => f.shape))
-        cache.set(key, patches)
-      }
-      const areaByBin = Object.fromEntries(bins.map((k) => [k, 0])) as Record<Bin, number>
-      let totalHa = 0,
-        unclassifiedHa = 0
-      for (const p of patches) {
-        const sizeHa = ha(p.shape),
-          bin = sizeClass(sizeHa)
-        totalHa += p.youngHa
-        if (bin) areaByBin[bin] += p.youngHa
-        else unclassifiedHa += p.youngHa
-        if (year === selectedYear && scenario === selectedScenario) {
-          mapFeatures.push({
-            type: 'Feature',
-            geometry: projectGeometry(writer.write(p.shape) as Polygon | MultiPolygon, albersToLngLat),
-            properties: { id: mapFeatures.length + 1, bin, sizeHa, youngHa: p.youngHa },
-          })
-        }
-      }
-      const classes = bins.map((bin) => {
-        const percent = totalHa > 0 ? (100 * areaByBin[bin]) / totalHa : null
-        return {
-          bin,
-          ha: areaByBin[bin],
-          percent,
-          target: target[bin],
-          gapPoints: percent === null ? null : percent - target[bin],
-        }
-      })
-      return { scenario, year, totalHa, unclassifiedHa, patches: patches.length, classes }
-    }),
+    periodYears(project.startYear).map((year) =>
+      period(year, scenario, undefined, year === selectedYear && scenario === selectedScenario ? features : undefined),
+    ),
   )
-  return { timeline, patchMap: { type: 'FeatureCollection' as const, features: mapFeatures } }
+  return { timeline, patchMap: { type: 'FeatureCollection' as const, features } }
 }
 export type Analysis = ReturnType<typeof analyze>
+export type Period = Analysis['timeline'][number]

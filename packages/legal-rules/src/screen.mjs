@@ -56,15 +56,21 @@ export function screenOminecaCutblock(input) {
     { netAreaToBeReforestedHa: facts.netAreaToBeReforestedHa });
 }
 
+function isPercent(value) {
+  return Number.isFinite(value) && value >= 0 && value <= 100;
+}
+
 /** Landscape-only numerical screen; authoritative mBEC polygon, old forest counts and
  * alternatives D.1–D.5 require separate spatial and professional evidence. */
 export function screenOldForestTarget(unit, data) {
-  if (!unit || !data) return { status: "indeterminate", reasons: ["Missing unit or landscape facts"] };
+  if (!unit || !data) return { status: "indeterminate", bindingDecision: false, reasons: ["Missing unit or landscape facts"] };
+  if (![unit.oldForestMinPct, unit.interiorOfRequiredOldForestMinPct].every(isPercent))
+    return { status: "indeterminate", bindingDecision: false, reasons: ["Missing or invalid objective percentage"] };
   const { cflbAreaHa, qualifyingOldForestHa, qualifyingOldInteriorForestHa } = data;
   if (![cflbAreaHa, qualifyingOldForestHa, qualifyingOldInteriorForestHa].every(Number.isFinite)
     || cflbAreaHa <= 0 || qualifyingOldForestHa < 0 || qualifyingOldInteriorForestHa < 0
-    || qualifyingOldInteriorForestHa > qualifyingOldForestHa)
-    return { status: "indeterminate", reasons: ["Missing or inconsistent verified landbase/forest areas"] };
+    || qualifyingOldForestHa > cflbAreaHa || qualifyingOldInteriorForestHa > qualifyingOldForestHa)
+    return { status: "indeterminate", bindingDecision: false, reasons: ["Missing or inconsistent verified landbase/forest areas"] };
   const requiredOldHa = cflbAreaHa * unit.oldForestMinPct / 100;
   const requiredInteriorHa = requiredOldHa * unit.interiorOfRequiredOldForestMinPct / 100;
   return {
@@ -81,11 +87,13 @@ export function screenOldForestTarget(unit, data) {
 /** Advisory distance only; the legal objective says "demonstrate a trend", not a fixed pass score. */
 export function patchDistributionDistance(percentages, target) {
   const keys = ["under50ha","between51and100ha","between101and1000ha","over1000ha"];
-  if (!percentages || !target || !keys.every(k => Number.isFinite(percentages[k]) && Number.isFinite(target[k])))
-    return { status: "indeterminate" };
-  if (Math.abs(keys.reduce((n,k)=>n+percentages[k],0)-100)>0.1 ||
-      Math.abs(keys.reduce((n,k)=>n+target[k],0)-100)>0.1)
-    return { status:"indeterminate", reason:"Percentages must total approximately 100" };
+  if (!percentages || !target || !keys.every(k => isPercent(percentages[k]) && isPercent(target[k])))
+    return { status: "indeterminate", bindingDecision: false };
+  // Four independently rounded tenths can differ from 100 by up to 0.2 points.
+  const roundingTolerance = 0.2 + 1e-10;
+  if (Math.abs(keys.reduce((n,k)=>n+percentages[k],0)-100)>roundingTolerance ||
+      Math.abs(keys.reduce((n,k)=>n+target[k],0)-100)>roundingTolerance)
+    return { status:"indeterminate", bindingDecision:false, reason:"Percentages must total approximately 100" };
   return { status:"advisory_only", distancePercentagePoints:keys.reduce((n,k)=>n+Math.abs(percentages[k]-target[k]),0),
     bindingDecision:false, note:"Not a statutory pass/fail test; before/after spatial methods and objective D.5 must be reviewed" };
 }

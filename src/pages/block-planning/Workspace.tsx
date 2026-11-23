@@ -1,3 +1,7 @@
+import { PatchExplanation } from './PatchExplanation'
+import { FieldPriorities } from './FieldPriorities'
+import { explainPatches, type FieldComparison } from '../forest-patches/explanation'
+import type { FieldPriorities as FieldRanking } from '../forest-patches/fieldComparison'
 import { Frame, type Catalog } from './Frame'
 import { freshPlan, readPlan, storePlan, type Plan } from './document'
 import { blockAreaHa } from '@/lib/forestry/blockSheet/blockFacts'
@@ -91,7 +95,20 @@ export default function Workspace({
   const rationale = project.rationale ?? ''
   const [answer, setAnswer] = useState<{ request: object; result?: Analysis; error?: string }>()
   const regional = Boolean(project.district && project.ndu)
-  const request = useMemo(() => ({ project, year, scenario }), [project, year, scenario])
+  const { format: projectFormat, type, features, district, ndu, source, startYear } = project
+  // Writing the rationale does not change an inventory or invalidate completed field comparisons.
+  const request = useMemo(
+    () => ({
+      project: { format: projectFormat, type, features, district, ndu, source, startYear },
+      year,
+      scenario,
+    }),
+    [projectFormat, type, features, district, ndu, source, startYear, year, scenario],
+  )
+  const [fieldCase, setFieldCase] = useState<{ request: object; value: FieldComparison | null }>()
+  const [fieldRanking, setFieldRanking] = useState<{ request: object; value: FieldRanking | null }>()
+  const rememberCase = useCallback((value: FieldComparison | null) => setFieldCase({ request, value }), [request])
+  const rememberRanking = useCallback((value: FieldRanking | null) => setFieldRanking({ request, value }), [request])
   useEffect(() => {
     if (!regional) return
     const worker = new Worker(new URL('../forest-patches/patch.worker.ts', import.meta.url), { type: 'module' })
@@ -120,6 +137,7 @@ export default function Workspace({
           id: blockName.trim() || crypto.randomUUID(),
           scenario,
           year: Number(eventYear),
+          yearBasis: 'plan-entry',
         },
         geometry: { type: 'Polygon', coordinates: [[...vertices, vertices[0]]] },
       }
@@ -228,6 +246,15 @@ export default function Workspace({
       setLoadingFile(false)
     }
   }
+  function calculationEvidence() {
+    return (
+      result && {
+        patchContributions: explainPatches(result, year, scenario),
+        testedDisturbanceDates: fieldCase?.request === request ? fieldCase.value : null,
+        fieldPriorities: fieldRanking?.request === request ? fieldRanking.value : null,
+      }
+    )
+  }
   function exportAssessment() {
     if (!result) return
     save(
@@ -241,6 +268,7 @@ export default function Workspace({
         project: { ...project, rationale },
         displayed: { year, scenario },
         ...result,
+        calculationEvidence: calculationEvidence(),
         rationaleDraft: rationale,
         limitations: [
           'User-defined reporting unit and land coverage.',
@@ -444,6 +472,21 @@ export default function Workspace({
                   </tbody>
                 </table>
               </div>
+              <PatchExplanation
+                key={year + scenario}
+                project={project}
+                result={result!}
+                year={year}
+                scenario={scenario}
+                onComparison={rememberCase}
+              />
+              <FieldPriorities
+                key={year + scenario + 'priorities'}
+                project={project}
+                year={year}
+                scenario={scenario}
+                onResult={rememberRanking}
+              />
               <details>
                 <summary>Compare all periods and schedules</summary>
                 <div className="overflow-x-auto">
@@ -547,6 +590,7 @@ export default function Workspace({
             plan: savedPlan,
             subject,
             measurements,
+            calculationEvidence: calculationEvidence(),
             projection: regional ? (result ?? null) : null,
             order: regional ? order : undefined,
           }),
@@ -628,7 +672,9 @@ export default function Workspace({
                   const newYear = Number(eventYear)
                   try {
                     const features = project.features.map((existing) =>
-                      existing === f ? { ...f, properties: { ...f.properties, year: newYear } } : existing,
+                      existing === f
+                        ? { ...f, properties: { ...f.properties, year: newYear, yearBasis: 'plan-entry' } }
+                        : existing,
                     )
                     setProject(parseProject({ ...project, features }))
                     setNotice('')

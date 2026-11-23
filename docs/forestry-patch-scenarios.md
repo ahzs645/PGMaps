@@ -18,6 +18,18 @@ Choose **Shared baseline** for harvests and stand-replacing disturbances shared 
 
 **Save plan** writes the block boundaries, scenarios, zone layer, reviewer inputs, cited releases and selected view into one portable JSON project. **Open plan** also accepts earlier `pgmaps-patches-v1` GeoJSON projects. **Export schedule polygons** writes an ordinary GeoJSON layer for GIS exchange. The current draft is saved in IndexedDB on this device. The initial year defaults to 2026 and is configurable in the project. Use **First projection year** to change it in the editor. To reschedule a footprint, enter its new disturbance year and use **Set year** under **Manage footprints**. Eleven five-year snapshots compare all three schedules on the shared baseline. Exported assessment JSON includes the input project, complete order snapshot, calculation method ID, per-period areas and targets, selected derived geometries and rationale draft. Geometry is shown in WGS84 and measured in BC Albers (EPSG:3005).
 
+## Explain a result and prioritize a field visit
+
+Open **Explain the patch calculation** below the map. Pick a size class to see the young hectares divided by the reporting unit’s total young hectares, the target and the movement since the prior period. The contribution table names the input footprints behind each mapped patch. Their shared area counts once. A large current gap and a large move away from target can occur in different classes.
+
+Under **Prioritize field measurements**, enter a plausible disturbance-date error in years. The worker changes one footprint at a time and recalculates both periods, including overlap and patch merging. It ranks cases where a date correction can reverse the Objective C review flag, identifies the smallest correction that does so, and shows changes in evidence availability and class measurements. Choose a range supported by the inventory. The tool has no preset accuracy estimate for VRI.
+
+For a worked example choose **Landscape → Load Prince George sample**, **Proposed harvest**, map year **2031**, and a **±1 year** test. In this synthetic landscape Opening A and Harvest now can each reverse the flag. Opening A can move a current class share by about 66.67 percentage points. Harvest now can change the prior-period comparison while leaving the 2031 class shares unchanged. Opening B has no effect over the same range.
+
+Use **Test a field measurement** for different lower and upper disturbance years or enter one observed year twice. Record the source. A missing input year supplied by the editor default is labelled in the comparison. The test assumes that geometry and all other dates stay fixed. Stand age from VRI needs a supported link to the date of a stand-replacing disturbance. Boundary uncertainty can be examined by redrawing or importing a surveyed footprint in a separate saved plan. The automated field-priority calculation covers dates only. Joint inventory errors and the relative likelihood of year estimates need additional evidence.
+
+Both assessment exports include the displayed contribution table, source geometries and completed field comparisons for the active inputs. The scenarios are exploratory and leave the reviewer’s D.5 determinations independent. The historical benchmark covers all 25 Prince George district A/B units and six published C distributions. [Prince George order validation and worked historical cases](prince-george-order-validation.md)
+
 ## Install the source package
 
 From the repository root, run the following against the original ZIP. The first command installs Table 7 and its provenance in the existing PR 144 order format. The second checks reproducibility.

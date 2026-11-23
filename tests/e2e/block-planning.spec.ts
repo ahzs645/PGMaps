@@ -98,3 +98,61 @@ test('an imported policy consumes overlap measurements on a plan outside the reg
   await expect(page.getByText('Mapped zone intersection · Review required', { exact: true })).toBeVisible()
   await expect(page.getByText(/Patch distribution ·/)).toHaveCount(0)
 })
+
+test('a field date sensitivity run exports the calculation alongside independent D.5 findings', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.setViewportSize({ width: 1500, height: 950 })
+  await page.goto('/dev/forestry/block-planning?interface=guided')
+  const button = (name: string) => page.getByRole('button', { name, exact: true }).first()
+  await button('Landscape').click()
+  await button('Load Prince George sample').click()
+  await expect(page.getByRole('combobox', { name: 'Historic forest district' })).toHaveAttribute(
+    'data-value',
+    'Prince George',
+  )
+  await choose(page.getByRole('combobox', { name: 'Map year' }), '2031')
+  await choose(page.getByRole('combobox', { name: 'Footprint to check' }), 'Opening A')
+  await page.getByLabel('Earliest disturbance year').fill('2010')
+  await page.getByLabel('Latest disturbance year').fill('2011')
+  await page.getByLabel('Measurement source or assumption').fill('Training crew observation')
+  await button('Compare disturbance years').click()
+  await expect(page.getByText('Tested disturbance years and their effect', { exact: false })).toBeVisible()
+  await page
+    .getByRole('button', { name: /Prioritize field measurements/ })
+    .first()
+    .click()
+  await page.getByLabel('Test disturbance dates within ± years').fill('1')
+  await button('Compare footprint dates').click()
+  await expect(page.getByRole('columnheader', { name: 'Largest change in movement (points)' })).toBeVisible()
+  await button('Legal review').click()
+  await page.getByLabel('Rationale draft').fill('District evidence under review.')
+  await choose(page.getByRole('combobox', { name: /^Reviewer verified the order applies/ }), 'Yes')
+  await expect(page.getByText('Young-forest patch rationale · Missing evidence', { exact: true })).toBeVisible()
+  await choose(page.getByRole('combobox', { name: /^Reviewer determined the young-forest patch/ }), 'Yes')
+  await expect(page.getByText('Young-forest patch rationale · Review required', { exact: true })).toBeVisible()
+  const download = page.waitForEvent('download')
+  await button('Export reproducible assessment').click()
+  const report = JSON.parse(await readFile((await (await download).path())!, 'utf8'))
+  const evidence = report.planEvidence.calculationEvidence
+  expect(evidence.testedDisturbanceDates).toMatchObject({
+    id: 'Opening A',
+    earliest: 2010,
+    latest: 2011,
+    source: 'Training crew observation',
+  })
+  expect(
+    evidence.fieldPriorities.rows.map((r: { id: string; minFlipYears: number | null }) => [r.id, r.minFlipYears]),
+  ).toEqual([
+    ['Opening A', 1],
+    ['Harvest now', 1],
+    ['Opening B', null],
+  ])
+  expect(evidence.patchContributions.classes).toHaveLength(4)
+  const regional = report.releases.find((r: { pack: { id: string } }) => r.pack.id === 'bc.pgtsa.biodiversity')
+  expect(regional.findings.find((f: { rule: string }) => f.rule === 'recruitment').status).toBe('missing_evidence')
+  expect(
+    regional.findings
+      .find((f: { rule: string }) => f.rule === 'rationale')
+      .actions.map((a: { kind: string }) => a.kind),
+  ).toEqual(['submit'])
+})
