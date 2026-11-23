@@ -1077,6 +1077,35 @@ and leaves the slot as it was; only a site whose project would pass
 `PREVIOUS_SITE_MAX_BYTES` (150 MB), or that the browser will not store, asks
 once: save it as a project, discard it, or stay.
 
+**The open site across a reload** (`siteCheckpoint.ts`, DOM-free;
+`useSiteCheckpoint.ts`). The scene, the saved views of the scene open, the
+workspace, the attachments and the own photos each have a store of their own.
+The rest (views shelved at other places, every view's picture, caption,
+analysis sheet and viewpoint record, before-harvest renders, engine figures,
+the package's renderer and recipe, the project's title) is kept as the site's
+checkpoint: the project file's own format (`writeProjectArchive`), without the
+attachment and photo bytes or the workspace that those stores already keep,
+written into the `current` row of `previousSites` (a `work` store) about 1.5 s
+after the page stops changing (`CHECKPOINT_DELAY_MS`). The page writes nothing
+until the scene has been read and the checkpoint opened, so its empty start
+never erases it. Opening it keeps whatever the page already holds and fills
+only what it lacks (`mergeCheckpoint`): a picture taken or a view saved since
+the page opened stays, the Saved views record (written at once) outranks the
+checkpoint's views but takes back the ids it renumbers (`view-0`…) from the
+checkpoint's views of the same content, so each finds its picture again, and
+its scene is taken only when built at a later scene
+revision than the one read (`usePersistentScene`'s `revisions`). A write never
+replaces a stored checkpoint of the same site built at a later revision
+(`checkpointMayReplace`). Each site has a random id kept beside the scene
+(`SITE_ID_STORAGE_KEY`) and replaced by `transitionSite`, which also drops the
+last site's checkpoint (it was just kept as the previous site); a write still
+building for the last site is dropped, and a checkpoint naming another site is
+never opened. Step 1's *Start from* says quietly how it stands: "Kept in this
+browser 14:02", or "Not kept in this browser" with the reason (over
+`PREVIOUS_SITE_MAX_BYTES`, refused by the browser, a newer copy from another
+tab). Nothing is asked. Two tabs on two different sites share the one slot, so
+only the last written comes back.
+
 **Reviewing a historical VIA.** Open the project ZIP in **Step 1 → Start from**,
 then open **Project attachments** (the paperclip) and choose **Reference
 measurements**. Earlier converted projects import their attached `case.json` on

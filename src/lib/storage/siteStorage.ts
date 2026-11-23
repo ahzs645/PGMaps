@@ -101,9 +101,10 @@ export const STORE_CATALOGUE: readonly StoreEntry[] = [
   {
     id: 'visual-quality',
     label: 'Visual quality',
-    detail: 'The scene, the workspace, your field photos and the previous site, kept to reopen.',
+    detail:
+      'The scene, the workspace, your field photos, the open site’s saved pictures and figures, and the previous site, kept to reopen.',
     role: 'work',
-    note: 'Remove a photo in its own window; save the project file under Save & export. The previous site is replaced at the next switch of site.',
+    note: 'Remove a photo in its own window; save the project file under Save & export. The previous site is replaced at the next switch of site, and the open site’s copy with it.',
     databases: [
       { name: VISUALS_DATABASE, stores: ['documents', 'scenes', 'attachments', 'ownPhotos', 'previousSites'] },
     ],

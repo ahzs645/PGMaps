@@ -2,6 +2,7 @@ import type { ForestryScene } from './scene'
 import Dexie, { type Table } from 'dexie'
 import { emptyTools, parseTools, type ToolsDocument } from './assessmentTools'
 import { keepStoragePersistent } from '@/lib/offline/persistentStorage'
+import { checkpointMayReplace, type SiteCheckpoint } from './siteCheckpoint'
 
 /** A project attachment as kept between visits: its bytes, its name and the field record it is the original of. */
 export type StoredAttachment = { key: string; name: string; blob: Blob; recordId?: string | null }
@@ -26,6 +27,11 @@ export type StoredPhotoDepth = {
  * so *Reopen previous site* brings back its photos, attachments and pictures. One slot: the next switch replaces it.
  */
 export type StoredPreviousSite = { id: 'previous'; savedAt: string; name: string; blob: Blob }
+/**
+ * The site open now, kept as a project file after each change (`siteCheckpoint.ts`) beside the previous site, so a
+ * reload brings back its pictures, figures and shelved views. One slot, owned by one site (`siteId`).
+ */
+export type StoredSiteCheckpoint = SiteCheckpoint & { id: 'current' }
 
 class ToolsDatabase extends Dexie {
   documents!: Table<{ id: string; document: ToolsDocument }, string>
@@ -33,7 +39,7 @@ class ToolsDatabase extends Dexie {
   attachments!: Table<StoredAttachment, string>
   ownPhotos!: Table<StoredOwnPhoto, string>
   photoDepth!: Table<StoredPhotoDepth, string>
-  previousSites!: Table<StoredPreviousSite, string>
+  previousSites!: Table<StoredPreviousSite | StoredSiteCheckpoint, string>
   constructor() {
     super('pgmaps.forestry-assessment-tools.v1')
     this.version(1).stores({ documents: 'id' })
@@ -141,5 +147,35 @@ export async function savePreviousSite(site: { name: string; savedAt: string; bl
 
 /** The last site kept, or null when none was or storage is shut. */
 export async function loadPreviousSite(): Promise<StoredPreviousSite | null> {
-  return (await db.previousSites.get('previous')) ?? null
+  const row = await db.previousSites.get('previous')
+  return row?.id === 'previous' ? row : null
+}
+
+/**
+ * Keeps the open site's checkpoint in its slot unless the one there is newer (`checkpointMayReplace`). Resolves
+ * whether it was written.
+ */
+export async function saveSiteCheckpoint(checkpoint: SiteCheckpoint): Promise<boolean> {
+  // The site's pictures and figures are kept only here until a project is saved: not to go with the browser's caches.
+  keepStoragePersistent()
+  return db.transaction('rw', db.previousSites, async () => {
+    const stored = await db.previousSites.get('current')
+    if (stored?.id === 'current' && !checkpointMayReplace(stored, checkpoint)) return false
+    await db.previousSites.put({ ...checkpoint, id: 'current' })
+    return true
+  })
+}
+
+/** The open site's checkpoint as kept, or null. */
+export async function loadSiteCheckpoint(): Promise<StoredSiteCheckpoint | null> {
+  const row = await db.previousSites.get('current')
+  return row?.id === 'current' ? row : null
+}
+
+/** Drops the checkpoint, of whichever site it was; `unlessSite` keeps one already written for that site. */
+export async function clearSiteCheckpoint(unlessSite?: string) {
+  await db.transaction('rw', db.previousSites, async () => {
+    const stored = await db.previousSites.get('current')
+    if (stored?.id === 'current' && stored.siteId !== unlessSite) await db.previousSites.delete('current')
+  })
 }

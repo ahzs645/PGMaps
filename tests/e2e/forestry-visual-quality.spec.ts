@@ -1097,8 +1097,17 @@ test.describe('forestry visual quality', () => {
     const json = JSON.parse(await readFile((await preview.path())!, 'utf8'))
     expect(json.views).toHaveLength(1)
     expect(json.scene.settings.greenAreaConfirmed).toBe(false)
+    // The site's picture and analysis sheet are kept in this browser (the site checkpoint) and come back on reload:
+    // the view's capture does not fall back to "no picture".
+    const captureState = page.locator('li[data-view-of-interest] [data-capture-state]')
+    const capturedAs = await captureState.getAttribute('data-capture-state')
+    await expect(page.getByTestId('visuals-site-checkpoint')).toHaveText(/Kept in this browser/, { timeout: 30000 })
     await page.reload()
     await showStep(page, 'visit')
+    await expect(page.getByTestId('visuals-site-checkpoint')).toHaveText(/Brought back from this browser/, {
+      timeout: 30000,
+    })
+    await expect(captureState).toHaveAttribute('data-capture-state', capturedAs!)
     await reopenSaved()
     await expect(controls).toBeVisible({ timeout: 60000 })
     await expect(controls.getByLabel('Route position', { exact: true })).toHaveValue('600')

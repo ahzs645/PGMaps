@@ -57,6 +57,9 @@ import {
 } from './dev-forestry/bcVisualInventory'
 import { queryVisualInventory } from './dev-forestry/visualInventoryQuery'
 import { usePersistentScene } from './dev-forestry/usePersistentScene'
+import { useSiteCheckpoint } from './dev-forestry/useSiteCheckpoint'
+import { checkpointLine, comparableFingerprint, mergeCheckpoint } from './dev-forestry/siteCheckpoint'
+import type { ProjectState } from './dev-forestry/projectFile'
 import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
 import { ProjectAttachmentsDialog } from './dev-forestry/ProjectAttachments'
 import type { ProjectAttachment } from './dev-forestry/projectArchive'
@@ -654,6 +657,9 @@ type PhotoStand = {
   hfov: number
 }
 
+/** Longest a site switch waits for the site's checkpoint to be opened after a reload (`useSiteCheckpoint`). */
+const CHECKPOINT_RESTORE_WAIT_MS = 15_000
+
 /** Longest a background render waits for the road view and its terrain to come back (a reload after a run). */
 const ROAD_VIEW_SETTLE_MS = 90_000
 
@@ -778,7 +784,13 @@ function DevForestryVisuals({
   const eyeMapRef = useRef<MapRef>(null)
   // The engine drawing the road view, while one is chosen and listening (`ExternalRoadRenderer`).
   const engineCaptureRef = useRef<EngineCaptureHandle | null>(null)
-  const { scene, setScene, warning: sceneStorageWarning } = usePersistentScene(loadInitialScene)
+  const {
+    scene,
+    setScene,
+    warning: sceneStorageWarning,
+    ready: sceneRead,
+    revisions: sceneRevisions,
+  } = usePersistentScene(loadInitialScene)
   const [drawMode, setDrawMode] = useState<DrawMode>('none')
   // Views of interest on the plan: the row open in step 2 (highlighted on the map), the block the next plan click
   // places a view for (`drawMode === 'view'`), the arrows step 1's finder row would add, and the last add's outcome.
@@ -5911,6 +5923,85 @@ function DevForestryVisuals({
     hasRecord: (id) => !!tools.fieldRecord(id),
     restore: fieldPhoto.openSavedPhotos,
   })
+  /** The site as a project's state (`projectFile.ts`): what Save & export's Project and the site checkpoint write. */
+  const projectState = (): ProjectState => ({
+    scene,
+    views: savedViews,
+    // Views saved under an earlier design or road go with the shelved ones, as a save shelves them.
+    shelved: awayViews,
+    images: viewImages,
+    capturedBefore,
+    engineFigures,
+    workspace: tools.evidence.storedWorkspaceJson(),
+    pkg: { renderer: exportOpener.figureRenderer, recipeId: exportOpener.packageRecipeId },
+  })
+  // The site kept in this browser after each change (`siteCheckpoint.ts`), so a reload brings back its pictures,
+  // figures, shelved views and package choices; opened once the scene is read, before anything writes.
+  const siteCheckpoint = useSiteCheckpoint({
+    ready: sceneRead,
+    watch: [
+      key,
+      savedViews,
+      awayViews,
+      viewImages,
+      capturedBefore,
+      engineFigures,
+      exportOpener.figureRenderer,
+      exportOpener.packageRecipeId,
+      projectTitle,
+    ],
+    build: () => ({
+      state: projectState(),
+      title: projectTitle,
+      name: projectTitle ?? scene.targets.find((target) => target.role === 'block')?.name ?? 'This site',
+    }),
+    sceneRevision: sceneRevisions.current,
+    restore: (kept, checkpoint) => {
+      const record = readPreviewRecord()
+      // Compared as both read back from storage: a sample just opened spells out less than its stored copy.
+      const here = comparableFingerprint(scene)
+      const merged = mergeCheckpoint(
+        {
+          key: here,
+          loadedRevision: sceneRevisions.loaded(),
+          savedRecordHoldsKey:
+            !!record && comparableFingerprint(record.scene) === here && !previewRecordIsPrevious(record),
+          views: savedViews,
+          shelved: awayViews,
+          images: viewImages,
+          capturedBefore,
+          engineFigures,
+          pkg: {
+            renderer: exportOpener.figureRenderer === 'pgmaps' ? null : exportOpener.figureRenderer,
+            recipeId: exportOpener.packageRecipeId,
+          },
+          title: projectTitle,
+        },
+        { ...kept, key: comparableFingerprint(kept.state.scene), sceneRevision: checkpoint.sceneRevision },
+      )
+      const openKey = merged.scene ? sceneFingerprint(merged.scene) : key
+      if (merged.scene) setScene(merged.scene)
+      if (merged.views) setSaved({ key: openKey, views: merged.views })
+      const fresh = merged.shelved.filter((entry) => !awayViews.some((away) => away.key === entry.key))
+      if (fresh.length)
+        setShelvedViews((current) => [
+          ...current,
+          ...fresh.filter((entry) => !current.some((c) => c.key === entry.key)),
+        ])
+      setViewImages((current) => ({ ...(merged.images as typeof viewImages), ...current }))
+      setCapturedBefore((current) => ({ ...(merged.capturedBefore as typeof capturedBefore), ...current }))
+      setEngineFigures((current) => ({ ...(merged.engineFigures as typeof engineFigures), ...current }))
+      if (merged.renderer === 'worldgen' || merged.renderer === 'nanite')
+        exportOpener.setFigureRenderer(merged.renderer)
+      if (merged.recipeId && !exportOpener.packageRecipeId) exportOpener.setPackageRecipeId(merged.recipeId)
+      if (merged.title && !projectTitle) setProjectTitle(merged.title)
+    },
+  })
+  const checkpointRestoringRef = useRef(siteCheckpoint.restoring)
+  checkpointRestoringRef.current = siteCheckpoint.restoring
+  const siteCheckpointLine = checkpointLine(siteCheckpoint.status, (iso) =>
+    new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  )
   /** Everything in progress as one archive, for Save & export's Project. */
   const buildProjectFile = async () => {
     // Every own photo in the set, the open one first: its original, pose, record, where each value came from and its
@@ -5947,25 +6038,12 @@ function DevForestryVisuals({
       import('./dev-forestry/projectFile'),
       photos,
     ])
-    const blob = await writeProjectArchive(
-      {
-        scene,
-        views: savedViews,
-        // Views saved under an earlier design or road go with the shelved ones, as a save shelves them.
-        shelved: awayViews,
-        images: viewImages,
-        capturedBefore,
-        engineFigures,
-        workspace: tools.evidence.storedWorkspaceJson(),
-        pkg: { renderer: exportOpener.figureRenderer, recipeId: exportOpener.packageRecipeId },
-      },
-      {
-        title: projectTitle,
-        attachments: projectAttachments,
-        photo: open ? (ownPhotos[0] ?? null) : null,
-        photos: open ? ownPhotos.slice(1) : ownPhotos,
-      },
-    )
+    const blob = await writeProjectArchive(projectState(), {
+      title: projectTitle,
+      attachments: projectAttachments,
+      photo: open ? (ownPhotos[0] ?? null) : null,
+      photos: open ? ownPhotos.slice(1) : ownPhotos,
+    })
     const name =
       (projectTitle ?? scene.targets.find((target) => target.role === 'block')?.name)
         ?.replace(/[^\w-]+/g, '-')
@@ -6198,9 +6276,16 @@ function DevForestryVisuals({
       await new Promise((resolve) => window.setTimeout(resolve, 0))
       if (request !== siteSwitchRequest.current) return false
     }
+    // The site's checkpoint opened first: kept as the previous site without its pictures, they would be lost with it.
+    if (checkpointRestoringRef.current) {
+      await waitUntil(() => !checkpointRestoringRef.current, CHECKPOINT_RESTORE_WAIT_MS)
+      if (request !== siteSwitchRequest.current) return false
+    }
     // A later switch asked for while this one kept its site takes its place.
     if (!(await keepLeavingSiteRef.current(request)) || request !== siteSwitchRequest.current) return false
     siteGeneration.next()
+    // The next site is named afresh and the last one's checkpoint goes: it was just kept as the previous site.
+    siteCheckpoint.newSite()
     // A project asked for before this switch started is not opened over it; one asked for while the last site was
     // being kept is newer, and opens after (`createOpenRequests`).
     openRequests.supersede(supersedes)
@@ -7968,6 +8053,18 @@ function DevForestryVisuals({
       }
       projectAttachments={
         <>
+          {siteCheckpointLine && (
+            <p
+              role="status"
+              data-testid="visuals-site-checkpoint"
+              className={cn(
+                'mt-1.5 text-2xs',
+                siteCheckpoint.status.kind === 'not-kept' ? 'text-warning-foreground' : 'text-muted-foreground',
+              )}
+            >
+              {siteCheckpointLine}
+            </p>
+          )}
           {projectMessage && (
             <div role="status" className="mt-2">
               <InlineAlert tone={projectMessage.error ? 'error' : 'info'}>{projectMessage.text}</InlineAlert>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
 import { loadStoredSceneRevision, parseScene, storeScene, type ForestryScene } from './scene'
 import { loadCurrentScene, saveCurrentScene } from './toolsStorage'
 
@@ -13,7 +13,9 @@ export function usePersistentScene(initial: () => ForestryScene) {
     [warning, setWarning] = useState<string | null>(null)
   const changed = useRef(false),
     queue = useRef(Promise.resolve()),
-    revision = useRef(0)
+    revision = useRef(0),
+    // The newest revision read when the page opened (localStorage's or IndexedDB's), before the page wrote its own.
+    loaded = useRef(0)
   const setScene = useCallback((action: SetStateAction<ForestryScene>) => {
     changed.current = true
     setState(action)
@@ -22,10 +24,12 @@ export function usePersistentScene(initial: () => ForestryScene) {
     let active = true
     const localRevision = loadStoredSceneRevision()
     revision.current = Math.max(revision.current, localRevision)
+    loaded.current = revision.current
     loadCurrentScene()
       .then((saved) => {
         if (!active || !saved) return
         revision.current = Math.max(revision.current, saved.revision)
+        loaded.current = revision.current
         if (!changed.current && saved.revision >= localRevision) {
           const parsed = parseScene(saved.scene)
           if (parsed) setState(parsed)
@@ -52,5 +56,10 @@ export function usePersistentScene(initial: () => ForestryScene) {
         setWarning(`Scene storage failed: ${String(e)}. Export the scene or workspace to preserve your changes.`),
       )
   }, [ready, scene])
-  return { scene, setScene, warning }
+  /**
+   * The scene's revisions, for the site checkpoint (`siteCheckpoint.ts`): the newest read when the page opened (final
+   * once `ready`), and the one last written, which a later edit raises.
+   */
+  const revisions = useMemo(() => ({ loaded: () => loaded.current, current: () => revision.current }), [])
+  return { scene, setScene, warning, ready, revisions }
 }
