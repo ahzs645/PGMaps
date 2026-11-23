@@ -6,6 +6,7 @@ import {
   EYE_GROUND_TOLERANCE_METERS,
   equivalentFocalMm,
   eyeCheck,
+  focalLabel,
   eyeCheckText,
   fieldsOfView,
   focalForHfov,
@@ -26,6 +27,7 @@ import { viewLensHfov } from './viewCapturePlan'
 import {
   captureKeyChanges,
   groupByPlace,
+  lensLabel,
   parseViewsOfInterest,
   viewCaptureKey,
   type ViewOfInterest,
@@ -60,6 +62,15 @@ describe('a view’s lens as entered', () => {
     expect(lensEntryHfov(lens)).toBeCloseTo(lensHfovDeg(80), 12)
     expect(lensEntryLabel(lens)).toBe('50 mm × 1.6 crop: 80 mm equivalent, 25.4° across')
     expect(lensEntryLabel({ kind: 'focal', focalMm: 80, cropFactor: 1 })).toBe('80 mm (35 mm equivalent), 25.4° across')
+  })
+
+  it('rounds the focal length a field entered as one gives, wherever a lens is named', () => {
+    const focal = equivalentFocalMm({ kind: 'hfov', hfovDeg: 25.4 })
+    expect(Number.isInteger(focal * 10)).toBe(false)
+    expect(focalLabel(focal)).toBe('79.9 mm')
+    expect(lensLabel(focal)).toBe('79.9 mm · 25.4° across')
+    expect(focalLabel(50)).toBe('50 mm')
+    expect(lensLabel(50)).toBe('50 mm · 39.6° across')
   })
 
   it('shows both fields for the canvas', () => {

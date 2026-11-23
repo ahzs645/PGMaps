@@ -129,6 +129,45 @@ export type CaptureCamera = {
   elevation?: number
 }
 
+/** A camera as a capture compares it: centre as `[lng, lat]` or `{ lng, lat }`, zoom, bearing and pitch, degrees. */
+export type ComparedCamera = {
+  center: [number, number] | { lng: number; lat: number }
+  zoom: number
+  bearing: number
+  pitch: number
+}
+
+const lngLatOf = (center: ComparedCamera['center']) =>
+  Array.isArray(center) ? { lng: center[0], lat: center[1] } : (center as { lng: number; lat: number })
+
+/**
+ * Whether the map stands at the capture's camera: the road view's drive camera places itself again when its pose
+ * changes (`driveController.ts` keys it on the field of view, which a framed capture changes), so a frame drawn from
+ * any other camera is read again. Pure, for the unit tests.
+ */
+export function atCaptureCamera(actual: ComparedCamera, wanted: ComparedCamera): boolean {
+  const at = lngLatOf(actual.center),
+    to = lngLatOf(wanted.center)
+  return (
+    Math.abs(actual.zoom - wanted.zoom) < 0.01 &&
+    Math.abs(actual.pitch - wanted.pitch) < 0.5 &&
+    Math.abs(((actual.bearing - wanted.bearing + 540) % 360) - 180) < 0.5 &&
+    Math.abs(at.lng - to.lng) < 1e-6 &&
+    Math.abs(at.lat - to.lat) < 1e-6
+  )
+}
+
+/** The map's camera as `atCaptureCamera` compares it. */
+const mapCamera = (map: MapLibreMap): ComparedCamera => ({
+  center: map.getCenter(),
+  zoom: map.getZoom(),
+  bearing: map.getBearing(),
+  pitch: map.getPitch(),
+})
+
+/** How many times a capture places its camera again when the frame it read was drawn from another one. */
+export const CAPTURE_CAMERA_TRIES = 3
+
 /** Largest canvas side a capture asks MapLibre for (its default `maxCanvasSize`). */
 const MAX_CANVAS_SIDE = 4096
 
@@ -182,18 +221,8 @@ export async function captureAtCamera(
       padding: { top: 0, bottom: 0, left: 0, right: 0 },
       ...(camera.elevation !== undefined ? { elevation: camera.elevation } : {}),
     }
-    // The frame read must be drawn from this camera: the road view's drive camera places itself again when its pose
-    // changes (terrain loading under a new view can do that), so a frame from any other camera is read again.
-    const atCamera = () => {
-      const at = map.getCenter()
-      return (
-        Math.abs(map.getZoom() - wanted.zoom) < 0.01 &&
-        Math.abs(map.getPitch() - wanted.pitch) < 0.5 &&
-        Math.abs(((map.getBearing() - wanted.bearing + 540) % 360) - 180) < 0.5 &&
-        Math.abs(at.lng - wanted.center[0]) < 1e-6 &&
-        Math.abs(at.lat - wanted.center[1]) < 1e-6
-      )
-    }
+    // The frame read must be drawn from this camera (`atCaptureCamera`).
+    const atCamera = () => atCaptureCamera(mapCamera(map), wanted)
     const crop = {
       width: Math.min(1, window_.width / Math.max(1, source.clientWidth)),
       height: Math.min(1, window_.height / Math.max(1, source.clientHeight)),
@@ -206,7 +235,7 @@ export async function captureAtCamera(
       height: Math.round(drawn.height * scale),
     }
     let canvas: HTMLCanvasElement | null = null
-    for (let attempt = 0; attempt < 3 && !canvas; attempt++) {
+    for (let attempt = 0; attempt < CAPTURE_CAMERA_TRIES && !canvas; attempt++) {
       map.jumpTo(wanted)
       canvas = await readSettledFrame(
         map,
@@ -451,10 +480,12 @@ function readFrameRgba(
   map: MapLibreMap,
   target: number | CaptureRegion,
   budget?: CaptureBudget,
-): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
+  atCamera?: () => boolean,
+): Promise<{ data: Uint8ClampedArray; width: number; height: number } | null> {
   return readSettledFrame(
     map,
     () => {
+      if (atCamera && !atCamera()) return null
       const { canvas, context } = drawCanvas(map, target, false)
       return {
         data: context.getImageData(0, 0, canvas.width, canvas.height).data,
@@ -483,6 +514,11 @@ export async function captureClassPass(
   layers: readonly ClassPassLayer[],
   target: number | CaptureRegion = MAX_SIDE,
   budget?: CaptureBudget,
+  /**
+   * The capture's camera (`captureFramed`): the pass is read again, the camera placed again with `place`, when the
+   * frame was drawn from another one, up to `CAPTURE_CAMERA_TRIES` times.
+   */
+  camera?: { atCamera: () => boolean; place: () => void },
 ): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
   const style = map.getStyle()
   // Every layer, custom layers too: `getStyle().layers` leaves out the 3D trees (a custom layer), which then stayed
@@ -510,7 +546,12 @@ export async function captureClassPass(
       })
       added.push(id)
     }
-    return await readFrameRgba(map, target, budget)
+    for (let attempt = 0; attempt < CAPTURE_CAMERA_TRIES; attempt++) {
+      if (camera && !camera.atCamera()) camera.place()
+      const pass = await readFrameRgba(map, target, budget, camera?.atCamera)
+      if (pass) return pass
+    }
+    throw new Error('The class pass kept moving off the capture’s camera.')
   } finally {
     for (const id of [...added].reverse()) {
       if (map.getLayer(id)) map.removeLayer(id)
@@ -737,15 +778,28 @@ export async function captureFramed(
         target as never,
         eye.elevation + Math.tan((pitch * Math.PI) / 180) * metres,
       )
-      map.jumpTo({ ...camera, roll: 0 })
+      // Every read of the frame (its display and each pass) must be drawn from this camera. The first frame is the
+      // one at risk: its field of view is new to the road view's drive camera, which keys its pose on the field and,
+      // woken by the tiles loading, put itself back at the reviewer's look before the first frame was read. That frame
+      // then met the second with a jump in the skyline; the later frames, at the same field, were never moved.
+      const wanted = { ...camera, roll: 0 } as Parameters<MapLibreMap['jumpTo']>[0]
+      const atFrame = () => atCaptureCamera(mapCamera(map), wanted as ComparedCamera)
+      const place = () => map.jumpTo(wanted)
+      const frameCamera = { atCamera: atFrame, place }
+      place()
       const region: CaptureRegion = { crop: window_.crop, width: frameWidth, height }
-      const display = await readSettledFrame(
-        map,
-        () => drawCanvas(map, region, true).canvas,
-        'The framed view',
-        SETTLE_LIMITS,
-        budget,
-      )
+      let display: HTMLCanvasElement | null = null
+      for (let attempt = 0; attempt < CAPTURE_CAMERA_TRIES && !display; attempt++) {
+        if (!atFrame()) place()
+        display = await readSettledFrame(
+          map,
+          () => (atFrame() ? drawCanvas(map, region, true).canvas : null),
+          'The framed view',
+          SETTLE_LIMITS,
+          budget,
+        )
+      }
+      if (!display) throw new Error('The framed view kept moving off its frame’s camera.')
       joinedContext.drawImage(display, i * frameWidth, 0)
       // Read at the frame's camera, before the class pass: the detail the ground at the probe points is drawn from.
       try {
@@ -766,7 +820,7 @@ export async function captureFramed(
       }
       if (classes && layers) {
         try {
-          join(classes, await captureClassPass(map, layers, region, budget))
+          join(classes, await captureClassPass(map, layers, region, budget, frameCamera))
         } catch (error) {
           passFailed(error)
           classes = null
@@ -774,7 +828,7 @@ export async function captureFramed(
       }
       if (zones && zoneLayers?.length) {
         try {
-          join(zones, await captureClassPass(map, zoneLayers, region, budget))
+          join(zones, await captureClassPass(map, zoneLayers, region, budget, frameCamera))
         } catch (error) {
           passFailed(error)
           zones = null
@@ -784,7 +838,7 @@ export async function captureFramed(
         const target = landforms[k]
         if (!target) continue
         try {
-          join(target, await captureClassPass(map, landformPasses[k], region, budget))
+          join(target, await captureClassPass(map, landformPasses[k], region, budget, frameCamera))
         } catch (error) {
           passFailed(error)
           landforms[k] = null

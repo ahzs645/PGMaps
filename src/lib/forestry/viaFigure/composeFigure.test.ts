@@ -4,6 +4,7 @@ import { INK_COLOR } from '@/lib/mapSheet/contrastRuns'
 import type { DrawOp } from '@/lib/mapSheet/drawOps'
 import { createSheetPdf, drawSheetPdf, pdfTextUnfolded } from '@/lib/mapSheet/renderPdf'
 import { sheetSvg } from '@/lib/mapSheet/renderSvg'
+import { textWidth } from '@/lib/mapSheet/textMetrics'
 import {
   analysedFigure,
   analysisSheet,
@@ -45,6 +46,7 @@ import {
   type FigureClass,
   type FigureCounts,
   type FigureInput,
+  factsOps,
   fittedLines,
   landformNumber,
 } from './composeFigure'
@@ -824,6 +826,57 @@ describe('fitted lines', () => {
     expect(crowded.every((t) => t.y <= box.bottom)).toBe(true)
     expect(crowded.at(-1)!.text.endsWith('...')).toBe(true)
     expect(crowded[0].size).toBeCloseTo(9 * 0.7, 5)
+  })
+})
+
+describe('the facts box', () => {
+  // The analysis sheet's facts cell: 252 pt wide less padding, 136.8 pt tall (A sheets).
+  const box = { x: 0, top: 7, bottom: 132.8, width: 228 }
+  const style = { size: 12.96, style: 'bolditalic' as const, color: '#000000' }
+  const texts = (ops: ReturnType<typeof factsOps>) =>
+    ops.flatMap((op) => (op.op === 'text' ? [{ text: op.text, y: op.y, size: op.size }] : []))
+  const facts = (hidden: string[]) => [
+    { label: 'Viewpoint', value: 'Made-up Lookout Road, 3.42 km' },
+    { label: 'Location', value: '53.91234, -122.71234' },
+    { label: 'Distance to block', value: '2.4 km' },
+    { label: 'Not visible from here', value: hidden.join(', '), items: hidden },
+  ]
+
+  it('lists every block not seen, shrinking rather than dropping one past the foot', () => {
+    const typed = { label: 'Entered as', value: '53.91234, -122.71234' }
+    const [viewpoint, location, ...rest] = facts(['A — west face', 'B — east face'])
+    const drawn = texts(factsOps([viewpoint, location, typed, ...rest], style, box))
+    // At full size the last row ran past the cell's foot and was dropped.
+    expect(drawn[0].size).toBeLessThan(12.96)
+    const all = drawn.map((t) => t.text).join(' ')
+    expect(all).toContain('A - west face')
+    expect(all).toContain('B - east face')
+    expect(all).not.toContain('...')
+    expect(drawn.every((t) => t.y <= box.bottom)).toBe(true)
+  })
+
+  it('keeps full size when the facts fit', () => {
+    const drawn = texts(factsOps(facts(['A']), style, box))
+    expect(drawn.every((t) => t.size === 12.96)).toBe(true)
+  })
+
+  it('shortens a list it cannot fit to "and n more", never past the foot', () => {
+    const many = Array.from({ length: 14 }, (_, i) => `Made-up block ${i + 1} — north slope`)
+    const drawn = texts(factsOps(facts(many), style, box))
+    const all = drawn.map((t) => t.text).join(' ')
+    expect(all).toMatch(/and \d+ more$/)
+    expect(all).toContain('Made-up block 1 - north slope')
+    expect(all).toContain('Viewpoint: Made-up Lookout Road')
+    expect(drawn.every((t) => t.y <= box.bottom)).toBe(true)
+    expect(drawn[0].size).toBeCloseTo(12.96 * 0.7, 5)
+    for (const t of drawn) expect(textWidth(t.text, t.size, 'bolditalic')).toBeLessThanOrEqual(box.width + 1e-6)
+  })
+
+  it('ellipsizes plain text it cannot fit', () => {
+    const long = [{ label: 'Viewpoint', value: 'a made-up name '.repeat(40) }]
+    const drawn = texts(factsOps(long, style, box))
+    expect(drawn.at(-1)!.text.endsWith('...')).toBe(true)
+    expect(drawn.every((t) => t.y <= box.bottom)).toBe(true)
   })
 })
 

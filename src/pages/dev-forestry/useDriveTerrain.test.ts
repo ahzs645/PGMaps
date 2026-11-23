@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DRIVE_TERRAIN_MAX_TILES,
   DRIVE_TERRAIN_ZOOMS,
+  answeringContext,
   createHeldTerrain,
   driveTerrainKey,
   driveTerrainRange,
@@ -52,5 +53,29 @@ describe('the road view’s terrain', () => {
     expect(held.peek(stood)).toBeUndefined()
     held.clear()
     expect(held.peek(road)).toBeUndefined()
+  })
+})
+
+describe('the distant trees’ read', () => {
+  const request = (attempt = 0) => ({ key: '12/1/2/3/4', attempt })
+
+  it('shows loading, not the old failure, when the option is switched off and on again', () => {
+    const first = request()
+    const failed = { request: first, read: null }
+    expect(answeringContext(failed, first)).toBe(failed)
+    // Off: no request. On again: the same ground, the same attempt, a new request and a new read.
+    expect(answeringContext(failed, null)).toBeNull()
+    expect(answeringContext(failed, request())).toBeNull()
+  })
+
+  it('shows loading, not the old failure, on a retry', () => {
+    const failed = { request: request(0), read: null }
+    expect(answeringContext(failed, request(1))).toBeNull()
+  })
+
+  it('keeps a read that came for a new request over the same ground, and never another ground’s', () => {
+    const read = { request: request(), read: { key: '12/1/2/3/4#1' } }
+    expect(answeringContext(read, request())).toBe(read)
+    expect(answeringContext(read, { key: '12/9/9/9/9', attempt: 0 })).toBeNull()
   })
 })
