@@ -4705,7 +4705,9 @@ label* stays available), and the camera block. The EVQO polygons load whenever t
 **Exports.** *Save & export* → **Analysis sheet** composes a saved view in any style as PDF
 (`renderPdf.ts`) or PNG (`sheetPng.ts`), with a preview. Family A styles print
 the tabloid analysis sheet (title block, figure, facts, visual inventory key,
-calculation, legend); the others print the analysed figure on a page of its own
+calculation, legend; the facts are wrapped, then shrunk to `FACTS_MIN_SCALE`, then a list
+such as the blocks not seen is cut to "and n more", and only then is a line ellipsized,
+`factsOps`); the others print the analysed figure on a page of its own
 with the legend inset and the calculation under it. The block note's option *Use each
 view's analysis-sheet figure* puts each view's analysed figure in the block note in place of its
 screenshot; `blockNote.ts` embeds PNG as well as JPEG, so the planner's Excel

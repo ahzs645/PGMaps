@@ -75,7 +75,7 @@ export type SavedFigure = {
   /** Nearest visible block, km, and the view's horizontal field of view, degrees. */
   distanceKm: number | null
   hfovDeg: number
-  facts: Array<{ label: string; value: string }>
+  facts: Array<{ label: string; value: string; items?: string[] }>
   /** The view's inventory unit (`inventoryBadge.ts`), with the record's update date the sheet does not print. */
   rating: (NonNullable<FigureInput['rating']> & { date?: string }) | null
   /** Which rule chose the inventory unit (`inventoryBadge.ts`). */

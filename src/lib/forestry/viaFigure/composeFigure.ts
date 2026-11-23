@@ -26,6 +26,7 @@ import { gridContours } from '@/lib/mapSheet/contours'
 import type { LuminanceSampler } from '@/lib/mapSheet/contrastRuns'
 import { rectRing, type DrawOp, type Point, type RasterImage, type StrokeStyle } from '@/lib/mapSheet/drawOps'
 import { areaSymbolOps, lineSymbolOps, swatchOps, type SheetSymbol } from '@/lib/mapSheet/symbols'
+import { pdfText } from '@/lib/mapSheet/renderPdf'
 import { fitText, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
 import {
   ALTERATION_RULES,
@@ -1186,8 +1187,8 @@ export interface FigureInput {
   lens: string
   /** Title fields: `{area}`, `{viewpoint}`, `{n}`, `{licence}`, `{blocks}`. */
   titles: { area: string; viewpoint: string; n?: string; licence?: string; blocks?: string }
-  /** Footer facts, label and value. */
-  facts: ReadonlyArray<{ label: string; value: string }>
+  /** Footer facts, label and value: `items` a list the facts box may shorten to "and n more" (`factsOps`). */
+  facts: ReadonlyArray<SheetFact>
   /** Rating code of the landform's sensitivity unit, when the inventory gives one. */
   rating?: { vsu?: string; vsc?: string; vac?: string; evc?: string; vqo?: string } | null
   /** Which rule chose the rating's unit, printed small under the inventory circle. */
@@ -1941,16 +1942,14 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
   // Facts.
   const facts = cell('facts')
   const factStyle = preset.facts ?? { size: 12.96, style: 'bolditalic' as const, color: BLACK }
-  let fy = facts.y + 20
-  for (const fact of input.facts) {
-    const wrapped = wrapText(`${fact.label}: ${fact.value}`, factStyle.size, facts.w - 24, factStyle.style ?? 'normal')
-    for (const line of wrapped) {
-      if (fy > facts.y + facts.h - 4) break
-      ops.push(...textOps(facts.x + 12, fy, line, factStyle))
-      fy += factStyle.size * 1.15
-    }
-    fy += 6
-  }
+  ops.push(
+    ...factsOps(input.facts, factStyle, {
+      x: facts.x + 12,
+      top: facts.y + 7,
+      bottom: facts.y + facts.h - 4,
+      width: facts.w - 24,
+    }),
+  )
   // Visual inventory key.
   const inventory = cell('inventory')
   const badge = preset.vsuBadge
@@ -2163,6 +2162,80 @@ export function fittedLines(
       y += step
     }
     y += GAP
+  }
+  return ops
+}
+
+/** A footer fact: its label and value, and the list the value names when it is one (the blocks not seen). */
+export type SheetFact = { label: string; value: string; items?: readonly string[] }
+
+/** The smallest share of their size the facts shrink to before a list is shortened or a line cut. */
+export const FACTS_MIN_SCALE = 0.7
+const FACT_LEADING = 1.15
+const FACT_GAP = 6
+
+/** A list as a fact prints it: every item, or the first `shown` and "and n more". */
+export function factListValue(items: readonly string[], shown = items.length): string {
+  const kept = items.slice(0, Math.max(1, shown))
+  return kept.length < items.length ? `${kept.join(', ')} and ${items.length - kept.length} more` : kept.join(', ')
+}
+
+/**
+ * The footer facts within `box` (baselines from `top + size` down to `bottom`), measured on the text as it prints
+ * (`pdfText`-folded) in its own face: wrapped, then shrunk to `FACTS_MIN_SCALE`, then a list shortened to "and n more"
+ * (the last list first, down to one item), then the last line that fits ellipsized. Two blocks not seen once printed
+ * the first and dropped the second, and every fact after them, past the cell's foot.
+ */
+export function factsOps(
+  facts: ReadonlyArray<SheetFact>,
+  style: TextStyle,
+  box: { x: number; top: number; bottom: number; width: number },
+): DrawOp[] {
+  const face = style.style ?? 'normal'
+  const text = (fact: SheetFact, shown?: number) =>
+    pdfText(`${fact.label}: ${fact.items?.length ? factListValue(fact.items, shown) : fact.value}`)
+      .replace(/\s+/g, ' ')
+      .trim()
+  const layout = (scale: number, shown: ReadonlyArray<number | undefined>) => {
+    const size = style.size * scale
+    const rows = facts.map((fact, i) => wrapText(text(fact, shown[i]), size, box.width, face))
+    // Baselines: the first a size below the top, each next row a leading below, a gap between facts.
+    const last =
+      box.top +
+      size +
+      (rows.reduce((sum, r) => sum + r.length, 0) - 1) * size * FACT_LEADING +
+      (rows.length - 1) * FACT_GAP
+    return { size, rows, fits: last <= box.bottom + 0.01 }
+  }
+  const full = facts.map((fact) => fact.items?.length)
+  let laid = layout(1, full)
+  for (let scale = 0.95; !laid.fits && scale >= FACTS_MIN_SCALE - 1e-9; scale -= 0.05) laid = layout(scale, full)
+  if (!laid.fits) laid = layout(FACTS_MIN_SCALE, full)
+  // Still too long at the smallest size: shorten the lists, the last first, one item at a time.
+  const shown = [...full]
+  for (let i = facts.length - 1; i >= 0 && !laid.fits; i--) {
+    while (!laid.fits && (shown[i] ?? 0) > 1) {
+      shown[i] = shown[i]! - 1
+      laid = layout(FACTS_MIN_SCALE, shown)
+    }
+  }
+  const drawn = { ...style, size: laid.size }
+  const ops: DrawOp[] = []
+  let y = box.top + laid.size
+  outer: for (const rows of laid.rows) {
+    for (const row of rows) {
+      if (y > box.bottom + 0.01) {
+        // Out of room: the row before ends with an ellipsis, and nothing is drawn past the foot.
+        const last = ops.length ? ops.pop() : null
+        if (last && last.op === 'text')
+          ops.push({ ...last, text: fitText(`${last.text}...`, last.size, box.width, face) })
+        else if (last) ops.push(last)
+        break outer
+      }
+      ops.push(...textOps(box.x, y, row, drawn))
+      y += laid.size * FACT_LEADING
+    }
+    y += FACT_GAP
   }
   return ops
 }

@@ -378,6 +378,7 @@ import {
   visibleLineParts,
   ZONE_PALETTE,
   zoneColor,
+  factListValue,
 } from '@/lib/forestry/viaFigure/composeFigure'
 import { findPreset as findFigurePreset, VQO_ZONE_ROLES } from '@/lib/forestry/viaFigure/presets'
 import { TIMBER_ABSENT } from '@/lib/forestry/viaFigure/timberScreen'
@@ -4943,6 +4944,7 @@ function DevForestryVisuals({
           )
         : null
     const partialCuts = figurePartialCuts()
+    const hiddenNames = hiddenBlocks.map((callout) => callout.title.replace(/^Block /, ''))
     const nearest = callouts
       .filter((callout) => !callout.secondary)
       .map((callout) => result?.targets.find((target) => target.targetId === callout.blockId))
@@ -4971,13 +4973,9 @@ function DevForestryVisuals({
           ? [
               {
                 label: 'Not visible from here',
-                value:
-                  hiddenBlocks.length <= 3
-                    ? hiddenBlocks.map((callout) => callout.title.replace(/^Block /, '')).join(', ')
-                    : `${hiddenBlocks.length} blocks (${hiddenBlocks
-                        .slice(0, 2)
-                        .map((callout) => callout.title.replace(/^Block /, ''))
-                        .join(', ')} and ${hiddenBlocks.length - 2} more)`,
+                // Every block: the facts box shortens the list to "and n more" only when it cannot fit (`factsOps`).
+                value: factListValue(hiddenNames),
+                items: hiddenNames,
               },
             ]
           : []),
