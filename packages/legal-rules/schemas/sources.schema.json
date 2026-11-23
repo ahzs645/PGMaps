@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legal source catalogue",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "sources"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string"
+    },
+    "compiledOn": {
+      "type": "string"
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "url",
+          "sourceStatus"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "sourceStatus": {
+            "type": "string"
+          },
+          "civix": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

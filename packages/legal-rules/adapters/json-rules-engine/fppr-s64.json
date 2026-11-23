@@ -1,0 +1,26 @@
+{
+  "name": "bc.fppr.s64.over-limit",
+  "priority": 1,
+  "conditions": {
+    "all": [
+      {
+        "fact": "isSizeLimitApplicable",
+        "operator": "equal",
+        "value": true
+      },
+      {
+        "fact": "netAreaToBeReforestedHa",
+        "operator": "greaterThan",
+        "value": 60
+      }
+    ]
+  },
+  "event": {
+    "type": "review_required",
+    "params": {
+      "sourceId": "bc.fppr",
+      "section": "64(1)-(4)",
+      "message": "Screen exceeds the Omineca 60-ha NAR threshold; assess exceptions and other applicable legal requirements."
+    }
+  }
+}

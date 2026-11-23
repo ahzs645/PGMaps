@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pgmaps.ahmadjalil.com/schemas/legal-rule.v1.json",
+  "title": "PGMaps legal review rule",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "schemaVersion",
+    "status",
+    "source",
+    "provision",
+    "kind",
+    "screen",
+    "exceptions",
+    "scope",
+    "review"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9.-]+$"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "reviewed",
+        "deprecated"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceId",
+        "url",
+        "asOf"
+      ],
+      "properties": {
+        "sourceId": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "provision": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "numeric-screen",
+        "spatial-screen",
+        "document-check",
+        "human-review"
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "required": [
+        "jurisdiction",
+        "tenure"
+      ],
+      "properties": {
+        "jurisdiction": {
+          "type": "string"
+        },
+        "tenure": {
+          "type": "string"
+        },
+        "geometryLayerId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "screen": {
+      "type": "object",
+      "required": [
+        "input",
+        "comparison",
+        "parameterId",
+        "whenMissing"
+      ],
+      "properties": {
+        "input": {
+          "type": "string"
+        },
+        "comparison": {
+          "enum": [
+            "greaterThan",
+            "lessThan",
+            "intersects",
+            "requiresReview"
+          ]
+        },
+        "parameterId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "whenMissing": {
+          "const": "indeterminate"
+        }
+      }
+    },
+    "exceptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "provision",
+          "reviewRequired"
+        ],
+        "properties": {
+          "provision": {
+            "type": "string"
+          },
+          "reviewRequired": {
+            "const": true
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "required": [
+        "legalVerified",
+        "spatialVerified",
+        "notes"
+      ],
+      "properties": {
+        "legalVerified": {
+          "type": "boolean"
+        },
+        "spatialVerified": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

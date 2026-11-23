@@ -1,0 +1,14 @@
+# DOCUMENTATION TEMPLATE ONLY. Do NOT load as applicable law.
+# OpenFisca date keys signify LEGAL EFFECTIVE dates, not dates when we checked a website.
+# The applicable historical commencement/amendments are not yet verified.
+# When researched, create real parameter YAML with:
+#
+# description: Omineca cutblock maximum net area to be reforested
+# metadata:
+#   reference: https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004
+#   unit: ha
+# values:
+#   YYYY-MM-DD:
+#     value: 60
+#
+# Track minor tenure and 64(2)-(4) exceptions separately from this parameter.

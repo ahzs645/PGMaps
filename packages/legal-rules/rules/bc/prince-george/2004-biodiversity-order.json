@@ -1,0 +1,487 @@
+{
+  "id": "bc.pgtsa.2004.objectives",
+  "schemaVersion": "1.0.0",
+  "reviewStatus": "data-transcribed-pending-legal-and-spatial-review",
+  "source": {
+    "sourceId": "bc.pgtsa.2004",
+    "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/princegeorge_tsa_fpc_20oct2004.pdf",
+    "signedOn": "2004-10-20",
+    "pdfPages": {
+      "A-table-3": 7,
+      "B-table-6": 10,
+      "C-table-7": 11,
+      "D": 12,
+      "E": 13
+    }
+  },
+  "jurisdiction": {
+    "name": "Prince George Timber Supply Area",
+    "landType": "Crown land",
+    "excludedTenures": [
+      "woodlot licences",
+      "tree farm licences",
+      "community forest licences"
+    ],
+    "supersessionByNewOrder": "requires polygon- and date-specific review",
+    "historicalForestDistrictBoundariesRequired": true
+  },
+  "interpretation": {
+    "oldRetentionPercentDenominator": "Crown Forest Land Base in mBEC assessment unit",
+    "interiorPercentDenominator": "old forest required under objective A (NOT all CFLB)",
+    "youngPatchPercentDenominator": "young forest area by NDU sub-unit within each forest district",
+    "patchObjectiveKind": "trend-towards-distribution-not-individual-cutblock-maximum"
+  },
+  "oldAndInteriorForest": [
+    {
+      "unit": "A1",
+      "ndu": "Boreal Foothills - Mountain",
+      "becAsPrinted": "ESSF wcp3, ESSF wc3, ESSF mvp2, ESSF mv2",
+      "oldForestMinPct": 33,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A2",
+      "ndu": "McGregor Plateau",
+      "becAsPrinted": "EESF wc3, ESSF wk2, ESSF wk1",
+      "oldForestMinPct": 26,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A3",
+      "ndu": "McGregor Plateau (combined with A13)",
+      "becAsPrinted": "SBS mk1, SBS mh",
+      "oldForestMinPct": 12,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        3,
+        6
+      ],
+      "reviewNote": "Order says A3 combined with A13; assess combined geography and do not double-count."
+    },
+    {
+      "unit": "A4",
+      "ndu": "McGregor Plateau",
+      "becAsPrinted": "SBS wk1, SBS vk",
+      "oldForestMinPct": 26,
+      "interiorOfRequiredOldForestMinPct": 10,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A5",
+      "ndu": "Moist Interior - Mountain, Omineca - Mountain",
+      "becAsPrinted": "ESSF wk2, ESSF mv3, ESSF mv1, ESSF mv3",
+      "oldForestMinPct": 29,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A6",
+      "ndu": "Moist Interior - Mountain",
+      "becAsPrinted": "ESSF wk1",
+      "oldForestMinPct": 29,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A7",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS mh",
+      "oldForestMinPct": 17,
+      "interiorOfRequiredOldForestMinPct": 10,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A8",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS mc3, SBS mc2",
+      "oldForestMinPct": 12,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A9",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS mw",
+      "oldForestMinPct": 12,
+      "interiorOfRequiredOldForestMinPct": 10,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A10",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS wk1",
+      "oldForestMinPct": 17,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A11",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS dw2, SBS dw1",
+      "oldForestMinPct": 12,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A12",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS dw3",
+      "oldForestMinPct": 12,
+      "interiorOfRequiredOldForestMinPct": 10,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A13",
+      "ndu": "Moist Interior - Plateau, Omineca - Mountain",
+      "becAsPrinted": "SBS mk1",
+      "oldForestMinPct": 12,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A14",
+      "ndu": "Wet Mountain",
+      "becAsPrinted": "ESSF mvp2, ESSF wcp3, ESSF mv2, ESSF wk2",
+      "oldForestMinPct": 50,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A15",
+      "ndu": "Wet Mountain",
+      "becAsPrinted": "ESSF wc3",
+      "oldForestMinPct": 84,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A16",
+      "ndu": "Wet Mountain",
+      "becAsPrinted": "SBS wk1",
+      "oldForestMinPct": 26,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A17",
+      "ndu": "Wet Mountain",
+      "becAsPrinted": "SBS vk",
+      "oldForestMinPct": 50,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A18",
+      "ndu": "Wet Trench - Mountain",
+      "becAsPrinted": "ESSF wcp3",
+      "oldForestMinPct": 80,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A19",
+      "ndu": "Wet Trench - Mountain",
+      "becAsPrinted": "ESSF wcp3, ESSF mm1, ESSF mmp1, ESSF mvp2, ESSF mv2, ESSF wk2",
+      "oldForestMinPct": 48,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A20",
+      "ndu": "Wet Trench - Mountain",
+      "becAsPrinted": "ESSF wc3",
+      "oldForestMinPct": 80,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A21",
+      "ndu": "Wet Trench - Mountain",
+      "becAsPrinted": "ESSF wk1",
+      "oldForestMinPct": 48,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A22",
+      "ndu": "Wet Trench - Valley",
+      "becAsPrinted": "ICH wk3",
+      "oldForestMinPct": 53,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A23",
+      "ndu": "Wet Trench - Valley",
+      "becAsPrinted": "ICH vk2",
+      "oldForestMinPct": 53,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A24",
+      "ndu": "Wet Trench - Valley",
+      "becAsPrinted": "SBS wk1, SBS mw, SBS mk1",
+      "oldForestMinPct": 30,
+      "interiorOfRequiredOldForestMinPct": 10,
+      "sourceTables": [
+        3,
+        6
+      ]
+    },
+    {
+      "unit": "A25",
+      "ndu": "Wet Trench - Valley",
+      "becAsPrinted": "SBS vk",
+      "oldForestMinPct": 46,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        3,
+        6
+      ]
+    }
+  ],
+  "youngForestPatchDistribution": {
+    "bins": [
+      "under50ha",
+      "51to100ha",
+      "101to1000ha",
+      "over1000ha"
+    ],
+    "targets": [
+      {
+        "ndu": "McGregor Plateau",
+        "percent": {
+          "under50ha": 10,
+          "between51and100ha": 5,
+          "between101and1000ha": 45,
+          "over1000ha": 40
+        }
+      },
+      {
+        "ndu": "Moist Interior - Mountain",
+        "percent": {
+          "under50ha": 20,
+          "between51and100ha": 10,
+          "between101and1000ha": 30,
+          "over1000ha": 40
+        }
+      },
+      {
+        "ndu": "Moist Interior - Plateau",
+        "percent": {
+          "under50ha": 5,
+          "between51and100ha": 5,
+          "between101and1000ha": 20,
+          "over1000ha": 70
+        }
+      },
+      {
+        "ndu": "Northern Boreal Mountains",
+        "percent": {
+          "under50ha": 5,
+          "between51and100ha": 5,
+          "between101and1000ha": 30,
+          "over1000ha": 60
+        }
+      },
+      {
+        "ndu": "Omineca - Mountain",
+        "percent": {
+          "under50ha": 20,
+          "between51and100ha": 10,
+          "between101and1000ha": 30,
+          "over1000ha": 40
+        }
+      },
+      {
+        "ndu": "Omineca - Valley",
+        "percent": {
+          "under50ha": 5,
+          "between51and100ha": 5,
+          "between101and1000ha": 30,
+          "over1000ha": 60
+        }
+      },
+      {
+        "ndu": "Wet Mountain",
+        "percent": {
+          "under50ha": 20,
+          "between51and100ha": 10,
+          "between101and1000ha": 60,
+          "over1000ha": 10
+        }
+      },
+      {
+        "ndu": "Wet Trench - Mountain",
+        "percent": {
+          "under50ha": 20,
+          "between51and100ha": 10,
+          "between101and1000ha": 60,
+          "over1000ha": 10
+        }
+      },
+      {
+        "ndu": "Wet Trench - Valley",
+        "percent": {
+          "under50ha": 20,
+          "between51and100ha": 10,
+          "between101and1000ha": 60,
+          "over1000ha": 10
+        }
+      }
+    ],
+    "boundaryNote": "Order uses <50, 51-100, 101-1000 and >1000 ha. Treat exact category boundaries (notably 50 ha) as requiring verified GIS implementation interpretation; do not silently assign."
+  },
+  "alternativesAndInterpretations": [
+    {
+      "id": "D.1",
+      "kind": "eligible-contribution",
+      "requiresReview": true,
+      "summary": "Previously established OGMAs and new spatial old forest retention areas contribute; parks and protected areas may contribute."
+    },
+    {
+      "id": "D.2",
+      "kind": "combined-mbec-units",
+      "requiresReview": true,
+      "summary": "Certain similar mBEC units spanning forest district boundaries may use combined requirements."
+    },
+    {
+      "id": "D.3",
+      "kind": "epidemic-or-catastrophic",
+      "requiresReview": true,
+      "summary": "Representative affected stands may contribute; representative non-pine stands must be included."
+    },
+    {
+      "id": "D.4",
+      "kind": "younger-age-classes",
+      "requiresReview": true,
+      "maxPercentOfOldForestObjective": 20,
+      "summary": "Up to 20% may be younger age classes only if equal or better conservation benefits are demonstrated."
+    },
+    {
+      "id": "D.5(a)",
+      "kind": "approved-recruitment-strategy",
+      "requiresReview": true,
+      "summary": "If old or interior old objective cannot be achieved, specified recruitment strategy requires approval."
+    },
+    {
+      "id": "D.5(b)",
+      "kind": "young-patch-rationale",
+      "requiresReview": true,
+      "summary": "If young patch distribution cannot be achieved, rationale with results or strategies must be submitted."
+    }
+  ],
+  "implementationPolicy": {
+    "sourceId": "bc.pgtsa.policy.2005",
+    "legallyBinding": false,
+    "youngForestAgeYearsInclusive": [
+      0,
+      20
+    ],
+    "patchMergeStages": [
+      {
+        "upperInitialPatchHa": 50,
+        "bufferMetres": 75,
+        "joinDistanceMetres": 150
+      },
+      {
+        "upperInitialPatchHa": null,
+        "lowerPatchHa": 50,
+        "bufferMetres": 100,
+        "joinDistanceMetres": 200
+      },
+      {
+        "lowerPatchHa": 100,
+        "bufferMetres": 200,
+        "joinDistanceMetres": 400
+      },
+      {
+        "lowerPatchHa": 500,
+        "bufferMetres": 300,
+        "joinDistanceMetres": 600
+      },
+      {
+        "lowerPatchHa": 1000,
+        "bufferMetres": 400,
+        "joinDistanceMetres": 800
+      }
+    ],
+    "spatialAlgorithmStatus": "not-implemented; inspect full policy stages and threshold ordering before use"
+  },
+  "validationNeeds": [
+    "Confirm currently applicable local orders and geographically partial replacements",
+    "Acquire authoritative order Map #1 and Map #2 polygons and historical forest district boundaries",
+    "Check duplicated/printed BEC labels against official maps",
+    "Verify age and edge buffering definitions",
+    "Verify denominators, old forest accounting and professional approval evidence"
+  ]
+}

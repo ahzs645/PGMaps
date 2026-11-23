@@ -1,0 +1,96 @@
+{
+  "nodes": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "type": "inputNode",
+      "name": "Cutblock facts",
+      "position": {
+        "x": 120,
+        "y": 160
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "type": "decisionTableNode",
+      "name": "FPPR 64(1) screening only",
+      "position": {
+        "x": 420,
+        "y": 160
+      },
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [
+          {
+            "field": "isSizeLimitApplicable",
+            "id": "applies",
+            "name": "Applicability prechecked",
+            "type": "expression"
+          },
+          {
+            "field": "netAreaToBeReforestedHa",
+            "id": "netarea",
+            "name": "Net reforestation area (ha)",
+            "type": "expression"
+          }
+        ],
+        "outputs": [
+          {
+            "field": "status",
+            "id": "status",
+            "name": "Screening status",
+            "type": "expression"
+          }
+        ],
+        "rules": [
+          {
+            "_id": "over60",
+            "applies": "== true",
+            "netarea": "> 60",
+            "status": "\"review_required\""
+          },
+          {
+            "_id": "within60",
+            "applies": "== true",
+            "netarea": "<= 60",
+            "status": "\"within_threshold_only\""
+          },
+          {
+            "_id": "outscope",
+            "applies": "== false",
+            "netarea": "",
+            "status": "\"not_applicable\""
+          },
+          {
+            "_id": "unknown",
+            "applies": "",
+            "netarea": "",
+            "status": "\"indeterminate\""
+          }
+        ]
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "type": "outputNode",
+      "name": "Screen result",
+      "position": {
+        "x": 790,
+        "y": 160
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "a",
+      "sourceId": "00000000-0000-4000-8000-000000000001",
+      "targetId": "00000000-0000-4000-8000-000000000002",
+      "type": "edge"
+    },
+    {
+      "id": "b",
+      "sourceId": "00000000-0000-4000-8000-000000000002",
+      "targetId": "00000000-0000-4000-8000-000000000003",
+      "type": "edge"
+    }
+  ]
+}

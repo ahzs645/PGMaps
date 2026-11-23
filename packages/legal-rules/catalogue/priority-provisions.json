@@ -1,0 +1,396 @@
+{
+  "schemaVersion": "1.0.0",
+  "note": "Selected review priorities, NOT a full list of statutory sections. Generate the complete section-level inventory from CiviX XML first. Section references need review against the active legal consolidation and applicable land/tenure.",
+  "topics": [
+    {
+      "topic": "cutblock-plans-and-approval",
+      "provisions": [
+        {
+          "sourceId": "bc.frpa",
+          "section": "2.28",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.frpa",
+          "section": "2.35",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.frpa",
+          "section": "2.36",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.frpa",
+          "section": "2.39",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.frpa",
+          "section": "2.41",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.frpa",
+          "section": "2.47",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "4.11",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "4.13",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "4.15",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "4.16",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "4.17",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "4.18",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "4.19",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "4.2",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "4.21",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "4.22",
+          "stage": "pending-interpretation"
+        }
+      ]
+    },
+    {
+      "topic": "harvest-silviculture-and-soils",
+      "provisions": [
+        {
+          "sourceId": "bc.fppr",
+          "section": "16",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "30",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "35",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "36",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "37",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "38",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "39",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "64",
+          "stage": "draft-rule"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "65",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "66",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "67",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "68",
+          "stage": "pending-interpretation"
+        }
+      ]
+    },
+    {
+      "topic": "riparian-water-and-roads",
+      "provisions": [
+        {
+          "sourceId": "bc.fppr",
+          "section": "47",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "48",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "49",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "50",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "51",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "52",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "53",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "54",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "55",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "56",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "57",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "58",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "59",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "60",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "61",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "62",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "70.1",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "72",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "73",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "74",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "75",
+          "stage": "pending-interpretation"
+        }
+      ]
+    },
+    {
+      "topic": "local-wildlife-land-use-orders",
+      "provisions": [
+        {
+          "sourceId": "bc.gar",
+          "section": "2",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "5",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "6",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "7",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "8",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "9",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "9.1",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "10",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "11",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "12",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "13",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "14",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.gar",
+          "section": "15",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "69",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.fppr",
+          "section": "70",
+          "stage": "pending-interpretation"
+        }
+      ]
+    },
+    {
+      "topic": "prince-george-biodiversity",
+      "provisions": [
+        {
+          "sourceId": "bc.pgtsa.2004",
+          "section": "A",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.pgtsa.2004",
+          "section": "B",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.pgtsa.2004",
+          "section": "C",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.pgtsa.2004",
+          "section": "D.1",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.pgtsa.2004",
+          "section": "D.2",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.pgtsa.2004",
+          "section": "D.3",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.pgtsa.2004",
+          "section": "D.4",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.pgtsa.2004",
+          "section": "D.5",
+          "stage": "pending-interpretation"
+        },
+        {
+          "sourceId": "bc.pgtsa.2004",
+          "section": "E",
+          "stage": "pending-interpretation"
+        }
+      ]
+    }
+  ]
+}

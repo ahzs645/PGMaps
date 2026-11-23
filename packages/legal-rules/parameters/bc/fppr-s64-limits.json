@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "bc.fppr.s64.max-net-area-to-be-reforested",
+  "jurisdiction": "bc",
+  "sourceId": "bc.fppr",
+  "section": "64(1)",
+  "unit": "ha",
+  "status": "historical-effective-dates-unverified",
+  "asOf": "2026-11-17",
+  "observedConsolidatedValues": [
+    {
+      "regions": [
+        "Kootenay Boundary",
+        "South Coast",
+        "Thompson Okanagan",
+        "West Coast"
+      ],
+      "value": 40
+    },
+    {
+      "regions": [
+        "Cariboo",
+        "Northeast",
+        "Omineca",
+        "Skeena"
+      ],
+      "value": 60
+    }
+  ],
+  "effectiveHistory": [],
+  "notes": "This is an as-of observation, NOT a dated OpenFisca parameter timeline. Do not turn 2026-11-17 into an effectiveFrom date. Populate effectiveHistory from amendment history and point-in-time consolidations before historical use."
+}
