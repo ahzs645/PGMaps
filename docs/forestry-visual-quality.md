@@ -1025,8 +1025,13 @@ package they cannot draw (saved without its analysis sheet, with the reason its
 save gave, `figureError`; or with no screenshot in this session) is listed under
 *Views not drawn* and named in the preview's notice, the download's line and the
 file itself: the report ends with *Views left out of this report* and lists each
-to complete, the document with *Views left out of this document*
-(`unprintedViews`, `viewsLeftOut`, `withViewsLeftOut`). A VIA document viewpoint
+to complete, the document with *Views left out of this document* and lists
+each under *Reviewer to complete* (`unprintedViews`, `viewsLeftOut`,
+`withViewsLeftOut`, `withViewsToComplete`). Neither is refused for a missing
+class pass: with no view of the package drawn, the report and the document are
+written all the same, printing no figure and no picture for any view and
+naming each to complete; only a package holding no view at all is refused, with
+the reason. A VIA document viewpoint
 whose picture holds none of the landform says so rather than "no class pass"
 (`documentFigureLine`).
 
@@ -4940,7 +4945,10 @@ and only for the view standing at the assessment station; otherwise it is left
 out and listed under *Reviewer to complete*. A block nothing of which is seen
 is the one case where the run supplies the terms ("not visible", "not easily
 distinguishable"). The pixel figure is printed on the format's arithmetic beside
-the run's sightline figure, which stays the assessment's.
+the run's sightline figure, which stays the assessment's. A view of the package
+without a class pass has no figure: the document is filled without it and lists
+it under *Reviewer to complete* as needing a capture with its class pass
+(`withViewsToComplete`), never refused for it.
 
 `checkPrintedAlteration` is the start of the checker the report survey asked
 for: given a document's own areas and printed figure it reproduces the figure,
@@ -5610,7 +5618,8 @@ list (`withPicturesNotDrawn`, the Word route's `notDrawn` too), and nothing is
 kept for it, so the next file draws it again. Nor does a package whose views
 have no analysis sheet stop the report: it is laid out and written with the
 figures it has, each view it lacks named on the to-complete list
-(`withViewsLeftOut`), as long as the package holds any view.
+(`withViewsLeftOut`), as long as the package holds any view, even when no view
+has a class pass and the report prints no figure at all.
 
 **Why a report is quick to write again** (from a 75 s trace of one VIA report
 preview, 15 November 2026: under 2 s of it was the report's own work). Every

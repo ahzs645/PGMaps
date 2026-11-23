@@ -505,7 +505,7 @@ export type ExportContext = {
     measures: number
     figures: boolean
   } | null
-  /** VIA document: the format chosen and what it was filled from, or null before a view has a class pass. */
+  /** VIA document: the format chosen and what it was filled from, or null while the package holds no view. */
   document: {
     format: string
     sources: string
@@ -516,7 +516,7 @@ export type ExportContext = {
     toComplete: number
     gaps: string[]
   } | null
-  /** VIA report: the recipe chosen and what it holds, or null before a view has a class pass. */
+  /** VIA report: the recipe chosen and what it holds, or null while the package holds no view. */
   report: {
     recipe: string
     sources: string
@@ -529,7 +529,7 @@ export type ExportContext = {
   /**
    * The VIA report's contents as its list reads them (`recipeContents.ts`): the package's recipe, the parts of the
    * shipped recipe it was copied from, and what each printing part gave once the report was assembled (null until it
-   * has been: no view with a class pass yet, or the report's parts still loading). Absent: not known here.
+   * has been: no view in the package yet, or the report's parts still loading). Absent: not known here.
    */
   reportContents?: {
     recipe: RecipeContentsSource
@@ -1756,6 +1756,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext, known: C
     }
     case 'via-document': {
       const doc = ctx.document
+      const withoutFigure = viewsLeftOut('via-document', ctx).length
       if (!doc)
         return withPlanned([
           {
@@ -1767,7 +1768,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext, known: C
             ],
             note: capturesFirst(ctx)
               ? 'Filled from the views of interest once they are captured.'
-              : 'No view in the package has a class pass yet.',
+              : 'No view in the package yet.',
           },
           unprintedSection(ctx, 'via-document'),
           plannedViewsSection(ctx, 'via-document'),
@@ -1799,7 +1800,11 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext, known: C
           title: 'Reviewer to complete',
           step: 'assess',
           editor: 'assess',
-          rows: [{ label: 'Sentences and cells', value: doc.toComplete ? plural(doc.toComplete, 'item') : 'None' }],
+          rows: [
+            { label: 'Sentences and cells', value: doc.toComplete ? plural(doc.toComplete, 'item') : 'None' },
+            // A view without its capture or class pass: its figure prints nothing and is listed (`withViewsToComplete`).
+            ...(withoutFigure ? [{ label: 'Figures', value: plural(withoutFigure, 'view') }] : []),
+          ],
           note: 'Judgements the run never makes (visibility term, lines of force, edges, the extent met) come from step 4 at the assessment station only, and are listed, never invented.',
         },
         ...(doc.gaps.length ? [{ title: 'Not filled by PGMaps', items: doc.gaps.map((gap) => ({ title: gap })) }] : []),

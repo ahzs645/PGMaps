@@ -68,7 +68,7 @@ import { runFigures } from './runFigures'
 import { runExistingBasis } from './existingBasis'
 import { VIA_DOCUMENT_FORMATS, findDocumentFormat } from './viaDocument/formats'
 import { documentMarkdown, viewsLeftOutMarkdown } from './viaDocument/markdown'
-import { resolveViaDocument } from './viaDocument/resolve'
+import { resolveViaDocument, withViewsToComplete } from './viaDocument/resolve'
 import { EVQO_CODE_FOR_CLASS } from './visualsNarrative'
 import { buildReportContext, type ReportView } from './viaReport/context'
 import { loadReportEngine, useReportEngine } from './viaReportEngine'
@@ -750,22 +750,25 @@ export function useVisualsExport(input: {
     const timber = timberMeasures.current.get(timberKey(view.id))
     return view.image?.figure ? [{ name: view.name, figure: view.image.figure, ...(timber ? { timber } : {}) }] : []
   })
-  const facts = documentViews.length
-    ? documentFacts({
-        project: blocks.length ? blocks.map((entry) => entry.name).join(', ') : 'the proposed blocks',
-        objective: landform ? EVQO_CODE_FOR_CLASS[landform.objectiveId] : null,
-        views: documentViews,
-        assessmentStation: result?.assessmentStationIndex ?? null,
-        review: scene.viaReview ?? null,
-        assessment,
-        breakdown: runFigures(result).perspective,
-        ...(result ? { screeningModelled: !!result.settings.screeningEnabled } : {}),
-        greenUp: result ? runGreenUpBasis(result).label : null,
-        existing: runExistingBasis(result)?.label ?? null,
-        groupOf: (name) => groupIdForName(scene.viewsOfInterest ?? [], name),
-        objectiveId: landform?.objectiveId ?? null,
-      })
-    : null
+  // A package whose views have no class pass yet is filled all the same: each figure it lacks prints nothing and is
+  // named under Reviewer to complete (`withViewsToComplete`).
+  const facts =
+    documentViews.length || packageViews.length
+      ? documentFacts({
+          project: blocks.length ? blocks.map((entry) => entry.name).join(', ') : 'the proposed blocks',
+          objective: landform ? EVQO_CODE_FOR_CLASS[landform.objectiveId] : null,
+          views: documentViews,
+          assessmentStation: result?.assessmentStationIndex ?? null,
+          review: scene.viaReview ?? null,
+          assessment,
+          breakdown: runFigures(result).perspective,
+          ...(result ? { screeningModelled: !!result.settings.screeningEnabled } : {}),
+          greenUp: result ? runGreenUpBasis(result).label : null,
+          existing: runExistingBasis(result)?.label ?? null,
+          groupOf: (name) => groupIdForName(scene.viewsOfInterest ?? [], name),
+          objectiveId: landform?.objectiveId ?? null,
+        })
+      : null
   const viaDocument = facts ? resolveViaDocument(documentFormat, facts) : null
 
   // The report: its recipe, its views and a context assembled without figures for the dialog; the file adds them.
@@ -1670,22 +1673,19 @@ export function useVisualsExport(input: {
         )
       }
       case 'via-document': {
-        if (!viaDocument || !facts)
-          throw new Error('No view in the package has a class pass to fill the document from.')
+        // Null only with no view in the package, which `exportUnavailable` refuses before this is reached.
+        if (!viaDocument || !facts) throw new Error('Add a view to the package to fill the document from.')
         const name = `forestry-via-${documentFormat.id}`
-        // Every view of the package the document does not hold is named in it, with why.
+        // Every view of the package the document does not hold is named in it, with why, and listed to complete.
         const leftOut = viewsLeftOut('via-document', exportContext)
+        const document = withViewsToComplete(viaDocument, leftOut)
         return format === 'json'
           ? textFile(
-              JSON.stringify({ facts, document: viaDocument, viewsLeftOut: leftOut }, null, 2),
+              JSON.stringify({ facts, document, viewsLeftOut: leftOut }, null, 2),
               `${name}.json`,
               'application/json',
             )
-          : textFile(
-              documentMarkdown(viaDocument, facts) + viewsLeftOutMarkdown(leftOut),
-              `${name}.md`,
-              'text/markdown',
-            )
+          : textFile(documentMarkdown(document, facts) + viewsLeftOutMarkdown(leftOut), `${name}.md`, 'text/markdown')
       }
       case 'field-brief': {
         if (!briefBlock) throw new Error('Add a cutblock to brief the crew on it.')

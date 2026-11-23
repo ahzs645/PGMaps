@@ -1700,3 +1700,25 @@ export function resolveViaDocument(formatOrId: ViaDocumentFormat | string, facts
     otherPlanned: otherPlannedOf(facts.viewpoints, perspective),
   }
 }
+
+/**
+ * `doc` with each view of the package it does not hold (`viewsLeftOut`: not captured, or saved without the class pass
+ * its figure is measured on) named under *Reviewer to complete*: the document is written without its figure, never
+ * refused for it, and never with a figure made up. Why each was left out is the closing *Views left out* section's
+ * (`viewsLeftOutMarkdown`). `doc` itself is not changed.
+ */
+export function withViewsToComplete(doc: ResolvedDocument, leftOut: ReadonlyArray<{ name: string }>): ResolvedDocument {
+  if (!leftOut.length) return doc
+  return {
+    ...doc,
+    toComplete: [
+      ...doc.toComplete,
+      ...leftOut.map((view) => ({
+        viewpoint: view.name,
+        id: 'figure',
+        missing: ['a capture with its class pass'],
+        label: 'Analysis figure',
+      })),
+    ],
+  }
+}
