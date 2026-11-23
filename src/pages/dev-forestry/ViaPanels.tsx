@@ -235,19 +235,8 @@ export function ViaHeadline({
           size="sm"
           columns={stats.length === 4 ? 4 : 3}
           // Tiles are cards: one step above the sidebar they sit on. A label wraps rather than clip ("Measured (X)",
-          // "Views captured" in a quarter-width tile), and its note is drawn in the term: a `dl` entry holds only its
-          // term and description.
-          items={stats.map(({ note, ...stat }) => ({
-            ...stat,
-            key: typeof stat.label === 'string' ? stat.label : undefined,
-            label: (
-              <>
-                {stat.label}
-                {note && <span className="block text-2xs leading-snug">{note}</span>}
-              </>
-            ),
-            className: 'bg-card [&>dt]:whitespace-normal [&>dt]:text-balance',
-          }))}
+          // "Views captured" in a quarter-width tile).
+          items={stats.map((stat) => ({ ...stat, wrapLabel: true, className: 'bg-card' }))}
         />
       )}
 

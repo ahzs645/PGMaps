@@ -1068,13 +1068,7 @@ export function Sidebar({
     // simulation settings, so the shell draws no title row of its own: one "Visual quality" heading.
     <MapSidebarShell
       title="Assessment steps"
-      // On a phone the shell sits in the sheet under its Hide panel button: no stacking of its own there, or it covers
-      // the one visible way back to the map.
-      className={cn(
-        MAP_SIDEBAR_CLASS,
-        'max-md:z-auto',
-        embedded && 'border-r-0 bg-transparent shadow-none backdrop-blur-none',
-      )}
+      className={cn(MAP_SIDEBAR_CLASS, embedded && 'border-r-0 bg-transparent shadow-none backdrop-blur-none')}
       headerClassName="sr-only"
       titleClassName="text-base"
       density="compact"
