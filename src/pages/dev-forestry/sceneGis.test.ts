@@ -13,6 +13,8 @@ import { createEmptyScene, ROLE_COLORS, type ForestryScene } from './scene'
 import { sceneGisLayers, sceneGisPlan, sceneGisUnavailable } from './sceneGis'
 import { SCENE_GIS_LOOKS, sceneGisKmlStyle, sceneGisQml, writeSceneGis } from './sceneGisFiles'
 import type { TargetPolygon } from './types'
+import { focalForHfov } from './viewCamera'
+import { readPlaceInput } from './viewCoordinates'
 import type { ViewOfInterest } from './viewsOfInterest'
 
 let SQL: SqlJsStatic
@@ -120,6 +122,44 @@ function madeUpScene(): ForestryScene {
   }
 }
 
+describe('scene for GIS: a view’s own place and camera', () => {
+  it('writes the typed place while the view stands there, its lens as used and its surveyed eye', () => {
+    const { entry } = readPlaceInput({
+      system: 'utm',
+      datum: 'NAD83',
+      zone: 10,
+      easting: '500000',
+      northing: '5985000',
+    })
+    const scene = madeUpScene()
+    const typed: ViewOfInterest = {
+      ...scene.viewsOfInterest![0],
+      id: 'v9',
+      lng: entry!.lng,
+      lat: entry!.lat,
+      place: entry,
+      lens: { kind: 'hfov', hfovDeg: 25.4 },
+      focalMm: focalForHfov(25.4),
+      eye: { reference: 'elevation', meters: 812.44 },
+    }
+    const moved = { ...typed, id: 'v10', lat: typed.lat + 0.001 }
+    scene.viewsOfInterest = [typed, moved]
+    const layer = sceneGisLayers(scene).find((entry) => entry.name === 'views_of_interest')!
+    const [here, away] = layer.features.map((feature) => feature.attributes)
+    expect(here).toMatchObject({
+      coord_text: '10 500000 5985000',
+      coord_crs: 'NAD83 / UTM zone 10N (EPSG:26910)',
+      coord_prec: 0.5,
+      hfov_deg: 25.4,
+      lens_mm: 80,
+      eye_ref: 'elevation',
+      eye_m: 812.4,
+    })
+    // Dragged on the plan: the typed text describes another point, and is left out.
+    expect(away).toMatchObject({ coord_text: null, coord_crs: null, coord_prec: null })
+  })
+})
+
 describe('scene for GIS: layers', () => {
   it('plans one layer per kind the scene holds, with counts, and names the kinds it holds none of', () => {
     const plan = sceneGisPlan(madeUpScene())
@@ -190,6 +230,7 @@ describe('scene for GIS: layers', () => {
     expect(views[0].bearing).toBeGreaterThan(0)
     expect(views[0].included).toBe(true)
     expect(views[2]).toMatchObject({ block: null, bearing: null })
+    expect(views[0]).toMatchObject({ coord_text: null, coord_crs: null, coord_prec: null, eye_ref: null, eye_m: null })
     // Every field a feature carries is one of its layer's fields, and every name fits a dBase column.
     for (const layer of layers) {
       const names = new Set(layer.fields.map((field) => field.name))

@@ -202,6 +202,10 @@ export function RoadViewOptions({
                   {lensLabel(focal)}
                 </option>
               ))}
+              {/* A planned view's own lens (a field or focal length typed on its row) while it is stood at. */}
+              {lensMm !== null && !(LENS_FOCAL_LENGTHS as readonly number[]).includes(lensMm) && (
+                <option value={String(lensMm)}>{`${lensLabel(lensMm)} (the view's own)`}</option>
+              )}
             </StyledSelect>
           </Row>
         )}

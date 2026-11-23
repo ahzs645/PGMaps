@@ -69,7 +69,7 @@ is typed survives switching.
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
 | 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site; each button's tooltip describes the scenario and lists what its scene holds, counted by `scenarioSummary.ts`; under them *Open a project…* and, when this browser kept another site, *Reopen previous site*); **Road or viewpoint** (*Assess from*: a view of interest, or a length of road drawn, imported or snapped); folded *Which roads see the block*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
-| 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving; each row holds everything about that view: its record with significance and 3.2.1 type, its field photos, the crew's *Real and reachable* check, its key-viewpoint choice and, at the view stood at, the surveyed eye and the field photo line-up; see **Views of interest** below) and under it *Add from viewpoints and rec sites*; *Look from the road*, and while in the road view the stand (folded *Block colours*, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*, the timber it is drawn with its *Drawn timber* popover); on the road only, **Road viewpoint** (its 3.2.1 type and, at a stand, the surveyed eye; a view keeps both in its row); folded *Field photos* (the road's photo line-up, then the attachments); folded *Field brief and crew checklist* (its file comes from *Save & export*) |
+| 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving; each row holds everything about that view: its record with significance and 3.2.1 type, its field photos, the crew's *Real and reachable* check, its key-viewpoint choice, its own place, lens and surveyed eye and, at the view stood at, the field photo line-up; see **Views of interest** below) and under it *Add from viewpoints and rec sites*; *Look from the road*, and while in the road view the stand (folded *Block colours*, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*, the timber it is drawn with its *Drawn timber* popover); on the road only, **Road viewpoint** (its 3.2.1 type and, at a stand, the surveyed eye; a view keeps both in its row); folded *Field photos* (the road's photo line-up, then the attachments); folded *Field brief and crew checklist* (its file comes from *Save & export*) |
 | 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Planning thresholds*, the design alternatives and the diagnostics (each its own fold, never a fold inside a fold). *Simulation settings* are the settings icon right of the sidebar's title (`SimulationSettings.tsx`), compact rows grouped Viewer, Detail, Timber and Landform; every one is a run input |
 | 4 · Assess against the VQO | 3.4 | *Assessing from* (the group of views of interest the judgements are for; see **Step 4 per group of views** below), **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
 | 5 · Final rating and package | 3.5, 4.0 | **Rate and write up in Save & export**: *Rate and package…* opens the dialog's Package entry, whose top holds the **Final rating** (Table 7) and its rationale; *Visuals note…* opens **Block note**, whose options hold the Visuals paragraph and visual measures. The evidence record and checklist are *VIA evidence package*'s options, and *Import assessment workspace* is *Assessment workspace*'s |
@@ -182,6 +182,63 @@ and the rest stay evidence. Removing the photo unlinks the view and keeps it.
 Standing there is described under **Checking the view against a field
 photo**, *Standing at a photo viewpoint*.
 
+**A view's place, lens and eye.** A plan click lands metres from a recorded
+station, and a reference frame is often not one of the four lenses offered. Each
+view's View tab therefore carries its own place and camera (`ViewCameraFields`,
+rules in `viewCoordinates.ts` and `viewCamera.ts`, both DOM-free):
+
+- *Place* shows where the view stands in decimal degrees, degrees, minutes and
+  seconds, and UTM (in the zone it was typed in, else its own). *Enter
+  coordinates* takes NAD83 or WGS84 latitude and longitude (decimal, degrees and
+  decimal minutes, or DMS, latitude first unless hemisphere letters say
+  otherwise) or UTM easting and northing in BC's zones 7 to 11 (northern
+  hemisphere). It refuses what it cannot read rather than guessing (a positive
+  longitude without an E, a zone outside BC, a swapped easting and northing),
+  and warns, without refusing, about a point outside BC or outside its zone's
+  6° band. While it reads, the point shows on the plan as a hollow ring
+  (`ViewPlacePreviewMarker`, a draft, not a plan layer) with its distance from
+  where the view stands; *Move the view here* applies it. The view keeps the
+  text as typed, its system, datum and zone, and the precision its digits state
+  (`ViewOfInterest.place`: half the last digit, in metres, the larger axis;
+  precision, not accuracy). NAD83 and WGS84 are taken as the same, with no
+  datum shift (`DATUM_ASSUMPTION`): they can differ by about a metre in BC today,
+  and the page says so rather than apply a transformation. A typed place
+  describes the view only while it stands within 5 cm of it
+  (`placeEntryOf`): a drag on the plan leaves it behind, said on the row and
+  printed nowhere. While it holds it is printed with the view: the analysis
+  sheet's *Entered as* fact, the camera information block's position in the
+  typed zone, Scene for GIS's `coord_text`, `coord_crs` and `coord_prec`, and
+  the field brief's viewpoint line. Standing there, the row also says how far
+  the run's stations stand from this eye: a stood-at view's run stations are
+  at the pullout's two ends (`buildStations`), about 15 m away, and stay there;
+  the capture is taken from the typed eye.
+- *Lens* has a fifth choice, *Own lens*, which opens the lens as entered
+  (`ViewOfInterest.lens`): a horizontal field of view in degrees, or a focal
+  length with its crop factor (1 for a figure stated as 35 mm equivalent). The
+  view's `focalMm` is its full-frame equivalent, which an older PGMaps and the
+  capture key read; the field across is exact (`viewCaptureCamera`,
+  `viewLensHfov`). The row shows the derived field across and high on a 3:2
+  single frame and, while the road view is open, on its canvas.
+- *Eye* is the terrain model (the run's eye height), a surveyed elevation
+  above sea level, or a height above the model's ground (`ViewOfInterest.eye`).
+  A capture stands on it (`viewCaptureCamera`): an elevation becomes the
+  stand's surveyed eye, a run input at that stand as a photo viewpoint's
+  altitude is, so the road view, the run and the figure stand there together;
+  a height above the ground moves only the road view's eye and the capture
+  (`viewEyeHeight`), never the run's stations, and the camera information
+  prints it as the observer height. Views at one place with different eyes are
+  separate stands (`groupByPlace`). A surveyed elevation more than
+  `EYE_GROUND_TOLERANCE_METERS` (3 m, a screen) from the terrain model's eye
+  is flagged on the row with both numbers (`eyeCheck`), never refused, and the
+  figure's camera information gives both on its position line. The eye and the
+  lens join `viewCaptureKey`, so changing either stales the capture
+  (*Changed since captured: eye*). A photo viewpoint's camera stays its
+  photo's: its eye and lens are not offered.
+
+All three are the view's record: `scene.viewsOfInterest` stays out of
+`sceneFingerprint` and `AnalysisInput`, they travel in the scene and the
+project file, and an entry that does not read is dropped with the view kept.
+
 **Assess from a view (step 1).** A view of interest is the one way to put a
 viewpoint on the map. Step 1's *Road or viewpoint* reads *Assess from: A view |
 Length of road*. *A view* (`AssessFromView.tsx`) is a list of the views of
@@ -249,11 +306,15 @@ What each part holds:
   `viaReview.keyViewpoints` by block name and view name, taking the choice
   over from another view; unticking clears only this view's choice. A row
   offers its own block, and any block the review already gives it.
+- *Place*, *Lens* and *Eye* (`ViewCameraFields`, under the lens in the View
+  tab): the view's coordinates in both systems, a place typed as coordinates,
+  its own lens and its surveyed eye; see **A view's place, lens and eye** below.
+  At the view stood at, the eye is the stand's too, as a capture stands it.
 - At the view stood at (`standingViewId`, the summary's `currentPlannedView`),
-  the row says *assessing from here* and holds what belongs to the place:
-  the surveyed eye elevation (`StoodViewpointPanel` with `bare`) and the
-  Mapillary or own field photo the road view lines up with. Standing on a
-  road, or at a place that is not a planned view, those two and the road's
+  the row says *assessing from here* and holds what belongs to the place: the
+  Mapillary or own field photo the road view lines up with. Standing on a road,
+  or at a place that is not a planned view, the surveyed eye (*Where you
+  stand*, `StoodViewpointPanel`), the photo line-up and the road's
   **Viewpoint type** stay in step 2.
 - *Reopen saved* opens the road view where the view's capture was saved under
   the current scene (the old *Saved views* button).
@@ -721,7 +782,7 @@ WGS84:
 | `blocks` | area | `id`, `name`, `system` (stored) and `system_txt` (as shown), `retain_pct`, `remove_pct`, `residual_m`, `plan_year`, `area_ha`, `block_code`, `licence`, `permit`, `opening`, `source` |
 | `road` or `viewpoint` | line or point | `id`, `name`, and `length_km` for a road or `eye_elev_m` (the surveyed eye that applies) for a spot |
 | `view_wedges` | area | `id`, `number`, `name`, `bearing`, `hfov_deg`, `reach_m`: the lens's width along the view's facing as the plan draws it (`viewsOfInterestPlan`), a drawing aid, never a sight line |
-| `views_of_interest` | point | `id`, `number`, `name`, `block`, `block_id`, `facing`, `bearing`, `lens_mm`, `hfov_deg`, `framing`, `from` (map, vli, rec-site), `included`, `landform` |
+| `views_of_interest` | point | `id`, `number`, `name`, `block`, `block_id`, `facing`, `bearing`, `lens_mm`, `hfov_deg` (the field the capture uses), `framing`, `from` (map, vli, rec-site), `included`, `landform`, `coord_text`, `coord_crs` and `coord_prec` (the typed place while the view stands there), `eye_ref` and `eye_m` (its surveyed eye) |
 
 A kind the scene holds none of is left out and named under *None in the
 scene*. Field names are at most ten characters, so the shapefiles keep them
@@ -4554,6 +4615,10 @@ eye stands on mapped water), "Observer position (UTM zone *z*): *x*, *y*, *z* me
 through proj4, `cameraInfo.ts`), "Viewline azimuth: *deg* degrees", "Maximum tree height: *m*
 metres" (the tallest VRI stand drawn, or "trees not modelled" when the road view drew none), and
 "Date of rendering". *Camera info on image* turns it on; the overlay style has it on by default.
+A view's own camera keeps the six lines: its lens as entered follows the lens line ("(entered as
+50 mm lens x 1.6 crop)"), the position is printed in the zone the place was typed in, a view's
+height above the ground is the observer height, and a surveyed eye more than 3 m from the terrain
+model's eye adds the model's eye and the gap to the position line.
 
 **Painted block ground.** The reference simulations do not only outline a proposed block: its
 visible ground is rendered as harvested ground (03: pinkish-tan slash lumps; 22: sandy cut; 23:

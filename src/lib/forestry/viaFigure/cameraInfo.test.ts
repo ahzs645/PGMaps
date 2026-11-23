@@ -55,3 +55,37 @@ describe('the camera information block', () => {
     expect(lines[2]).toMatch(/, 636 metres \(surveyed elevation\)$/)
   })
 })
+
+describe('a view’s own camera on the block', () => {
+  const base = {
+    frames: 1,
+    focalMm: 79.9,
+    fovDeg: 25.4,
+    observerHeightM: 1.6,
+    above: 'ground' as const,
+    lng: -122.71234,
+    lat: 53.91234,
+    elevationM: 812,
+    surveyed: true,
+    azimuthDeg: 245,
+    maxTreeHeightM: null,
+    renderedOn: '2026-11-22T10:00:00Z',
+  }
+
+  it('prints the lens as entered beside the lens used, and both eyes where they disagree, in six lines', () => {
+    const lines = cameraInfoLines({ ...base, lensEntered: '50 mm lens x 1.6 crop', modelEyeM: 822.4, eyeToleranceM: 3 })
+    expect(lines).toHaveLength(6)
+    expect(lines[0]).toBe(
+      'Composite of 1 simulated 80 mm camera image: FOV 25.4 degrees (entered as 50 mm lens x 1.6 crop)',
+    )
+    expect(lines[2]).toMatch(/, 812 metres \(surveyed elevation; terrain model eye 822 metres, 10\.4 metres higher\)$/)
+  })
+
+  it('prints the position in the zone the place was typed in', () => {
+    // A made-up point just east of zone 9's band, typed in zone 9.
+    const lines = cameraInfoLines({ ...base, lng: -125.8, utmZone: 9 })
+    expect(lines[2]).toMatch(/^Observer position \(UTM zone 9\): /)
+    expect(utmPosition(-125.8, 53.9, 9).easting).toBeGreaterThan(700_000)
+    expect(utmPosition(-125.8, 53.9).zone).toBe(10)
+  })
+})

@@ -15,6 +15,7 @@ import {
   type FramingPlan,
 } from './figureFraming'
 import { verticalFovFromHorizontal } from './exifPose'
+import { viewCaptureCamera } from './viewCamera'
 import {
   MAX_VIEWS_OF_INTEREST,
   groupByPlace,
@@ -413,10 +414,10 @@ export function planSingleFrame(
 /**
  * A planned view's lens as the horizontal field a figure records: a photo viewpoint's own field across (its
  * `focalMm` is rounded to a tenth of a millimetre, and a frame that is not 3:2 has no exact focal length), else its
- * focal length's.
+ * lens as entered (`viewCamera.ts`), else its focal length's.
  */
-export const viewLensHfov = (view: Pick<ViewOfInterest, 'focalMm' | 'photo'>) =>
-  view.photo && Number.isFinite(view.photo.hfov) && view.photo.hfov > 0 ? view.photo.hfov : lensHfovDeg(view.focalMm)
+export const viewLensHfov = (view: Pick<ViewOfInterest, 'focalMm' | 'photo' | 'lens'>) =>
+  viewCaptureCamera(view).hfovDeg
 
 /**
  * Whether the eye map's vertical field is the lens's across its canvas now (`DriveCamera`'s `horizontalFovDegrees`).
