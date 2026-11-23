@@ -437,8 +437,10 @@ export function DriveCamera(props: Props) {
           <Button
             variant="outline"
             size="xs"
-            // Wherever the view is narrow, a phone or a pane beside the plan, not only below `md`.
-            className={narrowView ? 'touch:h-10' : 'md:hidden touch:h-10'}
+            // Wherever the view is narrow, a phone or a pane beside the plan, not only below `md`; and wherever the
+            // options are hidden: a choice made in a narrow pane holds through Fullscreen or a pane dragged wide, and
+            // a wide view without this button left Save, Image, View options and Drawn timber out of reach.
+            className={narrowView || !optionsExpanded ? 'touch:h-10' : 'md:hidden touch:h-10'}
             aria-expanded={optionsExpanded}
             onClick={() => setOptionsChoice(!optionsExpanded)}
           >
