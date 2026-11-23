@@ -6,6 +6,8 @@
 
 > **Work log:** [September 2026 round](forestry-visual-quality-worklog.md) — the handbook steps as tabs, map scale, field photos, retention and partial cuts, inventory-calibrated forest density, terrain landforms, and what each turned up.
 
+> **External QA review:** [November 2026](forestry-visual-quality-qa-review-2026-11-22.md) — the 32 items an outside reviewer raised, what was done with each, the decisions taken and still open, and how it was checked.
+
 > **Report survey:** [November 2026](forestry-visual-quality-report-survey-2026-11-11.md) — what 26 real visual-quality assessments ask of the page.
 
 > **Photo matching:** [November 2026 trial](research/landscape-photo-matching-2026-11-14.md) — fitting helicopter and landscape photos to terrain, what worked, and what others have built.

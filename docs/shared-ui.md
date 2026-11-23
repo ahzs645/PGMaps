@@ -511,6 +511,12 @@ inline in `InlineAlert`.
   can be shown away from a sidebar (a `Projectable` piece moved into a dialog)
   sits in `SidebarScrollFallback` (`sidebar-scroll-fallback.tsx`), which adds
   nothing inside a sidebar and is a bounded scroller of its own elsewhere.
+  Two toolkit faults are still worked round in visual quality: in a `hidden`
+  panel every row measures 0 × 0 and the list sets state without end, so it
+  renders only in the panel shown (`stepShown.ts`); and it takes the arrow
+  keys, Home and End from fields inside a row, so a row's fields sit in an
+  element with `keepFieldKeysInRow` (`virtualRowKeys.ts`). Do the same in a
+  new tabbed panel or a row with fields until the toolkit fixes them.
 - `ResultRow` for a row (marker, title, subtitle, meta, trailing value,
   `selected` + `accent`, aria-pressed).
 - `ListHeader` for the "N items" line, `ListState` for loading / error / empty
