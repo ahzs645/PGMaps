@@ -11,6 +11,8 @@ import { saveRangeReview } from '../edits'
 import { periodYears, type Plan, type RangeReview, type ReviewCase } from '../plan'
 import { extraPacks } from '../review/caseEdits'
 import { CaseReview, useLibrary } from '../review/CaseReview'
+import { GroundInstruments } from '../ground/GroundInstruments'
+import { groundReadOf } from '../ground/record'
 import { GrazingEvidence } from '../review/GrazingEvidence'
 import { PathwayCard } from '../review/PathwayCard'
 import { measuredTrend, pathways, trendYearOf } from '../review/pathways'
@@ -210,6 +212,19 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
             caseLabel="Schedule and block"
             testId="block-planning-range-review"
           />
+        </ToolSection>
+      )}
+      {block && (
+        <ToolSection
+          key={JSON.stringify(['ground', block.id, plan.reviewSchedule])}
+          title="On this ground"
+          summary={(() => {
+            const read = groundReadOf(plan, block.id, plan.reviewSchedule)
+            return read ? `Read ${read.readOn}` : 'Not read'
+          })()}
+          help="Which legal instruments are mapped on the block shape under review, and what each can reach for harvest, replanting, roads and grazing, with the provision each answer rests on. A screen to plan the review, never a legal determination."
+        >
+          <GroundInstruments plan={plan} edit={edit} block={block} schedule={plan.reviewSchedule} library={library} />
         </ToolSection>
       )}
     </>

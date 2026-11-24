@@ -700,14 +700,18 @@ function lengthWithin(line: Geometry, within: Geometry): number {
   }
 }
 
-/** The footprint grown by `metres` in BC Albers, back in WGS84: what a read near the footprint asks for. */
-export function grownFootprint(footprint: Shape, metres: number): Shape {
-  const grown = polygonal(BufferOp.bufferOp(toAlbers(footprint), metres))
-  const j = writer.write(grown) as unknown as Shape
+/** A BC Albers area back in WGS84. */
+function toLngLat(g: Geometry): Shape {
+  const j = writer.write(polygonal(g)) as unknown as Shape
   const ring = (r: Position[]) => r.map(([x, y]) => albersToLngLat(x, y) as Position)
   return j.type === 'Polygon'
     ? { type: 'Polygon', coordinates: j.coordinates.map(ring) }
     : { type: 'MultiPolygon', coordinates: j.coordinates.map((poly) => poly.map(ring)) }
+}
+
+/** The footprint grown by `metres` in BC Albers, back in WGS84: what a read near the footprint asks for. */
+export function grownFootprint(footprint: Shape, metres: number): Shape {
+  return toLngLat(BufferOp.bufferOp(toAlbers(footprint), metres))
 }
 
 /**
@@ -758,3 +762,22 @@ export function pointsNearFootprint(
 
 /** The three overlays the grazing review's lines and points take (`NearOverlay` in `grazingEvidence.ts`). */
 export const nearFootprint = { grow: grownFootprint, lines: linesNearFootprint, points: pointsNearFootprint }
+
+/** The part of `a` inside `b`, in WGS84, or `null` where they share no area. */
+export function clipShape(a: Shape, b: Shape): Shape | null {
+  const g = intersection(toAlbers(a), toAlbers(b))
+  return g ? toLngLat(g) : null
+}
+
+/**
+ * Which items share area with which regions, `[region][item]`, each projected once. Touching along
+ * an edge is not sharing ground. Used for the ground read's precedent (openings in an instrument).
+ */
+export function overlapMatrix(regions: Shape[], items: Shape[]): boolean[][] {
+  const r = regions.map((s) => toAlbers(s))
+  const it = items.map((s) => toAlbers(s))
+  return r.map((region) => it.map((item) => intersection(region, item) !== null))
+}
+
+/** The overlays the ground read takes (`GroundOverlay` in `ground/groundRead.ts`). */
+export const groundOverlay = { measure: overlapsWith, grow: grownFootprint, clip: clipShape, overlaps: overlapMatrix }

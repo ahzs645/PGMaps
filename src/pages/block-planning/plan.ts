@@ -28,6 +28,7 @@ import type {
 import { CORRIDOR_KINDS, OLD_FOREST_EXCLUDED_KINDS } from './records'
 import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { districts, table } from '../forest-patches/project'
+import { parseGroundReads, type GroundRead } from './ground/record'
 
 export const PLAN_FORMAT = 'pgmaps-block-plan/v2'
 export const YEAR_RANGE = [1600, 2250] as const
@@ -283,6 +284,8 @@ export interface Plan {
   oldForest?: OldForestChoices
   /** Calculations kept with the plan, each keyed to its inputs (`records.ts`). */
   checks?: PlanChecks
+  /** "On this ground": the instruments read on a block's footprint, per block and schedule (`ground/`). */
+  groundReads?: GroundRead[]
 }
 
 /** The unit the patch calculation counts within, or none: the plan's unit unless patches are cut at it. */
@@ -1024,5 +1027,6 @@ export function parsePlan(value: unknown): Plan {
     ),
     oldForest: optional(p, 'oldForest', parseOldForestChoices),
     checks: optional(p, 'checks', parseChecks),
+    groundReads: parseGroundReads(p.groundReads, blocks, schedules),
   }
 }

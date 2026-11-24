@@ -28,6 +28,19 @@ import { mappedReadCurrent, rangeReviewCurrent } from './review/rangeReview'
 import { corridorSentence, excludedSentence } from './oldForest/recordText'
 import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
 import { boardCheckCurrent, firstShortfall, metOnlyWithD4, oldForestCurrent, shortfallText } from './records'
+import {
+  ACTIVITIES,
+  ACTIVITY_LABELS,
+  BINDS_LABELS,
+  citesText,
+  GROUND_CATALOGUE,
+  groundInstrument,
+  groundLayer,
+  REACH_LABELS,
+} from '@/lib/legal/groundInstruments'
+import { precedentSummary } from './ground/precedent'
+import { failedByReason, groundReadCurrent, type GroundRead } from './ground/record'
+import { documentRequests } from './ground/requests'
 
 export const BLOCK_PLANNING_EXPORTS = [
   {
@@ -74,6 +87,7 @@ export const LIMITATIONS = [
   'Old and old-interior forest (Objectives A and B) are calculated only when assessed, from VRI ages (not field-verified), a VRI proxy for the CFLB unless one is stated, and the assumptions in the guide.',
   'The published 2015 and 2018 figures came from other inventories, and 2018 used the revised 2017 guidance.',
   'The planning index ranks options for discussion; it is not a legal test.',
+  '“On this ground” lists the instruments DataBC maps on a block and what each can reach, as read from the provisions it cites; it is a screen, never a legal determination, and an instrument that is not mapped can still apply.',
 ]
 
 function review(cases: ReviewCase | undefined, library: Pack[]) {
@@ -121,6 +135,7 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
         assessment: current ? review(record.review, library) : null,
       }
     }),
+    groundReads: (plan.groundReads ?? []).map((read) => groundRecord(plan, read)),
     pathways: pathways(plan, orderKey ? order?.sets[orderKey] : undefined, result),
     planningIndex: { notALegalTest: true, formula: indexFormula(weights), ...planningIndex(plan, result, weights) },
     boardCheck: plan.checks?.board ? { current: boardCheckCurrent(plan), ...plan.checks.board } : null,
@@ -150,6 +165,91 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
       : null,
     limitations: LIMITATIONS,
   }
+}
+
+/** A ground read for the record: the read, whether it is current, and the catalogue's reach for what it found. */
+function groundRecord(plan: Plan, read: GroundRead) {
+  const block = plan.blocks.find((b) => b.id === read.block)
+  return {
+    ...read,
+    current: groundReadCurrent(plan, read),
+    screenOnly: true,
+    catalogueRead: GROUND_CATALOGUE.readOn,
+    reach: read.instruments
+      .filter((r) => r.features.length)
+      .map((r) => {
+        const x = groundInstrument(r.instrument)
+        if (!x) return { instrument: r.instrument, inCatalogue: false }
+        return {
+          instrument: x.id,
+          label: x.label,
+          statute: x.statute,
+          binds: x.binds,
+          reach: x.reach,
+          terms: x.terms,
+          facts: x.facts,
+          precedent: read.precedent ? precedentSummary(read.precedent, x.id) : 'Not read',
+        }
+      }),
+    requests: documentRequests(read, block?.name ?? read.block),
+  }
+}
+
+/** Where each layer without a date keeps one, printed once under the precedent. */
+function undated(layers: string[]) {
+  const notes = [...new Set(layers)].flatMap((id) => {
+    const l = groundLayer(id)
+    return l && !l.date && l.dateNote ? [l.dateNote] : []
+  })
+  return notes.length ? `<p class="note">${escape(notes.join(' '))}</p>` : ''
+}
+
+/** A ground read as it prints: the matrix with each cell's provisions, what was not read, the precedent and the requests. */
+function groundHtml(plan: Plan, read: GroundRead, names: Record<string, string>) {
+  const cell = (c: unknown) => `<td>${escape(c)}</td>`
+  const block = plan.blocks.find((b) => b.id === read.block)
+  const shape = block?.shapes.find((s) => s.id === read.shape)
+  const found = read.instruments.flatMap((r) => {
+    const x = groundInstrument(r.instrument)
+    return x && r.features.length ? [{ r, x }] : []
+  })
+  const label = (id: string) => groundInstrument(id)?.label ?? id
+  const failed = read.instruments.filter((r) => r.status === 'failed')
+  const empty = read.instruments.filter((r) => r.status !== 'failed' && !r.features.length)
+  const requests = documentRequests(read, block?.name ?? read.block)
+  const share = (v: number) => (read.footprintHa > 0 ? (v / read.footprintHa) * 100 : 0).toFixed(1)
+  return `<h3>${escape(names[read.schedule] ?? read.schedule)} · ${escape(block?.name ?? read.block)} · ${escape(shape?.name ?? read.shape)} · read ${escape(read.readOn)}</h3>
+${groundReadCurrent(plan, read) ? '' : '<p class="warn">The block shape changed since this read. Read it again before relying on it.</p>'}
+<p class="note">DataBC layers read against the ${read.footprintHa.toFixed(2)} ha footprint, each cell from the provisions it cites (catalogue ${escape(read.catalogue)}). A screen, never a legal determination: it decides no fact, and an instrument that is not mapped can still apply.</p>
+${
+  found.length
+    ? `<table><thead><tr><th>Instrument</th><th>On the block</th>${ACTIVITIES.map((a) => `<th>${ACTIVITY_LABELS[a]}</th>`).join('')}<th>Binds</th><th>Terms public</th></tr></thead><tbody>
+${found
+  .map(
+    ({ r, x }) =>
+      `<tr>${cell(`${x.label}: ${r.features.map((f) => f.id).join(', ')}`)}${cell(`${r.coveredHa.toFixed(2)} ha · ${share(r.coveredHa)}%`)}${ACTIVITIES.map((a) => cell(`${REACH_LABELS[x.reach[a].state]}. ${x.reach[a].note} (${citesText(x.reach[a].cites)})`)).join('')}${cell(`${BINDS_LABELS[x.binds.kind]} (${citesText(x.binds.cites)})`)}${cell(x.terms.public ? 'Yes' : `No: ${x.terms.where}`)}</tr>`,
+  )
+  .join('\n')}
+</tbody></table>`
+    : '<p>None of the instruments read is mapped on this footprint.</p>'
+}
+${failedByReason(failed)
+  .map(({ reason, ids }) => `<p class="warn">Not read: ${escape(ids.map(label).join(', '))}. ${escape(reason)}</p>`)
+  .join('\n')}
+${empty.length ? `<p class="note">Read, nothing mapped on the footprint: ${escape(empty.map((r) => label(r.instrument)).join(', '))}.</p>` : ''}
+${
+  found.length && read.precedent
+    ? `<h4>Precedent within ${read.precedent.radiusM / 1000} km (RESULTS)</h4>
+<ul>${found.map(({ x }) => `<li><strong>${escape(x.label)}</strong>: ${escape(precedentSummary(read.precedent!, x.id))}</li>`).join('')}</ul>
+${undated(found.map(({ x }) => x.layer))}`
+    : ''
+}
+${
+  requests.length
+    ? `<h4>Documents to request</h4>
+<ul>${requests.map((q) => `<li><strong>${escape(q.label)}</strong> (${escape(q.identifiers.join('; '))}): ${escape(`ask ${q.holder}, through ${q.channel}`)}.</li>`).join('')}</ul>`
+    : ''
+}`
 }
 
 export function blocksGeoJson(plan: Plan): FeatureCollection {
@@ -320,6 +420,10 @@ ${(old.pool ?? [{ district: old.district, unit: old.unit, calibration2019: old.c
 <ul>${p.steps.map((s) => `<li><strong>${escape(s.label)}</strong> (${escape(s.state)}): ${escape(s.detail)}</li>`).join('')}</ul>`,
     )
     .join('\n')
+  const groundSection = (plan.groundReads ?? []).length
+    ? `<h2>On this ground</h2>
+${(plan.groundReads ?? []).map((read) => groundHtml(plan, read, names)).join('\n')}`
+    : ''
   const index = record.planningIndex
   const rangeHtml = record.rangeReviews.length
     ? `<h2>Crown grazing and reforestation</h2>
@@ -363,6 +467,7 @@ ${published}
 ${boardHtml}
 ${oldHtml}
 ${rangeHtml}
+${groundSection}
 <h2>D.5 pathways</h2>
 <p class="note">Trend measured over ${trendYear - 5}–${trendYear} for the schedule under review.</p>
 ${pathwayHtml}
