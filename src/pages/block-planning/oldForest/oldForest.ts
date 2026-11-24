@@ -490,3 +490,22 @@ export function joinShapes(shapes: Shape[]): Shape {
   if (out.type !== 'Polygon' && out.type !== 'MultiPolygon') throw Error('The unit’s polygons did not form an area.')
   return out
 }
+
+/**
+ * How much of a footprint each of `others` covers, in BC Albers hectares, through the same
+ * projection and overlays as the calculation; `coveredHa` dissolves the overlaps, so ground two of
+ * them share is counted once. Used for the grazing review's mapped evidence.
+ */
+export function overlapsWith(
+  footprint: Shape,
+  others: Shape[],
+): { footprintHa: number; eachHa: number[]; coveredHa: number } {
+  const base = toAlbers(footprint)
+  const pieces = others.map((g) => intersection(base, toAlbers(g)))
+  const covered = manyUnion(pieces.filter((g): g is Geometry => g !== null))
+  return {
+    footprintHa: area(base) / SQ_M_PER_HA,
+    eachHa: pieces.map((g) => area(g) / SQ_M_PER_HA),
+    coveredHa: area(covered) / SQ_M_PER_HA,
+  }
+}

@@ -11,6 +11,7 @@ import { saveRangeReview } from '../edits'
 import { periodYears, type Plan, type RangeReview, type ReviewCase } from '../plan'
 import { extraPacks } from '../review/caseEdits'
 import { CaseReview, useLibrary } from '../review/CaseReview'
+import { GrazingEvidence } from '../review/GrazingEvidence'
 import { PathwayCard } from '../review/PathwayCard'
 import { measuredTrend, pathways, trendYearOf } from '../review/pathways'
 import { RANGE_INSTRUMENT, rangeReviewCurrent, rangeReviewFor } from '../review/rangeReview'
@@ -172,6 +173,7 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
               }}
             />
           </FormField>
+          <GrazingEvidence plan={plan} edit={edit} block={block} schedule={grazing.record.schedule} library={library} />
           <CaseReview
             library={library}
             instruments={[RANGE_INSTRUMENT]}
