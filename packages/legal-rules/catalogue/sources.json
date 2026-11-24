@@ -230,6 +230,136 @@
       "consolidationCurrentTo": "2026-11-17",
       "sourceStatus": "identified",
       "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.uwr.u-7-002",
+      "title": "Order, Ungulate winter range U7-002, mule deer, Fort St. James",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_002.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2003-06-19",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-003",
+      "title": "Order, Ungulate winter range U-7-003, mountain caribou, Upper Fraser, Hart Ranges and Mount Robson",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-003_order_09Dec09.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2009-12-09",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-009",
+      "title": "Order, Ungulate winter range U-7-009, northern caribou, Mackenzie TSA",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_009.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2005-11-24",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-010",
+      "title": "Order, Ungulate winter range U7-010, mule deer, Robson Valley TSA",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_010.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2006-03-30",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-013",
+      "title": "Order, Ungulate winter range U7-013, mule deer, Prince George",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_013.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2003-11-26",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-015",
+      "title": "Order, Ungulate winter range U7-015, woodland (northern) caribou, Fort St. James",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_015.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2005-12-13",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.omineca-moose-2022",
+      "title": "Order, Ungulate winter ranges u-7-018, u-7-020, u-7-022, u-7-024 and u-7-027, moose",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7-018_u7-020_u7-022_u7-024_u7-027.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2022-03-30",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-019",
+      "title": "Order, Ungulate winter range U-7-019, mountain goat, Fort St. James",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-019_Order.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2010-05-25",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.wha.7-001",
+      "title": "Order, Wildlife habitat area 7-001 (Tl'o Ba), grizzly bear",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/URAR_7-001_ord.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2020-12-08",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.wha.7-002",
+      "title": "Order, Wildlife habitat area 7-002 (Tl'o Ba), grizzly bear",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/URAR_7-002_ord.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2020-12-08",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.wha.7-003",
+      "title": "Order, Wildlife habitat area 7-003 (Narrow Lake), mountain caribou",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_7-003_ord.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2005-12-13",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.wha.caribou-2021-07",
+      "title": "Order, Wildlife habitat areas 7-016, 7-019 to 7-022, 7-024 to 7-044 and 7-061, caribou",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_7-016_various_to_7-061.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2021-07-21",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.wha.caribou-2021-04",
+      "title": "Order, Wildlife habitat areas 7-023, 7-045 to 7-056, 7-059 and 7-060, caribou",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_7-023_various_to_7-060.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2021-04-20",
+      "supersessionStatus": "unverified_for_site"
     }
   ]
 }

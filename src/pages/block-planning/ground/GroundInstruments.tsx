@@ -8,7 +8,6 @@ import {
   ACTIVITIES,
   ACTIVITY_LABELS,
   BINDS_LABELS,
-  citesText,
   groundInstrument,
   groundLayer,
   REACH_LABELS,
@@ -29,6 +28,7 @@ import {
   type GroundRead,
 } from './record'
 import { documentRequests } from './requests'
+import { exceptionsToRequest, wildlifeCitesText, wildlifeRows, withheldRequests } from './wildlifeMeasures'
 
 type State = { status: 'idle' } | { status: 'reading'; stage: string } | { status: 'failed'; error: string }
 
@@ -41,7 +41,7 @@ function Cell({ cell, what }: { cell: ReachCell; what: string }) {
     <InfoTip label={REACH_LABELS[cell.state]} showLabel bubbleClassName="w-80">
       <span className="block font-medium">{what}</span>
       <span className="block">{cell.note}</span>
-      <span className="mt-1 block text-muted-foreground">Rests on: {citesText(cell.cites)}</span>
+      <span className="mt-1 block text-muted-foreground">Rests on: {wildlifeCitesText(cell.cites)}</span>
     </InfoTip>
   )
 }
@@ -119,7 +119,34 @@ export function GroundInstruments({
   const failed = (read?.instruments ?? []).filter((r) => r.status === 'failed')
   const truncated = (read?.instruments ?? []).filter((r) => r.status === 'truncated')
   const label = (id: string) => groundInstrument(id)?.label ?? id
-  const requests = read ? documentRequests(read, block.name) : []
+  const requests = read
+    ? [...documentRequests(read, block.name), ...withheldRequests(read, groundInstrument, block.name)]
+    : []
+  const exceptions = read ? exceptionsToRequest(read, groundInstrument) : []
+  // A range or habitat area whose order was read answers from the order, one row per order and answer.
+  const matrix = found.flatMap((r) => {
+    const own = wildlifeRows(r.instrument, r.read)
+    const share = (v: number) => (read && read.footprintHa > 0 ? (v / read.footprintHa) * 100 : 0)
+    if (!own)
+      return [
+        {
+          key: r.instrument.id,
+          instrument: r.instrument,
+          title: r.instrument.label,
+          sub: `${ha(r.read.coveredHa)} ha · ${share(r.read.coveredHa).toFixed(1)}% of the block`,
+          reach: r.instrument.reach,
+          binds: r.instrument.binds,
+        },
+      ]
+    return own.map((w) => ({
+      key: w.key,
+      instrument: r.instrument,
+      title: `${r.instrument.label} · ${w.label}`,
+      sub: `${w.features.map((f) => f.id).join(', ')} · ${ha(w.overlapHa)} ha · ${share(w.overlapHa).toFixed(1)}% of the block${w.status === 'read' ? ' · order read' : ''}`,
+      reach: w.reach,
+      binds: w.binds,
+    }))
+  })
   const precedent = read?.precedent
   const inside = (openingId: number) =>
     (precedent?.rows ?? []).filter((r) => r.openings.includes(openingId)).map((r) => label(r.instrument))
@@ -165,35 +192,31 @@ export function GroundInstruments({
           {found.length ? (
             <CalculationTable
               caption={`What each instrument can reach · read ${read.readOn} · ${ha(read.footprintHa)} ha footprint`}
-              rows={found}
-              rowKey={(r) => r.instrument.id}
+              rows={matrix}
+              rowKey={(r) => r.key}
               columns={[
                 {
                   label: 'Instrument',
                   render: (r) => (
                     <>
-                      <span className="block">{r.instrument.label}</span>
-                      <span className="block font-normal text-muted-foreground">
-                        {ha(r.read.coveredHa)} ha ·{' '}
-                        {(read.footprintHa > 0 ? (r.read.coveredHa / read.footprintHa) * 100 : 0).toFixed(1)}% of the
-                        block
-                      </span>
+                      <span className="block">{r.title}</span>
+                      <span className="block font-normal text-muted-foreground">{r.sub}</span>
                     </>
                   ),
                 },
                 ...ACTIVITIES.map((a) => ({
                   label: ACTIVITY_LABELS[a],
-                  render: (r: (typeof found)[number]) => (
-                    <Cell cell={r.instrument.reach[a]} what={`${r.instrument.label}: ${ACTIVITY_LABELS[a]}`} />
+                  render: (r: (typeof matrix)[number]) => (
+                    <Cell cell={r.reach[a]} what={`${r.title}: ${ACTIVITY_LABELS[a]}`} />
                   ),
                 })),
                 {
                   label: 'Binds',
                   render: (r) => (
-                    <InfoTip label={BINDS_LABELS[r.instrument.binds.kind]} showLabel bubbleClassName="w-80">
-                      <span className="block">{r.instrument.binds.note}</span>
+                    <InfoTip label={BINDS_LABELS[r.binds.kind]} showLabel bubbleClassName="w-80">
+                      <span className="block">{r.binds.note}</span>
                       <span className="mt-1 block text-muted-foreground">
-                        Rests on: {citesText(r.instrument.binds.cites)}
+                        Rests on: {wildlifeCitesText(r.binds.cites)}
                       </span>
                     </InfoTip>
                   ),
@@ -275,6 +298,42 @@ export function GroundInstruments({
                     {r.holder} · {r.channel}
                   </p>
                   <pre className="whitespace-pre-wrap break-words font-sans text-2xs">{r.text}</pre>
+                </div>
+              ))}
+            </div>
+          )}
+          {exceptions.length > 0 && (
+            <div className="space-y-2" data-testid="block-planning-ground-exceptions">
+              <p className="text-xs font-medium">Exceptions the wildlife orders provide</p>
+              <p className="text-2xs text-muted-foreground">
+                What each order read here says may proceed, or may be approved, despite its measures, and who decides.
+                Listed so the reviewer can see what to ask for; nothing here says an exception applies or would be
+                granted.
+              </p>
+              {exceptions.map((x) => (
+                <div key={x.order.id} className="space-y-1 rounded-md border p-2 text-xs">
+                  <p className="font-medium">
+                    {x.order.title} ·{' '}
+                    <a className="underline" href={x.order.url} target="_blank" rel="noreferrer">
+                      the order
+                    </a>
+                  </p>
+                  <p className="text-2xs text-muted-foreground">On the block: {x.units.join(', ')}</p>
+                  {x.clauses.length ? (
+                    <ul className="list-disc space-y-1 pl-4">
+                      {x.clauses.map((c) => (
+                        <li key={c.ref}>
+                          <span className="font-medium">{c.ref}</span>
+                          {c.inOrder ? '' : ' (guidance, not part of the order)'}: {c.says} “{c.quote}” Decides: {c.by}.
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>The order states no exception or approval of its own.</p>
+                  )}
+                  <p className="text-2xs text-muted-foreground">
+                    {x.route.text} ({wildlifeCitesText(x.route.cites)})
+                  </p>
                 </div>
               ))}
             </div>

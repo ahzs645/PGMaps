@@ -1728,7 +1728,7 @@
         "public": true,
         "where": "The order establishing the winter range and its general wildlife measures, given notice in the Gazette",
         "holder": "Ministry of Water, Land and Resource Stewardship",
-        "channel": "The ministry's ungulate winter range orders, by the UWR number",
+        "channel": "The ministry's approved ungulate winter range orders (https://www.env.gov.bc.ca/wld/frpa/uwr/approved_uwr.html), by the UWR number",
         "ask": "The order and its general wildlife measures for the unit"
       },
       "facts": []
@@ -1815,7 +1815,7 @@
         "public": true,
         "where": "The order establishing the winter range and its general wildlife measures, given notice in the Gazette",
         "holder": "Ministry of Water, Land and Resource Stewardship",
-        "channel": "The ministry's ungulate winter range orders, by the UWR number",
+        "channel": "The ministry's approved ungulate winter range orders (https://www.env.gov.bc.ca/wld/frpa/uwr/approved_uwr.html), by the UWR number",
         "ask": "The order and its general wildlife measures for the unit"
       },
       "facts": []
@@ -1902,7 +1902,7 @@
         "public": true,
         "where": "The order establishing the winter range and its general wildlife measures, given notice in the Gazette",
         "holder": "Ministry of Water, Land and Resource Stewardship",
-        "channel": "The ministry's ungulate winter range orders, by the UWR number",
+        "channel": "The ministry's approved ungulate winter range orders (https://www.env.gov.bc.ca/wld/frpa/uwr/approved_uwr.html), by the UWR number",
         "ask": "The order and its general wildlife measures for the unit"
       },
       "facts": []
@@ -1989,7 +1989,7 @@
         "public": true,
         "where": "The order establishing the habitat area and its general wildlife measures, given notice in the Gazette",
         "holder": "Ministry of Water, Land and Resource Stewardship",
-        "channel": "The ministry's wildlife habitat area orders, by the WHA tag",
+        "channel": "The ministry's approved wildlife habitat area orders (https://www.env.gov.bc.ca/wld/frpa/iwms/wha.html), by the WHA tag",
         "ask": "The order and its general wildlife measures for the area"
       },
       "facts": []
@@ -2076,7 +2076,7 @@
         "public": true,
         "where": "The order establishing the habitat area and its general wildlife measures, given notice in the Gazette",
         "holder": "Ministry of Water, Land and Resource Stewardship",
-        "channel": "The ministry's wildlife habitat area orders, by the WHA tag",
+        "channel": "The ministry's approved wildlife habitat area orders (https://www.env.gov.bc.ca/wld/frpa/iwms/wha.html), by the WHA tag",
         "ask": "The order and its general wildlife measures for the area"
       },
       "facts": []
@@ -2163,7 +2163,7 @@
         "public": true,
         "where": "The order establishing the habitat area and its general wildlife measures, given notice in the Gazette",
         "holder": "Ministry of Water, Land and Resource Stewardship",
-        "channel": "The ministry's wildlife habitat area orders, by the WHA tag",
+        "channel": "The ministry's approved wildlife habitat area orders (https://www.env.gov.bc.ca/wld/frpa/iwms/wha.html), by the WHA tag",
         "ask": "The order and its general wildlife measures for the area"
       },
       "facts": []
