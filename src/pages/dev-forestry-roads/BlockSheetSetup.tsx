@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ComponentProps } from 'react'
 import { Link } from 'react-router-dom'
 import { readLogoFile } from '@/branding/logoFile'
 import { saveUploadedLogo } from '@/branding/store'
@@ -7,7 +7,7 @@ import { MapSheetOutput } from '@/components/ui/map-sheet-output'
 import { SelectField } from '@/components/ui/form-field'
 import { LayerList, type LayerListGroup } from '@/components/ui/layer-list'
 import { SheetSymbolSwatch } from '@/components/ui/sheet-symbol-swatch'
-import { MapSheetSetup, type MapSheetField } from '@/components/ui/map-sheet-setup'
+import { MapSheetSetup } from '@/components/ui/map-sheet-setup'
 import { blockFacts } from '@/lib/forestry/blockSheet/blockFacts'
 import {
   SHEET_LAYER_GROUPS,
@@ -95,6 +95,34 @@ function sheetLayerGroups(counts: ReturnType<typeof sheetLayerCounts>, drawsCont
   }))
 }
 
+/**
+ * The setup form with the chosen block's facts (its map sheet, gross area and elevation range). The
+ * facts sample the terrain over the block, so they are worked out only while the form is shown, never
+ * as the page loads; the sheet itself works them out again as it is written (`buildSheet`).
+ */
+function BlockSheetSetupForm({
+  kind,
+  choice,
+  terrain,
+  spacingM,
+  ...form
+}: Omit<ComponentProps<typeof MapSheetSetup>, 'fields'> & {
+  kind: SheetKind
+  choice: ReturnType<typeof blockChoices>[number] | undefined
+  terrain: TerrainSource | null
+  spacingM: number
+}) {
+  const facts = useMemo(() => {
+    if (!choice) return null
+    try {
+      return blockFacts(choice.geometry, terrain ? { source: terrain, spacingM } : undefined)
+    } catch {
+      return null
+    }
+  }, [choice, terrain, spacingM])
+  return <MapSheetSetup {...form} fields={sheetSetupFields(kind, facts)} />
+}
+
 function stored(): BlockSheetSettings {
   try {
     const text = window.localStorage.getItem(STORAGE_KEY)
@@ -154,18 +182,6 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
   // A stored block that is not in this project falls back to the first one.
   const block = blocks.some((entry) => entry.value === settings.block) ? settings.block : (blocks[0]?.value ?? '')
   const effective = useMemo(() => ({ ...settings, block }), [settings, block])
-  const facts = useMemo(() => {
-    const choice = blocks.find((entry) => entry.value === block)
-    if (!choice) return null
-    try {
-      return blockFacts(
-        choice.geometry,
-        terrain ? { source: terrain, spacingM: Math.max(1, project.terrain.resolutionM) } : undefined,
-      )
-    } catch {
-      return null
-    }
-  }, [blocks, block, terrain, project.terrain.resolutionM])
   const preset = SHEET_PRESETS[effective.kind]
   const layerCounts = useMemo(() => sheetLayerCounts(blockSheetLayers(project, new Map(), block)), [project, block])
   const hidden = new Set(effective.hiddenLayers)
@@ -173,7 +189,6 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
   const visibility = Object.fromEntries(
     layerGroups.flatMap((group) => group.items.map((item) => [item.id, !hidden.has(item.id as SheetLayerId)])),
   )
-  const fields: MapSheetField[] = sheetSetupFields(effective.kind, facts)
   const chooseLogo = (file: File | null) => {
     setLogoError('')
     const saving = file ? readLogoFile(file).then(saveUploadedLogo) : saveUploadedLogo(null)
@@ -193,7 +208,11 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
   const ownName = base === 'canopy-height' ? 'the canopy surface' : `the terrain (${project.terrain.name})`
   const setup = (
     <div className="grid gap-2">
-      <MapSheetSetup
+      <BlockSheetSetupForm
+        kind={effective.kind}
+        choice={blocks.find((entry) => entry.value === block)}
+        terrain={terrain}
+        spacingM={Math.max(1, project.terrain.resolutionM)}
         value={{ ...effective, fields: effective.fields as Record<string, string> }}
         onChange={(value) =>
           setSettings(
@@ -213,7 +232,6 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
         }
         area={block}
         onArea={(value) => setSettings({ ...effective, block: value })}
-        fields={fields}
         styles={SHEET_SYMBOL_CHOICES}
         style={effective.symbols}
         onStyle={(value) => setSettings({ ...effective, symbols: value === 'library' ? 'library' : 'pgmaps' })}

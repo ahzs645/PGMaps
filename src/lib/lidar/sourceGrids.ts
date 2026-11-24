@@ -12,37 +12,37 @@ export interface SourceGrid {
   noData: number | null
 }
 const cache = new Map<string, Promise<SourceGrid>>()
+
+/** `fetchSourceGrid` in a worker, or on this thread where there are no workers (unit tests). */
+function readInWorker(url: string, name: string, hash: string): Promise<SourceGrid> {
+  if (typeof Worker === 'undefined')
+    return import('./sourceGridRead').then((read) => read.fetchSourceGrid(url, name, hash))
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./sourceGrid.worker.ts', import.meta.url), { type: 'module' })
+    worker.onerror = () => {
+      worker.terminate()
+      reject(Error(`Source raster could not be read in this browser: ${name}`))
+    }
+    worker.onmessage = ({ data }: MessageEvent<{ grid?: SourceGrid; error?: string }>) => {
+      worker.terminate()
+      if (data.grid) resolve(data.grid)
+      else reject(Error(data.error ?? `Source raster unavailable: ${name}`))
+    }
+    worker.postMessage({ url, name, hash })
+  })
+}
+
+/**
+ * The published grid `name` below `base`, checked against `hash`. Fetched, checked and decoded in a
+ * worker (`sourceGrid.worker.ts`), once per address and hash.
+ */
 export function readSourceGrid(base: string, name: string, hash: string): Promise<SourceGrid> {
   const url = new URL(name, base).href,
     key = url + hash
   if (!cache.has(key))
     cache.set(
       key,
-      (async () => {
-        const response = await fetch(url)
-        if (!response.ok) throw Error(`Source raster unavailable: ${name}`)
-        const bytes = await response.arrayBuffer()
-        const actual = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
-          b.toString(16).padStart(2, '0'),
-        ).join('')
-        if (actual !== hash) throw Error(`Source raster hash mismatch: ${name}`)
-        const { fromArrayBuffer } = await import('geotiff'),
-          image = await (await fromArrayBuffer(bytes)).getImage()
-        if (image.getGeoKeys().ProjectedCSTypeGeoKey !== 3157 || image.getSamplesPerPixel() !== 1)
-          throw Error('Unsupported source grid')
-        const size = image.getResolution()
-        if (Math.abs(size[0] - 1) > 1e-8 || Math.abs(size[1] + 1) > 1e-8)
-          throw Error('Expected north-up 1 m source grid')
-        const values = await image.readRasters({ samples: [0], interleave: true })
-        return {
-          width: image.getWidth(),
-          height: image.getHeight(),
-          bounds: image.getBoundingBox(),
-          resolution: 1,
-          values: new Float32Array(values as ArrayLike<number>),
-          noData: image.getGDALNoData(),
-        }
-      })().catch((error) => {
+      readInWorker(url, name, hash).catch((error) => {
         cache.delete(key)
         throw error
       }),

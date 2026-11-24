@@ -160,7 +160,8 @@ import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import type { Map as MapLibreMap } from 'maplibre-gl'
-import { FilesDialog, type FilesSaveAs, type RoadExport } from './dev-forestry-roads/FilesDialog'
+import type { FilesSaveAs, RoadExport } from './dev-forestry-roads/FilesDialog'
+import { StoredFilesDialog, useFilesDialogState, useFilesDialogStore } from './dev-forestry-roads/filesDialogStore'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import {
   blockSheetWrites,
@@ -528,6 +529,22 @@ const STARTING_JOB_STANDARDS = startingJobStandards(
   DEFAULT_TEMPLATE.leftWidth + DEFAULT_TEMPLATE.rightWidth,
 )
 
+/**
+ * The connected views while startup decides which project opens (`useRoadWorkspace`'s `opening`):
+ * nothing is drawn, so the plan neither builds the stand-in's terrain nor loads map tiles for it.
+ */
+function RoadViewsOpening() {
+  return (
+    <div
+      className="grid min-h-0 flex-1 place-items-center rounded-lg border bg-card text-sm text-muted-foreground"
+      aria-busy="true"
+      data-testid="road-views-opening"
+    >
+      Opening the road workspace…
+    </div>
+  )
+}
+
 /** A map graphics failure leaves the other design views and the project mounted. */
 function RecoverablePlanView(props: ComponentProps<typeof PlanView>) {
   return (
@@ -537,8 +554,15 @@ function RecoverablePlanView(props: ComponentProps<typeof PlanView>) {
   )
 }
 
+/**
+ * The sidebar, mounted once startup has decided which project opens (`useRoadWorkspace`'s `opening`):
+ * the stand-in's controls would only flash before the saved project replaced them.
+ */
+function OpenedSidebar(props: ComponentProps<typeof DesignSidebar>) {
+  return props.workspace.opening ? null : <DesignSidebar {...props} />
+}
 /** The sidebar skips the page's renders that change only the station (a hover along the road); see roadStation.tsx. */
-const StationIndependentSidebar = memoWithLatestHandlers(DesignSidebar, { bags: ['workspace'] })
+const StationIndependentSidebar = memoWithLatestHandlers(OpenedSidebar, { bags: ['workspace'] })
 
 /** The ribbon's icon for each drawing mode, on the drawing card. */
 const DRAW_MODE_ICONS: Partial<Record<DrawMode, LucideIcon>> = {
@@ -808,7 +832,8 @@ export default function DevForestryRoads({
   const [layerImportFiles, setLayerImportFiles] = useState<SpatialFile[] | null>(null)
   const [layerToDelete, setLayerToDelete] = useState<{ key: string; name: string } | null>(null)
   const [hiddenReference, setHiddenReference] = useState<{ opened: number; keys: string[] }>({ opened: -1, keys: [] })
-  const defaultHiddenLayers = defaultHiddenReferenceLayers(project)
+  // Kept by identity: a new array each render re-filtered the plan's context and re-sent every map source.
+  const defaultHiddenLayers = useMemo(() => defaultHiddenReferenceLayers(project), [project])
   const hiddenLayerKeys = hiddenReference.opened === w.openedCount ? hiddenReference.keys : defaultHiddenLayers
   const changeLayerVisibility = (keys: readonly string[], visible: boolean) =>
     setHiddenReference((previous) => {
@@ -1077,8 +1102,10 @@ export default function DevForestryRoads({
     [setStation],
   )
   const [costOpen, setCostOpen] = useState(false)
-  const [exportOutput, setExportOutput] = useState<RoadExport | null>(null)
-  const [filesSelected, setFilesSelected] = useState<RoadExport>('project')
+  // Save & export's open output lives in a store: opening or switching outputs renders the dialog, not the page.
+  const filesDialog = useFilesDialogStore()
+  // Followed only while a live lesson reads it.
+  const filesDialogState = useFilesDialogState(filesDialog, !!tourLaunch)
   const [projectsOpen, setProjectsOpen] = useState(false)
   const [completeCostOpen, setCompleteCostOpen] = useState(false)
   const [networkOpen, setNetworkOpen] = useState(false)
@@ -1115,7 +1142,7 @@ export default function DevForestryRoads({
     setControlsOpen(true)
     setFocusPane('plan')
     setCostOpen(false)
-    setExportOutput(null)
+    filesDialog.close()
     setCompleteCostOpen(false)
     setNetworkOpen(false)
     setTemplatePreview(null)
@@ -1129,7 +1156,7 @@ export default function DevForestryRoads({
     setSelectedCulvertId(undefined)
     setProfileRange(null)
     setFitRevision((revision) => revision + 1)
-  }, [investigation, w.projectId, setCollapsed, setControlsOpen, setFocusPane])
+  }, [investigation, w.projectId, setCollapsed, setControlsOpen, setFocusPane, filesDialog])
   const [roadReviewRequest, setRoadReviewRequest] = useState<{ id?: string; sequence: number }>()
   // Opening the comparison is not an edit: the dialog shows the defaults and writes them only when one is changed.
   const openCompleteCosts = () => setCompleteCostOpen(true)
@@ -1158,8 +1185,6 @@ export default function DevForestryRoads({
   // The preliminary estimate is a project document too, and shares the package's choice.
   const scopeFor = (kind: RoadExport) =>
     kind === 'report-package' || kind === 'estimate-pdf' ? packageScope : roadScope
-  // Read when Save & export opens: the date its documents print while no date of issue is entered.
-  const [exportDay, setExportDay] = useState('')
   const [newProjectRequest, setNewProjectRequest] = useState(0)
   const planMap = useRef<MapLibreMap | null>(null)
   const pendingLocate = useRef<Coordinate[] | null>(null)
@@ -1252,7 +1277,8 @@ export default function DevForestryRoads({
   /** A file picked while the workspace was busy, opened as soon as it is free. */
   const pendingFiles = useRef<{ files: File[]; kind: FileKind } | null>(null)
   const operation = useRef<AbortController | null>(null)
-  useDocumentTitle(`${w.project.name} · Forest road design · PGMaps`)
+  // The stand-in shown while startup decides (`w.opening`) is never named as the open project.
+  useDocumentTitle(w.opening ? 'Forest road design · PGMaps' : `${w.project.name} · Forest road design · PGMaps`)
   const themeModeItems = useThemeModeItems()
   useEffect(() => () => operation.current?.abort(), [])
 
@@ -5591,9 +5617,8 @@ export default function DevForestryRoads({
     ]
   }
   function openExport(kind: RoadExport) {
-    setExportDay(isoDate(new Date()))
-    setExportOutput(kind)
-    setFilesSelected(kind)
+    // The day read on opening is the date its documents print while no date of issue is entered.
+    filesDialog.open(kind, isoDate(new Date()))
   }
   function openNewProject() {
     w.dismissExampleStart()
@@ -5623,7 +5648,8 @@ export default function DevForestryRoads({
   }
   const toolbar = investigation && active.toolbar?.header !== 'controls' ? undefined : ribbonPreferences.toolbar
   const noRoad = awaitingFirstRoad(project)
-  const summaryAvailable = !investigation && !noRoad
+  // Nothing is summarised for the stand-in shown while the saved project opens (`w.opening`).
+  const summaryAvailable = !investigation && !noRoad && !w.opening
   const summaryTab = toolbar?.groups.find(
     (group) =>
       group.commands?.includes('summarySettings') ||
@@ -5871,7 +5897,7 @@ export default function DevForestryRoads({
       if (!preset.startsWith('saved:')) restorePreset(next.base)
       if (next.base !== 'linked') setDetail('section')
     },
-    setFilesOutput: (kind) => setFilesSelected(kind as RoadExport),
+    setFilesOutput: (kind) => filesDialog.select(kind as RoadExport),
     // Save & export's Save, without the download: Watch keeps the project file for the next step.
     saveFile: async (kind) => {
       const file = await exportFile(kind as Parameters<typeof exportFile>[0])
@@ -5883,7 +5909,7 @@ export default function DevForestryRoads({
       w.setNotice(`${file.filename} prepared for the lesson (Watch does not download it).`)
     },
     closeDialog: () => {
-      setExportOutput(null)
+      filesDialog.close()
       setChoosingInterface(false)
     },
     // Open's path for the copy Watch saved, kept in the training session (no library slot).
@@ -6168,7 +6194,11 @@ export default function DevForestryRoads({
     },
   ]
   const projectNameControl = (
-    <ProjectName name={project.name} disabled={!!busy} onRename={(name) => update((p) => ({ ...p, name }))} />
+    <ProjectName
+      name={w.opening ? 'Opening…' : project.name}
+      disabled={!!busy}
+      onRename={(name) => update((p) => ({ ...p, name }))}
+    />
   )
   const projectStatus = (
     <HeaderStatus notice={w.notice} idle={w.ready && <SaveStateLine browser={w.browserSave} file={w.fileSave} />} />
@@ -6238,13 +6268,14 @@ export default function DevForestryRoads({
       </div>
     ),
     // The road's name is its own field beside this one, so a lone road says so rather than repeating it.
-    roadSelector: investigation ? null : project.alignments.length >= 2 ? (
-      roadSwitcher
-    ) : (
-      <span className="lp-ribbon-note">
-        {awaitingFirstRoad(project) ? 'No road yet' : 'The only road in this project'}
-      </span>
-    ),
+    roadSelector:
+      investigation || w.opening ? null : project.alignments.length >= 2 ? (
+        roadSwitcher
+      ) : (
+        <span className="lp-ribbon-note">
+          {awaitingFirstRoad(project) ? 'No road yet' : 'The only road in this project'}
+        </span>
+      ),
     presets: investigation ? null : presetPicker,
     terrainDisplay: <TerrainLayerSelect value={planDisplay.terrainLayer} onChange={planDisplay.setTerrainLayer} />,
     terrainSource: (
@@ -6300,7 +6331,7 @@ export default function DevForestryRoads({
   const headerFlags = (
     <>
       {/* Only a warning earns header space: imported LiDAR or DEM terrain is listed in the Terrain tab. */}
-      {project.terrain.kind !== 'geotiff' && (
+      {!w.opening && project.terrain.kind !== 'geotiff' && (
         <span
           title={planningBasis}
           data-testid="road-planning-basis"
@@ -6392,7 +6423,7 @@ export default function DevForestryRoads({
       status={projectStatus}
       flags={headerFlags}
       // Only with a second road to switch to: one road leaves the path at the project's name.
-      crumb={!investigation && project.alignments.length >= 2 && roadSwitcher}
+      crumb={!investigation && !w.opening && project.alignments.length >= 2 && roadSwitcher}
       help={workflowHelp}
       projectInfo={
         <>
@@ -6603,14 +6634,9 @@ export default function DevForestryRoads({
         }}
         onReviewRoads={openRoadReview}
       />
-      <FilesDialog
-        open={!investigation && exportOutput !== null}
-        initialOutput={exportOutput ?? 'project'}
-        selected={filesSelected}
-        onSelectedChange={setFilesSelected}
-        onOpenChange={(open) => {
-          if (!open) setExportOutput(null)
-        }}
+      <StoredFilesDialog
+        store={filesDialog}
+        available={!investigation}
         name={project.name}
         onName={(name) => update((p) => ({ ...p, name }))}
         onSave={save}
@@ -6620,7 +6646,6 @@ export default function DevForestryRoads({
         slopeSheet={(project.reference ?? []).some((feature) => feature.classGrid?.kind === 'slope')}
         issue={project.issue}
         onIssue={(issue) => update((p) => ({ ...p, issue }))}
-        today={exportDay}
         roads={{
           count: project.alignments.filter((road) => road.id !== project.designPlaceholderId).length,
           activeName: alignment.name,
@@ -6899,8 +6924,8 @@ export default function DevForestryRoads({
               importDatum: verticalReference,
               busy: !!busy,
               layoutPreset: layoutSelection,
-              dialog: choosingInterface ? 'interface' : exportOutput !== null ? 'files' : null,
-              filesOutput: filesSelected,
+              dialog: choosingInterface ? 'interface' : filesDialogState.output !== null ? 'files' : null,
+              filesOutput: filesDialogState.selected,
               fileSaved: !!w.fileSave,
               lastExport,
               openedFromFile,
@@ -7245,9 +7270,12 @@ export default function DevForestryRoads({
                       aria-label={investigation ? 'Access investigation map' : 'Connected road views'}
                     >
                       {!smallSummary && paneTabs}
-                      {!investigation && !awaitingFirstRoad(project) && !displayedAnalysis.stations.length && (
-                        <InlineAlert tone="error">{displayedAnalysis.warnings.join(' ')}</InlineAlert>
-                      )}
+                      {!investigation &&
+                        !w.opening &&
+                        !awaitingFirstRoad(project) &&
+                        !displayedAnalysis.stations.length && (
+                          <InlineAlert tone="error">{displayedAnalysis.warnings.join(' ')}</InlineAlert>
+                        )}
                       {!investigation && displayedAnalysis.stations.length > 0 && displayedAnalysis.invalidInput && (
                         <div data-testid="road-invalid-input">
                           <InlineAlert
@@ -7346,6 +7374,7 @@ export default function DevForestryRoads({
                         </div>
                       )}
                       <RoadPaneLayout
+                        holding={w.opening ? <RoadViewsOpening /> : undefined}
                         layout={layout}
                         focusedPane={focusMode ? focusedPane : undefined}
                         onFocusedPaneChange={setFocusPane}

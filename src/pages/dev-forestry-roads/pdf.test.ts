@@ -96,6 +96,9 @@ describe('report PDF drawing rasterization', () => {
       expect.any(Number),
       182,
       expect.any(Number),
+      undefined,
+      // jsPDF's default under `compress: true` is 'SLOW', about 2.7× the time for no smaller file.
+      'FAST',
     )
     expect(captured.pdf.addImage.mock.calls[0][5]).toBeCloseTo((182 * 175) / 450, 10)
     expect(captured.pdf.text.mock.calls.flat()).toContain('Before the drawing')

@@ -62,6 +62,14 @@ export function useRoadWorkspace() {
   const [project, setProject] = useState(createDemoProject)
   const current = useRef(project)
   const [source, setSource] = useState<TerrainSource>(demoTerrain)
+  /**
+   * True from mount until startup has decided which project opens: the one saved in this browser,
+   * or the training example when there is none. Until then `project` is the training example as a
+   * stand-in, and nothing is calculated, drawn or fetched for it: the saved project replaces it about
+   * a second later, and analysing, drawing and loading map tiles for the stand-in was thrown away.
+   * Training mode (`?example=training`) opens the example at once and never holds.
+   */
+  const [opening, setOpening] = useState(() => !trainingSession)
   const [station, setStation] = useState(0)
   const [featureSelection, setFeatureSelection] = useState<RoadFeatureSelection | null>(null)
   // The last profile search's band, drawn on its road's profile (`shownSearchBand`). Session only.
@@ -219,6 +227,7 @@ export function useRoadWorkspace() {
       setFileSaved(null)
       setBrowserSave({ kind: 'pending' })
       setExampleStart(false)
+      setOpening(false)
     },
     [commit, setProjectId, lastValidInputs, leaveTraining],
   )
@@ -240,6 +249,7 @@ export function useRoadWorkspace() {
       setFileSaved(null)
       setBrowserSave({ kind: 'pending' })
       setExampleStart(false)
+      setOpening(false)
     },
     [commit, setProjectId, lastValidInputs, leaveTraining],
   )
@@ -297,6 +307,9 @@ export function useRoadWorkspace() {
           setSessionRestored({ name: reopened.name, savedAt, restoredAt: Date.now() })
           setNotice(`Restored ${reopened.name} from this browser.`)
         } else {
+          // Nothing is saved, so the training example stays open while the first visit's example
+          // road loads, exactly as before the hold.
+          setOpening(false)
           // Only this stage may be skipped for a project the person opens (`skipExampleLoad`).
           exampleLoad.current = controller
           const loaded = await loadRoadScenario('bc-lidar', { signal: controller.signal, onProgress: setBusy })
@@ -314,6 +327,8 @@ export function useRoadWorkspace() {
           )
       } finally {
         if (!controller.signal.aborted) {
+          // A failed restore leaves the training example open, with the error saying so.
+          setOpening(false)
           setBusy('')
           setReady(true)
         }
@@ -425,6 +440,8 @@ export function useRoadWorkspace() {
   const referenceSurfaces = useMemo(() => terrainReferenceSurfaces(project.terrain), [project.terrain])
   const analysisCache = useRef<AnalysisCache<Alignment, RoadAnalysis> | null>(null)
   const analyses = useMemo(() => {
+    // The stand-in shown while startup decides is never analysed (`opening`), and never cached.
+    if (opening) return new Map(project.alignments.map((a) => [a.id, investigationAnalysis()]))
     const shared = [
       lastValidInputs,
       investigation,
@@ -457,6 +474,7 @@ export function useRoadWorkspace() {
     analysisCache.current = next.cache
     return next.analyses
   }, [
+    opening,
     lastValidInputs,
     project.alignments,
     investigation,
@@ -559,6 +577,11 @@ export function useRoadWorkspace() {
   return {
     /** The open project is the synthetic training example (`?example=training`). */
     training: trainingSession,
+    /**
+     * Startup has not yet decided which project opens: `project` is a stand-in with empty analyses.
+     * Draw no plan, chart or terrain for it, and fetch nothing for it.
+     */
+    opening,
     skipExampleLoad,
     project,
     source,

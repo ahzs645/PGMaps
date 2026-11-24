@@ -115,9 +115,15 @@ export function RoadPaneLayout({
   focusedPane,
   onFocusedPaneChange,
   windowControls,
+  holding,
 }: {
   layout: RoadLayout
   hidden?: RoadPaneId[]
+  /**
+   * Shown in place of every view while the page has nothing to draw yet (the workspace is still
+   * deciding which project opens). The views mount, and the plan loads its map, only once it is cleared.
+   */
+  holding?: ReactNode
   /** Small workspaces show one view at a time without unmounting the others. */
   focusedPane?: RoadPaneId
   onFocusedPaneChange?: (pane: RoadPaneId) => void
@@ -129,6 +135,7 @@ export function RoadPaneLayout({
   detail: ReactNode
   data: ReactNode
 }) {
+  if (holding) return holding
   return (
     <TiledWorkspace
       columns={roadColumns(layout, !!data)}

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildTerrainDisplay,
+  ninthDecimalKey,
   RELIEF_FLAT_SHADE,
   reliefShade,
   TERRAIN_ASPECT_FLAT_COLOR,
@@ -99,13 +100,19 @@ describe('same-source aspect preview', () => {
       },
     }
     const display = buildTerrainDisplay(source, bounds, 32)
-    const aspect = images.get(display.aspect)!
+    // Pictures are drawn only when asked for, once each.
+    expect(images.size).toBe(0)
+    const aspect = images.get(display.image('aspect'))!
     const expected = [...rgb(TERRAIN_ASPECT_STOPS.find((stop) => stop.value === bearing)!.color), 255]
     expect(pixel(aspect, 16, 16)).toEqual(expected)
     expect(pixel(aspect, 0, 0)).toEqual(expected)
     expect(pixel(aspect, aspect.width - 1, aspect.height - 1)).toEqual(expected)
     expect(calls).toBe(aspect.width * aspect.height)
-    expect(images.size).toBe(5)
+    expect(images.size).toBe(1)
+    expect(display.image('aspect')).toBe(display.image('aspect'))
+    expect(images.size).toBe(1)
+    display.image('slope')
+    expect(images.size).toBe(2)
     expect(display.coordinates).toEqual([
       [-0.001, 0.001],
       [0.001, 0.001],
@@ -117,11 +124,11 @@ describe('same-source aspect preview', () => {
   it('renders covered flat terrain in an opaque neutral color, distinct from no-data', () => {
     const images = captureCanvas()
     const flat = buildTerrainDisplay({ elevationAt: () => 500 }, bounds, 32)
-    const flatImage = images.get(flat.aspect)!
+    const flatImage = images.get(flat.image('aspect'))!
     const expected = [...rgb(TERRAIN_ASPECT_FLAT_COLOR), 255]
     for (let i = 0; i < flatImage.pixels.length; i += 4) expect([...flatImage.pixels.slice(i, i + 4)]).toEqual(expected)
     const missing = buildTerrainDisplay({ elevationAt: () => NaN }, bounds, 32)
-    expect(images.get(missing.aspect)!.pixels.every((value) => value === 0)).toBe(true)
+    expect(images.get(missing.image('aspect'))!.pixels.every((value) => value === 0)).toBe(true)
   })
 
   it('keeps actual no-data transparent and retains supported gradients beside a gap', () => {
@@ -137,11 +144,11 @@ describe('same-source aspect preview', () => {
       bounds,
       32,
     )
-    const aspect = images.get(display.aspect)!,
-      elevation = images.get(display.elevation)!
+    const aspect = images.get(display.image('aspect'))!,
+      elevation = images.get(display.image('elevation'))!
     expect(pixel(aspect, 16, 16)[3]).toBe(0)
-    expect(pixel(images.get(display.hillshade)!, 16, 16)[3]).toBe(0)
-    expect(pixel(images.get(display.relief)!, 16, 16)[3]).toBe(0)
+    expect(pixel(images.get(display.image('hillshade'))!, 16, 16)[3]).toBe(0)
+    expect(pixel(images.get(display.image('relief'))!, 16, 16)[3]).toBe(0)
     for (const [column, row] of [
       [15, 16],
       [17, 16],
@@ -170,9 +177,9 @@ describe('same-source aspect preview', () => {
       bounds,
       32,
     )
-    expect(pixel(images.get(display.elevation)!, 16, 16)[3]).toBe(255)
-    expect(pixel(images.get(display.aspect)!, 16, 16)[3]).toBe(0)
-    expect(pixel(images.get(display.hillshade)!, 16, 16)[3]).toBe(0)
+    expect(pixel(images.get(display.image('elevation'))!, 16, 16)[3]).toBe(255)
+    expect(pixel(images.get(display.image('aspect'))!, 16, 16)[3]).toBe(0)
+    expect(pixel(images.get(display.image('hillshade'))!, 16, 16)[3]).toBe(0)
   })
 })
 
@@ -205,13 +212,46 @@ describe('a display over a sparsely covered box', () => {
     expect(reliefShade(0)).toBeLessThan(100)
     const images = captureCanvas()
     const display = buildTerrainDisplay({ elevationAt: () => 400 }, bounds, 32)
-    expect(pixel(images.get(display.relief)!, 16, 16)).toEqual([
+    expect(pixel(images.get(display.image('relief'))!, 16, 16)).toEqual([
       RELIEF_FLAT_SHADE,
       RELIEF_FLAT_SHADE,
       RELIEF_FLAT_SHADE,
       255,
     ])
     // Exports and sheets keep the grey hillshade.
-    expect(pixel(images.get(display.hillshade)!, 16, 16)[0]).toBeLessThan(RELIEF_FLAT_SHADE)
+    expect(pixel(images.get(display.image('hillshade'))!, 16, 16)[0]).toBeLessThan(RELIEF_FLAT_SHADE)
+  })
+})
+
+describe('joining contour ends', () => {
+  it('keys a coordinate exactly as toFixed(9) prints it, at every rounding edge and sign', () => {
+    const values: number[] = [0, -0, 1e-12, -1e-12, 5e-10, -5e-10, 4.999999999e-10, 180, -180, 85, -85]
+    let seed = 7
+    const random = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 4294967296
+    for (let i = 0; i < 20_000; i++) {
+      const whole = (random() - 0.5) * 360,
+        // About half way between two ninth decimals, then nudged a few units of the last place either way.
+        half = (Math.round(whole * 1e9) + 0.5) / 1e9
+      values.push(whole, half)
+      let below = half,
+        above = half
+      for (let step = 0; step < 4; step++) {
+        below -= Math.abs(below) * Number.EPSILON
+        above += Math.abs(above) * Number.EPSILON
+        values.push(below, above)
+      }
+    }
+    const printed = new Map<string, number>(),
+      keyed = new Map<number, string>()
+    for (const value of values) {
+      const text = value.toFixed(9),
+        key = ninthDecimalKey(value)
+      if (printed.has(text)) expect(printed.get(text)).toBe(key)
+      else printed.set(text, key)
+      if (keyed.has(key)) expect(keyed.get(key)).toBe(text)
+      else keyed.set(key, text)
+    }
+    expect(ninthDecimalKey(-1e-12)).not.toBe(ninthDecimalKey(1e-12))
+    expect(ninthDecimalKey(-0)).toBe(ninthDecimalKey(0))
   })
 })

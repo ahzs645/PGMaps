@@ -237,6 +237,16 @@ export async function mapImage(map: MapLibreMap, signal?: AbortSignal, options: 
   }
 }
 
+/**
+ * How jsPDF re-compresses a drawing it is handed. With `compress: true` it otherwise picks 'SLOW'
+ * (Paeth rows and deflate level 9), which took about 40 ms a cross-section and kept the page at 10
+ * frames a second for the 2.7 s a report with 50 sections took. 'FAST' (Sub rows, level 1) took
+ * about 15 ms a section and 60 ms for the profile, against 40 and 160 ms, and wrote files no larger
+ * on these flat-backed line drawings (1,223 against 1,257 kB for 50 sections; 64 against 69 kB for
+ * the profile). Pixels are lossless either way: only the deflate effort changes.
+ */
+const DRAWING_COMPRESSION = 'FAST'
+
 async function svgImage(element: Element) {
   const svg = element.cloneNode(true) as Element
   const dimensions = (svg.getAttribute('viewBox') ?? '0 0 960 270').split(/\s+/).map(Number)
@@ -433,7 +443,7 @@ export async function reportPdfBlob(
       const image = figures.get(element) ?? (await svgImage(element)),
         height = width * image.ratio
       ensure(height + 4)
-      pdf.addImage(image.image, 'PNG', margin, y, width, height)
+      pdf.addImage(image.image, 'PNG', margin, y, width, height, undefined, DRAWING_COMPRESSION)
       y += height + 4
     } else if (element.classList.contains('sections')) {
       const sections = [...element.querySelectorAll('svg')]
@@ -442,7 +452,11 @@ export async function reportPdfBlob(
         const w = (width - 6) / 2,
           height = Math.max(...images.map((image) => w * image.ratio))
         ensure(height + 5)
-        images.forEach((image, j) => pdf.addImage(image.image, 'PNG', margin + j * (w + 6), y, w, w * image.ratio))
+        // Two up at 88 mm, a section's 900 px (its 450-unit drawing at 2×) is about 260 dpi, the
+        // full-width profile's density (1,920 px over 182 mm, about 268 dpi): keep both at 2×.
+        images.forEach((image, j) =>
+          pdf.addImage(image.image, 'PNG', margin + j * (w + 6), y, w, w * image.ratio, undefined, DRAWING_COMPRESSION),
+        )
         y += height + 5
       }
     } else if (

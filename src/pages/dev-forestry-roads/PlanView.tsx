@@ -1254,7 +1254,8 @@ function Layers(
       map.addSource(CUTBLOCK_BUFFER_SOURCE, { type: 'geojson', data: latestBuffers.current })
     if (display && props.terrainLayer !== 'none') {
       // Over the map the hillshade is drawn as the relief around it is; over imagery it stays the grey hillshade.
-      const url = props.terrainLayer === 'hillshade' && !props.imagery ? display.relief : display[props.terrainLayer]
+      // Only the picture shown is drawn; another is drawn the first time the view switches to it.
+      const url = display.image(props.terrainLayer === 'hillshade' && !props.imagery ? 'relief' : props.terrainLayer)
       const existing = map.getSource('road-terrain') as ImageSource | undefined
       const coordinates = display.coordinates as [Coordinate, Coordinate, Coordinate, Coordinate]
       if (existing) existing.updateImage({ url, coordinates })

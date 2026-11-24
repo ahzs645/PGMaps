@@ -113,7 +113,8 @@ road-design criteria or universally appropriate LiDAR processing parameters.
   See [Forester constraints and route comparisons](forestry-road-design/planning-constraints.md).
 - `terrainDisplay.ts` makes bounded hillshade, slope, aspect, elevation and contour
   previews from the selected source; those display products never replace the
-  terrain sampler used for calculations.
+  terrain sampler used for calculations. Each picture is drawn the first time
+  the plan shows it (`TerrainDisplay.image`), not all five for every terrain.
 - `project.ts` and `engineeringProject.ts` validate versioned project files,
   portable template/material libraries and WGS84 line/polygon context. Outputs
   include projects, libraries, GeoJSON, station/engineering CSV and printable HTML.

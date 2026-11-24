@@ -193,8 +193,44 @@ describe('road workspace persistence', () => {
     expect(await stored(factory)).toEqual(original)
   })
 
+  it('holds the stand-in unanalysed until the saved project opens, and holds nothing in training', async () => {
+    const saved = { ...createDemoProject(), name: 'Saved before reload' }
+    await writeProject('saved', saved, [])
+    const renders: { opening: boolean; name: string; stations: number }[] = []
+    function Recorder() {
+      const value = useRoadWorkspace()
+      renders.push({ opening: value.opening, name: value.project.name, stations: value.analysis.stations.length })
+      useEffect(() => {
+        workspace = value
+      })
+      return null
+    }
+    await act(async () => {
+      renderer = create(createElement(Recorder))
+    })
+    await vi.waitFor(() => expect(workspace.ready).toBe(true), { timeout: 5000 })
+    expect(renders[0].opening).toBe(true)
+    // The stand-in is never analysed, and the first render after the hold is the saved project.
+    expect(renders.filter((r) => r.opening).every((r) => r.stations === 0)).toBe(true)
+    const opened = renders.filter((r) => !r.opening)
+    expect(opened.length).toBeGreaterThan(0)
+    expect(opened.every((r) => r.name === saved.name && r.stations > 0)).toBe(true)
+    expect(loadLidarTerrain).not.toHaveBeenCalled()
+
+    await act(async () => renderer!.unmount())
+    renderer = undefined
+    renders.length = 0
+    vi.stubGlobal('location', { search: '?example=training' })
+    await act(async () => {
+      renderer = create(createElement(Recorder))
+    })
+    expect(renders[0].opening).toBe(false)
+    expect(renders[0].stations).toBeGreaterThan(0)
+  })
+
   it('loads default terrain and autosaves when storage successfully reports no saved project', async () => {
     await openWorkspace()
+    expect(workspace.opening).toBe(false)
     expect(workspace.error).toBe('')
     expect(loadLidarTerrain).toHaveBeenCalledOnce()
     expect(workspace.source).toBe(demoTerrain)
