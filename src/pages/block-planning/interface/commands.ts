@@ -18,6 +18,7 @@ import {
   Scale,
   Shapes,
   SquareDashed,
+  TreePine,
   Trees,
   Upload,
   Waves,
@@ -132,6 +133,12 @@ export const planningCommands = {
     label: 'Fit to plan',
     icon: MapIcon,
     description: 'Zoom the map to every block and past disturbance.',
+  },
+  oldForestMap: {
+    label: 'Old forest on map',
+    icon: TreePine,
+    description:
+      'Draw old forest, old interior, the 200 m edges and the ground left out for the schedule and year on the map, from the old forest calculation. Calculate it in Compare first.',
   },
   previousPeriod: {
     label: 'Earlier period',

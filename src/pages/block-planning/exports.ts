@@ -27,7 +27,23 @@ import { featureMeasure, GROUP_LABELS, layerSummary, MAPPED_LAYER_INFO } from '.
 import { mappedReadCurrent, rangeReviewCurrent } from './review/rangeReview'
 import { corridorSentence, excludedSentence } from './oldForest/recordText'
 import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
-import { boardCheckCurrent, firstShortfall, metOnlyWithD4, oldForestCurrent, shortfallText } from './records'
+import {
+  BREAKDOWN_LABELS,
+  pineSplit,
+  REPRESENTATION_BREAKDOWNS,
+  REPRESENTATION_SOURCES,
+  rowLabel,
+  shares,
+  type RepresentationYear,
+} from './oldForest/representation'
+import {
+  boardCheckCurrent,
+  firstShortfall,
+  metOnlyWithD4,
+  oldForestCurrent,
+  shortfallText,
+  type OldForestRecord,
+} from './records'
 import {
   ACTIVITIES,
   ACTIVITY_LABELS,
@@ -289,6 +305,60 @@ export function blocksGeoJson(plan: Plan): FeatureCollection {
 
 const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`)
 
+/**
+ * D.3's summary for the printed record: what the order and the policy say representative refers
+ * to, then, for each unit, old forest beside the CFLB by breakdown in the first and last years of
+ * the schedule under review. Figures only, never a verdict.
+ */
+function representationHtml(
+  old: Pick<OldForestRecord, 'unit' | 'representation' | 'pool'>,
+  names: Record<string, string>,
+  row: (cells: unknown[], tag?: string) => string,
+): string {
+  const units = old.pool
+    ? old.pool.map((u) => ({ unit: u.unit, representation: u.representation }))
+    : [{ unit: old.unit, representation: old.representation }]
+  if (!units.some((u) => u.representation)) return ''
+  const share = (v: number | null) => (v === null ? '—' : pct(v * 100))
+  const cell = (ha: number, s: number | null) => `${ha.toFixed(0)} (${share(s)})`
+  return `<h3>Representative stands (D.3)</h3>
+${REPRESENTATION_SOURCES.map((q) => `<blockquote class="note">“${escape(q.text)}” (${escape(q.cite)})</blockquote>`).join('\n')}
+<p class="note">Figures to help judge representativeness, never a pass or fail. The texts measure it by affected (pine-leading) and unaffected (non-pine) stands; the BEC variant, age class and site index breakdowns are context. Old forest includes ground counted whole under D.1 and never D.4's younger stands. Age classes are the provincial inventory's; site index classes are PGMaps' own 5 m steps of the VRI site index.</p>
+${units
+  .map(({ unit, representation: r }) => {
+    if (!r) return `<p class="note">${escape(unit)}: no D.3 summary in this record (made before it).</p>`
+    const ends = [r.years[0], r.years.at(-1)!].filter((y, i, all) => all.indexOf(y) === i) as RepresentationYear[]
+    const splits = ends
+      .map((y) => {
+        const s = pineSplit(y)
+        return `${y.year}: non-pine-leading ${share(s.nonPineCflbShare)} of the CFLB, old non-pine ${share(s.nonPineOldShare)} of old forest${s.nonPineInteriorShare === null ? '' : `, interior on non-pine old ground ${share(s.nonPineInteriorShare)} of old interior`}`
+      })
+      .join('; ')
+    return `<h4>${escape(unit)} · ${escape(names[r.schedule] ?? r.schedule)} (under review)</h4>
+<p class="note">${escape(splits)}.</p>
+${REPRESENTATION_BREAKDOWNS.map((b) => {
+  const keys = [...new Set(ends.flatMap((y) => y.by[b].map((x) => x.key)))]
+  const at = ends.map((y) => new Map(shares(y.by[b]).map((x) => [x.key, x])))
+  return `<table><thead>${row([BREAKDOWN_LABELS[b], ...ends.flatMap((y) => [`CFLB ha ${y.year}`, `Old ha ${y.year}`, `Old non-pine ha ${y.year}`])], 'th')}</thead><tbody>
+${keys
+  .map((k) =>
+    row([
+      rowLabel(b, k),
+      ...at.flatMap((m) => {
+        const x = m.get(k)
+        return x
+          ? [cell(x.cflbHa, x.cflbShare), cell(x.oldHa, x.oldShare), cell(x.nonPineOldHa, x.nonPineShare)]
+          : ['—', '—', '—']
+      }),
+    ]),
+  )
+  .join('\n')}
+</tbody></table>`
+}).join('\n')}`
+  })
+  .join('\n')}`
+}
+
 /** A grazing review's mapped read, dated and named as candidates; a layer not read says so. */
 function mappedHtml(mapped: MappedEvidence | undefined, current: boolean) {
   if (!mapped) return ''
@@ -412,7 +482,8 @@ ${(old.pool ?? [{ district: old.district, unit: old.unit, calibration2019: old.c
       ? `<p class="note">${old.pool ? `${escape(u.unit)}: ` : ''}2019, baseline only, against the Board (${escape(BOARD_2019_SOURCE.label)}): CFLB ${c.cflbHa.toFixed(0)} ha (${b.cflbHa}), old ${c.oldHa.toFixed(0)} ha (${b.oldHa}), interior ${c.interiorHa?.toFixed(0) ?? '—'} ha (${b.interiorHa}).</p>`
       : ''
   })
-  .join('\n')}`
+  .join('\n')}
+${representationHtml(old, names, row)}`
     : ''
   const pathwayHtml = record.pathways
     .map(

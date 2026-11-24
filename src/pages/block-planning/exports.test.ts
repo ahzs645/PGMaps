@@ -122,6 +122,39 @@ describe('block planning exports', () => {
     expect(reopened.plan.checks?.oldForest?.excluded).toEqual(kept.checks?.oldForest?.excluded)
     expect(reopened.plan.checks?.oldForest?.corridorKinds).toEqual({ fsr: 1, pipeline: 1 })
     expect(html).not.toContain('The plan changed after this was calculated')
+    // No D.3 summary in this record: the summary prints none.
+    expect(html).not.toContain('Representative stands (D.3)')
+    const row = (key: string, cflbHa: number, oldHa: number, nonPineOldHa: number) => ({
+      key,
+      cflbHa,
+      oldHa,
+      nonPineOldHa,
+    })
+    const d3 = setCheck(kept, 'oldForest', {
+      ...kept.checks!.oldForest!,
+      representation: {
+        schedule: kept.reviewSchedule,
+        years: [
+          {
+            year: 2026,
+            interiorHa: 30,
+            interiorNonPineHa: 24,
+            by: {
+              species: [row('pine', 400, 20, 0), row('spruce', 600, 100, 100)],
+              bec: [row('SBS wk1', 1000, 120, 100)],
+              age: [row('8', 120, 120, 100), row('3', 880, 0, 0)],
+              site: [row('15-20', 1000, 120, 100)],
+            },
+          },
+        ],
+      },
+    })
+    const printed = buildExport('summary', d3, result, library, 'today')
+    expect(printed).toContain('Representative stands (D.3)')
+    expect(printed).toContain('(i.e. non-pine forest)')
+    expect(printed).toContain('non-pine-leading 60.0% of the CFLB, old non-pine 83.3% of old forest')
+    expect(printed).toContain('<td>Spruce (S)</td><td>600 (60.0%)</td><td>100 (83.3%)</td><td>100 (100.0%)</td>')
+    expect(printed).toContain('15 to under 20 m')
     const changed = setOldForest(kept, { countParks: true })
     expect(buildExport('summary', changed, result, library, 'today')).toContain(
       'The plan changed after this was calculated',

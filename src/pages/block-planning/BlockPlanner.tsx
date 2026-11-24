@@ -54,6 +54,8 @@ import { SchedulesStep } from './steps/SchedulesStep'
 import type { Drawing, ImportKind, StepProps } from './steps/types'
 import { TrendChart } from './TrendChart'
 import { shownResult, usePlanAnalysis } from './usePlanAnalysis'
+import { useOldForestMap } from './useOldForestMap'
+import { stopOldForest } from './oldForest/oldForestClient'
 import { PLANNING_COLUMNS, PLANNING_WORKSPACE, type PlanningPane } from './workspace'
 
 const failure = (e: unknown) => (e instanceof Error ? e.message : 'The file could not be read.')
@@ -103,6 +105,11 @@ export default function BlockPlanner({
   const [fitKey, setFitKey] = useState(0)
   const [playing, setPlaying] = useState(false)
   const analysis = usePlanAnalysis(plan, shown)
+  // The old forest layer is the session's: never written to the plan or its record.
+  const [oldForestMapOn, setOldForestMapOn] = useState(false)
+  const oldForestMap = useOldForestMap(plan, shown, oldForestMapOn)
+  // The page's one old forest worker (panel and map) goes with the page.
+  useEffect(() => () => stopOldForest(), [])
   const result = shownResult(analysis)
   const patches =
     result?.shown.schedule === shown.schedule && result.shown.year === shown.year ? result.shown.patches : undefined
@@ -322,6 +329,8 @@ export default function BlockPlanner({
         return importInput.current?.click()
       case 'fitAll':
         return setFitKey((k) => k + 1)
+      case 'oldForestMap':
+        return setOldForestMapOn(!oldForestMapOn)
       case 'previousPeriod':
         return setShown({ year: years[Math.max(0, yearIndex - 1)] })
       case 'nextPeriod':
@@ -359,6 +368,11 @@ export default function BlockPlanner({
       reason: 'Finish or cancel the drawing on the map first.',
     },
     fitAll: { disabled: empty, reason: 'The plan has nothing to frame yet.' },
+    oldForestMap: {
+      pressed: oldForestMapOn,
+      disabled: !plan.checks?.oldForest && !oldForestMapOn,
+      reason: 'Calculate old and old interior forest in Compare first.',
+    },
     previousPeriod: { disabled: yearIndex <= 0 },
     nextPeriod: { disabled: yearIndex >= years.length - 1 },
     customizeRibbon: { hidden: !toolbar },
@@ -546,6 +560,8 @@ export default function BlockPlanner({
     shown,
     setShown,
     analysis,
+    oldForestMapOn,
+    setOldForestMapOn,
     onCommand: runCommand,
   }
   const stepStatus = (id: PlanningEditor): 'done' | 'current' | 'todo' => {
@@ -649,6 +665,7 @@ export default function BlockPlanner({
                 sketch={sketch}
                 drawing={drawing}
                 fitKey={fitKey}
+                oldForest={oldForestMapOn ? oldForestMap : null}
               />
             </div>
             <PlaybackControls

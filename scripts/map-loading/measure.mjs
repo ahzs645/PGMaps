@@ -22,6 +22,9 @@
 //   --no-isolate           Do not hide the other layers. Presence, requests and long frames are still
 //                          measured; the empty share is not.
 //   --width/--height       Viewport, default 1400×900.
+//   --executable <path>    A Chromium build to launch instead of installed Chrome on the GPU, with
+//                          SwiftShader as the e2e suite runs (a Linux container has no Chrome or GPU).
+//                          Presence and requests still count; frame timings mean little there.
 //
 // It prints one row per phase and exits 1 when a layer was missing on any frame or the whole view
 // went empty during a gesture. Everything else is a number to compare with a baseline run.
@@ -56,11 +59,17 @@ const steps = setupFile ? await import(pathToFileURL(path.resolve(setupFile)).hr
 fs.mkdirSync(out, { recursive: true })
 
 // The real GPU: the software renderer stalls on large maps and its timings mean nothing.
-const browser = await chromium.launch({
-  channel: 'chrome',
-  headless: true,
-  args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'],
-})
+const executable = one('executable')
+const browser = await chromium.launch(
+  executable
+    ? {
+        executablePath: executable,
+        headless: true,
+        args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox'],
+      }
+    : { channel: 'chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] },
+)
+if (executable) console.error('Software rendering (--executable): read presence and requests, not frame timings.')
 const page = await (await browser.newContext({ viewport, deviceScaleFactor: 1 })).newPage()
 const errors = new Map()
 const note = (text) => errors.set(text, (errors.get(text) ?? 0) + 1)

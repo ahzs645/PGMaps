@@ -45,12 +45,15 @@ import UnaryUnionOp from 'jsts/org/locationtech/jts/operation/union/UnaryUnionOp
 import PrecisionModel from 'jsts/org/locationtech/jts/geom/PrecisionModel.js'
 import GeometryPrecisionReducer from 'jsts/org/locationtech/jts/precision/GeometryPrecisionReducer.js'
 import IsValidOp from 'jsts/org/locationtech/jts/operation/valid/IsValidOp.js'
+import TopologyPreservingSimplifier from 'jsts/org/locationtech/jts/simplify/TopologyPreservingSimplifier.js'
 import polygonClipping from 'polygon-clipping'
 import { albersToLngLat, lngLatToAlbers } from '../../dev-avast/projection'
 import type { Shape } from '../plan'
 import { EXCLUDED_KINDS, type ExcludedArea, type ExcludedKind } from './landBase'
 import type { CountedArea, Corridor, Stand } from './reads'
 import type { OldForestUnit } from './units'
+import { MAP_SIMPLIFY_METRES, type DrawnFeature, type DrawnGround, type DrawnKind } from './drawing'
+import { ageClass, RepresentationTally, standKeys, type RepresentationYear, type StandKeys } from './representation'
 import { countsAsYounger, withYoungerCap, type YoungerStandsSettings, type YoungerStandsYear } from './youngerStands'
 export { firstShortfall } from '../records'
 
@@ -233,6 +236,8 @@ interface PreparedStand {
   whole: Geometry
   cflb: boolean
   group: ReturnType<typeof leadingGroup>
+  /** D.3's rows for the stand (`representation.ts`). */
+  keys: StandKeys
   /**
    * Per counted kind, the stand's ground inside the unit that the kind covers. Clipped on first use:
    * only a stand that is not old in some year needs it.
@@ -255,6 +260,9 @@ export interface PreparedUnit {
   excluded: ExcludedFigures[]
   /** Clips a geometry to the excluded ground in the unit; null when there is none. */
   excludedClip?: ((g: Geometry) => Geometry | null) | null
+  /** For the map only: the unit's ground and the excluded ground, in BC Albers. */
+  unitGeometry?: Geometry
+  excludedGround?: Geometry | null
   counts: {
     stands: number
     standsInside: number
@@ -353,6 +361,7 @@ export function prepareUnit({
       whole,
       cflb: stand.treed && stand.forestLandBase,
       group: leadingGroup(stand.leading),
+      keys: standKeys(stand),
       counted: () => {
         if (!clipped) {
           clipped = {}
@@ -389,6 +398,8 @@ export function prepareUnit({
       cflbHa: (removedM2.get(k.kind) ?? 0) / SQ_M_PER_HA,
     })),
     excludedClip: ground.clip,
+    unitGeometry: unitGeom,
+    excludedGround: union(ground.kinds.flatMap((k) => (k.geometry ? [k.geometry] : []))),
     counts: {
       stands: stands.length,
       standsInside: prepared.filter((p) => p.inside).length,
@@ -528,14 +539,17 @@ function excludedOld(p: PreparedStand, year: number, unit: OldForestUnit, resets
 
 /**
  * Interior area of `old` away from `edges`. With `notCounted`, the ground it clips (the excluded
- * ground) shapes the patches and their width but is left out of the area.
+ * ground) shapes the patches and their width but is left out of the area. With `keep`, the interior
+ * parts counted and the buffered edges come back too (for D.3's interior split and the map); the
+ * area is the same either way.
  */
 function interiorOf(
   old: Geometry | null,
   edges: Geometry[],
   notCounted: ((g: Geometry) => Geometry | null) | null = null,
-): number {
-  if (!old) return 0
+  keep = false,
+): { m2: number; kept: Geometry[]; buffered: Geometry | null } {
+  if (!old) return { m2: 0, kept: [], buffered: null }
   const params = new BufferParameters(4)
   const type = (g: Geometry) => (g as unknown as { getGeometryType(): string }).getGeometryType()
   const lines = edges.filter((g) => /LineString/.test(type(g)))
@@ -549,18 +563,37 @@ function interiorOf(
   const buffered = buffers.length > 1 ? manyUnion(buffers) : (buffers[0] ?? null)
   const interior = buffered ? robust((x, y) => OverlayOp.difference(x, y), old, buffered) : old
   let m2 = 0
+  const kept: Geometry[] = []
   for (let i = 0; i < interior.getNumGeometries(); i++) {
     const part = interior.getGeometryN(i)
     if (part.getArea() <= 0) continue
     if (BufferOp.bufferOp(part, -INTERIOR_MIN_WIDTH_METRES / 2, params).isEmpty()) continue
-    m2 += part.getArea() - area(notCounted?.(part) ?? null)
+    const lost = notCounted?.(part) ?? null
+    m2 += part.getArea() - area(lost)
+    if (keep) {
+      const counted = lost ? difference(part, lost) : part
+      if (counted) kept.push(counted)
+    }
   }
-  return m2
+  return { m2, kept, buffered: keep ? buffered : null }
 }
 
 export interface ScheduleFigures {
   schedule: string
   years: YearFigures[]
+}
+
+export interface UnitYearsOptions {
+  /** D.3's breakdown (`representation.ts`) for every year; where interior is calculated, its non-pine part. */
+  representation?: boolean
+  /** The year to draw on the map (`drawing.ts`); it must be among both the years and the interior years. */
+  drawYear?: number
+}
+
+export interface UnitYears {
+  figures: YearFigures[]
+  representation?: RepresentationYear[]
+  drawing?: DrawnGround
 }
 
 /**
@@ -574,6 +607,21 @@ export function unitFigures(
   interiorYears: number[],
   settings: OldForestSettings,
 ): YearFigures[] {
+  return unitYears(prepared, resets, years, interiorYears, settings).figures
+}
+
+/**
+ * `unitFigures`, and on request D.3's breakdown and the map's shapes, from the same per-stand areas
+ * and overlays. The figures are the same with or without them (`oldForest.test.ts`).
+ */
+export function unitYears(
+  prepared: PreparedUnit,
+  resets: Reset[],
+  years: number[],
+  interiorYears: number[],
+  settings: OldForestSettings,
+  options: UnitYearsOptions = {},
+): UnitYears {
   const { unit } = prepared
   const resetGeoms = resets.map((r) => ({ year: r.year, geometry: toAlbers(r.geometry) }))
   const cflbHa = settings.cflbEnteredHa ?? prepared.cflbProxyHa
@@ -581,12 +629,16 @@ export function unitFigures(
   // 37–38% larger than the LLOWG's while old forest's share of it was within a point of theirs.
   const perHa = (settings.cflbEnteredHa ? settings.cflbEnteredHa / prepared.cflbProxyHa : 1) / SQ_M_PER_HA
   const requiredOldHa = (cflbHa * unit.oldPercent) / 100
-  return years.map((year) => {
+  const representation: RepresentationYear[] = []
+  let drawing: DrawnGround | undefined
+  const figures = years.map((year) => {
     // Resets in the inventory already show in VRI ages: only later ones (and every block) apply.
     const active = union(
       resetGeoms.filter((r) => r.year <= year && r.year > prepared.projectedYear).map((r) => r.geometry),
     )
     const withInterior = interiorYears.includes(year)
+    const draw = options.drawYear === year
+    const tally = options.representation ? new RepresentationTally() : null
     const totals = { old: 0, counted: 0, nonPine: 0, unknown: 0, younger: 0 }
     const oldParts: Geometry[] = []
     const edges: Geometry[] = []
@@ -594,14 +646,29 @@ export function unitFigures(
     const youngerParts: Geometry[] = []
     /** Edges under D.4: a younger stand it counts (or one of that age beside the unit) makes none. */
     const youngerEdges: Geometry[] = []
+    /** Counted old ground alone (not the excluded ground that shapes interior), for D.3 and the map. */
+    const countedOld: Geometry[] = []
+    /** Old ground that is not non-pine old: pine-leading, or D.1 ground not old by age. Usually the smaller part. */
+    const notNonPine: Geometry[] = []
+    const countedNotOld: Geometry[] = []
     for (const p of prepared.stands) {
       const near = active && intersects(p.whole, active) ? active : null
-      const s = standYear(p, year, unit, near, settings, withInterior)
+      const s = standYear(p, year, unit, near, settings, withInterior || draw)
       totals.old += s.oldM2
       totals.counted += s.countedNotOldM2
       totals.nonPine += s.nonPineM2
       totals.unknown += s.unknownM2
       totals.younger += s.youngerM2
+      if (tally && p.inside && p.cflb) {
+        const ageKey = unknownBecauseHarvestedLater(p.stand, year) ? 'unknown' : ageClass(ageIn(p.stand, year))
+        const reset = near ? area(intersection(p.inside, near)) : 0
+        tally.stand(p.keys, { cflb: p.insideM2, reset, old: s.oldM2, nonPine: s.nonPineM2 }, ageKey)
+      }
+      if (s.oldPart && (draw || (tally && withInterior))) {
+        countedOld.push(s.oldPart)
+        if (s.nonPineM2 === 0) notNonPine.push(s.oldPart)
+        if (s.countedNotOldM2 > 0) countedNotOld.push(s.oldPart)
+      }
       if (withInterior) {
         if (s.oldPart) oldParts.push(s.oldPart)
         if (s.youngerPart) youngerParts.push(s.youngerPart)
@@ -617,6 +684,7 @@ export function unitFigures(
     }
     let interiorHa: number | null = null
     let d4InteriorSupplyHa: number | null = null
+    let interior: ReturnType<typeof interiorOf> | null = null
     if (withInterior) {
       const corridorsAndResets = [
         ...(active ? [active] : []),
@@ -625,23 +693,23 @@ export function unitFigures(
       ]
       edges.push(...corridorsAndResets)
       const notCounted = prepared.excludedClip ?? null
-      interiorHa = interiorOf(manyUnion(oldParts), edges, notCounted) * perHa
+      interior = interiorOf(manyUnion(oldParts), edges, notCounted, draw || tally !== null)
+      interiorHa = interior.m2 * perHa
       if (d4) {
         // D.4's interior is what the younger stands add when they count as old and make no edge.
         const withYounger = interiorOf(
           manyUnion([...oldParts, ...youngerParts]),
           [...youngerEdges, ...corridorsAndResets],
           notCounted,
-        )
+        ).m2
         d4InteriorSupplyHa = Math.max(0, withYounger * perHa - interiorHa)
       }
     }
-    const oldHa = totals.old * perHa
     const figures: YearFigures = {
       year,
       cflbHa,
       requiredOldHa,
-      oldHa,
+      oldHa: totals.old * perHa,
       countedNotOldHa: totals.counted * perHa,
       requiredNonPineHa: unit.nonPinePercent === null ? null : (cflbHa * unit.nonPinePercent) / 100,
       nonPineOldHa: totals.nonPine * perHa,
@@ -649,9 +717,113 @@ export function unitFigures(
       requiredInteriorHa: (requiredOldHa * unit.interiorPercent) / 100,
       interiorHa,
     }
+    if (tally) {
+      let interiorNonPineHa: number | null = null
+      if (interior) {
+        // Interior on non-pine-leading old ground (the policy's section 7 calls its share uncertain):
+        // interior less what lies on the other old ground, the smaller overlay of the two.
+        const other = manyUnion(notNonPine)
+        const otherM2 = other ? interior.kept.reduce((sum, part) => sum + area(intersection(part, other)), 0) : 0
+        interiorNonPineHa = Math.max(0, interior.m2 - otherM2) * perHa
+      }
+      representation.push({ year, interiorHa, interiorNonPineHa, by: tally.result(perHa) })
+    }
+    if (draw)
+      drawing = drawnGround(prepared, year, {
+        old: manyUnion(countedOld),
+        interior: interior ? union(interior.kept) : null,
+        buffered: interior?.buffered ?? null,
+        counted: manyUnion(countedNotOld),
+        younger: manyUnion(youngerParts),
+      })
     if (!d4) return figures
     return withYoungerCap({ ...figures, d4OldSupplyHa: totals.younger * perHa, d4InteriorSupplyHa })
   })
+  return {
+    figures,
+    ...(options.representation ? { representation } : {}),
+    ...(drawing ? { drawing } : {}),
+  }
+}
+
+/** JSTS's typings leave these off `Geometry`. */
+const isEmpty = (g: Geometry) => (g as unknown as { isEmpty(): boolean }).isEmpty()
+const dimensionOf = (g: Geometry) => (g as unknown as { getDimension(): number }).getDimension()
+
+/** A BC Albers geometry simplified for display and put back in WGS84; null when nothing is left. */
+function forDisplay(g: Geometry | null): DrawnFeature['geometry'] | null {
+  if (!g || isEmpty(g)) return null
+  const simple = TopologyPreservingSimplifier.simplify(g, MAP_SIMPLIFY_METRES) as Geometry
+  if (isEmpty(simple)) return null
+  const j = writer.write(simple) as { type: string; coordinates: unknown }
+  const depth = ({ LineString: 0, MultiLineString: 1, Polygon: 1, MultiPolygon: 2 } as Record<string, number>)[j.type]
+  // An overlay can leave a collection: draw its polygons.
+  if (depth === undefined) return j.type === 'GeometryCollection' ? forDisplay(nonEmpty(polygonal(simple))) : null
+  const round = (v: number) => Math.round(v * 1e6) / 1e6
+  const back = (c: unknown, d: number): unknown =>
+    d === 0
+      ? (c as Position[]).map(([x, y]) => albersToLngLat(x, y).map(round) as Position)
+      : (c as unknown[]).map((x) => back(x, d - 1))
+  return { type: j.type, coordinates: back(j.coordinates, depth) } as DrawnFeature['geometry']
+}
+
+const nonEmpty = (g: Geometry) => (isEmpty(g) ? null : g)
+
+/**
+ * The year's shapes for the map, from the run's own overlays: old forest split into interior,
+ * within 200 m of an edge and too narrow; the 200 m band; D.1 ground not old by age; D.4's younger
+ * stands; the corridors; and the ground the order does not apply to. Areas are measured before
+ * simplifying and are not scaled by a stated CFLB.
+ */
+function drawnGround(
+  prepared: PreparedUnit,
+  year: number,
+  g: {
+    old: Geometry | null
+    interior: Geometry | null
+    buffered: Geometry | null
+    counted: Geometry | null
+    younger: Geometry | null
+  },
+): DrawnGround {
+  const unitGeom = prepared.unitGeometry ?? null
+  const band = g.buffered && unitGeom ? intersection(g.buffered, unitGeom) : null
+  const oldEdge = g.old && g.buffered ? intersection(g.old, g.buffered) : null
+  let narrow = g.old && g.buffered ? difference(g.old, g.buffered) : g.old
+  if (narrow && g.interior) narrow = difference(narrow, g.interior)
+  const parts: [DrawnKind, Geometry | null][] = [
+    ['excluded', prepared.excludedGround ?? null],
+    ['edge-band', band],
+    ['old-edge', oldEdge],
+    ['old-narrow', narrow],
+    ['interior', g.interior],
+    ['younger', g.younger],
+    ['counted', g.counted],
+    ['corridor', prepared.corridors && unitGeom ? lineWithin(prepared.corridors, unitGeom) : null],
+    ['corridor', prepared.corridorAreas && unitGeom ? intersection(prepared.corridorAreas, unitGeom) : null],
+  ]
+  const features: DrawnFeature[] = []
+  const drawnHa: DrawnGround['drawnHa'] = {}
+  for (const [kind, geom] of parts) {
+    if (!geom) continue
+    if (dimensionOf(geom) === 2) drawnHa[kind] = (drawnHa[kind] ?? 0) + geom.getArea() / SQ_M_PER_HA
+    const geometry = forDisplay(geom)
+    if (geometry) features.push({ kind, unit: prepared.unit.unit, geometry })
+  }
+  return { year, features, drawnHa }
+}
+
+/** The part of a line inside an area, retried on the 10 cm grid; null when none is. */
+function lineWithin(line: Geometry, within: Geometry): Geometry | null {
+  if (!intersects(line, within)) return null
+  let g: Geometry
+  try {
+    g = OverlayOp.intersection(line, within)
+  } catch {
+    const [a, b] = [line, within].map((x) => GeometryPrecisionReducer.reduce(x, coarse))
+    g = OverlayOp.intersection(a, b)
+  }
+  return isEmpty(g) ? null : g
 }
 
 /** Joins WGS84 polygons into one shape (the Map 2 reader's `union`). */

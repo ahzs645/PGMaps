@@ -192,7 +192,7 @@ function Movement({ before, after, target }: { before: number | null; after: num
 }
 
 /** Step 4: the schedules side by side at the year on the map, and the tools that explain a figure. */
-export function CompareStep({ plan, edit, analysis, shown, setShown }: StepProps) {
+export function CompareStep({ plan, edit, analysis, shown, setShown, oldForestMapOn, setOldForestMapOn }: StepProps) {
   const result = shownResult(analysis)
   const years = periodYears(plan.area.startYear)
   const names = Object.fromEntries(plan.schedules.map((s) => [s.id, s.name]))
@@ -285,7 +285,13 @@ export function CompareStep({ plan, edit, analysis, shown, setShown }: StepProps
 
       {published && <PublishedFigures unit={published} plan={plan} edit={edit} />}
 
-      <OldForestSection plan={plan} edit={edit} shown={shown} />
+      <OldForestSection
+        plan={plan}
+        edit={edit}
+        shown={shown}
+        oldForestMapOn={oldForestMapOn}
+        setOldForestMapOn={setOldForestMapOn}
+      />
 
       <PlanningIndexSection plan={plan} edit={edit} result={result} />
 

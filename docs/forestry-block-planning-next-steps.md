@@ -10,6 +10,10 @@ Built on 24 November 2026 and moved into [the old-forest contract](forestry-old-
 
 Built on 24 November 2026 with its own contract, [On this ground](forestry-ground-instruments.md): step 5 reads every legal instrument mapped on the block shape under review (Land Act reserves, withdrawals, designated use areas and tenures, the ALR, legal objectives and OGMAs, winter ranges and habitat areas, range tenures, parks, ecological reserves and protected areas, private parcels, community watersheds), shows what each can reach for harvest, replanting, roads and grazing with the provision each answer rests on, reads RESULTS precedent inside each one near the block, and drafts the documents to ask for. What it leaves open is in the contract's **Not built**.
 
+## Done: a map of old and interior forest, and D.3's summary
+
+Built on 24 November 2026 and moved into [the old-forest contract](forestry-old-forest.md): the plan map draws old forest, old interior, the 200 m edges, D.1 and D.4 ground and the ground left out for the schedule and year on the map, from the worker's own run of the calculation (**A map of old and interior forest**), and _Representative stands (D.3)_ sets old forest beside the CFLB by leading species, BEC variant, age class and site index, under the order's and the policy's words (**D.3: representative stands**). What they leave open is in the contract's **Limits and what is not built**.
+
 ## Next
 
 ### Prepared tables in bcdatamapper
@@ -36,14 +40,6 @@ The next thing to try is the LLOWG's own records. The Board names the 2015 and 2
 ### A5's old forest
 
 A5's land base matches the Board's to 4%, but its old forest is 12 points short of the Board's share. A6, now that its land base matches to 1%, is 3 points short (40.4% against 43.6%). The likeliest cause is the VRI vintage: today's ages against the 2019 inventory, and stands harvested between 2019 and the VRI projection whose 2019 age is not kept (262 ha on A6). Test it with an archived VRI of 2019 (FAIB keeps vintages), and record the answer in the guide's table.
-
-### A map of old and interior forest
-
-The panel reports figures but draws nothing. Add old ground, interior ground and the 200 m edges as a plan-map layer for the year on the map, through the toolkit's `Map` props and a legend row, as `forestry-tool-standard.md` asks. A reviewer then sees where a block takes interior.
-
-### D.3: representative non-pine stands
-
-D.3 requires a representative share of stands not affected by the beetle. The non-pine figure against policy Tables 8–10 is reported today; representativeness beyond it (by BEC variant, age and site) is not. It is a reviewer's judgement first; build a summary that helps it, never a pass or fail.
 
 ### Offline old-forest reads
 

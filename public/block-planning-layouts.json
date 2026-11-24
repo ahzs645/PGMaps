@@ -164,7 +164,8 @@
           "sections": [
             {
               "label": "Map",
-              "items": ["fitAll"]
+              "rows": 2,
+              "items": ["fitAll", "oldForestMap"]
             },
             {
               "label": "Screen",

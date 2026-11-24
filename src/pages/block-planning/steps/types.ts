@@ -17,6 +17,9 @@ export interface StepProps {
   shown: { schedule: string; year: number }
   setShown: (shown: { schedule?: string; year?: number }) => void
   analysis: AnalysisState
+  /** Whether the old forest layer is drawn on the map (session only, never in the plan). */
+  oldForestMapOn: boolean
+  setOldForestMapOn: (on: boolean) => void
   /** Runs a planner command (open a file, the sample) from inside a step. */
   onCommand: (id: 'open' | 'openSample') => void
 }

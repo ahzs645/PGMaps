@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { DownloadCloud, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CalculationTable } from '@/components/ui/calculation-results'
@@ -15,7 +15,8 @@ import { TextButton } from '@/components/ui/text-button'
 import { ToolDisclosure, ToolSection } from '@/components/ui/tool-section'
 import { setCheck, setOldForest } from './edits'
 import { importRetentionAreas } from './imports'
-import type { OldForestAsk, OldForestReply } from './oldForest/oldForest.worker'
+import { calculateOldForest, OldForestStopped, stopOldForest } from './oldForest/oldForestClient'
+import { RepresentationSummary } from './RepresentationSummary'
 import {
   BOARD_2019_SOURCE,
   gisDisagrees,
@@ -115,7 +116,13 @@ function BoardComparison({ unit, calibration }: { unit: OldForestUnit; calibrati
  * the plan as a record of the inputs it was calculated from. The figures are VRI age-based and not
  * field-verified, and nothing here decides D.5(a): the determination stays the reviewer's.
  */
-export function OldForestSection({ plan, edit, shown }: Pick<StepProps, 'plan' | 'edit' | 'shown'>) {
+export function OldForestSection({
+  plan,
+  edit,
+  shown,
+  oldForestMapOn,
+  setOldForestMapOn,
+}: Pick<StepProps, 'plan' | 'edit' | 'shown' | 'oldForestMapOn' | 'setOldForestMapOn'>) {
   const choices = plan.oldForest
   const units = unitsOf(choices?.district ?? plan.area.district)
   const unit = choices ? oldForestUnit(choices.district, choices.unit) : null
@@ -126,36 +133,30 @@ export function OldForestSection({ plan, edit, shown }: Pick<StepProps, 'plan' |
   const keyOf = (x: { district: string; unit: string }) => `${x.district}|${x.unit}`
   const pooledKeys = new Set(choices ? [keyOf(choices), ...(choices.pooledWith ?? []).map(keyOf)] : [])
   const [run, setRun] = useState<RunState>({ status: 'idle' })
-  const worker = useRef<Worker | null>(null)
-  useEffect(() => () => worker.current?.terminate(), [])
 
   function calculate() {
-    worker.current ??= new Worker(new URL('./oldForest/oldForest.worker.ts', import.meta.url), { type: 'module' })
-    const w = worker.current
     setRun({ status: 'running', progress: 'Starting…' })
-    w.onmessage = ({ data }: MessageEvent<OldForestReply>) => {
-      if (data.progress) return setRun({ status: 'running', progress: data.progress })
-      if (data.error || !data.record) return setRun({ status: 'failed', error: data.error ?? 'Nothing came back.' })
-      const result = data.record
-      edit((p) => setCheck(p, 'oldForest', result))
-      setRun({ status: 'idle' })
-    }
-    w.onerror = (e) => {
-      w.terminate()
-      worker.current = null
-      setRun({ status: 'failed', error: e.message || 'The calculation could not start.' })
-    }
-    const ask: OldForestAsk = {
-      plan: { ...plan, reviews: {}, landscape: {}, packs: [], zones: undefined, checks: undefined },
-      key: oldForestKey(plan),
-      ranOn: new Date().toISOString().slice(0, 10),
-    }
-    w.postMessage(ask)
+    // The page's one worker: the map layer draws from the same session reads.
+    calculateOldForest(
+      {
+        plan: { ...plan, reviews: {}, landscape: {}, packs: [], zones: undefined, checks: undefined },
+        key: oldForestKey(plan),
+        ranOn: new Date().toISOString().slice(0, 10),
+      },
+      (progress) => setRun({ status: 'running', progress }),
+    )
+      .then((result) => {
+        edit((p) => setCheck(p, 'oldForest', result))
+        setRun({ status: 'idle' })
+      })
+      .catch((e: unknown) => {
+        if (e instanceof OldForestStopped && e.message === 'Stopped.') return
+        setRun({ status: 'failed', error: e instanceof Error ? e.message : 'The calculation failed.' })
+      })
   }
   function cancel() {
-    // The worker keeps this session's reads; only a running read or calculation is stopped.
-    worker.current?.terminate()
-    worker.current = null
+    // Stopping the worker loses this session's reads; the next calculation reads again.
+    stopOldForest()
     setRun({ status: 'idle' })
   }
 
@@ -581,6 +582,15 @@ export function OldForestSection({ plan, edit, shown }: Pick<StepProps, 'plan' |
           <p className="text-2xs text-muted-foreground" data-testid="block-planning-old-excluded">
             {excludedSentence(record)}
           </p>
+          <CheckboxField
+            label="Draw on the map"
+            description="Old forest, old interior, the 200 m edges and the ground left out, for the schedule and year on the map. Drawn by the same calculation for that year; kept for this session only."
+            checked={oldForestMapOn}
+            onCheckedChange={setOldForestMapOn}
+          />
+          <ToolDisclosure label="Representative stands (D.3)">
+            <RepresentationSummary record={record} year={shown.year} scheduleNames={names} />
+          </ToolDisclosure>
           {calibrations.length > 0 && (
             <ToolDisclosure label="Check against the Board’s 2019 figures">
               {calibrations.map((c) => (

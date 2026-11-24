@@ -1,4 +1,5 @@
 import { bins, type Bin } from '../forest-patches/project'
+import type { DrawnKind } from './oldForest/drawing'
 
 /**
  * The planner's colours, checked with the dataviz validator (categorical: every adjacent pair
@@ -21,6 +22,24 @@ export const CLASS_COLOURS: Record<Bin, string> = Object.fromEntries(
   bins.map((bin, i) => [bin, ['#86b6ef', '#5598e7', '#256abf', '#104281'][i]]),
 ) as Record<Bin, string>
 export const UNCLASSIFIED_COLOUR = '#a3a3a0'
+
+/**
+ * Old and interior forest on the map (`oldForest/drawing.ts`), defined once for the layers and the
+ * legend. Old forest is one green ramp, light to dark, from ground within 200 m of an edge to
+ * interior. The other kinds differ by mark as well as hue (validator: the dashed D.1 outline and
+ * the grey excluded fill fall under the CVD floor against each other, so they are told apart by
+ * mark: an outline against a fill).
+ */
+export const OLD_FOREST_COLOURS: Record<DrawnKind, string> = {
+  excluded: '#78716c',
+  'edge-band': '#d4a017',
+  'old-edge': '#9fd49a',
+  'old-narrow': '#4f9a4a',
+  interior: '#14532d',
+  younger: '#7c3aed',
+  counted: '#be185d',
+  corridor: '#292524',
+}
 
 /** Map ink: blocks, past disturbances and riparian zones. */
 export const MAP_COLOURS = {
