@@ -29,7 +29,7 @@
  *
  * DOM- and network-free. Geometry is measured in BC Albers (EPSG:3005).
  */
-import type { MultiPolygon, Polygon, Position } from 'geojson'
+import type { LineString, MultiLineString, MultiPoint, MultiPolygon, Point, Polygon, Position } from 'geojson'
 import GeoJSONReader from 'jsts/org/locationtech/jts/io/GeoJSONReader.js'
 import GeoJSONWriter from 'jsts/org/locationtech/jts/io/GeoJSONWriter.js'
 import GeometryFactory from 'jsts/org/locationtech/jts/geom/GeometryFactory.js'
@@ -39,13 +39,14 @@ import STRtree from 'jsts/org/locationtech/jts/index/strtree/STRtree.js'
 import type Geometry from 'jsts/org/locationtech/jts/geom/Geometry.js'
 import BufferOp from 'jsts/org/locationtech/jts/operation/buffer/BufferOp.js'
 import BufferParameters from 'jsts/org/locationtech/jts/operation/buffer/BufferParameters.js'
+import DistanceOp from 'jsts/org/locationtech/jts/operation/distance/DistanceOp.js'
 import OverlayOp from 'jsts/org/locationtech/jts/operation/overlay/OverlayOp.js'
 import UnaryUnionOp from 'jsts/org/locationtech/jts/operation/union/UnaryUnionOp.js'
 import PrecisionModel from 'jsts/org/locationtech/jts/geom/PrecisionModel.js'
 import GeometryPrecisionReducer from 'jsts/org/locationtech/jts/precision/GeometryPrecisionReducer.js'
 import IsValidOp from 'jsts/org/locationtech/jts/operation/valid/IsValidOp.js'
 import polygonClipping from 'polygon-clipping'
-import { lngLatToAlbers } from '../../dev-avast/projection'
+import { albersToLngLat, lngLatToAlbers } from '../../dev-avast/projection'
 import type { Shape } from '../plan'
 import { EXCLUDED_KINDS, type ExcludedArea, type ExcludedKind } from './landBase'
 import type { CountedArea, Corridor, Stand } from './reads'
@@ -686,3 +687,74 @@ export function overlapsWith(
     coveredHa: area(covered) / SQ_M_PER_HA,
   }
 }
+
+/** A line overlay's length, retried on the 10 cm grid if JSTS fails to node it. */
+function lengthWithin(line: Geometry, within: Geometry): number {
+  if (!intersects(line, within)) return 0
+  try {
+    return OverlayOp.intersection(line, within).getLength()
+  } catch (e) {
+    if (!(e instanceof Error) || !/non-noded|TopologyException/i.test(`${e.name} ${e.message}`)) throw e
+    const [a, b] = [line, within].map((g) => GeometryPrecisionReducer.reduce(g, coarse))
+    return OverlayOp.intersection(a, b).getLength()
+  }
+}
+
+/** The footprint grown by `metres` in BC Albers, back in WGS84: what a read near the footprint asks for. */
+export function grownFootprint(footprint: Shape, metres: number): Shape {
+  const grown = polygonal(BufferOp.bufferOp(toAlbers(footprint), metres))
+  const j = writer.write(grown) as unknown as Shape
+  const ring = (r: Position[]) => r.map(([x, y]) => albersToLngLat(x, y) as Position)
+  return j.type === 'Polygon'
+    ? { type: 'Polygon', coordinates: j.coordinates.map(ring) }
+    : { type: 'MultiPolygon', coordinates: j.coordinates.map((poly) => poly.map(ring)) }
+}
+
+/**
+ * Each line's length in metres inside the footprint and within `metres` of it (inside included),
+ * and the same for all of them joined, so a stretch two records share is counted once.
+ */
+export function linesNearFootprint(
+  footprint: Shape,
+  metres: number,
+  lines: (LineString | MultiLineString)[],
+): { each: { insideM: number; nearM: number }[]; insideM: number; nearM: number } {
+  const base = toAlbers(footprint)
+  const grown = BufferOp.bufferOp(base, metres)
+  const geoms = lines.map((l) => toAlbers(l))
+  const each = geoms.map((g) => ({ insideM: lengthWithin(g, base), nearM: lengthWithin(g, grown) }))
+  if (geoms.length < 2) return { each, insideM: each[0]?.insideM ?? 0, nearM: each[0]?.nearM ?? 0 }
+  const collection = factory.createGeometryCollection(geoms)
+  let joined: Geometry
+  try {
+    joined = UnaryUnionOp.union(collection)
+  } catch {
+    joined = UnaryUnionOp.union(GeometryPrecisionReducer.reduce(collection, coarse))
+  }
+  return { each, insideM: lengthWithin(joined, base), nearM: lengthWithin(joined, grown) }
+}
+
+/** How many of each record's points lie within `metres` of the footprint (inside included), and inside it. */
+export function pointsNearFootprint(
+  footprint: Shape,
+  metres: number,
+  points: (Point | MultiPoint)[],
+): { insideCount: number; nearCount: number }[] {
+  const base = toAlbers(footprint)
+  return points.map((p) => {
+    let insideCount = 0
+    let nearCount = 0
+    for (const [x, y] of p.type === 'Point' ? [p.coordinates] : p.coordinates) {
+      const distance = DistanceOp.distance(
+        base,
+        reader.read({ type: 'Point', coordinates: lngLatToAlbers(x, y) }),
+      ) as number
+      if (distance <= metres) nearCount++
+      if (distance === 0) insideCount++
+    }
+    return { insideCount, nearCount }
+  })
+}
+
+/** The three overlays the grazing review's lines and points take (`NearOverlay` in `grazingEvidence.ts`). */
+export const nearFootprint = { grow: grownFootprint, lines: linesNearFootprint, points: pointsNearFootprint }

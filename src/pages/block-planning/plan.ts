@@ -143,11 +143,20 @@ export interface RangeReview {
   mapped?: MappedEvidence
 }
 
-export const MAPPED_LAYERS = ['ada-sra', 'range-tenure', 'crown-grazing'] as const
+export const MAPPED_LAYERS = [
+  'ada-sra',
+  'range-tenure',
+  'crown-grazing',
+  'range-pasture',
+  'range-improvement-lines',
+  'range-improvement-points',
+  'natural-barriers',
+] as const
 export type MappedLayerId = (typeof MAPPED_LAYERS)[number]
 /**
  * Which list a mapped feature goes in: the order an ADA or SRA polygon belongs to; a range
- * tenure's spatial life cycle; or a Tantalis grazing tenure's stage and type.
+ * tenure's spatial life cycle; a Tantalis grazing tenure's stage and type; a range pasture; a range
+ * development's kind; or a natural range barrier's feature group.
  */
 export const MAPPED_GROUPS = [
   'omineca-order',
@@ -161,6 +170,17 @@ export const MAPPED_GROUPS = [
   'section-17',
   'application',
   'reserve',
+  'pasture',
+  'fence',
+  'gate',
+  'cattleguard',
+  'water-development',
+  'corral',
+  'crossing',
+  'stock-trail',
+  'barrier-topological',
+  'barrier-vegetation',
+  'barrier-water',
   'other',
 ] as const
 export type MappedGroup = (typeof MAPPED_GROUPS)[number]
@@ -173,9 +193,18 @@ export interface MappedFeature {
   group: MappedGroup
   /** The other attributes kept, each "label: value" as DataBC gives it. */
   details: string[]
-  overlapHa: number
-  /** The overlap as a percentage of the footprint. */
-  sharePercent: number
+  /** Areas: the overlap with the footprint. */
+  overlapHa?: number
+  /** Areas: the overlap as a percentage of the footprint. */
+  sharePercent?: number
+  /** Lines: metres within the layer's `marginM` of the footprint, inside included. */
+  lengthM?: number
+  /** Lines: metres inside the footprint. */
+  insideLengthM?: number
+  /** Points: how many of the record's points lie within the layer's `marginM`, inside included. */
+  count?: number
+  /** Points: how many lie inside the footprint. */
+  insideCount?: number
 }
 
 export interface MappedLayer {
@@ -184,8 +213,14 @@ export interface MappedLayer {
   status: 'read' | 'failed' | 'truncated'
   message?: string
   features: MappedFeature[]
-  /** The footprint each group covers, with overlapping features counted once. */
+  /** The footprint each group covers, with overlapping features counted once. Areas only. */
   covered: { group: MappedGroup; ha: number }[]
+  /** Lines and points: how far past the footprint's edge they are measured (`NEAR_FOOTPRINT_METRES`). */
+  marginM?: number
+  /** Lines: each group's length near and inside the footprint, shared stretches counted once. */
+  lengths?: { group: MappedGroup; lengthM: number; insideLengthM: number }[]
+  /** Points: each group's points near and inside the footprint. */
+  counts?: { group: MappedGroup; count: number; insideCount: number }[]
 }
 
 export interface MappedEvidence {
@@ -800,6 +835,37 @@ function checkFollows(schedules: Schedule[]) {
 /** At most this many features a layer keeps (`grazingEvidence.ts` reads no more). */
 export const MAX_MAPPED_FEATURES = 500
 
+const metres = (v: unknown, at: string) => num(v, at, 0, 1e9)
+const whole = (v: unknown, at: string) => int(v, at, 0, 1e6)
+
+/** A mapped feature's measure: an area's overlap, a line's length or a point's count, one of them whole. */
+function mappedMeasure(o: JsonObject, at: string): Partial<MappedFeature> {
+  const has = (...keys: string[]) => keys.map((k) => o[k] !== undefined)
+  const [area, share] = has('overlapHa', 'sharePercent')
+  const [length, inside] = has('lengthM', 'insideLengthM')
+  const [count, insideCount] = has('count', 'insideCount')
+  const kinds = [area || share, length || inside, count || insideCount].filter(Boolean).length
+  if (kinds !== 1)
+    throw Error(
+      `${at} needs one measure: overlapHa and sharePercent, lengthM and insideLengthM, or count and insideCount.`,
+    )
+  if (area || share)
+    return {
+      overlapHa: num(o.overlapHa, `${at} overlapHa`, 0, 1e9),
+      sharePercent: num(o.sharePercent, `${at} sharePercent`, 0, 100),
+    }
+  if (length || inside) {
+    const near = metres(o.lengthM, `${at} lengthM`)
+    const within = metres(o.insideLengthM, `${at} insideLengthM`)
+    if (within > near + 1e-6) throw Error(`${at} insideLengthM cannot exceed lengthM.`)
+    return { lengthM: near, insideLengthM: within }
+  }
+  const near = whole(o.count, `${at} count`)
+  const within = whole(o.insideCount, `${at} insideCount`)
+  if (within > near) throw Error(`${at} insideCount cannot exceed count.`)
+  return { count: near, insideCount: within }
+}
+
 function parseMappedEvidence(value: unknown, label: string): MappedEvidence {
   const m = object(value, label)
   const ha = (v: unknown, at: string) => num(v, at, 0, 1e9)
@@ -823,8 +889,7 @@ function parseMappedEvidence(value: unknown, label: string): MappedEvidence {
             name: text(o.name, `${fat} name`, 500),
             group: oneOf(o.group, `${fat} group`, MAPPED_GROUPS),
             details: list(o.details, `${fat} details`, 20).map((d) => text(d, `${fat} detail`, 1000)),
-            overlapHa: ha(o.overlapHa, `${fat} overlapHa`),
-            sharePercent: num(o.sharePercent, `${fat} sharePercent`, 0, 100),
+            ...mappedMeasure(o, fat),
           }
         }),
         covered: list(l.covered, `${at} covered`, MAPPED_GROUPS.length).map((c, j) => {
@@ -834,6 +899,27 @@ function parseMappedEvidence(value: unknown, label: string): MappedEvidence {
             ha: ha(o.ha, `${at} covered ${j + 1} ha`),
           }
         }),
+        marginM: optional(l, 'marginM', (v) => num(v, `${at} marginM`, 0, 10_000)),
+        lengths: optional(l, 'lengths', (v) =>
+          list(v, `${at} lengths`, MAPPED_GROUPS.length).map((c, j) => {
+            const o = object(c, `${at} lengths ${j + 1}`)
+            return {
+              group: oneOf(o.group, `${at} lengths ${j + 1} group`, MAPPED_GROUPS),
+              lengthM: metres(o.lengthM, `${at} lengths ${j + 1} lengthM`),
+              insideLengthM: metres(o.insideLengthM, `${at} lengths ${j + 1} insideLengthM`),
+            }
+          }),
+        ),
+        counts: optional(l, 'counts', (v) =>
+          list(v, `${at} counts`, MAPPED_GROUPS.length).map((c, j) => {
+            const o = object(c, `${at} counts ${j + 1}`)
+            return {
+              group: oneOf(o.group, `${at} counts ${j + 1} group`, MAPPED_GROUPS),
+              count: whole(o.count, `${at} counts ${j + 1} count`),
+              insideCount: whole(o.insideCount, `${at} counts ${j + 1} insideCount`),
+            }
+          }),
+        ),
       }
     }),
   }

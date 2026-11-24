@@ -8,11 +8,14 @@ import { entryOf, shapeOf, type Block, type MappedEvidence, type MappedLayerId, 
 import { shapeSignature } from '../records'
 import type { StepProps } from '../steps/types'
 import {
+  featureMeasure,
   formatHa,
   GROUP_LABELS,
   layerSummary,
   MAPPED_LAYER_INFO,
   mappedCurrent,
+  measureLabel,
+  NEAR_FOOTPRINT_METRES,
   readMappedEvidence,
 } from './grazingEvidence'
 import { RANGE_INSTRUMENT, rangeReviewFor } from './rangeReview'
@@ -25,8 +28,8 @@ type State =
 const today = () => new Date().toISOString().slice(0, 10)
 
 /**
- * Mapped evidence for the grazing review: on the reviewer's click, the ADA/SRA, range tenure and
- * Tantalis grazing layers read against the block shape the review is for, kept on the review
+ * Mapped evidence for the grazing review: on the reviewer's click, the ADA/SRA, range tenure,
+ * Tantalis grazing and range plan layers read against the block shape the review is for, kept on the review
  * (`RangeReview.mapped`) with the footprint it was read for. Candidates to weigh beside the facts;
  * it answers none of them and never reaches the rule evaluation.
  */
@@ -62,7 +65,7 @@ export function GrazingEvidence({
     const signature = shapeSignature(shape.geometry)
     setState({ status: 'reading', layer: null })
     try {
-      const { overlapsWith } = await import('../oldForest/oldForest')
+      const { nearFootprint, overlapsWith } = await import('../oldForest/oldForest')
       const evidence = await readMappedEvidence({
         footprint: shape.geometry,
         shape: shape.id,
@@ -70,6 +73,7 @@ export function GrazingEvidence({
         fetch: (url, init) => fetch(url, init),
         signal: controller.signal,
         measure: overlapsWith,
+        near: nearFootprint,
         readOn: today(),
         onProgress: (layer) => setState({ status: 'reading', layer }),
       })
@@ -93,9 +97,12 @@ export function GrazingEvidence({
     <div className="space-y-2" data-testid="block-planning-grazing-evidence">
       <p className="text-xs font-medium">Mapped evidence</p>
       <p className="text-2xs text-muted-foreground">
-        Reads DataBC’s agriculture development and settlement reserve areas, range tenures, and Tantalis grazing tenures
-        and Land Act §15–17 designations against this block shape. What overlaps is a candidate to weigh when answering
-        the facts below; it answers none of them. The orders’ maps are a visual representation, not for legal purposes.
+        Reads DataBC’s agriculture development and settlement reserve areas, range tenures, Tantalis grazing tenures and
+        Land Act §15–17 designations, and the public parts of the range plan (pastures, range developments and natural
+        range barriers) against this block shape. Developments and barriers are measured inside the shape and within{' '}
+        {NEAR_FOOTPRINT_METRES} m of its edge. What is found is a candidate to weigh when answering the facts below; it
+        answers none of them, and what is not mapped can still be on the ground. The orders’ maps are a visual
+        representation, not for legal purposes.
       </p>
       {state.status === 'reading' ? (
         <div className="flex items-center gap-2">
@@ -140,7 +147,7 @@ export function GrazingEvidence({
                   columns={[
                     { label: 'Feature', render: (f) => f.id },
                     { label: 'As DataBC names it', render: (f) => `${f.name} (${GROUP_LABELS[f.group]})` },
-                    { label: 'Overlap', render: (f) => `${formatHa(f.overlapHa)} ha · ${f.sharePercent.toFixed(1)}%` },
+                    { label: measureLabel(layer.layer), render: (f) => featureMeasure(f, layer.marginM) },
                     { label: 'Details', render: (f) => f.details.join(' · ') },
                   ]}
                 />
