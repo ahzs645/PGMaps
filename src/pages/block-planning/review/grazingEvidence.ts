@@ -42,7 +42,7 @@ import {
   type Shape,
 } from '../plan'
 import type { LineString, MultiLineString, MultiPoint, Point } from 'geojson'
-import { quote, readAcrossParts, wfsRead, type Fetch, type RawFeature } from '../wfsReads'
+import { keepFields, quote, readAcrossParts, wfsRead, type Fetch, type RawFeature } from '../wfsReads'
 
 export const RANGE_TENURE_LAYER = 'pub:WHSE_FOREST_TENURE.FTEN_RANGE_POLY_SVW'
 export const CROWN_TENURE_LAYER = 'pub:WHSE_TANTALIS.TA_CROWN_TENURES_SVW'
@@ -681,7 +681,7 @@ export async function readMappedLayer({
           cap: MAX_MAPPED_FEATURES,
         })
         truncated ||= answer.truncated
-        return answer.features
+        return answer.features.map((f) => ({ ...f, properties: keepFields(f.properties, read.fields) }))
       },
       read.geometryField,
       (f) => read.key(f.properties ?? {}),

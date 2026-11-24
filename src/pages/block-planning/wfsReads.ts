@@ -132,3 +132,14 @@ export async function readAcrossParts(
       kept.set(keyOf(f), f)
   return [...kept.values()]
 }
+
+/**
+ * Only the listed fields, whatever else DataBC sent. GeoServer sends a layer's required fields
+ * whatever `propertyName` asks for: the range tenure layer always carries `CLIENT_NAME`, and RESULTS
+ * its `*_WHO_*` user ids. Every reader strips a record to its own fields as it arrives.
+ */
+export function keepFields(properties: Record<string, unknown> | null | undefined, fields: readonly string[]) {
+  const out: Record<string, unknown> = {}
+  for (const f of fields) if (properties && properties[f] !== undefined) out[f] = properties[f]
+  return out
+}

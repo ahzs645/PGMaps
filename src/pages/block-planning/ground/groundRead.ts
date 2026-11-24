@@ -24,7 +24,9 @@ import {
   type GroundLayer,
 } from '@/lib/legal/groundInstruments'
 import type { Shape } from '../plan'
-import { readAcrossParts, wfsRead, type Fetch, type RawFeature } from '../wfsReads'
+import { keepFields, readAcrossParts, wfsRead, type Fetch, type RawFeature } from '../wfsReads'
+
+export { keepFields }
 import { readPrecedent, PRECEDENT_RADIUS_METRES, type PrecedentRegion } from './precedent'
 import { MAX_GROUND_FEATURES, type GroundFeature, type GroundInstrumentRead, type GroundRead } from './record'
 
@@ -53,13 +55,6 @@ export const valueText = (v: unknown): string | null =>
 export const dayOf = (v: unknown) => {
   const m = typeof v === 'string' ? /^\d{4}-\d{2}-\d{2}/.exec(v) : null
   return m ? m[0] : null
-}
-
-/** Only the listed fields, whatever else DataBC sent. */
-export function keepFields(properties: Record<string, unknown> | null | undefined, fields: readonly string[]) {
-  const out: Record<string, unknown> = {}
-  for (const f of fields) if (properties && properties[f] !== undefined) out[f] = properties[f]
-  return out
 }
 
 /** A record as the catalogue names it. Exported for the tests. */
