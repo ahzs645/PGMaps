@@ -34,6 +34,7 @@ export const SOURCE_TEXT: Record<PoseSource, string> = {
   matched: 'from the matched camera',
   landmark: 'toward the spot picked at the photo’s centre',
   controls: 'solved from the paired points',
+  'gps-altitude': 'the nearest ground at the photo’s GPS altitude: a guess',
 }
 
 /** A coordinate as shown: seven decimals is a centimetre, past anything a photo's position knows. */

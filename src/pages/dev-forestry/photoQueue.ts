@@ -9,6 +9,7 @@
 import type { ExifReading, OwnPoseSources, PoseSource } from './exifPose'
 import { sameCamera, type AcceptancePose, type PhotoAcceptance, type PhotoCameraMethod } from './photoAcceptance'
 import { groupFlights, type LensCheck } from './photoFlight'
+import { AIRBORNE_ABOVE_GROUND_METERS, type HighGround } from './highGround'
 import { photoReasons, type PhotoFailureReason, type PhotoOptionKind, type PhotoQueueStatus } from './photoOptions'
 import { imageryTileRange } from './photoViews'
 import type { WideSearchInput, WideSearchResult } from './wideOrientation'
@@ -55,11 +56,7 @@ export function queueMaySetPose(
   )
 }
 
-/**
- * A phone's GPS altitude this far above the ground under it is an aircraft, not a GPS error: phone altitude is good to
- * some tens of metres, and a helicopter photo is hundreds of metres up.
- */
-export const AIRBORNE_ABOVE_GROUND_METERS = 100
+export { AIRBORNE_ABOVE_GROUND_METERS }
 
 /**
  * The altitude the queue stands a photo's eye at before it searches: its GPS altitude when that is clearly above the
@@ -259,6 +256,7 @@ export function methodForOption(kind: PhotoOptionKind): PhotoCameraMethod {
     case 'runner-up':
       return 'skyline'
     case 'phone':
+    case 'high-ground':
       return 'phone'
     case 'neighbour':
       return 'neighbour'
@@ -294,6 +292,8 @@ export function sourcesForOption(kind: PhotoOptionKind): {
   roll?: PoseSource
   /** Set too when the row moves the camera's place or lens (a point solve, a matched camera). */
   position?: PoseSource
+  /** The row moves the camera's place but keeps its lens, whose source then stands. */
+  keepsLens?: boolean
 } {
   switch (kind) {
     case 'winner':
@@ -301,6 +301,9 @@ export function sourcesForOption(kind: PhotoOptionKind): {
       return { heading: 'skyline', pitch: 'skyline', roll: 'skyline' }
     case 'phone':
       return { heading: 'exif', pitch: 'exif', roll: 'level' }
+    // The phone's angles from ground at its GPS altitude: the place is the guess, the lens is the photo's own.
+    case 'high-ground':
+      return { heading: 'exif', pitch: 'exif', roll: 'level', position: 'gps-altitude', keepsLens: true }
     // Another frame's camera, taken by the reviewer for this one: theirs, as a typed value would be.
     case 'neighbour':
       return { heading: 'reviewer', pitch: 'reviewer', roll: 'reviewer' }
@@ -339,6 +342,8 @@ export type PhotoFound = {
   stopped?: string | null
   /** What the reviewer should know that changes nothing: a narrow search that stood, model views not drawn. */
   notes?: string[]
+  /** Ground at the GPS altitude near a fix that lies far below it (`highGroundNearFix`): an option, never the camera. */
+  highGround?: HighGround | null
 }
 
 /**
@@ -389,6 +394,7 @@ export function queueReasons(input: {
     search: input.search,
     otherOptions: input.otherOptions,
     neighbourGap: input.neighbourGap,
+    highGround: !!input.found?.highGround,
   })
 }
 

@@ -250,6 +250,7 @@ const POSE_SOURCES: Record<PoseSource, true> = {
   matched: true,
   landmark: true,
   controls: true,
+  'gps-altitude': true,
 }
 const isSource = (value: unknown): value is PoseSource =>
   typeof value === 'string' && Object.prototype.hasOwnProperty.call(POSE_SOURCES, value)
