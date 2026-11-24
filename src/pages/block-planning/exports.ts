@@ -24,7 +24,7 @@ import type { PlanAnalysis } from './planAnalysis'
 import { DEFAULT_INDEX_WEIGHTS, indexFormula, INDEX_INDICATORS, planningIndex } from './planningIndex'
 import { pathways, trendYearOf } from './review/pathways'
 import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
-import { boardCheckCurrent, firstShortfall, oldForestCurrent } from './records'
+import { boardCheckCurrent, firstShortfall, metOnlyWithD4, oldForestCurrent, shortfallText } from './records'
 
 export const BLOCK_PLANNING_EXPORTS = [
   {
@@ -119,8 +119,20 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
           shortfalls: plan.checks.oldForest.schedules.map((s) => ({
             schedule: s.schedule,
             first: firstShortfall(s.years),
+            ...(plan.checks!.oldForest!.younger
+              ? { metOnlyWithD4: metOnlyWithD4(s.years), text: shortfallText(s.years) }
+              : {}),
           })),
           board2019: oldForestUnit(plan.checks.oldForest.district, plan.checks.oldForest.unit)?.board2019 ?? null,
+          ...(plan.checks.oldForest.pool
+            ? {
+                board2019ByUnit: plan.checks.oldForest.pool.map((u) => ({
+                  district: u.district,
+                  unit: u.unit,
+                  board2019: oldForestUnit(u.district, u.unit)?.board2019 ?? null,
+                })),
+              }
+            : {}),
           ...plan.checks.oldForest,
         }
       : null,
@@ -211,7 +223,7 @@ ${table.labels
   const old = record.oldForest
   const oldUnit = old ? oldForestUnit(old.district, old.unit) : null
   const oldHtml = old
-    ? `<h2>Old and old interior forest · ${escape(old.unit)}</h2>
+    ? `<h2>Old and old interior forest · ${escape(old.pool ? old.pool.map((u) => u.unit).join(' + ') : old.unit)}</h2>
 ${old.current ? '' : outOfDate}
 <p class="note">${escape(old.source)}. VRI projected to ${old.projectedYear}, age-based and not field-verified. ${
         oldUnit
@@ -220,13 +232,12 @@ ${old.current ? '' : outOfDate}
       } ${old.choices?.cflbEnteredHa !== undefined ? `CFLB as stated${old.choices?.cflbSource ? ` (${escape(old.choices.cflbSource)})` : ''}, with the VRI proxy’s shares applied to it.` : 'CFLB by the VRI proxy (treed, forest management land base).'}${
         oldUnit && gisDisagrees(oldUnit, old.gisFraction) ? ` ${escape(gisDisagrees(oldUnit, old.gisFraction))}` : ''
       }</p>
+${old.pool ? `<p class="note">Pooled under D.2 by the reviewer: ${old.pool.map((u) => `${escape(u.unit)} (${escape(u.district)}, CFLB ${(u.cflbEnteredHa ?? u.cflbProxyHa).toFixed(0)} ha${u.cflbEnteredHa === undefined ? ' by the VRI proxy' : ' as stated'})`).join(', ')}. Each unit’s requirement is at its own percentage and old age; the figures below are the pool’s sums. ${old.pool.map((u) => escape(u.source)).join('. ')}.</p>` : ''}
+${old.younger ? `<p class="note">D.4, as stated by the reviewer: stands from ${old.younger.fromAge} years up to the old age count toward up to 20% of the old and old interior requirements (never the non-pine one). Conservation benefit: ${escape(old.younger.benefit)}</p>` : ''}
 ${old.schedules
   .map(
-    (s) => `<h3>${escape(names[s.schedule] ?? s.schedule)}: ${(() => {
-      const f = old.shortfalls.find((x) => x.schedule === s.schedule)?.first
-      return f ? `short of ${escape(f.what.join(', '))} from ${f.year}` : 'no shortfall over the projection'
-    })()}</h3>
-<table><thead>${row(['Year', 'Old ha (required)', 'Old non-pine ha (required)', 'Old interior ha (required)'], 'th')}</thead><tbody>
+    (s) => `<h3>${escape(names[s.schedule] ?? s.schedule)}: ${escape(shortfallText(s.years))}</h3>
+<table><thead>${row(['Year', 'Old ha (required)', 'Old non-pine ha (required)', 'Old interior ha (required)', ...(old.younger ? ['D.4 old ha (available)', 'D.4 interior ha (available)'] : [])], 'th')}</thead><tbody>
 ${s.years
   .map((y) =>
     row([
@@ -236,17 +247,30 @@ ${s.years
         ? `${y.nonPineOldHa.toFixed(0)} (none stated)`
         : `${y.nonPineOldHa.toFixed(0)} (${y.requiredNonPineHa.toFixed(0)})`,
       y.interiorHa === null ? '—' : `${y.interiorHa.toFixed(0)} (${y.requiredInteriorHa.toFixed(0)})`,
+      ...(old.younger
+        ? [
+            `${(y.d4OldHa ?? 0).toFixed(0)} (${(y.d4OldSupplyHa ?? 0).toFixed(0)})`,
+            y.d4InteriorHa === null || y.d4InteriorHa === undefined
+              ? '—'
+              : `${y.d4InteriorHa.toFixed(0)} (${(y.d4InteriorSupplyHa ?? 0).toFixed(0)})`,
+          ]
+        : []),
     ]),
   )
   .join('\n')}
 </tbody></table>`,
   )
   .join('\n')}
-${
-  old.calibration2019 && old.board2019
-    ? `<p class="note">2019, baseline only, against the Board (${escape(BOARD_2019_SOURCE.label)}): CFLB ${old.calibration2019.cflbHa.toFixed(0)} ha (${old.board2019.cflbHa}), old ${old.calibration2019.oldHa.toFixed(0)} ha (${old.board2019.oldHa}), interior ${old.calibration2019.interiorHa?.toFixed(0) ?? '—'} ha (${old.board2019.interiorHa}).</p>`
-    : ''
-}`
+${(old.pool ?? [{ district: old.district, unit: old.unit, calibration2019: old.calibration2019 }])
+  .map((u) => {
+    // The Board's table is per unit: each unit with a Board row is set beside its own.
+    const b = oldForestUnit(u.district, u.unit)?.board2019
+    const c = u.calibration2019
+    return c && b
+      ? `<p class="note">${old.pool ? `${escape(u.unit)}: ` : ''}2019, baseline only, against the Board (${escape(BOARD_2019_SOURCE.label)}): CFLB ${c.cflbHa.toFixed(0)} ha (${b.cflbHa}), old ${c.oldHa.toFixed(0)} ha (${b.oldHa}), interior ${c.interiorHa?.toFixed(0) ?? '—'} ha (${b.interiorHa}).</p>`
+      : ''
+  })
+  .join('\n')}`
     : ''
   const pathwayHtml = record.pathways
     .map(

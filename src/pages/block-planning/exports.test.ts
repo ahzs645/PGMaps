@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parsePack } from '../../../packages/legal-rules/src/contract'
 import pg from '../../../packages/legal-rules/packs/bc-pgtsa-planning-1.2.0.json'
 import { openPlanFile } from './migrate'
-import { samplePlan } from './plan'
+import { parsePlan, samplePlan } from './plan'
 import { analyzePlan } from './planAnalysis'
 import { assessmentRecord, blocksGeoJson, buildExport } from './exports'
 import { setCheck, setOldForest } from './edits'
@@ -115,5 +115,64 @@ describe('block planning exports', () => {
     expect(buildExport('summary', changed, result, library, 'today')).toContain(
       'The plan changed after this was calculated',
     )
+  })
+
+  it('prints D.4’s statement and figures and every pooled unit, with the Board per unit', () => {
+    let kept = setOldForest(plan, {
+      district: 'Prince George',
+      unit: 'A5',
+      younger: { fromAge: 100, benefit: 'Keeps the <b>riparian</b> link.' },
+      pooledWith: [{ district: 'Prince George', unit: 'A6' }],
+    })
+    const year = {
+      year: 2026,
+      cflbHa: 1000,
+      requiredOldHa: 290,
+      oldHa: 260,
+      countedNotOldHa: 0,
+      requiredNonPineHa: null,
+      nonPineOldHa: 200,
+      unknownAgeHa: 0,
+      requiredInteriorHa: 116,
+      interiorHa: 150,
+      d4OldSupplyHa: 400,
+      d4OldHa: 58,
+      d4InteriorSupplyHa: 20,
+      d4InteriorHa: 20,
+    }
+    const unitRow = (unit: string) => ({
+      district: 'Prince George',
+      unit,
+      source: `Order Map 2, Prince George · ${unit}`,
+      cflbProxyHa: 500,
+      gisFraction: null,
+      projectedYear: 2025,
+      counts: { stands: 10, ogmas: 1, parks: 0, retention: 0, corridors: 2 },
+      schedules: kept.schedules.map((s) => ({ schedule: s.id, years: [year] })),
+      calibration2019: { ...year, year: 2019 },
+    })
+    kept = setCheck(kept, 'oldForest', {
+      ...unitRow('A5'),
+      ranOn: '2026-11-24',
+      readOn: '2026-11-24',
+      key: oldForestKey(kept),
+      younger: { fromAge: 100, benefit: 'Keeps the <b>riparian</b> link.' },
+      pool: [unitRow('A5'), unitRow('A6')],
+    })
+    // The kept record reads back from the plan file whole.
+    expect(parsePlan(JSON.parse(JSON.stringify(kept))).checks?.oldForest).toEqual(kept.checks?.oldForest)
+    const record = assessmentRecord(kept, result, library, '2026-11-24')
+    expect(record.oldForest?.shortfalls[0].text).toBe(
+      'no shortfall over the projection; old met only with D.4 from 2026',
+    )
+    expect(record.oldForest?.younger?.benefit).toMatch(/riparian/)
+    expect(record.oldForest?.pool?.map((u) => u.unit)).toEqual(['A5', 'A6'])
+    const html = buildExport('summary', kept, result, library, 'today')
+    expect(html).toContain('Old and old interior forest · A5 + A6')
+    expect(html).toContain('Pooled under D.2 by the reviewer')
+    expect(html).toContain('Conservation benefit: Keeps the &lt;b&gt;riparian&lt;/b&gt; link.')
+    expect(html).toContain('58 (400)')
+    expect(html).toContain('A5: 2019, baseline only, against the Board')
+    expect(html).toContain('A6: 2019, baseline only, against the Board')
   })
 })
