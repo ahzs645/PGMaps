@@ -45,6 +45,33 @@ const urlOf = (input: RequestInfo | URL): string =>
 const methodOf = (input: RequestInfo | URL, init?: RequestInit): string =>
   (init?.method ?? (typeof input === 'object' && 'method' in input ? input.method : 'GET')).toUpperCase()
 
+const FORM = 'application/x-www-form-urlencoded'
+
+/** The content type a read's own headers give, lower case, or `null`. */
+function contentTypeOf(init?: RequestInit): string | null {
+  const headers = init?.headers
+  if (!headers) return null
+  if (typeof Headers !== 'undefined' && headers instanceof Headers)
+    return headers.get('content-type')?.toLowerCase() ?? null
+  const entries = Array.isArray(headers) ? headers : Object.entries(headers)
+  const found = entries.find(([name]) => name.toLowerCase() === 'content-type')
+  return found ? String(found[1]).toLowerCase() : null
+}
+
+/**
+ * The key a read is kept under, or `null` for a read that is never kept. A GET is kept under its
+ * URL. A form POST (DataBC's WFS asked by a shape's own polygons, too long for a URL) is kept under
+ * the URL its form would make as a GET: the same parameters are the same request, and any other
+ * body is another. Any other read is passed through.
+ */
+export function keptReadKey(input: RequestInfo | URL, init?: RequestInit): string | null {
+  const method = methodOf(input, init)
+  const url = urlOf(input)
+  if (method === 'GET') return url
+  if (method !== 'POST' || typeof init?.body !== 'string' || !contentTypeOf(init)?.startsWith(FORM)) return null
+  return `${url}${url.includes('?') ? '&' : '?'}${init.body}`
+}
+
 function copyResponse(copy: KeptCopy): Response {
   return new Response(copy.body.slice(0), {
     status: 200,
@@ -56,8 +83,9 @@ function copyResponse(copy: KeptCopy): Response {
  * A `fetch` that keeps what it reads and falls back to it.
  *
  * - Switched off, it is the plain fetch: nothing is kept and nothing is read from a copy.
- * - A successful GET is kept. A read that was cancelled is never answered from a copy.
- * - A failed connection, or a server error (5xx), is answered from the copy of that exact URL
+ * - A successful GET, or form POST (`keptReadKey`), is kept. A read that was cancelled is never
+ *   answered from a copy.
+ * - A failed connection, or a server error (5xx), is answered from the copy of that exact request
  *   when there is one. A 4xx is the source refusing the question and is passed through.
  * - Keeping is best effort: a full disk never fails the read it was copying.
  */
@@ -70,7 +98,8 @@ export function createKeptFetch(env: KeptReadEnv): typeof fetch {
   }
 
   return async (input, init) => {
-    if (methodOf(input, init) !== 'GET') return env.fetch(input, init)
+    const url = keptReadKey(input, init)
+    if (url === null) return env.fetch(input, init)
     const answer = env.enabled()
     if (answer === false) return env.fetch(input, init)
     if (answer !== true) {
@@ -81,7 +110,6 @@ export function createKeptFetch(env: KeptReadEnv): typeof fetch {
       }
       init?.signal?.throwIfAborted()
     }
-    const url = urlOf(input)
     let response: Response
     try {
       response = await env.fetch(input, init)

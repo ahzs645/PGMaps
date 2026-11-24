@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parsePack } from '../../../packages/legal-rules/src/contract'
 import pg from '../../../packages/legal-rules/packs/bc-pgtsa-planning-1.2.0.json'
 import { openPlanFile } from './migrate'
-import { samplePlan } from './plan'
+import { parsePlan, samplePlan } from './plan'
 import { analyzePlan } from './planAnalysis'
 import { assessmentRecord, blocksGeoJson, buildExport } from './exports'
 import { setCheck, setOldForest } from './edits'
@@ -99,6 +99,11 @@ describe('block planning exports', () => {
       gisFraction: 0.12,
       projectedYear: 2025,
       counts: { stands: 10, ogmas: 1, parks: 0, retention: 0, corridors: 2 },
+      excluded: [
+        { kind: 'non-crown', records: 3, grossHa: 120, cflbHa: 80 },
+        { kind: 'tfl', records: 1, grossHa: 500, cflbHa: 400 },
+      ],
+      corridorKinds: { fsr: 1, pipeline: 1 },
       schedules: kept.schedules.map((s) => ({ schedule: s.id, years: [{ year: 2026, ...year }] })),
       calibration2019: null,
     })
@@ -110,10 +115,108 @@ describe('block planning exports', () => {
     expect(html).toContain('Check of the method against these figures')
     expect(html).toContain('Old and old interior forest · A10')
     expect(html).toContain('the order’s table says 17%')
+    expect(html).toContain('Tree farm licences 500 ha (400 ha of it on the proxy CFLB)')
+    expect(html).toContain('480 ha left the CFLB in all')
+    expect(html).toContain('pipelines 1')
+    const reopened = openPlanFile(JSON.parse(buildExport('plan', kept, undefined, library, '2026-11-24')))
+    expect(reopened.plan.checks?.oldForest?.excluded).toEqual(kept.checks?.oldForest?.excluded)
+    expect(reopened.plan.checks?.oldForest?.corridorKinds).toEqual({ fsr: 1, pipeline: 1 })
     expect(html).not.toContain('The plan changed after this was calculated')
+    // No D.3 summary in this record: the summary prints none.
+    expect(html).not.toContain('Representative stands (D.3)')
+    const row = (key: string, cflbHa: number, oldHa: number, nonPineOldHa: number) => ({
+      key,
+      cflbHa,
+      oldHa,
+      nonPineOldHa,
+    })
+    const d3 = setCheck(kept, 'oldForest', {
+      ...kept.checks!.oldForest!,
+      representation: {
+        schedule: kept.reviewSchedule,
+        years: [
+          {
+            year: 2026,
+            interiorHa: 30,
+            interiorNonPineHa: 24,
+            by: {
+              species: [row('pine', 400, 20, 0), row('spruce', 600, 100, 100)],
+              bec: [row('SBS wk1', 1000, 120, 100)],
+              age: [row('8', 120, 120, 100), row('3', 880, 0, 0)],
+              site: [row('15-20', 1000, 120, 100)],
+            },
+          },
+        ],
+      },
+    })
+    const printed = buildExport('summary', d3, result, library, 'today')
+    expect(printed).toContain('Representative stands (D.3)')
+    expect(printed).toContain('(i.e. non-pine forest)')
+    expect(printed).toContain('non-pine-leading 60.0% of the CFLB, old non-pine 83.3% of old forest')
+    expect(printed).toContain('<td>Spruce (S)</td><td>600 (60.0%)</td><td>100 (83.3%)</td><td>100 (100.0%)</td>')
+    expect(printed).toContain('15 to under 20 m')
     const changed = setOldForest(kept, { countParks: true })
     expect(buildExport('summary', changed, result, library, 'today')).toContain(
       'The plan changed after this was calculated',
     )
+  })
+
+  it('prints D.4’s statement and figures and every pooled unit, with the Board per unit', () => {
+    let kept = setOldForest(plan, {
+      district: 'Prince George',
+      unit: 'A5',
+      younger: { fromAge: 100, benefit: 'Keeps the <b>riparian</b> link.' },
+      pooledWith: [{ district: 'Prince George', unit: 'A6' }],
+    })
+    const year = {
+      year: 2026,
+      cflbHa: 1000,
+      requiredOldHa: 290,
+      oldHa: 260,
+      countedNotOldHa: 0,
+      requiredNonPineHa: null,
+      nonPineOldHa: 200,
+      unknownAgeHa: 0,
+      requiredInteriorHa: 116,
+      interiorHa: 150,
+      d4OldSupplyHa: 400,
+      d4OldHa: 58,
+      d4InteriorSupplyHa: 20,
+      d4InteriorHa: 20,
+    }
+    const unitRow = (unit: string) => ({
+      district: 'Prince George',
+      unit,
+      source: `Order Map 2, Prince George · ${unit}`,
+      cflbProxyHa: 500,
+      gisFraction: null,
+      projectedYear: 2025,
+      counts: { stands: 10, ogmas: 1, parks: 0, retention: 0, corridors: 2 },
+      schedules: kept.schedules.map((s) => ({ schedule: s.id, years: [year] })),
+      calibration2019: { ...year, year: 2019 },
+    })
+    kept = setCheck(kept, 'oldForest', {
+      ...unitRow('A5'),
+      ranOn: '2026-11-24',
+      readOn: '2026-11-24',
+      key: oldForestKey(kept),
+      younger: { fromAge: 100, benefit: 'Keeps the <b>riparian</b> link.' },
+      pool: [unitRow('A5'), unitRow('A6')],
+    })
+    // The kept record reads back from the plan file whole.
+    expect(parsePlan(JSON.parse(JSON.stringify(kept))).checks?.oldForest).toEqual(kept.checks?.oldForest)
+    const record = assessmentRecord(kept, result, library, '2026-11-24')
+    expect(record.oldForest?.shortfalls[0].text).toBe(
+      'no shortfall over the projection; old met only with D.4 from 2026',
+    )
+    expect(record.oldForest?.younger?.benefit).toMatch(/riparian/)
+    expect(record.oldForest?.pool?.map((u) => u.unit)).toEqual(['A5', 'A6'])
+    const html = buildExport('summary', kept, result, library, 'today')
+    expect(html).toContain('Old and old interior forest · A5 + A6')
+    expect(html).toContain('Pooled under D.2 by the reviewer')
+    expect(html).toContain('Conservation benefit: Keeps the &lt;b&gt;riparian&lt;/b&gt; link.')
+    expect(html).toContain('58 (400)')
+    expect(html).toContain('A5: 2019, baseline only, against the Board')
+    expect(html).toContain('A6: 2019, baseline only, against the Board')
   })
 })

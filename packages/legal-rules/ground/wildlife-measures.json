@@ -1,0 +1,1576 @@
+{
+  "format": "pgmaps-wildlife-measures/v1",
+  "version": "2026-11-24",
+  "readOn": "2026-11-24",
+  "notes": "The general wildlife measures (and, for orders continued from the Forest Practices Code, the objectives) of the ungulate winter range and wildlife habitat area orders read for the Omineca region, as each order's own text states them. Each measure is paraphrased, quoted under 125 characters, and tied to the units or zones the order names. Orders were read from the PDFs the Ministry of Water, Land and Resource Stewardship publishes (https://www.env.gov.bc.ca/wld/frpa/uwr/approved_uwr.html and https://www.env.gov.bc.ca/cgi-bin/apps/faw/wharesult.cgi?search=wlap_region&wlap=Omineca); most are scans, read by OCR and checked against the page images where a reading mattered. A screen, never a legal determination: whether a measure applies to a block, and whether an exemption is granted, is the reviewer's and the ministry's.",
+  "orders": [
+    {
+      "id": "u-7-002",
+      "layer": "uwr",
+      "covers": ["u-7-002"],
+      "title": "Ungulate winter range U7-002, mule deer, Fort St. James",
+      "species": "Mule deer",
+      "source": "bc.uwr.u-7-002",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_002.pdf",
+      "decided": "2003-06-19",
+      "made": "code",
+      "authority": "Operational and Site Planning Regulation s. 69(1)(a), (b); continued under FRPA ss. 180, 181",
+      "zones": [
+        {
+          "id": "age40",
+          "label": "Units 1, 2, 3, 4, 5, 11, 12 and 14",
+          "units": { "u-7-002": ["1", "2", "3", "4", "5", "11", "12", "14"] }
+        },
+        {
+          "id": "age50",
+          "label": "Units 9, 10, 15, 16, 17 and 18",
+          "units": { "u-7-002": ["9", "10", "15", "16", "17", "18"] }
+        },
+        { "id": "unit19", "label": "Unit 19", "units": { "u-7-002": ["19"] } }
+      ],
+      "measures": [
+        {
+          "ref": "objective 1",
+          "kind": "objective",
+          "zones": ["age40"],
+          "bears": { "harvest": "conditions" },
+          "says": "Keep at least 40% of each unit in age class 8 or older with crown closure over 56%.",
+          "quote": "maintain a minimum of 40% of winter range area in age class 8 (> 140 years) or greater at all times"
+        },
+        {
+          "ref": "objective 2",
+          "kind": "objective",
+          "zones": ["age50"],
+          "bears": { "harvest": "conditions" },
+          "says": "Keep at least 50% of stands in age class 8 or older with mature crown closure over 66%.",
+          "quote": "maintain a minimum of 50% of stands in age class 8 (>140 years) or greater"
+        },
+        {
+          "ref": "objective 3",
+          "kind": "objective",
+          "zones": ["age40", "age50", "unit19"],
+          "bears": { "replant": "conditions" },
+          "says": "Keep the stands Douglas-fir leading, at least half Douglas-fir.",
+          "quote": "maintain species composition as Douglas-fir leading, with a minimum of 50% Douglas-fir"
+        },
+        {
+          "ref": "objective 4",
+          "kind": "objective",
+          "zones": ["age40", "age50", "unit19"],
+          "bears": { "replant": "conditions" },
+          "says": "Keep 10 to 40% shrub cover of preferred deciduous forage, which limits brushing.",
+          "quote": "maintain 10—40% shrub cover of preferred deciduous forage species"
+        },
+        {
+          "ref": "objective 5",
+          "kind": "objective",
+          "zones": ["unit19"],
+          "bears": { "harvest": "governs" },
+          "says": "No commercial harvesting in unit 19.",
+          "quote": "Within UWR Unit number 19, no commercial forest harvesting."
+        },
+        {
+          "ref": "objective 6",
+          "kind": "objective",
+          "zones": ["age40", "age50"],
+          "bears": { "harvest": "conditions" },
+          "says": "Openings irregular, under 1 ha and under 250 m wide.",
+          "quote": "keep timber harvesting openings irregular in shape, < 1 ha in size and < 250 m wide"
+        },
+        {
+          "ref": "objective 7",
+          "kind": "objective",
+          "zones": ["age40", "age50", "unit19"],
+          "bears": { "harvest": "conditions", "roads": "conditions" },
+          "says": "Avoid winter forestry development, harvesting included, from 15 December to 15 April.",
+          "quote": "Avoid winter forestry development (including harvesting) between December 15th and April 15th."
+        },
+        {
+          "ref": "objective 11",
+          "kind": "objective",
+          "zones": ["age40", "age50", "unit19"],
+          "bears": { "grazing": "conditions" },
+          "says": "Reduce conflicts with livestock: no increase in animal unit months and no new tenures.",
+          "quote": "Do not increase Animal Unit Month (AUM) allotments or issue new tenures."
+        },
+        {
+          "ref": "objectives 12, 13",
+          "kind": "objective",
+          "zones": ["age40", "age50", "unit19"],
+          "bears": { "roads": "conditions" },
+          "says": "Lowest practicable road class, major routes planned round the range, and new road matched 1:1 by permanent deactivation.",
+          "quote": "permanently deactivating roads in a 1:1 ratio to the amount of new road construction"
+        },
+        {
+          "ref": "objective 14",
+          "kind": "objective",
+          "zones": ["unit19"],
+          "bears": { "roads": "governs" },
+          "says": "No new roads in unit 19.",
+          "quote": "Within UWR Unit number 19, do not construct any new roads."
+        }
+      ],
+      "exemptions": []
+    },
+    {
+      "id": "u-7-003",
+      "layer": "uwr",
+      "covers": ["u-7-003"],
+      "title": "Ungulate winter range U-7-003, mountain caribou, Upper Fraser, Hart Ranges and Mount Robson",
+      "species": "Mountain caribou",
+      "source": "bc.uwr.u-7-003",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-003_order_09Dec09.pdf",
+      "decided": "2009-12-09",
+      "effective": "2009-12-17",
+      "made": "gar",
+      "authority": "GAR ss. 9(2), 12(1)",
+      "zones": [
+        {
+          "id": "corridor",
+          "label": "Caribou Corridor units",
+          "units": {
+            "u-7-003": [
+              "P-001",
+              "P-004",
+              "P-005",
+              "P-009",
+              "P-013",
+              "P-015",
+              "P-017",
+              "P-018",
+              "P-026",
+              "P-028",
+              "P-029",
+              "P-039",
+              "P-042",
+              "P-044",
+              "P-046",
+              "P-047",
+              "P-050",
+              "P-051",
+              "P-052",
+              "P-059",
+              "P-061",
+              "P-062",
+              "P-063",
+              "P-070",
+              "P-073",
+              "R-003",
+              "R-008",
+              "R-009",
+              "R-010",
+              "R-014",
+              "R-016",
+              "T-005",
+              "T-009",
+              "T-010",
+              "T-012"
+            ]
+          }
+        },
+        {
+          "id": "high",
+          "label": "Caribou High units",
+          "units": {
+            "u-7-003": [
+              "P-002",
+              "P-003",
+              "P-006",
+              "P-007",
+              "P-008",
+              "P-010",
+              "P-011",
+              "P-012",
+              "P-014",
+              "P-019",
+              "P-020",
+              "P-021",
+              "P-022",
+              "P-023",
+              "P-024",
+              "P-025",
+              "P-030",
+              "P-031",
+              "P-032",
+              "P-033",
+              "P-034",
+              "P-035",
+              "P-036",
+              "P-037",
+              "P-038",
+              "P-040",
+              "P-041",
+              "P-043",
+              "P-045",
+              "P-048",
+              "P-049",
+              "P-053",
+              "P-054",
+              "P-055",
+              "P-056",
+              "P-057",
+              "P-058",
+              "P-060",
+              "P-064",
+              "P-065",
+              "P-066",
+              "P-067",
+              "P-068",
+              "P-069",
+              "P-072",
+              "P-074",
+              "P-075",
+              "R-001",
+              "R-002",
+              "R-004",
+              "R-005",
+              "R-011",
+              "R-018",
+              "R-019",
+              "R-020",
+              "R-021",
+              "R-022",
+              "R-023",
+              "R-300",
+              "T-003",
+              "T-006",
+              "T-014",
+              "T-016"
+            ]
+          }
+        },
+        {
+          "id": "medium",
+          "label": "Caribou Medium units",
+          "units": {
+            "u-7-003": [
+              "R-015",
+              "R-017",
+              "T-001",
+              "T-002",
+              "T-004",
+              "T-007",
+              "T-008",
+              "T-011",
+              "T-013",
+              "T-015",
+              "T-017",
+              "T-018",
+              "T-019"
+            ]
+          }
+        }
+      ],
+      "measures": [
+        {
+          "ref": "GWM 1(a)",
+          "kind": "gwm",
+          "zones": ["corridor"],
+          "bears": { "harvest": "conditions", "roads": "conditions" },
+          "says": "Primary forest activities must leave at least 20% of each unit's forest older than 100 years, as a contiguous windfirm corridor.",
+          "quote": "Primary forest activities will result in a minimum of 20% of the forest within each unit as greater than 100 years of age"
+        },
+        {
+          "ref": "GWM 1(b)",
+          "kind": "gwm",
+          "zones": ["corridor"],
+          "bears": { "harvest": "conditions" },
+          "says": "No more than 20% of each unit's productive forest below 3 m green-up at any time.",
+          "quote": "no more than 20% of the productive forest area of each unit being less than 3 metre green-up condition at any time"
+        },
+        {
+          "ref": "GWM 2(a)",
+          "kind": "gwm",
+          "zones": ["high"],
+          "bears": { "harvest": "governs", "roads": "governs" },
+          "says": "No timber harvesting or road construction, except as GWMs 2(b)–(d), 4 and 5 provide.",
+          "quote": "Timber harvesting and road construction must not occur within the UWR except as provided in GWMs 2(b),2 (c), 2(d)"
+        },
+        {
+          "ref": "GWM 3(a)",
+          "kind": "gwm",
+          "zones": ["medium"],
+          "bears": { "harvest": "conditions" },
+          "says": "Partial cutting only: at most 30% of the volume every 80 years, openings no larger than 1 ha (mean 0.5 ha or less), two tree lengths apart.",
+          "quote": "Timber harvesting will result in less than or equal to 30% volume removal on a cut block area every 80 years"
+        },
+        {
+          "ref": "GWM 3(b)",
+          "kind": "gwm",
+          "zones": ["medium"],
+          "bears": { "harvest": "conditions" },
+          "says": "Forest health sanitation without a material adverse impact on caribou habitat.",
+          "quote": "will be conducted in a manner that does not result in a material adverse impact on the caribou habitat"
+        },
+        {
+          "ref": "GWM 3(c)",
+          "kind": "gwm",
+          "zones": ["medium"],
+          "bears": { "roads": "conditions" },
+          "says": "No permanent road within 2 km of a Caribou High unit.",
+          "quote": "Permanent road access in the Caribou Medium UWR Units will not be constructed within 2 km of any Caribou High UWR Unit."
+        },
+        {
+          "ref": "GWM 3(d), (e)",
+          "kind": "gwm",
+          "zones": ["medium"],
+          "bears": { "roads": "conditions" },
+          "says": "Deactivate roads under FPPR s. 82(1)(a)–(c) once harvesting and silviculture no longer need them; plough snow only for harvesting.",
+          "quote": "roads will be deactivated as per sections 82(1)(a),(b) and (c) of the Forest Planning and Practices Regulation"
+        }
+      ],
+      "exemptions": [
+        {
+          "ref": "GWM 2(b)",
+          "zones": ["high"],
+          "says": "Cutblocks and roads approved in a forest development plan before the original order of 6 October 2003 may proceed.",
+          "quote": "may occur where cut blocks and associated roads have been previously approved in a Forest Development Plan",
+          "by": "The order itself",
+          "inOrder": true
+        },
+        {
+          "ref": "GWM 2(c)",
+          "zones": ["high"],
+          "says": "GWM 2(a) does not apply to road construction, maintenance and deactivation through units R-005, P-015, P-024, P-034, P-058 and P-066.",
+          "quote": "GWM 2(a) does not apply to road construction, maintenance and deactivation through UWR units R-005, P-015, P-024",
+          "by": "The order itself",
+          "inOrder": true
+        },
+        {
+          "ref": "GWM 2(d)",
+          "zones": ["high"],
+          "says": "Road maintenance, deactivation and reclamation are outside GWM 2(a).",
+          "quote": "GWM 2(a) does not apply for the purposes of road maintenance, road deactivation, or road reclamation activities.",
+          "by": "The order itself",
+          "inOrder": true
+        },
+        {
+          "ref": "Appendix 1, item 2 (not part of the order)",
+          "says": "Harvesting or roads that cannot comply need an exemption under FPPR s. 92(1), applied for with a rationale; forest health sanitation needs one where it cannot comply.",
+          "quote": "an exemption is required from the requirement to comply with the GWMs if the activities are to proceed",
+          "by": "The minister's delegate: the ministry's regional manager for the region the range is in",
+          "inOrder": false
+        }
+      ]
+    },
+    {
+      "id": "u-7-009",
+      "layer": "uwr",
+      "covers": ["u-7-009"],
+      "title": "Ungulate winter range U-7-009, northern caribou, Mackenzie TSA",
+      "species": "Northern caribou",
+      "source": "bc.uwr.u-7-009",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_009.pdf",
+      "decided": "2005-11-24",
+      "effective": "2005-12-01",
+      "made": "gar",
+      "authority": "GAR ss. 9(2), 12(1)",
+      "zones": [
+        { "id": "corridor", "label": "Caribou Corridor unit PP-003", "units": { "u-7-009": ["PP-003"] } },
+        {
+          "id": "high",
+          "label": "Caribou High units PP-001, PP-002, PP-004",
+          "units": { "u-7-009": ["PP-001", "PP-002", "PP-004"] }
+        }
+      ],
+      "measures": [
+        {
+          "ref": "GWM 1",
+          "kind": "gwm",
+          "zones": ["corridor"],
+          "bears": { "harvest": "conditions", "roads": "conditions" },
+          "says": "At least 20% of forested stands 100 years or older as a windfirm corridor, no more than 20% below 3 m green-up; forest health work only within those limits.",
+          "quote": "maintain a minimum of 20% of the forested stands as 100+ years of age in a contiguous, windfirm corridor"
+        },
+        {
+          "ref": "GWM 2.1",
+          "kind": "gwm",
+          "zones": ["high"],
+          "bears": { "harvest": "governs" },
+          "says": "All forest cover retained, except cutblocks and roads authorized when the range was established.",
+          "quote": "all forest cover within these ungulate winter range units will be retained"
+        },
+        {
+          "ref": "GWM 2.2",
+          "kind": "gwm",
+          "zones": ["high"],
+          "bears": { "roads": "governs" },
+          "says": "No road construction without an exemption; authorized roads are not permanent access structures.",
+          "quote": "Road construction is not to occur within these ungulate winter range units unless an exemption is approved"
+        },
+        {
+          "ref": "GWM 3",
+          "kind": "gwm",
+          "zones": ["corridor", "high"],
+          "bears": { "grazing": "conditions" },
+          "says": "Range practices must not convert terrestrial lichen habitat to forb or moss, nor develop range features that concentrate livestock.",
+          "quote": "not cause conversion of terrestrial lichen habitat (TLH) to forbe and/or moss cover"
+        }
+      ],
+      "exemptions": [
+        {
+          "ref": "GWM 2.1",
+          "zones": ["high"],
+          "says": "Cutblocks and associated roads authorized when the range was established are outside the retention rule.",
+          "quote": "With the exception of cut blocks and associated roads authorized at the time of the establishment",
+          "by": "The order itself",
+          "inOrder": true
+        },
+        {
+          "ref": "GWM 2.1(a)–(c)",
+          "zones": ["high"],
+          "says": "An exemption would be considered to enhance the range; none is needed for danger trees along adjacent cutblock boundaries or for sanitation harvesting.",
+          "quote": "An exemption would be considered for the purposed of enhancing the quality of the winter range.",
+          "by": "The minister responsible for the Wildlife Act or delegate (FPPR s. 92(1))",
+          "inOrder": true
+        },
+        {
+          "ref": "GWM 2.2",
+          "zones": ["high"],
+          "says": "Road construction needs an exemption approved by the minister or delegate.",
+          "quote": "unless an exemption is approved by the Minister of Environment or delegate",
+          "by": "The minister responsible for the Wildlife Act or delegate",
+          "inOrder": true
+        },
+        {
+          "ref": "GWM 3.1(b)",
+          "says": "Range developments that concentrate livestock need an exemption.",
+          "quote": "unless an exemption is granted by Ministry of Environment designated authority",
+          "by": "The ministry's designated authority (RPPR s. 36(3))",
+          "inOrder": true
+        },
+        {
+          "ref": "Appendix 1 (not part of the order)",
+          "says": "Exemptions are under FPPR s. 92(1), applied for with a rationale; salvage only where it benefits the range.",
+          "quote": "Authority to consider an exemption from these general wildlife measures is provided in Section 92(1)",
+          "by": "The minister's delegate: the ministry's regional manager",
+          "inOrder": false
+        }
+      ]
+    },
+    {
+      "id": "u-7-010",
+      "layer": "uwr",
+      "covers": ["u-7-010"],
+      "title": "Ungulate winter range U7-010, mule deer, Robson Valley TSA",
+      "species": "Mule deer",
+      "source": "bc.uwr.u-7-010",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_010.pdf",
+      "decided": "2006-03-30",
+      "effective": "2006-04-06",
+      "made": "gar",
+      "authority": "GAR ss. 9(2), 12(1)",
+      "zones": [
+        {
+          "id": "morkill",
+          "label": "Units RVD-002 and RVD-003 (Morkill, Big Eddy)",
+          "units": { "u-7-010": ["RVD-002", "RVD-003"] }
+        },
+        { "id": "hellroaring", "label": "Unit RVD-001 (Morkill-Hellroaring)", "units": { "u-7-010": ["RVD-001"] } }
+      ],
+      "measures": [
+        {
+          "ref": "GWMs 1, 2",
+          "kind": "gwm",
+          "zones": ["morkill", "hellroaring"],
+          "bears": { "harvest": "conditions" },
+          "says": "Keep at least 50% of each unit in age classes 8 and 9 with at least 66% canopy closure (cedar–hemlock in RVD-001).",
+          "quote": "maintain a minimum of 50% of the winter range area in age class 8 and 9 (mature and old forest )"
+        },
+        {
+          "ref": "GWMs 4, 5",
+          "kind": "gwm",
+          "zones": ["morkill", "hellroaring"],
+          "bears": { "replant": "conditions" },
+          "says": "Keep, or grow by silviculture, Douglas-fir in the main and emergent canopy, and Douglas-fir, cedar and hemlock emergent.",
+          "quote": "maintain, or use silvicultural practices to produce, a species composition that retains Douglas-fir"
+        },
+        {
+          "ref": "GWM 6",
+          "kind": "gwm",
+          "zones": ["morkill", "hellroaring"],
+          "bears": { "harvest": "conditions" },
+          "says": "Openings irregular, no larger than 1 ha and under 250 m wide.",
+          "quote": "keep timber harvesting openings irregular shaped, no greater than 1 ha in size and less than 250 m wide"
+        },
+        {
+          "ref": "GWMs 7, 8, 9",
+          "kind": "gwm",
+          "zones": ["morkill", "hellroaring"],
+          "bears": { "roads": "conditions" },
+          "says": "Road length held to what exists by closing roads 1:1 with new construction, snow ploughed only for hauling and silviculture, harvest roads closed and rehabilitated after harvest.",
+          "quote": "After harvest occurs close and rehabilitate roads built for harvesting access."
+        },
+        {
+          "ref": "GWM 10",
+          "kind": "gwm",
+          "zones": ["morkill", "hellroaring"],
+          "bears": { "harvest": "conditions" },
+          "says": "Sanitation thinning (trees with live brood only) only within GWMs 1, 2, 3 and 6.",
+          "quote": "may occur within UWR only if it is within the limits set by General Wildlife Measures 1, 2, 3 and 6"
+        },
+        {
+          "ref": "GWM 11",
+          "kind": "gwm",
+          "zones": ["morkill", "hellroaring"],
+          "bears": { "grazing": "conditions" },
+          "says": "No range developments that would concentrate livestock in the range.",
+          "quote": "avoid displacement of Mule Deer by livestock by not developing range development features"
+        }
+      ],
+      "exemptions": [
+        {
+          "ref": "Order item 5",
+          "says": "The measures do not apply to subsurface resource exploration, development or production authorized under the mining, coal, petroleum, pipeline or geothermal Acts.",
+          "quote": "do not apply for the purposes of exploration, development and production activities",
+          "by": "The order itself",
+          "inOrder": true
+        },
+        {
+          "ref": "Appendix 1 (not part of the order)",
+          "says": "Where compliance is not practicable, apply for an exemption under FPPR s. 92(1) with a rationale; salvage may be proposed where it benefits the range.",
+          "quote": "Authority to consider an exemption from these general wildlife measures is provided in Section 92(1)",
+          "by": "The minister's delegate: the ministry's regional manager",
+          "inOrder": false
+        }
+      ]
+    },
+    {
+      "id": "u-7-013",
+      "layer": "uwr",
+      "covers": ["u-7-013"],
+      "title": "Ungulate winter range U7-013, mule deer, Prince George",
+      "species": "Mule deer",
+      "source": "bc.uwr.u-7-013",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_013.pdf",
+      "decided": "2003-11-26",
+      "made": "code",
+      "authority": "Operational and Site Planning Regulation s. 69(1)(a), (b); continued under FRPA ss. 180, 181",
+      "zones": [
+        {
+          "id": "age40",
+          "label": "Units under objective 1",
+          "units": {
+            "u-7-013": [
+              "PGD-004",
+              "PGD-008",
+              "PGD-010",
+              "PGD-011",
+              "PGD-013",
+              "PGD-015",
+              "PGD-023",
+              "PGD-026",
+              "PGD-027",
+              "PGD-028",
+              "PGD-029",
+              "PGD-031",
+              "PGD-038",
+              "PGD-040",
+              "PGD-041",
+              "PGD-042",
+              "PGD-043",
+              "PGD-044",
+              "PGD-045",
+              "PGD-046",
+              "PGD-047",
+              "PGD-048",
+              "PGD-049",
+              "PGD-050",
+              "PGD-051",
+              "PGD-052",
+              "PGD-055",
+              "PGD-063",
+              "PGD-064",
+              "PGD-065"
+            ]
+          }
+        },
+        {
+          "id": "age50",
+          "label": "Units under objective 2",
+          "note": "The order prints PGD-0012; read as PGD-012, the layer's unit.",
+          "units": {
+            "u-7-013": [
+              "PGD-001",
+              "PGD-002",
+              "PGD-012",
+              "PGD-014",
+              "PGD-019",
+              "PGD-020",
+              "PGD-021",
+              "PGD-022",
+              "PGD-035",
+              "PGD-054",
+              "PGD-066"
+            ]
+          }
+        },
+        { "id": "noharvest", "label": "Units PGD-005 and PGD-006", "units": { "u-7-013": ["PGD-005", "PGD-006"] } }
+      ],
+      "measures": [
+        {
+          "ref": "objective 1",
+          "kind": "objective",
+          "zones": ["age40"],
+          "bears": { "harvest": "conditions" },
+          "says": "Keep at least 40% of each unit in age class 8 or older with crown closure over 56%.",
+          "quote": "maintain a minimum of 40% of winter range area in age class 8 (>140 years) or greater at all times"
+        },
+        {
+          "ref": "objective 2",
+          "kind": "objective",
+          "zones": ["age50"],
+          "bears": { "harvest": "conditions" },
+          "says": "Keep at least 50% of stands in age class 8 or older with mature crown closure over 66%.",
+          "quote": "maintain a minimum of 50% of stands in age class 8 (>140 years) or greater"
+        },
+        {
+          "ref": "objective 3",
+          "kind": "objective",
+          "zones": ["age40", "age50", "noharvest"],
+          "bears": { "replant": "conditions" },
+          "says": "Douglas-fir leading, at least half Douglas-fir; fill a shortage with white spruce, hemlock or cedar and choose silviculture that raises Douglas-fir.",
+          "quote": "choose silvicultural practices to increase Douglas-fir presence"
+        },
+        {
+          "ref": "objective 4",
+          "kind": "objective",
+          "zones": ["age40", "age50", "noharvest"],
+          "bears": { "replant": "conditions" },
+          "says": "Manage for 30 to 40% cover of preferred browse shrubs.",
+          "quote": "will maintain a 30-40% cover of deciduous shrubs"
+        },
+        {
+          "ref": "objective 5",
+          "kind": "objective",
+          "zones": ["noharvest"],
+          "bears": { "harvest": "governs" },
+          "says": "No commercial harvesting in units PGD-005 and PGD-006.",
+          "quote": "Within UWR Unit numbers PGD-005 and PGD-006, no commercial forest harvesting."
+        },
+        {
+          "ref": "objective 6",
+          "kind": "objective",
+          "zones": ["age40", "age50"],
+          "bears": { "harvest": "conditions" },
+          "says": "Openings within cutblocks irregular, under 5 ha and under 250 m wide.",
+          "quote": "keep timber harvesting openings within cutblocks irregular in shape, < 5 ha in size and < 250 m wide"
+        },
+        {
+          "ref": "objective 7",
+          "kind": "objective",
+          "zones": ["age40", "age50", "noharvest"],
+          "bears": { "harvest": "conditions", "roads": "conditions" },
+          "says": "Avoid winter forestry development, harvesting included, from 15 December to 15 April.",
+          "quote": "Avoid winter forestry development (including harvesting) between December 15th and April 15th."
+        },
+        {
+          "ref": "objective 8(a)",
+          "kind": "objective",
+          "zones": ["age40", "age50", "noharvest"],
+          "bears": { "harvest": "conditions" },
+          "says": "Sanitation thinning only within the habitat condition objectives, unless a variance is approved.",
+          "quote": "may occur within UWR, only if it is within the limits of UWR Habitat Condition objectives"
+        },
+        {
+          "ref": "objective 11",
+          "kind": "objective",
+          "zones": ["age40", "age50", "noharvest"],
+          "bears": { "grazing": "conditions" },
+          "says": "Livestock to take no more than 10% of the year's shrub growth, no grazing on south slopes before leaf-out, and no range developments that concentrate livestock.",
+          "quote": "Livestock use will not exceed more than 10% of current year's shrub growth."
+        },
+        {
+          "ref": "objectives 12, 13",
+          "kind": "objective",
+          "zones": ["age40", "age50", "noharvest"],
+          "bears": { "roads": "conditions" },
+          "says": "Major routes planned round the range, lowest practicable class, new road matched 1:1 by closure, harvest roads closed and rehabilitated after harvest.",
+          "quote": "New roads for harvesting access will be permanently closed and rehabilitated after harvest occurs."
+        },
+        {
+          "ref": "objective 14",
+          "kind": "objective",
+          "zones": ["noharvest"],
+          "bears": { "roads": "governs" },
+          "says": "No new roads in units PGD-005 and PGD-006.",
+          "quote": "Within UWR Unit numbers PGD-005 and PGD-006, do not construct any new roads."
+        }
+      ],
+      "exemptions": [
+        {
+          "ref": "objective 8(a), (b)",
+          "says": "Sanitation beyond the habitat condition objectives, or a varied treatment where pests make the required cover unreachable, needs a variance.",
+          "quote": "unless a variance is approved by the MWLAP statutory decision maker",
+          "by": "The ministry's statutory decision maker (then the Ministry of Water, Land and Air Protection)",
+          "inOrder": true
+        },
+        {
+          "ref": "objective 15",
+          "says": "Where the range overlaps an old growth management area, the OGMA's forest cover objectives apply there; access stays the range's.",
+          "quote": "will be the forest cover management objectives for the OGMA",
+          "by": "The order itself",
+          "inOrder": true
+        }
+      ]
+    },
+    {
+      "id": "u-7-015",
+      "layer": "uwr",
+      "covers": ["u-7-015"],
+      "title": "Ungulate winter range U7-015, woodland (northern) caribou, Fort St. James",
+      "species": "Northern caribou",
+      "source": "bc.uwr.u-7-015",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_015.pdf",
+      "decided": "2005-12-13",
+      "effective": "2005-12-22",
+      "made": "gar",
+      "authority": "GAR ss. 9(2), 12(1)",
+      "zones": [
+        {
+          "id": "ntlh",
+          "label": "Non-terrestrial lichen habitat",
+          "units": { "u-7-015": ["9a-001", "9b-001", "9c-001", "10-001"] }
+        },
+        {
+          "id": "tlh",
+          "label": "Terrestrial lichen habitat",
+          "units": {
+            "u-7-015": [
+              "9a-002",
+              "9a-003",
+              "9a-004",
+              "9a-005",
+              "9a-006",
+              "9a-007",
+              "9b-002",
+              "9c-002",
+              "9c-003",
+              "10-002",
+              "10-003",
+              "10-004"
+            ]
+          }
+        }
+      ],
+      "measures": [
+        {
+          "ref": "GWM 1(a)",
+          "kind": "gwm",
+          "zones": ["ntlh", "tlh"],
+          "bears": { "roads": "conditions" },
+          "says": "No new main road unless there is no practicable option and an exemption is given; a road on the Fort St. James long-term corridor plan needs none.",
+          "quote": "new main road construction is not to occur unless there is no other practicable option, and an exemption is provided"
+        },
+        {
+          "ref": "GWM 1(b)",
+          "kind": "gwm",
+          "zones": ["tlh"],
+          "bears": { "harvest": "conditions", "roads": "conditions" },
+          "says": "No harvesting, road construction or maintenance in lichen habitat while caribou are present in winter.",
+          "quote": "when caribou are present in winter, harvesting, road construction and maintenance is not to occur"
+        },
+        {
+          "ref": "GWM 2(a)–(c)",
+          "kind": "gwm",
+          "zones": ["ntlh", "tlh"],
+          "bears": { "harvest": "conditions" },
+          "says": "Two-pass, 140-year rotation: each pass harvests 50% ± 20% of the economic timber in one clump, keeping the lichen ratio, within 20 years.",
+          "quote": "manage the defined TLH and Non Terrestrial Lichen Habitat (NTLH) through a two pass, 140 year rotation"
+        },
+        {
+          "ref": "GWM 2(d)",
+          "kind": "gwm",
+          "zones": ["ntlh", "tlh"],
+          "bears": { "roads": "conditions" },
+          "says": "When work is done, make non-main roads unfavourable to wolf and snowmobile travel.",
+          "quote": "implement measures on all non main roads to create unfavourable future conditions for wolf and snowmobile travel"
+        },
+        {
+          "ref": "GWM 3(a)(i), (ii)",
+          "kind": "gwm",
+          "zones": ["tlh"],
+          "bears": { "harvest": "conditions" },
+          "says": "Harvest lichen habitat in winter with enough snow, and process at roadside.",
+          "quote": "restrict harvest to winter periods when snow cover is sufficient"
+        },
+        {
+          "ref": "GWM 3(a)(iii)",
+          "kind": "gwm",
+          "zones": ["tlh"],
+          "bears": { "replant": "conditions" },
+          "says": "Do not fertilize lichen habitat.",
+          "quote": "do not fertilize."
+        },
+        {
+          "ref": "GWMs 3(b), (c), 4",
+          "kind": "gwm",
+          "zones": ["ntlh", "tlh"],
+          "bears": { "grazing": "conditions" },
+          "says": "Range practices must not convert lichen habitat; no range developments without an exemption; no domestic animals such as sheep without a full risk assessment.",
+          "quote": "do not introduce domestic animals such as, but not limited to, domestic sheep, without a full risk assessment"
+        }
+      ],
+      "exemptions": [
+        {
+          "ref": "GWM 1(a)",
+          "says": "A new main road needs an exemption, unless it follows the Northern Long Term Road Corridor Plan for the Fort St. James district.",
+          "quote": "An exemption is not required for placement of a new main road that is consistent with the corridors identified",
+          "by": "The minister responsible for the Wildlife Act or delegate",
+          "inOrder": true
+        },
+        {
+          "ref": "GWM 1(b)",
+          "zones": ["tlh"],
+          "says": "Work while caribou are present needs an exemption, except on main roads and for sanitation harvesting and its roads.",
+          "quote": "An exemption is not required for; (i) any activities associated with main roads,",
+          "by": "The minister responsible for the Wildlife Act or delegate",
+          "inOrder": true
+        },
+        {
+          "ref": "GWM 2(b)–(d), 3(a)(i), (ii), 3(c)",
+          "says": "The harvest share, the 20-year window, road treatment, winter harvest, roadside processing and range developments each yield to an exemption.",
+          "quote": "unless an exemption is provided by the Minister of Environment or delegate",
+          "by": "The minister responsible for the Wildlife Act or delegate",
+          "inOrder": true
+        },
+        {
+          "ref": "Order item 6",
+          "says": "The measures do not apply to authorized subsurface resource exploration, development or production.",
+          "quote": "do not apply for the purposes of exploration, development and production activities",
+          "by": "The order itself",
+          "inOrder": true
+        },
+        {
+          "ref": "Appendix 1 (not part of the order)",
+          "says": "Exemptions are under FPPR s. 92(1), applied for with a rationale; salvage only where it benefits the range.",
+          "quote": "Authority to consider an exemption from these general wildlife measures is provided in Section 92(1)",
+          "by": "The minister's delegate: the ministry's regional manager",
+          "inOrder": false
+        }
+      ]
+    },
+    {
+      "id": "omineca-moose-2022",
+      "layer": "uwr",
+      "covers": ["u-7-018", "u-7-020", "u-7-022", "u-7-024", "u-7-027"],
+      "title": "Ungulate winter ranges u-7-018, u-7-020, u-7-022, u-7-024 and u-7-027, moose",
+      "species": "Moose",
+      "source": "bc.uwr.omineca-moose-2022",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7-018_u7-020_u7-022_u7-024_u7-027.pdf",
+      "decided": "2022-03-30",
+      "effective": "2022-04-07",
+      "made": "gar",
+      "authority": "GAR ss. 9(2), 12(1), 12(2)",
+      "zones": [
+        {
+          "id": "noharvest",
+          "label": "No harvest units",
+          "units": {
+            "u-7-018": ["1", "3", "5", "7", "8", "10", "12", "14", "16"],
+            "u-7-020": ["1", "2", "3", "5", "6", "7", "8", "9", "11", "13", "15", "17"],
+            "u-7-022": ["1", "2", "4", "5", "6", "8", "10", "12", "14", "16", "18", "20", "22", "23", "24", "26"],
+            "u-7-027": ["1"]
+          }
+        },
+        {
+          "id": "conditional",
+          "label": "Conditional harvest units",
+          "units": {
+            "u-7-018": ["2", "4", "6", "9", "11", "13", "15", "17", "18"],
+            "u-7-020": ["4", "10", "12", "14", "16", "18", "19", "20", "21"],
+            "u-7-022": ["3", "7", "9", "11", "13", "15", "17", "19", "21", "25", "27", "28", "29", "30", "31"],
+            "u-7-024": ["1"],
+            "u-7-027": ["2"]
+          }
+        }
+      ],
+      "measures": [
+        {
+          "ref": "GWM 1",
+          "kind": "gwm",
+          "zones": ["noharvest"],
+          "bears": { "harvest": "governs", "replant": "governs", "roads": "governs" },
+          "says": "No primary forest activities: no harvesting, silviculture or road work.",
+          "quote": "No primary forest activities."
+        },
+        {
+          "ref": "GWM 2",
+          "kind": "gwm",
+          "zones": ["noharvest"],
+          "bears": { "grazing": "conditions" },
+          "says": "No livestock attractants and no new range developments.",
+          "quote": "No Livestock Attractants or new range developments may be placed in the units."
+        },
+        {
+          "ref": "GWM 3",
+          "kind": "gwm",
+          "zones": ["conditional"],
+          "bears": { "roads": "conditions" },
+          "says": "No new permanent access within 500 m of a no harvest unit.",
+          "quote": "No new permanent access structures within 500 metres horizontal distance of a no harvest ungulate winter range unit"
+        },
+        {
+          "ref": "GWM 4",
+          "kind": "gwm",
+          "zones": ["conditional"],
+          "bears": { "harvest": "conditions" },
+          "says": "Net area to be reforested no more than 60 ha, or a cutblock up to 100 ha keeping 40% or more of the basal area.",
+          "quote": "The net area to be reforested for the cutblock must not exceed 60 hectares"
+        },
+        {
+          "ref": "GWM 5",
+          "kind": "gwm",
+          "zones": ["conditional"],
+          "bears": { "harvest": "conditions" },
+          "says": "No point of the net area to be reforested more than 125 m from a reserve or security cover.",
+          "quote": "to either a Reserve or Security Cover, must not exceed 125 metres"
+        },
+        {
+          "ref": "GWMs 6, 9",
+          "kind": "gwm",
+          "zones": ["conditional"],
+          "bears": { "harvest": "conditions", "replant": "conditions" },
+          "says": "At free growing, one dominant deciduous stem per 100 m² where present, and patches of moose browse or mature deciduous under 1 ha kept.",
+          "quote": "retain if present, one Dominant deciduous stem per 100 m²"
+        },
+        {
+          "ref": "GWM 7",
+          "kind": "gwm",
+          "zones": ["conditional"],
+          "bears": { "roads": "conditions" },
+          "says": "Within a year of the commencement date, rehabilitate the ends of temporary access within 300 m of the block and deactivate the rest under FPPR s. 82(1).",
+          "quote": "deactivate all remaining temporary access structures in accordance with the Forest Planning and Practices Regulation"
+        },
+        {
+          "ref": "GWM 8",
+          "kind": "gwm",
+          "zones": ["conditional"],
+          "bears": { "roads": "conditions" },
+          "says": "Within four years, rehabilitate the first 100 m of temporary access from the permanent road.",
+          "quote": "Within four years of the commencement date Rehabilitate the first 100 metres of the temporary access structure"
+        },
+        {
+          "ref": "GWMs 10, 11, 12",
+          "kind": "gwm",
+          "zones": ["conditional"],
+          "bears": { "replant": "conditions" },
+          "says": "Herbicide only against invasive plants and noxious weeds, no brushing within 20 m of the block edge, and moose browse kept where it does not compete with a crop tree.",
+          "quote": "The use of Herbicide is permitted only for the control of invasive plants and/or Noxious Weeds."
+        },
+        {
+          "ref": "Part 4, objective 1",
+          "kind": "objective",
+          "zones": ["conditional"],
+          "bears": { "replant": "conditions" },
+          "says": "An objective the forest stewardship plan answers: a diversity of tree species from an approved stocking standard.",
+          "quote": "Promote stand heterogeneity by using a diversity of tree species identified in an approved stocking standard."
+        }
+      ],
+      "exemptions": [
+        {
+          "ref": "Supplemental document, Exemptions (not part of the order)",
+          "says": "A development inconsistent with the measures needs an exemption under FPPR s. 92(1), judged on its effect on habitat and the steps taken to avoid or mitigate it.",
+          "quote": "they must apply for an exemption under the Forest Planning and Practices Regulation Sec 92(1)",
+          "by": "The minister responsible for the Wildlife Act or delegate",
+          "inOrder": false
+        }
+      ]
+    },
+    {
+      "id": "u-7-019",
+      "layer": "uwr",
+      "covers": ["u-7-019"],
+      "title": "Ungulate winter range U-7-019, mountain goat, Fort St. James",
+      "species": "Mountain goat",
+      "source": "bc.uwr.u-7-019",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-019_Order.pdf",
+      "decided": "2010-05-25",
+      "effective": "2010-06-03",
+      "made": "gar",
+      "authority": "GAR ss. 9(2), 12(1)",
+      "zones": [{ "id": "all", "label": "All units", "all": true }],
+      "measures": [
+        {
+          "ref": "GWM 1",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "harvest": "governs", "roads": "governs" },
+          "says": "No timber harvesting and no road or trail construction in the range.",
+          "quote": "Timber harvesting and road and trail construction must not occur within the mountain goat winter range."
+        }
+      ],
+      "exemptions": [
+        {
+          "ref": "GWM 2",
+          "says": "Felling for guyline tiebacks is allowed if the felled trees stay on site as coarse woody debris.",
+          "quote": "necessary to create guyline tiebacks for timber harvesting, provided trees that fall within",
+          "by": "The order itself",
+          "inOrder": true
+        },
+        {
+          "ref": "Order item 2(c)",
+          "says": "The measures do not apply to authorized subsurface resource exploration, development or production.",
+          "quote": "do not apply for the purposes of exploration, development and production activities",
+          "by": "The order itself",
+          "inOrder": true
+        },
+        {
+          "ref": "Appendix 1, item 2 (not part of the order)",
+          "says": "Where compliance is not practicable, apply for an exemption under FPPR s. 92(1) with a rationale; a determination normally within 14 days of a complete application.",
+          "quote": "satisfied that the intent of the General Wildlife Measure will be achieved",
+          "by": "The minister's delegate: the ministry's regional manager, Omineca or Skeena",
+          "inOrder": false
+        }
+      ]
+    },
+    {
+      "id": "wha-7-001",
+      "layer": "wha",
+      "covers": ["7-001"],
+      "title": "Wildlife habitat area 7-001 (Tl'o Ba), grizzly bear",
+      "species": "Grizzly bear",
+      "source": "bc.wha.7-001",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/URAR_7-001_ord.pdf",
+      "decided": "2020-12-08",
+      "effective": "2020-12-17",
+      "made": "gar",
+      "authority": "GAR ss. 9(2), 10(1), 10(2)",
+      "zones": [
+        {
+          "id": "core",
+          "label": "Core zone",
+          "harvestCodes": ["NO HARVEST ZONE"],
+          "note": "The order draws its Core and Management zones on its Schedule A maps; this screen takes DataBC's no harvest records as Core and its conditional records as Management."
+        },
+        { "id": "management", "label": "Management zone", "harvestCodes": ["CONDITIONAL HARVEST ZONE"] }
+      ],
+      "measures": [
+        {
+          "ref": "GWM 1",
+          "kind": "gwm",
+          "zones": ["core"],
+          "bears": { "roads": "governs" },
+          "says": "No road construction in the Core zone.",
+          "quote": "Do not construct roads in the Core zone."
+        },
+        {
+          "ref": "GWM 5",
+          "kind": "gwm",
+          "zones": ["core"],
+          "bears": { "harvest": "governs" },
+          "says": "Primary forest activities must not remove forest cover in the Core zone.",
+          "quote": "Primary forest activities must not result in the removal of forest cover within the Core zone."
+        },
+        {
+          "ref": "GWMs 2, 3",
+          "kind": "gwm",
+          "zones": ["management"],
+          "bears": { "roads": "conditions" },
+          "says": "Every access structure deconstructed into the area to be reforested, and road construction only from 16 November to 16 April.",
+          "quote": "Within the Management zone, all access structures must be Deconstructed."
+        },
+        {
+          "ref": "GWM 4",
+          "kind": "gwm",
+          "zones": ["core", "management"],
+          "bears": { "harvest": "conditions" },
+          "says": "Keep visual screening beside existing roads' rights-of-way until the opening is free growing.",
+          "quote": "Maintain Visual Screening adjacent to the cleared right-of-way of existing roads"
+        },
+        {
+          "ref": "GWM 6",
+          "kind": "gwm",
+          "zones": ["management"],
+          "bears": { "harvest": "conditions" },
+          "says": "In each cutblock: a forage gap per 4 ha, ant-habitat woody debris, every Douglas-fir over 52.5 cm kept, 10 m of trees by small streams, and harvesting only from 16 November to 16 April.",
+          "quote": "harvesting activities may only occur between November 16th and April 16th"
+        },
+        {
+          "ref": "GWM 7",
+          "kind": "gwm",
+          "zones": ["management"],
+          "bears": { "replant": "conditions" },
+          "says": "Stocking to the order's table by site series, cluster planted with at least 30 conifer seedlings a cluster.",
+          "quote": "Cluster Plant with a minimum of 30 conifer seedlings per cluster"
+        },
+        {
+          "ref": "GWM 8",
+          "kind": "gwm",
+          "zones": ["core", "management"],
+          "bears": { "replant": "conditions" },
+          "says": "No domestic sheep, goats or cattle for vegetation management.",
+          "quote": "Do not use domestic sheep, goats or cattle for vegetation management."
+        },
+        {
+          "ref": "GWM 9",
+          "kind": "gwm",
+          "zones": ["core", "management"],
+          "bears": { "grazing": "conditions" },
+          "says": "No livestock attractants in the habitat area.",
+          "quote": "Do not place Livestock Attractants within the WHA."
+        },
+        {
+          "ref": "Schedule 2, objective 1",
+          "kind": "objective",
+          "zones": ["core", "management"],
+          "bears": { "harvest": "conditions" },
+          "says": "An objective the forest stewardship plan answers: recruit large old Douglas-fir by keeping a range of Douglas-fir windfirm and undamaged.",
+          "quote": "Maintain through time the recruitment of large diameter old Douglas-fir"
+        }
+      ],
+      "exemptions": []
+    },
+    {
+      "id": "wha-7-002",
+      "layer": "wha",
+      "covers": ["7-002"],
+      "title": "Wildlife habitat area 7-002 (Tl'o Ba), grizzly bear",
+      "species": "Grizzly bear",
+      "source": "bc.wha.7-002",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/URAR_7-002_ord.pdf",
+      "decided": "2020-12-08",
+      "effective": "2020-12-17",
+      "made": "gar",
+      "authority": "GAR ss. 9(2), 10(1), 10(2)",
+      "zones": [{ "id": "all", "label": "The whole habitat area", "all": true }],
+      "measures": [
+        {
+          "ref": "GWM 1",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "roads": "conditions" },
+          "says": "Every access structure deconstructed into the area to be reforested.",
+          "quote": "All access structures must be Deconstructed."
+        },
+        {
+          "ref": "GWMs 2, 4",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "harvest": "conditions" },
+          "says": "Bear dens kept in retention with 60 m round the opening; ant-habitat woody debris; every Douglas-fir over 52.5 cm kept.",
+          "quote": "with a minimum reserve of 60 metres around the den opening"
+        },
+        {
+          "ref": "GWM 3",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "harvest": "conditions", "roads": "conditions" },
+          "says": "Avoid winter forestry development, harvesting included, from 16 November to 16 April.",
+          "quote": "Avoid winter forestry development (including harvesting) between November 16th and April 16th."
+        },
+        {
+          "ref": "GWM 5",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "replant": "conditions" },
+          "says": "No domestic sheep, goats or cattle for vegetation management.",
+          "quote": "Do not use domestic sheep, goats or cattle for vegetation management."
+        },
+        {
+          "ref": "Schedule 2, objective 1",
+          "kind": "objective",
+          "zones": ["all"],
+          "bears": { "harvest": "conditions" },
+          "says": "An objective the forest stewardship plan answers: recruit large old Douglas-fir by keeping a range of Douglas-fir windfirm and undamaged.",
+          "quote": "Maintain through time the recruitment of large diameter old Douglas-fir"
+        }
+      ],
+      "exemptions": []
+    },
+    {
+      "id": "wha-7-003",
+      "layer": "wha",
+      "covers": ["7-003"],
+      "title": "Wildlife habitat area 7-003 (Narrow Lake), mountain caribou",
+      "species": "Mountain caribou",
+      "source": "bc.wha.7-003",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_7-003_ord.pdf",
+      "decided": "2005-12-13",
+      "effective": "2005-12-22",
+      "made": "gar",
+      "authority": "GAR ss. 9(2), 10(1)",
+      "zones": [{ "id": "all", "label": "The whole habitat area", "all": true }],
+      "measures": [
+        {
+          "ref": "Schedule 1, Access",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "roads": "governs" },
+          "says": "No roads or trails without an exemption.",
+          "quote": "Do not construct roads or trails within the WHA unless an exemption is approved by the Minister of Environment or delegate."
+        },
+        {
+          "ref": "Schedule 1, Harvesting and Silviculture",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "harvest": "governs" },
+          "says": "No harvesting without an exemption.",
+          "quote": "Do not harvest within the WHA unless an exemption is approved by the Minister of Environment or delegate."
+        },
+        {
+          "ref": "Schedule 1, Pesticides",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "replant": "conditions" },
+          "says": "No pesticides, herbicides for brushing included, without an exemption.",
+          "quote": "Do not use pesticides unless an exemption is approved by the Minister of Environment or delegate."
+        }
+      ],
+      "exemptions": [
+        {
+          "ref": "Schedule 1, Access; Harvesting and Silviculture; Pesticides",
+          "says": "Roads, trails, harvesting and pesticides each need an exemption approved by the minister or delegate.",
+          "quote": "unless an exemption is approved by the Minister of Environment or delegate",
+          "by": "The minister responsible for the Wildlife Act or delegate (FPPR s. 92(1))",
+          "inOrder": true
+        }
+      ]
+    },
+    {
+      "id": "wha-caribou-2021-07",
+      "layer": "wha",
+      "covers": [
+        "7-016",
+        "7-019",
+        "7-020",
+        "7-021",
+        "7-022",
+        "7-024",
+        "7-025",
+        "7-026",
+        "7-027",
+        "7-028",
+        "7-029",
+        "7-030",
+        "7-031",
+        "7-032",
+        "7-033",
+        "7-034",
+        "7-035",
+        "7-036",
+        "7-037",
+        "7-038",
+        "7-039",
+        "7-040",
+        "7-041",
+        "7-042",
+        "7-043",
+        "7-044",
+        "7-061"
+      ],
+      "title": "Wildlife habitat areas 7-016, 7-019 to 7-022, 7-024 to 7-044 and 7-061, caribou",
+      "species": "Caribou",
+      "source": "bc.wha.caribou-2021-07",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_7-016_various_to_7-061.pdf",
+      "decided": "2021-07-21",
+      "effective": "2021-08-12",
+      "made": "gar",
+      "authority": "GAR ss. 9(2), 10(1)",
+      "zones": [{ "id": "all", "label": "Each habitat area", "all": true }],
+      "measures": [
+        {
+          "ref": "Part 3, 1(a)",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "harvest": "governs", "roads": "governs" },
+          "says": "Primary forest activities must not remove forest cover, which leaves no room for harvesting or for a road cleared through forest.",
+          "quote": "Primary forest activities must not result in the removal of forest cover."
+        },
+        {
+          "ref": "Part 3, 1(b)–(d)",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "grazing": "conditions" },
+          "says": "Range practices must not convert lichen habitat; no range developments; no domestic sheep, goats, llamas or alpacas.",
+          "quote": "no use or grazing of domestic sheep, goats, llamas, or alpacas."
+        }
+      ],
+      "exemptions": []
+    },
+    {
+      "id": "wha-caribou-2021-04",
+      "layer": "wha",
+      "covers": [
+        "7-023",
+        "7-045",
+        "7-046",
+        "7-047",
+        "7-048",
+        "7-049",
+        "7-050",
+        "7-051",
+        "7-052",
+        "7-053",
+        "7-054",
+        "7-055",
+        "7-056",
+        "7-059",
+        "7-060"
+      ],
+      "title": "Wildlife habitat areas 7-023, 7-045 to 7-056, 7-059 and 7-060, caribou",
+      "species": "Caribou",
+      "source": "bc.wha.caribou-2021-04",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_7-023_various_to_7-060.pdf",
+      "decided": "2021-04-20",
+      "effective": "2021-04-29",
+      "made": "gar",
+      "authority": "GAR ss. 9(2), 10(1)",
+      "zones": [{ "id": "all", "label": "Each habitat area", "all": true }],
+      "measures": [
+        {
+          "ref": "Part 3, 3(a)",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "harvest": "governs", "roads": "governs" },
+          "says": "Primary forest activities must not remove forest cover, which leaves no room for harvesting or for a road cleared through forest.",
+          "quote": "Primary forest activities must not result in the removal of forest cover."
+        },
+        {
+          "ref": "Part 3, 3(b)–(d)",
+          "kind": "gwm",
+          "zones": ["all"],
+          "bears": { "grazing": "conditions" },
+          "says": "Range practices must not convert lichen habitat; no range developments; no domestic sheep, goats, llamas or alpacas.",
+          "quote": "no use or grazing of domestic sheep, goats, llamas, or alpacas."
+        }
+      ],
+      "exemptions": []
+    }
+  ],
+  "unread": [
+    {
+      "id": "u-7-001",
+      "layer": "uwr",
+      "covers": ["u-7-001"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_001.pdf",
+      "why": "Mackenzie district; not yet read."
+    },
+    {
+      "id": "u-7-004",
+      "layer": "uwr",
+      "covers": ["u-7-004"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_004.pdf",
+      "why": "Mackenzie district; not yet read."
+    },
+    {
+      "id": "u-7-005",
+      "layer": "uwr",
+      "covers": ["u-7-005"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_005.pdf",
+      "why": "Mackenzie district; not yet read."
+    },
+    {
+      "id": "u-7-006",
+      "layer": "uwr",
+      "covers": ["u-7-006"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_006.pdf",
+      "why": "Mackenzie district; not yet read."
+    },
+    {
+      "id": "u-7-007",
+      "layer": "uwr",
+      "covers": ["u-7-007"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_007.pdf",
+      "why": "Mackenzie district; not yet read."
+    },
+    {
+      "id": "u-7-008",
+      "layer": "uwr",
+      "covers": ["u-7-008"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_008.pdf",
+      "why": "Mackenzie district; not yet read."
+    },
+    {
+      "id": "u-7-011",
+      "layer": "uwr",
+      "covers": ["u-7-011"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_011.pdf",
+      "why": "Vanderhoof (Stuart Nechako district); not yet read."
+    },
+    {
+      "id": "u-7-012",
+      "layer": "uwr",
+      "covers": ["u-7-012"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_012.pdf",
+      "why": "Vanderhoof (Stuart Nechako district); not yet read."
+    },
+    {
+      "id": "u-7-017",
+      "layer": "uwr",
+      "covers": ["u-7-017"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-017_order.pdf",
+      "why": "Mackenzie district; not yet read."
+    },
+    {
+      "id": "u-7-025",
+      "layer": "uwr",
+      "covers": ["u-7-025"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-025_order.pdf",
+      "why": "Mackenzie and Stuart Nechako districts; not yet read."
+    },
+    {
+      "id": "u-7-026",
+      "layer": "uwr",
+      "covers": ["u-7-026"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-026_order.pdf",
+      "why": "Stuart Nechako district; not yet read."
+    },
+    {
+      "id": "u-7-028",
+      "layer": "uwr",
+      "covers": ["u-7-028"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-028_order.pdf",
+      "why": "Mackenzie district; not yet read."
+    },
+    {
+      "id": "u-7-029",
+      "layer": "uwr",
+      "covers": ["u-7-029"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-029_order.pdf",
+      "why": "Mackenzie district; not yet read."
+    },
+    {
+      "id": "u-7-030",
+      "layer": "uwr",
+      "covers": ["u-7-030"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-030_order.pdf",
+      "why": "Mackenzie district; not yet read."
+    },
+    {
+      "id": "u-5-001",
+      "layer": "uwr",
+      "covers": ["u-5-001"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u5_001.pdf",
+      "why": "A Cariboo order with a polygon in the Prince George TSA (U7-013's appendix points to it). The order establishes the range only; its measures are in the Cariboo amendments of February 2007, not yet read."
+    },
+    {
+      "id": "u-3-004",
+      "layer": "uwr",
+      "covers": ["u-3-004"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-3-004_order_09Dec09.pdf",
+      "why": "A Thompson order reaching the Prince George district; not yet read."
+    },
+    {
+      "id": "u-3-005",
+      "layer": "uwr",
+      "covers": ["u-3-005"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-3-005_order_09Dec09.pdf",
+      "why": "A Thompson order (amended 2010, 2014, 2019, 2020) reaching the Prince George district; not yet read."
+    },
+    {
+      "id": "u-4-002",
+      "layer": "uwr",
+      "covers": ["u-4-002"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-4-002_ORAM_order.pdf",
+      "why": "A Kootenay order mapped touching the Prince George district; not yet read."
+    },
+    {
+      "id": "u-5-012",
+      "layer": "uwr",
+      "covers": ["u-5-012"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-5-012_order.pdf",
+      "why": "A Cariboo order of 2026 mapped touching the Prince George district; not yet read."
+    },
+    {
+      "id": "u-9-002",
+      "layer": "uwr",
+      "covers": ["u-9-002"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-9-002_Order.pdf",
+      "why": "A Peace order mapped touching the Prince George district; not yet read."
+    },
+    {
+      "id": "u-9-004",
+      "layer": "uwr",
+      "covers": ["u-9-004"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/U-9-004_ord.pdf",
+      "why": "A Peace order reaching the Mackenzie district; not yet read."
+    },
+    {
+      "id": "u-6-skeena",
+      "layer": "uwr",
+      "covers": ["u-6-002", "u-6-003", "u-6-007", "u-6-013", "u-6-017", "u-6-040"],
+      "why": "Skeena orders mapped reaching the Stuart Nechako district; not yet read."
+    },
+    {
+      "id": "wha-7-012-015",
+      "layer": "wha",
+      "covers": ["7-012", "7-013", "7-014", "7-015"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/MAPE_7-012_to_7-015_ord.pdf",
+      "why": "Fisher, Mackenzie district; not yet read."
+    },
+    {
+      "id": "wha-7-062-097",
+      "layer": "wha",
+      "covers": [
+        "7-062",
+        "7-063",
+        "7-064",
+        "7-065",
+        "7-066",
+        "7-067",
+        "7-068",
+        "7-069",
+        "7-070",
+        "7-071",
+        "7-072",
+        "7-073",
+        "7-074",
+        "7-076",
+        "7-077",
+        "7-078",
+        "7-079",
+        "7-080",
+        "7-081",
+        "7-082",
+        "7-083",
+        "7-084",
+        "7-085",
+        "7-086",
+        "7-087",
+        "7-088",
+        "7-089",
+        "7-090",
+        "7-091",
+        "7-092",
+        "7-093",
+        "7-094",
+        "7-095",
+        "7-096",
+        "7-097"
+      ],
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_7-062_various_to_7-097.pdf",
+      "why": "Caribou, Mackenzie district; not yet read."
+    },
+    {
+      "id": "wha-9-peace-caribou",
+      "layer": "wha",
+      "covers": ["9-041", "9-057", "9-068", "9-071", "9-106", "9-145"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_9-032_034_041_073,104_106,144,145_ord.pdf",
+      "why": "Peace caribou areas mapped reaching the Prince George and Mackenzie districts; not yet read."
+    },
+    {
+      "id": "wha-9-mackenzie-caribou",
+      "layer": "wha",
+      "covers": ["9-035", "9-036", "9-037", "9-038", "9-039", "9-040", "9-102", "9-103"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_9-035_040,102,103_ord.pdf",
+      "why": "Peace caribou areas in the Mackenzie district; not yet read."
+    },
+    {
+      "id": "wha-9-001",
+      "layer": "wha",
+      "covers": ["9-001"],
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/ORAM-9-001_ord.pdf",
+      "why": "Mountain goat, Mackenzie district; not yet read."
+    }
+  ],
+  "withheld": [
+    {
+      "id": "wha-data-sensitive-omineca",
+      "layer": "wha",
+      "covers": ["7-004", "7-005", "7-006", "7-007", "7-008", "7-009", "7-010", "7-011", "7-017", "9-026", "9-031"],
+      "why": "The ministry lists these as data sensitive and publishes no order. Where a habitat area is sensitive to damage or disturbance the order does not disclose its location and the affected Forest Act and Range Act holders are told of it in writing, possibly under conditions on disclosure (GAR s. 10(3)).",
+      "ask": "The order and its general wildlife measures for the habitat area, and the written notice of its location, if the licensee received one"
+    }
+  ]
+}

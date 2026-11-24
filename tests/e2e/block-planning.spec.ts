@@ -217,6 +217,10 @@ test('old and old interior forest are read and calculated for an order unit, wit
                 BCLCS_LEVEL_2: 'T',
                 FOR_MGMT_LAND_BASE_IND: 'Y',
                 SPECIES_CD_1: 'SX',
+                BEC_ZONE_CODE: 'SBS',
+                BEC_SUBZONE: 'wk',
+                BEC_VARIANT: '1',
+                SITE_INDEX: 18,
               },
             },
             {
@@ -228,6 +232,10 @@ test('old and old interior forest are read and calculated for an order unit, wit
                 BCLCS_LEVEL_2: 'T',
                 FOR_MGMT_LAND_BASE_IND: 'Y',
                 SPECIES_CD_1: 'PLI',
+                BEC_ZONE_CODE: 'SBS',
+                BEC_SUBZONE: 'mk',
+                BEC_VARIANT: '1',
+                SITE_INDEX: 21,
               },
             },
           ],
@@ -249,4 +257,20 @@ test('old and old interior forest are read and calculated for an order unit, wit
   // 200 m of old forest beside the 30-year-old pine is not interior until the pine passes 60, in 2056.
   await expect(result.getByRole('row', { name: /^2051/ })).toContainText('2,539 / 162')
   await expect(result.getByRole('row', { name: /^2056/ })).toContainText('2,632 / 162')
+
+  // D.3: old forest beside the CFLB by leading species, as figures, with the order's words above them.
+  await result.getByRole('button', { name: /Representative stands \(D\.3\)/ }).click()
+  const d3 = page.getByTestId('block-planning-old-d3')
+  await expect(d3).toContainText('i.e. non-pine forest')
+  await expect(page.getByTestId('block-planning-old-d3-split')).toContainText('of old forest')
+  await expect(d3.getByRole('row', { name: /^Spruce/ })).toBeVisible()
+
+  // The map draws the same calculation for the year on the map, and its legend names what it shows.
+  await result.getByRole('checkbox', { name: 'Draw on the map' }).check()
+  const legend = page.getByTestId('block-planning-old-forest-legend')
+  await expect(legend).toContainText('Old interior', { timeout: 60_000 })
+  await expect(legend).toContainText('Old, by an edge')
+  // The interior drawn is the interior counted: the panel's 2,539 ha in 2026.
+  await expect(legend).toContainText(/Old interior\s*2,539 ha/)
+  await expect(legend).not.toContainText('differ')
 })

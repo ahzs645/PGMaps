@@ -11,12 +11,24 @@ export type AnalysisState =
 /**
  * Every schedule's periods for the plan, from a worker. Only what changes the calculation starts a
  * run: the area, the baseline, the blocks and the schedules, and the schedule and year on the map.
- * Reviews and the rationale never do. While a run is going the last result stays on screen.
+ * Reviews, the rationale and the ground reads never do. While a run is going the last result stays
+ * on screen.
  */
 export function usePlanAnalysis(plan: Plan, shown: { schedule: string; year: number }): AnalysisState {
   const { area, baseline, blocks, schedules } = plan
   const input = useMemo(
-    () => ({ plan: { ...plan, reviews: {}, landscape: {}, packs: [], zones: undefined }, shown }),
+    () => ({
+      plan: {
+        ...plan,
+        reviews: {},
+        rangeReviews: undefined,
+        groundReads: undefined,
+        landscape: {},
+        packs: [],
+        zones: undefined,
+      },
+      shown,
+    }),
     // `plan` is read only for the fields listed; a review edit must not start a run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [area, baseline, blocks, schedules, shown.schedule, shown.year],

@@ -4,6 +4,7 @@ import {
   copyReadAt,
   createKeptFetch,
   keptCopySource,
+  keptReadKey,
   oldestCopy,
   readAtOf,
   type KeptCopy,
@@ -179,6 +180,35 @@ describe('a read with copies switched on', () => {
     await h.keptFetch(URL_A, { method: 'POST', body: '{}' })
     await h.settle()
     expect(h.kept.size).toBe(0)
+  })
+})
+
+describe('a form POST (a WFS read by a shape’s own polygons)', () => {
+  const WFS = 'https://openmaps.gov.bc.ca/geo/pub/wfs'
+  const FORM = { 'content-type': 'application/x-www-form-urlencoded' }
+  const post = (body: string) => ({ method: 'POST', headers: FORM, body })
+
+  it('is kept under the URL its form would make as a GET, and answers only the same form', async () => {
+    const h = harness()
+    const ask = 'typeNames=pub%3AINVENTORY&CQL_FILTER=INTERSECTS(GEOMETRY%2CSRID%3D4326%3BPOLYGON((1+2%2C3+4)))'
+    expect(keptReadKey(WFS, post(ask))).toBe(`${WFS}?${ask}`)
+    await h.keptFetch(WFS, post(ask))
+    await h.settle()
+    expect([...h.kept.keys()]).toEqual([`${WFS}?${ask}`])
+    h.offline()
+    const copy = await h.keptFetch(WFS, post(ask))
+    expect(copyReadAt(copy)).toBe('2026-11-18T10:00:00.000Z')
+    expect(h.used).toEqual([{ url: `${WFS}?${ask}`, readAt: '2026-11-18T10:00:00.000Z' }])
+    // Another shape is another request: it has no copy and fails as before.
+    await expect(h.keptFetch(WFS, post(ask.replace('1+2', '5+6')))).rejects.toThrow('Failed to fetch')
+  })
+
+  it('leaves a POST of any other body alone', () => {
+    expect(keptReadKey(WFS, { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } })).toBeNull()
+    expect(keptReadKey(WFS, { method: 'POST', body: 'a=1' })).toBeNull()
+    expect(keptReadKey(WFS, { method: 'POST', headers: FORM, body: new Blob(['a=1']) })).toBeNull()
+    expect(keptReadKey(WFS, { method: 'POST', headers: new Headers(FORM), body: 'a=1' })).toBe(`${WFS}?a=1`)
+    expect(keptReadKey(`${WFS}?service=WFS`, post('a=1'))).toBe(`${WFS}?service=WFS&a=1`)
   })
 })
 

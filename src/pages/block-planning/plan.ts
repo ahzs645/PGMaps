@@ -17,9 +17,23 @@
  */
 import type { MultiPolygon, Polygon, Position } from 'geojson'
 import { bool, int, list, object, oneOf, optional, text, type JsonObject } from '@/lib/jsonGuards'
-import type { BoardCheckRecord, OldForestChoices, OldForestRecord, OldForestYear, PlanChecks } from './records'
+import type {
+  BoardCheckRecord,
+  OldForestChoices,
+  OldForestPoolUnit,
+  OldForestRecord,
+  OldForestYear,
+  PlanChecks,
+} from './records'
+import { CORRIDOR_KINDS, OLD_FOREST_EXCLUDED_KINDS } from './records'
+import {
+  REPRESENTATION_BREAKDOWNS,
+  type OldForestRepresentation,
+  type RepresentationRow,
+} from './oldForest/representation'
 import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { districts, table } from '../forest-patches/project'
+import { parseGroundReads, type GroundRead } from './ground/record'
 
 export const PLAN_FORMAT = 'pgmaps-block-plan/v2'
 export const YEAR_RANGE = [1600, 2250] as const
@@ -123,6 +137,107 @@ export interface ReviewCase {
   sets: Record<string, FactSet>
 }
 
+export interface RangeReview {
+  block: string
+  schedule: string
+  shape: string
+  footprint: string
+  harvestYear: number | null
+  reference?: string
+  review: ReviewCase
+  /** DataBC layers read against the footprint: candidates the reviewer weighs, never an answer. */
+  mapped?: MappedEvidence
+}
+
+export const MAPPED_LAYERS = [
+  'ada-sra',
+  'range-tenure',
+  'crown-grazing',
+  'range-pasture',
+  'range-improvement-lines',
+  'range-improvement-points',
+  'natural-barriers',
+] as const
+export type MappedLayerId = (typeof MAPPED_LAYERS)[number]
+/**
+ * Which list a mapped feature goes in: the order an ADA or SRA polygon belongs to; a range
+ * tenure's spatial life cycle; a Tantalis grazing tenure's stage and type; a range pasture; a range
+ * development's kind; or a natural range barrier's feature group.
+ */
+export const MAPPED_GROUPS = [
+  'omineca-order',
+  'robson-valley-order',
+  'active',
+  'pending',
+  'retired',
+  'lease',
+  'section-15',
+  'section-16',
+  'section-17',
+  'application',
+  'reserve',
+  'pasture',
+  'fence',
+  'gate',
+  'cattleguard',
+  'water-development',
+  'corral',
+  'crossing',
+  'stock-trail',
+  'barrier-topological',
+  'barrier-vegetation',
+  'barrier-water',
+  'other',
+] as const
+export type MappedGroup = (typeof MAPPED_GROUPS)[number]
+
+export interface MappedFeature {
+  /** DataBC's identifier as it prints: the order polygon's id, the RAN file and block, the Crown lands file. */
+  id: string
+  /** What the feature is, as DataBC names it. */
+  name: string
+  group: MappedGroup
+  /** The other attributes kept, each "label: value" as DataBC gives it. */
+  details: string[]
+  /** Areas: the overlap with the footprint. */
+  overlapHa?: number
+  /** Areas: the overlap as a percentage of the footprint. */
+  sharePercent?: number
+  /** Lines: metres within the layer's `marginM` of the footprint, inside included. */
+  lengthM?: number
+  /** Lines: metres inside the footprint. */
+  insideLengthM?: number
+  /** Points: how many of the record's points lie within the layer's `marginM`, inside included. */
+  count?: number
+  /** Points: how many lie inside the footprint. */
+  insideCount?: number
+}
+
+export interface MappedLayer {
+  layer: MappedLayerId
+  /** Truncated: DataBC held more records than the read keeps, so the list is incomplete. */
+  status: 'read' | 'failed' | 'truncated'
+  message?: string
+  features: MappedFeature[]
+  /** The footprint each group covers, with overlapping features counted once. Areas only. */
+  covered: { group: MappedGroup; ha: number }[]
+  /** Lines and points: how far past the footprint's edge they are measured (`NEAR_FOOTPRINT_METRES`). */
+  marginM?: number
+  /** Lines: each group's length near and inside the footprint, shared stretches counted once. */
+  lengths?: { group: MappedGroup; lengthM: number; insideLengthM: number }[]
+  /** Points: each group's points near and inside the footprint. */
+  counts?: { group: MappedGroup; count: number; insideCount: number }[]
+}
+
+export interface MappedEvidence {
+  readOn: string
+  /** The shape and footprint signature read; a different footprint makes the read out of date. */
+  shape: string
+  footprint: string
+  footprintHa: number
+  layers: MappedLayer[]
+}
+
 /** D.5(a): the old-forest recruitment strategy, which the order has submitted, approved and followed. */
 export interface RecruitmentRecord {
   /** The recruitment analysis relied on: PGMaps does not model old forest yet. */
@@ -161,6 +276,8 @@ export interface Plan {
   /** The schedule a review reads its landscape figures from: the proposal under review. */
   reviewSchedule: string
   reviews: Record<string, ReviewCase>
+  /** Grazing and silviculture evidence for one footprint and harvest entry in a schedule. */
+  rangeReviews?: RangeReview[]
   landscape: LandscapeReview
   /** Mapped riparian zones, as read (`riparian.ts`). */
   zones?: { source: string; layer: unknown }
@@ -172,6 +289,8 @@ export interface Plan {
   oldForest?: OldForestChoices
   /** Calculations kept with the plan, each keyed to its inputs (`records.ts`). */
   checks?: PlanChecks
+  /** "On this ground": the instruments read on a block's footprint, per block and schedule (`ground/`). */
+  groundReads?: GroundRead[]
 }
 
 /** The unit the patch calculation counts within, or none: the plan's unit unless patches are cut at it. */
@@ -407,6 +526,135 @@ function parseOldForestChoices(value: unknown): OldForestChoices {
       }),
       'Retention area',
     ),
+    // D.4 and D.2 are present only when the reviewer chose them, so older plans read exactly as before.
+    ...(o.younger === undefined ? {} : { younger: parseYoungerChoice(o.younger) }),
+    ...(o.pooledWith === undefined ? {} : { pooledWith: parsePooledWith(o.pooledWith, o) }),
+  }
+}
+
+/** D.4 as the reviewer left it: the age may still be blank and the benefit empty while it is being written. */
+function parseYoungerChoice(value: unknown): NonNullable<OldForestChoices['younger']> {
+  const y = object(value, 'oldForest.younger')
+  if (typeof y.benefit !== 'string' || y.benefit.length > 20_000)
+    throw Error('oldForest.younger.benefit must be text of at most 20000 characters.')
+  const fromAge = optional(y, 'fromAge', (v) => int(v, 'oldForest.younger.fromAge', 1, 1000))
+  return fromAge === undefined ? { benefit: y.benefit } : { fromAge, benefit: y.benefit }
+}
+
+/** D.2's pooled units: each named once, never the chosen unit itself. */
+function parsePooledWith(value: unknown, choices: JsonObject): NonNullable<OldForestChoices['pooledWith']> {
+  const pooled = list(value, 'oldForest.pooledWith', 47).map((v, i) => {
+    const label = `oldForest.pooledWith ${i + 1}`
+    const u = object(v, label)
+    const cflbEnteredHa = optional(u, 'cflbEnteredHa', (x) => num(x, `${label} cflbEnteredHa`, 1, 10_000_000))
+    const cflbSource = optionalText(u, 'cflbSource', `${label} cflbSource`, 2000)
+    return {
+      district: oneOf(u.district, `${label} district`, districts),
+      unit: text(u.unit, `${label} unit`, 10),
+      ...(cflbEnteredHa === undefined ? {} : { cflbEnteredHa }),
+      ...(cflbSource ? { cflbSource } : {}),
+    }
+  })
+  const keys = [`${choices.district}|${choices.unit}`, ...pooled.map((u) => `${u.district}|${u.unit}`)]
+  if (new Set(keys).size !== keys.length) throw Error('oldForest.pooledWith names a unit twice.')
+  return pooled
+}
+
+function parseOldForestCounts(value: unknown, label: string): OldForestRecord['counts'] {
+  const counts = object(value, label)
+  return {
+    stands: int(counts.stands, `${label}.stands`, 0, 1e7),
+    ogmas: int(counts.ogmas, `${label}.ogmas`, 0, 1e7),
+    parks: int(counts.parks, `${label}.parks`, 0, 1e7),
+    retention: int(counts.retention, `${label}.retention`, 0, 1e7),
+    corridors: int(counts.corridors, `${label}.corridors`, 0, 1e7),
+  }
+}
+
+function parseOldForestSchedules(value: unknown, label: string): OldForestRecord['schedules'] {
+  return list(value, `${label}.schedules`, 50).map((s, i) => {
+    const o = object(s, `${label} schedule ${i + 1}`)
+    return {
+      schedule: text(o.schedule, `${label} schedule ${i + 1}`),
+      years: list(o.years, `${label} schedule ${i + 1} years`, 50).map((y, j) =>
+        parseOldForestYear(y, `${label} schedule ${i + 1} year ${j + 1}`),
+      ),
+    }
+  })
+}
+
+const optionalRepresentation = (o: JsonObject, label: string) => {
+  const r = optional(o, 'representation', (v) => parseRepresentation(v, `${label} representation`))
+  return r ? { representation: r } : {}
+}
+
+/** D.3's summary of a kept record; absent in records made before it. */
+function parseRepresentation(value: unknown, label: string): OldForestRepresentation {
+  const o = object(value, label)
+  const row = (v: unknown, at: string): RepresentationRow => {
+    const r = object(v, at)
+    return {
+      key: text(r.key, `${at} key`, 60),
+      cflbHa: num(r.cflbHa, `${at} cflbHa`),
+      oldHa: num(r.oldHa, `${at} oldHa`),
+      nonPineOldHa: num(r.nonPineOldHa, `${at} nonPineOldHa`),
+    }
+  }
+  return {
+    schedule: text(o.schedule, `${label} schedule`),
+    years: list(o.years, `${label} years`, 50).map((y, i) => {
+      const at = `${label} year ${i + 1}`
+      const yo = object(y, at)
+      const by = object(yo.by, `${at} by`)
+      return {
+        year: int(yo.year, `${at} year`, ...YEAR_RANGE),
+        interiorHa: numOrNull(yo.interiorHa, `${at} interiorHa`),
+        interiorNonPineHa: numOrNull(yo.interiorNonPineHa, `${at} interiorNonPineHa`),
+        by: Object.fromEntries(
+          REPRESENTATION_BREAKDOWNS.map((b) => [
+            b,
+            list(by[b], `${at} ${b}`, 500).map((r, j) => row(r, `${at} ${b} row ${j + 1}`)),
+          ]),
+        ) as OldForestRepresentation['years'][number]['by'],
+      }
+    }),
+  }
+}
+
+/** D.4, D.2 and D.3 parts of a kept record; absent when not used, so older records read as before. */
+function parseOldForestExtras(r: JsonObject): Pick<OldForestRecord, 'younger' | 'pool' | 'representation'> {
+  const younger = optional(r, 'younger', (v) => {
+    const y = object(v, 'checks.oldForest.younger')
+    return {
+      fromAge: int(y.fromAge, 'checks.oldForest.younger.fromAge', 1, 1000),
+      benefit: text(y.benefit, 'checks.oldForest.younger.benefit', 20_000),
+    }
+  })
+  const pool = optional(r, 'pool', (v) =>
+    list(v, 'checks.oldForest.pool', 48, 2).map((u, i): OldForestPoolUnit => {
+      const label = `checks.oldForest.pool ${i + 1}`
+      const o = object(u, label)
+      const cflbEnteredHa = optional(o, 'cflbEnteredHa', (x) => num(x, `${label} cflbEnteredHa`, 1, 10_000_000))
+      return {
+        district: oneOf(o.district, `${label} district`, districts),
+        unit: text(o.unit, `${label} unit`, 10),
+        source: text(o.source, `${label} source`, 2000),
+        cflbProxyHa: num(o.cflbProxyHa, `${label} cflbProxyHa`),
+        ...(cflbEnteredHa === undefined ? {} : { cflbEnteredHa }),
+        gisFraction: numOrNull(o.gisFraction, `${label} gisFraction`, 0, 1),
+        projectedYear: int(o.projectedYear, `${label} projectedYear`, ...YEAR_RANGE),
+        counts: parseOldForestCounts(o.counts, `${label} counts`),
+        schedules: parseOldForestSchedules(o.schedules, label),
+        calibration2019:
+          o.calibration2019 === null ? null : parseOldForestYear(o.calibration2019, `${label} calibration2019`),
+        ...optionalRepresentation(o, label),
+      }
+    }),
+  )
+  return {
+    ...(younger ? { younger } : {}),
+    ...(pool ? { pool } : {}),
+    ...optionalRepresentation(r, 'checks.oldForest'),
   }
 }
 
@@ -423,6 +671,18 @@ function parseOldForestYear(value: unknown, label: string): OldForestYear {
     unknownAgeHa: num(y.unknownAgeHa, `${label} unknownAgeHa`),
     requiredInteriorHa: num(y.requiredInteriorHa, `${label} requiredInteriorHa`),
     interiorHa: numOrNull(y.interiorHa, `${label} interiorHa`),
+    ...parseYoungerYear(y, label),
+  }
+}
+
+/** D.4's figures for a year, present only when it was on. */
+function parseYoungerYear(y: JsonObject, label: string): Partial<OldForestYear> {
+  if (y.d4OldSupplyHa === undefined) return {}
+  return {
+    d4OldSupplyHa: num(y.d4OldSupplyHa, `${label} d4OldSupplyHa`),
+    d4OldHa: num(y.d4OldHa, `${label} d4OldHa`),
+    d4InteriorSupplyHa: numOrNull(y.d4InteriorSupplyHa, `${label} d4InteriorSupplyHa`),
+    d4InteriorHa: numOrNull(y.d4InteriorHa, `${label} d4InteriorHa`),
   }
 }
 
@@ -467,6 +727,25 @@ function parseChecks(value: unknown): PlanChecks {
           retention: int(counts.retention, 'checks.oldForest.counts.retention', 0, 1e7),
           corridors: int(counts.corridors, 'checks.oldForest.counts.corridors', 0, 1e7),
         },
+        excluded: optional(r, 'excluded', (v) =>
+          list(v, 'checks.oldForest.excluded', OLD_FOREST_EXCLUDED_KINDS.length).map((e, i) => {
+            const o = object(e, `checks.oldForest.excluded ${i + 1}`)
+            return {
+              kind: oneOf(o.kind, `checks.oldForest.excluded ${i + 1} kind`, OLD_FOREST_EXCLUDED_KINDS),
+              records: int(o.records, `checks.oldForest.excluded ${i + 1} records`, 0, 1e7),
+              grossHa: num(o.grossHa, `checks.oldForest.excluded ${i + 1} grossHa`),
+              cflbHa: num(o.cflbHa, `checks.oldForest.excluded ${i + 1} cflbHa`),
+            }
+          }),
+        ),
+        corridorKinds: optional(r, 'corridorKinds', (v) => {
+          const o = object(v, 'checks.oldForest.corridorKinds')
+          return Object.fromEntries(
+            CORRIDOR_KINDS.flatMap((k) =>
+              o[k] === undefined ? [] : [[k, int(o[k], `checks.oldForest.corridorKinds.${k}`, 0, 1e7)]],
+            ),
+          )
+        }),
         schedules: list(r.schedules, 'checks.oldForest.schedules', 50).map((s, i) => {
           const o = object(s, `checks.oldForest schedule ${i + 1}`)
           return {
@@ -478,6 +757,7 @@ function parseChecks(value: unknown): PlanChecks {
         }),
         calibration2019:
           r.calibration2019 === null ? null : parseOldForestYear(r.calibration2019, 'checks.oldForest.calibration2019'),
+        ...parseOldForestExtras(r),
       }
     }),
   }
@@ -603,6 +883,99 @@ function checkFollows(schedules: Schedule[]) {
   }
 }
 
+/** At most this many features a layer keeps (`grazingEvidence.ts` reads no more). */
+export const MAX_MAPPED_FEATURES = 500
+
+const metres = (v: unknown, at: string) => num(v, at, 0, 1e9)
+const whole = (v: unknown, at: string) => int(v, at, 0, 1e6)
+
+/** A mapped feature's measure: an area's overlap, a line's length or a point's count, one of them whole. */
+function mappedMeasure(o: JsonObject, at: string): Partial<MappedFeature> {
+  const has = (...keys: string[]) => keys.map((k) => o[k] !== undefined)
+  const [area, share] = has('overlapHa', 'sharePercent')
+  const [length, inside] = has('lengthM', 'insideLengthM')
+  const [count, insideCount] = has('count', 'insideCount')
+  const kinds = [area || share, length || inside, count || insideCount].filter(Boolean).length
+  if (kinds !== 1)
+    throw Error(
+      `${at} needs one measure: overlapHa and sharePercent, lengthM and insideLengthM, or count and insideCount.`,
+    )
+  if (area || share)
+    return {
+      overlapHa: num(o.overlapHa, `${at} overlapHa`, 0, 1e9),
+      sharePercent: num(o.sharePercent, `${at} sharePercent`, 0, 100),
+    }
+  if (length || inside) {
+    const near = metres(o.lengthM, `${at} lengthM`)
+    const within = metres(o.insideLengthM, `${at} insideLengthM`)
+    if (within > near + 1e-6) throw Error(`${at} insideLengthM cannot exceed lengthM.`)
+    return { lengthM: near, insideLengthM: within }
+  }
+  const near = whole(o.count, `${at} count`)
+  const within = whole(o.insideCount, `${at} insideCount`)
+  if (within > near) throw Error(`${at} insideCount cannot exceed count.`)
+  return { count: near, insideCount: within }
+}
+
+function parseMappedEvidence(value: unknown, label: string): MappedEvidence {
+  const m = object(value, label)
+  const ha = (v: unknown, at: string) => num(v, at, 0, 1e9)
+  return {
+    readOn: day(m.readOn, `${label} readOn`),
+    shape: text(m.shape, `${label} shape`),
+    footprint: text(m.footprint, `${label} footprint`),
+    footprintHa: ha(m.footprintHa, `${label} footprintHa`),
+    layers: list(m.layers, `${label} layers`, MAPPED_LAYERS.length).map((item, i) => {
+      const at = `${label} layer ${i + 1}`
+      const l = object(item, at)
+      return {
+        layer: oneOf(l.layer, `${at} layer`, MAPPED_LAYERS),
+        status: oneOf(l.status, `${at} status`, ['read', 'failed', 'truncated'] as const),
+        message: optionalText(l, 'message', `${at} message`, 2000),
+        features: list(l.features, `${at} features`, MAX_MAPPED_FEATURES).map((f, j) => {
+          const fat = `${at} feature ${j + 1}`
+          const o = object(f, fat)
+          return {
+            id: text(o.id, `${fat} id`, 200),
+            name: text(o.name, `${fat} name`, 500),
+            group: oneOf(o.group, `${fat} group`, MAPPED_GROUPS),
+            details: list(o.details, `${fat} details`, 20).map((d) => text(d, `${fat} detail`, 1000)),
+            ...mappedMeasure(o, fat),
+          }
+        }),
+        covered: list(l.covered, `${at} covered`, MAPPED_GROUPS.length).map((c, j) => {
+          const o = object(c, `${at} covered ${j + 1}`)
+          return {
+            group: oneOf(o.group, `${at} covered ${j + 1} group`, MAPPED_GROUPS),
+            ha: ha(o.ha, `${at} covered ${j + 1} ha`),
+          }
+        }),
+        marginM: optional(l, 'marginM', (v) => num(v, `${at} marginM`, 0, 10_000)),
+        lengths: optional(l, 'lengths', (v) =>
+          list(v, `${at} lengths`, MAPPED_GROUPS.length).map((c, j) => {
+            const o = object(c, `${at} lengths ${j + 1}`)
+            return {
+              group: oneOf(o.group, `${at} lengths ${j + 1} group`, MAPPED_GROUPS),
+              lengthM: metres(o.lengthM, `${at} lengths ${j + 1} lengthM`),
+              insideLengthM: metres(o.insideLengthM, `${at} lengths ${j + 1} insideLengthM`),
+            }
+          }),
+        ),
+        counts: optional(l, 'counts', (v) =>
+          list(v, `${at} counts`, MAPPED_GROUPS.length).map((c, j) => {
+            const o = object(c, `${at} counts ${j + 1}`)
+            return {
+              group: oneOf(o.group, `${at} counts ${j + 1} group`, MAPPED_GROUPS),
+              count: whole(o.count, `${at} counts ${j + 1} count`),
+              insideCount: whole(o.insideCount, `${at} counts ${j + 1} insideCount`),
+            }
+          }),
+        ),
+      }
+    }),
+  }
+}
+
 function parseReview(value: unknown, label: string): ReviewCase {
   const r = object(value, label)
   const selected = list(r.selected, `${label} releases`, 100).map((v) => text(v, `${label} release`))
@@ -641,6 +1014,33 @@ export function parsePlan(value: unknown): Plan {
     schedules,
     reviewSchedule,
     reviews,
+    rangeReviews: optional(p, 'rangeReviews', (value) => {
+      const seen = new Set<string>()
+      return list(value, 'rangeReviews', blocks.length * schedules.length).map((item, index) => {
+        const label = `Range review ${index + 1}`
+        const r = object(item, label)
+        const block = text(r.block, `${label} block`)
+        const schedule = text(r.schedule, `${label} schedule`)
+        if (!blocks.some((b) => b.id === block) || !schedules.some((s) => s.id === schedule))
+          throw Error(`${label} names a block or schedule that is not in the plan.`)
+        const key = JSON.stringify([block, schedule])
+        if (seen.has(key)) throw Error(`${label} duplicates a block and schedule.`)
+        seen.add(key)
+        return {
+          block,
+          schedule,
+          shape: text(r.shape, `${label} shape`),
+          footprint: text(r.footprint, `${label} footprint`),
+          harvestYear:
+            r.harvestYear === null
+              ? null
+              : int(r.harvestYear, `${label} year`, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER),
+          reference: optionalText(r, 'reference', `${label} references`, 20_000),
+          review: parseReview(r.review, label),
+          mapped: optional(r, 'mapped', (v) => parseMappedEvidence(v, `${label} mapped evidence`)),
+        }
+      })
+    }),
     landscape: {
       rationale: optionalText(l, 'rationale', 'landscape.rationale', 100_000),
       review: optional(l, 'review', (v) => parseReview(v, 'landscape review')),
@@ -675,5 +1075,6 @@ export function parsePlan(value: unknown): Plan {
     ),
     oldForest: optional(p, 'oldForest', parseOldForestChoices),
     checks: optional(p, 'checks', parseChecks),
+    groundReads: parseGroundReads(p.groundReads, blocks, schedules),
   }
 }

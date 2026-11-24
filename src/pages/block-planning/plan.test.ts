@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { analyze } from '../forest-patches/analysis'
 import { exampleProject } from '../forest-patches/project'
-import { addBlock, addSchedule, followWouldLoop, removeBlock, removeSchedule, setEntry } from './edits'
+import { addBlock, addSchedule, followWouldLoop, removeBlock, removeSchedule, setEntry, setOldForest } from './edits'
 import { openPlanFile } from './migrate'
 import { entryOf, footprintName, parsePlan, samplePlan, scheduleHarvests, type Plan } from './plan'
 import { analyzePlan, landscapeReady } from './planAnalysis'
@@ -47,6 +47,28 @@ describe('plan v2', () => {
     const bad = JSON.parse(JSON.stringify(withUnit))
     bad.area.patchExtent = 'buffered'
     expect(() => parsePlan(bad)).toThrow(/patchExtent/)
+  })
+
+  it('keeps D.4 and D.2 old-forest choices through a file, and reads plans without them as before', () => {
+    const base = setOldForest(samplePlan(), { district: 'Prince George', unit: 'A5' })
+    const plain = parsePlan(JSON.parse(JSON.stringify(base)))
+    expect(plain.oldForest).not.toHaveProperty('younger')
+    expect(plain.oldForest).not.toHaveProperty('pooledWith')
+    const chosen = setOldForest(base, {
+      younger: { benefit: '' },
+      pooledWith: [{ district: 'Prince George', unit: 'A6', cflbEnteredHa: 16344, cflbSource: 'Board 2019' }],
+    })
+    // A switched-on D.4 with no age or benefit yet still saves and opens: it only cannot be calculated.
+    const read = parsePlan(JSON.parse(JSON.stringify(chosen)))
+    expect(read.oldForest?.younger).toEqual({ benefit: '' })
+    expect(read.oldForest?.pooledWith).toEqual(chosen.oldForest?.pooledWith)
+    const aged = parsePlan(
+      JSON.parse(JSON.stringify(setOldForest(chosen, { younger: { fromAge: 100, benefit: 'Connectivity.' } }))),
+    )
+    expect(aged.oldForest?.younger).toEqual({ fromAge: 100, benefit: 'Connectivity.' })
+    const twice = JSON.parse(JSON.stringify(chosen))
+    twice.oldForest.pooledWith.push({ district: 'Prince George', unit: 'A5' })
+    expect(() => parsePlan(twice)).toThrow(/names a unit twice/)
   })
 
   it('refuses a schedule that follows itself, and names a missing block', () => {

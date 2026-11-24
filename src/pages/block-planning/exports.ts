@@ -19,12 +19,44 @@ import { assess } from '../../../packages/legal-rules/engine/evaluate'
 import { releaseKey, type Pack } from '../../../packages/legal-rules/src/contract'
 import { table } from '../forest-patches/project'
 import { publishedUnit } from './observations'
-import { entryOf, periodYears, type Plan, type ReviewCase } from './plan'
+import { entryOf, periodYears, type MappedEvidence, type Plan, type ReviewCase } from './plan'
 import type { PlanAnalysis } from './planAnalysis'
 import { DEFAULT_INDEX_WEIGHTS, indexFormula, INDEX_INDICATORS, planningIndex } from './planningIndex'
 import { pathways, trendYearOf } from './review/pathways'
+import { featureMeasure, GROUP_LABELS, layerSummary, MAPPED_LAYER_INFO } from './review/grazingEvidence'
+import { mappedReadCurrent, rangeReviewCurrent } from './review/rangeReview'
+import { corridorSentence, excludedSentence } from './oldForest/recordText'
 import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
-import { boardCheckCurrent, firstShortfall, oldForestCurrent } from './records'
+import {
+  BREAKDOWN_LABELS,
+  pineSplit,
+  REPRESENTATION_BREAKDOWNS,
+  REPRESENTATION_SOURCES,
+  rowLabel,
+  shares,
+  type RepresentationYear,
+} from './oldForest/representation'
+import {
+  boardCheckCurrent,
+  firstShortfall,
+  metOnlyWithD4,
+  oldForestCurrent,
+  shortfallText,
+  type OldForestRecord,
+} from './records'
+import {
+  ACTIVITIES,
+  ACTIVITY_LABELS,
+  BINDS_LABELS,
+  GROUND_CATALOGUE,
+  groundInstrument,
+  groundLayer,
+  REACH_LABELS,
+} from '@/lib/legal/groundInstruments'
+import { precedentSummary } from './ground/precedent'
+import { failedByReason, groundReadCurrent, nearText, type GroundRead } from './ground/record'
+import { documentRequests } from './ground/requests'
+import { exceptionsToRequest, wildlifeCitesText, wildlifeRows, withheldRequests } from './ground/wildlifeMeasures'
 
 export const BLOCK_PLANNING_EXPORTS = [
   {
@@ -39,7 +71,7 @@ export const BLOCK_PLANNING_EXPORTS = [
     id: 'record',
     label: 'Assessment record',
     description:
-      'The plan with every schedule’s periods, the published comparators, both reviews’ findings, the D.5 checklists and the planning index, for a reviewer to audit or rerun.',
+      'The plan with every schedule’s periods, the published comparators, review findings, the D.5 checklists and the planning index.',
     fileName: 'block-assessment.json',
     type: { mime: 'application/json', extension: 'json', description: 'Block assessment record' },
     needsResult: true,
@@ -71,6 +103,7 @@ export const LIMITATIONS = [
   'Old and old-interior forest (Objectives A and B) are calculated only when assessed, from VRI ages (not field-verified), a VRI proxy for the CFLB unless one is stated, and the assumptions in the guide.',
   'The published 2015 and 2018 figures came from other inventories, and 2018 used the revised 2017 guidance.',
   'The planning index ranks options for discussion; it is not a legal test.',
+  '“On this ground” lists the instruments DataBC maps on a block and what each can reach, as read from the provisions it cites; it is a screen, never a legal determination, and an instrument that is not mapped can still apply.',
 ]
 
 function review(cases: ReviewCase | undefined, library: Pack[]) {
@@ -109,6 +142,16 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
     published: publishedUnit(plan.area.district, plan.area.ndu),
     landscapeReview: { trendYear: trendYearOf(plan), assessment: review(order, library) },
     blockReviews: Object.fromEntries(Object.entries(plan.reviews).map(([id, r]) => [id, review(r, library)])),
+    rangeReviews: (plan.rangeReviews ?? []).map((record) => {
+      const current = rangeReviewCurrent(plan, record)
+      return {
+        ...record,
+        current,
+        mappedCurrent: mappedReadCurrent(plan, record),
+        assessment: current ? review(record.review, library) : null,
+      }
+    }),
+    groundReads: (plan.groundReads ?? []).map((read) => groundRecord(plan, read)),
     pathways: pathways(plan, orderKey ? order?.sets[orderKey] : undefined, result),
     planningIndex: { notALegalTest: true, formula: indexFormula(weights), ...planningIndex(plan, result, weights) },
     boardCheck: plan.checks?.board ? { current: boardCheckCurrent(plan), ...plan.checks.board } : null,
@@ -119,13 +162,215 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
           shortfalls: plan.checks.oldForest.schedules.map((s) => ({
             schedule: s.schedule,
             first: firstShortfall(s.years),
+            ...(plan.checks!.oldForest!.younger
+              ? { metOnlyWithD4: metOnlyWithD4(s.years), text: shortfallText(s.years) }
+              : {}),
           })),
           board2019: oldForestUnit(plan.checks.oldForest.district, plan.checks.oldForest.unit)?.board2019 ?? null,
+          ...(plan.checks.oldForest.pool
+            ? {
+                board2019ByUnit: plan.checks.oldForest.pool.map((u) => ({
+                  district: u.district,
+                  unit: u.unit,
+                  board2019: oldForestUnit(u.district, u.unit)?.board2019 ?? null,
+                })),
+              }
+            : {}),
           ...plan.checks.oldForest,
         }
       : null,
     limitations: LIMITATIONS,
   }
+}
+
+/** A ground read for the record: the read, whether it is current, and the catalogue's reach for what it found. */
+function groundRecord(plan: Plan, read: GroundRead) {
+  const block = plan.blocks.find((b) => b.id === read.block)
+  return {
+    ...read,
+    current: groundReadCurrent(plan, read),
+    screenOnly: true,
+    catalogueRead: GROUND_CATALOGUE.readOn,
+    reach: read.instruments
+      .filter((r) => r.features.length)
+      .map((r) => {
+        const x = groundInstrument(r.instrument)
+        if (!x) return { instrument: r.instrument, inCatalogue: false }
+        return {
+          instrument: x.id,
+          label: x.label,
+          statute: x.statute,
+          binds: x.binds,
+          reach: x.reach,
+          terms: x.terms,
+          facts: x.facts,
+          precedent: !hasPrecedent(x.layer)
+            ? 'Not read for a line or point layer'
+            : read.precedent
+              ? precedentSummary(read.precedent, x.id)
+              : 'Not read',
+          ...(wildlifeRows(x, r)
+            ? {
+                byOrder: wildlifeRows(x, r)!.map((w) => ({
+                  order: w.orderId,
+                  status: w.status,
+                  ...(w.order ? { title: w.order.title, url: w.order.url, decided: w.order.decided } : {}),
+                  features: w.features.map((f) => f.id),
+                  reach: w.reach,
+                  binds: w.binds,
+                })),
+              }
+            : {}),
+        }
+      }),
+    requests: [
+      ...documentRequests(read, block?.name ?? read.block),
+      ...withheldRequests(read, groundInstrument, block?.name ?? read.block),
+    ],
+    exceptions: exceptionsToRequest(read, groundInstrument).map((x) => ({
+      order: x.order.id,
+      title: x.order.title,
+      url: x.order.url,
+      units: x.units,
+      clauses: x.clauses,
+      route: x.route,
+    })),
+  }
+}
+
+/** Precedent is read inside area instruments only: a line or a point holds no openings. */
+const hasPrecedent = (layer: string) => (groundLayer(layer)?.geometry ?? 'area') === 'area'
+
+/** Where each layer without a date keeps one, printed once under the precedent. */
+function undated(layers: string[]) {
+  const notes = [...new Set(layers)].flatMap((id) => {
+    const l = groundLayer(id)
+    return l && !l.date && l.dateNote ? [l.dateNote] : []
+  })
+  return notes.length ? `<p class="note">${escape(notes.join(' '))}</p>` : ''
+}
+
+/** The exempt cut blocks and ALR applications the precedent read, listed under it. */
+function precedentLists(read: GroundRead) {
+  const p = read.precedent
+  if (!p) return ''
+  const blocks = p.exemptBlocks ?? []
+  const alr = p.alrApplications ?? []
+  return [
+    blocks.length
+      ? `<p class="note">Cut blocks marked exempt from a silviculture prescription (Forest Practices Code s. 30; the exemption and its reason are not public): ${escape(
+          blocks
+            .map((b) =>
+              [
+                b.forestFileId,
+                b.cuttingPermit && `CP ${b.cuttingPermit}`,
+                b.cutBlock && `block ${b.cutBlock}`,
+                b.harvested,
+              ]
+                .filter(Boolean)
+                .join(' '),
+            )
+            .join('; '),
+        )}.</p>`
+      : '',
+    alr.length
+      ? `<p class="note">ALR applications and notices of intent (the Commission's decisions are not in the layer): ${escape(
+          alr
+            .map(
+              (a) =>
+                `${a.kind} ${a.id}${a.received ? `, received ${a.received}` : ''}${a.components ? `, ${a.components}` : ''}`,
+            )
+            .join('; '),
+        )}.</p>`
+      : '',
+  ].join('')
+}
+
+/** A ground read as it prints: the matrix with each cell's provisions, what was not read, the precedent and the requests. */
+function groundHtml(plan: Plan, read: GroundRead, names: Record<string, string>) {
+  const cell = (c: unknown) => `<td>${escape(c)}</td>`
+  const block = plan.blocks.find((b) => b.id === read.block)
+  const shape = block?.shapes.find((s) => s.id === read.shape)
+  const found = read.instruments.flatMap((r) => {
+    const x = groundInstrument(r.instrument)
+    return x && r.features.length ? [{ r, x }] : []
+  })
+  const label = (id: string) => groundInstrument(id)?.label ?? id
+  const failed = read.instruments.filter((r) => r.status === 'failed')
+  const empty = read.instruments.filter((r) => r.status !== 'failed' && !r.features.length)
+  const requests = [
+    ...documentRequests(read, block?.name ?? read.block),
+    ...withheldRequests(read, groundInstrument, block?.name ?? read.block),
+  ]
+  const exceptions = exceptionsToRequest(read, groundInstrument)
+  const share = (v: number) => (read.footprintHa > 0 ? (v / read.footprintHa) * 100 : 0).toFixed(1)
+  // A range or habitat area whose order was read prints the order's answer, one row per order and answer.
+  const matrix = found.flatMap(({ r, x }) => {
+    const own = wildlifeRows(x, r)
+    if (!own)
+      return [
+        {
+          x,
+          title: `${x.label}: ${r.features.map((f) => f.id).join(', ')}`,
+          covered: r.coveredHa,
+          near: r.near,
+          reach: x.reach,
+          binds: x.binds,
+        },
+      ]
+    return own.map((w) => ({
+      x,
+      title: `${x.label} · ${w.label}: ${w.features.map((f) => f.id).join(', ')}`,
+      covered: w.overlapHa,
+      near: undefined,
+      reach: w.reach,
+      binds: w.binds,
+    }))
+  })
+  return `<h3>${escape(names[read.schedule] ?? read.schedule)} · ${escape(block?.name ?? read.block)} · ${escape(shape?.name ?? read.shape)} · read ${escape(read.readOn)}</h3>
+${groundReadCurrent(plan, read) ? '' : '<p class="warn">The block shape changed since this read. Read it again before relying on it.</p>'}
+<p class="note">DataBC layers read against the ${read.footprintHa.toFixed(2)} ha footprint, each cell from the provisions it cites (catalogue ${escape(read.catalogue)}). A screen, never a legal determination: it decides no fact, and an instrument that is not mapped can still apply.</p>
+${
+  found.length
+    ? `<table><thead><tr><th>Instrument</th><th>On the block</th>${ACTIVITIES.map((a) => `<th>${ACTIVITY_LABELS[a]}</th>`).join('')}<th>Binds</th><th>Terms public</th></tr></thead><tbody>
+${matrix
+  .map(
+    (m) =>
+      `<tr>${cell(m.title)}${cell(m.near ? nearText(m.near) : `${m.covered.toFixed(2)} ha · ${share(m.covered)}%`)}${ACTIVITIES.map((a) => cell(`${REACH_LABELS[m.reach[a].state]}. ${m.reach[a].note} (${wildlifeCitesText(m.reach[a].cites)})`)).join('')}${cell(`${BINDS_LABELS[m.binds.kind]} (${wildlifeCitesText(m.binds.cites)})`)}${cell(m.x.terms.public ? 'Yes' : `No: ${m.x.terms.where}`)}</tr>`,
+  )
+  .join('\n')}
+</tbody></table>`
+    : '<p>None of the instruments read is mapped on this footprint.</p>'
+}
+${failedByReason(failed)
+  .map(({ reason, ids }) => `<p class="warn">Not read: ${escape(ids.map(label).join(', '))}. ${escape(reason)}</p>`)
+  .join('\n')}
+${empty.length ? `<p class="note">Read, nothing mapped on the footprint: ${escape(empty.map((r) => label(r.instrument)).join(', '))}.</p>` : ''}
+${
+  found.length && read.precedent
+    ? `<h4>Precedent within ${read.precedent.radiusM / 1000} km (RESULTS and other public records)</h4>
+<ul>${found
+        .filter(({ x }) => hasPrecedent(x.layer))
+        .map(
+          ({ x }) => `<li><strong>${escape(x.label)}</strong>: ${escape(precedentSummary(read.precedent!, x.id))}</li>`,
+        )
+        .join('')}</ul>
+${undated(found.map(({ x }) => x.layer))}${precedentLists(read)}`
+    : ''
+}
+${
+  requests.length
+    ? `<h4>Documents to request</h4>
+<ul>${requests.map((q) => `<li><strong>${escape(q.label)}</strong> (${escape(q.identifiers.join('; '))}): ${escape(`ask ${q.holder}, through ${q.channel}`)}.</li>`).join('')}</ul>`
+    : ''
+}
+${
+  exceptions.length
+    ? `<h4>Exceptions the wildlife orders provide</h4>
+<p class="note">What each order read here says may proceed, or may be approved, despite its measures, and who decides. Nothing here says an exception applies or would be granted.</p>
+<ul>${exceptions.map((e) => `<li><strong>${escape(e.order.title)}</strong> (${escape(e.units.join(', '))}): ${e.clauses.length ? e.clauses.map((c) => escape(`${c.ref}${c.inOrder ? '' : ' (guidance, not part of the order)'}: ${c.says} “${c.quote}” Decides: ${c.by}.`)).join(' ') : 'The order states no exception or approval of its own.'} ${escape(`${e.route.text} (${wildlifeCitesText(e.route.cites)})`)}</li>`).join('')}</ul>`
+    : ''
+}`
 }
 
 export function blocksGeoJson(plan: Plan): FeatureCollection {
@@ -164,6 +409,90 @@ export function blocksGeoJson(plan: Plan): FeatureCollection {
 }
 
 const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`)
+
+/**
+ * D.3's summary for the printed record: what the order and the policy say representative refers
+ * to, then, for each unit, old forest beside the CFLB by breakdown in the first and last years of
+ * the schedule under review. Figures only, never a verdict.
+ */
+function representationHtml(
+  old: Pick<OldForestRecord, 'unit' | 'representation' | 'pool'>,
+  names: Record<string, string>,
+  row: (cells: unknown[], tag?: string) => string,
+): string {
+  const units = old.pool
+    ? old.pool.map((u) => ({ unit: u.unit, representation: u.representation }))
+    : [{ unit: old.unit, representation: old.representation }]
+  if (!units.some((u) => u.representation)) return ''
+  const share = (v: number | null) => (v === null ? '—' : pct(v * 100))
+  const cell = (ha: number, s: number | null) => `${ha.toFixed(0)} (${share(s)})`
+  return `<h3>Representative stands (D.3)</h3>
+${REPRESENTATION_SOURCES.map((q) => `<blockquote class="note">“${escape(q.text)}” (${escape(q.cite)})</blockquote>`).join('\n')}
+<p class="note">Figures to help judge representativeness, never a pass or fail. The texts measure it by affected (pine-leading) and unaffected (non-pine) stands; the BEC variant, age class and site index breakdowns are context. Old forest includes ground counted whole under D.1 and never D.4's younger stands. Age classes are the provincial inventory's; site index classes are PGMaps' own 5 m steps of the VRI site index.</p>
+${units
+  .map(({ unit, representation: r }) => {
+    if (!r) return `<p class="note">${escape(unit)}: no D.3 summary in this record (made before it).</p>`
+    const ends = [r.years[0], r.years.at(-1)!].filter((y, i, all) => all.indexOf(y) === i) as RepresentationYear[]
+    const splits = ends
+      .map((y) => {
+        const s = pineSplit(y)
+        return `${y.year}: non-pine-leading ${share(s.nonPineCflbShare)} of the CFLB, old non-pine ${share(s.nonPineOldShare)} of old forest${s.nonPineInteriorShare === null ? '' : `, interior on non-pine old ground ${share(s.nonPineInteriorShare)} of old interior`}`
+      })
+      .join('; ')
+    return `<h4>${escape(unit)} · ${escape(names[r.schedule] ?? r.schedule)} (under review)</h4>
+<p class="note">${escape(splits)}.</p>
+${REPRESENTATION_BREAKDOWNS.map((b) => {
+  const keys = [...new Set(ends.flatMap((y) => y.by[b].map((x) => x.key)))]
+  const at = ends.map((y) => new Map(shares(y.by[b]).map((x) => [x.key, x])))
+  return `<table><thead>${row([BREAKDOWN_LABELS[b], ...ends.flatMap((y) => [`CFLB ha ${y.year}`, `Old ha ${y.year}`, `Old non-pine ha ${y.year}`])], 'th')}</thead><tbody>
+${keys
+  .map((k) =>
+    row([
+      rowLabel(b, k),
+      ...at.flatMap((m) => {
+        const x = m.get(k)
+        return x
+          ? [cell(x.cflbHa, x.cflbShare), cell(x.oldHa, x.oldShare), cell(x.nonPineOldHa, x.nonPineShare)]
+          : ['—', '—', '—']
+      }),
+    ]),
+  )
+  .join('\n')}
+</tbody></table>`
+}).join('\n')}`
+  })
+  .join('\n')}`
+}
+
+/** A grazing review's mapped read, dated and named as candidates; a layer not read says so. */
+function mappedHtml(mapped: MappedEvidence | undefined, current: boolean) {
+  if (!mapped) return ''
+  const cell = (c: unknown) => `<td>${escape(c)}</td>`
+  const margin = mapped.layers.find((l) => l.marginM !== undefined)?.marginM
+  const rows = mapped.layers.flatMap((layer) => {
+    const title = MAPPED_LAYER_INFO[layer.layer].title
+    if (!layer.features.length) return [`<tr>${cell(title)}<td colspan="3">${escape(layerSummary(layer))}</td></tr>`]
+    return [
+      ...(layer.status === 'truncated'
+        ? [`<tr>${cell(title)}<td colspan="3">${escape(`Incomplete: ${layer.message}`)}</td></tr>`]
+        : []),
+      ...layer.features.map(
+        (f) =>
+          `<tr>${cell(title)}${cell(`${f.id} · ${f.name} (${GROUP_LABELS[f.group]})`)}${cell(featureMeasure(f, layer.marginM))}${cell(f.details.join(' · '))}</tr>`,
+      ),
+      // Lines and points: each kind's total, with a stretch two records share counted once.
+      ...(layer.marginM !== undefined
+        ? [`<tr>${cell(title)}<td colspan="3">${escape(`In all: ${layerSummary(layer)}`)}</td></tr>`]
+        : []),
+    ]
+  })
+  return `<h4>Mapped candidates · read ${escape(mapped.readOn)}</h4>
+${current ? '' : '<p class="warn">The block shape changed since this read. Read it again before relying on it.</p>'}
+<p class="note">DataBC layers read against the ${mapped.footprintHa.toFixed(2)} ha footprint${margin === undefined ? '' : `; range developments and natural barriers inside it and within ${margin} m of its edge`}. Candidates for the reviewer to weigh, never answers: the orders’ maps are a visual representation not for legal purposes, the legal descriptions, signed instruments and the district decide, and what is not mapped can still be on the ground.</p>
+<table><thead><tr><th>Layer</th><th>Feature</th><th>Overlap · share, length or count</th><th>As DataBC gives it</th></tr></thead><tbody>
+${rows.join('\n')}
+</tbody></table>`
+}
 
 export function summaryHtml(plan: Plan, result: PlanAnalysis, library: Pack[], generatedOn: string) {
   const record = assessmentRecord(plan, result, library, generatedOn)
@@ -211,7 +540,7 @@ ${table.labels
   const old = record.oldForest
   const oldUnit = old ? oldForestUnit(old.district, old.unit) : null
   const oldHtml = old
-    ? `<h2>Old and old interior forest · ${escape(old.unit)}</h2>
+    ? `<h2>Old and old interior forest · ${escape(old.pool ? old.pool.map((u) => u.unit).join(' + ') : old.unit)}</h2>
 ${old.current ? '' : outOfDate}
 <p class="note">${escape(old.source)}. VRI projected to ${old.projectedYear}, age-based and not field-verified. ${
         oldUnit
@@ -219,14 +548,13 @@ ${old.current ? '' : outOfDate}
           : ''
       } ${old.choices?.cflbEnteredHa !== undefined ? `CFLB as stated${old.choices?.cflbSource ? ` (${escape(old.choices.cflbSource)})` : ''}, with the VRI proxy’s shares applied to it.` : 'CFLB by the VRI proxy (treed, forest management land base).'}${
         oldUnit && gisDisagrees(oldUnit, old.gisFraction) ? ` ${escape(gisDisagrees(oldUnit, old.gisFraction))}` : ''
-      }</p>
+      } ${escape(excludedSentence(old))} ${escape(corridorSentence(old))}</p>
+${old.pool ? `<p class="note">Pooled under D.2 by the reviewer: ${old.pool.map((u) => `${escape(u.unit)} (${escape(u.district)}, CFLB ${(u.cflbEnteredHa ?? u.cflbProxyHa).toFixed(0)} ha${u.cflbEnteredHa === undefined ? ' by the VRI proxy' : ' as stated'})`).join(', ')}. Each unit’s requirement is at its own percentage and old age; the figures below are the pool’s sums. ${old.pool.map((u) => escape(u.source)).join('. ')}.</p>` : ''}
+${old.younger ? `<p class="note">D.4, as stated by the reviewer: stands from ${old.younger.fromAge} years up to the old age count toward up to 20% of the old and old interior requirements (never the non-pine one). Conservation benefit: ${escape(old.younger.benefit)}</p>` : ''}
 ${old.schedules
   .map(
-    (s) => `<h3>${escape(names[s.schedule] ?? s.schedule)}: ${(() => {
-      const f = old.shortfalls.find((x) => x.schedule === s.schedule)?.first
-      return f ? `short of ${escape(f.what.join(', '))} from ${f.year}` : 'no shortfall over the projection'
-    })()}</h3>
-<table><thead>${row(['Year', 'Old ha (required)', 'Old non-pine ha (required)', 'Old interior ha (required)'], 'th')}</thead><tbody>
+    (s) => `<h3>${escape(names[s.schedule] ?? s.schedule)}: ${escape(shortfallText(s.years))}</h3>
+<table><thead>${row(['Year', 'Old ha (required)', 'Old non-pine ha (required)', 'Old interior ha (required)', ...(old.younger ? ['D.4 old ha (available)', 'D.4 interior ha (available)'] : [])], 'th')}</thead><tbody>
 ${s.years
   .map((y) =>
     row([
@@ -236,17 +564,31 @@ ${s.years
         ? `${y.nonPineOldHa.toFixed(0)} (none stated)`
         : `${y.nonPineOldHa.toFixed(0)} (${y.requiredNonPineHa.toFixed(0)})`,
       y.interiorHa === null ? '—' : `${y.interiorHa.toFixed(0)} (${y.requiredInteriorHa.toFixed(0)})`,
+      ...(old.younger
+        ? [
+            `${(y.d4OldHa ?? 0).toFixed(0)} (${(y.d4OldSupplyHa ?? 0).toFixed(0)})`,
+            y.d4InteriorHa === null || y.d4InteriorHa === undefined
+              ? '—'
+              : `${y.d4InteriorHa.toFixed(0)} (${(y.d4InteriorSupplyHa ?? 0).toFixed(0)})`,
+          ]
+        : []),
     ]),
   )
   .join('\n')}
 </tbody></table>`,
   )
   .join('\n')}
-${
-  old.calibration2019 && old.board2019
-    ? `<p class="note">2019, baseline only, against the Board (${escape(BOARD_2019_SOURCE.label)}): CFLB ${old.calibration2019.cflbHa.toFixed(0)} ha (${old.board2019.cflbHa}), old ${old.calibration2019.oldHa.toFixed(0)} ha (${old.board2019.oldHa}), interior ${old.calibration2019.interiorHa?.toFixed(0) ?? '—'} ha (${old.board2019.interiorHa}).</p>`
-    : ''
-}`
+${(old.pool ?? [{ district: old.district, unit: old.unit, calibration2019: old.calibration2019 }])
+  .map((u) => {
+    // The Board's table is per unit: each unit with a Board row is set beside its own.
+    const b = oldForestUnit(u.district, u.unit)?.board2019
+    const c = u.calibration2019
+    return c && b
+      ? `<p class="note">${old.pool ? `${escape(u.unit)}: ` : ''}2019, baseline only, against the Board (${escape(BOARD_2019_SOURCE.label)}): CFLB ${c.cflbHa.toFixed(0)} ha (${b.cflbHa}), old ${c.oldHa.toFixed(0)} ha (${b.oldHa}), interior ${c.interiorHa?.toFixed(0) ?? '—'} ha (${b.interiorHa}).</p>`
+      : ''
+  })
+  .join('\n')}
+${representationHtml(old, names, row)}`
     : ''
   const pathwayHtml = record.pathways
     .map(
@@ -254,7 +596,31 @@ ${
 <ul>${p.steps.map((s) => `<li><strong>${escape(s.label)}</strong> (${escape(s.state)}): ${escape(s.detail)}</li>`).join('')}</ul>`,
     )
     .join('\n')
+  const groundSection = (plan.groundReads ?? []).length
+    ? `<h2>On this ground</h2>
+${(plan.groundReads ?? []).map((read) => groundHtml(plan, read, names)).join('\n')}`
+    : ''
   const index = record.planningIndex
+  const rangeHtml = record.rangeReviews.length
+    ? `<h2>Crown grazing and reforestation</h2>
+${record.rangeReviews
+  .map((r) => {
+    const block = plan.blocks.find((b) => b.id === r.block)
+    const shape = block?.shapes.find((s) => s.id === r.shape)
+    const findings =
+      r.assessment && 'releases' in r.assessment ? r.assessment.releases.flatMap((release) => release.findings) : []
+    const rows = findings.filter((f) => f.status === 'review_required' || f.status === 'missing_evidence')
+    const outsideWindow = findings.some((f) => f.status === 'outside_source_window')
+    return `<h3>${escape(names[r.schedule] ?? r.schedule)} · ${escape(block?.name ?? r.block)} · ${escape(shape?.name ?? r.shape)} · ${r.harvestYear ?? 'No harvest scheduled'}</h3>
+<p class="note">${r.current ? `Legal assessment date ${escape(r.review.date)}.` : 'The shape or harvest year changed. Review pending.'}</p>
+${r.reference ? `<p>${escape(r.reference).replace(/\n/g, '<br>')}</p>` : ''}
+${outsideWindow ? '<p>The assessment date is outside the rule pack’s source window.</p>' : ''}
+${r.assessment && 'error' in r.assessment ? `<p>${escape(r.assessment.error)}</p>` : ''}
+${rows.length ? `<ul>${rows.map((f) => `<li>${escape(f.title)} (§${escape(f.provision)}) — ${f.status === 'review_required' ? escape(f.finding) : 'Evidence needed.'}</li>`).join('')}</ul>` : ''}
+${mappedHtml(r.mapped, r.mappedCurrent)}`
+  })
+  .join('\n')}`
+    : ''
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Block plan assessment</title>
@@ -276,6 +642,8 @@ ${schedules}
 ${published}
 ${boardHtml}
 ${oldHtml}
+${rangeHtml}
+${groundSection}
 <h2>D.5 pathways</h2>
 <p class="note">Trend measured over ${trendYear - 5}–${trendYear} for the schedule under review.</p>
 ${pathwayHtml}

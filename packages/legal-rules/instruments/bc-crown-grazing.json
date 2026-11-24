@@ -1,0 +1,179 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.crown-grazing",
+  "version": "1.0.0",
+  "title": "BC Crown grazing and reforestation",
+  "description": "Evidence review for forestry on grazing land, in Land Act designated areas and in the 2006 Omineca agriculture and settlement reserve areas: lease terms, designations, range plans, range barriers and developments, the order's harvest pathways and whether the harvested ground can be reforested.",
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-17"
+  },
+  "facts": [
+    {
+      "id": "land-act-lease",
+      "label": "Is there an executed Land Act grazing lease covering the activity area?",
+      "type": "boolean"
+    },
+    {
+      "id": "lease-conflict",
+      "label": "Does a confirmed lease clause require a consent that is outstanding or withheld, or restrict the proposed activity?",
+      "type": "boolean"
+    },
+    {
+      "id": "land-act-designation",
+      "label": "Is the area under a Land Act reserve, withdrawal or designated use area?",
+      "type": "choice",
+      "choices": [
+        "None",
+        "Section 15 reserve",
+        "Section 16 withdrawal from disposition",
+        "Section 17 designated use area"
+      ]
+    },
+    {
+      "id": "designation-terms-restrict",
+      "label": "Do the designation's terms (its signed notice, conditions under §17(1.1) or the land use report) restrict harvesting, site preparation or planting on the area?",
+      "type": "boolean"
+    },
+    {
+      "id": "range-act-agreement",
+      "label": "Does a confirmed Range Act grazing or hay licence or permit cover this activity area?",
+      "type": "boolean"
+    },
+    {
+      "id": "range-development-affected",
+      "label": "Would the work remove, damage, modify or construct a range development (a fence, gate, cattle guard or water development) on Crown range?",
+      "type": "boolean"
+    },
+    {
+      "id": "barrier-impact",
+      "label": "Would the proposed forest practice directly or indirectly remove or render ineffective a natural range barrier?",
+      "type": "boolean"
+    },
+    {
+      "id": "plan-conflict",
+      "label": "Does an applicable approved plan clause restrict the proposed harvest or silviculture, or impose an unmet prerequisite?",
+      "type": "boolean"
+    },
+    {
+      "id": "ada-sra-applicable",
+      "label": "Does the 2006 Omineca ADA/SRA order apply to this Crown land and activity after checking the legal boundary and effective date?",
+      "type": "boolean"
+    },
+    {
+      "id": "ada-sra-excluded",
+      "label": "Is the activity under a cutting permit, road permit, timber sale licence without cutting permits, FRPA §7(1)(b) or §196(1) area, or range plan schedule in effect when the order took effect?",
+      "type": "boolean"
+    },
+    {
+      "id": "fsp-ada-strategy",
+      "label": "Does the applicable forest stewardship plan state a result or strategy for ADAs and SRAs, such as carrying out the 2006 order?",
+      "type": "boolean"
+    },
+    {
+      "id": "ada-sra-harvest",
+      "label": "Does this scenario propose timber harvesting in the area covered by the order?",
+      "type": "boolean"
+    },
+    {
+      "id": "ada-sra-pathway",
+      "label": "Under which part of the order is the harvest proposed, or was it carried out?",
+      "type": "choice",
+      "choices": [
+        "Part A: environmental or safety harvest",
+        "Part B: forest-health harvest",
+        "Part E: deviation determined by the agriculture ministry",
+        "None of these"
+      ]
+    },
+    {
+      "id": "part-a-agreed",
+      "label": "Was the harvest proposed by local or provincial government, agreed by the forests and agriculture ministries, and directed by an operational work plan?",
+      "type": "boolean"
+    },
+    {
+      "id": "part-b-indication",
+      "label": "Is there a clear indication that the sanitation harvest will significantly assist in preventing the spread of a forest health problem to adjacent stands?",
+      "type": "boolean"
+    },
+    {
+      "id": "dead-or-infested-only",
+      "label": "Is the harvest limited to dead or infested timber, taking live trees only where access, skidding or safety needs them?",
+      "type": "boolean"
+    },
+    {
+      "id": "referred-to-agriculture",
+      "label": "Has the harvesting proposal been referred to the agriculture ministry, as Part C.6 requires?",
+      "type": "boolean"
+    },
+    {
+      "id": "ada-sra-planting",
+      "label": "Does the activity include site preparation or artificial regeneration, such as planting or seeding?",
+      "type": "boolean"
+    },
+    {
+      "id": "area-based-tenure",
+      "label": "Would the proposal establish an area-based forest tenure (a woodlot licence, community forest agreement or tree farm licence) in the area?",
+      "type": "boolean"
+    },
+    {
+      "id": "section-29-scope",
+      "label": "Does FRPA §29 put a free-growing duty on this harvest (an agreement holder or timber sales manager under a forest stewardship or operations plan, or a woodlot licence holder)?",
+      "type": "boolean"
+    },
+    {
+      "id": "exempt-purpose",
+      "label": "Is the harvest restricted to a purpose FPPR §44(3) lists, which relieves the free-growing duty?",
+      "type": "choice",
+      "choices": [
+        "No",
+        "(d) land used exclusively for grazing or hay under a Range Act agreement",
+        "(h) commercial thinning, removal of individual trees or similar intermediate cutting",
+        "(i) special forest products other than woodchips or hogged material",
+        "Another purpose: (a)–(c) or (e)–(g)"
+      ]
+    },
+    {
+      "id": "exclusive-range-use",
+      "label": "Is the area used, or will it be used, exclusively for grazing livestock or cutting hay under that Range Act agreement?",
+      "type": "boolean"
+    },
+    {
+      "id": "nar-reserved",
+      "label": "Is the ground set aside for agriculture reserved for purposes other than timber harvesting (in the cutting permit or site plan, with the district), so it leaves the net area to be reforested?",
+      "type": "boolean"
+    },
+    {
+      "id": "natural-regen-meets-standard",
+      "label": "Will natural regeneration alone, with the grazing, competition and seed source the site has, meet the applicable stocking standard by its regeneration date?",
+      "type": "boolean"
+    },
+    {
+      "id": "no-reforestation-intended",
+      "label": "Does the proposal intend to leave the harvested net area unreforested, neither planted nor regenerating naturally to the stocking standard?",
+      "type": "boolean"
+    },
+    {
+      "id": "existing-standard-unmet",
+      "label": "For an opening already harvested, is it known that its stocking standard or free-growing height cannot be met by its dates?",
+      "type": "boolean"
+    },
+    {
+      "id": "permanent-grazing-opening",
+      "label": "Would the proposal keep any of the area to be reforested permanently open for grazing?",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [],
+  "sourceFiles": [
+    "sources/bc/land-act.json",
+    "sources/bc/range-act.json",
+    "sources/bc/frpa.json",
+    "sources/bc/fppr.json",
+    "sources/bc/omineca-ada-sra-order.json",
+    "sources/bc/grazing-policy.json",
+    "sources/bc/rppr.json",
+    "sources/bc/crown-land-reserves-policy.json"
+  ],
+  "ruleFiles": ["rules/bc/crown-grazing.json"]
+}

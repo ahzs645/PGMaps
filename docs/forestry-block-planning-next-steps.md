@@ -2,79 +2,26 @@
 
 What is still open in `/dev/forestry/block-planning` after old and old interior forest were built (24 November 2026), in the order to take it up. The contracts are [Block planning and Prince George forest patch scenarios](forestry-patch-scenarios.md) and [Old and old interior forest in the block planner](forestry-old-forest.md). Each item says what it changes, where it would go, what decides it, and how to know it worked. When one is built, move its rules into the contract and delete it here.
 
-## Next: the four old-forest gaps
+## Done: the four old-forest gaps
 
-These are what Objectives A and B do not model yet. The first three change the figures a reviewer sees. Each must leave a plan that does not use it calculating exactly as now.
+Built on 24 November 2026 and moved into [the old-forest contract](forestry-old-forest.md): private land and excluded tenures left out of the CFLB proxy (A6 and A10 now within 1% and 3% of the Board's CFLB), pipelines in the 2005 interior method, D.4's younger stands and D.2's pooling. What they leave open is in the contract's **Limits and what is not built**.
 
-### 1. Remove private land and excluded tenures from the CFLB proxy
+## Done: what the instruments on a block can reach
 
-**Why first.** On A6 and A10 the proxy's land base came out 37–38% larger than the LLOWG's CFLB, and private land and excluded tenures are the likeliest reason. The order applies to Crown land and excludes woodlots, TFLs and community forests. A reviewer who states a CFLB is protected (decision 2 applies shares), but one who does not reads inflated hectares.
+Built on 24 November 2026 with its own contract, [On this ground](forestry-ground-instruments.md): step 5 reads every legal instrument mapped on the block shape under review (Land Act reserves, withdrawals, designated use areas and tenures, the ALR, legal objectives and OGMAs, winter ranges and habitat areas, range tenures, parks, ecological reserves and protected areas, private parcels, community watersheds), shows what each can reach for harvest, replanting, roads and grazing with the provision each answer rests on, reads RESULTS precedent inside each one near the block, and drafts the documents to ask for. A second batch the same day added notations of interest and applications, the Robson Valley ADA order, mineral and placer tenures, water licences near the block (points), woodlots, community forests, First Nations woodland licences and TFLs, recreation sites and trails (lines), scenic areas and visual quality objectives, and federal critical habitat, and gave the precedent the public signals of an exception (SPEX openings, standards units with no regeneration obligation or under a variation, exempt cut blocks, ALR applications and notices of intent). What it leaves open is in the contract's **Not built**.
 
-**What to read**, by the unit's own shapes like the other reads in `oldForest/reads.ts`:
+## Done: a map of old and interior forest, and D.3's summary
 
-- ownership, `WHSE_FOREST_VEGETATION.F_OWN` (`OWN`, `OWNERSHIP_DESCRIPTION`), keeping provincial Crown only;
-- woodlots and community forests, `WHSE_FOREST_TENURE.FTEN_MANAGED_LICENCE_POLY_SVW`;
-- tree farm licences, `WHSE_ADMIN_BOUNDARIES.FADM_TFL_ALL_SP`.
+Built on 24 November 2026 and moved into [the old-forest contract](forestry-old-forest.md): the plan map draws old forest, old interior, the 200 m edges, D.1 and D.4 ground and the ground left out for the schedule and year on the map, from the worker's own run of the calculation (**A map of old and interior forest**), and _Representative stands (D.3)_ sets old forest beside the CFLB by leading species, BEC variant, age class and site index, under the order's and the policy's words (**D.3: representative stands**). What they leave open is in the contract's **Limits and what is not built**.
 
-Check each layer's fields and its coverage of the TSA before relying on it: do it as `reads.ts` was done, with `DescribeFeatureType` and a count.
-
-**Where it goes.** `prepareUnit` takes the excluded ground and leaves it out of the CFLB proxy before anything is counted. Old forest on excluded ground is no longer counted either, because the order does not apply there. The panel states the hectares removed by kind.
-
-**Done when.** The CFLB proxy on A6 and A10 comes within about 10% of the Board's 2019 CFLB, or the guide says what still separates them. Old forest's share of the CFLB must not get worse there: it matches today within a point.
-
-### 2. D.4: up to 20% of younger stands
-
-The order lets up to 20% of the old and old interior objectives be met by younger age classes, "where it can be demonstrated that equal or better conservation benefits would result". That benefit is a judgement, so D.4 is the reviewer's, never the model's.
-
-**Where it goes.**
-
-- A switch in the panel's _Assumptions you can change_, off by default.
-- With it, a stated age (for example, from 100 years) and a required statement of the conservation benefit, kept on `OldForestChoices`.
-- When on, stands from that age up to the old age count toward A and B, up to 20% of each requirement and never more. The panel, the record and the summary show how many hectares D.4 supplied.
-- D.5(a)'s evidence line says when a result leans on D.4.
-
-**Done when.**
-
-- A unit short of old forest by less than 20% of its requirement reads as met only with the switch on and a statement given.
-- The record carries the statement.
-- `firstShortfall` names D.4 when it is the difference.
-
-### 3. Pipelines in the 2005 interior method
-
-The 2005 method buffers pipelines by 200 m, like forest service roads, railways and transmission lines, which are already read. No pipeline layer was checked, so interior next to a pipeline is overstated today.
-
-**What to read.** The BC Energy Regulator's pipeline rights-of-way on DataBC, `WHSE_MINERAL_TENURE.OG_PIPELINE_AREA_PERMIT_SP` or its segment layer. Confirm the name, fields and northern coverage first; the name here is a candidate, not checked.
-
-**Where it goes.** `readCorridors` gains one more entry, as `fsr`, `railway` and `transmission` are; `CORRIDOR_LABELS` names it.
-
-**Done when.** A unit a pipeline crosses loses about 400 m × the crossing length of interior, and the corridor count in the panel includes it.
-
-### 4. D.2: pooling units
-
-D.2 lets a licensee meet the combined requirement of similar mBEC units across district boundaries. A3 is printed "combined with A13". Decision 5 keeps pooling off by default, and the reviewer chooses it.
-
-**Where it goes.**
-
-- `OldForestChoices` gains an optional list of units to pool with the chosen one.
-- The worker reads each unit, as it does one now. The requirement is the sum of each unit's CFLB × its own percentage, and the old forest held is the sum across all of them, never counted twice.
-- The record names every unit pooled. The Board comparison stays per unit, because the Board's table is per unit.
-
-**Done when.**
-
-- A3 pooled with A13 reports the combined requirement and holding.
-- The record says it is pooled.
-- An overlap between pooled units (there should be none) is refused, never double-counted.
-
-A13 alone is past the 30,000-stand limit, so this needs the prepared tables below.
-
-## After that
+## Next
 
 ### Prepared tables in bcdatamapper
 
 Sized in [Prepared tables for the block planner](research/block-planning-prepared-tables-2026-11-24.md): about 60 MB on bcdatamapper's Pages site, with VRI geometry (about 200 MB gzip) on R2. They make:
 
 - the Board check instant;
-- old forest possible for units past 30,000 stands (A13 and the large E and D units);
+- old forest possible for units past 30,000 stands (A13 and the large E and D units), alone or pooled under D.2 (A3 printed "combined with A13");
 - a sub-unit's baseline read take 1–2 s instead of 20–66 s.
 
 Build them in `vendor/bcdatamapper` under AGENTS.md's **Updating submodule data**, publish through `pages/site.json` and `src/config/data-hosts.json`, and read them through `withBase`. Keep the live reads as the fallback and say which one a figure came from.
@@ -92,15 +39,7 @@ The next thing to try is the LLOWG's own records. The Board names the 2015 and 2
 
 ### A5's old forest
 
-A5's land base matches the Board's to 4%, but its old forest is 12 points short of the Board's share. The likeliest cause is the VRI vintage: today's ages against the 2019 inventory. Test it with an archived VRI of 2019 (FAIB keeps vintages), and record the answer in the guide's table.
-
-### A map of old and interior forest
-
-The panel reports figures but draws nothing. Add old ground, interior ground and the 200 m edges as a plan-map layer for the year on the map, through the toolkit's `Map` props and a legend row, as `forestry-tool-standard.md` asks. A reviewer then sees where a block takes interior.
-
-### D.3: representative non-pine stands
-
-D.3 requires a representative share of stands not affected by the beetle. The non-pine figure against policy Tables 8–10 is reported today; representativeness beyond it (by BEC variant, age and site) is not. It is a reviewer's judgement first; build a summary that helps it, never a pass or fail.
+A5's land base matches the Board's to 4%, but its old forest is 12 points short of the Board's share. A6, now that its land base matches to 1%, is 3 points short (40.4% against 43.6%). The likeliest cause is the VRI vintage: today's ages against the 2019 inventory, and stands harvested between 2019 and the VRI projection whose 2019 age is not kept (262 ha on A6). Test it with an archived VRI of 2019 (FAIB keeps vintages), and record the answer in the guide's table.
 
 ### Offline old-forest reads
 

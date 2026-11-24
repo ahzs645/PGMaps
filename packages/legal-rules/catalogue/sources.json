@@ -34,6 +34,79 @@
       "legalReview": "not-completed"
     },
     {
+      "id": "bc.land-act",
+      "title": "Land Act, RSBC 1996 c. 245",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96245_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "96245_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96245_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.range-act",
+      "title": "Range Act, SBC 2004 c. 71",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/04071_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "04071_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/04071_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.omineca.ada-sra.2006",
+      "title": "2006 Omineca Agriculture Development Areas and Settlement Reserve Areas Order",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/ftstjames-vanderhoof-princegeorge-mackenzie_lrmps_luor_23nov2006.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.lwbc.grazing-policy.2004",
+      "title": "LWBC Land Policy: Grazing, effective 15 November 2004",
+      "kind": "guidance",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/grazing_lands_policy_2004.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "binding": false,
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.rppr",
+      "title": "Range Planning and Practices Regulation, BC Reg 19/2004",
+      "kind": "regulation",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/19_2004",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "19_2004",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/19_2004/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.crown-land.reserves-policy.2021",
+      "title": "Land Use Operational Policy: Reserves, Withdrawals, Notations and Prohibitions",
+      "kind": "guidance",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/reserves.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "binding": false
+    },
+    {
       "id": "bc.gar",
       "title": "Government Actions Regulation, BC Reg 582/2004",
       "kind": "regulation",
@@ -67,6 +140,275 @@
       "legalReview": "not-completed",
       "binding": false,
       "embeddedAfterOrder": true
+    },
+    {
+      "id": "bc.forest-act",
+      "title": "Forest Act, RSBC 1996 c. 157",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96157_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "96157_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96157_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.alc-act",
+      "title": "Agricultural Land Commission Act, SBC 2002 c. 36",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/02036_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "02036_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/02036_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.alr-use-regulation",
+      "title": "Agricultural Land Reserve Use Regulation, BC Reg 30/2019",
+      "kind": "regulation",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/30_2019",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "30_2019",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/30_2019/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.park-act",
+      "title": "Park Act, RSBC 1996 c. 344",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96344_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "96344_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96344_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.ecological-reserve-act",
+      "title": "Ecological Reserve Act, RSBC 1996 c. 103",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96103_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "96103_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96103_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.elua",
+      "title": "Environment and Land Use Act, RSBC 1996 c. 117",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96117_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "96117_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96117_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.water-sustainability-act",
+      "title": "Water Sustainability Act, SBC 2014 c. 15",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14015",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "14015",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14015/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.mineral-tenure-act",
+      "title": "Mineral Tenure Act, RSBC 1996 c. 292",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96292_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "96292_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96292_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "ca.sara",
+      "title": "Species at Risk Act, SC 2002 c. 29",
+      "kind": "statute",
+      "url": "https://laws-lois.justice.gc.ca/eng/acts/S-15.3/FullText.html",
+      "consolidationCurrentTo": "2026-10-29",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.robson-valley.ada.2006",
+      "title": "Order Establishing Land Use Objectives for Agricultural Development Areas within the Headwaters Forest District (Robson Valley), 21 November 2006",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/robsonvalley-lrmp/robsonvalley_lrmp_luor_23nov2006.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2006-11-21",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-002",
+      "title": "Order, Ungulate winter range U7-002, mule deer, Fort St. James",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_002.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2003-06-19",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-003",
+      "title": "Order, Ungulate winter range U-7-003, mountain caribou, Upper Fraser, Hart Ranges and Mount Robson",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-003_order_09Dec09.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2009-12-09",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-009",
+      "title": "Order, Ungulate winter range U-7-009, northern caribou, Mackenzie TSA",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_009.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2005-11-24",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-010",
+      "title": "Order, Ungulate winter range U7-010, mule deer, Robson Valley TSA",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_010.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2006-03-30",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-013",
+      "title": "Order, Ungulate winter range U7-013, mule deer, Prince George",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_013.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2003-11-26",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-015",
+      "title": "Order, Ungulate winter range U7-015, woodland (northern) caribou, Fort St. James",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7_015.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2005-12-13",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.omineca-moose-2022",
+      "title": "Order, Ungulate winter ranges u-7-018, u-7-020, u-7-022, u-7-024 and u-7-027, moose",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/uwr_u7-018_u7-020_u7-022_u7-024_u7-027.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2022-03-30",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.uwr.u-7-019",
+      "title": "Order, Ungulate winter range U-7-019, mountain goat, Fort St. James",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/uwr/u-7-019_Order.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2010-05-25",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.wha.7-001",
+      "title": "Order, Wildlife habitat area 7-001 (Tl'o Ba), grizzly bear",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/URAR_7-001_ord.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2020-12-08",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.wha.7-002",
+      "title": "Order, Wildlife habitat area 7-002 (Tl'o Ba), grizzly bear",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/URAR_7-002_ord.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2020-12-08",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.wha.7-003",
+      "title": "Order, Wildlife habitat area 7-003 (Narrow Lake), mountain caribou",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_7-003_ord.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2005-12-13",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.wha.caribou-2021-07",
+      "title": "Order, Wildlife habitat areas 7-016, 7-019 to 7-022, 7-024 to 7-044 and 7-061, caribou",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_7-016_various_to_7-061.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2021-07-21",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.wha.caribou-2021-04",
+      "title": "Order, Wildlife habitat areas 7-023, 7-045 to 7-056, 7-059 and 7-060, caribou",
+      "kind": "regional_order",
+      "url": "https://www.env.gov.bc.ca/wld/documents/wha/RATA_7-023_various_to_7-060.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2021-04-20",
+      "supersessionStatus": "unverified_for_site"
     }
   ]
 }

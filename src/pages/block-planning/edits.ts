@@ -11,11 +11,25 @@ import {
   type Area,
   type Disturbance,
   type Plan,
+  type RangeReview,
   type Schedule,
   type ScheduleEntry,
   type Shape,
 } from './plan'
 import type { OldForestChoices, PlanChecks } from './records'
+import { rangeReviewCurrent } from './review/rangeReview'
+
+/** Keeps one grazing review per block and schedule if the evidence still describes its footprint. */
+export function saveRangeReview(plan: Plan, record: RangeReview): Plan {
+  if (!rangeReviewCurrent(plan, record)) return plan
+  return {
+    ...plan,
+    rangeReviews: [
+      ...(plan.rangeReviews ?? []).filter((r) => r.block !== record.block || r.schedule !== record.schedule),
+      record,
+    ],
+  }
+}
 
 /** Changes the A/B choices; a plan without them gets the defaults for the given district and unit first. */
 export function setOldForest(plan: Plan, change: Partial<OldForestChoices>): Plan {
@@ -30,6 +44,11 @@ export function setOldForest(plan: Plan, change: Partial<OldForestChoices>): Pla
   const next: OldForestChoices = { ...base, ...change }
   if (next.cflbEnteredHa === undefined) delete next.cflbEnteredHa
   if (!next.cflbSource) delete next.cflbSource
+  if (next.younger === undefined) delete next.younger
+  // D.2: the chosen unit is never pooled with itself, and an empty pool is no pool.
+  if (next.pooledWith)
+    next.pooledWith = next.pooledWith.filter((u) => u.district !== next.district || u.unit !== next.unit)
+  if (!next.pooledWith?.length) delete next.pooledWith
   return { ...plan, oldForest: next }
 }
 
@@ -116,6 +135,8 @@ export function removeBlock(plan: Plan, id: string): Plan {
       return { ...s, entries }
     }),
     reviews,
+    rangeReviews: plan.rangeReviews?.filter((review) => review.block !== id),
+    groundReads: plan.groundReads?.filter((read) => read.block !== id),
   }
 }
 
@@ -231,6 +252,8 @@ export function removeSchedule(plan: Plan, id: string): Plan {
     ...plan,
     schedules,
     reviewSchedule: plan.reviewSchedule === id ? schedules[0].id : plan.reviewSchedule,
+    rangeReviews: plan.rangeReviews?.filter((review) => review.schedule !== id),
+    groundReads: plan.groundReads?.filter((read) => read.schedule !== id),
   }
 }
 
