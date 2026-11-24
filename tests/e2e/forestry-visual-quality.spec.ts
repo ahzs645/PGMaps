@@ -8,7 +8,6 @@ import {
   openVisualsExport,
   openVisualsExportPackage,
 } from './visuals-export'
-import { LAND_CHECKS } from '../../src/pages/dev-forestry/landStatusChecks'
 
 // Production-preview caching would serve around the stubbed sources below.
 test.use({ serviceWorkers: 'block' })
@@ -89,11 +88,12 @@ async function stubBasemap(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  // The land status checks read nine DataBC layers; offline, each answers with nothing there.
-  // A test that wants a layer's features routes it after this, which takes precedence.
-  const landLayers = new Set(LAND_CHECKS.map((check) => check.typeName))
-  await page.route('**/geo/pub/wfs?**', (route) =>
-    landLayers.has(new URL(route.request().url()).searchParams.get('typeNames') ?? '')
+  // The land status checks read nine DataBC layers of the ground catalogue, the page's only reads by
+  // POST (the layer in the body); offline, each answers with nothing there. A test that wants a layer's
+  // features routes it after this, which takes precedence. (The catalogue is JSON, which this runner
+  // cannot import without an attribute, so the layers are not listed here.)
+  await page.route('**/geo/pub/wfs', (route) =>
+    route.request().method() === 'POST'
       ? route.fulfill({ json: { type: 'FeatureCollection', features: [], numberMatched: 0 } })
       : route.fallback(),
   )

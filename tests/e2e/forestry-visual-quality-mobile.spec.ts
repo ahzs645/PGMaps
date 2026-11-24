@@ -39,6 +39,10 @@ async function stubNetwork(page: Page) {
   await page.route('**/geo/pub/wfs?**', (route) =>
     route.fulfill({ json: { type: 'FeatureCollection', features: [], numberMatched: 0 } }),
   )
+  // The land status checks ask by POST, the layer in the body.
+  await page.route('**/geo/pub/wfs', (route) =>
+    route.fulfill({ json: { type: 'FeatureCollection', features: [], numberMatched: 0 } }),
+  )
   await page.route('**/ows?**', (route) =>
     route.fulfill({ json: { type: 'FeatureCollection', features: [], numberMatched: 0 } }),
   )

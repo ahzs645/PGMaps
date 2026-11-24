@@ -266,7 +266,10 @@ describe('reading the instruments on a block', () => {
   it('reads each layer once by the footprint, shares it out by instrument and measures each on the block', async () => {
     const { read, asked } = await readSample()
     const layerReads = asked.filter((b) => GROUND_CATALOGUE.layers.some((l) => l.typeName === b.get('typeNames')))
-    expect(layerReads).toHaveLength(GROUND_CATALOGUE.layers.length)
+    // Every layer that holds an instrument, once; a context layer (treaty land, reserves) is the land checks' only.
+    const instrumentLayers = GROUND_CATALOGUE.layers.filter((l) => !l.context)
+    expect(instrumentLayers.length).toBe(GROUND_CATALOGUE.layers.length - 2)
+    expect(layerReads.map((b) => b.get('typeNames'))).toEqual(instrumentLayers.map((l) => l.typeName))
     for (const b of layerReads) {
       expect(b.get('CQL_FILTER')).toMatch(/^INTERSECTS\((SHAPE|GEOMETRY),SRID=4326;POLYGON\(\(/)
       expect(b.get('propertyName')).not.toMatch(/CLIENT|HOLDER|_WHO_|USER/)

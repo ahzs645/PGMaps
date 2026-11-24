@@ -1,9 +1,10 @@
 /**
  * "On this ground": every legal instrument the catalogue lists (`groundInstruments.ts`) read against
- * a block's footprint on the reviewer's click. Each layer is read once by the footprint's own parts
- * (`INTERSECTS` per part, by POST, through `wfsReads.ts`; by each part's hull for a layer of a few
- * very detailed polygons), never its box; its records are shared out to the catalogue's instruments
- * by their conditions. An area record is clipped to the footprint in BC Albers with the old forest
+ * a block's footprint on the reviewer's click. Each layer is read once by the shared reader
+ * (`src/lib/legal/groundLayerRead.ts`, which the visual quality page's land status checks use too):
+ * by the footprint's own parts (`INTERSECTS` per part, by POST; by each part's hull for a layer of a
+ * few very detailed polygons), never its box; its records are shared out to the catalogue's
+ * instruments by their conditions. A context layer, which holds no instrument, is not read here. An area record is clipped to the footprint in BC Albers with the old forest
  * calculation's overlays; a line is measured and a point counted inside the footprint and within the
  * layer's stated margin of it, read against the footprint grown by that margin. Then the precedent
  * (`precedent.ts`) reads what RESULTS and the other public records hold inside each area instrument
@@ -18,19 +19,22 @@
  *
  * DOM- and network-free: `fetch` and the overlays (`groundOverlay`, `oldForest.ts`) are passed in.
  */
+import { GROUND_CATALOGUE, type GroundCatalogue, type GroundLayer } from '@/lib/legal/groundInstruments'
 import {
-  GROUND_CATALOGUE,
-  matches,
-  layerCql,
-  type GroundCatalogue,
-  type GroundInstrument,
-  type GroundLayer,
-} from '@/lib/legal/groundInstruments'
-import type { LineString, MultiLineString, MultiPoint, Point } from 'geojson'
+  isLine,
+  isPoint,
+  layerInstruments,
+  readGroundLayer,
+  shareRows,
+  valueText,
+  type GroundLayerAnswer,
+  type Lines,
+  type Points,
+} from '@/lib/legal/groundLayerRead'
 import type { Shape } from '../plan'
-import { keepFields, readAcrossParts, wfsRead, type Fetch, type RawFeature } from '../wfsReads'
+import { keepFields, type Fetch } from '../wfsReads'
 
-export { keepFields }
+export { keepFields, valueText }
 import { readPrecedent, PRECEDENT_RADIUS_METRES, type PrecedentRegion } from './precedent'
 import {
   MAX_GROUND_FEATURES,
@@ -44,11 +48,6 @@ import {
 export const MIN_GROUND_OVERLAP_HA = 0.0001
 /** Shorter stretches of a line are the overlay's rounding, not a line on the ground, and are left out. */
 export const MIN_NEAR_LENGTH_M = 0.01
-/** A line or point layer is asked for a little more than its margin: the ring is rounded to about a metre. */
-const NEAR_READ_SLACK_METRES = 2
-
-type Lines = LineString | MultiLineString
-type Points = Point | MultiPoint
 
 /** The overlays, passed in (`groundOverlay`, `oldForest.ts`). */
 export interface GroundOverlay {
@@ -70,16 +69,9 @@ export interface GroundOverlay {
   points: (footprint: Shape, metres: number, points: Points[]) => { insideCount: number; nearCount: number }[]
 }
 
-const isArea = (g: RawFeature['geometry']): g is Shape => g?.type === 'Polygon' || g?.type === 'MultiPolygon'
-const isLine = (g: RawFeature['geometry']): g is Lines => g?.type === 'LineString' || g?.type === 'MultiLineString'
-const isPoint = (g: RawFeature['geometry']): g is Points => g?.type === 'Point' || g?.type === 'MultiPoint'
-const ofKind = (layer: GroundLayer) =>
-  layer.geometry === 'line' ? isLine : layer.geometry === 'point' ? isPoint : isArea
 const aborted = (signal: AbortSignal | undefined, e: unknown) =>
   Boolean(signal?.aborted) || (e instanceof Error && e.name === 'AbortError')
 
-export const valueText = (v: unknown): string | null =>
-  typeof v === 'string' && v.trim() ? v.trim() : typeof v === 'number' && Number.isFinite(v) ? String(v) : null
 /** A DataBC date ("2014-05-12Z") as YYYY-MM-DD, or `null`. */
 export const dayOf = (v: unknown) => {
   const m = typeof v === 'string' ? /^\d{4}-\d{2}-\d{2}/.exec(v) : null
@@ -111,52 +103,7 @@ export function describeFeature(layer: GroundLayer, p: Record<string, unknown>) 
   return { id: id.slice(0, 200), name: name.slice(0, 500), details, identifiers, ...(effective ? { effective } : {}) }
 }
 
-interface LayerAnswer<G = Shape> {
-  status: 'read' | 'truncated'
-  rows: { properties: Record<string, unknown>; geometry: G }[]
-}
-
-/** One layer read across the footprint's parts (grown by its margin for lines and points), its records cut to the listed fields. */
-async function readLayer(
-  layer: GroundLayer,
-  instruments: GroundInstrument[],
-  footprint: Shape,
-  fetch: Fetch,
-  signal: AbortSignal | undefined,
-  overlay: GroundOverlay,
-): Promise<LayerAnswer<Shape | Lines | Points>> {
-  let truncated = false
-  const where = layerCql(instruments)
-  const asked = layer.near ? overlay.grow(footprint, layer.near.metres + NEAR_READ_SLACK_METRES) : footprint
-  const raw = await readAcrossParts(
-    asked,
-    async (intersects) => {
-      const answer = await wfsRead({
-        fetch,
-        signal,
-        layer: layer.typeName,
-        filter: where ? `${intersects} AND ${where}` : intersects,
-        propertyName: [...layer.fields, layer.geometryField].join(','),
-        sortBy: layer.key,
-        cap: MAX_GROUND_FEATURES,
-      })
-      truncated ||= answer.truncated
-      return answer.features.map((f) => ({ ...f, properties: keepFields(f.properties, layer.fields) }))
-    },
-    layer.geometryField,
-    (f) => valueText(f.properties[layer.key]) ?? JSON.stringify(f.properties),
-    layer.byHull === true,
-  )
-  if (raw.length > MAX_GROUND_FEATURES) truncated = true
-  const kind = ofKind(layer)
-  return {
-    status: truncated ? 'truncated' : 'read',
-    rows: raw
-      .slice(0, MAX_GROUND_FEATURES)
-      .filter((f) => kind(f.geometry))
-      .map((f) => ({ properties: f.properties, geometry: f.geometry as Shape | Lines | Points })),
-  }
-}
+type LayerAnswer<G = Shape> = GroundLayerAnswer<G>
 
 /**
  * A line or point instrument's share of a layer's records, measured inside the footprint and within
@@ -293,12 +240,21 @@ export async function readGroundInstruments({
   const reads: GroundInstrumentRead[] = []
   const regions: PrecedentRegion[] = []
   for (const layer of catalogue.layers) {
-    const instruments = catalogue.instruments.filter((x) => x.layer === layer.id)
+    const instruments = layerInstruments(layer, catalogue)
+    // A context layer holds no instrument: it is read for the land status checks, not here.
     if (!instruments.length) continue
     onProgress?.({ kind: 'layer', layer })
     let answer: LayerAnswer<Shape | Lines | Points>
     try {
-      answer = await readLayer(layer, instruments, footprint, fetch, signal, overlay)
+      answer = await readGroundLayer({
+        layer,
+        instruments,
+        footprint,
+        fetch,
+        signal,
+        grow: overlay.grow,
+        cap: MAX_GROUND_FEATURES,
+      })
     } catch (e) {
       if (aborted(signal, e)) throw e
       const message = e instanceof Error && e.message ? e.message.slice(0, 2000) : 'The read failed.'
@@ -307,11 +263,7 @@ export async function readGroundInstruments({
       continue
     }
     // Each record goes to the first instrument whose conditions it meets, as the catalogue orders them.
-    const shares = new Map<string, LayerAnswer<Shape | Lines | Points>['rows']>(instruments.map((x) => [x.id, []]))
-    for (const row of answer.rows) {
-      const owner = instruments.find((x) => matches(x.where, row.properties))
-      if (owner) shares.get(owner.id)!.push(row)
-    }
+    const shares = shareRows(instruments, answer.rows)
     const incomplete =
       answer.status === 'truncated'
         ? { message: `DataBC holds more than ${MAX_GROUND_FEATURES} records here; only the first are listed.` }

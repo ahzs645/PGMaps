@@ -1,6 +1,6 @@
 {
   "format": "pgmaps-ground-instruments/v1",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "readOn": "2026-11-24",
   "sourceLabels": {
     "bc.land-act": "Land Act",
@@ -24,7 +24,7 @@
     "ca.sara": "Species at Risk Act",
     "bc.robson-valley.ada.2006": "2006 Robson Valley ADA order"
   },
-  "notes": "What each legal instrument mapped on a block can and cannot govern for harvest, replanting, roads and grazing, as read from the primary texts on the date above. A screen, not a legal determination: every cell cites the provision it rests on, and a cell whose answer depends on terms that are not public is 'unknown', naming the document that decides. Layers are read by each footprint part's own polygon (or its convex hull, for a layer of a few very detailed polygons); areas are clipped to the footprint, and lines and points are measured inside it and within the layer's stated margin. Fields are listed narrowly and never include a holder's, client's, owner's or applicant's name or an IDIR user; DataBC returns a layer's mandatory attributes whatever propertyName asks, so the reader keeps only the fields listed here.",
+  "notes": "What each legal instrument mapped on a block can and cannot govern for harvest, replanting, roads and grazing, as read from the primary texts on the date above. A screen, not a legal determination: every cell cites the provision it rests on, and a cell whose answer depends on terms that are not public is 'unknown', naming the document that decides. Layers are read by each footprint part's own polygon (or its convex hull, for a layer of a few very detailed polygons); areas are clipped to the footprint, and lines and points are measured inside it and within the layer's stated margin. Fields are listed narrowly and never include a holder's, client's, owner's or applicant's name or an IDIR user; DataBC returns a layer's mandatory attributes whatever propertyName asks, so the reader keeps only the fields listed here. A context layer names no instrument and has no reach cell: it is read only for what lies under a block (the visual quality page's land status checks), and says why it has no cells.",
   "layers": [
     {
       "id": "tantalis",
@@ -1029,6 +1029,80 @@
       },
       "date": null,
       "dateNote": "The critical habitat layer records when a polygon was last edited, not when the recovery strategy identifying it was posted; the Species at Risk Public Registry gives that date."
+    },
+    {
+      "id": "treaty-lands",
+      "title": "First Nations treaty lands",
+      "typeName": "pub:WHSE_LEGAL_ADMIN_BOUNDARIES.FNT_TREATY_LAND_SP",
+      "geometryField": "GEOMETRY",
+      "key": "TREATY_LAND_ID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/fd34808d-4be6-45ea-bc23-65109147933a",
+      "fields": ["TREATY_LAND_ID", "FIRST_NATION_NAME", "TREATY", "LAND_TYPE", "EFFECTIVE_DATE"],
+      "feature": {
+        "id": {
+          "label": "Treaty land",
+          "fields": ["TREATY_LAND_ID"],
+          "fallback": "TREATY_LAND_ID"
+        },
+        "name": ["FIRST_NATION_NAME", "LAND_TYPE"],
+        "details": [
+          {
+            "label": "Treaty",
+            "field": "TREATY"
+          },
+          {
+            "label": "Effective",
+            "field": "EFFECTIVE_DATE",
+            "date": true
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "Treaty",
+            "field": "TREATY"
+          },
+          {
+            "label": "Treaty land",
+            "field": "TREATY_LAND_ID"
+          }
+        ]
+      },
+      "date": {
+        "field": "EFFECTIVE_DATE",
+        "label": "Effective"
+      },
+      "context": "Listed for what lies under a block: the visual quality page's land status checks read it. No instrument here has reach cells, because the final agreements and the Acts that bring them into effect were not read for this catalogue; the planner's On this ground does not read the layer, and no cell may be given for it until they are."
+    },
+    {
+      "id": "indian-reserves",
+      "title": "Indian reserves (Canada Lands Survey)",
+      "typeName": "pub:WHSE_ADMIN_BOUNDARIES.CLAB_INDIAN_RESERVES",
+      "geometryField": "GEOMETRY",
+      "key": "CLAB_ID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/8efe9193-80d2-4fdf-a18c-d531a94196ad",
+      "fields": ["CLAB_ID", "ENGLISH_NAME"],
+      "feature": {
+        "id": {
+          "label": "Reserve",
+          "fields": ["CLAB_ID"],
+          "fallback": "CLAB_ID"
+        },
+        "name": ["ENGLISH_NAME"],
+        "details": [],
+        "identifiers": [
+          {
+            "label": "Reserve",
+            "field": "ENGLISH_NAME"
+          },
+          {
+            "label": "Canada Lands id",
+            "field": "CLAB_ID"
+          }
+        ]
+      },
+      "date": null,
+      "dateNote": "The layer gives no date the reserve was set apart; the Canada Lands Survey Records do.",
+      "context": "Listed for what lies under a block: the visual quality page's land status checks read it. No instrument here has reach cells, because the Indian Act and the federal reserve records were not read for this catalogue; the planner's On this ground does not read the layer, and no cell may be given for it until they are."
     }
   ],
   "instruments": [
