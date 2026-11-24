@@ -3,7 +3,7 @@
   "id": "bc.crown-grazing",
   "version": "1.0.0",
   "title": "BC Crown grazing and reforestation",
-  "description": "Evidence review for forestry on grazing land, including lease terms, range plans, natural barriers and free-growing obligations.",
+  "description": "Evidence review for forestry on grazing land and in the 2006 Omineca agriculture and settlement reserve areas: lease terms, range plans, range barriers and developments, the order's harvest pathways and whether the harvested ground can be reforested.",
   "coverage": {
     "from": "2026-11-17",
     "through": "2026-11-17"
@@ -16,37 +16,17 @@
     },
     {
       "id": "lease-conflict",
-      "label": "Does a confirmed lease clause require a consent that is outstanding or restrict the proposed activity?",
+      "label": "Does a confirmed lease clause require a consent that is outstanding or withheld, or restrict the proposed activity?",
       "type": "boolean"
     },
     {
       "id": "range-act-agreement",
-      "label": "Does a confirmed Range Act licence or permit cover this activity area?",
+      "label": "Does a confirmed Range Act grazing or hay licence or permit cover this activity area?",
       "type": "boolean"
     },
     {
-      "id": "section-29-scope",
-      "label": "Does FRPA §29(0.1), (1) or (2) apply to the harvest and the net area to be reforested before considering exemptions?",
-      "type": "boolean"
-    },
-    {
-      "id": "permanent-grazing-opening",
-      "label": "Would the proposal keep any of the area to be reforested permanently open for grazing?",
-      "type": "boolean"
-    },
-    {
-      "id": "exclusive-range-use",
-      "label": "Is the area used, or will it be used, exclusively for grazing livestock or cutting hay under that Range Act agreement?",
-      "type": "boolean"
-    },
-    {
-      "id": "range-only-harvest",
-      "label": "Is harvesting restricted to activities listed in FPPR §44(3), including the exclusive range-use harvest under paragraph (d)?",
-      "type": "boolean"
-    },
-    {
-      "id": "plan-conflict",
-      "label": "Does an applicable approved plan clause restrict the proposed harvest or silviculture, or impose an unmet prerequisite?",
+      "id": "range-development-affected",
+      "label": "Would the work remove, damage, modify or construct a range development (a fence, gate, cattle guard or water development) on Crown range?",
       "type": "boolean"
     },
     {
@@ -55,8 +35,23 @@
       "type": "boolean"
     },
     {
+      "id": "plan-conflict",
+      "label": "Does an applicable approved plan clause restrict the proposed harvest or silviculture, or impose an unmet prerequisite?",
+      "type": "boolean"
+    },
+    {
       "id": "ada-sra-applicable",
-      "label": "Does the 2006 Omineca ADA/SRA order apply to this Crown land and activity after checking the legal boundary, effective date and exclusions?",
+      "label": "Does the 2006 Omineca ADA/SRA order apply to this Crown land and activity after checking the legal boundary and effective date?",
+      "type": "boolean"
+    },
+    {
+      "id": "ada-sra-excluded",
+      "label": "Is the activity under a cutting permit, road permit, timber sale licence without cutting permits, FRPA §7(1)(b) or §196(1) area, or range plan schedule in effect when the order took effect?",
+      "type": "boolean"
+    },
+    {
+      "id": "fsp-ada-strategy",
+      "label": "Does the applicable forest stewardship plan state a result or strategy for ADAs and SRAs, such as carrying out the 2006 order?",
       "type": "boolean"
     },
     {
@@ -65,13 +60,76 @@
       "type": "boolean"
     },
     {
-      "id": "ada-sra-part-b",
-      "label": "Was the harvest carried out, or is it proposed, under the order’s Part B forest-health pathway?",
+      "id": "ada-sra-pathway",
+      "label": "Under which part of the order is the harvest proposed, or was it carried out?",
+      "type": "choice",
+      "choices": [
+        "Part A: environmental or safety harvest",
+        "Part B: forest-health harvest",
+        "Part E: deviation determined by the agriculture ministry",
+        "None of these"
+      ]
+    },
+    {
+      "id": "part-a-agreed",
+      "label": "Was the harvest proposed by local or provincial government, agreed by the forests and agriculture ministries, and directed by an operational work plan?",
+      "type": "boolean"
+    },
+    {
+      "id": "part-b-indication",
+      "label": "Is there a clear indication that the sanitation harvest will significantly assist in preventing the spread of a forest health problem to adjacent stands?",
+      "type": "boolean"
+    },
+    {
+      "id": "dead-or-infested-only",
+      "label": "Is the harvest limited to dead or infested timber, taking live trees only where access, skidding or safety needs them?",
+      "type": "boolean"
+    },
+    {
+      "id": "referred-to-agriculture",
+      "label": "Has the harvesting proposal been referred to the agriculture ministry, as Part C.6 requires?",
       "type": "boolean"
     },
     {
       "id": "ada-sra-planting",
-      "label": "Does the activity include site preparation or artificial regeneration such as planting?",
+      "label": "Does the activity include site preparation or artificial regeneration, such as planting or seeding?",
+      "type": "boolean"
+    },
+    {
+      "id": "area-based-tenure",
+      "label": "Would the proposal establish an area-based forest tenure (a woodlot licence, community forest agreement or tree farm licence) in the area?",
+      "type": "boolean"
+    },
+    {
+      "id": "section-29-scope",
+      "label": "Does FRPA §29 put a free-growing duty on this harvest (an agreement holder or timber sales manager under a forest stewardship or operations plan, or a woodlot licence holder)?",
+      "type": "boolean"
+    },
+    {
+      "id": "exempt-purpose",
+      "label": "Is the harvest restricted to a purpose FPPR §44(3) lists, which relieves the free-growing duty?",
+      "type": "choice",
+      "choices": [
+        "No",
+        "(d) land used exclusively for grazing or hay under a Range Act agreement",
+        "(h) commercial thinning, removal of individual trees or similar intermediate cutting",
+        "(i) special forest products other than woodchips or hogged material",
+        "Another purpose: (a)–(c) or (e)–(g)"
+      ]
+    },
+    {
+      "id": "exclusive-range-use",
+      "label": "Is the area used, or will it be used, exclusively for grazing livestock or cutting hay under that Range Act agreement?",
+      "type": "boolean"
+    },
+    {
+      "id": "natural-regen-meets-standard",
+      "label": "Will natural regeneration alone, with the grazing, competition and seed source the site has, meet the applicable stocking standard by its regeneration date?",
+      "type": "boolean"
+    },
+    {
+      "id": "permanent-grazing-opening",
+      "label": "Would the proposal keep any of the area to be reforested permanently open for grazing?",
       "type": "boolean"
     }
   ],
@@ -106,6 +164,12 @@
       "title": "2006 Omineca Agriculture Development Areas and Settlement Reserve Areas Order",
       "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/ftstjames-vanderhoof-princegeorge-mackenzie_lrmps_luor_23nov2006.pdf",
       "asOf": "2026-11-17"
+    },
+    {
+      "id": "grazing-policy",
+      "title": "LWBC Land Policy: Grazing (effective 15 November 2004)",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/grazing_lands_policy_2004.pdf",
+      "asOf": "2026-11-17"
     }
   ],
   "rules": [
@@ -123,19 +187,70 @@
           }
         ]
       ],
-      "finding": "Review the executed grazing lease for the specific harvest or silviculture activity.",
+      "finding": "The grazing lease's own terms govern what forest work it allows, and older leases differ.",
       "actions": [
         {
           "kind": "review",
-          "description": "Record the Crown lands file, signed lease and management plan. Check the legal boundary, current term, forest entry and timber rights, consent wording, access, forage and range improvements."
+          "description": "Record the Crown lands file, signed lease and management plan. Check the legal boundary, current term, timber reservation, consent wording, access, forage and range improvements."
+        }
+      ]
+    },
+    {
+      "id": "lease-review-with-lessee",
+      "title": "Review the proposal with the grazing lessee",
+      "source": "grazing-policy",
+      "provision": "11",
+      "when": [
+        [
+          {
+            "fact": "land-act-lease",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "ada-sra-harvest",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "land-act-lease",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "ada-sra-planting",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "land-act-lease",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "section-29-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Provincial grazing policy reserves the timber to the Crown but asks that harvest let the lessee meet the lease management plan, and that harvest, silviculture, site preparation and roads be reviewed with the lessee first.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the review with the lessee, what was agreed or objected to, and any deposit for range improvements. For a lease issued before November 2004, read the lease itself for the lessee's rights."
         }
       ]
     },
     {
       "id": "lease-conflict",
-      "title": "Lease restriction or outstanding consent",
-      "source": "land-act",
-      "provision": "11(2)–(3), 38",
+      "title": "Lease restriction or consent withheld",
+      "source": "grazing-policy",
+      "provision": "11.2",
       "scope": [
         [
           {
@@ -154,11 +269,15 @@
           }
         ]
       ],
-      "finding": "The recorded lease terms raise an unresolved restriction for the proposed activity.",
+      "finding": "Under the grazing policy, where an older lease requires consent and the lessee withholds it, timber rights are not granted over the leasehold until the lease is replaced or amended; for other leases the dispute goes to the Crown land manager.",
       "actions": [
         {
           "kind": "review",
-          "description": "Record the exact clause and the status of any consent, authorization or amendment with the Crown land administrator. Check older lease terms individually."
+          "description": "Record the exact clause, whether the lease predates November 2004, and the status of consent, referral or amendment with the Crown land administrator."
+        },
+        {
+          "kind": "obtain-approval",
+          "description": "Where the lease requires consent, obtain it in writing before planning harvest or silviculture on the leasehold."
         }
       ]
     },
@@ -185,118 +304,28 @@
       ]
     },
     {
-      "id": "free-growing",
-      "title": "Free-growing stand after harvest",
+      "id": "range-development",
+      "title": "Range development on Crown range",
       "source": "frpa",
-      "provision": "29(0.1)–(2)",
+      "provision": "51",
       "when": [
         [
           {
-            "fact": "section-29-scope",
+            "fact": "range-development-affected",
             "op": "eq",
             "value": true
           }
         ]
       ],
-      "finding": "Review the responsible holder’s free-growing obligation and any applicable exemption for the net area to be reforested.",
+      "finding": "Removing, damaging, modifying or building a range development on Crown range needs the minister's written authorization.",
       "actions": [
         {
-          "kind": "review",
-          "description": "Record the timber authority, applicable plan and stocking standard, planting or natural regeneration method, regeneration and free-growing dates, and any transfer, relief or exemption."
-        }
-      ]
-    },
-    {
-      "id": "permanent-grazing-opening",
-      "title": "Permanent grazing opening in the reforestation area",
-      "source": "frpa",
-      "provision": "29(0.1)–(2)",
-      "scope": [
-        [
-          {
-            "fact": "section-29-scope",
-            "op": "eq",
-            "value": true
-          }
-        ]
-      ],
-      "when": [
-        [
-          {
-            "fact": "permanent-grazing-opening",
-            "op": "eq",
-            "value": true
-          }
-        ]
-      ],
-      "finding": "Keeping the proposed footprint open would conflict with the free-growing obligation unless a separate legal basis applies.",
-      "actions": [
+          "kind": "obtain-approval",
+          "description": "Obtain the minister's written authorization before the work, and record its conditions."
+        },
         {
           "kind": "review",
-          "description": "Before harvest, confirm the proposed opening and stocking standards with the district. Check whether a Range Act agreement authorizes exclusive grazing and whether FPPR §44(3)(d) applies. Verify clearing authority for the same footprint."
-        }
-      ]
-    },
-    {
-      "id": "exclusive-range",
-      "title": "Exclusive grazing or hay exemption",
-      "source": "instrument",
-      "provision": "44(3)(d)",
-      "scope": [
-        [
-          {
-            "fact": "range-act-agreement",
-            "op": "eq",
-            "value": true
-          },
-          {
-            "fact": "section-29-scope",
-            "op": "eq",
-            "value": true
-          }
-        ]
-      ],
-      "when": [
-        [
-          {
-            "fact": "exclusive-range-use",
-            "op": "eq",
-            "value": true
-          },
-          {
-            "fact": "range-only-harvest",
-            "op": "eq",
-            "value": true
-          }
-        ]
-      ],
-      "finding": "The entered evidence warrants review of this specific free-growing exemption.",
-      "actions": [
-        {
-          "kind": "review",
-          "description": "Confirm the legal footprint and exclusive use, the restricted purposes of harvest, and that the provision applies to the harvest. Review authority to harvest or carry out planting separately."
-        }
-      ]
-    },
-    {
-      "id": "restricted-activity",
-      "title": "Restriction in the applicable forest plan",
-      "source": "frpa",
-      "provision": "20.21–20.22, 48",
-      "when": [
-        [
-          {
-            "fact": "plan-conflict",
-            "op": "eq",
-            "value": true
-          }
-        ]
-      ],
-      "finding": "The recorded plan clause restricts the proposed activity or requires a step before it can proceed.",
-      "actions": [
-        {
-          "kind": "review",
-          "description": "Record the approved plan, amendment and clause. Check whether retaining the barrier, changing the footprint or timing, carrying out the required measure, or obtaining a plan amendment resolves the conflict."
+          "description": "Record each fence, gate, cattle guard or water development the work touches, with the range agreement holder responsible for it."
         }
       ]
     },
@@ -314,19 +343,67 @@
           }
         ]
       ],
-      "finding": "The proposed practice triggers review of natural range barrier mitigation.",
+      "finding": "A practice that removes or renders ineffective a natural range barrier must be followed by the mitigation the operational plan specifies or the minister authorizes.",
       "actions": [
         {
+          "kind": "implement",
+          "description": "Carry out the plan's measure (FPPR §18 requires a forest stewardship plan to specify one) or a measure the minister authorizes, with its timing and who is responsible."
+        },
+        {
           "kind": "review",
-          "description": "Record evidence that the feature controls livestock movement, the approved operational-plan measure or minister’s authorization, and timing and responsibilities. For a forest stewardship plan, see FPPR §18. Check whether a pre-expiry permit carries the duty forward."
+          "description": "Record evidence that the feature stops or significantly impedes livestock movement, the range holder's response, and whether a permit issued before the plan expired carries the duty forward (§48(2))."
         }
       ]
     },
     {
-      "id": "ada-sra-harvest-route",
-      "title": "Harvest pathway in an agriculture or settlement reserve area",
+      "id": "restricted-activity",
+      "title": "Restriction in the applicable forest plan",
+      "source": "frpa",
+      "provision": "20.21–20.22",
+      "when": [
+        [
+          {
+            "fact": "plan-conflict",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "The holder must achieve the plan's results and carry out its strategies, so a plan clause that restricts the activity binds it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the approved plan, amendment and clause. Check whether retaining the barrier, changing the footprint or timing, carrying out the required step, or a plan amendment resolves the conflict."
+        }
+      ]
+    },
+    {
+      "id": "fsp-ada-strategy",
+      "title": "The forest plan carries the ADA/SRA order",
+      "source": "frpa",
+      "provision": "20.22",
+      "when": [
+        [
+          {
+            "fact": "fsp-ada-strategy",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "The forest stewardship plan's own result or strategy for ADAs and SRAs binds the holder, alongside the order itself.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the plan's clause and any added commitment (one published plan in the district also caps permanent access at 7% of a block's gross area)."
+        }
+      ]
+    },
+    {
+      "id": "ada-sra-excluded",
+      "title": "Permit in effect when the order took effect",
       "source": "ada-sra-order",
-      "provision": "I, Parts A–E and II",
+      "provision": "II",
       "scope": [
         [
           {
@@ -338,6 +415,38 @@
       ],
       "when": [
         [
+          {
+            "fact": "ada-sra-excluded",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Part II says the order does not affect this permit, licence, area or range schedule; the rest of the review still applies.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the permit or schedule and its date against the order's Gazette date."
+        }
+      ]
+    },
+    {
+      "id": "ada-sra-no-pathway",
+      "title": "No harvest pathway under the order",
+      "source": "ada-sra-order",
+      "provision": "I, Parts A, B and E",
+      "scope": [
+        [
+          {
+            "fact": "ada-sra-applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "ada-sra-excluded",
+            "op": "eq",
+            "value": false
+          },
           {
             "fact": "ada-sra-harvest",
             "op": "eq",
@@ -345,23 +454,42 @@
           }
         ]
       ],
-      "finding": "Harvest in the covered area requires review against the order’s limited pathways.",
+      "when": [
+        [
+          {
+            "fact": "ada-sra-pathway",
+            "op": "eq",
+            "value": "None of these"
+          }
+        ]
+      ],
+      "finding": "The order allows harvest in an ADA or SRA only for environmental and safety reasons (Part A), forest health (Part B) or a deviation the agriculture ministry determines (Part E). With none of them, the proposal has no harvest pathway under the order.",
       "actions": [
         {
           "kind": "review",
-          "description": "Check the Part A government proposal, interagency agreement and operational work plan, or the Part B forest-health basis and all Part C conditions. Record applicable permit exclusions and any documented Part E deviation."
+          "description": "Leave the block out of the schedule, redraw it outside the ADA or SRA, or ask the agriculture ministry about a Part E deviation."
         }
       ]
     },
     {
-      "id": "ada-sra-planting-restriction",
-      "title": "Site preparation and artificial regeneration under the forest-health pathway",
+      "id": "ada-sra-part-a",
+      "title": "Environmental or safety harvest",
       "source": "ada-sra-order",
-      "provision": "I, Parts B, C.5 and E",
+      "provision": "I, Part A",
       "scope": [
         [
           {
             "fact": "ada-sra-applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "ada-sra-excluded",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "ada-sra-harvest",
             "op": "eq",
             "value": true
           }
@@ -370,10 +498,210 @@
       "when": [
         [
           {
-            "fact": "ada-sra-part-b",
+            "fact": "ada-sra-pathway",
+            "op": "eq",
+            "value": "Part A: environmental or safety harvest"
+          },
+          {
+            "fact": "part-a-agreed",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "Part A needs a proposal by local or provincial government, agreement between the forests and agriculture ministries, and an operational work plan directing the harvest.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the proposing government, the interagency agreement and the operational work plan."
+        }
+      ]
+    },
+    {
+      "id": "ada-sra-part-b-basis",
+      "title": "Forest-health basis for the harvest",
+      "source": "ada-sra-order",
+      "provision": "I, Part B",
+      "scope": [
+        [
+          {
+            "fact": "ada-sra-applicable",
             "op": "eq",
             "value": true
           },
+          {
+            "fact": "ada-sra-excluded",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "ada-sra-pathway",
+            "op": "eq",
+            "value": "Part B: forest-health harvest"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "part-b-indication",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "Part B needs a clear indication that the sanitation harvest will significantly assist in preventing the spread of a forest health problem to adjacent stands.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the forest health survey, the pest and the adjacent stands at risk."
+        }
+      ]
+    },
+    {
+      "id": "ada-sra-part-c1",
+      "title": "Dead or infested timber only",
+      "source": "ada-sra-order",
+      "provision": "I, Part C.1",
+      "scope": [
+        [
+          {
+            "fact": "ada-sra-applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "ada-sra-excluded",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "ada-sra-pathway",
+            "op": "eq",
+            "value": "Part B: forest-health harvest"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "dead-or-infested-only",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "Under Part B only dead or infested timber is removed; live or non-infested trees are taken only where access, skidding or safety needs them.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Redraw the block or prescription to take only dead or infested timber, and record each exception's operational reason."
+        }
+      ]
+    },
+    {
+      "id": "ada-sra-part-c",
+      "title": "Conditions on a forest-health harvest",
+      "source": "ada-sra-order",
+      "provision": "I, Part C.2–C.4",
+      "scope": [
+        [
+          {
+            "fact": "ada-sra-applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "ada-sra-excluded",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "ada-sra-pathway",
+            "op": "eq",
+            "value": "Part B: forest-health harvest"
+          }
+        ]
+      ],
+      "finding": "Each Part C condition applies to a Part B harvest.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Leave stumps at least 15 cm high except where access, skidding, landings or safety need them lower; pile logging waste and burn or remove it, never spread it; minimize permanent access, gravelling included, and place it along lot lines and natural boundaries."
+        }
+      ]
+    },
+    {
+      "id": "ada-sra-referral",
+      "title": "Referral to the agriculture ministry",
+      "source": "ada-sra-order",
+      "provision": "I, Part C.6",
+      "scope": [
+        [
+          {
+            "fact": "ada-sra-applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "ada-sra-excluded",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "ada-sra-pathway",
+            "op": "eq",
+            "value": "Part B: forest-health harvest"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "referred-to-agriculture",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "Every harvesting proposal under Part B is to be referred to the agriculture ministry.",
+      "actions": [
+        {
+          "kind": "submit",
+          "description": "Refer the harvesting proposal to the agriculture ministry and record the referral and its response."
+        }
+      ]
+    },
+    {
+      "id": "ada-sra-planting-restriction",
+      "title": "No site preparation or planting after a forest-health harvest",
+      "source": "ada-sra-order",
+      "provision": "I, Part C.5",
+      "scope": [
+        [
+          {
+            "fact": "ada-sra-applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "ada-sra-excluded",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "ada-sra-pathway",
+            "op": "eq",
+            "value": "Part B: forest-health harvest"
+          }
+        ]
+      ],
+      "when": [
+        [
           {
             "fact": "ada-sra-planting",
             "op": "eq",
@@ -381,11 +709,351 @@
           }
         ]
       ],
-      "finding": "Part C.5 restricts site preparation and artificial regeneration for this Part B forest-health harvest.",
+      "finding": "Part C.5 rules out site preparation and artificial regeneration for a Part B harvest, so the stand must come back naturally.",
       "actions": [
         {
           "kind": "review",
-          "description": "Review the governing permit, stocking standard and approved plan. Document any applicable Part E departure and reconcile any free-growing duty with the responsible district before scheduling planting."
+          "description": "Take site preparation, planting and seeding out of the silviculture prescription, or record a Part E deviation the agriculture ministry determined that allows them."
+        }
+      ]
+    },
+    {
+      "id": "ada-sra-deviation",
+      "title": "Deviation from the order",
+      "source": "ada-sra-order",
+      "provision": "I, Part E",
+      "scope": [
+        [
+          {
+            "fact": "ada-sra-applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "ada-sra-excluded",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "ada-sra-harvest",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "ada-sra-pathway",
+            "op": "eq",
+            "value": "Part E: deviation determined by the agriculture ministry"
+          }
+        ]
+      ],
+      "finding": "A Part E deviation is limited and conditional salvage or harvest determined by the agriculture ministry and administered by the forests ministry, or an adjustment for Crown land adjudication.",
+      "actions": [
+        {
+          "kind": "obtain-approval",
+          "description": "Record the agriculture ministry's determination, its conditions and which of Parts A to D it departs from, including whether it allows planting."
+        }
+      ]
+    },
+    {
+      "id": "ada-sra-tenure",
+      "title": "No new area-based forest tenure",
+      "source": "ada-sra-order",
+      "provision": "I, Part D",
+      "scope": [
+        [
+          {
+            "fact": "ada-sra-applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "ada-sra-excluded",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "area-based-tenure",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Part D says no area-based forest tenure will be established in these ADAs and SRAs.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Keep the ADA or SRA out of the proposed tenure area, or record a Part E deviation."
+        }
+      ]
+    },
+    {
+      "id": "free-growing",
+      "title": "Free-growing stand after harvest",
+      "source": "frpa",
+      "provision": "29(0.1)–(3)",
+      "when": [
+        [
+          {
+            "fact": "section-29-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "The holder must establish a free-growing stand on the net area to be reforested, to the plan's stocking standards and dates, unless an FPPR §44(3) purpose relieves it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the timber authority, applicable plan and stocking standard, planting or natural regeneration method, regeneration and free-growing dates, and any approved transfer of the duty (§29.1)."
+        }
+      ]
+    },
+    {
+      "id": "cannot-reforest-ada-sra",
+      "title": "Cannot reforest a forest-health harvest in an ADA or SRA",
+      "source": "frpa",
+      "provision": "29 with the 2006 order Part C.5 and FPPR 44(3)",
+      "when": [
+        [
+          {
+            "fact": "ada-sra-applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "ada-sra-excluded",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "ada-sra-pathway",
+            "op": "eq",
+            "value": "Part B: forest-health harvest"
+          },
+          {
+            "fact": "section-29-scope",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "exempt-purpose",
+            "op": "eq",
+            "value": "No"
+          },
+          {
+            "fact": "natural-regen-meets-standard",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "On these answers the block cannot be both harvested under Part B and reforested as FRPA §29 requires: Part C.5 rules out site preparation and planting, no FPPR §44(3) purpose relieves the free-growing duty, and natural regeneration is not expected to meet the stocking standard by its regeneration date.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Before scheduling the harvest, change the footprint or prescription so natural regeneration can meet the standard, leave the block out, or record evidence that it will. Check that the plan has a stocking standard (FPPR §16) for naturally regenerated Part B blocks, and whether a removal of individual dead trees from a living stand would instead be an intermediate cut (FPPR §44(3)(h))."
+        },
+        {
+          "kind": "obtain-approval",
+          "description": "Ask the agriculture ministry whether a Part E deviation allowing planting applies, and record its determination."
+        }
+      ]
+    },
+    {
+      "id": "permanent-grazing-opening",
+      "title": "Permanent grazing opening in the reforestation area",
+      "source": "frpa",
+      "provision": "29(0.1)–(3)",
+      "scope": [
+        [
+          {
+            "fact": "section-29-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "permanent-grazing-opening",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "exempt-purpose",
+            "op": "eq",
+            "value": "No"
+          }
+        ]
+      ],
+      "finding": "Keeping part of the net area to be reforested open for grazing conflicts with the free-growing duty, because no FPPR §44(3) purpose relieves it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Before harvest, take the opening out of the net area to be reforested only where the plan and the district allow it, or confirm a Range Act agreement and exclusive use that would support FPPR §44(3)(d). Verify clearing authority for the same footprint."
+        }
+      ]
+    },
+    {
+      "id": "intermediate-cut-stocking",
+      "title": "Stocking after an intermediate cut",
+      "source": "instrument",
+      "provision": "44(3)(h)–(i), 44(4)",
+      "scope": [
+        [
+          {
+            "fact": "section-29-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "exempt-purpose",
+            "op": "in",
+            "value": [
+              "(h) commercial thinning, removal of individual trees or similar intermediate cutting",
+              "(i) special forest products other than woodchips or hogged material"
+            ]
+          }
+        ]
+      ],
+      "finding": "The free-growing duty does not apply to this intermediate cut or special forest products harvest, but for 12 months after harvest the area must conform to the stocking standards the plan sets under FPPR §16(4).",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the plan's §16(4) stocking standard and the stand left after harvest. In an ADA or SRA, a Part B removal of individual dead trees from a living stand is the case to check here; a clearcut of dead timber is not an intermediate cut."
+        },
+        {
+          "kind": "monitor",
+          "description": "Check the stand against that standard over the 12 months after harvest."
+        }
+      ]
+    },
+    {
+      "id": "exclusive-range",
+      "title": "Exclusive grazing or hay exemption",
+      "source": "instrument",
+      "provision": "44(3)(d)",
+      "scope": [
+        [
+          {
+            "fact": "section-29-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "exempt-purpose",
+            "op": "eq",
+            "value": "(d) land used exclusively for grazing or hay under a Range Act agreement"
+          },
+          {
+            "fact": "exclusive-range-use",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "range-act-agreement",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "The entered evidence supports reviewing FPPR §44(3)(d), which relieves the free-growing duty for harvest on land used, or to be used, exclusively for grazing or hay under a Range Act agreement.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Confirm the legal footprint and exclusive use with the district, that harvesting is restricted to that purpose, and the authority to clear the land."
+        }
+      ]
+    },
+    {
+      "id": "not-exclusive",
+      "title": "Shared use is not exclusive range use",
+      "source": "instrument",
+      "provision": "44(3)(d)",
+      "scope": [
+        [
+          {
+            "fact": "section-29-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "exempt-purpose",
+            "op": "eq",
+            "value": "(d) land used exclusively for grazing or hay under a Range Act agreement"
+          },
+          {
+            "fact": "exclusive-range-use",
+            "op": "eq",
+            "value": false
+          }
+        ],
+        [
+          {
+            "fact": "exempt-purpose",
+            "op": "eq",
+            "value": "(d) land used exclusively for grazing or hay under a Range Act agreement"
+          },
+          {
+            "fact": "range-act-agreement",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "FPPR §44(3)(d) needs land used, or to be used, exclusively for grazing or hay under a Range Act agreement. Seasonal grazing on land managed for timber too, or grazing with no Range Act agreement, does not meet it, so the free-growing duty stands.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Plan the block's reforestation under FRPA §29, or record the agreement and the exclusive use that would support the exemption."
+        }
+      ]
+    },
+    {
+      "id": "lease-not-crown-range",
+      "title": "A Land Act lease is not Crown range",
+      "source": "range-act",
+      "provision": "1 and 3, with FPPR 44(3)(d)",
+      "when": [
+        [
+          {
+            "fact": "land-act-lease",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "exempt-purpose",
+            "op": "eq",
+            "value": "(d) land used exclusively for grazing or hay under a Range Act agreement"
+          }
+        ]
+      ],
+      "finding": "The Range Act grants grazing and hay rights only over Crown range, which excludes Crown land leased under the Land Act. On leased ground, FPPR §44(3)(d) cannot rest on a Range Act agreement.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Separate the leased ground from any Range Act tenure on the map, and plan the leased ground's reforestation under FRPA §29 unless another basis applies."
         }
       ]
     }

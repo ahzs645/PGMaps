@@ -11,7 +11,7 @@ import { setFact } from './caseEdits'
 
 const pack = parsePack(raw)
 
-function findings(facts: Record<string, boolean>, date = '2026-11-17') {
+function findings(facts: Record<string, boolean | string>, date = '2026-11-17') {
   const plan = samplePlan()
   const { record } = rangeReviewFor(plan, plan.blocks[0])
   const review = Object.entries(facts).reduce((next, [id, value]) => setFact(next, pack, id, value), record.review)
@@ -20,68 +20,119 @@ function findings(facts: Record<string, boolean>, date = '2026-11-17') {
   return Object.fromEntries(assessment.releases[0].findings.map((f) => [f.rule, f.status]))
 }
 
+const PART_B = 'Part B: forest-health harvest'
+const NOT_EXEMPT = 'No'
+const RANGE_D = '(d) land used exclusively for grazing or hay under a Range Act agreement'
+const INTERMEDIATE = '(h) commercial thinning, removal of individual trees or similar intermediate cutting'
+
 describe('Crown grazing rules', () => {
+  // A beetle-killed block in a mapped agriculture development area, on an FSP holder with a
+  // free-growing duty: the case the review must explain.
+  const adaPartB = {
+    'ada-sra-applicable': true,
+    'ada-sra-excluded': false,
+    'ada-sra-harvest': true,
+    'ada-sra-pathway': PART_B,
+    'section-29-scope': true,
+    'exempt-purpose': NOT_EXEMPT,
+  }
+
+  it('explains why a Part B block that cannot regenerate naturally should not be cut', () => {
+    expect(findings(adaPartB)['cannot-reforest-ada-sra']).toBe('missing_evidence')
+    expect(findings({ ...adaPartB, 'natural-regen-meets-standard': false })).toMatchObject({
+      'cannot-reforest-ada-sra': 'review_required',
+      'ada-sra-part-c': 'review_required',
+      'free-growing': 'review_required',
+    })
+    expect(findings({ ...adaPartB, 'natural-regen-meets-standard': true })['cannot-reforest-ada-sra']).toBe(
+      'condition_not_triggered',
+    )
+    expect(findings({ ...adaPartB, 'ada-sra-planting': true })['ada-sra-planting-restriction']).toBe('review_required')
+  })
+
+  it('leaves the order out where Part II excludes the permit, and an intermediate cut out of the free-growing duty', () => {
+    const excluded = { ...adaPartB, 'ada-sra-excluded': true, 'natural-regen-meets-standard': false }
+    expect(findings(excluded)).toMatchObject({
+      'ada-sra-excluded': 'review_required',
+      'cannot-reforest-ada-sra': 'condition_not_triggered',
+      'ada-sra-part-c': 'outside_scope',
+    })
+    const thinning = { ...adaPartB, 'exempt-purpose': INTERMEDIATE, 'natural-regen-meets-standard': false }
+    expect(findings(thinning)).toMatchObject({
+      'cannot-reforest-ada-sra': 'condition_not_triggered',
+      'intermediate-cut-stocking': 'review_required',
+    })
+  })
+
+  it('names the missing pathway, the Part B conditions and the referral', () => {
+    expect(findings({ ...adaPartB, 'ada-sra-pathway': 'None of these' })).toMatchObject({
+      'ada-sra-no-pathway': 'review_required',
+      'ada-sra-part-c': 'condition_not_triggered',
+    })
+    expect(
+      findings({
+        ...adaPartB,
+        'part-b-indication': false,
+        'dead-or-infested-only': false,
+        'referred-to-agriculture': false,
+      }),
+    ).toMatchObject({
+      'ada-sra-part-b-basis': 'review_required',
+      'ada-sra-part-c1': 'review_required',
+      'ada-sra-referral': 'review_required',
+    })
+  })
+
   it('flags a preharvest proposal to keep part of the reforestation area permanently open', () => {
-    const ordinary = { 'section-29-scope': true, 'range-act-agreement': false }
+    const ordinary = { 'section-29-scope': true, 'exempt-purpose': NOT_EXEMPT }
     expect(findings({ ...ordinary, 'permanent-grazing-opening': false })['permanent-grazing-opening']).toBe(
       'condition_not_triggered',
     )
     expect(findings({ ...ordinary, 'permanent-grazing-opening': true })).toMatchObject({
       'free-growing': 'review_required',
       'permanent-grazing-opening': 'review_required',
-      'exclusive-range': 'outside_scope',
+      'exclusive-range': 'condition_not_triggered',
     })
   })
 
-  it('requires exclusive use and a qualifying harvest, even on confirmed Range Act land', () => {
-    const range = { 'range-act-agreement': true, 'section-29-scope': true }
-    expect(findings(range)).toMatchObject({
-      'range-plan': 'review_required',
-      'free-growing': 'review_required',
-      'exclusive-range': 'missing_evidence',
+  it('needs a Range Act agreement and exclusive use for §44(3)(d), never a Land Act lease', () => {
+    const claim = { 'section-29-scope': true, 'exempt-purpose': RANGE_D }
+    expect(findings({ ...claim, 'range-act-agreement': true })['exclusive-range']).toBe('missing_evidence')
+    expect(findings({ ...claim, 'range-act-agreement': true, 'exclusive-range-use': true })).toMatchObject({
+      'exclusive-range': 'review_required',
+      'not-exclusive': 'condition_not_triggered',
     })
-    expect(findings({ ...range, 'exclusive-range-use': false })['exclusive-range']).toBe('condition_not_triggered')
-    expect(findings({ ...range, 'exclusive-range-use': true })['exclusive-range']).toBe('missing_evidence')
-    expect(findings({ ...range, 'exclusive-range-use': true, 'range-only-harvest': true })['exclusive-range']).toBe(
-      'review_required',
-    )
+    expect(findings({ ...claim, 'range-act-agreement': true, 'exclusive-range-use': false })).toMatchObject({
+      'exclusive-range': 'condition_not_triggered',
+      'not-exclusive': 'review_required',
+    })
+    expect(findings({ ...claim, 'land-act-lease': true })).toMatchObject({
+      'lease-not-crown-range': 'review_required',
+      'lease-terms': 'review_required',
+      'lease-review-with-lessee': 'review_required',
+    })
   })
 
-  it('reviews a lease and a natural barrier without inferring a Range Act exemption', () => {
+  it('reviews a lease, a range development and a natural barrier', () => {
     expect(
       findings({
         'land-act-lease': true,
         'lease-conflict': true,
-        'range-act-agreement': false,
-        'section-29-scope': true,
+        'range-development-affected': true,
         'barrier-impact': true,
         'plan-conflict': true,
       }),
     ).toMatchObject({
       'lease-terms': 'review_required',
       'lease-conflict': 'review_required',
+      'range-development': 'review_required',
       'natural-barrier': 'review_required',
       'restricted-activity': 'review_required',
-      'free-growing': 'review_required',
-      'exclusive-range': 'outside_scope',
     })
   })
 
   it('marks a later legal assessment date as outside the verified source window', () => {
     expect(new Set(Object.values(findings({}, '2027-01-01')))).toEqual(new Set(['outside_source_window']))
-  })
-
-  it('ties the Omineca planting restriction to the order and its forest-health pathway', () => {
-    const ada = { 'ada-sra-applicable': true, 'ada-sra-harvest': true, 'ada-sra-planting': true }
-    expect(findings(ada)).toMatchObject({
-      'ada-sra-harvest-route': 'review_required',
-      'ada-sra-planting-restriction': 'missing_evidence',
-    })
-    expect(findings({ ...ada, 'ada-sra-part-b': true })['ada-sra-planting-restriction']).toBe('review_required')
-    expect(findings({ ...ada, 'ada-sra-part-b': false })['ada-sra-planting-restriction']).toBe(
-      'condition_not_triggered',
-    )
-    expect(findings({ ...ada, 'ada-sra-applicable': false })['ada-sra-planting-restriction']).toBe('outside_scope')
   })
 })
 
@@ -123,7 +174,7 @@ describe('Grazing reviews follow the schedule and footprint', () => {
     expect(exported.rangeReviews[0]).toMatchObject({ current: true, assessment: { bindingDecision: false } })
     const summary = buildExport('summary', plan, result, [pack], '2026-11-23')
     expect(summary).toContain('FSP &lt;clause&gt;')
-    expect(summary).toContain('proposed practice triggers review of natural range barrier mitigation')
+    expect(summary).toContain('must be followed by the mitigation the operational plan specifies')
 
     const changed = setEntry(plan, record.schedule, block.id, { year: null })
     expect(assessmentRecord(changed, result, [pack], '2026-11-23').rangeReviews[0]).toMatchObject({

@@ -1,32 +1,119 @@
-# Crown grazing and reforestation in the block planner
+# Crown grazing, agriculture reserve areas and reforestation in the block planner
 
-Step 5 reviews a selected block under the schedule chosen in step 3. It saves the legal assessment date, the answers and the documents or observations alongside that block and schedule. The review uses the schedule's resolved shape and harvest year. If either changes, the old record is marked stale and fresh answers are required. A schedule with no planned harvest can be used to review silviculture on an existing opening, with the actual harvest and silviculture dates recorded in the evidence.
+Step 5's **Crown grazing and reforestation** section asks whether a block on grazing land, or in one of the 2006 Omineca agriculture development areas (ADAs) or settlement reserve areas (SRAs), can be cut. The test is that the stand must come back. The rules are the `bc.crown-grazing` pack (`packages/legal-rules/instruments/bc-crown-grazing.json`, `rules/bc/crown-grazing.json`). The record is `RangeReview` (`review/rangeReview.ts`), kept for one block in one schedule.
 
-The rule release screens the legal sources as of November 17, 2026. A scheduled harvest year such as 2031 is a planning input. The assessment date selects the legal snapshot used for the screen.
+The record is keyed to the schedule's resolved shape and harvest year. If either changes, the old answers are shown as out of date and fresh ones are asked for. A schedule with no planned harvest can review silviculture on an existing opening; record the original harvest and its dates in the evidence.
 
-## What to check for a block
+Every answer is the reviewer's. The planner never says a block complies, that the order applies, or that an exemption is met. It explains which provisions the answers engage and what each one requires.
 
-| Evidence | Planning effect |
-| --- | --- |
-| Executed **Land Act** grazing lease, current term, legal description, management plan and any written consent or authorization | Check the activities covered by the lease terms separately for harvesting, access, roadwork, site preparation and planting. Provincial grazing policy discusses review with the lessee and notes that older leases can have different consent terms. [Land Act, §§11 and 38](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96245_01) · [Crown grazing policy, §11](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/grazing_lands_policy_2004.pdf) |
-| **Range Act** grazing or hay licence or permit and approved range use or stewardship plan, or a documented exception | Check the agreement, pasture area, season, use limits and range developments. The Range Act definition of Crown range excludes Crown land leased under the Land Act. A map boundary can be broader than the area available for grazing. [Range Act, §1](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/04071_01) · [FRPA, §§32–35](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/02069_01) · [Range Planning and Practices Regulation, §3](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/19_2004) |
-| Timber authority, applicable forest plan, net area to be reforested and approved stocking standard | FRPA §29 establishes the free-growing duty for covered harvests. Verify who carries it and whether planting or natural regeneration can meet the applicable standard and dates. FPPR §44(3)(d) applies to qualifying restricted harvest on land used or to be used exclusively for grazing or hay under a Range Act agreement. A grazing lease or shared timber and grazing use cannot establish that condition. [FRPA, §§29–29.1](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/02069_01) · [FPPR, §§16, 44–45](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004) |
-| Approved forest plan clause and evidence of livestock movement | If a practice removes a natural barrier or makes it ineffective, identify the operative mitigation measure in the plan or the minister's authorization. Check any continuing duty attached to permits predating plan expiry. Record fences, gates, range developments, access routes, and retention or mitigation commitments with dates and responsibility. [FRPA, §§20.21–20.22, 48 and 51](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/02069_01) · [FPPR, §18](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004) |
-| **Agriculture Development Area or Settlement Reserve Area** covered by the 2006 Omineca order | Confirm the legal area on Crown land, the effective date, Part II exclusions, and any later order or Part E deviation. Part A covers qualifying government-proposed environmental and safety work. Part B covers qualifying forest-health harvesting and invokes Part C. Part C.5 bars site preparation and artificial regeneration for that pathway. Planting for an existing opening requires checking the original harvest authority and pathway. [Land Act §93.4 order, Parts A–E and II](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/ftstjames-vanderhoof-princegeorge-mackenzie_lrmps_luor_23nov2006.pdf) |
+## The chain, provision by provision
 
-### Examples in British Columbia
+This is why a block that cannot be reforested should not be cut. Each step was read from the primary text (below).
 
-- **Prince George and surrounding districts.** BCTS Prince George's published 2023–2028 FSP, Amendment 26, §5.1.1.3.1 applies the 2006 land-use objectives to FDUs 1–5 and caps permanent access at 7% of gross block area under that plan's strategy. §6.2 addresses notification and responses to natural range barrier impacts. Confirm that the plan and amendments cover the particular holder, FDU and permit. [BCTS Prince George FSP 24](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/bc-timber-sales/environmental-stewardship-sustainability/forest-stewardship-plans/prince-george/pg_fsp_24_amd26_ct_final_2024_01_24.pdf)
-- **Different plans specify different measures.** A published Fort Nelson multi-licensee plan includes agreement on mitigation with the range holder before harvest when planned work would impair a natural range barrier, and a deadline for implementation. [Fort Nelson FSP 508, §6.1](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/bc-timber-sales/environmental-stewardship-sustainability/forest-stewardship-plans/peace-liard/bcts_tpl_fort_nelson_mult__licensee_fsp_508.pdf)
-- **What happened in the field.** In one Forest Practices Board case, harvest impaired roughly one kilometre of barrier between two range tenures. The parties agreed to share fencing costs, but the fence was inadequate. The Board reviewed ten cases and 56 operational plans. [Forest Practices Board, FPB/SIR/42, Appendix 2](https://www.bcfpb.ca/wp-content/uploads/2016/04/SIR42-Natural-Range-Barriers.pdf)
-- **Grazing on a replanted cutblock.** Southern B.C. studies document actual cattle use on regenerated cutblocks and studied seedling damage and growth. These are empirical examples for scenario design. [Krzic et al., lodgepole pine on grazed cutblocks](https://jem-online.org/forrex/index.php/jem/article/download/241/160) · [Pitt et al., seedling damage and grazing pressure](https://agris.fao.org/search/en/providers/122535/records/65de75de63b8185d9ca8b958)
+1. **The free-growing duty.** FRPA §29(0.1)–(3) applies to whoever harvests under a forest stewardship plan, a forest operations plan or a woodlot licence plan. That holder must establish a free-growing stand on the cutblock's net area to be reforested. FPPR §44(1) sets the deadlines: the plan's stocking standard by its regeneration date, and a free-growing stand within 20 years.
+2. **The only relief is a restricted harvest.** FPPR §44(3) lifts the duty only where harvesting is restricted to purposes it lists:
+   - (a) a safety hazard;
+   - (b) seed collection, with an opening of 1 ha at most;
+   - (c) removing felled trees from landings and rights of way;
+   - (d) land that is, or will be, used exclusively for hay or grazing under a Range Act agreement;
+   - (e) experimental harvesting;
+   - (f) recreation sites and trails;
+   - (g) pest-entrapment trees;
+   - (h) commercial thinning, removal of individual trees or similar intermediate cutting;
+   - (i) special forest products.
+
+   For (h) and (i), §44(4) requires the plan's §16(4) stocking standard to be met for 12 months after harvest. A clearcut of beetle-killed timber is none of these.
+
+3. **A grazing lease is not Crown range.** The Range Act's "Crown range" excludes Crown land leased under the Land Act (§1), and §3 grants grazing and hay rights only over Crown range. So §44(3)(d) cannot rest on a Land Act grazing lease. Seasonal grazing on land also managed for timber is not exclusive use either.
+4. **The 2006 order limits harvest in ADAs and SRAs.** It was made under Land Act §93.4 for the Fort St. James, Vanderhoof, Prince George and Mackenzie forest districts, and signed on 21 November 2006. It manages timber there only under:
+   - Part A: environmental or safety harvests proposed by government, agreed by the forests and agriculture ministries, under an operational work plan;
+   - Part B: forest-health harvests, with "a clear indication" that sanitation harvesting will significantly assist in preventing spread to adjacent stands;
+   - Part E: deviations the agriculture ministry determines.
+
+   Part D adds that no area-based forest tenure will be established in these areas. Part II limits the order to Crown land and leaves alone the permits, licences, areas and range schedules in effect when it took effect.
+
+5. **A Part B harvest cannot be planted.** Every Part C condition applies to a Part B harvest:
+   - C.1: dead or infested timber only;
+   - C.2: stumps at least 15 cm;
+   - C.3: waste piled and burned or removed;
+   - C.4: permanent access minimized and placed along lot lines and natural boundaries;
+   - C.5: "No activities related to site preparation and artificial regeneration";
+   - C.6: every proposal referred to the agriculture ministry.
+6. **So the stand must come back by itself.** If natural regeneration will not meet the stocking standard by its regeneration date, the duty in step 1 cannot be met. That happens when grass and shrubs win, cattle browse and trample the seedlings, or there is no seed source. On those answers the block cannot be both harvested under Part B and reforested.
+
+   The finding (`cannot-reforest-ada-sra`) lists the ways forward:
+   - change the footprint or prescription;
+   - leave the block out;
+   - show that natural regeneration will meet the standard;
+   - check whether removing individual dead trees from a living stand is an intermediate cut under §44(3)(h);
+   - ask the agriculture ministry about a Part E deviation that allows planting.
+
+7. **The forest plan carries the order too.** A plan that adopts the order binds its holder through FRPA §20.22, as BCTS Prince George's FSP does (below). A plan's own extra commitments bind the same way.
+
+Next to that chain, the pack reviews the grazing tenures the work touches:
+
+- the lease's terms and the grazing policy's review with the lessee;
+- the Range Act agreement and its approved range plan (FRPA §§32–35);
+- range developments, which need the minister's written authorization (FRPA §51);
+- natural range barriers (FRPA §48), with the measure an FSP must specify (FPPR §18).
+
+## What the review asks
+
+Questions come from the evaluator's trace, as elsewhere in step 5: only the first unanswered fact of each open rule is asked. For a block in a mapped ADA, the questions run in this order:
+
+1. Does the order apply?
+2. Is the activity excluded by Part II?
+3. Under which part is the harvest proposed?
+4. Is there a free-growing duty?
+5. Is the harvest restricted to a §44(3) purpose?
+6. Will natural regeneration meet the standard?
+
+| Rule                                                                                                                                                         | Provision                             | Raised when                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `cannot-reforest-ada-sra`                                                                                                                                    | FRPA §29, order C.5, §44(3)           | Part B, duty applies, no §44(3) purpose, natural regeneration will not meet the standard |
+| `ada-sra-planting-restriction`                                                                                                                               | Order C.5                             | Part B with site preparation, planting or seeding                                        |
+| `ada-sra-no-pathway`                                                                                                                                         | Order Parts A, B, E                   | Harvest in the area under none of them                                                   |
+| `ada-sra-part-a`, `ada-sra-part-b-basis`, `ada-sra-part-c1`, `ada-sra-part-c`, `ada-sra-referral`, `ada-sra-deviation`, `ada-sra-tenure`, `ada-sra-excluded` | Order Parts A–E, II                   | The part's own condition                                                                 |
+| `free-growing`, `permanent-grazing-opening`, `intermediate-cut-stocking`                                                                                     | FRPA §29, FPPR §44(3)–(4)             | The duty applies; an opening kept for grazing; an (h) or (i) harvest                     |
+| `exclusive-range`, `not-exclusive`, `lease-not-crown-range`                                                                                                  | FPPR §44(3)(d), Range Act §§1, 3      | The (d) exemption is claimed                                                             |
+| `lease-terms`, `lease-review-with-lessee`, `lease-conflict`                                                                                                  | Land Act §§11, 38; grazing policy §11 | A grazing lease covers the area                                                          |
+| `range-plan`, `range-development`, `natural-barrier`, `restricted-activity`, `fsp-ada-strategy`                                                              | FRPA §§32–35, 51, 48, 20.21–20.22     | The tenure, the development, the barrier or the plan clause is affected                  |
+
+## Sources, as read
+
+| Source                                                                                                                                                                                                                                                                                                  | What was checked                                                                                  | Read             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------- |
+| [FRPA](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/02069_01), current to 17 November 2026                                                                                                                                                                                           | §§1, 20.21–20.22, 29, 29.1, 32–35, 48, 51                                                         | 24 November 2026 |
+| [FPPR](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004), current to 17 November 2026                                                                                                                                                                                            | §1(2) (natural range barrier, net area to be reforested), §§16, 18, 44, 45; every range reference | 24 November 2026 |
+| [Range Act](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/04071_01), current to 17 November 2026                                                                                                                                                                                      | §§1 (Crown range), 2, 3–7                                                                         | 24 November 2026 |
+| [Land Act](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96245_01), current to 17 November 2026                                                                                                                                                                                       | §§11, 38, 93.4                                                                                    | 24 November 2026 |
+| [2006 Omineca ADA/SRA order](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/ftstjames-vanderhoof-princegeorge-mackenzie_lrmps_luor_23nov2006.pdf) | Every page of the order, Parts A–E and II–V, and the four map sheets                              | 24 November 2026 |
+| [LWBC Land Policy: Grazing](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/grazing_lands_policy_2004.pdf), effective 15 November 2004                                                                                          | §11 (timber on grazing leases), §§11.1–11.2 (consent)                                             | 24 November 2026 |
+
+Policy is not law. The grazing policy is cited for how the Crown handles timber on a lease, and a later version may exist. The order names the Ministry of Agriculture and Lands and the Ministry of Forests and Range; the review reads them as today's agriculture and forests ministries, and the reviewer confirms who now administers each step. The order's maps are stamped as a visual representation not to be used for legal purposes.
+
+## Examples in British Columbia
+
+- **BCTS Prince George, FSP 24 Amendment 26** (2023), §5.1.1.3.1, covers FDUs 1–5. Its holder will conduct operations "in accordance with the direction" of the 21 November 2006 orders for the Prince George and Mackenzie TSAs and the Robson Valley TSA. It also caps permanent access at 7% of a block's gross area. Its §6.2 range barrier measure has three steps: update the range tenure areas each year from district staff; notify range holders through the operating plan referral; and, where a holder says a barrier will be lost, modify the activities or install an artificial barrier within 2 years. Its stocking standards (§7) have no separate case for ADA/SRA blocks. [FSP](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/bc-timber-sales/environmental-stewardship-sustainability/forest-stewardship-plans/prince-george/pg_fsp_24_amd26_ct_final_2024_01_24.pdf)
+- **Fort Nelson FSP 508** (2021), §6.1, for BCTS, Canfor and the Fort Nelson Community Forest, has its own steps:
+  - send range holders cutblock plans each year;
+  - where a barrier is affected, agree mitigation before harvest and carry it out within one snow-free season;
+  - if no agreement is reached, carry out alternative measures, such as cattle guards, debris fences or wing fencing.
+
+  [FSP](https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/bc-timber-sales/environmental-stewardship-sustainability/forest-stewardship-plans/peace-liard/bcts_tpl_fort_nelson_mult__licensee_fsp_508.pdf)
+
+- **Forest Practices Board, FPB/SIR/42** (February 2015), _Mitigation of Forestry Impacts to Natural Range Barriers_, examined 10 field cases and the measures in 56 plans (46 FSPs, 10 woodlot licence plans). Only seven plans met all three steps of notification, assessment and implementation, and one was verifiable. Its case 6 is a one-kilometre rock fence built to replace a timbered barrier. [Report](https://www.bcfpb.ca/wp-content/uploads/2015/03/2015-SIR42-Natural-Range-Barriers.pdf)
 
 ## Comparing scenarios
 
-Before harvest, compare a regular timber cutblock with a proposal to leave a defined opening permanently available for grazing. Record the intended stocking standards and net area to be reforested for the regular cutblock. For the grazing alternative, record the opening footprint, the agreement that would authorize exclusive grazing there, and the authority for clearing. If the opening overlaps the reforestation area, the review flags the free-growing obligation and asks whether a separate legal basis applies. [FRPA, §29](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/02069_01) · [FPPR, §44(3)(d)](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004)
+For a shared-use block, compare the proposed footprint with one shape that keeps the livestock barrier and one schedule that changes the timing. Each schedule has its own record, so each can carry its own basis for the barrier, mitigation and stocking dates.
 
-For a shared-use block, compare the proposed footprint with a shape that retains the livestock barrier or with a schedule that changes timing. In each schedule, record the basis for barrier function and mitigation, the applicable grazing period and the verified stocking dates. Keep the free-growing obligation open until the evidence supports the relevant provision.
+For a block in an ADA or SRA, the natural-regeneration answer decides the case. A shape that keeps a seed source next to the opening, or a smaller opening the grass will not close, can change it; record why.
 
-For a previously harvested block inside an ADA or SRA, record whether it was a Part B forest-health harvest. A planting or site-preparation scenario will surface Part C.5 when that pathway and the order apply. A natural regeneration scenario still needs review against the actual stocking standard and authorization. If the block is outside the mapped order area, the lease, range plan, forest plan and free-growing questions still have their own evidence.
+For an existing opening, answer for the harvest that made it. A Part B harvest keeps Part C.5 for its reforestation, and planting needs a Part E deviation.
 
-The two tenure sources are DataBC's [Range Tenure Polygons](https://open.canada.ca/data/dataset/10b1b187-1ef5-421f-8aa2-f716379fdb99) (use the RAN file and lifecycle status) and [Tantalis Crown Tenures](https://open.canada.ca/data/en/dataset/3544ad91-0cf2-4926-a08a-bfe42d9a031d) (use the Crown lands file and distinguish applications from issued tenure). The review currently takes verified facts from the reviewer. For spatial integration, read each schedule footprint against those sources as evidence candidates. Label missing coverage and stale snapshots, and keep the 2006 order's candidate mapping tied to the legal description. The overview maps printed with the order are marked illustrative. The signed instruments, operative plan, permit and field evidence control case-specific answers.
+## Not built
+
+- Mapped evidence (ADA/SRA polygons, range tenures, grazing leases) read against the block; see below once added.
+- A stocking-standard check. Whether natural regeneration will meet the standard is the reviewer's judgement, with its evidence; the planner models no regeneration.
+- Later orders. The pack was checked against the 2006 order only. Confirm with the district that no later order amends it for the block.

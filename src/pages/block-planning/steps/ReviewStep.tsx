@@ -186,7 +186,15 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
               'plan-conflict':
                 'Use the exact approved clause and record which activity, footprint and dates it covers.',
               'ada-sra-applicable':
-                'Confirm agriculture development area or settlement reserve area coverage with the district. Check permit exclusions and any later orders.',
+                'The mapped ADA and SRA polygons are a candidate: the order’s maps are not for legal purposes. Confirm coverage with the district.',
+              'ada-sra-excluded':
+                'Compare the permit or range schedule’s date with the order’s Gazette date (it was made on 21 November 2006).',
+              'ada-sra-pathway':
+                'For an existing opening, answer for the harvest that made it: a Part B harvest keeps Part C.5 for its reforestation.',
+              'exempt-purpose':
+                'A clearcut of beetle-killed timber is not restricted to a listed purpose. Removing individual dead trees from a living stand may be (h), which keeps a 12-month stocking standard.',
+              'natural-regen-meets-standard':
+                'Weigh seed source, grass and shrub competition, and browsing and trampling under the grazing schedule against the stocking standard and regeneration date.',
             }}
             onChange={(review) => updateRange({ review })}
             caseLabel="Schedule and block"
