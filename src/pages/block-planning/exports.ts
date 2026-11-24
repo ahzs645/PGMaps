@@ -23,7 +23,7 @@ import { entryOf, periodYears, type MappedEvidence, type Plan, type ReviewCase }
 import type { PlanAnalysis } from './planAnalysis'
 import { DEFAULT_INDEX_WEIGHTS, indexFormula, INDEX_INDICATORS, planningIndex } from './planningIndex'
 import { pathways, trendYearOf } from './review/pathways'
-import { formatHa, GROUP_LABELS, layerSummary, MAPPED_LAYER_INFO } from './review/grazingEvidence'
+import { featureMeasure, GROUP_LABELS, layerSummary, MAPPED_LAYER_INFO } from './review/grazingEvidence'
 import { mappedReadCurrent, rangeReviewCurrent } from './review/rangeReview'
 import { corridorSentence, excludedSentence } from './oldForest/recordText'
 import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
@@ -193,6 +193,7 @@ const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`)
 function mappedHtml(mapped: MappedEvidence | undefined, current: boolean) {
   if (!mapped) return ''
   const cell = (c: unknown) => `<td>${escape(c)}</td>`
+  const margin = mapped.layers.find((l) => l.marginM !== undefined)?.marginM
   const rows = mapped.layers.flatMap((layer) => {
     const title = MAPPED_LAYER_INFO[layer.layer].title
     if (!layer.features.length) return [`<tr>${cell(title)}<td colspan="3">${escape(layerSummary(layer))}</td></tr>`]
@@ -202,14 +203,18 @@ function mappedHtml(mapped: MappedEvidence | undefined, current: boolean) {
         : []),
       ...layer.features.map(
         (f) =>
-          `<tr>${cell(title)}${cell(`${f.id} · ${f.name} (${GROUP_LABELS[f.group]})`)}${cell(`${formatHa(f.overlapHa)} ha · ${f.sharePercent.toFixed(1)}%`)}${cell(f.details.join(' · '))}</tr>`,
+          `<tr>${cell(title)}${cell(`${f.id} · ${f.name} (${GROUP_LABELS[f.group]})`)}${cell(featureMeasure(f, layer.marginM))}${cell(f.details.join(' · '))}</tr>`,
       ),
+      // Lines and points: each kind's total, with a stretch two records share counted once.
+      ...(layer.marginM !== undefined
+        ? [`<tr>${cell(title)}<td colspan="3">${escape(`In all: ${layerSummary(layer)}`)}</td></tr>`]
+        : []),
     ]
   })
   return `<h4>Mapped candidates · read ${escape(mapped.readOn)}</h4>
 ${current ? '' : '<p class="warn">The block shape changed since this read. Read it again before relying on it.</p>'}
-<p class="note">DataBC layers read against the ${mapped.footprintHa.toFixed(2)} ha footprint. Candidates for the reviewer to weigh, never answers: the orders’ maps are a visual representation not for legal purposes, and the legal descriptions, signed instruments and the district decide.</p>
-<table><thead><tr><th>Layer</th><th>Feature</th><th>Overlap · share</th><th>As DataBC gives it</th></tr></thead><tbody>
+<p class="note">DataBC layers read against the ${mapped.footprintHa.toFixed(2)} ha footprint${margin === undefined ? '' : `; range developments and natural barriers inside it and within ${margin} m of its edge`}. Candidates for the reviewer to weigh, never answers: the orders’ maps are a visual representation not for legal purposes, the legal descriptions, signed instruments and the district decide, and what is not mapped can still be on the ground.</p>
+<table><thead><tr><th>Layer</th><th>Feature</th><th>Overlap · share, length or count</th><th>As DataBC gives it</th></tr></thead><tbody>
 ${rows.join('\n')}
 </tbody></table>`
 }
