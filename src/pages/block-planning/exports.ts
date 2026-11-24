@@ -48,7 +48,6 @@ import {
   ACTIVITIES,
   ACTIVITY_LABELS,
   BINDS_LABELS,
-  citesText,
   GROUND_CATALOGUE,
   groundInstrument,
   groundLayer,
@@ -57,6 +56,7 @@ import {
 import { precedentSummary } from './ground/precedent'
 import { failedByReason, groundReadCurrent, nearText, type GroundRead } from './ground/record'
 import { documentRequests } from './ground/requests'
+import { exceptionsToRequest, wildlifeCitesText, wildlifeRows, withheldRequests } from './ground/wildlifeMeasures'
 
 export const BLOCK_PLANNING_EXPORTS = [
   {
@@ -209,9 +209,32 @@ function groundRecord(plan: Plan, read: GroundRead) {
             : read.precedent
               ? precedentSummary(read.precedent, x.id)
               : 'Not read',
+          ...(wildlifeRows(x, r)
+            ? {
+                byOrder: wildlifeRows(x, r)!.map((w) => ({
+                  order: w.orderId,
+                  status: w.status,
+                  ...(w.order ? { title: w.order.title, url: w.order.url, decided: w.order.decided } : {}),
+                  features: w.features.map((f) => f.id),
+                  reach: w.reach,
+                  binds: w.binds,
+                })),
+              }
+            : {}),
         }
       }),
-    requests: documentRequests(read, block?.name ?? read.block),
+    requests: [
+      ...documentRequests(read, block?.name ?? read.block),
+      ...withheldRequests(read, groundInstrument, block?.name ?? read.block),
+    ],
+    exceptions: exceptionsToRequest(read, groundInstrument).map((x) => ({
+      order: x.order.id,
+      title: x.order.title,
+      url: x.order.url,
+      units: x.units,
+      clauses: x.clauses,
+      route: x.route,
+    })),
   }
 }
 
@@ -275,18 +298,45 @@ function groundHtml(plan: Plan, read: GroundRead, names: Record<string, string>)
   const label = (id: string) => groundInstrument(id)?.label ?? id
   const failed = read.instruments.filter((r) => r.status === 'failed')
   const empty = read.instruments.filter((r) => r.status !== 'failed' && !r.features.length)
-  const requests = documentRequests(read, block?.name ?? read.block)
+  const requests = [
+    ...documentRequests(read, block?.name ?? read.block),
+    ...withheldRequests(read, groundInstrument, block?.name ?? read.block),
+  ]
+  const exceptions = exceptionsToRequest(read, groundInstrument)
   const share = (v: number) => (read.footprintHa > 0 ? (v / read.footprintHa) * 100 : 0).toFixed(1)
+  // A range or habitat area whose order was read prints the order's answer, one row per order and answer.
+  const matrix = found.flatMap(({ r, x }) => {
+    const own = wildlifeRows(x, r)
+    if (!own)
+      return [
+        {
+          x,
+          title: `${x.label}: ${r.features.map((f) => f.id).join(', ')}`,
+          covered: r.coveredHa,
+          near: r.near,
+          reach: x.reach,
+          binds: x.binds,
+        },
+      ]
+    return own.map((w) => ({
+      x,
+      title: `${x.label} · ${w.label}: ${w.features.map((f) => f.id).join(', ')}`,
+      covered: w.overlapHa,
+      near: undefined,
+      reach: w.reach,
+      binds: w.binds,
+    }))
+  })
   return `<h3>${escape(names[read.schedule] ?? read.schedule)} · ${escape(block?.name ?? read.block)} · ${escape(shape?.name ?? read.shape)} · read ${escape(read.readOn)}</h3>
 ${groundReadCurrent(plan, read) ? '' : '<p class="warn">The block shape changed since this read. Read it again before relying on it.</p>'}
 <p class="note">DataBC layers read against the ${read.footprintHa.toFixed(2)} ha footprint, each cell from the provisions it cites (catalogue ${escape(read.catalogue)}). A screen, never a legal determination: it decides no fact, and an instrument that is not mapped can still apply.</p>
 ${
   found.length
     ? `<table><thead><tr><th>Instrument</th><th>On the block</th>${ACTIVITIES.map((a) => `<th>${ACTIVITY_LABELS[a]}</th>`).join('')}<th>Binds</th><th>Terms public</th></tr></thead><tbody>
-${found
+${matrix
   .map(
-    ({ r, x }) =>
-      `<tr>${cell(`${x.label}: ${r.features.map((f) => f.id).join(', ')}`)}${cell(r.near ? nearText(r.near) : `${r.coveredHa.toFixed(2)} ha · ${share(r.coveredHa)}%`)}${ACTIVITIES.map((a) => cell(`${REACH_LABELS[x.reach[a].state]}. ${x.reach[a].note} (${citesText(x.reach[a].cites)})`)).join('')}${cell(`${BINDS_LABELS[x.binds.kind]} (${citesText(x.binds.cites)})`)}${cell(x.terms.public ? 'Yes' : `No: ${x.terms.where}`)}</tr>`,
+    (m) =>
+      `<tr>${cell(m.title)}${cell(m.near ? nearText(m.near) : `${m.covered.toFixed(2)} ha · ${share(m.covered)}%`)}${ACTIVITIES.map((a) => cell(`${REACH_LABELS[m.reach[a].state]}. ${m.reach[a].note} (${wildlifeCitesText(m.reach[a].cites)})`)).join('')}${cell(`${BINDS_LABELS[m.binds.kind]} (${wildlifeCitesText(m.binds.cites)})`)}${cell(m.x.terms.public ? 'Yes' : `No: ${m.x.terms.where}`)}</tr>`,
   )
   .join('\n')}
 </tbody></table>`
@@ -312,6 +362,13 @@ ${
   requests.length
     ? `<h4>Documents to request</h4>
 <ul>${requests.map((q) => `<li><strong>${escape(q.label)}</strong> (${escape(q.identifiers.join('; '))}): ${escape(`ask ${q.holder}, through ${q.channel}`)}.</li>`).join('')}</ul>`
+    : ''
+}
+${
+  exceptions.length
+    ? `<h4>Exceptions the wildlife orders provide</h4>
+<p class="note">What each order read here says may proceed, or may be approved, despite its measures, and who decides. Nothing here says an exception applies or would be granted.</p>
+<ul>${exceptions.map((e) => `<li><strong>${escape(e.order.title)}</strong> (${escape(e.units.join(', '))}): ${e.clauses.length ? e.clauses.map((c) => escape(`${c.ref}${c.inOrder ? '' : ' (guidance, not part of the order)'}: ${c.says} “${c.quote}” Decides: ${c.by}.`)).join(' ') : 'The order states no exception or approval of its own.'} ${escape(`${e.route.text} (${wildlifeCitesText(e.route.cites)})`)}</li>`).join('')}</ul>`
     : ''
 }`
 }
