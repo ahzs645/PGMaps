@@ -544,6 +544,47 @@
     ]
   },
   {
+    "id": "ada-sra-part-a-planting",
+    "title": "Planting after an environmental or safety harvest",
+    "source": "ada-sra-order",
+    "provision": "I, Parts A and C",
+    "scope": [
+      [
+        {
+          "fact": "ada-sra-applicable",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "ada-sra-excluded",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ada-sra-pathway",
+          "op": "eq",
+          "value": "Part A: environmental or safety harvest"
+        },
+        {
+          "fact": "ada-sra-planting",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Part C, including C.5, applies only to Part B harvests, so the order does not bar site preparation or planting after a Part A harvest. The operational work plan Part A requires may still say how the ground is to be left.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record what the operational work plan and the interagency agreement say about regeneration of the harvested ground."
+      }
+    ]
+  },
+  {
     "id": "ada-sra-deviation",
     "title": "Deviation from the order",
     "source": "ada-sra-order",
@@ -675,6 +716,11 @@
           "value": "No"
         },
         {
+          "fact": "nar-reserved",
+          "op": "eq",
+          "value": false
+        },
+        {
           "fact": "natural-regen-meets-standard",
           "op": "eq",
           "value": false
@@ -685,11 +731,42 @@
     "actions": [
       {
         "kind": "review",
-        "description": "Before scheduling the harvest, change the footprint or prescription so natural regeneration can meet the standard, leave the block out, or record evidence that it will. Check that the plan has a stocking standard (FPPR §16) for naturally regenerated Part B blocks, and whether a removal of individual dead trees from a living stand would instead be an intermediate cut (FPPR §44(3)(h))."
+        "description": "Before scheduling the harvest, change the footprint or prescription so natural regeneration can meet the standard, leave the block out, record evidence that it will, or ask the district whether the agricultural ground can be reserved for purposes other than timber harvesting, which takes it out of the net area to be reforested (FPPR §1(2)). Check that the plan has a stocking standard (FPPR §16) for naturally regenerated Part B blocks, and whether a removal of individual dead trees from a living stand would instead be an intermediate cut (FPPR §44(3)(h))."
       },
       {
         "kind": "obtain-approval",
         "description": "Ask the agriculture ministry whether a Part E deviation allowing planting applies, and record its determination."
+      }
+    ]
+  },
+  {
+    "id": "nar-reserved",
+    "title": "Ground reserved from the net area to be reforested",
+    "source": "instrument",
+    "provision": "1(2), net area to be reforested (f)",
+    "scope": [
+      [
+        {
+          "fact": "section-29-scope",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "nar-reserved",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Areas reserved for purposes other than timber harvesting are excluded from the net area to be reforested, so the free-growing duty does not reach the reserved ground; the rest of the cutblock keeps it.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record where the reservation is made (cutting permit, site plan or the district's direction), its purpose and its mapped area, and confirm with the district that it is a reservation the definition covers."
       }
     ]
   },

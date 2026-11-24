@@ -57,6 +57,19 @@ Next to that chain, the pack reviews the grazing tenures the work touches:
 - range developments, which need the minister's written authorization (FRPA §51);
 - natural range barriers (FRPA §48), with the measure an FSP must specify (FPPR §18).
 
+## When the harvest is allowed but planting is not
+
+The usual sticking point is a Part B harvest the order allows, followed by ground that cannot be planted (C.5). The free-growing duty does not go away, so the question becomes how it is met or narrowed. These are the routes the review checks, in the order the texts give them:
+
+1. **Is planting really barred?** Part C, C.5 included, applies only to Part B. After a Part A environmental or safety harvest, the order does not bar planting; the operational work plan may still say how the ground is left (`ada-sra-part-a-planting`). Planting is not barred either outside the order's legal boundary, on land that is not Crown land, or under a permit Part II leaves alone.
+2. **Natural regeneration to the plan's standard.** FRPA §29 asks for a free-growing stand, not a planted one. If the plan has a stocking standard natural regeneration can meet, the duty is met that way. BCTS Prince George's FSP, for one, allows a 7-year regeneration delay where natural regeneration is used. Record the seed source, competition and grazing evidence.
+3. **Ground reserved for agriculture leaves the net area to be reforested.** FPPR §1(2)'s definition excludes "areas reserved for purposes other than timber harvesting", and areas that in their natural state cannot support a stand to the standard. If the district agrees that the agricultural ground is such a reservation, set in the cutting permit or site plan, the duty does not reach it (`nar-reserved`). This is the district's call: the definition does not say who reserves the ground, and an ADA's mapping alone is not a reservation.
+4. **Exclusive range use.** If the ground is, or will be, used exclusively for grazing or hay under a Range Act agreement, FPPR §44(3)(d) relieves the duty for the harvest. It does not work on a Land Act lease (`lease-not-crown-range`).
+5. **Removing individual dead trees** from a living stand may be an intermediate cut under §44(3)(h): there is no free-growing duty, but the stand must meet the §16(4) stocking standard for 12 months after harvest.
+6. **A Part E deviation.** The agriculture ministry may determine "limited and conditional" harvest that departs from Parts A to D, administered by the forests ministry. A deviation that allows planting is the route when none of the above fits.
+
+Transferring the duty (FRPA §29.1, with the minister's approval) moves who carries it; it does not lift C.5.
+
 ## What the review asks
 
 Questions come from the evaluator's trace, as elsewhere in step 5: only the first unanswered fact of each open rule is asked. For a block in a mapped ADA, the questions run in this order:

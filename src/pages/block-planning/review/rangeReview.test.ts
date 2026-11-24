@@ -35,6 +35,7 @@ describe('Crown grazing rules', () => {
     'ada-sra-pathway': PART_B,
     'section-29-scope': true,
     'exempt-purpose': NOT_EXEMPT,
+    'nar-reserved': false,
   }
 
   it('explains why a Part B block that cannot regenerate naturally should not be cut', () => {
@@ -48,6 +49,22 @@ describe('Crown grazing rules', () => {
       'condition_not_triggered',
     )
     expect(findings({ ...adaPartB, 'ada-sra-planting': true })['ada-sra-planting-restriction']).toBe('review_required')
+  })
+
+  it('offers the reserved-ground and Part A routes when planting is the obstacle', () => {
+    const stuck = { ...adaPartB, 'natural-regen-meets-standard': false, 'ada-sra-planting': true }
+    expect(findings(stuck)['cannot-reforest-ada-sra']).toBe('review_required')
+    expect(findings({ ...stuck, 'nar-reserved': true })).toMatchObject({
+      'cannot-reforest-ada-sra': 'condition_not_triggered',
+      'nar-reserved': 'review_required',
+      'ada-sra-planting-restriction': 'review_required',
+    })
+    const partA = { ...stuck, 'ada-sra-pathway': 'Part A: environmental or safety harvest' }
+    expect(findings(partA)).toMatchObject({
+      'ada-sra-part-a-planting': 'review_required',
+      'ada-sra-planting-restriction': 'outside_scope',
+      'cannot-reforest-ada-sra': 'condition_not_triggered',
+    })
   })
 
   it('leaves the order out where Part II excludes the permit, and an intermediate cut out of the free-growing duty', () => {

@@ -123,6 +123,11 @@
       "type": "boolean"
     },
     {
+      "id": "nar-reserved",
+      "label": "Is the ground set aside for agriculture reserved for purposes other than timber harvesting (in the cutting permit or site plan, with the district), so it leaves the net area to be reforested?",
+      "type": "boolean"
+    },
+    {
       "id": "natural-regen-meets-standard",
       "label": "Will natural regeneration alone, with the grazing, competition and seed source the site has, meet the applicable stocking standard by its regeneration date?",
       "type": "boolean"
