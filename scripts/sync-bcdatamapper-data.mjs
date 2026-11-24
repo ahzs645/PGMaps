@@ -50,7 +50,6 @@ const appOwnedDataPaths = [
   'flatten-pg',
   // Stable demo/AQMap fallback snapshots owned by PGMaps.
   'smoke',
-  'walkability/heatmap/factor_masks.json',
 ]
 
 // App-owned data is not published by a scraper host, so a remote folder that

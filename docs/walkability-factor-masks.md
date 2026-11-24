@@ -2,55 +2,57 @@
 
 ## Purpose
 
-The MISC > Walkability equation builder needs to update the Mobility Index heatmap when factor weights or option toggles change. Rasterizing source geometry in the browser made the first live recalculation slow because the worker had to load every source layer, build the city boundary mask, buffer features, and scan grid cells.
+The MISC > Walkability equation builder updates the Mobility Index heatmap when factor weights or option toggles change. Rasterizing the source layers in the browser made each first recalculation slow: the worker had to download every source layer, build the city boundary mask, buffer features and scan grid cells.
 
-The current approach prebuilds reusable component masks for every factor component. At runtime, the worker downloads those masks, applies the current equation weights and toggles, and combines scores into the final grid. This moves expensive geometry work out of the user interaction path while still supporting arbitrary factor weights and supported option combinations.
+Instead, every component mask the worker can ask for is built ahead of time. At run time the worker downloads them once, applies the current weights and toggles, and adds the scores into the final grid. Arbitrary weights and every supported option combination still work.
 
-## Committed Asset
+## Where the file lives
 
 ```text
-public/data/walkability/heatmap/factor_masks.json
+vendor/bcdatamapper/datascrapers/walkability/output/heatmap/factor_masks.json   (committed, in bcdatamapper)
+public/data/walkability/heatmap/factor_masks.json                              (copied by the data sync, git-ignored)
 ```
 
-This file is a generated app asset, but it is intentionally committed. It is not ignored by Git. The raw JSON is about 13 MB, but it compresses to roughly 0.45 MB with gzip because bit-packed masks are highly repetitive.
+It sits in bcdatamapper beside `citywide_mi_grid.json`, the grid it is built on, and reaches the app with the rest of the walkability output through `npm run data:sync-from-bcdatamapper`. PGMaps does not commit a copy.
 
-The asset contains:
+It is built by PGMaps, not bcdatamapper, because the masks must be exactly what the worker would rasterize live: `scripts/build-walkability-factor-masks.mjs` loads `src/maps/pgdata/walkabilityLiveHeatmap.worker.js` itself (`scripts/lib/walkability-factor-masks.mjs`) and runs its `factorMask`. bcdatamapper's own grid builder keeps a separate copy of the factor list with its own buffering, so building the masks there would not guarantee that.
 
-- Grid metadata: rows, columns, cell size, no-data value, and image coordinates.
-- A bit-packed city-boundary inside mask.
-- A bit-packed mask for each factor component and distance/buffer combination.
-- Stable component keys matching `src/maps/pgdata/walkabilityLiveHeatmap.worker.js`.
+The file holds:
 
-## Build Command
+- Grid metadata: rows, columns, cell size, no-data value and image coordinates.
+- A bit-packed city-boundary mask.
+- A bit-packed mask for each factor component and distance or buffer (147 today), keyed as `componentMaskKey` keys them. A key holds the whole factor definition, so a factor changed in the worker finds no mask and the worker rasterizes it live.
+- `inputs`: the SHA-256 of each of the 24 files the masks were built from, by the URL the worker reads it at. There is no build time in the file, so a rebuild from the same inputs writes the same bytes.
 
-Regenerate the asset after changing walkability source data, factor definitions, variant logic, or rasterization logic:
+## Rebuilding
+
+Rebuild after walkability source data, the factor definitions, the variant logic or the rasterization changes:
 
 ```bash
+npm run data:sync-from-bcdatamapper
 npm run walkability:build-factor-masks
 ```
 
-Then verify:
+The script reads the synced files in `public/data`, writes both copies and takes about 25 s. Then commit the bcdatamapper copy there, push it, and move the submodule pointer in PGMaps (AGENTS.md, **Updating submodule data**).
 
-```bash
-npx tsc -b
-git ls-files --others --ignored --exclude-standard -- public/data/walkability/heatmap/factor_masks.json
-git status --short -- public/data/walkability/heatmap/factor_masks.json
-```
+`src/maps/pgdata/walkabilityFactorMasks.test.mjs` fails, naming the change, when:
 
-The ignored-files command should print nothing. `git status` should show the mask asset as untracked before it is staged, or tracked after it has been added.
+- a mask the worker can ask for is missing, or
+- a source file the app serves no longer matches the hash the masks were built from.
 
-## Runtime Behavior
+So a bcdatamapper data refresh that touches a walkability source fails PGMaps' unit tests until the masks are rebuilt, rather than leaving the live heatmap to rasterize in the browser with nothing reported.
 
-The worker first attempts to load:
+## Why not compute them in the browser
 
-```text
-/data/walkability/heatmap/factor_masks.json
-```
+Measured on 24 November 2026 (Apple silicon, Node 22):
 
-If the asset is available and matches the expected encoding and grid metadata, the worker combines prebuilt masks directly. If the asset is missing or invalid, the worker falls back to source-layer rasterization so local development still has a recoverable path.
+| | Prebuilt masks | Rasterize in the browser |
+| --- | --- | --- |
+| Download | 13.6 MB raw, about 0.45 MB gzipped (Pages compresses JSON) | 41 MB of source layers |
+| Work before the first result | Decode and combine | About 25 s of geometry work for all 147 masks |
 
-## Why This Lives in docs/
+The worker still falls back to rasterizing the source layers when the file is missing or invalid, so a local checkout without synced data still recovers.
 
-This is project-level operational context rather than implementation detail for one function. The important decisions span data generation, committed assets, browser performance, and future maintenance. Keeping it in `docs/` makes the rationale discoverable from the repo root and keeps the worker comments focused on local code behavior.
+## Runtime behavior
 
-The existing `docs/` folder already holds similar cross-cutting data and rebuild notes, so this follows the repo's current documentation pattern instead of creating a new convention.
+The worker first loads `/data/walkability/heatmap/factor_masks.json` through `withBase`. If the encoding, cell size and grid size match, it combines the masks directly; if a mask it needs is missing it falls back to rasterizing the source layers.

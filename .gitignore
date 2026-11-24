@@ -104,10 +104,7 @@ public/data/restaurants.json
 public/data/satellite/
 public/data/spartan.csv
 public/data/transit/
-public/data/walkability/**
-!public/data/walkability/heatmap/
-public/data/walkability/heatmap/**
-!public/data/walkability/heatmap/factor_masks.json
+public/data/walkability/
 # Generated from the canonical bcdatamapper WARS snapshot. Never force-add.
 public/data/wars/
 public/data/water/
