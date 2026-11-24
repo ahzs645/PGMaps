@@ -201,6 +201,8 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
                 'A clearcut of beetle-killed timber is not restricted to a listed purpose. Removing individual dead trees from a living stand may be (h), which keeps a 12-month stocking standard.',
               'nar-reserved':
                 'An ADA’s mapping alone is not a reservation. Ask the district whether the agricultural ground can be reserved in the cutting permit or site plan.',
+              'no-reforestation-intended':
+                'Leaving cut ground open needs a basis: FPPR §44(3)(d), reserved ground, or the minister’s exemption under FPPR §91.',
               'natural-regen-meets-standard':
                 'Weigh seed source, grass and shrub competition, and browsing and trampling under the grazing schedule against the stocking standard and regeneration date.',
             }}

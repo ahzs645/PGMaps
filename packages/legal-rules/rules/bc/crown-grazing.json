@@ -935,6 +935,82 @@
     ]
   },
   {
+    "id": "ministerial-exemption",
+    "title": "Exemption from the free-growing duty by the minister",
+    "source": "instrument",
+    "provision": "91(1)(a), 106.1",
+    "scope": [
+      [
+        {
+          "fact": "section-29-scope",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "no-reforestation-intended",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "exempt-purpose",
+          "op": "eq",
+          "value": "No"
+        },
+        {
+          "fact": "nar-reserved",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "With no FPPR §44(3) purpose and no reserved ground, leaving the net area unreforested needs an exemption from FRPA §29, which the minister may grant only if satisfied that the duty is not practicable given the circumstances or conditions of the particular area. It must be in writing, say what it covers and when it takes effect, and be filed with the district office.",
+    "actions": [
+      {
+        "kind": "obtain-approval",
+        "description": "Apply to the district for a §91 exemption before harvest, with the evidence that establishing a free-growing stand is not practicable on that ground (site, grazing, the range plan, past openings nearby), and keep the written exemption with the site plan."
+      },
+      {
+        "kind": "review",
+        "description": "Record nearby openings that were reforested under the same conditions: they bear on whether the duty is practicable."
+      }
+    ]
+  },
+  {
+    "id": "standard-cannot-be-met",
+    "title": "An existing opening that cannot meet its standard",
+    "source": "instrument",
+    "provision": "46.2",
+    "scope": [
+      [
+        {
+          "fact": "section-29-scope",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "existing-standard-unmet",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "A person who knows a free-growing stand cannot be established to the applicable standard must notify the minister with the reasons and submit a proposal for establishing one (stocking standards, free-growing height and latest date). The minister must approve it if it is consistent with FRPA §26(3); a rejection is reviewable.",
+    "actions": [
+      {
+        "kind": "submit",
+        "description": "Give notice and submit the proposal to the district, and record the approval or the written reasons for a rejection."
+      }
+    ]
+  },
+  {
     "id": "intermediate-cut-stocking",
     "title": "Stocking after an intermediate cut",
     "source": "instrument",

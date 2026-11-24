@@ -152,6 +152,20 @@ describe('Crown grazing rules', () => {
     })
   })
 
+  it('sends an intention not to reforest to the minister’s exemption, and an unmet standard to a proposal', () => {
+    const open = { 'section-29-scope': true, 'exempt-purpose': NOT_EXEMPT, 'nar-reserved': false }
+    expect(findings({ ...open, 'no-reforestation-intended': true })['ministerial-exemption']).toBe('review_required')
+    expect(
+      findings({ ...open, 'no-reforestation-intended': true, 'nar-reserved': true })['ministerial-exemption'],
+    ).toBe('condition_not_triggered')
+    expect(
+      findings({ ...open, 'no-reforestation-intended': true, 'exempt-purpose': RANGE_D })['ministerial-exemption'],
+    ).toBe('condition_not_triggered')
+    expect(findings({ 'section-29-scope': true, 'existing-standard-unmet': true })['standard-cannot-be-met']).toBe(
+      'review_required',
+    )
+  })
+
   it('reviews a lease, a range development and a natural barrier', () => {
     expect(
       findings({

@@ -21,7 +21,7 @@ const TOPICS: Record<string, TopicDef[]> = {
     {
       id: 'regeneration',
       label: 'Reforesting the harvested ground (FRPA §29, FPPR §44(3))',
-      sections: ['29', '44', '1'],
+      sections: ['29', '44', '1', '91', '46.2'],
     },
     { id: 'lease', label: 'Land Act grazing lease', sections: ['11', '11.2'] },
     { id: 'designation', label: 'Land Act reserves and designated use areas (§§15–17)', sections: ['15', '17'] },

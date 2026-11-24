@@ -149,6 +149,16 @@
       "type": "boolean"
     },
     {
+      "id": "no-reforestation-intended",
+      "label": "Does the proposal intend to leave the harvested net area unreforested, neither planted nor regenerating naturally to the stocking standard?",
+      "type": "boolean"
+    },
+    {
+      "id": "existing-standard-unmet",
+      "label": "For an opening already harvested, is it known that its stocking standard or free-growing height cannot be met by its dates?",
+      "type": "boolean"
+    },
+    {
       "id": "permanent-grazing-opening",
       "label": "Would the proposal keep any of the area to be reforested permanently open for grazing?",
       "type": "boolean"
