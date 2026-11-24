@@ -91,6 +91,7 @@ book.
 | Saved complete-access comparison      | Canonical input signature at most 8 MiB; 1,000 source allocations; 75,000 IDs per path list; 4,000 unique network cost items                                                                                                                                                                                                                                                                                                     | `fullCostRecord.ts`, `MAX_FULL_COST_SIGNATURE_BYTES`, `MAX_RECORD_ALLOCATIONS`, `MAX_RECORD_PATH_IDS`, `MAX_RECORD_COST_ITEMS`                                                                                                                                                                                                                                                           | Adoption or project import refuses an oversized record                                                                               |
 | Vertical datum text                   | 1–300 characters                                                                                                                                                                                                                                                                                                                                                                                                                 | `project.ts`, `parseTerrain`                                                                                                                                                                                                                                                                                                                                                             | Refused                                                                                                                              |
 | Spatial file import                   | 120,000,000 bytes; 500 features and 50,000 vertices a file; lines as roads: 20 roads, 2,000 vertices                                                                                                                                                                                                                                                                                                                             | `spatialImport.ts`, `MAX_SPATIAL_FILE_BYTES`, `MAX_SPATIAL_FEATURES`, `MAX_SPATIAL_VERTICES`; `project.ts`, `importAlignmentGeoJson`                                                                                                                                                                                                                                                     | Refused, naming the file and what to crop                                                                                            |
+| Import mapping | 3 name fields tried in turn; rows and statuses chosen by value for fields of at most 60 values; 50 saved mappings in this browser | `ImportMappingFields.tsx`, `MAX_NAME_FIELDS`, `MAX_VALUE_CHOICES`; `importMapping.ts`, `MAX_SAVED_MAPPINGS` | A field with more values is not offered for choosing rows; the least recently used saved mapping is forgotten |
 | Reference features                    | 500 features, 50,000 vertices; names 1–200 characters                                                                                                                                                                                                                                                                                                                                                                            | `referenceFeatures.ts`, `MAX_REFERENCE_FEATURES`, `MAX_REFERENCE_VERTICES`                                                                                                                                                                                                                                                                                                               | Refused                                                                                                                              |
 | Reference layer looks                 | 500, one a layer; colour `#RRGGBB`; width 0.5–6 pt or 0.5–200 m on the ground; fill opacity 0–1; a custom dash of 2–8 lengths, each 0.25–40 widths; point size 4–24 pt                                                                                                                                                                                                                                                           | `referenceStyles.ts`, `MAX_REFERENCE_STYLES`, `parseReferenceStyles`; `src/lib/mapSheet/symbolStyle.ts`, `SYMBOL_WIDTH_LIMITS`, `SYMBOL_GROUND_WIDTH_LIMITS`, `DASH_PATTERN_LIMITS`, `SYMBOL_SIZE_LIMITS`, `AREA_PATTERNS`, `LINE_DASHES`, `LINE_MARKERS`, `POINT_ICONS`, `parseSymbolStyle`                                                                                             | Refused, naming the value; a look whose layer is gone is dropped                                                                     |
 | Library JSON                          | 2,000,000 characters                                                                                                                                                                                                                                                                                                                                                                                                             | `project.ts`, `importRoadLibrary`                                                                                                                                                                                                                                                                                                                                                        | Refused                                                                                                                              |
@@ -257,6 +258,42 @@ reader for GeoJSON, zipped shapefiles, KML and KMZ when the geometry is intended
   level from them when that datum matches the terrain's (see
   [section assemblies](section-assemblies.md)). A shapefile cannot carry that property, and the
   import has no field for stating a datum, so a 3D shapefile line comes in flat.
+
+### Mapping a layer's fields
+
+Each GIS layer in the import review has a **Fields** card: how its attributes become what the
+project keeps (`importMapping.ts`, `ImportMappingFields.tsx`). It reads attributes only, never the
+geometry, and every source attribute is kept as read whatever is chosen. It offers only what the
+project has a place for:
+
+- **Name**: up to three fields tried in turn, the first that is not blank naming the feature. Where
+  every one is blank, the feature is numbered within a field's value (**Where blank, number
+  within**: "Saxton 3" is the third Saxton block with no name of its own), else by the file's name.
+- **Rows to import**: every row, or only the rows whose value of a field is ticked (an operating
+  area, a cutting permit). The rows chosen belong to that import and are never saved.
+- **Planned cutblock** only: **Status** names the values of a field that mean harvested. Those rows
+  come in as past harvests, with **Year harvested** read from a field (a whole year, a date or a DBF
+  `YYYYMMDD`) or, failing that, no year; every other row is proposed, and a proposed block never
+  carries a year (`parseHarvestEvidence`). **Opening ID** is kept as the block's RESULTS opening.
+
+A proposed road keeps a name and nothing else: the project has no road class or status for a
+design road, so none is offered. Each choice lists the file's own values with how many rows fill
+them, and the card's summary says what the import will make: a sample of the names, the rows left
+out, the names repeated, the numbering within each group and the past harvests without a year.
+
+The first guess comes from the field names, never from the values' types: names are folded for
+case, spaces and hyphens, and a ten-character DBF name matches the longer name it was cut from
+(`Operating_` for `operating_area`, `fieldMatches`). A name field is guessed even when partly
+filled, with a second only where the first leaves blanks; a group field only when its values
+repeat; a status only with at most 20 values, its harvested values those that read as cut
+(*Harvested*, *Logged*, never *Uncut* or *Not harvested*); a year only when some values read as
+years.
+
+A mapping that differs from the guess is saved in this browser when the layer is imported
+(`pgmaps-road-import-mappings`, `importMappingStore.ts`), keyed by the role, the shapes and the
+file's field names folded and sorted (`mappingKey`). The next file of the same fields, such as
+next year's plan, opens on it, saying so; **Forget it** returns to the guess. Saved mappings never
+go in a project file.
 
 ### While an input is invalid
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { DisclosureRow } from '@/components/ui/disclosure'
+import { DisclosureCard, DisclosureRow } from '@/components/ui/disclosure'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StyledSelect } from '@/components/ui/styled-select'
@@ -16,6 +16,17 @@ import {
   type LayerImportRole,
 } from './referenceImport'
 import type { SpatialFile } from './spatialImport'
+import {
+  applyImportMapping,
+  guessImportMapping,
+  mappingKey,
+  sameMapping,
+  savableMapping,
+  type ImportMapping,
+  type MappingRole,
+} from './importMapping'
+import { forgetSavedMapping, readSavedMappings, rememberImportMappings } from './importMappingStore'
+import { ImportMappingFields, type MappingOrigin } from './ImportMappingFields'
 import { GENERIC_PROFILE_LABEL } from '@/lib/geoPdf/profiles'
 
 /** What each import option does, as {@link LayerImportDialog} passes it on. */
@@ -66,6 +77,15 @@ export function LayerImportDialog({
     }),
   )
   const [error, setError] = useState('')
+  // How each GIS layer's fields map to what the project keeps: a mapping saved in this browser for
+  // files of the same fields, else the guess from the field names. Changeable before importing.
+  const [mappings, setMappings] = useState<Record<string, MappingState>>(() =>
+    Object.fromEntries(
+      choices.flatMap(({ file, role }) => (file.pdf ? [] : [[file.fileName, startMapping(file, mappingRole(role))]])),
+    ),
+  )
+  const setMapping = (fileName: string, next: MappingState) =>
+    setMappings((previous) => ({ ...previous, [fileName]: next }))
   const [included, setIncluded] = useState(() => files.map((file) => file.selected ?? file.pdf?.selected ?? true))
   // A terrain chosen here is the import's ground: the 1 m DEM boxes start off unless asked for.
   const terrainIncluded = choices.some((choice, i) => included[i] && choice.role === 'terrain')
@@ -87,9 +107,34 @@ export function LayerImportDialog({
     setError('')
   }
   const notes = groupNotes(files.flatMap((file) => file.notices ?? []))
+  const includeMany = (indices: readonly number[], on: boolean) => {
+    const chosen = new Set(indices)
+    setIncluded((previous) => previous.map((value, i) => (chosen.has(i) ? on : value)))
+    setError('')
+  }
+  // GIS layers one row each; a map PDF's layers under their sheet, folded when there are many sheets.
+  const gisRows = files.flatMap((file, index) => (file.pdf ? [] : [index]))
+  const sheetGroups = sheetsOf(files)
   const commit = () => {
     try {
-      const selected = choices.filter((_, i) => included[i])
+      const remembered: { key: string; fileName: string; mapping: ImportMapping; guess: ImportMapping }[] = []
+      const selected = choices
+        .filter((_, i) => included[i])
+        .map((choice) => {
+          const state = mappings[choice.file.fileName]
+          if (!state || choice.role === 'terrain') return choice
+          const role = mappingRole(choice.role)
+          remembered.push({
+            key: mappingKey(choice.file, role),
+            fileName: choice.file.fileName.split('/').at(-1)!,
+            mapping: state.mapping,
+            guess: guessImportMapping(choice.file, role),
+          })
+          const file = applyImportMapping(choice.file, state.mapping, role)
+          if (!file.collection.features.length)
+            throw Error(`${choice.file.fileName}: no rows are left to import. Choose rows under Fields.`)
+          return { ...choice, file }
+        })
       if (!selected.length) throw Error('Choose at least one layer to import.')
       if (selected.filter((choice) => choice.role === 'terrain').length > 1)
         throw Error('Choose one terrain: a project has a single terrain surface.')
@@ -100,9 +145,142 @@ export function LayerImportDialog({
         refineWithHillshade: refineWithHillshade && !!hillshade,
         ...(assumed && useAssumedDatum ? { verticalReference: assumedDatumReference(assumed.reference) } : {}),
       })
+      rememberImportMappings(remembered)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not import the layers.')
     }
+  }
+  const renderRow = (index: number, label = choices[index].file.fileName) => {
+    const { file, role, buffer } = choices[index]
+    return (
+      <div
+        key={file.fileName}
+        className="grid gap-2 rounded-md border p-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-start"
+      >
+        <div className="min-w-0">
+          <label className="flex items-start gap-2 break-words text-sm font-medium">
+            <input
+              type="checkbox"
+              aria-label={`Include ${file.fileName}`}
+              checked={included[index]}
+              onChange={(event) => include(index, event.target.checked)}
+            />
+            {/* A path has no spaces to break at: let it wrap anywhere rather than run under the select. */}
+            <span className="min-w-0 [overflow-wrap:anywhere]">{label}</span>
+          </label>
+          <p className="text-xs text-muted-foreground">
+            {file.collection.features.length} {file.collection.features.length === 1 ? 'feature' : 'features'} ·{' '}
+            {file.crs}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {role === 'proposed-road' && linePartCount(file) > 1
+              ? `${linePartCount(file)} separate lines: each loads as its own road, named “(part n)”.`
+              : roleHelp[role]}
+          </p>
+          {file.pdf?.contourSurface && (
+            <p className="mt-1 text-xs text-muted-foreground">Its options are under Elevation found, above.</p>
+          )}
+          {file.pdf && !file.pdf.contourSurface && (
+            <p className="mt-1 text-xs text-muted-foreground">{file.pdf.note}</p>
+          )}
+        </div>
+        <StyledSelect
+          value={role}
+          aria-label={`Import role for ${file.fileName}`}
+          disabled={!included[index] || layerImportOptions(file).length === 1}
+          onChange={(event) => {
+            const role = event.target.value as LayerImportRole
+            const state = mappings[file.fileName]
+            if (state && role !== 'terrain') setMapping(file.fileName, remapForRole(file, state, mappingRole(role)))
+            setChoices((previous) =>
+              previous.map((choice, i) => {
+                if (i === index) return { file, role, buffer: role === 'planned-block' ? choice.buffer : undefined }
+                if (
+                  role !== 'reference' &&
+                  choice.buffer &&
+                  'source' in choice.buffer &&
+                  choice.buffer.source === file.fileName
+                )
+                  return { ...choice, buffer: undefined }
+                return choice
+              }),
+            )
+            setError('')
+          }}
+        >
+          {layerImportOptions(file).map((option) => (
+            <option key={option} value={option}>
+              {LAYER_IMPORT_LABELS[option]}
+            </option>
+          ))}
+        </StyledSelect>
+        {role === 'planned-block' && (
+          <div className="sm:col-start-2">
+            <CutblockBufferField
+              layer={file.fileName}
+              setting={buffer}
+              sources={choices.flatMap((choice) =>
+                choice.file !== file &&
+                choice.role === 'reference' &&
+                layerImportOptions(choice.file).includes('planned-block') &&
+                !choices.some(
+                  ({ buffer: other }) =>
+                    other &&
+                    'source' in other &&
+                    other.source === choice.file.fileName &&
+                    other.layer !== file.fileName,
+                )
+                  ? [{ key: choice.file.fileName, name: choice.file.fileName.split('/').at(-1)! }]
+                  : [],
+              )}
+              onChange={(buffer) =>
+                setChoices((previous) => previous.map((choice, i) => (i === index ? { ...choice, buffer } : choice)))
+              }
+            />
+          </div>
+        )}
+        {mappings[file.fileName] && role !== 'terrain' && (
+          <div className="sm:col-span-2">
+            <ImportMappingFields
+              file={file}
+              role={mappingRole(role)}
+              mapping={mappings[file.fileName].mapping}
+              origin={mappings[file.fileName].origin}
+              disabled={!included[index]}
+              onChange={(mapping) => {
+                const state = mappings[file.fileName]
+                const guess = guessImportMapping(file, mappingRole(role))
+                // Only what a saved mapping carries decides its origin: the rows kept are this file's own.
+                const own = savableMapping(mapping)
+                setMapping(file.fileName, {
+                  mapping,
+                  origin:
+                    state.origin.kind === 'saved' && sameMapping(own, savableMapping(state.saved ?? guess))
+                      ? state.origin
+                      : sameMapping(own, savableMapping(guess))
+                        ? { kind: 'guess' }
+                        : { kind: 'edited' },
+                  saved: state.saved,
+                })
+              }}
+              onReset={() =>
+                setMapping(file.fileName, {
+                  mapping: guessImportMapping(file, mappingRole(role)),
+                  origin: { kind: 'guess' },
+                })
+              }
+              onForget={() => {
+                forgetSavedMapping(mappingKey(file, mappingRole(role)))
+                setMapping(file.fileName, {
+                  mapping: guessImportMapping(file, mappingRole(role)),
+                  origin: { kind: 'guess' },
+                })
+              }}
+            />
+          </div>
+        )}
+      </div>
+    )
   }
   return (
     <PanelDialog
@@ -123,7 +301,7 @@ export function LayerImportDialog({
       }
     >
       <div className="space-y-3">
-        {files.some((file) => file.pdf || file.notices?.length) && (
+        {files.some((file) => file.pdf) && (
           <div className="space-y-2 text-xs">
             {files.some((file) => file.pdf) && (
               <>
@@ -144,20 +322,6 @@ export function LayerImportDialog({
                   matches remain uncertain estimates. Use original GIS layers when supplied.
                 </p>
               </>
-            )}
-            {notes.length > 0 && (
-              <DisclosureRow
-                title="Source import notes"
-                summary={`${notes.length} note${notes.length === 1 ? '' : 's'}`}
-              >
-                <ul className="list-disc space-y-1 pl-4">
-                  {notes.map((note) => (
-                    <li key={note} className="break-words">
-                      {note}
-                    </li>
-                  ))}
-                </ul>
-              </DisclosureRow>
             )}
           </div>
         )}
@@ -255,96 +419,158 @@ export function LayerImportDialog({
           Prepare 1 m DEM download boxes after import
         </label>
         {error && <InlineAlert tone="error">{error}</InlineAlert>}
-        {choices.map(({ file, role, buffer }, index) => (
-          <div
-            key={file.fileName}
-            className="grid gap-2 rounded-md border p-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-start"
-          >
-            <div className="min-w-0">
-              <label className="flex items-start gap-2 break-words text-sm font-medium">
-                <input
-                  type="checkbox"
-                  aria-label={`Include ${file.fileName}`}
-                  checked={included[index]}
-                  onChange={(event) => include(index, event.target.checked)}
-                />
-                {/* A path has no spaces to break at: let it wrap anywhere rather than run under the select. */}
-                <span className="min-w-0 [overflow-wrap:anywhere]">{file.fileName}</span>
-              </label>
-              <p className="text-xs text-muted-foreground">
-                {file.collection.features.length} {file.collection.features.length === 1 ? 'feature' : 'features'} ·{' '}
-                {file.crs}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {role === 'proposed-road' && linePartCount(file) > 1
-                  ? `${linePartCount(file)} separate lines: each loads as its own road, named “(part n)”.`
-                  : roleHelp[role]}
-              </p>
-              {file.pdf?.contourSurface && (
-                <p className="mt-1 text-xs text-muted-foreground">Its options are under Elevation found, above.</p>
-              )}
-              {file.pdf && !file.pdf.contourSurface && (
-                <p className="mt-1 text-xs text-muted-foreground">{file.pdf.note}</p>
-              )}
-            </div>
-            <StyledSelect
-              value={role}
-              aria-label={`Import role for ${file.fileName}`}
-              disabled={!included[index] || layerImportOptions(file).length === 1}
-              onChange={(event) => {
-                const role = event.target.value as LayerImportRole
-                setChoices((previous) =>
-                  previous.map((choice, i) => {
-                    if (i === index) return { file, role, buffer: role === 'planned-block' ? choice.buffer : undefined }
-                    if (
-                      role !== 'reference' &&
-                      choice.buffer &&
-                      'source' in choice.buffer &&
-                      choice.buffer.source === file.fileName
-                    )
-                      return { ...choice, buffer: undefined }
-                    return choice
-                  }),
-                )
-                setError('')
-              }}
+        {gisRows.map((index) => renderRow(index))}
+        {sheetGroups.length > 1 && (
+          <SameLayerToggles files={files} groups={sheetGroups} included={included} onInclude={includeMany} />
+        )}
+        {sheetGroups.map((group) => {
+          const ticked = group.rows.filter((index) => included[index]).length
+          return (
+            <DisclosureCard
+              key={group.sheet}
+              title={group.name}
+              summary={`${ticked} of ${group.rows.length} layer${group.rows.length === 1 ? '' : 's'} ticked`}
+              defaultOpen={sheetGroups.length <= SHEETS_SHOWN_OPEN}
+              actions={
+                <Button variant="ghost" size="sm" onClick={() => includeMany(group.rows, ticked < group.rows.length)}>
+                  {ticked < group.rows.length ? 'Tick all' : 'Untick all'}
+                </Button>
+              }
             >
-              {layerImportOptions(file).map((option) => (
-                <option key={option} value={option}>
-                  {LAYER_IMPORT_LABELS[option]}
-                </option>
-              ))}
-            </StyledSelect>
-            {role === 'planned-block' && (
-              <div className="sm:col-start-2">
-                <CutblockBufferField
-                  layer={file.fileName}
-                  setting={buffer}
-                  sources={choices.flatMap((choice) =>
-                    choice.file !== file &&
-                    choice.role === 'reference' &&
-                    layerImportOptions(choice.file).includes('planned-block') &&
-                    !choices.some(
-                      ({ buffer: other }) =>
-                        other &&
-                        'source' in other &&
-                        other.source === choice.file.fileName &&
-                        other.layer !== file.fileName,
-                    )
-                      ? [{ key: choice.file.fileName, name: choice.file.fileName.split('/').at(-1)! }]
-                      : [],
-                  )}
-                  onChange={(buffer) =>
-                    setChoices((previous) =>
-                      previous.map((choice, i) => (i === index ? { ...choice, buffer } : choice)),
-                    )
-                  }
-                />
+              <div className="space-y-2">
+                {group.rows.map((index) => renderRow(index, layerLabel(choices[index].file)))}
               </div>
-            )}
-          </div>
-        ))}
+            </DisclosureCard>
+          )
+        })}
+        {notes.length > 0 && (
+          <DisclosureRow title="Source import notes" summary={`${notes.length} note${notes.length === 1 ? '' : 's'}`}>
+            <ul className="list-disc space-y-1 pl-4">
+              {notes.map((note) => (
+                <li key={note} className="break-words">
+                  {note}
+                </li>
+              ))}
+            </ul>
+          </DisclosureRow>
+        )}
       </div>
     </PanelDialog>
   )
+}
+
+/** Up to this many sheets open with their layers shown; more (an overview set) start folded. */
+const SHEETS_SHOWN_OPEN = 3
+
+/** The layer's own name under its sheet: "Lake (FWA)" rather than "sheet.pdf/Page 1/Lake (FWA)". */
+const layerLabel = (file: SpatialFile) => file.fileName.split('/').at(-1) ?? file.fileName
+
+/** A map PDF's layers, by sheet, in the order the import read them. */
+function sheetsOf(files: readonly SpatialFile[]) {
+  const groups = new Map<string, { sheet: string; name: string; rows: number[] }>()
+  files.forEach((file, index) => {
+    if (!file.pdf) return
+    const sheet = file.pdf.source.file
+    const group = groups.get(sheet) ?? { sheet, name: sheet.split('/').at(-1) ?? sheet, rows: [] }
+    group.rows.push(index)
+    groups.set(sheet, group)
+  })
+  return [...groups.values()]
+}
+
+/**
+ * One switch per layer that several sheets carry (the same legend on every overview sheet), so
+ * "Lake (FWA)" is ticked or unticked on all of them at once. Each sheet's rows stay below.
+ */
+function SameLayerToggles({
+  files,
+  groups,
+  included,
+  onInclude,
+}: {
+  files: readonly SpatialFile[]
+  groups: ReturnType<typeof sheetsOf>
+  included: readonly boolean[]
+  onInclude: (indices: readonly number[], on: boolean) => void
+}) {
+  const byLayer = new Map<string, number[]>()
+  for (const group of groups)
+    for (const index of group.rows) {
+      const name = layerLabel(files[index])
+      byLayer.set(name, [...(byLayer.get(name) ?? []), index])
+    }
+  const shared = [...byLayer].filter(([, rows]) => rows.length > 1)
+  if (!shared.length) return null
+  return (
+    <DisclosureCard
+      title="Layers on several sheets"
+      summary={`${shared.length} layers · tick or untick each on every sheet at once`}
+      defaultOpen
+    >
+      <div className="grid gap-1 sm:grid-cols-2" data-testid="import-shared-layers">
+        {shared.map(([name, rows]) => {
+          const ticked = rows.filter((index) => included[index]).length
+          return (
+            <label key={name} className="flex min-w-0 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                aria-label={`${name} on every sheet`}
+                checked={ticked === rows.length}
+                ref={(input) => {
+                  if (input) input.indeterminate = ticked > 0 && ticked < rows.length
+                }}
+                onChange={(event) => onInclude(rows, event.target.checked)}
+              />
+              <span className="min-w-0 truncate">{name}</span>
+              <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                {ticked ? `${ticked} of ${rows.length}` : `${rows.length} sheets`}
+              </span>
+            </label>
+          )
+        })}
+      </div>
+    </DisclosureCard>
+  )
+}
+
+/** A GIS layer's mapping as the dialog holds it: what is shown, where it came from, and the saved one it started from. */
+interface MappingState {
+  mapping: ImportMapping
+  origin: MappingOrigin
+  saved?: ImportMapping
+}
+
+/** The mapping roles: a terrain is a PDF's contours and has no fields to map. */
+const mappingRole = (role: LayerImportRole): MappingRole => (role === 'terrain' ? 'reference' : role)
+
+/** A layer's first mapping: one saved in this browser for files of the same fields, else the guess. */
+function startMapping(file: SpatialFile, role: MappingRole): MappingState {
+  const key = mappingKey(file, role)
+  const saved = readSavedMappings().find((item) => item.key === key)
+  return saved
+    ? { mapping: saved.mapping, origin: { kind: 'saved', savedAt: saved.savedAt }, saved: saved.mapping }
+    : { mapping: guessImportMapping(file, role), origin: { kind: 'guess' } }
+}
+
+/**
+ * The mapping after the layer's role changes: the person's own choices of name and rows are kept,
+ * and the targets the new role adds or drops (a block's status, year and opening) follow its guess.
+ */
+function remapForRole(file: SpatialFile, state: MappingState, role: MappingRole): MappingState {
+  if (state.origin.kind !== 'edited') return startMapping(file, role)
+  const guess = guessImportMapping(file, role)
+  const own: ImportMapping = {
+    nameFields: state.mapping.nameFields,
+    groupField: state.mapping.groupField,
+    ...(state.mapping.keep ? { keep: state.mapping.keep } : {}),
+  }
+  return {
+    mapping: {
+      ...own,
+      ...(guess.status ? { status: guess.status } : {}),
+      ...(guess.yearField ? { yearField: guess.yearField } : {}),
+      ...(guess.openingIdField ? { openingIdField: guess.openingIdField } : {}),
+    },
+    origin: { kind: 'edited' },
+  }
 }

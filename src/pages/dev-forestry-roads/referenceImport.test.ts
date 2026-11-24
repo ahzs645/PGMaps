@@ -6,6 +6,8 @@ import {
   linePartCount,
   preferTighterRegistration,
   suggestedLayerRole,
+  tickSheetsByFrame,
+  unreadFilesNote,
 } from './referenceImport'
 import type { SpatialFile } from './spatialImport'
 
@@ -176,5 +178,99 @@ describe('two sheets of one map frame', () => {
     preferTighterRegistration(close)
     expect(close.map((file) => file.pdf!.selected)).toEqual([true, false])
     expect(close.every((file) => !file.notices)).toBe(true)
+  })
+})
+
+describe('sheets of different areas', () => {
+  const frame = (shift: number): GeoJSON.Polygon => ({
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-121.5 + shift, 54.07],
+        [-121.4 + shift, 54.07],
+        [-121.4 + shift, 54.0],
+        [-121.5 + shift, 54.0],
+        [-121.5 + shift, 54.07],
+      ],
+    ],
+  })
+  const sheet = (file: string, shift: number, selected = false): SpatialFile => ({
+    fileName: `${file}/Page 1/Map sheet`,
+    format: 'GeoPDF',
+    crs: 'Embedded',
+    collection: { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: frame(shift) }] },
+    pdf: {
+      source: { file, sha256: '', page: 1, layer: 'Map sheet', profile: 'p', registrationErrorM: 0 },
+      note: '',
+      selected,
+      sheet: { image: '', corners: [] as never },
+    },
+  })
+
+  it('ticks one sheet of each frame, not a second sheet of a frame already shown', () => {
+    const files = [sheet('a.pdf', 0, true), sheet('a-canopy.pdf', 0), sheet('b.pdf', 1), sheet('c.pdf', 2)]
+    tickSheetsByFrame(files, null)
+    expect(files.map((file) => file.pdf!.selected)).toEqual([true, false, true, true])
+  })
+
+  it('with GIS layers in the import, adds only the frames over them', () => {
+    const files = [sheet('a.pdf', 0, true), sheet('b.pdf', 1), sheet('c.pdf', 2)]
+    tickSheetsByFrame(files, [-120.48, 54.01, -120.42, 54.05])
+    expect(files.map((file) => file.pdf!.selected)).toEqual([true, true, false])
+  })
+})
+
+describe('files a folder holds that are not read', () => {
+  it('names them in one note, and passes over a shapefile’s sidecars', () => {
+    expect(
+      unreadFilesNote([
+        'Plan/blocks.shp',
+        'Plan/blocks.dbf',
+        'Plan/blocks.sbn',
+        'Plan/blocks.shp.xml',
+        'Plan/blocks.shp.HOST.1.2.sr.lock',
+        'Plan/blocks.shp.HOST.3.4.sr.lock',
+        'Plan/Plan notes.docx',
+        'Plan/~$an notes.docx',
+        'Plan/Maps/sheet.pdf',
+      ]),
+    ).toBe('Not read: 2 ArcGIS lock files; Plan notes.docx (Word document); 1 Office lock file.')
+    expect(unreadFilesNote(['blocks.shp', 'blocks.prj', 'sheet.pdf'])).toBeNull()
+  })
+})
+
+describe('a plan’s block file', () => {
+  const blocks = (fileName: string, properties: Record<string, unknown>): SpatialFile => ({
+    fileName,
+    format: 'shapefile',
+    crs: 'EPSG:3005',
+    collection: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties,
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [-121.5, 54],
+                [-121.49, 54],
+                [-121.49, 54.01],
+                [-121.5, 54],
+              ],
+            ],
+          },
+        },
+      ],
+    },
+  })
+
+  it('is suggested as planned cutblocks when its name says plan and it carries a block identifier', () => {
+    expect(suggestedLayerRole(blocks('Plan/District_5_Year_Plan.shp', { Block_ID: '', Area: 3 }))).toBe('planned-block')
+    expect(suggestedLayerRole(blocks('Plan/proposed.shp', { CUT_BLOCK_: 'A1' }))).toBe('planned-block')
+    // A plan file without a block field, or a block file not named as a plan, stays reference.
+    expect(suggestedLayerRole(blocks('Plan/District_5_Year_Plan.shp', { Area: 3 }))).toBe('reference')
+    expect(suggestedLayerRole(blocks('Plan/Openings.shp', { Block_ID: 'A1' }))).toBe('reference')
   })
 })

@@ -233,8 +233,18 @@ export function suggestedLayerRole(file: SpatialFile): LayerImportRole {
   )
     return 'proposed-road'
   if (options.includes('planned-block') && /^[A-Z]{2,}\d+$/i.test(stem)) return 'planned-block'
+  if (options.includes('planned-block') && PLAN_FILE.test(stem) && hasBlockKey(file)) return 'planned-block'
   return 'reference'
 }
+
+/** A file named as a plan or proposal: "5 Year Plan", "proposed blocks", "FDP", "draft". */
+const PLAN_FILE = /plan|propos|draft|fdp|\bfom\b|(^|[^a-z])fsp([^a-z]|$)/i
+/** A block's own identifier field, DBF-truncated names included (`CUT_BLOCK_`, `CUTBLOCK_I`). */
+const BLOCK_KEY = /^(block(_?(id|no|num|name))?|blk(_?(id|no|num))?|cut_?block(_?(id|no|num|i))?_?|opening_?id)$/i
+const hasBlockKey = (file: SpatialFile) =>
+  file.collection.features.some((f) =>
+    Object.keys(f.properties?.sourceAttributes ?? f.properties ?? {}).some((key) => BLOCK_KEY.test(key)),
+  )
 
 /**
  * The design road a proposed line became. `edited: false` is a road that still has the line's own
@@ -294,6 +304,43 @@ export function loadImportedProposedRoads(
   return next
 }
 
+/** A shapefile's own sidecars: read with it (`.shx`, `.dbf`, `.prj`, `.cpg`) or not needed (indexes, metadata). */
+const SHAPEFILE_SIDECAR = /\.(shx|dbf|prj|cpg|sbn|sbx|qix|fix|atx|ain|aih|ixs|mxs|qmd|shp\.xml)$/i
+
+/** What a file left unread is, in a word, for the import's "Not read" note. */
+function unreadKind(name: string) {
+  if (/^~\$/.test(name)) return 'Office lock file'
+  if (/\.lock$/i.test(name)) return 'ArcGIS lock file'
+  if (/\.(docx?|rtf|odt)$/i.test(name)) return 'Word document'
+  if (/\.(xlsx?|xlsm|csv|ods)$/i.test(name)) return 'spreadsheet'
+  if (/\.(png|jpe?g|tiff?|gif|heic|webp)$/i.test(name)) return 'picture'
+  return null
+}
+
+/**
+ * One note naming what a picked folder held that the import does not read, so a skipped file is never
+ * silent. A shapefile's sidecars are read with it or not needed, and are not named. Null when every
+ * file was read.
+ */
+export function unreadFilesNote(paths: readonly string[]): string | null {
+  const unread = paths.filter(
+    (path) => !LAYER_FILE.test(path) && !/\.pdf$/i.test(path) && !SHAPEFILE_SIDECAR.test(path),
+  )
+  if (!unread.length) return null
+  const byKind = new Map<string, string[]>()
+  for (const path of unread) {
+    const name = path.split('/').at(-1)!
+    const kind = unreadKind(name) ?? 'not a map layer'
+    byKind.set(kind, [...(byKind.get(kind) ?? []), name])
+  }
+  const parts = [...byKind].map(([kind, names]) =>
+    /lock file$/.test(kind)
+      ? `${names.length} ${kind}${names.length === 1 ? '' : 's'}`
+      : `${names.slice(0, 6).join(', ')}${names.length > 6 ? ` and ${names.length - 6} more` : ''} (${kind})`,
+  )
+  return `Not read: ${parts.join('; ')}.`
+}
+
 /** Each file is a layer. Sidecars must have the same stem in the same directory. */
 export async function readReferenceImport(picked: readonly PickedFile[], signal?: AbortSignal): Promise<SpatialFile[]> {
   const files = picked.filter(
@@ -305,8 +352,11 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
   const pdfs = files
     .filter(({ path }) => /\.pdf$/i.test(path))
     .sort((a, b) => Number(isCopyName(a.path)) - Number(isCopyName(b.path)) || a.path.localeCompare(b.path))
+  const unread = unreadFilesNote(files.map(({ path }) => path))
   if (!layers.length && !pdfs.length)
-    throw Error('Choose a Canfor map PDF, a folder with shapefiles, GeoJSON, KML, KMZ or a shapefile ZIP.')
+    throw Error(
+      `Nothing here is a map layer. Choose a map PDF, shapefiles (or a folder or ZIP holding them), GeoJSON, KML or KMZ.${unread ? ` ${unread}` : ''}`,
+    )
 
   const decoded: SpatialFile[] = []
   for (const { file, path } of layers) {
@@ -341,6 +391,8 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
       }
     }
   }
+  // Where the GIS layers lie, read before the sheets join `decoded`: a sheet away from them is not ticked.
+  const gisExtent = layersExtent(decoded)
   if (pdfs.length) {
     const { importGeoPdf } = await import('@/lib/geoPdf/client')
     const seen = new Map<string, string>()
@@ -414,6 +466,7 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
       decoded.push(...added)
     }
     preferTighterRegistration(decoded)
+    tickSheetsByFrame(decoded, gisExtent)
     // A template draws the same contours on several sheets. Offer one terrain: the field sheet's,
     // else the one with the most labelled lines, and name the others.
     const surfaces = decoded.filter((file) => file.pdf?.contourSurface)
@@ -431,7 +484,46 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
       )
     }
   }
+  if (unread && decoded[0]) (decoded[0].notices ??= []).push(unread)
   return decoded
+}
+
+/**
+ * Ticks the map sheet of every frame not already shown: sheets of one block (slope, canopy, field
+ * layout) share a frame and keep the one already chosen, while overview sheets of different areas are
+ * each ticked. With GIS layers in the import, only frames over them are added. Changes `files` in place.
+ */
+export function tickSheetsByFrame(
+  files: SpatialFile[],
+  extent: readonly [number, number, number, number] | null,
+): void {
+  const frames = files.flatMap((file) => {
+    const geometry = file.collection.features[0]?.geometry
+    return file.pdf?.sheet && !file.pdf.classGrid && !file.pdf.imageMosaic && geometry?.type === 'Polygon'
+      ? [{ file, corners: geometry.coordinates[0].slice(0, 4) }]
+      : []
+  })
+  const metres = (a: number[], b: number[]) =>
+    Math.hypot((a[0] - b[0]) * Math.cos((a[1] * Math.PI) / 180), a[1] - b[1]) * 111_320
+  const sameFrame = (a: number[][], b: number[][]) =>
+    a.length === b.length && a.every((corner, i) => metres(corner, b[i]) <= SAME_FRAME_M)
+  const shown = frames.filter(({ file }) => file.pdf!.selected)
+  for (const frame of frames) {
+    if (frame.file.pdf!.selected || shown.some((other) => sameFrame(other.corners, frame.corners))) continue
+    if (extent) {
+      const xs = frame.corners.map((c) => c[0]),
+        ys = frame.corners.map((c) => c[1])
+      if (
+        Math.max(...xs) < extent[0] ||
+        Math.min(...xs) > extent[2] ||
+        Math.max(...ys) < extent[1] ||
+        Math.min(...ys) > extent[3]
+      )
+        continue
+    }
+    frame.file.pdf!.selected = true
+    shown.push(frame)
+  }
 }
 
 /** Imports a batch as one edit and refreshes only features belonging to the same source paths. */
@@ -455,7 +547,16 @@ export function applyLayerImport(project: RoadProject, choices: readonly LayerIm
         sourceAttributes: feature.properties?.sourceAttributes ?? feature.properties,
         ...(file.pdf ? { pdfSource: file.pdf.source } : {}),
         kind: planned ? 'harvest' : 'reference',
-        ...(planned ? { harvestEvidence: { source: 'user', status: 'proposed', yearMethod: 'unknown' } } : {}),
+        // The mapping step may have marked a row harvested, with its year; otherwise a block is proposed.
+        ...(planned
+          ? {
+              harvestEvidence: feature.properties?.harvestEvidence ?? {
+                source: 'user',
+                status: 'proposed',
+                yearMethod: 'unknown',
+              },
+            }
+          : {}),
       },
     }))
     const result = buildSpatialImport(
