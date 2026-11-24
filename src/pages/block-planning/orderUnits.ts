@@ -49,7 +49,8 @@ export function orderUnitUrl(district: string, ndu: string, page: number, pageSi
     `LEGAL_FEAT_ATRB_2_VALUE = ${quote(name)}`,
     sub
       ? `LEGAL_FEAT_ATRB_6_VALUE = ${quote(sub)}`
-      : `(LEGAL_FEAT_ATRB_6_VALUE IS NULL OR LEGAL_FEAT_ATRB_6_VALUE = '')`,
+      : // A unit without a sub-unit (McGregor Plateau, Wet Mountain) carries a single space there.
+        `(LEGAL_FEAT_ATRB_6_VALUE IS NULL OR LEGAL_FEAT_ATRB_6_VALUE IN ('', ' '))`,
   ].join(' AND ')
   const params = new URLSearchParams({
     service: 'WFS',

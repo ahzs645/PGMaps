@@ -37,6 +37,8 @@ describe('the order units', () => {
     expect(filter).toContain("LEGAL_FEAT_ATRB_6_VALUE = 'Mountain'")
     const none = new URL(orderUnitUrl('Vanderhoof', 'Wet Mountain', 0)).searchParams.get('CQL_FILTER')
     expect(none).toContain('LEGAL_FEAT_ATRB_6_VALUE IS NULL')
+    // The layer stores a single space, not null, for McGregor Plateau's and Wet Mountain's sub-unit.
+    expect(none).toContain("LEGAL_FEAT_ATRB_6_VALUE IN ('', ' ')")
     expect(() => orderUnitUrl('Mackenzie', 'Wet Mountain', 0)).toThrow(/not one of the order/)
   })
 
