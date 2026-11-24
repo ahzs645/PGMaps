@@ -7,6 +7,7 @@
  * DOM- and network-free.
  */
 import type { Plan, Shape } from './plan'
+import type { OldForestRepresentation } from './oldForest/representation'
 
 export interface BoardCheckRecord {
   ranOn: string
@@ -47,6 +48,8 @@ export interface OldForestPoolUnit {
   counts: OldForestRecord['counts']
   schedules: { schedule: string; years: OldForestYear[] }[]
   calibration2019: OldForestYear | null
+  /** D.3's summary for this unit (`oldForest/representation.ts`); absent in a record made before it. */
+  representation?: OldForestRepresentation
 }
 
 export const OLD_FOREST_EXCLUDED_KINDS = ['non-crown', 'tfl', 'woodlot', 'community-forest'] as const
@@ -94,6 +97,12 @@ export interface OldForestRecord {
    * pooled; `schedules` are then the pool's sums, and the fields above the chosen unit's own.
    */
   pool?: OldForestPoolUnit[]
+  /**
+   * D.3's summary for the chosen unit, the schedule under review, every year: old forest beside the
+   * CFLB proxy by BEC variant, leading species, age class and site index. An output, never a key's
+   * input; absent in a record made before it, which stays current.
+   */
+  representation?: OldForestRepresentation
 }
 
 /** What the reviewer chooses for Objectives A and B (docs/forestry-old-forest.md). */

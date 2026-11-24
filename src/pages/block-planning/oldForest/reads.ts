@@ -38,6 +38,11 @@ export const VRI_FIELDS = [
   'BCLCS_LEVEL_2',
   'FOR_MGMT_LAND_BASE_IND',
   'SPECIES_CD_1',
+  // D.3's summary (`representation.ts`) only: they change no figure.
+  'BEC_ZONE_CODE',
+  'BEC_SUBZONE',
+  'BEC_VARIANT',
+  'SITE_INDEX',
 ] as const
 
 /** Past this many stands the read stops and says so: a unit that large needs a prepared table. */
@@ -120,6 +125,10 @@ export interface Stand {
   treed: boolean
   forestLandBase: boolean
   leading: string | null
+  /** BEC zone, subzone and variant as printed (`SBS wk1`), for D.3's summary; null or absent when the VRI gives none. */
+  bec?: string | null
+  /** VRI `SITE_INDEX` (metres at 50 years), for D.3's summary; null or absent when the VRI gives none. */
+  siteIndex?: number | null
   geometry: Polygon | MultiPolygon
 }
 
@@ -133,6 +142,9 @@ export function standFromVri(f: RawFeature): Stand | null {
   if (!g || (g.type !== 'Polygon' && g.type !== 'MultiPolygon')) return null
   const p = f.properties
   const age = Number(p.PROJ_AGE_1)
+  const site = Number(p.SITE_INDEX)
+  const part = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+  const zone = part(p.BEC_ZONE_CODE).toUpperCase()
   return {
     id: String(p.FEATURE_ID ?? f.id),
     projectedAge: p.PROJ_AGE_1 == null || !Number.isFinite(age) ? null : age,
@@ -141,6 +153,8 @@ export function standFromVri(f: RawFeature): Stand | null {
     treed: p.BCLCS_LEVEL_2 === 'T',
     forestLandBase: p.FOR_MGMT_LAND_BASE_IND === 'Y',
     leading: typeof p.SPECIES_CD_1 === 'string' && p.SPECIES_CD_1.trim() ? p.SPECIES_CD_1.trim().toUpperCase() : null,
+    bec: zone ? `${zone} ${part(p.BEC_SUBZONE).toLowerCase()}${part(p.BEC_VARIANT)}`.trim() : null,
+    siteIndex: p.SITE_INDEX == null || !Number.isFinite(site) ? null : site,
     geometry: g,
   }
 }

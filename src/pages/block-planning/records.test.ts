@@ -144,3 +144,57 @@ describe('D.4 and D.2 in the kept record', () => {
     expect(analysis.detail).toMatch(/leans on D\.4: old is met only with younger stands from 100 years, from 2026/)
   })
 })
+
+describe('D.3 in the kept record', () => {
+  it('keeps the summary as an output: it reads back, and it changes no key', () => {
+    let plan = setOldForest(setArea(samplePlan(), { district: 'Prince George' }), { unit: 'A10' })
+    const key = oldForestKey(plan)
+    const row = (rowKey: string, cflbHa: number, oldHa: number, nonPineOldHa: number) => ({
+      key: rowKey,
+      cflbHa,
+      oldHa,
+      nonPineOldHa,
+    })
+    const representation = {
+      schedule: plan.reviewSchedule,
+      years: [
+        {
+          year: 2026,
+          interiorHa: 40,
+          interiorNonPineHa: 25,
+          by: {
+            species: [row('pine', 600, 100, 0), row('spruce', 400, 200, 200)],
+            bec: [row('SBS wk1', 1000, 300, 200)],
+            age: [row('8', 300, 300, 200), row('3', 700, 0, 0)],
+            site: [row('none', 1000, 300, 200)],
+          },
+        },
+      ],
+    }
+    plan = setCheck(plan, 'oldForest', {
+      ranOn: '2026-11-24',
+      readOn: '2026-11-24',
+      key,
+      district: 'Prince George',
+      unit: 'A10',
+      source: 'test',
+      cflbProxyHa: 1000,
+      gisFraction: 0.12,
+      projectedYear: 2025,
+      counts: { stands: 1, ogmas: 0, parks: 0, retention: 0, corridors: 0 },
+      schedules: [{ schedule: plan.reviewSchedule, years: [year(2026)] }],
+      calibration2019: null,
+      representation,
+    })
+    expect(oldForestCurrent(plan)).toBe(true)
+    expect(oldForestKey(plan)).toBe(key)
+    const reread = parsePlan(JSON.parse(JSON.stringify(plan)))
+    expect(reread.checks?.oldForest?.representation).toEqual(representation)
+    // A record made before D.3's summary still opens, current and without one.
+    const older = { ...plan.checks!.oldForest! }
+    delete older.representation
+    const before = parsePlan(JSON.parse(JSON.stringify({ ...plan, checks: { oldForest: older } })))
+    expect(before.checks?.oldForest?.representation).toBeUndefined()
+    expect(oldForestCurrent(before)).toBe(true)
+  })
+})

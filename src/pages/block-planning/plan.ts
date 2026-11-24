@@ -26,6 +26,11 @@ import type {
   PlanChecks,
 } from './records'
 import { CORRIDOR_KINDS, OLD_FOREST_EXCLUDED_KINDS } from './records'
+import {
+  REPRESENTATION_BREAKDOWNS,
+  type OldForestRepresentation,
+  type RepresentationRow,
+} from './oldForest/representation'
 import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { districts, table } from '../forest-patches/project'
 import { parseGroundReads, type GroundRead } from './ground/record'
@@ -578,8 +583,46 @@ function parseOldForestSchedules(value: unknown, label: string): OldForestRecord
   })
 }
 
-/** D.4 and D.2 parts of a kept record; absent when neither was used, so older records read as before. */
-function parseOldForestExtras(r: JsonObject): Pick<OldForestRecord, 'younger' | 'pool'> {
+const optionalRepresentation = (o: JsonObject, label: string) => {
+  const r = optional(o, 'representation', (v) => parseRepresentation(v, `${label} representation`))
+  return r ? { representation: r } : {}
+}
+
+/** D.3's summary of a kept record; absent in records made before it. */
+function parseRepresentation(value: unknown, label: string): OldForestRepresentation {
+  const o = object(value, label)
+  const row = (v: unknown, at: string): RepresentationRow => {
+    const r = object(v, at)
+    return {
+      key: text(r.key, `${at} key`, 60),
+      cflbHa: num(r.cflbHa, `${at} cflbHa`),
+      oldHa: num(r.oldHa, `${at} oldHa`),
+      nonPineOldHa: num(r.nonPineOldHa, `${at} nonPineOldHa`),
+    }
+  }
+  return {
+    schedule: text(o.schedule, `${label} schedule`),
+    years: list(o.years, `${label} years`, 50).map((y, i) => {
+      const at = `${label} year ${i + 1}`
+      const yo = object(y, at)
+      const by = object(yo.by, `${at} by`)
+      return {
+        year: int(yo.year, `${at} year`, ...YEAR_RANGE),
+        interiorHa: numOrNull(yo.interiorHa, `${at} interiorHa`),
+        interiorNonPineHa: numOrNull(yo.interiorNonPineHa, `${at} interiorNonPineHa`),
+        by: Object.fromEntries(
+          REPRESENTATION_BREAKDOWNS.map((b) => [
+            b,
+            list(by[b], `${at} ${b}`, 500).map((r, j) => row(r, `${at} ${b} row ${j + 1}`)),
+          ]),
+        ) as OldForestRepresentation['years'][number]['by'],
+      }
+    }),
+  }
+}
+
+/** D.4, D.2 and D.3 parts of a kept record; absent when not used, so older records read as before. */
+function parseOldForestExtras(r: JsonObject): Pick<OldForestRecord, 'younger' | 'pool' | 'representation'> {
   const younger = optional(r, 'younger', (v) => {
     const y = object(v, 'checks.oldForest.younger')
     return {
@@ -604,10 +647,15 @@ function parseOldForestExtras(r: JsonObject): Pick<OldForestRecord, 'younger' | 
         schedules: parseOldForestSchedules(o.schedules, label),
         calibration2019:
           o.calibration2019 === null ? null : parseOldForestYear(o.calibration2019, `${label} calibration2019`),
+        ...optionalRepresentation(o, label),
       }
     }),
   )
-  return { ...(younger ? { younger } : {}), ...(pool ? { pool } : {}) }
+  return {
+    ...(younger ? { younger } : {}),
+    ...(pool ? { pool } : {}),
+    ...optionalRepresentation(r, 'checks.oldForest'),
+  }
 }
 
 function parseOldForestYear(value: unknown, label: string): OldForestYear {
