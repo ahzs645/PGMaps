@@ -264,7 +264,7 @@ import {
   referenceLayerKey,
   type LayerFeature,
 } from './dev-forestry-roads/referenceFeatures'
-import { ReferencePanel } from './dev-forestry-roads/ReferencePanel'
+import { ReferencePanel, type BaseMapLayer } from './dev-forestry-roads/ReferencePanel'
 import { LayerImportDialog, type LayerImportOptions } from './dev-forestry-roads/LayerImportDialog'
 import { DetailAreaDialog, type DetailSource, type DetailWindow } from './dev-forestry-roads/DetailAreaDialog'
 import { LIDAR_BC_VERTICAL_REFERENCE } from './dev-forestry-roads/lidarBcDem'
@@ -4924,6 +4924,7 @@ export default function DevForestryRoads({
       const { basename } = exportBasis(kind)
       return {
         type: 'html',
+        page: 'screen',
         html: projectFilePreviewHtml(safe, exportFileType(kind, basename, fileVariant(), safe.name).name),
       }
     }
@@ -4942,7 +4943,7 @@ export default function DevForestryRoads({
         exportRoads(safe.alignments, alignment.id, packageScope).map((road) => road.name),
         `${basename}-report-package.zip`,
       )
-      if (packageFront(settings.package) !== 'summary') return { type: 'html', html: files }
+      if (packageFront(settings.package) !== 'summary') return { type: 'html', page: 'screen', html: files }
       // The summary page as it prints (page numbers are set when the file is laid out), then the files.
       const summary = packageSummaryHtml(
         summaryInput(
@@ -5067,7 +5068,7 @@ export default function DevForestryRoads({
         roadEngProjectFile(safe),
         import('./dev-forestry-roads/roadEngTerrainOriginal'),
       ])
-      return { type: 'html', html: roadEngCarryOverHtml(written.carryOver, written.notes) }
+      return { type: 'html', page: 'screen', html: roadEngCarryOverHtml(written.carryOver, written.notes) }
     }
     if (kind === 'roadeng') {
       // The archive is binary; preview the first road's line records, as written.
@@ -5080,7 +5081,7 @@ export default function DevForestryRoads({
         import('./dev-forestry-roads/styledExportPreview'),
       ])
       const label = EXPORT_ITEMS.find((item) => item.kind === kind)?.label ?? 'Export'
-      return { type: 'html', html: styledExportPreviewHtml(label, bundle) }
+      return { type: 'html', page: 'screen', html: styledExportPreviewHtml(label, bundle) }
     }
     if (kind === 'geopackage' || kind === 'kmz') {
       // Built as it downloads, so the preview lists the same warnings and simplified symbols.
@@ -5089,7 +5090,7 @@ export default function DevForestryRoads({
     }
     if (kind === 'design-model') {
       const [model, built] = await Promise.all([import('./dev-forestry-roads/designModelExport'), designModel()])
-      return { type: 'html', html: model.designModelPreviewHtml(built) }
+      return { type: 'html', page: 'screen', html: model.designModelPreviewHtml(built) }
     }
     if (kind === 'shapefile') {
       // The zip holds binary layers; preview the same layers' geometry instead.
@@ -5568,6 +5569,26 @@ export default function DevForestryRoads({
   function togglePlanOption(set: (update: (shown: boolean) => boolean) => void) {
     showPane('plan')
     set((shown) => !shown)
+  }
+  /**
+   * A plan overlay the registry names, as a row in Layers: its name, explanation and availability are the command's
+   * (`commandStates`), so the ribbon button and the row never disagree. Hidden commands list nothing.
+   */
+  function planOverlayRow(id: WorkspaceCommand, set: (shown: boolean) => void, alone = false): BaseMapLayer[] {
+    const state = commandStates[id]
+    if (state?.hidden) return []
+    const { label, description } = commandDef(id)
+    return [
+      {
+        key: id,
+        name: label,
+        description: description ?? label,
+        visible: !!state?.pressed,
+        unavailable: state?.disabled ? (state.reason ?? 'Not available for this project.') : undefined,
+        onVisibleChange: set,
+        alone,
+      },
+    ]
   }
   function openExport(kind: RoadExport) {
     setExportDay(isoDate(new Date()))
@@ -8459,6 +8480,25 @@ export default function DevForestryRoads({
                     : undefined,
               onVisibleChange: planDisplay.setShowHrdem,
             },
+            // Imagery read from the network: shown only by its own eye, never by Show all.
+            ...planOverlayRow('sentinel2', planDisplay.setShowSentinel, true),
+            ...planOverlayRow('canopyHeight', planDisplay.setShowCanopy, true),
+            ...planOverlayRow('waybackTimeline', planDisplay.setShowWayback, true),
+          ]}
+          roadLayers={[
+            ...planOverlayRow('stationLabels', planDisplay.setShowLabels),
+            ...planOverlayRow('earthworks', planDisplay.setShowEarthwork),
+            ...(sweptOnPlan?.features.length
+              ? [
+                  {
+                    key: 'swept-path',
+                    name: 'Vehicle swept path',
+                    description: "The design vehicle's swept path on the plan, where a check has been run.",
+                    visible: showSwept,
+                    onVisibleChange: setShowSwept,
+                  },
+                ]
+              : []),
           ]}
           // The plan's Basemap button and this row set the same choice (`usePlanDisplay`).
           basemap={{
@@ -8477,6 +8517,7 @@ export default function DevForestryRoads({
             commands: ['detailedDem', 'regional'],
             states: commandStates,
             onCommand: runCommand,
+            layers: planOverlayRow('contours', planDisplay.setShowContours),
           }}
         />
       )}

@@ -8,6 +8,7 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { SaveAsButton } from '@/components/ui/save-as-button'
 import { downloadText } from '@/lib/download'
 import { escapeHtml } from '@/lib/escapeHtml'
+import { screenColour } from '@/lib/screenPage'
 import { cn } from '@/lib/utils'
 import type { Pack } from '../../../packages/legal-rules/src/contract'
 import { BLOCK_PLANNING_EXPORTS, buildExport, type BlockPlanningExport } from './exports'
@@ -18,7 +19,7 @@ const PREVIEW_CHARS = 30_000
 
 /** A JSON file shown in the shared page viewer, so every preview has the same bar and gestures. */
 const textPage = (text: string) =>
-  `<!doctype html><meta charset="utf-8"><pre style="font:12px/1.45 ui-monospace,monospace;white-space:pre-wrap;margin:12px">${escapeHtml(
+  `<!doctype html><meta charset="utf-8"><style>body{margin:0;color:${screenColour('fg')};background:${screenColour('bg')}}</style><pre style="font:12px/1.45 ui-monospace,monospace;white-space:pre-wrap;margin:12px">${escapeHtml(
     text.length > PREVIEW_CHARS ? text.slice(0, PREVIEW_CHARS) + '\n…' : text,
   )}</pre>`
 
@@ -94,6 +95,7 @@ export function SaveExportDialog({
                 className="min-h-[50vh] flex-1"
                 title={output.label}
                 html={chosen === 'summary' ? file : textPage(file)}
+                page={chosen === 'summary' ? 'document' : 'screen'}
                 resetKey={chosen}
               />
             )

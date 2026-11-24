@@ -9,10 +9,15 @@
  * wider than the frame (the plot book's A3, a Word page in a narrow pane) is scaled down to its width, as a print
  * preview does; a narrower one keeps its own size. A zoom the reader chose is kept when the same output is laid out
  * again, and only a new `resetKey` fits it again.
+ *
+ * A document is drawn on white paper whatever the theme. A screen page (`page="screen"`, `src/lib/screenPage.ts`), the
+ * HTML a preview writes to describe a file it cannot show, is given the app's own colours instead, again whenever the
+ * theme changes, so it reads as part of the dialog in dark mode.
  */
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { ArrowLeftRight } from 'lucide-react'
 
+import { isDarkToken, SCREEN_PAGE_TOKENS, screenColourProperty, type ScreenPageColour } from '@/lib/screenPage'
 import { cn } from '@/lib/utils'
 
 import { OpenInTabButton, useOpenInTab, ViewerToolbar, ViewerZoom } from './viewer-toolbar'
@@ -39,6 +44,18 @@ function setZoom(doc: Document, zoom: number) {
   else root.style.setProperty('zoom', String(zoom))
 }
 
+/** Gives a screen page the theme the frame sits in: each colour from the app's token where the frame is. */
+function applyScreenTheme(element: HTMLIFrameElement, doc: Document) {
+  const host = getComputedStyle(element)
+  const root = doc.documentElement
+  for (const name of Object.keys(SCREEN_PAGE_TOKENS) as ScreenPageColour[]) {
+    const value = host.getPropertyValue(`--${SCREEN_PAGE_TOKENS[name]}`).trim()
+    if (value) root.style.setProperty(screenColourProperty(name), `hsl(${value})`)
+    else root.style.removeProperty(screenColourProperty(name))
+  }
+  root.style.setProperty('color-scheme', isDarkToken(host.getPropertyValue('--background')) ? 'dark' : 'light')
+}
+
 export type FramePagesProps = {
   html: string
   /** What is shown: the frame's title is "<title> preview". */
@@ -56,6 +73,11 @@ export type FramePagesProps = {
   className?: string
   /** The frame's own name, where it is not "<title> preview". */
   frameTitle?: string
+  /**
+   * `document` (the default): the file itself, on white paper. `screen`: a page describing a file, drawn in the app's
+   * theme through `screenColour` (`src/lib/screenPage.ts`).
+   */
+  page?: 'document' | 'screen'
 }
 
 export function FramePages({
@@ -68,6 +90,7 @@ export function FramePages({
   resetKey = null,
   className,
   frameTitle,
+  page = 'document',
 }: FramePagesProps) {
   const frame = useRef<HTMLIFrameElement | null>(null)
   // `null` fits the pages to the frame; a number is a zoom the reader chose.
@@ -126,6 +149,24 @@ export function FramePages({
     latestKey.current = onKey
   })
 
+  // A screen page follows the theme while it is shown: the app switches it on the root or on a workspace's own root.
+  const screen = page === 'screen'
+  useEffect(() => {
+    const element = frame.current
+    if (!screen || !element || typeof MutationObserver === 'undefined') return
+    const restyle = () => {
+      const doc = element.contentDocument
+      if (doc?.documentElement) applyScreenTheme(element, doc)
+    }
+    restyle()
+    const observer = new MutationObserver(restyle)
+    const watched = { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] }
+    observer.observe(document.documentElement, watched)
+    const themed = element.parentElement?.closest('[data-theme]')
+    if (themed) observer.observe(themed, watched)
+    return () => observer.disconnect()
+  }, [screen])
+
   // What the loaded document listens to, removed when the next one loads or the viewer closes.
   const detach = useRef<(() => void) | null>(null)
   useEffect(() => () => detach.current?.(), [])
@@ -134,6 +175,7 @@ export function FramePages({
     const doc = element?.contentDocument
     if (!element || !doc) return
     detach.current?.()
+    if (screen) applyScreenTheme(element, doc)
     const refit = () => {
       const fitted = fittedZoom(doc)
       fitRef.current = fitted
@@ -194,7 +236,7 @@ export function FramePages({
         sandbox="allow-same-origin"
         srcDoc={html}
         onLoad={onLoad}
-        className="min-h-0 w-full flex-1 bg-white"
+        className={cn('min-h-0 w-full flex-1', screen ? 'bg-background' : 'bg-white')}
       />
     </div>
   )

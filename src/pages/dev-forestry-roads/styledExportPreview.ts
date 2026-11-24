@@ -8,6 +8,7 @@ import type { SheetSymbol } from '@/lib/mapSheet/symbols'
 import { symbolSwatchSvg, svgDataUrl } from '@/lib/mapSheet/symbolSvg'
 import type { ExchangeDiagnostic, ExchangeFile, RuleFilter } from '@/lib/styleExchange/model'
 import type { StyledExportBundle } from './styledExports'
+import { screenColour } from '@/lib/screenPage'
 
 const escape = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -46,10 +47,10 @@ function diagnosticsHtml(diagnostics: readonly ExchangeDiagnostic[]) {
 }
 
 const STYLE = `<style>
-body{font:13px/1.45 system-ui,sans-serif;margin:16px;color:#1c1917;background:#fff}
+body{font:13px/1.45 system-ui,sans-serif;margin:16px;color:${screenColour('fg')};background:${screenColour('bg')}}
 h2{font-size:15px;margin:18px 0 6px}h3{font-size:13px;margin:12px 0 4px}
-table{border-collapse:collapse;width:100%;margin:4px 0 12px}td,th{border-bottom:1px solid #e7e5e4;padding:3px 6px;text-align:left;vertical-align:middle}
-th{font-weight:600;color:#57534e}.sw{display:block}.muted{color:#78716c}code{font-size:12px}
+table{border-collapse:collapse;width:100%;margin:4px 0 12px}td,th{border-bottom:1px solid ${screenColour('line')};padding:3px 6px;text-align:left;vertical-align:middle}
+th{font-weight:600;color:${screenColour('muted', '#57534e')}}.sw{display:block}.muted{color:${screenColour('muted')}}code{font-size:12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 12px}
 .grid div{display:flex;gap:8px;align-items:center;min-height:24px}
 </style>`

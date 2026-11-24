@@ -34,7 +34,10 @@ export type ZoomablePreviewProps = {
   /** A change fits the picture again (another output); a rebuilt picture of the same output keeps its zoom. */
   resetKey?: string | number | null
   className?: string
-  /** The box the picture sits in: `bg-white` for a sheet, the inset tone for a drawing. */
+  /**
+   * The box the picture sits in: by default the app's background (white in light mode, black in dark), so a sheet's
+   * own white paper stands on it as a PDF page does; the inset tone for a drawing.
+   */
   stageClassName?: string
 }
 
@@ -49,7 +52,7 @@ export function ZoomablePreview({
   toolbarEnd,
   resetKey = null,
   className,
-  stageClassName = 'bg-white',
+  stageClassName = 'bg-background',
 }: ZoomablePreviewProps) {
   const stage = useRef<HTMLDivElement>(null)
   const box = useElementSize(stage)

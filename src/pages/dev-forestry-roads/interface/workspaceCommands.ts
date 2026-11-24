@@ -296,8 +296,13 @@ export const workspaceCommands = {
   fitRoad: { label: 'Fit selected road', icon: Locate },
   fitAll: { label: 'Fit all roads', icon: MapPinned, investigation: true },
   fitTerrain: { label: 'Fit terrain', icon: Focus, investigation: true },
-  contours: { label: 'Contours', icon: WavesLadder, investigation: true },
-  stationLabels: { label: 'Station labels', icon: Tags },
+  contours: {
+    label: 'Contours',
+    icon: WavesLadder,
+    description: "The loaded terrain's contours, and lighter regional contours beyond it. Drawn only.",
+    investigation: true,
+  },
+  stationLabels: { label: 'Station labels', icon: Tags, description: 'Station labels along the selected road.' },
   waybackTimeline: {
     label: 'Historical imagery timeline',
     icon: History,
@@ -305,14 +310,23 @@ export const workspaceCommands = {
       'Step through the Esri Wayback releases that changed the imagery at the map centre, with their capture dates.',
     investigation: true,
   },
-  sentinel2: { label: 'Sentinel-2 imagery', icon: Satellite, investigation: true },
+  sentinel2: {
+    label: 'Sentinel-2 imagery',
+    icon: Satellite,
+    description: 'Sentinel-2 scenes under the plan, chosen by date and read from the network. Evidence only.',
+    investigation: true,
+  },
   canopyHeight: {
     label: 'Canopy height (CHM v2)',
     icon: TreePine,
     description: "Meta's modelled canopy height over the plan, and what the active road's corridor reads off it.",
     investigation: true,
   },
-  earthworks: { label: 'Earthworks', icon: Layers2 },
+  earthworks: {
+    label: 'Earthworks',
+    icon: Layers2,
+    description: "The road's corridor, clearing, formation, edges and ditches on the plan.",
+  },
   lidar: {
     label: 'BC LiDAR sample',
     icon: Radar,

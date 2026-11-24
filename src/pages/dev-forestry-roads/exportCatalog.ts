@@ -616,7 +616,8 @@ export interface GeometryLayer {
 }
 
 export type ExportPreview =
-  | { type: 'html'; html: string }
+  /** A document, or with `page: 'screen'` a page describing a file it cannot show, drawn in the app's theme. */
+  | { type: 'html'; html: string; page?: 'screen' }
   /** The file itself, shown page by page in the browser's PDF viewer. */
   | { type: 'pdf'; blob: Blob }
   | {

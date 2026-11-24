@@ -252,6 +252,46 @@ export type BaseMapLayer = {
   /** Why it cannot be shown now, when it cannot. */
   unavailable?: string
   onVisibleChange: (visible: boolean) => void
+  /**
+   * Shown only by its own eye: a group's eye or *Hide all* hides it, but nothing turns it on for it. For layers that
+   * read imagery from the network (Sentinel-2, canopy height, the Wayback timeline), which stay the person's choice.
+   */
+  alone?: boolean
+}
+
+/** Hides or shows a list of layers as one switch: showing passes over the layers that are shown only by their own eye. */
+function setLayersShown(layers: readonly BaseMapLayer[], visible: boolean) {
+  for (const layer of layers) {
+    if (layer.unavailable || (visible && layer.alone) || layer.visible === visible) continue
+    layer.onVisibleChange(visible)
+  }
+}
+
+/** A plan display layer as one row: its name, and its eye. */
+function DisplayLayerRow({ layer }: { layer: BaseMapLayer }) {
+  return (
+    <li data-base-layer={layer.key}>
+      <Branch
+        name={layer.name}
+        title={layer.unavailable ?? layer.description}
+        icon={null}
+        muted={!layer.visible || !!layer.unavailable}
+        open={false}
+        toggle={() => {}}
+        actions={
+          <VisibilityButton
+            visible={layer.visible}
+            label={layer.name}
+            title={layer.unavailable ?? (layer.visible ? 'Hide layer' : 'Show layer')}
+            disabled={!!layer.unavailable}
+            onToggle={() => layer.onVisibleChange(!layer.visible)}
+          />
+        }
+      >
+        {null}
+      </Branch>
+    </li>
+  )
 }
 
 /**
@@ -345,6 +385,8 @@ export type TerrainEntry = {
   commands: readonly WorkspaceCommand[]
   states?: Partial<Record<WorkspaceCommand, CommandState>>
   onCommand: (id: WorkspaceCommand) => void
+  /** What the plan draws from the terrain (contours), each with its eye. */
+  layers?: readonly BaseMapLayer[]
 }
 
 export function ReferencePanel({
@@ -368,6 +410,7 @@ export function ReferencePanel({
   onPegAt,
   onRoadEndAt,
   baseLayers = [],
+  roadLayers = [],
   basemap,
   terrain,
   onMoveLayers,
@@ -394,6 +437,8 @@ export function ReferencePanel({
   onRoadEndAt?: (at: Coordinate, name: string, end: 'start' | 'end') => void
   /** The plan's own backgrounds, listed after the project's layers. */
   baseLayers?: readonly BaseMapLayer[]
+  /** What the plan draws along the design roads (station labels, earthworks), listed under the roads. */
+  roadLayers?: readonly BaseMapLayer[]
   /** The basemap, listed first under Base map with a way to change it. */
   basemap?: BaseMapChoice
   /** The project's terrain, listed with the commands that load another (Load 1 m DEM). */
@@ -438,12 +483,16 @@ export function ReferencePanel({
   const basemapSwitchable = !!basemap && !basemap.unavailable
   const baseShown = switchableBase.some((layer) => layer.visible) || (basemapSwitchable && basemap.shown)
   const setBase = (visible: boolean) => {
-    switchableBase.forEach((layer) => layer.onVisibleChange(visible))
+    setLayersShown(baseLayers, visible)
     if (basemapSwitchable) basemap.onShownChange(visible)
   }
-  const anyShown = groupShown(everyKey, hiddenKeys) || baseShown
+  // What the plan draws over the roads and the terrain: hidden and shown with everything else.
+  const overlays = [...(roads.length ? roadLayers : []), ...(terrain?.layers ?? [])]
+  const switchableOverlays = overlays.filter((layer) => !layer.unavailable)
+  const anyShown = groupShown(everyKey, hiddenKeys) || baseShown || switchableOverlays.some((layer) => layer.visible)
   const setAll = (visible: boolean) => {
     if (everyKey.length) onVisibilityChange(everyKey, visible)
+    setLayersShown(overlays, visible)
     setBase(visible)
   }
   /**
@@ -994,15 +1043,16 @@ export function ReferencePanel({
                   Fit all layers
                 </Button>
               )}
-              {everyKey.length + switchableBase.length + (basemapSwitchable ? 1 : 0) > 0 && (
+              {everyKey.length + switchableOverlays.length + switchableBase.length + (basemapSwitchable ? 1 : 0) >
+                0 && (
                 <Button
                   variant="outline"
                   size="sm"
                   aria-label={anyShown ? 'Hide all layers' : 'Show all layers'}
                   title={
                     anyShown
-                      ? 'Hide every layer, design road and base layer on the plan, the basemap too; the terrain stays'
-                      : 'Show every layer, design road, base layer and the basemap again'
+                      ? 'Hide every layer, design road, overlay and base layer on the plan, the basemap too; the terrain stays'
+                      : 'Show every layer, design road, overlay, base layer and the basemap again; imagery you turned on yourself stays off'
                   }
                   onClick={() => setAll(!anyShown)}
                 >
@@ -1075,6 +1125,10 @@ export function ReferencePanel({
                           </li>
                         )
                       })}
+                      {roadLayers.length > 0 && <li aria-hidden="true" className="mx-1 my-1 border-t border-border" />}
+                      {roadLayers.map((layer) => (
+                        <DisplayLayerRow key={layer.key} layer={layer} />
+                      ))}
                     </ul>
                   </Branch>
                 </li>
@@ -1110,6 +1164,13 @@ export function ReferencePanel({
                         ))}
                       </div>
                     </div>
+                    {terrain.layers && terrain.layers.length > 0 && (
+                      <ul>
+                        {terrain.layers.map((layer) => (
+                          <DisplayLayerRow key={layer.key} layer={layer} />
+                        ))}
+                      </ul>
+                    )}
                   </Branch>
                 </li>
               )}
@@ -1135,31 +1196,7 @@ export function ReferencePanel({
                     <ul>
                       {basemap && <BasemapRow choice={basemap} disabled={disabled} />}
                       {baseLayers.map((layer) => (
-                        <li key={layer.key} data-base-layer={layer.key}>
-                          <Branch
-                            name={layer.name}
-                            title={layer.unavailable ?? layer.description}
-                            icon={null}
-                            muted={!layer.visible || !!layer.unavailable}
-                            open={false}
-                            toggle={() => {}}
-                            actions={
-                              <Button
-                                size="icon-xs"
-                                variant="ghost"
-                                className={rowActionClass}
-                                aria-label={`${layer.visible ? 'Hide' : 'Show'} ${layer.name}`}
-                                title={layer.unavailable ?? (layer.visible ? 'Hide layer' : 'Show layer')}
-                                disabled={!!layer.unavailable}
-                                onClick={() => layer.onVisibleChange(!layer.visible)}
-                              >
-                                {layer.visible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
-                              </Button>
-                            }
-                          >
-                            {null}
-                          </Branch>
-                        </li>
+                        <DisplayLayerRow key={layer.key} layer={layer} />
                       ))}
                     </ul>
                   </Branch>

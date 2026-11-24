@@ -33,6 +33,7 @@ import { base64ToBytes } from './roadEngText'
 import type { RoadEngFeatureClass, RoadEngTerrainSource } from './roadEngTerrain'
 import type { ReferenceFeature } from './referenceFeatures'
 import type { CableLine, ContextFeature } from './types'
+import { screenColour } from '@/lib/screenPage'
 
 /** Largest `Terrain1.ter` kept in the browser, bytes. Softree's largest sample is 26.3 MB. */
 export const MAX_ROADENG_ORIGINAL_TER_BYTES = 200_000_000
@@ -335,10 +336,10 @@ const escape = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 const STYLE = `<style>
-body{font:13px/1.45 system-ui,sans-serif;margin:16px;color:#1c1917;background:#fff}
+body{font:13px/1.45 system-ui,sans-serif;margin:16px;color:${screenColour('fg')};background:${screenColour('bg')}}
 h2{font-size:15px;margin:0 0 4px}h3{font-size:13px;margin:14px 0 4px}
 ul{margin:0;padding-left:18px}li{margin:2px 0}.n{font-variant-numeric:tabular-nums;font-weight:600}
-.why{color:#57534e}.muted{color:#78716c}.ground{margin:6px 0 0}
+.why{color:${screenColour('muted', '#57534e')}}.muted{color:${screenColour('muted')}}.ground{margin:6px 0 0}
 </style>`
 
 const itemHtml = (item: RoadEngCarryOverItem) =>

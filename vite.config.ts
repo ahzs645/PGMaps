@@ -153,6 +153,11 @@ export default defineConfig({
       'pdfjs-dist',
       'pdf-lib',
       'jsts/org/locationtech/jts/operation/relate/RelateOp.js',
+      // Loaded only on demand (`import()`), so the scan can miss them: found at first use instead, Vite re-bundles
+      // every dependency and the open page fails its next dynamic import ("Outdated Optimize Dep", a 504).
+      'html2canvas',
+      'exceljs',
+      'exifr',
     ],
     // Vite scans every HTML file for imports to pre-bundle. The visual tools
     // trial bench is a separate project with its own packages (EZ-Tree,

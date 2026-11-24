@@ -71,6 +71,18 @@ test('Layers hides a group or everything, lists the terrain and changes the plan
   await layers.getByRole('button', { name: 'Show all layers', exact: true }).click()
   await expect.poll(() => drawnRoads(page)).not.toHaveLength(0)
   await expect(layers.getByRole('button', { name: /^Hide NRCan/ })).toBeVisible()
+  // Imagery read from the network is shown only by its own eye: Show all leaves it off.
+  await expect(layers.getByRole('button', { name: 'Show Sentinel-2 imagery', exact: true })).toBeVisible()
+
+  // Contours are listed under the terrain, the same switch as the plan's Map settings.
+  const contours = layers.locator('[data-terrain-group] [data-base-layer="contours"]')
+  await contours.getByRole('button', { name: 'Hide Contours', exact: true }).click()
+  await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
+  const settings = page.getByRole('dialog', { name: 'Map display settings' })
+  await expect(settings.getByRole('checkbox', { name: 'Contours', exact: true })).not.toBeChecked()
+  await settings.getByRole('checkbox', { name: 'Contours', exact: true }).check()
+  await expect(contours.getByRole('button', { name: 'Hide Contours', exact: true })).toBeVisible()
+  await settings.getByRole('button', { name: 'Close map settings', exact: true }).click()
 
   // The terrain is listed with Load 1 m DEM, the same command the Terrain tab runs.
   const terrain = layers.locator('[data-terrain-group]')

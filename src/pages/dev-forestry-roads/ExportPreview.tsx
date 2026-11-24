@@ -52,11 +52,13 @@ function HtmlPreview({
   title,
   onPick,
   scrollTo,
+  page,
 }: {
   html: string
   title: string
   onPick?: (pick: PreviewPick) => void
   scrollTo?: PreviewScroll
+  page?: 'screen'
 }) {
   const latest = useRef(onPick)
   useEffect(() => {
@@ -119,6 +121,7 @@ function HtmlPreview({
     <FramePages
       html={html}
       title={title}
+      page={page}
       resetKey={title}
       frameRef={(element) => {
         frameRef.current = element
@@ -154,7 +157,7 @@ export function ExportPreviewView({
 }) {
   switch (preview.type) {
     case 'html':
-      return <HtmlPreview html={preview.html} title={title} onPick={onPick} scrollTo={scrollTo} />
+      return <HtmlPreview html={preview.html} title={title} onPick={onPick} scrollTo={scrollTo} page={preview.page} />
     case 'pdf':
       return <PdfPages source={preview.blob} title={title} resetKey={title} />
     case 'image':

@@ -5,14 +5,15 @@
  * DOM-free.
  */
 import type { RoadProject } from './types'
+import { screenColour } from '@/lib/screenPage'
 
 const escape = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 const STYLE = `<style>
-body{font:13px/1.45 system-ui,sans-serif;margin:16px;color:#1c1917;background:#fff}
-h2{font-size:15px;margin:0 0 4px}p{margin:0 0 10px}.muted{color:#78716c}
-table{border-collapse:collapse;width:100%}th,td{text-align:left;vertical-align:top;padding:5px 8px;border-top:1px solid #e7e5e4}
+body{font:13px/1.45 system-ui,sans-serif;margin:16px;color:${screenColour('fg')};background:${screenColour('bg')}}
+h2{font-size:15px;margin:0 0 4px}p{margin:0 0 10px}.muted{color:${screenColour('muted')}}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;vertical-align:top;padding:5px 8px;border-top:1px solid ${screenColour('line')}}
 th{font-weight:600;white-space:nowrap;width:1%}td{font-variant-numeric:tabular-nums}
 </style>`
 

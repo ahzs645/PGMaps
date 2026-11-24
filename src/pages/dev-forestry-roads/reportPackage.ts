@@ -10,6 +10,7 @@ import { SHEET_KINDS, SHEET_PRESETS, type SheetKind } from '@/lib/forestry/block
 import { parseChartsOverride, type ChartsOptions } from './chartsOptions'
 import { orderedKeys } from '@/lib/documentContents/contents'
 import { orderedReportSections, REPORT_SECTIONS, type ReportSectionId } from './reportContents'
+import { screenColour } from '@/lib/screenPage'
 
 export const PACKAGE_PLACEMENTS = ['main', 'appendix', 'omit'] as const
 export type PackagePlacement = (typeof PACKAGE_PLACEMENTS)[number]
@@ -552,7 +553,7 @@ export function packagePreviewHtml(plan: PackagePlan, roads: readonly string[], 
     `<li><strong>${escapeHtml(file.filename)}</strong>: ${escapeHtml(file.title)}<ul>${describeFile(file)
       .map((line) => `<li>${escapeHtml(line)}</li>`)
       .join('')}</ul></li>`
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Report package</title><style>body{font:14px/1.5 Inter,Arial,sans-serif;color:#0b2b4a;margin:24px}h1{font-size:20px}li{margin:4px 0}.muted{color:#4b4f56}</style></head><body><h1>Report package</h1><p>${escapeHtml(
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Report package</title><style>body{font:14px/1.5 Inter,Arial,sans-serif;color:${screenColour('fg', '#0b2b4a')};background:${screenColour('bg')};margin:24px}h1{font-size:20px}li{margin:4px 0}.muted{color:${screenColour('muted', '#4b4f56')}}</style></head><body><h1>Report package</h1><p>${escapeHtml(
     roads.length === 1 ? `Road: ${roads[0]}` : `${roads.length} roads: ${roads.join(', ')}`,
   )}</p><p class="muted">${
     files.length > 1 ? `Downloads as ${escapeHtml(zipName)} holding ${files.length} PDFs.` : 'Downloads as one PDF.'

@@ -10,6 +10,7 @@ import { triangleCount, type Model3d, type ModelFormat, type Rgb } from '@/lib/m
 import { writeModel, type ModelExport } from '@/lib/model3d/writeModel'
 import { designSurfaceModel, type DesignSurfaceModelInput } from './designSurfaceModel'
 import { designModelFileName, designModelFormat } from './exportFiles'
+import { screenColour } from '@/lib/screenPage'
 
 /**
  * Most triangles the preview draws in plan. Past it the preview lists the parts without a drawing:
@@ -137,13 +138,13 @@ export function designModelPreviewHtml(file: DesignModelFile): string {
           .join(' and ')}`
       : `${escape(file.filename)} (${bytesText(file.bytes.length)})`
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-body{font:13px/1.45 system-ui,sans-serif;color:#1c1917;margin:16px}
+body{font:13px/1.45 system-ui,sans-serif;color:${screenColour('fg')};background:${screenColour('bg')};margin:16px}
 h2{font-size:14px;margin:16px 0 6px}
-svg{width:100%;height:auto;border:1px solid #d6d3d1;border-radius:6px;background:#fafaf9}
+svg{width:100%;height:auto;border:1px solid ${screenColour('line', '#d6d3d1')};border-radius:6px;background:${screenColour('panel')}}
 table{border-collapse:collapse;font-size:12px}td,th{padding:3px 10px 3px 0;text-align:left}
 .n{text-align:right;font-variant-numeric:tabular-nums}
 .swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
-.note{color:#57534e}ul{padding-left:18px;margin:4px 0}
+.note{color:${screenColour('muted', '#57534e')}}ul{padding-left:18px;margin:4px 0}
 </style></head><body>
 <p class="note">A picture of the calculated surfaces for Blender, SketchUp or a CAD viewer, not a machine-control file: build from the LandXML surfaces.</p>
 ${drawing ?? `<p class="note">${triangles.toLocaleString('en-CA')} triangles are more than the preview draws (${MODEL_PREVIEW_MAX_TRIANGLES.toLocaleString('en-CA')}); the file holds them all.</p>`}
