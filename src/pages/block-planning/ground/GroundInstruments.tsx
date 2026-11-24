@@ -19,14 +19,16 @@ import type { Pack } from '../../../../packages/legal-rules/src/contract'
 import type { Block, Plan } from '../plan'
 import type { StepProps } from '../steps/types'
 import type { GroundStage } from './groundRead'
-import { precedentSummary } from './precedent'
+import { NO_OBLIGATION_CATEGORIES, precedentSummary } from './precedent'
 import {
   failedByReason,
   groundFootprint,
   groundReadCurrent,
   groundReadOf,
+  nearText,
   saveGroundRead,
   type GroundRead,
+  type PrecedentOpening,
 } from './record'
 import { documentRequests } from './requests'
 
@@ -34,6 +36,21 @@ type State = { status: 'idle' } | { status: 'reading'; stage: string } | { statu
 
 const today = () => new Date().toISOString().slice(0, 10)
 const ha = (v: number) => (v > 0 && v < 0.01 ? '<0.01' : v.toFixed(2))
+
+/** What the records say about an opening's obligation: the public signals of an exception, never why. */
+function openingSignals(o: PrecedentOpening): string {
+  return (
+    [
+      o.category && NO_OBLIGATION_CATEGORIES[o.category]
+        ? `${o.category}: ${NO_OBLIGATION_CATEGORIES[o.category]}`
+        : null,
+      o.noRegenObligation ? 'No regeneration obligation (intermediate cut or selection, FPPR s. 44(4))' : null,
+      o.variance ? 'Stocking standard under an approved variation' : null,
+    ]
+      .filter(Boolean)
+      .join('; ') || '—'
+  )
+}
 
 /** A reach cell: its state word, with the note and the provisions behind it. */
 function Cell({ cell, what }: { cell: ReachCell; what: string }) {
@@ -128,10 +145,13 @@ export function GroundInstruments({
     <div className="space-y-3" data-testid="block-planning-ground">
       <p className="text-2xs text-muted-foreground">
         Reads the legal instruments DataBC maps on this block shape: Land Act reserves, withdrawals, designated use
-        areas, leases, licences and rights of way; the Agricultural Land Reserve; legal land use objectives and OGMAs;
-        ungulate winter ranges and wildlife habitat areas; range tenures; parks, ecological reserves and protected
-        areas; private parcels; and community watersheds. For each one found it shows what it can reach for harvest,
-        replanting, roads and grazing, with the provision each answer rests on. This is a screen, never a legal
+        areas, leases, licences, rights of way, notations of interest and applications; the Agricultural Land Reserve;
+        legal land use objectives (the Omineca and Robson Valley ADA orders among them) and OGMAs; ungulate winter
+        ranges and wildlife habitat areas; range tenures; parks, ecological reserves and protected areas; private
+        parcels; community watersheds; mineral and placer tenures; water licences near the block; woodlots, community
+        forests, First Nations woodland licences and tree farm licences; recreation sites and trails; scenic areas and
+        visual quality objectives; and federal critical habitat. For each one found it shows what it can reach for
+        harvest, replanting, roads and grazing, with the provision each answer rests on. This is a screen, never a legal
         determination: it decides no fact, and an instrument that is not mapped can still apply.
       </p>
       {state.status === 'reading' ? (
@@ -174,9 +194,15 @@ export function GroundInstruments({
                     <>
                       <span className="block">{r.instrument.label}</span>
                       <span className="block font-normal text-muted-foreground">
-                        {ha(r.read.coveredHa)} ha ·{' '}
-                        {(read.footprintHa > 0 ? (r.read.coveredHa / read.footprintHa) * 100 : 0).toFixed(1)}% of the
-                        block
+                        {r.read.near ? (
+                          nearText(r.read.near)
+                        ) : (
+                          <>
+                            {ha(r.read.coveredHa)} ha ·{' '}
+                            {(read.footprintHa > 0 ? (r.read.coveredHa / read.footprintHa) * 100 : 0).toFixed(1)}% of
+                            the block
+                          </>
+                        )}
                       </span>
                     </>
                   ),
@@ -246,7 +272,11 @@ export function GroundInstruments({
                 { label: 'Feature', render: (x) => x.f.id },
                 { label: 'Instrument', render: (x) => x.instrument.label },
                 { label: 'As DataBC names it', render: (x) => x.f.name },
-                { label: 'Overlap', render: (x) => `${ha(x.f.overlapHa)} ha · ${x.f.sharePercent.toFixed(1)}%` },
+                {
+                  label: 'Overlap',
+                  render: (x) =>
+                    x.f.near ? nearText(x.f.near) : `${ha(x.f.overlapHa)} ha · ${x.f.sharePercent.toFixed(1)}%`,
+                },
                 { label: 'Details', render: (x) => x.f.details.join(' · ') },
               ]}
             />
@@ -303,21 +333,35 @@ function Precedent({
 }) {
   const precedent = read.precedent
   if (!precedent) return null
-  const notRead = (['standards', 'planting', 'activities'] as const).filter((j) => precedent.joins[j] === 'failed')
+  const notRead = (
+    ['standards', 'planting', 'activities', 'exemptBlocks', 'alrApplications', 'alrNotices'] as const
+  ).filter((j) => precedent.joins[j] === 'failed')
+  const exempt = precedent.exemptBlocks ?? []
+  const alr = precedent.alrApplications ?? []
+  const insideBlock = (key: number) =>
+    precedent.rows
+      .filter((r) => r.exemptBlocks?.includes(key))
+      .map((r) => groundInstrument(r.instrument)?.label ?? r.instrument)
   return (
     <div className="space-y-2" data-testid="block-planning-ground-precedent">
       <p className="text-xs font-medium">Precedent: what RESULTS records inside each instrument nearby</p>
       <p className="text-2xs text-muted-foreground">
         Openings inside each instrument and within {precedent.radiusM / 1000} km of the block, harvested on or after its
-        date where the layer gives one. Evidence of what was allowed and done nearby, not a finding that this block may
-        be cut or reforested.
+        date where the layer gives one, with the public signals of an exception: openings RESULTS records with no
+        obligation to reforest (SPEX), standards units with no regeneration obligation or under an approved variation,
+        cut blocks marked exempt from a silviculture prescription, and, for the Agricultural Land Reserve, the
+        Commission&apos;s applications and notices of intent. A signal says what the record says, never why. Evidence of
+        what was allowed and done nearby, not a finding that this block may be cut or reforested.
       </p>
       <ul className="space-y-1 text-xs">
-        {found.map(({ instrument }) => (
-          <li key={instrument.id}>
-            <span className="font-medium">{instrument.label}:</span> {precedentSummary(precedent, instrument.id)}
-          </li>
-        ))}
+        {/* A line or a point holds no openings: precedent is read inside area instruments only. */}
+        {found
+          .filter(({ instrument }) => (groundLayer(instrument.layer)?.geometry ?? 'area') === 'area')
+          .map(({ instrument }) => (
+            <li key={instrument.id}>
+              <span className="font-medium">{instrument.label}:</span> {precedentSummary(precedent, instrument.id)}
+            </li>
+          ))}
       </ul>
       {undatedNotes(found).length > 0 && (
         <p className="text-2xs text-muted-foreground">{undatedNotes(found).join(' ')}</p>
@@ -326,7 +370,17 @@ function Precedent({
         <InlineAlert tone="warning">
           Not read:{' '}
           {notRead
-            .map((j) => ({ standards: 'standards units', planting: 'planting results', activities: 'activities' })[j])
+            .map(
+              (j) =>
+                ({
+                  standards: 'standards units',
+                  planting: 'planting results',
+                  activities: 'activities',
+                  exemptBlocks: 'cut blocks exempt from a silviculture prescription',
+                  alrApplications: 'ALR applications',
+                  alrNotices: 'ALR notices of intent',
+                })[j],
+            )
             .join(', ')}
           .
         </InlineAlert>
@@ -388,7 +442,47 @@ function Precedent({
                     ? 'None recorded'
                     : 'Not read',
             },
+            { label: 'Signals', render: openingSignals },
             { label: 'Inside', render: (o) => inside(o.openingId).join(', ') },
+          ]}
+        />
+      )}
+      {exempt.length > 0 && (
+        <CalculationTable
+          caption={`Cut blocks marked exempt from a silviculture prescription (${exempt.length})`}
+          rows={exempt}
+          rowKey={(b) => b.key}
+          columns={[
+            {
+              label: 'Cut block',
+              render: (b) =>
+                [b.forestFileId, b.cuttingPermit && `CP ${b.cuttingPermit}`, b.cutBlock && `block ${b.cutBlock}`]
+                  .filter(Boolean)
+                  .join(' · ') || String(b.key),
+            },
+            { label: 'Timber mark', render: (b) => b.timberMark ?? '—' },
+            { label: 'Harvest started', render: (b) => b.harvested ?? 'not recorded' },
+            {
+              label: 'Status',
+              render: (b) =>
+                [b.status, b.lifeCycle, b.grossHa !== undefined && `${b.grossHa} ha`].filter(Boolean).join(' · '),
+            },
+            { label: 'Opening', render: (b) => (b.openingId !== undefined ? String(b.openingId) : '—') },
+            { label: 'Inside', render: (b) => insideBlock(b.key).join(', ') },
+          ]}
+        />
+      )}
+      {alr.length > 0 && (
+        <CalculationTable
+          caption={`ALR applications and notices of intent (${alr.length}) · decisions are the Commission's, not in the layer`}
+          rows={alr}
+          rowKey={(a) => `${a.kind}:${a.id}`}
+          columns={[
+            { label: 'Application', render: (a) => String(a.id) },
+            { label: 'Kind', render: (a) => a.kind },
+            { label: 'Received', render: (a) => a.received ?? 'not recorded' },
+            { label: 'Proposal', render: (a) => [a.applicationClass, a.components].filter(Boolean).join(' · ') },
+            { label: 'Local government', render: (a) => a.localGovernment ?? '—' },
           ]}
         />
       )}

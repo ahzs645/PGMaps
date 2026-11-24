@@ -780,4 +780,11 @@ export function overlapMatrix(regions: Shape[], items: Shape[]): boolean[][] {
 }
 
 /** The overlays the ground read takes (`GroundOverlay` in `ground/groundRead.ts`). */
-export const groundOverlay = { measure: overlapsWith, grow: grownFootprint, clip: clipShape, overlaps: overlapMatrix }
+export const groundOverlay = {
+  measure: overlapsWith,
+  grow: grownFootprint,
+  clip: clipShape,
+  overlaps: overlapMatrix,
+  lines: linesNearFootprint,
+  points: pointsNearFootprint,
+}

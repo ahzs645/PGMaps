@@ -73,7 +73,7 @@ const ANSWERS: Record<string, Answer> = {
       },
       LEASE,
     ),
-    // An application is not an issued licence: no instrument takes it.
+    // An application is not an issued licence: the application row takes it, not the licence row.
     feature({ INTRID_SID: 3, CROWN_LANDS_FILE: '7400003', TENURE_STAGE: 'APPLICATION', TENURE_TYPE: 'LICENCE' }, WIDE),
   ],
   'pub:WHSE_LEGAL_ADMIN_BOUNDARIES.OATS_ALR_POLYS': [feature({ ALR_POLY_ID: 9, STATUS: 'ALR' }, FAR)],
@@ -283,7 +283,7 @@ describe('reading the instruments on a block', () => {
     expect(s17.features[0].identifiers).toContainEqual({ label: 'Document', value: 'R100' })
     expect(s17.features[0].effective).toBeUndefined()
     expect(instrument(read, 'land-act-lease').features[0].sharePercent).toBeGreaterThan(20)
-    // The application took no instrument; the licence row is read and empty.
+    // The application went to its own row; the licence row is read and empty.
     expect(instrument(read, 'land-act-licence')).toMatchObject({ status: 'read', features: [] })
     expect(instrument(read, 'alr')).toMatchObject({ status: 'read', features: [] })
     expect(instrument(read, 'omineca-ada-sra').features[0]).toMatchObject({ effective: '2006-11-21' })
@@ -336,7 +336,7 @@ describe('precedent inside each instrument', () => {
     const p = read.precedent!
     expect(p.status).toBe('read')
     expect(p.radiusM).toBe(5000)
-    expect(p.joins).toEqual({ standards: 'read', planting: 'read', activities: 'read' })
+    expect(p.joins).toEqual({ standards: 'read', planting: 'read', activities: 'read', exemptBlocks: 'read' })
     const row = (id: string) => p.rows.find((r) => r.instrument === id)!
     // Tantalis has no date: every opening inside counts, and the row says the layer has none.
     expect(row('land-act-s17')).toMatchObject({ dated: false, openings: [1001, 1002], earlier: 0 })
@@ -379,7 +379,7 @@ describe('precedent inside each instrument', () => {
   it('says Not read for a join that failed, never none', async () => {
     const { read } = await readSample({ ...ANSWERS, [PLANTING_LAYER]: 503, [ACTIVITY_LAYER]: 503 })
     const p = read.precedent!
-    expect(p.joins).toEqual({ standards: 'read', planting: 'failed', activities: 'failed' })
+    expect(p.joins).toEqual({ standards: 'read', planting: 'failed', activities: 'failed', exemptBlocks: 'read' })
     expect(p.openings.every((o) => o.planted === null)).toBe(true)
     expect(precedentSummary(p, 'land-act-s17')).toContain('planting not read')
     expect(precedentSummary(p, 'land-act-s17')).not.toContain('no planting recorded')

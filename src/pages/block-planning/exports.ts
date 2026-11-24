@@ -39,7 +39,7 @@ import {
   REACH_LABELS,
 } from '@/lib/legal/groundInstruments'
 import { precedentSummary } from './ground/precedent'
-import { failedByReason, groundReadCurrent, type GroundRead } from './ground/record'
+import { failedByReason, groundReadCurrent, nearText, type GroundRead } from './ground/record'
 import { documentRequests } from './ground/requests'
 
 export const BLOCK_PLANNING_EXPORTS = [
@@ -188,12 +188,19 @@ function groundRecord(plan: Plan, read: GroundRead) {
           reach: x.reach,
           terms: x.terms,
           facts: x.facts,
-          precedent: read.precedent ? precedentSummary(read.precedent, x.id) : 'Not read',
+          precedent: !hasPrecedent(x.layer)
+            ? 'Not read for a line or point layer'
+            : read.precedent
+              ? precedentSummary(read.precedent, x.id)
+              : 'Not read',
         }
       }),
     requests: documentRequests(read, block?.name ?? read.block),
   }
 }
+
+/** Precedent is read inside area instruments only: a line or a point holds no openings. */
+const hasPrecedent = (layer: string) => (groundLayer(layer)?.geometry ?? 'area') === 'area'
 
 /** Where each layer without a date keeps one, printed once under the precedent. */
 function undated(layers: string[]) {
@@ -202,6 +209,42 @@ function undated(layers: string[]) {
     return l && !l.date && l.dateNote ? [l.dateNote] : []
   })
   return notes.length ? `<p class="note">${escape(notes.join(' '))}</p>` : ''
+}
+
+/** The exempt cut blocks and ALR applications the precedent read, listed under it. */
+function precedentLists(read: GroundRead) {
+  const p = read.precedent
+  if (!p) return ''
+  const blocks = p.exemptBlocks ?? []
+  const alr = p.alrApplications ?? []
+  return [
+    blocks.length
+      ? `<p class="note">Cut blocks marked exempt from a silviculture prescription (Forest Practices Code s. 30; the exemption and its reason are not public): ${escape(
+          blocks
+            .map((b) =>
+              [
+                b.forestFileId,
+                b.cuttingPermit && `CP ${b.cuttingPermit}`,
+                b.cutBlock && `block ${b.cutBlock}`,
+                b.harvested,
+              ]
+                .filter(Boolean)
+                .join(' '),
+            )
+            .join('; '),
+        )}.</p>`
+      : '',
+    alr.length
+      ? `<p class="note">ALR applications and notices of intent (the Commission's decisions are not in the layer): ${escape(
+          alr
+            .map(
+              (a) =>
+                `${a.kind} ${a.id}${a.received ? `, received ${a.received}` : ''}${a.components ? `, ${a.components}` : ''}`,
+            )
+            .join('; '),
+        )}.</p>`
+      : '',
+  ].join('')
 }
 
 /** A ground read as it prints: the matrix with each cell's provisions, what was not read, the precedent and the requests. */
@@ -227,7 +270,7 @@ ${
 ${found
   .map(
     ({ r, x }) =>
-      `<tr>${cell(`${x.label}: ${r.features.map((f) => f.id).join(', ')}`)}${cell(`${r.coveredHa.toFixed(2)} ha · ${share(r.coveredHa)}%`)}${ACTIVITIES.map((a) => cell(`${REACH_LABELS[x.reach[a].state]}. ${x.reach[a].note} (${citesText(x.reach[a].cites)})`)).join('')}${cell(`${BINDS_LABELS[x.binds.kind]} (${citesText(x.binds.cites)})`)}${cell(x.terms.public ? 'Yes' : `No: ${x.terms.where}`)}</tr>`,
+      `<tr>${cell(`${x.label}: ${r.features.map((f) => f.id).join(', ')}`)}${cell(r.near ? nearText(r.near) : `${r.coveredHa.toFixed(2)} ha · ${share(r.coveredHa)}%`)}${ACTIVITIES.map((a) => cell(`${REACH_LABELS[x.reach[a].state]}. ${x.reach[a].note} (${citesText(x.reach[a].cites)})`)).join('')}${cell(`${BINDS_LABELS[x.binds.kind]} (${citesText(x.binds.cites)})`)}${cell(x.terms.public ? 'Yes' : `No: ${x.terms.where}`)}</tr>`,
   )
   .join('\n')}
 </tbody></table>`
@@ -239,9 +282,14 @@ ${failedByReason(failed)
 ${empty.length ? `<p class="note">Read, nothing mapped on the footprint: ${escape(empty.map((r) => label(r.instrument)).join(', '))}.</p>` : ''}
 ${
   found.length && read.precedent
-    ? `<h4>Precedent within ${read.precedent.radiusM / 1000} km (RESULTS)</h4>
-<ul>${found.map(({ x }) => `<li><strong>${escape(x.label)}</strong>: ${escape(precedentSummary(read.precedent!, x.id))}</li>`).join('')}</ul>
-${undated(found.map(({ x }) => x.layer))}`
+    ? `<h4>Precedent within ${read.precedent.radiusM / 1000} km (RESULTS and other public records)</h4>
+<ul>${found
+        .filter(({ x }) => hasPrecedent(x.layer))
+        .map(
+          ({ x }) => `<li><strong>${escape(x.label)}</strong>: ${escape(precedentSummary(read.precedent!, x.id))}</li>`,
+        )
+        .join('')}</ul>
+${undated(found.map(({ x }) => x.layer))}${precedentLists(read)}`
     : ''
 }
 ${

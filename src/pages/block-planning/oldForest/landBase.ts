@@ -111,7 +111,7 @@ export async function readExcludedAreas({
     'GEOMETRY',
     "LIFE_CYCLE_STATUS_CODE = 'ACTIVE' AND (FOREST_FILE_ID LIKE 'W%' OR FOREST_FILE_ID LIKE 'K%')",
     'OBJECTID',
-    'OBJECTID,FOREST_FILE_ID,ML_TYPE_CODE,CLIENT_NAME',
+    'OBJECTID,FOREST_FILE_ID,ML_TYPE_CODE',
   )
   // A TFL is one very detailed polygon: asked by each part's hull (see `readAcrossParts`).
   const tfls = await read(TFL_LAYER, 'SHAPE', "FOREST_FILE_ID LIKE 'TFL%'", 'OBJECTID', 'OBJECTID,FOREST_FILE_ID', true)
