@@ -1,4 +1,5 @@
 import { nameWithDesignation } from '@/branding/profile'
+import { parseDocumentTitle, withDocumentTitle } from '@/lib/documentTitle'
 import { emptyFieldText, type EmptyFields } from '@/lib/mapSheet/emptyFields'
 
 /**
@@ -6,6 +7,11 @@ import { emptyFieldText, type EmptyFields } from '@/lib/mapSheet/emptyFields'
  * revision and when. Pure, with no DOM or network access.
  */
 export interface ProjectIssue {
+  /**
+   * The title the printed documents carry (`src/lib/documentTitle.ts`). Absent, they follow the project's name;
+   * stored only when the person typed one, so a project without it writes and reads exactly as before.
+   */
+  title?: string
   preparedBy: string
   /**
    * Professional designation printed after the name ("RPF #4521"). Optional, so a project saved without one
@@ -55,6 +61,7 @@ export function parseProjectIssue(raw: unknown): ProjectIssue {
   if (issuedOn && !isCalendarDate(issuedOn)) throw Error('The date of issue must be a real date, written YYYY-MM-DD.')
   const designation = text(r.designation, 'Designation', 120)
   return {
+    ...withDocumentTitle('title', parseDocumentTitle(r.title)),
     preparedBy: text(r.preparedBy, 'Prepared by', 200),
     ...(designation ? { designation } : {}),
     organisation: text(r.organisation, 'Organisation', 200),

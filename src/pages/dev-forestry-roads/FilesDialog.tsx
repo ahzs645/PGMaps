@@ -4,6 +4,7 @@ import { Download } from 'lucide-react'
 import { PreparerProfileHostProvider, PreparerProfilePane, PreparerProfileRow } from '@/branding/PreparerProfile'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
+import { DocumentTitleField } from '@/components/ui/document-title-field'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { SaveAsButton, type SaveAsButtonProps } from '@/components/ui/save-as-button'
 import { ResultRow } from '@/components/ui/result-list'
@@ -26,7 +27,7 @@ import {
 } from './exportCatalog'
 import { ExportPreviewView, type PreviewScroll } from './ExportPreview'
 import { IssueStampEditor } from './IssueStampEditor'
-import { issueLine, issueStamp, type ProjectIssue } from './projectIssue'
+import { EMPTY_PROJECT_ISSUE, issueLine, issueStamp, type ProjectIssue } from './projectIssue'
 import type { RoadReportSettings } from './reportSettings'
 import { ReportSettingsEditor } from './ReportSettingsEditor'
 import type { BlockSheetSettings } from './blockSheet'
@@ -594,6 +595,19 @@ export function FilesDialog({
                     { value: 'active' as const, label: `This road: ${clipName(roads?.activeName ?? '')}` },
                     { value: 'all' as const, label: `All ${roads?.count} roads` },
                   ]}
+                />
+              )}
+              {stamped && onIssue && (
+                <DocumentTitleField
+                  value={issue?.title}
+                  follows={name}
+                  onChange={(title) => {
+                    const next: ProjectIssue = { ...(issue ?? EMPTY_PROJECT_ISSUE), title }
+                    // A cleared title is removed, so the project file is the same as one that never had one.
+                    if (!next.title) delete next.title
+                    onIssue(next)
+                  }}
+                  printedOn="It is the heading of the report, plot book, report package, estimate, map PDF and D-line sheet, and names their files. Data files (LandXML, RoadEng, GIS layers, the project file) keep the project name."
                 />
               )}
               {outputOptions?.[item.kind]}

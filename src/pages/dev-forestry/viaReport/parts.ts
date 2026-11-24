@@ -90,7 +90,8 @@ export type OfficeFields = Partial<
     | 'evaluatorDesignation'
     | 'evaluatorOrganisation'
     | 'lakeManagementZone'
-    | 'inventoryDate',
+    | 'inventoryDate'
+    | 'documentTitle',
     string
   >
 >

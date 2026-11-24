@@ -12,6 +12,7 @@
  *
  * DOM- and network-free: the rule library and the patch result are passed in.
  */
+import { documentTitle, titleFileStem } from '@/lib/documentTitle'
 import type { Feature, FeatureCollection } from 'geojson'
 import { blockAreaHa } from '@/lib/forestry/blockSheet/blockFacts'
 import { escapeHtml as escape } from '@/lib/escapeHtml'
@@ -95,6 +96,17 @@ export const BLOCK_PLANNING_EXPORTS = [
   },
 ] as const
 export type BlockPlanningExport = (typeof BLOCK_PLANNING_EXPORTS)[number]['id']
+
+/** The summary's heading while the planner has typed no title of their own (`Plan.title`). */
+export const SUMMARY_HEADING = 'Block plan assessment'
+
+/** An output's file name: the summary is named from the planner's own title once there is one; the data files never. */
+export function exportFileName(id: BlockPlanningExport, plan: Pick<Plan, 'title'>): string {
+  const output = BLOCK_PLANNING_EXPORTS.find((o) => o.id === id)!
+  return id === 'summary' && plan.title
+    ? `${titleFileStem(plan.title, 'block-assessment')}-summary.html`
+    : output.fileName
+}
 
 export const LIMITATIONS = [
   'Advisory: no finding decides that the order applies, that a block complies, or that an exception or pathway is met.',
@@ -495,6 +507,7 @@ ${rows.join('\n')}
 }
 
 export function summaryHtml(plan: Plan, result: PlanAnalysis, library: Pack[], generatedOn: string) {
+  const title = documentTitle(plan.title, SUMMARY_HEADING)
   const record = assessmentRecord(plan, result, library, generatedOn)
   const years = periodYears(plan.area.startYear)
   const names = Object.fromEntries(plan.schedules.map((s) => [s.id, s.name]))
@@ -623,14 +636,14 @@ ${mappedHtml(r.mapped, r.mappedCurrent)}`
     : ''
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block plan assessment</title>
+<title>${escape(title)}</title>
 <style>
 body{font:14px/1.45 system-ui,sans-serif;max-width:920px;margin:24px auto;padding:0 16px;color:#1b1b19;background:#fff}
 table{border-collapse:collapse;margin:8px 0 16px;width:100%}th,td{border-bottom:1px solid #ddd;padding:4px 6px;text-align:left}
 th{font-weight:600}.note{color:#555;font-size:12px}.warn{border-left:3px solid #b45309;padding:4px 8px;background:#fffbeb}
 @media print{body{margin:0}}
 </style></head><body>
-<h1>Block plan assessment</h1>
+<h1>${escape(title)}</h1>
 <p>${escape(plan.area.district || 'No district')} · ${escape(plan.area.ndu || 'No sub-unit')} · first projection year ${plan.area.startYear} · prepared ${escape(generatedOn)}</p>
 <p class="note">Inventory: ${escape((plan.area.source.trim() || 'not stated').replace(/[.]$/, ''))}${plan.area.snapshotDate ? ` (${escape(plan.area.snapshotDate)})` : ''}.</p>
 <p class="warn">Advisory. No figure here decides that the order applies, that a block complies, or that a pathway is met.</p>

@@ -111,6 +111,17 @@ describe('VIA report recipes', () => {
     }
   })
 
+  it('prints the reviewer’s own title line, and follows the licence and cutting permit without one', () => {
+    const recipe = REPORT_RECIPES[0]
+    expect(assembleReport(recipe, context(recipe.format)).subtitle).toBe('A00000 CP 1')
+    const titled = context(recipe.format, {
+      office: { licence: 'A00000', cuttingPermit: '1', documentTitle: ' Willow north ' },
+    })
+    expect(assembleReport(recipe, titled).subtitle).toBe('Willow north')
+    const cleared = context(recipe.format, { office: { licence: 'A00000', cuttingPermit: '1', documentTitle: '' } })
+    expect(assembleReport(recipe, cleared).subtitle).toBe('A00000 CP 1')
+  })
+
   it('puts the logo in the title block when there is one', () => {
     const recipe = REPORT_RECIPES.find((entry) => entry.id === 'consultant-net-private')!
     const html = reportHtml(assembleReport(recipe, context(recipe.format)), {

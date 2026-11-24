@@ -5,6 +5,7 @@ import {
   DOWNLOAD_ONLY_EXPORTS,
   exportBasename,
   exportFileType,
+  exportName,
   saveAsFileType,
   saveAsOffered,
   savedNotice,
@@ -152,5 +153,19 @@ describe('export file names', () => {
       'Saved as Job-notes.geojson. Map notes exported.',
     )
     expect(savedNotice('Export downloaded.', 'downloaded', 'Job.xml')).toBe('Export downloaded.')
+  })
+})
+
+describe('document title', () => {
+  const project = { name: 'Tabor Main', issue: { title: 'Haul road, phase 2' } }
+  it('names a printed document from its title and a data file from the project', () => {
+    expect(exportName('report-pdf', project)).toBe('Haul road, phase 2')
+    expect(exportName('map-pdf', project)).toBe('Haul road, phase 2')
+    expect(exportName('landxml', project)).toBe('Tabor Main')
+    expect(exportName('project', project)).toBe('Tabor Main')
+    expect(exportName('report-pdf', { name: 'Tabor Main' })).toBe('Tabor Main')
+    expect(exportFileType('report-pdf', exportBasename(exportName('report-pdf', project))).name).toBe(
+      'Haul-road-phase-2-report.pdf',
+    )
   })
 })

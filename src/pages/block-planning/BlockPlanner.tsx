@@ -31,7 +31,7 @@ import { cn } from '@/lib/utils'
 import { defaults, installPacks } from '../legal-workbench/registry'
 import { useLibrary } from './review/CaseReview'
 import { SaveExportDialog } from './SaveExportDialog'
-import { addBlock, addDisturbance, addShape, setArea } from './edits'
+import { addBlock, addDisturbance, addShape, setArea, setTitle } from './edits'
 import { importBaseline, importBlocks, importUnit } from './imports'
 import { PLANNING_STEPS, type PlanningCommand, type PlanningEditor } from './interface/commands'
 import {
@@ -767,6 +767,7 @@ export default function BlockPlanner({
           result={analysis.status === 'ready' ? analysis.result : undefined}
           running={analysis.status === 'running'}
           library={library}
+          onTitle={(title) => edit((p) => setTitle(p, title))}
         />
         {choosingInterface && (
           <InterfaceChooser

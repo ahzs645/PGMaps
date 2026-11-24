@@ -7,7 +7,8 @@
 import { seriesContainer, type SheetOutputSettings } from '@/lib/forestry/blockSheet/sheetSeries'
 import type { ModelFormat } from '@/lib/model3d/model'
 import { SHEET_FORMAT_INFO, withSheetExtension, type SheetFormat } from '@/lib/mapSheet/sheetFormats'
-import { EXPORT_ITEMS, type RoadExport } from './exportCatalog'
+import { documentTitle, titleFileStem } from '@/lib/documentTitle'
+import { EXPORT_ITEMS, STAMPED_EXPORTS, type RoadExport } from './exportCatalog'
 
 export interface ExportFileType {
   /** The file name, extension included. */
@@ -69,9 +70,19 @@ export function blockSheetWrites(
   return { series, file: series ? seriesContainer(output) : output.format }
 }
 
-/** The stem every file is named from: the project name, non-alphanumerics to `-`, at most 70 characters. */
-export const exportBasename = (projectName: string) =>
-  (projectName.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'forest-road').slice(0, 70)
+/**
+ * The printed documents, the outputs that print the issue stamp: they carry the project's document title (`issue.title`, `src/lib/documentTitle.ts`) and are
+ * named from it. Every other output holds the project's own data (a design, a surface, GIS layers, the project file) and
+ * keeps the project's name, which a program reading it back takes as the project's.
+ */
+export const PRINTED_DOCUMENT_EXPORTS: ReadonlySet<RoadExport> = new Set(STAMPED_EXPORTS)
+
+/** The name an output carries: the document title for a printed document, else the project's name. */
+export const exportName = (kind: RoadExport, project: { name: string; issue?: { title?: string } }) =>
+  PRINTED_DOCUMENT_EXPORTS.has(kind) ? documentTitle(project.issue?.title, project.name) : project.name
+
+/** The stem every file is named from: the project name or, for a printed document, its title (`exportName`), non-alphanumerics to `-`, at most 70 characters. */
+export const exportBasename = (projectName: string) => titleFileStem(projectName, 'forest-road')
 
 /** A D-line sheet's name part: the line's name, non-alphanumerics to `-`, at most 40 characters. */
 const dLineSlug = (name: string | undefined) =>

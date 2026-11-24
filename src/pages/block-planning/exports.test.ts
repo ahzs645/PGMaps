@@ -4,8 +4,8 @@ import pg from '../../../packages/legal-rules/packs/bc-pgtsa-planning-1.2.0.json
 import { openPlanFile } from './migrate'
 import { parsePlan, samplePlan } from './plan'
 import { analyzePlan } from './planAnalysis'
-import { assessmentRecord, blocksGeoJson, buildExport } from './exports'
-import { setCheck, setOldForest } from './edits'
+import { assessmentRecord, blocksGeoJson, buildExport, exportFileName, SUMMARY_HEADING } from './exports'
+import { setCheck, setOldForest, setTitle } from './edits'
 import { boardCheckKey, oldForestKey } from './records'
 
 const plan = {
@@ -33,6 +33,22 @@ describe('block planning exports', () => {
   it('writes a plan file that opens again unchanged', () => {
     const reopened = openPlanFile(JSON.parse(buildExport('plan', plan, undefined, library, '2026-11-23')))
     expect(reopened.plan).toEqual(JSON.parse(JSON.stringify(plan)))
+  })
+
+  it('prints the planner’s own title until it is cleared, and keeps it only in the summary and its file name', () => {
+    expect(buildExport('summary', plan, result, library, 'today')).toContain(`<h1>${SUMMARY_HEADING}</h1>`)
+    expect(exportFileName('summary', plan)).toBe('block-assessment-summary.html')
+    const titled = setTitle(plan, '  Willow <North> plan ')
+    expect(titled.title).toBe('Willow <North> plan')
+    expect(buildExport('summary', titled, result, library, 'today')).toContain('<h1>Willow &lt;North&gt; plan</h1>')
+    expect(exportFileName('summary', titled)).toBe('Willow-North-plan-summary.html')
+    expect(exportFileName('plan', titled)).toBe('block-plan.json')
+    // Saved with the plan and read back; cleared, the plan is as it was.
+    expect(openPlanFile(JSON.parse(buildExport('plan', titled, undefined, library, 'today'))).plan.title).toBe(
+      'Willow <North> plan',
+    )
+    expect('title' in setTitle(titled, undefined)).toBe(false)
+    expect('title' in setTitle(titled, '   ')).toBe(false)
   })
 
   it('records every schedule, the review’s findings, the pathways and a labelled index', () => {

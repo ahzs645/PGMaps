@@ -15,6 +15,7 @@
  * DOM- and network-free. Parsed by hand (`src/lib/jsonGuards.ts`): a file that does not read is
  * refused with the field named, never repaired.
  */
+import { parseDocumentTitle, withDocumentTitle } from '@/lib/documentTitle'
 import type { MultiPolygon, Polygon, Position } from 'geojson'
 import { bool, int, list, object, oneOf, optional, text, type JsonObject } from '@/lib/jsonGuards'
 import type {
@@ -269,6 +270,11 @@ export interface LandscapeReview {
 
 export interface Plan {
   format: typeof PLAN_FORMAT
+  /**
+   * The title the summary prints (`src/lib/documentTitle.ts`). Absent, it follows "Block plan assessment"; stored only
+   * when the planner typed one, so a plan without it writes and reads as before.
+   */
+  title?: string
   area: Area
   baseline: Disturbance[]
   blocks: Block[]
@@ -1008,6 +1014,7 @@ export function parsePlan(value: unknown): Plan {
   const l = object(p.landscape ?? {}, 'landscape')
   return {
     format: PLAN_FORMAT,
+    ...withDocumentTitle('title', parseDocumentTitle(p.title)),
     area,
     baseline,
     blocks,

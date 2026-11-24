@@ -9,6 +9,8 @@ import { exportBrand, printedLogo } from '@/branding/store'
 import { useBranding } from '@/branding/useBranding'
 import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { MapStyleField } from '@/components/ui/map-style-field'
+import { DocumentTitleField } from '@/components/ui/document-title-field'
+import { storedDocumentTitle, titleFileStem } from '@/lib/documentTitle'
 import type { LabelStyleId } from '@/lib/mapSheet/callouts'
 import { LABEL_STYLES } from '@/lib/mapSheet/callouts'
 import { isSheetFormat } from '@/lib/mapSheet/sheetFormats'
@@ -84,6 +86,7 @@ import {
   recipeFormat,
   REPORT_RECIPES,
   reportSubtitle,
+  reportTitleFollows,
   withPicturesNotDrawn,
   withViewsLeftOut,
 } from './viaReport/recipes'
@@ -817,6 +820,13 @@ export function useVisualsExport(input: {
       : null
   const draftReport = draftAssembly?.report ?? null
   const draftSubtitle = draftContext ? reportSubtitle(draftContext) : null
+  // The VIA report's title line follows the licence and cutting permit (else the blocks) until the reviewer types one.
+  const reportTitle = storedDocumentTitle(scene.reportMetadata?.documentTitle)
+  const reportTitleBase = draftContext
+    ? reportTitleFollows(draftContext)
+    : scene.reportMetadata?.cuttingPermit
+      ? `${scene.reportMetadata.licence ? `${scene.reportMetadata.licence} ` : ''}CP ${scene.reportMetadata.cuttingPermit}`
+      : 'Proposed blocks'
   const chosenLogo = printedLogo(branding)
   const briefBlock = blocks.find((entry) => entry.id === input.briefBlockId) ?? blocks[0] ?? null
   // The brief takes the package's views as the other documents do, less views of interest planned for another block.
@@ -1646,7 +1656,10 @@ export function useVisualsExport(input: {
       case 'via-report': {
         // Written whether or not its views have their analysis sheets: what it lacks is on its to-complete list.
         const { report, source } = await composeReport('file')
-        const fileName = `forestry-via-report-${reportRecipe.id}`
+        // Named from the reviewer's own title once they type one; otherwise as before.
+        const fileName = reportTitle
+          ? `${titleFileStem(reportTitle, 'forestry')}-via-report`
+          : `forestry-via-report-${reportRecipe.id}`
         if (format === 'md') return textFile(reportMarkdown(report), `${fileName}.md`, 'text/markdown')
         if (format === 'docx' || format === 'docx-pdf') {
           const docx = await reportDocxBytes(source)
@@ -1903,6 +1916,20 @@ export function useVisualsExport(input: {
       : {}),
     'via-report': (
       <div className="grid gap-2">
+        <DocumentTitleField
+          value={reportTitle}
+          follows={reportTitleBase}
+          followsLabel={scene.reportMetadata?.cuttingPermit ? 'the licence and cutting permit' : 'the proposed blocks'}
+          onChange={(title) =>
+            setScene((current) => {
+              const reportMetadata = { ...current.reportMetadata, documentTitle: title }
+              // A cleared title is removed, so the scene is the same as one that never had one.
+              if (!reportMetadata.documentTitle) delete reportMetadata.documentTitle
+              return { ...current, reportMetadata }
+            })
+          }
+          printedOn="It is printed under the report's kind on the cover or title, in each page's running header and in the file's properties, and names the file."
+        />
         {reportRecipe.parts.includes('overview-sheet') && (
           <label className="grid gap-1 text-xs">
             <span className="text-muted-foreground">Overview sheet</span>

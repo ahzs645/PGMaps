@@ -5,6 +5,7 @@
  *
  * DOM- and network-free.
  */
+import { withDocumentTitle } from '@/lib/documentTitle'
 import {
   entryOf,
   nextId,
@@ -55,6 +56,13 @@ export function setOldForest(plan: Plan, change: Partial<OldForestChoices>): Pla
 /** Keeps a calculation with the plan (`records.ts`). */
 export function setCheck<K extends keyof PlanChecks>(plan: Plan, kind: K, record: PlanChecks[K]): Plan {
   return { ...plan, checks: { ...plan.checks, [kind]: record } }
+}
+
+/** The summary's title as typed; blank removes it, so the summary follows its default heading again. */
+export function setTitle(plan: Plan, title: string | undefined): Plan {
+  const next: Plan = { ...plan }
+  delete next.title
+  return { ...next, ...withDocumentTitle('title', title) }
 }
 
 export function setArea(plan: Plan, change: Partial<Area>): Plan {

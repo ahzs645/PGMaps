@@ -167,6 +167,7 @@ import {
   blockSheetWrites,
   DESIGN_MODEL_FORMATS,
   exportBasename,
+  exportName,
   exportFileType,
   saveAsFileType,
   saveAsOffered,
@@ -3742,8 +3743,10 @@ export default function DevForestryRoads({
     const invalid = exportInvalidInput(kind)
     if (invalid && INVALID_INPUT_RULES[kind] === 'refuse')
       throw Error(invalidInputRefusal(EXPORT_ITEMS.find((item) => item.kind === kind)?.label ?? 'This file', invalid))
-    const basename = exportBasename(safe.name)
-    return { safe, basename }
+    // A printed document carries the document title wherever it prints the project's name, and is named from it.
+    const named = exportName(kind, safe)
+    const printed = named === safe.name ? safe : { ...safe, name: named }
+    return { safe: printed, basename: exportBasename(named) }
   }
   const reportHtml = (safe: RoadProject) =>
     brandedHtml(
@@ -4851,7 +4854,7 @@ export default function DevForestryRoads({
    */
   const saveAsFor = (kind: RoadExport): FilesSaveAs | null => {
     if (!saveAsOffered(kind)) return null
-    const type = exportFileType(kind, exportBasename(project.name), fileVariant(), project.name)
+    const type = exportFileType(kind, exportBasename(exportName(kind, project)), fileVariant(), project.name)
     let notice = ''
     return {
       suggestedName: type.name,
@@ -8558,11 +8561,11 @@ export default function DevForestryRoads({
           onClose={() => setSummaryTarget(null)}
         />
       )}
+      {/* Last, never first: the full-width ribbon drops the workspace's top padding only while it is the first child. */}
+      {pageDrop.overlay}
     </div>
   )
   return (
-      {/* Last, never first: the full-width ribbon drops the workspace's top padding only while it is the first child. */}
-      {pageDrop.overlay}
     <PanelWindowProvider>
       <PanelWindowLayoutRestore
         layout={savedLayouts.find((item) => `saved:${item.id}` === layoutSelection)?.windows ?? active.panelWindows}

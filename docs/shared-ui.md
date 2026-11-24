@@ -399,6 +399,30 @@ E2E specs drive it with `tests/e2e/document-contents.ts` (`contentsList`,
 `setContentsState`, `moveContentsPart`, `chooseContentsPreset`,
 `saveContentsPreset`, `contentsCountLine`, `contentsOrder`).
 
+## Document titles
+
+A printed file's title follows a name the tool already has until the person types their own, and clearing it
+follows the name again. One rule (`src/lib/documentTitle.ts`, DOM-free) and one field
+(`DocumentTitleField`, `src/components/ui/document-title-field.tsx`) do this for every tool:
+
+- Store only a title the person typed, as an optional key: `storedDocumentTitle` trims it and turns a blank into
+  `undefined`, `withDocumentTitle` writes no key for one that follows, and `parseDocumentTitle` reads a saved file
+  tolerantly. A project that never set a title is saved exactly as before.
+- Print `documentTitle(stored, follows)` wherever the document printed the followed name. Never copy the name into
+  the stored title: renaming the project must still rename every document that follows it.
+- The field shows the followed name as its placeholder, says "Follows …" while nothing is set, and offers
+  *Follow … again* once something is. It keeps the text as typed while the stored title drops a trailing space.
+  Put it above the output's settings in Save & export, once per output that prints a title, never a page's own
+  title input. `followsLabel` names what it follows ("the project name", "the licence and cutting permit").
+- A printed document is named from its title (`titleFileStem`); a data file (a project file, a design, a surface,
+  GIS layers) keeps the project's name, which a program reading it back takes as the project's.
+- Keep the title out of anything that starts or stales a calculation: it is a record, like the issue stamp.
+
+Where it lives today: the road designer's `issue.title`, every output in `STAMPED_EXPORTS` (`exportName`,
+`exportFiles.ts`, applied once in the page's `exportBasis`); visual quality's `reportMetadata.documentTitle`, the VIA
+report's line under its kind (`reportSubtitle`, following `reportTitleFollows`); block planning's `Plan.title`
+(`setTitle`), the summary's heading (`SUMMARY_HEADING`, `exportFileName`).
+
 ## Shares and distributions
 
 `ShareBars` (`share-bars.tsx`) draws rows of percentage bars against a fixed

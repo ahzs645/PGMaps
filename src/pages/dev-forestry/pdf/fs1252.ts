@@ -38,6 +38,11 @@ export type FormMetadata = {
   /** Not on the FS1252: VIA reports read these (the district summary's inventory date and lake row). */
   lakeManagementZone?: string
   inventoryDate?: string
+  /**
+   * Not on the FS1252: the title the VIA report prints under its kind (`src/lib/documentTitle.ts`). Absent, it follows
+   * the licence and cutting permit, else the proposed blocks (`reportSubtitle`).
+   */
+  documentTitle?: string
 }
 /** Who gave a design row: the reviewer, or the model's measurement. */
 export type DesignSource = 'reviewer' | 'modelled'

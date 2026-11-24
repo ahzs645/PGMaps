@@ -8,6 +8,12 @@ import { createDemoProject, demoTerrain } from './terrain'
 const today = new Date(2026, 10, 9)
 
 describe('issue stamp', () => {
+  it('keeps a document title only when one was typed', () => {
+    expect(parseProjectIssue({ ...EMPTY_PROJECT_ISSUE, title: ' Haul road ' }).title).toBe('Haul road')
+    expect('title' in parseProjectIssue({ ...EMPTY_PROJECT_ISSUE, title: '' })).toBe(false)
+    expect('title' in parseProjectIssue(EMPTY_PROJECT_ISSUE)).toBe(false)
+  })
+
   it('prints a designation after the name, and a project without one reads and writes as before', () => {
     const stamp = issueStamp(
       {

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
+import { DocumentTitleField } from '@/components/ui/document-title-field'
 import { FramePages } from '@/components/ui/frame-pages'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -11,7 +12,13 @@ import { escapeHtml } from '@/lib/escapeHtml'
 import { screenColour } from '@/lib/screenPage'
 import { cn } from '@/lib/utils'
 import type { Pack } from '../../../packages/legal-rules/src/contract'
-import { BLOCK_PLANNING_EXPORTS, buildExport, type BlockPlanningExport } from './exports'
+import {
+  BLOCK_PLANNING_EXPORTS,
+  buildExport,
+  exportFileName,
+  SUMMARY_HEADING,
+  type BlockPlanningExport,
+} from './exports'
 import type { Plan } from './plan'
 import type { PlanAnalysis } from './planAnalysis'
 
@@ -34,6 +41,7 @@ export function SaveExportDialog({
   result,
   running,
   library,
+  onTitle,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -41,6 +49,8 @@ export function SaveExportDialog({
   result: PlanAnalysis | undefined
   running: boolean
   library: Pack[]
+  /** Sets the summary's title (`setTitle`); `undefined` follows its default heading again. */
+  onTitle: (title: string | undefined) => void
 }) {
   const [chosen, setChosen] = useState<BlockPlanningExport>('plan')
   const output = BLOCK_PLANNING_EXPORTS.find((o) => o.id === chosen)!
@@ -56,6 +66,7 @@ export function SaveExportDialog({
     }
   }
   const build = () => buildExport(chosen, plan, result, library, today)
+  const fileName = exportFileName(chosen, plan)
   return (
     <PanelDialog open={open} onOpenChange={onOpenChange} title="Save & export" size="xl" bodyClassName="p-0">
       <div className="grid min-h-[60vh] gap-3 p-3 md:grid-cols-[15rem_1fr]" data-testid="block-planning-export">
@@ -81,6 +92,15 @@ export function SaveExportDialog({
             <h3 className="text-sm font-semibold">{output.label}</h3>
             <InfoTip label={`About ${output.label}`}>{output.description}</InfoTip>
           </div>
+          {chosen === 'summary' && (
+            <DocumentTitleField
+              value={plan.title}
+              follows={SUMMARY_HEADING}
+              followsLabel="the summary's own heading"
+              onChange={onTitle}
+              printedOn="It is the summary's heading and names its file. Saved with the plan."
+            />
+          )}
           {waiting ? (
             <InlineAlert tone="info" loading={running}>
               {running
@@ -103,7 +123,7 @@ export function SaveExportDialog({
           <div className="flex flex-wrap gap-2">
             <Button
               disabled={file === null}
-              onClick={() => file !== null && downloadText(file, output.fileName, output.type.mime)}
+              onClick={() => file !== null && downloadText(file, fileName, output.type.mime)}
             >
               <Download className="size-4" />
               Download
@@ -111,7 +131,7 @@ export function SaveExportDialog({
             <SaveAsButton
               variant="outline"
               disabled={file === null}
-              suggestedName={output.fileName}
+              suggestedName={fileName}
               fileType={output.type}
               content={build}
               rememberFolderAs="block-planning"

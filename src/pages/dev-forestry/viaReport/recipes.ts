@@ -10,6 +10,7 @@
  * which the kit's own compile writes from the JSON (`npm run via-recipes:build`) and `recipeJson.test.ts` pins, so the
  * kit never loads with the page. Structure only, never branding. No DOM or network access.
  */
+import { documentTitle } from '@/lib/documentTitle'
 import type { OverviewSheetStyle } from '../reportMaps'
 import { findDocumentFormat } from '../viaDocument/formats'
 import { toCompleteLine } from '../viaDocument/wording'
@@ -98,13 +99,20 @@ export interface AssembledPart {
   toComplete: number
 }
 
-/** The report's subtitle: the licence and cutting permit, else the proposed blocks. No part is needed for it. */
-export const reportSubtitle = (ctx: ReportContext): string =>
+/** What the report's title line follows while the reviewer has not typed one: the licence and cutting permit, else the proposed blocks. */
+export const reportTitleFollows = (ctx: ReportContext): string =>
   ctx.office.cuttingPermit
     ? `${ctx.office.licence ? `${ctx.office.licence} ` : ''}CP ${ctx.office.cuttingPermit}`
     : proposedBlocks(ctx)
         .map((block) => block.name)
         .join(', ') || 'Proposed blocks'
+
+/**
+ * The report's subtitle, the title line under the report's kind: the reviewer's own title (`office.documentTitle`,
+ * `src/lib/documentTitle.ts`), else what it follows (`reportTitleFollows`). No part is needed for it.
+ */
+export const reportSubtitle = (ctx: ReportContext): string =>
+  documentTitle(ctx.office.documentTitle, reportTitleFollows(ctx))
 
 /** The context every part of `recipe` is built with: the recipe's parts and options laid over `ctx`. */
 export const partContext = (recipe: ReportRecipe, ctx: ReportContext): ReportContext => ({
