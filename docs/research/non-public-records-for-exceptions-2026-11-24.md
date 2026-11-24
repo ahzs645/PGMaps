@@ -172,7 +172,7 @@ Statutes were read on BC Laws, current to 17 November 2026. DataBC layers were c
 
 | Item | Public data | Not public | Who holds it | How to get it | Spatial? | Verified |
 | --- | --- | --- | --- | --- | --- | --- |
-| The FSP: results, strategies, stocking standards, measures | Plans published by holders. FRPA §20.25 requires public availability (BCTS: on a ministry website). BCTS Prince George posts FSP 24, maps, supporting documents and the district manager's approval letter. FDUs and identified areas on DataBC. The FDU layer shows FSP 24 Amendment 27 as `APPROVED`; the grazing guide cites Amendment 26 | Licensee approval letters and the reviewer's notes | District; holder | Ask the holder; FOI | FDU | Yes |
+| The FSP: results, strategies, stocking standards, measures | Plans published by holders. FRPA §20.25 requires public availability (BCTS: on a ministry website). BCTS Prince George posts FSP 24, maps, supporting documents and the district manager's approval letter. FDUs and identified areas on DataBC. The FDU layer shows FSP 24 Amendment 27 as `APPROVED` (28 April 2025, FDU boundaries unchanged), but only Amendment 26's text and approval letter are posted, so the grazing guide cites Amendment 26 and asks for 27 | Licensee approval letters and the reviewer's notes | District; holder | Ask the holder; FOI | FDU | Yes |
 | FSP Tracking System | Login-only (IDIR or Business BCeID); "a licensee user can only see their FSP information" | Everything in it: submissions, standards library, decisions | Ministry of Forests | FOI | Yes | Yes |
 | FPPR §§20–22: review and comment | Newspaper notice; 60-day review | Comments received and the holder's response (§22 goes to the minister) | Holder; district | FOI | No | Partly |
 
