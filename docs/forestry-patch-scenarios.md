@@ -36,22 +36,48 @@ Step 1's **Unit boundary and DataBC** builds the baseline from public records in
 
 Compare's **Published 2015 and 2018** opens **Check the method against these figures** (`boardCheck.ts`, in a worker; kept with the plan as `checks.board`, so the assessment record and the printed summary carry it and say when it is out of date): the calculation run on the baseline alone at 2015 and 2018, each class beside the Board's share with the difference in points. It runs on request, says when the baseline was not read far enough back to hold 2015's young forest, and goes stale when the area or baseline changes. A difference tests today's records and the method together, never one of them: the Board used other inventories, and 2018 the revised 2017 guidance.
 
-What it found on 23 November 2026 (DataBC's cutblocks and fires from 1995, the order's own unit polygons; each row the share of young forest in percent):
+The check runs on the baseline's harvests alone. The Board's figures are the LLOWG's, which collects licensees' harvest, road and retention data, not fire perimeters, and leaving fires out brought the check closer in both years and both units tried. The projections keep fires: burned ground is young forest.
 
-| Unit and year                                 | Run           | Under 50 ha | 51–100 ha | 101–1,000 ha | Over 1,000 ha |
-| --------------------------------------------- | ------------- | ----------- | --------- | ------------ | ------------- |
-| Prince George, Moist Interior–Mountain, 2015  | Board         | 7.7         | 14.9      | 32.0         | 45.3          |
-|                                               | Whole patches | 14.1        | 10.0      | 26.4         | 48.8          |
-|                                               | Clipped       | 26.8        | 17.5      | 55.8         | 0.0           |
-| Prince George, Moist Interior–Mountain, 2018  | Board         | 4.3         | 6.1       | 35.7         | 53.9          |
-|                                               | Whole patches | 12.2        | 6.7       | 21.4         | 59.0          |
-|                                               | Clipped       | 23.1        | 14.5      | 62.5         | 0.0           |
-| Fort St. James, Moist Interior–Mountain, 2015 | Board         | 22.7        | 35.0      | 3.9          | 38.4          |
-|                                               | Whole patches | 12.2        | 13.8      | 26.0         | 48.0          |
-| Fort St. James, Moist Interior–Mountain, 2018 | Board         | 17.9        | 1.7       | 76.7         | 3.7           |
-|                                               | Whole patches | 2.0         | 0.0       | 23.1         | 74.9          |
+What it found (24 November 2026; DataBC's cutblocks and fires from 1995, the order's own unit polygons, whole patches; each row is the share of young forest in percent):
 
-In Prince George, classing whole patches puts the largest class within 3.5 and 5.1 points of the Board's and keeps its rise from 2015 to 2018, where clipping finds no patch over 1,000 ha at all: the unit's large patches cross its boundary. The smallest class reads 6–8 points high and the 101–1,000 ha class 6–14 low, likely small records in today's consolidated layer that the Board's inventory merged or lacked; this is not resolved. Fort St. James does not reproduce: these records hold only 404 ha of young forest in its unit in 2015, and the Board's own two years disagree sharply (the 101–1,000 ha class goes from 3.9% to 76.7% while the over-1,000 ha class goes from 38.4% to 3.7%), which the revised 2017 method and a different inventory may explain. A whole unit's check took 1–2.5 minutes. Until each unit's check is close, its projections are unvalidated.
+| Unit and year                                 | Run                 | Under 50 ha | 51–100 ha | 101–1,000 ha | Over 1,000 ha | Summed difference |
+| --------------------------------------------- | ------------------- | ----------- | --------- | ------------ | ------------- | ----------------- |
+| Prince George, Moist Interior–Mountain, 2015  | Board               | 7.7         | 14.9      | 32.0         | 45.3          |                   |
+|                                               | **Harvests only**   | 15.1        | 10.7      | 29.4         | 44.0          | 15.5              |
+|                                               | With fires          | 14.1        | 10.0      | 26.4         | 48.8          | 20.5              |
+|                                               | Clipped, with fires | 26.8        | 17.5      | 55.8         | 0.0           | 90.8              |
+| Prince George, Moist Interior–Mountain, 2018  | Board               | 4.3         | 6.1       | 35.7         | 53.9          |                   |
+|                                               | **Harvests only**   | 12.6        | 7.1       | 23.8         | 55.7          | 23.1              |
+|                                               | With fires          | 12.2        | 6.7       | 21.4         | 59.0          | 28.0              |
+| Fort St. James, Moist Interior–Mountain, 2015 | Board               | 22.7        | 35.0      | 3.9          | 38.4          |                   |
+|                                               | **Harvests only**   | 11.9        | 13.8      | 26.0         | 48.2          | 63.9              |
+| Fort St. James, Moist Interior–Mountain, 2018 | Board               | 17.9        | 1.7       | 76.7         | 3.7           |                   |
+|                                               | **Harvests only**   | 6.5         | 0.1       | 79.2         | 14.2          | 25.9              |
+|                                               | With fires          | 2.0         | 0.0       | 23.1         | 74.9          | 142.3             |
+
+The summed difference is the four classes' absolute differences from the Board, in points. What it shows:
+
+- **Fires.** In Fort St. James in 2018 one fire made the largest class 74.9% against the Board's 3.7%; without fires the 101–1,000 ha class reads 79.2% against 76.7%.
+- **Whole patches.** In Prince George, classing whole patches keeps the largest class within two points of the Board's in both years, where clipping at the boundary finds no patch over 1,000 ha at all.
+- **Still unexplained.** The smallest class reads 7–8 points high in Prince George, and Fort St. James 2015 does not reproduce: these records hold only about 400 ha of young forest in that unit in 2015.
+
+**Is it a time horizon?** Prince George Moist Interior – Mountain was run with every dating change that could explain an offset. For 2015 none brought it closer than the plain run (summed difference 20.5 with fires):
+
+| Variant                                         | 2015      | 2018      |
+| ----------------------------------------------- | --------- | --------- |
+| As read (with fires)                            | 20.5      | 28.0      |
+| Young window 0–19 years instead of 0–20         | 21.3      | 27.6      |
+| The assessment year's own disturbances left out | 46.5      | 21.8      |
+| Assessed one or two years earlier               | 29.8–36.3 | 21.0–22.3 |
+| Assessed one year later                         | 28.8      | 43.7      |
+| Harvest dated by its mid year                   | 22.5      | 30.9      |
+| Harvest dated by its end year                   | 29.0      | 22.1      |
+| Records under 1, 2 or 5 ha dropped              | 20.4–23.4 | 25.1–32.2 |
+| **Fires left out**                              | **15.5**  | **23.1**  |
+
+So there is no single offset, and the window and dating rules stay as the policy states them. 2018 alone fits better when its own year's records are left out, or when it is assessed a year or two earlier. That is consistent with the 2018 interim analysis having been run before that year's harvest records and fires were in. A tiny record (521 of 2,772 are under 1 ha) is not what inflates the smallest class.
+
+Until each unit's check is close, its projections are unvalidated.
 
 **Save & export** offers the plan file, the assessment record (every schedule's periods, the published figures, both reviews' findings, the pathways and the index), the blocks and baseline as GeoJSON with each schedule's cut year, and a printable summary. Each preview is the file that downloads.
 

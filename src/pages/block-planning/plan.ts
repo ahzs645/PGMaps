@@ -434,6 +434,7 @@ function parseChecks(value: unknown): PlanChecks {
       return {
         ranOn: day(b.ranOn, 'checks.board.ranOn'),
         key: text(b.key, 'checks.board.key', 40),
+        firesLeftOut: optional(b, 'firesLeftOut', (v) => int(v, 'checks.board.firesLeftOut', 0, 1e7)),
         years: list(b.years, 'checks.board.years', 10).map((y, i) => {
           const o = object(y, `checks.board year ${i + 1}`)
           return {

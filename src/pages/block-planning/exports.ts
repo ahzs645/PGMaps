@@ -206,7 +206,7 @@ ${table.labels
   )
   .join('\n')}
 </tbody></table>
-<p class="note">The plan’s calculation on its baseline alone, run ${escape(board.ranOn)}. Young forest modelled: ${board.years.map((y) => `${y.year} ${y.totalHa.toFixed(0)} ha`).join(' · ')}. The Board used other inventories, and 2018 the revised 2017 guidance: a difference tests the inputs and the method together.</p>`
+<p class="note">The plan’s calculation on its baseline’s harvests alone (fires left out, as the Board’s figures were built from harvest records), run ${escape(board.ranOn)}. Young forest modelled: ${board.years.map((y) => `${y.year} ${y.totalHa.toFixed(0)} ha`).join(' · ')}. The Board used other inventories, and 2018 the revised 2017 guidance: a difference tests the inputs and the method together.</p>`
       : ''
   const old = record.oldForest
   const oldUnit = old ? oldForestUnit(old.district, old.unit) : null

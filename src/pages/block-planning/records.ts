@@ -11,6 +11,8 @@ import type { Plan, Shape } from './plan'
 export interface BoardCheckRecord {
   ranOn: string
   key: string
+  /** Fires left out of the check (harvests only, as the Board's figures were built). */
+  firesLeftOut?: number
   years: { year: number; shares: (number | null)[]; totalHa: number }[]
 }
 

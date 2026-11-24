@@ -5,6 +5,11 @@
  * past harvests and fires are not the inventories the 2015 and 2018 analyses used, and 2018 used the
  * revised 2017 guidance, so a difference is evidence to explain, never a verdict on either.
  *
+ * Fires are left out of the check, never out of the projections. The Board's figures are the LLOWG's,
+ * built from licensees' harvest records; with fires in, one 2018 fire made Fort St. James Moist
+ * Interior – Mountain's largest class 74.9% against the Board's 3.7%, and without them the check came
+ * closer in both years and both units tried (docs/forestry-patch-scenarios.md).
+ *
  * DOM- and network-free.
  */
 import { periodCalculator, type Period } from '../forest-patches/analysis'
@@ -32,20 +37,24 @@ export interface BoardCheck {
   coverageGap: string | null
   /** Largest absolute class difference over both years, in points. */
   largestDifference: number | null
+  /** Fires in the baseline the check left out, to compare like with like. */
+  firesLeftOut: number
 }
 
 function baselineProject(plan: Plan, year: number): Project {
-  const features: Footprint[] = plan.baseline.map((d) => ({
-    type: 'Feature',
-    geometry: d.geometry,
-    properties: {
-      id: baselineFootprintId(d.id),
-      scenario: 'reference',
-      year: d.year,
-      yearBasis: d.yearBasis,
-      source: d.source,
-    },
-  }))
+  const features: Footprint[] = plan.baseline
+    .filter((d) => d.kind !== 'fire')
+    .map((d) => ({
+      type: 'Feature',
+      geometry: d.geometry,
+      properties: {
+        id: baselineFootprintId(d.id),
+        scenario: 'reference',
+        year: d.year,
+        yearBasis: d.yearBasis,
+        source: d.source,
+      },
+    }))
   return {
     format: 'pgmaps-patches-v1',
     type: 'FeatureCollection',
@@ -61,7 +70,7 @@ function baselineProject(plan: Plan, year: number): Project {
 /** The check for the plan's unit, or null when the Board published nothing for it or the area is unset. */
 export function boardCheck(plan: Plan): BoardCheck | null {
   const unit = publishedUnit(plan.area.district, plan.area.ndu)
-  if (!unit || !plan.baseline.length) return null
+  if (!unit || !plan.baseline.some((d) => d.kind !== 'fire')) return null
   const years = unit.observations.map((published) => {
     const modelled = periodCalculator(
       baselineProject(plan, published.year),
@@ -89,5 +98,6 @@ export function boardCheck(plan: Plan): BoardCheck | null {
           ? `The baseline was read from ${baselineFrom}; 2015's young forest includes disturbances from ${needed}. Read it again from step 1.`
           : null,
     largestDifference: diffs.length ? Math.max(...diffs.map(Math.abs)) : null,
+    firesLeftOut: plan.baseline.filter((d) => d.kind === 'fire').length,
   }
 }

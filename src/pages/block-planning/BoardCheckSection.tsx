@@ -19,6 +19,7 @@ type State = { status: 'idle' } | { status: 'running' } | { status: 'failed'; er
 export const boardCheckRecord = (check: BoardCheck, key: string, ranOn: string): BoardCheckRecord => ({
   ranOn,
   key,
+  firesLeftOut: check.firesLeftOut,
   years: check.years.map((y) => ({
     year: y.year,
     shares: y.modelled.classes.map((c) => c.percent),
@@ -85,9 +86,10 @@ export function BoardCheckSection({ plan, edit }: { plan: Plan; edit: StepProps[
   return (
     <div className="space-y-2" data-testid="block-planning-board-check">
       <p className="text-xs text-muted-foreground">
-        Runs the plan’s calculation on the baseline alone at 2015 and 2018 and sets each class beside the Board’s
-        figure. A difference tests the method and today’s records together: the Board used other inventories, and 2018
-        the revised 2017 guidance.
+        Runs the plan’s calculation on the baseline’s harvests alone at 2015 and 2018 and sets each class beside the
+        Board’s figure. Fires are left out here, as the Board’s figures were built from licensees’ harvest records; the
+        projections keep them. A difference tests the method and today’s records together: the Board used other
+        inventories, and 2018 the revised 2017 guidance.
       </p>
       {state.status === 'running' ? (
         <div className="flex items-center gap-2">
@@ -145,7 +147,8 @@ export function BoardCheckSection({ plan, edit }: { plan: Plan; edit: StepProps[
             ]}
           />
           <p className="text-2xs text-muted-foreground">
-            Young forest modelled: {years.map((y) => `${y.year} ${pct.format(y.totalHa)} ha`).join(' · ')}
+            Young forest modelled from harvests: {years.map((y) => `${y.year} ${pct.format(y.totalHa)} ha`).join(' · ')}
+            {record?.firesLeftOut ? ` (${record.firesLeftOut.toLocaleString()} fires left out)` : ''}
             {diffs.length > 0 && ` · largest class difference ${pct.format(Math.max(...diffs))} points`}. A close match
             supports the inputs and method together; a wide one is a question to answer before relying on the
             projections, not a finding.

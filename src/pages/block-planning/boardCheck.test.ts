@@ -61,6 +61,13 @@ describe('boardCheck', () => {
     expect(boardCheck(full)!.coverageGap).toBeNull()
   })
 
+  it('leaves fires out, as the Board’s figures were built from harvest records, and counts them', () => {
+    const withFire = replaceBaseline(plan, () => false, [{ ...cut('fire', 2012, block(-122, 54, 2000)), kind: 'fire' }])
+    const check = boardCheck(withFire)!
+    expect(check.firesLeftOut).toBe(1)
+    expect(check.years[0].modelled.totalHa).toBeCloseTo(boardCheck(plan)!.years[0].modelled.totalHa, 6)
+  })
+
   it('answers nothing where the Board published nothing or the baseline is empty', () => {
     expect(boardCheck(setArea(plan, { ndu: 'No such sub-unit' }))).toBeNull()
     expect(boardCheck(setArea(emptyPlan(2026), area))).toBeNull()
