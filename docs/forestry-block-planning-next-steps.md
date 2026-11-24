@@ -2,37 +2,11 @@
 
 What is still open in `/dev/forestry/block-planning` after old and old interior forest were built (24 November 2026), in the order to take it up. The contracts are [Block planning and Prince George forest patch scenarios](forestry-patch-scenarios.md) and [Old and old interior forest in the block planner](forestry-old-forest.md). Each item says what it changes, where it would go, what decides it, and how to know it worked. When one is built, move its rules into the contract and delete it here.
 
-## Next: the old-forest gaps
+## Done: the four old-forest gaps
 
-These are what Objectives A and B do not model yet; both change the figures a reviewer sees. D.4's younger stands and D.2's pooling are built (see the contract's **D.4: younger stands** and **D.2: pooling units**). Each must leave a plan that does not use it calculating exactly as now.
+Built on 24 November 2026 and moved into [the old-forest contract](forestry-old-forest.md): private land and excluded tenures left out of the CFLB proxy (A6 and A10 now within 1% and 3% of the Board's CFLB), pipelines in the 2005 interior method, D.4's younger stands and D.2's pooling. What they leave open is in the contract's **Limits and what is not built**.
 
-### 1. Remove private land and excluded tenures from the CFLB proxy
-
-**Why first.** On A6 and A10 the proxy's land base came out 37–38% larger than the LLOWG's CFLB, and private land and excluded tenures are the likeliest reason. The order applies to Crown land and excludes woodlots, TFLs and community forests. A reviewer who states a CFLB is protected (decision 2 applies shares), but one who does not reads inflated hectares.
-
-**What to read**, by the unit's own shapes like the other reads in `oldForest/reads.ts`:
-
-- ownership, `WHSE_FOREST_VEGETATION.F_OWN` (`OWN`, `OWNERSHIP_DESCRIPTION`), keeping provincial Crown only;
-- woodlots and community forests, `WHSE_FOREST_TENURE.FTEN_MANAGED_LICENCE_POLY_SVW`;
-- tree farm licences, `WHSE_ADMIN_BOUNDARIES.FADM_TFL_ALL_SP`.
-
-Check each layer's fields and its coverage of the TSA before relying on it: do it as `reads.ts` was done, with `DescribeFeatureType` and a count.
-
-**Where it goes.** `prepareUnit` takes the excluded ground and leaves it out of the CFLB proxy before anything is counted. Old forest on excluded ground is no longer counted either, because the order does not apply there. The panel states the hectares removed by kind.
-
-**Done when.** The CFLB proxy on A6 and A10 comes within about 10% of the Board's 2019 CFLB, or the guide says what still separates them. Old forest's share of the CFLB must not get worse there: it matches today within a point.
-
-### 2. Pipelines in the 2005 interior method
-
-The 2005 method buffers pipelines by 200 m, like forest service roads, railways and transmission lines, which are already read. No pipeline layer was checked, so interior next to a pipeline is overstated today.
-
-**What to read.** The BC Energy Regulator's pipeline rights-of-way on DataBC, `WHSE_MINERAL_TENURE.OG_PIPELINE_AREA_PERMIT_SP` or its segment layer. Confirm the name, fields and northern coverage first; the name here is a candidate, not checked.
-
-**Where it goes.** `readCorridors` gains one more entry, as `fsr`, `railway` and `transmission` are; `CORRIDOR_LABELS` names it.
-
-**Done when.** A unit a pipeline crosses loses about 400 m × the crossing length of interior, and the corridor count in the panel includes it.
-
-## After that
+## Next
 
 ### Prepared tables in bcdatamapper
 
@@ -57,7 +31,7 @@ The next thing to try is the LLOWG's own records. The Board names the 2015 and 2
 
 ### A5's old forest
 
-A5's land base matches the Board's to 4%, but its old forest is 12 points short of the Board's share. The likeliest cause is the VRI vintage: today's ages against the 2019 inventory. Test it with an archived VRI of 2019 (FAIB keeps vintages), and record the answer in the guide's table.
+A5's land base matches the Board's to 4%, but its old forest is 12 points short of the Board's share. A6, now that its land base matches to 1%, is 3 points short (40.4% against 43.6%). The likeliest cause is the VRI vintage: today's ages against the 2019 inventory, and stands harvested between 2019 and the VRI projection whose 2019 age is not kept (262 ha on A6). Test it with an archived VRI of 2019 (FAIB keeps vintages), and record the answer in the guide's table.
 
 ### A map of old and interior forest
 

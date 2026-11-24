@@ -25,6 +25,7 @@ import { DEFAULT_INDEX_WEIGHTS, indexFormula, INDEX_INDICATORS, planningIndex } 
 import { pathways, trendYearOf } from './review/pathways'
 import { formatHa, GROUP_LABELS, layerSummary, MAPPED_LAYER_INFO } from './review/grazingEvidence'
 import { mappedReadCurrent, rangeReviewCurrent } from './review/rangeReview'
+import { corridorSentence, excludedSentence } from './oldForest/recordText'
 import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
 import { boardCheckCurrent, firstShortfall, metOnlyWithD4, oldForestCurrent, shortfallText } from './records'
 
@@ -267,7 +268,7 @@ ${old.current ? '' : outOfDate}
           : ''
       } ${old.choices?.cflbEnteredHa !== undefined ? `CFLB as stated${old.choices?.cflbSource ? ` (${escape(old.choices.cflbSource)})` : ''}, with the VRI proxy’s shares applied to it.` : 'CFLB by the VRI proxy (treed, forest management land base).'}${
         oldUnit && gisDisagrees(oldUnit, old.gisFraction) ? ` ${escape(gisDisagrees(oldUnit, old.gisFraction))}` : ''
-      }</p>
+      } ${escape(excludedSentence(old))} ${escape(corridorSentence(old))}</p>
 ${old.pool ? `<p class="note">Pooled under D.2 by the reviewer: ${old.pool.map((u) => `${escape(u.unit)} (${escape(u.district)}, CFLB ${(u.cflbEnteredHa ?? u.cflbProxyHa).toFixed(0)} ha${u.cflbEnteredHa === undefined ? ' by the VRI proxy' : ' as stated'})`).join(', ')}. Each unit’s requirement is at its own percentage and old age; the figures below are the pool’s sums. ${old.pool.map((u) => escape(u.source)).join('. ')}.</p>` : ''}
 ${old.younger ? `<p class="note">D.4, as stated by the reviewer: stands from ${old.younger.fromAge} years up to the old age count toward up to 20% of the old and old interior requirements (never the non-pine one). Conservation benefit: ${escape(old.younger.benefit)}</p>` : ''}
 ${old.schedules

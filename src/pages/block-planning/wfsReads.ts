@@ -94,14 +94,41 @@ export function ringFilter(geometryField: string, ring: Position[]) {
 }
 
 /** Every record touching any part of the shape, once each by `keyOf`. */
+/** The convex hull of a ring (Andrew's monotone chain), closed. It holds the ring, so it asks for more, never less. */
+export function hullRing(ring: Position[]): Position[] {
+  const pts = [...new Map(ring.map(([x, y]) => [`${x},${y}`, [x, y] as Position])).values()].sort(
+    (a, b) => a[0] - b[0] || a[1] - b[1],
+  )
+  if (pts.length < 3) return ring
+  const cross = (o: Position, a: Position, b: Position) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+  const half = (list: Position[]) => {
+    const out: Position[] = []
+    for (const p of list) {
+      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], p) <= 0) out.pop()
+      out.push(p)
+    }
+    return out.slice(0, -1)
+  }
+  const hull = [...half(pts), ...half([...pts].reverse())]
+  return [...hull, hull[0]]
+}
+
+/**
+ * Every record touching any part of the shape, once each by `keyOf`. `byHull` asks with each part's
+ * convex hull instead of its ring: for a layer of a few very detailed polygons (TFLs), where the
+ * server times out intersecting a 6,974-vertex part with a 32,214-vertex licence, and the clip later
+ * is exact either way.
+ */
 export async function readAcrossParts(
   shape: Shape,
   read: (filter: string, seen: number) => Promise<RawFeature[]>,
   geometryField: string,
   keyOf: (f: RawFeature) => string,
+  byHull = false,
 ): Promise<RawFeature[]> {
   const kept = new Map<string, RawFeature>()
   for (const poly of shapeParts(shape))
-    for (const f of await read(ringFilter(geometryField, poly[0]), kept.size)) kept.set(keyOf(f), f)
+    for (const f of await read(ringFilter(geometryField, byHull ? hullRing(poly[0]) : poly[0]), kept.size))
+      kept.set(keyOf(f), f)
   return [...kept.values()]
 }

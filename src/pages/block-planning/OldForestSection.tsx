@@ -25,6 +25,7 @@ import {
   type OldForestUnit,
 } from './oldForest/units'
 import { YOUNGER_STANDS_MAX_SHARE, youngerStandsProblem } from './oldForest/youngerStands'
+import { corridorSentence, excludedSentence } from './oldForest/recordText'
 import { nduParts } from './orderUnits'
 import {
   oldForestCurrent,
@@ -177,7 +178,7 @@ export function OldForestSection({ plan, edit, shown }: Pick<StepProps, 'plan' |
   return (
     <ToolSection
       title="Old and old interior forest"
-      help="Objectives A and B of the 2004 order for one of its Map 2 units: old forest against its share of the Crown forest land base, old non-pine-leading forest, and old interior forest. Read from DataBC's VRI, OGMAs, parks and corridors on request. The assumptions are listed in the guide."
+      help="Objectives A and B of the 2004 order for one of its Map 2 units: old forest against its share of the Crown forest land base, old non-pine-leading forest, and old interior forest. Read from DataBC's VRI, OGMAs, parks, corridors, ownership and tenures on request; private land, woodlots, community forests and TFLs are left out. The assumptions are listed in the guide."
       summary={summary}
     >
       <InlineAlert tone="info">
@@ -245,7 +246,7 @@ export function OldForestSection({ plan, edit, shown }: Pick<StepProps, 'plan' |
               </SelectField>
               <NullableNumberField
                 label="CFLB you state (ha)"
-                description="Leave blank to use the VRI proxy: treed and on the forest management land base. A stated CFLB takes the proxy’s shares of old and interior forest."
+                description="Leave blank to use the VRI proxy: treed and on the forest management land base, on the Crown land the order applies to. A stated CFLB takes the proxy’s shares of old and interior forest."
                 value={choices.cflbEnteredHa ?? null}
                 min={1}
                 step={1}
@@ -468,7 +469,8 @@ export function OldForestSection({ plan, edit, shown }: Pick<StepProps, 'plan' |
         <div className="space-y-2" data-testid="block-planning-old-forest">
           {!current && (
             <InlineAlert tone="warning">
-              The plan or these choices changed since {record.ranOn}. Calculate again before relying on these figures.
+              The plan, these choices or the calculation changed since {record.ranOn}. Calculate again before relying on
+              these figures.
             </InlineAlert>
           )}
           {unit && gisDisagrees(unit, record.gisFraction) && (
@@ -573,10 +575,12 @@ export function OldForestSection({ plan, edit, shown }: Pick<StepProps, 'plan' |
               . {ha.format(shownRun?.years[0].countedNotOldHa ?? 0)} ha counted whole under D.1 is not old by age.
               Interior is calculated for every period of the schedule under review and the first and last of the others.
               VRI projected to {record.projectedYear}; {record.counts.stands.toLocaleString()} stands,{' '}
-              {record.counts.ogmas} OGMAs, {record.counts.parks} parks, {record.counts.corridors} corridor lines.{' '}
-              {record.source}.
+              {record.counts.ogmas} OGMAs, {record.counts.parks} parks, {corridorSentence(record)} {record.source}.
             </p>
           )}
+          <p className="text-2xs text-muted-foreground" data-testid="block-planning-old-excluded">
+            {excludedSentence(record)}
+          </p>
           {calibrations.length > 0 && (
             <ToolDisclosure label="Check against the Board’s 2019 figures">
               {calibrations.map((c) => (

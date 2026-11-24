@@ -49,6 +49,23 @@ export interface OldForestPoolUnit {
   calibration2019: OldForestYear | null
 }
 
+export const OLD_FOREST_EXCLUDED_KINDS = ['non-crown', 'tfl', 'woodlot', 'community-forest'] as const
+export const CORRIDOR_KINDS = ['fsr', 'railway', 'transmission', 'pipeline'] as const
+export type CorridorKind = (typeof CORRIDOR_KINDS)[number]
+
+export interface OldForestExclusion {
+  kind: (typeof OLD_FOREST_EXCLUDED_KINDS)[number]
+  records: number
+  grossHa: number
+  cflbHa: number
+}
+
+/**
+ * The calculation's version, part of the key: a record from an earlier one is out of date. 1 counted
+ * the unit's whole ground; 2 leaves out ground the order does not apply to and reads pipelines.
+ */
+export const OLD_FOREST_CALCULATION = 2
+
 export interface OldForestRecord {
   ranOn: string
   readOn: string
@@ -60,6 +77,13 @@ export interface OldForestRecord {
   gisFraction: number | null
   projectedYear: number
   counts: { stands: number; ogmas: number; parks: number; retention: number; corridors: number }
+  /**
+   * Ground left out of the unit because the order does not apply there (`oldForest/landBase.ts`),
+   * by kind: its area in the unit and the proxy CFLB on it. Absent in a record made before it was read.
+   */
+  excluded?: OldForestExclusion[]
+  /** Corridor features read, by kind. Absent in a record made before pipelines were read. */
+  corridorKinds?: Partial<Record<CorridorKind, number>>
   schedules: { schedule: string; years: OldForestYear[] }[]
   /** The baseline alone in 2019, beside the Board's 2019 figures. Null when the unit has none. */
   calibration2019: OldForestYear | null
@@ -129,6 +153,7 @@ export const boardCheckKey = (plan: Pick<Plan, 'area' | 'baseline'>) =>
 export const oldForestKey = (plan: Pick<Plan, 'area' | 'baseline' | 'blocks' | 'schedules' | 'oldForest'>) =>
   hashKey(
     JSON.stringify({
+      calculation: OLD_FOREST_CALCULATION,
       choices: plan.oldForest
         ? {
             ...plan.oldForest,

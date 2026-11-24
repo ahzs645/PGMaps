@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addDisturbance, setArea, setCheck, setOldForest } from './edits'
-import { samplePlan } from './plan'
+import { parsePlan, samplePlan } from './plan'
 import { pathways } from './review/pathways'
 import {
   boardCheckCurrent,
@@ -64,6 +64,10 @@ describe('kept checks', () => {
     expect(recruitment.steps.find((s) => s.id === 'analysis')!.detail).toMatch(/A10.*short of old from 2031/)
     expect(recruitment.steps.find((s) => s.id === 'analysis')!.state).toBe('open')
     expect(oldForestCurrent(setOldForest(plan, { countParks: true }))).toBe(false)
+    // A record made before excluded ground and pipelines were read still opens, without them.
+    const reread = parsePlan(JSON.parse(JSON.stringify(plan)))
+    expect(reread.checks?.oldForest?.excluded).toBeUndefined()
+    expect(reread.checks?.oldForest?.corridorKinds).toBeUndefined()
   })
 
   it('name the first year anything falls short', () => {

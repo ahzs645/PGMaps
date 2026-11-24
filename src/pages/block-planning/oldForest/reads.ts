@@ -2,7 +2,8 @@
  * What Objectives A and B are calculated from, read live from DataBC's WFS for one old forest unit:
  * the unit's own polygons (Map 2, `RMP_PLAN_LEGAL_POLY_SVW`), the VRI rank-1 stands that touch them,
  * OGMAs and parks (section D.1), and the primary linear corridors the 2005 interior method buffers
- * (FSRs, railways, transmission lines).
+ * (FSRs, railways, transmission lines, pipelines). The ground the order does not apply to is read in
+ * `landBase.ts`.
  *
  * Each read follows the unit's own shapes (`INTERSECTS` with each part's outer ring, sent by POST),
  * never its bounding box: A10's 22 polygons are scattered, and its box holds 153,680 VRI polygons
@@ -23,6 +24,11 @@ export const PARK_LAYER = 'pub:WHSE_TANTALIS.TA_PARK_ECORES_PA_SVW'
 export const ROAD_SECTION_LAYER = 'pub:WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW'
 export const RAILWAY_LAYER = 'pub:WHSE_BASEMAPPING.GBA_RAILWAY_TRACKS_SP'
 export const TRANSMISSION_LAYER = 'pub:WHSE_BASEMAPPING.GBA_TRANSMISSION_LINES_SP'
+/** Crown land rights-of-way; a pipeline's is the `GAS AND OIL PIPELINE` sub-purpose. */
+export const CROWN_ROW_LAYER = 'pub:WHSE_TANTALIS.TA_CROWN_RIGHTS_OF_WAY_SVW'
+/** The BC Energy Regulator's pipeline rights-of-way (areas) and pipeline segments (lines). */
+export const PIPELINE_AREA_LAYER = 'pub:WHSE_MINERAL_TENURE.OG_PIPELINE_AREA_PERMIT_SP'
+export const PIPELINE_SEGMENT_LAYER = 'pub:WHSE_MINERAL_TENURE.OG_PIPELINE_SEGMENT_PERMIT_SP'
 
 export const VRI_FIELDS = [
   'FEATURE_ID',
@@ -248,19 +254,26 @@ export async function readCountedAreas({
 }
 
 export interface Corridor {
-  kind: 'fsr' | 'railway' | 'transmission'
-  geometry: LineString | MultiLineString
+  kind: 'fsr' | 'railway' | 'transmission' | 'pipeline'
+  /** A line, or a right-of-way's area (a pipeline's): either is buffered by 200 m. */
+  geometry: LineString | MultiLineString | Polygon | MultiPolygon
 }
 
 export const CORRIDOR_LABELS: Record<Corridor['kind'], string> = {
   fsr: 'Forest service roads',
   railway: 'Railways',
   transmission: 'Transmission lines',
+  pipeline: 'Pipelines',
 }
 
+const CORRIDOR_GEOMETRY = new Set(['LineString', 'MultiLineString', 'Polygon', 'MultiPolygon'])
+
 /**
- * The primary linear features the 2005 method buffers by 200 m. Pipelines are not read: no layer of
- * pipeline rights-of-way was checked for this unit's coverage, and the guide says so.
+ * The primary linear features the 2005 method buffers by 200 m. Pipelines come from three layers,
+ * since no one of them holds every pipeline: rights-of-way on Crown land in good standing (the only
+ * pipelines in A5, A6 and A10, all in A10, are these), and the BC Energy
+ * Regulator's constructed rights-of-way and built segments (active, deactivated or abandoned: the
+ * cleared right-of-way stays). A right-of-way is an area, buffered by 200 m like a line.
  */
 export async function readCorridors({
   unit,
@@ -288,13 +301,28 @@ export async function readCorridors({
         (f) => String(f.properties[key] ?? f.id),
       )
     ).flatMap((f): Corridor[] =>
-      f.geometry?.type === 'LineString' || f.geometry?.type === 'MultiLineString'
-        ? [{ kind, geometry: f.geometry }]
+      f.geometry && CORRIDOR_GEOMETRY.has(f.geometry.type)
+        ? [{ kind, geometry: f.geometry as Corridor['geometry'] }]
         : [],
     )
   return [
     ...(await read('fsr', ROAD_SECTION_LAYER, 'GEOMETRY', "FILE_TYPE_DESCRIPTION = 'Forest Service Road'", 'OBJECTID')),
     ...(await read('railway', RAILWAY_LAYER, 'SHAPE', '', 'OBJECTID')),
     ...(await read('transmission', TRANSMISSION_LAYER, 'SHAPE', '', 'OBJECTID')),
+    ...(await read(
+      'pipeline',
+      CROWN_ROW_LAYER,
+      'SHAPE',
+      "TENURE_SUBPURPOSE = 'GAS AND OIL PIPELINE' AND TENURE_STAGE = 'TENURE'",
+      'OBJECTID',
+    )),
+    ...(await read('pipeline', PIPELINE_AREA_LAYER, 'SHAPE', "CONSTRUCTION_DESC = 'Constructed'", 'OBJECTID')),
+    ...(await read(
+      'pipeline',
+      PIPELINE_SEGMENT_LAYER,
+      'SHAPE',
+      "STATUS IN ('Active', 'Deactivated', 'Abandoned')",
+      'OBJECTID',
+    )),
   ]
 }

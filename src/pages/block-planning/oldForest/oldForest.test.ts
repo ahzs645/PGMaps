@@ -10,7 +10,8 @@ import {
   unitFigures,
   type OldForestSettings,
 } from './oldForest'
-import type { CountedArea, Stand } from './reads'
+import type { ExcludedArea } from './landBase'
+import type { CountedArea, Corridor, Stand } from './reads'
 import { oldForestUnit } from './units'
 
 // A made-up unit near Prince George, built in BC Albers metres so areas are exact.
@@ -124,5 +125,112 @@ describe('old and interior forest', () => {
     near(y.requiredOldHa, 290)
     near(y.oldHa / y.cflbHa, proxy.oldHa / proxy.cflbHa, 0.001)
     near(y.interiorHa! / y.cflbHa, proxy.interiorHa! / proxy.cflbHa, 0.001)
+  })
+})
+
+describe('ground the order does not apply to', () => {
+  // Left 2 km old spruce, right 1 km young pine, as above.
+  const old = stand('old', rect(0, 0, 2000, 2000), 200)
+  const youngPine = stand('young', rect(2000, 0, 1000, 2000), 30, { leading: 'PLI' })
+  const excluded = (kind: ExcludedArea['kind'], geometry: Polygon): ExcludedArea => ({
+    kind,
+    id: kind,
+    name: kind,
+    geometry,
+  })
+  const prep = (ex: ExcludedArea[] | undefined, counted: CountedArea[] = [], corridors: Corridor[] = []) =>
+    prepareUnit({ unit: A5, shape: unitShape, stands: [old, youngPine], counted, corridors, excluded: ex })
+
+  it('leaves a plan with nothing to exclude exactly as before', () => {
+    const before = unitFigures(prep(undefined), [], [2026], [2026], settings())
+    const empty = unitFigures(prep([]), [], [2026], [2026], settings())
+    expect(empty).toEqual(before)
+    expect(prep([]).excluded).toEqual([])
+  })
+
+  it('takes private land and a TFL out of the CFLB and old forest, and reports each by kind', () => {
+    // A private parcel over 500 m of the old stand, a TFL over 500 m of the young pine.
+    const p = prep([excluded('non-crown', rect(0, 0, 500, 2000)), excluded('tfl', rect(2500, 0, 1000, 2000))])
+    const [y] = unitFigures(p, [], [2026], [], settings())
+    near(y.cflbHa, 400)
+    near(y.oldHa, 300)
+    near(y.requiredOldHa, 400 * 0.29)
+    const byKind = Object.fromEntries(p.excluded.map((e) => [e.kind, e]))
+    near(byKind['non-crown'].cflbHa, 100)
+    near(byKind['non-crown'].grossHa, 100)
+    // The TFL reaches past the unit: only its 100 ha inside counts.
+    near(byKind.tfl.grossHa, 100)
+    near(byKind.tfl.cflbHa, 100)
+  })
+
+  it('reports ground two sources hold once, under the first kind', () => {
+    const p = prep([excluded('non-crown', rect(0, 0, 500, 2000)), excluded('woodlot', rect(0, 0, 1000, 2000))])
+    const byKind = Object.fromEntries(p.excluded.map((e) => [e.kind, e]))
+    near(byKind['non-crown'].grossHa, 100)
+    near(byKind.woodlot.grossHa, 100)
+    near(unitFigures(p, [], [2026], [], settings())[0].cflbHa, 400)
+  })
+
+  it('never counts D.1 ground on excluded land', () => {
+    const ogma: CountedArea = {
+      kind: 'ogma-legal',
+      id: 'o',
+      name: 'o',
+      date: null,
+      geometry: rect(2000, 0, 1000, 2000),
+    }
+    const [y] = unitFigures(
+      prep([excluded('community-forest', rect(2500, 0, 500, 2000))], [ogma]),
+      [],
+      [2026],
+      [],
+      settings(),
+    )
+    near(y.countedNotOldHa, 100)
+    near(y.oldHa, 500)
+  })
+
+  it('lets old forest across a tenure boundary shape interior without counting it', () => {
+    // The old stand's western 300 m is a woodlot. Without it, the Crown part loses nothing to
+    // the boundary: interior is still 200 m short of the young pine, counted on Crown ground only.
+    const [y] = unitFigures(prep([excluded('woodlot', rect(0, 0, 300, 2000))]), [], [2026], [2026], settings())
+    near(y.interiorHa!, ((2000 - 300 - 200) * 2000) / 10_000)
+    // A woodlot leaving only a 150 m strip of Crown old forest beside the pine's buffer: the strip
+    // is part of a wide old patch, so it is interior.
+    const [strip] = unitFigures(prep([excluded('woodlot', rect(0, 0, 1650, 2000))]), [], [2026], [2026], settings())
+    near(strip.interiorHa!, (150 * 2000) / 10_000)
+  })
+})
+
+describe('pipeline corridors', () => {
+  const old = stand('old', rect(0, 0, 3000, 2000), 200)
+  const prep = (corridors: Corridor[]) =>
+    prepareUnit({ unit: A5, shape: unitShape, stands: [old], counted: [], corridors })
+  const line = (x: number): Corridor => ({
+    kind: 'pipeline',
+    geometry: {
+      type: 'LineString',
+      coordinates: [albersToLngLat(X0 + x, Y0 - 100), albersToLngLat(X0 + x, Y0 + 2100)],
+    },
+  })
+  const rightOfWay = (x: number, width: number): Corridor => ({
+    kind: 'pipeline',
+    geometry: rect(x, -100, width, 2200),
+  })
+
+  it('takes 200 m either side of a pipeline segment from interior', () => {
+    const [none] = unitFigures(prep([]), [], [2026], [2026], settings())
+    near(none.interiorHa!, 600)
+    const [y] = unitFigures(prep([line(1500)]), [], [2026], [2026], settings())
+    near(y.interiorHa!, ((3000 - 400) * 2000) / 10_000)
+    expect(prep([line(1500)]).counts.corridorKinds).toEqual({ pipeline: 1 })
+  })
+
+  it('buffers a right-of-way area like a line, from its edges', () => {
+    const [y] = unitFigures(prep([rightOfWay(1480, 40)]), [], [2026], [2026], settings())
+    near(y.interiorHa!, ((3000 - 440) * 2000) / 10_000)
+    // Beside a line, the areas and the lines both make edges.
+    const [both] = unitFigures(prep([rightOfWay(1480, 40), line(500)]), [], [2026], [2026], settings())
+    near(both.interiorHa!, ((3000 - 440 - 400) * 2000) / 10_000)
   })
 })

@@ -10,6 +10,7 @@ import {
   type Reset,
 } from './oldForest'
 import { isTooLarge, overlapRefusal, poolFigures, poolOverlaps, tooLargeRefusal } from './pooling'
+import { readExcludedAreas, type ExcludedArea } from './landBase'
 import { readCorridors, readCountedAreas, readMap2Unit, readStands, type CountedArea, type Map2Unit } from './reads'
 import { oldForestUnit, type OldForestUnit } from './units'
 import { youngerStandsSettings } from './youngerStands'
@@ -25,6 +26,7 @@ interface Read {
   stands: Awaited<ReturnType<typeof readStands>>
   counted: CountedArea[]
   corridors: Awaited<ReturnType<typeof readCorridors>>
+  excluded: ExcludedArea[]
   readOn: string
 }
 
@@ -58,9 +60,11 @@ async function readUnit({ district, unit }: RunUnit, ranOn: string, pooled: bool
   }
   say(`${name}Reading OGMAs and parks…`)
   const counted = await readCountedAreas({ unit: map2.geometry, fetch: fetchFn })
-  say(`${name}Reading forest service roads, railways and transmission lines…`)
+  say(`${name}Reading forest service roads, railways, transmission lines and pipelines…`)
   const corridors = await readCorridors({ unit: map2.geometry, fetch: fetchFn })
-  const read = { map2, stands, counted, corridors, readOn: ranOn }
+  say(`${name}Reading private land, woodlots, community forests and tree farm licences…`)
+  const excluded = await readExcludedAreas({ unit: map2.geometry, fetch: fetchFn })
+  const read = { map2, stands, counted, corridors, excluded, readOn: ranOn }
   reads.set(readKey, read)
   return read
 }
@@ -124,6 +128,7 @@ self.onmessage = async ({ data }: MessageEvent<OldForestAsk>) => {
           stands: read.stands,
           counted: [...read.counted, ...retention],
           corridors: read.corridors,
+          excluded: read.excluded,
         })
       }
       nextPrepared.set(prepKey, unitPrepared)
@@ -188,6 +193,8 @@ self.onmessage = async ({ data }: MessageEvent<OldForestAsk>) => {
         pooled ? { schedule: byUnit[0].schedule, years: poolFigures(byUnit.map((u) => u.years)) } : byUnit[0],
       ),
       calibration2019: calibrations[0],
+      excluded: first.excluded,
+      corridorKinds: first.counts.corridorKinds,
     }
     if (younger) record.younger = { fromAge: younger.fromAge, benefit: choices.younger!.benefit.trim() }
     if (pooled)
