@@ -8,7 +8,7 @@
  *
  * Free of DOM and network access.
  */
-import type { HeadingReference } from './exifPose'
+import type { HeadingReference, PoseSource } from './exifPose'
 import type { MatchedCamera } from './matchedCamera'
 import type { FlightCameraProposal } from './photoFlightMatching'
 import type { AcceptanceEvidence, AcceptancePose } from './photoAcceptance'
@@ -41,6 +41,10 @@ export type PhotoOptionKind =
   | 'matched'
   | 'landmark'
   | 'high-ground'
+  /** The skyline searched from another place the photo may have been taken (`photoPlaces.ts`). */
+  | 'place'
+  /** A heading the look of the ground favours, which no other row has: a sector to search, not a fitted camera. */
+  | 'ground'
 
 export type PhotoOption = {
   id: string
@@ -49,8 +53,34 @@ export type PhotoOption = {
   pose: AcceptancePose
   evidence: AcceptanceEvidence
   warnings: string[]
+  /** Evidence beside the row that the record does not keep: the look of the ground favouring it. */
+  notes?: string[]
+  /** For a row that moves the camera's place: where that place came from (`place` rows). */
+  positionSource?: PoseSource
   overlap?: Pick<FlightCameraProposal, 'basis' | 'matches' | 'controls' | 'medianPx' | 'p90Px' | 'matcher'>
 }
+
+/** A row from the skyline searched at another place: a place-and-heading hypothesis, never the camera. */
+export type PhotoPlaceInput = {
+  id: string
+  /** Where, in words: "the high ground 1.2 km NNW", "a place 500 m E of the fix". */
+  label: string
+  positionSource: PoseSource
+  /** Said on the row: why the place is a guess. */
+  warning: string
+  at: { lng: number; lat: number; altitudeMeters: number | null; hfov: number }
+  result: WideSearchResult
+  sun?: SunCheck | null
+  runnerUpSun?: SunCheck | null
+}
+
+/**
+ * The look of the ground's favoured heading (`comparePhotoCameras`, swept `GROUND_SECTOR_DEGREES` apart): a row that
+ * names a heading within this many degrees of it carries the note instead of a row of its own.
+ */
+export const GROUND_AGREES_DEGREES = 15
+/** A fit within this many degrees of a ground-held phone's heading agrees with it: the neighbour's tolerance. */
+export const PHONE_AGREES_DEGREES = NEIGHBOUR_AGREE_DEGREES
 
 export interface PhotoOptionsInput {
   /** This photo's place, altitude (null on the ground) and lens: the base every heading-only candidate stands on. */
@@ -59,7 +89,24 @@ export interface PhotoOptionsInput {
   search?: {
     result: WideSearchResult
     sun?: { best: SunCheck; runnerUp: SunCheck | null } | null
+    /**
+     * Where the search stood, when it was not where the camera stands now: its rows stay there, so a camera moved to
+     * another place never redraws a fit made somewhere else. `label` names the place ("the GPS fix").
+     */
+    at?: {
+      lng: number
+      lat: number
+      altitudeMeters: number | null
+      hfov: number
+      label: string
+      /** Where that place came from, which a row taken from this search hands the camera. */
+      source: PoseSource
+    } | null
   } | null
+  /** The skyline searched from other places the photo may have been taken (`photoPlaces.ts`). */
+  places?: readonly PhotoPlaceInput[]
+  /** The heading the look of the ground favours (`comparePhotoCameras`), when the comparison named one. */
+  ground?: { bearing: number; pitch: number; depth: boolean } | null
   /** Model-view scores (`modelAgreement`), for the cameras they were drawn for. */
   modelScores?: ReadonlyArray<{ pose: AcceptancePose; score: number }>
   /** The phone's recorded heading, and the tilt sensor's pitch when it read gravity alone. */
@@ -137,15 +184,24 @@ function scoreFor(input: PhotoOptionsInput, pose: AcceptancePose): number | null
  * 3. The phone's own heading, which from an aircraft can be 50–140° out.
  * The phone's heading from high ground at its GPS altitude sits in tier 1: the place is a guess from the altitude, but
  * on the ground a phone's heading is often a few degrees out, and its model view says whether the place is right.
+ * A search from another place lists its runner-up as the search here does, in tier 2.
+ * Within a tier, a fit on the ground within `PHONE_AGREES_DEGREES` of the phone's heading comes before one that agrees
+ * with nothing: two independent sensors, the skyline and the compass. On IMG_7996 the model-view scores of a right
+ * and a wrong fit from the same bluff were 0.31 and 0.33, and the wrong one's runner-up scored 0.42, so the score
+ * alone could not order them.
+ * The skyline searched from another place stands where the winner would: tier 0 when it settles, else tier 1. A
+ * heading only the look of the ground favours sits with the runner-up, in tier 2: it is a sector, not a fitted camera.
  * Agreement between two candidates (within `NEIGHBOUR_AGREE_DEGREES`) is noted on both and never moves a tier.
  */
 const KIND_ORDER: readonly PhotoOptionKind[] = [
   'points',
   'winner',
+  'place',
   'landmark',
   'matched',
   'neighbour',
   'high-ground',
+  'ground',
   'runner-up',
   'phone',
 ]
@@ -153,7 +209,7 @@ const KIND_ORDER: readonly PhotoOptionKind[] = [
 /** The candidate cameras for the options card, ranked by the evidence behind each (see the tiers above). */
 export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
   const { base } = input
-  const rows: Array<PhotoOption & { tier: number; score: number | null }> = []
+  const rows: Array<PhotoOption & { tier: number; score: number | null; agrees?: boolean }> = []
   const at = (angles: { bearing: number; pitch: number; roll: number }, hfov = base.hfov): AcceptancePose => ({
     lng: base.lng,
     lat: base.lat,
@@ -164,14 +220,29 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
     hfov,
   })
 
+  // Where the search stood: its rows (and the narrow fit made beside it) stay there when the camera moves.
+  const where = input.search?.at ?? null
+  const stand = (angles: { bearing: number; pitch: number; roll: number }, hfov: number): AcceptancePose =>
+    where
+      ? {
+          lng: where.lng,
+          lat: where.lat,
+          altitudeMeters: where.altitudeMeters,
+          bearing: wrapHeading(angles.bearing),
+          pitch: angles.pitch,
+          roll: angles.roll,
+          hfov,
+        }
+      : at(angles, hfov)
   const search = input.search?.result
   if (search) {
     const fit = search.fit
     const settled = search.trustworthy
-    const lens = search.hfov ?? base.hfov
-    const winnerPose = at(search, lens)
+    const lens = search.hfov ?? where?.hfov ?? base.hfov
+    const winnerPose = stand(search, lens)
     const runner = search.runnerUp
-    const runnerPose = runner ? at(runner, runner.hfov ?? lens) : null
+    const runnerPose = runner ? stand(runner, runner.hfov ?? lens) : null
+    const from = where ? ` from ${where.label}` : ''
     const winnerScore = scoreFor(input, winnerPose)
     const runnerScore = runnerPose ? scoreFor(input, runnerPose) : null
     const warnings: string[] = []
@@ -183,8 +254,9 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
     rows.push({
       id: 'winner',
       kind: 'winner',
-      label: 'Skyline: best fit',
+      label: `Skyline${from}: best fit`,
       pose: winnerPose,
+      ...(where ? { positionSource: where.source } : {}),
       evidence: {
         skyColumns: fit.agreeing,
         skySpanShare: fit.span,
@@ -206,14 +278,76 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
       rows.push({
         id: 'runner-up',
         kind: 'runner-up',
-        label: 'Skyline: runner-up',
+        label: `Skyline${from}: runner-up`,
         pose: runnerPose,
+        ...(where ? { positionSource: where.source } : {}),
         evidence: {
           settled: false,
           modelScore: runnerScore,
           sunNote: sun?.runnerUp ? sunNote(sun.runnerUp) : null,
         },
         warnings: runnerWarnings,
+        tier: 2,
+        score: runnerScore,
+      })
+    }
+  }
+
+  for (const place of input.places ?? []) {
+    const { result, at: where } = place
+    const pose: AcceptancePose = {
+      lng: where.lng,
+      lat: where.lat,
+      altitudeMeters: where.altitudeMeters,
+      bearing: wrapHeading(result.bearing),
+      pitch: result.pitch,
+      roll: result.roll,
+      hfov: result.hfov ?? where.hfov,
+    }
+    const score = scoreFor(input, pose)
+    const warnings = [place.warning]
+    if (result.ambiguous) warnings.push('not settled: another heading fits about as well')
+    else if (!result.trustworthy) warnings.push('the skyline fit is not trustworthy')
+    const runner = result.runnerUp
+    rows.push({
+      id: `place:${place.id}`,
+      kind: 'place',
+      label: `Skyline from ${place.label}${runner ? ': best fit' : ''}`,
+      pose,
+      positionSource: place.positionSource,
+      evidence: {
+        skyColumns: result.fit.agreeing,
+        skySpanShare: result.fit.span,
+        agreeShare: result.fit.agreement,
+        settled: result.trustworthy,
+        modelScore: score,
+        sunNote: place.sun ? sunNote(place.sun) : null,
+      },
+      warnings,
+      tier: result.trustworthy ? 0 : 1,
+      score,
+    })
+    if (runner) {
+      const runnerPose: AcceptancePose = {
+        ...pose,
+        bearing: wrapHeading(runner.bearing),
+        pitch: runner.pitch,
+        roll: runner.roll,
+        hfov: runner.hfov ?? pose.hfov,
+      }
+      const runnerScore = scoreFor(input, runnerPose)
+      rows.push({
+        id: `place:${place.id}:runner-up`,
+        kind: 'place',
+        label: `Skyline from ${place.label}: runner-up`,
+        pose: runnerPose,
+        positionSource: place.positionSource,
+        evidence: {
+          settled: false,
+          modelScore: runnerScore,
+          sunNote: place.runnerUpSun ? sunNote(place.runnerUpSun) : null,
+        },
+        warnings: [place.warning, `${deg(gap(runner.bearing, result.bearing))} from that place’s best fit`],
         tier: 2,
         score: runnerScore,
       })
@@ -306,7 +440,7 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
   const { narrow } = input
   // The narrow fit and the full search's winner are one camera: the agreement goes on the winner as evidence.
   const winnerRow = rows.find((row) => row.kind === 'winner')
-  const narrowPose = narrow ? at(narrow.pose, narrow.pose.hfov ?? base.hfov) : null
+  const narrowPose = narrow ? stand(narrow.pose, narrow.pose.hfov ?? where?.hfov ?? base.hfov) : null
   const narrowIsWinner = !!narrowPose && !!winnerRow && sameCamera(winnerRow.pose, narrowPose)
   if (narrow && narrowPose && !narrowIsWinner)
     rows.push({
@@ -414,6 +548,7 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
         row === neighbourRow ||
         row.kind === 'phone' ||
         row.kind === 'high-ground' ||
+        row.kind === 'ground' ||
         row.kind === 'runner-up' ||
         row.overlap ||
         row.id.startsWith('narrow:')
@@ -434,14 +569,54 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
       neighbourAgreesDegrees: narrow.agreesDegrees,
     }
 
+  // A fit near the phone's own heading has two sensors behind it. On the ground a phone is often a few degrees out, so
+  // within `PHONE_AGREES_DEGREES` it is said beside a fit standing on the ground; from an aircraft its heading can be far
+  // out, so never beside a fit at an altitude.
+  if (input.phone) {
+    const { phone } = input
+    for (const row of rows) {
+      if (row.kind !== 'winner' && row.kind !== 'runner-up' && row.kind !== 'place') continue
+      if (row.pose.altitudeMeters !== null) continue
+      const off = gap(row.pose.bearing, phone.bearing)
+      if (off > PHONE_AGREES_DEGREES) continue
+      row.notes = [...(row.notes ?? []), `Within ${deg(off)} of the phone’s heading (${deg(phone.bearing)})`]
+      row.agrees = true
+    }
+  }
+
+  // The look of the ground names a sector, not a fitted camera: a row naming a heading inside it carries the note; a
+  // heading no row has is a row of its own, which searches the skyline round it.
+  if (input.ground) {
+    const { ground } = input
+    const note = `The look of the ground${ground.depth ? ' and depth' : ''} favour${ground.depth ? '' : 's'} this heading`
+    const near = rows.filter(
+      (row) => row.kind !== 'phone' && gap(row.pose.bearing, ground.bearing) <= GROUND_AGREES_DEGREES,
+    )
+    if (near.length) for (const row of near) row.notes = [...(row.notes ?? []), note]
+    else {
+      const pose = at({ bearing: ground.bearing, pitch: ground.pitch, roll: 0 })
+      rows.push({
+        id: 'ground',
+        kind: 'ground',
+        label: `Look of the ground: near ${deg(ground.bearing)}`,
+        pose,
+        evidence: { modelScore: scoreFor(input, pose) },
+        warnings: ['a heading compared 30° apart, not a fitted camera: Use searches the skyline round it'],
+        tier: 2,
+        score: scoreFor(input, pose),
+      })
+    }
+  }
+
   return rows
     .sort(
       (a, b) =>
         a.tier - b.tier ||
+        Number(!!b.agrees) - Number(!!a.agrees) ||
         (b.score ?? -Infinity) - (a.score ?? -Infinity) ||
         KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind),
     )
-    .map(({ tier: _tier, score: _score, ...row }) => row)
+    .map(({ tier: _tier, score: _score, agrees: _agrees, ...row }) => row)
 }
 
 /**
@@ -498,7 +673,8 @@ export const PHOTO_FAILURE_TEXT: Record<PhotoFailureReason, string> = {
   'cropped-lens': 'Cropped: the photo is not the size the camera took, so its lens is unknown.',
   'phone-heading-only': 'Only the phone’s heading, which from an aircraft can be far out.',
   'disagrees-with-neighbour': 'Disagrees with the frame taken just before or after it.',
-  'gps-off': 'Far above the ground at its GPS fix: taken from the air, or the fix is off. Try the High ground option.',
+  'gps-off':
+    'Far above the ground at its GPS fix: taken from the air, or the fix is off. Compare the options from the high ground.',
 }
 
 /** What goes with a removed photo, said under the question wherever a photo is removed. */

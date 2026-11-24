@@ -424,3 +424,162 @@ describe('what a photo in the strip needs', () => {
       expect(photoStripState({ status, reasons: [] }).text.length).toBeGreaterThan(5)
   })
 })
+
+describe('photoOptions: other places and the look of the ground', () => {
+  const ground = { ...base, altitudeMeters: null }
+  const fixAt = {
+    lng: -123.1,
+    lat: 54.2,
+    altitudeMeters: 1250,
+    hfov: 51.9,
+    label: 'the GPS fix',
+    source: 'exif' as const,
+  }
+
+  it('keeps a search’s rows where it stood once the camera has moved, and says where', () => {
+    const rows = photoOptions({
+      base: { lng: -123.105, lat: 54.21, altitudeMeters: null, hfov: 51.9 },
+      search: { result: search({ ambiguous: true, trustworthy: false }), at: fixAt },
+    })
+    const winner = rows.find((row) => row.kind === 'winner')!
+    expect(winner.label).toBe('Skyline from the GPS fix: best fit')
+    expect(winner.pose).toMatchObject({ lng: -123.1, lat: 54.2, altitudeMeters: 1250 })
+    expect(winner.positionSource).toBe('exif')
+    expect(rows.find((row) => row.kind === 'runner-up')!.label).toBe('Skyline from the GPS fix: runner-up')
+  })
+
+  it('stands a search from another place at that place, settled in tier 0 ahead of an unsettled winner', () => {
+    const rows = photoOptions({
+      base: ground,
+      search: { result: search({ ambiguous: true, trustworthy: false }) },
+      places: [
+        {
+          id: 'high-ground',
+          label: 'the high ground 1.2 km NNW',
+          positionSource: 'gps-altitude',
+          warning: 'the place is a guess from the GPS altitude',
+          at: { lng: -123.105, lat: 54.21, altitudeMeters: null, hfov: 51.9 },
+          result: search({ bearing: 129.6 }),
+        },
+      ],
+    })
+    expect(rows[0]).toMatchObject({
+      id: 'place:high-ground',
+      kind: 'place',
+      label: 'Skyline from the high ground 1.2 km NNW: best fit',
+      positionSource: 'gps-altitude',
+      pose: { lng: -123.105, lat: 54.21, altitudeMeters: null, bearing: 129.6 },
+      warnings: ['the place is a guess from the GPS altitude'],
+    })
+    expect(rows[0].evidence.settled).toBe(true)
+  })
+
+  it('says a search from another place did not settle, and keeps it in tier 1', () => {
+    const rows = photoOptions({
+      base: ground,
+      search: { result: search() },
+      places: [
+        {
+          id: 'area',
+          label: 'a place 500 m E of the fix',
+          positionSource: 'skyline',
+          warning: 'a guess',
+          at: { lng: -123.09, lat: 54.2, altitudeMeters: null, hfov: 51.9 },
+          result: search({ ambiguous: true, trustworthy: false }),
+        },
+      ],
+    })
+    expect(rows.map((row) => row.id)).toEqual(['winner', 'place:area', 'place:area:runner-up', 'runner-up'])
+    expect(rows[1].warnings).toContain('not settled: another heading fits about as well')
+    expect(rows[2]).toMatchObject({
+      label: 'Skyline from a place 500 m E of the fix: runner-up',
+      pose: { lng: -123.09, lat: 54.2, altitudeMeters: null, bearing: 312 },
+      warnings: ['a guess', '173° from that place’s best fit'],
+    })
+  })
+
+  it('notes the look of the ground on a row near its heading instead of a row of its own', () => {
+    const rows = photoOptions({
+      base: ground,
+      search: { result: search() },
+      ground: { bearing: 135, pitch: -6, depth: false },
+    })
+    expect(rows.some((row) => row.kind === 'ground')).toBe(false)
+    expect(rows.find((row) => row.kind === 'winner')!.notes).toEqual(['The look of the ground favours this heading'])
+  })
+
+  it('offers a heading only the ground favours as a sector to search, beside the runner-up', () => {
+    const rows = photoOptions({
+      base: ground,
+      search: { result: search({ ambiguous: true, trustworthy: false }) },
+      ground: { bearing: 210, pitch: -8, depth: true },
+    })
+    const row = rows.find((option) => option.kind === 'ground')!
+    expect(row.label).toBe('Look of the ground: near 210°')
+    expect(row.pose).toMatchObject({ bearing: 210, pitch: -8, roll: 0 })
+    expect(rows.map((option) => option.kind)).toEqual(['winner', 'ground', 'runner-up'])
+  })
+
+  it('notes a fit on the ground near the phone’s heading, never a fit at an altitude', () => {
+    const rows = photoOptions({
+      base: ground,
+      search: { result: search() },
+      phone: { bearing: 131, reference: 'true', airborne: false },
+    })
+    expect(rows.find((row) => row.kind === 'winner')!.notes).toEqual(['Within 8° of the phone’s heading (131°)'])
+    const air = photoOptions({
+      base,
+      search: { result: search() },
+      phone: { bearing: 131, reference: 'true', airborne: true },
+    })
+    expect(air.find((row) => row.kind === 'winner')!.notes).toBeUndefined()
+    // A place on the ground is a ground-held phone's hypothesis, whatever the photo's own eye.
+    const placed = photoOptions({
+      base,
+      phone: { bearing: 131, reference: 'true', airborne: true },
+      places: [
+        {
+          id: 'high-ground',
+          label: 'the high ground',
+          positionSource: 'gps-altitude',
+          warning: 'a guess',
+          at: { lng: -123.105, lat: 54.21, altitudeMeters: null, hfov: 51.9 },
+          result: search({ runnerUp: null }),
+        },
+      ],
+    })
+    expect(placed.find((row) => row.kind === 'place')!.notes).toEqual(['Within 8° of the phone’s heading (131°)'])
+  })
+
+  it('puts a fit that agrees with the phone first within its tier, whatever the model-view scores', () => {
+    const at = { lng: -123.105, lat: 54.21, altitudeMeters: null, hfov: 51.9 }
+    const place = (id: string, bearing: number) => ({
+      id,
+      label: id,
+      positionSource: 'gps-altitude' as const,
+      warning: 'a guess',
+      at,
+      result: search({ bearing, ambiguous: true, trustworthy: false, runnerUp: null }),
+    })
+    const rows = photoOptions({
+      base,
+      phone: { bearing: 127.5, reference: 'true', airborne: true },
+      places: [place('wrong', 252.3), place('right', 129.6)],
+      modelScores: [
+        { pose: { ...at, ...search(), bearing: 252.3 }, score: 0.33 },
+        { pose: { ...at, ...search(), bearing: 129.6 }, score: 0.31 },
+      ],
+    })
+    expect(rows.slice(0, 2).map((row) => row.id)).toEqual(['place:right', 'place:wrong'])
+  })
+
+  it('never notes the ground on the phone’s own heading', () => {
+    const rows = photoOptions({
+      base: ground,
+      phone: { bearing: 210, reference: 'true', airborne: false },
+      ground: { bearing: 212, pitch: -8, depth: false },
+    })
+    expect(rows.find((row) => row.kind === 'phone')!.notes).toBeUndefined()
+    expect(rows.some((row) => row.kind === 'ground')).toBe(true)
+  })
+})

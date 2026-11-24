@@ -16,7 +16,6 @@ import { useElementSize } from '@/hooks/useElementSize'
 import { cn } from '@/lib/utils'
 
 import { PhotoFineTune, type FineTuneStart, type FineTuneStep } from './PhotoFineTune'
-import { modelViewFor } from './PhotoOptionsCard'
 import { photoModelViews, type FieldPhotoState, type ModelViewImage } from './useFieldPhoto'
 
 type Mode = 'swipe' | 'blink' | 'blend' | 'side'
@@ -36,7 +35,6 @@ export function PhotoCompare({ photo, active }: { photo: FieldPhotoState; active
   const [split, setSplit] = useState(50)
   const [opacity, setOpacity] = useState(50)
   const [blink, setBlink] = useState(false)
-  const [showCandidates, setShowCandidates] = useState(false)
   const [fineTune, setFineTune] = useState<FineTuneStart | null>(null)
   const [step, setStep] = useState<FineTuneStep>('fine')
   const [previewFailure, setPreviewFailure] = useState<string | null>(null)
@@ -104,13 +102,6 @@ export function PhotoCompare({ photo, active }: { photo: FieldPhotoState; active
   if (!own || !work) return null
   const failed = !currentView && !!activePoseKey && previewFailure === activePoseKey
   const view = currentView ?? held ?? work.previewModel ?? photoModelViews(work)[0] ?? null
-  const search = work.search.status === 'done' ? work.search.result : null
-  const options = photo.optionsFor(own.id)
-  const best = options.find((option) => option.kind === 'winner')
-  const alternative = options.find((option) => option.kind === 'runner-up')
-  const compareCandidates = !!search?.ambiguous && !!best && !!alternative
-  const winner = modelViewFor(work, best?.pose ?? null)
-  const runnerUp = modelViewFor(work, alternative?.pose ?? null)
 
   const setFrom = (event: PointerEvent<HTMLDivElement>) => {
     const rect = box.current?.getBoundingClientRect()
@@ -383,159 +374,7 @@ export function PhotoCompare({ photo, active }: { photo: FieldPhotoState; active
           )}
         </div>
       )}
-      {compareCandidates && (
-        <div className="space-y-2 border-t border-border pt-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="touch:h-10"
-            aria-expanded={showCandidates}
-            onClick={() => setShowCandidates((shown) => !shown)}
-          >
-            {showCandidates ? 'Hide comparison' : 'Compare skyline candidates'}
-          </Button>
-          {showCandidates && <NotSettledGrid photo={photo} camera={winner} runnerUp={runnerUp} />}
-        </div>
-      )}
     </section>
-  )
-}
-
-/** The 2×2 for a result that is not settled: the photo, both model views, and where they differ. */
-function NotSettledGrid({
-  photo,
-  camera,
-  runnerUp,
-}: {
-  photo: FieldPhotoState
-  camera: ModelViewImage | null
-  runnerUp: ModelViewImage | null
-}) {
-  const own = photo.own!
-  const canvas = useRef<HTMLCanvasElement>(null)
-  useEffect(() => {
-    const target = canvas.current
-    if (!target || !camera || !runnerUp) return
-    let stopped = false
-    const load = (src: string) =>
-      new Promise<HTMLImageElement>((resolve, reject) => {
-        const image = new Image()
-        image.onload = () => resolve(image)
-        image.onerror = reject
-        image.src = src
-      })
-    void Promise.all([load(camera.url), load(runnerUp.url)])
-      .then(([a, b]) => {
-        if (stopped) return
-        const width = a.naturalWidth,
-          height = a.naturalHeight
-        target.width = width
-        target.height = height
-        const context = target.getContext('2d')
-        if (!context) return
-        context.drawImage(a, 0, 0)
-        const first = context.getImageData(0, 0, width, height)
-        context.clearRect(0, 0, width, height)
-        context.drawImage(b, 0, 0, width, height)
-        const second = context.getImageData(0, 0, width, height)
-        const out = context.createImageData(width, height)
-        for (let i = 0; i < out.data.length; i += 4) {
-          if (!first.data[i + 3] || !second.data[i + 3]) continue
-          const d =
-            (Math.abs(first.data[i] - second.data[i]) +
-              Math.abs(first.data[i + 1] - second.data[i + 1]) +
-              Math.abs(first.data[i + 2] - second.data[i + 2])) /
-            3
-          out.data[i] = out.data[i + 1] = out.data[i + 2] = Math.min(255, d * 2)
-          out.data[i + 3] = 255
-        }
-        context.putImageData(out, 0, 0)
-      })
-      .catch(() => {
-        /* A view that failed to load leaves the difference blank. */
-      })
-    return () => {
-      stopped = true
-    }
-  }, [camera, runnerUp])
-  return (
-    <div className="space-y-1.5" aria-label="Not settled: both candidates">
-      {(!camera || !runnerUp) && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="touch:h-10"
-          disabled={!!photo.toolsBusy}
-          onClick={() => void photo.renderModel('both candidates')}
-        >
-          Draw both candidates
-        </Button>
-      )}
-      <div className="grid grid-cols-2 gap-2 text-3xs text-muted-foreground">
-        <figure>
-          <img src={own.src} alt="Your photo" className="w-full rounded-sm" />
-          <figcaption>Photo</figcaption>
-        </figure>
-        <ModelCell
-          view={camera}
-          label="Best skyline fit"
-          onDraw={() => void photo.renderModel('winner')}
-          busy={!!photo.toolsBusy}
-        />
-        <ModelCell
-          view={runnerUp}
-          label="Runner-up"
-          onDraw={() => void photo.renderModel('runner-up')}
-          busy={!!photo.toolsBusy}
-        />
-        <figure>
-          {camera && runnerUp ? (
-            <canvas ref={canvas} className="w-full rounded-sm bg-muted" aria-label="Where the two model views differ" />
-          ) : (
-            <div className="flex aspect-[4/3] items-center justify-center rounded-sm bg-muted p-2 text-center">
-              Draw both model views to see where they differ
-            </div>
-          )}
-          <figcaption>Difference: bright where the two differ</figcaption>
-        </figure>
-      </div>
-    </div>
-  )
-}
-
-function ModelCell({
-  view,
-  label,
-  onDraw,
-  busy,
-}: {
-  view: ModelViewImage | null
-  label: string
-  onDraw: () => void
-  busy: boolean
-}) {
-  return (
-    <figure>
-      {view ? (
-        <img
-          src={view.url}
-          alt={`${label}: model view at heading ${view.bearing.toFixed(0)}°`}
-          className="w-full rounded-sm bg-muted"
-        />
-      ) : (
-        <div className="flex aspect-[4/3] items-center justify-center rounded-sm bg-muted">
-          <Button type="button" variant="outline" size="xs" className="touch:h-10" disabled={busy} onClick={onDraw}>
-            Draw it
-          </Button>
-        </div>
-      )}
-      <figcaption className="tabular-nums">
-        {label}
-        {view ? ` · ${view.bearing.toFixed(0)}° · ${agreementLabel(view)}` : ''}
-      </figcaption>
-    </figure>
   )
 }
 

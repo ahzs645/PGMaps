@@ -2,9 +2,13 @@ import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { PhotoLocationPanel } from './PhotoLocationPanel'
-import { photoLocationTrials, rankPhotoLocations, type PhotoLocationCandidate } from './photoLocationSearch'
-import type { FieldPhotoState, OwnPhoto } from './useFieldPhoto'
+import { LocationResults } from './PhotoLocationResults'
+import {
+  photoLocationTrials,
+  rankPhotoLocations,
+  type PhotoLocationCandidate,
+  type PhotoLocationSearch,
+} from './photoLocationSearch'
 import type { WideSearchResult } from './wideOrientation'
 
 const centre = { lng: -122.75, lat: 53.9 }
@@ -19,29 +23,22 @@ const fit = (meanLoss: number, bearing: number) =>
     fit: { trustworthy: true, agreeing: 50, agreement: 0.8 },
   }) as unknown as WideSearchResult
 
-const own = { id: 'p1', pose: { hfov: 60, lng: null, lat: null } } as unknown as OwnPhoto
-
 let renderer: ReactTestRenderer | undefined
 afterEach(() => {
   act(() => renderer?.unmount())
   renderer = undefined
 })
 
-function panel(candidates: PhotoLocationCandidate[]) {
+function panel(candidates: PhotoLocationCandidate[], quiet = false) {
   const useLocation = vi.fn()
-  const photo = {
-    locationSearch: {
-      status: 'done',
-      ...rankPhotoLocations(candidates),
-      sampled: 9,
-      basis: { hfov: 60, eyeHeightMeters: 1.6, altitudeMeters: null },
-    },
-    useLocation,
-    findLocation: vi.fn(),
-    cancelLocationSearch: vi.fn(),
-  } as unknown as FieldPhotoState
+  const search: PhotoLocationSearch = {
+    status: 'done',
+    ...rankPhotoLocations(candidates),
+    sampled: 9,
+    basis: { hfov: 60, eyeHeightMeters: 1.6, altitudeMeters: null },
+  }
   act(() => {
-    renderer = create(createElement(PhotoLocationPanel, { own, photo, startPick: vi.fn() }))
+    renderer = create(createElement(LocationResults, { search, onUse: useLocation, quiet }))
   })
   const root = renderer!.root
   const startButtons = root.findAll(
@@ -53,7 +50,7 @@ function panel(candidates: PhotoLocationCandidate[]) {
   return { startButtons, text: text(root), useLocation }
 }
 
-describe('the photo location panel', () => {
+describe('a location search’s results', () => {
   const places = photoLocationTrials(centre)
 
   it('offers a clear winner as a start', () => {
@@ -70,10 +67,33 @@ describe('the photo location panel', () => {
       { ...places[3], fit: fit(0.47, 310) },
     ])
     expect(startButtons).toHaveLength(0)
-    expect(text).toContain('None is offered as a start')
-    expect(text).toMatch(/up to \d+ m apart, facing 310° to 40°/)
+    expect(text).toContain('none is offered as a start')
+    expect(text).toMatch(/up to \d+ m apart and facing 310° to 40°/)
     // The fits are still listed for the reviewer to look at.
-    expect(text).toContain('310.0°')
-    expect(text).toContain('40.0°')
+    expect(text).toContain('310°')
+    expect(text).toContain('40°')
+  })
+
+  it('says nothing of a clear winner from the background search, which is already a row in the options', () => {
+    const { startButtons, text } = panel(
+      [
+        { ...places[0], fit: fit(0.2, 40) },
+        { ...places[1], fit: fit(0.6, 90) },
+      ],
+      true,
+    )
+    expect(startButtons).toHaveLength(0)
+    expect(text).toBe('')
+  })
+
+  it('still names a tie from the background search', () => {
+    const { text } = panel(
+      [
+        { ...places[0], fit: fit(0.45, 40) },
+        { ...places[3], fit: fit(0.47, 310) },
+      ],
+      true,
+    )
+    expect(text).toContain('Several places fit about as well')
   })
 })

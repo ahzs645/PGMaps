@@ -98,7 +98,7 @@ import { nearestPointOnLine } from './roadSnap'
 import { createId, type ForestryScene } from './scene'
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import type { AnalysisResult } from './types'
-import { bearingDegrees, polygonBounds } from './visibility'
+import { bearingDegrees, haversineMeters, polygonBounds } from './visibility'
 import { visibleProposalCentre } from './vqe'
 import { PhotoCache } from './photoCache'
 import { photoPoseKey, type HitBuffer } from './photoHitBuffer'
@@ -179,6 +179,17 @@ import {
   type PhotoFound,
 } from './photoQueue'
 import { highGroundNearFix, highGroundNote } from './highGround'
+import {
+  areaPick,
+  highGroundLabel,
+  placeFromFix,
+  SAME_PLACE_METERS,
+  placeSettled,
+  placesToSearch,
+  searchPlaceName,
+  type PhotoPlaces,
+  type PlaceSearch,
+} from './photoPlaces'
 import { fieldImageFromBlob } from './toolImports'
 import { loadPhotoDepth, savePhotoDepth } from './toolsStorage'
 import { viewFromAcceptedPhoto, type ViewOfInterest } from './viewsOfInterest'
@@ -338,6 +349,11 @@ export type CameraSearch =
   | {
       status: 'done'
       result: WideSearchResult
+      /**
+       * Where the search stood: the eye's place, its altitude (null on the ground) and the lens it searched with. Its
+       * rows stay there when the camera moves (`photoOptions`'s `search.at`). Absent on a search from before it was kept.
+       */
+      at?: { lng: number; lat: number; altitudeMeters: number | null; hfov: number }
       /** Where the sun was for the found camera and for the runner-up: evidence between the two headings. */
       sun: { best: SunCheck; runnerUp: SunCheck | null } | null
       /** The recorded heading's error against the found one, degrees; null without a recorded heading. */
@@ -399,6 +415,11 @@ export type OwnPhotoWork = {
    * appearance, and depth when this browser already holds the model. Absent until it has run; null when it could not.
    */
   combined?: { result: CombinedResult; depth: boolean } | null
+  /**
+   * The background search from other places for a photo its skyline did not settle where it stands (`photoPlaces.ts`):
+   * the high ground at the GPS altitude, the area round the fix. Absent until it has run or when nothing was wanted.
+   */
+  places?: PhotoPlaces
 }
 
 /** Every model view kept for a photo: the queue's, the reviewer's and those drawn ahead for its options. */
@@ -523,10 +544,39 @@ const unsettled = (work: OwnPhotoWork) =>
     ? !work.search.result.trustworthy
     : work.search.status === 'failed' && work.found?.terrain === true && work.found.skyline === false
 
-/** Whether everything that follows a photo's search is done: its features, and the comparison when it wants one. */
-const followedUp = (work: OwnPhotoWork) =>
+/**
+ * Where else a photo is searched in the background (`placesToSearch`): only after a search from where it stands came
+ * back unsettled, and only round a place from its own GPS.
+ */
+const placesPlan = (photo: OwnPhoto, work: OwnPhotoWork) =>
   work.search.status === 'done'
-    ? work.features !== null && (!unsettled(work) || work.combined !== undefined)
+    ? placesToSearch({
+        settled: work.search.result.trustworthy,
+        positionSource: photo.sources.position,
+        fix: photo.exif?.position ?? null,
+        statedErrorMeters: photo.exif?.horizontalErrorMeters ?? null,
+        highGround: work.found?.highGround ?? null,
+        airborne: photo.pose.altitudeMeters != null,
+      })
+    : { highGround: null, area: null }
+
+/** Whether the background search from other places is still to run for a photo. */
+const placesWanted = (photo: OwnPhoto, work: OwnPhotoWork) => {
+  if (work.places !== undefined) return false
+  const plan = placesPlan(photo, work)
+  return !!plan.highGround || !!plan.area
+}
+
+/** The search's camera is in doubt everywhere it was searched: from where it stands and from every other place. */
+const unsettledAnywhere = (work: OwnPhotoWork) => unsettled(work) && !placeSettled(work.places)
+
+/**
+ * Whether everything that follows a photo's search is done: the search from other places when it wants one, its
+ * features, and the comparison when it wants one.
+ */
+const followedUp = (photo: OwnPhoto, work: OwnPhotoWork) =>
+  work.search.status === 'done'
+    ? !placesWanted(photo, work) && work.features !== null && (!unsettledAnywhere(work) || work.combined !== undefined)
     : // No camera was found, so there is no seen ground to read features for: only the comparison follows.
       work.combined !== undefined
 
@@ -1528,6 +1578,55 @@ export function useFieldPhoto({
    * search. A pass round an accepted burst neighbour supplies context for the full search.
    * `setPose` applies the winner. A stopped search keeps its reason on the photo.
    */
+  type ReaderTry = {
+    result: WideSearchResult
+    skyline: Array<{ x: number; y: number } | null>
+    reader: SkylineReader
+  }
+  /**
+   * The skyline searched from one eye by every reader it needs: the colour reader first; when its fit does not settle
+   * it, the brightness readers side by side (each search runs in a worker of its own), keeping the result that fits
+   * best (`searchRank`). They read a sky the colour reader cannot: lit from behind, under dark cloud, in haze. Null
+   * when no reader finds a believable skyline long enough to search by.
+   */
+  const searchByReaders = async (
+    photo: OwnPhoto,
+    pixels: ImageData,
+    base: ReturnType<typeof ownCamera>,
+    profile: ProfilePoint[],
+    searchPriors: CameraPriors,
+    signal: AbortSignal,
+    onProgress: (done: number) => void,
+  ): Promise<ReaderTry | null> => {
+    const tryReader = async (reader: SkylineReader, progress: (done: number) => void): Promise<ReaderTry | null> => {
+      const skyline = skylineOf(photo, pixels, base, reader)
+      if (skyline.filter(Boolean).length < MIN_SKYLINE_COLUMNS) return null
+      // A line with no sky above it (a shadow's edge across forest) is not a skyline, however well a camera fits it.
+      if (!believableSkyline(pixels, skylineRead(photo, pixels, reader))) return null
+      const result = await runSearch(photo, base, profile, skyline, searchPriors, signal, progress, reader)
+      return result ? { result, skyline, reader } : null
+    }
+    const [colourReader, ...others] = SKYLINE_READERS
+    let chosen = await tryReader(colourReader, (done) => onProgress(done / 2))
+    signal.throwIfAborted()
+    if (!chosen || !(chosen.result.fit.trustworthy && chosen.result.fit.agreement >= READER_SETTLED_AGREEMENT)) {
+      const done = others.map(() => 0)
+      const more = await Promise.all(
+        others.map((reader, k) =>
+          tryReader(reader, (value) => {
+            done[k] = value
+            onProgress(0.5 + done.reduce((sum, each) => sum + each, 0) / others.length / 2)
+          }),
+        ),
+      )
+      signal.throwIfAborted()
+      // In the readers' order, so a tie keeps the earlier reader.
+      for (const tried of more)
+        if (tried && (!chosen || searchRank(tried.result) > searchRank(chosen.result))) chosen = tried
+    }
+    return chosen
+  }
+
   const searchStage = async (
     id: string,
     {
@@ -1634,38 +1733,10 @@ export function useFieldPhoto({
       }))
     patchWork(id, (current) => ({ ...current, search: { status: 'working', stage: 'search', done: 0 } }))
     const neighbour = neighbourFirst ? neighbourOf(photo) : null
-    // The colour reader first; when its fit does not settle it, the brightness readers side by side (each search runs
-    // in a worker of its own), keeping the result that fits best (`searchRank`). They read a sky the colour reader
-    // cannot: lit from behind, under dark cloud, in haze.
     const full = neighbour ? 0.8 : 1
-    type Tried = { result: WideSearchResult; skyline: Array<{ x: number; y: number } | null>; reader: SkylineReader }
-    const tryReader = async (reader: SkylineReader, onProgress: (done: number) => void): Promise<Tried | null> => {
-      const skyline = skylineOf(photo, pixels, base, reader)
-      if (skyline.filter(Boolean).length < MIN_SKYLINE_COLUMNS) return null
-      // A line with no sky above it (a shadow's edge across forest) is not a skyline, however well a camera fits it.
-      if (!believableSkyline(pixels, skylineRead(photo, pixels, reader))) return null
-      const result = await runSearch(photo, base, profile, skyline, searchPriors, signal, onProgress, reader)
-      return result ? { result, skyline, reader } : null
-    }
-    const [colourReader, ...others] = SKYLINE_READERS
-    let chosen = await tryReader(colourReader, progress(0, full / 2))
-    signal.throwIfAborted()
-    if (!chosen || !(chosen.result.fit.trustworthy && chosen.result.fit.agreement >= READER_SETTLED_AGREEMENT)) {
-      const share = full / 2
-      const done = others.map(() => 0)
-      const more = await Promise.all(
-        others.map((reader, k) =>
-          tryReader(reader, (value) => {
-            done[k] = value
-            progress(full / 2, share)(done.reduce((sum, each) => sum + each, 0) / others.length)
-          }),
-        ),
-      )
-      signal.throwIfAborted()
-      // In the readers' order, so a tie keeps the earlier reader.
-      for (const tried of more)
-        if (tried && (!chosen || searchRank(tried.result) > searchRank(chosen.result))) chosen = tried
-    }
+    const chosen = await searchByReaders(photo, pixels, base, profile, searchPriors, signal, (done) =>
+      progress(0, full)(done),
+    )
     // A "best" heading with next to no column on the terrain's skyline is no fit at all: it once came back as the
     // best fit with 0 columns, 140° from the camera.
     if (!chosen || chosen.result.fit.agreeing < MIN_SKYLINE_COLUMNS)
@@ -1724,6 +1795,12 @@ export function useFieldPhoto({
       search: {
         status: 'done',
         result,
+        at: {
+          lng: photo.pose.lng,
+          lat: photo.pose.lat,
+          altitudeMeters: photo.pose.altitudeMeters ?? null,
+          hfov: photo.pose.hfov,
+        },
         sun: utc ? { best: at(result), runnerUp: result.runnerUp ? at(result.runnerUp) : null } : null,
         recordedOffBy: recorded === null ? null : ((recorded - result.bearing + 540) % 360) - 180,
         seconds: (performance.now() - t0) / 1000,
@@ -2031,6 +2108,151 @@ export function useFieldPhoto({
     )
     patchWork(id, (current) => ({ ...current, combined: { result, depth: !!result.depthModel } }))
   }
+  /**
+   * The background search from other places (`photoPlaces.ts`): the skyline from the high ground at the GPS altitude,
+   * then the area round it (or round a fix the phone itself doubts). Each settled or clear fit is kept as a place for
+   * the options card; the camera never moves. Answers what it kept, done even when a search failed (with a note), so
+   * the photo is never tried again without end.
+   */
+  const explorePlaces = async (id: string, signal: AbortSignal): Promise<PhotoPlaces | undefined> => {
+    const photo = photoById(id)
+    const before = workRef.current[id] ?? EMPTY_WORK
+    if (!photo || !positioned(photo)) return undefined
+    const plan = placesPlan(photo, before)
+    const fix = photo.exif?.position ?? null
+    const tried = [
+      ...(plan.highGround ? [highGroundLabel(plan.highGround)] : []),
+      ...(plan.area ? [`nine places 500 m apart round ${plan.area.on === 'high-ground' ? 'it' : 'the GPS fix'}`] : []),
+    ]
+    let places: PhotoPlaces = { status: 'working', tried, searches: [], area: null, areaCentre: plan.area, notes: [] }
+    const keep = (next: PhotoPlaces) => {
+      places = next
+      patchWork(id, (current) => ({ ...current, places: next }))
+    }
+    keep(places)
+    // On the ground at each place: the doubt is where the phone stood, not how high.
+    const grounded = { ...photo, pose: { ...photo.pose, altitudeMeters: null } }
+    const utc = utcOf(photo)
+    try {
+      const pixels = await readPixels(photo)
+      if (plan.highGround) {
+        const { lng, lat } = plan.highGround
+        const atPlace = { ...grounded, pose: { ...grounded.pose, lng, lat } }
+        const terrain = await loadOwnTerrain(lng, lat, signal)
+        const base = ownCamera(atPlace, terrain)
+        const eye = { lng: base.lng, lat: base.lat, altitudeMeters: base.altitudeMeters }
+        const profile = Number.isFinite(base.altitudeMeters)
+          ? await caches.horizon.getOrCreate(
+              horizonKey(eye),
+              (shared) =>
+                photoHorizon({ eye, terrain: specOf(atPlace), maxDistanceMeters: WIDE_RADIUS_METERS * 0.95 }, shared),
+              signal,
+            )
+          : []
+        const chosen = profile.length
+          ? await searchByReaders(atPlace, pixels, base, profile, {}, signal, () => undefined)
+          : null
+        if (chosen && chosen.result.fit.agreeing >= MIN_SKYLINE_COLUMNS)
+          keep({
+            ...places,
+            searches: [
+              ...places.searches,
+              {
+                id: 'high-ground',
+                label: highGroundLabel(plan.highGround),
+                positionSource: 'gps-altitude',
+                warning: 'the place is a guess from the GPS altitude',
+                at: { lng, lat, altitudeMeters: null, hfov: photo.pose.hfov },
+                result: chosen.result,
+                sun: utc ? sunCheck(cameraOf(atPlace, terrain, chosen.result), utc) : null,
+                runnerUpSun:
+                  utc && chosen.result.runnerUp
+                    ? sunCheck(cameraOf(atPlace, terrain, chosen.result.runnerUp), utc)
+                    : null,
+              },
+            ],
+          })
+        else keep({ ...places, notes: [...places.notes, 'From the high ground, the skyline gave no fit to keep.'] })
+      }
+      signal.throwIfAborted()
+      // A settled fit from the high ground needs no area round it.
+      if (plan.area && !placeSettled(places)) {
+        const area = await locateAround(grounded, plan.area, signal, () => undefined)
+        const heading = photo.exif?.heading
+        const phoneBearing = heading
+          ? photo.headingReference === 'true'
+            ? heading.degrees
+            : trueHeadingFromMagnetic(heading.degrees, photo.declinationEast ?? 0)
+          : null
+        const pick = areaPick(
+          area,
+          [
+            ...(before.search.status === 'done'
+              ? [
+                  {
+                    lng: before.search.at?.lng ?? photo.pose.lng,
+                    lat: before.search.at?.lat ?? photo.pose.lat,
+                    bearings: [
+                      before.search.result.bearing,
+                      ...(before.search.result.runnerUp ? [before.search.result.runnerUp.bearing] : []),
+                    ],
+                  },
+                ]
+              : []),
+            ...places.searches.map((search) => ({
+              ...search.at,
+              bearings: [search.result.bearing, ...(search.result.runnerUp ? [search.result.runnerUp.bearing] : [])],
+            })),
+          ],
+          phoneBearing,
+        )
+        const best = pick?.place ?? null
+        let search: PlaceSearch | null = null
+        if (best && pick) {
+          const atBest = { ...grounded, pose: { ...grounded.pose, lng: best.lng, lat: best.lat } }
+          const terrain = utc ? await loadOwnTerrain(best.lng, best.lat, signal) : null
+          search = {
+            id: 'area',
+            label: `${
+              plan.highGround && haversineMeters(plan.highGround, best) <= SAME_PLACE_METERS
+                ? highGroundLabel(plan.highGround)
+                : placeFromFix(best, fix)
+            }${pick.by === 'phone' ? ', facing the phone’s heading' : ''}`,
+            positionSource: 'skyline',
+            warning:
+              pick.by === 'clear'
+                ? 'the best of nine places searched 500 m apart: a guess to confirm'
+                : 'one of several places that fit about as well, taken for facing the phone’s heading: a guess to confirm',
+            at: {
+              lng: best.lng,
+              lat: best.lat,
+              altitudeMeters: null,
+              hfov: area.status === 'done' ? area.basis.hfov : photo.pose.hfov,
+            },
+            // A place taken from a tie for facing the phone's heading has no runner-up worth a row: the tie is the doubt.
+            result: pick.by === 'phone' ? { ...best.fit, runnerUp: null } : best.fit,
+            sun: utc && terrain ? sunCheck(cameraOf(atBest, terrain, best.fit), utc) : null,
+          }
+        }
+        keep({ ...places, area, searches: search ? [...places.searches, search] : places.searches })
+      }
+      keep({ ...places, status: 'done' })
+    } catch (error) {
+      if (aborted(signal)) {
+        // Stopped part way: run again next time, from the start.
+        patchWork(id, (current) => ({ ...current, places: undefined }))
+        throw error
+      }
+      keep({
+        ...places,
+        status: 'done',
+        notes: [...places.notes, `The search from other places stopped: ${reason(error)}`],
+      })
+    }
+    return places
+  }
+  const exploreRef = useRef(explorePlaces)
+  exploreRef.current = explorePlaces
   const compareRef = useRef(compareUnsettled)
   compareRef.current = compareUnsettled
   useEffect(() => {
@@ -2043,7 +2265,7 @@ export function useFieldPhoto({
         positioned: positioned(photo),
         searched: (work[photo.id] ?? EMPTY_WORK).search.status === 'done' || unsettled(work[photo.id] ?? EMPTY_WORK),
         // Done once its features are read and, where the skyline did not settle it, its cameras are compared.
-        read: followedUp(work[photo.id] ?? EMPTY_WORK),
+        read: followedUp(photo, work[photo.id] ?? EMPTY_WORK),
       })),
       activeId,
       searching: !!queueRun.running || queueRun.pending.length > 0,
@@ -2056,13 +2278,16 @@ export function useFieldPhoto({
     setFeaturesRunning(id)
     const before = work[id] ?? EMPTY_WORK
     const follow = async () => {
+      // Other places first: a search that settles from the high ground makes the comparison below unnecessary.
+      const places = placesWanted(photo, before) ? await exploreRef.current(id, controller.signal) : before.places
       if (before.features === null && before.search.status === 'done')
         await checkFeaturesRef.current(
           id,
           { bearing: photo.pose.bearing, pitch: photo.pose.pitch, roll: photo.pose.roll },
           controller.signal,
         )
-      if (before.combined === undefined && unsettled(before)) await compareRef.current(id, controller.signal)
+      if (before.combined === undefined && unsettled(before) && !placeSettled(places))
+        await compareRef.current(id, controller.signal)
     }
     void follow()
       .catch((error: unknown) => {
@@ -2286,7 +2511,35 @@ export function useFieldPhoto({
           altitudeMeters: photo.pose.altitudeMeters ?? null,
           hfov: photo.pose.hfov,
         },
-        search: search ? { result: search.result, sun: search.sun } : null,
+        search: search
+          ? {
+              result: search.result,
+              sun: search.sun,
+              at: (() => {
+                if (!search.at) return null
+                const label = searchPlaceName({
+                  searchedAt: search.at,
+                  standsAt: photo.pose,
+                  fix: photo.exif?.position ?? null,
+                  highGround: w.found?.highGround ?? null,
+                })
+                return label
+                  ? {
+                      ...search.at,
+                      label,
+                      source: label === 'the GPS fix' ? ('exif' as const) : ('reviewer' as const),
+                    }
+                  : null
+              })(),
+            }
+          : null,
+        places: w.places?.searches ?? [],
+        ground: (() => {
+          const favoured = w.combined?.result.candidates[0]
+          return favoured && !w.combined?.result.undecided
+            ? { bearing: favoured.pose.bearing, pitch: favoured.pose.pitch, depth: !!favoured.cues.depth }
+            : null
+        })(),
         modelScores: photoModelViews(w).flatMap((view) =>
           Number.isFinite(view.score) ? [{ pose: view.pose, score: view.score }] : [],
         ),
@@ -2406,7 +2659,7 @@ export function useFieldPhoto({
     (id: string, rowId: string) => {
       const row = optionsFor(id).find((option) => option.id === rowId)
       if (!row) return false
-      const sources = sourcesForOption(row.kind)
+      const sources = sourcesForOption(row.kind, row.positionSource)
       patchPhoto(id, (photo) => {
         const moves = !!sources.position
         return {
@@ -2433,7 +2686,11 @@ export function useFieldPhoto({
             ...(moves
               ? {
                   position: sources.position!,
-                  fov: sources.keepsLens ? photo.sources.fov : sources.position!,
+                  fov: sources.keepsLens
+                    ? photo.pose.hfov === row.pose.hfov
+                      ? photo.sources.fov
+                      : sources.heading
+                    : sources.position!,
                   eyeHeight: sources.position!,
                 }
               : {}),
@@ -3127,15 +3384,19 @@ export function useFieldPhoto({
   // ---------------------------------------------------------------------------------------------------------------
   // The hand tools, on the active photo.
 
-  const findLocation = async (id: string, centre: PhotoLocation) => {
-    const photo = photoById(id)
-    if (!photo || activeRef.current !== id) return
-    locationAbort.current?.abort()
-    const controller = new AbortController()
-    locationAbort.current = controller
-    const { signal } = controller
-    const show = (state: PhotoLocationSearch) => {
-      if (!signal.aborted && activeRef.current === id) setLocationSearch({ id, state })
+  /**
+   * The skyline searched at nine places round `centre` (`photoLocationTrials`), every heading at each, by one reader
+   * (`searchByOneReader`). `show` hears the progress; the answer is the search's last state. Never moves the camera.
+   */
+  const locateAround = async (
+    photo: OwnPhoto,
+    centre: PhotoLocation,
+    signal: AbortSignal,
+    show: (state: PhotoLocationSearch) => void,
+  ): Promise<PhotoLocationSearch> => {
+    const finish = (state: PhotoLocationSearch) => {
+      show(state)
+      return state
     }
     const locations = photoLocationTrials(centre)
     show({ status: 'searching', checked: 0, total: locations.length })
@@ -3147,14 +3408,12 @@ export function useFieldPhoto({
         const skyline = skylineRead(photo, pixels, reader)
         return skyline.filter(Boolean).length >= MIN_SKYLINE_COLUMNS && believableSkyline(pixels, skyline)
       })
-      if (!readers.length) {
-        show({
+      if (!readers.length)
+        return finish({
           status: 'error',
           message:
             'There is too little clear skyline to locate this photo. Set a rough camera location in Adjust and pair landmarks.',
         })
-        return
-      }
       const spec = photoTerrainSpec(centre.lng, centre.lat, PHOTO_TERRAIN_RINGS)
       const terrain = await loadOwnTerrain(centre.lng, centre.lat, signal)
       const { hfov, eyeHeightMeters, altitudeMeters } = photo.pose
@@ -3220,19 +3479,34 @@ export function useFieldPhoto({
       const candidates: PhotoLocationCandidate[] = (chosen?.results ?? []).flatMap((fit, place) =>
         fit ? [{ ...locations[place], fit }] : [],
       )
-      if (knownGround > 0 && belowGround === knownGround) {
-        show({ status: 'error', message: 'The camera altitude is below the terrain in this area. Check it in Adjust.' })
-        return
-      }
-      show({
+      if (knownGround > 0 && belowGround === knownGround)
+        return finish({
+          status: 'error',
+          message: 'The camera altitude is below the terrain in this area. Check it in Adjust.',
+        })
+      return finish({
         status: 'done',
         ...rankPhotoLocations(candidates),
         sampled,
         basis: { hfov, eyeHeightMeters, altitudeMeters: altitudeMeters ?? null },
       })
     } catch (error) {
-      show({ status: 'error', message: `The location search stopped: ${reason(error)}` })
+      if (aborted(signal)) throw error
+      return finish({ status: 'error', message: `The location search stopped: ${reason(error)}` })
     }
+  }
+
+  const findLocation = async (id: string, centre: PhotoLocation) => {
+    const photo = photoById(id)
+    if (!photo || activeRef.current !== id) return
+    locationAbort.current?.abort()
+    const controller = new AbortController()
+    locationAbort.current = controller
+    const { signal } = controller
+    const show = (state: PhotoLocationSearch) => {
+      if (!signal.aborted && activeRef.current === id) setLocationSearch({ id, state })
+    }
+    await locateAround(photo, centre, signal, show).catch(() => undefined)
   }
 
   const useLocation = (id: string, candidate: PhotoLocationCandidate) => {
@@ -3953,7 +4227,11 @@ export function useFieldPhoto({
         search: w.search.status,
         found: w.found,
         hasCameraOption: options.some(
-          (option) => option.kind === 'matched' || option.kind === 'landmark' || option.kind === 'high-ground',
+          (option) =>
+            option.kind === 'matched' ||
+            option.kind === 'landmark' ||
+            option.kind === 'high-ground' ||
+            option.kind === 'place',
         ),
       })
       const notes = [...(w.found?.notes ?? [])]
@@ -3971,9 +4249,15 @@ export function useFieldPhoto({
         status: statusNow,
         reasons: queueReasons({
           found: w.found,
-          search: w.search.status === 'done' ? w.search.result : null,
-          otherOptions: options.filter((option) => option.kind !== 'phone' && option.kind !== 'high-ground').length,
+          // A search that settled from another place speaks for the photo: it is no longer unsettled.
+          search:
+            w.places?.searches.find((search) => search.result.trustworthy)?.result ??
+            (w.search.status === 'done' ? w.search.result : null),
+          otherOptions: options.filter(
+            (option) => option.kind !== 'phone' && option.kind !== 'high-ground' && option.kind !== 'ground',
+          ).length,
           neighbourGap: winner?.evidence.neighbourAgreesDegrees ?? null,
+          placeInDoubt: !!w.found?.highGround && photo.sources.position === 'exif' && !placeSettled(w.places),
         }),
         notes,
       }

@@ -19,7 +19,6 @@ import {
   ArrowRight,
   Camera,
   Check,
-  Crosshair,
   Loader2,
   Map as MapIcon,
   MapPin,
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { DisclosureCard } from '@/components/ui/disclosure'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -43,10 +43,11 @@ import { PhotoAcceptPanel, PhotoUsePanel } from './PhotoAcceptPanel'
 import { acceptPreview } from './photoAcceptPreview'
 import { PhotoAdjustPanel } from './PhotoAdjustPanel'
 import type { StartPlanPick } from './PhotoCameraTools'
+import { PhotoCandidatePair, comparableRows } from './PhotoCandidatePair'
 import { PhotoCompare } from './PhotoCompare'
 import { PhotoCombinedPanel } from './PhotoCombinedPanel'
 import { PhotoFlightMatchPanel } from './PhotoFlightMatchPanel'
-import { PhotoLocationPanel } from './PhotoLocationPanel'
+import { PhotoSearchPanel } from './PhotoSearchPanel'
 import { PhotoOptionsCard, ownAcceptancePose } from './PhotoOptionsCard'
 import { photoStripState } from './photoOptions'
 import { scenePhotoLayers } from './photoPageFeatures'
@@ -108,6 +109,8 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
   const sceneLayers = useMemo(() => scenePhotoLayers(photo.ownScene), [photo.ownScene])
   // One picture at a time on the Camera tab: what is drawn over the photo, or the photo against the model view.
   const [viewer, setViewer] = useState<CameraViewer>('photo')
+  // The two rows *Two candidates* shows, by id; null for its default.
+  const [pairPick, setPairPick] = useState<[string | null, string | null]>([null, null])
   const [initials, setInitials] = useState('')
   const [note, setNote] = useState('')
   const [acceptError, setAcceptError] = useState<string | null>(null)
@@ -118,6 +121,10 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
   const comparing = !!own && !!photo.match
   // A landmark is picked, and the skyline dragged, on the photo itself: both bring it back.
   const showModel = viewer === 'model' && !placing && !align
+  const showPair = viewer === 'pair' && !placing && !align
+  // The photo's own layers are hidden, not unmounted, while another picture shows.
+  const showPhoto = !showModel && !showPair
+  const pairable = own ? comparableRows(photo).length >= 2 : false
 
   // An older step name (the sidebar's Position or Direction) opens the hand tools; another photo starts clean.
   const [seen, setSeen] = useState({ step: photo.ownDialog.step, id: own?.id ?? null })
@@ -129,6 +136,7 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
       setNotice(null)
       setPlacing(false)
       setAlign(false)
+      setPairPick([null, null])
     }
     setSeen({ step: photo.ownDialog.step, id: own?.id ?? null })
   }
@@ -192,16 +200,6 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
         setDepthBusy(null)
       })
   }
-  const favoured = compared?.result.candidates[0]
-  const undecided = compared?.result.undecided ?? null
-  // A camera the ground favours is a start to take; headings it leaves open are only said.
-  const groundSuggestion =
-    current &&
-    favoured &&
-    entry?.status !== 'accepted' &&
-    (undecided || !sameHeading(favoured.pose.bearing, current.bearing))
-      ? { pose: favoured.pose, depth: !!favoured.cues.depth, undecided }
-      : null
   const viewpointId = own?.uses.find((use) => use.job === 'viewpoint')?.targetId ?? null
   const blocked = own ? lineUpBlocked(photo, actions.canLineUp) : null
   const activeIndex = own ? ownPhotos.findIndex((entry) => entry.id === own.id) : -1
@@ -232,8 +230,6 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
       }
     : undefined
   const moveTo = (point: { lng: number; lat: number }) => photo.setOwnPose(point)
-  const landmarkCount = photo.pairs.filter((pair) => !photo.pairsOff.includes(pair.id)).length
-  const guideWithLandmarks = !!current && !!startPick && (entry?.status !== 'accepted' || landmarkCount > 0)
   const placePoint = (x: number, y: number) => {
     if (!startPick) return
     const pixel: [number, number] = [x, y]
@@ -406,9 +402,9 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                 <SegmentedControl<CameraViewer>
                   label="What to look at"
                   size="sm"
-                  value={showModel ? 'model' : 'photo'}
+                  value={showModel ? 'model' : showPair ? 'pair' : 'photo'}
                   onChange={(next) => {
-                    if (next === 'model') {
+                    if (next !== 'photo') {
                       setPlacing(false)
                       setAlign(false)
                     }
@@ -417,6 +413,15 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                   options={[
                     { value: 'photo', label: 'Layers on the photo' },
                     { value: 'model', label: 'Against the model view' },
+                    {
+                      value: 'pair',
+                      label: 'Two candidates',
+                      // Always in its place, so the control never changes width as the options arrive.
+                      disabled: !pairable,
+                      title: pairable
+                        ? 'Any two camera options side by side, with where they differ'
+                        : 'Two camera options need their model views first',
+                    },
                   ]}
                 />
                 {placing && (
@@ -426,7 +431,7 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                 )}
                 {/* Hidden, not unmounted, while the model view shows: laying the layers on the photo again costs a
                     second or more a camera. */}
-                <div className={showModel ? 'hidden' : 'flex min-h-0 flex-1 flex-col'}>
+                <div className={showPhoto ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
                   <PhotoWithOverlays
                     photo={photo}
                     pageFeatures={actions.pageFeatures}
@@ -434,7 +439,7 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                     layersMenu="corner"
                     fit
                     featuresCheck={false}
-                    idle={showModel}
+                    idle={!showPhoto}
                     align={align}
                     showPairs
                     readOnClick={!placing}
@@ -465,90 +470,56 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                     active={showModel && tab === 'camera' && photo.ownDialog.open && !steppedAside}
                   />
                 </div>
+                {showPair && (
+                  <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                    <PhotoCandidatePair
+                      key={own.id}
+                      photo={photo}
+                      active={tab === 'camera' && !steppedAside}
+                      picked={pairPick}
+                      onPick={setPairPick}
+                    />
+                  </div>
+                )}
               </div>
               <div className="min-w-0 space-y-4 text-sm">
                 {photo.ownStatus.error && <InlineAlert tone="error">{photo.ownStatus.error}</InlineAlert>}
-                {entry && <PhotoNeeds part="line" entry={entry} />}
-                <PhotoOptionsCard photo={photo} onAdjust={() => setAdjust(true)} />
-                {startPick && (!current || own.sources.position === 'road-view' || adjust || photo.locationSearch) && (
-                  <PhotoLocationPanel own={own} photo={photo} startPick={startPick} />
-                )}
-                {/* What the comparison of cameras offers comes under the options, not over them: it is worked out
-                    after a photo opens (a second or more), and above the options it pushed them down the window
-                    under the reviewer's pointer. */}
-                {entry && (
-                  <PhotoNeeds
-                    part="offers"
-                    entry={entry}
-                    suggestion={groundSuggestion}
-                    onUseSuggestion={
-                      groundSuggestion && !groundSuggestion.undecided
-                        ? () => {
-                            // The suggestion is a sector (the sweep is 30° apart), so the skyline is then searched
-                            // inside it: the heading is held near the suggestion, shown under Adjust as a held angle.
-                            photo.setOwnPose(groundSuggestion.pose)
-                            void photo.findCamera({
-                              heading: { value: groundSuggestion.pose.bearing, tolerance: SUGGESTION_SECTOR_DEGREES },
-                            })
-                          }
-                        : undefined
-                    }
-                    depth={
-                      compared && !compared.depth && entry.status !== 'accepted'
-                        ? { busy: depthBusy === own.id, error: depthError, onCompare: compareWithDepth }
-                        : undefined
-                    }
-                  />
-                )}
-                {/* Beside the picture, not under it: the picture's column is as tall as the window shows, and what
-                    was read for the camera's ground is a list to read, not something to line up by eye. */}
-                <PhotoFeaturesCheck photo={photo} />
-                {guideWithLandmarks && (
-                  <section className="space-y-2 rounded-md border border-border p-3" aria-label="Guide with landmarks">
-                    <h4 className="text-sm font-semibold">Guide with landmarks</h4>
-                    <p className="text-xs leading-5 text-muted-foreground">
-                      {landmarkCount === 0
-                        ? 'Click one distinct road bend, shoreline corner or peak in the photo and on the plan to get a starting camera.'
-                        : landmarkCount === 1 && options.some((option) => option.kind === 'landmark')
-                          ? 'Try the one-landmark starting camera below. Pair another landmark far from the first to refine roll.'
-                          : landmarkCount < photo.pairsNeeded
-                            ? 'Pair another landmark well away from the first, preferably at a different distance.'
-                            : landmarkCount < photo.controlCheckCount
-                              ? `You can solve now. Use ${photo.controlCheckCount} landmarks to measure error on a point left out of the fit.`
-                              : 'Solve from the paired landmarks, then check the held-out error.'}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="touch:h-10"
-                        aria-pressed={placing}
-                        onClick={() => {
-                          setAlign(false)
-                          setPlacing(!placing)
-                        }}
-                      >
-                        <Crosshair className="h-4 w-4" />
-                        {placing ? 'Cancel landmark pick' : landmarkCount ? 'Pair another landmark' : 'Pair a landmark'}
-                      </Button>
-                      {landmarkCount >= photo.pairsNeeded && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="touch:h-10"
-                          disabled={!!photo.toolsBusy}
-                          onClick={() => void photo.solveFromPoints()}
-                        >
-                          Solve from {landmarkCount} landmarks
-                        </Button>
-                      )}
-                    </div>
-                  </section>
-                )}
+                {entry && <PhotoNeeds entry={entry} />}
+                <PhotoOptionsCard
+                  photo={photo}
+                  onAdjust={() => setAdjust(true)}
+                  onSearchRound={(bearing) =>
+                    // A heading the ground favours is a sector (the sweep is 30° apart): the skyline is searched
+                    // inside it, the heading held near it, shown under Adjust as a held angle.
+                    void photo.findCamera({ heading: { value: bearing, tolerance: SUGGESTION_SECTOR_DEGREES } })
+                  }
+                />
+                <PhotoSearchPanel
+                  photo={photo}
+                  own={own}
+                  startPick={startPick}
+                  placing={placing}
+                  onPlacing={(next) => {
+                    setAlign(false)
+                    if (next) setViewer('photo')
+                    setPlacing(next)
+                  }}
+                  depth={
+                    compared && !compared.depth && entry?.status !== 'accepted'
+                      ? { busy: depthBusy === own.id, error: depthError, onCompare: compareWithDepth }
+                      : null
+                  }
+                />
+                {/* What else bears on the camera, folded: a list to read, not something to line up by eye. */}
+                <DisclosureCard
+                  title="More evidence"
+                  summary="Mapped features in view, and the cameras compared by the look of the ground"
+                  contentClassName="space-y-3 px-3 pb-3 text-xs"
+                >
+                  <PhotoFeaturesCheck photo={photo} />
+                  {tab === 'camera' && <PhotoCombinedPanel key={own.id} photo={photo} />}
+                </DisclosureCard>
                 {tab === 'camera' && <PhotoFlightMatchPanel photo={photo} />}
-                {tab === 'camera' && <PhotoCombinedPanel key={own.id} photo={photo} />}
                 <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
                   <p className="text-xs text-muted-foreground">
                     Numbers, held angles, a matched camera and dragging the skyline by hand.
@@ -626,95 +597,19 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
   )
 }
 
-type CameraViewer = 'photo' | 'model'
+type CameraViewer = 'photo' | 'model' | 'pair'
 
 /** How far either side of a suggested heading the skyline is then searched: the sweep's own spacing is 30°. */
 const SUGGESTION_SECTOR_DEGREES = 20
 
 /** Headings this close are the same suggestion as the camera in use: the comparison's sweep is 30° apart. */
-const sameHeading = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180) < 15
 
 /**
  * What the open photo needs, in one sentence, above everything that could be done to it; and, for a photo the skyline
  * did not settle, the camera the ground favours, to take as a start.
  */
-function PhotoNeeds({
-  part,
-  entry,
-  suggestion,
-  onUseSuggestion,
-  depth,
-}: {
-  /** The one sentence, above the options; or what the comparison offers, under them. */
-  part: 'line' | 'offers'
-  entry: Parameters<typeof photoStripState>[0]
-  suggestion?: {
-    pose: { bearing: number; pitch: number }
-    depth: boolean
-    undecided?: { from: number; to: number } | null
-  } | null
-  onUseSuggestion?: () => void
-  /** Offered while the photo's cameras were compared without depth: depth is what tells two headings apart. */
-  depth?: { busy: boolean; error: string | null; onCompare: () => void }
-}) {
-  const state = photoStripState(entry)
-  if (part === 'line') return <NeedsLine state={state} />
-  const offered = !!suggestion?.undecided || (!!suggestion && !!onUseSuggestion) || (!!depth && state.tone === 'help')
-  if (!offered) return null
-  return (
-    <div className="space-y-2">
-      {suggestion?.undecided && (
-        <p
-          className="rounded-md border border-border bg-card p-2.5 text-xs leading-5"
-          data-testid="own-photo-ground-undecided"
-        >
-          Compared by {suggestion.depth ? 'depth and the look of the ground' : 'the look of the ground'}, cameras{' '}
-          {(suggestion.undecided.to - suggestion.undecided.from + 360) % 360 >= 300
-            ? 'in almost every direction'
-            : `heading anywhere from ${suggestion.undecided.from.toFixed(0)}° round to ${suggestion.undecided.to.toFixed(0)}°`}{' '}
-          fit about equally well: the ground in this photo does not single one out. Pair a landmark to place it.
-        </p>
-      )}
-      {suggestion && !suggestion.undecided && onUseSuggestion && (
-        <div
-          className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card p-2.5 text-xs leading-5"
-          data-testid="own-photo-ground-suggestion"
-        >
-          <p className="min-w-0 flex-1">
-            Compared by {suggestion.depth ? 'depth and the look of the ground' : 'the look of the ground'}, a camera
-            near heading {suggestion.pose.bearing.toFixed(0)}°, pitch {suggestion.pose.pitch.toFixed(0)}° fits best.
-            Starting from it searches the skyline within {SUGGESTION_SECTOR_DEGREES}° of that heading. Check the result
-            against the photo before accepting it.
-          </p>
-          <Button type="button" variant="outline" size="sm" className="touch:h-10" onClick={onUseSuggestion}>
-            Start from it
-          </Button>
-        </div>
-      )}
-      {depth && state.tone === 'help' && (
-        <div
-          className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card p-2.5 text-xs leading-5"
-          data-testid="own-photo-depth-offer"
-        >
-          <p className="min-w-0 flex-1">
-            {depth.error ??
-              'A depth estimate of the photo can tell headings apart where the skyline cannot. It runs in this browser; the model is a 27 MB download, kept here, and unsettled photos then use it by themselves.'}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="touch:h-10"
-            disabled={depth.busy}
-            onClick={depth.onCompare}
-          >
-            {depth.busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            Compare with depth
-          </Button>
-        </div>
-      )}
-    </div>
-  )
+function PhotoNeeds({ entry }: { entry: Parameters<typeof photoStripState>[0] }) {
+  return <NeedsLine state={photoStripState(entry)} />
 }
 
 function NeedsLine({ state }: { state: ReturnType<typeof photoStripState> }) {

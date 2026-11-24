@@ -213,6 +213,41 @@ describe('what the queue may do', () => {
     })
   })
 
+  it('takes a camera back to where its search stood, and a place row to its place, keeping the lens', () => {
+    expect(sourcesForOption('winner')).toEqual({ heading: 'skyline', pitch: 'skyline', roll: 'skyline' })
+    expect(sourcesForOption('winner', 'exif')).toEqual({
+      heading: 'skyline',
+      pitch: 'skyline',
+      roll: 'skyline',
+      position: 'exif',
+      keepsLens: true,
+    })
+    expect(sourcesForOption('place', 'gps-altitude')).toMatchObject({ position: 'gps-altitude', keepsLens: true })
+    expect(sourcesForOption('place')).toMatchObject({ position: 'skyline' })
+    expect(methodForOption('place')).toBe('skyline')
+    // A ground row is a start the skyline search then refines.
+    expect(sourcesForOption('ground')).toEqual({ heading: 'reviewer', pitch: 'reviewer', roll: 'level' })
+  })
+
+  it('stops doubting the place once the camera has left the fix', () => {
+    const found = {
+      highGround: {
+        lng: 0,
+        lat: 0,
+        groundMeters: 0,
+        distanceMeters: 1,
+        bearing: 0,
+        aboveFixMeters: 114,
+        statedErrorMeters: null,
+      },
+    }
+    const unsettled = { trustworthy: false, ambiguous: true }
+    expect(queueReasons({ found, search: unsettled, otherOptions: 2, neighbourGap: null })).toContain('gps-off')
+    expect(
+      queueReasons({ found, search: unsettled, otherOptions: 2, neighbourGap: null, placeInDoubt: false }),
+    ).not.toContain('gps-off')
+  })
+
   it('flags a point solve that rolled over or moved far', () => {
     expect(controlSolveSuspect({ pose: { roll: 2 }, shift: { east: 10, north: 5, up: 3 } })).toBe(false)
     expect(controlSolveSuspect({ pose: { roll: 45 }, shift: { east: 0, north: 0, up: 0 } })).toBe(true)

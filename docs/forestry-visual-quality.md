@@ -2188,8 +2188,9 @@ street-level photo from Mapillary, or with a photo of your own.
   camera is looking, with how far ahead or back it was taken; **Line up**
   jumps to it. It stays hidden while a photo is lined up.
 
-- **Find the location of a photo without GPS.** In Camera, choose **Pick a search area** and click an approximate
-  centre on the plan. PGMaps tests nine locations over a 1 km square, searching every heading against the terrain
+- **Find the location of a photo without GPS.** In Camera's *Search*, choose **Pick the area it was taken in…** (or
+  **Search another area…**; **Search round here** centres it on the camera) and click an approximate centre on the
+  plan. PGMaps tests nine locations over a 1 km square, searching every heading against the terrain
   skyline (`photoLocationSearch.ts`). The search keeps the field of view fixed. Set the lens and, for an aerial
   photo, the altitude before searching. One skyline reader is kept for the whole search, so every location is scored
   against the same reading of the skyline (`searchByOneReader`): the colour reader at every location, kept alone when
@@ -2303,8 +2304,38 @@ street-level photo from Mapillary, or with a photo of your own.
       the camera there with its position marked *a guess from the GPS
       altitude* (`gps-altitude`), still to confirm, and keeps the lens's own
       source. The place is read from the fix, so a search run again from it
-      keeps the row. The skyline fits stay those searched at the fix until the
-      reviewer searches again near the new camera.
+      keeps the row. Once the camera has moved there the photo no longer reads
+      *Check the place* (`placeInDoubt`): the doubt is then the position step's.
+    - **Rows stand where they were searched.** A search records where its eye
+      stood (`search.at`), and its rows stay there when the camera moves: they
+      read *Skyline from the GPS fix: best fit* and *Use* takes the camera back
+      to that place, the lens kept. Before, a fit searched at the fix was
+      redrawn from wherever the camera then stood, and on IMG_7996 the fix's
+      stale 56° fit rose above the high ground once the camera was moved there.
+    - **Places searched in the background** (`photoPlaces.ts`, DOM-free). When
+      the search from where a photo stands does not settle, the queue searches
+      again by itself from where the evidence points, after the searches and
+      before the features check (`explorePlaces`, in the follow-up lane): from
+      the high ground, then the nine places 500 m apart round it
+      (`locateAround`, the hand tool's search). Without high ground it searches
+      round the fix only when the phone itself states an error of
+      `PLACE_DOUBT_ERROR_METERS` (100 m) or more, on the ground. It searches
+      only round a place from the photo's own GPS, never one the reviewer set,
+      solved or matched, and never once a search settled. Each fit is a row
+      (`place`) at its own place, with its runner-up in tier 2 as the search
+      here lists its own: a settled one in tier 0, ahead of everything; an
+      unsettled one in tier 1. The area's best place is a row when it stands
+      clearly ahead, or, from a near tie, the best fit within
+      `PHONE_TIE_BREAK_DEGREES` (15°) of the phone's heading: the second
+      sensor the tie needs, said on the row (`areaPick`). The top of a tie
+      alone is never a row; a tie the phone does not break is said in
+      *Search*. A place search that settles makes the comparison by the
+      ground unnecessary, and the photo is no longer *not settled*. The
+      camera never moves: every row waits for *Use*. On IMG_7996 the wide
+      search from the high ground fitted 252° (runner-up 205°), both near
+      ties and wrong; the nine places round it tied, their two best facing
+      130° and 131°; the phone read 127.5°. The tie-break row stood on the
+      bluff at 129.6° and leads its tier.
     - **Lenses.** `FocalLengthIn35mmFormat` already includes the iPhone's
       digital zoom, so it is applied once. A photo whose decoded size differs
       from the size its tags record was cropped after it was taken: it is
@@ -2413,27 +2444,52 @@ street-level photo from Mapillary, or with a photo of your own.
     offers *Compare with depth* (27 MB, once), after which every unsettled
     photo is compared with it. A photo's depth estimate is kept by record
     and model, in memory and in this browser's database
-    (`photoDepthFor`), so it is worked out once. Where the comparison
-    favours a camera more than 15° from the one in use, the window says so
-    under the options with *Start from it*, which takes that camera and then
-    searches the skyline within 20° of its heading. On the frame whose
+    (`photoDepthFor`), so it is worked out once. The heading the comparison
+    favours goes into the options card: a row within
+    `GROUND_AGREES_DEGREES` (15°) of it says *The look of the ground favours
+    this heading*; a heading no row has is a row of its own (*Look of the
+    ground: near 210°*, tier 2), whose *Search round it* searches the skyline
+    within 20° of that heading. Headings it leaves open are said in *Search*. On the frame whose
     skyline is one straight ridge the automatic pick was 207.6°; depth
     favoured 270° (correlation 0.99), and the search inside that sector gave
     263.5° with 280.0° as runner-up, either side of the 275.7° the bench's
     hand-traced skyline gave. It is a start to check, never an acceptance.
-  - **One picture at a time.** The *Camera* tab shows either *Layers on the
-    photo* or *Against the model view*, switched above the picture, never
-    both stacked: stacked they were taller than the window and the second
-    could not be seen beside the options. Pairing a landmark or dragging the
-    skyline brings the photo back. Above the options one sentence says what
-    the open photo needs, and the options card comes before the ways to
-    help it (landmarks, flight matching, the combined search).
+  - **One picture at a time.** The *Camera* tab shows *Layers on the
+    photo*, *Against the model view* or *Two candidates*, switched above the
+    picture, never stacked: stacked they were taller than the window and the
+    second could not be seen beside the options. Pairing a landmark or
+    dragging the skyline brings the photo back. *Two candidates*
+    (`PhotoCandidatePair.tsx`) shows any two rows of the options card, picked
+    left and right, their model views, the photo and where the two differ;
+    it draws nothing of its own, and stays in the switch, greyed with its
+    reason, until two rows have their views.
+  - **The Camera tab is the options and one Search section.** Above the
+    options one sentence says what the open photo needs. Every camera any
+    search finds is a row of the options card; *Search* (`PhotoSearchPanel.tsx`)
+    says in a line each where it looked and what it found (from where it
+    stands, from the high ground, the nine places round it, headings the
+    ground leaves open), and holds the searches left to start by hand:
+    *Search here again*, *Search round here*, *Search another area…*, *Pair
+    a landmark* and *Compare with depth*. The features check and the
+    combined camera search are folded under *More evidence*; the hand tools
+    stay behind *Adjust*. A row is as tall as its model view: its name, its
+    angles, and one line of what it was measured on and what agrees with it
+    (sky columns, a held-out pair, shared features, the phone's heading, the
+    look of the ground). Its cautions are behind an amber triangle and the
+    rest (the sky's span, the sun, a match's errors) behind its (i), both
+    `InfoTip`s that open on hover, focus or a tap (`rowEvidence`).
+  - **The phone's heading orders a tier.** A fit on the ground within
+    `PHONE_AGREES_DEGREES` (15°) of the phone's heading says so beside it,
+    and within its tier comes before a fit that agrees with nothing, ahead
+    of the model-view score; never a fit at an altitude, where a phone's
+    heading can be far out, and never across a tier. On IMG_7996 the model
+    view could not tell a right fit from a wrong one (0.31 at 129.6°, 0.33
+    at 252°, 0.42 at 205°), so no row is pointed to by its score alone.
   - **The comparison** (`PhotoCompare.tsx`): the photo against the model view
     for its camera at the same size, blinked (hold B) or swiped, with the
-    agreement score and imagery coverage beside it. For an ambiguous skyline,
-    *Compare skyline candidates* opens the photo, the best and runner-up
-    model views, and their difference. Both candidates stay available after
-    picking one. Use *Field photos* in *Visit* to reopen the comparison while
+    agreement score and imagery coverage beside it. Two candidates side by
+    side are the switch's *Two candidates*, open on any pair of rows. Both
+    stay available after picking one. Use *Field photos* in *Visit* to reopen the comparison while
     standing at a saved viewpoint.
   - **Accept** (`photoAcceptance.ts`, DOM-free) is the reviewer's, never
     automatic, and it is one click with nothing asked first. Initials and a
@@ -2566,13 +2622,12 @@ street-level photo from Mapillary, or with a photo of your own.
     pointer over one is ringed on the other. The model view is drawn 320
     pixels across, which is what it is scored at: enlarged it shows where
     things are, not detail.
-  - **What the comparison offers sits under the options.** The camera the
-    ground favours (*Start from it*), the headings it leaves open and
-    *Compare with depth* come after the options card, not before it: they
-    are worked out a second or more after a photo opens, and above the
-    options they pushed the rows down the window under the pointer. The
-    one sentence on what the photo needs stays on top, with room for two
-    lines whatever it says.
+  - **What arrives later sits under the options.** The background search's
+    lines, the headings the ground leaves open and *Compare with depth* are
+    in *Search*, after the options card, not before it: they are worked out
+    seconds after a photo opens, and above the options they pushed the rows
+    down the window under the pointer. The one sentence on what the photo
+    needs stays on top, with room for two lines whatever it says.
   - **Photos imported before** are listed under the set on the Photos tab:
     every photo record that is not open. *Open* (and *Open all*) carries on
     with that record, its id, the camera it holds, its acceptance and its
@@ -2693,8 +2748,8 @@ street-level photo from Mapillary, or with a photo of your own.
       see both views. The small preview redraws after edits pause. *Restore
       starting camera* returns to the pose and sources held when fine-tuning
       opened. A preview alone does not record a camera check.
-  - **Guide with landmarks.** Pair one visible spot in the photo and on the
-    plan to get a starting heading and pitch. With two spread landmarks, solve
+  - **Landmarks.** *Pair a landmark* in *Search*: pair one visible spot in
+    the photo and on the plan to get a starting heading and pitch. With two spread landmarks, solve
     the roll as well. With three and a recorded position, the solve can adjust
     the position and report held-out error. A guessed position needs four
     landmarks to hold one out while freeing horizontal position. Check a

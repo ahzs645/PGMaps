@@ -254,6 +254,9 @@ export function methodForOption(kind: PhotoOptionKind): PhotoCameraMethod {
   switch (kind) {
     case 'winner':
     case 'runner-up':
+    case 'place':
+    case 'ground':
+      // A ground row is used by searching the skyline round its heading.
       return 'skyline'
     case 'phone':
     case 'high-ground':
@@ -286,7 +289,11 @@ export function methodForSource(heading: PoseSource): PhotoCameraMethod {
 }
 
 /** Where each angle comes from once an options row is used. */
-export function sourcesForOption(kind: PhotoOptionKind): {
+export function sourcesForOption(
+  kind: PhotoOptionKind,
+  /** A row's own `positionSource`: where a row that moves the camera's place took it from. */
+  positionSource?: PoseSource,
+): {
   heading: PoseSource
   pitch: PoseSource
   roll?: PoseSource
@@ -298,7 +305,22 @@ export function sourcesForOption(kind: PhotoOptionKind): {
   switch (kind) {
     case 'winner':
     case 'runner-up':
-      return { heading: 'skyline', pitch: 'skyline', roll: 'skyline' }
+      // Searched where the camera no longer stands: the row takes the camera back there, the lens kept.
+      return positionSource
+        ? { heading: 'skyline', pitch: 'skyline', roll: 'skyline', position: positionSource, keepsLens: true }
+        : { heading: 'skyline', pitch: 'skyline', roll: 'skyline' }
+    // The skyline searched from another place: the place is the guess it came from, the lens the photo's own.
+    case 'place':
+      return {
+        heading: 'skyline',
+        pitch: 'skyline',
+        roll: 'skyline',
+        position: positionSource ?? 'skyline',
+        keepsLens: true,
+      }
+    // A heading the ground favours: a start the skyline search then refines, the reviewer's choice as a typed value is.
+    case 'ground':
+      return { heading: 'reviewer', pitch: 'reviewer', roll: 'level' }
     case 'phone':
       return { heading: 'exif', pitch: 'exif', roll: 'level' }
     // The phone's angles from ground at its GPS altitude: the place is the guess, the lens is the photo's own.
@@ -386,6 +408,11 @@ export function queueReasons(input: {
   /** Options other than the phone's own heading. */
   otherOptions: number
   neighbourGap: number | null
+  /**
+   * Whether the place is in doubt: high ground was found near a fix far below its altitude and the camera still stands
+   * on the fix. Once the reviewer has moved it (to the high ground, or anywhere), the doubt is the position step's.
+   */
+  placeInDoubt?: boolean
 }): PhotoFailureReason[] {
   return photoReasons({
     lens: input.found?.lens ?? null,
@@ -394,7 +421,7 @@ export function queueReasons(input: {
     search: input.search,
     otherOptions: input.otherOptions,
     neighbourGap: input.neighbourGap,
-    highGround: !!input.found?.highGround,
+    highGround: input.placeInDoubt ?? !!input.found?.highGround,
   })
 }
 
