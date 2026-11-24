@@ -3,7 +3,7 @@
   "id": "bc.crown-grazing",
   "version": "1.0.0",
   "title": "BC Crown grazing and reforestation",
-  "description": "Evidence review for forestry on grazing land and in the 2006 Omineca agriculture and settlement reserve areas: lease terms, range plans, range barriers and developments, the order's harvest pathways and whether the harvested ground can be reforested.",
+  "description": "Evidence review for forestry on grazing land, in Land Act designated areas and in the 2006 Omineca agriculture and settlement reserve areas: lease terms, designations, range plans, range barriers and developments, the order's harvest pathways and whether the harvested ground can be reforested.",
   "coverage": {
     "from": "2026-11-17",
     "through": "2026-11-17"
@@ -17,6 +17,22 @@
     {
       "id": "lease-conflict",
       "label": "Does a confirmed lease clause require a consent that is outstanding or withheld, or restrict the proposed activity?",
+      "type": "boolean"
+    },
+    {
+      "id": "land-act-designation",
+      "label": "Is the area under a Land Act reserve, withdrawal or designated use area?",
+      "type": "choice",
+      "choices": [
+        "None",
+        "Section 15 reserve",
+        "Section 16 withdrawal from disposition",
+        "Section 17 designated use area"
+      ]
+    },
+    {
+      "id": "designation-terms-restrict",
+      "label": "Do the designation's terms (its signed notice, conditions under §17(1.1) or the land use report) restrict harvesting, site preparation or planting on the area?",
       "type": "boolean"
     },
     {
@@ -175,6 +191,18 @@
       "title": "LWBC Land Policy: Grazing (effective 15 November 2004)",
       "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/grazing_lands_policy_2004.pdf",
       "asOf": "2026-11-17"
+    },
+    {
+      "id": "rppr",
+      "title": "Range Planning and Practices Regulation, BC Reg 19/2004",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/19_2004",
+      "asOf": "2026-11-17"
+    },
+    {
+      "id": "crown-land-reserves-policy",
+      "title": "Land Use Operational Policy: Reserves, Withdrawals, Notations and Prohibitions (effective 23 November 2021, amended 9 May 2024)",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/reserves.pdf",
+      "asOf": "2026-11-17"
     }
   ],
   "rules": [
@@ -287,6 +315,94 @@
       ]
     },
     {
+      "id": "land-act-designation",
+      "title": "Land Act reserve, withdrawal or designated use area",
+      "source": "land-act",
+      "provision": "15–17",
+      "when": [
+        [
+          {
+            "fact": "land-act-designation",
+            "op": "in",
+            "value": ["Section 15 reserve", "Section 16 withdrawal from disposition", "Section 17 designated use area"]
+          }
+        ]
+      ],
+      "finding": "A Land Act reserve (§15), withdrawal (§16) or designated use area (§17) withholds the land from disposition under the Land Act; a §17 designation only from dispositions the minister finds incompatible with its purpose, and the minister may set terms on the land's use (§17(1.1)). None of the three refers to forest practices or lifts the FRPA §29 duty, and a designated area is not leased land, so a Range Act agreement can cover it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the Crown lands file, document number, purpose and effective date (GATOR, by file number with tenure history on), and obtain the signed notice, its terms and any land use report. Under the 2021 Crown land policy a §17 designation's standard term is 10 years, up to 30 with a review every 5; an expiry of 9999 is a record to ask the land manager about, not a term."
+        }
+      ]
+    },
+    {
+      "id": "designation-terms",
+      "title": "Designation terms that restrict the forest work",
+      "source": "land-act",
+      "provision": "17(1.1)–(2)",
+      "scope": [
+        [
+          {
+            "fact": "land-act-designation",
+            "op": "in",
+            "value": ["Section 15 reserve", "Section 16 withdrawal from disposition", "Section 17 designated use area"]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "designation-terms-restrict",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "The designation's own terms restrict the proposed harvest or reforestation. Whether a Land Act term binds a timber sale licence or the FRPA stocking standard is for the land manager and the district to settle before the block proceeds.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the exact term, who holds the designation, and the land manager's and district's answer on how it applies to the harvest and to the plan's stocking standard."
+        },
+        {
+          "kind": "obtain-approval",
+          "description": "Where the terms make harvesting or planting incompatible, obtain the designation holder's agreement, an amendment of the designation, or a changed footprint before scheduling the block."
+        }
+      ]
+    },
+    {
+      "id": "designation-not-lease",
+      "title": "A designated use area is not a lease",
+      "source": "range-act",
+      "provision": "1 and 3, with FPPR 44(3)(d)",
+      "scope": [
+        [
+          {
+            "fact": "land-act-designation",
+            "op": "eq",
+            "value": "Section 17 designated use area"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "exempt-purpose",
+            "op": "eq",
+            "value": "(d) land used exclusively for grazing or hay under a Range Act agreement"
+          }
+        ]
+      ],
+      "finding": "A §17 grazing designation is not a lease and not a Range Act agreement. FPPR §44(3)(d) turns on a Range Act agreement over the land and its exclusive use for grazing or hay, never on the designation alone.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the Range Act agreement that covers the harvested ground and the evidence that the ground will be used exclusively for grazing or hay under it."
+        }
+      ]
+    },
+    {
       "id": "range-plan",
       "title": "Grazing or hay agreement and approved range plan",
       "source": "frpa",
@@ -305,6 +421,46 @@
         {
           "kind": "review",
           "description": "Record the RAN file, agreement, approved range use or stewardship plan or documented exception, pasture boundaries, grazing or hay schedule, and range developments."
+        }
+      ]
+    },
+    {
+      "id": "range-holder-livestock",
+      "title": "Livestock kept off a regenerating stand",
+      "source": "rppr",
+      "provision": "44",
+      "scope": [
+        [
+          {
+            "fact": "range-act-agreement",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "section-29-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "exempt-purpose",
+            "op": "eq",
+            "value": "No"
+          }
+        ]
+      ],
+      "finding": "Grazing and reforestation share the ground: a range agreement holder who knows grazing will significantly interfere with establishing the free-growing stand must remove the livestock from the area and keep them out, unless the minister exempts the holder from keeping them out once measures prevent it recurring.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Tell the range agreement holder where and when the stand is to be established, and record the range plan's pastures and seasons over the block."
+        },
+        {
+          "kind": "implement",
+          "description": "Agree the measures (fencing, timing, herding) with the range agreement holder and the district, and record who carries each."
         }
       ]
     },

@@ -24,6 +24,7 @@ const TOPICS: Record<string, TopicDef[]> = {
       sections: ['29', '44', '1'],
     },
     { id: 'lease', label: 'Land Act grazing lease', sections: ['11', '11.2'] },
+    { id: 'designation', label: 'Land Act reserves and designated use areas (§§15–17)', sections: ['15', '17'] },
     { id: 'range-plan', label: 'Range Act agreement, range plan and developments', sections: ['32', '51'] },
     { id: 'mitigation', label: 'Forest plan clauses and range barriers', sections: ['20.21', '20.22', '48'] },
   ],

@@ -129,6 +129,7 @@ export function GrazingEvidence({
         mapped.layers.map((layer) => {
           const info = MAPPED_LAYER_INFO[layer.layer]
           const label = factLabel(info.fact)
+          const also = info.alsoFact ? (factLabel(info.alsoFact) ?? `the fact ${info.alsoFact}`) : null
           return (
             <div key={layer.layer} className="space-y-1" data-testid={`grazing-evidence-${layer.layer}`}>
               {layer.features.length ? (
@@ -153,7 +154,8 @@ export function GrazingEvidence({
                 <p className="text-2xs text-muted-foreground">{layerSummary(layer)}</p>
               )}
               <p className="text-2xs text-muted-foreground">
-                Informs {label ? `“${label}”` : `the fact ${info.fact}`}. {info.informs}
+                Informs {label ? `“${label}”` : `the fact ${info.fact}`}
+                {also ? ` and “${also}”` : ''}. {info.informs}
               </p>
             </div>
           )

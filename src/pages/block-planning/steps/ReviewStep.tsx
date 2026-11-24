@@ -187,6 +187,10 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
               'exclusive-range-use': 'Seasonal grazing on land managed for both timber and forage is shared use.',
               'plan-conflict':
                 'Use the exact approved clause and record which activity, footprint and dates it covers.',
+              'land-act-designation':
+                'Mapped evidence lists §15, §16 and §17 designations of any purpose. GATOR, searched by the Crown lands file with tenure history on, gives the effective date.',
+              'designation-terms-restrict':
+                'The terms are in the signed notice of establishment and any land use report; ask the designation holder (GATOR’s interest holder) for them.',
               'ada-sra-applicable':
                 'The mapped ADA and SRA polygons are a candidate: the order’s maps are not for legal purposes. Confirm coverage with the district.',
               'ada-sra-excluded':

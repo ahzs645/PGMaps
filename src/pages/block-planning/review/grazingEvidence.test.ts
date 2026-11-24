@@ -136,7 +136,9 @@ describe('Mapped grazing evidence', () => {
       expect(body.get('propertyName')).not.toMatch(/CLIENT/)
     }
     expect(asked[0].get('CQL_FILTER')).toContain("STRGC_LAND_RSRCE_PLAN_NAME IN ('Agricultural Development Areas and")
-    expect(asked[2].get('CQL_FILTER')).toContain("AND TENURE_SUBPURPOSE = 'GRAZING'")
+    expect(asked[2].get('CQL_FILTER')).toContain(
+      "AND (TENURE_SUBPURPOSE = 'GRAZING' OR TENURE_SUBTYPE IN ('SEC 15 OIC RESERVE', 'SEC 16 MAP RESERVE', 'SEC 17 DESIGNATED USE AREA'))",
+    )
     expect(asked[2].get('propertyName')).toMatch(/,SHAPE$/)
 
     const blockHa = blockAreaHa(samplePlan().blocks[0].shapes[0].geometry)

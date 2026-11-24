@@ -130,6 +130,28 @@ describe('Crown grazing rules', () => {
     })
   })
 
+  it('reads a section 17 grazing designation as a Land Act designation, not a lease or an exemption', () => {
+    const s17 = {
+      'land-act-designation': 'Section 17 designated use area',
+      'range-act-agreement': true,
+      'section-29-scope': true,
+      'exempt-purpose': NOT_EXEMPT,
+    }
+    expect(findings(s17)).toMatchObject({
+      'land-act-designation': 'review_required',
+      'designation-terms': 'missing_evidence',
+      'range-holder-livestock': 'review_required',
+      'free-growing': 'review_required',
+      'lease-not-crown-range': 'condition_not_triggered',
+    })
+    expect(findings({ ...s17, 'designation-terms-restrict': true })['designation-terms']).toBe('review_required')
+    expect(findings({ ...s17, 'exempt-purpose': RANGE_D })).toMatchObject({
+      'designation-not-lease': 'review_required',
+      'exclusive-range': 'missing_evidence',
+      'range-holder-livestock': 'condition_not_triggered',
+    })
+  })
+
   it('reviews a lease, a range development and a natural barrier', () => {
     expect(
       findings({

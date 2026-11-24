@@ -66,6 +66,13 @@ export const RANGE_FILE_STATUSES: Record<string, string> = {
 /** Overlaps smaller than a square metre are the overlay's rounding, not ground, and are left out. */
 export const MIN_OVERLAP_HA = 0.0001
 
+/** Tantalis subtypes of the Land Act's designations (the 2021 operational policy's table, §3). */
+export const DESIGNATION_SUBTYPES: Record<string, MappedGroup> = {
+  'SEC 15 OIC RESERVE': 'section-15',
+  'SEC 16 MAP RESERVE': 'section-16',
+  'SEC 17 DESIGNATED USE AREA': 'section-17',
+}
+
 export const GROUP_LABELS: Record<MappedGroup, string> = {
   'omineca-order': '2006 Omineca order (Fort St. James, Vanderhoof, Prince George, Mackenzie)',
   'robson-valley-order': '2006 Robson Valley order (Headwaters Forest District)',
@@ -73,6 +80,9 @@ export const GROUP_LABELS: Record<MappedGroup, string> = {
   pending: 'Pending',
   retired: 'Retired',
   lease: 'Issued lease',
+  'section-15': 'Land Act §15 reserve',
+  'section-16': 'Land Act §16 withdrawal',
+  'section-17': 'Land Act §17 designated use area',
   application: 'Application',
   reserve: 'Reserve or notation',
   other: 'Other',
@@ -84,6 +94,8 @@ export interface MappedLayerInfo {
   catalogue: string
   /** The review fact the layer informs, and what to say about it. */
   fact: string
+  /** A second fact some of the layer's features inform. */
+  alsoFact?: string
   informs: string
 }
 
@@ -105,12 +117,13 @@ export const MAPPED_LAYER_INFO: Record<MappedLayerId, MappedLayerInfo> = {
       'Confirm the agreement, pasture and season on the RAN file. A digital boundary can take in private land or water that is not part of the grazing area, and retired boundaries are no longer in force.',
   },
   'crown-grazing': {
-    title: 'Crown land grazing tenures (Tantalis)',
+    title: 'Crown land grazing tenures and Land Act designations (Tantalis)',
     layer: CROWN_TENURE_LAYER,
     catalogue: 'https://catalogue.data.gov.bc.ca/dataset/3544ad91-0cf2-4926-a08a-bfe42d9a031d',
     fact: 'land-act-lease',
+    alsoFact: 'land-act-designation',
     informs:
-      'Only an issued lease is a lease; an application or a reserve is not. Confirm the Crown lands file against the signed lease and its legal description.',
+      'Only an issued lease is a lease; an application or a reserve is not. Confirm the Crown lands file against the signed lease and its legal description. A §15 reserve, §16 withdrawal or §17 designated use area of any purpose is listed too: read its effective date and history in GATOR by the Crown lands file, and its terms in the signed notice.',
   },
 }
 
@@ -216,11 +229,16 @@ export const LAYER_READS: LayerRead[] = [
       'TENURE_STATUS',
       'TENURE_TYPE',
       'TENURE_SUBTYPE',
+      'TENURE_PURPOSE',
+      'TENURE_SUBPURPOSE',
+      'TENURE_DOCUMENT',
       'TENURE_EXPIRY',
       'APPLICATION_TYPE_CDE',
       'TENURE_LEGAL_DESCRIPTION',
     ],
-    filter: "TENURE_SUBPURPOSE = 'GRAZING'",
+    filter: `(TENURE_SUBPURPOSE = 'GRAZING' OR TENURE_SUBTYPE IN (${Object.keys(DESIGNATION_SUBTYPES)
+      .map((t) => `'${t}'`)
+      .join(', ')}))`,
     key: (p) => String(p.INTRID_SID ?? p.OBJECTID),
     feature: (p) => {
       const stage = textOf(p.TENURE_STAGE)
@@ -230,14 +248,17 @@ export const LAYER_READS: LayerRead[] = [
         id: file ? `File ${file}` : `Interest ${String(p.INTRID_SID ?? p.OBJECTID)}`,
         name: [type, textOf(p.TENURE_SUBTYPE)].filter(Boolean).join(' · ') || 'Type not stated',
         group:
-          stage === 'APPLICATION'
+          DESIGNATION_SUBTYPES[textOf(p.TENURE_SUBTYPE) ?? ''] ??
+          (stage === 'APPLICATION'
             ? 'application'
             : type === 'RESERVE/NOTATION'
               ? 'reserve'
               : type === 'LEASE' && stage === 'TENURE'
                 ? 'lease'
-                : 'other',
+                : 'other'),
         details: [
+          ...detail('Purpose', [textOf(p.TENURE_PURPOSE), textOf(p.TENURE_SUBPURPOSE)].filter(Boolean).join(' · ')),
+          ...detail('Document', p.TENURE_DOCUMENT),
           ...detail('Stage', stage),
           ...detail('Status', p.TENURE_STATUS),
           ...detail('Expires', dayOf(p.TENURE_EXPIRY)),
