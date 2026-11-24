@@ -10,9 +10,10 @@
  *
  * DOM- and network-free: `fetch` is passed in. Geometry comes back as WGS84 longitude, latitude.
  */
-import type { Geometry as GeoJsonGeometry, LineString, MultiLineString, MultiPolygon, Polygon, Position } from 'geojson'
-import { ORDER_PLAN_NAME, ORDER_UNITS_LAYER, ORDER_UNITS_WFS } from '../orderUnits'
+import type { LineString, MultiLineString, MultiPolygon, Polygon } from 'geojson'
+import { ORDER_PLAN_NAME, ORDER_UNITS_LAYER } from '../orderUnits'
 import type { Shape } from '../plan'
+import { quote, readAcrossParts, wfsPages, type Fetch, type RawFeature } from '../wfsReads'
 import { DISTRICT_ORG_CODES } from './units'
 
 export const VRI_LAYER = 'pub:WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY'
@@ -35,90 +36,8 @@ export const VRI_FIELDS = [
 
 /** Past this many stands the read stops and says so: a unit that large needs a prepared table. */
 export const MAX_STANDS = 30_000
-const PAGE_SIZE = 1000
 
-export type Fetch = (
-  url: string,
-  init?: { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal },
-) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>
-
-interface RawFeature {
-  id?: string | number
-  geometry: GeoJsonGeometry | null
-  properties: Record<string, unknown>
-}
-
-async function wfsPages({
-  fetch,
-  signal,
-  layer,
-  filter,
-  propertyName,
-  sortBy,
-  cap,
-  onPage,
-}: {
-  fetch: Fetch
-  signal?: AbortSignal
-  layer: string
-  filter: string
-  propertyName?: string
-  sortBy: string
-  cap: number
-  onPage?: (count: number) => void
-}): Promise<RawFeature[]> {
-  const all: RawFeature[] = []
-  for (let page = 0; ; page++) {
-    const body = new URLSearchParams({
-      service: 'WFS',
-      version: '2.0.0',
-      request: 'GetFeature',
-      typeNames: layer,
-      outputFormat: 'json',
-      srsName: 'EPSG:4326',
-      CQL_FILTER: filter,
-      sortBy,
-      count: String(PAGE_SIZE),
-      startIndex: String(page * PAGE_SIZE),
-      ...(propertyName ? { propertyName } : {}),
-    })
-    const response = await fetch(ORDER_UNITS_WFS, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-      signal,
-    })
-    if (!response.ok) throw Error(`DataBC answered ${response.status} for ${layer.replace(/^pub:/, '')}.`)
-    const json = (await response.json()) as { features?: RawFeature[] }
-    if (!Array.isArray(json.features)) throw Error(`DataBC returned no feature collection for ${layer}.`)
-    all.push(...json.features)
-    onPage?.(all.length)
-    if (all.length > cap) throw Error(`More than ${cap.toLocaleString()} records; the read stopped.`)
-    if (json.features.length < PAGE_SIZE) return all
-  }
-}
-
-const quote = (s: string) => `'${s.replace(/'/g, "''")}'`
-const parts = (shape: Shape): Position[][][] => (shape.type === 'Polygon' ? [shape.coordinates] : shape.coordinates)
-
-/** One outer ring as CQL WKT, rounded to about a metre. Holes are left out: the clip later is exact. */
-export function ringFilter(geometryField: string, ring: Position[]) {
-  const wkt = ring.map(([x, y]) => `${x.toFixed(5)} ${y.toFixed(5)}`).join(',')
-  return `INTERSECTS(${geometryField},SRID=4326;POLYGON((${wkt})))`
-}
-
-/** Every record touching any part of the unit, once each by `keyOf`. */
-async function readAcrossParts(
-  unit: Shape,
-  read: (filter: string, seen: number) => Promise<RawFeature[]>,
-  geometryField: string,
-  keyOf: (f: RawFeature) => string,
-): Promise<RawFeature[]> {
-  const kept = new Map<string, RawFeature>()
-  for (const poly of parts(unit))
-    for (const f of await read(ringFilter(geometryField, poly[0]), kept.size)) kept.set(keyOf(f), f)
-  return [...kept.values()]
-}
+export { ringFilter, type Fetch } from '../wfsReads'
 
 export interface Map2Unit {
   geometry: Shape

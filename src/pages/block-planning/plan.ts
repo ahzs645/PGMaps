@@ -131,6 +131,59 @@ export interface RangeReview {
   harvestYear: number | null
   reference?: string
   review: ReviewCase
+  /** DataBC layers read against the footprint: candidates the reviewer weighs, never an answer. */
+  mapped?: MappedEvidence
+}
+
+export const MAPPED_LAYERS = ['ada-sra', 'range-tenure', 'crown-grazing'] as const
+export type MappedLayerId = (typeof MAPPED_LAYERS)[number]
+/**
+ * Which list a mapped feature goes in: the order an ADA or SRA polygon belongs to; a range
+ * tenure's spatial life cycle; or a Tantalis grazing tenure's stage and type.
+ */
+export const MAPPED_GROUPS = [
+  'omineca-order',
+  'robson-valley-order',
+  'active',
+  'pending',
+  'retired',
+  'lease',
+  'application',
+  'reserve',
+  'other',
+] as const
+export type MappedGroup = (typeof MAPPED_GROUPS)[number]
+
+export interface MappedFeature {
+  /** DataBC's identifier as it prints: the order polygon's id, the RAN file and block, the Crown lands file. */
+  id: string
+  /** What the feature is, as DataBC names it. */
+  name: string
+  group: MappedGroup
+  /** The other attributes kept, each "label: value" as DataBC gives it. */
+  details: string[]
+  overlapHa: number
+  /** The overlap as a percentage of the footprint. */
+  sharePercent: number
+}
+
+export interface MappedLayer {
+  layer: MappedLayerId
+  /** Truncated: DataBC held more records than the read keeps, so the list is incomplete. */
+  status: 'read' | 'failed' | 'truncated'
+  message?: string
+  features: MappedFeature[]
+  /** The footprint each group covers, with overlapping features counted once. */
+  covered: { group: MappedGroup; ha: number }[]
+}
+
+export interface MappedEvidence {
+  readOn: string
+  /** The shape and footprint signature read; a different footprint makes the read out of date. */
+  shape: string
+  footprint: string
+  footprintHa: number
+  layers: MappedLayer[]
 }
 
 /** D.5(a): the old-forest recruitment strategy, which the order has submitted, approved and followed. */
@@ -615,6 +668,48 @@ function checkFollows(schedules: Schedule[]) {
   }
 }
 
+/** At most this many features a layer keeps (`grazingEvidence.ts` reads no more). */
+export const MAX_MAPPED_FEATURES = 500
+
+function parseMappedEvidence(value: unknown, label: string): MappedEvidence {
+  const m = object(value, label)
+  const ha = (v: unknown, at: string) => num(v, at, 0, 1e9)
+  return {
+    readOn: day(m.readOn, `${label} readOn`),
+    shape: text(m.shape, `${label} shape`),
+    footprint: text(m.footprint, `${label} footprint`),
+    footprintHa: ha(m.footprintHa, `${label} footprintHa`),
+    layers: list(m.layers, `${label} layers`, MAPPED_LAYERS.length).map((item, i) => {
+      const at = `${label} layer ${i + 1}`
+      const l = object(item, at)
+      return {
+        layer: oneOf(l.layer, `${at} layer`, MAPPED_LAYERS),
+        status: oneOf(l.status, `${at} status`, ['read', 'failed', 'truncated'] as const),
+        message: optionalText(l, 'message', `${at} message`, 2000),
+        features: list(l.features, `${at} features`, MAX_MAPPED_FEATURES).map((f, j) => {
+          const fat = `${at} feature ${j + 1}`
+          const o = object(f, fat)
+          return {
+            id: text(o.id, `${fat} id`, 200),
+            name: text(o.name, `${fat} name`, 500),
+            group: oneOf(o.group, `${fat} group`, MAPPED_GROUPS),
+            details: list(o.details, `${fat} details`, 20).map((d) => text(d, `${fat} detail`, 1000)),
+            overlapHa: ha(o.overlapHa, `${fat} overlapHa`),
+            sharePercent: num(o.sharePercent, `${fat} sharePercent`, 0, 100),
+          }
+        }),
+        covered: list(l.covered, `${at} covered`, MAPPED_GROUPS.length).map((c, j) => {
+          const o = object(c, `${at} covered ${j + 1}`)
+          return {
+            group: oneOf(o.group, `${at} covered ${j + 1} group`, MAPPED_GROUPS),
+            ha: ha(o.ha, `${at} covered ${j + 1} ha`),
+          }
+        }),
+      }
+    }),
+  }
+}
+
 function parseReview(value: unknown, label: string): ReviewCase {
   const r = object(value, label)
   const selected = list(r.selected, `${label} releases`, 100).map((v) => text(v, `${label} release`))
@@ -676,6 +771,7 @@ export function parsePlan(value: unknown): Plan {
               : int(r.harvestYear, `${label} year`, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER),
           reference: optionalText(r, 'reference', `${label} references`, 20_000),
           review: parseReview(r.review, label),
+          mapped: optional(r, 'mapped', (v) => parseMappedEvidence(v, `${label} mapped evidence`)),
         }
       })
     }),

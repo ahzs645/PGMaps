@@ -19,11 +19,12 @@ import { assess } from '../../../packages/legal-rules/engine/evaluate'
 import { releaseKey, type Pack } from '../../../packages/legal-rules/src/contract'
 import { table } from '../forest-patches/project'
 import { publishedUnit } from './observations'
-import { entryOf, periodYears, type Plan, type ReviewCase } from './plan'
+import { entryOf, periodYears, type MappedEvidence, type Plan, type ReviewCase } from './plan'
 import type { PlanAnalysis } from './planAnalysis'
 import { DEFAULT_INDEX_WEIGHTS, indexFormula, INDEX_INDICATORS, planningIndex } from './planningIndex'
 import { pathways, trendYearOf } from './review/pathways'
-import { rangeReviewCurrent } from './review/rangeReview'
+import { formatHa, GROUP_LABELS, layerSummary, MAPPED_LAYER_INFO } from './review/grazingEvidence'
+import { mappedReadCurrent, rangeReviewCurrent } from './review/rangeReview'
 import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
 import { boardCheckCurrent, firstShortfall, oldForestCurrent } from './records'
 
@@ -112,7 +113,12 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
     blockReviews: Object.fromEntries(Object.entries(plan.reviews).map(([id, r]) => [id, review(r, library)])),
     rangeReviews: (plan.rangeReviews ?? []).map((record) => {
       const current = rangeReviewCurrent(plan, record)
-      return { ...record, current, assessment: current ? review(record.review, library) : null }
+      return {
+        ...record,
+        current,
+        mappedCurrent: mappedReadCurrent(plan, record),
+        assessment: current ? review(record.review, library) : null,
+      }
     }),
     pathways: pathways(plan, orderKey ? order?.sets[orderKey] : undefined, result),
     planningIndex: { notALegalTest: true, formula: indexFormula(weights), ...planningIndex(plan, result, weights) },
@@ -169,6 +175,31 @@ export function blocksGeoJson(plan: Plan): FeatureCollection {
 }
 
 const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`)
+
+/** A grazing review's mapped read, dated and named as candidates; a layer not read says so. */
+function mappedHtml(mapped: MappedEvidence | undefined, current: boolean) {
+  if (!mapped) return ''
+  const cell = (c: unknown) => `<td>${escape(c)}</td>`
+  const rows = mapped.layers.flatMap((layer) => {
+    const title = MAPPED_LAYER_INFO[layer.layer].title
+    if (!layer.features.length) return [`<tr>${cell(title)}<td colspan="3">${escape(layerSummary(layer))}</td></tr>`]
+    return [
+      ...(layer.status === 'truncated'
+        ? [`<tr>${cell(title)}<td colspan="3">${escape(`Incomplete: ${layer.message}`)}</td></tr>`]
+        : []),
+      ...layer.features.map(
+        (f) =>
+          `<tr>${cell(title)}${cell(`${f.id} · ${f.name} (${GROUP_LABELS[f.group]})`)}${cell(`${formatHa(f.overlapHa)} ha · ${f.sharePercent.toFixed(1)}%`)}${cell(f.details.join(' · '))}</tr>`,
+      ),
+    ]
+  })
+  return `<h4>Mapped candidates · read ${escape(mapped.readOn)}</h4>
+${current ? '' : '<p class="warn">The block shape changed since this read. Read it again before relying on it.</p>'}
+<p class="note">DataBC layers read against the ${mapped.footprintHa.toFixed(2)} ha footprint. Candidates for the reviewer to weigh, never answers: the orders’ maps are a visual representation not for legal purposes, and the legal descriptions, signed instruments and the district decide.</p>
+<table><thead><tr><th>Layer</th><th>Feature</th><th>Overlap · share</th><th>As DataBC gives it</th></tr></thead><tbody>
+${rows.join('\n')}
+</tbody></table>`
+}
 
 export function summaryHtml(plan: Plan, result: PlanAnalysis, library: Pack[], generatedOn: string) {
   const record = assessmentRecord(plan, result, library, generatedOn)
@@ -275,7 +306,8 @@ ${record.rangeReviews
 ${r.reference ? `<p>${escape(r.reference).replace(/\n/g, '<br>')}</p>` : ''}
 ${outsideWindow ? '<p>The assessment date is outside the rule pack’s source window.</p>' : ''}
 ${r.assessment && 'error' in r.assessment ? `<p>${escape(r.assessment.error)}</p>` : ''}
-${rows.length ? `<ul>${rows.map((f) => `<li>${escape(f.title)} (§${escape(f.provision)}) — ${f.status === 'review_required' ? escape(f.finding) : 'Evidence needed.'}</li>`).join('')}</ul>` : ''}`
+${rows.length ? `<ul>${rows.map((f) => `<li>${escape(f.title)} (§${escape(f.provision)}) — ${f.status === 'review_required' ? escape(f.finding) : 'Evidence needed.'}</li>`).join('')}</ul>` : ''}
+${mappedHtml(r.mapped, r.mappedCurrent)}`
   })
   .join('\n')}`
     : ''
