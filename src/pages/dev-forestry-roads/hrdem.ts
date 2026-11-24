@@ -66,10 +66,42 @@ export function projectDetailAreas(project: RoadProject): DetailArea[] {
         coordinates: a.points.map((p) => p.coordinate),
       })),
   ].filter((a) => a.coordinates.length > 0)
-  return areas
+  // A multipart block is one record of several polygons: number its parts so their boxes tell apart.
+  const seen = new Map<string, number>()
+  const total = new Map<string, number>()
+  for (const area of areas) total.set(area.name, (total.get(area.name) ?? 0) + 1)
+  return areas.map((area) => {
+    if ((total.get(area.name) ?? 0) < 2) return area
+    const part = (seen.get(area.name) ?? 0) + 1
+    seen.set(area.name, part)
+    return { ...area, name: `${area.name} (part ${part})` }
+  })
 }
 
 export type DemBox = { id: string; name: string; window: ReturnType<typeof detailWindow> }
+
+/**
+ * The boxes in order, cut into downloads that each fit `HRDEM_MAX_DOWNLOAD_BOXES` and
+ * `HRDEM_MAX_DOWNLOAD_CELLS`. A box with a problem of its own (too large) goes in no batch.
+ */
+export function demDownloadBatches(boxes: readonly DemBox[]): DemBox[][] {
+  const batches: DemBox[][] = []
+  let current: DemBox[] = [],
+    cells = 0
+  for (const box of boxes) {
+    if (box.window.problem) continue
+    const size = box.window.width * box.window.height
+    if (current.length && (current.length >= HRDEM_MAX_DOWNLOAD_BOXES || cells + size > HRDEM_MAX_DOWNLOAD_CELLS)) {
+      batches.push(current)
+      current = []
+      cells = 0
+    }
+    current.push(box)
+    cells += size
+  }
+  if (current.length) batches.push(current)
+  return batches
+}
 export const HRDEM_BOX_SIDE = 2048
 
 /** Split a large feature envelope into bounded native windows, without joining distant features. */

@@ -5,6 +5,7 @@ import { PanelDialog } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StyledSelect } from '@/components/ui/styled-select'
 import {
+  demDownloadBatches,
   detailWindow,
   makeDemBoxes,
   projectDetailAreas,
@@ -86,7 +87,13 @@ export function DetailAreaDialog({
       return { boxes: [], error: error instanceof Error ? error.message : 'Choose an area.' }
     }
   }, [features, areas, areaId, bufferM])
-  const boxes = selection.boxes.filter((box) => !omitted.includes(box.id))
+  // More boxes than one download takes start on the first batch that fits, not on a refusal.
+  const batches = useMemo(() => (areaId === 'batch' ? demDownloadBatches(selection.boxes) : []), [areaId, selection])
+  const [batch, setBatch] = useState<number | null>(0)
+  const batchIds =
+    batches.length > 1 && batch !== null ? new Set(batches[Math.min(batch, batches.length - 1)].map((b) => b.id)) : null
+  const isChosen = (box: DemBox) => (!batchIds || batchIds.has(box.id)) && !omitted.includes(box.id)
+  const boxes = selection.boxes.filter(isChosen)
   const cells = boxes.reduce((n, b) => n + b.window.width * b.window.height, 0)
   const problem =
     selection.error ??
@@ -225,6 +232,7 @@ export function DetailAreaDialog({
             onChange={(e) => {
               setAreaId(e.target.value)
               setOmitted([])
+              setBatch(0)
             }}
           >
             {features.length > 0 && (
@@ -251,18 +259,44 @@ export function DetailAreaDialog({
             ))}
           </StyledSelect>
         </label>
+        {areaId === 'batch' && batches.length > 1 && source === 'hrdem' && (
+          <label className="grid gap-1">
+            Download
+            <StyledSelect
+              aria-label="DEM download batch"
+              value={batch === null ? 'own' : String(Math.min(batch, batches.length - 1))}
+              onChange={(e) => {
+                setOmitted([])
+                setBatch(e.target.value === 'own' ? null : Number(e.target.value))
+              }}
+            >
+              {batches.map((group, i) => (
+                <option key={group[0].id} value={i}>
+                  Batch {i + 1} of {batches.length} · {group.length} boxes ·{' '}
+                  {(group.reduce((n, b) => n + b.window.width * b.window.height, 0) / 1e6).toFixed(1)} million cells
+                </option>
+              ))}
+              <option value="own">Boxes I tick</option>
+            </StyledSelect>
+            <span className="text-xs text-muted-foreground">
+              One download takes at most {HRDEM_MAX_DOWNLOAD_BOXES} boxes and {HRDEM_MAX_DOWNLOAD_CELLS / 1e6} million
+              cells. Download each batch in turn.
+            </span>
+          </label>
+        )}
         {areaId === 'batch' && (
           <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2" aria-label="DEM download boxes">
             {selection.boxes.map((box) => (
               <label key={box.id} className="flex items-start gap-2 text-xs">
                 <input
                   type="checkbox"
-                  checked={!omitted.includes(box.id)}
-                  onChange={(e) =>
-                    setOmitted((previous) =>
-                      e.target.checked ? previous.filter((id) => id !== box.id) : [...previous, box.id],
-                    )
-                  }
+                  checked={isChosen(box)}
+                  onChange={(e) => {
+                    // Ticking a box by hand leaves the batch: the boxes shown ticked are the ones kept.
+                    const current = selection.boxes.filter((b) => !isChosen(b)).map((b) => b.id)
+                    setBatch(null)
+                    setOmitted(e.target.checked ? current.filter((id) => id !== box.id) : [...current, box.id])
+                  }}
                 />
                 <span>
                   {box.name} · {box.window.width} × {box.window.height} m{box.window.problem ? ' · box too large' : ''}

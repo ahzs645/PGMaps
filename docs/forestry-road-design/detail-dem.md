@@ -15,8 +15,11 @@ kept distinct, never assigned to the enclosing folder's block.
 It makes boxes for the proposed roads and planned blocks being imported, never their reference
 layers, and starts off when the import also chooses a terrain (a sheet's contours).
 It makes buffered rectangles per feature rather than a huge envelope between distant blocks. Feature envelopes above the per-box budget split into native tiles at most 2,048 m a side (`HRDEM_BOX_SIDE`); all their cells are retained. Envelopes above the total download budget still require a smaller selection.
-Choose individual features, change the buffer, omit boxes, show them on the plan, or download
-their GeoJSON. Reference layers explicitly used as cutblock buffers are excluded from these
+When the boxes are more than one download takes (`HRDEM_MAX_DOWNLOAD_BOXES`,
+`HRDEM_MAX_DOWNLOAD_CELLS`), they are cut into batches in order (`demDownloadBatches`) and the
+dialog starts on the first: **Download** picks the next batch, or **Boxes I tick**. A multipart
+block's boxes are named by part. Choose individual features, change the buffer, omit boxes, show
+them on the plan, or download their GeoJSON. Reference layers explicitly used as cutblock buffers are excluded from these
 automatic DEM candidates. Other reference shapes remain selectable. No file or elevation
 request starts until the user chooses an output or **Load this area**.
 
@@ -118,8 +121,8 @@ link can be dead where BC publishes no file. Findings behind this:
 | Limit                           | Value      | Enforcing constant/code                               | When exceeded                                |
 | ------------------------------- | ---------- | ----------------------------------------------------- | -------------------------------------------- |
 | Native cells per box            | 4,194,304  | `terrain.ts` `MAX_ROAD_RASTER_CELLS` / `detailWindow` | Larger feature envelopes split into bounded native tiles |
-| Boxes per download              | 64         | `hrdem.ts` `HRDEM_MAX_DOWNLOAD_BOXES`                 | Omit boxes or split the download             |
-| Native cells per download       | 32 million | `HRDEM_MAX_DOWNLOAD_CELLS`                            | Omit boxes or reduce the buffer              |
+| Boxes per download              | 64         | `hrdem.ts` `HRDEM_MAX_DOWNLOAD_BOXES`                 | Boxes are cut into batches (`demDownloadBatches`); the dialog starts on the first |
+| Native cells per download       | 32 million | `HRDEM_MAX_DOWNLOAD_CELLS`                            | As above; or omit boxes or reduce the buffer |
 | Buffer                          | 0–2,000 m  | `detailWindow`                                        | Invalid input refused; UI offers 0–1,000 m   |
 | Mosaic items per box            | 4          | `HRDEM_MAX_ITEMS`                                     | Refused, with no unbounded pagination        |
 | Time per box                    | 90 s       | `HRDEM_TIMEOUT_MS`                                    | Aborted and recorded as unread               |

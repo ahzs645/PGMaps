@@ -1,6 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fromArrayBuffer } from 'geotiff'
-import { detailWindow, makeDemBoxes, hrdemGeoTiff, loadHrdemArea, projectDetailAreas, demBoxesGeoJson } from './hrdem'
+import {
+  demDownloadBatches,
+  detailWindow,
+  makeDemBoxes,
+  hrdemGeoTiff,
+  loadHrdemArea,
+  projectDetailAreas,
+  demBoxesGeoJson,
+  type DemBox,
+} from './hrdem'
 import { roadProjection, createDemoProject, terrainFromMetadata } from './terrain'
 import { nearbyFsrBounds } from './detailFsr'
 
@@ -151,3 +160,18 @@ it.skipIf(!process.env.PGMAPS_HRDEM_LIVE)(
   },
   90_000,
 )
+
+describe('DEM boxes over the download limit', () => {
+  const box = (id: string, cells: number, problem?: string): DemBox => ({
+    id,
+    name: id,
+    window: { width: cells, height: 1, problem } as DemBox['window'],
+  })
+
+  it('cuts them into downloads that each fit, in order, leaving out boxes too large on their own', () => {
+    const many = Array.from({ length: 70 }, (_, i) => box(`b${i}`, 100_000))
+    expect(demDownloadBatches(many).map((batch) => batch.length)).toEqual([64, 6])
+    const big = [box('a', 20_000_000), box('b', 15_000_000), box('c', 10_000_000), box('x', 1, 'too large')]
+    expect(demDownloadBatches(big).map((batch) => batch.map((b) => b.id))).toEqual([['a'], ['b', 'c']])
+  })
+})
