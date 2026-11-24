@@ -207,8 +207,13 @@ export function grownUnit(unit: Shape, metres: number): Shape {
 
 /** The smallest page the cutblock reader shrinks to before it gives up on an empty, truncated answer. */
 const MIN_CUTBLOCK_PAGE = 25
+/** Statuses a gateway answers when the service behind it took too long: the page is asked again, halved. */
+const GATEWAY_GAVE_UP = [502, 504]
 
-/** Every cutblock in a box, by OBJECTID, until the service answers a page that is neither full nor flagged. */
+/**
+ * Every cutblock in a box, by OBJECTID, until the service answers a page that is neither full nor
+ * flagged. An empty flagged page, or a gateway timeout, is asked again at half the size.
+ */
 export async function readCutblockPages(
   fetch: Fetch,
   bounds: [number, number, number, number],
@@ -221,6 +226,12 @@ export async function readCutblockPages(
   let count = CUTBLOCK_PAGE_SIZE
   for (;;) {
     const response = await fetch(cutblockPageUrl(bounds, fromYear, afterId, count), { signal })
+    // A gateway gives up on a page the service takes over two minutes to answer (502 on Prince George
+    // Moist Interior - Mountain, 24 November 2026); the same records in two halves come back.
+    if (GATEWAY_GAVE_UP.includes(response.status) && count > MIN_CUTBLOCK_PAGE) {
+      count = Math.max(MIN_CUTBLOCK_PAGE, Math.floor(count / 2))
+      continue
+    }
     if (!response.ok) throw Error(`DataBC answered ${response.status}.`)
     const body = (await response.json()) as {
       features?: unknown
