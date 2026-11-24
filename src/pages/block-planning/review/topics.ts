@@ -16,6 +16,13 @@ interface TopicDef {
 }
 
 const TOPICS: Record<string, TopicDef[]> = {
+  'bc.crown-grazing': [
+    { id: 'ada-sra', label: 'Land Act agriculture and settlement reserve order', sections: ['I'] },
+    { id: 'lease', label: 'Land Act grazing lease', sections: ['11'] },
+    { id: 'range-plan', label: 'Range Act agreement and range plan', sections: ['32'] },
+    { id: 'regeneration', label: 'Free-growing obligation and exclusive range use', sections: ['29', '44'] },
+    { id: 'mitigation', label: 'Forest plan restrictions and range barriers', sections: ['20.21', '48'] },
+  ],
   'bc.fppr': [
     { id: 'size', label: 'Cutblock size and adjacency (§64–65)', sections: ['64', '65'] },
     { id: 'wildlife', label: 'Wildlife trees and coarse woody debris (§66–68)', sections: ['66', '67', '68'] },

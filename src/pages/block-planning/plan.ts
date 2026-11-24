@@ -123,6 +123,16 @@ export interface ReviewCase {
   sets: Record<string, FactSet>
 }
 
+export interface RangeReview {
+  block: string
+  schedule: string
+  shape: string
+  footprint: string
+  harvestYear: number | null
+  reference?: string
+  review: ReviewCase
+}
+
 /** D.5(a): the old-forest recruitment strategy, which the order has submitted, approved and followed. */
 export interface RecruitmentRecord {
   /** The recruitment analysis relied on: PGMaps does not model old forest yet. */
@@ -161,6 +171,8 @@ export interface Plan {
   /** The schedule a review reads its landscape figures from: the proposal under review. */
   reviewSchedule: string
   reviews: Record<string, ReviewCase>
+  /** Grazing and silviculture evidence for one footprint and harvest entry in a schedule. */
+  rangeReviews?: RangeReview[]
   landscape: LandscapeReview
   /** Mapped riparian zones, as read (`riparian.ts`). */
   zones?: { source: string; layer: unknown }
@@ -641,6 +653,32 @@ export function parsePlan(value: unknown): Plan {
     schedules,
     reviewSchedule,
     reviews,
+    rangeReviews: optional(p, 'rangeReviews', (value) => {
+      const seen = new Set<string>()
+      return list(value, 'rangeReviews', blocks.length * schedules.length).map((item, index) => {
+        const label = `Range review ${index + 1}`
+        const r = object(item, label)
+        const block = text(r.block, `${label} block`)
+        const schedule = text(r.schedule, `${label} schedule`)
+        if (!blocks.some((b) => b.id === block) || !schedules.some((s) => s.id === schedule))
+          throw Error(`${label} names a block or schedule that is not in the plan.`)
+        const key = JSON.stringify([block, schedule])
+        if (seen.has(key)) throw Error(`${label} duplicates a block and schedule.`)
+        seen.add(key)
+        return {
+          block,
+          schedule,
+          shape: text(r.shape, `${label} shape`),
+          footprint: text(r.footprint, `${label} footprint`),
+          harvestYear:
+            r.harvestYear === null
+              ? null
+              : int(r.harvestYear, `${label} year`, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER),
+          reference: optionalText(r, 'reference', `${label} references`, 20_000),
+          review: parseReview(r.review, label),
+        }
+      })
+    }),
     landscape: {
       rationale: optionalText(l, 'rationale', 'landscape.rationale', 100_000),
       review: optional(l, 'review', (v) => parseReview(v, 'landscape review')),

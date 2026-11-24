@@ -1,0 +1,89 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.crown-grazing",
+  "version": "1.0.0",
+  "title": "BC Crown grazing and reforestation",
+  "description": "Evidence review for forestry on grazing land, including lease terms, range plans, natural barriers and free-growing obligations.",
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-17"
+  },
+  "facts": [
+    {
+      "id": "land-act-lease",
+      "label": "Is there an executed Land Act grazing lease covering the activity area?",
+      "type": "boolean"
+    },
+    {
+      "id": "lease-conflict",
+      "label": "Does a confirmed lease clause require a consent that is outstanding or restrict the proposed activity?",
+      "type": "boolean"
+    },
+    {
+      "id": "range-act-agreement",
+      "label": "Does a confirmed Range Act licence or permit cover this activity area?",
+      "type": "boolean"
+    },
+    {
+      "id": "section-29-scope",
+      "label": "Does FRPA §29(0.1), (1) or (2) apply to the harvest and the net area to be reforested before considering exemptions?",
+      "type": "boolean"
+    },
+    {
+      "id": "permanent-grazing-opening",
+      "label": "Would the proposal keep any of the area to be reforested permanently open for grazing?",
+      "type": "boolean"
+    },
+    {
+      "id": "exclusive-range-use",
+      "label": "Is the area used, or will it be used, exclusively for grazing livestock or cutting hay under that Range Act agreement?",
+      "type": "boolean"
+    },
+    {
+      "id": "range-only-harvest",
+      "label": "Is harvesting restricted to activities listed in FPPR §44(3), including the exclusive range-use harvest under paragraph (d)?",
+      "type": "boolean"
+    },
+    {
+      "id": "plan-conflict",
+      "label": "Does an applicable approved plan clause restrict the proposed harvest or silviculture, or impose an unmet prerequisite?",
+      "type": "boolean"
+    },
+    {
+      "id": "barrier-impact",
+      "label": "Would the proposed forest practice directly or indirectly remove or render ineffective a natural range barrier?",
+      "type": "boolean"
+    },
+    {
+      "id": "ada-sra-applicable",
+      "label": "Does the 2006 Omineca ADA/SRA order apply to this Crown land and activity after checking the legal boundary, effective date and exclusions?",
+      "type": "boolean"
+    },
+    {
+      "id": "ada-sra-harvest",
+      "label": "Does this scenario propose timber harvesting in the area covered by the order?",
+      "type": "boolean"
+    },
+    {
+      "id": "ada-sra-part-b",
+      "label": "Was the harvest carried out, or is it proposed, under the order’s Part B forest-health pathway?",
+      "type": "boolean"
+    },
+    {
+      "id": "ada-sra-planting",
+      "label": "Does the activity include site preparation or artificial regeneration such as planting?",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [],
+  "sourceFiles": [
+    "sources/bc/land-act.json",
+    "sources/bc/range-act.json",
+    "sources/bc/frpa.json",
+    "sources/bc/fppr.json",
+    "sources/bc/omineca-ada-sra-order.json"
+  ],
+  "ruleFiles": [
+    "rules/bc/crown-grazing.json"
+  ]
+}

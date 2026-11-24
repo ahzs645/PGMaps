@@ -16,7 +16,10 @@ export type AnalysisState =
 export function usePlanAnalysis(plan: Plan, shown: { schedule: string; year: number }): AnalysisState {
   const { area, baseline, blocks, schedules } = plan
   const input = useMemo(
-    () => ({ plan: { ...plan, reviews: {}, landscape: {}, packs: [], zones: undefined }, shown }),
+    () => ({
+      plan: { ...plan, reviews: {}, rangeReviews: undefined, landscape: {}, packs: [], zones: undefined },
+      shown,
+    }),
     // `plan` is read only for the fields listed; a review edit must not start a run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [area, baseline, blocks, schedules, shown.schedule, shown.year],

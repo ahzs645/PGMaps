@@ -1,5 +1,5 @@
 import { blockAreaHa } from '@/lib/forestry/blockSheet/blockFacts'
-import { SelectField } from '@/components/ui/form-field'
+import { FORM_INPUT_CLASS, FormField, SelectField } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
 import type { Measurement } from '../../../../packages/legal-rules/engine/spatialFacts'
@@ -7,11 +7,13 @@ import profile from '../../../../packages/legal-rules/forestry-profile.json'
 import patchOperation from '../../../../packages/legal-rules/spatial/patch-analysis.json'
 import { releaseKey } from '../../../../packages/legal-rules/src/contract'
 import { defaults } from '../../legal-workbench/registry'
-import { periodYears, type Plan, type ReviewCase } from '../plan'
+import { saveRangeReview } from '../edits'
+import { periodYears, type Plan, type RangeReview, type ReviewCase } from '../plan'
 import { extraPacks } from '../review/caseEdits'
 import { CaseReview, useLibrary } from '../review/CaseReview'
 import { PathwayCard } from '../review/PathwayCard'
 import { measuredTrend, pathways, trendYearOf } from '../review/pathways'
+import { RANGE_INSTRUMENT, rangeReviewCurrent, rangeReviewFor } from '../review/rangeReview'
 import { shownResult } from '../usePlanAnalysis'
 import type { StepProps } from './types'
 
@@ -29,7 +31,10 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
   const library = useLibrary(defaults)
   const result = shownResult(analysis)
   const block = plan.blocks.find((b) => b.id === selectedBlock) ?? null
-  const blockInstruments = [...new Set(library.map((p) => p.id))].filter((id) => id !== ORDER_INSTRUMENT)
+  const blockInstruments = [...new Set(library.map((p) => p.id))].filter(
+    (id) => id !== ORDER_INSTRUMENT && id !== RANGE_INSTRUMENT,
+  )
+  const grazing = block ? rangeReviewFor(plan, block) : null
   const trend = measuredTrend(plan, result)
   const reviewName = plan.schedules.find((s) => s.id === plan.reviewSchedule)?.name ?? ''
   const measurements: Measurement[] = trend
@@ -49,8 +54,20 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
   const orderFacts = orderPack ? landscape.sets[releaseKey(orderPack)] : undefined
   const keepPacks = (next: Plan): Plan => ({
     ...next,
-    packs: extraPacks([landscapeCase(next), ...Object.values(next.reviews)], library, defaults),
+    packs: extraPacks(
+      [landscapeCase(next), ...Object.values(next.reviews), ...(next.rangeReviews ?? []).map((r) => r.review)],
+      library,
+      defaults,
+    ),
   })
+  const updateRange = (change: Partial<Pick<RangeReview, 'reference' | 'review'>>) => {
+    if (!block || !grazing) return
+    edit((p) => {
+      if (!rangeReviewCurrent(p, grazing.record)) return p
+      const next = rangeReviewFor(p, block, grazing.record.schedule).record
+      return keepPacks(saveRangeReview(p, { ...next, ...change }))
+    })
+  }
   const years = periodYears(plan.area.startYear)
   return (
     <>
@@ -123,6 +140,60 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
           <InlineAlert tone="info">Select a block here, on the map or in step 2.</InlineAlert>
         )}
       </ToolSection>
+      {block && grazing && (
+        <ToolSection
+          key={JSON.stringify([
+            block.id,
+            grazing.record.schedule,
+            grazing.record.footprint,
+            grazing.record.harvestYear,
+          ])}
+          title="Crown grazing and reforestation"
+          summary={`${reviewName} · ${grazing.record.harvestYear ?? 'No harvest scheduled'}`}
+          help="Review lease terms, range agreements and forest plan clauses for the selected schedule and block shape. Enter evidence from the governing documents and field record."
+        >
+          <p className="text-xs text-muted-foreground">
+            {reviewName} · {block.shapes.find((s) => s.id === grazing.record.shape)?.name} ·{' '}
+            {grazing.record.harvestYear ?? 'No harvest scheduled'}. For an existing cutblock, record the original
+            harvest and current silviculture activity in the evidence. Change the schedule under review in step 3.
+          </p>
+          {grazing.stale && (
+            <InlineAlert tone="info">The shape or harvest year changed. Enter evidence for this version.</InlineAlert>
+          )}
+          <FormField label="Documents and observations" description="Record file IDs, plan clauses, dates and links.">
+            <textarea
+              className={FORM_INPUT_CLASS}
+              rows={3}
+              maxLength={20000}
+              defaultValue={grazing.record.reference ?? ''}
+              onBlur={(e) => {
+                const reference = e.currentTarget.value.trim() || undefined
+                if (reference !== grazing.record.reference) updateRange({ reference })
+              }}
+            />
+          </FormField>
+          <CaseReview
+            library={library}
+            instruments={[RANGE_INSTRUMENT]}
+            review={grazing.record.review}
+            measurements={[]}
+            hints={{
+              'land-act-lease': 'Start with the Crown lands file in Tantalis and confirm it against the signed lease.',
+              'range-act-agreement': 'Start with the RAN file on the Range Tenure layer and confirm the agreement.',
+              'permanent-grazing-opening':
+                'Use the proposed permanent opening footprint. Natural regeneration still aims to establish a free-growing stand.',
+              'exclusive-range-use': 'Seasonal grazing on land managed for both timber and forage is shared use.',
+              'plan-conflict':
+                'Use the exact approved clause and record which activity, footprint and dates it covers.',
+              'ada-sra-applicable':
+                'Confirm agriculture development area or settlement reserve area coverage with the district. Check permit exclusions and any later orders.',
+            }}
+            onChange={(review) => updateRange({ review })}
+            caseLabel="Schedule and block"
+            testId="block-planning-range-review"
+          />
+        </ToolSection>
+      )}
     </>
   )
 }

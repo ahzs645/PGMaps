@@ -554,7 +554,7 @@ export default function BlockPlanner({
       blocks: plan.blocks.length > 0,
       schedules: plan.schedules.length > 1 && plan.blocks.length > 0,
       compare: analysis.status === 'ready',
-      review: Object.keys(plan.reviews).length > 0 || !!plan.landscape.rationale,
+      review: Object.keys(plan.reviews).length > 0 || Boolean(plan.rangeReviews?.length || plan.landscape.rationale),
     }[id]
     return id === step ? 'current' : done ? 'done' : 'todo'
   }

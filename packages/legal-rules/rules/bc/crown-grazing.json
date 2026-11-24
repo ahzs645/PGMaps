@@ -1,0 +1,282 @@
+[
+  {
+    "id": "lease-terms",
+    "title": "Crown grazing lease terms",
+    "source": "land-act",
+    "provision": "11(2)–(3), 38",
+    "when": [
+      [
+        {
+          "fact": "land-act-lease",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Review the executed grazing lease for the specific harvest or silviculture activity.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the Crown lands file, signed lease and management plan. Check the legal boundary, current term, forest entry and timber rights, consent wording, access, forage and range improvements."
+      }
+    ]
+  },
+  {
+    "id": "lease-conflict",
+    "title": "Lease restriction or outstanding consent",
+    "source": "land-act",
+    "provision": "11(2)–(3), 38",
+    "scope": [
+      [
+        {
+          "fact": "land-act-lease",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "lease-conflict",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The recorded lease terms raise an unresolved restriction for the proposed activity.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the exact clause and the status of any consent, authorization or amendment with the Crown land administrator. Check older lease terms individually."
+      }
+    ]
+  },
+  {
+    "id": "range-plan",
+    "title": "Grazing or hay agreement and approved range plan",
+    "source": "frpa",
+    "provision": "32–35",
+    "when": [
+      [
+        {
+          "fact": "range-act-agreement",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Review the governing range plan and dates alongside the forestry activity.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the RAN file, agreement, approved range use or stewardship plan or documented exception, pasture boundaries, grazing or hay schedule, and range developments."
+      }
+    ]
+  },
+  {
+    "id": "free-growing",
+    "title": "Free-growing stand after harvest",
+    "source": "frpa",
+    "provision": "29(0.1)–(2)",
+    "when": [
+      [
+        {
+          "fact": "section-29-scope",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Review the responsible holder’s free-growing obligation and any applicable exemption for the net area to be reforested.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the timber authority, applicable plan and stocking standard, planting or natural regeneration method, regeneration and free-growing dates, and any transfer, relief or exemption."
+      }
+    ]
+  },
+  {
+    "id": "permanent-grazing-opening",
+    "title": "Permanent grazing opening in the reforestation area",
+    "source": "frpa",
+    "provision": "29(0.1)–(2)",
+    "scope": [
+      [
+        {
+          "fact": "section-29-scope",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "permanent-grazing-opening",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Keeping the proposed footprint open would conflict with the free-growing obligation unless a separate legal basis applies.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Before harvest, confirm the proposed opening and stocking standards with the district. Check whether a Range Act agreement authorizes exclusive grazing and whether FPPR §44(3)(d) applies. Verify clearing authority for the same footprint."
+      }
+    ]
+  },
+  {
+    "id": "exclusive-range",
+    "title": "Exclusive grazing or hay exemption",
+    "source": "instrument",
+    "provision": "44(3)(d)",
+    "scope": [
+      [
+        {
+          "fact": "range-act-agreement",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "section-29-scope",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "exclusive-range-use",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "range-only-harvest",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The entered evidence warrants review of this specific free-growing exemption.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Confirm the legal footprint and exclusive use, the restricted purposes of harvest, and that the provision applies to the harvest. Review authority to harvest or carry out planting separately."
+      }
+    ]
+  },
+  {
+    "id": "restricted-activity",
+    "title": "Restriction in the applicable forest plan",
+    "source": "frpa",
+    "provision": "20.21–20.22, 48",
+    "when": [
+      [
+        {
+          "fact": "plan-conflict",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The recorded plan clause restricts the proposed activity or requires a step before it can proceed.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the approved plan, amendment and clause. Check whether retaining the barrier, changing the footprint or timing, carrying out the required measure, or obtaining a plan amendment resolves the conflict."
+      }
+    ]
+  },
+  {
+    "id": "natural-barrier",
+    "title": "Natural range barrier impact",
+    "source": "frpa",
+    "provision": "48",
+    "when": [
+      [
+        {
+          "fact": "barrier-impact",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The proposed practice triggers review of natural range barrier mitigation.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record evidence that the feature controls livestock movement, the approved operational-plan measure or minister’s authorization, and timing and responsibilities. For a forest stewardship plan, see FPPR §18. Check whether a pre-expiry permit carries the duty forward."
+      }
+    ]
+  },
+  {
+    "id": "ada-sra-harvest-route",
+    "title": "Harvest pathway in an agriculture or settlement reserve area",
+    "source": "ada-sra-order",
+    "provision": "I, Parts A–E and II",
+    "scope": [
+      [
+        {
+          "fact": "ada-sra-applicable",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ada-sra-harvest",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Harvest in the covered area requires review against the order’s limited pathways.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Check the Part A government proposal, interagency agreement and operational work plan, or the Part B forest-health basis and all Part C conditions. Record applicable permit exclusions and any documented Part E deviation."
+      }
+    ]
+  },
+  {
+    "id": "ada-sra-planting-restriction",
+    "title": "Site preparation and artificial regeneration under the forest-health pathway",
+    "source": "ada-sra-order",
+    "provision": "I, Parts B, C.5 and E",
+    "scope": [
+      [
+        {
+          "fact": "ada-sra-applicable",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ada-sra-part-b",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "ada-sra-planting",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Part C.5 restricts site preparation and artificial regeneration for this Part B forest-health harvest.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Review the governing permit, stocking standard and approved plan. Document any applicable Part E departure and reconcile any free-growing duty with the responsible district before scheduling planting."
+      }
+    ]
+  }
+]

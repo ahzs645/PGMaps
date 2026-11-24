@@ -34,6 +34,45 @@
       "legalReview": "not-completed"
     },
     {
+      "id": "bc.land-act",
+      "title": "Land Act, RSBC 1996 c. 245",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96245_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "96245_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96245_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.range-act",
+      "title": "Range Act, SBC 2004 c. 71",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/04071_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "04071_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/04071_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.omineca.ada-sra.2006",
+      "title": "2006 Omineca Agriculture Development Areas and Settlement Reserve Areas Order",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/ftstjames-vanderhoof-princegeorge-mackenzie_lrmps_luor_23nov2006.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
       "id": "bc.gar",
       "title": "Government Actions Regulation, BC Reg 582/2004",
       "kind": "regulation",

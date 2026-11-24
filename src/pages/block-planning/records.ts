@@ -74,7 +74,7 @@ export function hashKey(text: string): string {
   return (h >>> 0).toString(16).padStart(8, '0')
 }
 
-const shapeSignature = (g: Shape) => {
+export const shapeSignature = (g: Shape) => {
   const flat = JSON.stringify(g.coordinates)
   return `${g.type}:${flat.length}:${hashKey(flat)}`
 }

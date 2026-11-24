@@ -11,11 +11,25 @@ import {
   type Area,
   type Disturbance,
   type Plan,
+  type RangeReview,
   type Schedule,
   type ScheduleEntry,
   type Shape,
 } from './plan'
 import type { OldForestChoices, PlanChecks } from './records'
+import { rangeReviewCurrent } from './review/rangeReview'
+
+/** Keeps one grazing review per block and schedule if the evidence still describes its footprint. */
+export function saveRangeReview(plan: Plan, record: RangeReview): Plan {
+  if (!rangeReviewCurrent(plan, record)) return plan
+  return {
+    ...plan,
+    rangeReviews: [
+      ...(plan.rangeReviews ?? []).filter((r) => r.block !== record.block || r.schedule !== record.schedule),
+      record,
+    ],
+  }
+}
 
 /** Changes the A/B choices; a plan without them gets the defaults for the given district and unit first. */
 export function setOldForest(plan: Plan, change: Partial<OldForestChoices>): Plan {
@@ -116,6 +130,7 @@ export function removeBlock(plan: Plan, id: string): Plan {
       return { ...s, entries }
     }),
     reviews,
+    rangeReviews: plan.rangeReviews?.filter((review) => review.block !== id),
   }
 }
 
@@ -231,6 +246,7 @@ export function removeSchedule(plan: Plan, id: string): Plan {
     ...plan,
     schedules,
     reviewSchedule: plan.reviewSchedule === id ? schedules[0].id : plan.reviewSchedule,
+    rangeReviews: plan.rangeReviews?.filter((review) => review.schedule !== id),
   }
 }
 

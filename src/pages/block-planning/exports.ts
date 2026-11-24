@@ -23,6 +23,7 @@ import { entryOf, periodYears, type Plan, type ReviewCase } from './plan'
 import type { PlanAnalysis } from './planAnalysis'
 import { DEFAULT_INDEX_WEIGHTS, indexFormula, INDEX_INDICATORS, planningIndex } from './planningIndex'
 import { pathways, trendYearOf } from './review/pathways'
+import { rangeReviewCurrent } from './review/rangeReview'
 import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
 import { boardCheckCurrent, firstShortfall, oldForestCurrent } from './records'
 
@@ -39,7 +40,7 @@ export const BLOCK_PLANNING_EXPORTS = [
     id: 'record',
     label: 'Assessment record',
     description:
-      'The plan with every schedule’s periods, the published comparators, both reviews’ findings, the D.5 checklists and the planning index, for a reviewer to audit or rerun.',
+      'The plan with every schedule’s periods, the published comparators, review findings, the D.5 checklists and the planning index.',
     fileName: 'block-assessment.json',
     type: { mime: 'application/json', extension: 'json', description: 'Block assessment record' },
     needsResult: true,
@@ -109,6 +110,10 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
     published: publishedUnit(plan.area.district, plan.area.ndu),
     landscapeReview: { trendYear: trendYearOf(plan), assessment: review(order, library) },
     blockReviews: Object.fromEntries(Object.entries(plan.reviews).map(([id, r]) => [id, review(r, library)])),
+    rangeReviews: (plan.rangeReviews ?? []).map((record) => {
+      const current = rangeReviewCurrent(plan, record)
+      return { ...record, current, assessment: current ? review(record.review, library) : null }
+    }),
     pathways: pathways(plan, orderKey ? order?.sets[orderKey] : undefined, result),
     planningIndex: { notALegalTest: true, formula: indexFormula(weights), ...planningIndex(plan, result, weights) },
     boardCheck: plan.checks?.board ? { current: boardCheckCurrent(plan), ...plan.checks.board } : null,
@@ -255,6 +260,25 @@ ${
     )
     .join('\n')
   const index = record.planningIndex
+  const rangeHtml = record.rangeReviews.length
+    ? `<h2>Crown grazing and reforestation</h2>
+${record.rangeReviews
+  .map((r) => {
+    const block = plan.blocks.find((b) => b.id === r.block)
+    const shape = block?.shapes.find((s) => s.id === r.shape)
+    const findings =
+      r.assessment && 'releases' in r.assessment ? r.assessment.releases.flatMap((release) => release.findings) : []
+    const rows = findings.filter((f) => f.status === 'review_required' || f.status === 'missing_evidence')
+    const outsideWindow = findings.some((f) => f.status === 'outside_source_window')
+    return `<h3>${escape(names[r.schedule] ?? r.schedule)} · ${escape(block?.name ?? r.block)} · ${escape(shape?.name ?? r.shape)} · ${r.harvestYear ?? 'No harvest scheduled'}</h3>
+<p class="note">${r.current ? `Legal assessment date ${escape(r.review.date)}.` : 'The shape or harvest year changed. Review pending.'}</p>
+${r.reference ? `<p>${escape(r.reference).replace(/\n/g, '<br>')}</p>` : ''}
+${outsideWindow ? '<p>The assessment date is outside the rule pack’s source window.</p>' : ''}
+${r.assessment && 'error' in r.assessment ? `<p>${escape(r.assessment.error)}</p>` : ''}
+${rows.length ? `<ul>${rows.map((f) => `<li>${escape(f.title)} (§${escape(f.provision)}) — ${f.status === 'review_required' ? escape(f.finding) : 'Evidence needed.'}</li>`).join('')}</ul>` : ''}`
+  })
+  .join('\n')}`
+    : ''
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Block plan assessment</title>
@@ -276,6 +300,7 @@ ${schedules}
 ${published}
 ${boardHtml}
 ${oldHtml}
+${rangeHtml}
 <h2>D.5 pathways</h2>
 <p class="note">Trend measured over ${trendYear - 5}–${trendYear} for the schedule under review.</p>
 ${pathwayHtml}
