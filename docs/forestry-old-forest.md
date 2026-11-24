@@ -74,7 +74,7 @@ Defaults: legal and non-legal OGMAs counted, parks not, the 2005 interior method
 | Narrowest interior kept | wider than 200 m | `INTERIOR_MIN_WIDTH_METRES`    |
 | Board comparison year   | 2019             | `CALIBRATION_YEAR`, the worker |
 
-Not built:
+Not built (each is planned in [Block planner: next steps](forestry-block-planning-next-steps.md)):
 
 - D.2 pooling across units or districts.
 - D.3 representativeness beyond the non-pine figure.
