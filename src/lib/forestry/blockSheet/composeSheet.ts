@@ -45,6 +45,7 @@ import {
   BLOCK_LABEL,
   BLOCK_OF_INTEREST,
   CONSTRAINT_AREA,
+  BEYOND_CONTOUR_STYLES,
   CONTOUR_STYLES,
   EXISTING_ROAD,
   FOREST_SERVICE_ROAD,
@@ -192,6 +193,12 @@ export interface ComposeInput {
   base?: { image: RasterImage; attribution?: string; legend?: ClassSymbol[] }
   /** Contours sampled on a grid spanning the frame, `gridWidth` × `gridHeight` sample centres. */
   contours?: { result: ContourResult; gridWidth: number; gridHeight: number }
+  /**
+   * Contours from another, coarser terrain where `contours`' terrain holds no height, on the same
+   * kind of grid; drawn dashed and paler (`BEYOND_CONTOUR_STYLES`) with legend rows of their own
+   * naming `source`.
+   */
+  contoursBeyond?: { result: ContourResult; gridWidth: number; gridHeight: number; source: string }
   facts: BlockFacts | null
   /** Where elevations came from, for the block information note, e.g. "Demo terrain, 1 m". */
   terrainName?: string
@@ -298,6 +305,8 @@ const LEGEND_ORDER = [
   'extras',
   'contourIndex',
   'contourIntermediate',
+  'contourBeyondIndex',
+  'contourBeyondIntermediate',
   'reviewLine',
   'reviewArea',
   'reviewPin',
@@ -362,57 +371,78 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
   ops.push({ op: 'rect', x: frame.x, y: frame.y, w: frame.w, h: frame.h, fill: '#ffffff' })
   if (input.base) ops.push({ op: 'image', x: frame.x, y: frame.y, w: frame.w, h: frame.h, image: input.base.image })
 
-  // Contours under every vector, labelled along the line.
-  if (input.contours && preset.contours) {
-    const style = CONTOUR_STYLES[preset.contours]
-    const { result, gridWidth, gridHeight } = input.contours
-    const sx = frame.w / gridWidth,
-      sy = frame.h / gridHeight
-    const toPaper = (line: [number, number][]): Point[] =>
-      line.map(([c, r]) => [frame.x + (c + 0.5) * sx, frame.y + (r + 0.5) * sy])
+  // Contours under every vector, labelled along the line. Both sets share one label spacer, so a
+  // regional label never lands on the terrain's.
+  if (preset.contours && (input.contours || input.contoursBeyond)) {
     const labels: DrawOp[] = []
     const spacing = 220 * k
     const free = labelSpacer(34 * k)
-    for (const level of result.levels) {
-      const parts = level.lines.map(toPaper)
-      const stroke = level.index ? style.index : style.intermediate
-      ops.push({ op: 'path', parts, closed: false, stroke: scaleStroke(stroke, k) })
-      const text = String(Math.round(level.level))
-      const size = F(style.labelSize)
-      const width = textWidth(text, size)
-      // Neighbouring lines start their labels at different distances, so labels do not stack in columns.
-      const stagger = (((Math.round(level.level / result.interval) % 5) + 5) % 5) / 5
-      for (const part of parts)
-        for (const at of labelsAlongLine(
-          part,
-          spacing,
-          width + 4 * k,
-          frame,
-          6 * k,
-          spacing * (0.15 + stagger * 0.7),
-        )) {
-          if (!free(at.x, at.y)) continue
-          labels.push({
-            op: 'text',
-            x: at.x,
-            y: at.y,
-            text,
-            size,
-            color: level.index ? style.indexLabel : style.intermediateLabel,
-            align: 'center',
-            baseline: 'middle',
-            angle: at.angle,
-            ...(style.halo ? { halo: { color: style.halo.color, width: style.halo.width * k } } : {}),
-          })
-        }
-      mark(level.index ? 'contourIndex' : 'contourIntermediate', {
-        kind: 'line',
-        label: level.index
-          ? `Index contour (${result.interval * result.indexEvery} m)`
-          : `Intermediate contour (${result.interval} m)`,
-        layers: [stroke],
-      })
+    const drawContours = (
+      contours: { result: ContourResult; gridWidth: number; gridHeight: number },
+      style: (typeof CONTOUR_STYLES)[keyof typeof CONTOUR_STYLES],
+      keys: { index: string; intermediate: string },
+      suffix: string,
+    ) => {
+      const { result, gridWidth, gridHeight } = contours
+      const sx = frame.w / gridWidth,
+        sy = frame.h / gridHeight
+      const toPaper = (line: [number, number][]): Point[] =>
+        line.map(([c, r]) => [frame.x + (c + 0.5) * sx, frame.y + (r + 0.5) * sy])
+      for (const level of result.levels) {
+        const parts = level.lines.map(toPaper)
+        const stroke = level.index ? style.index : style.intermediate
+        ops.push({ op: 'path', parts, closed: false, stroke: scaleStroke(stroke, k) })
+        const text = String(Math.round(level.level))
+        const size = F(style.labelSize)
+        const width = textWidth(text, size)
+        // Neighbouring lines start their labels at different distances, so labels do not stack in columns.
+        const stagger = (((Math.round(level.level / result.interval) % 5) + 5) % 5) / 5
+        for (const part of parts)
+          for (const at of labelsAlongLine(
+            part,
+            spacing,
+            width + 4 * k,
+            frame,
+            6 * k,
+            spacing * (0.15 + stagger * 0.7),
+          )) {
+            if (!free(at.x, at.y)) continue
+            labels.push({
+              op: 'text',
+              x: at.x,
+              y: at.y,
+              text,
+              size,
+              color: level.index ? style.indexLabel : style.intermediateLabel,
+              align: 'center',
+              baseline: 'middle',
+              angle: at.angle,
+              ...(style.halo ? { halo: { color: style.halo.color, width: style.halo.width * k } } : {}),
+            })
+          }
+        mark(level.index ? keys.index : keys.intermediate, {
+          kind: 'line',
+          label: level.index
+            ? `Index contour${suffix} (${result.interval * result.indexEvery} m)`
+            : `Intermediate contour${suffix} (${result.interval} m)`,
+          layers: [stroke],
+        })
+      }
     }
+    if (input.contours)
+      drawContours(
+        input.contours,
+        CONTOUR_STYLES[preset.contours],
+        { index: 'contourIndex', intermediate: 'contourIntermediate' },
+        '',
+      )
+    if (input.contoursBeyond)
+      drawContours(
+        input.contoursBeyond,
+        BEYOND_CONTOUR_STYLES[preset.contours],
+        { index: 'contourBeyondIndex', intermediate: 'contourBeyondIntermediate' },
+        `, ${input.contoursBeyond.source}`,
+      )
     ops.push(...labels)
   }
 

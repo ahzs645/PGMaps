@@ -5,22 +5,46 @@ import { saveUploadedLogo } from '@/branding/store'
 import { useBranding } from '@/branding/useBranding'
 import { MapSheetOutput } from '@/components/ui/map-sheet-output'
 import { SelectField } from '@/components/ui/form-field'
+import { LayerList, type LayerListGroup } from '@/components/ui/layer-list'
+import { SheetSymbolSwatch } from '@/components/ui/sheet-symbol-swatch'
 import { MapSheetSetup, type MapSheetField } from '@/components/ui/map-sheet-setup'
 import { blockFacts } from '@/lib/forestry/blockSheet/blockFacts'
+import {
+  SHEET_LAYER_GROUPS,
+  SHEET_LAYER_LABELS,
+  sheetLayerCounts,
+  type SheetLayerId,
+} from '@/lib/forestry/blockSheet/layerChoice'
 import { sheetSetupFields } from '@/lib/forestry/blockSheet/setupFields'
+import {
+  CONSTRAINT_AREA,
+  CONTOUR_STYLES,
+  EXISTING_ROAD,
+  OTHER_BLOCK,
+  proposedRoad,
+  PROPOSED_ROAD_COLOR,
+  reviewLine,
+  RIPARIAN_SCREEN,
+  STREAM,
+  type SheetSymbol,
+} from '@/lib/forestry/blockSheet/styles'
 import { MAX_SHEET_COMMENTS_LENGTH, SHEET_KINDS, SHEET_PRESETS, type SheetKind } from '@/lib/forestry/blockSheet/sheets'
 import type { RasterImage } from '@/lib/mapSheet/drawOps'
 import {
   blockChoices,
+  blockSheetLayers,
   blockSheetPublished,
   blockSheetUnavailable,
   canopySurfaceId,
   changeBlockSheetSettings,
+  CONTOURS_BEYOND_CHOICES,
   DEFAULT_BLOCK_SHEET,
+  offersContoursBeyond,
   parseBlockSheetSettings,
   seriesBlocks,
   SHEET_SYMBOL_CHOICES,
   type BlockSheetSettings,
+  type ContoursBeyondChoice,
 } from './blockSheet'
 import { ROAD_DESIGN_DEPLOYMENT } from './deployment'
 import { publishedOffers, type SheetRasterChoice } from './pdfSheetRasters'
@@ -32,6 +56,44 @@ import type { RoadProject, TerrainSource } from './types'
 const gallery = ROAD_DESIGN_DEPLOYMENT.blockSheetGallery
 
 const STORAGE_KEY = 'pgmaps.forestryRoads.blockSheet'
+
+/** Each layer's row swatch: the symbol the sheet draws it with at 1:10,000. */
+const LAYER_SWATCHES: Record<SheetLayerId, SheetSymbol> = {
+  contours: { kind: 'line', label: 'Contours', layers: [CONTOUR_STYLES.default.index] },
+  roads: proposedRoad(PROPOSED_ROAD_COLOR, 'detail'),
+  existingRoads: EXISTING_ROAD.detail,
+  streams: STREAM.detail,
+  riparian: RIPARIAN_SCREEN.reserve,
+  otherBlocks: OTHER_BLOCK,
+  constraints: CONSTRAINT_AREA,
+  notes: reviewLine('#7c3aed'),
+}
+
+/**
+ * The sheet's layers as `LayerList` groups. A layer the project holds nothing of, or contours on a
+ * sheet that draws none, stays listed and says why it cannot print.
+ */
+function sheetLayerGroups(counts: ReturnType<typeof sheetLayerCounts>, drawsContours: boolean): LayerListGroup[] {
+  return SHEET_LAYER_GROUPS.map((group) => ({
+    id: group.id,
+    title: group.title,
+    items: group.layers.map((id) => {
+      const count = id === 'contours' ? null : counts[id]
+      return {
+        id,
+        label: SHEET_LAYER_LABELS[id],
+        swatch: <SheetSymbolSwatch symbol={LAYER_SWATCHES[id]} background="#ffffff" />,
+        ...(id === 'contours'
+          ? drawsContours
+            ? {}
+            : { unavailable: 'This sheet draws no contours' }
+          : count
+            ? { status: String(count) }
+            : { unavailable: 'None in this project' }),
+      }
+    }),
+  }))
+}
 
 function stored(): BlockSheetSettings {
   try {
@@ -105,6 +167,12 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
     }
   }, [blocks, block, terrain, project.terrain.resolutionM])
   const preset = SHEET_PRESETS[effective.kind]
+  const layerCounts = useMemo(() => sheetLayerCounts(blockSheetLayers(project, new Map(), block)), [project, block])
+  const hidden = new Set(effective.hiddenLayers)
+  const layerGroups = sheetLayerGroups(layerCounts, !!preset.contours)
+  const visibility = Object.fromEntries(
+    layerGroups.flatMap((group) => group.items.map((item) => [item.id, !hidden.has(item.id as SheetLayerId)])),
+  )
   const fields: MapSheetField[] = sheetSetupFields(effective.kind, facts)
   const chooseLogo = (file: File | null) => {
     setLogoError('')
@@ -181,6 +249,47 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
             {base === 'canopy-height' ? 'canopy surface' : 'terrain'} to work it out from.
           </p>
         ))}
+      <section aria-label="Layers" className="grid gap-1 border-t pt-3" data-testid="block-sheet-layers">
+        <h4 className="text-xs font-semibold">Layers</h4>
+        <LayerList
+          subject="the sheet"
+          className="px-1.5 py-1"
+          groups={layerGroups}
+          visibility={visibility}
+          onChange={(id, on) => {
+            const next = new Set(effective.hiddenLayers)
+            if (on) next.delete(id as SheetLayerId)
+            else next.add(id as SheetLayerId)
+            setSettings(parseBlockSheetSettings({ ...effective, hiddenLayers: [...next] }))
+          }}
+          onReset={effective.hiddenLayers.length ? () => setSettings({ ...effective, hiddenLayers: [] }) : undefined}
+        />
+        <p className="text-2xs text-muted-foreground">
+          A layer switched off leaves the map and the legend; the map keeps its frame. The block of interest always
+          prints.
+        </p>
+      </section>
+      {offersContoursBeyond(effective.kind, project.terrain) && !hidden.has('contours') && (
+        <SelectField
+          label="Contours beyond the terrain"
+          hint={
+            effective.contoursBeyond === 'regional'
+              ? `Where ${project.terrain.name} has no data, contours come from the 22 m regional DEM, dashed and paler, with their own legend rows. They will not meet the terrain's own lines exactly at its edge.`
+              : `Contours stop at the edge of ${project.terrain.name}.`
+          }
+          value={effective.contoursBeyond}
+          onChange={(event) =>
+            setSettings({ ...effective, contoursBeyond: event.target.value as ContoursBeyondChoice })
+          }
+          data-testid="block-sheet-contours-beyond"
+        >
+          {CONTOURS_BEYOND_CHOICES.map((choice) => (
+            <option key={choice.value} value={choice.value}>
+              {choice.label}
+            </option>
+          ))}
+        </SelectField>
+      )}
       {logoError && (
         <p role="alert" className="text-xs text-danger">
           {logoError}

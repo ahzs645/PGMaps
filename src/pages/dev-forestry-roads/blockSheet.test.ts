@@ -16,6 +16,7 @@ import {
   parseBlockSheetSettings,
   seriesBlocks,
   seriesPageRun,
+  offersContoursBeyond,
   sheetContourSource,
   type BlockSheetRun,
 } from './blockSheet'
@@ -219,6 +220,41 @@ describe('road tool block sheet', () => {
     expect(built.missing.join(' ')).toMatch(/no contours/)
     expect(built.sheet.legend.map((item) => item.key)).toContain('block')
   })
+
+  it('leaves a layer switched off out of the map and the legend, and keeps the frame', async () => {
+    const run = {
+      settings: { ...DEFAULT_BLOCK_SHEET, block: 'context:b1' },
+      project: project(),
+      analyses: new Map(),
+      terrain: syntheticTerrain,
+      terrainName: 'Synthetic',
+      terrainResolutionM: 5,
+      canopy: null,
+      issue: { date: '2026-11-10', preparedBy: '', organisation: '', revision: '' },
+      caveat: 'Preliminary',
+      preview: true,
+    }
+    const all = await buildBlockSheet(run)
+    const keys = (built: typeof all) => built.sheet.legend.map((item) => item.key)
+    expect(keys(all)).toEqual(expect.arrayContaining(['otherBlocks', 'constraints', 'ncd', 'forestService']))
+    const hidden = await buildBlockSheet({
+      ...run,
+      settings: { ...run.settings, hiddenLayers: ['otherBlocks', 'streams', 'existingRoads', 'contours'] },
+    })
+    for (const key of ['otherBlocks', 'streams', 'ncd', 'existingRoads', 'forestService', 'contourIndex'])
+      expect(keys(hidden)).not.toContain(key)
+    expect(keys(hidden)).toEqual(expect.arrayContaining(['block', 'constraints']))
+    // The same frame: the graticule's labels fall in the same places.
+    const ticks = (built: typeof all) =>
+      built.sheet.ops.flatMap((op) => (op.op === 'text' && op.text.includes('°') ? [[op.text, op.x, op.y]] : []))
+    expect(ticks(hidden)).toEqual(ticks(all))
+    expect(ticks(all).length).toBeGreaterThan(0)
+    expect(parseBlockSheetSettings({ hiddenLayers: ['streams', 'nope', 'streams', 'contours'] }).hiddenLayers).toEqual([
+      'contours',
+      'streams',
+    ])
+    expect(parseBlockSheetSettings({}).hiddenLayers).toEqual([])
+  })
 })
 
 describe('block sheet formats and series', () => {
@@ -316,5 +352,26 @@ describe('sheet contour source', () => {
       'project',
     )
     expect(sheetContourSource({ kind: 'geotiff' }, frame, 10000)).toBe('project')
+  })
+  it('adds regional contours beyond detailed terrain only when the person chose it', () => {
+    const lidar = { kind: 'geotiff', bounds: [-121.56, 54.05, -121.51, 54.09] }
+    expect(sheetContourSource(lidar, frame, 10000, 'stop')).toBe('project')
+    expect(sheetContourSource(lidar, frame, 10000, 'regional')).toBe('regional-beyond')
+    // An overview, a regional project and a covering terrain keep what they did.
+    expect(sheetContourSource(lidar, frame, 50000, 'regional')).toBe('regional-frame')
+    expect(sheetContourSource({ ...lidar, kind: 'regional' }, frame, 10000, 'regional')).toBe('regional-frame')
+    expect(sheetContourSource({ kind: 'geotiff', bounds: [-122, 53.9, -121, 54.3] }, frame, 10000, 'regional')).toBe(
+      'project',
+    )
+  })
+  it('offers the choice on contour sheets over terrain that is not regional', () => {
+    expect(offersContoursBeyond('field-layout', { kind: 'geotiff' })).toBe(true)
+    expect(offersContoursBeyond('field-layout', { kind: 'regional' })).toBe(false)
+    expect(offersContoursBeyond('field-layout', null)).toBe(false)
+  })
+  it('reads the choice back from storage, stopping at the edge by default', () => {
+    expect(parseBlockSheetSettings({}).contoursBeyond).toBe('stop')
+    expect(parseBlockSheetSettings({ contoursBeyond: 'regional' }).contoursBeyond).toBe('regional')
+    expect(parseBlockSheetSettings({ contoursBeyond: 'everywhere' }).contoursBeyond).toBe('stop')
   })
 })

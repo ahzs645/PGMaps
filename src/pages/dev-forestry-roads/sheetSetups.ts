@@ -33,7 +33,10 @@ export type SheetSetupOutput = Omit<SheetOutputSettings, 'blocks'>
  * which depends on the map sheets the project has imported, and the series' blocks. A setup saved
  * before the output was kept has none, and applying it leaves the output as it is.
  */
-export type BlockSheetSetup = Omit<BlockSheetSettings, 'block' | 'comments' | 'symbols' | 'output' | 'raster'> & {
+export type BlockSheetSetup = Omit<
+  BlockSheetSettings,
+  'block' | 'comments' | 'symbols' | 'output' | 'raster' | 'contoursBeyond' | 'hiddenLayers'
+> & {
   output?: SheetSetupOutput
 }
 

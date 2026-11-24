@@ -162,9 +162,21 @@ The 1:50,000 access sheet sets its own spacing (`contourIntervalM` 20, `contourI
 terrain does not, the sheet loads the 22 m regional DEM for the frame (`sheetContourSource`,
 `blockSheet.ts`) if the project is on regional terrain or the sheet is at 1:50,000 or smaller, and
 its source line says "from the regional DEM over the whole frame". A detailed (LiDAR) terrain on a
-design-scale sheet is never replaced by 22 m contours; there, contours stop at the edge of the data.
-The preview keeps the loaded terrain, as it keeps a flat colour for imagery. If the regional tiles
-cannot be loaded, the sheet says so and draws contours from the project's terrain only. The legend's
+design-scale sheet is never replaced by 22 m contours; there, contours stop at the edge of the data,
+unless the person sets the road designer's **Contours beyond the terrain** to *Regional DEM, dashed
+and paler* (`contoursBeyond`, off by default, offered on contour sheets over terrain that is not
+regional itself, kept in this browser and never in a saved setup). Then the terrain's own contours
+are drawn exactly as before, and the regional DEM is traced on the same grid with every cell the
+terrain holds a height for left empty (`beyondOnly`, `prepareSheet.ts`), so its lines never enter
+ground the terrain covers, LiDAR holes included. They are drawn dashed and paler
+(`BEYOND_CONTOUR_STYLES`), labelled from one spacer with the terrain's, listed under their own legend
+rows ("Index contour, regional DEM (20 m)") and named in the source line. The two sets do not meet
+exactly at the terrain's edge (different cells, and the regional DEM's vertical datum is unverified);
+the dashed style is what tells the reader the source changed. Each set has its own segment budget.
+For the automatic overview swap the preview keeps the loaded terrain, as it keeps a flat colour for
+imagery; regional contours beyond the terrain are the person's choice and are drawn in the preview
+too, from the Terrarium tiles this browser keeps after the first read. If the regional tiles cannot
+be loaded, the sheet says so and draws contours from the project's terrain only. The legend's
 index-contour label comes from the spacing drawn (`ContourResult.indexEvery`).
 
 **Features** (detail widths up to 1:25,000, `DETAIL_SCALE_LIMIT`; overview widths beyond):
@@ -388,6 +400,16 @@ road design guide's
 - **The File choices are this browser's,** kept with the rest of the sheet's settings. A saved sheet
   setup keeps them without the blocks a series takes, which belong to the project.
 - **The mask is the export's only.** The report package's block sheets are built without it.
+- **Layers** (`layerChoice.ts`, the shared `LayerList`) switch the sheet's map layers on and off:
+  contours, designed roads, existing roads, streams, riparian zones, other blocks, constraint areas
+  and review markup. Everything prints by default (`hiddenLayers` empty). A layer switched off leaves
+  the map and its legend rows; designed roads switched off also leave the Road Information table.
+  The frame is fitted to every layer before any is left out, so switching one off never moves the
+  map, and the block of interest always prints (choose another under *Block*). A layer the project
+  holds nothing of, or contours on a sheet that draws none, stays listed with the reason. With
+  contours off, *Contours beyond the terrain* is hidden and no terrain is sampled for them. The
+  choice is this browser's, applies to every page of a series, and is not kept in a saved sheet
+  setup or the project.
 - **Copy image** on the preview builds the sheet in full and copies it as a PNG at `SHEET_PNG_DPI`.
 
 ## Formats

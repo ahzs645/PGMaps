@@ -114,6 +114,9 @@ export async function buildSheet(run: SheetBuild, deps: SheetBuildDeps): Promise
     products.contours
       ? `contours ${products.contours.result.interval} m${products.contours.result.widened ? ' (widened to fit)' : ''}${run.contourNote ?? ''}`
       : '',
+    products.contoursBeyond
+      ? `dashed contours ${products.contoursBeyond.result.interval} m${products.contoursBeyond.result.widened ? ' (widened to fit)' : ''} from the ${products.contoursBeyond.source} where the terrain has no data`
+      : '',
   ].filter(Boolean)
   const sheet = composeSheet({
     frame,
@@ -121,6 +124,7 @@ export async function buildSheet(run: SheetBuild, deps: SheetBuildDeps): Promise
     symbols: run.symbols,
     base,
     contours: products.contours,
+    contoursBeyond: products.contoursBeyond,
     facts,
     terrainName: run.terrainName,
     fields: run.fields,

@@ -16,6 +16,7 @@ import {
   sampleSheetGrid,
   slopeClassRgba,
   type HeightSource,
+  type SheetGrid,
 } from './classedRasters'
 import type { ComposeInput, SheetFrame } from './composeSheet'
 import {
@@ -73,11 +74,17 @@ export interface SheetTerrainSources {
   canopy?: HeightSource
   /** Ground elevations covering the whole frame, for contours where `terrain` covers less of it. */
   contourTerrain?: HeightSource
+  /**
+   * Coarser ground elevations for contours only where the contour terrain holds no height: the
+   * sheet's *Contours beyond the terrain*. Its lines never enter ground the terrain covers, and are
+   * returned apart (`contoursBeyond`) so the sheet draws them in a style of their own.
+   */
+  contourBeyond?: { source: HeightSource; name: string }
   /** Published rasters, by the base each replaces. One given here is drawn instead of `terrain` or `canopy`. */
   published?: Partial<Record<PublishedBase, PublishedRaster>>
 }
 
-export type SheetTerrainProducts = Pick<ComposeInput, 'base' | 'contours'> & {
+export type SheetTerrainProducts = Pick<ComposeInput, 'base' | 'contours' | 'contoursBeyond'> & {
   /** Why a product the preset wanted could not be made. */
   missing: string[]
   /** The published raster the base was drawn from, and the share of the frame it covers (0–1). */
@@ -127,9 +134,11 @@ export function* prepareSheetTerrain(
   const publishedSource = needsRaster ? sources.published?.[preset.base as PublishedBase] : undefined
   const rasterSource = preset.base === 'canopy-height' ? sources.canopy : sources.terrain
   const contourSource = sources.contourTerrain ?? sources.terrain
+  const beyondSource = preset.contours ? sources.contourBeyond : undefined
   const total =
     (needsRaster && (publishedSource || rasterSource) ? raster.height : 0) +
-    (preset.contours && contourSource ? contourSize.height : 0)
+    (preset.contours && contourSource ? contourSize.height : 0) +
+    (beyondSource ? contourSize.height : 0)
   let done = 0
   let base: SheetTerrainProducts['base']
   let published: SheetTerrainProducts['published']
@@ -184,15 +193,20 @@ export function* prepareSheetTerrain(
     }
   }
   let contours: SheetTerrainProducts['contours']
+  let contoursBeyond: SheetTerrainProducts['contoursBeyond']
+  let covered: SheetGrid['values'] | undefined
   if (preset.contours) {
-    if (!contourSource) missing.push('No terrain is loaded, so the sheet has no contours.')
-    else {
+    if (!contourSource) {
+      if (!beyondSource) missing.push('No terrain is loaded, so the sheet has no contours.')
+    } else {
       const steps = sampleSheetGrid(contourSource, box, contourSize.width, contourSize.height)
       let next = steps.next()
       while (!next.done) {
         yield (done + next.value) / Math.max(1, total)
         next = steps.next()
       }
+      done += contourSize.height
+      covered = next.value.values
       const result: ContourResult = gridContours(
         next.value,
         preset.contourIntervalM ?? CONTOUR_INTERVAL_M,
@@ -201,7 +215,47 @@ export function* prepareSheetTerrain(
       contours = { result, gridWidth: contourSize.width, gridHeight: contourSize.height }
     }
   }
-  return { base, contours, missing, ...(published ? { published } : {}) }
+  if (beyondSource) {
+    const steps = sampleSheetGrid(beyondSource.source, box, contourSize.width, contourSize.height)
+    let next = steps.next()
+    while (!next.done) {
+      yield (done + next.value) / Math.max(1, total)
+      next = steps.next()
+    }
+    const grid = beyondOnly(next.value, covered)
+    if (grid.values.some(Number.isFinite)) {
+      const result = gridContours(
+        grid,
+        preset.contourIntervalM ?? CONTOUR_INTERVAL_M,
+        preset.contourIndexEvery ?? CONTOUR_INDEX_EVERY,
+      )
+      contoursBeyond = {
+        result,
+        gridWidth: contourSize.width,
+        gridHeight: contourSize.height,
+        source: beyondSource.name,
+      }
+    }
+  }
+  return {
+    base,
+    contours,
+    ...(contoursBeyond ? { contoursBeyond } : {}),
+    missing,
+    ...(published ? { published } : {}),
+  }
+}
+
+/**
+ * `grid` with every cell the terrain's own grid holds a height for set to no data, so contours
+ * traced on it stay off ground the terrain covers. Both grids sample the same cells.
+ */
+export function beyondOnly(grid: SheetGrid, covered: SheetGrid['values'] | undefined): SheetGrid {
+  if (!covered) return grid
+  if (covered.length !== grid.values.length) throw Error('The two contour grids must sample the same cells.')
+  const values = new Float32Array(grid.values.length)
+  for (let i = 0; i < values.length; i++) values[i] = Number.isFinite(covered[i]) ? Number.NaN : grid.values[i]
+  return { ...grid, values }
 }
 
 /** Synchronous `prepareSheetTerrain`, for tests and scripts. */

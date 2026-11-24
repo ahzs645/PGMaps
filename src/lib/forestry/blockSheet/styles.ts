@@ -82,6 +82,30 @@ export const CONTOUR_STYLES: Record<'default' | 'onImagery', ContourStyle> = {
   },
 }
 
+/**
+ * Contours from the regional DEM where the project's terrain holds no height (*Contours beyond the
+ * terrain*): dashed and paler than the terrain's own, so the change of source reads on the paper and
+ * the step where the two surfaces meet is not taken for ground.
+ */
+export const BEYOND_CONTOUR_STYLES: Record<'default' | 'onImagery', ContourStyle> = {
+  default: {
+    index: { color: '#8c8c8c', width: 0.3, dash: [2.4, 1.2], cap: 'butt', join: 'round' },
+    intermediate: { color: '#bcbcbc', width: 0.2, dash: [1.6, 1.2], cap: 'butt', join: 'round' },
+    indexLabel: '#6e6e6e',
+    intermediateLabel: '#a0a0a0',
+    labelSize: 6,
+    halo: { color: '#ffffff', width: 1.2 },
+  },
+  onImagery: {
+    index: { color: '#ffffff', width: 0.3, dash: [2.4, 1.2], cap: 'butt', join: 'round', opacity: 0.8 },
+    intermediate: { color: '#ffffff', width: 0.2, dash: [1.6, 1.2], cap: 'butt', join: 'round', opacity: 0.6 },
+    indexLabel: '#ffffff',
+    intermediateLabel: '#ffffff',
+    labelSize: 6,
+    halo: null,
+  },
+}
+
 export type { AreaSymbol, ClassSymbol, LineSymbol, PointSymbol, SheetSymbol } from '@/lib/mapSheet/symbols'
 export { areaSymbolPaint, lineMarkerLayers, lineSymbolLayout, lineSymbolPaint } from '@/lib/mapSheet/mapSymbols'
 

@@ -15,6 +15,7 @@ import {
   type SheetNote,
   type SheetSymbols,
 } from '@/lib/forestry/blockSheet/composeSheet'
+import { parseHiddenLayers, withoutHiddenLayers, type SheetLayerId } from '@/lib/forestry/blockSheet/layerChoice'
 import type { PublishedBase, SheetTerrainSources } from '@/lib/forestry/blockSheet/prepareSheet'
 import {
   IMAGERY_BASEMAP,
@@ -85,7 +86,21 @@ export interface BlockSheetSettings {
    * imported map sheet's (`pdfSheetRasters.ts`): PGMaps' choice, the project's terrain, or the sheet.
    */
   raster: SheetRasterChoice
+  /**
+   * What the contours do past the edge of the project's terrain on a sheet whose frame it does not
+   * cover (`sheetContourSource`): stop there, or carry on from the regional DEM, dashed and paler,
+   * only where the terrain holds no height. Never replaces the terrain's own contours.
+   */
+  contoursBeyond: ContoursBeyondChoice
+  /** Map layers left off the sheet and its legend (`layerChoice.ts`); every layer prints by default. */
+  hiddenLayers: SheetLayerId[]
 }
+
+export type ContoursBeyondChoice = 'stop' | 'regional'
+export const CONTOURS_BEYOND_CHOICES: readonly { value: ContoursBeyondChoice; label: string }[] = [
+  { value: 'stop', label: 'Stop at the edge of the terrain' },
+  { value: 'regional', label: 'Regional DEM, dashed and paler' },
+]
 
 export type SheetSymbolChoice = 'pgmaps' | 'library'
 export const SHEET_SYMBOL_CHOICES: readonly { value: SheetSymbolChoice; label: string }[] = [
@@ -103,6 +118,8 @@ export const DEFAULT_BLOCK_SHEET: BlockSheetSettings = {
   symbols: 'pgmaps',
   output: DEFAULT_SHEET_OUTPUT,
   raster: 'auto',
+  contoursBeyond: 'stop',
+  hiddenLayers: [],
 }
 
 /** Validates settings read back from browser storage; anything unknown falls back to the default. */
@@ -125,6 +142,8 @@ export function parseBlockSheetSettings(raw: unknown): BlockSheetSettings {
     symbols: r.symbols === 'library' ? 'library' : 'pgmaps',
     output: parseSheetOutputSettings(r.output),
     raster: SHEET_RASTER_CHOICES.includes(r.raster as SheetRasterChoice) ? (r.raster as SheetRasterChoice) : 'auto',
+    contoursBeyond: r.contoursBeyond === 'regional' ? 'regional' : 'stop',
+    hiddenLayers: parseHiddenLayers(r.hiddenLayers),
   }
 }
 
@@ -333,13 +352,16 @@ export const OVERVIEW_SHEET_SCALE = 50000
  * edge of a small box in the middle of the sheet. When the project's terrain does not cover the
  * frame, the frame gets regional terrain of its own if the project is on regional terrain anyway or
  * the sheet is an overview. A detailed (LiDAR) terrain on a design-scale sheet is never swapped for
- * 22 m contours: there contours stop at the data edge as before.
+ * 22 m contours: there contours stop at the data edge, unless the person chose *Contours beyond the
+ * terrain: Regional DEM* (`beyond`), which keeps the terrain's own and adds regional ones only where
+ * it holds no height (`regional-beyond`).
  */
 export function sheetContourSource(
   terrain: { kind: string; bounds?: readonly number[] } | null | undefined,
   frameBounds: readonly [number, number, number, number],
   scale: number,
-): 'project' | 'regional-frame' {
+  beyond: ContoursBeyondChoice = 'stop',
+): 'project' | 'regional-frame' | 'regional-beyond' {
   const b = terrain?.bounds
   const covers =
     !!b &&
@@ -349,16 +371,31 @@ export function sheetContourSource(
     b[2] >= frameBounds[2] &&
     b[3] >= frameBounds[3]
   if (covers) return 'project'
-  return terrain?.kind === 'regional' || scale >= OVERVIEW_SHEET_SCALE ? 'regional-frame' : 'project'
+  if (terrain?.kind === 'regional' || scale >= OVERVIEW_SHEET_SCALE) return 'regional-frame'
+  return beyond === 'regional' ? 'regional-beyond' : 'project'
+}
+
+/**
+ * Whether *Contours beyond the terrain* means anything for this project and sheet: a contour sheet
+ * on a terrain that is not regional itself. Its frame is not known until the sheet is built, so the
+ * choice is offered whenever it could apply.
+ */
+export function offersContoursBeyond(kind: SheetKind, terrain: { kind: string } | null | undefined): boolean {
+  return !!SHEET_PRESETS[kind].contours && !!terrain && terrain.kind !== 'regional'
 }
 
 /** Frames, samples and composes the sheet. Imagery is captured only for the full PDF. */
 export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockSheet> {
   const { settings } = run
-  const layers = blockSheetLayers(run.project, run.analyses, settings.block)
-  const focus = sheetFocus(layers)
+  const all = blockSheetLayers(run.project, run.analyses, settings.block)
+  // Framed on every layer, so leaving one out never moves the map (`layerChoice.ts`).
+  const focus = sheetFocus(all)
   if (!focus) throw Error('Choose a block, or draw a road, before making a block sheet.')
-  const frame = sheetFrame(settings.kind, settings.paper, settings.scale, { bounds: focus })
+  const layers = withoutHiddenLayers(all, settings.hiddenLayers)
+  const framed = sheetFrame(settings.kind, settings.paper, settings.scale, { bounds: focus })
+  const frame = settings.hiddenLayers.includes('contours')
+    ? { ...framed, preset: { ...framed.preset, contours: null } }
+    : framed
   const sources: SheetTerrainSources = { terrain: run.terrain ?? undefined, canopy: run.canopy ?? undefined }
   const unavailable = blockSheetUnavailable(settings.kind, sources, publishedOffers(run.project.reference))
   if (unavailable) throw Error(unavailable)
@@ -383,21 +420,25 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
         )
     }
   }
-  // Contours over the whole frame (`sheetContourSource`). The preview keeps the loaded terrain, as it
-  // keeps a flat colour for imagery: a thumbnail should not fetch tiles on every setting change.
+  // Contours over the whole frame (`sheetContourSource`). For the overview's automatic swap the
+  // preview keeps the loaded terrain, as it keeps a flat colour for imagery: a thumbnail should not
+  // fetch tiles on every setting change. Regional contours beyond the terrain are the person's own
+  // choice and the whole point of it is what the sheet shows, so the preview draws them too; the
+  // Terrarium tiles are kept in this browser after the first read.
   let frameContours = false
   const contourMissing: string[] = []
-  if (
-    frame.preset.contours &&
-    !run.preview &&
-    sheetContourSource(run.project.terrain, frame.projection.bounds, frame.projection.scale) === 'regional-frame'
-  ) {
+  const contourSource = frame.preset.contours
+    ? sheetContourSource(run.project.terrain, frame.projection.bounds, frame.projection.scale, settings.contoursBeyond)
+    : 'project'
+  if ((contourSource === 'regional-frame' && !run.preview) || contourSource === 'regional-beyond') {
     const [w, s, e, n] = frame.projection.bounds
     try {
       const { loadRegionalTerrain } = await import('./terrain')
       const loaded = await loadRegionalTerrain([w - 0.002, s - 0.002, e + 0.002, n + 0.002], run.signal)
-      sources.contourTerrain = loaded.source
-      frameContours = true
+      if (contourSource === 'regional-frame') {
+        sources.contourTerrain = loaded.source
+        frameContours = true
+      } else sources.contourBeyond = { source: loaded.source, name: 'regional DEM' }
     } catch (cause) {
       if (run.signal?.aborted) throw cause
       contourMissing.push(
