@@ -19,8 +19,9 @@ conversion server, upload, Python, installed GDAL or RustGIS requirement.
    instead (see **Sheets no profile recognizes**). The Canfor profile recognizes exact map-layer families for
    block outlines, roads, streams, reserves, field lines and contours. Label and legend layer
    names do not match those rules. Clip recovered geometry to the registered map frame and
-   supported rectangular drawing clips. Preserve polygon holes. Non-rectangular clips stay
-   in the sheet image and are counted in an import notice.
+   its drawing clips. Preserve polygon holes. See **Clips that are not rectangles** below;
+   only a clip whose shape cannot be stated exactly leaves its drawings in the sheet image,
+   counted in an import notice.
 3. Read supported slope/canopy image layers at their original embedded pixel dimensions.
    Match printed legend text to its vector swatches. Lossless tiles are classified by colour;
    JPEG tiles by the coefficient decoder. The transparency mask is read exactly in both. Build
@@ -42,9 +43,18 @@ conversion server, upload, Python, installed GDAL or RustGIS requirement.
    painting operation, not a record, and stays reference. A sheet image and compound
    stream drawing, a class raster and an image layer stay reference. A contour surface can only be
    **Terrain (replaces current)**. The profile does not infer planned/constructed road status,
-   stream class, reserve restrictions or legal meaning from colour and symbols.
+   stream class, reserve restrictions or legal meaning from colour and symbols. GIS layers come
+   first, one row each; a PDF's layers are under their sheet (folded when there are more than three sheets), with the sheet's ticked
+   count and **Tick all**. Where several sheets carry a layer of the same name (an overview set
+   drawn from one legend), **Layers on several sheets** ticks or unticks it on all of them at
+   once. The import notes sit at the end, below the choices. A GIS layer's row has a **Fields** card that maps
+   its attributes (names, rows to import, a block's status, year and opening); see
+   [Mapping a layer's fields](exports-and-project-files.md#mapping-a-layers-fields). A polygon file whose name says plan, proposal or draft and that
+   carries a block identifier field is suggested as **Planned cutblock**.
 7. For several PDFs, initially select the field-layout sheet if present, otherwise the first
-   sheet. Initially select its bounded geometry only when native GIS layers were not supplied.
+   sheet, and the map sheet of every other frame (sheets within `SAME_FRAME_M` of a frame
+   already ticked are one frame); with GIS layers in the import, only frames over them are
+   added (`tickSheetsByFrame`). Initially select the first sheet's bounded geometry only when native GIS layers were not supplied.
    Select the first class raster of each kind, and the first hillshade, even when native GIS
    files are supplied; ortho imagery is offered unticked, because the plan's Satellite basemap
    shows the same source. Where two sheets offer the same raster, the one whose registration
@@ -58,7 +68,9 @@ conversion server, upload, Python, installed GDAL or RustGIS requirement.
    "x (1).pdf", "Copy of x.pdf"), so the copy is the one left out. A note several files share
    (the PDF drawings' attribute caveat) prints once, naming the files. A numbered road naming another block beside a canonical block
    shapefile is left unselected for review. Different revisions are never collapsed because
-   their filenames resemble each other.
+   their filenames resemble each other. Files the import does not read (a Word document, Office
+   and ArcGIS lock files, anything that is not a map layer) are named in one note; a
+   shapefile's sidecars (`.sbn`, `.sbx`, `.shp.xml` and the rest) are not.
 8. Save accepted source references with the project: file path, SHA-256, page, original layer,
    profile version and registration-fit residual. **Layers** exposes these and original scalar
    GIS attributes. Project and reference GeoJSON round trips keep them. The bounded JPEG sheet
@@ -683,8 +695,13 @@ not prove which block or road status it belongs to.
 | Map frames                          | One registered rectangular frame per page                        | Multiple frames refused; unregistered pages named in notes                                             |
 | Registration residual               | `PDF_LIMITS.registrationErrorM`: 3 m                             | Refused; not a source-accuracy threshold                                                               |
 | Drawing operations per page         | `PDF_LIMITS.operators`: 750,000                                  | Refused                                                                                                |
-| Extracted vertices per page         | `PDF_LIMITS.vertices`: 250,000                                   | Refused                                                                                                |
-| One extracted layer / saved project | `MAX_REFERENCE_FEATURES`: 500; `MAX_REFERENCE_VERTICES`: 50,000  | Oversized PDF layers left in the preview with a notice; a saved project's aggregate limits still apply |
+| Extracted vertices per page         | `PDF_LIMITS.vertices`: 250,000, after thinning                   | Refused; the generic profile leaves the layer that passes it on the sheet, with a notice               |
+| Drawn vertices before thinning      | `DRAWN_PAGE_VERTICES`: 1,000,000 a page                          | As the page budget                                                                                     |
+| Drawn vertices of one layer         | `THINNABLE_LAYER_VERTICES`: 250,000                              | Left on the sheet, with a notice                                                                       |
+| One extracted layer / saved project | `MAX_REFERENCE_FEATURES`: 500; `MAX_REFERENCE_VERTICES`: 50,000  | Thinned (**Layers over their budget**) or left in the preview with a notice; project limits apply      |
+| Thinning tolerance                  | `THINNING_TOLERANCES_MM`: 0.1, then 0.25 mm on the sheet         | The first that fits; stated in the notice and the layer's note, in metres on the ground too            |
+| Thinning may leave out              | `THIN_MAX_LEFT_OUT_SHARE`: 5% of a layer's length or area        | Refused past it, the share named in the notice                                                         |
+| Hatch strokes                       | `HATCH_PARALLEL_DEGREES`: 0.5°; 1–2 families of 2 or more        | Fewer or less parallel strokes stay lines                                                              |
 | Sheet preview                       | `PDF_LIMITS.previewSide`: 1,400 pixels on the longer side        | Display JPEG, separate from source measurement resolution                                              |
 | Class display                       | `PDF_LIMITS.classDisplaySide`: 4,096 pixels on the longer side   | Native pixels up to it; a larger grid's display is sampled down, its analysis grid is not              |
 | Estimate display cell               | `ESTIMATE_DISPLAY_CELL_M`: 10 m                                  | Estimates drawn and queried as the cell's commonest class; summaries read the stored pixels            |
@@ -741,17 +758,64 @@ A registered sheet that no company profile recognizes is read by `genericProfile
   a notice. A sheet that draws nothing under its frame's clip brings in the sheet image alone.
 
 It reads no class raster, contour terrain or image layer and assigns no role: each needs a
-company's conventions, which only a profile states. A layer over its own budget is left on the
-sheet with a notice; because the generic profile also reads base maps, one that would take the
-page past `PDF_LIMITS.vertices` is left on the sheet the same way instead of refusing the import.
-The first notice says no profile recognized the sheet and names the profiles that exist.
+company's conventions, which only a profile states. A layer over its own budget is thinned
+(**Layers over their budget**) or left on the sheet with a notice; because the generic profile also
+reads base maps, one that would take the page past `PDF_LIMITS.vertices` is left on the sheet the
+same way instead of refusing the import. A clip region a layer drew only hatch strokes across comes
+in as that layer's area (**Clips that are not rectangles**). The first notice says no profile
+recognized the sheet and names the profiles that exist.
 
 Measured on BCTS Prince George 5-year-plan overview sheets (ArcGIS Pro 3.1, BC Albers, November
-2026): all 13 read in 1.6–3.1 s; the map's named layers came in and the legend, scale bar, title
-and attribution boxes did not. One sheet's plan-area layer lay a median 0.3 m (largest 0.8 m) from
-the same areas' shapefile edges, at a control fit of 0.24 m and about 10.6 m of ground per page
-point. Paths under non-rectangular clips (most of the Esri topographic base map) stay on the
-sheet, as for every profile.
+2026): all 13 read in 1.1–3.0 s in Node; the map's named layers came in and the legend, scale bar,
+title and attribution boxes did not. One sheet's plan-area layer lay a median 0.3 m (largest 0.8 m)
+from the same areas' shapefile edges, at a control fit of 0.24 m and about 10.6 m of ground per page
+point. Their non-rectangular clips are hatch fills and base-map tiles: before the clip regions
+were read, 1,654–9,418 drawings a sheet (70,453 in all) were left on the sheet and 30 layers were
+refused over their budget. Now no drawing is left out under a clip, 4,108 hatched areas came in
+from their outlines (a median 0.4 m from the same layers' stroked outlines on two sheets checked),
+49 layers were brought within their budget (at most 0.1 mm of thinning; up to 4.1% of a layer's
+area left out in its smallest parts), and 5 layers were left on the sheet: one whose part budget
+would leave out 5.8% of its area, and four past the page's 250,000 vertices.
+
+## Clips that are not rectangles
+
+Map exporters draw under clip paths that are not rectangles: a hatch fill is its area's outline
+used as a clip with parallel strokes drawn across it, a base map is clipped to its tiles, and a map
+can be clipped to an outline. The reader (`clipRegion.ts`) states each such clip as a region in
+page points under the clip's own fill rule (nonzero `W n` or even-odd `W* n`), intersects it with
+every clip before it through the graphics-state stack, and clips lines (split at its edges, gaps
+kept apart) and areas (polygon intersection) to it, together with any rectangular clip. A region
+it cannot state exactly is not guessed: subpaths that cross themselves under even-odd, or nested
+rings wound twice over under nonzero. Drawings under such a clip stay on the sheet, counted in a
+notice.
+
+Under the generic profile, straight two-point strokes that a layer drew across a clip region with
+both ends outside it, in one or two families of parallel strokes of at least two each
+(`HATCH_PARALLEL_DEGREES`), and with no other stroke of that layer under the region, are a hatch:
+the region is the area the sheet shows, so it comes in as the layer's area and the strokes are not
+read as lines. A layer that also filled the region keeps its fill as the area. Anything else under
+the region, a lone straight stroke included, stays a line. The notice counts the hatched areas.
+
+## Layers over their budget
+
+A layer with more than `MAX_REFERENCE_FEATURES` parts or `MAX_REFERENCE_VERTICES` vertices is
+brought within them where the sheet's own detail allows (`thinDrawing.ts`), for every profile:
+
+1. Lines over the part budget are joined into one feature: a PDF layer's paths are drawing
+   strokes, not GIS records.
+2. Areas over the part budget keep their largest parts first.
+3. Over the vertex budget, each path is thinned by Douglas–Peucker at the first of
+   `THINNING_TOLERANCES_MM` (0.1, then 0.25 mm on the sheet) that fits, in page points; an area
+   narrower than the tolerance is a speck and left out. Rings simplified one by one are joined
+   again (polygon union), so an area stays valid.
+4. Past the last tolerance, the smallest parts (by length or area) are left out until it fits.
+
+What is left out may be at most `THIN_MAX_LEFT_OUT_SHARE` (5%) of the layer's length or area; past
+that the layer stays on the sheet, the share named in the notice. The notice of a layer brought in
+names its parts and vertices before and after, the tolerance in millimetres on the sheet and metres
+on the ground, and what was left out with its share; the layer's note keeps the same facts, and
+both say to use the source GIS layer. The page's `PDF_LIMITS.vertices` then counts what was kept.
+On the measured sheets 0.1 mm was always enough, keeping 11–34% of a thinned layer's vertices.
 
 ## Supporting another company/template
 
@@ -764,7 +828,10 @@ its profile left every supplied sheet's output byte-identical.
 
 Tests: `src/lib/geoPdf/geoPdf.test.ts` uses a generated map with known projected coordinates,
 clipped legend content, a reserve hole and compound streams, and a class tile stored losslessly in
-off-legend colours. `deadObjectStreams.test.ts` re-saves the generated map with a leftover object
+off-legend colours; through made-up operator lists it also pins clip regions under both fill rules,
+a road and an area clipped to an outline, a hatched area read from its outline, a clip it cannot
+state left out, and a dense line, too many lines and too many specks thinned, joined, kept largest
+first or refused. `deadObjectStreams.test.ts` re-saves the generated map with a leftover object
 stream that carries a JPEG tile's number. `imageMosaic.test.ts` reads a generated hillshade as
 lossless tiles and as one JPEG tile, through a project file and back. `classGrid.test.ts` pins the
 10 m display cells and the point query on an estimate. `jpegDecode.test.ts` reads a

@@ -2,6 +2,22 @@ import polygonClipping from 'polygon-clipping'
 import type { MapFrame } from './georeference'
 import { PDF_LIMITS, type Box, type Matrix, type XY } from './types'
 import type { PdfLayerRule } from './profiles'
+import {
+  boxAgainstRegion,
+  clipLineToRegion,
+  clipRegionFromPaths,
+  intersectRegions,
+  prepareRegion,
+  regionContains,
+  type ClipRegion,
+} from './clipRegion'
+import {
+  DRAWN_PAGE_VERTICES,
+  THINNABLE_LAYER_VERTICES,
+  thinLayer,
+  type PageGeometry,
+  type Thinning,
+} from './thinDrawing'
 
 const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0]
 export const transform = (m: Matrix, [x, y]: XY): XY => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]
@@ -177,6 +193,8 @@ type OptionalContent = { getGroup(id: string): { name: string } | null; isVisibl
 interface State {
   matrix: Matrix
   clip: Box
+  /** A clip that is not an axis-aligned rectangle, intersected with every such clip before it. */
+  region?: ClipRegion
   unsupportedClip: boolean
   /** Inside the map frame's own clip: where a map draws its layers, and layout elements are not. */
   inMap: boolean
@@ -189,6 +207,33 @@ function isFrameClip(box: Box, frame: Box) {
   return whole > 0 && area(intersectBox(box, frame)) >= 0.98 * whole && area(box) <= 1.02 * whole
 }
 
+/**
+ * A hatch line is drawn across its area's whole box and left to the clip: both its ends lie outside
+ * the region. A line of the map's own clipped to a region (a road at an operating area's edge)
+ * rarely runs past it at both ends in one straight stroke, and `isHatch` asks for more than one.
+ */
+const isHatchStroke = ([a, b]: XY[], region: ClipRegion) => !regionContains(region, a) && !regionContains(region, b)
+/** Directions a hatch may differ by and still be one family of parallel strokes, in degrees. */
+const HATCH_PARALLEL_DEGREES = 0.5
+/**
+ * Strokes are a hatch when they are at least two and fall into one or two families of parallel
+ * lines (a hatch or a cross-hatch), each of at least two. A lone straight stroke stays a line.
+ */
+function isHatch(segments: XY[][]) {
+  const angles = segments
+    .map(([a, b]) => ((Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI + 180) % 180)
+    .sort((x, y) => x - y)
+  const families: number[] = []
+  for (const [i, angle] of angles.entries())
+    if (i && angle - angles[i - 1] <= HATCH_PARALLEL_DEGREES) families[families.length - 1]++
+    else families.push(1)
+  // A family that straddles 0°/180° is one family.
+  if (families.length > 1 && angles[0] + 180 - angles.at(-1)! <= HATCH_PARALLEL_DEGREES) families[0] += families.pop()!
+  return angles.length >= 2 && families.length <= 2 && families.every((n) => n >= 2)
+}
+
+const PAGE_OVER = 'The PDF map exceeds the extracted vertex budget. Import a simpler sheet or original GIS layers.'
+
 export function extractPaths(
   list: Operators,
   ops: Record<string, number>,
@@ -199,6 +244,32 @@ export function extractPaths(
 ) {
   if (list.fnArray.length > PDF_LIMITS.operators) throw Error('The PDF page exceeds the drawing operation budget.')
   let state: State = { matrix: IDENTITY, clip: frame.bbox, unsupportedClip: false, inMap: false }
+  /** The parts of a path inside a rectangular clip and, when the drawing crosses one, a clip region. */
+  const clipPath = (path: XY[], clip: Box, region: ClipRegion | undefined) => {
+    const lines = clipLines(path, clip)
+    return region ? lines.flatMap((line) => clipLineToRegion(line, region)) : lines
+  }
+  const drawnGeometries = (
+    paths: XY[][],
+    rule: PdfLayerRule,
+    shape: 'line' | 'polygon',
+    clip: Box,
+    region: ClipRegion | undefined,
+  ): PageGeometry[] => {
+    if (shape === 'line') {
+      const lines = paths.flatMap((p) => clipPath(p, clip, region))
+      return rule.compound && lines.length > 1
+        ? [{ type: 'MultiLineString', coordinates: lines }]
+        : lines.map((coordinates) => ({ type: 'LineString', coordinates }))
+    }
+    if (clip[2] <= clip[0] || clip[3] <= clip[1]) return []
+    return polygons(paths).flatMap((p) =>
+      (region
+        ? polygonClipping.intersection(p, [boxRing(clip)], region.polygons)
+        : polygonClipping.intersection(p, [boxRing(clip)])
+      ).map((poly) => ({ type: 'Polygon' as const, coordinates: poly as XY[][] })),
+    )
+  }
   const saves: State[] = [],
     groups: State[] = [],
     marks: { name: string; visible: boolean }[] = []
@@ -209,10 +280,64 @@ export function extractPaths(
       rule: PdfLayerRule
       layer: string
       shape: 'line' | 'polygon'
+      /** Page-point geometry as drawn; the features are built from it once the page is read. */
+      geometries: PageGeometry[]
       features: GeoJSON.Feature[]
       vertices: number
       overBudget: boolean
+      /** Why it was left on the sheet: over the layer budget even thinned, or over the page's. */
+      refused?: 'layer' | 'page'
+      /** Share of the layer's length or area thinning would have had to leave out. */
+      refusedShare?: number
+      thinning?: Thinning
     }
+  >()
+  type Entry = typeof result extends Map<string, infer E> ? E : never
+  const collect = (
+    key: string,
+    name: string,
+    rule: PdfLayerRule,
+    shape: 'line' | 'polygon',
+    geometries: PageGeometry[],
+  ) => {
+    const entry: Entry = result.get(key) ?? {
+      rule,
+      layer: name,
+      shape,
+      geometries: [],
+      features: [],
+      vertices: 0,
+      overBudget: false,
+    }
+    if (entry.overBudget) return
+    for (const geometry of geometries) {
+      const n =
+        geometry.type === 'LineString'
+          ? geometry.coordinates.length
+          : geometry.coordinates.reduce((s, r) => s + r.length, 0)
+      vertices += n
+      entry.vertices += n
+      // The generic profile reads every named layer, base maps included: one too large for the
+      // page is left on the sheet like a layer over its own budget, not the whole import.
+      const pageOver = vertices > DRAWN_PAGE_VERTICES
+      if (pageOver && rule.shape !== 'as-painted') throw Error(PAGE_OVER)
+      // Past the layer budget a layer is still collected, up to what thinning can bring back
+      // within it (`thinLayer`, once the page is read).
+      if (pageOver || entry.vertices > THINNABLE_LAYER_VERTICES) {
+        entry.overBudget = true
+        entry.refused = pageOver ? 'page' : 'layer'
+        if (rule.shape === 'as-painted') vertices -= entry.vertices
+        entry.geometries = []
+        break
+      }
+      entry.geometries.push(geometry)
+    }
+    result.set(key, entry)
+  }
+  /** Straight strokes a layer drew under a clip region, by region and layer: a hatch fill, or lines. */
+  const hatches = new Map<
+    ClipRegion,
+    Map<string, { rule: PdfLayerRule; segments: { segments: XY[][]; clip: Box }[]; strokes: number; fills: number }>
   >()
   const filled = new Set([
     ops.fill,
@@ -222,7 +347,7 @@ export function extractPaths(
     ops.closeFillStroke,
     ops.closeEOFillStroke,
   ])
-  let pendingClip = false,
+  let pendingClip: number | false = false,
     omittedClips = 0,
     outsideMap = 0,
     vertices = 0,
@@ -255,7 +380,7 @@ export function extractPaths(
         visible: a[0] !== 'OC' || content.isVisible(group),
       })
     } else if (fn === ops.endMarkedContent) marks.pop()
-    else if (fn === ops.clip || fn === ops.eoClip) pendingClip = true
+    else if (fn === ops.clip || fn === ops.eoClip) pendingClip = fn
     else if (fn === ops.constructPath) {
       const data = (a[1] as ArrayLike<ArrayLike<number>>)?.[0]
       if (!data) {
@@ -264,7 +389,7 @@ export function extractPaths(
       }
       const name = [...marks].reverse().find((m) => rules.some((r) => r.match.test(m.name)))?.name
       const rule = name && rules.find((r) => r.match.test(name))
-      if (!pendingClip && (!rule || marks.some((m) => !m.visible))) continue
+      if (pendingClip === false && (!rule || marks.some((m) => !m.visible))) continue
       const shape: 'line' | 'polygon' | undefined = !rule
         ? undefined
         : rule.shape === 'as-painted'
@@ -273,9 +398,10 @@ export function extractPaths(
             : 'line'
           : rule.shape
       const key = rule && rule.shape === 'as-painted' ? `${name}\u0000${shape}` : name
-      if (!pendingClip && key && result.get(key)?.overBudget) continue
+      if (pendingClip === false && key && result.get(key)?.overBudget) continue
       const paths = drawingPaths(data, state.matrix)
-      if (pendingClip) {
+      if (pendingClip !== false) {
+        const evenOdd = pendingClip === ops.eoClip
         pendingClip = false
         const ring = paths[0] ?? [],
           box = ring.length ? boxOf(ring) : ([0, 0, 0, 0] as Box)
@@ -286,7 +412,14 @@ export function extractPaths(
           ring.every((p) => (p[0] === box[0] || p[0] === box[2]) && (p[1] === box[1] || p[1] === box[3]))
         if (rectangular && isFrameClip(box, frame.bbox)) state.inMap = true
         if (rectangular) state.clip = intersectBox(state.clip, box)
-        else state.unsupportedClip = true
+        else if (!state.unsupportedClip) {
+          // An outline clip (an operating area, the frame less its label masks): drawings under it
+          // are clipped to it. Only a clip whose region cannot be stated exactly leaves them out.
+          const region = clipRegionFromPaths(paths, evenOdd)
+          if (region)
+            state.region = prepareRegion(state.region ? intersectRegions(state.region.polygons, region) : region)
+          else state.unsupportedClip = true
+        }
         continue
       }
       if (!rule || !name || !key || !shape || Number(a[0]) === ops.endPath) continue
@@ -300,10 +433,26 @@ export function extractPaths(
         omittedClips++
         continue
       }
+      if (rule.shape === 'as-painted' && state.region && !rule.contour) {
+        const layers = hatches.get(state.region) ?? new Map()
+        hatches.set(state.region, layers)
+        const group = layers.get(name) ?? { rule, segments: [], strokes: 0, fills: 0 }
+        layers.set(name, group)
+        if (shape === 'line' && paths.every((p) => p.length === 2 && isHatchStroke(p, state.region!))) {
+          group.segments.push({ segments: paths, clip: state.clip })
+          continue
+        }
+        if (shape === 'line') group.strokes++
+        else group.fills++
+      }
+      // A drawing wholly outside the clip region is clipped away; wholly inside, it needs no cut.
+      const against = state.region ? boxAgainstRegion(state.region, boxOf(paths.flat())) : 'inside'
+      if (against === 'outside') continue
+      const region = against === 'across' ? state.region : undefined
       if (rule.contour) {
         // Filled paths in a contour layer are label halos, not lines of equal height.
         if (contourOverBudget || ![ops.stroke, ops.closeStroke].includes(Number(a[0]))) continue
-        for (const line of paths.flatMap((p) => clipLines(p, state.clip))) {
+        for (const line of paths.flatMap((p) => clipPath(p, state.clip, region))) {
           contourVertices += line.length
           if (contourVertices > PDF_LIMITS.contourVertices) {
             contourOverBudget = true
@@ -314,56 +463,89 @@ export function extractPaths(
         }
         continue
       }
-      const entry = result.get(key) ?? { rule, layer: name, shape, features: [], vertices: 0, overBudget: false }
       // A fill closes every subpath, so a painted area is a ring even where the path leaves it open.
       if (rule.shape === 'as-painted' && shape === 'polygon')
         for (const p of paths) if (p.length >= 3 && !same(p[0], p.at(-1)!)) p.push(p[0])
-      const lines =
-        shape === 'line' ? paths.flatMap((p) => clipLines(p, state.clip).map((line) => line.map(frame.toWorld))) : []
-      const geometries: GeoJSON.Geometry[] =
-        shape === 'line'
-          ? rule.compound && lines.length > 1
-            ? [{ type: 'MultiLineString', coordinates: lines }]
-            : lines.map((coordinates) => ({ type: 'LineString', coordinates }))
-          : state.clip[2] <= state.clip[0] || state.clip[3] <= state.clip[1]
-            ? []
-            : polygons(paths).flatMap((p) =>
-                polygonClipping.intersection(p, [boxRing(state.clip)]).map((poly) => ({
-                  type: 'Polygon' as const,
-                  coordinates: poly.map((r) => r.map((xy) => frame.toWorld(xy as XY))),
-                })),
-              )
-      for (const geometry of geometries) {
-        const n =
-          geometry.type === 'LineString'
-            ? geometry.coordinates.length
-            : (geometry as GeoJSON.Polygon | GeoJSON.MultiLineString).coordinates.reduce((s, r) => s + r.length, 0)
-        vertices += n
-        entry.vertices += n
-        // The generic profile reads every named layer, base maps included: one too large for the
-        // page's budget is left on the sheet like a layer over its own budget, not the whole import.
-        const pageOver = vertices > PDF_LIMITS.vertices
-        if (pageOver && rule.shape !== 'as-painted')
-          throw Error('The PDF map exceeds the extracted vertex budget. Import a simpler sheet or original GIS layers.')
-        if (
-          pageOver ||
-          entry.vertices > limits.maxVertices ||
-          (!rule.compound && entry.features.length >= limits.maxFeatures)
-        ) {
-          entry.overBudget = true
-          if (rule.shape === 'as-painted') vertices -= entry.vertices
-          entry.features = []
-          break
-        }
-        entry.features.push({
-          type: 'Feature',
-          properties: { name: `${rule.name} ${entry.features.length + 1}` },
-          geometry,
-        })
-      }
-      result.set(key, entry)
+      collect(key, name, rule, shape, drawnGeometries(paths, rule, shape, state.clip, region))
     }
   }
+  // A clip region a layer drew only straight strokes across is a hatched area: the region is the
+  // area the sheet shows, and the strokes are its fill pattern. Anything else under it stays lines.
+  let hatchedAreas = 0
+  for (const [region, layers] of hatches)
+    for (const [name, group] of layers) {
+      if (group.strokes || !isHatch(group.segments.flatMap((s) => s.segments))) {
+        for (const { segments, clip } of group.segments)
+          collect(
+            `${name}\u0000line`,
+            name,
+            group.rule,
+            'line',
+            drawnGeometries(segments, group.rule, 'line', clip, region),
+          )
+        continue
+      }
+      // A layer that also filled the region has its area already; the strokes are only its pattern.
+      if (group.fills) continue
+      const clip = group.segments[0].clip
+      if (clip[2] <= clip[0] || clip[3] <= clip[1]) continue
+      const areas = polygonClipping.intersection(region.polygons, [boxRing(clip)])
+      hatchedAreas += areas.length
+      collect(
+        `${name}\u0000polygon`,
+        name,
+        group.rule,
+        'polygon',
+        areas.map((poly) => ({ type: 'Polygon', coordinates: poly as XY[][] })),
+      )
+    }
+  // Thin each layer over its budget to the sheet's own detail, refusing one that cannot fit.
+  const pointsPerMm = 72 / 25.4
+  for (const entry of result.values()) {
+    if (entry.overBudget) continue
+    const over =
+      entry.vertices > limits.maxVertices || (!entry.rule.compound && entry.geometries.length > limits.maxFeatures)
+    if (!over) continue
+    const thin = thinLayer(entry.geometries, entry.shape, limits, { compound: entry.rule.compound, pointsPerMm })
+    if (!('thinning' in thin)) {
+      entry.overBudget = true
+      entry.refused = 'layer'
+      entry.refusedShare = thin.leftOutShare
+      entry.geometries = []
+      continue
+    }
+    entry.geometries = thin.geometries
+    entry.thinning = thin.thinning
+  }
+  // The page's budget holds what is kept, after thinning.
+  let kept = 0
+  for (const entry of result.values()) {
+    if (entry.overBudget) continue
+    const n = entry.geometries.reduce(
+      (s, g) => s + (g.type === 'LineString' ? g.coordinates.length : g.coordinates.reduce((t, r) => t + r.length, 0)),
+      0,
+    )
+    kept += n
+    if (kept <= PDF_LIMITS.vertices) continue
+    if (entry.rule.shape !== 'as-painted') throw Error(PAGE_OVER)
+    kept -= n
+    entry.overBudget = true
+    entry.refused = 'page'
+    entry.geometries = []
+    entry.thinning = undefined
+  }
+  for (const entry of result.values())
+    entry.features = entry.geometries.map((geometry, i) => ({
+      type: 'Feature',
+      properties: { name: `${entry.rule.name} ${i + 1}` },
+      geometry:
+        geometry.type === 'Polygon' || geometry.type === 'MultiLineString'
+          ? ({
+              type: geometry.type,
+              coordinates: geometry.coordinates.map((r) => r.map(frame.toWorld)),
+            } as GeoJSON.Geometry)
+          : { type: 'LineString', coordinates: geometry.coordinates.map(frame.toWorld) },
+    }))
   for (const entry of result.values()) {
     if (!entry.rule.compound || entry.overBudget || !entry.features.length) continue
     // A PDF layer has drawing paths, not GIS record boundaries. Keep the layer together rather
@@ -379,5 +561,5 @@ export function extractPaths(
       },
     ]
   }
-  return { layers: result, omittedClips, outsideMap, contours, contourOverBudget }
+  return { layers: result, omittedClips, outsideMap, hatchedAreas, contours, contourOverBudget }
 }

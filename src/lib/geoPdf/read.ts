@@ -3,6 +3,7 @@ import type { DocumentInitParameters } from 'pdfjs-dist/types/src/display/api'
 import { projectedEpsg, readMapFrames, type MapFrame } from './georeference'
 import { assignContourElevations, contourSurface, readContourLabels } from './contours'
 import { extractPaths } from './paths'
+import type { Thinning } from './thinDrawing'
 import { genericProfile, PDF_DRAWING_NOTE, PDF_PROFILES } from './profiles'
 import { PDF_LIMITS, type PdfImport, type PdfLayer, type PdfSheet } from './types'
 import { extractClassRasters, type DecodedPdfImage } from './rasterRead'
@@ -23,6 +24,33 @@ export interface PdfReadOptions {
   /** How a contour surface fills between lines; the TIN by default (see `ContourMethod`). */
   contourMethod?: import('./contours').ContourMethod
 }
+
+const PT_PER_MM = 72 / 25.4
+const groundText = (toleranceMm: number, metresPerPoint: number) =>
+  `${toleranceMm} mm on the sheet, about ${(toleranceMm * PT_PER_MM * metresPerPoint).toFixed(1)} m on the ground`
+const percent = (share: number) => (share < 0.001 && share > 0 ? '<0.1' : (share * 100).toFixed(1))
+
+/** The notice for a layer brought within its budget: what was done to it and how much it moved. */
+function thinningText(t: Thinning, shape: 'line' | 'polygon', metresPerPoint: number) {
+  const steps = [
+    t.toleranceMm ? `thinned to the sheet's own detail (${groundText(t.toleranceMm, metresPerPoint)})` : undefined,
+    t.joined ? 'its paths joined into one feature' : undefined,
+    t.leftOutParts
+      ? `the ${t.leftOutParts.toLocaleString()} smallest ${shape === 'line' ? 'lines' : 'areas'} left out (${percent(t.leftOutShare)}% of its ${shape === 'line' ? 'length' : 'area'})`
+      : undefined,
+  ].filter(Boolean)
+  return `${t.partsBefore.toLocaleString()} drawing parts and ${t.verticesBefore.toLocaleString()} vertices, over the layer budget; ${steps.join(', ')}: ${t.partsAfter.toLocaleString()} ${t.partsAfter === 1 ? 'part' : 'parts'} and ${t.verticesAfter.toLocaleString()} vertices (${percent(t.verticesAfter / t.verticesBefore)}% of the vertices). Use the source GIS layer where you have it. The sheet preview shows the drawing in full.`
+}
+const thinningNote = (t: Thinning, shape: 'line' | 'polygon', metresPerPoint: number) =>
+  [
+    t.toleranceMm ? `Thinned to ${groundText(t.toleranceMm, metresPerPoint)} to fit the layer budget.` : '',
+    t.joined ? 'Its paths are joined into one feature.' : '',
+    t.leftOutParts
+      ? `The ${t.leftOutParts.toLocaleString()} smallest ${shape === 'line' ? 'lines' : 'areas'} (${percent(t.leftOutShare)}% of its ${shape === 'line' ? 'length' : 'area'}) are left out.`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
 /** Same reader in a browser worker and the env-gated private-source tests. No upload or server. */
 export async function readGeoPdf(
@@ -141,14 +169,32 @@ export async function readGeoPdf(
           .map((e) => e.layer)
           .filter((layer) => result.layers.has(`${layer}\u0000line`)),
       )
-      for (const { rule, layer: name, shape, features, overBudget } of result.layers.values()) {
+      const metresPerPoint = Math.sqrt(
+        Math.abs(
+          frame.pageToProjected[0] * frame.pageToProjected[3] - frame.pageToProjected[1] * frame.pageToProjected[2],
+        ),
+      )
+      for (const {
+        rule,
+        layer: name,
+        shape,
+        features,
+        overBudget,
+        refused,
+        refusedShare,
+        thinning,
+      } of result.layers.values()) {
         const layerName = drawnBothWays.has(name) ? `${rule.name} · ${shape === 'line' ? 'lines' : 'areas'}` : rule.name
         if (overBudget) {
           notices.push(
-            `Page ${frame.page} · ${layerName}: exceeds ${options.maxFeatures} drawing parts or ${options.maxVertices.toLocaleString()} vertices per layer. Use the source GIS layer. The sheet preview still shows it.`,
+            refused === 'page'
+              ? `Page ${frame.page} · ${layerName}: left out because the page's drawings exceed ${PDF_LIMITS.vertices.toLocaleString()} vertices with it. Use the source GIS layer. The sheet preview still shows it.`
+              : `Page ${frame.page} · ${layerName}: exceeds ${options.maxFeatures} drawing parts or ${options.maxVertices.toLocaleString()} vertices per layer${refusedShare === undefined ? '' : `, and thinned to the sheet's own detail would leave out ${percent(refusedShare)}% of its ${shape === 'line' ? 'length' : 'area'}`}. Use the source GIS layer. The sheet preview still shows it.`,
           )
           continue
         }
+        if (thinning)
+          notices.push(`Page ${frame.page} · ${layerName}: ${thinningText(thinning, shape, metresPerPoint)}`)
         if (!features.length) continue
         const vertices = features.reduce(
           (s, f) =>
@@ -170,7 +216,7 @@ export async function readGeoPdf(
           features,
           suggestedRole: 'reference',
           selected: rule.selected,
-          note: PDF_DRAWING_NOTE,
+          note: thinning ? `${PDF_DRAWING_NOTE} ${thinningNote(thinning, shape, metresPerPoint)}` : PDF_DRAWING_NOTE,
         })
       }
       if (result.contourOverBudget)
@@ -227,9 +273,13 @@ export async function readGeoPdf(
         notices.push(
           `Page ${frame.page}: ${result.outsideMap} drawings inside the frame but not drawn as part of the map (a legend, scale bar or text box laid over it) were left on the sheet only.`,
         )
+      if (result.hatchedAreas)
+        notices.push(
+          `Page ${frame.page}: ${result.hatchedAreas.toLocaleString()} hatched areas were read from the outlines their hatching is clipped to. The hatch lines are the areas' fill pattern and were not read as lines.`,
+        )
       if (result.omittedClips)
         notices.push(
-          `Page ${frame.page}: ${result.omittedClips} drawings under non-rectangular clips were left on the sheet only.`,
+          `Page ${frame.page}: ${result.omittedClips} drawings under clips whose shape could not be read exactly were left on the sheet only.`,
         )
       page.cleanup()
     }
