@@ -14,7 +14,10 @@
  * - **CFLB.** By default a proxy: VRI treed (`BCLCS_LEVEL_2 = 'T'`) on the forest management land
  *   base (`FOR_MGMT_LAND_BASE_IND = 'Y'`) within the unit (decision 2). A CFLB the reviewer states
  *   takes the proxy's shares: every area is measured on the proxy's ground and scaled by the stated
- *   CFLB over the proxy's, never set against the stated CFLB as measured.
+ *   CFLB over the proxy's, never set against the stated CFLB as measured. Ground the order does not
+ *   apply to (`landBase.ts`: land that is not provincial Crown, woodlots, TFLs, community forests)
+ *   is left out of the unit before anything is counted, so neither the proxy nor old forest nor D.1
+ *   counts it; a young stand on it still makes an edge.
  * - **D.1.** Legal OGMAs count whole whatever their age; non-legal OGMAs, parks and the reviewer's
  *   retention or recruitment areas count whole when switched on. Only their CFLB ground counts.
  * - **NFAs.** Old stands killed by beetle keep their VRI age and stay old until harvested (decision 3).
@@ -44,6 +47,7 @@ import IsValidOp from 'jsts/org/locationtech/jts/operation/valid/IsValidOp.js'
 import polygonClipping from 'polygon-clipping'
 import { lngLatToAlbers } from '../../dev-avast/projection'
 import type { Shape } from '../plan'
+import { EXCLUDED_KINDS, type ExcludedArea, type ExcludedKind } from './landBase'
 import type { CountedArea, Corridor, Stand } from './reads'
 import type { OldForestUnit } from './units'
 export { firstShortfall } from '../records'
@@ -217,6 +221,11 @@ interface PreparedStand {
   /** The stand's ground inside the unit. Null when it only neighbours the unit. */
   inside: Geometry | null
   insideM2: number
+  /**
+   * The stand's ground in the unit that the order does not apply to. Never counted; its old forest
+   * only shapes interior, so a tenure boundary is not an edge.
+   */
+  excludedPart?: Geometry | null
   whole: Geometry
   cflb: boolean
   group: ReturnType<typeof leadingGroup>
@@ -230,11 +239,64 @@ interface PreparedStand {
 export interface PreparedUnit {
   unit: OldForestUnit
   stands: PreparedStand[]
+  /** The corridor lines, joined. */
   corridors: Geometry | null
+  /** Corridors read as areas (pipeline rights-of-way), joined: buffered like the lines. */
+  corridorAreas?: Geometry | null
   /** The latest VRI projection year: resets after it are not in the inventory. */
   projectedYear: number
+  /** The proxy on the unit's Crown ground, after the excluded ground left it. */
   cflbProxyHa: number
-  counts: { stands: number; standsInside: number; counted: Record<CountedArea['kind'], number>; corridors: number }
+  /** Ground left out of the unit, by kind: its whole area in the unit and the proxy CFLB on it. */
+  excluded: ExcludedFigures[]
+  /** Clips a geometry to the excluded ground in the unit; null when there is none. */
+  excludedClip?: ((g: Geometry) => Geometry | null) | null
+  counts: {
+    stands: number
+    standsInside: number
+    counted: Record<CountedArea['kind'], number>
+    corridors: number
+    corridorKinds: Partial<Record<Corridor['kind'], number>>
+  }
+}
+
+export interface ExcludedFigures {
+  kind: ExcludedKind
+  /** Records read for the kind. */
+  records: number
+  /** Its ground within the unit, less any reported under an earlier kind. */
+  grossHa: number
+  /** Of that, what the proxy would have counted as CFLB. */
+  cflbHa: number
+}
+
+const difference = (a: Geometry, b: Geometry): Geometry | null => {
+  const g = robust((x, y) => OverlayOp.difference(x, y), a, b)
+  return g.isEmpty() || !(g.getArea() > 0) ? null : polygonal(g)
+}
+
+/**
+ * The excluded ground in the unit, one disjoint piece per kind: ground two sources hold (a TFL in
+ * the ownership layer and the TFL layer) is reported under the first kind in `EXCLUDED_KINDS`.
+ */
+function excludedGround(excluded: ExcludedArea[], unitGeom: Geometry) {
+  const kinds: {
+    kind: ExcludedKind
+    records: number
+    geometry: Geometry | null
+    clip: ReturnType<typeof clipper> | null
+  }[] = []
+  let taken: Geometry | null = null
+  for (const kind of EXCLUDED_KINDS) {
+    const list = excluded.filter((e) => e.kind === kind)
+    if (!list.length) continue
+    const joined = manyUnion(list.map((e) => toAlbers(e.geometry)))
+    let g = joined ? intersection(joined, unitGeom) : null
+    if (g && taken) g = difference(g, taken)
+    kinds.push({ kind, records: list.length, geometry: g, clip: g ? clipper(g) : null })
+    if (g) taken = taken ? union([taken, g]) : g
+  }
+  return { kinds, clip: taken ? clipper(taken) : null }
 }
 
 /** Projects and clips everything once; the per-year work only adds areas and, for interior, overlays. */
@@ -244,14 +306,19 @@ export function prepareUnit({
   stands,
   counted,
   corridors,
+  excluded = [],
 }: {
   unit: OldForestUnit
   shape: Shape
   stands: Stand[]
   counted: CountedArea[]
   corridors: Corridor[]
+  /** Ground the order does not apply to (`landBase.ts`). None: the unit's whole ground counts. */
+  excluded?: ExcludedArea[]
 }): PreparedUnit {
   const unitGeom = toAlbers(shape)
+  const ground = excludedGround(excluded, unitGeom)
+  const removedM2 = new Map<ExcludedKind, number>()
   const countedByKind = new Map<CountedArea['kind'], Geometry[]>()
   for (const c of counted) countedByKind.set(c.kind, [...(countedByKind.get(c.kind) ?? []), toAlbers(c.geometry)])
   const countedUnion = new Map([...countedByKind].map(([k, list]) => [k, intersection(union(list)!, unitGeom)]))
@@ -262,12 +329,23 @@ export function prepareUnit({
   let projectedYear = 0
   const prepared = stands.map((stand): PreparedStand => {
     const whole = toAlbers(stand.geometry)
-    const inside = clipTo(whole)
+    let inside = clipTo(whole)
+    // The excluded part of the stand leaves the unit: the order does not apply there.
+    const lost = inside && ground.clip ? ground.clip(inside) : null
+    if (inside && lost) {
+      if (stand.treed && stand.forestLandBase)
+        for (const k of ground.kinds) {
+          const part = k.clip?.(lost)
+          if (part) removedM2.set(k.kind, (removedM2.get(k.kind) ?? 0) + area(part))
+        }
+      inside = difference(inside, lost)
+    }
     projectedYear = Math.max(projectedYear, stand.projectedYear ?? 0)
     const result: PreparedStand = {
       stand,
       inside,
       insideM2: area(inside),
+      excludedPart: lost,
       whole,
       cflb: stand.treed && stand.forestLandBase,
       group: leadingGroup(stand.leading),
@@ -287,13 +365,26 @@ export function prepareUnit({
     return result
   })
   if (!projectedYear) throw Error('The VRI stands carry no projected date.')
-  const corridorGeom = union(corridors.map((c) => toAlbers(c.geometry)))
+  // Lines and areas apart: interior buffers each kind on its own, and a mixed union is neither.
+  const isLine = (c: Corridor) => c.geometry.type === 'LineString' || c.geometry.type === 'MultiLineString'
+  const corridorGeom = union(corridors.filter(isLine).map((c) => toAlbers(c.geometry)))
+  const corridorAreas = manyUnion(corridors.filter((c) => !isLine(c)).map((c) => toAlbers(c.geometry)))
+  const corridorKinds: Partial<Record<Corridor['kind'], number>> = {}
+  for (const c of corridors) corridorKinds[c.kind] = (corridorKinds[c.kind] ?? 0) + 1
   return {
     unit,
     stands: prepared,
     corridors: corridorGeom,
+    corridorAreas,
     projectedYear,
     cflbProxyHa: prepared.reduce((s, p) => s + (p.cflb ? p.insideM2 : 0), 0) / SQ_M_PER_HA,
+    excluded: ground.kinds.map((k) => ({
+      kind: k.kind,
+      records: k.records,
+      grossHa: area(k.geometry) / SQ_M_PER_HA,
+      cflbHa: (removedM2.get(k.kind) ?? 0) / SQ_M_PER_HA,
+    })),
+    excludedClip: ground.clip,
     counts: {
       stands: stands.length,
       standsInside: prepared.filter((p) => p.inside).length,
@@ -304,6 +395,7 @@ export function prepareUnit({
         retention: countedByKind.get('retention')?.length ?? 0,
       },
       corridors: corridors.length,
+      corridorKinds,
     },
   }
 }
@@ -386,7 +478,27 @@ function makesEdge(p: PreparedStand, year: number, unit: OldForestUnit, method: 
   return p.group === 'pine' || p.group === 'deciduous' ? age <= 60 : age <= 80
 }
 
-function interiorOf(old: Geometry | null, edges: Geometry[]): number {
+/**
+ * Old forest by age on ground the order does not apply to, less resets: it is never counted, but an
+ * old patch that runs across a tenure boundary is one patch, so it shapes interior.
+ */
+function excludedOld(p: PreparedStand, year: number, unit: OldForestUnit, resets: Geometry | null) {
+  if (!p.excludedPart || !p.cflb) return null
+  const age = ageIn(p.stand, year)
+  if (age === null || age < unit.oldFromAge) return null
+  const lost = resets ? intersection(p.excludedPart, resets) : null
+  return lost ? difference(p.excludedPart, lost) : p.excludedPart
+}
+
+/**
+ * Interior area of `old` away from `edges`. With `notCounted`, the ground it clips (the excluded
+ * ground) shapes the patches and their width but is left out of the area.
+ */
+function interiorOf(
+  old: Geometry | null,
+  edges: Geometry[],
+  notCounted: ((g: Geometry) => Geometry | null) | null = null,
+): number {
   if (!old) return 0
   const params = new BufferParameters(4)
   const type = (g: Geometry) => (g as unknown as { getGeometryType(): string }).getGeometryType()
@@ -405,7 +517,7 @@ function interiorOf(old: Geometry | null, edges: Geometry[]): number {
     const part = interior.getGeometryN(i)
     if (part.getArea() <= 0) continue
     if (BufferOp.bufferOp(part, -INTERIOR_MIN_WIDTH_METRES / 2, params).isEmpty()) continue
-    m2 += part.getArea()
+    m2 += part.getArea() - area(notCounted?.(part) ?? null)
   }
   return m2
 }
@@ -451,6 +563,8 @@ export function unitFigures(
       totals.unknown += s.unknownM2
       if (withInterior) {
         if (s.oldPart) oldParts.push(s.oldPart)
+        const shaping = p.excludedPart ? excludedOld(p, year, unit, near) : null
+        if (shaping) oldParts.push(shaping)
         if (makesEdge(p, year, unit, settings.interiorMethod)) edges.push(p.whole)
       }
     }
@@ -458,7 +572,8 @@ export function unitFigures(
     if (withInterior) {
       if (active) edges.push(active)
       if (prepared.corridors) edges.push(prepared.corridors)
-      interiorHa = interiorOf(manyUnion(oldParts), edges) * perHa
+      if (prepared.corridorAreas) edges.push(prepared.corridorAreas)
+      interiorHa = interiorOf(manyUnion(oldParts), edges, prepared.excludedClip ?? null) * perHa
     }
     const oldHa = totals.old * perHa
     return {

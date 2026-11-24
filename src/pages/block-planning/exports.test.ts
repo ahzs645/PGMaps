@@ -99,6 +99,11 @@ describe('block planning exports', () => {
       gisFraction: 0.12,
       projectedYear: 2025,
       counts: { stands: 10, ogmas: 1, parks: 0, retention: 0, corridors: 2 },
+      excluded: [
+        { kind: 'non-crown', records: 3, grossHa: 120, cflbHa: 80 },
+        { kind: 'tfl', records: 1, grossHa: 500, cflbHa: 400 },
+      ],
+      corridorKinds: { fsr: 1, pipeline: 1 },
       schedules: kept.schedules.map((s) => ({ schedule: s.id, years: [{ year: 2026, ...year }] })),
       calibration2019: null,
     })
@@ -110,6 +115,12 @@ describe('block planning exports', () => {
     expect(html).toContain('Check of the method against these figures')
     expect(html).toContain('Old and old interior forest · A10')
     expect(html).toContain('the order’s table says 17%')
+    expect(html).toContain('Tree farm licences 500 ha (400 ha of it on the proxy CFLB)')
+    expect(html).toContain('480 ha left the CFLB in all')
+    expect(html).toContain('pipelines 1')
+    const reopened = openPlanFile(JSON.parse(buildExport('plan', kept, undefined, library, '2026-11-24')))
+    expect(reopened.plan.checks?.oldForest?.excluded).toEqual(kept.checks?.oldForest?.excluded)
+    expect(reopened.plan.checks?.oldForest?.corridorKinds).toEqual({ fsr: 1, pipeline: 1 })
     expect(html).not.toContain('The plan changed after this was calculated')
     const changed = setOldForest(kept, { countParks: true })
     expect(buildExport('summary', changed, result, library, 'today')).toContain(

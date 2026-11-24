@@ -23,6 +23,7 @@ import { entryOf, periodYears, type Plan, type ReviewCase } from './plan'
 import type { PlanAnalysis } from './planAnalysis'
 import { DEFAULT_INDEX_WEIGHTS, indexFormula, INDEX_INDICATORS, planningIndex } from './planningIndex'
 import { pathways, trendYearOf } from './review/pathways'
+import { corridorSentence, excludedSentence } from './oldForest/recordText'
 import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
 import { boardCheckCurrent, firstShortfall, oldForestCurrent } from './records'
 
@@ -219,7 +220,7 @@ ${old.current ? '' : outOfDate}
           : ''
       } ${old.choices?.cflbEnteredHa !== undefined ? `CFLB as stated${old.choices?.cflbSource ? ` (${escape(old.choices.cflbSource)})` : ''}, with the VRI proxy’s shares applied to it.` : 'CFLB by the VRI proxy (treed, forest management land base).'}${
         oldUnit && gisDisagrees(oldUnit, old.gisFraction) ? ` ${escape(gisDisagrees(oldUnit, old.gisFraction))}` : ''
-      }</p>
+      } ${escape(excludedSentence(old))} ${escape(corridorSentence(old))}</p>
 ${old.schedules
   .map(
     (s) => `<h3>${escape(names[s.schedule] ?? s.schedule)}: ${(() => {

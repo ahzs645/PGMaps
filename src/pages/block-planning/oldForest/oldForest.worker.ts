@@ -8,6 +8,7 @@ import {
   type PreparedUnit,
   type Reset,
 } from './oldForest'
+import { readExcludedAreas, type ExcludedArea } from './landBase'
 import { readCorridors, readCountedAreas, readMap2Unit, readStands, type CountedArea, type Map2Unit } from './reads'
 import { oldForestUnit } from './units'
 
@@ -22,6 +23,7 @@ interface Read {
   stands: Awaited<ReturnType<typeof readStands>>
   counted: CountedArea[]
   corridors: Awaited<ReturnType<typeof readCorridors>>
+  excluded: ExcludedArea[]
   readOn: string
 }
 
@@ -53,9 +55,11 @@ self.onmessage = async ({ data }: MessageEvent<OldForestAsk>) => {
       const stands = await readStands({ unit: map2.geometry, fetch: fetchFn, onProgress: say })
       say('Reading OGMAs and parks…')
       const counted = await readCountedAreas({ unit: map2.geometry, fetch: fetchFn })
-      say('Reading forest service roads, railways and transmission lines…')
+      say('Reading forest service roads, railways, transmission lines and pipelines…')
       const corridors = await readCorridors({ unit: map2.geometry, fetch: fetchFn })
-      read = { map2, stands, counted, corridors, readOn: ranOn }
+      say('Reading private land, woodlots, community forests and tree farm licences…')
+      const excluded = await readExcludedAreas({ unit: map2.geometry, fetch: fetchFn })
+      read = { map2, stands, counted, corridors, excluded, readOn: ranOn }
       reads.set(readKey, read)
     }
     const retention: CountedArea[] = choices.retentionAreas.map((r) => ({
@@ -76,6 +80,7 @@ self.onmessage = async ({ data }: MessageEvent<OldForestAsk>) => {
           stands: read.stands,
           counted: [...read.counted, ...retention],
           corridors: read.corridors,
+          excluded: read.excluded,
         }),
       }
     }
@@ -121,6 +126,8 @@ self.onmessage = async ({ data }: MessageEvent<OldForestAsk>) => {
         retention: counts.counted.retention,
         corridors: counts.corridors,
       },
+      excluded: prepared.unit.excluded,
+      corridorKinds: counts.corridorKinds,
       schedules,
       calibration2019,
     }

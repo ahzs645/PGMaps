@@ -18,6 +18,7 @@
 import type { MultiPolygon, Polygon, Position } from 'geojson'
 import { bool, int, list, object, oneOf, optional, text, type JsonObject } from '@/lib/jsonGuards'
 import type { BoardCheckRecord, OldForestChoices, OldForestRecord, OldForestYear, PlanChecks } from './records'
+import { CORRIDOR_KINDS, OLD_FOREST_EXCLUDED_KINDS } from './records'
 import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { districts, table } from '../forest-patches/project'
 
@@ -467,6 +468,25 @@ function parseChecks(value: unknown): PlanChecks {
           retention: int(counts.retention, 'checks.oldForest.counts.retention', 0, 1e7),
           corridors: int(counts.corridors, 'checks.oldForest.counts.corridors', 0, 1e7),
         },
+        excluded: optional(r, 'excluded', (v) =>
+          list(v, 'checks.oldForest.excluded', OLD_FOREST_EXCLUDED_KINDS.length).map((e, i) => {
+            const o = object(e, `checks.oldForest.excluded ${i + 1}`)
+            return {
+              kind: oneOf(o.kind, `checks.oldForest.excluded ${i + 1} kind`, OLD_FOREST_EXCLUDED_KINDS),
+              records: int(o.records, `checks.oldForest.excluded ${i + 1} records`, 0, 1e7),
+              grossHa: num(o.grossHa, `checks.oldForest.excluded ${i + 1} grossHa`),
+              cflbHa: num(o.cflbHa, `checks.oldForest.excluded ${i + 1} cflbHa`),
+            }
+          }),
+        ),
+        corridorKinds: optional(r, 'corridorKinds', (v) => {
+          const o = object(v, 'checks.oldForest.corridorKinds')
+          return Object.fromEntries(
+            CORRIDOR_KINDS.flatMap((k) =>
+              o[k] === undefined ? [] : [[k, int(o[k], `checks.oldForest.corridorKinds.${k}`, 0, 1e7)]],
+            ),
+          )
+        }),
         schedules: list(r.schedules, 'checks.oldForest.schedules', 50).map((s, i) => {
           const o = object(s, `checks.oldForest schedule ${i + 1}`)
           return {
