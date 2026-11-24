@@ -130,6 +130,28 @@ describe('readBaseline', () => {
     expect(asked.some((u) => new URL(u).searchParams.get('resultRecordCount') === '500')).toBe(true)
   })
 
+  it('asks again at half the size when the gateway gives up on a page', async () => {
+    const rows = Array.from({ length: 700 }, (_, i) =>
+      cutblock(i + 1, square(-122.99 + (i % 50) * 0.001, 54.01, 0.0005), 2000),
+    )
+    const { fetch: answer } = fakeDataBc(rows, [])
+    const asked: string[] = []
+    const fetch = async (url: string) => {
+      asked.push(url)
+      // The live gateway timed out on full pages: answer 502 to any page over 250 records.
+      if (Number(new URL(url).searchParams.get('resultRecordCount')) > 250)
+        return { ok: false, status: 502, json: async () => ({}) }
+      return answer(url)
+    }
+    const read = await readBaseline({ unit, sources: ['cutblocks'], earliestYear: 2015, fetch, readOn: '2026-11-24' })
+    expect(read.counts.cutblocks.read).toBe(700)
+    expect(asked.map((u) => new URL(u).searchParams.get('resultRecordCount')).slice(0, 3)).toEqual([
+      '1000',
+      '500',
+      '250',
+    ])
+  })
+
   it('refuses an invalid unit and reports a refused query', async () => {
     const bow: Shape = {
       type: 'Polygon',
