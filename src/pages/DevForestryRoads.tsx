@@ -6511,7 +6511,6 @@ export default function DevForestryRoads({
       data-focus-mode={focusMode || undefined}
       data-tiny-height={tinyHeight || undefined}
     >
-      {pageDrop.overlay}
       {brandingOpen && branding.ready && (
         <BrandingDialog onClose={() => setBrandingOpen(false)} portalContainer={ref.current} />
       )}
@@ -8562,6 +8561,8 @@ export default function DevForestryRoads({
     </div>
   )
   return (
+      {/* Last, never first: the full-width ribbon drops the workspace's top padding only while it is the first child. */}
+      {pageDrop.overlay}
     <PanelWindowProvider>
       <PanelWindowLayoutRestore
         layout={savedLayouts.find((item) => `saved:${item.id}` === layoutSelection)?.windows ?? active.panelWindows}

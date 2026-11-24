@@ -22,7 +22,9 @@ export type FileDropOptions = DropReceiver & {
 
 /**
  * The drop behaviour of `FileDropTarget` for an element the caller already renders: spread
- * `dropProps` on it (it must be positioned) and render `overlay` inside it. Text and links
+ * `dropProps` on it (it must be positioned) and render `overlay` inside it, as its last child:
+ * placed first it shifts every `:first-child` rule on the element's real children (the
+ * road designer's ribbon moved down 12 px on every drag). Text and links
  * dragged over it are ignored. A drop field inside that takes its own drop (it calls
  * `preventDefault` on `dragover` and `drop`) keeps it: the overlay steps aside over it and the
  * drop is not handed over twice.
