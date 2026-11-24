@@ -12,8 +12,10 @@
  *   district decide.
  * - **Range tenures** (`FTEN_RANGE_POLY_SVW`): the RAN file and map block, its type and status
  *   as the dataset's own column comments define them. The holder's name is never read.
- * - **Tantalis grazing tenures** (`TA_CROWN_TENURES_SVW`, sub-purpose GRAZING): an issued lease
- *   apart from an application and from a reserve or notation. No holder is read.
+ * - **Tantalis grazing tenures and Land Act designations** (`TA_CROWN_TENURES_SVW`, sub-purpose
+ *   GRAZING, or a §15 reserve, §16 withdrawal or §17 designated use area of any purpose): an issued
+ *   lease apart from an application, a reserve or notation, and each kind of designation. No holder
+ *   is read.
  *
  * Each read follows the footprint's own polygons (`INTERSECTS` per part, by POST), never its box. A
  * layer that could not be read says "Not read", never "none".

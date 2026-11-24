@@ -93,9 +93,9 @@ export function GrazingEvidence({
     <div className="space-y-2" data-testid="block-planning-grazing-evidence">
       <p className="text-xs font-medium">Mapped evidence</p>
       <p className="text-2xs text-muted-foreground">
-        Reads DataBC’s agriculture development and settlement reserve areas, range tenures and Tantalis grazing tenures
-        against this block shape. What overlaps is a candidate to weigh when answering the facts below; it answers none
-        of them. The orders’ maps are a visual representation, not for legal purposes.
+        Reads DataBC’s agriculture development and settlement reserve areas, range tenures, and Tantalis grazing tenures
+        and Land Act §15–17 designations against this block shape. What overlaps is a candidate to weigh when answering
+        the facts below; it answers none of them. The orders’ maps are a visual representation, not for legal purposes.
       </p>
       {state.status === 'reading' ? (
         <div className="flex items-center gap-2">
