@@ -16,9 +16,10 @@ import BufferOp from 'jsts/org/locationtech/jts/operation/buffer/BufferOp.js'
 import IsValidOp from 'jsts/org/locationtech/jts/operation/valid/IsValidOp.js'
 import UnaryUnionOp from 'jsts/org/locationtech/jts/operation/union/UnaryUnionOp.js'
 import type { MultiPolygon, Polygon } from 'geojson'
+import { DATABC_WFS } from '@/lib/forestry/wfsReads'
 import type { Shape } from './plan'
 
-export const ORDER_UNITS_WFS = 'https://openmaps.gov.bc.ca/geo/pub/wfs'
+export const ORDER_UNITS_WFS = DATABC_WFS
 export const ORDER_UNITS_LAYER = 'pub:WHSE_LAND_USE_PLANNING.RMP_PLAN_LEGAL_POLY_SVW'
 export const ORDER_PLAN_NAME =
   'Prince George Timber Supply Area (TSA) Legal Order - Landscape Biodiversity Objective Order - Extent'

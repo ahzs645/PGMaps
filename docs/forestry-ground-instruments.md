@@ -8,6 +8,7 @@ It is a screen to plan the review, never a legal determination. Nothing in it sa
 | -------------------- | -------------------------------------------------------------------------------------------------- |
 | Catalogue (data)     | `packages/legal-rules/ground/instruments.json`                                                     |
 | Catalogue parser     | `src/lib/legal/groundInstruments.ts` (by hand, no schema library)                                  |
+| Layer reader         | `src/lib/legal/groundLayerRead.ts` over `src/lib/forestry/wfsReads.ts`, shared with visual quality |
 | Reader               | `src/pages/block-planning/ground/groundRead.ts`                                                    |
 | Precedent            | `src/pages/block-planning/ground/precedent.ts`                                                     |
 | Documents to request | `src/pages/block-planning/ground/requests.ts`                                                      |
@@ -16,6 +17,8 @@ It is a screen to plan the review, never a legal determination. Nothing in it sa
 | Overlays             | `groundOverlay` in `oldForest/oldForest.ts` (the old forest calculation's BC Albers JSTS overlays) |
 
 All but the panel are DOM- and network-free; `fetch` and the overlays are passed in.
+
+The layer reader is shared: `/dev/forestry/visual-quality`'s land status checks (`landStatusChecks.ts`, `docs/forestry-visual-quality.md`, **Land checks**) read their layers from this catalogue through it, so a layer's name, fields, filter, margin and the cut of every record to its fields are defined once, here. `src/pages/block-planning/wfsReads.ts` re-exports the WFS reads for the planner's other readers.
 
 ## The catalogue
 
@@ -27,6 +30,8 @@ A reach cell is one of:
 - **Conditions**: the activity can happen, under the instrument's conditions.
 - **No reach**: the instrument, read from its text, sets nothing on the activity.
 - **Unknown**: the answer turns on terms the reader does not have (an order's own text, a notice's terms, a general wildlife measure). The note names the document that decides.
+
+A **context layer** (`context` on the layer) is read for what lies under a block but holds no instrument with reach cells: no instrument names it, the parser refuses one that does, and every other layer must hold at least one instrument. Its `context` says why it is listed and why it has no cells. The planner's _On this ground_ does not read it; the visual quality land checks do. Two are listed (version 1.2.0): First Nations treaty lands (`FNT_TREATY_LAND_SP`) and Indian reserves (`CLAB_INDIAN_RESERVES`), because the final agreements, the Acts that bring them into effect, the Indian Act and the federal reserve records were not read for the catalogue. A context layer gets a cell only as an instrument, from its primary text.
 
 Every cell cites at least one provision and a source in `packages/legal-rules/catalogue/sources.json`; `groundInstruments.test.ts` fails otherwise, and fails if an instrument whose terms are not public says _No reach_ for anything. Binds is one of _Directly_ (the instrument regulates the activity), _Through the FSP_ (an objective set by government the forest stewardship plan must address, FRPA s. 5(1)(b)(i), and its holder carry out, s. 20.22), _By referral_ (decision-makers consider it; it does not itself regulate) or _Not at all_.
 
@@ -118,10 +123,12 @@ Change a cell only from the primary text, with its provision, and keep this guid
 | Recreation trail (lines, 50 m)                              | `WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW` (`GEOMETRY`), `PROJECT_TYPE` Recreation Trail Established, Interpretive Forest Trail, Trail Based Recreation Linear, ACTIVE                                     | 2,814                                      | `PROJECT_ESTABLISHED_DATE`                                                                       |
 | Established VQO; scenic area without one                    | `WHSE_FOREST_VEGETATION.REC_VISUAL_LANDSCAPE_INVENTORY` (`GEOMETRY`): `REC_EVQO_CODE` P, R, PR, M, MM; else `REC_MADE_KNOWN_CODE` Y                                                                            | 33,974 (617 not made known); 4,244         | None: the establishing order or letter gives it                                                  |
 | Federal critical habitat                                    | `WHSE_WILDLIFE_MANAGEMENT.WCP_CRITICAL_HABITAT_SP` (`SHAPE`), all                                                                                                                                              | 142,354: 99,795 final, 42,559 proposed     | None (`CRITICAL_HABITAT_DATE_EDITED` is an edit date)                                            |
+| Context: First Nations treaty lands                         | `WHSE_LEGAL_ADMIN_BOUNDARIES.FNT_TREATY_LAND_SP` (`GEOMETRY`), all                                                                                                                                             | 148                                        | `EFFECTIVE_DATE`                                                                                 |
+| Context: Indian reserves                                    | `WHSE_ADMIN_BOUNDARIES.CLAB_INDIAN_RESERVES` (`GEOMETRY`), all                                                                                                                                                 | 1,602                                      | None: the Canada Lands Survey Records give it                                                    |
 
 ## How the read works
 
-Each layer is read once, by the footprint's own parts (`INTERSECTS` with each part's outer ring, by POST, through `wfsReads.ts`), never its bounding box, with the CQL of every instrument it holds joined by OR. Its records are then shared out to the catalogue's instruments by the same conditions, the first instrument a record meets taking it, and clipped to the footprint in BC Albers. An instrument's covered area dissolves its records, so ground two of them share is counted once. Overlaps under 1 m² are the overlay's rounding and are left out.
+Each layer is read once, by the footprint's own parts (`INTERSECTS` with each part's outer ring, by POST, through `readGroundLayer` and `wfsReads.ts`), never its bounding box, with the CQL of every instrument it holds joined by OR (a context layer is read whole, and only by the land checks). Its records are then shared out to the catalogue's instruments by the same conditions, the first instrument a record meets taking it, and clipped to the footprint in BC Albers. An instrument's covered area dissolves its records, so ground two of them share is counted once. Overlaps under 1 m² are the overlay's rounding and are left out.
 
 A line or point layer (`geometry` in the catalogue) is read against the footprint grown by its stated margin (`near`), plus 2 m for the ring's rounding: a line's length and a point's count are measured inside the footprint and within the margin, a length two records share counted once. TFLs are asked by each part's convex hull, because DataBC times out intersecting a detailed part with a licence of tens of thousands of vertices; the clip is exact either way. Precedent is read inside area instruments only.
 
@@ -227,7 +234,7 @@ Inside the §17 area the precedent holds the BC Timber Sales openings 1707953, 1
 ## Not built
 
 - **The terms themselves.** No order, notice, lease, GWM or range plan is read; each _Unknown_ names the document. Reading the general wildlife measures of a found winter range or habitat area, from the ministry's published orders, would turn most of their _Unknown_ cells into answers.
-- **Other instruments.** Fisheries sensitive watersheds, temperature sensitive streams, First Nations reserves and treaty lands, private managed forest land, coal tenures (Coal Act), water approvals and notations (`WLS_WATER_APPROVALS_SVW`, `WLS_WATER_NOTATION_SV`), recreation reserves and trail reserves (not established under FRPA s. 56), wildlife management areas, Forest Act designated and special purpose areas, and the BC Data Centre's occurrences are not in the catalogue.
+- **Other instruments.** Fisheries sensitive watersheds, temperature sensitive streams, First Nations reserves and treaty lands (listed only as context layers, with no reach cells), private managed forest land, coal tenures (Coal Act), water approvals and notations (`WLS_WATER_APPROVALS_SVW`, `WLS_WATER_NOTATION_SV`), recreation reserves and trail reserves (not established under FRPA s. 56), wildlife management areas, Forest Act designated and special purpose areas, and the BC Data Centre's occurrences are not in the catalogue.
 - **The other signals.** RESULTS reserves (`RSLT_FOREST_COVER_RESERVE_SVW`, the FPPR s. 1(2)(f) reserves), opening categories other than SPEX that move an obligation (`FTFSM`, `FFTITSL`, `FFTFLTC`), the RESULTS "declared to the extent practicable" indicator (not among the public columns) and the ALC's decisions themselves are not read. A water licence, mineral title or recreation feature has no precedent: precedent is read inside area instruments only, and a water licence is a point.
 - **Orders behind the federal and recreation rows.** No order under SARA s. 58(4), 61(2) or 80, and no FRPA s. 56 or 58 order, is read; each row names it as the deciding document.
 - **Effective dates where the layer has none.** Tantalis, range tenures, the ALR and ParcelMap carry none; GATOR, the RAN file, the Commission's records and the title do, and the reviewer records them in the grazing review's evidence.

@@ -150,6 +150,19 @@ describe('the ground instrument catalogue', () => {
     expect(robson.reach.harvest.cites.every((c) => c.source === 'bc.robson-valley.ada.2006')).toBe(true)
   })
 
+  it('names every layer by an instrument, but a context layer, which no instrument names and which says why', () => {
+    const context = GROUND_CATALOGUE.layers.filter((l) => l.context)
+    expect(context.map((l) => l.id)).toEqual(['treaty-lands', 'indian-reserves'])
+    for (const l of context) expect(l.context!.length, l.id).toBeGreaterThan(80)
+    const named = structuredClone(raw) as { instruments: { id: string; layer: string }[] }
+    // The OGMA instrument tests no field, so only the context rule can refuse it.
+    named.instruments.find((x) => x.id === 'ogma')!.layer = 'treaty-lands'
+    expect(() => parseGroundCatalogue(named)).toThrow(/context layer, but an instrument names it/)
+    const orphan = structuredClone(raw) as { layers: { id: string; context?: string }[] }
+    delete orphan.layers.find((l) => l.id === 'indian-reserves')!.context
+    expect(() => parseGroundCatalogue(orphan)).toThrow(/holds no instrument/)
+  })
+
   it('keeps federal critical habitat unknown without an order, citing the Act', () => {
     const x = GROUND_CATALOGUE.instruments.find((i) => i.id === 'federal-critical-habitat')!
     expect(ACTIVITIES.map((a) => x.reach[a].state)).toEqual(['unknown', 'unknown', 'unknown', 'unknown'])

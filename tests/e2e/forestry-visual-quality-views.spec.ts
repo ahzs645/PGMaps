@@ -12,7 +12,6 @@ import {
 } from './document-contents'
 import { choose, expectSelected } from './styled-select'
 import { chooseVisualsFormat, openVisualsExport, openVisualsExportPackage } from './visuals-export'
-import { LAND_CHECKS } from '../../src/pages/dev-forestry/landStatusChecks'
 import { VIEWPOINT_LAYERS } from '../../src/pages/dev-forestry/viewpointLayers'
 
 /**
@@ -169,7 +168,6 @@ async function stubNetwork(page: Page) {
     route.fulfill(json(collection([]))),
   )
 
-  const landLayers = new Set(LAND_CHECKS.map((check) => check.typeName))
   const viewpointFeatures: Record<string, unknown[]> = {
     [VIEWPOINT_LAYERS.viewpoints]: [
       {
@@ -195,12 +193,16 @@ async function stubNetwork(page: Page) {
       },
     })),
   }
-  // Every DataBC WFS layer the page reads: the land status checks (typeNames), the viewpoint inventory's five
-  // layers and the visual landscape inventory (typeName). Nothing reaches the real service.
+  // Every DataBC WFS layer the page reads: the land status checks (by POST, the layer in the body), the
+  // viewpoint inventory's five layers and the visual landscape inventory (typeName). Nothing reaches the
+  // real service.
+  await page.route('**/geo/pub/wfs', (route) =>
+    route.request().method() === 'POST' ? route.fulfill(json(collection([]))) : route.fallback(),
+  )
   await page.route('**/geo/pub/wfs?**', (route) => {
     const parameters = new URL(route.request().url()).searchParams
     const layer = parameters.get('typeName') ?? parameters.get('typeNames') ?? ''
-    if (landLayers.has(layer) || Object.values(VIEWPOINT_LAYERS).includes(layer as never)) {
+    if (Object.values(VIEWPOINT_LAYERS).includes(layer as never)) {
       return route.fulfill(json(collection(viewpointFeatures[layer] ?? [])))
     }
     if (layer === 'WHSE_FOREST_VEGETATION.REC_VISUAL_LANDSCAPE_INVENTORY') return route.fulfill(json(collection([])))

@@ -4168,17 +4168,42 @@ be shown, and most start hidden so the stack stays short.
   OGMAs, ungulate winter range, wildlife habitat areas and recreation sites or
   trails — and each has a card of its own (hidden by default) saying how many
   hectares of which block overlap which feature, or that it lies only in the
-  landform, or none. Each layer is read live from DataBC's WFS for the box
-  around the blocks and landform (the blocks alone when that box is wider than
-  0.4°), 800 ms after the shapes last change, with the box in `CQL_FILTER`,
-  longitude first, and the geometry field named in `propertyName`. Overlaps
-  under 0.05 ha are boundary slivers and are not counted. A check is a screen,
-  not a legal determination: it never writes a mask or changes a figure (add
-  private land as a mask in step 3 for that), and a layer that fails says *Not
-  read* rather than *None*. On the Tabor sample in November 2026 it found the
-  blocks inside ungulate winter range u‑7‑022 (conditional harvest zone) and
-  the Tabor Mountain recreation area, and 797 ha of private parcels in the
-  landform.
+  landform, or none. Each check is a layer of the block planner's ground
+  catalogue (`packages/legal-rules/ground/instruments.json`,
+  `docs/forestry-ground-instruments.md`), read through the catalogue's own
+  reader (`src/lib/legal/groundLayerRead.ts`), the one *On this ground* uses:
+  the layer, its fields, its filter (every instrument the layer holds) and the
+  cut of each record to those fields (`keepFields`) are defined there once.
+  Treaty land and reserves are the catalogue's two context layers, read whole
+  and with no reach cells. Each layer is read live from DataBC's WFS by the
+  blocks' and the landform's own parts (`INTERSECTS` per part, by POST, the
+  geometry field named in `propertyName`), never their box, 800 ms after the
+  shapes last change; the landform is left out, and given no figure, when it
+  takes the shapes past 0.4°, and nothing is read when the blocks alone are
+  that wide. A read keeps at most 300 features (`MAX_LAND_CHECK_FEATURES`) and
+  says when there were more. Overlaps under 0.05 ha are boundary slivers and
+  are not counted. A check is a screen, not a legal determination: it never
+  writes a mask or changes a figure (add private land as a mask in step 3 for
+  that), and a layer that fails says *Not read*, naming the layer, rather than
+  *None*. The reads go through `inventoryFetch`, so *Keep inventory copies*
+  answers one DataBC cannot (a form POST is kept under the URL its form would
+  make as a GET).
+
+  What changed when the checks moved onto the catalogue (24 November 2026):
+  the recreation check counts only what the catalogue's recreation site
+  instrument holds, active recreation sites, interpretive forests and
+  trail-based recreation areas, and no longer the 1,532 recreation reserves
+  (not established under FRPA s. 56, which the card's own wording names);
+  parks, ungulate winter range and habitat areas read every record as before,
+  since their instruments together hold the whole layer. Names in a note are
+  listed in the layer's key order rather than DataBC's own. On the Tabor sample
+  that day the checks found the blocks inside ungulate winter range u‑7‑022
+  (conditional harvest zone, 258 ha in the two blocks) and 797 ha of 118
+  private parcels in the landform; the recreation card, which had counted the
+  Tabor Mtn Areas recreation reserve (185 ha of the blocks), now finds the Tabor
+  Mtn. staging area recreation sites in the landform (23 ha). The parks layer,
+  intersected with the landform's own ring, took about 5.7 s to answer, the
+  others under 0.5 s.
 
 ## The road view's layout
 
@@ -6060,8 +6085,10 @@ every read the page makes of a BC inventory goes through `inventoryFetch`
 
 - a successful read is kept in this browser with the time it was read;
 - a read DataBC cannot answer (no connection, or a 5xx) is answered from the
-  copy of that **same request**, the same layer and the same box. Another area
-  has no copy and fails as before; a 4xx is DataBC refusing the question and is
+  copy of that **same request**, the same layer and the same box (or, for the
+  land checks' form POSTs by the shapes' own parts, the same shapes: the copy
+  is kept under the URL the form would make as a GET). Another area has no
+  copy and fails as before; a 4xx is DataBC refusing the question and is
   never papered over; a cancelled read is never answered from a copy;
 - a result from a copy carries the copy's own time as its `retrievedAt`, never
   the time it was used. The run's vegetation evidence and the scene's harvest

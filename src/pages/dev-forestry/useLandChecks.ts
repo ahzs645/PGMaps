@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import { LAND_CHECKS, landCheckBounds, runLandCheck, type LandCheckId, type LandCheckState } from './landStatusChecks'
+import {
+  LAND_CHECKS,
+  landCheckFootprint,
+  runLandCheck,
+  type LandCheckId,
+  type LandCheckState,
+} from './landStatusChecks'
 import type { TargetPolygon } from './types'
 import { inventoryFetch } from '@/lib/offline/inventoryCopies'
 
@@ -9,7 +15,9 @@ const CHECK_DELAY_MS = 800
 
 /**
  * Runs every land status check (`landStatusChecks.ts`) against the scene's blocks and active
- * landform, again whenever either changes shape. Each layer reports on its own, so a slow or
+ * landform, again whenever either changes shape. Each check reads its ground catalogue layer through
+ * the shared reader, by the shapes' own parts, with `inventoryFetch`, so *Keep inventory copies*
+ * answers a read DataBC cannot. Each layer reports on its own, so a slow or
  * failed layer never holds the others. Reads only; it writes nothing to the scene.
  */
 export function useLandChecks(blocks: readonly TargetPolygon[], landform: TargetPolygon | null) {
@@ -22,14 +30,12 @@ export function useLandChecks(blocks: readonly TargetPolygon[], landform: Target
   )
   // The shapes, not their objects: a scene edit elsewhere must not read the layers again.
   const key = useMemo(() => JSON.stringify(input), [input])
-  const bounds = useMemo(
+  const read = useMemo(
     () =>
-      input.blocks.length
-        ? landCheckBounds(
-            input.blocks.map((block) => block.geometry),
-            input.landform,
-          )
-        : null,
+      landCheckFootprint(
+        input.blocks.map((block) => block.geometry),
+        input.landform,
+      ),
     // Keyed by the shapes, so recolouring or renaming a block reads nothing again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [key],
@@ -40,12 +46,12 @@ export function useLandChecks(blocks: readonly TargetPolygon[], landform: Target
   })
 
   useEffect(() => {
-    if (!bounds) return
+    if (!read) return
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
       setStates({ key, byId: Object.fromEntries(LAND_CHECKS.map((check) => [check.id, { status: 'loading' }])) })
       for (const check of LAND_CHECKS)
-        runLandCheck(check, bounds, input.blocks, input.landform, inventoryFetch, controller.signal)
+        runLandCheck(check, read.footprint, input.blocks, read.landform, inventoryFetch, controller.signal)
           .then((result) => ({ status: 'ready' as const, result }))
           .catch((error: unknown) => ({
             status: 'error' as const,
@@ -64,11 +70,11 @@ export function useLandChecks(blocks: readonly TargetPolygon[], landform: Target
     }
     // `key` stands for `input`'s shapes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, bounds])
+  }, [key, read])
 
   const unchecked = !input.blocks.length
     ? 'Add a cutblock to check the land under it.'
-    : !bounds
+    : !read
       ? 'The blocks are spread too wide to check in one query.'
       : null
   return { states: states.key === key ? states.byId : {}, unchecked }

@@ -104,6 +104,12 @@ export interface GroundLayer {
   /** Where the layer gives an effective or legalisation date; `null` when it has none. */
   date: { field: string; label: string } | null
   dateNote?: string
+  /**
+   * A context layer: read for what lies under a block (the visual quality page's land status checks)
+   * but holding no instrument the catalogue has reach cells for, so no instrument names it and the
+   * planner's *On this ground* does not read it. Says why it is listed and why it has no cells.
+   */
+  context?: string
 }
 
 export interface GroundInstrument {
@@ -220,6 +226,7 @@ function layer(value: unknown, i: number): GroundLayer {
       ? { field: field(date.field, `${label} date field`), label: text(date.label, `${label} date label`) }
       : null,
     dateNote: optional(l, 'dateNote', (v) => text(v, `${label} dateNote`, 1000)),
+    ...(l.context !== undefined ? { context: text(l.context, `${label} context`, 2000) } : {}),
   }
 }
 
@@ -289,6 +296,13 @@ export function parseGroundCatalogue(value: unknown): GroundCatalogue {
     ['instrument', instruments.map((x) => x.id)],
   ] as const)
     if (new Set(ids).size !== ids.length) throw Error(`The ground catalogue lists a ${what} id twice.`)
+  // A context layer holds no instrument; every other layer holds at least one, or nothing would read it.
+  const named = (l: GroundLayer) => instruments.some((x) => x.layer === l.id)
+  for (const l of layers)
+    if (l.context && named(l)) throw Error(`Ground layer ${l.id} is a context layer, but an instrument names it.`)
+  for (const l of layers)
+    if (!l.context && !named(l))
+      throw Error(`Ground layer ${l.id} holds no instrument: mark it as context or remove it.`)
   const labels = object(c.sourceLabels, 'ground catalogue sourceLabels')
   const sourceLabels = Object.fromEntries(
     Object.entries(labels).map(([k, v]) => [text(k, 'source id', 100), text(v, `source label for ${k}`, 100)]),
