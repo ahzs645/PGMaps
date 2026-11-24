@@ -1,6 +1,7 @@
 import { validateImportedStory } from './model/validateImport.mjs'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type RefObject } from 'react'
 import type { ProjectPackage } from '@/lib/projectPackages'
+import { withBase } from '@/lib/dataUrl'
 import { EditorialBasemapContext } from './editorialBasemap'
 import { EditorialMap, EditorialSwipe, warmEditorialMap } from './EditorialMap'
 import { SafeRichText, safeLink } from './SafeRichText'
@@ -85,9 +86,14 @@ function resource(document: StoryDocument, id: unknown): Data {
 function node(document: StoryDocument, id: unknown): StoryNode {
   return document.nodes[text(id)] ?? { type: 'missing' }
 }
+/** A story's media link, resolved for this deploy: a `/data/...` path may be served by another host (data-hosts.json). */
+function mediaUrl(value: unknown): string | undefined {
+  const link = safeLink(value)
+  return link === undefined ? undefined : withBase(link)
+}
 function resourceUrl(document: StoryDocument, id: unknown): string | undefined {
   const data = resource(document, id)
-  return safeLink(data.deliveryUrl) ?? safeLink(data.url)
+  return mediaUrl(data.deliveryUrl) ?? mediaUrl(data.url)
 }
 
 function StoryImage({ storyNode }: { storyNode: StoryNode }) {
@@ -262,7 +268,7 @@ function PublisherCredit() {
   const theme = record(resource(document, root.data?.storyTheme).theme)
   const logo = record(theme.logo)
   const data = record(record(record(theme.resources)[text(logo.resource)]).data)
-  const src = safeLink(data.url)
+  const src = mediaUrl(data.url)
   if (!src) return null
   return (
     <div className="editorial-publisher-credit">
@@ -361,7 +367,7 @@ export default function EditorialStory({
   const scrollRoot = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const controller = new AbortController()
-    fetch(documentUrl, { signal: controller.signal })
+    fetch(withBase(documentUrl), { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error('Story document could not be loaded.')
         return response.json()
@@ -387,7 +393,11 @@ export default function EditorialStory({
     : undefined
   const links = array(navigation?.data?.links)
   const theme = document ? record(resource(document, root?.data?.storyTheme).theme) : {}
-  useStoryFonts(array(theme.localFonts).filter((font) => typeof font.url === 'string') as unknown as StoryFontFace[])
+  useStoryFonts(
+    array(theme.localFonts)
+      .filter((font) => typeof font.url === 'string')
+      .map((font) => ({ ...font, url: withBase(font.url as string) })) as unknown as StoryFontFace[],
+  )
   if (!value || !document)
     return (
       <div className="editorial-loading" role="status">

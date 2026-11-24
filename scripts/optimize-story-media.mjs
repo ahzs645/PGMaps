@@ -4,11 +4,29 @@ import console from 'node:console'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { resolve, join, basename, extname } from 'node:path'
+import { resolve, join, basename, extname, dirname, relative, sep } from 'node:path'
 
 // Explicit authoring command, never a build dependency. Keep source snapshots.
-const folder = resolve(process.argv[2] ?? 'public/data/story-documents/prague')
+const folder = resolve(process.argv[2] ?? 'vendor/pgmaps-story-prague')
 const publicRoot = resolve('public')
+// The URL the folder is served at: below public/, its own path; a story kept in
+// a repository of its own says in pages/site.json where it publishes story.json.
+function servedAt() {
+  const site = join(folder, 'pages', 'site.json')
+  if (existsSync(site)) {
+    const target = JSON.parse(readFileSync(site, 'utf8')).mappings.find(([source]) => source === 'story.json')?.[1]
+    if (!target) throw new Error(`${site} does not publish story.json`)
+    return `/data/${dirname(target)}`
+  }
+  if (!folder.startsWith(`${publicRoot}${sep}`)) throw new Error(`${folder} is neither below public/ nor a story repository`)
+  return `/${relative(publicRoot, folder).split(sep).join('/')}`
+}
+const urlBase = servedAt()
+const fileFor = (url) => {
+  if (!url.startsWith(`${urlBase}/`)) throw new Error(`Media outside the story: ${url}`)
+  return join(folder, url.slice(urlBase.length + 1))
+}
+const urlFor = (file) => `${urlBase}/${relative(folder, file).split(sep).join('/')}`
 const documentPath = join(folder, 'story.json')
 const document = JSON.parse(readFileSync(documentPath, 'utf8'))
 const manifestPath = join(folder, 'delivery.json')
@@ -23,7 +41,7 @@ try {
     const data = resource.data
     if (!['image', 'video'].includes(resource.type) || typeof data?.url !== 'string' || !data.url.startsWith('/data/'))
       continue
-    const original = resolve(publicRoot, `.${data.url}`)
+    const original = fileFor(data.url)
     if (!original.startsWith(`${folder}/assets/`)) throw new Error(`Media outside the story: ${data.url}`)
     // Source diagrams remain exact PNG/SVG snapshots. Convert only JPEG photos.
     if (resource.type === 'image' && !/\.jpe?g$/i.test(original)) continue
@@ -33,9 +51,9 @@ try {
     if (
       cached &&
       JSON.stringify(previous.recipe) === JSON.stringify(recipe) &&
-      existsSync(join(publicRoot, cached.url))
+      existsSync(fileFor(cached.url))
     ) {
-      if (digest(readFileSync(join(publicRoot, cached.url))) !== cached.sha256)
+      if (digest(readFileSync(fileFor(cached.url))) !== cached.sha256)
         throw new Error(`Delivery hash mismatch: ${cached.url}`)
       data.deliveryUrl = cached.url
       media.push(cached)
@@ -82,10 +100,7 @@ try {
     const filename = `${basename(original, extname(original))}-${sha256.slice(0, 12)}${extension}`
     const destination = join(folder, 'assets/delivery', filename)
     writeFileSync(destination, bytes)
-    const url = `/${destination
-      .slice(publicRoot.length + 1)
-      .split('\\')
-      .join('/')}`
+    const url = urlFor(destination)
     const dimensions = JSON.parse(
       execFileSync(
         'ffprobe',

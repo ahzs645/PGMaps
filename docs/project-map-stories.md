@@ -787,10 +787,18 @@ content the task calls for, retain original credits, and keep provenance beside
 its files. The supplied Prague mobile capture was empty; mobile verification
 uses the original public story and responsive browser checks.
 
-Documents/assets live under `public/data/story-documents`, an app-owned directory
-preserved during scraper sync. Keep them outside `public/data/projects`, whose
-recursive indexer treats every JSON file as a project package. Register only the
-wrapper package and regenerate the catalog as usual.
+Documents/assets live under `/data/story-documents/<name>`. A small story can
+sit in `public/data/story-documents`, an app-owned directory preserved during
+scraper sync (`native-example` does). A large imported one belongs in a
+repository of its own that serves it on its own Pages site, listed in
+`src/config/data-hosts.json`: `prague` is
+[`ahzs645/pgmaps-story-prague`](https://github.com/ahzs645/pgmaps-story-prague),
+checked out as `vendor/pgmaps-story-prague` (`docs/data-hosts.md`, **The Prague
+story**). The renderer resolves the document, its media, fonts and WebMaps
+through `withBase`, so either way the story's own `/data/...` links stay as
+written. Keep documents outside `public/data/projects`, whose recursive indexer
+treats every JSON file as a project package. Register only the wrapper package
+and regenerate the catalog as usual.
 
 An imported image/video resource can specify optional `data.deliveryUrl` (local
 `/data/story-documents/…` media or an HTTPS URL). The renderer uses it in preference
@@ -801,7 +809,7 @@ H.264 cover with the explicit authoring command below (requires `ffmpeg` and
 `ffprobe`, neither is required for ordinary builds):
 
 ```sh
-node scripts/optimize-story-media.mjs public/data/story-documents/prague
+node scripts/optimize-story-media.mjs vendor/pgmaps-story-prague
 ```
 
 `delivery.json` records the encoding recipe, original and delivery hashes, sizes,
@@ -989,7 +997,8 @@ specific image sizes and field measurements of LCP/INP are useful next steps.
 
 The deployment data-cache key includes `public/data/story-documents/**`, so
 restoring generated deployment data cannot roll back a newer checked-in story
-or its delivery manifest.
+or its delivery manifest. The Prague story is not in the deploy at all: its own
+repository publishes it, and a push there reaches the live app at once.
 
 GitHub Pages does not provide per-path custom response-header configuration.
 If a configurable CDN is added, use the following policies with versioned assets:

@@ -2,7 +2,11 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const folder = 'public/data/story-documents/prague'
+// The story lives in its own repository (ahzs645/pgmaps-story-prague), checked out here.
+const folder = 'vendor/pgmaps-story-prague'
+/** The checked-out file a story's `/data/story-documents/prague/...` URL names. */
+const storyFile = (url: string | undefined) =>
+  `${folder}/${String(url).replace(/^\/data\/story-documents\/prague\//, '')}`
 const document = JSON.parse(readFileSync(`${folder}/story.json`, 'utf8'))
 const manifest = JSON.parse(readFileSync(`${folder}/manifest.json`, 'utf8'))
 type CapturedNode = {
@@ -80,12 +84,12 @@ describe('imported Prague reference integrity', () => {
     expect(manifest.omissions).toEqual([])
     for (const asset of manifest.media) {
       expect(asset.url).toMatch(/^\/data\/story-documents\/prague\/assets\//)
-      const bytes = readFileSync(`public${asset.url}`)
+      const bytes = readFileSync(storyFile(asset.url))
       expect(bytes.length).toBe(asset.bytes)
       expect(createHash('sha256').update(bytes).digest('hex')).toBe(asset.sha256)
     }
     expect(manifest.fonts).toHaveLength(6)
-    for (const font of manifest.fonts) expect(readFileSync(`public${font.url}`).length).toBe(font.bytes)
+    for (const font of manifest.fonts) expect(readFileSync(storyFile(font.url)).length).toBe(font.bytes)
     const theme = Object.values(document.resources).find(
       (resource) => (resource as { type: string }).type === 'story-theme',
     ) as { data: { theme: { localFonts: { url: string }[] } } }
@@ -94,7 +98,7 @@ describe('imported Prague reference integrity', () => {
     )
     for (const resource of resources.filter((resource) => ['image', 'video'].includes(resource.type))) {
       expect(resource.data.url).toBeTruthy()
-      expect(existsSync(`public${resource.data.url}`)).toBe(true)
+      expect(existsSync(storyFile(resource.data.url))).toBe(true)
     }
     const video = manifest.media.find((asset: { type: string }) => asset.type === 'video')
     expect(video.bytes).toBe(14_862_950)
@@ -104,7 +108,7 @@ describe('imported Prague reference integrity', () => {
     expect(manifest.webmaps).toHaveLength(19)
     for (const resource of resources.filter((resource) => resource.type === 'webmap')) {
       expect(resource.data.webmapUrl).toMatch(/^\/data\/story-documents\/prague\/maps\//)
-      const map = JSON.parse(readFileSync(`public${resource.data.webmapUrl}`, 'utf8'))
+      const map = JSON.parse(readFileSync(storyFile(resource.data.webmapUrl), 'utf8'))
       expect(Array.isArray(map.operationalLayers)).toBe(true)
       inspectForCredentials(map)
     }
@@ -119,8 +123,8 @@ describe('imported Prague reference integrity', () => {
       const resource = document.resources[item.resource]
       expect(resource.data.url).toBe(item.sourceUrl)
       expect(resource.data.deliveryUrl).toBe(item.url)
-      const original = readFileSync(`public${item.sourceUrl}`)
-      const optimized = readFileSync(`public${item.url}`)
+      const original = readFileSync(storyFile(item.sourceUrl))
+      const optimized = readFileSync(storyFile(item.url))
       expect(original.length).toBe(item.sourceBytes)
       expect(createHash('sha256').update(original).digest('hex')).toBe(item.sourceSha256)
       expect(optimized.length).toBe(item.bytes)

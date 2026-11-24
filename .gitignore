@@ -104,10 +104,9 @@ public/data/restaurants.json
 public/data/satellite/
 public/data/spartan.csv
 public/data/transit/
-public/data/walkability/**
-!public/data/walkability/heatmap/
-public/data/walkability/heatmap/**
-!public/data/walkability/heatmap/factor_masks.json
+public/data/walkability/
+# Served from ahzs645/pgmaps-story-prague; the sync copies it from vendor/ only with VITE_DATA_HOSTS_LOCAL=1.
+public/data/story-documents/prague/
 # Generated from the canonical bcdatamapper WARS snapshot. Never force-add.
 public/data/wars/
 public/data/water/

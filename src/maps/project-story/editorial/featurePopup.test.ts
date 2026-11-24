@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { featurePopupPlans, featurePopupUrl, popupContent, type FeaturePopupPlan } from './adapters/featurePopup'
 import { sourceLayerId, type NativeWebMap } from './adapters/arcgisWebMap'
 
-const folder = 'public/data/story-documents/prague/maps'
+const folder = 'vendor/pgmaps-story-prague/maps'
 function authoredPlans() {
   return readdirSync(folder).flatMap((filename) => {
     const source = JSON.parse(readFileSync(`${folder}/${filename}`, 'utf8'))

@@ -47,6 +47,7 @@ import {
   type ProjectTheme,
 } from '@/lib/projectPackages'
 import { useProjectCatalogWebMCP } from '@/lib/projectWebMCP'
+import { packageLinkHref } from '@/lib/dataUrl'
 import { cn } from '@/lib/utils'
 
 const ProjectWorkspace = lazy(() => import('@/maps/project-workspace/ProjectWorkspace'))
@@ -248,7 +249,7 @@ function ProjectDetailSections({ project, onRemove }: { project: ProjectPackage;
                 {project.links.map((link) => (
                   <a
                     key={link.href}
-                    href={link.href}
+                    href={packageLinkHref(link.href)}
                     target={link.href.startsWith('http') ? '_blank' : undefined}
                     rel={link.href.startsWith('http') ? 'noreferrer' : undefined}
                     className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"

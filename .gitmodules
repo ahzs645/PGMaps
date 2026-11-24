@@ -25,3 +25,6 @@
 [submodule "vendor/document-kit"]
 	path = vendor/document-kit
 	url = https://github.com/ahzs645/document-kit.git
+[submodule "vendor/pgmaps-story-prague"]
+	path = vendor/pgmaps-story-prague
+	url = https://github.com/ahzs645/pgmaps-story-prague.git
