@@ -230,6 +230,55 @@
       "consolidationCurrentTo": "2026-11-17",
       "sourceStatus": "identified",
       "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.water-sustainability-act",
+      "title": "Water Sustainability Act, SBC 2014 c. 15",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14015",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "14015",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14015/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.mineral-tenure-act",
+      "title": "Mineral Tenure Act, RSBC 1996 c. 292",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96292_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "96292_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96292_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "ca.sara",
+      "title": "Species at Risk Act, SC 2002 c. 29",
+      "kind": "statute",
+      "url": "https://laws-lois.justice.gc.ca/eng/acts/S-15.3/FullText.html",
+      "consolidationCurrentTo": "2026-10-29",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.robson-valley.ada.2006",
+      "title": "Order Establishing Land Use Objectives for Agricultural Development Areas within the Headwaters Forest District (Robson Valley), 21 November 2006",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/robsonvalley-lrmp/robsonvalley_lrmp_luor_23nov2006.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2006-11-21",
+      "supersessionStatus": "unverified_for_site"
     }
   ]
 }

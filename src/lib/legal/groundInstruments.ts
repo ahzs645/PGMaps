@@ -58,7 +58,13 @@ export interface Condition {
   field: string
   in?: string[]
   notIn?: string[]
+  /** The value starts with one of these (a forest file's letter: W a woodlot, K a community forest). */
+  prefix?: string[]
 }
+
+/** How a layer's records are measured against the footprint. */
+export const GEOMETRY_KINDS = ['area', 'line', 'point'] as const
+export type GeometryKind = (typeof GEOMETRY_KINDS)[number]
 
 export interface FeatureDetail {
   label: string
@@ -77,6 +83,17 @@ export interface GroundLayer {
   catalogue: string
   /** Narrow on purpose: never a holder's or client's name, never an IDIR user. */
   fields: string[]
+  /**
+   * Areas are clipped to the footprint; lines are measured and points counted inside it and within
+   * `near.metres` of it, read against the footprint grown by that margin.
+   */
+  geometry: GeometryKind
+  near?: { metres: number; why: string }
+  /**
+   * Asked with each footprint part's convex hull instead of its ring: for a layer of a few very
+   * detailed polygons (TFLs), where the server times out on the ring (`readAcrossParts`).
+   */
+  byHull?: boolean
   feature: {
     id: { label: string; fields: string[]; fallback: string }
     name: string[]
@@ -139,7 +156,14 @@ function condition(value: unknown, label: string): Condition {
   const out: Condition = { field: field(c.field, `${label} field`) }
   if (c.in !== undefined) out.in = strings(c.in, `${label} in`, 50, 1)
   if (c.notIn !== undefined) out.notIn = strings(c.notIn, `${label} notIn`, 50, 1)
-  if (!out.in === !out.notIn) throw Error(`${label} needs one of in or notIn.`)
+  if (c.prefix !== undefined) {
+    out.prefix = strings(c.prefix, `${label} prefix`, 10, 1)
+    // A prefix becomes a LIKE pattern: keep it to plain letters, digits and spaces.
+    for (const p of out.prefix)
+      if (!/^[A-Za-z0-9 ]+$/.test(p)) throw Error(`${label} prefix must be letters, digits or spaces.`)
+  }
+  if ([out.in, out.notIn, out.prefix].filter(Boolean).length !== 1)
+    throw Error(`${label} needs exactly one of in, notIn or prefix.`)
   return out
 }
 
@@ -151,6 +175,12 @@ function layer(value: unknown, i: number): GroundLayer {
   const date = l.date === null ? null : object(l.date, `${label} date`)
   const typeName = text(l.typeName, `${label} typeName`)
   if (!typeName.startsWith('pub:')) throw Error(`${label} typeName must start with pub:.`)
+  const geometry = l.geometry === undefined ? 'area' : oneOf(l.geometry, `${label} geometry`, GEOMETRY_KINDS)
+  const near = l.near === undefined ? undefined : object(l.near, `${label} near`)
+  if (geometry !== 'area' && !near) throw Error(`${label} measures ${geometry}s and needs a near margin.`)
+  const metres = near?.metres
+  if (near && (typeof metres !== 'number' || !Number.isFinite(metres) || metres < 0 || metres > 1000))
+    throw Error(`${label} near metres must be 0 to 1,000.`)
   return {
     id: text(l.id, `${label} id`, 50),
     title: text(l.title, `${label} title`),
@@ -159,6 +189,9 @@ function layer(value: unknown, i: number): GroundLayer {
     key: field(l.key, `${label} key`),
     catalogue: text(l.catalogue, `${label} catalogue`, 500),
     fields: fields(l.fields, `${label} fields`, 50, 1),
+    geometry,
+    ...(near ? { near: { metres: metres as number, why: text(near.why, `${label} near why`, 1000) } } : {}),
+    ...(l.byHull === true ? { byHull: true } : {}),
     feature: {
       id: {
         label: text(id.label, `${label} feature id label`),
@@ -291,6 +324,7 @@ export function matches(where: readonly Condition[], properties: Record<string, 
     const v = properties[c.field]
     const s = typeof v === 'string' ? v : typeof v === 'number' ? String(v) : null
     if (c.in) return s !== null && c.in.includes(s)
+    if (c.prefix) return s !== null && c.prefix.some((p) => s.startsWith(p))
     return s === null || !c.notIn!.includes(s)
   })
 }
@@ -300,6 +334,7 @@ const quote = (s: string) => `'${s.replace(/'/g, "''")}'`
 /** One condition as CQL; a `notIn` also keeps blank values, as `matches` does. */
 export function conditionCql(c: Condition): string {
   if (c.in) return `${c.field} IN (${c.in.map(quote).join(', ')})`
+  if (c.prefix) return `(${c.prefix.map((p) => `${c.field} LIKE ${quote(`${p}%`)}`).join(' OR ')})`
   return `(${c.field} IS NULL OR ${c.field} NOT IN (${c.notIn!.map(quote).join(', ')}))`
 }
 

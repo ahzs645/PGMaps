@@ -1,6 +1,6 @@
 {
   "format": "pgmaps-ground-instruments/v1",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "readOn": "2026-11-24",
   "sourceLabels": {
     "bc.land-act": "Land Act",
@@ -17,9 +17,14 @@
     "bc.elua": "Environment and Land Use Act",
     "bc.omineca.ada-sra.2006": "2006 Omineca ADA/SRA order",
     "bc.pgtsa.2004": "2004 Prince George TSA order",
-    "bc.lwbc.grazing-policy.2004": "2004 grazing policy"
+    "bc.lwbc.grazing-policy.2004": "2004 grazing policy",
+    "bc.crown-land.reserves-policy.2021": "2021 reserves policy",
+    "bc.water-sustainability-act": "Water Sustainability Act",
+    "bc.mineral-tenure-act": "Mineral Tenure Act",
+    "ca.sara": "Species at Risk Act",
+    "bc.robson-valley.ada.2006": "2006 Robson Valley ADA order"
   },
-  "notes": "What each legal instrument mapped on a block can and cannot govern for harvest, replanting, roads and grazing, as read from the primary texts on the date above. A screen, not a legal determination: every cell cites the provision it rests on, and a cell whose answer depends on terms that are not public is 'unknown', naming the document that decides. Layers are read by each footprint part's own polygon. Fields are listed narrowly and never include a holder's or client's name or an IDIR user; DataBC returns a layer's mandatory attributes whatever propertyName asks, so the reader keeps only the fields listed here.",
+  "notes": "What each legal instrument mapped on a block can and cannot govern for harvest, replanting, roads and grazing, as read from the primary texts on the date above. A screen, not a legal determination: every cell cites the provision it rests on, and a cell whose answer depends on terms that are not public is 'unknown', naming the document that decides. Layers are read by each footprint part's own polygon (or its convex hull, for a layer of a few very detailed polygons); areas are clipped to the footprint, and lines and points are measured inside it and within the layer's stated margin. Fields are listed narrowly and never include a holder's, client's, owner's or applicant's name or an IDIR user; DataBC returns a layer's mandatory attributes whatever propertyName asks, so the reader keeps only the fields listed here.",
   "layers": [
     {
       "id": "tantalis",
@@ -572,6 +577,458 @@
         "field": "CW_DATE_CREATED",
         "label": "Created"
       }
+    },
+    {
+      "id": "mineral-tenure",
+      "title": "Mineral and placer tenures",
+      "typeName": "pub:WHSE_MINERAL_TENURE.MTA_ACQUIRED_TENURE_SVW",
+      "geometryField": "GEOMETRY",
+      "key": "TENURE_NUMBER_ID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/923c5330-c798-4276-82c1-705000c5caac",
+      "fields": [
+        "TENURE_NUMBER_ID",
+        "TENURE_TYPE_DESCRIPTION",
+        "TENURE_SUB_TYPE_DESCRIPTION",
+        "TITLE_TYPE_DESCRIPTION",
+        "ISSUE_DATE",
+        "GOOD_TO_DATE",
+        "AREA_IN_HECTARES",
+        "PROTECTED_IND"
+      ],
+      "feature": {
+        "id": {
+          "label": "Tenure",
+          "fields": ["TENURE_NUMBER_ID"],
+          "fallback": "TENURE_NUMBER_ID"
+        },
+        "name": ["TENURE_TYPE_DESCRIPTION", "TENURE_SUB_TYPE_DESCRIPTION", "TITLE_TYPE_DESCRIPTION"],
+        "details": [
+          {
+            "label": "Issued",
+            "field": "ISSUE_DATE",
+            "date": true
+          },
+          {
+            "label": "Good to",
+            "field": "GOOD_TO_DATE",
+            "date": true
+          },
+          {
+            "label": "Whole title",
+            "field": "AREA_IN_HECTARES",
+            "unit": "ha"
+          },
+          {
+            "label": "Protected",
+            "field": "PROTECTED_IND"
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "Tenure number",
+            "field": "TENURE_NUMBER_ID"
+          }
+        ]
+      },
+      "date": {
+        "field": "ISSUE_DATE",
+        "label": "Issued"
+      }
+    },
+    {
+      "id": "water-licences",
+      "title": "Water licences (points of diversion)",
+      "typeName": "pub:WHSE_WATER_MANAGEMENT.WLS_WATER_RIGHTS_LICENCES_SV",
+      "geometryField": "SHAPE",
+      "key": "WLS_WRL_SYSID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/5549cae0-c2b1-4b96-9777-529d9720803c",
+      "fields": [
+        "WLS_WRL_SYSID",
+        "POD_NUMBER",
+        "POD_SUBTYPE",
+        "POD_STATUS",
+        "FILE_NUMBER",
+        "LICENCE_NUMBER",
+        "LICENCE_STATUS",
+        "PRIORITY_DATE",
+        "PURPOSE_USE",
+        "SOURCE_NAME",
+        "QUANTITY",
+        "QUANTITY_UNITS"
+      ],
+      "geometry": "point",
+      "near": {
+        "metres": 100,
+        "why": "FPPR s. 60(2) keeps harvesting and road construction 100 m upslope of a licensed waterworks diverting water for human consumption in a community watershed. The same 100 m screens the points of diversion near the block everywhere: outside a community watershed s. 60(1) still bars damaging the works. A stated screen, not a rule outside a community watershed."
+      },
+      "feature": {
+        "id": {
+          "label": "Point of diversion",
+          "fields": ["POD_NUMBER"],
+          "fallback": "WLS_WRL_SYSID"
+        },
+        "name": ["PURPOSE_USE", "SOURCE_NAME"],
+        "details": [
+          {
+            "label": "Licence",
+            "field": "LICENCE_NUMBER"
+          },
+          {
+            "label": "Licence status",
+            "field": "LICENCE_STATUS"
+          },
+          {
+            "label": "Point",
+            "field": "POD_SUBTYPE"
+          },
+          {
+            "label": "Point status",
+            "field": "POD_STATUS"
+          },
+          {
+            "label": "Priority",
+            "field": "PRIORITY_DATE",
+            "date": true
+          },
+          {
+            "label": "Quantity",
+            "field": "QUANTITY"
+          },
+          {
+            "label": "Units",
+            "field": "QUANTITY_UNITS"
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "Licence",
+            "field": "LICENCE_NUMBER"
+          },
+          {
+            "label": "Point of diversion",
+            "field": "POD_NUMBER"
+          },
+          {
+            "label": "File",
+            "field": "FILE_NUMBER"
+          }
+        ]
+      },
+      "date": null,
+      "dateNote": "A water licence's priority date sets its precedence under first in time, first in right; it is not the date it took effect."
+    },
+    {
+      "id": "managed-licences",
+      "title": "Woodlot licences, community forests and First Nations woodland licences",
+      "typeName": "pub:WHSE_FOREST_TENURE.FTEN_MANAGED_LICENCE_POLY_SVW",
+      "geometryField": "GEOMETRY",
+      "key": "OBJECTID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/c3e96239-cdc9-4328-ac19-58fba1623ef8",
+      "fields": [
+        "OBJECTID",
+        "FOREST_FILE_ID",
+        "MAP_BLOCK_ID",
+        "ML_TYPE_CODE",
+        "FILE_STATUS_CODE",
+        "LIFE_CYCLE_STATUS_CODE",
+        "ADMIN_DISTRICT_CODE"
+      ],
+      "feature": {
+        "id": {
+          "label": "Forest file",
+          "fields": ["FOREST_FILE_ID", "MAP_BLOCK_ID"],
+          "fallback": "OBJECTID"
+        },
+        "name": ["ML_TYPE_CODE"],
+        "details": [
+          {
+            "label": "File status",
+            "field": "FILE_STATUS_CODE"
+          },
+          {
+            "label": "District",
+            "field": "ADMIN_DISTRICT_CODE"
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "Forest file",
+            "field": "FOREST_FILE_ID"
+          },
+          {
+            "label": "Map block",
+            "field": "MAP_BLOCK_ID"
+          },
+          {
+            "label": "District",
+            "field": "ADMIN_DISTRICT_CODE"
+          }
+        ]
+      },
+      "date": null,
+      "dateNote": "The managed licence layer records no award date; the licence document gives it."
+    },
+    {
+      "id": "tfl",
+      "title": "Tree farm licences",
+      "typeName": "pub:WHSE_ADMIN_BOUNDARIES.FADM_TFL_ALL_SP",
+      "geometryField": "SHAPE",
+      "key": "TFL_ALL_SYSID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/454f2153-efbd-4a6e-8966-a6d9755da9a6",
+      "fields": ["TFL_ALL_SYSID", "FOREST_FILE_ID", "TFL_TYPE"],
+      "byHull": true,
+      "feature": {
+        "id": {
+          "label": "TFL",
+          "fields": ["FOREST_FILE_ID"],
+          "fallback": "TFL_ALL_SYSID"
+        },
+        "name": ["TFL_TYPE"],
+        "details": [],
+        "identifiers": [
+          {
+            "label": "Forest file",
+            "field": "FOREST_FILE_ID"
+          }
+        ]
+      },
+      "date": null,
+      "dateNote": "The TFL layer records no award or replacement date; the licence document gives it."
+    },
+    {
+      "id": "recreation",
+      "title": "Recreation sites, interpretive forests and trail-based recreation areas",
+      "typeName": "pub:WHSE_FOREST_TENURE.FTEN_RECREATION_POLY_SVW",
+      "geometryField": "GEOMETRY",
+      "key": "RMF_SKEY",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/263338a7-93ee-49c1-83e8-13f0bde70833",
+      "fields": [
+        "RMF_SKEY",
+        "FOREST_FILE_ID",
+        "SECTION_ID",
+        "PROJECT_NAME",
+        "PROJECT_TYPE",
+        "RECREATION_MAP_FEATURE_CODE",
+        "PROJECT_ESTABLISHED_DATE",
+        "RESOURCE_FEATURE_IND",
+        "LIFE_CYCLE_STATUS_CODE",
+        "FILE_STATUS_CODE"
+      ],
+      "feature": {
+        "id": {
+          "label": "Recreation file",
+          "fields": ["FOREST_FILE_ID", "SECTION_ID"],
+          "fallback": "RMF_SKEY"
+        },
+        "name": ["PROJECT_NAME", "PROJECT_TYPE"],
+        "details": [
+          {
+            "label": "Established",
+            "field": "PROJECT_ESTABLISHED_DATE",
+            "date": true
+          },
+          {
+            "label": "Resource feature under the GAR",
+            "field": "RESOURCE_FEATURE_IND"
+          },
+          {
+            "label": "File status",
+            "field": "FILE_STATUS_CODE"
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "Recreation file",
+            "field": "FOREST_FILE_ID"
+          },
+          {
+            "label": "Name",
+            "field": "PROJECT_NAME"
+          }
+        ]
+      },
+      "date": {
+        "field": "PROJECT_ESTABLISHED_DATE",
+        "label": "Established"
+      }
+    },
+    {
+      "id": "recreation-trails",
+      "title": "Recreation trails",
+      "typeName": "pub:WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW",
+      "geometryField": "GEOMETRY",
+      "key": "OBJECTID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/7fcb21f7-e51c-4342-a5e1-445a6c42128e",
+      "fields": [
+        "OBJECTID",
+        "FOREST_FILE_ID",
+        "SECTION_ID",
+        "PROJECT_NAME",
+        "PROJECT_TYPE",
+        "PROJECT_ESTABLISHED_DATE",
+        "LIFE_CYCLE_STATUS_CODE",
+        "FILE_STATUS_CODE"
+      ],
+      "geometry": "line",
+      "near": {
+        "metres": 50,
+        "why": "A trail along the block's edge is crossed, felled into or yarded over by the work beside it, and trail lines are mapped from sketches and GPS tracks that can sit tens of metres off the ground. A stated screen, as for the grazing review's range developments."
+      },
+      "feature": {
+        "id": {
+          "label": "Recreation file",
+          "fields": ["FOREST_FILE_ID", "SECTION_ID"],
+          "fallback": "OBJECTID"
+        },
+        "name": ["PROJECT_NAME", "PROJECT_TYPE"],
+        "details": [
+          {
+            "label": "Established",
+            "field": "PROJECT_ESTABLISHED_DATE",
+            "date": true
+          },
+          {
+            "label": "File status",
+            "field": "FILE_STATUS_CODE"
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "Recreation file",
+            "field": "FOREST_FILE_ID"
+          },
+          {
+            "label": "Name",
+            "field": "PROJECT_NAME"
+          }
+        ]
+      },
+      "date": {
+        "field": "PROJECT_ESTABLISHED_DATE",
+        "label": "Established"
+      }
+    },
+    {
+      "id": "visual-quality",
+      "title": "Scenic areas and established visual quality objectives (visual landscape inventory)",
+      "typeName": "pub:WHSE_FOREST_VEGETATION.REC_VISUAL_LANDSCAPE_INVENTORY",
+      "geometryField": "GEOMETRY",
+      "key": "OBJECTID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/4e941067-20ec-4b5d-bca3-8831c9b2e4db",
+      "fields": [
+        "OBJECTID",
+        "VLI_POLYGON_NO",
+        "VSU_NUMBER",
+        "PROJECT_NAME",
+        "REC_EVQO_CODE",
+        "REC_MADE_KNOWN_CODE",
+        "REC_VSC_FINAL_VALUE_CODE",
+        "REC_VAC_FINAL_VALUE_CODE"
+      ],
+      "feature": {
+        "id": {
+          "label": "VLI polygon",
+          "fields": ["VLI_POLYGON_NO"],
+          "fallback": "OBJECTID"
+        },
+        "name": ["REC_EVQO_CODE", "PROJECT_NAME"],
+        "details": [
+          {
+            "label": "Established VQO",
+            "field": "REC_EVQO_CODE"
+          },
+          {
+            "label": "Scenic area (made known)",
+            "field": "REC_MADE_KNOWN_CODE"
+          },
+          {
+            "label": "Visual sensitivity class",
+            "field": "REC_VSC_FINAL_VALUE_CODE"
+          },
+          {
+            "label": "Visual absorption capability",
+            "field": "REC_VAC_FINAL_VALUE_CODE"
+          },
+          {
+            "label": "Sensitivity unit",
+            "field": "VSU_NUMBER"
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "VLI polygon",
+            "field": "VLI_POLYGON_NO"
+          },
+          {
+            "label": "Project",
+            "field": "PROJECT_NAME"
+          }
+        ]
+      },
+      "date": null,
+      "dateNote": "The visual landscape inventory records no date a scenic area was made known or an objective established; the establishing order or the district manager's letter gives it."
+    },
+    {
+      "id": "critical-habitat",
+      "title": "Federal critical habitat (posted)",
+      "typeName": "pub:WHSE_WILDLIFE_MANAGEMENT.WCP_CRITICAL_HABITAT_SP",
+      "geometryField": "SHAPE",
+      "key": "CRITICAL_HABITAT_ID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/076b8c98-a3f1-429b-9dae-03faed0c6aef",
+      "fields": [
+        "CRITICAL_HABITAT_ID",
+        "COSEWIC_SPECIES_ID",
+        "COMMON_NAME_ENGLISH",
+        "COSEWIC_POPULATION",
+        "CRITICAL_HABITAT_STATUS",
+        "CRITICAL_HABITAT_SITE_NAME",
+        "CRITICAL_HABITAT_VARIANT",
+        "CRITICAL_HABITAT_DETAIL",
+        "LAND_TENURE",
+        "FEDERAL_DEPARTMENT_NAME"
+      ],
+      "feature": {
+        "id": {
+          "label": "Critical habitat",
+          "fields": ["CRITICAL_HABITAT_ID"],
+          "fallback": "CRITICAL_HABITAT_ID"
+        },
+        "name": ["COMMON_NAME_ENGLISH", "CRITICAL_HABITAT_SITE_NAME", "CRITICAL_HABITAT_VARIANT"],
+        "details": [
+          {
+            "label": "Status",
+            "field": "CRITICAL_HABITAT_STATUS"
+          },
+          {
+            "label": "Detail",
+            "field": "CRITICAL_HABITAT_DETAIL"
+          },
+          {
+            "label": "Land tenure",
+            "field": "LAND_TENURE"
+          },
+          {
+            "label": "Published by",
+            "field": "FEDERAL_DEPARTMENT_NAME"
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "Species",
+            "field": "COMMON_NAME_ENGLISH"
+          },
+          {
+            "label": "Site",
+            "field": "CRITICAL_HABITAT_SITE_NAME"
+          },
+          {
+            "label": "Critical habitat",
+            "field": "CRITICAL_HABITAT_ID"
+          }
+        ]
+      },
+      "date": null,
+      "dateNote": "The critical habitat layer records when a polygon was last edited, not when the recovery strategy identifying it was posted; the Species at Risk Public Registry gives that date."
     }
   ],
   "instruments": [
@@ -1202,6 +1659,174 @@
       "facts": []
     },
     {
+      "id": "land-act-notation",
+      "label": "Tantalis notation of interest",
+      "layer": "tantalis",
+      "where": [
+        {
+          "field": "TENURE_SUBTYPE",
+          "in": ["NOTATION OF INTEREST"]
+        }
+      ],
+      "statute": {
+        "source": "bc.crown-land.reserves-policy.2021",
+        "provision": "§5.5"
+      },
+      "note": "A notation of interest is a record in the Crown land registry, not a disposition: it marks a feature or concern (a trapline cabin, a First Nation cultural feature, a salt lick) so its holder is referred to on Land Act applications.",
+      "binds": {
+        "kind": "referral",
+        "note": "The policy makes a notation of interest \"not an authorization under the Land Act, but rather a notation to identify a feature or concern\", used to refer Land Act applications to the agency holding it; it \"does not preclude the acceptance and decision of Crown land applications\". It is not one of the Act's dispositions.",
+        "cites": [
+          {
+            "source": "bc.crown-land.reserves-policy.2021",
+            "provision": "§5.5"
+          },
+          {
+            "source": "bc.land-act",
+            "provision": "s. 11(2)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "The notation authorizes and forbids nothing itself, and the policy speaks only of Land Act applications. What it marks, and whether that feature (a cabin, a cultural feature, a lick) needs care in harvesting, is in its notice of establishment.",
+          "cites": [
+            {
+              "source": "bc.crown-land.reserves-policy.2021",
+              "provision": "§5.5"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "The notation sets nothing on planting; what it marks is in its notice of establishment.",
+          "cites": [
+            {
+              "source": "bc.crown-land.reserves-policy.2021",
+              "provision": "§5.5"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "The notation sets nothing on roads; what it marks, and whether a road would touch it, is in its notice of establishment.",
+          "cites": [
+            {
+              "source": "bc.crown-land.reserves-policy.2021",
+              "provision": "§5.5"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "The notation sets nothing on grazing; what it marks is in its notice of establishment. The land stays Crown range unless leased under the Land Act.",
+          "cites": [
+            {
+              "source": "bc.crown-land.reserves-policy.2021",
+              "provision": "§5.5"
+            },
+            {
+              "source": "bc.range-act",
+              "provision": "s. 1 \"Crown range\""
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": false,
+        "where": "The notice establishing the notation (the policy's Appendix 4 template), on the Crown lands file",
+        "holder": "The provincial or federal agency that asked for the notation, through the Crown land registry",
+        "channel": "FrontCounter BC, quoting the Crown lands file number",
+        "ask": "The notice establishing the notation of interest: the interest or feature it marks, the agency holding it, its term and its review date"
+      },
+      "facts": []
+    },
+    {
+      "id": "land-act-application",
+      "label": "Land Act application (not yet a disposition)",
+      "layer": "tantalis",
+      "where": [
+        {
+          "field": "TENURE_STAGE",
+          "in": ["APPLICATION"]
+        }
+      ],
+      "statute": {
+        "source": "bc.land-act",
+        "provision": "ss. 8, 32"
+      },
+      "note": "A Tantalis record at stage APPLICATION: someone has applied for a lease, licence, right of way, sale or other disposition of this Crown land. A §15–17 designation or a notation at application stage is listed under its own row.",
+      "binds": {
+        "kind": "none",
+        "note": "Filing an application gives no right in or priority to the land, and a disposition binds the government only once executed; the government need not consider or grant it. It signals that a disposition may be decided here, and an accepted application is published.",
+        "cites": [
+          {
+            "source": "bc.land-act",
+            "provision": "s. 8(2)–(4), s. 10(2), s. 32(2)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "no-reach",
+          "note": "An application creates no right in the land and binds the government to nothing until a disposition is executed. If a disposition is issued, its terms decide what forest work on it needs, and the lease, licence or right of way row then applies.",
+          "cites": [
+            {
+              "source": "bc.land-act",
+              "provision": "s. 8(2)–(4)"
+            },
+            {
+              "source": "bc.land-act",
+              "provision": "s. 11(3)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "no-reach",
+          "note": "An application creates no right in the land until a disposition is executed.",
+          "cites": [
+            {
+              "source": "bc.land-act",
+              "provision": "s. 8(2), (3)"
+            }
+          ]
+        },
+        "roads": {
+          "state": "no-reach",
+          "note": "An application creates no right in the land until a disposition is executed.",
+          "cites": [
+            {
+              "source": "bc.land-act",
+              "provision": "s. 8(2), (3)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "no-reach",
+          "note": "An application creates no right in the land; only land leased under the Land Act leaves Crown range, and an application is not a lease.",
+          "cites": [
+            {
+              "source": "bc.land-act",
+              "provision": "s. 8(2), (3)"
+            },
+            {
+              "source": "bc.range-act",
+              "provision": "s. 1 \"Crown range\""
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The application as the province publishes it once accepted (Land Act s. 32(2)), on the Crown lands file",
+        "holder": "Ministry of Water, Land and Resource Stewardship (Crown land administration)",
+        "channel": "The province's published applications, or FrontCounter BC quoting the Crown lands file number",
+        "ask": "The application: what is applied for, its purpose and term, and where the decision stands"
+      },
+      "facts": []
+    },
+    {
       "id": "alr",
       "label": "Agricultural Land Reserve",
       "layer": "alr",
@@ -1381,6 +2006,90 @@
       ]
     },
     {
+      "id": "robson-valley-ada",
+      "label": "2006 Robson Valley ADA order",
+      "layer": "legal-objectives",
+      "where": [
+        {
+          "field": "STRGC_LAND_RSRCE_PLAN_NAME",
+          "in": ["Agricultural Development Areas within 1 Forest District - Extent"]
+        }
+      ],
+      "statute": {
+        "source": "bc.robson-valley.ada.2006",
+        "provision": "Part I"
+      },
+      "note": "The Robson Valley order covers agriculture development areas in the Headwaters Forest District (Map #6, McBride area) and, unlike the Omineca order, no settlement reserve areas; its objectives do not apply inside the McBride Community Forest as it stood on the order's date (order I.ii). Its Parts A to E and II read word for word as the Omineca order's.",
+      "binds": {
+        "kind": "via-fsp",
+        "note": "Objectives set by government under Land Act s. 93.4, in effect on publication in the Gazette. A forest stewardship plan must specify results or strategies for them, and its holder must achieve and carry them out. The order's map \"is a visual representation and is not for legal purposes\": the legal description and the district decide whether a block is in it.",
+        "cites": [
+          {
+            "source": "bc.land-act",
+            "provision": "s. 93.4(1)"
+          },
+          {
+            "source": "bc.frpa",
+            "provision": "s. 1 \"objectives set by government\", s. 5(1)(b)(i), s. 20.22(1)"
+          },
+          {
+            "source": "bc.robson-valley.ada.2006",
+            "provision": "Part I.ii, III; Map #6"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "conditions",
+          "note": "Timber is managed only under Part A (environmental and safety harvests agreed by both ministries under an operational work plan), Part B (forest-health harvests, under Part C's conditions) and Part E (deviations the agriculture ministry determines). Part D: no area-based forest tenure will be established in the areas. Part II leaves permits and licences in effect when the order took effect. Inside the McBride Community Forest as it stood on the order's date the objectives do not apply.",
+          "cites": [
+            {
+              "source": "bc.robson-valley.ada.2006",
+              "provision": "Part I.ii; Part I, A–E; Part II"
+            }
+          ]
+        },
+        "replant": {
+          "state": "conditions",
+          "note": "A Part B harvest carries Part C.5: \"No activities related to site preparation and artificial regeneration\". The stand must then come back naturally. After a Part A harvest the order does not bar planting.",
+          "cites": [
+            {
+              "source": "bc.robson-valley.ada.2006",
+              "provision": "Part I, C.5"
+            }
+          ]
+        },
+        "roads": {
+          "state": "conditions",
+          "note": "Under Part B, permanent access, gravelling included, is minimized and placed along lot lines and natural boundaries as much as possible, and live trees are taken for access only where needed.",
+          "cites": [
+            {
+              "source": "bc.robson-valley.ada.2006",
+              "provision": "Part I, C.1, C.4"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "no-reach",
+          "note": "The objectives manage timber; none of Parts A to E sets a condition on grazing. Part II leaves range use plan schedules in effect for the calendar year the order was made.",
+          "cites": [
+            {
+              "source": "bc.robson-valley.ada.2006",
+              "provision": "Part I, A–E; Part II.5"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The order, published by the province (the enabling document the layer links)",
+        "holder": "Ministry of Agriculture and Food",
+        "channel": "The natural resource district (Prince George, which administers the Robson Valley)",
+        "ask": "Whether the block is inside the order's legal description and outside the McBride Community Forest as it stood on 21 November 2006, and whether a later order amends it"
+      },
+      "facts": []
+    },
+    {
       "id": "pg-biodiversity",
       "label": "2004 Prince George TSA biodiversity order",
       "layer": "legal-objectives",
@@ -1482,6 +2191,7 @@
           "field": "STRGC_LAND_RSRCE_PLAN_NAME",
           "notIn": [
             "Agricultural Development Areas and Settlement Reserve Areas within 4 Forest Districts - Extent",
+            "Agricultural Development Areas within 1 Forest District - Extent",
             "Prince George Timber Supply Area (TSA) Legal Order - Landscape Biodiversity Objective Order - Extent"
           ]
         }
@@ -1507,7 +2217,7 @@
       "reach": {
         "harvest": {
           "state": "unknown",
-          "note": "The order's own text decides. The planner holds rules for the 2006 Omineca ADA/SRA order and the 2004 Prince George TSA biodiversity order only.",
+          "note": "The order's own text decides. The planner holds rules for the 2006 Omineca ADA/SRA order, the 2006 Robson Valley ADA order and the 2004 Prince George TSA biodiversity order only.",
           "cites": [
             {
               "source": "bc.land-act",
@@ -2647,6 +3357,1049 @@
         "holder": "Ministry of Water, Land and Resource Stewardship",
         "channel": "The natural resource district",
         "ask": "Any water quality objective for the watershed, and the licensed waterworks intakes and springs near the block"
+      },
+      "facts": []
+    },
+    {
+      "id": "mineral-placer-tenure",
+      "label": "Mineral or placer tenure",
+      "layer": "mineral-tenure",
+      "where": [
+        {
+          "field": "TENURE_TYPE_DESCRIPTION",
+          "in": ["Mineral", "Placer"]
+        }
+      ],
+      "statute": {
+        "source": "bc.mineral-tenure-act",
+        "provision": "ss. 14, 16"
+      },
+      "note": "Mineral and placer claims and leases under the Mineral Tenure Act. Coal tenures, under the Coal Act, are not read.",
+      "binds": {
+        "kind": "referral",
+        "note": "A recorded holder may use, enter and occupy the claim's surface for exploring for and producing minerals, once any Mines Act permit is issued. The holder does not own the timber: on request it is issued a free use permit or an occupant licence to cut under the Forest Act. A later disposition of surface rights does not diminish the holder's rights except as an order or agreement determines.",
+        "cites": [
+          {
+            "source": "bc.mineral-tenure-act",
+            "provision": "s. 14(1)–(4)"
+          },
+          {
+            "source": "bc.mineral-tenure-act",
+            "provision": "s. 16(3)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "The Act gives the holder surface rights for mining, not the timber, which stays Crown timber disposed of under the Forest Act. Whether a timber harvest is a disposition of surface rights that may not diminish the holder's rights is not stated; the chief gold commissioner's or minister's order, or an agreement, decides. This is a reading of the Act's text; no court decision on the point was read.",
+          "cites": [
+            {
+              "source": "bc.mineral-tenure-act",
+              "provision": "s. 14(1), (3), (4)"
+            },
+            {
+              "source": "bc.mineral-tenure-act",
+              "provision": "s. 16(3)"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 1 \"Crown timber\""
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "The holder may occupy the surface for mining; whether planting conflicts with its exploration or a Mines Act permit is in the title's record and any permit.",
+          "cites": [
+            {
+              "source": "bc.mineral-tenure-act",
+              "provision": "s. 14(1), (2)"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "The holder may occupy the surface for mining and its own access. Whether a road for a block over the claim interferes with the holder's rights is in the title's record and any Mines Act permit.",
+          "cites": [
+            {
+              "source": "bc.mineral-tenure-act",
+              "provision": "s. 14(1), (2)"
+            },
+            {
+              "source": "bc.mineral-tenure-act",
+              "provision": "s. 16(3)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "Claim land stays Crown range; whether grazing conflicts with the holder's use of the surface is in the title's record and any permit.",
+          "cites": [
+            {
+              "source": "bc.mineral-tenure-act",
+              "provision": "s. 14(1)"
+            },
+            {
+              "source": "bc.range-act",
+              "provision": "s. 1 \"Crown range\""
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": false,
+        "where": "The title's record in the mineral titles registry, and any Mines Act permit or notice of work on it",
+        "holder": "The chief gold commissioner (Mineral Titles)",
+        "channel": "Mineral Titles, quoting the tenure number",
+        "ask": "The title's status and good-to date, any order under Mineral Tenure Act s. 13 or 17 on it, and any Mines Act permit or notice of work for the area"
+      },
+      "facts": []
+    },
+    {
+      "id": "water-licence",
+      "label": "Water licence point of diversion",
+      "layer": "water-licences",
+      "where": [
+        {
+          "field": "LICENCE_STATUS",
+          "in": ["Current"]
+        }
+      ],
+      "statute": {
+        "source": "bc.water-sustainability-act",
+        "provision": "ss. 7, 8"
+      },
+      "note": "Current licences only; a point of diversion can carry several licences, each listed. Counted inside the footprint and within the layer's stated margin of it.",
+      "binds": {
+        "kind": "direct",
+        "note": "The licence entitles its holder to divert and use water and to build and operate the works. A primary forest activity must not damage a licensed waterworks or put material harmful to human health in water diverted for human consumption; in a community watershed harvesting and roads keep 100 m upslope of such an intake unless sediment delivery will not increase. Anyone proposing to interfere with works must give the holder 180 days' written notice.",
+        "cites": [
+          {
+            "source": "bc.water-sustainability-act",
+            "provision": "s. 7(1), s. 34"
+          },
+          {
+            "source": "bc.fppr",
+            "provision": "s. 1 \"licensed waterworks\", ss. 59, 60"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "conditions",
+          "note": "Harvesting must not damage the works or put material harmful to human health in water diverted for human consumption, and in a community watershed it keeps 100 m upslope of such an intake unless it will not increase sediment delivery to it.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "ss. 59, 60"
+            }
+          ]
+        },
+        "replant": {
+          "state": "conditions",
+          "note": "Silviculture is a primary forest activity bound by the same water rules; in a community watershed fertilizer is limited within 100 m upslope of a licensed waterworks.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 1 \"primary forest activity\", ss. 59, 60(1), 63"
+            }
+          ]
+        },
+        "roads": {
+          "state": "conditions",
+          "note": "Roads must not damage the works; in a community watershed they keep 100 m upslope of an intake for human consumption unless sediment delivery will not increase, and affected water licensees are notified 48 hours before construction. Altering or interfering with works needs the holder's 180 days' notice.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "ss. 60, 84"
+            },
+            {
+              "source": "bc.water-sustainability-act",
+              "provision": "s. 34"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "conditions",
+          "note": "Range practices must not put material harmful to human health in water diverted for human consumption, and where they could materially harm a licensed waterworks must not damage it or alter the vegetation, soil or terrain around it.",
+          "cites": [
+            {
+              "source": "bc.rppr",
+              "provision": "s. 33(1), (2)"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": false,
+        "where": "The water licence, by its licence and point of diversion numbers",
+        "holder": "Ministry of Water, Land and Resource Stewardship (water authorizations)",
+        "channel": "FrontCounter BC, quoting the licence and point of diversion numbers",
+        "ask": "The licence's purpose, works and intake location, whether its water is diverted for human consumption, and any conditions on the land round the works"
+      },
+      "facts": []
+    },
+    {
+      "id": "woodlot-licence",
+      "label": "Woodlot licence",
+      "layer": "managed-licences",
+      "where": [
+        {
+          "field": "FOREST_FILE_ID",
+          "prefix": ["W"]
+        },
+        {
+          "field": "LIFE_CYCLE_STATUS_CODE",
+          "in": ["ACTIVE"]
+        }
+      ],
+      "statute": {
+        "source": "bc.forest-act",
+        "provision": "s. 45"
+      },
+      "note": "Active records only, told apart by the forest file's letter (W), as the old forest land base reads them. A woodlot licence's Schedule B is Crown land and Schedule A private land owned or leased by the holder, or reserve land.",
+      "binds": {
+        "kind": "direct",
+        "note": "An area-based licence: the Forest Act requires it to give its holder the exclusive right to harvest timber on its Crown land for its term. That right gives way to a BC Timber Sales licence only where the holder released harvesting rights to the government under a BCTS disposition agreement.",
+        "cites": [
+          {
+            "source": "bc.forest-act",
+            "provision": "s. 45(1)(b), (c)"
+          },
+          {
+            "source": "bc.forest-act",
+            "provision": "s. 22.2(5)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "governs",
+          "note": "Only the holder may harvest the Crown timber in it, and a timber sale over it needs the holder's rights released under a BCTS disposition agreement. Schedule A land is the holder's own or a reserve, outside Crown timber altogether.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 45(1)(b), (c)"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 22.2(5)"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 1 \"Crown timber\""
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "A harvest by the holder carries the holder's own reforestation obligation; what the licence and its plan require beyond that is in the licence document.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 45(1)(b), (c)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 29"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "The licence document and its plan decide road building in the area, and whether a road for a block outside it may cross.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 45(1)(b), (c)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "The licence grants timber rights; its Crown land stays Crown range. Whether the licence's terms restrict grazing is in the licence document.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 45(1)(b), (c)"
+            },
+            {
+              "source": "bc.range-act",
+              "provision": "s. 1 \"Crown range\""
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": false,
+        "where": "The licence document and its management plan",
+        "holder": "Ministry of Forests, the natural resource district (tenures)",
+        "channel": "The natural resource district, quoting the forest file id",
+        "ask": "The licence's area (Schedules A and B), term and conditions, and its current management plan; whether any of its harvesting rights are released to BC Timber Sales"
+      },
+      "facts": []
+    },
+    {
+      "id": "community-forest",
+      "label": "Community forest agreement",
+      "layer": "managed-licences",
+      "where": [
+        {
+          "field": "FOREST_FILE_ID",
+          "prefix": ["K"]
+        },
+        {
+          "field": "LIFE_CYCLE_STATUS_CODE",
+          "in": ["ACTIVE"]
+        }
+      ],
+      "statute": {
+        "source": "bc.forest-act",
+        "provision": "s. 43.3"
+      },
+      "note": "Active records only, told apart by the forest file's letter (K), as the old forest land base reads them. Its area is Crown land and any private or reserve land the minister includes.",
+      "binds": {
+        "kind": "direct",
+        "note": "An area-based licence: the Forest Act requires it to give its holder the exclusive right to harvest timber on its Crown land for its term. That right gives way to a BC Timber Sales licence only where the holder released harvesting rights to the government under a BCTS disposition agreement.",
+        "cites": [
+          {
+            "source": "bc.forest-act",
+            "provision": "s. 43.3(1)(b), (c)(i)"
+          },
+          {
+            "source": "bc.forest-act",
+            "provision": "s. 22.2(5)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "governs",
+          "note": "Only the holder may harvest the Crown timber in it, and a timber sale over it needs the holder's rights released under a BCTS disposition agreement. Its forest stewardship plan must be consistent with the timber harvesting rights the agreement grants.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 43.3(1)(b), (c)(i)"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 22.2(5)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 5(2)(b)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "A harvest by the holder carries the holder's own reforestation obligation; what the licence and its plan require beyond that is in the licence document.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 43.3(1)(b), (c)(i)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 29"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "The licence document and its plan decide road building in the area, and whether a road for a block outside it may cross.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 43.3(1)(b), (c)(i)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "The licence grants timber rights; its Crown land stays Crown range. Whether the licence's terms restrict grazing is in the licence document.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 43.3(1)(b), (c)(i)"
+            },
+            {
+              "source": "bc.range-act",
+              "provision": "s. 1 \"Crown range\""
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": false,
+        "where": "The licence document and its management plan",
+        "holder": "Ministry of Forests, the natural resource district (tenures)",
+        "channel": "The natural resource district, quoting the forest file id",
+        "ask": "The licence's area (Schedules A and B), term and conditions, and its current management plan; whether any of its harvesting rights are released to BC Timber Sales"
+      },
+      "facts": []
+    },
+    {
+      "id": "first-nations-woodland-licence",
+      "label": "First Nations woodland licence",
+      "layer": "managed-licences",
+      "where": [
+        {
+          "field": "FOREST_FILE_ID",
+          "prefix": ["N"]
+        },
+        {
+          "field": "LIFE_CYCLE_STATUS_CODE",
+          "in": ["ACTIVE"]
+        }
+      ],
+      "statute": {
+        "source": "bc.forest-act",
+        "provision": "s. 43.55"
+      },
+      "note": "Active records only, told apart by the forest file's letter (N), as the old forest land base reads them. Its area is Crown land and any private or reserve land the minister includes.",
+      "binds": {
+        "kind": "direct",
+        "note": "An area-based licence: the Forest Act requires it to give its holder the exclusive right to harvest timber on its Crown land for its term. That right gives way to a BC Timber Sales licence only where the holder released harvesting rights to the government under a BCTS disposition agreement.",
+        "cites": [
+          {
+            "source": "bc.forest-act",
+            "provision": "s. 43.55(1)(b), (c)(i)"
+          },
+          {
+            "source": "bc.forest-act",
+            "provision": "s. 22.2(5)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "governs",
+          "note": "Only the holder may harvest the Crown timber in it, and a timber sale over it needs the holder's rights released under a BCTS disposition agreement. The licence implements an agreement between the First Nation and the government.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 43.55(1)(b), (c)(i)"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 22.2(5)"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 43.54(2)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "A harvest by the holder carries the holder's own reforestation obligation; what the licence and its plan require beyond that is in the licence document.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 43.55(1)(b), (c)(i)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 29"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "The licence document and its plan decide road building in the area, and whether a road for a block outside it may cross.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 43.55(1)(b), (c)(i)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "The licence grants timber rights; its Crown land stays Crown range. Whether the licence's terms restrict grazing is in the licence document.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 43.55(1)(b), (c)(i)"
+            },
+            {
+              "source": "bc.range-act",
+              "provision": "s. 1 \"Crown range\""
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": false,
+        "where": "The licence document and its management plan",
+        "holder": "Ministry of Forests, the natural resource district (tenures)",
+        "channel": "The natural resource district, quoting the forest file id",
+        "ask": "The licence's area (Schedules A and B), term and conditions, and its current management plan; whether any of its harvesting rights are released to BC Timber Sales"
+      },
+      "facts": []
+    },
+    {
+      "id": "tree-farm-licence",
+      "label": "Tree farm licence",
+      "layer": "tfl",
+      "where": [
+        {
+          "field": "FOREST_FILE_ID",
+          "prefix": ["TFL"]
+        }
+      ],
+      "statute": {
+        "source": "bc.forest-act",
+        "provision": "s. 35"
+      },
+      "note": "The licences' current boundaries, asked by each footprint part's hull because each TFL is one very detailed polygon, as the old forest land base reads them. A TFL area is Crown land, and any private land or timber licence land the minister includes.",
+      "binds": {
+        "kind": "direct",
+        "note": "An area-based licence: the Forest Act requires it to give its holder the exclusive right to harvest timber on its Crown land for its term. That right gives way to a BC Timber Sales licence only where the holder released harvesting rights to the government under a BCTS disposition agreement.",
+        "cites": [
+          {
+            "source": "bc.forest-act",
+            "provision": "s. 35(1)(b), (e)"
+          },
+          {
+            "source": "bc.forest-act",
+            "provision": "s. 22.2(5)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "governs",
+          "note": "Only the holder may harvest the Crown timber in it, and a timber sale over it needs the holder's rights released under a BCTS disposition agreement. The licence also requires timber, in an amount the minister directs, to be made available to others for BC Timber Sales, pulpwood agreements and woodlot licences.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 35(1)(b), (e)"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 22.2(5)"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 35(1)(h)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "A harvest by the holder carries the holder's own reforestation obligation; what the licence and its plan require beyond that is in the licence document.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 35(1)(b), (e)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 29"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "The licence document and its plan decide road building in the area, and whether a road for a block outside it may cross.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 35(1)(b), (e)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "The licence grants timber rights; its Crown land stays Crown range. Whether the licence's terms restrict grazing is in the licence document.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 35(1)(b), (e)"
+            },
+            {
+              "source": "bc.range-act",
+              "provision": "s. 1 \"Crown range\""
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": false,
+        "where": "The licence document and its management plan",
+        "holder": "Ministry of Forests, the natural resource district (tenures)",
+        "channel": "The natural resource district, quoting the forest file id",
+        "ask": "The licence's area (Schedules A and B), term and conditions, and its current management plan; whether any of its harvesting rights are released to BC Timber Sales"
+      },
+      "facts": []
+    },
+    {
+      "id": "recreation-site",
+      "label": "Recreation site, interpretive forest or trail-based recreation area",
+      "layer": "recreation",
+      "where": [
+        {
+          "field": "PROJECT_TYPE",
+          "in": ["Recreation Site", "Interpretative Forest", "Trail Based Recreation Area"]
+        },
+        {
+          "field": "LIFE_CYCLE_STATUS_CODE",
+          "in": ["ACTIVE"]
+        }
+      ],
+      "statute": {
+        "source": "bc.frpa",
+        "provision": "s. 56"
+      },
+      "note": "Active records. `PROJECT_ESTABLISHED_DATE` is the date the feature was legally established; some records leave it blank. Recreation reserves in the same layer are not established under s. 56 and are not read.",
+      "binds": {
+        "kind": "direct",
+        "note": "Established by the minister's order, which may set an objective for it. A recreation site, trail or interpretive forest is a resource feature: an authorized person carrying out a primary forest activity must not damage it or render it ineffective. The minister may also order a non-recreational use of it restricted or prohibited, with notice posted on the ground.",
+        "cites": [
+          {
+            "source": "bc.frpa",
+            "provision": "s. 56(1), (3), s. 58(1)(a)(ii), (3)"
+          },
+          {
+            "source": "bc.fppr",
+            "provision": "s. 1 \"resource feature\", s. 70(1)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "Harvesting must not damage the site or render it ineffective in any case. The establishing order's objective, and any order restricting or prohibiting non-recreational use, decide what more applies.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 70(1)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 56(3), s. 58(1)(a)(ii)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "Silviculture is a primary forest activity that must not damage the site; the establishing order's objective, and any restricting order, decide more.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 1 \"primary forest activity\", s. 70(1)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 56(3), s. 58(1)(a)(ii)"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "Road work must not damage the site; the establishing order's objective, and any restricting order, decide more. Building a trail or recreation facility needs the minister's written authorization.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 70(1)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 56(3), s. 57(1), s. 58(1)(a)(ii)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "The minister may restrict or prohibit a non-recreational use of the site by order to protect a recreation or range resource; only such an order says whether grazing is restricted.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 58(1)(a)(ii)"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": false,
+        "where": "The order establishing the site and any objective for it, and any order under FRPA s. 58",
+        "holder": "Recreation Sites and Trails BC (Ministry of Forests)",
+        "channel": "The district recreation officer, quoting the recreation file",
+        "ask": "The order establishing the site, any objective established for it, and any order restricting or prohibiting non-recreational use"
+      },
+      "facts": []
+    },
+    {
+      "id": "recreation-trail",
+      "label": "Recreation trail",
+      "layer": "recreation-trails",
+      "where": [
+        {
+          "field": "PROJECT_TYPE",
+          "in": ["Recreation Trail Established", "Interpretive Forest Trail", "Trail Based Recreation Linear"]
+        },
+        {
+          "field": "LIFE_CYCLE_STATUS_CODE",
+          "in": ["ACTIVE"]
+        }
+      ],
+      "statute": {
+        "source": "bc.frpa",
+        "provision": "s. 56"
+      },
+      "note": "Active, established trails, measured by their length inside the footprint and within the layer's stated margin of it. Trail reserves are not established under s. 56 and are not read.",
+      "binds": {
+        "kind": "direct",
+        "note": "Established by the minister's order, which may set an objective for it. A recreation site, trail or interpretive forest is a resource feature: an authorized person carrying out a primary forest activity must not damage it or render it ineffective. The minister may also order a non-recreational use of it restricted or prohibited, with notice posted on the ground.",
+        "cites": [
+          {
+            "source": "bc.frpa",
+            "provision": "s. 56(1), (3), s. 58(1)(a)(ii), (3)"
+          },
+          {
+            "source": "bc.fppr",
+            "provision": "s. 1 \"resource feature\", s. 70(1)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "Harvesting must not damage the trail or render it ineffective in any case. The establishing order's objective, and any order restricting or prohibiting non-recreational use, decide what more applies.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 70(1)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 56(3), s. 58(1)(a)(ii)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "Silviculture is a primary forest activity that must not damage the site; the establishing order's objective, and any restricting order, decide more.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 1 \"primary forest activity\", s. 70(1)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 56(3), s. 58(1)(a)(ii)"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "Road work must not damage the site; the establishing order's objective, and any restricting order, decide more. Building a trail or recreation facility needs the minister's written authorization.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 70(1)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 56(3), s. 57(1), s. 58(1)(a)(ii)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "The minister may restrict or prohibit a non-recreational use of the trail by order to protect a recreation or range resource; only such an order says whether grazing is restricted.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 58(1)(a)(ii)"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": false,
+        "where": "The order establishing the trail and any objective for it, and any order under FRPA s. 58",
+        "holder": "Recreation Sites and Trails BC (Ministry of Forests)",
+        "channel": "The district recreation officer, quoting the recreation file",
+        "ask": "The order establishing the trail, any objective established for it, and any order restricting or prohibiting non-recreational use"
+      },
+      "facts": []
+    },
+    {
+      "id": "visual-quality-objective",
+      "label": "Established visual quality objective",
+      "layer": "visual-quality",
+      "where": [
+        {
+          "field": "REC_EVQO_CODE",
+          "in": ["P", "R", "PR", "M", "MM"]
+        }
+      ],
+      "statute": {
+        "source": "bc.gar",
+        "provision": "s. 7(2)"
+      },
+      "note": "The inventory's established VQO (P preservation, R retention, PR partial retention, M modification, MM maximum modification). An objective established for a scenic area under the GAR, continued from the Code (FRPA s. 181), or a visual quality class a district manager's letter set before 24 October 2002 (GAR s. 17); the inventory does not say which.",
+      "binds": {
+        "kind": "via-fsp",
+        "note": "A visual quality objective is an objective established under the Act for a scenic area; a forest stewardship plan must specify results or strategies for it, and its holder must achieve and carry them out. Each category is an extent of alteration from the size, shape and location of cutblocks and roads, assessed from a significant public viewpoint.",
+        "cites": [
+          {
+            "source": "bc.fppr",
+            "provision": "s. 1 \"visual quality objective\", s. 1.1"
+          },
+          {
+            "source": "bc.frpa",
+            "provision": "s. 5(1)(b)(ii), s. 20.22(1), s. 181"
+          },
+          {
+            "source": "bc.gar",
+            "provision": "s. 7(2), s. 17"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "conditions",
+          "note": "Cutblocks may be made, within the category's extent of visible alteration from significant public viewpoints, as the FSP's result or strategy for the objective says.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 1.1"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 5(1)(b)(ii)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "no-reach",
+          "note": "The categories are judged on the size, shape and location of cutblocks and roads; they set nothing on planting. How fast a stand greens up bears on how long an alteration stays visible, which the FSP's strategy may address.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 1 \"altered forest landscape\", s. 1.1"
+            }
+          ]
+        },
+        "roads": {
+          "state": "conditions",
+          "note": "Roads count in the alteration the category allows.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 1 \"altered forest landscape\", s. 1.1"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "no-reach",
+          "note": "The categories are judged on cutblocks and roads; nothing in them reaches grazing. A range use plan must be consistent with objectives established under the Act.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 1.1"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 33(1)(e)"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The inventory's established objective and the regulation's categories; the establishing order or letter where one is needed",
+        "holder": "Ministry of Forests, the natural resource district",
+        "channel": "The natural resource district",
+        "ask": "The order or letter that established the objective for the scenic area, and the significant public viewpoints it is assessed from"
+      },
+      "facts": []
+    },
+    {
+      "id": "scenic-area",
+      "label": "Scenic area without an established objective",
+      "layer": "visual-quality",
+      "where": [
+        {
+          "field": "REC_MADE_KNOWN_CODE",
+          "in": ["Y"]
+        }
+      ],
+      "statute": {
+        "source": "bc.fppr",
+        "provision": "s. 9.2"
+      },
+      "note": "Inventory polygons made known as a scenic area with no established VQO in the inventory (any code other than P, R, PR, M or MM prints as DataBC gives it).",
+      "binds": {
+        "kind": "via-fsp",
+        "note": "For a scenic area established on or before 24 October 2002 with no visual quality objective, the objective set by government is a pair of categories by its visual sensitivity class (class 1 preservation or retention, 2 retention or partial retention, 3 and 4 partial retention or modification, 5 modification or maximum modification). A forest stewardship plan must specify results or strategies for it.",
+        "cites": [
+          {
+            "source": "bc.fppr",
+            "provision": "s. 9.2(1), (2)"
+          },
+          {
+            "source": "bc.frpa",
+            "provision": "s. 5(1)(b)(i), s. 180(c)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "Where the scenic area predates 24 October 2002, harvesting is held to the categories for its visual sensitivity class, which the inventory gives. A scenic area established later under the GAR with no objective has none from s. 9.2. When it was made known is in the establishing order or letter, not the layer.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 9.2"
+            },
+            {
+              "source": "bc.gar",
+              "provision": "s. 7(1)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "no-reach",
+          "note": "The categories are judged on cutblocks and roads; they set nothing on planting.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 1 \"altered forest landscape\", s. 1.1, s. 9.2"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "Roads count in the alteration, where s. 9.2's objective applies; whether it does turns on when the scenic area was made known.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 1.1, s. 9.2"
+            },
+            {
+              "source": "bc.gar",
+              "provision": "s. 7(1)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "no-reach",
+          "note": "The categories are judged on cutblocks and roads; nothing in them reaches grazing.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 1.1, s. 9.2"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The regulation, and the inventory's visual sensitivity class; the order or letter that made the scenic area known",
+        "holder": "Ministry of Forests, the natural resource district",
+        "channel": "The natural resource district",
+        "ask": "When and how the scenic area was made known, and whether a visual quality objective has since been established for it"
+      },
+      "facts": []
+    },
+    {
+      "id": "federal-critical-habitat",
+      "label": "Federal critical habitat (Species at Risk Act)",
+      "layer": "critical-habitat",
+      "where": [],
+      "statute": {
+        "source": "ca.sara",
+        "provision": "ss. 58, 61"
+      },
+      "note": "Critical habitat identified in a federal recovery strategy or action plan, final or proposed, as ECCC posts it; secure polygons are not public. One habitat can span hundreds of thousands of hectares (a caribou range's matrix), so the overlap is the share of the block, not of the habitat.",
+      "binds": {
+        "kind": "direct",
+        "note": "On land in a province that is not federal land, the prohibition on destroying any part of a listed endangered or threatened species' critical habitat applies only to the portions a Governor in Council order specifies, on the federal minister's recommendation; an emergency order can also prohibit activities that may adversely affect the species and its habitat. On federal land the prohibition applies through the minister's order or the protected-area description. Without such an order the identification alone regulates nothing on provincial Crown land; provincial measures (a winter range, a habitat area, a conservation agreement) are separate.",
+        "cites": [
+          {
+            "source": "ca.sara",
+            "provision": "s. 2 \"federal land\", s. 58(1), (4), (5), s. 61(1), (2), s. 80(1), (4)(c)(ii)"
+          },
+          {
+            "source": "ca.sara",
+            "provision": "s. 11(1)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "Destroying any part of the critical habitat is prohibited on provincial Crown land only where an order under s. 61(2), or an emergency order under s. 80, specifies that portion. None was looked for in this read; the Species at Risk Public Registry and the Canada Gazette list them. On federal land (the layer's land tenure) the s. 58 order decides.",
+          "cites": [
+            {
+              "source": "ca.sara",
+              "provision": "s. 61(1), (2)"
+            },
+            {
+              "source": "ca.sara",
+              "provision": "s. 80(1), (4)(c)(ii)"
+            },
+            {
+              "source": "ca.sara",
+              "provision": "s. 58(1)(a), (4)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "Whether planting could destroy part of the habitat, and whether any order reaches it, is in the order and the recovery strategy that identified the habitat.",
+          "cites": [
+            {
+              "source": "ca.sara",
+              "provision": "s. 61(1), (2)"
+            },
+            {
+              "source": "ca.sara",
+              "provision": "s. 80(4)(c)(ii)"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "A road can destroy part of the habitat; the prohibition reaches it only where an order specifies the portion.",
+          "cites": [
+            {
+              "source": "ca.sara",
+              "provision": "s. 61(1), (2)"
+            },
+            {
+              "source": "ca.sara",
+              "provision": "s. 80(4)(c)(ii)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "The prohibition reaches grazing only where an order specifies the portion and the grazing destroys part of the habitat.",
+          "cites": [
+            {
+              "source": "ca.sara",
+              "provision": "s. 61(1), (2)"
+            },
+            {
+              "source": "ca.sara",
+              "provision": "s. 80(4)(c)(ii)"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The recovery strategy or action plan that identified the habitat, and any order under SARA s. 58, 61 or 80, on the Species at Risk Public Registry",
+        "holder": "Environment and Climate Change Canada",
+        "channel": "The Species at Risk Public Registry; ECCC's Canadian Wildlife Service, Pacific region",
+        "ask": "Whether any order under SARA s. 58(4), 61(2) or 80 applies to this portion of the critical habitat, and which provincial measures the federal minister relies on to protect it"
       },
       "facts": []
     }

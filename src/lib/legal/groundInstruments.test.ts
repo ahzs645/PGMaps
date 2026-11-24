@@ -72,7 +72,8 @@ describe('the ground instrument catalogue', () => {
   })
 
   it('never reads a holder, client, owner or user field', () => {
-    const forbidden = /CLIENT|HOLDER|OWNER_NAME|ORGANIZATION|_WHO_|USER|PERSON|LICENSEE_NAME/
+    const forbidden =
+      /CLIENT|HOLDER|OWNER_NAME|ORGANIZATION|_WHO_|USER|PERSON|LICENSEE|LICENCEE|APPLICANT|CLAIM_NAME|ADDRESS/
     for (const l of GROUND_CATALOGUE.layers) for (const f of l.fields) expect(f, l.id).not.toMatch(forbidden)
   })
 
@@ -109,5 +110,49 @@ describe('the ground instrument catalogue', () => {
     const copy = structuredClone(raw) as typeof raw
     copy.instruments[0].where[0].field = 'CLIENT_NAME'
     expect(() => parseGroundCatalogue(copy)).toThrow(/does not read/)
+  })
+
+  it('matches a forest file by its letter, in CQL and locally alike', () => {
+    const c = { field: 'FOREST_FILE_ID', prefix: ['W', 'K'] }
+    expect(conditionCql(c)).toBe("(FOREST_FILE_ID LIKE 'W%' OR FOREST_FILE_ID LIKE 'K%')")
+    expect(matches([c], { FOREST_FILE_ID: 'W1234' })).toBe(true)
+    expect(matches([c], { FOREST_FILE_ID: 'N1A' })).toBe(false)
+    expect(matches([c], {})).toBe(false)
+    const copy = structuredClone(raw) as { instruments: { where: Record<string, unknown>[] }[] }
+    copy.instruments[0].where[0] = { field: 'TENURE_SUBTYPE', prefix: ["W%' OR 1=1 --"] }
+    expect(() => parseGroundCatalogue(copy)).toThrow(/letters, digits or spaces/)
+    copy.instruments[0].where[0] = { field: 'TENURE_SUBTYPE', in: ['A'], prefix: ['B'] }
+    expect(() => parseGroundCatalogue(copy)).toThrow(/exactly one/)
+  })
+
+  it('gives every line and point layer a stated margin, and reads TFLs by hull', () => {
+    for (const l of GROUND_CATALOGUE.layers)
+      if (l.geometry !== 'area') {
+        expect(l.near, l.id).toBeDefined()
+        expect(l.near!.why.length, l.id).toBeGreaterThan(40)
+      }
+    expect(GROUND_CATALOGUE.layers.find((l) => l.id === 'water-licences')).toMatchObject({
+      geometry: 'point',
+      near: { metres: 100 },
+    })
+    expect(GROUND_CATALOGUE.layers.find((l) => l.id === 'tfl')!.byHull).toBe(true)
+    const copy = structuredClone(raw) as { layers: Record<string, unknown>[] }
+    copy.layers[0].geometry = 'line'
+    expect(() => parseGroundCatalogue(copy)).toThrow(/near margin/)
+  })
+
+  it('reads the Robson Valley order apart from other objectives, with the Omineca order’s reach', () => {
+    const general = GROUND_CATALOGUE.instruments.find((x) => x.id === 'legal-objective')!
+    const robson = GROUND_CATALOGUE.instruments.find((x) => x.id === 'robson-valley-ada')!
+    const omineca = GROUND_CATALOGUE.instruments.find((x) => x.id === 'omineca-ada-sra')!
+    expect(general.where[0].notIn).toContain(robson.where[0].in![0])
+    for (const a of ACTIVITIES) expect(robson.reach[a].state, a).toBe(omineca.reach[a].state)
+    expect(robson.reach.harvest.cites.every((c) => c.source === 'bc.robson-valley.ada.2006')).toBe(true)
+  })
+
+  it('keeps federal critical habitat unknown without an order, citing the Act', () => {
+    const x = GROUND_CATALOGUE.instruments.find((i) => i.id === 'federal-critical-habitat')!
+    expect(ACTIVITIES.map((a) => x.reach[a].state)).toEqual(['unknown', 'unknown', 'unknown', 'unknown'])
+    expect(x.reach.harvest.cites.map((c) => c.provision)).toContain('s. 61(1), (2)')
   })
 })
