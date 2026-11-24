@@ -58,12 +58,12 @@ describe('company profiles', () => {
     expect(result.layers.some((l) => l.name === 'Block outlines')).toBe(true)
   })
 
-  it('names the supported profiles when none recognizes the PDF', async () => {
+  it('names the profiles when none recognizes the PDF, and reads no class raster without one', async () => {
     const bytes = await canforPdfFixture({ raster: 'canopy' })
     const never: PdfTemplateProfile = { ...acme, matches: () => false }
-    await expect(readGeoPdf(bytes, 'Other.pdf', runtime, { ...limits, profiles: [never] })).rejects.toThrow(
-      /Supported: Acme · test template\./,
-    )
+    const result = await readGeoPdf(bytes, 'Other.pdf', runtime, { ...limits, profiles: [never] })
+    expect(result.notices[0]).toMatch(/No company profile recognizes this sheet \(profiles: Acme · test template\)/)
+    expect(result.layers.some((l) => l.classGrid)).toBe(false)
   })
 
   it('finds legend swatches only with the profile’s geometry', async () => {

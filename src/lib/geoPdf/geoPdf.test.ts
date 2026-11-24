@@ -16,6 +16,7 @@ import { blockChoices } from '@/pages/dev-forestry-roads/blockSheet'
 import { decodeCells, parseClassGrid, UNKNOWN } from './classGrid'
 import { parseImageMosaic } from './imageMosaic'
 import { PDF_LIMITS } from './types'
+import { CANFOR_PROFILE, GENERIC_PROFILE_ID, GENERIC_PROFILE_LABEL } from './profiles'
 
 const limits = { maxFeatures: 500, maxVertices: 50_000 }
 describe('company GeoPDF reader', () => {
@@ -126,13 +127,56 @@ describe('company GeoPDF reader', () => {
     expect(result.layers.find((l) => l.name === 'Roads')!.suggestedRole).toBe('reference')
   })
 
-  it('refuses unregistered and unknown templates instead of inventing placement or meaning', async () => {
+  it('refuses an unregistered sheet instead of inventing placement', async () => {
     await expect(
       readGeoPdf(await canforPdfFixture({ registered: false }), 'scan.pdf', runtime, limits),
     ).rejects.toThrow(/no supported embedded map registration/)
-    await expect(
-      readGeoPdf(await canforPdfFixture({ supported: false }), 'unknown.pdf', runtime, limits),
-    ).rejects.toThrow(/template is not supported/)
+  })
+
+  it('reads a sheet no profile recognizes as its registered image and named map layers, unticked', async () => {
+    const result = await readGeoPdf(await canforPdfFixture({ generic: true }), 'Overview.pdf', runtime, limits)
+    expect(result.layers.map((l) => [l.name, l.source.layer, l.features.map((f) => f.geometry.type)])).toEqual([
+      ['Map sheet', 'Map sheet', ['Polygon']],
+      ['Plan areas', 'Plan areas', ['Polygon']],
+      ['Access roads', 'Access roads', ['LineString']],
+      // One layer drawn both ways comes in as two, each keeping the PDF layer's name.
+      ['Mixed · areas', 'Mixed', ['Polygon']],
+      ['Mixed · lines', 'Mixed', ['LineString']],
+    ])
+    expect(result.layers.every((l) => l.source.profile === GENERIC_PROFILE_LABEL)).toBe(true)
+    expect(result.layers.every((l) => l.suggestedRole === 'reference')).toBe(true)
+    expect(result.layers.filter((l) => l.name !== 'Map sheet').every((l) => !l.selected)).toBe(true)
+    expect(result.layers[0].features[0].properties?.template).toBe(GENERIC_PROFILE_ID)
+    expect(result.layers.some((l) => l.classGrid || l.imageMosaic || l.contourSurface)).toBe(false)
+    // The fill closed the open path; the road is clipped to the frame like any other drawing.
+    const area = (result.layers[1].features[0].geometry as GeoJSON.Polygon).coordinates[0]
+    expect(area).toHaveLength(4)
+    expect(area[0]).toEqual(area[3])
+    const road = (result.layers[2].features[0].geometry as GeoJSON.LineString).coordinates.map((c) =>
+      proj4(
+        'EPSG:4326',
+        '+proj=aea +lat_0=45 +lon_0=-126 +lat_1=50 +lat_2=58.5 +x_0=1000000 +y_0=0 +datum=NAD83 +units=m',
+        c,
+      ),
+    )
+    expect(road[0][0]).toBeCloseTo(1291000, 4)
+    expect(road[1][0]).toBeCloseTo(1292800, 4)
+    const notices = result.notices.join('\n')
+    expect(notices).toMatch(/No company profile recognizes this sheet \(profiles: Canfor/)
+    // The legend inside the frame is not part of the map.
+    expect(notices).toMatch(/2 drawings inside the frame but not drawn as part of the map/)
+  })
+
+  it('reads only the sheet when nothing is drawn under the map frame', async () => {
+    const result = await readGeoPdf(await canforPdfFixture({ supported: false }), 'unknown.pdf', runtime, limits)
+    expect(result.layers.map((l) => l.name)).toEqual(['Map sheet'])
+    expect(result.notices.join('\n')).toMatch(/No company profile recognizes this sheet/)
+  })
+
+  it('still reads a recognized template by its own profile', async () => {
+    const result = await readGeoPdf(await canforPdfFixture(), 'Test.pdf', runtime, limits)
+    expect(result.layers.every((l) => l.source.profile === CANFOR_PROFILE.label)).toBe(true)
+    expect(result.notices.join('\n')).not.toMatch(/No company profile/)
   })
 
   it('keeps source metadata, compound paths and native attributes through project and GeoJSON round trips', async () => {

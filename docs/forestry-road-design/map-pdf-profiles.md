@@ -1,7 +1,9 @@
 # Adding a company's map PDFs
 
-**Layers → Add files** reads a company's georeferenced map PDFs only when a profile in
-`src/lib/geoPdf/profiles.ts` recognizes their template. Everything the reader assumes about a
+**Layers → Add files** reads a company's georeferenced map PDFs in full only when a profile in
+`src/lib/geoPdf/profiles.ts` recognizes their template; any other registered sheet comes in as its
+image and named layers only ([source-pdf-import.md](source-pdf-import.md), **Sheets no profile
+recognizes**). Everything the reader assumes about a
 company's sheets lives in that profile, so supporting another company is one profile, its tests,
 and the checks below. What the reader does with a recognized sheet is
 [source-pdf-import.md](source-pdf-import.md).
@@ -199,7 +201,7 @@ class maps for the calibration when their files are not called `*Slope_Map*` / `
    pixel. No company artwork.
 3. Unit tests with the fixture: recognized by the new profile and not by the others; rules extract
    the expected layers; the legend, classes, `undrawn` and any overlay come out right; a sheet
-   without the template's layers is refused with both profiles named.
+   without the template's layers is read by the generic profile, with both profiles named.
 4. An env-gated real-sheet test (`PGMAPS_<COMPANY>_MAPS`), like `geoPdf.test.ts`'s.
 5. **Other profiles unchanged:** run the existing unit tests and, with their local sheets, the
    real-sheet tests (`PGMAPS_CANFOR_MAPS=… npx vitest run src/lib/geoPdf`).

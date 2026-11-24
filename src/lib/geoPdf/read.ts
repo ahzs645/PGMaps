@@ -3,7 +3,7 @@ import type { DocumentInitParameters } from 'pdfjs-dist/types/src/display/api'
 import { projectedEpsg, readMapFrames, type MapFrame } from './georeference'
 import { assignContourElevations, contourSurface, readContourLabels } from './contours'
 import { extractPaths } from './paths'
-import { PDF_DRAWING_NOTE, PDF_PROFILES } from './profiles'
+import { genericProfile, PDF_DRAWING_NOTE, PDF_PROFILES } from './profiles'
 import { PDF_LIMITS, type PdfImport, type PdfLayer, type PdfSheet } from './types'
 import { extractClassRasters, type DecodedPdfImage } from './rasterRead'
 import { extractImageMosaics } from './imageMosaic'
@@ -48,10 +48,11 @@ export async function readGeoPdf(
     const content = await doc.getOptionalContentConfig({ intent: 'any' })
     const names = [...content].map(([, group]) => String(group.name))
     const profiles = options.profiles ?? PDF_PROFILES
-    const profile = profiles.find((p) => p.matches(creator, names))
-    if (!profile)
-      throw Error(
-        `This PDF template is not supported yet. Supported: ${profiles.map((p) => p.label).join('; ')}. Import the original GIS files for this template.`,
+    const matched = profiles.find((p) => p.matches(creator, names))
+    const profile = matched ?? genericProfile(names)
+    if (!matched)
+      notices.push(
+        `No company profile recognizes this sheet (profiles: ${profiles.map((p) => p.label).join('; ')}). It is read as a registered sheet with its named layers as reference drawings, all unticked. No class rasters, contour terrain or image layers are read from it. Import the original GIS files where you have them.`,
       )
     const layers: PdfLayer[] = []
     for (const frame of frames) {
@@ -134,10 +135,17 @@ export async function readGeoPdf(
       layers.push(...pictures.layers)
       notices.push(...pictures.notices)
       const result = extractPaths(list, runtime.OPS, content, frame, profile.rules, options)
-      for (const [name, { rule, features, overBudget }] of result.layers) {
+      const drawnBothWays = new Set(
+        [...result.layers.values()]
+          .filter((e) => e.rule.shape === 'as-painted' && e.shape === 'polygon')
+          .map((e) => e.layer)
+          .filter((layer) => result.layers.has(`${layer}\u0000line`)),
+      )
+      for (const { rule, layer: name, shape, features, overBudget } of result.layers.values()) {
+        const layerName = drawnBothWays.has(name) ? `${rule.name} · ${shape === 'line' ? 'lines' : 'areas'}` : rule.name
         if (overBudget) {
           notices.push(
-            `Page ${frame.page} · ${rule.name}: exceeds ${options.maxFeatures} drawing parts or ${options.maxVertices.toLocaleString()} vertices per layer. Use the source GIS layer. The sheet preview still shows it.`,
+            `Page ${frame.page} · ${layerName}: exceeds ${options.maxFeatures} drawing parts or ${options.maxVertices.toLocaleString()} vertices per layer. Use the source GIS layer. The sheet preview still shows it.`,
           )
           continue
         }
@@ -152,12 +160,12 @@ export async function readGeoPdf(
         )
         if (features.length > options.maxFeatures || vertices > options.maxVertices) {
           notices.push(
-            `Page ${frame.page} · ${rule.name}: ${features.length} drawing parts, ${vertices.toLocaleString()} vertices; exceeds the layer budget. Use the source GIS layer. The sheet preview still shows it.`,
+            `Page ${frame.page} · ${layerName}: ${features.length} drawing parts, ${vertices.toLocaleString()} vertices; exceeds the layer budget. Use the source GIS layer. The sheet preview still shows it.`,
           )
           continue
         }
         layers.push({
-          name: rule.name,
+          name: layerName,
           source: { ...source, layer: name },
           features,
           suggestedRole: 'reference',
@@ -215,6 +223,10 @@ export async function readGeoPdf(
           )
         }
       }
+      if (result.outsideMap)
+        notices.push(
+          `Page ${frame.page}: ${result.outsideMap} drawings inside the frame but not drawn as part of the map (a legend, scale bar or text box laid over it) were left on the sheet only.`,
+        )
       if (result.omittedClips)
         notices.push(
           `Page ${frame.page}: ${result.omittedClips} drawings under non-rectangular clips were left on the sheet only.`,
