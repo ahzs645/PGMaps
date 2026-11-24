@@ -2,7 +2,8 @@
 
 **Layers → Add files / Add folder**, or a drop anywhere on the designer, accepts the Canfor ArcGIS Pro PDF templates represented by
 a supplied block's August/September 2026 field layout, ortho, general access, hillshade,
-slope and canopy-height sheets, including their revised PDF. This is a client-side reader:
+slope and canopy-height sheets, including their revised PDF. Any other georeferenced map PDF is
+read with fewer steps (see **Sheets no profile recognizes**). This is a client-side reader:
 PDF bytes, extraction and preview rendering stay in a dedicated browser worker. It uses
 Mozilla PDF.js (Apache-2.0) and pdf-lib (MIT), loaded only for a PDF import. There is no
 conversion server, upload, Python, installed GDAL or RustGIS requirement.
@@ -12,9 +13,10 @@ conversion server, upload, Python, installed GDAL or RustGIS requirement.
 1. Pair GIS sidecars as before. Read a PDF's ISO geospatial viewport, projected WKT,
    normalized local controls and latitude-first geographic controls. Fit in the declared
    metre-based projection, then transform extracted points to WGS84 using that projection.
-   Refuse missing or inconsistent registration, an unknown template or multiple map frames.
+   Refuse missing or inconsistent registration or multiple map frames.
 2. Match the named layer vocabulary with the versioned company profile in
-   `src/lib/geoPdf/profiles.ts`. The Canfor profile recognizes exact map-layer families for
+   `src/lib/geoPdf/profiles.ts`; a sheet no profile matches is read by the generic profile
+   instead (see **Sheets no profile recognizes**). The Canfor profile recognizes exact map-layer families for
    block outlines, roads, streams, reserves, field lines and contours. Label and legend layer
    names do not match those rules. Clip recovered geometry to the registered map frame and
    supported rectangular drawing clips. Preserve polygon holes. Non-rectangular clips stay
@@ -717,9 +719,39 @@ interpreted by this adapter. An unregistered scan can use the separate georefere
 
 ## Supported templates
 
-| Profile (`profiles.ts`)               | Sheets read                                                                      | Measured                                                                                        |
-| ------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Canfor · ArcGIS map sheets (2026, v1) | Field layout, ortho, general access, hillshade, slope, canopy height (revisions) | This guide's figures: class splits, JPEG calibration, contour slope, road comparison (Nov 2026) |
+| Profile (`profiles.ts`)                | Sheets read                                                                      | Measured                                                                                        |
+| -------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Canfor · ArcGIS map sheets (2026, v1)  | Field layout, ortho, general access, hillshade, slope, canopy height (revisions) | This guide's figures: class splits, JPEG calibration, contour slope, road comparison (Nov 2026) |
+| No company profile · named layers only | Any other registered sheet: its image and named map layers only                  | **Sheets no profile recognizes**                                                                |
+
+## Sheets no profile recognizes
+
+A registered sheet that no company profile recognizes is read by `genericProfile`
+(`profiles.ts`), not refused. It knows no template, so it reads only what needs none:
+
+- the registered sheet image, as for any sheet;
+- each named optional-content layer's drawings, clipped to the map frame, under the layer's own
+  name. A filled path is an area and a stroked one a line, because nothing else says what the layer
+  holds; a layer drawn both ways comes in as two layers (`… · areas`, `… · lines`) that keep the
+  one PDF layer name in their source. Every one starts unticked and as **Reference**, and may be
+  made a proposed road or planned block only by the person, like any PDF drawing;
+- only drawings made under the map frame's own clip (a rectangular clip within 2% of the
+  registered frame), which is how map exporters draw a map. A legend, scale bar, title or
+  attribution box laid over the map is not drawn under it, and is left on the sheet and counted in
+  a notice. A sheet that draws nothing under its frame's clip brings in the sheet image alone.
+
+It reads no class raster, contour terrain or image layer and assigns no role: each needs a
+company's conventions, which only a profile states. A layer over its own budget is left on the
+sheet with a notice; because the generic profile also reads base maps, one that would take the
+page past `PDF_LIMITS.vertices` is left on the sheet the same way instead of refusing the import.
+The first notice says no profile recognized the sheet and names the profiles that exist.
+
+Measured on BCTS Prince George 5-year-plan overview sheets (ArcGIS Pro 3.1, BC Albers, November
+2026): all 13 read in 1.6–3.1 s; the map's named layers came in and the legend, scale bar, title
+and attribution boxes did not. One sheet's plan-area layer lay a median 0.3 m (largest 0.8 m) from
+the same areas' shapefile edges, at a control fit of 0.24 m and about 10.6 m of ground per page
+point. Paths under non-rectangular clips (most of the Esri topographic base map) stay on the
+sheet, as for every profile.
 
 ## Supporting another company/template
 

@@ -51,6 +51,68 @@ const sun = (over: Partial<SunCheck>): SunCheck => ({
 })
 
 describe('photoOptions', () => {
+  it('offers the phone’s heading from high ground at the GPS altitude, on the ground and with its own lens', () => {
+    const rows = photoOptions({
+      base,
+      search: { result: search({ ambiguous: true, trustworthy: false }) },
+      phone: { bearing: 127.5, reference: 'true', pitch: -8.2, airborne: true },
+      highGround: { lng: -123.105, lat: 54.21, distanceMeters: 1123, bearing: 343, aboveFixMeters: 114 },
+    })
+    const high = rows.find((row) => row.kind === 'high-ground')!
+    expect(high).toMatchObject({
+      id: 'high-ground',
+      label: 'High ground 1.1 km NNW, phone’s heading',
+      pose: { lng: -123.105, lat: 54.21, altitudeMeters: null, bearing: 127.5, pitch: -8.2, roll: 0, hfov: 51.9 },
+      warnings: [
+        'the fix is 114 m below the GPS altitude: this place is a guess from that height',
+        'the phone’s heading: often a few degrees out',
+      ],
+    })
+    // Beside the unsettled winner, above the runner-up and the phone's heading from the fix.
+    expect(rows.map((row) => row.kind)).toEqual(['winner', 'high-ground', 'runner-up', 'phone'])
+  })
+
+  it('leads with the high ground when its model view is the better match', () => {
+    const highPose = {
+      lng: -123.105,
+      lat: 54.21,
+      altitudeMeters: null,
+      bearing: 127.5,
+      pitch: 0,
+      roll: 0,
+      hfov: 51.9,
+    }
+    const rows = photoOptions({
+      base,
+      search: { result: search({ ambiguous: true, trustworthy: false }) },
+      modelScores: [
+        { pose: { ...base, ...search() }, score: 0.05 },
+        { pose: highPose, score: 0.4 },
+      ],
+      phone: { bearing: 127.5, reference: 'true', airborne: true },
+      highGround: { lng: -123.105, lat: 54.21, distanceMeters: 1123, bearing: 343, aboveFixMeters: 114 },
+    })
+    expect(rows[0].kind).toBe('high-ground')
+  })
+
+  it('lists the phone’s heading once when the camera already stands on the high ground', () => {
+    const there = { ...base, lng: -123.105, lat: 54.21, altitudeMeters: null }
+    const rows = photoOptions({
+      base: there,
+      phone: { bearing: 127.5, reference: 'true', pitch: -8.2, airborne: false },
+      highGround: { lng: -123.105, lat: 54.21, distanceMeters: 1123, bearing: 343, aboveFixMeters: 114 },
+    })
+    expect(rows.map((row) => row.kind)).toEqual(['high-ground'])
+  })
+
+  it('offers no high ground without the phone’s heading', () => {
+    const rows = photoOptions({
+      base,
+      highGround: { lng: -123.105, lat: 54.21, distanceMeters: 1123, bearing: 343, aboveFixMeters: 114 },
+    })
+    expect(rows).toEqual([])
+  })
+
   it('lists the skyline winner first and fills its evidence', () => {
     const rows = photoOptions({
       base,
@@ -279,7 +341,7 @@ describe('sunNote', () => {
 describe('queue states', () => {
   it('has words for every status and reason', () => {
     expect(Object.keys(PHOTO_STATUS_TEXT)).toHaveLength(7)
-    expect(Object.keys(PHOTO_FAILURE_TEXT)).toHaveLength(6)
+    expect(Object.keys(PHOTO_FAILURE_TEXT)).toHaveLength(7)
     expect(photoFailureText('disagrees-with-neighbour', 'IMG_0004')).toBe(
       'Disagrees with IMG_0004, taken just before or after it.',
     )
@@ -308,6 +370,15 @@ describe('queue states', () => {
       'disagrees-with-neighbour',
     ])
   })
+
+  it('doubts the place while high ground stands at the GPS altitude, unless the skyline settles it from the air', () => {
+    const unsettled = { trustworthy: false, ambiguous: true }
+    expect(photoReasons({ search: unsettled, otherOptions: 3, highGround: true })).toEqual(['not-settled', 'gps-off'])
+    expect(
+      photoReasons({ search: { trustworthy: true, ambiguous: false }, otherOptions: 3, highGround: true }),
+    ).toEqual([])
+    expect(photoReasons({ skyline: false, highGround: true })).toEqual(['no-skyline', 'gps-off'])
+  })
 })
 
 describe('what a photo in the strip needs', () => {
@@ -318,6 +389,11 @@ describe('what a photo in the strip needs', () => {
       short: 'Needs a landmark',
     })
     expect(photoStripState({ status: 'options', reasons: ['phone-heading-only'] }).tone).toBe('help')
+    // A place in doubt comes before the heading: no heading fits from the wrong place.
+    expect(photoStripState({ status: 'options', reasons: ['not-settled', 'gps-off'] })).toMatchObject({
+      tone: 'help',
+      short: 'Check the place',
+    })
     // A disagreement with a neighbour is said before an unsettled skyline: it is the more specific thing to look at.
     expect(photoStripState({ status: 'options', reasons: ['not-settled', 'disagrees-with-neighbour'] }).short).toBe(
       'Disagrees with a neighbour',

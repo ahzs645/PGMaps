@@ -17,18 +17,25 @@ export async function canforPdfFixture(
     picture?: 'png' | 'jpeg'
     /** Written with a classic cross-reference table, as a re-saving program writes it. */
     classicXref?: boolean
+    /**
+     * A sheet of no company's template: its map drawn under the frame's clip, as map exporters draw
+     * a map, with a legend laid over the map outside that clip.
+     */
+    generic?: boolean
   } = {},
 ) {
   const pdf = await PDFDocument.create()
   pdf.setCreator('Esri ArcGISPro synthetic test')
   const page = pdf.addPage([340, 240])
-  const names = [
-    'Blocks - 0k - 25k',
-    'ROAD: Roads - 0k - 250k',
-    'Roads - 0k - 25k',
-    'Streams - 0k - 25k',
-    'SU: Reserves (Solid Green) - 0k - 75k',
-  ]
+  const names = options.generic
+    ? ['Plan areas', 'Access roads', 'Mixed', 'Legend']
+    : [
+        'Blocks - 0k - 25k',
+        'ROAD: Roads - 0k - 250k',
+        'Roads - 0k - 25k',
+        'Streams - 0k - 25k',
+        'SU: Reserves (Solid Green) - 0k - 75k',
+      ]
   const profile = CANFOR_RASTERS.find((p) => p.kind === options.raster)
   if (profile) names.push(profile.layer)
   if (profile?.overlay) names.push(profile.overlay.layer)
@@ -46,13 +53,25 @@ export async function canforPdfFixture(
   page.node.addContentStream(
     pdf.context.register(
       pdf.context.flateStream(
-        [
-          '/OC /L0 BDC 0 0 0 RG 40 40 120 120 re S EMC',
-          '/OC /L2 BDC 0 0 0 RG 10 110 m 230 110 l S EMC',
-          // Compound linework with a separate legend sample outside the registered map.
-          '/OC /L3 BDC 0 0 1 RG 60 60 m 80 90 l 110 120 l 130 80 m 170 100 l S 225 225 m 240 235 l S EMC',
-          '/OC /L4 BDC 0 1 0 rg 80 80 60 60 re 95 95 20 20 re f* EMC',
-        ].join('\n'),
+        (options.generic
+          ? [
+              'q 20 20 180 180 re W n',
+              // An area left open: a fill closes it.
+              '/OC /L0 BDC 1 0 0 rg 40 40 m 100 40 l 100 100 l f EMC',
+              '/OC /L1 BDC 0 0 0 RG 10 110 m 230 110 l S EMC',
+              '/OC /L2 BDC 0 0 1 rg 120 120 30 30 re f 0 0 1 RG 130 60 m 170 60 l S EMC',
+              'Q',
+              // Inside the frame, but not part of the map.
+              '/OC /L3 BDC 1 1 1 rg 150 150 40 40 re f 0 0 0 RG 150 150 m 190 150 l S EMC',
+            ]
+          : [
+              '/OC /L0 BDC 0 0 0 RG 40 40 120 120 re S EMC',
+              '/OC /L2 BDC 0 0 0 RG 10 110 m 230 110 l S EMC',
+              // Compound linework with a separate legend sample outside the registered map.
+              '/OC /L3 BDC 0 0 1 RG 60 60 m 80 90 l 110 120 l 130 80 m 170 100 l S 225 225 m 240 235 l S EMC',
+              '/OC /L4 BDC 0 1 0 rg 80 80 60 60 re 95 95 20 20 re f* EMC',
+            ]
+        ).join('\n'),
       ),
     ),
   )

@@ -53,6 +53,12 @@ describe('ownPhotoSteps', () => {
     expect(next).toBe('position')
   })
 
+  it('calls a place guessed from the GPS altitude a guess to confirm', () => {
+    const { steps, next } = ownPhotoSteps({ ...base, position: 'gps-altitude' })
+    expect(steps.position).toEqual({ state: 'todo', note: 'a guess from the GPS altitude: confirm where it was taken' })
+    expect(next).toBe('position')
+  })
+
   it('reads a trusted skyline search as done, and an unsettled one as wanting attention', () => {
     const found = ownPhotoSteps({ ...base, heading: 'skyline', search: { trustworthy: true, ambiguous: false } })
     expect(found.steps.direction).toEqual({ state: 'done', note: 'fitted to the skyline' })

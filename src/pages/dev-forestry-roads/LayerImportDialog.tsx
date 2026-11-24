@@ -16,6 +16,7 @@ import {
   type LayerImportRole,
 } from './referenceImport'
 import type { SpatialFile } from './spatialImport'
+import { GENERIC_PROFILE_LABEL } from '@/lib/geoPdf/profiles'
 
 /** What each import option does, as {@link LayerImportDialog} passes it on. */
 export interface LayerImportOptions {
@@ -127,8 +128,16 @@ export function LayerImportDialog({
             {files.some((file) => file.pdf) && (
               <>
                 <p>
-                  Recognized: {files.find((file) => file.pdf)!.pdf!.source.profile}. PDF reading runs on this computer.
+                  Recognized:{' '}
+                  {[...new Set(files.flatMap((file) => (file.pdf ? [file.pdf.source.profile] : [])))].join('; ')}. PDF
+                  reading runs on this computer.
                 </p>
+                {files.some((file) => file.pdf?.source.profile === GENERIC_PROFILE_LABEL) && (
+                  <p>
+                    A sheet no company profile recognizes brings in its registered image and its named layers only, all
+                    unticked: no class layers, contour terrain or image layers.
+                  </p>
+                )}
                 <p>
                   Map sheets are image references. Recovered drawings keep their source page and layer. Check a drawing
                   before choosing it as a design input. Class layers provide point queries and block summaries; JPEG

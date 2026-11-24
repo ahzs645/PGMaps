@@ -85,6 +85,14 @@ describe('reading EXIF as suggestions', () => {
     expect(reading.altitudeMeters).toBe(712.4)
   })
 
+  it('keeps the phone’s stated position error, and none where it gave none', () => {
+    expect(
+      readExif({ latitude: 53.9, longitude: -122.7, GPSHPositioningError: 125.4 }, LANDSCAPE).horizontalErrorMeters,
+    ).toBe(125.4)
+    expect(readExif({ latitude: 53.9, longitude: -122.7 }, LANDSCAPE).horizontalErrorMeters).toBeNull()
+    expect(readExif({ GPSHPositioningError: 0 }, LANDSCAPE).horizontalErrorMeters).toBeNull()
+  })
+
   it('marks a magnetic or unreferenced heading rather than calling it true', () => {
     expect(readExif({ GPSImgDirection: 10, GPSImgDirectionRef: 'M' }, LANDSCAPE).heading).toEqual({
       degrees: 10,

@@ -2283,6 +2283,28 @@ street-level photo from Mapillary, or with a photo of your own.
       (`burstNeighbour`) is searched first round that frame's camera
       (heading ±15°, pitch ±10°). The result is shown as supporting evidence.
       The queue still searches the full circle for competing ridges.
+    - **A fix far below its altitude.** A photo whose GPS altitude stands
+      `AIRBORNE_ABOVE_GROUND_METERS` (100 m) or more above the ground under its
+      fix is searched from the air at the fix, as before. It may instead have
+      been taken from high ground the fix missed: a phone on a bluff, stating
+      its position good to 125 m (`GPSHPositioningError`, shown and never
+      trusted as a bound), put a photo 1.1 km out on the valley floor below,
+      and from there no heading fits the photo. So the queue also looks for
+      the nearest ground within `HIGH_GROUND_RADIUS_METERS` (2 km) that stands
+      at the GPS altitude less the eye height, within
+      `HIGH_GROUND_TOLERANCE_METERS` (`highGroundNearFix`, `highGround.ts`,
+      DOM-free), and the options card gets a *High ground* row: that place, on
+      the ground, with the phone's heading and tilt and the photo's own lens.
+      It sits in tier 1 beside an unsettled skyline fit, and its model view is
+      drawn ahead like any row's; on that photo it agreed at 0.31 against
+      −0.11 for both skyline fits from the fix. The photo reads *Check the
+      place* (`gps-off`) unless the skyline settles from the air, which says
+      the fix was right. The row is never applied by the queue; *Use* moves
+      the camera there with its position marked *a guess from the GPS
+      altitude* (`gps-altitude`), still to confirm, and keeps the lens's own
+      source. The place is read from the fix, so a search run again from it
+      keeps the row. The skyline fits stay those searched at the fix until the
+      reviewer searches again near the new camera.
     - **Lenses.** `FocalLengthIn35mmFormat` already includes the iPhone's
       digital zoom, so it is applied once. A photo whose decoded size differs
       from the size its tags record was cropped after it was taken: it is

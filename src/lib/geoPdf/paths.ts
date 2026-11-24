@@ -178,6 +178,15 @@ interface State {
   matrix: Matrix
   clip: Box
   unsupportedClip: boolean
+  /** Inside the map frame's own clip: where a map draws its layers, and layout elements are not. */
+  inMap: boolean
+}
+
+/** A rectangular clip that is the registered map frame, within 2% of its area. */
+function isFrameClip(box: Box, frame: Box) {
+  const area = (b: Box) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1])
+  const whole = area(frame)
+  return whole > 0 && area(intersectBox(box, frame)) >= 0.98 * whole && area(box) <= 1.02 * whole
 }
 
 export function extractPaths(
@@ -189,16 +198,33 @@ export function extractPaths(
   limits = { maxFeatures: 500, maxVertices: 50_000 },
 ) {
   if (list.fnArray.length > PDF_LIMITS.operators) throw Error('The PDF page exceeds the drawing operation budget.')
-  let state: State = { matrix: IDENTITY, clip: frame.bbox, unsupportedClip: false }
+  let state: State = { matrix: IDENTITY, clip: frame.bbox, unsupportedClip: false, inMap: false }
   const saves: State[] = [],
     groups: State[] = [],
     marks: { name: string; visible: boolean }[] = []
+  // Keyed by the PDF layer's name; an `as-painted` layer's lines and areas are two entries.
   const result = new Map<
     string,
-    { rule: PdfLayerRule; features: GeoJSON.Feature[]; vertices: number; overBudget: boolean }
+    {
+      rule: PdfLayerRule
+      layer: string
+      shape: 'line' | 'polygon'
+      features: GeoJSON.Feature[]
+      vertices: number
+      overBudget: boolean
+    }
   >()
+  const filled = new Set([
+    ops.fill,
+    ops.eoFill,
+    ops.fillStroke,
+    ops.eoFillStroke,
+    ops.closeFillStroke,
+    ops.closeEOFillStroke,
+  ])
   let pendingClip = false,
     omittedClips = 0,
+    outsideMap = 0,
     vertices = 0,
     contourVertices = 0,
     contourOverBudget = false
@@ -239,7 +265,15 @@ export function extractPaths(
       const name = [...marks].reverse().find((m) => rules.some((r) => r.match.test(m.name)))?.name
       const rule = name && rules.find((r) => r.match.test(name))
       if (!pendingClip && (!rule || marks.some((m) => !m.visible))) continue
-      if (!pendingClip && name && result.get(name)?.overBudget) continue
+      const shape: 'line' | 'polygon' | undefined = !rule
+        ? undefined
+        : rule.shape === 'as-painted'
+          ? filled.has(Number(a[0]))
+            ? 'polygon'
+            : 'line'
+          : rule.shape
+      const key = rule && rule.shape === 'as-painted' ? `${name}\u0000${shape}` : name
+      if (!pendingClip && key && result.get(key)?.overBudget) continue
       const paths = drawingPaths(data, state.matrix)
       if (pendingClip) {
         pendingClip = false
@@ -250,11 +284,18 @@ export function extractPaths(
           ring.length === 5 &&
           same(ring[0], ring[4]) &&
           ring.every((p) => (p[0] === box[0] || p[0] === box[2]) && (p[1] === box[1] || p[1] === box[3]))
+        if (rectangular && isFrameClip(box, frame.bbox)) state.inMap = true
         if (rectangular) state.clip = intersectBox(state.clip, box)
         else state.unsupportedClip = true
         continue
       }
-      if (!rule || !name || Number(a[0]) === ops.endPath) continue
+      if (!rule || !name || !key || !shape || Number(a[0]) === ops.endPath) continue
+      // The generic profile knows no layer names, so it tells the map's drawings from a legend,
+      // scale bar or title box laid over the map by the clip the exporter draws the map under.
+      if (rule.shape === 'as-painted' && !state.inMap) {
+        outsideMap++
+        continue
+      }
       if (state.unsupportedClip) {
         omittedClips++
         continue
@@ -273,13 +314,14 @@ export function extractPaths(
         }
         continue
       }
-      const entry = result.get(name) ?? { rule, features: [], vertices: 0, overBudget: false }
+      const entry = result.get(key) ?? { rule, layer: name, shape, features: [], vertices: 0, overBudget: false }
+      // A fill closes every subpath, so a painted area is a ring even where the path leaves it open.
+      if (rule.shape === 'as-painted' && shape === 'polygon')
+        for (const p of paths) if (p.length >= 3 && !same(p[0], p.at(-1)!)) p.push(p[0])
       const lines =
-        rule.shape === 'line'
-          ? paths.flatMap((p) => clipLines(p, state.clip).map((line) => line.map(frame.toWorld)))
-          : []
+        shape === 'line' ? paths.flatMap((p) => clipLines(p, state.clip).map((line) => line.map(frame.toWorld))) : []
       const geometries: GeoJSON.Geometry[] =
-        rule.shape === 'line'
+        shape === 'line'
           ? rule.compound && lines.length > 1
             ? [{ type: 'MultiLineString', coordinates: lines }]
             : lines.map((coordinates) => ({ type: 'LineString', coordinates }))
@@ -297,11 +339,19 @@ export function extractPaths(
             ? geometry.coordinates.length
             : (geometry as GeoJSON.Polygon | GeoJSON.MultiLineString).coordinates.reduce((s, r) => s + r.length, 0)
         vertices += n
-        if (vertices > PDF_LIMITS.vertices)
-          throw Error('The PDF map exceeds the extracted vertex budget. Import a simpler sheet or original GIS layers.')
         entry.vertices += n
-        if (entry.vertices > limits.maxVertices || (!rule.compound && entry.features.length >= limits.maxFeatures)) {
+        // The generic profile reads every named layer, base maps included: one too large for the
+        // page's budget is left on the sheet like a layer over its own budget, not the whole import.
+        const pageOver = vertices > PDF_LIMITS.vertices
+        if (pageOver && rule.shape !== 'as-painted')
+          throw Error('The PDF map exceeds the extracted vertex budget. Import a simpler sheet or original GIS layers.')
+        if (
+          pageOver ||
+          entry.vertices > limits.maxVertices ||
+          (!rule.compound && entry.features.length >= limits.maxFeatures)
+        ) {
           entry.overBudget = true
+          if (rule.shape === 'as-painted') vertices -= entry.vertices
           entry.features = []
           break
         }
@@ -311,7 +361,7 @@ export function extractPaths(
           geometry,
         })
       }
-      result.set(name, entry)
+      result.set(key, entry)
     }
   }
   for (const entry of result.values()) {
@@ -329,5 +379,5 @@ export function extractPaths(
       },
     ]
   }
-  return { layers: result, omittedClips, contours, contourOverBudget }
+  return { layers: result, omittedClips, outsideMap, contours, contourOverBudget }
 }

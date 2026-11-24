@@ -43,6 +43,11 @@ export type PoseSource =
   | 'landmark'
   /** Solved from points paired in the photo and on the plan. */
   | 'controls'
+  /**
+   * The nearest ground at the photo's GPS altitude, where its fix lies far below that altitude (`highGroundNearFix`):
+   * a guess at where the phone stood, still to confirm.
+   */
+  | 'gps-altitude'
 
 export type ExifReading = {
   position: { lng: number; lat: number } | null
@@ -63,6 +68,11 @@ export type ExifReading = {
   tilt?: { pitch: number; g: number } | null
   /** The GPS fix's time, UTC (ISO 8601): for where the sun was. The camera clock carries no time zone. */
   gpsTimeUtc?: string | null
+  /**
+   * The phone's own figure for its position's error, metres (`GPSHPositioningError`). Shown, never trusted as a bound:
+   * a phone that stated 125 m put a photo 1.1 km from where it was taken.
+   */
+  horizontalErrorMeters?: number | null
 }
 
 /** The pose the reviewer edits; position may be unknown until picked or typed. */
@@ -305,6 +315,7 @@ export function readExif(
   }
   const altitude = num(tags.GPSAltitude)
   const below = num(tags.GPSAltitudeRef) === 1 || tags.GPSAltitudeRef === 'Below sea level'
+  const horizontalError = num(tags.GPSHPositioningError)
   return {
     position: position(tags),
     heading:
@@ -317,6 +328,7 @@ export function readExif(
     altitudeMeters: altitude === null ? null : below ? -Math.abs(altitude) : altitude,
     tilt: appleTilt(tags.makerNote ?? tags.MakerNote),
     gpsTimeUtc: gpsTimeUtc(tags.GPSDateStamp, tags.GPSTimeStamp),
+    horizontalErrorMeters: horizontalError !== null && horizontalError > 0 ? horizontalError : null,
   }
 }
 

@@ -3,7 +3,9 @@
  * the reader assumes about a company's sheets lives in its profile: which named layers are which,
  * which images are class rasters and how their legends are drawn, where contour heights are
  * printed, and what colour sits under transparent pixels. Another template is one more profile
- * and its tests (`docs/forestry-road-design/map-pdf-profiles.md`); an unknown template is refused.
+ * and its tests (`docs/forestry-road-design/map-pdf-profiles.md`). A sheet no profile recognizes is
+ * read by `genericProfile`: the registered sheet and its named layers as reference drawings, nothing
+ * a template's conventions would be needed to read.
  * Calibrated against the supplied August/September 2026 Canfor ArcGIS Pro sheets. No source sheets
  * are distributed.
  */
@@ -12,7 +14,11 @@ import { CANFOR_RASTERS, type RasterProfile } from './rasterProfiles'
 export interface PdfLayerRule {
   name: string
   match: RegExp
-  shape: 'line' | 'polygon'
+  /**
+   * `as-painted` (the generic profile only): filled paths become polygons and stroked ones lines,
+   * because nothing else says what the layer holds. A layer drawn both ways comes in as two layers.
+   */
+  shape: 'line' | 'polygon' | 'as-painted'
   role?: 'planned-block'
   selected: boolean
   compound?: boolean
@@ -126,5 +132,34 @@ export const CANFOR_PROFILE: PdfTemplateProfile = {
 
 /** Checked in order; the first profile whose `matches` accepts the PDF reads it. */
 export const PDF_PROFILES: PdfTemplateProfile[] = [CANFOR_PROFILE]
+
+export const GENERIC_PROFILE_ID = 'generic-named-layers-v1'
+export const GENERIC_PROFILE_LABEL = 'No company profile · named layers only'
+
+/**
+ * What a registered sheet no profile recognizes is read with: the sheet itself, and each named
+ * optional-content layer's drawings inside the map frame, unticked and as reference only. It knows
+ * no template, so it reads no class raster, contour surface or image layer, and assigns no role:
+ * every one of those needs a company's conventions, which only a profile states.
+ */
+export function genericProfile(layers: string[]): PdfTemplateProfile {
+  const names = [...new Set(layers.map((name) => name.trim()).filter(Boolean))]
+  return {
+    id: GENERIC_PROFILE_ID,
+    label: GENERIC_PROFILE_LABEL,
+    matches: () => true,
+    rules: names.map((name) => ({
+      name,
+      match: new RegExp(`^\\s*${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`),
+      shape: 'as-painted' as const,
+      selected: false,
+    })),
+    rasters: [],
+    // Unread: with no rasters there is no legend to find.
+    legend: CANFOR_PROFILE.legend,
+    contours: {},
+    transparentFill: [0, 0, 0],
+  }
+}
 export const PDF_DRAWING_NOTE =
   'Recovered map drawing. Check against the sheet and original GIS before using it in a calculation. Stream classes and road status are not inferred from colour or legend symbols.'

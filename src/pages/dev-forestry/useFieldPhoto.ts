@@ -178,6 +178,7 @@ import {
   withPhotoUse,
   type PhotoFound,
 } from './photoQueue'
+import { highGroundNearFix, highGroundNote } from './highGround'
 import { fieldImageFromBlob } from './toolImports'
 import { loadPhotoDepth, savePhotoDepth } from './toolsStorage'
 import { viewFromAcceptedPhoto, type ViewOfInterest } from './viewsOfInterest'
@@ -1594,6 +1595,22 @@ export function useFieldPhoto({
             : current
           : current,
       )
+    // A fix far below its GPS altitude may have missed the high ground the phone stood on: the nearest ground at that
+    // altitude becomes an option (`highGroundNearFix`), never the camera. Read from the fix, so a camera moved there
+    // and searched again keeps the option it came from.
+    const fix = photo.exif?.position
+    const fixAltitude = photo.exif?.altitudeMeters ?? null
+    const highGround =
+      fix && fixAltitude !== null && (photo.sources.position === 'exif' || photo.sources.position === 'gps-altitude')
+        ? highGroundNearFix({
+            lng: fix.lng,
+            lat: fix.lat,
+            gpsAltitudeMeters: fixAltitude,
+            eyeHeightMeters: photo.pose.eyeHeightMeters,
+            horizontalErrorMeters: photo.exif?.horizontalErrorMeters ?? null,
+            elevationAt: (lng, lat) => terrain.elevationAt(lng, lat),
+          })
+        : null
     const base = ownCamera(photo, terrain)
     if (!Number.isFinite(base.altitudeMeters))
       return stop('No terrain under the camera: the photo was taken where no elevation data loaded.', {
@@ -1656,6 +1673,8 @@ export function useFieldPhoto({
         lens: photo.lens,
         terrain: true,
         skyline: false,
+        highGround,
+        notes: highGround && fixAltitude !== null ? [highGroundNote(highGround, fixAltitude)] : [],
       })
     const found = chosen.result
     let narrowFit: NarrowFit | null = null
@@ -1693,6 +1712,7 @@ export function useFieldPhoto({
       notes.push(
         `Taken from the air: its GPS altitude is ${Math.round(lifted - groundMeters)} m above the ground, so the eye stands at ${Math.round(lifted)} m.`,
       )
+    if (highGround && fixAltitude !== null) notes.push(highGroundNote(highGround, fixAltitude))
     if (chosen.reader.mode === 'luma')
       notes.push(
         'The sky is lit from behind or hazy: the skyline was read from where the picture darkens, not from the sky’s colour.',
@@ -1716,7 +1736,7 @@ export function useFieldPhoto({
             }
           : null,
       },
-      found: { lens: photo.lens, terrain: true, skyline: true, notes },
+      found: { lens: photo.lens, terrain: true, skyline: true, notes, highGround },
     }))
     if (setPose)
       patchPhoto(id, (current) => {
@@ -2281,6 +2301,10 @@ export function useFieldPhoto({
               airborne,
             }
           : null,
+        highGround:
+          w.found?.highGround && (photo.sources.position === 'exif' || photo.sources.position === 'gps-altitude')
+            ? w.found.highGround
+            : null,
         neighbour,
         narrow: search?.neighbour?.narrow
           ? {
@@ -2406,7 +2430,13 @@ export function useFieldPhoto({
             heading: sources.heading,
             pitch: sources.pitch,
             roll: sources.roll ?? photo.sources.roll,
-            ...(moves ? { position: sources.position!, fov: sources.position!, eyeHeight: sources.position! } : {}),
+            ...(moves
+              ? {
+                  position: sources.position!,
+                  fov: sources.keepsLens ? photo.sources.fov : sources.position!,
+                  eyeHeight: sources.position!,
+                }
+              : {}),
             ...(!moves && photo.pose.hfov !== row.pose.hfov ? { fov: sources.heading } : {}),
           },
           chosen: { rowId: row.id, kind: row.kind, pose: row.pose, evidence: row.evidence },
@@ -3922,7 +3952,9 @@ export function useFieldPhoto({
         checked: w.checked,
         search: w.search.status,
         found: w.found,
-        hasCameraOption: options.some((option) => option.kind === 'matched' || option.kind === 'landmark'),
+        hasCameraOption: options.some(
+          (option) => option.kind === 'matched' || option.kind === 'landmark' || option.kind === 'high-ground',
+        ),
       })
       const notes = [...(w.found?.notes ?? [])]
       if (w.found?.stopped) notes.unshift(w.found.stopped)
@@ -3940,7 +3972,7 @@ export function useFieldPhoto({
         reasons: queueReasons({
           found: w.found,
           search: w.search.status === 'done' ? w.search.result : null,
-          otherOptions: options.filter((option) => option.kind !== 'phone').length,
+          otherOptions: options.filter((option) => option.kind !== 'phone' && option.kind !== 'high-ground').length,
           neighbourGap: winner?.evidence.neighbourAgreesDegrees ?? null,
         }),
         notes,

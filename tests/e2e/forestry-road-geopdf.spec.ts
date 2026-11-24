@@ -338,6 +338,52 @@ test('Layers reviews a supported PDF, saves its source metadata and mounts the s
   await expect(page.getByTestId('road-save-state')).toHaveAttribute('data-save', 'saved')
 })
 
+test('a PDF of no known template imports its sheet and named map layers, unticked, as reference', async ({ page }) => {
+  await page.route('https://basemaps.cartocdn.com/**', (r) =>
+    r.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.goto('/dev/forestry/road-design?interface=workbench&example=training')
+  await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
+  await page.getByRole('button', { name: 'Layers', exact: true }).last().click()
+  const pending = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: 'Add files', exact: true }).click()
+  await (
+    await pending
+  ).setFiles({
+    name: 'Overview.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from(await canforPdfFixture({ generic: true })),
+  })
+  const dialog = page.getByRole('dialog', { name: 'Import layers' })
+  await expect(dialog).toContainText('Recognized: No company profile · named layers only')
+  await expect(dialog).toContainText('A sheet no company profile recognizes brings in')
+  for (const layer of ['Plan areas', 'Access roads', 'Mixed · areas', 'Mixed · lines'])
+    await expect(dialog.getByLabel(`Include Overview.pdf/Page 1/${layer}`, { exact: true })).not.toBeChecked()
+  await expect(dialog.getByLabel('Include Overview.pdf/Page 1/Map sheet', { exact: true })).toBeChecked()
+  // The legend laid over the map is not one of its layers.
+  await expect(dialog.getByLabel('Include Overview.pdf/Page 1/Legend', { exact: true })).toHaveCount(0)
+  await dialog.getByLabel('Include Overview.pdf/Page 1/Plan areas', { exact: true }).check()
+  await dialog.getByLabel('Prepare 1 m DEM download boxes after import').uncheck()
+  await dialog.getByRole('button', { name: 'Import layers', exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByTestId('road-save-state')).toHaveAttribute('data-save', 'saved')
+  const saved = await page.evaluate(async () => {
+    const { readLibrary, readProject } = await import('/src/pages/dev-forestry-roads/projectLibrary.ts')
+    const library = await readLibrary()
+    const project = library.activeId && (await readProject(library.activeId))
+    return (project ? (project.reference ?? []) : [])
+      .filter((f) => f.pdfSource?.file === 'Overview.pdf')
+      .map((f) => [f.pdfSource!.layer, f.pdfSource!.profile, f.geometry.type])
+  })
+  expect(saved).toEqual(
+    expect.arrayContaining([
+      ['Map sheet', 'No company profile · named layers only', 'Polygon'],
+      ['Plan areas', 'No company profile · named layers only', 'Polygon'],
+    ]),
+  )
+  expect(saved).toHaveLength(2)
+})
+
 test('a PDF dropped anywhere on the designer opens the import review, and Layers shows what came in', async ({
   page,
 }) => {

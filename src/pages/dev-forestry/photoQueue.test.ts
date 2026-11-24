@@ -8,6 +8,7 @@ import {
   horizonKey,
   lensRangeFor,
   methodForOption,
+  sourcesForOption,
   methodForSource,
   IMAGERY_RINGS,
   featuresNext,
@@ -199,6 +200,17 @@ describe('what the queue may do', () => {
     expect(methodForSource('controls')).toBe('points')
     expect(methodForSource('exif')).toBe('phone')
     expect(methodForSource('reviewer')).toBe('typed')
+  })
+
+  it('moves a high-ground camera to its place as a guess, keeping the photo’s lens and the phone’s angles', () => {
+    expect(methodForOption('high-ground')).toBe('phone')
+    expect(sourcesForOption('high-ground')).toEqual({
+      heading: 'exif',
+      pitch: 'exif',
+      roll: 'level',
+      position: 'gps-altitude',
+      keepsLens: true,
+    })
   })
 
   it('flags a point solve that rolled over or moved far', () => {

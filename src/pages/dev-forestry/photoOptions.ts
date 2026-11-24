@@ -13,6 +13,7 @@ import type { MatchedCamera } from './matchedCamera'
 import type { FlightCameraProposal } from './photoFlightMatching'
 import type { AcceptanceEvidence, AcceptancePose } from './photoAcceptance'
 import { POINTS_REFERENCE_WIDTH, pointsHeldOutLimit, sameCamera, wrapHeading } from './photoAcceptance'
+import { compassPoint, groundDistance, type HighGround } from './highGround'
 import type { SunCheck, WideSearchResult } from './wideOrientation'
 
 /** Two cameras within this many degrees of heading agree; past it a neighbour's ±15° prior would not hold the other. */
@@ -31,7 +32,15 @@ export const MODEL_SCORE_REVERSAL = 0.1
 export const NARROW_AGREE_DEGREES = 2
 export const NARROW_AGREE_SHARE = 0.8
 
-export type PhotoOptionKind = 'winner' | 'runner-up' | 'phone' | 'neighbour' | 'points' | 'matched' | 'landmark'
+export type PhotoOptionKind =
+  | 'winner'
+  | 'runner-up'
+  | 'phone'
+  | 'neighbour'
+  | 'points'
+  | 'matched'
+  | 'landmark'
+  | 'high-ground'
 
 export type PhotoOption = {
   id: string
@@ -55,6 +64,11 @@ export interface PhotoOptionsInput {
   modelScores?: ReadonlyArray<{ pose: AcceptancePose; score: number }>
   /** The phone's recorded heading, and the tilt sensor's pitch when it read gravity alone. */
   phone?: { bearing: number; reference: HeadingReference; pitch?: number | null; airborne: boolean } | null
+  /**
+   * The nearest ground at the GPS altitude, where the fix lies far below it (`highGroundNearFix`): a row standing there,
+   * on the ground, with the phone's heading. Needs `phone`.
+   */
+  highGround?: Pick<HighGround, 'lng' | 'lat' | 'distanceMeters' | 'bearing' | 'aboveFixMeters'> | null
   /** A burst neighbour's accepted camera. */
   neighbour?: {
     id: string
@@ -121,6 +135,8 @@ function scoreFor(input: PhotoOptionsInput, pose: AcceptancePose): number | null
  *    camera (right for another frame, a prior for this one); a point solve or matched camera with warnings.
  * 2. The skyline's runner-up.
  * 3. The phone's own heading, which from an aircraft can be 50–140° out.
+ * The phone's heading from high ground at its GPS altitude sits in tier 1: the place is a guess from the altitude, but
+ * on the ground a phone's heading is often a few degrees out, and its model view says whether the place is right.
  * Agreement between two candidates (within `NEIGHBOUR_AGREE_DEGREES`) is noted on both and never moves a tier.
  */
 const KIND_ORDER: readonly PhotoOptionKind[] = [
@@ -129,6 +145,7 @@ const KIND_ORDER: readonly PhotoOptionKind[] = [
   'landmark',
   'matched',
   'neighbour',
+  'high-ground',
   'runner-up',
   'phone',
 ]
@@ -220,6 +237,37 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
       evidence: { modelScore: scoreFor(input, pose) },
       warnings,
       tier: 3,
+      score: scoreFor(input, pose),
+    })
+  }
+
+  if (input.phone && input.highGround) {
+    const { phone, highGround } = input
+    const warnings = [
+      `the fix is ${Math.round(highGround.aboveFixMeters)} m below the GPS altitude: this place is a guess from that height`,
+      'the phone’s heading: often a few degrees out',
+    ]
+    if (phone.reference !== 'true') warnings.push('magnetic or unstated north: add the declination')
+    const pose: AcceptancePose = {
+      lng: highGround.lng,
+      lat: highGround.lat,
+      altitudeMeters: null,
+      bearing: wrapHeading(phone.bearing),
+      pitch: phone.pitch ?? 0,
+      roll: 0,
+      hfov: base.hfov,
+    }
+    // Once the camera stands there, the phone's own row is this camera: one row says it, with why.
+    const same = rows.findIndex((row) => row.kind === 'phone' && sameCamera(row.pose, pose))
+    if (same >= 0) rows.splice(same, 1)
+    rows.push({
+      id: 'high-ground',
+      kind: 'high-ground',
+      label: `High ground ${groundDistance(highGround.distanceMeters)} ${compassPoint(highGround.bearing)}, phone’s heading`,
+      pose,
+      evidence: { modelScore: scoreFor(input, pose) },
+      warnings,
+      tier: 1,
       score: scoreFor(input, pose),
     })
   }
@@ -365,6 +413,7 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
       if (
         row === neighbourRow ||
         row.kind === 'phone' ||
+        row.kind === 'high-ground' ||
         row.kind === 'runner-up' ||
         row.overlap ||
         row.id.startsWith('narrow:')
@@ -420,6 +469,7 @@ export type PhotoFailureReason =
   | 'cropped-lens'
   | 'phone-heading-only'
   | 'disagrees-with-neighbour'
+  | 'gps-off'
 
 export const PHOTO_QUEUE_STATUSES: readonly PhotoQueueStatus[] = [
   'unsearched',
@@ -448,6 +498,7 @@ export const PHOTO_FAILURE_TEXT: Record<PhotoFailureReason, string> = {
   'cropped-lens': 'Cropped: the photo is not the size the camera took, so its lens is unknown.',
   'phone-heading-only': 'Only the phone’s heading, which from an aircraft can be far out.',
   'disagrees-with-neighbour': 'Disagrees with the frame taken just before or after it.',
+  'gps-off': 'Far above the ground at its GPS fix: taken from the air, or the fix is off. Try the High ground option.',
 }
 
 /** What goes with a removed photo, said under the question wherever a photo is removed. */
@@ -498,6 +549,7 @@ export function photoStripState(entry: Pick<PhotoQueueEntry, 'status' | 'reasons
           short: 'Disagrees with a neighbour',
           text: 'The camera found disagrees with the frame taken just before or after it: compare both, or pair a landmark.',
         }
+      if (has('gps-off')) return { tone: 'help', short: 'Check the place', text: PHOTO_FAILURE_TEXT['gps-off'] }
       if (has('not-settled'))
         return {
           tone: 'help',
@@ -558,6 +610,8 @@ export function photoReasons(found: {
   otherOptions?: number
   /** Heading gap to an accepted burst neighbour's camera, degrees. */
   neighbourGap?: number | null
+  /** Ground at the GPS altitude lies near a fix far below it (`highGroundNearFix`). */
+  highGround?: boolean
 }): PhotoFailureReason[] {
   const reasons: PhotoFailureReason[] = []
   if (found.terrain === false) reasons.push('outside-terrain')
@@ -567,5 +621,7 @@ export function photoReasons(found: {
   if (found.otherOptions === 0) reasons.push('phone-heading-only')
   if (found.neighbourGap !== null && found.neighbourGap !== undefined && found.neighbourGap > NEIGHBOUR_AGREE_DEGREES)
     reasons.push('disagrees-with-neighbour')
+  // A settled skyline from the air says the fix and its altitude are right; otherwise the place is in doubt.
+  if (found.highGround && !found.search?.trustworthy) reasons.push('gps-off')
   return reasons
 }
