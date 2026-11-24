@@ -105,3 +105,31 @@ export function importUnit(data: unknown, fileName: string): { source: string; g
       : { type: 'MultiPolygon', coordinates: polygons }
   return { source: fileName, geometry }
 }
+
+/**
+ * Spatial retention or recruitment areas that section D.1 counts whole toward Objectives A and B.
+ * Each feature keeps its name and its approval reference (`reference`, `REFERENCE` or `approval`);
+ * one without a reference is still read, and the panel shows it as unreferenced.
+ */
+export function importRetentionAreas(
+  existing: { id: string }[],
+  data: unknown,
+  fileName: string,
+): { id: string; name: string; reference: string; geometry: Shape }[] {
+  const taken = new Set(existing.map((r) => r.id))
+  return featuresOf(data).map(({ feature, properties, label }, i) => {
+    let n = existing.length + i + 1
+    while (taken.has(`retention-${n}`)) n++
+    const id = `retention-${n}`
+    taken.add(id)
+    const reference = ['reference', 'REFERENCE', 'approval', 'APPROVAL']
+      .map((k) => properties[k])
+      .find((v): v is string => typeof v === 'string' && v.trim() !== '')
+    return {
+      id,
+      name: nameOf(properties, `${fileName} ${label}`),
+      reference: reference?.trim() ?? '',
+      geometry: parseShape(feature.geometry, `${fileName} ${label}`),
+    }
+  })
+}

@@ -3,9 +3,299 @@
   "oldForest2019": {
     "appendix": 1,
     "page": 18,
-    "district": "Prince George",
+    "year": 2019,
+    "source": "2019 LLOWG analysis, as tabled by the Board",
     "units": [
       {
+        "district": "Fort St. James",
+        "unit": "E1",
+        "cflbHa": 16319,
+        "minimumAge": 141,
+        "oldPercent": 41,
+        "interiorPercent": 40,
+        "requiredOldHa": 6691,
+        "oldHa": 7753,
+        "requiredInteriorHa": 2676,
+        "interiorHa": 7095
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E2",
+        "cflbHa": 18580,
+        "minimumAge": 121,
+        "oldPercent": 17,
+        "interiorPercent": 10,
+        "requiredOldHa": 3159,
+        "oldHa": 10998,
+        "requiredInteriorHa": 316,
+        "interiorHa": 4977
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E3",
+        "cflbHa": 47863,
+        "minimumAge": 121,
+        "oldPercent": 17,
+        "interiorPercent": 10,
+        "requiredOldHa": 8137,
+        "oldHa": 24207,
+        "requiredInteriorHa": 814,
+        "interiorHa": 16414
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E4",
+        "cflbHa": 170790,
+        "minimumAge": 121,
+        "oldPercent": 12,
+        "interiorPercent": 25,
+        "requiredOldHa": 20495,
+        "oldHa": 44380,
+        "requiredInteriorHa": 5124,
+        "interiorHa": 13459
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E5",
+        "cflbHa": 160794,
+        "minimumAge": 121,
+        "oldPercent": 12,
+        "interiorPercent": 25,
+        "requiredOldHa": 19295,
+        "oldHa": 62440,
+        "requiredInteriorHa": 4824,
+        "interiorHa": 24658
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E6",
+        "cflbHa": 110475,
+        "minimumAge": 141,
+        "oldPercent": 37,
+        "interiorPercent": 40,
+        "requiredOldHa": 40876,
+        "oldHa": 92460,
+        "requiredInteriorHa": 16350,
+        "interiorHa": 80150
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E7",
+        "cflbHa": 30409,
+        "minimumAge": 141,
+        "oldPercent": 37,
+        "interiorPercent": 40,
+        "requiredOldHa": 11251,
+        "oldHa": 26780,
+        "requiredInteriorHa": 4501,
+        "interiorHa": 21372
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E8",
+        "cflbHa": 34431,
+        "minimumAge": 141,
+        "oldPercent": 26,
+        "interiorPercent": 25,
+        "requiredOldHa": 8952,
+        "oldHa": 28657,
+        "requiredInteriorHa": 2238,
+        "interiorHa": 21982
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E9",
+        "cflbHa": 24887,
+        "minimumAge": 141,
+        "oldPercent": 58,
+        "interiorPercent": 40,
+        "requiredOldHa": 14435,
+        "oldHa": 20947,
+        "requiredInteriorHa": 5774,
+        "interiorHa": 18774
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E10",
+        "cflbHa": 96988,
+        "minimumAge": 141,
+        "oldPercent": 41,
+        "interiorPercent": 40,
+        "requiredOldHa": 39765,
+        "oldHa": 85650,
+        "requiredInteriorHa": 15906,
+        "interiorHa": 78053
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E11",
+        "cflbHa": 353261,
+        "minimumAge": 141,
+        "oldPercent": 41,
+        "interiorPercent": 40,
+        "requiredOldHa": 144837,
+        "oldHa": 255886,
+        "requiredInteriorHa": 57935,
+        "interiorHa": 228218
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E12",
+        "cflbHa": 10264,
+        "minimumAge": 121,
+        "oldPercent": 16,
+        "interiorPercent": 25,
+        "requiredOldHa": 1642,
+        "oldHa": 5235,
+        "requiredInteriorHa": 411,
+        "interiorHa": 1809
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E13",
+        "cflbHa": 11989,
+        "minimumAge": 141,
+        "oldPercent": 23,
+        "interiorPercent": 40,
+        "requiredOldHa": 2757,
+        "oldHa": 11274,
+        "requiredInteriorHa": 1103,
+        "interiorHa": 9429
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E14",
+        "cflbHa": 64766,
+        "minimumAge": 121,
+        "oldPercent": 16,
+        "interiorPercent": 25,
+        "requiredOldHa": 10363,
+        "oldHa": 47667,
+        "requiredInteriorHa": 2591,
+        "interiorHa": 35927
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E15",
+        "cflbHa": 99473,
+        "minimumAge": 121,
+        "oldPercent": 16,
+        "interiorPercent": 25,
+        "requiredOldHa": 15916,
+        "oldHa": 75396,
+        "requiredInteriorHa": 3979,
+        "interiorHa": 58751
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E16",
+        "cflbHa": 236753,
+        "minimumAge": 121,
+        "oldPercent": 16,
+        "interiorPercent": 25,
+        "requiredOldHa": 37880,
+        "oldHa": 125762,
+        "requiredInteriorHa": 9470,
+        "interiorHa": 68724
+      },
+      {
+        "district": "Fort St. James",
+        "unit": "E17",
+        "cflbHa": 357344,
+        "minimumAge": 141,
+        "oldPercent": 16,
+        "interiorPercent": 25,
+        "requiredOldHa": 57175,
+        "oldHa": 185419,
+        "requiredInteriorHa": 14294,
+        "interiorHa": 119329
+      },
+      {
+        "district": "Vanderhoof",
+        "unit": "D1",
+        "cflbHa": 141439,
+        "minimumAge": 141,
+        "oldPercent": 29,
+        "interiorPercent": 40,
+        "requiredOldHa": 41017,
+        "oldHa": 48173,
+        "requiredInteriorHa": 16407,
+        "interiorHa": 29287
+      },
+      {
+        "district": "Vanderhoof",
+        "unit": "D2",
+        "cflbHa": 42290,
+        "minimumAge": 121,
+        "oldPercent": 17,
+        "interiorPercent": 25,
+        "requiredOldHa": 7189,
+        "oldHa": 16770,
+        "requiredInteriorHa": 1797,
+        "interiorHa": 9181
+      },
+      {
+        "district": "Vanderhoof",
+        "unit": "D3",
+        "cflbHa": 150983,
+        "minimumAge": 121,
+        "oldPercent": 17,
+        "interiorPercent": 10,
+        "requiredOldHa": 25667,
+        "oldHa": 38829,
+        "requiredInteriorHa": 2567,
+        "interiorHa": 11741
+      },
+      {
+        "district": "Vanderhoof",
+        "unit": "D4",
+        "cflbHa": 46647,
+        "minimumAge": 121,
+        "oldPercent": 12,
+        "interiorPercent": 25,
+        "requiredOldHa": 5598,
+        "oldHa": 14731,
+        "requiredInteriorHa": 1399,
+        "interiorHa": 4432
+      },
+      {
+        "district": "Vanderhoof",
+        "unit": "D5",
+        "cflbHa": 179908,
+        "minimumAge": 121,
+        "oldPercent": 17,
+        "interiorPercent": 10,
+        "requiredOldHa": 30584,
+        "oldHa": 48567,
+        "requiredInteriorHa": 3058,
+        "interiorHa": 14769
+      },
+      {
+        "district": "Vanderhoof",
+        "unit": "D6",
+        "cflbHa": 226892,
+        "minimumAge": 121,
+        "oldPercent": 12,
+        "interiorPercent": 25,
+        "requiredOldHa": 27227,
+        "oldHa": 67799,
+        "requiredInteriorHa": 6807,
+        "interiorHa": 27975
+      },
+      {
+        "district": "Vanderhoof",
+        "unit": "D7",
+        "cflbHa": 212621,
+        "minimumAge": 121,
+        "oldPercent": 12,
+        "interiorPercent": 25,
+        "requiredOldHa": 25514,
+        "oldHa": 66573,
+        "requiredInteriorHa": 6379,
+        "interiorHa": 28349
+      },
+      {
+        "district": "Prince George",
         "unit": "A1",
         "cflbHa": 8316,
         "minimumAge": 141,
@@ -17,6 +307,7 @@
         "interiorHa": 6037
       },
       {
+        "district": "Prince George",
         "unit": "A2",
         "cflbHa": 12742,
         "minimumAge": 141,
@@ -28,6 +319,7 @@
         "interiorHa": 5173
       },
       {
+        "district": "Prince George",
         "unit": "A3",
         "cflbHa": 67077,
         "minimumAge": 121,
@@ -39,6 +331,7 @@
         "interiorHa": 4622
       },
       {
+        "district": "Prince George",
         "unit": "A4",
         "cflbHa": 206769,
         "minimumAge": 141,
@@ -50,6 +343,7 @@
         "interiorHa": 15448
       },
       {
+        "district": "Prince George",
         "unit": "A5",
         "cflbHa": 13478,
         "minimumAge": 141,
@@ -61,6 +355,7 @@
         "interiorHa": 2303
       },
       {
+        "district": "Prince George",
         "unit": "A6",
         "cflbHa": 16344,
         "minimumAge": 141,
@@ -72,6 +367,7 @@
         "interiorHa": 3573
       },
       {
+        "district": "Prince George",
         "unit": "A7",
         "cflbHa": 4959,
         "minimumAge": 121,
@@ -83,6 +379,7 @@
         "interiorHa": 1128
       },
       {
+        "district": "Prince George",
         "unit": "A8",
         "cflbHa": 9162,
         "minimumAge": 121,
@@ -94,6 +391,7 @@
         "interiorHa": 395
       },
       {
+        "district": "Prince George",
         "unit": "A9",
         "cflbHa": 32152,
         "minimumAge": 121,
@@ -105,6 +403,7 @@
         "interiorHa": 1912
       },
       {
+        "district": "Prince George",
         "unit": "A10",
         "cflbHa": 39145,
         "minimumAge": 121,
@@ -116,6 +415,7 @@
         "interiorHa": 4585
       },
       {
+        "district": "Prince George",
         "unit": "A11",
         "cflbHa": 124930,
         "minimumAge": 121,
@@ -127,6 +427,7 @@
         "interiorHa": 9274
       },
       {
+        "district": "Prince George",
         "unit": "A12",
         "cflbHa": 172430,
         "minimumAge": 121,
@@ -138,6 +439,7 @@
         "interiorHa": 14617
       },
       {
+        "district": "Prince George",
         "unit": "A13",
         "cflbHa": 357733,
         "minimumAge": 121,
@@ -149,6 +451,7 @@
         "interiorHa": 22148
       },
       {
+        "district": "Prince George",
         "unit": "A14",
         "cflbHa": 125190,
         "minimumAge": 141,
@@ -160,6 +463,7 @@
         "interiorHa": 94705
       },
       {
+        "district": "Prince George",
         "unit": "A15",
         "cflbHa": 15604,
         "minimumAge": 141,
@@ -171,6 +475,7 @@
         "interiorHa": 10823
       },
       {
+        "district": "Prince George",
         "unit": "A16",
         "cflbHa": 34089,
         "minimumAge": 141,
@@ -182,6 +487,7 @@
         "interiorHa": 7417
       },
       {
+        "district": "Prince George",
         "unit": "A17",
         "cflbHa": 118720,
         "minimumAge": 141,
@@ -193,6 +499,7 @@
         "interiorHa": 48901
       },
       {
+        "district": "Prince George",
         "unit": "A18",
         "cflbHa": 43925,
         "minimumAge": 141,
@@ -204,6 +511,7 @@
         "interiorHa": 29275
       },
       {
+        "district": "Prince George",
         "unit": "A19",
         "cflbHa": 64085,
         "minimumAge": 141,
@@ -215,6 +523,7 @@
         "interiorHa": 44846
       },
       {
+        "district": "Prince George",
         "unit": "A20",
         "cflbHa": 93734,
         "minimumAge": 141,
@@ -226,6 +535,7 @@
         "interiorHa": 71389
       },
       {
+        "district": "Prince George",
         "unit": "A21",
         "cflbHa": 112750,
         "minimumAge": 141,
@@ -237,6 +547,7 @@
         "interiorHa": 44566
       },
       {
+        "district": "Prince George",
         "unit": "A22",
         "cflbHa": 27530,
         "minimumAge": 141,
@@ -248,6 +559,7 @@
         "interiorHa": 9616
       },
       {
+        "district": "Prince George",
         "unit": "A23",
         "cflbHa": 145047,
         "minimumAge": 141,
@@ -259,6 +571,7 @@
         "interiorHa": 59308
       },
       {
+        "district": "Prince George",
         "unit": "A24",
         "cflbHa": 127340,
         "minimumAge": 141,
@@ -270,6 +583,7 @@
         "interiorHa": 10791
       },
       {
+        "district": "Prince George",
         "unit": "A25",
         "cflbHa": 154933,
         "minimumAge": 141,
@@ -285,42 +599,112 @@
   "youngForest": {
     "appendix": 4,
     "page": 21,
-    "classOrder": ["under50ha", "between51and100ha", "between101and1000ha", "over1000ha"],
+    "classOrder": [
+      "under50ha",
+      "between51and100ha",
+      "between101and1000ha",
+      "over1000ha"
+    ],
     "distributions": [
       {
         "district": "Fort St. James",
         "ndu": "Moist Interior - Mountain",
-        "target": [20.0, 10.0, 30.0, 40.0],
-        "observed2015": [22.7, 35.0, 3.9, 38.4],
-        "observed2018": [17.9, 1.7, 76.7, 3.7]
+        "target": [
+          20.0,
+          10.0,
+          30.0,
+          40.0
+        ],
+        "observed2015": [
+          22.7,
+          35.0,
+          3.9,
+          38.4
+        ],
+        "observed2018": [
+          17.9,
+          1.7,
+          76.7,
+          3.7
+        ]
       },
       {
         "district": "Fort St. James",
         "ndu": "Moist Interior - Plateau",
-        "target": [5.0, 5.0, 20.0, 70.0],
-        "observed2015": [5.8, 6.9, 15.0, 71.4],
-        "observed2018": [4.8, 5.4, 14.0, 75.9]
+        "target": [
+          5.0,
+          5.0,
+          20.0,
+          70.0
+        ],
+        "observed2015": [
+          5.8,
+          6.9,
+          15.0,
+          71.4
+        ],
+        "observed2018": [
+          4.8,
+          5.4,
+          14.0,
+          75.9
+        ]
       },
       {
         "district": "Fort St. James",
         "ndu": "Northern Boreal Mountains",
-        "target": [5.0, 5.0, 30.0, 60.0],
+        "target": [
+          5.0,
+          5.0,
+          30.0,
+          60.0
+        ],
         "observed2015": null,
         "observed2018": null
       },
       {
         "district": "Fort St. James",
         "ndu": "Omineca - Mountain",
-        "target": [20.0, 10.0, 30.0, 40.0],
-        "observed2015": [17.7, 27.8, 25.9, 28.5],
-        "observed2018": [15.4, 28.4, 21.7, 34.5]
+        "target": [
+          20.0,
+          10.0,
+          30.0,
+          40.0
+        ],
+        "observed2015": [
+          17.7,
+          27.8,
+          25.9,
+          28.5
+        ],
+        "observed2018": [
+          15.4,
+          28.4,
+          21.7,
+          34.5
+        ]
       },
       {
         "district": "Fort St. James",
         "ndu": "Omineca - Valley",
-        "target": [5.0, 5.0, 30.0, 60.0],
-        "observed2015": [11.7, 14.5, 39.2, 34.6],
-        "observed2018": [10.1, 10.3, 27.5, 52.1]
+        "target": [
+          5.0,
+          5.0,
+          30.0,
+          60.0
+        ],
+        "observed2015": [
+          11.7,
+          14.5,
+          39.2,
+          34.6
+        ],
+        "observed2018": [
+          10.1,
+          10.3,
+          27.5,
+          52.1
+        ]
       },
       {
         "district": "Prince George",
@@ -332,58 +716,178 @@
       {
         "district": "Prince George",
         "ndu": "McGregor Plateau",
-        "target": [10.0, 5.0, 45.0, 40.0],
-        "observed2015": [10.4, 13.2, 27.6, 48.9],
-        "observed2018": [8.5, 9.0, 34.8, 47.7]
+        "target": [
+          10.0,
+          5.0,
+          45.0,
+          40.0
+        ],
+        "observed2015": [
+          10.4,
+          13.2,
+          27.6,
+          48.9
+        ],
+        "observed2018": [
+          8.5,
+          9.0,
+          34.8,
+          47.7
+        ]
       },
       {
         "district": "Prince George",
         "ndu": "Moist Interior - Mountain",
-        "target": [20.0, 10.0, 30.0, 40.0],
-        "observed2015": [7.7, 14.9, 32.0, 45.3],
-        "observed2018": [4.3, 6.1, 35.7, 53.9]
+        "target": [
+          20.0,
+          10.0,
+          30.0,
+          40.0
+        ],
+        "observed2015": [
+          7.7,
+          14.9,
+          32.0,
+          45.3
+        ],
+        "observed2018": [
+          4.3,
+          6.1,
+          35.7,
+          53.9
+        ]
       },
       {
         "district": "Prince George",
         "ndu": "Moist Interior - Plateau",
-        "target": [5.0, 5.0, 20.0, 70.0],
-        "observed2015": [5.1, 4.0, 10.9, 80.0],
-        "observed2018": [4.3, 3.2, 9.2, 83.3]
+        "target": [
+          5.0,
+          5.0,
+          20.0,
+          70.0
+        ],
+        "observed2015": [
+          5.1,
+          4.0,
+          10.9,
+          80.0
+        ],
+        "observed2018": [
+          4.3,
+          3.2,
+          9.2,
+          83.3
+        ]
       },
       {
         "district": "Prince George",
         "ndu": "Wet Mountain",
-        "target": [20.0, 10.0, 60.0, 10.0],
-        "observed2015": [23.9, 40.4, 35.7, 0.0],
-        "observed2018": [17.9, 28.6, 42.4, 11.1]
+        "target": [
+          20.0,
+          10.0,
+          60.0,
+          10.0
+        ],
+        "observed2015": [
+          23.9,
+          40.4,
+          35.7,
+          0.0
+        ],
+        "observed2018": [
+          17.9,
+          28.6,
+          42.4,
+          11.1
+        ]
       },
       {
         "district": "Prince George",
         "ndu": "Wet Trench - Mountain",
-        "target": [20.0, 10.0, 60.0, 10.0],
-        "observed2015": [29.3, 42.1, 20.1, 8.6],
-        "observed2018": [22.1, 20.6, 42.4, 14.9]
+        "target": [
+          20.0,
+          10.0,
+          60.0,
+          10.0
+        ],
+        "observed2015": [
+          29.3,
+          42.1,
+          20.1,
+          8.6
+        ],
+        "observed2018": [
+          22.1,
+          20.6,
+          42.4,
+          14.9
+        ]
       },
       {
         "district": "Prince George",
         "ndu": "Wet Trench - Valley",
-        "target": [20.0, 10.0, 60.0, 10.0],
-        "observed2015": [24.8, 32.1, 33.5, 9.7],
-        "observed2018": [25.7, 26.2, 32.4, 15.7]
+        "target": [
+          20.0,
+          10.0,
+          60.0,
+          10.0
+        ],
+        "observed2015": [
+          24.8,
+          32.1,
+          33.5,
+          9.7
+        ],
+        "observed2018": [
+          25.7,
+          26.2,
+          32.4,
+          15.7
+        ]
       },
       {
         "district": "Vanderhoof",
         "ndu": "Moist Interior - Mountain",
-        "target": [20.0, 10.0, 30.0, 40.0],
-        "observed2015": [6.1, 9.1, 10.5, 74.3],
-        "observed2018": [4.8, 5.1, 9.2, 80.9]
+        "target": [
+          20.0,
+          10.0,
+          30.0,
+          40.0
+        ],
+        "observed2015": [
+          6.1,
+          9.1,
+          10.5,
+          74.3
+        ],
+        "observed2018": [
+          4.8,
+          5.1,
+          9.2,
+          80.9
+        ]
       },
       {
         "district": "Vanderhoof",
         "ndu": "Moist Interior - Plateau",
-        "target": [5.0, 5.0, 20.0, 70.0],
-        "observed2015": [6.4, 3.8, 10.5, 79.2],
-        "observed2018": [6.4, 3.6, 10.0, 80.0]
+        "target": [
+          5.0,
+          5.0,
+          20.0,
+          70.0
+        ],
+        "observed2015": [
+          6.4,
+          3.8,
+          10.5,
+          79.2
+        ],
+        "observed2018": [
+          6.4,
+          3.6,
+          10.0,
+          80.0
+        ]
       }
     ]
   }

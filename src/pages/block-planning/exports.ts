@@ -23,6 +23,8 @@ import { entryOf, periodYears, type Plan, type ReviewCase } from './plan'
 import type { PlanAnalysis } from './planAnalysis'
 import { DEFAULT_INDEX_WEIGHTS, indexFormula, INDEX_INDICATORS, planningIndex } from './planningIndex'
 import { pathways, trendYearOf } from './review/pathways'
+import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
+import { boardCheckCurrent, firstShortfall, oldForestCurrent } from './records'
 
 export const BLOCK_PLANNING_EXPORTS = [
   {
@@ -66,7 +68,7 @@ export const LIMITATIONS = [
   'Advisory: no finding decides that the order applies, that a block complies, or that an exception or pathway is met.',
   'Young-forest patches are calculated with method pg-2005-buffer-v1, from the December 2005 implementation policy, and are not yet validated against the province’s own GIS outputs.',
   'Only the baseline’s stand-replacing disturbances and the schedules’ blocks are modelled; the reporting unit’s coverage is as stated in the plan.',
-  'Old and old-interior forest (Objectives A and B) are not modelled.',
+  'Old and old-interior forest (Objectives A and B) are calculated only when assessed, from VRI ages (not field-verified), a VRI proxy for the CFLB unless one is stated, and the assumptions in the guide.',
   'The published 2015 and 2018 figures came from other inventories, and 2018 used the revised 2017 guidance.',
   'The planning index ranks options for discussion; it is not a legal test.',
 ]
@@ -109,6 +111,19 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
     blockReviews: Object.fromEntries(Object.entries(plan.reviews).map(([id, r]) => [id, review(r, library)])),
     pathways: pathways(plan, orderKey ? order?.sets[orderKey] : undefined, result),
     planningIndex: { notALegalTest: true, formula: indexFormula(weights), ...planningIndex(plan, result, weights) },
+    boardCheck: plan.checks?.board ? { current: boardCheckCurrent(plan), ...plan.checks.board } : null,
+    oldForest: plan.checks?.oldForest
+      ? {
+          current: oldForestCurrent(plan),
+          choices: plan.oldForest ?? null,
+          shortfalls: plan.checks.oldForest.schedules.map((s) => ({
+            schedule: s.schedule,
+            first: firstShortfall(s.years),
+          })),
+          board2019: oldForestUnit(plan.checks.oldForest.district, plan.checks.oldForest.unit)?.board2019 ?? null,
+          ...plan.checks.oldForest,
+        }
+      : null,
     limitations: LIMITATIONS,
   }
 }
@@ -172,6 +187,67 @@ ${table.labels.map((label, b) => row([label, pct(record.published!.target[b]), .
 </tbody></table>
 <p class="note">${record.published.observations.map((o) => `${o.year}: ${escape(o.method)}`).join(' · ')}. Source: ${escape(record.published.source.label)}.</p>`
     : ''
+  const outOfDate = '<p class="warn">The plan changed after this was calculated; it is shown as it was.</p>'
+  const board = record.boardCheck
+  const boardHtml =
+    board && record.published
+      ? `<h3>Check of the method against these figures</h3>
+${board.current ? '' : outOfDate}
+<table><thead>${row(['Patch size', ...board.years.map((y) => `${y.year} modelled (Board)`)], 'th')}</thead><tbody>
+${table.labels
+  .map((label, b) =>
+    row([
+      label,
+      ...board.years.map((y) => {
+        const o = record.published!.observations.find((x) => x.year === y.year)
+        return `${pct(y.shares[b])} (${o ? pct(o.shares[b]) : '—'})`
+      }),
+    ]),
+  )
+  .join('\n')}
+</tbody></table>
+<p class="note">The plan’s calculation on its baseline alone, run ${escape(board.ranOn)}. Young forest modelled: ${board.years.map((y) => `${y.year} ${y.totalHa.toFixed(0)} ha`).join(' · ')}. The Board used other inventories, and 2018 the revised 2017 guidance: a difference tests the inputs and the method together.</p>`
+      : ''
+  const old = record.oldForest
+  const oldUnit = old ? oldForestUnit(old.district, old.unit) : null
+  const oldHtml = old
+    ? `<h2>Old and old interior forest · ${escape(old.unit)}</h2>
+${old.current ? '' : outOfDate}
+<p class="note">${escape(old.source)}. VRI projected to ${old.projectedYear}, age-based and not field-verified. ${
+        oldUnit
+          ? `${oldUnit.oldPercent}% of the CFLB old, ${oldUnit.interiorPercent}% of that interior. ${escape(oldUnit.ageBasis)}`
+          : ''
+      } ${old.choices?.cflbEnteredHa !== undefined ? `CFLB as stated${old.choices?.cflbSource ? ` (${escape(old.choices.cflbSource)})` : ''}, with the VRI proxy’s shares applied to it.` : 'CFLB by the VRI proxy (treed, forest management land base).'}${
+        oldUnit && gisDisagrees(oldUnit, old.gisFraction) ? ` ${escape(gisDisagrees(oldUnit, old.gisFraction))}` : ''
+      }</p>
+${old.schedules
+  .map(
+    (s) => `<h3>${escape(names[s.schedule] ?? s.schedule)}: ${(() => {
+      const f = old.shortfalls.find((x) => x.schedule === s.schedule)?.first
+      return f ? `short of ${escape(f.what.join(', '))} from ${f.year}` : 'no shortfall over the projection'
+    })()}</h3>
+<table><thead>${row(['Year', 'Old ha (required)', 'Old non-pine ha (required)', 'Old interior ha (required)'], 'th')}</thead><tbody>
+${s.years
+  .map((y) =>
+    row([
+      y.year,
+      `${y.oldHa.toFixed(0)} (${y.requiredOldHa.toFixed(0)})`,
+      y.requiredNonPineHa === null
+        ? `${y.nonPineOldHa.toFixed(0)} (none stated)`
+        : `${y.nonPineOldHa.toFixed(0)} (${y.requiredNonPineHa.toFixed(0)})`,
+      y.interiorHa === null ? '—' : `${y.interiorHa.toFixed(0)} (${y.requiredInteriorHa.toFixed(0)})`,
+    ]),
+  )
+  .join('\n')}
+</tbody></table>`,
+  )
+  .join('\n')}
+${
+  old.calibration2019 && old.board2019
+    ? `<p class="note">2019, baseline only, against the Board (${escape(BOARD_2019_SOURCE.label)}): CFLB ${old.calibration2019.cflbHa.toFixed(0)} ha (${old.board2019.cflbHa}), old ${old.calibration2019.oldHa.toFixed(0)} ha (${old.board2019.oldHa}), interior ${old.calibration2019.interiorHa?.toFixed(0) ?? '—'} ha (${old.board2019.interiorHa}).</p>`
+    : ''
+}`
+    : ''
   const pathwayHtml = record.pathways
     .map(
       (p) => `<h3>${escape(p.id)} · ${escape(p.title)} — ${escape(p.status)}</h3>
@@ -198,6 +274,8 @@ ${result.runs.map((run) => row([names[run.schedule] + (run.schedule === plan.rev
 </tbody></table>
 ${schedules}
 ${published}
+${boardHtml}
+${oldHtml}
 <h2>D.5 pathways</h2>
 <p class="note">Trend measured over ${trendYear - 5}–${trendYear} for the schedule under review.</p>
 ${pathwayHtml}

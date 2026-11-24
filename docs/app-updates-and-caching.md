@@ -58,7 +58,7 @@ The worker owns four cache families: `pgmaps-shell-`, `pgmaps-data-`, `pgmaps-ti
 
 ## Offline tools
 
-The road designer and the visual quality page open with no network after one online visit. Two things make that true.
+The road designer, the visual quality page and the block planner open with no network after one online visit. Two things make that true.
 
 **The build lists what each tool needs.** `scripts/offline-precache-plugin.ts` writes `offline-precache.json` beside `sw.js`:
 
@@ -83,6 +83,7 @@ What it does not cover:
 
 - Visual quality's inventory, vegetation and viewpoint reads, by default. They are read live from DataBC with no stored copy (`docs/forestry-visual-quality.md`), so a run needs a connection, unless the person turns on **Inventory copies** (below).
 - Satellite imagery, and every other DataBC, NRCan and Sentinel read in the road designer.
+- The block planner's DataBC reads: the order's unit, past harvests and fires, and the old-forest reads (VRI, OGMAs, parks, corridors). What a read returns is kept with the plan, so a plan whose unit and baseline were read online opens and calculates offline. The old-forest reads are kept only for the session, but their result travels with the plan (`docs/forestry-old-forest.md`).
 - Files over the precache limit, which are kept the first time they are used online and listed as `deferred` in the manifest.
 
 | Limit | Value | Constant |
@@ -115,7 +116,7 @@ Only tiles a person has viewed are kept. There is no "download this area" step: 
 
 ## Work kept in this browser
 
-Road projects, visual quality scenes and field photos live in IndexedDB, in the same site storage as the caches above. A browser treats that storage as disposable unless it has been asked to keep it, so the write paths call `keepStoragePersistent()` (`src/lib/offline/persistentStorage.ts`): `writeProject` for a road project and `saveCurrentScene` for a scene. Chrome and Safari decide silently. Firefox asks the person, so the request waits until they have used the page, is made once a session, and is not repeated for 30 days after a refusal (`PERSIST_ASK_AGAIN_MS`). A new tool that keeps a person's work calls it from its own write path.
+Road projects, visual quality scenes, block plans and field photos live in IndexedDB, in the same site storage as the caches above. A browser treats that storage as disposable unless it has been asked to keep it, so the write paths call `keepStoragePersistent()` (`src/lib/offline/persistentStorage.ts`): `writeProject` for a road project, `saveCurrentScene` for a scene and `storePlan` for a block plan. Chrome and Safari decide silently. Firefox asks the person, so the request waits until they have used the page, is made once a session, and is not repeated for 30 days after a refusal (`PERSIST_ASK_AGAIN_MS`). A new tool that keeps a person's work calls it from its own write path.
 
 ## Inventory copies
 

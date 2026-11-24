@@ -16,7 +16,8 @@
  * refused with the field named, never repaired.
  */
 import type { MultiPolygon, Polygon, Position } from 'geojson'
-import { int, list, object, oneOf, optional, text, type JsonObject } from '@/lib/jsonGuards'
+import { bool, int, list, object, oneOf, optional, text, type JsonObject } from '@/lib/jsonGuards'
+import type { BoardCheckRecord, OldForestChoices, OldForestRecord, OldForestYear, PlanChecks } from './records'
 import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { districts, table } from '../forest-patches/project'
 
@@ -167,6 +168,10 @@ export interface Plan {
   packs: unknown[]
   /** The planning index's weights, by indicator (`planningIndex.ts`). Absent: equal weights. */
   indexWeights?: Record<string, number>
+  /** The reviewer's choices for Objectives A and B (`oldForest/`). Absent: not assessed. */
+  oldForest?: OldForestChoices
+  /** Calculations kept with the plan, each keyed to its inputs (`records.ts`). */
+  checks?: PlanChecks
 }
 
 /** The unit the patch calculation counts within, or none: the plan's unit unless patches are cut at it. */
@@ -369,6 +374,114 @@ function uniqueIds<T extends { id: string }>(items: T[], label: string) {
   return items
 }
 
+const num = (v: unknown, label: string, min = 0, max = 1e9) => {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max)
+    throw Error(`${label} must be a number from ${min} to ${max}.`)
+  return v
+}
+const numOrNull = (v: unknown, label: string, min = 0, max = 1e9) => (v === null ? null : num(v, label, min, max))
+const day = (v: unknown, label: string) => {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw Error(`${label} must be YYYY-MM-DD.`)
+  return v
+}
+
+function parseOldForestChoices(value: unknown): OldForestChoices {
+  const o = object(value, 'oldForest')
+  return {
+    district: oneOf(o.district, 'oldForest.district', districts),
+    unit: text(o.unit, 'oldForest.unit', 10),
+    countNonLegalOgmas: bool(o.countNonLegalOgmas, 'oldForest.countNonLegalOgmas'),
+    countParks: bool(o.countParks, 'oldForest.countParks'),
+    interiorMethod: oneOf(o.interiorMethod, 'oldForest.interiorMethod', ['2005', '2004'] as const),
+    cflbEnteredHa: optional(o, 'cflbEnteredHa', (v) => num(v, 'oldForest.cflbEnteredHa', 1, 10_000_000)),
+    cflbSource: optionalText(o, 'cflbSource', 'oldForest.cflbSource', 2000),
+    retentionAreas: uniqueIds(
+      list(o.retentionAreas ?? [], 'oldForest.retentionAreas', 5000).map((r, i) => {
+        const a = object(r, `retention area ${i + 1}`)
+        return {
+          id: text(a.id, `retention area ${i + 1} id`),
+          name: text(a.name, `retention area ${i + 1} name`, 500),
+          reference: text(a.reference ?? '', `retention area ${i + 1} reference`, 2000),
+          geometry: parseShape(a.geometry, `retention area ${i + 1}`),
+        }
+      }),
+      'Retention area',
+    ),
+  }
+}
+
+function parseOldForestYear(value: unknown, label: string): OldForestYear {
+  const y = object(value, label)
+  return {
+    year: int(y.year, `${label} year`, ...YEAR_RANGE),
+    cflbHa: num(y.cflbHa, `${label} cflbHa`),
+    requiredOldHa: num(y.requiredOldHa, `${label} requiredOldHa`),
+    oldHa: num(y.oldHa, `${label} oldHa`),
+    countedNotOldHa: num(y.countedNotOldHa, `${label} countedNotOldHa`),
+    requiredNonPineHa: numOrNull(y.requiredNonPineHa, `${label} requiredNonPineHa`),
+    nonPineOldHa: num(y.nonPineOldHa, `${label} nonPineOldHa`),
+    unknownAgeHa: num(y.unknownAgeHa, `${label} unknownAgeHa`),
+    requiredInteriorHa: num(y.requiredInteriorHa, `${label} requiredInteriorHa`),
+    interiorHa: numOrNull(y.interiorHa, `${label} interiorHa`),
+  }
+}
+
+function parseChecks(value: unknown): PlanChecks {
+  const c = object(value, 'checks')
+  return {
+    board: optional(c, 'board', (v): BoardCheckRecord => {
+      const b = object(v, 'checks.board')
+      return {
+        ranOn: day(b.ranOn, 'checks.board.ranOn'),
+        key: text(b.key, 'checks.board.key', 40),
+        years: list(b.years, 'checks.board.years', 10).map((y, i) => {
+          const o = object(y, `checks.board year ${i + 1}`)
+          return {
+            year: int(o.year, `checks.board year ${i + 1}`, ...YEAR_RANGE),
+            shares: list(o.shares, `checks.board year ${i + 1} shares`, 10).map((s) =>
+              numOrNull(s, `checks.board year ${i + 1} share`, 0, 100),
+            ),
+            totalHa: num(o.totalHa, `checks.board year ${i + 1} totalHa`),
+          }
+        }),
+      }
+    }),
+    oldForest: optional(c, 'oldForest', (v): OldForestRecord => {
+      const r = object(v, 'checks.oldForest')
+      const counts = object(r.counts, 'checks.oldForest.counts')
+      return {
+        ranOn: day(r.ranOn, 'checks.oldForest.ranOn'),
+        readOn: day(r.readOn, 'checks.oldForest.readOn'),
+        key: text(r.key, 'checks.oldForest.key', 40),
+        district: oneOf(r.district, 'checks.oldForest.district', districts),
+        unit: text(r.unit, 'checks.oldForest.unit', 10),
+        source: text(r.source, 'checks.oldForest.source', 2000),
+        cflbProxyHa: num(r.cflbProxyHa, 'checks.oldForest.cflbProxyHa'),
+        gisFraction: numOrNull(r.gisFraction, 'checks.oldForest.gisFraction', 0, 1),
+        projectedYear: int(r.projectedYear, 'checks.oldForest.projectedYear', ...YEAR_RANGE),
+        counts: {
+          stands: int(counts.stands, 'checks.oldForest.counts.stands', 0, 1e7),
+          ogmas: int(counts.ogmas, 'checks.oldForest.counts.ogmas', 0, 1e7),
+          parks: int(counts.parks, 'checks.oldForest.counts.parks', 0, 1e7),
+          retention: int(counts.retention, 'checks.oldForest.counts.retention', 0, 1e7),
+          corridors: int(counts.corridors, 'checks.oldForest.counts.corridors', 0, 1e7),
+        },
+        schedules: list(r.schedules, 'checks.oldForest.schedules', 50).map((s, i) => {
+          const o = object(s, `checks.oldForest schedule ${i + 1}`)
+          return {
+            schedule: text(o.schedule, `checks.oldForest schedule ${i + 1}`),
+            years: list(o.years, `checks.oldForest schedule ${i + 1} years`, 50).map((y, j) =>
+              parseOldForestYear(y, `checks.oldForest schedule ${i + 1} year ${j + 1}`),
+            ),
+          }
+        }),
+        calibration2019:
+          r.calibration2019 === null ? null : parseOldForestYear(r.calibration2019, 'checks.oldForest.calibration2019'),
+      }
+    }),
+  }
+}
+
 function parseArea(value: unknown): Area {
   const a = object(value, 'area')
   const district = typeof a.district === 'string' ? a.district : ''
@@ -559,5 +672,7 @@ export function parsePlan(value: unknown): Plan {
         Object.entries(object(v, 'indexWeights')).map(([k, w]) => [k, int(w, `indexWeights.${k}`, 0, 5)]),
       ),
     ),
+    oldForest: optional(p, 'oldForest', parseOldForestChoices),
+    checks: optional(p, 'checks', parseChecks),
   }
 }

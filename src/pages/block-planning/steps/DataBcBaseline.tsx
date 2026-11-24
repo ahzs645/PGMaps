@@ -203,6 +203,10 @@ export function DataBcBaseline({ plan, edit, importFiles }: Pick<StepProps, 'pla
         {earliestYear === BOARD_YEAR ? ', and 2015 lets the plan be checked against the Board’s figures' : ''}. RESULTS
         openings are not read separately; consolidated cutblocks are built from them.
       </p>
+      <p className="text-2xs text-muted-foreground" data-testid="block-planning-offline-note">
+        Reading needs a connection. What is read is kept with the plan in this browser, so the unit and the baseline
+        work offline afterwards; save the plan file to keep a copy elsewhere.
+      </p>
       {read.status === 'failed' && <InlineAlert tone="error">{read.error}</InlineAlert>}
       {read.status === 'done' && (
         <ul className="space-y-0.5 text-xs" data-testid="block-planning-databc-read">

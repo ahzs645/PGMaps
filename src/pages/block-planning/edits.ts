@@ -15,6 +15,28 @@ import {
   type ScheduleEntry,
   type Shape,
 } from './plan'
+import type { OldForestChoices, PlanChecks } from './records'
+
+/** Changes the A/B choices; a plan without them gets the defaults for the given district and unit first. */
+export function setOldForest(plan: Plan, change: Partial<OldForestChoices>): Plan {
+  const base: OldForestChoices = plan.oldForest ?? {
+    district: change.district ?? plan.area.district,
+    unit: change.unit ?? '',
+    countNonLegalOgmas: true,
+    countParks: false,
+    interiorMethod: '2005',
+    retentionAreas: [],
+  }
+  const next: OldForestChoices = { ...base, ...change }
+  if (next.cflbEnteredHa === undefined) delete next.cflbEnteredHa
+  if (!next.cflbSource) delete next.cflbSource
+  return { ...plan, oldForest: next }
+}
+
+/** Keeps a calculation with the plan (`records.ts`). */
+export function setCheck<K extends keyof PlanChecks>(plan: Plan, kind: K, record: PlanChecks[K]): Plan {
+  return { ...plan, checks: { ...plan.checks, [kind]: record } }
+}
 
 export function setArea(plan: Plan, change: Partial<Area>): Plan {
   return { ...plan, area: { ...plan.area, ...change } }

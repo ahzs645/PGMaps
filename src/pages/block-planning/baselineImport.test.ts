@@ -27,24 +27,43 @@ const square = (west: number, south: number, size: number): Polygon => ({
 const unit: Shape = square(-123, 54, 0.1)
 
 type Row = { id?: string; geometry: Polygon; properties: Record<string, unknown> }
-/** A fake DataBC: answers cutblock and fire queries from fixed rows, in pages of the asked size. */
-function fakeDataBc(cutblocks: Row[], fires: Row[]) {
+/**
+ * A fake DataBC. Fires page by offset (WFS). Cutblocks page by OBJECTID, as the ArcGIS service is
+ * read; `truncate` cuts each cutblock page to that many records and flags it, and `emptyOnce` answers
+ * the first full-size cutblock request with an empty, flagged page, as the live service does.
+ */
+function fakeDataBc(cutblocks: Row[], fires: Row[], { truncate = Infinity, emptyOnce = false } = {}) {
   const asked: string[] = []
+  let emptied = false
   const fetch = async (url: string) => {
     asked.push(url)
     const u = new URL(url)
-    const isFire = u.searchParams.get('service') === 'WFS'
-    const rows = isFire ? fires : cutblocks
-    const offset = Number(u.searchParams.get(isFire ? 'startIndex' : 'resultOffset'))
-    const count = Number(u.searchParams.get(isFire ? 'count' : 'resultRecordCount'))
-    return { ok: true, status: 200, json: async () => ({ features: rows.slice(offset, offset + count) }) }
+    if (u.searchParams.get('service') === 'WFS') {
+      const offset = Number(u.searchParams.get('startIndex'))
+      const count = Number(u.searchParams.get('count'))
+      return { ok: true, status: 200, json: async () => ({ features: fires.slice(offset, offset + count) }) }
+    }
+    const after = Number(/OBJECTID > (-?\d+)/.exec(u.searchParams.get('where')!)![1])
+    const count = Number(u.searchParams.get('resultRecordCount'))
+    const rest = cutblocks.filter((r) => Number(r.properties.OBJECTID) > after)
+    if (emptyOnce && !emptied && count === 1000) {
+      emptied = true
+      return { ok: true, status: 200, json: async () => ({ features: [], exceededTransferLimit: true }) }
+    }
+    const page = rest.slice(0, Math.min(count, truncate))
+    const more = rest.length > page.length
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ features: page, ...(more && page.length < count ? { exceededTransferLimit: true } : {}) }),
+    }
   }
   return { fetch, asked }
 }
 
 const cutblock = (id: number, geometry: Polygon, year: number | null): Row => ({
   geometry,
-  properties: { VCCB_SYSID: id, OPENING_ID: 1000 + id, HARVEST_START_YEAR_CALENDAR: year },
+  properties: { VCCB_SYSID: id, OBJECTID: id, OPENING_ID: 1000 + id, HARVEST_START_YEAR_CALENDAR: year },
 })
 
 describe('readBaseline', () => {
@@ -91,14 +110,24 @@ describe('readBaseline', () => {
     expect(blockAreaHa(read.disturbances[0].geometry)).toBeCloseTo(blockAreaHa(outside), 0)
   })
 
-  it('reads each record once when boxes overlap, and pages until a short page', async () => {
+  it('pages cutblocks by OBJECTID until a page is neither full nor flagged', async () => {
     const rows = Array.from({ length: 1001 }, (_, i) =>
-      cutblock(i, square(-122.99 + (i % 50) * 0.001, 54.01, 0.0005), 2000),
+      cutblock(i + 1, square(-122.99 + (i % 50) * 0.001, 54.01, 0.0005), 2000),
     )
     const { fetch, asked } = fakeDataBc(rows, [])
     const read = await readBaseline({ unit, sources: ['cutblocks'], earliestYear: 2015, fetch, readOn: '2026-11-23' })
     expect(asked).toHaveLength(2)
     expect(read.counts.cutblocks.read).toBe(1001)
+  })
+
+  it('keeps reading through pages the service cuts short, and through an empty flagged page', async () => {
+    const rows = Array.from({ length: 700 }, (_, i) =>
+      cutblock(i + 1, square(-122.99 + (i % 50) * 0.001, 54.01, 0.0005), 2000),
+    )
+    const { fetch, asked } = fakeDataBc(rows, [], { truncate: 105, emptyOnce: true })
+    const read = await readBaseline({ unit, sources: ['cutblocks'], earliestYear: 2015, fetch, readOn: '2026-11-23' })
+    expect(read.counts.cutblocks.read).toBe(700)
+    expect(asked.some((u) => new URL(u).searchParams.get('resultRecordCount') === '500')).toBe(true)
   })
 
   it('refuses an invalid unit and reports a refused query', async () => {
@@ -133,9 +162,10 @@ describe('the queries', () => {
     )
     expect(fire.searchParams.get('bbox')).toBeNull()
     expect(fire.searchParams.get('startIndex')).toBe('2000')
-    const cut = new URL(cutblockPageUrl([-123, 54, -122, 55], 1995, 1))
-    expect(cut.searchParams.get('where')).toBe('HARVEST_START_YEAR_CALENDAR >= 1995')
-    expect(cut.searchParams.get('resultOffset')).toBe('1000')
+    const cut = new URL(cutblockPageUrl([-123, 54, -122, 55], 1995, 4321))
+    expect(cut.searchParams.get('where')).toBe('HARVEST_START_YEAR_CALENDAR >= 1995 AND OBJECTID > 4321')
+    expect(cut.searchParams.get('orderByFields')).toBe('OBJECTID')
+    expect(cut.searchParams.get('resultOffset')).toBeNull()
   })
 
   it('reads scattered parts by their own boxes and merges near ones', () => {

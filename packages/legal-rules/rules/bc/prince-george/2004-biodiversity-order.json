@@ -33,6 +33,7 @@
   },
   "oldAndInteriorForest": [
     {
+      "district": "Prince George",
       "unit": "A1",
       "ndu": "Boreal Foothills - Mountain",
       "becAsPrinted": "ESSF wcp3, ESSF wc3, ESSF mvp2, ESSF mv2",
@@ -44,6 +45,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A2",
       "ndu": "McGregor Plateau",
       "becAsPrinted": "EESF wc3, ESSF wk2, ESSF wk1",
@@ -55,6 +57,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A3",
       "ndu": "McGregor Plateau (combined with A13)",
       "becAsPrinted": "SBS mk1, SBS mh",
@@ -67,6 +70,7 @@
       "reviewNote": "Order says A3 combined with A13; assess combined geography and do not double-count."
     },
     {
+      "district": "Prince George",
       "unit": "A4",
       "ndu": "McGregor Plateau",
       "becAsPrinted": "SBS wk1, SBS vk",
@@ -78,105 +82,124 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A5",
       "ndu": "Moist Interior - Mountain, Omineca - Mountain",
       "becAsPrinted": "ESSF wk2, ESSF mv3, ESSF mv1, ESSF mv3",
       "oldForestMinPct": 29,
       "interiorOfRequiredOldForestMinPct": 40,
+      "nonPineLeadingOldMinPctOfCflb": 12,
       "sourceTables": [
         3,
         6
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A6",
       "ndu": "Moist Interior - Mountain",
       "becAsPrinted": "ESSF wk1",
       "oldForestMinPct": 29,
       "interiorOfRequiredOldForestMinPct": 40,
+      "nonPineLeadingOldMinPctOfCflb": 28,
       "sourceTables": [
         3,
         6
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A7",
       "ndu": "Moist Interior - Plateau",
       "becAsPrinted": "SBS mh",
       "oldForestMinPct": 17,
       "interiorOfRequiredOldForestMinPct": 10,
+      "nonPineLeadingOldMinPctOfCflb": 14,
       "sourceTables": [
         3,
         6
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A8",
       "ndu": "Moist Interior - Plateau",
       "becAsPrinted": "SBS mc3, SBS mc2",
       "oldForestMinPct": 12,
       "interiorOfRequiredOldForestMinPct": 25,
+      "nonPineLeadingOldMinPctOfCflb": 1,
       "sourceTables": [
         3,
         6
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A9",
       "ndu": "Moist Interior - Plateau",
       "becAsPrinted": "SBS mw",
       "oldForestMinPct": 12,
       "interiorOfRequiredOldForestMinPct": 10,
+      "nonPineLeadingOldMinPctOfCflb": 3,
       "sourceTables": [
         3,
         6
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A10",
       "ndu": "Moist Interior - Plateau",
       "becAsPrinted": "SBS wk1",
       "oldForestMinPct": 17,
       "interiorOfRequiredOldForestMinPct": 25,
+      "nonPineLeadingOldMinPctOfCflb": 14,
       "sourceTables": [
         3,
         6
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A11",
       "ndu": "Moist Interior - Plateau",
       "becAsPrinted": "SBS dw2, SBS dw1",
       "oldForestMinPct": 12,
       "interiorOfRequiredOldForestMinPct": 25,
+      "nonPineLeadingOldMinPctOfCflb": 2,
       "sourceTables": [
         3,
         6
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A12",
       "ndu": "Moist Interior - Plateau",
       "becAsPrinted": "SBS dw3",
       "oldForestMinPct": 12,
       "interiorOfRequiredOldForestMinPct": 10,
+      "nonPineLeadingOldMinPctOfCflb": 4,
       "sourceTables": [
         3,
         6
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A13",
       "ndu": "Moist Interior - Plateau, Omineca - Mountain",
       "becAsPrinted": "SBS mk1",
       "oldForestMinPct": 12,
       "interiorOfRequiredOldForestMinPct": 25,
+      "nonPineLeadingOldMinPctOfCflb": 6,
       "sourceTables": [
         3,
         6
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A14",
       "ndu": "Wet Mountain",
       "becAsPrinted": "ESSF mvp2, ESSF wcp3, ESSF mv2, ESSF wk2",
@@ -188,6 +211,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A15",
       "ndu": "Wet Mountain",
       "becAsPrinted": "ESSF wc3",
@@ -199,6 +223,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A16",
       "ndu": "Wet Mountain",
       "becAsPrinted": "SBS wk1",
@@ -210,6 +235,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A17",
       "ndu": "Wet Mountain",
       "becAsPrinted": "SBS vk",
@@ -221,6 +247,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A18",
       "ndu": "Wet Trench - Mountain",
       "becAsPrinted": "ESSF wcp3",
@@ -232,6 +259,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A19",
       "ndu": "Wet Trench - Mountain",
       "becAsPrinted": "ESSF wcp3, ESSF mm1, ESSF mmp1, ESSF mvp2, ESSF mv2, ESSF wk2",
@@ -243,6 +271,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A20",
       "ndu": "Wet Trench - Mountain",
       "becAsPrinted": "ESSF wc3",
@@ -254,6 +283,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A21",
       "ndu": "Wet Trench - Mountain",
       "becAsPrinted": "ESSF wk1",
@@ -265,6 +295,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A22",
       "ndu": "Wet Trench - Valley",
       "becAsPrinted": "ICH wk3",
@@ -276,6 +307,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A23",
       "ndu": "Wet Trench - Valley",
       "becAsPrinted": "ICH vk2",
@@ -287,6 +319,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A24",
       "ndu": "Wet Trench - Valley",
       "becAsPrinted": "SBS wk1, SBS mw, SBS mk1",
@@ -298,6 +331,7 @@
       ]
     },
     {
+      "district": "Prince George",
       "unit": "A25",
       "ndu": "Wet Trench - Valley",
       "becAsPrinted": "SBS vk",
@@ -306,6 +340,306 @@
       "sourceTables": [
         3,
         6
+      ]
+    },
+    {
+      "district": "Vanderhoof",
+      "unit": "D1",
+      "ndu": "Moist Interior - Mountain",
+      "becAsPrinted": "ESSF mv1, ESSF mvp1, ESSF xv1",
+      "oldForestMinPct": 29,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "nonPineLeadingOldMinPctOfCflb": 16,
+      "sourceTables": [
+        1,
+        4
+      ]
+    },
+    {
+      "district": "Vanderhoof",
+      "unit": "D2",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SPBS mc",
+      "oldForestMinPct": 17,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "nonPineLeadingOldMinPctOfCflb": 3,
+      "sourceTables": [
+        1,
+        4
+      ]
+    },
+    {
+      "district": "Vanderhoof",
+      "unit": "D3",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS dk",
+      "oldForestMinPct": 17,
+      "interiorOfRequiredOldForestMinPct": 10,
+      "nonPineLeadingOldMinPctOfCflb": 5,
+      "sourceTables": [
+        1,
+        4
+      ]
+    },
+    {
+      "district": "Vanderhoof",
+      "unit": "D4",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS dw2",
+      "oldForestMinPct": 12,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "nonPineLeadingOldMinPctOfCflb": 2,
+      "sourceTables": [
+        1,
+        4
+      ]
+    },
+    {
+      "district": "Vanderhoof",
+      "unit": "D5",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS dw3",
+      "oldForestMinPct": 17,
+      "interiorOfRequiredOldForestMinPct": 10,
+      "nonPineLeadingOldMinPctOfCflb": 5,
+      "sourceTables": [
+        1,
+        4
+      ]
+    },
+    {
+      "district": "Vanderhoof",
+      "unit": "D6",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS mc2, MS xv",
+      "oldForestMinPct": 12,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "nonPineLeadingOldMinPctOfCflb": 3,
+      "sourceTables": [
+        1,
+        4
+      ]
+    },
+    {
+      "district": "Vanderhoof",
+      "unit": "D7",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS mc3",
+      "oldForestMinPct": 12,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "nonPineLeadingOldMinPctOfCflb": 2,
+      "sourceTables": [
+        1,
+        4
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E1",
+      "ndu": "Moist Interior Mountain",
+      "becAsPrinted": "ESSF mv1, ESSF mvp1, ESSF mv3",
+      "oldForestMinPct": 41,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "nonPineLeadingOldMinPctOfCflb": 33,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E2",
+      "ndu": "Moist Interior Plateau",
+      "becAsPrinted": "SBS dk",
+      "oldForestMinPct": 17,
+      "interiorOfRequiredOldForestMinPct": 10,
+      "nonPineLeadingOldMinPctOfCflb": 13,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E3",
+      "ndu": "Moist Interior Plateau",
+      "becAsPrinted": "SBS mc2",
+      "oldForestMinPct": 17,
+      "interiorOfRequiredOldForestMinPct": 10,
+      "nonPineLeadingOldMinPctOfCflb": 10,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E4",
+      "ndu": "Moist Interior Plateau",
+      "becAsPrinted": "SBS mk1, SBS wk3,",
+      "oldForestMinPct": 12,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "nonPineLeadingOldMinPctOfCflb": 4,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E5",
+      "ndu": "Moist Interior - Plateau",
+      "becAsPrinted": "SBS dw3",
+      "oldForestMinPct": 12,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "nonPineLeadingOldMinPctOfCflb": 6,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E6",
+      "ndu": "Northern Boreal Mountains",
+      "becAsPrinted": "ESSF wvp, ESSF mcp, ESSF mc, ESSF wv",
+      "oldForestMinPct": 37,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E7",
+      "ndu": "Northern Boreal Mountains",
+      "becAsPrinted": "SWB mks, SWB mk",
+      "oldForestMinPct": 37,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E8",
+      "ndu": "Northern Boreal Mountains",
+      "becAsPrinted": "SBS mc 2",
+      "oldForestMinPct": 26,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E9",
+      "ndu": "Omineca - Mountain",
+      "becAsPrinted": "ESSF wvp, ESSF wv, ESSF mcp",
+      "oldForestMinPct": 58,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E10",
+      "ndu": "Omineca - Mountain",
+      "becAsPrinted": "SWB mks, SWB mk, ESSF mc",
+      "oldForestMinPct": 41,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E11",
+      "ndu": "Omineca - Mountain",
+      "becAsPrinted": "ESSF mvp3, ESSF mv3",
+      "oldForestMinPct": 41,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E12",
+      "ndu": "Omineca – low elevation",
+      "becAsPrinted": "SBS dk, SBS dw3",
+      "oldForestMinPct": 16,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E13",
+      "ndu": "Omineca - low elevation",
+      "becAsPrinted": "ICH mc1",
+      "oldForestMinPct": 23,
+      "interiorOfRequiredOldForestMinPct": 40,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E14",
+      "ndu": "Omineca - low elevation",
+      "becAsPrinted": "BWBS dk1",
+      "oldForestMinPct": 16,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E15",
+      "ndu": "Omineca - low elevation",
+      "becAsPrinted": "SBS mc2",
+      "oldForestMinPct": 16,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E16",
+      "ndu": "Omineca - low elevation",
+      "becAsPrinted": "SBS mk1",
+      "oldForestMinPct": 16,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        2,
+        5
+      ]
+    },
+    {
+      "district": "Fort St. James",
+      "unit": "E17",
+      "ndu": "Omineca - low elevation",
+      "becAsPrinted": "SBS wk3",
+      "oldForestMinPct": 16,
+      "interiorOfRequiredOldForestMinPct": 25,
+      "sourceTables": [
+        2,
+        5
       ]
     }
   ],
@@ -520,5 +854,15 @@
     "Check duplicated/printed BEC labels against official maps",
     "Verify age and edge buffering definitions",
     "Verify denominators, old forest accounting and professional approval evidence"
-  ]
+  ],
+  "nonPineLeadingSource": {
+    "sourceId": "bc.pgtsa.policy.2005",
+    "tables": {
+      "Vanderhoof": 8,
+      "Fort St. James": 9,
+      "Prince George": 10
+    },
+    "legallyBinding": false,
+    "note": "Implementation policy Tables 8 to 10 (pp. 3-4 of the December 2005 revision): minimum percent of the CFLB retained as old non-pine-leading forest. Units not listed have no stated minimum."
+  }
 }

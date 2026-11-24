@@ -5,6 +5,8 @@ import { openPlanFile } from './migrate'
 import { samplePlan } from './plan'
 import { analyzePlan } from './planAnalysis'
 import { assessmentRecord, blocksGeoJson, buildExport } from './exports'
+import { setCheck, setOldForest } from './edits'
+import { boardCheckKey, oldForestKey } from './records'
 
 const plan = {
   ...samplePlan(),
@@ -63,5 +65,55 @@ describe('block planning exports', () => {
     expect(html).toContain('&lt;script&gt;')
     expect(html).toContain('Not a legal test')
     expect(() => buildExport('record', plan, undefined, library, 'today')).toThrow(/patch calculation/)
+  })
+
+  it('carries the Board check and old forest, and marks them out of date once their inputs change', () => {
+    let kept = setCheck(plan, 'board', {
+      ranOn: '2026-11-24',
+      key: boardCheckKey(plan),
+      years: [
+        { year: 2015, shares: [10, 20, 30, 40], totalHa: 500 },
+        { year: 2018, shares: [11, 19, 30, 40], totalHa: 520 },
+      ],
+    })
+    kept = setOldForest(kept, { district: 'Prince George', unit: 'A10' })
+    const year = {
+      cflbHa: 1000,
+      requiredOldHa: 170,
+      oldHa: 120,
+      countedNotOldHa: 0,
+      requiredNonPineHa: 140,
+      nonPineOldHa: 100,
+      unknownAgeHa: 0,
+      requiredInteriorHa: 42.5,
+      interiorHa: 30,
+    }
+    kept = setCheck(kept, 'oldForest', {
+      ranOn: '2026-11-24',
+      readOn: '2026-11-24',
+      key: oldForestKey(kept),
+      district: 'Prince George',
+      unit: 'A10',
+      source: 'Order Map 2, Prince George · A10',
+      cflbProxyHa: 1000,
+      gisFraction: 0.12,
+      projectedYear: 2025,
+      counts: { stands: 10, ogmas: 1, parks: 0, retention: 0, corridors: 2 },
+      schedules: kept.schedules.map((s) => ({ schedule: s.id, years: [{ year: 2026, ...year }] })),
+      calibration2019: null,
+    })
+    const record = assessmentRecord(kept, result, library, '2026-11-24')
+    expect(record.boardCheck?.current).toBe(true)
+    expect(record.oldForest?.current).toBe(true)
+    expect(record.oldForest?.shortfalls[0].first).toEqual({ year: 2026, what: ['old', 'old non-pine', 'old interior'] })
+    const html = buildExport('summary', kept, result, library, 'today')
+    expect(html).toContain('Check of the method against these figures')
+    expect(html).toContain('Old and old interior forest · A10')
+    expect(html).toContain('the order’s table says 17%')
+    expect(html).not.toContain('The plan changed after this was calculated')
+    const changed = setOldForest(kept, { countParks: true })
+    expect(buildExport('summary', changed, result, library, 'today')).toContain(
+      'The plan changed after this was calculated',
+    )
   })
 })

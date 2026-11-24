@@ -1,6 +1,6 @@
 # Old forest (Objective A) and old interior forest (Objective B) under the Prince George order
 
-Research for the block planner, 23 November 2026. Nothing here is built yet: D.5(a) in the planner still asks the reviewer to name an outside analysis. This note records what the order defines, which public data could compute A and B, how the province and the Forest Practices Board have done it, and the decisions that belong to the owner before any of it is built.
+Research for the block planner, 23 November 2026. The eight questions at the end were decided on 24 November 2026 and the calculation built: see [Old and old interior forest in the block planner](../forestry-old-forest.md). This note records what the order defines, which public data could compute A and B, how the province and the Forest Practices Board have done it, and the decisions that belong to the owner before any of it is built.
 
 **Short answer.** A and B can be computed from public data, except the Crown Forest Land Base (CFLB), which has no public layer for the TSA and needs a proxy or a reviewer's figure. The order's Map 2 units, which the planner had treated as unavailable, are public GIS on DataBC; the planner already reads the same layer for the Objective C reporting unit (`orderUnits.ts`).
 
@@ -68,7 +68,7 @@ Per unit and per projection year:
 
 The reviewer's, never the model's: the CFLB figure or its calibration; whether parks count; D.2 and A3/A13 pooling; D.3 representativeness; D.4's 20% with its benefit statement; the ICH age; whether recruitment areas exist; the D.5(a) determination. Every figure prints "VRI age-based, not field-verified", and the Board's 2019 A and B figures stay a separate series, as the 2015 and 2018 C figures do.
 
-## Open questions for the owner
+## Open questions for the owner (decided 24 November 2026; see the guide's **Decisions**)
 
 1. Which A10 value is authoritative: 17% (order, Board) or 0.12 (GIS)?
 2. Which CFLB source: the VRI proxy, FAIB's AFLB/THLB through bcdatamapper, or a figure the reviewer enters?

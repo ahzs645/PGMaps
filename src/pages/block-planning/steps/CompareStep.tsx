@@ -6,6 +6,7 @@ import { explainPatches } from '../../forest-patches/explanation'
 import { movementTowardTarget, table } from '../../forest-patches/project'
 import { BoardCheckSection } from '../BoardCheckSection'
 import { FieldPriorities } from '../FieldPriorities'
+import { OldForestSection } from '../OldForestSection'
 import { PatchExplanation } from '../PatchExplanation'
 import { CalculationFormula, CalculationTable } from '@/components/ui/calculation-results'
 import { NumberField } from '@/components/ui/form-field'
@@ -88,7 +89,15 @@ function PlanningIndexSection({ plan, edit, result }: Pick<StepProps, 'plan' | '
 }
 
 /** The Board's 2015 and 2018 shares for the reporting unit, with what changed between them. */
-function PublishedFigures({ unit, plan }: { unit: PublishedUnit; plan: StepProps['plan'] }) {
+function PublishedFigures({
+  unit,
+  plan,
+  edit,
+}: {
+  unit: PublishedUnit
+  plan: StepProps['plan']
+  edit: StepProps['edit']
+}) {
   return (
     <ToolSection
       title="Published 2015 and 2018"
@@ -147,7 +156,7 @@ function PublishedFigures({ unit, plan }: { unit: PublishedUnit; plan: StepProps
         {unit.source.label}
       </a>
       <ToolDisclosure label="Check the method against these figures">
-        <BoardCheckSection plan={plan} />
+        <BoardCheckSection plan={plan} edit={edit} />
       </ToolDisclosure>
     </ToolSection>
   )
@@ -274,7 +283,9 @@ export function CompareStep({ plan, edit, analysis, shown, setShown }: StepProps
         </p>
       </ToolSection>
 
-      {published && <PublishedFigures unit={published} plan={plan} />}
+      {published && <PublishedFigures unit={published} plan={plan} edit={edit} />}
+
+      <OldForestSection plan={plan} edit={edit} shown={shown} />
 
       <PlanningIndexSection plan={plan} edit={edit} result={result} />
 

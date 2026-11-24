@@ -4,7 +4,7 @@ import type { StyleSpecification } from 'maplibre-gl'
 import { fitMapToPoints } from '@pgmaps/geo-toolkit/map/map-fit'
 import { Map, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
-import { MapLegend, MapLegendItem } from '@/components/ui/map-panels'
+import { LegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { MapSketch, type MapSketchController } from '@/components/ui/map-sketch'
 import { WORKSPACE_MAP_CONTROLS } from '@pgmaps/geo-toolkit/map/map-controls'
 import { bins, table } from '../forest-patches/project'
@@ -213,19 +213,20 @@ export function PlanMap({
         <MapSketch sketch={sketch} color={sketchColour} testId="block-planning-sketch" />
         <FitToPlan plan={plan} fitKey={fitKey} />
       </Map>
-      <MapLegend title={`Map · ${year}`} position="bottom-left" collapsible className="max-w-56">
-        <MapLegendItem color={MAP_COLOURS.block} label="Block cut by this year" />
-        <MapLegendItem color={MAP_COLOURS.blockLater} swatchShape="line" label="Block cut later" />
-        <MapLegendItem color={MAP_COLOURS.blockUncut} swatchShape="line" label="Block not cut in this schedule" />
-        <MapLegendItem color={MAP_COLOURS.disturbance} label="Past disturbance" />
-        {bins.map((bin, i) => (
-          <MapLegendItem key={bin} color={CLASS_COLOURS[bin]} label={`Young patch ${table.labels[i]}`} />
-        ))}
-        {plan.zones && <MapLegendItem color={MAP_COLOURS.zone} label="Mapped riparian zone" />}
-        {plan.area.unit && (
-          <MapLegendItem color={MAP_COLOURS.unit} swatchShape="line" label="Reporting unit boundary" />
-        )}
-      </MapLegend>
+      <MapLegendPanel title={`Map · ${year}`} collapsible defaultCollapsed="mobile" width="md">
+        <div className="space-y-1">
+          <LegendItem color={MAP_COLOURS.block} swatchShape="square" label="Block cut by this year" />
+          <LegendItem color={MAP_COLOURS.blockLater} swatchShape="line" label="Block cut later" />
+          <LegendItem color={MAP_COLOURS.blockUncut} swatchShape="line" label="Not cut in this schedule" />
+          <LegendItem color={MAP_COLOURS.disturbance} swatchShape="square" label="Past disturbance" />
+          {plan.zones && <LegendItem color={MAP_COLOURS.zone} swatchShape="square" label="Mapped riparian zone" />}
+          {plan.area.unit && <LegendItem color={MAP_COLOURS.unit} swatchShape="dashed-line" label="Reporting unit" />}
+        </div>
+        <p className="mt-2 text-2xs text-muted-foreground">Young patches by size (ha)</p>
+        <MapSteppedLegend
+          bands={bins.map((bin, i) => ({ color: CLASS_COLOURS[bin], label: table.labels[i].replace(' ha', '') }))}
+        />
+      </MapLegendPanel>
     </div>
   )
 }

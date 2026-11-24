@@ -7,6 +7,7 @@
  *
  * DOM- and network-free.
  */
+import { firstShortfall, oldForestCurrent } from '../records'
 import type { FactSet } from '../../../../packages/legal-rules/src/contract'
 import { entryOf, periodYears, type Plan } from '../plan'
 import type { PlanAnalysis } from '../planAnalysis'
@@ -147,7 +148,7 @@ export function pathways(plan: Plan, facts: FactSet | undefined, result: PlanAna
       id: 'analysis',
       label: 'Recruitment analysis',
       state: a.analysis?.trim() ? 'done' : 'open',
-      detail: 'PGMaps does not yet model old or old-interior forest. Name the analysis relied on and its date.',
+      detail: oldForestEvidence(plan),
     },
     {
       id: 'strategy',
@@ -191,4 +192,22 @@ export function pathways(plan: Plan, facts: FactSet | undefined, result: PlanAna
       steps: recruitmentSteps,
     },
   ]
+}
+
+/**
+ * What PGMaps' own A/B calculation says, for the reviewer to weigh: shown beside the step, never
+ * written into the determination or the analysis field (docs/forestry-old-forest.md, decision 8).
+ */
+function oldForestEvidence(plan: Plan): string {
+  const record = plan.checks?.oldForest
+  const ask = 'Name the analysis relied on and its date.'
+  if (!record) return `Not calculated here: Compare → Old and old interior forest calculates it for one unit. ${ask}`
+  const run = record.schedules.find((s) => s.schedule === plan.reviewSchedule)
+  const first = run ? firstShortfall(run.years) : null
+  const when = oldForestCurrent(plan) ? `calculated ${record.ranOn}` : `calculated ${record.ranOn}, out of date`
+  return `PGMaps (${record.unit}, ${when}, VRI age-based): ${
+    first
+      ? `the schedule under review falls short of ${first.what.join(', ')} from ${first.year}`
+      : 'no shortfall over the projection for the schedule under review'
+  }. Evidence only; the determination and the analysis named are yours. ${ask}`
 }

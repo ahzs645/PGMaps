@@ -126,8 +126,14 @@ test('the order’s unit and past disturbances are read from DataBC and checked 
       json: {
         type: 'FeatureCollection',
         features: [
-          { geometry: square(-122.55, 53.95, 0.02), properties: { VCCB_SYSID: 1, HARVEST_START_YEAR_CALENDAR: 2005 } },
-          { geometry: square(-122.5, 53.95, 0.03), properties: { VCCB_SYSID: 2, HARVEST_START_YEAR_CALENDAR: 2012 } },
+          {
+            geometry: square(-122.55, 53.95, 0.02),
+            properties: { VCCB_SYSID: 1, OBJECTID: 1, HARVEST_START_YEAR_CALENDAR: 2005 },
+          },
+          {
+            geometry: square(-122.5, 53.95, 0.03),
+            properties: { VCCB_SYSID: 2, OBJECTID: 2, HARVEST_START_YEAR_CALENDAR: 2012 },
+          },
         ],
       },
     })
@@ -165,4 +171,82 @@ test('the order’s unit and past disturbances are read from DataBC and checked 
   await expect(check.getByRole('table')).toContainText('>1,000 ha', { timeout: 60_000 })
   await expect(check).toContainText('2015')
   await expect(check).not.toContainText('was not read from DataBC')
+})
+
+test('old and old interior forest are read and calculated for an order unit, with the GIS’s A10 figure named', async ({
+  page,
+}) => {
+  test.setTimeout(150_000)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const empty = { type: 'FeatureCollection', features: [] }
+  // DataBC's WFS answers these reads by POST; the layer is in the body.
+  await page.context().route(/openmaps\.gov\.bc\.ca\/geo\/pub\/wfs/, async (route) => {
+    const body = route.request().postData() ?? ''
+    if (body.includes('RMP_PLAN_LEGAL_POLY_SVW'))
+      return route.fulfill({
+        json: {
+          type: 'FeatureCollection',
+          features: [
+            {
+              geometry: square(-122.6, 53.9, 0.1),
+              properties: {
+                LEGAL_FEAT_ATRB_1_NAME: 'BECLABEL',
+                LEGAL_FEAT_ATRB_1_VALUE: 'SBS wk 1',
+                LEGAL_FEAT_ATRB_3_NAME: 'ORG_CODE',
+                LEGAL_FEAT_ATRB_3_VALUE: 'DPG',
+                LEGAL_FEAT_ATRB_5_NAME: 'UNIT_IDENT',
+                LEGAL_FEAT_ATRB_5_VALUE: 'A10',
+                LEGAL_FEAT_ATRB_7_NAME: 'OLD_RETEN',
+                LEGAL_FEAT_ATRB_7_VALUE: 0.12,
+              },
+            },
+          ],
+        },
+      })
+    if (body.includes('VEG_COMP_LYR_R1_POLY'))
+      return route.fulfill({
+        json: {
+          type: 'FeatureCollection',
+          features: [
+            {
+              geometry: square(-122.6, 53.9, 0.06),
+              properties: {
+                FEATURE_ID: 1,
+                PROJ_AGE_1: 200,
+                PROJECTED_DATE: '2025-12-31Z',
+                BCLCS_LEVEL_2: 'T',
+                FOR_MGMT_LAND_BASE_IND: 'Y',
+                SPECIES_CD_1: 'SX',
+              },
+            },
+            {
+              geometry: square(-122.54, 53.9, 0.04),
+              properties: {
+                FEATURE_ID: 2,
+                PROJ_AGE_1: 30,
+                PROJECTED_DATE: '2025-12-31Z',
+                BCLCS_LEVEL_2: 'T',
+                FOR_MGMT_LAND_BASE_IND: 'Y',
+                SPECIES_CD_1: 'PLI',
+              },
+            },
+          ],
+        },
+      })
+    return route.fulfill({ json: empty })
+  })
+  await openSample(page)
+  await page.getByRole('tab', { name: 'Compare' }).click()
+  await button(page, /^Old and old interior forest/).click()
+  const steps = page.getByTestId('block-planning-steps')
+  await choose(steps.getByRole('combobox', { name: 'Old forest unit (Map 2)' }), 'A10')
+  await expect(page.getByTestId('block-planning-old-unit')).toContainText('17% of the CFLB old')
+  await button(page, 'Read and calculate').click()
+  const result = page.getByTestId('block-planning-old-forest')
+  await expect(result).toContainText('Year', { timeout: 90_000 })
+  await expect(result).toContainText('records 12% for A10; the order’s table says 17%')
+  await expect(result).toContainText('no shortfall over the projection')
+  // 200 m of old forest beside the 30-year-old pine is not interior until the pine passes 60, in 2056.
+  await expect(result.getByRole('row', { name: /^2051/ })).toContainText('2,539 / 162')
+  await expect(result.getByRole('row', { name: /^2056/ })).toContainText('2,632 / 162')
 })

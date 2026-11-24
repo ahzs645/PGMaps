@@ -28,9 +28,11 @@ function review(facts: Record<string, boolean | null>, date = '2019-12-31') {
 describe('Prince George Forest District, Board Appendix 1, 2019', () => {
   it('reproduces the 25 published unit rows, including both old-forest deficits', () => {
     const deficits: Record<string, number> = {}
-    expect(benchmark.oldForest2019.units.map((r) => r.unit)).toEqual(order.oldAndInteriorForest.map((u) => u.unit))
-    for (const row of benchmark.oldForest2019.units) {
-      const unit = order.oldAndInteriorForest.find((u) => u.unit === row.unit)!
+    const board = benchmark.oldForest2019.units.filter((r) => r.district === 'Prince George')
+    const units = order.oldAndInteriorForest.filter((u) => u.district === 'Prince George')
+    expect(board.map((r) => r.unit)).toEqual(units.map((u) => u.unit))
+    for (const row of board) {
+      const unit = units.find((u) => u.unit === row.unit)!
       expect([unit.oldForestMinPct, unit.interiorOfRequiredOldForestMinPct], unit.unit).toEqual([
         row.oldPercent,
         row.interiorPercent,
@@ -50,9 +52,20 @@ describe('Prince George Forest District, Board Appendix 1, 2019', () => {
     }
     expect(deficits).toEqual({ A4: 4465, A24: 887 })
   })
+  it('holds every district’s targets equal to the Board’s 49 rows', () => {
+    expect(benchmark.oldForest2019.units).toHaveLength(49)
+    for (const row of benchmark.oldForest2019.units) {
+      const unit = order.oldAndInteriorForest.find((u) => u.unit === row.unit && u.district === row.district)
+      expect(unit, row.unit).toBeDefined()
+      expect([unit!.oldForestMinPct, unit!.interiorOfRequiredOldForestMinPct], row.unit).toEqual([
+        row.oldPercent,
+        row.interiorPercent,
+      ])
+    }
+  })
   it('flips the historical A15 numeric screen if 11 qualifying hectares are reclassified', () => {
-    const u = order.oldAndInteriorForest.find((u) => u.unit === 'A15')!
-    const row = benchmark.oldForest2019.units.find((u) => u.unit === 'A15')!
+    const u = order.oldAndInteriorForest.find((u) => u.unit === 'A15' && u.district === 'Prince George')!
+    const row = benchmark.oldForest2019.units.find((u) => u.unit === 'A15' && u.district === 'Prince George')!
     const screen = (reclassifiedHa: number) =>
       screenOldForestTarget(u, {
         cflbAreaHa: row.cflbHa,

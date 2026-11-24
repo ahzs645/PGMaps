@@ -111,9 +111,19 @@ export function readBoxes(shape: Shape): [number, number, number, number][] {
   return boxes
 }
 
-export function cutblockPageUrl(bounds: [number, number, number, number], fromYear: number, page: number) {
+/**
+ * One page of cutblocks after `afterId`, by OBJECTID. Keyset paging, not offsets: the service cuts a
+ * page short on its transfer limit (105, 488 or even 0 of 1,000 records, each flagged
+ * `exceededTransferLimit`), so a short page is not the end and an offset would skip records.
+ */
+export function cutblockPageUrl(
+  bounds: [number, number, number, number],
+  fromYear: number,
+  afterId: number,
+  count = CUTBLOCK_PAGE_SIZE,
+) {
   const params = new URLSearchParams({
-    where: `HARVEST_START_YEAR_CALENDAR >= ${fromYear}`,
+    where: `HARVEST_START_YEAR_CALENDAR >= ${fromYear} AND OBJECTID > ${afterId}`,
     geometry: bounds.map((v) => v.toFixed(6)).join(','),
     geometryType: 'esriGeometryEnvelope',
     inSR: '4326',
@@ -123,8 +133,7 @@ export function cutblockPageUrl(bounds: [number, number, number, number], fromYe
     returnGeometry: 'true',
     geometryPrecision: '7',
     orderByFields: 'OBJECTID',
-    resultOffset: String(page * CUTBLOCK_PAGE_SIZE),
-    resultRecordCount: String(CUTBLOCK_PAGE_SIZE),
+    resultRecordCount: String(count),
     f: 'geojson',
   })
   return `${BC_HARVEST_SERVICE}/query?${params.toString()}`
@@ -196,6 +205,57 @@ export function grownUnit(unit: Shape, metres: number): Shape {
   }
 }
 
+/** The smallest page the cutblock reader shrinks to before it gives up on an empty, truncated answer. */
+const MIN_CUTBLOCK_PAGE = 25
+
+/** Every cutblock in a box, by OBJECTID, until the service answers a page that is neither full nor flagged. */
+export async function readCutblockPages(
+  fetch: Fetch,
+  bounds: [number, number, number, number],
+  fromYear: number,
+  signal: AbortSignal | undefined,
+  onPage: (count: number) => void,
+): Promise<RawFeature[]> {
+  const all: RawFeature[] = []
+  let afterId = -1
+  let count = CUTBLOCK_PAGE_SIZE
+  for (;;) {
+    const response = await fetch(cutblockPageUrl(bounds, fromYear, afterId, count), { signal })
+    if (!response.ok) throw Error(`DataBC answered ${response.status}.`)
+    const body = (await response.json()) as {
+      features?: unknown
+      error?: { message?: string }
+      exceededTransferLimit?: boolean
+      properties?: { exceededTransferLimit?: boolean }
+    }
+    if (body.error) throw Error(`DataBC: ${body.error.message ?? 'the query was refused'}.`)
+    if (!Array.isArray(body.features)) throw Error('DataBC returned no feature collection.')
+    const more = body.exceededTransferLimit === true || body.properties?.exceededTransferLimit === true
+    const rows = (body.features as RawFeature[]).map((f) => ({
+      id: f.id,
+      geometry: f.geometry,
+      properties: f.properties ?? {},
+    }))
+    if (!rows.length) {
+      if (!more) return all
+      if (count <= MIN_CUTBLOCK_PAGE)
+        throw Error('DataBC kept answering an empty page while saying more records remain.')
+      count = Math.max(MIN_CUTBLOCK_PAGE, Math.floor(count / 2))
+      continue
+    }
+    all.push(...rows)
+    onPage(all.length)
+    if (all.length > MAX_BASELINE_RECORDS)
+      throw Error(
+        `More than ${MAX_BASELINE_RECORDS.toLocaleString()} records in the unit’s box. Use a smaller unit or a later first year.`,
+      )
+    const ids = rows.map((r) => Number(r.properties.OBJECTID))
+    if (ids.some((id) => !Number.isFinite(id))) throw Error('A cutblock came back without its OBJECTID.')
+    afterId = Math.max(...ids)
+    if (!more && rows.length < count) return all
+  }
+}
+
 /** The part of a polygon inside the unit, or null. Invalid source rings are repaired by a zero buffer. */
 function clip(geometry: unknown, unit: Geometry): Shape | null {
   if (!geometry || typeof geometry !== 'object') return null
@@ -256,19 +316,14 @@ export async function readBaseline({
   /** Every box's pages, each record once: neighbouring boxes return the records on their shared edge. */
   async function readBoxesOnce(
     list: [number, number, number, number][],
-    url: (box: [number, number, number, number], page: number) => string,
-    pageSize: number,
+    readBox: (box: [number, number, number, number], onPage: (count: number) => void) => Promise<RawFeature[]>,
     keyOf: (f: RawFeature) => string,
     label: string,
   ) {
     const seen = new Map<string, RawFeature>()
     for (const [i, box] of list.entries()) {
-      const rows = await readPages(
-        fetch,
-        (p) => url(box, p),
-        pageSize,
-        signal,
-        (n) => onProgress?.(`Read ${(seen.size + n).toLocaleString()} ${label} (area ${i + 1} of ${list.length})…`),
+      const rows = await readBox(box, (n) =>
+        onProgress?.(`Read ${(seen.size + n).toLocaleString()} ${label} (area ${i + 1} of ${list.length})…`),
       )
       for (const row of rows) seen.set(keyOf(row), row)
       if (seen.size > MAX_BASELINE_RECORDS)
@@ -281,8 +336,7 @@ export async function readBaseline({
   if (sources.includes('cutblocks')) {
     const rows = await readBoxesOnce(
       boxes,
-      (box, p) => cutblockPageUrl(box, fromYear, p),
-      CUTBLOCK_PAGE_SIZE,
+      (box, onPage) => readCutblockPages(fetch, box, fromYear, signal, onPage),
       (f) => String(f.properties.VCCB_SYSID ?? f.properties.OBJECTID),
       'cutblocks',
     )
@@ -321,8 +375,7 @@ export async function readBaseline({
   if (sources.includes('fires')) {
     const rows = await readBoxesOnce(
       boxes,
-      (box, p) => firePageUrl(box, fromYear, p),
-      FIRE_PAGE_SIZE,
+      (box, onPage) => readPages(fetch, (p) => firePageUrl(box, fromYear, p), FIRE_PAGE_SIZE, signal, onPage),
       (f) => String(f.id ?? `${f.properties.FIRE_NUMBER}-${f.properties.FIRE_YEAR}`),
       'fire perimeters',
     )
