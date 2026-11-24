@@ -136,6 +136,7 @@ export function removeBlock(plan: Plan, id: string): Plan {
     }),
     reviews,
     rangeReviews: plan.rangeReviews?.filter((review) => review.block !== id),
+    groundReads: plan.groundReads?.filter((read) => read.block !== id),
   }
 }
 
@@ -252,6 +253,7 @@ export function removeSchedule(plan: Plan, id: string): Plan {
     schedules,
     reviewSchedule: plan.reviewSchedule === id ? schedules[0].id : plan.reviewSchedule,
     rangeReviews: plan.rangeReviews?.filter((review) => review.schedule !== id),
+    groundReads: plan.groundReads?.filter((read) => read.schedule !== id),
   }
 }
 

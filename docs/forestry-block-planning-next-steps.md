@@ -6,6 +6,10 @@ What is still open in `/dev/forestry/block-planning` after old and old interior 
 
 Built on 24 November 2026 and moved into [the old-forest contract](forestry-old-forest.md): private land and excluded tenures left out of the CFLB proxy (A6 and A10 now within 1% and 3% of the Board's CFLB), pipelines in the 2005 interior method, D.4's younger stands and D.2's pooling. What they leave open is in the contract's **Limits and what is not built**.
 
+## Done: what the instruments on a block can reach
+
+Built on 24 November 2026 with its own contract, [On this ground](forestry-ground-instruments.md): step 5 reads every legal instrument mapped on the block shape under review (Land Act reserves, withdrawals, designated use areas and tenures, the ALR, legal objectives and OGMAs, winter ranges and habitat areas, range tenures, parks, ecological reserves and protected areas, private parcels, community watersheds), shows what each can reach for harvest, replanting, roads and grazing with the provision each answer rests on, reads RESULTS precedent inside each one near the block, and drafts the documents to ask for. What it leaves open is in the contract's **Not built**.
+
 ## Next
 
 ### Prepared tables in bcdatamapper
