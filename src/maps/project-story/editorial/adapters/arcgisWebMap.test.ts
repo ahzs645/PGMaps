@@ -111,10 +111,8 @@ describe('native WebMap adaptation', () => {
     })
   })
   it('adapts every captured map with supported native source types and original renderers', async () => {
-    for (const filename of readdirSync('public/data/story-documents/prague/maps')) {
-      const document = JSON.parse(
-        readFileSync(`public/data/story-documents/prague/maps/${filename}`, 'utf8'),
-      ) as ArcgisRecord
+    for (const filename of readdirSync('vendor/pgmaps-story-prague/maps')) {
+      const document = JSON.parse(readFileSync(`vendor/pgmaps-story-prague/maps/${filename}`, 'utf8')) as ArcgisRecord
       const native = await normalizeWebMap(document, async (url) =>
         url.includes('root.json')
           ? { sources: {}, layers: [] }

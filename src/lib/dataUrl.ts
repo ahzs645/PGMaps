@@ -38,6 +38,15 @@ export function withBase(path: string, hosts: readonly DataHost[] = DATA_HOSTS):
   return remoteDataUrl(rootPath, hosts) ?? `${base}${rootPath}`
 }
 
+/**
+ * A package link's href: a `/data/...` file goes through `withBase`, since its
+ * folder may be served by another host; any other href (a route, an outside
+ * page) is left as written.
+ */
+export function packageLinkHref(href: string): string {
+  return href.startsWith('/data/') ? withBase(href) : href
+}
+
 /** Build a URL under the deploy base's `data/` directory. */
 export function dataUrl(...segments: string[]): string {
   const path = segments

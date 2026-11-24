@@ -2,7 +2,7 @@
 
 The user supplied a desktop network capture of [The Diverse Prague](https://storymaps.arcgis.com/stories/3ed83ef359d346618510764c6222ac01), published by the Institute of Planning and Development (IPR Prague). Its authored story configuration is the evidence for the patterns below. The accompanying mobile capture was empty.
 
-This document first records the reference patterns used for the BC style examples. Following the user’s request to recreate the actual story, `example-prague` imports the supplied content and credited media into `public/data/story-documents/prague`. The original publisher retains authorship; PGMaps supplies the renderer. The capture, account metadata, analytics and original application code are not included.
+This document first records the reference patterns used for the BC style examples. Following the user’s request to recreate the actual story, `example-prague` imports the supplied content and credited media into `/data/story-documents/prague`, now its own repository (`ahzs645/pgmaps-story-prague`, `docs/data-hosts.md`). The original publisher retains authorship; PGMaps supplies the renderer. The capture, account metadata, analytics and original application code are not included.
 
 ## What the reference contains
 

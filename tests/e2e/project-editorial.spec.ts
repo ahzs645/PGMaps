@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 
-const graph = JSON.parse(readFileSync('public/data/story-documents/prague/story.json', 'utf8')) as {
+const graph = JSON.parse(readFileSync('vendor/pgmaps-story-prague/story.json', 'utf8')) as {
   nodes: Record<string, { type: string; children?: string[]; data?: Record<string, unknown> }>
 }
 for (const viewport of [
@@ -262,7 +262,7 @@ for (const viewport of [
     const layer = (await nativeMapState(map))!.layers.find((layer: { id: string }) => layer.id === layerId)!
     expect(layer.type).toBe('fill')
     const original = JSON.parse(
-      readFileSync('public/data/story-documents/prague/maps/1e679b95db3e4710855af2ca7fe5bbf9.json', 'utf8'),
+      readFileSync('vendor/pgmaps-story-prague/maps/1e679b95db3e4710855af2ca7fe5bbf9.json', 'utf8'),
     )
     const renderer = original.operationalLayers[0].layerDefinition.drawingInfo.renderer
     const paint = JSON.stringify(layer.paint?.['fill-color'])
@@ -431,7 +431,7 @@ test('Prague comparison forwards feature clicks to the revealed native map', asy
     .nth(1)
   const maps = comparison.getByTestId('editorial-map')
   const original = JSON.parse(
-    readFileSync('public/data/story-documents/prague/maps/f7855f008ebd45e3882afb0b642b73fb.json', 'utf8'),
+    readFileSync('vendor/pgmaps-story-prague/maps/f7855f008ebd45e3882afb0b642b73fb.json', 'utf8'),
   )
   const layerId = `editorial-source-${original.operationalLayers[0].id}`
   await expect
@@ -524,7 +524,7 @@ for (const viewport of [
       await expect(map.getByText('Loading original map…', { exact: true })).toHaveCount(0)
       await expect(map.getByRole('status', { name: 'Loading map data', exact: true })).toBeHidden()
       const itemId = await map.getAttribute('data-map-item')
-      const original = JSON.parse(readFileSync(`public/data/story-documents/prague/maps/${itemId}.json`, 'utf8'))
+      const original = JSON.parse(readFileSync(`vendor/pgmaps-story-prague/maps/${itemId}.json`, 'utf8'))
       for (const layer of original.operationalLayers) {
         await expect
           .poll(async () => (await nativeMapState(map))?.layers.map((entry: { id: string }) => entry.id))
@@ -808,7 +808,7 @@ for (const width of [1440, 390]) {
       release = resolve
     })
     const original = JSON.parse(
-      readFileSync('public/data/story-documents/prague/maps/1e679b95db3e4710855af2ca7fe5bbf9.json', 'utf8'),
+      readFileSync('vendor/pgmaps-story-prague/maps/1e679b95db3e4710855af2ca7fe5bbf9.json', 'utf8'),
     )
     const sourceId = `editorial-source-${original.operationalLayers[0].id}`
     const score = original.operationalLayers[0].layerDefinition.drawingInfo.renderer.field

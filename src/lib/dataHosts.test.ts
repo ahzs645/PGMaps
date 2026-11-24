@@ -17,11 +17,15 @@ describe('the checked-in data-hosts config', () => {
     expect(() => parseDataHosts(config)).not.toThrow()
   })
 
-  it('sends bcdatamapper only folders its Pages site publishes', () => {
-    const site = JSON.parse(readFileSync('vendor/bcdatamapper/pages/site.json', 'utf8')) as { folders: string[] }
-    const bcdatamapper = parseDataHosts(config).find((host) => host.name === 'bcdatamapper')
-    expect(site.folders).toEqual(expect.arrayContaining(bcdatamapper?.folders ?? []))
-  })
+  // A host named after a submodule in vendor/ (bcdatamapper, pgmaps-story-prague)
+  // publishes what that repository's pages/site.json lists.
+  it.each(parseDataHosts(config).map((host) => [host.name, host] as const))(
+    'sends %s only folders its Pages site publishes',
+    (name, host) => {
+      const site = JSON.parse(readFileSync(`vendor/${name}/pages/site.json`, 'utf8')) as { folders: string[] }
+      expect(site.folders).toEqual(expect.arrayContaining(host.folders))
+    },
+  )
 })
 
 describe('remoteDataUrl', () => {

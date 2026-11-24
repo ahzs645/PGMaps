@@ -6,9 +6,27 @@ from this site.
 
 ## Current hosts
 
-| Host           | Base URL                                            | Folders                                                                  |
-| -------------- | --------------------------------------------------- | ------------------------------------------------------------------------ |
-| `bcdatamapper` | `https://projects.ahmadjalil.com/bcdatamapper/data` | `cciss`, `census`, `citypg`, `drought`, `forest`, `network-availability` |
+| Host                  | Base URL                                                   | Folders                                                                  |
+| --------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `bcdatamapper`        | `https://projects.ahmadjalil.com/bcdatamapper/data`        | `cciss`, `census`, `citypg`, `drought`, `forest`, `network-availability` |
+| `pgmaps-story-prague` | `https://projects.ahmadjalil.com/pgmaps-story-prague/data` | `story-documents/prague`                                                 |
+
+A host is named after its repository, checked out as `vendor/<name>`, whose
+`pages/site.mjs` exports `readSite` and `folderFingerprints`.
+`src/lib/dataHosts.test.ts` holds every host to its `pages/site.json`, and the
+deploy compares each live site with its pinned submodule (below).
+
+### The Prague story
+
+The imported story `example-prague` renders (IPR Prague's *The Diverse
+Prague*, 78 files, 50.5 MB) is its own repository,
+[`ahzs645/pgmaps-story-prague`](https://github.com/ahzs645/pgmaps-story-prague),
+moved out of this one on 24 November 2026. Its Pages site serves it at the
+layout above, so the story's own `/data/story-documents/prague/...` links are
+unchanged. Its unit tests read `vendor/pgmaps-story-prague`, the sync copies it
+into `public/data` only with `VITE_DATA_HOSTS_LOCAL=1`, and a push to its
+`main` reaches the live app without a PGMaps deploy. Its README says how to
+change it. `story-documents/native-example` stays here.
 
 bcdatamapper publishes these from its own repository
 (`vendor/bcdatamapper/docs/pages-site.md`). Its `pages/site.json` is the one
@@ -40,8 +58,8 @@ The deploy runs `scripts/check-data-hosts.mjs`, which:
 
 - **fails** if a host's `version.json` cannot be read, or does not list a folder
   the app sends there;
-- **warns** if the live bcdatamapper folders differ from what the pinned
-  submodule would publish. It compares the per-folder fingerprints from
+- **warns** if a host's live folders differ from what its pinned submodule
+  would publish. It compares the per-folder fingerprints from
   `pages/site.mjs`, not commit IDs, so an unrelated bcdatamapper commit does not
   trigger it.
 

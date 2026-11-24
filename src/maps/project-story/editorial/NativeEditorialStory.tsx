@@ -3,6 +3,7 @@ import { WorkspaceProvider } from '@pgmaps/geo-toolkit/workspace/workspace-conte
 import { useEffect, useState, useMemo, useRef } from 'react'
 import type * as MapLibre from 'maplibre-gl'
 import type { ProjectPackage } from '@/lib/projectPackages'
+import { withBase } from '@/lib/dataUrl'
 import { useStorySources } from '../useStorySources'
 import { MapSwipe } from '@/components/ui/map-swipe'
 import { EditorialShell } from './EditorialShell'
@@ -96,7 +97,7 @@ export default function NativeEditorialStory({
   const [error, setError] = useState('')
   useEffect(() => {
     const controller = new AbortController()
-    fetch(documentUrl, { signal: controller.signal })
+    fetch(withBase(documentUrl), { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`Story returned HTTP ${response.status}`)
         return response.json()

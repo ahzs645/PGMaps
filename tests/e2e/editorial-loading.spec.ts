@@ -20,7 +20,7 @@ for (const width of [1440, 390]) {
       await pending
       await route.fulfill({
         contentType: 'image/png',
-        body: readFileSync('public/data/story-documents/prague/assets/fYs6LDk6BBcJAfy-BZPsX.png'),
+        body: readFileSync('vendor/pgmaps-story-prague/assets/fYs6LDk6BBcJAfy-BZPsX.png'),
       })
     })
     await page.goto('/projects/example-prague')

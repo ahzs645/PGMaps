@@ -4,6 +4,7 @@ import { useTheme } from 'next-themes'
 import { Map as NativeMap } from '@/components/ui/map'
 import { MapSwipe } from '@/components/ui/map-swipe'
 import { MapMarker, MarkerContent } from '@/components/ui/map-markers'
+import { withBase } from '@/lib/dataUrl'
 import { EditorialBasemapContext, EDITORIAL_BASEMAP_STYLE, type EditorialBasemap } from './editorialBasemap'
 import { FeatureViewportCache } from './adapters/featureViewportCache'
 import { loadFeaturePages } from './adapters/featurePages'
@@ -45,7 +46,7 @@ const jsonCache = new globalThis.Map<string, Promise<ArcgisRecord>>()
 function fetchSourceJson(url: string): Promise<ArcgisRecord> {
   const cached = jsonCache.get(url)
   if (cached) return cached
-  const result = fetch(url)
+  const result = fetch(withBase(url))
     .then(async (response) => {
       if (!response.ok) throw new Error(`Source returned HTTP ${response.status}`)
       const json = record(await response.json())

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
+import { packageLinkHref } from '@/lib/dataUrl'
 import { downloadProjectPackage, type ProjectPackage } from '@/lib/projectPackages'
 
 /** Use the same slot beside search as other maps' dataset information. */
@@ -69,7 +70,7 @@ export function StorySourceInfo({ project }: { project: ProjectPackage }) {
             ?.filter((link) => /^(https?:\/\/|\/(?!\/))/.test(link.href))
             .map((link) => (
               <li key={link.href}>
-                <a className="text-primary underline underline-offset-4" href={link.href}>
+                <a className="text-primary underline underline-offset-4" href={packageLinkHref(link.href)}>
                   {link.label}
                 </a>
               </li>

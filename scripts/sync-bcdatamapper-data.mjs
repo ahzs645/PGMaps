@@ -44,7 +44,8 @@ const appOwnedDataPaths = [
   'forestry-castor',
   // Public Nechako metadata captured for the app-owned dev showcase.
   'nechako-showcase',
-  'story-documents',
+  // The Prague story is served from its own repository (vendor/pgmaps-story-prague).
+  'story-documents/native-example',
   // User-supplied Flatten SF graph and hillshade, owned by this dev page.
   'flatten-sf',
   'flatten-pg',
@@ -275,6 +276,25 @@ if (!existsSync(pagesSiteModule)) {
 const { readSite } = await import(pathToFileURL(pagesSiteModule).href)
 pathMappings.push(...readSite(vendorRoot).mappings)
 
+// Story documents kept in repositories of their own, each serving them on its
+// own Pages site through the same pages/site.mjs interface. Also copied only
+// when VITE_DATA_HOSTS_LOCAL=1.
+const storyVendorRoots = [join(root, 'vendor', 'pgmaps-story-prague')]
+const storyPathMappings = []
+for (const storyRoot of storyVendorRoots) {
+  const siteModule = join(storyRoot, 'pages', 'site.mjs')
+  if (!existsSync(siteModule)) {
+    console.error(
+      `[data] Missing ${relative(root, siteModule)}; run git submodule update --init ${relative(root, storyRoot)}`,
+    )
+    process.exit(1)
+  }
+  const { readSite: readStorySite } = await import(pathToFileURL(siteModule).href)
+  for (const [source, destination] of readStorySite(storyRoot).mappings) {
+    storyPathMappings.push([source, destination, storyRoot])
+  }
+}
+
 const optionalPathMappings = [
   ['datascrapers/environmental-burden/output/bc-enviro-screen', 'environmental-burden/bc-enviro-screen'],
   ['datascrapers/health/phsa-community-health/output', 'health/phsa-community-health'],
@@ -389,6 +409,10 @@ for (const [sourceRelative, targetRelative] of optionalPathMappings) {
 
 for (const [sourceRelative, targetRelative] of canadaPathMappings) {
   copyPath(sourceRelative, targetRelative, canadaVendorRoot)
+}
+
+for (const [sourceRelative, targetRelative, storyRoot] of storyPathMappings) {
+  copyPath(sourceRelative, targetRelative, storyRoot)
 }
 
 // The compact tracked release is authoritative for the development fallback.

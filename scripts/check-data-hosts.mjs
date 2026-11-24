@@ -2,9 +2,10 @@
 //
 // Fails when a host's data/version.json is unreachable or does not list a
 // folder the app sends there: the deployed app would get 404s.
-// Warns when the bcdatamapper site serves different files than the pinned
-// submodule commit would publish. That is expected after a data push to
-// bcdatamapper; it means the pointer is behind (or the site needs a rollback).
+// Warns when a host (bcdatamapper, the Prague story; each a submodule in
+// vendor/ under the host's name) serves different files than the pinned
+// submodule commit would publish. That is expected after a push to that
+// repository; it means the pointer is behind (or the site needs a rollback).
 //
 // Usage: node scripts/check-data-hosts.mjs
 import { existsSync, readFileSync } from 'node:fs'
@@ -40,11 +41,12 @@ for (const host of hosts) {
     `[data-hosts] ${host.name}: serves ${host.folders.join(', ')} from commit ${version.commit?.slice(0, 12)}`,
   )
 
-  if (host.name !== 'bcdatamapper') continue
-  const vendorRoot = join(root, 'vendor', 'bcdatamapper')
+  // A host is named after its submodule here, whose pages/site.mjs exports
+  // readSite and folderFingerprints (src/lib/dataHosts.test.ts holds them to it).
+  const vendorRoot = join(root, 'vendor', host.name)
   const siteModule = join(vendorRoot, 'pages', 'site.mjs')
   if (!existsSync(siteModule)) {
-    annotate('warning', 'bcdatamapper: submodule not checked out; cannot compare the live site with the pinned commit')
+    annotate('warning', `${host.name}: submodule not checked out; cannot compare the live site with the pinned commit`)
     continue
   }
   const { folderFingerprints, readSite } = await import(pathToFileURL(siteModule).href)
@@ -53,11 +55,11 @@ for (const host of hosts) {
   if (differ.length > 0) {
     annotate(
       'warning',
-      `bcdatamapper serves ${differ.join(', ')} from ${version.commit?.slice(0, 12)}, which differs from the pinned submodule's files. ` +
+      `${host.name} serves ${differ.join(', ')} from ${version.commit?.slice(0, 12)}, which differs from the pinned submodule's files. ` +
         'Move the pointer forward if the live data is right, or republish the pinned commit (docs/data-hosts.md).',
     )
   } else {
-    console.log('[data-hosts] bcdatamapper: live folders match the pinned submodule')
+    console.log(`[data-hosts] ${host.name}: live folders match the pinned submodule`)
   }
 }
 process.exit(failed ? 1 : 0)
