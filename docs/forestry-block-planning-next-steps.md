@@ -2,9 +2,9 @@
 
 What is still open in `/dev/forestry/block-planning` after old and old interior forest were built (24 November 2026), in the order to take it up. The contracts are [Block planning and Prince George forest patch scenarios](forestry-patch-scenarios.md) and [Old and old interior forest in the block planner](forestry-old-forest.md). Each item says what it changes, where it would go, what decides it, and how to know it worked. When one is built, move its rules into the contract and delete it here.
 
-## Next: the four old-forest gaps
+## Next: the old-forest gaps
 
-These are what Objectives A and B do not model yet. The first three change the figures a reviewer sees. Each must leave a plan that does not use it calculating exactly as now.
+These are what Objectives A and B do not model yet; both change the figures a reviewer sees. D.4's younger stands and D.2's pooling are built (see the contract's **D.4: younger stands** and **D.2: pooling units**). Each must leave a plan that does not use it calculating exactly as now.
 
 ### 1. Remove private land and excluded tenures from the CFLB proxy
 
@@ -22,24 +22,7 @@ Check each layer's fields and its coverage of the TSA before relying on it: do i
 
 **Done when.** The CFLB proxy on A6 and A10 comes within about 10% of the Board's 2019 CFLB, or the guide says what still separates them. Old forest's share of the CFLB must not get worse there: it matches today within a point.
 
-### 2. D.4: up to 20% of younger stands
-
-The order lets up to 20% of the old and old interior objectives be met by younger age classes, "where it can be demonstrated that equal or better conservation benefits would result". That benefit is a judgement, so D.4 is the reviewer's, never the model's.
-
-**Where it goes.**
-
-- A switch in the panel's _Assumptions you can change_, off by default.
-- With it, a stated age (for example, from 100 years) and a required statement of the conservation benefit, kept on `OldForestChoices`.
-- When on, stands from that age up to the old age count toward A and B, up to 20% of each requirement and never more. The panel, the record and the summary show how many hectares D.4 supplied.
-- D.5(a)'s evidence line says when a result leans on D.4.
-
-**Done when.**
-
-- A unit short of old forest by less than 20% of its requirement reads as met only with the switch on and a statement given.
-- The record carries the statement.
-- `firstShortfall` names D.4 when it is the difference.
-
-### 3. Pipelines in the 2005 interior method
+### 2. Pipelines in the 2005 interior method
 
 The 2005 method buffers pipelines by 200 m, like forest service roads, railways and transmission lines, which are already read. No pipeline layer was checked, so interior next to a pipeline is overstated today.
 
@@ -49,24 +32,6 @@ The 2005 method buffers pipelines by 200 m, like forest service roads, railways 
 
 **Done when.** A unit a pipeline crosses loses about 400 m × the crossing length of interior, and the corridor count in the panel includes it.
 
-### 4. D.2: pooling units
-
-D.2 lets a licensee meet the combined requirement of similar mBEC units across district boundaries. A3 is printed "combined with A13". Decision 5 keeps pooling off by default, and the reviewer chooses it.
-
-**Where it goes.**
-
-- `OldForestChoices` gains an optional list of units to pool with the chosen one.
-- The worker reads each unit, as it does one now. The requirement is the sum of each unit's CFLB × its own percentage, and the old forest held is the sum across all of them, never counted twice.
-- The record names every unit pooled. The Board comparison stays per unit, because the Board's table is per unit.
-
-**Done when.**
-
-- A3 pooled with A13 reports the combined requirement and holding.
-- The record says it is pooled.
-- An overlap between pooled units (there should be none) is refused, never double-counted.
-
-A13 alone is past the 30,000-stand limit, so this needs the prepared tables below.
-
 ## After that
 
 ### Prepared tables in bcdatamapper
@@ -74,7 +39,7 @@ A13 alone is past the 30,000-stand limit, so this needs the prepared tables belo
 Sized in [Prepared tables for the block planner](research/block-planning-prepared-tables-2026-11-24.md): about 60 MB on bcdatamapper's Pages site, with VRI geometry (about 200 MB gzip) on R2. They make:
 
 - the Board check instant;
-- old forest possible for units past 30,000 stands (A13 and the large E and D units);
+- old forest possible for units past 30,000 stands (A13 and the large E and D units), alone or pooled under D.2 (A3 printed "combined with A13");
 - a sub-unit's baseline read take 1–2 s instead of 20–66 s.
 
 Build them in `vendor/bcdatamapper` under AGENTS.md's **Updating submodule data**, publish through `pages/site.json` and `src/config/data-hosts.json`, and read them through `withBase`. Keep the live reads as the fallback and say which one a figure came from.

@@ -46,6 +46,7 @@ import { lngLatToAlbers } from '../../dev-avast/projection'
 import type { Shape } from '../plan'
 import type { CountedArea, Corridor, Stand } from './reads'
 import type { OldForestUnit } from './units'
+import { countsAsYounger, withYoungerCap, type YoungerStandsSettings, type YoungerStandsYear } from './youngerStands'
 export { firstShortfall } from '../records'
 
 export const INTERIOR_BUFFER_METRES = 200
@@ -61,6 +62,8 @@ export interface OldForestSettings {
   interiorMethod: InteriorMethod
   /** A CFLB the reviewer states (e.g. the LLOWG's). Null: the VRI proxy. */
   cflbEnteredHa: number | null
+  /** D.4's younger stands (`youngerStands.ts`). Absent or null: off, and nothing below changes. */
+  younger?: YoungerStandsSettings | null
 }
 
 export const DEFAULT_OLD_FOREST_SETTINGS: OldForestSettings = {
@@ -319,7 +322,7 @@ export function ageIn(stand: Stand, year: number): number | null {
 const unknownBecauseHarvestedLater = (stand: Stand, year: number) =>
   stand.harvestYear !== null && stand.harvestYear > year
 
-export interface YearFigures {
+export interface YearFigures extends Partial<YoungerStandsYear> {
   year: number
   cflbHa: number
   requiredOldHa: number
@@ -340,6 +343,24 @@ interface StandYear {
   countedNotOldM2: number
   nonPineM2: number
   unknownM2: number
+  /** D.4's younger-stand ground (zero and null while D.4 is off). */
+  youngerPart: Geometry | null
+  youngerM2: number
+}
+
+/** A younger stand's ground that D.4 adds: inside the unit, less D.1 ground (already counted) and resets. */
+function youngerGround(
+  inside: Geometry,
+  counted: Geometry | null,
+  resets: Geometry | null,
+  needGeometry: boolean,
+): Pick<StandYear, 'youngerPart' | 'youngerM2'> {
+  let g: Geometry = inside
+  if (counted && intersection(g, counted)) g = robust((x, y) => OverlayOp.difference(x, y), g, counted)
+  const lost = resets ? intersection(g, resets) : null
+  if (lost) g = robust((x, y) => OverlayOp.difference(x, y), g, lost)
+  const m2 = area(g)
+  return { youngerPart: needGeometry && m2 > 0 ? g : null, youngerM2: m2 }
 }
 
 function countedGround(p: PreparedStand, settings: OldForestSettings): Geometry | null {
@@ -358,13 +379,25 @@ function standYear(
   settings: OldForestSettings,
   needGeometry: boolean,
 ): StandYear {
-  const none = { oldPart: null, oldM2: 0, countedNotOldM2: 0, nonPineM2: 0, unknownM2: 0 }
+  const none = {
+    oldPart: null,
+    oldM2: 0,
+    countedNotOldM2: 0,
+    nonPineM2: 0,
+    unknownM2: 0,
+    youngerPart: null,
+    youngerM2: 0,
+  }
   if (!p.inside || !p.cflb) return none
   const age = ageIn(p.stand, year)
   const old = age !== null && age >= unit.oldFromAge
   const counted = old ? null : countedGround(p, settings)
+  const younger =
+    !old && settings.younger && countsAsYounger(age, unit, settings.younger)
+      ? youngerGround(p.inside, counted, resets, needGeometry)
+      : null
   let part: Geometry | null = old ? p.inside : counted
-  if (!part) return { ...none, unknownM2: unknownBecauseHarvestedLater(p.stand, year) ? p.insideM2 : 0 }
+  if (!part) return { ...none, ...younger, unknownM2: unknownBecauseHarvestedLater(p.stand, year) ? p.insideM2 : 0 }
   const lost = resets ? intersection(part, resets) : null
   if (lost) part = robust((x, y) => OverlayOp.difference(x, y), part, lost)
   const m2 = area(part)
@@ -374,6 +407,8 @@ function standYear(
     countedNotOldM2: old ? 0 : m2,
     nonPineM2: old && p.group !== 'pine' ? m2 : 0,
     unknownM2: 0,
+    youngerPart: younger?.youngerPart ?? null,
+    youngerM2: younger?.youngerM2 ?? 0,
   }
 }
 
@@ -439,9 +474,13 @@ export function unitFigures(
       resetGeoms.filter((r) => r.year <= year && r.year > prepared.projectedYear).map((r) => r.geometry),
     )
     const withInterior = interiorYears.includes(year)
-    const totals = { old: 0, counted: 0, nonPine: 0, unknown: 0 }
+    const totals = { old: 0, counted: 0, nonPine: 0, unknown: 0, younger: 0 }
     const oldParts: Geometry[] = []
     const edges: Geometry[] = []
+    const d4 = settings.younger ?? null
+    const youngerParts: Geometry[] = []
+    /** Edges under D.4: a younger stand it counts (or one of that age beside the unit) makes none. */
+    const youngerEdges: Geometry[] = []
     for (const p of prepared.stands) {
       const near = active && intersects(p.whole, active) ? active : null
       const s = standYear(p, year, unit, near, settings, withInterior)
@@ -449,19 +488,35 @@ export function unitFigures(
       totals.counted += s.countedNotOldM2
       totals.nonPine += s.nonPineM2
       totals.unknown += s.unknownM2
+      totals.younger += s.youngerM2
       if (withInterior) {
         if (s.oldPart) oldParts.push(s.oldPart)
-        if (makesEdge(p, year, unit, settings.interiorMethod)) edges.push(p.whole)
+        if (s.youngerPart) youngerParts.push(s.youngerPart)
+        if (makesEdge(p, year, unit, settings.interiorMethod)) {
+          edges.push(p.whole)
+          const younger =
+            d4 && p.stand.treed && p.stand.forestLandBase && countsAsYounger(ageIn(p.stand, year), unit, d4)
+          if (d4 && !younger) youngerEdges.push(p.whole)
+        }
       }
     }
     let interiorHa: number | null = null
+    let d4InteriorSupplyHa: number | null = null
     if (withInterior) {
-      if (active) edges.push(active)
-      if (prepared.corridors) edges.push(prepared.corridors)
+      const corridorsAndResets = [...(active ? [active] : []), ...(prepared.corridors ? [prepared.corridors] : [])]
+      edges.push(...corridorsAndResets)
       interiorHa = interiorOf(manyUnion(oldParts), edges) * perHa
+      if (d4) {
+        // D.4's interior is what the younger stands add when they count as old and make no edge.
+        const withYounger = interiorOf(manyUnion([...oldParts, ...youngerParts]), [
+          ...youngerEdges,
+          ...corridorsAndResets,
+        ])
+        d4InteriorSupplyHa = Math.max(0, withYounger * perHa - interiorHa)
+      }
     }
     const oldHa = totals.old * perHa
-    return {
+    const figures: YearFigures = {
       year,
       cflbHa,
       requiredOldHa,
@@ -473,6 +528,8 @@ export function unitFigures(
       requiredInteriorHa: (requiredOldHa * unit.interiorPercent) / 100,
       interiorHa,
     }
+    if (!d4) return figures
+    return withYoungerCap({ ...figures, d4OldSupplyHa: totals.younger * perHa, d4InteriorSupplyHa })
   })
 }
 

@@ -44,6 +44,11 @@ export function setOldForest(plan: Plan, change: Partial<OldForestChoices>): Pla
   const next: OldForestChoices = { ...base, ...change }
   if (next.cflbEnteredHa === undefined) delete next.cflbEnteredHa
   if (!next.cflbSource) delete next.cflbSource
+  if (next.younger === undefined) delete next.younger
+  // D.2: the chosen unit is never pooled with itself, and an empty pool is no pool.
+  if (next.pooledWith)
+    next.pooledWith = next.pooledWith.filter((u) => u.district !== next.district || u.unit !== next.unit)
+  if (!next.pooledWith?.length) delete next.pooledWith
   return { ...plan, oldForest: next }
 }
 

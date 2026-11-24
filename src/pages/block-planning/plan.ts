@@ -17,7 +17,14 @@
  */
 import type { MultiPolygon, Polygon, Position } from 'geojson'
 import { bool, int, list, object, oneOf, optional, text, type JsonObject } from '@/lib/jsonGuards'
-import type { BoardCheckRecord, OldForestChoices, OldForestRecord, OldForestYear, PlanChecks } from './records'
+import type {
+  BoardCheckRecord,
+  OldForestChoices,
+  OldForestPoolUnit,
+  OldForestRecord,
+  OldForestYear,
+  PlanChecks,
+} from './records'
 import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { districts, table } from '../forest-patches/project'
 
@@ -475,7 +482,93 @@ function parseOldForestChoices(value: unknown): OldForestChoices {
       }),
       'Retention area',
     ),
+    // D.4 and D.2 are present only when the reviewer chose them, so older plans read exactly as before.
+    ...(o.younger === undefined ? {} : { younger: parseYoungerChoice(o.younger) }),
+    ...(o.pooledWith === undefined ? {} : { pooledWith: parsePooledWith(o.pooledWith, o) }),
   }
+}
+
+/** D.4 as the reviewer left it: the age may still be blank and the benefit empty while it is being written. */
+function parseYoungerChoice(value: unknown): NonNullable<OldForestChoices['younger']> {
+  const y = object(value, 'oldForest.younger')
+  if (typeof y.benefit !== 'string' || y.benefit.length > 20_000)
+    throw Error('oldForest.younger.benefit must be text of at most 20000 characters.')
+  const fromAge = optional(y, 'fromAge', (v) => int(v, 'oldForest.younger.fromAge', 1, 1000))
+  return fromAge === undefined ? { benefit: y.benefit } : { fromAge, benefit: y.benefit }
+}
+
+/** D.2's pooled units: each named once, never the chosen unit itself. */
+function parsePooledWith(value: unknown, choices: JsonObject): NonNullable<OldForestChoices['pooledWith']> {
+  const pooled = list(value, 'oldForest.pooledWith', 47).map((v, i) => {
+    const label = `oldForest.pooledWith ${i + 1}`
+    const u = object(v, label)
+    const cflbEnteredHa = optional(u, 'cflbEnteredHa', (x) => num(x, `${label} cflbEnteredHa`, 1, 10_000_000))
+    const cflbSource = optionalText(u, 'cflbSource', `${label} cflbSource`, 2000)
+    return {
+      district: oneOf(u.district, `${label} district`, districts),
+      unit: text(u.unit, `${label} unit`, 10),
+      ...(cflbEnteredHa === undefined ? {} : { cflbEnteredHa }),
+      ...(cflbSource ? { cflbSource } : {}),
+    }
+  })
+  const keys = [`${choices.district}|${choices.unit}`, ...pooled.map((u) => `${u.district}|${u.unit}`)]
+  if (new Set(keys).size !== keys.length) throw Error('oldForest.pooledWith names a unit twice.')
+  return pooled
+}
+
+function parseOldForestCounts(value: unknown, label: string): OldForestRecord['counts'] {
+  const counts = object(value, label)
+  return {
+    stands: int(counts.stands, `${label}.stands`, 0, 1e7),
+    ogmas: int(counts.ogmas, `${label}.ogmas`, 0, 1e7),
+    parks: int(counts.parks, `${label}.parks`, 0, 1e7),
+    retention: int(counts.retention, `${label}.retention`, 0, 1e7),
+    corridors: int(counts.corridors, `${label}.corridors`, 0, 1e7),
+  }
+}
+
+function parseOldForestSchedules(value: unknown, label: string): OldForestRecord['schedules'] {
+  return list(value, `${label}.schedules`, 50).map((s, i) => {
+    const o = object(s, `${label} schedule ${i + 1}`)
+    return {
+      schedule: text(o.schedule, `${label} schedule ${i + 1}`),
+      years: list(o.years, `${label} schedule ${i + 1} years`, 50).map((y, j) =>
+        parseOldForestYear(y, `${label} schedule ${i + 1} year ${j + 1}`),
+      ),
+    }
+  })
+}
+
+/** D.4 and D.2 parts of a kept record; absent when neither was used, so older records read as before. */
+function parseOldForestExtras(r: JsonObject): Pick<OldForestRecord, 'younger' | 'pool'> {
+  const younger = optional(r, 'younger', (v) => {
+    const y = object(v, 'checks.oldForest.younger')
+    return {
+      fromAge: int(y.fromAge, 'checks.oldForest.younger.fromAge', 1, 1000),
+      benefit: text(y.benefit, 'checks.oldForest.younger.benefit', 20_000),
+    }
+  })
+  const pool = optional(r, 'pool', (v) =>
+    list(v, 'checks.oldForest.pool', 48, 2).map((u, i): OldForestPoolUnit => {
+      const label = `checks.oldForest.pool ${i + 1}`
+      const o = object(u, label)
+      const cflbEnteredHa = optional(o, 'cflbEnteredHa', (x) => num(x, `${label} cflbEnteredHa`, 1, 10_000_000))
+      return {
+        district: oneOf(o.district, `${label} district`, districts),
+        unit: text(o.unit, `${label} unit`, 10),
+        source: text(o.source, `${label} source`, 2000),
+        cflbProxyHa: num(o.cflbProxyHa, `${label} cflbProxyHa`),
+        ...(cflbEnteredHa === undefined ? {} : { cflbEnteredHa }),
+        gisFraction: numOrNull(o.gisFraction, `${label} gisFraction`, 0, 1),
+        projectedYear: int(o.projectedYear, `${label} projectedYear`, ...YEAR_RANGE),
+        counts: parseOldForestCounts(o.counts, `${label} counts`),
+        schedules: parseOldForestSchedules(o.schedules, label),
+        calibration2019:
+          o.calibration2019 === null ? null : parseOldForestYear(o.calibration2019, `${label} calibration2019`),
+      }
+    }),
+  )
+  return { ...(younger ? { younger } : {}), ...(pool ? { pool } : {}) }
 }
 
 function parseOldForestYear(value: unknown, label: string): OldForestYear {
@@ -491,6 +584,18 @@ function parseOldForestYear(value: unknown, label: string): OldForestYear {
     unknownAgeHa: num(y.unknownAgeHa, `${label} unknownAgeHa`),
     requiredInteriorHa: num(y.requiredInteriorHa, `${label} requiredInteriorHa`),
     interiorHa: numOrNull(y.interiorHa, `${label} interiorHa`),
+    ...parseYoungerYear(y, label),
+  }
+}
+
+/** D.4's figures for a year, present only when it was on. */
+function parseYoungerYear(y: JsonObject, label: string): Partial<OldForestYear> {
+  if (y.d4OldSupplyHa === undefined) return {}
+  return {
+    d4OldSupplyHa: num(y.d4OldSupplyHa, `${label} d4OldSupplyHa`),
+    d4OldHa: num(y.d4OldHa, `${label} d4OldHa`),
+    d4InteriorSupplyHa: numOrNull(y.d4InteriorSupplyHa, `${label} d4InteriorSupplyHa`),
+    d4InteriorHa: numOrNull(y.d4InteriorHa, `${label} d4InteriorHa`),
   }
 }
 
@@ -546,6 +651,7 @@ function parseChecks(value: unknown): PlanChecks {
         }),
         calibration2019:
           r.calibration2019 === null ? null : parseOldForestYear(r.calibration2019, 'checks.oldForest.calibration2019'),
+        ...parseOldForestExtras(r),
       }
     }),
   }

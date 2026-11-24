@@ -27,6 +27,26 @@ export interface OldForestYear {
   unknownAgeHa: number
   requiredInteriorHa: number
   interiorHa: number | null
+  /** D.4 (`oldForest/youngerStands.ts`), present only when it was on: supplies uncapped, the rest capped at 20%. */
+  d4OldSupplyHa?: number
+  d4OldHa?: number
+  d4InteriorSupplyHa?: number | null
+  d4InteriorHa?: number | null
+}
+
+/** One unit of a D.2 pool (`oldForest/pooling.ts`), with its own figures beside the pool's. */
+export interface OldForestPoolUnit {
+  district: string
+  unit: string
+  source: string
+  cflbProxyHa: number
+  /** The CFLB stated for this unit, if any. */
+  cflbEnteredHa?: number
+  gisFraction: number | null
+  projectedYear: number
+  counts: OldForestRecord['counts']
+  schedules: { schedule: string; years: OldForestYear[] }[]
+  calibration2019: OldForestYear | null
 }
 
 export interface OldForestRecord {
@@ -43,6 +63,13 @@ export interface OldForestRecord {
   schedules: { schedule: string; years: OldForestYear[] }[]
   /** The baseline alone in 2019, beside the Board's 2019 figures. Null when the unit has none. */
   calibration2019: OldForestYear | null
+  /** D.4 as stated when it was on: the age from which younger stands counted and the benefit relied on. */
+  younger?: { fromAge: number; benefit: string }
+  /**
+   * D.2: every unit pooled, the chosen one first, each with its own figures. Present only when
+   * pooled; `schedules` are then the pool's sums, and the fields above the chosen unit's own.
+   */
+  pool?: OldForestPoolUnit[]
 }
 
 /** What the reviewer chooses for Objectives A and B (docs/forestry-old-forest.md). */
@@ -57,6 +84,10 @@ export interface OldForestChoices {
   cflbSource?: string
   /** Spatial retention or recruitment areas D.1 counts whole, each with its approval reference. */
   retentionAreas: { id: string; name: string; reference: string; geometry: Shape }[]
+  /** D.4, switched on by the reviewer: the age younger stands count from (no default) and the benefit. */
+  younger?: { fromAge?: number; benefit: string }
+  /** D.2: units pooled with this one, the reviewer's choice; never pooled by default (decision 5). */
+  pooledWith?: { district: string; unit: string; cflbEnteredHa?: number; cflbSource?: string }[]
 }
 
 export interface PlanChecks {
@@ -116,14 +147,49 @@ export const oldForestKey = (plan: Pick<Plan, 'area' | 'baseline' | 'blocks' | '
 export const boardCheckCurrent = (plan: Plan) => plan.checks?.board?.key === boardCheckKey(plan)
 export const oldForestCurrent = (plan: Plan) => plan.checks?.oldForest?.key === oldForestKey(plan)
 
-/** The first year at which old, non-pine or interior forest falls short, or null. */
-export function firstShortfall(years: OldForestYear[]): { year: number; what: string[] } | null {
+export interface Shortfall {
+  year: number
+  what: string[]
+}
+
+/** Old forest held, with what D.4 counts (capped) when it was on. */
+const oldHeld = (y: OldForestYear) => y.oldHa + (y.d4OldHa ?? 0)
+const interiorHeld = (y: OldForestYear) => (y.interiorHa === null ? null : y.interiorHa + (y.d4InteriorHa ?? 0))
+
+/**
+ * The first year at which old, non-pine or interior forest falls short, or null. D.4's younger
+ * stands count toward old and interior when it was on; `metOnlyWithD4` says where they made the
+ * difference, and `shortfallText` puts both in words.
+ */
+export function firstShortfall(years: OldForestYear[]): Shortfall | null {
   for (const y of years) {
     const what: string[] = []
-    if (y.oldHa < y.requiredOldHa) what.push('old')
+    if (oldHeld(y) < y.requiredOldHa) what.push('old')
     if (y.requiredNonPineHa !== null && y.nonPineOldHa < y.requiredNonPineHa) what.push('old non-pine')
-    if (y.interiorHa !== null && y.interiorHa < y.requiredInteriorHa) what.push('old interior')
+    const interior = interiorHeld(y)
+    if (interior !== null && interior < y.requiredInteriorHa) what.push('old interior')
     if (what.length) return { year: y.year, what }
   }
   return null
+}
+
+/** The first year an objective is met only because D.4's younger stands were counted, or null. */
+export function metOnlyWithD4(years: OldForestYear[]): Shortfall | null {
+  for (const y of years) {
+    const what: string[] = []
+    if (y.oldHa < y.requiredOldHa && oldHeld(y) >= y.requiredOldHa) what.push('old')
+    const interior = interiorHeld(y)
+    if (y.interiorHa !== null && y.interiorHa < y.requiredInteriorHa && interior! >= y.requiredInteriorHa)
+      what.push('old interior')
+    if (what.length) return { year: y.year, what }
+  }
+  return null
+}
+
+/** The one wording of a schedule's outcome, for the panel, the summary, the record and D.5(a). */
+export function shortfallText(years: OldForestYear[]): string {
+  const short = firstShortfall(years)
+  const d4 = metOnlyWithD4(years)
+  const base = short ? `short of ${short.what.join(', ')} from ${short.year}` : 'no shortfall over the projection'
+  return d4 ? `${base}; ${d4.what.join(' and ')} met only with D.4 from ${d4.year}` : base
 }

@@ -7,7 +7,7 @@
  *
  * DOM- and network-free.
  */
-import { firstShortfall, oldForestCurrent } from '../records'
+import { firstShortfall, metOnlyWithD4, oldForestCurrent } from '../records'
 import type { FactSet } from '../../../../packages/legal-rules/src/contract'
 import { entryOf, periodYears, type Plan } from '../plan'
 import type { PlanAnalysis } from '../planAnalysis'
@@ -205,9 +205,17 @@ function oldForestEvidence(plan: Plan): string {
   const run = record.schedules.find((s) => s.schedule === plan.reviewSchedule)
   const first = run ? firstShortfall(run.years) : null
   const when = oldForestCurrent(plan) ? `calculated ${record.ranOn}` : `calculated ${record.ranOn}, out of date`
-  return `PGMaps (${record.unit}, ${when}, VRI age-based): ${
+  const units = record.pool ? `${record.pool.map((u) => u.unit).join(' + ')} pooled under D.2` : record.unit
+  // A result that leans on D.4's younger stands says so: the benefit behind it is the reviewer's.
+  const d4 = run ? metOnlyWithD4(run.years) : null
+  const leans = record.younger
+    ? d4
+      ? ` It leans on D.4: ${d4.what.join(' and ')} is met only with younger stands from ${record.younger.fromAge} years, from ${d4.year}.`
+      : ` D.4 was counted (younger stands from ${record.younger.fromAge} years) without making the difference.`
+    : ''
+  return `PGMaps (${units}, ${when}, VRI age-based): ${
     first
       ? `the schedule under review falls short of ${first.what.join(', ')} from ${first.year}`
       : 'no shortfall over the projection for the schedule under review'
-  }. Evidence only; the determination and the analysis named are yours. ${ask}`
+  }.${leans} Evidence only; the determination and the analysis named are yours. ${ask}`
 }
