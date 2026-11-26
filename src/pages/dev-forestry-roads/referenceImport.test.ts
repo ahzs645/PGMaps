@@ -5,6 +5,7 @@ import {
   layerImportOptions,
   linePartCount,
   preferTighterRegistration,
+  readReferenceImport,
   suggestedLayerRole,
   tickSheetsByFrame,
   unreadFilesNote,
@@ -272,5 +273,76 @@ describe('a plan’s block file', () => {
     // A plan file without a block field, or a block file not named as a plan, stays reference.
     expect(suggestedLayerRole(blocks('Plan/District_5_Year_Plan.shp', { Area: 3 }))).toBe('reference')
     expect(suggestedLayerRole(blocks('Plan/Openings.shp', { Block_ID: 'A1' }))).toBe('reference')
+  })
+})
+
+describe('folder layer review', () => {
+  function picked(path: string, contents: string) {
+    return { path, file: new File([contents], path.split('/').at(-1)!) }
+  }
+
+  const block = {
+    type: 'Feature',
+    properties: { name: 'Block A' },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [-122.8, 53.9],
+          [-122.79, 53.9],
+          [-122.79, 53.91],
+          [-122.8, 53.9],
+        ],
+      ],
+    },
+  }
+  const line = {
+    type: 'Feature',
+    properties: { name: 'Old road' },
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-122.8, 53.9],
+        [-122.79, 53.9],
+      ],
+    },
+  }
+  const invalid = picked('Folder/manifest.json', '{"title":"not a map"}')
+
+  it('keeps valid layers on either side of an unreadable file and reports the path', async () => {
+    const files = await readReferenceImport([
+      picked('Folder/a.geojson', JSON.stringify(block)),
+      invalid,
+      picked('Folder/sub/z.geojson', JSON.stringify(line)),
+      picked('Folder/readme.csv', 'a,b'),
+    ])
+    expect(files.map((file) => file.fileName)).toEqual(['Folder/a.geojson', 'Folder/sub/z.geojson'])
+    expect(files[0].notices).toEqual([
+      expect.stringContaining('Could not read Folder/manifest.json:'),
+      expect.stringContaining('Not read: readme.csv'),
+    ])
+  })
+
+  it('rejects an all-invalid import, and does not turn cancellation into a warning', async () => {
+    await expect(readReferenceImport([invalid])).rejects.toThrow('Folder/manifest.json')
+    const controller = new AbortController()
+    controller.abort()
+    await expect(readReferenceImport([invalid], controller.signal)).rejects.toHaveProperty('name', 'AbortError')
+  })
+
+  it('makes polygons in a mixed file selectable as blocks without making the line a road by default', async () => {
+    const files = await readReferenceImport([
+      picked('Folder/mixed.geojson', JSON.stringify({ type: 'FeatureCollection', features: [block, line] })),
+    ])
+    expect(files.map((file) => file.fileName)).toEqual(['Folder/mixed.geojson/Polygons', 'Folder/mixed.geojson/Lines'])
+    expect(files.map(layerImportOptions)).toEqual([
+      ['reference', 'planned-block'],
+      ['reference', 'proposed-road'],
+    ])
+    expect(files.map(suggestedLayerRole)).toEqual(['reference', 'reference'])
+    expect(files.map((file) => file.collection.features.map((feature) => feature.properties?.name))).toEqual([
+      ['Block A'],
+      ['Old road'],
+    ])
   })
 })
