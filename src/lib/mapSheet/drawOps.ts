@@ -24,6 +24,14 @@ export type RasterImage =
   /** An encoded image, as a data URL. */
   | { kind: 'url'; url: string; format: 'PNG' | 'JPEG'; width: number; height: number }
 
+/** A cubic Bézier segment from the current point: two control points, then the end point. */
+export type CubicSegment = [Point, Point, Point]
+/** A sub-path of cubic segments starting at `start`. */
+export interface CurvePart {
+  start: Point
+  segments: CubicSegment[]
+}
+
 export type DrawOp =
   | {
       op: 'rect'
@@ -39,6 +47,15 @@ export type DrawOp =
       op: 'path'
       /** Sub-paths; each is a polyline, or a ring when `closed`. */
       parts: Point[][]
+      closed: boolean
+      fill?: string
+      fillOpacity?: number
+      stroke?: StrokeStyle
+    }
+  | {
+      op: 'curves'
+      /** Sub-paths of cubic segments, kept as curves in SVG and PDF (an organic hatch, a smooth outline). */
+      parts: CurvePart[]
       closed: boolean
       fill?: string
       fillOpacity?: number

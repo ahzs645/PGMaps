@@ -4,6 +4,7 @@
  * icon ids PGMaps draws. Unknown fields are dropped. Throws an Error naming the first problem.
  * No DOM or network access.
  */
+import { ORGANIC_HATCH_LIMITS } from '@pgmaps/geo-toolkit/patterns'
 import { ICON_IDS, type IconId } from '@/lib/mapSheet/icons'
 import type { StrokeStyle } from '@/lib/mapSheet/drawOps'
 import type {
@@ -12,6 +13,7 @@ import type {
   LineLayer,
   LineMarker,
   MarkerFill,
+  OrganicHatchFill,
   OutlineLayer,
   SheetSymbol,
 } from '@/lib/mapSheet/symbols'
@@ -120,6 +122,28 @@ function markerFill(value: unknown): MarkerFill {
   }
 }
 
+function organicHatch(value: unknown): OrganicHatchFill {
+  const raw = object(value, 'An organic hatch')
+  const setting = (key: keyof typeof ORGANIC_HATCH_LIMITS, what: string) => {
+    const { min, max } = ORGANIC_HATCH_LIMITS[key]
+    const entry = raw[key]
+    if (typeof entry !== 'number' || !Number.isFinite(entry) || entry < min || entry > max)
+      throw Error(`Organic hatch ${what} must be a number from ${min} to ${max}.`)
+    return entry
+  }
+  const seed = setting('seed', 'seed')
+  if (!Number.isInteger(seed)) throw Error('Organic hatch seed must be a whole number.')
+  return {
+    seed,
+    spacing: setting('spacing', 'spacing'),
+    bandHeight: setting('bandHeight', 'band height'),
+    strokeWidth: setting('strokeWidth', 'stroke width'),
+    curvature: setting('curvature', 'curvature'),
+    color: color(raw.color, 'Organic hatch colour'),
+    ...optional(raw, 'opacity', unit),
+  }
+}
+
 export function checkedSheetSymbol(value: unknown): SheetSymbol {
   const raw = object(value, 'A symbol')
   switch (raw.kind) {
@@ -148,7 +172,8 @@ export function checkedSheetSymbol(value: unknown): SheetSymbol {
       }
       if (raw.hatches !== undefined) symbol.hatches = list(raw.hatches, 'Hatches').map(hatch)
       if (raw.markerFill !== undefined) symbol.markerFill = markerFill(raw.markerFill)
-      if (!symbol.fill && !symbol.hatches?.length && !symbol.markerFill && !outline.length)
+      if (raw.organicHatch !== undefined) symbol.organicHatch = organicHatch(raw.organicHatch)
+      if (!symbol.fill && !symbol.hatches?.length && !symbol.markerFill && !symbol.organicHatch && !outline.length)
         throw Error('An area symbol draws nothing: give it a fill, hatch, marker fill or outline.')
       return symbol
     }

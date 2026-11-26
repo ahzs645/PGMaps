@@ -2292,6 +2292,16 @@ export function translateOps(ops: readonly DrawOp[], dx: number, dy: number): Dr
       case 'path':
       case 'clip':
         return { ...op, parts: move(op.parts) }
+      case 'curves':
+        return {
+          ...op,
+          parts: op.parts.map((part) => ({
+            start: [part.start[0] + dx, part.start[1] + dy] as Point,
+            segments: part.segments.map(
+              (segment) => segment.map(([x, y]) => [x + dx, y + dy] as Point) as [Point, Point, Point],
+            ),
+          })),
+        }
       case 'restore':
         return op
       default:

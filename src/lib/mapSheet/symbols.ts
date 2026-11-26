@@ -16,6 +16,7 @@ import {
   type StrokeStyle,
 } from './drawOps'
 import { ICONS, type IconId, type IconPaint } from './icons'
+import { estimateOrganicHatchStrokes, organicHatchRecipe, recipeStrokes } from '@pgmaps/geo-toolkit/patterns'
 
 /** One stroke of a line symbol, moved sideways by `offset` points (positive to the right of travel). */
 export interface LineLayer extends StrokeStyle {
@@ -44,6 +45,23 @@ export interface Hatch {
   stroke: StrokeStyle
   /** Shift of the lines across their direction, points: places a second colour between the first's lines. */
   phase?: number
+}
+/**
+ * Short curved strokes following waving bands, the toolkit's organic hatch, clipped to an area.
+ * Lengths are points at the reference paper, like every other symbol size. The field's origin is
+ * the page's, so neighbouring areas with the same hatch meet without a seam.
+ */
+export interface OrganicHatchFill {
+  seed: number
+  /** Distance between neighbouring strokes along a band. */
+  spacing: number
+  /** Height of one band of strokes. */
+  bandHeight: number
+  strokeWidth: number
+  /** How far the bands wave and the strokes bend; 0 is straight. */
+  curvature: number
+  color: string
+  opacity?: number
 }
 /** An icon repeated on a grid inside an area: marsh marks, dots. */
 export interface MarkerFill {
@@ -76,6 +94,8 @@ export interface AreaSymbol {
   fillOpacity?: number
   /** Drawn in order over the fill: one for a single hatch, two for a cross, grid, double or striped hatch. */
   hatches?: Hatch[]
+  /** Curved organic strokes over the fill, drawn as true curves in SVG and PDF. */
+  organicHatch?: OrganicHatchFill
   markerFill?: MarkerFill
   /** Outline strokes, bottom first. */
   outline: OutlineLayer[]
@@ -229,13 +249,82 @@ export function markerFillPositions(
   return out
 }
 
+/** Most organic hatch strokes one area draws; past it the spacing is widened, and says so. */
+export const MAX_ORGANIC_HATCH_STROKES = 60_000
+
+/**
+ * The spacing an organic hatch is drawn at over `box` (page points): its own, unless the area
+ * would take more than `MAX_ORGANIC_HATCH_STROKES`, when it is widened across the whole area.
+ */
+export function organicHatchSpacing(
+  box: { x: number; y: number; w: number; h: number },
+  fill: OrganicHatchFill,
+  k: number,
+): { spacing: number; limited: boolean } {
+  const estimate = estimateOrganicHatchStrokes(
+    { x: box.x / k, y: box.y / k, width: box.w / k, height: box.h / k },
+    fill,
+  )
+  if (estimate <= MAX_ORGANIC_HATCH_STROKES) return { spacing: fill.spacing, limited: false }
+  return { spacing: Math.min(12, (fill.spacing * estimate) / MAX_ORGANIC_HATCH_STROKES), limited: true }
+}
+
+/**
+ * The organic strokes over `box` as curve operations, one per stroke width (to 0.01 pt), so a
+ * PDF sets each width once. Clip them to the area they fill.
+ */
+export function organicHatchOps(
+  box: { x: number; y: number; w: number; h: number },
+  fill: OrganicHatchFill,
+  k: number,
+): DrawOp[] {
+  if (!(box.w > 0) || !(box.h > 0) || !(k > 0)) return []
+  const { spacing } = organicHatchSpacing(box, fill, k)
+  const strokes = recipeStrokes(
+    organicHatchRecipe({ ...fill, spacing, color: fill.color, opacity: fill.opacity ?? 1, origin: [0, 0], scale: k }),
+    { x: box.x, y: box.y, width: box.w, height: box.h },
+    { maxStrokes: Infinity },
+  )
+  const byWidth = new Map<number, DrawOp & { op: 'curves' }>()
+  for (const stroke of strokes) {
+    const width = Math.round(stroke.width * 100) / 100
+    let op = byWidth.get(width)
+    if (!op) {
+      op = {
+        op: 'curves',
+        parts: [],
+        closed: false,
+        stroke: {
+          color: fill.color,
+          width,
+          cap: 'round',
+          ...(fill.opacity !== undefined && fill.opacity < 1 ? { opacity: fill.opacity } : {}),
+        },
+      }
+      byWidth.set(width, op)
+    }
+    op.parts.push({
+      start: [stroke.start.x, stroke.start.y],
+      segments: [
+        [
+          [stroke.c1.x, stroke.c1.y],
+          [stroke.c2.x, stroke.c2.y],
+          [stroke.end.x, stroke.end.y],
+        ],
+      ],
+    })
+  }
+  return [...byWidth.keys()].sort((a, b) => a - b).map((width) => byWidth.get(width)!)
+}
+
 /** Fill, hatches and marker fill of an area, without its outline. Hatches and markers are clipped to it. */
 function areaInteriorOps(parts: Point[][], symbol: AreaSymbol, k: number): DrawOp[] {
   const ops: DrawOp[] = []
   if (symbol.fill) ops.push({ op: 'path', parts, closed: true, fill: symbol.fill, fillOpacity: symbol.fillOpacity })
   const box = boundsOf(parts)
-  if (!box || (!symbol.hatches?.length && !symbol.markerFill)) return ops
+  if (!box || (!symbol.hatches?.length && !symbol.markerFill && !symbol.organicHatch)) return ops
   ops.push({ op: 'clip', parts })
+  if (symbol.organicHatch) ops.push(...organicHatchOps(box, symbol.organicHatch, k))
   for (const hatch of symbol.hatches ?? [])
     ops.push({
       op: 'path',
@@ -342,6 +431,7 @@ export function symbolKeyColor(symbol: SheetSymbol): string {
   return (
     symbol.fill ??
     symbol.hatches?.[0]?.stroke.color ??
+    symbol.organicHatch?.color ??
     symbol.markerFill?.color ??
     symbol.outline.at(-1)?.color ??
     '#000000'

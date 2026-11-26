@@ -22,6 +22,7 @@ import {
   type StyleDocument,
   type SymbolLibrary,
 } from '@/lib/styleExchange/model'
+import { documentWithoutOrganicHatches, organicFallbackDiagnostics } from '@/lib/styleExchange/organicFallback'
 import { qgisProject, qgisLayoutTemplate } from '@/lib/styleExchange/qgis/qgisProject'
 import { qgisLayerStyles } from '@/lib/styleExchange/qgis/qml'
 import { qgisStyleLibraryXml } from '@/lib/styleExchange/qgis/qgisStyleLibrary'
@@ -166,9 +167,15 @@ export function shapefileStyleSidecars(
   roads: readonly { name: string; color: string }[],
   overrides: StyleOverrides = {},
 ): { files: ExchangeFile[]; diagnostics: ExchangeDiagnostic[] } {
-  const document = roadExportStyleDocument(name, layers, roads, overrides)
+  const { document, replaced } = documentWithoutOrganicHatches(roadExportStyleDocument(name, layers, roads, overrides))
   const results = [qgisLayerStyles(document), sldLayerStyles(document), arcgisLayerFiles(document, { dataFolder: '.' })]
-  return { files: results.flatMap((r) => r.files), diagnostics: results.flatMap((r) => r.diagnostics) }
+  return {
+    files: results.flatMap((r) => r.files),
+    diagnostics: [
+      ...organicFallbackDiagnostics(replaced, ['qml', 'sld', 'lyrx']),
+      ...results.flatMap((r) => r.diagnostics),
+    ],
+  }
 }
 
 /** Every file of one styled export. */
@@ -206,7 +213,10 @@ export async function styledExportBundle(
     return { files, diagnostics, dataWarnings: [], document: null, library }
   }
 
-  const document = roadExportStyleDocument(input.name, input.layers, input.roads, input.overrides)
+  const portable = documentWithoutOrganicHatches(
+    roadExportStyleDocument(input.name, input.layers, input.roads, input.overrides),
+  )
+  const document = portable.document
   const layouts = exportLayouts(input.name, document)
   const data = dataFiles(input.layers)
   const files: ExchangeFile[] = []
@@ -269,6 +279,12 @@ export async function styledExportBundle(
       'geojson/   The layers as GeoJSON, WGS84 longitude/latitude.',
     ]
   }
+  const formats = {
+    'qgis-project': ['qgs', 'qml'],
+    'arcgis-pro': ['mapx', 'lyrx'],
+    'web-map-style': ['maplibre', 'geolibre', 'sld'],
+  } as const
+  diagnostics.unshift(...organicFallbackDiagnostics(portable.replaced, formats[kind]))
   const replaced = Object.values(input.overrides ?? {}).map((symbol) => symbol.label)
   if (replaced.length)
     opening.push(

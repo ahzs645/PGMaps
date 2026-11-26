@@ -2,15 +2,26 @@
 """Fit local geographic inputs to the illustrated map's vector artboard.
 
 Requires Shapely and pyproj. Acquisition and full source archives are separate:
-this builder only reads supplied WGS84 GeoJSON, projects it to BC Albers,
-intersects province/style regions with the one dry-land geometry, and writes
-small app-owned drawing paths. It never reads or traces a reference image.
+this builder only reads supplied WGS84 GeoJSON, projects it, intersects the
+region and hatch-coverage areas with the one dry-land geometry, and writes small
+app-owned drawing paths. It never reads or traces a reference image.
+
+The region is configuration. Without --region it builds the British Columbia map
+exactly as before (EPSG:3005, the Rainforest to Rockies frame, motifs, shields
+and checkpoints). With --region region.json, any of these keys replace the BC
+values: name, frame {width,height}, viewBounds [west,south,east,north], margin,
+footer, epsg, regionKind, coverageKind, roadJurisdiction, compass [x,y],
+motifs, trees, shields, checkpoints [[id, lon, lat, isLand]].
+
+The geography GeoJSON holds features whose "kind" is "land", "data-coverage",
+the region kind (default "bc") and the coverage kind (default "coastal-style").
+The painted hatch is coverage intersected with dry land; lakes are holes in land.
 
 Example:
   python scripts/illustrated-map/build-geographic-map.py \
     --geography geography.geojson --land-provenance land-provenance.json \
     --roads roads.geojson --places anchors.geojson \
-    --road-provenance road-provenance.json
+    --road-provenance road-provenance.json [--region region.json]
 """
 from __future__ import annotations
 
@@ -20,7 +31,7 @@ import json
 import math
 from pathlib import Path
 
-from pyproj import Transformer
+from pyproj import CRS, Transformer
 from shapely import make_valid
 from shapely.geometry import Point, box, shape
 from shapely.ops import nearest_points, transform, unary_union
@@ -30,8 +41,7 @@ FRAME = {"width": 1536, "height": 1040}
 VIEW_BOUNDS = [-129.5, 47.0, -112.5, 54.8]
 MARGIN = 18
 FOOTER = 36
-TO_METRES = Transformer.from_crs(4326, 3005, always_xy=True)
-TO_WGS84 = Transformer.from_crs(3005, 4326, always_xy=True)
+EPSG = 3005
 
 # Illustration locations are regional design anchors, not recorded observations.
 # Their coordinates let the illustrations move with the geographic composition.
@@ -87,6 +97,39 @@ CHECKPOINTS = [
 ]
 
 
+REGION_KEYS = {"name", "frame", "viewBounds", "margin", "footer", "epsg", "regionKind", "coverageKind",
+               "roadJurisdiction", "compass", "motifs", "trees", "shields", "checkpoints"}
+
+
+def bc_region():
+    """The British Columbia map: the defaults every other region overrides."""
+    return {"name": "British Columbia", "frame": FRAME, "viewBounds": VIEW_BOUNDS, "margin": MARGIN,
+            "footer": FOOTER, "epsg": EPSG, "regionKind": "bc", "coverageKind": "coastal-style",
+            "roadJurisdiction": "BC", "compass": [155, 165], "motifs": MOTIFS, "trees": TREE_ANCHORS,
+            "shields": SHIELDS, "checkpoints": [list(c) for c in CHECKPOINTS]}
+
+
+def load_region(path):
+    region = bc_region()
+    if not path:
+        return region, False
+    config, _ = read(path)
+    unknown = set(config) - REGION_KEYS
+    if unknown:
+        raise ValueError(f"Unknown region settings: {', '.join(sorted(unknown))}")
+    region.update(config)
+    frame = region["frame"]
+    if not (frame.get("width", 0) > 0 and frame.get("height", 0) > 0):
+        raise ValueError("Region frame needs a positive width and height")
+    west, south, east, north = region["viewBounds"]
+    if not (west < east and south < north):
+        raise ValueError("Region viewBounds must be [west, south, east, north]")
+    for checkpoint in region["checkpoints"]:
+        if len(checkpoint) != 4 or not isinstance(checkpoint[3], bool):
+            raise ValueError(f"Checkpoint must be [id, lon, lat, isLand]: {checkpoint}")
+    return region, True
+
+
 def read(path):
     raw = Path(path).read_bytes()
     return json.loads(raw), hashlib.sha256(raw).hexdigest()
@@ -119,35 +162,42 @@ def main():
     parser.add_argument("--roads", required=True)
     parser.add_argument("--places", required=True)
     parser.add_argument("--road-provenance", required=True)
+    parser.add_argument("--region", help="JSON of region settings; BC when omitted")
     parser.add_argument("--output", default=str(ROOT / "src/lib/illustratedMap/geography.generated.json"))
     args = parser.parse_args()
+    region, configured = load_region(args.region)
+    epsg = region["epsg"]
+    to_metres = Transformer.from_crs(4326, epsg, always_xy=True)
+    to_wgs84 = Transformer.from_crs(epsg, 4326, always_xy=True)
+    frame = region["frame"]
+    margin, footer = region["margin"], region["footer"]
     geography, geography_hash = read(args.geography)
     roads, roads_hash = read(args.roads)
     places, places_hash = read(args.places)
     land_provenance, _ = read(args.land_provenance)
     road_provenance, _ = read(args.road_provenance)
 
-    west, south, east, north = VIEW_BOUNDS
+    west, south, east, north = region["viewBounds"]
     border = []
     for i in range(129):
         f = i / 128
         border.extend([(west + (east - west) * f, south), (west + (east - west) * f, north),
                        (west, south + (north - south) * f), (east, south + (north - south) * f)])
-    border = [TO_METRES.transform(*p) for p in border]
+    border = [to_metres.transform(*p) for p in border]
     min_x, min_y = min(p[0] for p in border), min(p[1] for p in border)
     max_x, max_y = max(p[0] for p in border), max(p[1] for p in border)
-    scale = min((FRAME["width"] - MARGIN * 2) / (max_x - min_x),
-                (FRAME["height"] - MARGIN * 2 - FOOTER) / (max_y - min_y))
-    left = (FRAME["width"] - (max_x - min_x) * scale) / 2
-    top = MARGIN + (FRAME["height"] - MARGIN * 2 - FOOTER - (max_y - min_y) * scale) / 2
-    drawing_extent = box(min_x - left / scale, max_y - (FRAME["height"] - FOOTER - top) / scale,
-                         min_x + (FRAME["width"] - left) / scale, max_y + top / scale)
+    scale = min((frame["width"] - margin * 2) / (max_x - min_x),
+                (frame["height"] - margin * 2 - footer) / (max_y - min_y))
+    left = (frame["width"] - (max_x - min_x) * scale) / 2
+    top = margin + (frame["height"] - margin * 2 - footer - (max_y - min_y) * scale) / 2
+    drawing_extent = box(min_x - left / scale, max_y - (frame["height"] - footer - top) / scale,
+                         min_x + (frame["width"] - left) / scale, max_y + top / scale)
 
     def xy(point):
         return [round(left + (point[0] - min_x) * scale, 3), round(top + (max_y - point[1]) * scale, 3)]
 
     def coordinate_xy(coordinate):
-        return xy(TO_METRES.transform(*coordinate[:2]))
+        return xy(to_metres.transform(*coordinate[:2]))
 
     def path_geometry(geometry):
         paths = []
@@ -167,7 +217,7 @@ def main():
     kinds = {}
     for feature in geography["features"]:
         kind = feature["properties"]["kind"]
-        geometry = make_valid(transform(TO_METRES.transform, shape(feature["geometry"])))
+        geometry = make_valid(transform(to_metres.transform, shape(feature["geometry"])))
         kinds.setdefault(kind, []).append(geometry)
     kinds = {key: unary_union(value) for key, value in kinds.items()}
     # Check the full drawing frame, including the area beyond the requested
@@ -177,9 +227,12 @@ def main():
     missing_coverage = drawing_extent.difference(source_coverage).area
     if missing_coverage > 1:
         raise ValueError(f"Source land/water coverage misses {missing_coverage:.1f} square metres of the drawing frame")
+    for kind in ("land", region["regionKind"], region["coverageKind"]):
+        if kind not in kinds:
+            raise ValueError(f"The geography has no features of kind {kind!r}")
     land = kinds["land"].intersection(drawing_extent)
-    bc_land = land.intersection(kinds["bc"])
-    coastal = kinds["coastal-style"].intersection(drawing_extent)
+    bc_land = land.intersection(kinds[region["regionKind"]])
+    coastal = kinds[region["coverageKind"]].intersection(drawing_extent)
     coastal_land = bc_land.intersection(coastal)
     assert land.is_valid and bc_land.is_valid and coastal_land.is_valid
     assert not land.is_empty and not bc_land.is_empty and not coastal_land.is_empty
@@ -187,9 +240,9 @@ def main():
     route_drawings, route_geometries = [], {}
     for feature in roads["features"]:
         properties = feature["properties"]
-        geometry = transform(TO_METRES.transform, shape(feature["geometry"]))
+        geometry = transform(to_metres.transform, shape(feature["geometry"]))
         route = str(properties["route"])
-        if properties.get("jurisdiction") == "BC":
+        if properties.get("jurisdiction") == region["roadJurisdiction"]:
             route_geometries.setdefault(route, []).append(geometry)
         paths = []
         for line in lines(geometry.intersection(drawing_extent)):
@@ -207,46 +260,48 @@ def main():
         properties = feature["properties"]
         coordinate = feature["geometry"]["coordinates"]
         anchors.append({**properties, "coordinate": coordinate, "point": coordinate_xy(coordinate)})
-    motifs = [{"offset": [0, 0], **m, "point": coordinate_xy(m["coordinate"])} for m in MOTIFS]
+    motifs = [{"offset": [0, 0], **m, "point": coordinate_xy(m["coordinate"])} for m in region["motifs"]]
     tree_anchors = []
-    for i, coordinate in enumerate(TREE_ANCHORS):
-        point = Point(TO_METRES.transform(*coordinate))
+    for i, coordinate in enumerate(region["trees"]):
+        point = Point(to_metres.transform(*coordinate))
         if bc_land.covers(point):
             tree_anchors.append({"id": f"geo-tree-{i + 1}", "coordinate": coordinate,
                                  "point": xy(point.coords[0]), "phase": round(i * 0.73, 3),
                                  "moss": i % 4 == 1})
     shields = []
-    for shield in SHIELDS:
+    for shield in region["shields"]:
         if shield["route"] not in route_geometries:
-            raise ValueError(f"No BC road geometry for shield {shield['id']}")
-        candidate = Point(TO_METRES.transform(*shield["coordinate"]))
+            raise ValueError(f"No {region['roadJurisdiction']} road geometry for shield {shield['id']}")
+        candidate = Point(to_metres.transform(*shield["coordinate"]))
         snapped = nearest_points(candidate, route_geometries[shield["route"]])[1]
         if candidate.distance(snapped) > 50000:
             raise ValueError(f"Shield too far from its route: {shield['id']}")
         shields.append({"id": shield["id"], "route": shield["route"], "point": xy(snapped.coords[0]),
-                        "coordinate": list(TO_WGS84.transform(*snapped.coords[0])),
+                        "coordinate": list(to_wgs84.transform(*snapped.coords[0])),
                         "snapDistanceMetres": round(candidate.distance(snapped), 1)})
 
     checkpoints = []
-    for name, lon, lat, expected in CHECKPOINTS:
-        point = Point(TO_METRES.transform(lon, lat))
+    for name, lon, lat, expected in region["checkpoints"]:
+        point = Point(to_metres.transform(lon, lat))
         actual = land.covers(point)
         if actual != expected:
             raise ValueError(f"Land/water checkpoint disagrees: {name}: {actual}")
         checkpoints.append({"id": name, "coordinate": [lon, lat], "point": xy(point.coords[0]), "land": expected})
 
-    compass_xy = [min_x + (155 - left) / scale, max_y - (165 - top) / scale]
-    compass_coordinate = TO_WGS84.transform(*compass_xy)
-    compass_north = TO_METRES.transform(compass_coordinate[0], compass_coordinate[1] + 0.01)
+    compass_x, compass_y = region["compass"]
+    compass_xy = [min_x + (compass_x - left) / scale, max_y - (compass_y - top) / scale]
+    compass_coordinate = to_wgs84.transform(*compass_xy)
+    compass_north = to_metres.transform(compass_coordinate[0], compass_coordinate[1] + 0.01)
     north_rotation = math.degrees(math.atan2(compass_north[0] - compass_xy[0], compass_north[1] - compass_xy[1]))
+    projection_name = "NAD83 / BC Albers" if epsg == 3005 else CRS.from_epsg(epsg).name
     result = {
         "version": 1,
-        "artboard": FRAME,
-        "projection": {"name": "NAD83 / BC Albers", "epsg": 3005, "sourceEpsg": 4326,
-                       "requestedBoundsWgs84": VIEW_BOUNDS, "boundsMetres": [min_x, min_y, max_x, max_y],
+        "artboard": frame,
+        "projection": {"name": projection_name, "epsg": epsg, "sourceEpsg": 4326,
+                       "requestedBoundsWgs84": region["viewBounds"], "boundsMetres": [min_x, min_y, max_x, max_y],
                        "drawingExtentMetres": list(drawing_extent.bounds),
                        "sourceCoverageMissingSquareMetres": round(missing_coverage, 6),
-                       "scale": scale, "left": left, "top": top, "footer": FOOTER,
+                       "scale": scale, "left": left, "top": top, "footer": footer,
                        "northArrowReferenceCoordinate": compass_coordinate,
                        "northArrowRotationDegrees": north_rotation},
         "land": path_geometry(land), "bcLand": path_geometry(bc_land),
@@ -255,10 +310,14 @@ def main():
         "shields": shields, "checkpoints": checkpoints,
         "provenance": {"land": land_provenance, "roads": road_provenance,
                        "inputSha256": {"geography": geography_hash, "roads": roads_hash, "places": places_hash},
-                       "construction": "Project source geometry once to EPSG:3005; use one uniform scale for every feature. Province regions and decorative coverage are intersected with one shared dry-land geometry. No coastal inset or white shore stroke.",
+                       "construction": f"Project source geometry once to EPSG:{epsg}; use one uniform scale for every feature. Province regions and decorative coverage are intersected with one shared dry-land geometry. No coastal inset or white shore stroke.",
                        "motifPlacement": "Decorative regional motifs, not recorded observations or inventories. Route badges are snapped to the corresponding real centreline.",
                        "pathRoundingDrawingUnits": 0.001},
     }
+    if configured:
+        # Only a configured region records itself, so the BC output stays byte-identical.
+        result["region"] = {"name": region["name"], "regionKind": region["regionKind"],
+                            "coverageKind": region["coverageKind"]}
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, separators=(",", ":"), ensure_ascii=False) + "\n")

@@ -11,6 +11,7 @@
  * family of lines that repeats in it; `PatternTile.hatches` reports the angle and spacing drawn.
  * No DOM or network access.
  */
+import { organicHatchRecipe, organicHatchTile } from '@pgmaps/geo-toolkit/patterns'
 import { ICONS, type IconId, type IconPaint, type IconPart } from './icons'
 import type { AreaSymbol } from './symbols'
 
@@ -18,6 +19,11 @@ import type { AreaSymbol } from './symbols'
 export const PX_PER_PT = 96 / 72
 /** Largest side of a pattern tile, device pixels. */
 export const MAX_PATTERN_TILE_PX = 256
+/**
+ * Side of an organic hatch tile, device pixels. Its field repeats only once a tile, so the tile is
+ * larger than a straight hatch's; it is blended to repeat and a little calmer than the printed field.
+ */
+export const ORGANIC_PATTERN_TILE_PX = 512
 /** A tile size is accepted once every hatch's spacing is within this share of the asked one. */
 export const PATTERN_TILE_TOLERANCE = 0.02
 const SUPERSAMPLE = 4
@@ -213,6 +219,18 @@ export function tileSide(periods: readonly number[], fallback: number): number {
  * the patterned parts (a plain fill needs no image). The fill colour is baked in at its opacity.
  */
 export function areaPatternTile(symbol: AreaSymbol, pixelRatio: number): PatternTile | null {
+  if (symbol.organicHatch) {
+    // Only the organic strokes and the fill: a symbol carries one pattern (`styledAreaSymbol`).
+    const { color, opacity, ...options } = symbol.organicHatch
+    const tile = organicHatchTile(organicHatchRecipe({ ...options, color, opacity: opacity ?? 1 }), {
+      pixelsPerUnit: PX_PER_PT * pixelRatio,
+      targetPx: ORGANIC_PATTERN_TILE_PX,
+      ...(symbol.fill && (symbol.fillOpacity ?? 1) > 0
+        ? { background: { color: symbol.fill, opacity: symbol.fillOpacity ?? 1 } }
+        : {}),
+    })
+    return { width: tile.width, height: tile.height, data: tile.data, pixelRatio, hatches: [] }
+  }
   const hatches = symbol.hatches ?? []
   const markers = symbol.markerFill
   if (!hatches.length && !markers) return null

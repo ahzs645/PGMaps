@@ -142,3 +142,23 @@ node --import tsx scripts/illustrated-map/export-geographic.ts /absolute/path/to
 The output includes the full geographic map, base land/water, literal land mask, northern and all-BC hatch alternatives, separate transparent forest/roads/lettering/illustration layers, schematic reference, 64 individually editable elements, the hatch swatch, and `Geographic-provenance.json`. `geographic-northern-hatch.svg` contains the complete northern variant; `geographic-northern-forest.svg` contains its transparent hatch layer. The offline review embeds the engine and source preview, works directly from disk, and regenerates SVG downloads from the selected hatch, composition, coverage and layer state. Select **Northern BC · reference style** to use the new coverage; the coastal default and all-BC option remain available.
 
 The five hatch controls remain seed, spacing, band height, stroke width and curvature. Geographic coverage and layer controls do not alter source road or place coordinates. The SVG layer groups, metadata, actual place coordinates and route IDs remain available to inspect or edit independently.
+
+## Reusing the style elsewhere
+
+The hatch, the land rule and the map frame are not tied to BC.
+
+- **The hatch is a saved recipe.** The generator lives in the toolkit (`@pgmaps/geo-toolkit/patterns`). `src/lib/illustratedMap/hatching.ts` wraps it and produces byte-identical SVG: all 77 SVGs of the v5 export were regenerated unchanged after the move. An `OrganicHatchRecipe` records the pattern type and version, seed, spacing, band height, stroke width, curvature, colour, opacity, origin and scale. `ORGANIC_HATCH_PRESETS['northern-bc-reference']` is this map's field; other presets are general treatments.
+- **Pattern field, coverage and land mask stay separate.** The painted area is *coverage ∩ dry land*. The coastline clips the strokes and never steers them. Coverage shapes share one clip, so overlapping coverage is inked once; the land clip uses even-odd, so lakes stay clear and islands are painted.
+- **Density is predictable.** `organicHatchStrokes` keeps the recipe's spacing for any window and refuses a window it cannot draw at that density. Neighbouring windows share the field's origin and draw identical strokes where they meet. Only the artboard writer used by this map widens its spacing past 30,000 strokes, and it records that as `data-budget-limited`.
+- **The region is configuration.** `build-geographic-map.py --region region.json` replaces any of the BC settings: frame, view bounds, margin, footer, EPSG code, the region and coverage feature kinds, road jurisdiction, compass position, motifs, trees, shields and land/water checkpoints. Without `--region` the output is unchanged; the old and new scripts were run on the same input and wrote identical bytes. A configured region also records its name and kinds under `region`.
+- **Any region prints through the sheet renderers.** `src/lib/illustratedMap/regionSheet.ts` draws a generated geography with a recipe as sheet operations. `scripts/illustrated-map/compose-region.ts` writes it as an editable SVG and a one-page vector PDF; in both, the hatch strokes are cubic curves.
+
+```sh
+python scripts/illustrated-map/build-geographic-map.py ... --region island-region.json --output island.json
+node --import tsx scripts/illustrated-map/compose-region.ts island.json out/ --preset northern-bc-reference
+node --import tsx scripts/illustrated-map/compose-region.ts src/lib/illustratedMap/geography.generated.json out/ --coverage region
+```
+
+When this was added, the BC geography and a synthetic island region were checked. The island has a lake and an offshore islet and uses EPSG:3035. Both PDFs have one page and no raster images. In 2× renders, no hatch fell outside the land mask beyond the one-pixel edge band: 0 of 4,007,159 water pixels for BC, and 0 of 2,024,132 for the island. The lakes are clear and the islet is hatched.
+
+Map sheets offer the same field as the **Organic hatch** area pattern. Its seed, spacing, band height, stroke width and curvature are saved with a layer's look. It prints as curves in SVG and PDF. On the live map it becomes a 512-pixel tile that repeats without seams; the tile's field is blended to repeat, so its waves are calmer than in print. QGIS, ArcGIS Pro, SLD, MapLibre, GeoLibre and KML exports receive a near-vertical straight hatch at the same spacing, with a note in the bundle's README.

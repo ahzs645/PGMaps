@@ -24,8 +24,8 @@ function hash(value: unknown): string {
 
 /** Id of an area's pattern tile, or null when the area has no pattern. */
 export function areaPatternId(symbol: AreaSymbol): string | null {
-  if (!symbol.hatches?.length && !symbol.markerFill) return null
-  return `sheet-pattern-${hash([symbol.fill, symbol.fillOpacity, symbol.hatches, symbol.markerFill])}`
+  if (!symbol.hatches?.length && !symbol.markerFill && !symbol.organicHatch) return null
+  return `sheet-pattern-${hash([symbol.fill, symbol.fillOpacity, symbol.hatches, symbol.markerFill, symbol.organicHatch])}`
 }
 export const lineMarkerId = (marker: LineMarker) =>
   `sheet-marker-${hash([marker.icon, marker.size, marker.color, marker.secondary])}`

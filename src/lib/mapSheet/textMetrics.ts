@@ -1,8 +1,9 @@
 /**
  * Advance widths of the PDF standard Helvetica faces, so a sheet can be laid out without a browser
  * or a PDF library: header fields placed side by side, table cells and legend labels fitted. The
- * numbers are the per-1000-em widths jsPDF itself uses for characters 32–126; anything else is
- * measured as an average glyph. No DOM or network access.
+ * numbers are the per-1000-em widths jsPDF itself uses for characters 32–126, which accented
+ * letters share with their base letter; anything else is measured as an average glyph. No DOM or
+ * network access.
  */
 
 /* prettier-ignore */
@@ -29,7 +30,8 @@ export function textWidth(text: string, size: number, style: SheetFontStyle = 'n
   const table = style === 'bold' || style === 'bolditalic' ? HELVETICA_BOLD : HELVETICA
   let units = 0
   for (const character of text) {
-    const code = character.charCodeAt(0)
+    // An accented letter (é, ñ, Å) is as wide as its letter in Helvetica.
+    const code = character.normalize('NFD').charCodeAt(0)
     units += code >= 32 && code < 127 ? table[code - 32] : character === '°' ? DEGREE : OTHER
   }
   return (units * size) / 1000

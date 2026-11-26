@@ -4,7 +4,7 @@
  * jsPDF module as an argument so callers import it lazily and tests run it in Node. No DOM access.
  */
 import type { GState as GStateClass, jsPDF as JsPdf } from 'jspdf'
-import type { DrawOp, Point, StrokeStyle } from './drawOps'
+import type { CurvePart, DrawOp, Point, StrokeStyle } from './drawOps'
 
 /** The parts of the jsPDF module the renderer uses; callers import it lazily and pass it in. */
 export type JsPdfModule = { jsPDF: typeof JsPdf; GState: typeof GStateClass }
@@ -12,9 +12,49 @@ export type JsPdfModule = { jsPDF: typeof JsPdf; GState: typeof GStateClass }
 /** Fonts a brand puts in the PDF (`configurePdfBrand`); without them the sheet prints Helvetica. */
 export type SheetPdfFonts = { body: string; heading: string; custom: boolean }
 
-/** jsPDF's standard fonts are WinAnsi: fold the characters a sheet commonly carries into it. */
-export function pdfText(value: string): string {
+/** Characters jsPDF's standard fonts print besides printable ASCII and Latin-1: WinAnsi's extras. */
+const WIN_ANSI_EXTRAS = 'ŒœŠšŽžŸ€ƒ‰•™†‡ˆ˜‹›'
+/** Letters with no decomposition, written as the letter they are read as. */
+const LETTER_FOLDS: Record<string, string> = {
+  ł: 'l',
+  Ł: 'L',
+  đ: 'd',
+  Đ: 'D',
+  ħ: 'h',
+  Ħ: 'H',
+  ı: 'i',
+  ŧ: 't',
+  Ŧ: 'T',
+  ʼ: "'",
+  ʻ: "'",
+}
+const COMBINING = /\p{M}/gu
+const isCombining = (c: string) => /^\p{M}$/u.test(c)
+const printable = (c: string) => {
+  const code = c.codePointAt(0)!
+  return (code >= 0x20 && code <= 0x7e) || (code >= 0xa0 && code <= 0xff) || WIN_ANSI_EXTRAS.includes(c)
+}
+
+/**
+ * One character the standard fonts cannot print: a letter as itself without its accents
+ * (ḵ to k, ŵ to w), a few letters by the letter they are read as (ł to l), a lone accent left
+ * out, anything else "?".
+ */
+function foldCharacter(c: string): string {
+  if (LETTER_FOLDS[c]) return LETTER_FOLDS[c]
+  if (isCombining(c)) return ''
+  const bare = c.normalize('NFD').replace(COMBINING, '')
+  return bare && [...bare].every(printable) ? bare : '?'
+}
+
+/**
+ * jsPDF's standard fonts are WinAnsi: fold the characters a sheet commonly carries into it. Latin-1
+ * and WinAnsi letters (é, ü, ñ, Å, œ, Š) print as they are, so do place names in most European
+ * languages; letters beyond it lose only their accents, so a name stays readable.
+ */
+export function pdfText(value: string, { unicodeLetters = false }: { unicodeLetters?: boolean } = {}): string {
   return value
+    .normalize('NFC')
     .replace(/[−‒]/g, '-')
     .replace(/[–—]/g, ' - ')
     .replace(/→/g, ' to ')
@@ -29,7 +69,9 @@ export function pdfText(value: string): string {
     .replace(/÷/g, '/')
     .replace(/≈/g, '~')
     .replace(/√/g, 'sqrt')
-    .replace(/[^\x20-\x7e°±×é]/g, '?')
+    .replace(/[^\x20-\x7e]/gu, (c) =>
+      printable(c) || (unicodeLetters && /^[\p{L}\p{M}]$/u.test(c)) ? c : foldCharacter(c),
+    )
 }
 
 /** The characters `pdfText` cannot fold and would print as "?", for tests over a sheet's text. */
@@ -82,10 +124,19 @@ export function drawSheetPdf(pdf: JsPdf, module: JsPdfModule, ops: readonly Draw
       if (closed) pdf.close()
     }
   }
+  const traceCurves = (parts: readonly CurvePart[], closed: boolean) => {
+    for (const part of parts) {
+      if (!part.segments.length) continue
+      pdf.moveTo(part.start[0], part.start[1])
+      for (const [c1, c2, end] of part.segments) pdf.curveTo(c1[0], c1[1], c2[0], c2[1], end[0], end[1])
+      if (closed) pdf.close()
+    }
+  }
   for (const op of ops) {
     switch (op.op) {
       case 'rect':
       case 'path':
+      case 'curves':
       case 'circle': {
         const translucent = (op.op !== 'circle' && op.fillOpacity !== undefined) || op.stroke?.opacity !== undefined
         if (translucent) {
@@ -99,7 +150,8 @@ export function drawSheetPdf(pdf: JsPdf, module: JsPdfModule, ops: readonly Draw
           if (op.op === 'rect') pdf.rect(op.x, op.y, op.w, op.h, mode)
           else if (op.op === 'circle') pdf.circle(op.x, op.y, op.r, mode)
           else {
-            trace(op.parts, op.closed)
+            if (op.op === 'curves') traceCurves(op.parts, op.closed)
+            else trace(op.parts, op.closed)
             if (mode === 'FD') pdf.fillStrokeEvenOdd()
             else if (mode === 'F') pdf.fillEvenOdd()
             else pdf.stroke()
@@ -119,7 +171,8 @@ export function drawSheetPdf(pdf: JsPdf, module: JsPdfModule, ops: readonly Draw
           baseline: op.baseline === 'middle' ? ('middle' as const) : ('alphabetic' as const),
           ...(op.angle ? { angle: op.angle } : {}),
         }
-        const value = pdfText(op.text)
+        // A brand font is embedded with its own Unicode map, so every letter it has prints as written.
+        const value = pdfText(op.text, { unicodeLetters: fonts?.custom === true })
         if (op.halo) {
           pdf.saveGraphicsState()
           pdf.setDrawColor(op.halo.color)

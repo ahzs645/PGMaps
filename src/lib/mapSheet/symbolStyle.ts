@@ -7,7 +7,8 @@
  */
 import type { StrokeStyle } from './drawOps'
 import type { IconId } from './icons'
-import type { AreaSymbol, Hatch, LineMarker, LineSymbol, MarkerFill, PointSymbol } from './symbols'
+import { ORGANIC_HATCH_LIMITS } from '@pgmaps/geo-toolkit/patterns'
+import type { AreaSymbol, Hatch, LineMarker, LineSymbol, MarkerFill, OrganicHatchFill, PointSymbol } from './symbols'
 
 /** Stored values: saved projects carry them, so rename a label, never an id. */
 export const AREA_PATTERNS = [
@@ -19,6 +20,7 @@ export const AREA_PATTERNS = [
   'vertical',
   'grid',
   'dots',
+  'organic',
 ] as const
 export type AreaPattern = (typeof AREA_PATTERNS)[number]
 export const AREA_PATTERN_LABELS: Record<AreaPattern, string> = {
@@ -30,6 +32,7 @@ export const AREA_PATTERN_LABELS: Record<AreaPattern, string> = {
   vertical: 'Vertical lines',
   grid: 'Grid',
   dots: 'Dots',
+  organic: 'Organic hatch',
 }
 /** Hatch directions, counter-clockwise from east; `dots` is a marker fill instead. */
 const PATTERN_ANGLES: Record<AreaPattern, readonly number[]> = {
@@ -41,6 +44,28 @@ const PATTERN_ANGLES: Record<AreaPattern, readonly number[]> = {
   vertical: [90],
   grid: [0, 90],
   dots: [],
+  organic: [],
+}
+
+/** The settings of an organic hatch a person can change; the rest come from `ORGANIC_HATCH_SHEET`. */
+export type OrganicHatchSettings = Partial<
+  Pick<OrganicHatchFill, 'seed' | 'spacing' | 'bandHeight' | 'strokeWidth' | 'curvature'>
+>
+export const ORGANIC_HATCH_SETTINGS = ['seed', 'spacing', 'bandHeight', 'strokeWidth', 'curvature'] as const
+export const ORGANIC_HATCH_SETTING_LABELS: Record<(typeof ORGANIC_HATCH_SETTINGS)[number], string> = {
+  seed: 'Seed',
+  spacing: 'Spacing',
+  bandHeight: 'Band height',
+  strokeWidth: 'Stroke width',
+  curvature: 'Curvature',
+}
+/** An organic hatch on a sheet, in points: finer than the illustrated map's artboard field. */
+export const ORGANIC_HATCH_SHEET: Required<OrganicHatchSettings> = {
+  seed: 8,
+  spacing: 2.5,
+  bandHeight: 11,
+  strokeWidth: 0.9,
+  curvature: 8,
 }
 
 /** `custom` draws the style's own `dashPattern`. */
@@ -129,6 +154,8 @@ export interface SymbolStyle {
   icon?: PointIcon
   /** A point's size, points. */
   size?: number
+  /** The settings of an `organic` pattern that differ from `ORGANIC_HATCH_SHEET`. */
+  organic?: OrganicHatchSettings
 }
 
 /** What a layer looks like until the person changes it. */
@@ -243,13 +270,35 @@ export function parseSymbolStyle(value: unknown, label = 'Layer look'): SymbolSt
       throw Error(`${label} point size must be ${min} to ${max} points.`)
     style.size = raw.size
   }
+  if (raw.organic !== undefined) style.organic = parseOrganicHatchSettings(raw.organic, label)
   return style
+}
+
+/** Organic hatch settings read from a file: each present value checked against the toolkit's limits. */
+export function parseOrganicHatchSettings(value: unknown, label = 'Layer look'): OrganicHatchSettings {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw Error(`${label} organic hatch must be an object.`)
+  const raw = value as Record<string, unknown>
+  const settings: OrganicHatchSettings = {}
+  for (const key of ORGANIC_HATCH_SETTINGS) {
+    const entry = raw[key]
+    if (entry === undefined) continue
+    const { min, max } = ORGANIC_HATCH_LIMITS[key]
+    if (typeof entry !== 'number' || !(entry >= min && entry <= max))
+      throw Error(`${label} organic hatch ${ORGANIC_HATCH_SETTING_LABELS[key].toLowerCase()} must be ${min} to ${max}.`)
+    if (key === 'seed' && !Number.isInteger(entry)) throw Error(`${label} organic hatch seed must be a whole number.`)
+    settings[key] = entry
+  }
+  for (const key of Object.keys(raw))
+    if (!(ORGANIC_HATCH_SETTINGS as readonly string[]).includes(key))
+      throw Error(`${label} organic hatch has an unknown setting "${key}".`)
+  return settings
 }
 
 const SHAPE_KEYS: Record<'point' | 'line' | 'area', readonly (keyof SymbolStyle)[]> = {
   point: ['color', 'icon', 'size'],
   line: ['color', 'dash', 'dashPattern', 'width', 'widthM', 'marker'],
-  area: ['color', 'dash', 'dashPattern', 'width', 'widthM', 'pattern', 'patternColor', 'opacity', 'noFill'],
+  area: ['color', 'dash', 'dashPattern', 'width', 'widthM', 'pattern', 'patternColor', 'opacity', 'noFill', 'organic'],
 }
 
 /**
@@ -339,6 +388,16 @@ export function patternMarkerFill(pattern: AreaPattern, color: string, spacing: 
     : undefined
 }
 
+/** The organic hatch of a pattern: only `organic` has one. */
+export function patternOrganicHatch(
+  pattern: AreaPattern,
+  color: string,
+  opacity: number,
+  settings?: OrganicHatchSettings,
+): OrganicHatchFill | undefined {
+  return pattern === 'organic' ? { ...ORGANIC_HATCH_SHEET, ...settings, color, opacity } : undefined
+}
+
 /** The line a style draws, casing first. */
 export function styledLineSymbol(defaults: SymbolStyleDefaults, style?: SymbolStyle): LineSymbol {
   const color = style?.color ?? defaults.color
@@ -370,12 +429,14 @@ export function styledAreaSymbol(defaults: SymbolStyleDefaults, style?: SymbolSt
     spacing,
   )
   const markerFill = patternMarkerFill(pattern, patternColor, spacing)
+  const organicHatch = patternOrganicHatch(pattern, patternColor, defaults.hatchStroke?.opacity ?? 0.85, style?.organic)
   return {
     kind: 'area',
     label: defaults.label,
     fill: color,
     fillOpacity: style?.noFill ? 0 : (style?.opacity ?? defaults.opacity),
     ...(hatches.length ? { hatches } : {}),
+    ...(organicHatch ? { organicHatch } : {}),
     ...(markerFill ? { markerFill } : {}),
     outline: [{ color, width, ...(dash ? { dash } : {}) }],
   }

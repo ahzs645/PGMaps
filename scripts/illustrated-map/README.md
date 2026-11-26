@@ -10,6 +10,16 @@ This writes the styled geographic map, a base map, the dry-land mask, northern a
 
 The workshop keeps coastal coverage as its default. Select **Northern BC · reference style** to add the reference's broad northwestern hatch field within the same geographic frame. Two sibling style-clip paths unite the coastal and authored northern extents; one continuous hatch field is clipped by that union and the shared geographic land mask. This is a decorative coverage choice, not a current forest inventory or an expansion to the whole northern province.
 
+## Another region
+
+`build-geographic-map.py --region region.json` builds geography for any place; without it, the script builds BC. `compose-region.ts` draws a generated geography with a hatch recipe, as SVG and vector PDF:
+
+```sh
+node --import tsx scripts/illustrated-map/compose-region.ts geography.json out/ [--preset id | --recipe recipe.json] [--coverage coverage|region]
+```
+
+See **Reusing the style elsewhere** in [the geographic guide](../../docs/illustrated-map-geographic.md).
+
 ## Schematic reference export
 
 Run from the PGMaps checkout after installing its dependencies:

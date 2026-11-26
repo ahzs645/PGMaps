@@ -6,7 +6,7 @@
  * text, every raster embedded as a data URL and nothing referenced outside the file.
  * No DOM or network access.
  */
-import type { DrawOp, Point, StrokeStyle } from './drawOps'
+import type { CurvePart, DrawOp, Point, StrokeStyle } from './drawOps'
 
 const escapeXml = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -39,6 +39,17 @@ const pathData = (parts: Point[][], closed: boolean) =>
     .map((part) => `M${part.map(([x, y]) => `${n(x)} ${n(y)}`).join('L')}${closed ? 'Z' : ''}`)
     .join('')
 
+const curveData = (parts: readonly CurvePart[], closed: boolean) =>
+  parts
+    .filter((part) => part.segments.length)
+    .map(
+      (part) =>
+        `M${n(part.start[0])} ${n(part.start[1])}${part.segments
+          .map(([c1, c2, end]) => `C${n(c1[0])} ${n(c1[1])} ${n(c2[0])} ${n(c2[1])} ${n(end[0])} ${n(end[1])}`)
+          .join('')}${closed ? 'Z' : ''}`,
+    )
+    .join('')
+
 type EncodeRgba = (image: { data: Uint8ClampedArray; width: number; height: number }) => string
 
 /** The `<defs>` and drawing of `ops`; `standalone` writes them for a file opened outside the app. */
@@ -60,6 +71,13 @@ function svgParts(ops: readonly DrawOp[], encodeRgba: EncodeRgba | undefined, st
       case 'path':
         body.push(
           `<path d="${pathData(op.parts, op.closed)}" fill="${op.fill ?? 'none'}" fill-rule="evenodd"${
+            op.fillOpacity !== undefined ? ` fill-opacity="${n(op.fillOpacity)}"` : ''
+          }${strokeAttributes(op.stroke)}/>`,
+        )
+        break
+      case 'curves':
+        body.push(
+          `<path d="${curveData(op.parts, op.closed)}" fill="${op.fill ?? 'none'}" fill-rule="evenodd"${
             op.fillOpacity !== undefined ? ` fill-opacity="${n(op.fillOpacity)}"` : ''
           }${strokeAttributes(op.stroke)}/>`,
         )

@@ -15,6 +15,9 @@ import {
   LINE_DASH_UNITS,
   LINE_MARKERS,
   LINE_MARKER_LABELS,
+  ORGANIC_HATCH_SETTINGS,
+  ORGANIC_HATCH_SETTING_LABELS,
+  ORGANIC_HATCH_SHEET,
   POINT_ICONS,
   SYMBOL_GROUND_WIDTH_LIMITS,
   SYMBOL_SIZE_LIMITS,
@@ -38,6 +41,7 @@ import {
 } from '@/lib/mapSheet/symbolStyle'
 import type { SheetSymbol } from '@/lib/mapSheet/symbols'
 import { cn } from '@/lib/utils'
+import { ORGANIC_HATCH_LIMITS } from '@pgmaps/geo-toolkit/patterns'
 
 export type SymbolShape = 'point' | 'line' | 'area'
 
@@ -263,6 +267,15 @@ export interface SymbolStyleEditorProps {
 
 const NO_MARKER = 'none'
 
+/** Steps and units of the organic hatch settings; lengths are points on the printed sheet. */
+const ORGANIC_FIELDS: Record<(typeof ORGANIC_HATCH_SETTINGS)[number], { step: number; unit?: string }> = {
+  seed: { step: 1 },
+  spacing: { step: 0.25, unit: 'pt' },
+  bandHeight: { step: 0.5, unit: 'pt' },
+  strokeWidth: { step: 0.05, unit: 'pt' },
+  curvature: { step: 1 },
+}
+
 /**
  * The controls for a layer's look, laid out for a sidebar or a popover. A point takes a colour,
  * a shape and a size; a line a colour, a style (or a typed dash), a width and marks along it; an
@@ -401,6 +414,29 @@ export function SymbolStyleEditor({
               />
               Pattern colour
             </span>
+          )}
+          {pattern === 'organic' && (
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1" data-organic-hatch-settings="">
+              {ORGANIC_HATCH_SETTINGS.map((key) => (
+                <NumberField
+                  key={key}
+                  label={ORGANIC_HATCH_SETTING_LABELS[key]}
+                  unit={ORGANIC_FIELDS[key].unit}
+                  value={value?.organic?.[key] ?? ORGANIC_HATCH_SHEET[key]}
+                  min={ORGANIC_HATCH_LIMITS[key].min}
+                  max={ORGANIC_HATCH_LIMITS[key].max}
+                  step={ORGANIC_FIELDS[key].step}
+                  updateOn="commit"
+                  disabled={disabled}
+                  onValueChange={(next) => {
+                    const organic = { ...value?.organic, [key]: next === ORGANIC_HATCH_SHEET[key] ? undefined : next }
+                    for (const name of ORGANIC_HATCH_SETTINGS) if (organic[name] === undefined) delete organic[name]
+                    set('organic', Object.keys(organic).length ? organic : undefined)
+                  }}
+                  fieldClassName="w-full"
+                />
+              ))}
+            </div>
           )}
         </Row>
       )}
