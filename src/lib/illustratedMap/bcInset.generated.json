@@ -1,0 +1,59 @@
+{
+  "provenance": {
+    "attribution": "Adapted from Statistics Canada, 2021 Census Province and Territory Cartographic Boundary File, January 1, 2021. This does not constitute an endorsement by Statistics Canada of this product.",
+    "source": "https://geo.statcan.gc.ca/geo_wa/rest/services/2021/Cartographic_boundary_files/MapServer/0",
+    "sourceQuery": "https://geo.statcan.gc.ca/geo_wa/rest/services/2021/Cartographic_boundary_files/MapServer/0/query?where=PRUID+%3D+%2759%27&outFields=PRUID%2CPRENAME%2CDGUID&returnGeometry=true&outSR=4269&maxAllowableOffset=0.005&geometryPrecision=6&f=json",
+    "sourceSha256": "41a0bed44bbbcd84e3b73cf36f28709517408ad92dfe2fccd26212126699e70e",
+    "sourceFeature": "2021A000259",
+    "referenceDate": "2021-01-01",
+    "licence": "Statistics Canada Open Licence",
+    "licenceUrl": "https://www.statcan.gc.ca/en/terms-conditions/open-licence",
+    "sourceCrs": "EPSG:4269",
+    "workingCrs": "EPSG:3005 — NAD83 / BC Albers",
+    "workingProj4": "+proj=aea +lat_1=50 +lat_2=58.5 +lat_0=45 +lon_0=-126 +x_0=1000000 +y_0=0 +datum=NAD83 +units=m +no_defs",
+    "upstreamGeneralizationDegrees": 0.005,
+    "simplification": "Visvalingam–Whyatt effective-area simplification on closed projected rings",
+    "maximumEffectiveAreaSquareMetres": 800000000,
+    "islandRelativeAreaDivisor": 14,
+    "uniformScale": 0.00009770072733470001,
+    "insetBox": { "x": 40, "y": 42, "width": 156, "height": 148 },
+    "sourceRingCount": 28115,
+    "sourceVertexCount": 122347,
+    "retainedLandmasses": ["mainland", "vancouver-island", "graham-island", "moresby-island"],
+    "limitations": "Illustrative scale only. Small islands and interior water holes are omitted. The separate moss journey accent is an authored graphic, not an administrative or measured route boundary."
+  },
+  "parts": [
+    {
+      "id": "mainland",
+      "sourceVertices": 3282,
+      "retainedVertices": 37,
+      "sourceAreaSquareKm": 898568.579,
+      "maximumSourceVertexDeviationMetres": 70297.11,
+      "d": "M59.711,52.392 L143.701,54.41 L149.412,121.635 L151.571,126.016 L156.755,127.167 L162.501,136.039 L173.452,140.866 L176.943,145.899 L188.67,154.632 L190.569,163.263 L195.95,168.402 L131.76,175.122 L119.69,165.031 L120.766,161.986 L109.867,159.431 L110.124,156.348 L103.962,155.773 L98.884,151 L98.342,143.853 L103.21,139.148 L98.394,140.613 L91.817,125.661 L89.281,127.359 L82.576,115.563 L86.54,106.426 L86.078,97.292 L76.044,91.376 L75.191,86.434 L68.892,70.644 L64.471,65.485 L58.991,54.502 L53.906,55.956 L51.964,60.449 L46.736,62.456 L46.461,58.752 L40,49.24 L59.711,52.392 Z"
+    },
+    {
+      "id": "vancouver-island",
+      "sourceVertices": 1322,
+      "retainedVertices": 14,
+      "sourceAreaSquareKm": 31761.839,
+      "maximumSourceVertexDeviationMetres": 40568.787,
+      "d": "M96.837,154.972 L103.104,158.216 L114.845,161.1 L119.505,170.483 L125.438,172.795 L130.554,181.578 L127.977,182.73 L116.606,177.912 L112.899,172.763 L106.848,171.053 L106.802,168.011 L98.772,161.808 L94.326,156.34 L96.837,154.972 Z"
+    },
+    {
+      "id": "graham-island",
+      "sourceVertices": 446,
+      "retainedVertices": 8,
+      "sourceAreaSquareKm": 6481.701,
+      "maximumSourceVertexDeviationMetres": 32585.256,
+      "d": "M70.763,118.11 L71.868,120.688 L74.97,117.943 L71.94,127.734 L68.809,128.658 L65.288,121.288 L66.296,117.048 L70.763,118.11 Z"
+    },
+    {
+      "id": "moresby-island",
+      "sourceVertices": 498,
+      "retainedVertices": 11,
+      "sourceAreaSquareKm": 2620.726,
+      "maximumSourceVertexDeviationMetres": 20287.764,
+      "d": "M68.108,129.012 L72.46,127.825 L74.136,129.398 L71.976,130.263 L73.474,135.547 L74.746,136.061 L75.831,140.351 L73.547,136.375 L70.003,132.43 L70.827,130.318 L68.108,129.012 Z"
+    }
+  ]
+}

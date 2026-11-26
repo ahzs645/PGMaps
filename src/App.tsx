@@ -28,6 +28,7 @@ const DevLidarRestoration = lazy(() => import('@/pages/DevLidarRestoration'))
 const DevNechako = lazy(() => import('@/pages/DevNechako'))
 const DevNechakoPortal = lazy(() => import('@/pages/DevNechakoPortal'))
 const DevColorPalettes = lazy(() => import('@/pages/DevColorPalettes'))
+const DevIllustratedMap = lazy(() => import('@/pages/DevIllustratedMap'))
 const DevBoundaries = lazy(() => import('@/pages/DevBoundaries'))
 const DevClimateVulnerability = lazy(() => import('@/pages/DevClimateVulnerability'))
 const DevEarlyLearning = lazy(() => import('@/pages/DevEarlyLearning'))
@@ -151,6 +152,7 @@ function App() {
             <Route path="/dev/nechako" element={<DevNechako />} />
             <Route path="/dev/nechako/portal" element={<DevNechakoPortal />} />
             <Route path="/dev/color-palettes" element={<DevColorPalettes />} />
+            <Route path="/dev/illustrated-map" element={<DevIllustratedMap />} />
             <Route path="/dev/boundaries" element={<DevBoundaries />} />
             <Route path="/dev/climate-vulnerability" element={<DevClimateVulnerability />} />
             <Route path="/dev/early-learning" element={<DevEarlyLearning />} />
