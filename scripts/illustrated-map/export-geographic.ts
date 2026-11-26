@@ -14,6 +14,7 @@ import {
 import {
   buildGeographicLandMaskSvg,
   buildGeographicMapSvg,
+  DEFAULT_CHANNEL_GAP,
   GEOGRAPHIC_MAP_RECORD,
 } from '../../src/lib/illustratedMap/geographic'
 
@@ -58,12 +59,16 @@ const outputs = [
   ['schematic-reference.svg', buildIllustratedMapSvg()],
   ['elements.svg', buildElementSheetSvg()],
   ['hatch.svg', buildHatchSwatchSvg()],
-  ['geographic-northern-page8.svg', buildGeographicMapSvg({ coverage: 'northern', hatchStyle: 'patch' })],
+  [
+    'geographic-northern-page8.svg',
+    buildGeographicMapSvg({ coverage: 'northern', hatchStyle: 'patch', channelGap: DEFAULT_CHANNEL_GAP }),
+  ],
   [
     'geographic-northern-page8-forest.svg',
     buildGeographicMapSvg({
       coverage: 'northern',
       hatchStyle: 'patch',
+      channelGap: DEFAULT_CHANNEL_GAP,
       transparentBackground: true,
       layers: { roads: false, symbols: false, labels: false },
     }),
@@ -122,7 +127,7 @@ Open **geographic-review.html** in a browser. It works directly from disk and co
 - **schematic-reference.svg**: the earlier authored layout, with the corrected shield numerals.
 - **elements.svg** and **elements/**: the catalogue and all ${ELEMENT_CATALOG.length} individually editable motifs.
 - **hatch.svg**: an independent generated swatch.
-- **geographic-northern-page8.svg**, **geographic-northern-page8-forest.svg** and **hatch-page8.svg**: the northern variant with page 8's own hatch, drawn patch by patch: short strokes on stacked waving ribbons, each patch leaning its own way, fitted to the brand guidelines' page 8 by measurement. The same coverage and land mask as the northern variant.
+- **geographic-northern-page8.svg**, **geographic-northern-page8-forest.svg** and **hatch-page8.svg**: the northern variant with page 8's own hatch, drawn patch by patch: short strokes on stacked waving ribbons, each patch leaning its own way, fitted to the brand guidelines' page 8 by measurement. The same coverage and land mask as the northern variant, with a ${DEFAULT_CHANNEL_GAP}-unit channel gap so narrow channels read as water and Vancouver Island stands apart from the mainland.
 - **Geographic-provenance.json**: sources, input hashes, projection, route-marker positions and land/water checks.
 - **Element-inventory.json**: construction notes, dimensions and source placement boxes for every element.
 - **Construction.md** and **notices/**: geographic preparation details, source credits and complete licence notices.

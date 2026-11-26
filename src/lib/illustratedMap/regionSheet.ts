@@ -32,6 +32,11 @@ export interface RegionSheetOptions {
   /** Places to mark and name, by id; all of them when absent. */
   places?: readonly string[]
   palette?: { water: string; land: string; region: string; road: string; text: string }
+  /**
+   * Water kept along every shore, drawing units: the coastline drawn in the water's colour over the
+   * land and hatch, so channels narrower than a pixel still read. 0 draws the coast as it is.
+   */
+  channelGap?: number
 }
 
 export const REGION_SHEET_PALETTE = {
@@ -83,6 +88,7 @@ export function regionSheetOps(
     coverage = 'coverage',
     places,
     palette = REGION_SHEET_PALETTE,
+    channelGap = 0,
   }: RegionSheetOptions = {},
 ): { ops: DrawOp[]; width: number; height: number } {
   const { width, height } = geography.artboard
@@ -105,6 +111,27 @@ export function regionSheetOps(
   )
   if (coverage === 'coverage') ops.push({ op: 'restore' })
   ops.push({ op: 'restore' })
+  if (channelGap > 0) {
+    // Inside the frame less the gap, so land running off the sheet gets no water line.
+    ops.push({
+      op: 'clip',
+      parts: [
+        [
+          [channelGap, channelGap],
+          [width - channelGap, channelGap],
+          [width - channelGap, height - channelGap],
+          [channelGap, height - channelGap],
+        ],
+      ],
+    })
+    ops.push({
+      op: 'path',
+      parts: land,
+      closed: true,
+      stroke: { color: palette.water, width: channelGap, join: 'round' },
+    })
+    ops.push({ op: 'restore' })
+  }
   for (const road of geography.roads) {
     const parts = pathPointLists(road.d).filter((part) => part.length > 1)
     ops.push({

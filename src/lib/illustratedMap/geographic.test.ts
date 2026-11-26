@@ -127,3 +127,17 @@ describe('page 8 hatch style', () => {
     expect(buildGeographicMapSvg({ coverage: 'northern' })).toContain('data-generator="contour-hatch-v3"')
   })
 })
+
+describe('channel gap', () => {
+  it('masks the land and its hatch along every shore, only when asked', () => {
+    const svg = buildGeographicMapSvg({ coverage: 'northern', channelGap: 1.2 })
+    const document = parse(svg)
+    expect(document.getElementsByTagName('parsererror').length).toBe(0)
+    expect(svg).toContain('<mask id="geo-channel-gap"')
+    expect(svg).toContain('stroke="black" stroke-width="1.2"')
+    expect(svg).toContain('<g clip-path="url(#geo-land-clip)" mask="url(#geo-channel-gap)">')
+    // The land path itself is unchanged; the gap is a mask over it.
+    expect(byId(document, 'geo-bc-land-geometry')!.getAttribute('d')).toBe(data.bcLand.d)
+    expect(buildGeographicMapSvg({ coverage: 'northern' })).not.toContain('geo-channel-gap')
+  })
+})

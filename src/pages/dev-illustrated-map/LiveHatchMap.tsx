@@ -21,10 +21,16 @@ export interface LiveHatchMapProps {
   hatchStyle: NonNullable<GeographicMapOptions['hatchStyle']>
   hatch: HatchOptions
   patchHatch: PatchHatchStyleOptions
+  /** Water kept along every shore, CSS pixels, as the drawing's channel gap in its units. */
+  channelGap?: number
 }
 
 /** The workshop's settings as a saved recipe: artboard pixels become CSS pixels on the map. */
-export function liveRecipe({ hatchStyle, hatch, patchHatch }: Omit<LiveHatchMapProps, 'coverage'>): OrganicHatchRecipe {
+export function liveRecipe({
+  hatchStyle,
+  hatch,
+  patchHatch,
+}: Omit<LiveHatchMapProps, 'coverage' | 'channelGap'>): OrganicHatchRecipe {
   const color = MAP_PALETTE.hatch.toLowerCase()
   if (hatchStyle === 'patch') {
     const { patchSize, lean, leanBias, seam, ...rest } = patchHatch
@@ -44,6 +50,7 @@ export default function LiveHatchMap(props: LiveHatchMapProps) {
     return { light: style, dark: style }
   }, [])
   const province = useMemo(() => liveLandGeoJson('bcLand'), [])
+  const land = useMemo(() => liveLandGeoJson('land'), [])
   const areas = liveHatchAreas(props.coverage)
   const recipe = useMemo(
     () => liveRecipe(props),
@@ -68,6 +75,19 @@ export default function LiveHatchMap(props: LiveHatchMapProps) {
           layerOrder={1}
         />
         <MapHatchLayer id={LIVE_HATCH_LAYER_ID} recipe={recipe} areas={areas} layerOrder={2} />
+        {(props.channelGap ?? 0) > 0 && (
+          // Every shore drawn in the sea's colour over the land and hatch: the drawing's channel gap.
+          <MapFillLayer
+            data={land}
+            fillColor={MAP_PALETTE.ocean}
+            fillOpacity={0}
+            lineColor={MAP_PALETTE.ocean}
+            lineWidth={props.channelGap}
+            lineOpacity={1}
+            interactive={false}
+            layerOrder={3}
+          />
+        )}
       </Map>
     </div>
   )

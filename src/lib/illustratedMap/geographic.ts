@@ -21,7 +21,17 @@ export interface GeographicMapOptions extends IllustratedMapOptions {
    */
   hatchStyle?: 'contour' | 'patch'
   patchHatch?: Partial<PatchHatchStyleOptions>
+  /**
+   * Drawing units of water kept along every shore, half each side of the coastline, so channels
+   * narrower than a pixel at this scale still read as water: Vancouver Island is apart from the
+   * mainland, the Discovery Islands from each other. It masks the land and its hatch; the land
+   * path itself is unchanged. 0 (the default) is the geometry as it is.
+   */
+  channelGap?: number
 }
+
+/** The channel gap the workshop starts with: about a kilometre on the ground at this scale. */
+export const DEFAULT_CHANNEL_GAP = 1.2
 
 export const DEFAULT_GEOGRAPHIC_OPTIONS = { coverage: 'coastal' as const }
 export const GEOGRAPHIC_MAP_INFO = {
@@ -204,6 +214,12 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
   )
   svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-geographic-illustrated-map', version: 1, trace: false, coordinates: 'EPSG:3005', projection: data.projection, coverage, ...(hatchStyle === 'patch' ? { hatchStyle, patchHatch } : { hatch }), composition, provenance: data.provenance, ...(coverage === 'northern' ? { coverageStyle: NORTHERN_REFERENCE_COVERAGE } : {}) }))}</metadata>`
   svg += resources(coverage)
+  const channelGap = Math.max(0, options.channelGap ?? 0)
+  // The coastline stroked out of the land and its hatch. Its frame edges are kept: the stroke is
+  // clipped to the frame less the gap, so land running off the map gets no water line.
+  const gapMask = channelGap > 0 ? ' mask="url(#geo-channel-gap)"' : ''
+  if (channelGap > 0)
+    svg += `<defs><clipPath id="geo-channel-gap-frame"><rect x="${n(channelGap)}" y="${n(channelGap)}" width="${n(width - 2 * channelGap)}" height="${n(height - data.projection.footer - 2 * channelGap)}"/></clipPath><mask id="geo-channel-gap" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="white"/><g clip-path="url(#geo-channel-gap-frame)"><use href="#geo-land-geometry" xlink:href="#geo-land-geometry" fill="none" stroke="black" stroke-width="${n(channelGap)}" stroke-linejoin="round"/></g></mask></defs>`
   if (!options.transparentBackground) {
     svg += layer(
       'geo-ocean',
@@ -213,7 +229,9 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     svg += layer(
       'geo-land',
       '02 Geographic dry land',
-      `<use href="#geo-land-geometry" xlink:href="#geo-land-geometry" fill="${MAP_PALETTE.surrounding}"/><use href="#geo-bc-land-geometry" xlink:href="#geo-bc-land-geometry" fill="white"/>`,
+      (gapMask ? `<g${gapMask}>` : '') +
+        `<use href="#geo-land-geometry" xlink:href="#geo-land-geometry" fill="${MAP_PALETTE.surrounding}"/><use href="#geo-bc-land-geometry" xlink:href="#geo-bc-land-geometry" fill="white"/>` +
+        (gapMask ? '</g>' : ''),
     )
   }
   svg += '<g clip-path="url(#geo-frame-clip)">'
@@ -237,7 +255,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     svg += layer(
       'geo-forest-hatching',
       '03 Generated hatching clipped to geographic land',
-      `<g clip-path="url(#geo-land-clip)"><g${coverage !== 'province' ? ' clip-path="url(#geo-style-clip)"' : ''}${clearances ? ' mask="url(#geo-illustration-clearances)"' : ''} color="${MAP_PALETTE.hatch}">${hatchStyle === 'patch' ? buildPatchHatchPaths(fieldWidth, height - data.projection.footer, patchHatch) : buildHatchPaths(fieldWidth, height - data.projection.footer, hatch)}</g></g>`,
+      `<g clip-path="url(#geo-land-clip)"${gapMask}><g${coverage !== 'province' ? ' clip-path="url(#geo-style-clip)"' : ''}${clearances ? ' mask="url(#geo-illustration-clearances)"' : ''} color="${MAP_PALETTE.hatch}">${hatchStyle === 'patch' ? buildPatchHatchPaths(fieldWidth, height - data.projection.footer, patchHatch) : buildHatchPaths(fieldWidth, height - data.projection.footer, hatch)}</g></g>`,
     )
   }
   if (layers.roads) {

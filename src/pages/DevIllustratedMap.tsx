@@ -30,6 +30,7 @@ import { ORGANIC_HATCH_LIMITS, PATCH_HATCH_LIMITS } from '@pgmaps/geo-toolkit/pa
 import {
   buildGeographicLandMaskSvg,
   buildGeographicMapSvg,
+  DEFAULT_CHANNEL_GAP,
   DEFAULT_GEOGRAPHIC_OPTIONS,
   GEOGRAPHIC_MAP_INFO,
   type GeographicMapOptions,
@@ -111,6 +112,8 @@ export default function DevIllustratedMap() {
   const [hatch, setHatch] = useState<HatchOptions>({ ...DEFAULT_HATCH_OPTIONS })
   const deferredHatch = useDeferredValue(hatch)
   const [hatchStyle, setHatchStyle] = useState<HatchStyle>('contour')
+  const [channelGap, setChannelGap] = useState(DEFAULT_CHANNEL_GAP)
+  const deferredChannelGap = useDeferredValue(channelGap)
   const [patchHatch, setPatchHatch] = useState<PatchHatchStyleOptions>({ ...DEFAULT_PAGE8_HATCH_OPTIONS })
   const deferredPatchHatch = useDeferredValue(patchHatch)
   const [composition, setComposition] = useState<CompositionOptions>({ ...DEFAULT_COMPOSITION_OPTIONS })
@@ -127,7 +130,7 @@ export default function DevIllustratedMap() {
   const drawsMap = view === 'map' || view === 'hatching' || view === 'compare'
   const buildMapSvg = () =>
     geometry === 'geographic'
-      ? buildGeographicMapSvg({ hatch, composition, layers, coverage, hatchStyle, patchHatch })
+      ? buildGeographicMapSvg({ hatch, composition, layers, coverage, hatchStyle, patchHatch, channelGap })
       : buildIllustratedMapSvg({ hatch, composition, layers })
   const mapSvg = useMemo(
     () =>
@@ -141,9 +144,20 @@ export default function DevIllustratedMap() {
               coverage,
               hatchStyle,
               patchHatch: deferredPatchHatch,
+              channelGap: deferredChannelGap,
             })
           : buildIllustratedMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers }),
-    [drawsMap, deferredHatch, deferredComposition, layers, geometry, coverage, hatchStyle, deferredPatchHatch],
+    [
+      drawsMap,
+      deferredHatch,
+      deferredComposition,
+      layers,
+      geometry,
+      coverage,
+      hatchStyle,
+      deferredPatchHatch,
+      deferredChannelGap,
+    ],
   )
   const mapUrl = useSvgUrl(view === 'hatching' ? mapSvg : '')
   const overlaySvg = useMemo(
@@ -284,6 +298,18 @@ export default function DevIllustratedMap() {
                 <option value="contour">Continuous bands</option>
                 <option value="patch">Page 8 · patches</option>
               </SelectField>
+            )}
+            {isGeographic && (
+              <NumericRangeField
+                label="Channel gap"
+                value={channelGap}
+                min={0}
+                max={3}
+                step={0.1}
+                unit="px"
+                description="Water kept along every shore, so channels narrower than a pixel at this scale still read: Vancouver Island stays apart from the mainland. 0 draws the coastline as it is."
+                onChange={setChannelGap}
+              />
             )}
             <NumericRangeField
               label="Stroke spacing"
@@ -494,6 +520,7 @@ export default function DevIllustratedMap() {
                       hatchStyle={hatchStyle}
                       hatch={deferredHatch}
                       patchHatch={deferredPatchHatch}
+                      channelGap={deferredChannelGap}
                     />
                   </Suspense>
                 </>

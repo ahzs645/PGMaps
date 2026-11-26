@@ -4,7 +4,7 @@
  *
  *   node --import tsx scripts/illustrated-map/compose-region.ts <geography.json> <output-dir>
  *     [--recipe recipe.json | --preset northern-bc-reference] [--coverage coverage|region]
- *     [--name file-stem]
+ *     [--name file-stem] [--channel-gap 1.2]
  *
  * The geography is the output of build-geographic-map.py, for BC or any `--region` config.
  */
@@ -38,7 +38,8 @@ const coverage = flag('coverage') === 'region' ? 'region' : 'coverage'
 const stem =
   flag('name') ?? `${(geography.region?.name ?? 'region').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${coverage}`
 
-const { ops, width, height } = regionSheetOps(geography, { recipe, coverage })
+const channelGap = Number(flag('channel-gap') ?? 0)
+const { ops, width, height } = regionSheetOps(geography, { recipe, coverage, channelGap })
 const title = `${geography.region?.name ?? 'Region'} — ${geography.projection.name}`
 await mkdir(resolve(outputDir), { recursive: true })
 await writeFile(join(outputDir, `${stem}.svg`), standaloneSheetSvg(ops, width, height, { title }))
