@@ -10,12 +10,28 @@ import { COLOCATED_IDS, dailyMeasuredAir, type WeatherRow, type WeatherStation }
 type ComparisonProps = { station: WeatherStation; range: NonNullable<DateRange>; weatherRows: WeatherRow[] }
 
 export function MeasuredComparison({ station, range, weatherRows }: ComparisonProps) {
+  // Held here, outside the range key, so applying new dates keeps the comparison open.
+  const [open, setOpen] = useState(false)
   if (!COLOCATED_IDS.some((id) => id === station.id)) return null
-  return <Comparison key={range.join()} station={station} range={range} weatherRows={weatherRows} />
+  return (
+    <Comparison
+      key={range.join()}
+      station={station}
+      range={range}
+      weatherRows={weatherRows}
+      open={open}
+      setOpen={setOpen}
+    />
+  )
 }
 
-function Comparison({ station, range, weatherRows }: ComparisonProps) {
-  const [open, setOpen] = useState(false)
+function Comparison({
+  station,
+  range,
+  weatherRows,
+  open,
+  setOpen,
+}: ComparisonProps & { open: boolean; setOpen: (open: boolean) => void }) {
   const [zoom, setZoom] = useState<readonly [number, number] | null>(null)
   const load = useCallback(
     async (signal: AbortSignal) => {

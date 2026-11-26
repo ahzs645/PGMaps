@@ -1,6 +1,11 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { Download, Info, Loader2 } from 'lucide-react'
 import { ChartViewport, TimeSeriesChart } from '@pgmaps/geo-toolkit/visualizations/react'
+import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import { HoverTip } from '@/components/ui/info-tip'
+import { PaginationControls } from '@/components/ui/pagination-controls'
 import { FORM_INPUT_CLASS, FormField, SelectField } from '@/components/ui/form-field'
 import {
   Map as StationMap,
@@ -10,11 +15,12 @@ import {
   MarkerContent,
   MarkerTooltip,
 } from '@/components/ui/map'
-import { InlineAlert, SearchInput } from '@/components/ui/map-panels'
+import { InlineAlert, LegendItem, SearchInput } from '@/components/ui/map-panels'
 import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
 import { downloadText } from '@/lib/download'
 import { dateColumn, numberColumn, textColumn } from '@/components/map/tableColumns'
 import { defineTableSource, MapTableBridge, useMapTable, useMapTableState } from '@/components/map/useMapTable'
+import { cn } from '@/lib/utils'
 import { FitStations } from './FitStations'
 import { inNechako, NechakoOutline, NechakoScope, type useNechakoBoundary } from './NechakoScope'
 import { WEATHER_EXPLORER_URL } from './source'
@@ -25,6 +31,7 @@ import {
   latestWeatherRange,
   loadWeatherRange,
   loadWeatherStations,
+  displayUnit,
   QC_MEANINGS,
   variableLabel,
   weatherChartRows,
@@ -40,6 +47,10 @@ import {
 const dateFormat = new Intl.DateTimeFormat('en-CA', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 const number = (value: number) => value.toLocaleString('en-CA')
 const PAGE_SIZE = 10
+/** One colour per marker state, read by the markers, the legend and the table. */
+const MARKER_COLORS = { selected: '#0284c7', published: '#059669', metadata: '#64748b' } as const
+const NECHAKO_COLOR = '#168888'
+const CHART_HEIGHT = 'h-[325px]'
 const WEATHER_COLUMNS = [
   textColumn<WeatherStation>('code', 'Station', (station) => station.id),
   textColumn<WeatherStation>('name', 'Name', (station) => station.name),
@@ -47,6 +58,9 @@ const WEATHER_COLUMNS = [
   dateColumn<WeatherStation>('end', 'Last day', (station) => station.range?.[1] ?? ''),
   numberColumn<WeatherStation>('records', 'Readings', (station) => station.records),
 ]
+
+const coverage = (station: WeatherStation) =>
+  station.range ? `Through ${station.range[1]}` : 'Awaiting processed data'
 
 export function WeatherStations({
   boundary,
@@ -82,7 +96,7 @@ export function WeatherStations({
       defineTableSource<WeatherStation>({
         id: 'weather-stations',
         label: 'Weather stations',
-        color: '#0284c7',
+        color: MARKER_COLORS.selected,
         shape: 'point',
         rows: filtered,
         columns: WEATHER_COLUMNS,
@@ -110,11 +124,14 @@ export function WeatherStations({
           <StationMap
             center={[-123.8, 54.1]}
             zoom={5.4}
-            controls={<MapControls position="top-right" showZoom showCompass={false} />}
+            controls={
+              <MapControls position="top-right" showZoom showCompass={false}>
+                <FitStations stations={scoped} fitOnLoad />
+              </MapControls>
+            }
             deferResize={table.deferResize}
           >
             <MapTableBridge table={table} />
-            <FitStations stations={scoped} />
             <MapScaleBar position="bottom-left" />
             <NechakoOutline boundary={boundary.boundary} />
             {filtered.map((item) => (
@@ -125,17 +142,36 @@ export function WeatherStations({
                     aria-label={`Map weather station ${item.name}`}
                     aria-pressed={item.id === station?.id}
                     onClick={() => setSelectedId(item.id)}
-                    className={`size-4 rounded-full border-2 border-white shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${item.id === station?.id ? 'bg-sky-600' : item.range ? 'bg-emerald-600' : 'bg-slate-500'}`}
+                    className="size-4 rounded-full border-2 border-white shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                    style={{
+                      backgroundColor:
+                        MARKER_COLORS[item.id === station?.id ? 'selected' : item.range ? 'published' : 'metadata'],
+                    }}
                   />
                 </MarkerContent>
                 <MarkerTooltip>
-                  {item.name} · {item.id}
+                  <div className="font-semibold leading-5">{item.name}</div>
+                  <div className="mt-1 text-muted-foreground">
+                    {item.id} · {coverage(item)}
+                  </div>
                 </MarkerTooltip>
               </MapMarker>
             ))}
           </StationMap>
           {table.button && <div className="absolute left-2 top-2 z-10">{table.button}</div>}
           {table.layout.bottomPane}
+        </div>
+        <div
+          aria-label="Map legend"
+          role="group"
+          className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"
+        >
+          <LegendItem color={MARKER_COLORS.selected} label="Selected" />
+          <LegendItem color={MARKER_COLORS.published} label="Readings published" />
+          <LegendItem color={MARKER_COLORS.metadata} label="Metadata only" />
+          {boundary.boundary && (
+            <LegendItem color={NECHAKO_COLOR} label="Nechako watershed" swatchShape="dashed-line" />
+          )}
         </div>
         <NechakoScope {...boundary} active={nechakoOnly} onChange={setNechakoOnly} />
         <SearchInput
@@ -153,27 +189,33 @@ export function WeatherStations({
           </InlineAlert>
         )}
         <ListHeader count={filtered.length} noun={['station', 'stations']} sticky={false} />
-        {catalog.loading ? (
-          <ListState loading />
-        ) : !catalog.error && !filtered.length ? (
-          <ListState empty emptyLabel="No weather stations match this search." />
-        ) : (
-          filtered.map((item) => (
-            <ResultRow
-              key={item.id}
-              title={item.name}
-              subtitle={item.id}
-              meta={item.range ? `Through ${item.range[1]}` : 'Awaiting processed data'}
-              selected={item.id === station?.id}
-              onClick={() => setSelectedId(item.id)}
-            />
-          ))
-        )}
+        {/* Phones stack the readings under this list: keep it short so they are a scroll away, not eight rows. */}
+        <div aria-label="Weather station list" className="max-lg:max-h-64 max-lg:overflow-y-auto">
+          {catalog.loading ? (
+            <ListState loading />
+          ) : !catalog.error && !filtered.length ? (
+            <ListState empty emptyLabel="No weather stations match this search." />
+          ) : (
+            filtered.map((item) => (
+              <ResultRow
+                key={item.id}
+                title={item.name}
+                subtitle={item.id}
+                meta={coverage(item)}
+                selected={item.id === station?.id}
+                onClick={() => setSelectedId(item.id)}
+              />
+            ))
+          )}
+        </div>
       </section>
       {station && <WeatherStationDetail key={station.id} station={station} />}
     </div>
   )
 }
+
+type WeatherData = Awaited<ReturnType<typeof loadWeatherRange>>
+type AssessedReading = { row: WeatherData['rows'][number]; codes: string[]; value: number | null }
 
 function WeatherStationDetail({ station }: { station: WeatherStation }) {
   const [variable, setVariable] = useState(station.variables[0] ?? '')
@@ -181,52 +223,100 @@ function WeatherStationDetail({ station }: { station: WeatherStation }) {
   const [draft, setDraft] = useState(() => latestWeatherRange(station))
   const [range, setRange] = useState(draft)
   const rangeError = weatherRangeError(draft, station.range)
+  const latest = latestWeatherRange(station)
+  // A date input reports only whole dates, and a read covers at most a few monthly files, so a
+  // valid range is read as soon as it is entered: no separate Apply step.
+  const chooseRange = (next: DateRange) => {
+    setDraft(next)
+    if (!weatherRangeError(next, station.range) && next?.join() !== range?.join()) setRange(next)
+  }
   const load = useCallback(
     (signal: AbortSignal) => (range ? loadWeatherRange(station, range, signal) : Promise.resolve(null)),
     [station, range],
   )
   const source = useSourceResource(range ? load : null)
-  const sourceLink = (
-    <a className="underline" href={WEATHER_EXPLORER_URL} target="_blank" rel="noreferrer">
-      UNBC weather explorer
-    </a>
+  // The last readings loaded stay up, faded, while the next date range loads, so the card does not
+  // collapse to a loading line and grow back.
+  const [held, setHeld] = useState<{ data: WeatherData; range: DateRange } | null>(null)
+  if (source.data && held?.data !== source.data) setHeld({ data: source.data, range })
+  const shown = source.error ? null : held
+  const assessed = useMemo<AssessedReading[]>(
+    () =>
+      shown?.data.rows.map((row) => ({
+        row,
+        codes: weatherCodes(row, variable),
+        value: weatherValue(row, variable),
+      })) ?? [],
+    [shown, variable],
   )
+  const selection = useMemo(() => assessed.filter(({ codes }) => weatherShown(codes, filter)), [assessed, filter])
+  const codeCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const { codes } of assessed) for (const code of new Set(codes)) counts.set(code, (counts.get(code) ?? 0) + 1)
+    return [...counts].sort(([a], [b]) => a.localeCompare(b))
+  }, [assessed])
+  const zones = station.offsets.map((offset) => `UTC${offset}`).join(', ')
 
   return (
-    <section aria-label="Weather observations" className="min-w-0 space-y-4 rounded-xl border bg-card p-4">
-      <header className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h2 className="text-xl font-semibold">{station.name}</h2>
-          <p className="text-sm text-muted-foreground">
-            {station.id} · {station.latitude.toFixed(5)}°, {station.longitude.toFixed(5)}°
-          </p>
+    <section aria-label="Weather observations" className="min-w-0 space-y-3 rounded-xl border bg-card p-4">
+      <header className="space-y-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <h2 className="min-w-0 text-lg font-semibold leading-tight">{station.name}</h2>
+          <div role="group" aria-label="Downloads" className="flex flex-wrap gap-2">
+            {station.range && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!shown || !selection.length}
+                onClick={() =>
+                  shown &&
+                  downloadText(
+                    weatherCsv(
+                      shown.data.fields,
+                      shown.data.units,
+                      selection.map(({ row }) => row),
+                    ),
+                    `unbc-weather-${station.id}-${shown.range?.[0]}-to-${shown.range?.[1]}-${filter}.csv`,
+                    'text/csv;charset=utf-8',
+                  )
+                }
+              >
+                <Download className="size-4" aria-hidden="true" />
+                Download selection
+              </Button>
+            )}
+            {station.files.map((file) => (
+              <Button asChild key={file.url} variant="outline" size="sm">
+                <a href={file.url} title={file.name}>
+                  Original {file.url.endsWith('.zip') ? 'ZIP' : 'CSV'}
+                </a>
+              </Button>
+            ))}
+            {station.metadataUrl && (
+              <Button asChild variant="outline" size="sm">
+                <a href={station.metadataUrl}>Station metadata</a>
+              </Button>
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {station.files.map((file) => (
-            <Button asChild key={file.url} variant="outline" size="sm">
-              <a href={file.url} title={file.name}>
-                Original {file.url.endsWith('.zip') ? 'ZIP' : 'CSV'}
-              </a>
-            </Button>
-          ))}
-          {station.metadataUrl && (
-            <Button asChild variant="outline" size="sm">
-              <a href={station.metadataUrl}>Station metadata</a>
-            </Button>
+        <p className="text-xs text-muted-foreground">
+          {station.id} · {station.latitude.toFixed(5)}°, {station.longitude.toFixed(5)}°
+          {station.range && (
+            <>
+              {' '}
+              · {station.range[0]} to {station.range[1]} · {number(station.records)} published readings
+              {zones && ` · ${zones} as supplied`}
+            </>
           )}
-        </div>
+        </p>
       </header>
       {station.range ? (
         <>
-          <p className="text-sm text-muted-foreground">
-            {station.range[0]} to {station.range[1]} · {number(station.records)} published readings
-            {station.offsets.length
-              ? ` · ${station.offsets.map((offset) => 'UTC' + offset).join(', ')} as supplied`
-              : ''}
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {/* Phones: the variable, then the two dates side by side, then Latest month beside the quality filter. Wide cards: one row. */}
+          <div className="grid grid-cols-2 items-end gap-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto_minmax(0,1fr)]">
             <SelectField
               label="Weather variable"
+              fieldClassName="col-span-2 xl:col-span-1"
               value={variable}
               onChange={(event) => setVariable(event.target.value)}
             >
@@ -243,7 +333,8 @@ function WeatherStationDetail({ station }: { station: WeatherStation }) {
                 min={station.range[0]}
                 max={station.range[1]}
                 value={draft?.[0] ?? ''}
-                onChange={(event) => setDraft([event.target.value, draft?.[1] ?? ''])}
+                aria-invalid={Boolean(rangeError)}
+                onChange={(event) => chooseRange([event.target.value, draft?.[1] ?? ''])}
               />
             </FormField>
             <FormField label="To (source date)">
@@ -253,45 +344,36 @@ function WeatherStationDetail({ station }: { station: WeatherStation }) {
                 min={station.range[0]}
                 max={station.range[1]}
                 value={draft?.[1] ?? ''}
-                onChange={(event) => setDraft([draft?.[0] ?? '', event.target.value])}
+                aria-invalid={Boolean(rangeError)}
+                onChange={(event) => chooseRange([draft?.[0] ?? '', event.target.value])}
               />
             </FormField>
+            <HoverTip content="The last month of this station's record">
+              <Button variant="outline" size="sm" className="w-full" onClick={() => chooseRange(latest)}>
+                Latest month
+              </Button>
+            </HoverTip>
             <SelectField
               label="Quality codes"
               value={filter}
               onChange={(event) => setFilter(event.target.value as WeatherFilter)}
+              hintAction={<QualityCodeSummary counts={codeCounts} disabled={!shown} />}
             >
               <option value="all">All observations</option>
               <option value="pass">Pass only (P)</option>
               <option value="flagged">Other supplied codes</option>
             </SelectField>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              disabled={Boolean(rangeError) || draft?.join() === range?.join()}
-              onClick={() => setRange(draft)}
-            >
-              Apply dates
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const latest = latestWeatherRange(station)
-                setDraft(latest)
-                if (latest?.join() !== range?.join()) setRange(latest)
-              }}
-            >
-              Latest month in record
-            </Button>
-            {rangeError && (
-              <span role="status" className="text-sm text-muted-foreground">
-                {rangeError}
-              </span>
-            )}
-          </div>
-          {source.loading && <InlineAlert loading>Loading weather observations…</InlineAlert>}
+          {rangeError && (
+            <p role="status" className="text-xs text-destructive">
+              {rangeError}
+            </p>
+          )}
+          {source.loading && !shown && (
+            <div className={`flex items-center justify-center ${CHART_HEIGHT}`}>
+              <InlineAlert loading>Loading weather observations…</InlineAlert>
+            </div>
+          )}
           {source.error && (
             <InlineAlert tone="error" title="Could not load observations">
               {source.error}
@@ -300,37 +382,98 @@ function WeatherStationDetail({ station }: { station: WeatherStation }) {
               </Button>
             </InlineAlert>
           )}
-          {source.data && variable && (
-            <WeatherObservations
-              key={`${range?.join()}/${variable}/${filter}`}
-              data={source.data}
-              station={station}
-              variable={variable}
-              filter={filter}
-              range={range}
-            />
-          )}
-          {range && source.data && (
-            <MeasuredComparison station={station} range={range} weatherRows={source.data.rows} />
+          {shown && variable && (
+            <div aria-busy={source.loading} className={cn('space-y-3', source.loading && 'opacity-60')}>
+              <WeatherObservations
+                key={`${shown.range?.join()}/${variable}/${filter}`}
+                data={shown.data}
+                station={station}
+                variable={variable}
+                filter={filter}
+                assessed={assessed}
+                selection={selection}
+                loading={source.loading}
+              />
+              {shown.range && (
+                <MeasuredComparison station={station} range={shown.range} weatherRows={shown.data.rows} />
+              )}
+            </div>
           )}
         </>
       ) : (
         <InlineAlert title="Awaiting processed data">UNBC has published this station’s metadata.</InlineAlert>
       )}
-      <footer className="border-t pt-3 text-xs text-muted-foreground">
-        Source {sourceLink}
-        {station.coordinateSource && <span> · Location from {station.coordinateSource}</span>}
-        <span> · </span>
-        <a
-          className="underline"
-          href="https://api.weather.gc.ca/collections/climate-stations/items/1096454?f=html"
-          target="_blank"
-          rel="noreferrer"
-        >
-          ECCC Prince George Massey observations
-        </a>
+      <footer className="space-y-1 border-t pt-3 text-xs text-muted-foreground">
+        <p>
+          Source:{' '}
+          <a className="underline" href={WEATHER_EXPLORER_URL} target="_blank" rel="noreferrer">
+            UNBC weather explorer
+          </a>
+          {station.coordinateSource && <span> · Location from {station.coordinateSource}</span>}
+        </p>
+        <p>
+          Regional reference, not this station:{' '}
+          <a
+            className="underline"
+            href="https://api.weather.gc.ca/collections/climate-stations/items/1096454?f=html"
+            target="_blank"
+            rel="noreferrer"
+          >
+            ECCC Prince George Massey climate station
+          </a>
+        </p>
       </footer>
     </section>
+  )
+}
+
+/** What the supplied quality codes mean and how often each appears, beside the filter they explain. */
+function QualityCodeSummary({ counts, disabled }: { counts: [string, number][]; disabled: boolean }) {
+  const anchor = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        ref={anchor}
+        type="button"
+        aria-label="Quality code summary"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={() => setOpen(!open)}
+        className="absolute -top-0.5 right-0 inline-flex size-5 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 touch:after:absolute touch:after:-inset-3 touch:after:content-['']"
+      >
+        <Info className="size-4" aria-hidden="true" />
+      </button>
+      <AnchoredPopover
+        anchorRef={anchor}
+        open={open}
+        onClose={() => setOpen(false)}
+        align="end"
+        width={300}
+        role="dialog"
+        ariaLabel="Quality code summary"
+        className="space-y-2 p-3 text-xs"
+      >
+        <p className="font-semibold">Quality codes in this date range</p>
+        <p className="text-muted-foreground">
+          UNBC’s supplied codes describe quality or conditions such as visits or nighttime. Counts include every reading
+          in the date range, whatever the filter shows.
+        </p>
+        {counts.length ? (
+          <dl className="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-1">
+            {counts.map(([code, count]) => (
+              <div key={code} className="contents">
+                <dt className="font-mono">{code}</dt>
+                <dd>{QC_MEANINGS[code] ?? 'Supplied code'}</dd>
+                <dd className="text-right tabular-nums">{number(count)}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="text-muted-foreground">No quality codes supplied for these readings.</p>
+        )}
+      </AnchoredPopover>
+    </>
   )
 }
 
@@ -339,31 +482,23 @@ function WeatherObservations({
   station,
   variable,
   filter,
-  range,
+  assessed,
+  selection,
+  loading,
 }: {
-  data: Awaited<ReturnType<typeof loadWeatherRange>>
+  data: WeatherData
   station: WeatherStation
   variable: string
   filter: WeatherFilter
-  range: DateRange
+  assessed: AssessedReading[]
+  selection: AssessedReading[]
+  loading: boolean
 }) {
   const [page, setPage] = useState(0)
   const [zoom, setZoom] = useState<readonly [number, number] | null>(null)
-  const assessed = useMemo(
-    () =>
-      data.rows.map((row) => ({
-        row,
-        codes: weatherCodes(row, variable),
-        value: weatherValue(row, variable),
-      })),
-    [data.rows, variable],
-  )
-  const shown = assessed.filter(({ codes }) => weatherShown(codes, filter))
   const points = useMemo(() => weatherChartRows(data.rows, variable, filter), [data.rows, variable, filter])
-  const summary = new Map<string, number>()
-  for (const { codes } of assessed) for (const code of new Set(codes)) summary.set(code, (summary.get(code) ?? 0) + 1)
-  const units = data.units[variable] || station.units[variable]
-  const unit = units && units.toLowerCase() !== 'nan' ? units : undefined
+  const unit = displayUnit(data.units[variable] || station.units[variable])
+  const missing = assessed.filter(({ value }) => value === null).length
   const label = variableLabel(variable)
   const offsetMinutes = (offset: string) =>
     (offset[0] === '-' ? -1 : 1) * (Number(offset.slice(1, 3)) * 60 + Number(offset.slice(4)))
@@ -373,50 +508,41 @@ function WeatherObservations({
     () => new Map(data.rows.map((row) => [row.time, `${row.stamp} UTC${row.offset}`])),
     [data.rows],
   )
+  const pageCount = Math.ceil(selection.length / PAGE_SIZE)
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h3 className="font-semibold">
-            {label}
-            {unit && ` (${unit})`}
-          </h3>
-          <p role="status" className="text-xs text-muted-foreground">
-            {number(shown.length)} of {number(assessed.length)} readings ·{' '}
-            {number(assessed.filter(({ value }) => value === null).length)} missing or nonnumeric before filtering
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!shown.length}
-          onClick={() =>
-            downloadText(
-              weatherCsv(
-                data.fields,
-                data.units,
-                shown.map(({ row }) => row),
-              ),
-              `unbc-weather-${station.id}-${range?.[0]}-to-${range?.[1]}-${filter}.csv`,
-              'text/csv;charset=utf-8',
-            )
-          }
-        >
-          Download selection
-        </Button>
+      <div>
+        <h3 className="text-sm font-semibold">
+          {label}
+          {unit && ` (${unit})`}
+        </h3>
+        <p role="status" className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+          <span>
+            {selection.length === assessed.length
+              ? `${number(assessed.length)} readings`
+              : `${number(selection.length)} of ${number(assessed.length)} readings`}
+            {missing > 0 && ` · ${number(missing)} missing or non-numeric`} · times in {axisZone}
+          </span>
+          {loading && (
+            <span className="inline-flex items-center gap-1">
+              · <Loader2 className="size-3 animate-spin" aria-hidden="true" /> loading the new dates…
+            </span>
+          )}
+        </p>
       </div>
       {points.some((point) => point.reading !== null) ? (
-        <ChartViewport className="h-[325px]">
+        <ChartViewport className={CHART_HEIGHT}>
           {(height) => (
             <TimeSeriesChart
               height={height}
               rows={points}
-              series={[{ id: 'reading', label, color: '#0284c7' }]}
+              series={[{ id: 'reading', label, color: MARKER_COLORS.selected }]}
               range={zoom}
               onRange={setZoom}
               label={`${station.name} ${label} time series at the original interval`}
-              xAxis={{ format: (time) => dateFormat.format(time + axisOffset), label: axisZone }}
+              // The zone is printed above the chart: an axis label here sits under the navigator.
+              xAxis={{ format: (time) => dateFormat.format(time + axisOffset) }}
               yAxis={{ label: unit }}
               showPoints={filter !== 'all' || points.length <= 100}
               formatTooltipX={(time) => displayStamps.get(time) ?? new Date(time).toISOString()}
@@ -425,75 +551,48 @@ function WeatherObservations({
           )}
         </ChartViewport>
       ) : (
-        <ListState empty emptyLabel="No numeric values match the selected dates and quality filter." />
+        <div className={`flex items-center justify-center ${CHART_HEIGHT}`}>
+          <ListState empty emptyLabel="No numeric values match the selected dates and quality filter." />
+        </div>
       )}
-      <details className="rounded-md border p-2 text-sm">
-        <summary className="cursor-pointer font-medium">Quality code summary</summary>
-        <p className="my-2 text-xs text-muted-foreground">
-          UNBC’s supplied codes describe quality or conditions such as visits or nighttime. Counts include all readings
-          in the date range.
-        </p>
-        {summary.size ? (
-          <dl className="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-1">
-            {[...summary]
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([code, count]) => (
-                <div key={code} className="contents">
-                  <dt className="font-mono">{code}</dt>
-                  <dd>{QC_MEANINGS[code] ?? 'Supplied code'}</dd>
-                  <dd>{number(count)}</dd>
-                </div>
-              ))}
-          </dl>
-        ) : (
-          <p className="text-xs text-muted-foreground">No quality codes supplied for these readings.</p>
-        )}
-      </details>
-      {shown.length > 0 && (
+      {selection.length > 0 && (
         <div className="space-y-2">
           <div className="overflow-x-auto">
-            <table className="w-full whitespace-nowrap text-left text-xs">
+            <EngineeringTable rowHeaders>
               <caption className="sr-only">Weather observations</caption>
               <thead>
-                <tr className="border-b">
-                  {['Timestamp as supplied', 'Value', 'QC codes', 'Data ID'].map((heading) => (
-                    <th key={heading} scope="col" className="px-2 py-1.5 font-semibold">
-                      {heading}
-                    </th>
-                  ))}
+                <tr>
+                  <ColumnHeader label="Timestamp as supplied" className="text-left" />
+                  <ColumnHeader label="Value" unit={unit} />
+                  <ColumnHeader label="QC codes" className="text-left" />
+                  <ColumnHeader label="Data ID" className="text-left" />
                 </tr>
               </thead>
               <tbody>
-                {shown.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(({ row, codes, value }, index) => (
-                  <tr key={`${row.time}-${index}`} className="border-b last:border-0">
-                    <td className="px-2 py-1.5 font-mono">
+                {selection.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map(({ row, codes, value }, index) => (
+                  <tr key={`${row.time}-${index}`}>
+                    <th scope="row" className="font-mono">
                       {row.stamp} {row.offset}
-                    </td>
-                    <td className="px-2 py-1.5">{value ?? 'Missing'}</td>
-                    <td className="px-2 py-1.5">{codes.join(', ') || '—'}</td>
-                    <td className="px-2 py-1.5">{row.values.Data_ID || '—'}</td>
+                    </th>
+                    <td>{value ?? 'Missing'}</td>
+                    <td className="text-left">{codes.join(', ') || '—'}</td>
+                    <td className="text-left">{row.values.Data_ID || '—'}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-muted-foreground">
-            <span>
-              {number(page * PAGE_SIZE + 1)}–{number(Math.min((page + 1) * PAGE_SIZE, shown.length))} of{' '}
-              {number(shown.length)}
-            </span>
-            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={(page + 1) * PAGE_SIZE >= shown.length}
-              onClick={() => setPage(page + 1)}
-            >
-              Next
-            </Button>
-          </div>
+          <PaginationControls
+            page={page}
+            pageCount={pageCount}
+            onPageChange={setPage}
+            label="Weather observation pages"
+            layout="summary-first"
+            className="border-0 bg-transparent p-0"
+            formatPage={(current) =>
+              `${number(current * PAGE_SIZE + 1)}–${number(Math.min((current + 1) * PAGE_SIZE, selection.length))} of ${number(selection.length)}`
+            }
+          />
         </div>
       )}
     </>

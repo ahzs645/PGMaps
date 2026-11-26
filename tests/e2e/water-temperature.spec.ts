@@ -648,7 +648,7 @@ test('weather tab keeps source flags, requests only selected months, and exports
   await expect(table).toContainText('C, DC')
   await expect(table).toContainText('Missing')
   await expect(table).not.toContainText('00:00:00')
-  await page.getByText('Quality code summary', { exact: true }).click()
+  await page.getByRole('button', { name: 'Quality code summary', exact: true }).click()
   await expect(page.getByText('Dependency caution', { exact: true })).toBeVisible()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download selection' }).click()

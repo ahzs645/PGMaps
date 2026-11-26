@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { dailyWaterFile, validFilename } from './source'
 import {
   dailyMeasuredAir,
+  displayUnit,
   parseWeatherChunk,
   weatherChartRows,
   weatherCodes,
@@ -54,5 +55,18 @@ describe('UNBC observation formats', () => {
     expect(weatherRangeError(['2024-02-29', '2024-03-01'], extent)).toBeNull()
     expect(weatherRangeError(['2024-02-30', '2024-03-01'], extent)).toMatch(/Enter/)
     expect(weatherRangeError(['2024-01-01', '2024-04-03'], extent)).toMatch(/92 days/)
+  })
+})
+
+describe('displayUnit', () => {
+  it('prints symbols for the logger unit row and drops placeholder units', () => {
+    expect(displayUnit('Deg C')).toBe('°C')
+    expect(displayUnit('W/m^2')).toBe('W/m²')
+    expect(displayUnit('meters/second')).toBe('m/s')
+    expect(displayUnit('hPa')).toBe('hPa')
+    expect(displayUnit('%')).toBe('%')
+    expect(displayUnit('nan')).toBeUndefined()
+    expect(displayUnit('unitless')).toBeUndefined()
+    expect(displayUnit(undefined)).toBeUndefined()
   })
 })
