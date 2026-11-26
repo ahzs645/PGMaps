@@ -116,6 +116,15 @@ const devEntries: DevEntry[] = [
     label: '/dev/color-palettes',
   },
   {
+    title: 'Illustrated map workshop',
+    description:
+      'Rainforest to Rockies vector reconstruction: inspect each element, generate flowing forest hatching, compare the page 8 reference, and export SVGs.',
+    href: '/dev/illustrated-map',
+    icon: Palette,
+    color: 'bg-emerald-700',
+    label: '/dev/illustrated-map',
+  },
+  {
     title: 'Climate vulnerability',
     description:
       'MHCCA input explorer, 80-variable source audit, and index reproducibility checks using shared FSA boundaries.',

@@ -87,6 +87,7 @@ const spaRoutes = [
   'dev/outdoors',
   'dev/water-temperature',
   'dev/color-palettes',
+  'dev/illustrated-map',
   'dev/climate-vulnerability',
   'dev/early-learning',
   'help',
