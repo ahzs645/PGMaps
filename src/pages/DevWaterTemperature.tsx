@@ -401,11 +401,14 @@ function WaterStations({
               <Map
                 center={[-124.5, 54.2]}
                 zoom={7}
-                controls={<MapControls position="top-right" showZoom showCompass={false} />}
+                controls={
+                  <MapControls position="top-right" showZoom showCompass={false}>
+                    <FitStations stations={scopedStations} />
+                  </MapControls>
+                }
                 deferResize={table.deferResize}
               >
                 <MapTableBridge table={table} />
-                <FitStations stations={scopedStations} />
                 <NechakoOutline boundary={boundary.boundary} />
                 <MapScaleBar position="bottom-left" />
                 {[...filtered]

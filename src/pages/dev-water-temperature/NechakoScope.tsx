@@ -2,7 +2,7 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { useEffect, useMemo, useState } from 'react'
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from 'geojson'
 import { MapLineLayer } from '@/components/ui/map-layers'
-import { Button } from '@/components/ui/button'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { fetchJson } from '@/lib/fetchJson'
 
 const BOUNDARIES = '/data/boundaries/BCFWA/named_watersheds_stream_order_8_50m.geojson.gz'
@@ -43,19 +43,25 @@ export function NechakoScope({
   onChange,
 }: BoundaryState & { active: boolean; onChange: (active: boolean) => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      <Button
-        variant={active ? 'default' : 'outline'}
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <SegmentedControl
+        label="Station scope"
         size="sm"
-        aria-pressed={active}
-        disabled={!boundary}
-        onClick={() => onChange(true)}
-      >
-        In Nechako
-      </Button>
-      <Button variant={active ? 'outline' : 'default'} size="sm" aria-pressed={!active} onClick={() => onChange(false)}>
-        All stations
-      </Button>
+        fullWidth={false}
+        value={active ? 'nechako' : 'all'}
+        onChange={(value) => onChange(value === 'nechako')}
+        options={[
+          {
+            value: 'nechako',
+            label: 'In Nechako',
+            disabled: !boundary,
+            title: boundary
+              ? 'Only stations inside the Nechako watershed (Freshwater Atlas 8886)'
+              : 'The watershed boundary is unavailable',
+          },
+          { value: 'all', label: 'All stations' },
+        ]}
+      />
       {error && <span className="text-xs text-muted-foreground">Watershed boundary unavailable</span>}
     </div>
   )

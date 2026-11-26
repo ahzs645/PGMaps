@@ -30,7 +30,7 @@ and individual years. PGMaps now follows that arrangement:
 | CSV download                                              | Daily observations within the selected dates; hidden series remain in the export                                                                                                                                 |
 | PNG/JPEG/SVG/PDF chart exports and chart help             | Included in each compact chart options dialog                                                                                                                                                                    |
 | Guided tour                                               | Not ported; chart-specific instructions are available in the options dialogs                                                                                                                                     |
-| Watershed boundaries and basin filtering                  | Nechako outline and station membership use BC Freshwater Atlas watershed 8886                                                                                                                                          |
+| Watershed boundaries and basin filtering                  | Nechako outline and station membership use BC Freshwater Atlas watershed 8886                                                                                                                                    |
 
 The station pane has no independent scroll port. Its map fills the available
 desktop height, with one line per selected station below. Its color/code/name row also toggles
@@ -99,13 +99,18 @@ catalog lists locations, coverage dates, published fields and units, original
 downloads, metadata and monthly gzip CSVs. The tab displays one station
 and variable at a time at the source interval. It defaults to the last month
 of that station's published record and fetches only months intersecting the
-applied date range. Each interactive window covers up to 92 days to keep the
+chosen date range. A valid range is read as soon as both dates are entered
+(there is no Apply step), and the last readings stay up, faded, while the
+next range loads. Each interactive window covers up to 92 days to keep the
 original-interval chart and table responsive. The original archive link
-covers the complete published record.
+covers the complete published record. The station map opens framed on every
+station; its legend explains the marker colours.
 
 Timestamp offsets, source units, multiple quality codes and missing readings
-are preserved. The QC summary counts supplied codes across the applied date
-range and the display filter controls the chart, table and filtered export.
+are preserved; units are printed as symbols (Deg C as °C) on screen, and the
+CSV keeps them as supplied. The quality code summary, an (i) beside the
+Quality codes filter, counts supplied codes across the chosen date range;
+the filter controls the chart, table and filtered export.
 Some codes describe conditions such as nighttime or a station visit. The
 filtered CSV keeps the units row and all source columns. François Lake is a
 metadata-only station in the reviewed feed.

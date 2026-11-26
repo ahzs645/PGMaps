@@ -50,6 +50,24 @@ const VARIABLE_LABELS: Record<string, string> = {
 }
 export const variableLabel = (key: string) => VARIABLE_LABELS[key] ?? key
 
+// Display spellings for the logger's unit row. Downloads keep the units as supplied.
+const UNIT_SYMBOLS: Record<string, string> = {
+  'deg c': '°C',
+  degrees: '°',
+  'meters/second': 'm/s',
+  kilometers: 'km',
+  volts: 'V',
+  'w/m^2': 'W/m²',
+  'mj/m^2': 'MJ/m²',
+}
+const UNITLESS = new Set(['', 'nan', 'unitless'])
+
+/** The unit to print beside a reading, or undefined when the source gives none. */
+export function displayUnit(unit: string | undefined) {
+  const key = unit?.trim().toLowerCase() ?? ''
+  return UNITLESS.has(key) ? undefined : (UNIT_SYMBOLS[key] ?? unit!.trim())
+}
+
 export const QC_MEANINGS: Record<string, string> = {
   P: 'Pass',
   C: 'Caution',
