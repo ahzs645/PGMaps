@@ -7,6 +7,7 @@
  * Takes terrain and projections as arguments and touches neither the DOM nor the network.
  */
 import { safeAnalyzeRoad } from './analysisResult'
+import { alternativeCostStatus } from './alternativeCosts'
 import { yieldToHost } from './cooperative'
 import { crossingScreeningOverlapCount } from './crossingPlan'
 import {
@@ -172,6 +173,8 @@ export interface RouteRow {
   constructionCost: number | null
   drainage: DrainageScreen | null
   totalCost: number | null
+  /** Whether the shown amount covers this comparison's construction and drainage inputs. */
+  costComplete: boolean
   /** Why this row cannot be recommended; empty when it meets every limit. */
   blockers: string[]
   notes: string[]
@@ -322,7 +325,7 @@ function metrics(
   analysis: RoadAnalysis,
   limit: number,
   context: ContextFeature[],
-): Pick<RouteRow, 'lengthM' | 'maxGradePercent' | 'earthworksM3' | 'constructionCost' | 'blockers'> {
+): Pick<RouteRow, 'lengthM' | 'maxGradePercent' | 'earthworksM3' | 'constructionCost' | 'costComplete' | 'blockers'> {
   const blockers = constraintRouteIssues(analysis.centerline, context)
   if (analysis.crossingEstimate?.complete === false)
     blockers.push('Crossing estimates are incomplete or need review; the known subtotal is not a complete road price.')
@@ -350,8 +353,27 @@ function metrics(
     maxGradePercent: analysis.maxGradePercent,
     earthworksM3: analysis.cutVolumeM3 + analysis.fillVolumeM3,
     constructionCost: analysis.estimatedCost,
+    costComplete: alternativeCostStatus(analysis) === 'complete' && !plan,
     blockers,
   }
+}
+
+/** Only compare covered planning prices, never a known subtotal against a complete or incomplete price. */
+export function routeCostDeltaPercent(
+  candidate: Pick<RouteRow, 'totalCost' | 'costComplete'>,
+  baseline?: Pick<RouteRow, 'totalCost' | 'costComplete'>,
+): number | null {
+  if (
+    !baseline?.costComplete ||
+    !candidate.costComplete ||
+    baseline.totalCost === null ||
+    baseline.totalCost <= 0 ||
+    !Number.isFinite(baseline.totalCost) ||
+    candidate.totalCost === null ||
+    !Number.isFinite(candidate.totalCost)
+  )
+    return null
+  return Math.round(((candidate.totalCost - baseline.totalCost) / baseline.totalCost) * 100)
 }
 
 /** How each goal is measured on a road; lower is better. */
@@ -1209,6 +1231,7 @@ export async function compareRoutes(
       constructionCost: null,
       drainage: null,
       totalCost: null,
+      costComplete: false,
       blockers: [],
       notes: [],
       best: [],
@@ -1239,7 +1262,13 @@ export async function compareRoutes(
       await breathe()
       row.drainage = screen(row.alignment, analysis)
       row.totalCost = row.constructionCost! + row.drainage.allowance
+      if (row.drainage.crossings && options.crossingCost === 0) {
+        row.costComplete = false
+        row.notes.push('Modelled crossings have no priced planning allowance.')
+      }
+      if (row.drainage.crossDrains && options.crossDrainCost === 0) row.costComplete = false
       if (row.drainage.crossingCostOverlaps) {
+        row.costComplete = false
         row.totalCost = null
         row.blockers.push(
           `${row.drainage.crossingCostOverlaps} modelled drainage crossing(s) may overlap itemized stream structures. Review their association before comparing a complete total; the potentially duplicate allowance is excluded from the known subtotal.`,
@@ -1248,6 +1277,7 @@ export async function compareRoutes(
     } catch (cause) {
       aborted()
       drainageChecked = false
+      row.costComplete = false
       row.totalCost = row.constructionCost
       row.notes.push(cause instanceof Error ? `Drainage not screened: ${cause.message}` : 'Drainage not screened.')
     }

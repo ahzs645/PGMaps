@@ -15,6 +15,7 @@ import {
   flowPenalty,
   probeSteeperGrades,
   simplifyGuide,
+  routeCostDeltaPercent,
   type RouteRow,
 } from './routeComparison'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
@@ -112,6 +113,26 @@ describe('flowPenalty', () => {
   })
 })
 
+describe('routeCostDeltaPercent', () => {
+  const baseline = { totalCost: 419_753, costComplete: true }
+  const candidate = { totalCost: 204_664, costComplete: true }
+
+  it('keeps the percentage for a pair of complete planning estimates', () => {
+    expect(routeCostDeltaPercent(candidate, baseline)).toBe(-51)
+  })
+
+  it('does not claim a saving when either amount is a known subtotal', () => {
+    expect(routeCostDeltaPercent(candidate, { ...baseline, costComplete: false })).toBeNull()
+    expect(routeCostDeltaPercent({ ...candidate, costComplete: false }, baseline)).toBeNull()
+  })
+
+  it('does not compare missing or zero baselines and unavailable candidate amounts', () => {
+    expect(routeCostDeltaPercent(candidate)).toBeNull()
+    expect(routeCostDeltaPercent(candidate, { ...baseline, totalCost: 0 })).toBeNull()
+    expect(routeCostDeltaPercent({ ...candidate, totalCost: null }, baseline)).toBeNull()
+  })
+})
+
 describe('assignGoals', () => {
   const row = (id: string, goal: RouteRow['goal'], values: Partial<RouteRow>): RouteRow => ({
     id,
@@ -126,6 +147,7 @@ describe('assignGoals', () => {
     constructionCost: 100,
     drainage: { crossings: 1, crossDrains: 4, redirected: 0, newPondingM2: 0, allowance: 0 },
     totalCost: 100,
+    costComplete: true,
     blockers: [],
     notes: [],
     best: [],
@@ -257,6 +279,9 @@ describe('compareRoutes', () => {
       baseAnalysis: safeAnalyzeRoad(base, hillside, original.settings, [stream]),
     })
     expect(rows[0].blockers.join(' ')).toContain('Crossing estimates are incomplete')
+    expect(rows[0].totalCost).not.toBeNull()
+    expect(rows[0].costComplete).toBe(false)
+    expect(routeCostDeltaPercent({ totalCost: 204_664, costComplete: true }, rows[0])).toBeNull()
     expect(rows[0].best).toEqual([])
   })
 
@@ -305,6 +330,8 @@ describe('compareRoutes', () => {
       unsolved = await compared(13)
     expect([solved.status, unsolved.status]).toEqual(['optimal', 'unsolved'])
     expect(solved.row.blockers).toEqual([])
+    expect(solved.row.costComplete).toBe(true)
+    expect(unsolved.row.costComplete).toBe(false)
     // The same road reads cheaper with its plan unsolved: haul, borrow and waste are all missing.
     expect(unsolved.row.totalCost!).toBeLessThan(solved.row.totalCost! - 1000)
     expect(unsolved.row.blockers).toEqual([
@@ -668,6 +695,7 @@ describe('comparisonSummary', () => {
     constructionCost: 100,
     drainage: null,
     totalCost: 100,
+    costComplete: true,
     blockers: [],
     notes: [],
     best: [],
