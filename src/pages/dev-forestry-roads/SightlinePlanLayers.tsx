@@ -1,11 +1,7 @@
 import { MapCircleLayer, MapLineLayer } from '@/components/ui/map-layers'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 
-const escape = (value: unknown) =>
-  String(value ?? '').replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
-  )
-const labelHtml = (p: Record<string, unknown>) => (p.label ? escape(p.label) : null)
+const labelHtml = (p: Record<string, unknown>) => (p.label ? mapTooltipHtml({ title: String(p.label) }) : null)
 
 /** Seen, blocked and unknown, in the colours the sight band uses. */
 export const SIGHT_PLAN_COLORS = {

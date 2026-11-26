@@ -852,7 +852,6 @@ export function PortalLayers({
           ]}
         />
         <MapScaleBar />
-        <PointerCoordinates />
         {layout === 'portal' && <InitialWatershedView bounds={initialBounds} />}
         <CameraObserver onCamera={onCamera} onBounds={onBounds} />
         <Identify
@@ -1195,56 +1194,6 @@ export function PortalLayers({
         {inspectionPanel}
       </div>
     </div>
-  )
-}
-
-function PointerCoordinates() {
-  const { map, isLoaded } = useMap()
-  const [position, setPosition] = useState<{ latitude: number; longitude: number } | null>(null)
-  useEffect(() => {
-    if (!map || !isLoaded) return
-    let frame: number | undefined
-    let pending: { latitude: number; longitude: number } | null = null
-    const move = (event: MapMouseEvent) => {
-      const { lat, lng } = event.lngLat
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
-      pending = { latitude: lat, longitude: ((((lng + 180) % 360) + 360) % 360) - 180 }
-      if (frame === undefined)
-        frame = requestAnimationFrame(() => {
-          frame = undefined
-          setPosition(pending)
-        })
-    }
-    const leave = () => {
-      if (frame !== undefined) cancelAnimationFrame(frame)
-      frame = undefined
-      pending = null
-      setPosition(null)
-    }
-    map.on('mousemove', move)
-    map.on('mouseout', leave)
-    return () => {
-      map.off('mousemove', move)
-      map.off('mouseout', leave)
-      if (frame !== undefined) cancelAnimationFrame(frame)
-    }
-  }, [map, isLoaded])
-  return (
-    <output
-      aria-label="Map pointer coordinates"
-      aria-live="off"
-      data-map-chrome=""
-      className="pointer-events-none absolute bottom-12 left-3 z-10 max-w-[calc(100%-1.5rem)] rounded bg-background/85 px-2 py-1 text-2xs leading-tight text-foreground shadow-sm"
-    >
-      Pointer (EPSG:4326):{' '}
-      {position ? (
-        <span className="tabular-nums">
-          lat {position.latitude.toFixed(5)}°, lon {position.longitude.toFixed(5)}°
-        </span>
-      ) : (
-        'move over the map'
-      )}
-    </output>
   )
 }
 

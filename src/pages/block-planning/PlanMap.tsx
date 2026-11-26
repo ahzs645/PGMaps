@@ -4,6 +4,7 @@ import type { StyleSpecification } from 'maplibre-gl'
 import { fitMapToPoints } from '@pgmaps/geo-toolkit/map/map-fit'
 import { Map, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { HANDOFF_NOTE_DELAY_MS } from '@/components/ui/map-raster-handoff'
 import { LegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { MapSketch, type MapSketchController } from '@/components/ui/map-sketch'
@@ -270,7 +271,7 @@ export function PlanMap({
           fillOpacity={0.12}
           lineColor={MAP_COLOURS.disturbance}
           lineWidth={1}
-          hoverHtml={(p) => `${String(p.name)} · ${String(p.year)}`}
+          hoverHtml={(p) => mapTooltipHtml({ title: String(p.name), lines: [String(p.year)] })}
         />
         <MapFillLayer
           data={blocks}
@@ -282,7 +283,7 @@ export function PlanMap({
           lineWidth={3}
           selectedId={selectedBlock}
           onFeatureClick={(id) => onSelectBlock(String(id))}
-          hoverHtml={(p) => `${String(p.name)} · cut ${String(p.year)}`}
+          hoverHtml={(p) => mapTooltipHtml({ title: String(p.name), lines: [`Cut ${String(p.year)}`] })}
         />
         <MapLineLayer
           data={blocks}
@@ -293,7 +294,7 @@ export function PlanMap({
           dashArray={[2, 1.5]}
           selectedId={selectedBlock}
           onFeatureClick={(id) => onSelectBlock(String(id))}
-          hoverHtml={(p) => `${String(p.name)} · cut ${String(p.year)}`}
+          hoverHtml={(p) => mapTooltipHtml({ title: String(p.name), lines: [`Cut ${String(p.year)}`] })}
         />
         <MapLineLayer
           data={blocks}
@@ -304,7 +305,7 @@ export function PlanMap({
           dashArray={[1, 2]}
           selectedId={selectedBlock}
           onFeatureClick={(id) => onSelectBlock(String(id))}
-          hoverHtml={(p) => `${String(p.name)} · not cut in this schedule`}
+          hoverHtml={(p) => mapTooltipHtml({ title: String(p.name), lines: ['Not cut in this schedule'] })}
         />
         <MapFillLayer
           data={zones}

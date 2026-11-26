@@ -10,6 +10,7 @@ import type { PreparedPolygons } from '@/lib/categoricalPolygonGeometry'
 import { ViewportBlockLoader, type BlockLoadScope } from '@/lib/viewportBlockLoader'
 import { canPublishRasterLevel, selectRasterLevel, type RasterLevel } from '@/lib/categoricalRasterLevels'
 import { ResidentRasterBlocks } from '@/lib/residentRasterBlocks'
+import { SharedRequestCache } from '@/lib/sharedRequestCache'
 
 type Tile = { id: string; path: string; bounds: [number, number, number, number] }
 type Manifest = { format: string; tiles: Tile[] }
@@ -27,6 +28,43 @@ export const BLOCK_MOVE_THROTTLE_MS = 120
 export const GESTURE_BLOCK_UPLOADS_PER_FRAME = 2
 
 /** Data saver asks for fewer bytes: wait for the settled view rather than load during a gesture. */
+/**
+ * Polygon indexes and decoded blocks outlive the layer that read them, so a story scene, a period or a
+ * scenario shown again draws from memory instead of reading and decoding its files a second time, and a
+ * page reading a manifest for its legend shares that read with the layer. Bounded: 48 indexes, and decoded
+ * blocks up to `DECODED_BLOCK_BUDGET_BYTES`.
+ */
+const DECODED_BLOCK_BUDGET_BYTES = 96 * 1024 * 1024
+const manifestCache = new SharedRequestCache<unknown>({ maxEntries: 48 })
+const blockCache = new SharedRequestCache<PreparedPolygons>({
+  maxEntries: 512,
+  maxBytes: DECODED_BLOCK_BUDGET_BYTES,
+  sizeOf: preparedPolygonBytes,
+})
+
+/** One read of a raster polygon manifest per URL for the page's life, shared by every caller. */
+export function fetchRasterManifest<T>(url: string, signal?: AbortSignal): Promise<T> {
+  return manifestCache.load(url, (shared) => fetchJson<unknown>(url, shared), signal) as Promise<T>
+}
+
+function preparedPolygonBytes(data: PreparedPolygons): number {
+  let bytes = data.values.byteLength
+  const seen = new Set<ArrayBufferLike>()
+  const visit = (value: unknown, depth: number) => {
+    if (!value || typeof value !== 'object' || depth > 4) return
+    if (ArrayBuffer.isView(value)) {
+      if (!seen.has(value.buffer)) {
+        seen.add(value.buffer)
+        bytes += value.byteLength
+      }
+      return
+    }
+    for (const child of Object.values(value)) visit(child, depth + 1)
+  }
+  visit(data.binary, 0)
+  return bytes
+}
+
 function prefersSavingData() {
   const connection = (globalThis.navigator as (Navigator & { connection?: { saveData?: boolean } }) | undefined)
     ?.connection
@@ -229,9 +267,15 @@ export function MapCategoricalRaster({
           // A retained GPU layer may outlive the loader's separate decoded-data LRU.
           const resident =
             residentSourceRef.current === manifestUrl ? residentRef.current.get(`${level.id}/${id}`) : undefined
-          return resident
-            ? Promise.resolve(resident)
-            : workers.load(new URL(withBase(`${tileBase}${paths.get(id)!}`), window.location.href).href, signal)
+          if (resident) return Promise.resolve(resident)
+          const url = new URL(withBase(`${tileBase}${paths.get(id)!}`), window.location.href).href
+          const kept = blockCache.peek(url)
+          if (kept) return Promise.resolve(kept)
+          // Decoded blocks are kept, not shared in flight: each layer's workers end with the layer.
+          return workers.load(url, signal).then((data) => {
+            blockCache.set(url, data)
+            return data
+          })
         }, publish),
       })
     }
@@ -259,7 +303,7 @@ export function MapCategoricalRaster({
         if (loading.has(next.id)) return
         loading.add(next.id)
         status({ state: 'loading', message: `Loading ${next.label.toLowerCase()} index…` })
-        fetchJson<Manifest>(`${base}${next.manifest}`, manifestController.signal)
+        fetchRasterManifest<Manifest>(`${base}${next.manifest}`, manifestController.signal)
           .then((value) => {
             if (!active) return
             install(next, value)
@@ -311,7 +355,7 @@ export function MapCategoricalRaster({
       update(true)
     }
     status({ state: 'loading', message: 'Loading polygon index…' })
-    fetchJson<Manifest | Pyramid>(manifestUrl, manifestController.signal)
+    fetchRasterManifest<Manifest | Pyramid>(manifestUrl, manifestController.signal)
       .then((value) => {
         if (!active) return
         if ('levels' in value && value.format === 'categorical-raster-pyramid-v1') {

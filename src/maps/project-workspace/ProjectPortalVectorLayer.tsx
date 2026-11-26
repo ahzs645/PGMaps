@@ -4,12 +4,12 @@ import { useDeckOverlay } from '@/components/ui/map-deck'
 import { Button } from '@/components/ui/button'
 import { useMap } from '@/components/ui/map'
 import {
+  fetchRasterManifest,
   MapCategoricalRaster,
   type CategoricalRasterPick,
   type CategoricalRasterStatus,
 } from '@/components/ui/map-categorical-raster'
 import { MapGradientLegendItem } from '@/components/ui/map-panels'
-import { fetchJson } from '@/lib/fetchJson'
 import type { ProjectPortalRasterLayerDef } from '@/lib/projectPackages'
 import {
   numericRasterColor,
@@ -62,7 +62,8 @@ function useNumericRasterManifest(url: string) {
   const [result, setResult] = useState<{ url: string; manifest?: NumericRasterManifest; error?: string }>()
   useEffect(() => {
     const controller = new AbortController()
-    fetchJson<unknown>(url, controller.signal)
+    // Shared with MapCategoricalRaster's own read of the same index: one request per manifest.
+    fetchRasterManifest<unknown>(url, controller.signal)
       .then(parseNumericRasterManifest)
       .then((manifest) => {
         if (!controller.signal.aborted) setResult({ url, manifest })

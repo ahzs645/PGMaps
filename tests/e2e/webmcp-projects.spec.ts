@@ -83,12 +83,12 @@ test('WebMCP tools follow the page and update the visible map workspace', async 
   }>(page, 'find_map_projects', { query: 'climate and health' })
   expect(search.projects[0]).toMatchObject({
     slug: 'echoscreen-climate-health',
-    title: 'EchoScreen Cumulative Impacts Study',
+    title: 'Climate and Health',
   })
 
   await executeTool(page, 'open_map_project', { slug: 'echoscreen-climate-health' })
   await expect(page).toHaveURL(/\/projects\/echoscreen-climate-health$/)
-  await expect(page.getByRole('heading', { name: 'EchoScreen Cumulative Impacts Study' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Climate and Health' })).toBeVisible()
 
   await expect
     .poll(() => toolNames(page))

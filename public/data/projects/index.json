@@ -129,10 +129,10 @@
     },
     {
       "file": "echoscreen-climate-health.json",
-      "revision": "55ec4fe4cb22",
+      "revision": "bd9339f2e01b",
       "catalog": {
         "slug": "echoscreen-climate-health",
-        "title": "EchoScreen Cumulative Impacts Study",
+        "title": "Climate and Health",
         "kind": "raster-story",
         "theme": "cyan",
         "owner": "NH - UNBC",
@@ -142,7 +142,7 @@
         "summary": "Climate and health exchange map with watershed context, health facilities, future heat rasters, and precipitation-change layers.",
         "sourceNote": "Climate surfaces reproduce the original Northern Health consultant archive: annual days above 29°C (P50, SSP585, BCCAQv2 CMIP6) and future-minus-past seasonal precipitation in mm. Exact numeric vector blocks retain the original continuous QGIS colour ramps. The Northern Health outline uses the shared BCMoH vector; watershed boundaries and hospitals use local PGMaps vectors. River and watershed-label context still uses the Nechako portal.",
         "details": [
-          "Created for the NH - UNBC Climate & Health Knowledge Exchange Event on April 12, 2024.",
+          "Created for the NH - UNBC Climate & Health Knowledge Exchange Event on April 12, 2024. It is the Nechako Watershed Portal's \"Climate and Health\" project (ID 14), not the portal's EchoScreen Cumulative Impacts Study (ID 4).",
           "The project gives Northern Health staff and UNBC researchers a shared map package for climate-health discussion, northern BC expertise, resources, and collaboration opportunities.",
           "The consultant archive contains P50, SSP585 ClimateData.ca BCCAQv2 CMIP6 surfaces clipped to Northern Health. Heat uses days above 29°C for 1971–2000 and 2071–2100; this differs from the live portal’s >30°C layer. Seasonal precipitation is the change in total mm between those periods."
         ],

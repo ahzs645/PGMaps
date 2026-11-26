@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Map } from '@/components/ui/map'
 import { MapGeoJsonLayer } from '@/components/ui/map-layers'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import {
   InlineAlert,
   KeyValueRows,
@@ -449,9 +450,11 @@ export function CoverageWorkspace({ basemap }: { basemap: Basemap }) {
               lineWidth={0.8}
               onFeatureClick={(id) => choose(tiles.find((t) => String(t.properties.OBJECTID) === String(id)))}
               hoverHtml={(p) =>
-                [p.maptile, p.year, p.density != null ? `${p.density} pts/m²` : p.spacing]
-                  .filter((part) => part != null && String(part).trim() !== '')
-                  .join(' · ')
+                mapTooltipHtml({
+                  title: [p.maptile, p.year, p.density != null ? `${p.density} pts/m²` : p.spacing]
+                    .filter((part) => part != null && String(part).trim() !== '')
+                    .join(' · '),
+                })
               }
             />
           )}

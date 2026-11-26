@@ -1,4 +1,5 @@
 import { MapCircleLayer, MapLineLayer } from '@/components/ui/map-layers'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import type { historicalMapFeatures } from './accessHistoryMap'
 import type { AccessHistorySelection } from './AccessHistorySelection'
 
@@ -7,12 +8,46 @@ const escape = (value: unknown) =>
     /[&<>"']/g,
     (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!,
   )
-const routeHtml = (p: Record<string, unknown>) =>
-  `<strong>${escape(p.name)}</strong><br>${escape(p.relationship)} · ${escape(p.date)}<br>Status: ${escape(p.status)}<br>${Number(p.roadCount)} roads · ${Number(p.structureCount)} structures<br>${escape(p.explanation)}`
-const structureHtml = (p: Record<string, unknown>) =>
-  `<strong>${escape(p.name)}</strong><br>${escape(p.kind)} · ${escape(p.date)}<br>Site: ${escape(p.crossingSiteId)}<br>Structure: ${escape(p.structureId)}<br>Source row: ${escape(p.sourceRowId)}<br>Attachment: ${escape(p.attachment)}<br>Status: ${escape(p.status)}<br>${escape(p.explanation)}`
-const anchorHtml = (p: Record<string, unknown>) =>
-  `<strong>${escape(p.name)}</strong><br>${escape(p.role)}<br>${escape(p.road)}<br>${escape(p.block)}<br>${Number(p.sourceCount)} source records<br>${escape(p.explanation)}`
+type Card = { title: string; lines: string[] }
+const text = (value: unknown) => String(value ?? '')
+const route = (p: Record<string, unknown>): Card => ({
+  title: text(p.name),
+  lines: [
+    `${text(p.relationship)} · ${text(p.date)}`,
+    `Status: ${text(p.status)}`,
+    `${Number(p.roadCount)} roads · ${Number(p.structureCount)} structures`,
+    text(p.explanation),
+  ],
+})
+const structure = (p: Record<string, unknown>): Card => ({
+  title: text(p.name),
+  lines: [
+    `${text(p.kind)} · ${text(p.date)}`,
+    `Site: ${text(p.crossingSiteId)}`,
+    `Structure: ${text(p.structureId)}`,
+    `Source row: ${text(p.sourceRowId)}`,
+    `Attachment: ${text(p.attachment)}`,
+    `Status: ${text(p.status)}`,
+    text(p.explanation),
+  ],
+})
+const anchor = (p: Record<string, unknown>): Card => ({
+  title: text(p.name),
+  lines: [text(p.role), text(p.road), text(p.block), `${Number(p.sourceCount)} source records`, text(p.explanation)],
+})
+/** The click popup brings its own frame; the hover popup has none, so it draws the shared card. */
+const clickHtml = (card: (p: Record<string, unknown>) => Card) => (p: Record<string, unknown>) => {
+  const { title, lines } = card(p)
+  return [`<strong>${escape(title)}</strong>`, ...lines.map(escape)].join('<br>')
+}
+const hoverHtml = (card: (p: Record<string, unknown>) => Card) => (p: Record<string, unknown>) =>
+  mapTooltipHtml(card(p))
+const routeHtml = clickHtml(route)
+const structureHtml = clickHtml(structure)
+const anchorHtml = clickHtml(anchor)
+const routeHover = hoverHtml(route)
+const structureHover = hoverHtml(structure)
+const anchorHover = hoverHtml(anchor)
 
 /** Shared toolkit layers handle cleanup, style reloads and scoped map sources. */
 export function AccessHistoryLayers({
@@ -32,7 +67,7 @@ export function AccessHistoryLayers({
         opacity={0.9}
         dashArray={[2, 1]}
         layerOrder={60}
-        hoverHtml={routeHtml}
+        hoverHtml={routeHover}
         clickHtml={routeHtml}
       />
       <MapCircleLayer
@@ -43,7 +78,7 @@ export function AccessHistoryLayers({
         strokeColor="#ffffff"
         strokeWidth={2}
         layerOrder={61}
-        hoverHtml={structureHtml}
+        hoverHtml={structureHover}
         clickHtml={structureHtml}
         selectedId={selection?.kind === 'structure' ? selection.id : null}
       />
@@ -55,7 +90,7 @@ export function AccessHistoryLayers({
         strokeColor="#ffffff"
         strokeWidth={2}
         layerOrder={62}
-        hoverHtml={anchorHtml}
+        hoverHtml={anchorHover}
         clickHtml={anchorHtml}
       />
     </>

@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button'
 import { SelectField } from '@/components/ui/form-field'
 import { Map, useMap } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer } from '@/components/ui/map-layers'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { downloadBlob, downloadText } from '@/lib/download'
-import { escapeHtml } from '@/lib/escapeHtml'
 import {
   castorGeoTiff,
   castorLandingsGeoJson,
@@ -246,7 +246,18 @@ export function SpatialPanel({ project, result }: { project: CastorProject; resu
             selectedId={selected}
             onFeatureClick={(id) => setSelected(Number(id))}
             hoverHtml={(properties) =>
-              `<strong>Pixel ${escapeHtml(properties.pixelId)}</strong><br>Block ${escapeHtml(properties.blockId)}<br>${escapeHtml(details.label)}: ${properties.value === null ? 'Not recorded' : escapeHtml(number(Number(properties.value), 2))} ${escapeHtml(details.unit)}`
+              mapTooltipHtml({
+                title: `Pixel ${String(properties.pixelId ?? '')}`,
+                lines: [`Block ${String(properties.blockId ?? '')}`],
+                rows: [
+                  [
+                    details.label,
+                    properties.value === null
+                      ? 'Not recorded'
+                      : `${number(Number(properties.value), 2)} ${details.unit}`.trim(),
+                  ],
+                ],
+              })
             }
           />
           <MapCircleLayer
@@ -267,7 +278,10 @@ export function SpatialPanel({ project, result }: { project: CastorProject; resu
             strokeWidth={1.5}
             visible={landingsVisible}
             hoverHtml={(properties) =>
-              `<strong>Candidate landing</strong><br>Block ${escapeHtml(properties.blockId)}<br>Year ${escapeHtml(properties.year)}`
+              mapTooltipHtml({
+                title: 'Candidate landing',
+                lines: [`Block ${String(properties.blockId ?? '')}`, `Year ${String(properties.year ?? '')}`],
+              })
             }
           />
           <MapEvidence bounds={bounds} fitNonce={fitNonce} onRendered={setRendered} />

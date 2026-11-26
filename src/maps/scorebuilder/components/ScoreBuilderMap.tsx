@@ -4,7 +4,7 @@ import { Map as PgMap, MapClusterLayer, MapScaleBar, type MapRef } from '@/compo
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import { hexToRgbaArray } from '@/lib/color'
-import { escapeHtml } from '@/lib/escapeHtml'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { useMap } from '@/components/ui/map'
 import { useJsonManifest } from '@/maps/pgdata/shared'
 import {
@@ -72,7 +72,7 @@ function regionTooltip(properties: Record<string, unknown>): string | null {
 }
 
 function unrankedTooltip(properties: Record<string, unknown>): string {
-  return `<strong>${escapeHtml(String(properties.name ?? ''))}</strong><br />Not ranked: too little data`
+  return mapTooltipHtml({ title: String(properties.name ?? ''), lines: ['Not ranked: too little data'] })
 }
 
 export function ScoreBuilderMap({

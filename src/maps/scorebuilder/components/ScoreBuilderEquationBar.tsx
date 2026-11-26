@@ -1,5 +1,6 @@
+import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { CalculationFormula } from '@/components/ui/calculation-results'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronUp, Info, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { BoundarySource } from '@/maps/airquality'
@@ -220,27 +221,11 @@ function EquationChip({
   const isNegative = weight < 0
   const chipRef = useRef<HTMLDivElement>(null)
 
-  // Popover dismissal: outside pointer or Escape.
-  useEffect(() => {
-    if (!editing) return
-    const onPointerDown = (event: PointerEvent) => {
-      if (!chipRef.current?.contains(event.target as Node)) onCloseEdit()
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCloseEdit()
-    }
-    window.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('keydown', onKeyDown)
-    return () => {
-      window.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('keydown', onKeyDown)
-    }
-  }, [editing, onCloseEdit])
-
   return (
-    <div ref={chipRef} className="relative flex items-center gap-2">
+    <div className="relative flex items-center gap-2">
       {leading && <span className="text-muted-foreground">+</span>}
       <div
+        ref={chipRef}
         data-score-builder-equation-term={metric.key}
         data-score-builder-term-inactive={unavailable ? 'true' : undefined}
         title={
@@ -324,13 +309,17 @@ function EquationChip({
         </button>
       </div>
 
-      {editing && (
-        <div
-          role="dialog"
-          aria-label={`${metric.shortLabel} weight`}
-          data-score-builder-weight-popover={metric.key}
-          className="absolute left-0 top-full z-40 mt-1.5 w-[22rem] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-background p-2 shadow-xl"
-        >
+      {/* The shared floating panel: portalled and fixed, so the map below the bar cannot cover or clip it. */}
+      <AnchoredPopover
+        anchorRef={chipRef}
+        open={editing}
+        onClose={onCloseEdit}
+        role="dialog"
+        ariaLabel={`${metric.shortLabel} weight`}
+        width={352}
+        className="max-w-[calc(100vw-2rem)] rounded-lg p-2"
+      >
+        <div data-score-builder-weight-popover={metric.key}>
           <div className="mb-1.5 px-1 text-xs text-muted-foreground">{metric.label}</div>
           <CompactWeightRow
             metric={metric}
@@ -341,7 +330,7 @@ function EquationChip({
             onChange={onWeightChange}
           />
         </div>
-      )}
+      </AnchoredPopover>
     </div>
   )
 }

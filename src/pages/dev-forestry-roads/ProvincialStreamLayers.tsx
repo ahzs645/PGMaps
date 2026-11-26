@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { MapCircleLayer, MapFillLayer } from '@/components/ui/map-layers'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { provincialEvidenceGeoJson, type ProvincialStreamData } from './provincialStreamData'
 
 const escape = (value: unknown) =>
@@ -7,10 +8,28 @@ const escape = (value: unknown) =>
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
   )
-const evidenceHtml = (p: Record<string, unknown>) =>
-  p.kind === 'fish-observation'
-    ? `<strong>${escape(p.name)}</strong><br>Fish observation · ${escape(p.observed_on ?? 'date not recorded')}<br>${escape(p.waterbody ?? 'waterbody not recorded')}<br>Source evidence; review its relevance to this stream.`
-    : `<strong>${escape(p.name)}</strong><br>Community watershed · ${escape(p.code)}<br>${escape(p.legislation)}<br>Mapped designation; review the reach against the boundary.`
+const evidence = (p: Record<string, unknown>) => ({
+  title: String(p.name ?? ''),
+  lines:
+    p.kind === 'fish-observation'
+      ? [
+          `Fish observation · ${String(p.observed_on ?? 'date not recorded')}`,
+          String(p.waterbody ?? 'waterbody not recorded'),
+          'Source evidence; review its relevance to this stream.',
+        ]
+      : [
+          `Community watershed · ${String(p.code ?? '')}`,
+          String(p.legislation ?? ''),
+          'Mapped designation; review the reach against the boundary.',
+        ],
+})
+/** The click popup brings its own frame. */
+const evidenceHtml = (p: Record<string, unknown>) => {
+  const { title, lines } = evidence(p)
+  return [`<strong>${escape(title)}</strong>`, ...lines.map(escape)].join('<br>')
+}
+/** The hover popup has no frame, so it draws the shared card. */
+const evidenceHover = (p: Record<string, unknown>) => mapTooltipHtml(evidence(p))
 
 export function ProvincialStreamLayers({ data }: { data?: ProvincialStreamData }) {
   const collections = useMemo(() => {
@@ -41,14 +60,14 @@ export function ProvincialStreamLayers({ data }: { data?: ProvincialStreamData }
         lineColor="#d97706"
         lineOpacity={0.8}
         lineWidth={1.5}
-        hoverHtml={evidenceHtml}
+        hoverHtml={evidenceHover}
       />
       <MapCircleLayer
         sourceKey="road-provincial-fish"
         data={collections.fish}
         color="#7c3aed"
         radius={4}
-        hoverHtml={evidenceHtml}
+        hoverHtml={evidenceHover}
         clickHtml={evidenceHtml}
       />
     </>

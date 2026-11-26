@@ -5,6 +5,7 @@ import { geometryBounds } from '@/lib/geo'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { Map, useMap } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { numberColumn, textColumn } from '@/components/map/tableColumns'
 import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
@@ -22,7 +23,6 @@ import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { StyledSelect } from '@/components/ui/form-field'
 import { ExternalLink } from '@/components/ui/text-button'
 import { useFetchData } from '@/hooks/useFetchData'
-import { escapeHtml } from '@/lib/escapeHtml'
 import { featureCenter, featuresBounds } from '@/lib/featureBounds'
 import { formatBytes } from '@/lib/format'
 import {
@@ -578,7 +578,28 @@ export default function DevEarlyLearning() {
           fillOpacity={0.65}
           onFeatureClick={(id) => setSelected(id)}
           hoverHtml={(p) =>
-            `<strong>${escapeHtml(String(p.regionName))}</strong><br/>${escapeHtml(p.status === 'reference_only' ? 'Reference boundary · no matched EDI values' : p.status === 'boundary_changed' ? 'Boundary changed since the EDI polygon · value not reassigned' : p.status === 'not_in_edi' ? 'Created after the EDI boundaries · no EDI value' : formatObservation(p.status === 'no_result' ? undefined : { wave, measure: measure?.id ?? '', value: typeof p.value === 'number' ? p.value : null, status: String(p.status) }, measure?.unit))}`
+            mapTooltipHtml({
+              title: String(p.regionName),
+              lines: [
+                p.status === 'reference_only'
+                  ? 'Reference boundary · no matched EDI values'
+                  : p.status === 'boundary_changed'
+                    ? 'Boundary changed since the EDI polygon · value not reassigned'
+                    : p.status === 'not_in_edi'
+                      ? 'Created after the EDI boundaries · no EDI value'
+                      : formatObservation(
+                          p.status === 'no_result'
+                            ? undefined
+                            : {
+                                wave,
+                                measure: measure?.id ?? '',
+                                value: typeof p.value === 'number' ? p.value : null,
+                                status: String(p.status),
+                              },
+                          measure?.unit,
+                        ),
+              ],
+            })
           }
         />
         <FocusRegion data={geometry} selected={selected || region?.id || ''} />

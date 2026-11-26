@@ -10,7 +10,7 @@ import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import type { MapRef } from '@/components/ui/map'
 import { Notification } from '@/components/ui/notification'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
-import { escapeHtml } from '@/lib/escapeHtml'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { ScoreBuilderBuildView } from './components/ScoreBuilderBuildView'
 import { IndexLabHeader, LabsBackLink } from './components/IndexLabHeader'
 import { ScoreBuilderEquationBar } from './components/ScoreBuilderEquationBar'
@@ -602,17 +602,20 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
   const regionTooltips = useMemo(() => {
     const tooltips: Record<string, string> = {}
     for (const entry of results.scoredRegions) {
-      const lines = isIndexLab
-        ? [`#${entry.rank} · score ${formatScore(entry.score)}`]
+      const rows: Array<readonly [string, string]> = isIndexLab
+        ? []
         : lensMetrics.map(
-            (metric) =>
-              `${escapeHtml(getMetricLabel(metric))}: ${escapeHtml(formatMetricValue(metric, entry.metrics[metric], true))}`,
+            (metric) => [getMetricLabel(metric), formatMetricValue(metric, entry.metrics[metric], true)] as const,
           )
       if (spatial.clusterShown) {
         const cluster = spatial.summary?.clusterById.get(entry.region.id) ?? 'none'
-        lines.push(`Cluster: ${escapeHtml(CLUSTER_LABELS[cluster])}`)
+        rows.push(['Cluster', CLUSTER_LABELS[cluster]])
       }
-      tooltips[entry.region.id] = [`<strong>${escapeHtml(entry.region.name)}</strong>`, ...lines].join('<br />')
+      tooltips[entry.region.id] = mapTooltipHtml({
+        title: entry.region.name,
+        lines: isIndexLab ? [`#${entry.rank} · score ${formatScore(entry.score)}`] : [],
+        rows,
+      })
     }
     return tooltips
   }, [isIndexLab, lensMetrics, results.scoredRegions, spatial.clusterShown, spatial.summary])

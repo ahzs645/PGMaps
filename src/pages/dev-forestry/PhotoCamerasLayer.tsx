@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { areaSymbolPaint, lineSymbolPaint, PX_PER_PT } from '@/lib/mapSheet/mapSymbols'
 
 import {
@@ -24,9 +25,6 @@ const CAMERA_RADIUS = (CAMERA.size / 2) * PX_PER_PT
 /** The camera's halo; the catalogue's entry carries one, and the plan reads it from there. */
 const CAMERA_HALO = CAMERA.halo ?? { color: '#ffffff', width: 1.5 }
 const PAIR_RADIUS = (PHOTO_PLAN_SYMBOLS.pair.size / 2) * PX_PER_PT
-
-const escapeHtml = (text: string) =>
-  text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
 /**
  * Own photos' cameras on the plan: each camera's cone out to its frame's far hit, a point at each camera (the
@@ -125,7 +123,7 @@ export function PhotoCamerasLayer({
         strokeWidth={['case', ['==', ['get', 'active'], 1], 3, CAMERA_HALO.width * PX_PER_PT] as never}
         hoverHtml={(properties) => {
           const label = String(properties.label ?? '')
-          return label ? `<span>${escapeHtml(label)}${onOpen ? ' · click to open' : ''}</span>` : null
+          return label ? mapTooltipHtml({ title: label, lines: onOpen ? ['Click to open'] : [] }) : null
         }}
         onFeatureClick={onOpen ? (id) => onOpen(String(id)) : undefined}
       />
