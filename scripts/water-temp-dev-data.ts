@@ -1,4 +1,4 @@
-import { createReadStream } from 'node:fs'
+import { createReadStream, existsSync } from 'node:fs'
 import path from 'node:path'
 import type { Plugin } from 'vite'
 
@@ -10,10 +10,22 @@ export function waterTempDevDataPlugin(): Plugin {
   return {
     name: 'water-temperature-local-review',
     apply: 'serve',
+    config() {
+      if (process.env.PGMAPS_WATER_TEMP_DATA_DIR || existsSync(path.join(root, 'stations.json'))) {
+        return { define: { 'import.meta.env.VITE_WATER_TEMP_LOCAL': JSON.stringify('true') } }
+      }
+    },
     configureServer(server) {
       server.middlewares.use('/__dev_water_temp', (req, res) => {
-        const file = (req.url ?? '').split('?')[0].replace(/^\//, '')
-        if (!/^(stations\.json|config\.json|data\/[A-Za-z0-9_-]+\.json)$/.test(file)) {
+        let file: string
+        try {
+          file = decodeURIComponent((req.url ?? '').split('?')[0].replace(/^\//, ''))
+        } catch {
+          res.statusCode = 400
+          res.end('Invalid water temperature filename')
+          return
+        }
+        if (!/^(stations\.json|config\.json|data\/[A-Za-z0-9_-][A-Za-z0-9_ .-]*\.json)$/.test(file)) {
           res.statusCode = 404
           res.end('Unknown water temperature file')
           return

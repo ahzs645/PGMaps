@@ -86,13 +86,17 @@ const devEntries: DevEntry[] = [
     ],
   },
   {
-    title: 'Water temperature',
+    title: 'Nechako water, weather and streamflow',
     description:
-      'UNBC station comparison with linked temperature, seasonality and air/water plots from the reference repository snapshot.',
+      'Explore UNBC water temperatures and weather observations, and compare daily streamflow with water temperature.',
     href: '/dev/water-temperature',
     icon: CircleDot,
     color: 'bg-sky-600',
     label: '/dev/water-temperature',
+    subpages: [
+      { label: 'Weather stations', href: '/dev/water-temperature?view=weather' },
+      { label: 'Streamflow', href: '/dev/water-temperature?view=flow' },
+    ],
   },
   {
     title: 'Flatten',
