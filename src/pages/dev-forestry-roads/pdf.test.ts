@@ -11,6 +11,10 @@ const captured = vi.hoisted(() => ({
     splitTextToSize: vi.fn((value: string) => [value]),
     text: vi.fn(),
     addImage: vi.fn(),
+    setFillColor: vi.fn(),
+    setDrawColor: vi.fn(),
+    rect: vi.fn(),
+    line: vi.fn(),
     getNumberOfPages: vi.fn(() => 1),
     setPage: vi.fn(),
     output: vi.fn(() => new Blob(['%PDF-test'])),
@@ -159,6 +163,45 @@ describe('report PDF drawing rasterization', () => {
     await exportReportPdf('<report fixture>', 'report.pdf')
     const printed = captured.pdf.text.mock.calls.map((call) => call[0])
     expect(printed).toEqual(expect.arrayContaining(['1. Inverts', '2. Span', '- Flag']))
+  })
+
+  it('keeps results and measured values on separate lines in a table cell', async () => {
+    fixture()
+    vi.stubGlobal(
+      'Node',
+      class Node {
+        static TEXT_NODE = 3
+        static ELEMENT_NODE = 1
+      },
+    )
+    const plain = (value: string) => ({ nodeType: 3, nodeValue: value })
+    const element = (tagName: string, childNodes: unknown[] = []) => ({ nodeType: 1, tagName, childNodes })
+    const heading = element('TH', [plain('Result and measured value')])
+    const value = element('TD', [
+      plain('No crossing structure'),
+      element('BR'),
+      element('SPAN', [plain('0+600.5'), element('STRONG', [plain(' m')]), plain(' — mapped crossing')]),
+    ])
+    // This models what textContent alone yields; the break has no text.
+    Object.assign(value, { textContent: 'No crossing structure0+600.5 m — mapped crossing' })
+    const row = (cell: ReturnType<typeof element>) => ({ children: [cell], querySelectorAll: () => [cell] })
+    const table = { tagName: 'TABLE', querySelectorAll: () => [row(heading), row(value)] }
+    vi.stubGlobal(
+      'DOMParser',
+      class {
+        parseFromString() {
+          return { body: { children: [table] } }
+        }
+      },
+    )
+    await exportReportPdf('<report fixture>', 'report.pdf')
+    expect(captured.pdf.splitTextToSize).toHaveBeenCalledWith(
+      'No crossing structure\n0+600.5 m  -  mapped crossing',
+      179,
+    )
+    expect(captured.pdf.splitTextToSize.mock.calls.flat()).not.toContain(
+      'No crossing structure0+600.5 m  -  mapped crossing',
+    )
   })
 
   it('releases the SVG resource and does not download an incomplete PDF if image decoding fails', async () => {

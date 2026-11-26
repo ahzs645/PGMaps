@@ -8,6 +8,24 @@ const text = (value: string) =>
 /** Text as the report and Map PDF print it in jsPDF's standard fonts. */
 export const pdfPlainText = text
 
+/** Keep explicit HTML line breaks without inserting spaces inside inline phrases or quantities. */
+function tableCellText(cell: Element): string {
+  const read = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return (node.nodeValue ?? '').replace(/\s+/g, ' ')
+    if (node.nodeType !== Node.ELEMENT_NODE) return ''
+    const tag = (node as Element).tagName.toLowerCase()
+    if (NON_CONTENT.test(tag)) return ''
+    if (tag === 'br') return '\n'
+    return [...node.childNodes].map(read).join('')
+  }
+  return text(
+    read(cell)
+      .split('\n')
+      .map((line) => line.trim())
+      .join('\n'),
+  )
+}
+
 /** A table cell that reads as one quantity (money, a measure, a percentage) or an empty dash. */
 const NUMERIC_CELL = /^\s*(?:[-+]?\$?\(?[\d,]+(?:\.\d+)?\)?\s*(?:%|m|m²|m³|km|ha)?|-)\s*$/
 /** Elements whose text is never page content. */
@@ -331,9 +349,7 @@ export async function reportPdfBlob(
   }
   const table = (element: Element) => {
     const rowElements = [...element.querySelectorAll('tr')]
-    const rows = rowElements.map((row) =>
-      [...row.querySelectorAll('th,td')].map((cell) => text(cell.textContent ?? '')),
-    )
+    const rows = rowElements.map((row) => [...row.querySelectorAll('th,td')].map(tableCellText))
     if (!rows.length) return
     // A body row of header cells only (a subtotal or total) prints bold and shaded across the table.
     const strong = rowElements.map(
