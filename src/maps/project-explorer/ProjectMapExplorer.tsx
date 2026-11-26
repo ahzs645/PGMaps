@@ -58,6 +58,7 @@ export function ProjectMapExplorer({
     )
   }
 
+  const recordCount = data.filteredStats.totalPublications
   return (
     <MapSectionLayout
       sidebar={
@@ -82,7 +83,8 @@ export function ProjectMapExplorer({
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">{title}</div>
           <div className="truncate text-xs text-muted-foreground">
-            {data.filteredStats.totalPublications.toLocaleString(DEFAULT_LOCALE)} {config.labels.recordPlural}
+            {recordCount.toLocaleString(DEFAULT_LOCALE)}{' '}
+            {recordCount === 1 ? config.labels.recordSingular : config.labels.recordPlural}
           </div>
         </div>
       }

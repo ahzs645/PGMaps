@@ -10,7 +10,7 @@ export interface ResearchRecordsOverview {
 }
 
 export interface ResearchRecord {
-  id: number
+  id: number | string
   title: string | null
   resourceType: string
   resourceTypeMain: string
@@ -24,6 +24,7 @@ export interface ResearchRecord {
 export interface ResearchRecordsLocation {
   id: string
   name: string
+  source?: { url: string; tags: string[]; month?: string }
   coordinates: { lat: number; lon: number } | null
   coordinateSource: string | null
   totalPublications: number

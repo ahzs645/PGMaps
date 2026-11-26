@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "slug": "ecolens",
+  "title": "EcoLens Climate Stories",
+  "kind": "research-pack",
+  "theme": "emerald",
+  "owner": "BC Centre for Disease Control",
+  "updated": "November 2026",
+  "region": "British Columbia and beyond",
+  "status": "Reference snapshot",
+  "summary": "Explore community stories about climate change and health. Filter by region, search by title or theme, and open the original story on EcoLens.",
+  "sourceNote": "BC DataMapper captured 78 pins from the public EcoLens map on November 26, 2026. EcoLens may adjust submitted locations for privacy.",
+  "links": [
+    { "label": "Original EcoLens map", "href": "https://ecolens.ca/explore-map/" },
+    { "label": "About EcoLens", "href": "https://ecolens.ca/about/" }
+  ],
+  "catalogMetrics": [
+    { "label": "Story pins", "value": "78" },
+    { "label": "Tagged Outside BC", "value": "13" }
+  ],
+  "layers": [{ "id": "story-pins", "label": "EcoLens story pins", "type": "point", "checked": true }],
+  "legend": [],
+  "scenes": [],
+  "files": [{ "label": "Story pins", "detail": "GeoJSON with published locations, titles, tags, and EcoLens story links." }],
+  "workspace": {
+    "type": "map-explorer",
+    "schema": "map-explorer-v1",
+    "data": {
+      "adapter": "geojson-points-v1",
+      "url": "/data/ecolens/story-pins.geojson",
+      "categories": [
+        { "id": "cariboo", "label": "Cariboo", "color": "#b45309" },
+        { "id": "kootenay", "label": "Kootenay", "color": "#9333ea" },
+        { "id": "mainland-southwest", "label": "Mainland/Southwest", "color": "#047857" },
+        { "id": "nechako", "label": "Nechako", "color": "#c2410c" },
+        { "id": "north-coast", "label": "North Coast", "color": "#0369a1" },
+        { "id": "northeast", "label": "Northeast", "color": "#a21caf" },
+        { "id": "outside-bc", "label": "Outside BC", "color": "#be123c" },
+        { "id": "thompson-okanagan", "label": "Thompson-Okanagan", "color": "#ca8a04" },
+        { "id": "vancouver-island-coast", "label": "Vancouver Island/Coast", "color": "#2563eb" },
+        { "id": "other", "label": "Region unspecified", "color": "#64748b" }
+      ],
+      "aggregateLocationIds": []
+    },
+    "map": { "center": [-125, 53.4], "zoom": 4.35, "minZoom": 1, "maxZoom": 15 },
+    "labels": {
+      "recordSingular": "story",
+      "recordPlural": "stories",
+      "locationSingular": "story pin",
+      "locationPlural": "story pins",
+      "yearPlural": "years",
+      "loading": "Loading EcoLens stories…",
+      "unavailable": "EcoLens story data unavailable"
+    },
+    "features": [
+      {
+        "type": "summary-stats",
+        "items": [
+          { "metric": "records", "label": "Stories", "icon": "book-open" },
+          { "metric": "year-range", "label": "Years", "icon": "calendar" }
+        ]
+      },
+      { "type": "search", "placeholder": "Search titles or themes…", "fields": ["title", "tags"] },
+      { "type": "category-filter", "title": "Regions" },
+      { "type": "ranked-list", "title": "Story pins", "limit": 15 },
+      { "type": "location-popup", "maxCategories": 1 }
+    ]
+  }
+}

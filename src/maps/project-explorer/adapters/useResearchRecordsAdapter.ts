@@ -12,6 +12,7 @@ import type {
   ResearchRecordsTimelineBucket,
 } from './researchRecordsTypes'
 import { researchLocationDisplayName } from './researchLocationNames'
+import { loadGeoJsonPoints } from './geoJsonPoints'
 
 export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef, timelineMode = false) {
   const [overview, setOverview] = useState<ResearchRecordsOverview | null>(null)
@@ -49,21 +50,27 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
 
   useEffect(() => {
     const controller = new AbortController()
-    const base = config.data.baseUrl
+    const source = config.data
+    const signal = controller.signal
+    const load =
+      source.adapter === 'geojson-points-v1'
+        ? loadGeoJsonPoints(source, signal)
+        : Promise.all([
+            fetchJson<ResearchRecordsOverview>(`${source.baseUrl}${source.files.overview}`, signal),
+            fetchJson<ResearchRecord[]>(`${source.baseUrl}${source.files.records}`, signal),
+            fetchJson<ResearchRecordsLocation[]>(`${source.baseUrl}${source.files.locations}`, signal),
+            fetchJson<ResearchRecordsTimelineBucket[]>(`${source.baseUrl}${source.files.timeline}`, signal),
+          ])
 
-    Promise.all([
-      fetchJson<ResearchRecordsOverview>(`${base}${config.data.files.overview}`, controller.signal),
-      fetchJson<ResearchRecord[]>(`${base}${config.data.files.records}`, controller.signal),
-      fetchJson<ResearchRecordsLocation[]>(`${base}${config.data.files.locations}`, controller.signal),
-      fetchJson<ResearchRecordsTimelineBucket[]>(`${base}${config.data.files.timeline}`, controller.signal),
-    ])
+    load
       .then(([nextOverview, nextSubmissions, nextLocations, nextDecades]) => {
+        if (signal.aborted) return
         setOverview(nextOverview)
         setSubmissions(nextSubmissions)
         setLocations(
           nextLocations.map((location) => ({
             ...location,
-            name: researchLocationDisplayName(location),
+            name: source.adapter === 'research-records-v1' ? researchLocationDisplayName(location) : location.name,
           })),
         )
         setDecades(nextDecades)
@@ -76,7 +83,7 @@ export function useResearchRecordsAdapter(config: ProjectMapExplorerWorkspaceDef
       })
 
     return () => controller.abort()
-  }, [config.data.baseUrl, config.data.files, reloadKey])
+  }, [config.data, reloadKey])
 
   const matchingSubmissions = useMemo(
     () =>

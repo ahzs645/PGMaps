@@ -181,17 +181,16 @@ export interface ProjectMapExplorerWorkspaceDef {
   type: 'map-explorer'
   schema: 'map-explorer-v1'
   data: {
-    adapter: 'research-records-v1'
-    baseUrl: string
-    files: {
-      overview: string
-      records: string
-      locations: string
-      timeline: string
-    }
     categories: ProjectExplorerCategoryDef[]
     aggregateLocationIds: string[]
-  }
+  } & (
+    | {
+        adapter: 'research-records-v1'
+        baseUrl: string
+        files: { overview: string; records: string; locations: string; timeline: string }
+      }
+    | { adapter: 'geojson-points-v1'; url: string }
+  )
   map: {
     center: [number, number]
     zoom: number
@@ -743,6 +742,37 @@ function normalizeExplorerFeature(value: unknown): ProjectExplorerFeatureDef | n
   }
 }
 
+function normalizeExplorerData(value: unknown): ProjectMapExplorerWorkspaceDef['data'] | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const data = value as Record<string, unknown>
+  const categories = asArray(data.categories, (item): item is ProjectExplorerCategoryDef => {
+    const entry = item as Partial<ProjectExplorerCategoryDef>
+    return typeof entry?.id === 'string' && typeof entry.label === 'string' && typeof entry.color === 'string'
+  })
+  if (categories.length === 0) return undefined
+  const aggregateLocationIds = asArray(data.aggregateLocationIds, (item): item is string => typeof item === 'string')
+
+  if (data.adapter === 'geojson-points-v1') {
+    const url = data.url
+    if (!(typeof url === 'string' && url.startsWith('/data/')) && !isHttpsUrl(url)) return undefined
+    return { adapter: data.adapter, url, categories, aggregateLocationIds }
+  }
+  if (data.adapter !== 'research-records-v1' || !isHttpsUrl(data.baseUrl)) return undefined
+  const files = data.files as Record<string, unknown> | undefined
+  return {
+    adapter: data.adapter,
+    baseUrl: data.baseUrl.endsWith('/') ? data.baseUrl : `${data.baseUrl}/`,
+    files: {
+      overview: asString(files?.overview, 'overview.json'),
+      records: asString(files?.records, 'records.json'),
+      locations: asString(files?.locations, 'locations.json'),
+      timeline: asString(files?.timeline, 'timeline.json'),
+    },
+    categories,
+    aggregateLocationIds,
+  }
+}
+
 function normalizeWorkspace(value: unknown): ProjectWorkspaceDef | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const candidate = value as Record<string, unknown>
@@ -750,9 +780,8 @@ function normalizeWorkspace(value: unknown): ProjectWorkspaceDef | undefined {
   if (storyWorkspace) return storyWorkspace
   if (candidate.type !== 'map-explorer' || candidate.schema !== 'map-explorer-v1') return undefined
 
-  const data = candidate.data as Record<string, unknown> | undefined
-  if (data?.adapter !== 'research-records-v1' || !isHttpsUrl(data.baseUrl)) return undefined
-  const files = data.files as Record<string, unknown> | undefined
+  const data = normalizeExplorerData(candidate.data)
+  if (!data) return undefined
   const map = candidate.map as Record<string, unknown> | undefined
   const labels = candidate.labels as Record<string, unknown> | undefined
   const center = map?.center
@@ -766,32 +795,17 @@ function normalizeWorkspace(value: unknown): ProjectWorkspaceDef | undefined {
     return undefined
   }
 
-  const categories = asArray(data.categories, (item): item is ProjectExplorerCategoryDef => {
-    const entry = item as Partial<ProjectExplorerCategoryDef>
-    return typeof entry?.id === 'string' && typeof entry.label === 'string' && typeof entry.color === 'string'
-  })
   const features = Array.isArray(candidate.features)
     ? candidate.features
         .map(normalizeExplorerFeature)
         .filter((item): item is ProjectExplorerFeatureDef => item !== null)
     : []
-  if (categories.length === 0 || features.length === 0) return undefined
+  if (features.length === 0) return undefined
 
   return {
     type: candidate.type,
     schema: candidate.schema,
-    data: {
-      adapter: data.adapter,
-      baseUrl: data.baseUrl.endsWith('/') ? data.baseUrl : `${data.baseUrl}/`,
-      files: {
-        overview: asString(files?.overview, 'overview.json'),
-        records: asString(files?.records, 'records.json'),
-        locations: asString(files?.locations, 'locations.json'),
-        timeline: asString(files?.timeline, 'timeline.json'),
-      },
-      categories,
-      aggregateLocationIds: asArray(data.aggregateLocationIds, (item): item is string => typeof item === 'string'),
-    },
+    data,
     map: {
       center: [center[0], center[1]],
       zoom: map.zoom,
