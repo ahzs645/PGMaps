@@ -1,4 +1,4 @@
-# Water-temperature dashboard preview
+# Water, weather and streamflow dashboard
 
 Open `/dev/water-temperature` from the development library. This page recreates
 the core UNBC WaterTempVIZ workflow using PGMaps' React, MapLibre, shared UI and
@@ -6,7 +6,7 @@ Recharts stack: four-station comparison, search/coverage filters, daily/monthly/
 seasonal means, a linked date-range navigator, calendar-aligned seasonality,
 air/water scatter plots and filtered daily CSV export.
 
-## Comparison with the reference
+## Water dashboard comparison with the original reference
 
 Compared against the local reference's `src/pages/index.vue`,
 `StationMap.vue`, `TimeseriesChart.vue`, `SeasonalChart.vue` and
@@ -30,7 +30,7 @@ and individual years. PGMaps now follows that arrangement:
 | CSV download                                              | Daily observations within the selected dates; hidden series remain in the export                                                                                                                                 |
 | PNG/JPEG/SVG/PDF chart exports and chart help             | Included in each compact chart options dialog                                                                                                                                                                    |
 | Guided tour                                               | Not ported; chart-specific instructions are available in the options dialogs                                                                                                                                     |
-| Watershed boundaries and basin filtering                  | Not ported; referenced GeoJSON is absent from the local source snapshot                                                                                                                                          |
+| Watershed boundaries and basin filtering                  | Nechako outline and station membership use BC Freshwater Atlas watershed 8886                                                                                                                                          |
 
 The station pane has no independent scroll port. Its map fills the available
 desktop height, with one line per selected station below. Its color/code/name row also toggles
@@ -70,32 +70,64 @@ still draws the axes/grid, while the toolkit’s `XYPlot` handles interaction.
 
 ## Data sources
 
-The Vite development middleware reads the existing sibling checkout at
-`../unbcwatertemp-viz/public/data`. Set `PGMAPS_WATER_TEMP_DATA_DIR` before starting
-Vite to use another snapshot directory. It serves only `stations.json`,
-`config.json` and named station JSON files under `data/`.
+The Water stations tab reads `stations.json`, `config.json` and selected
+daily series from the [UNBC publisher feed](https://nhgwatertemp.unbc.ca/).
+Source filenames may include spaces. The browser fetches and caches station
+files on demand for the current page session. Downloads include the filtered
+daily CSV with published minimum, maximum and reading count, plus links to
+15-minute water and hourly air files when published. UNBC's daily water feed
+also supplies air values without a per-reading provenance field. The dashboard
+labels them as supplied air values. The [Zenodo archive](https://zenodo.org/records/15053907)
+is the cited release for the publicly licensed 2019–2024 sub-hourly data.
 
-The page is listed in the live `/dev` library as well as the local library.
-Production loads `stations.json`, `config.json` and each selected station's
-observations directly from the reference repository's public
-[`main/public/data`](https://github.com/ahzs645/unbcwatertemp-viz/tree/main/public/data)
-snapshot through `raw.githubusercontent.com`. It follows the repository's main
-branch, so published data updates appear without rebuilding PGMaps. Station
-files are fetched on selection and cached for the current page session.
+Vite uses the sibling snapshot at `../unbcwatertemp-viz/public/data` when its
+station catalog is present at startup. Set `PGMAPS_WATER_TEMP_DATA_DIR` to
+select another snapshot directory.
+The middleware serves the catalog, config and named station JSON under
+`data/`. The browser fetches weather and streamflow from their public feeds
+at runtime.
 
-No source files are copied into PGMaps or its production build. The local
-middleware endpoint remains development-only.
-The source config's update date and Daymet availability are available on the
-header's information icon. Calculation notes live on the mode controls' hover
-text so the dashboard reserves its space for plots. The frontend neither runs
-the original R pipeline nor refreshes data.
+Both station maps use the shared light/dark Carto basemap. The watershed
+overlay and membership filter use Freshwater Atlas named watershed 8886 in
+PGMaps' existing stream-order-8 boundary snapshot. Filtering changes map and
+browser membership. Water stations already selected remain in the comparison.
 
-The station map uses the shared `Map` component's default Carto vector basemaps:
-Positron in light mode and Dark Matter in dark mode. It follows the site's theme
-and shares the same map styling as the other standard map sections. There is no
-page-specific basemap selector or styling override.
-Watershed filtering and a guided tour are not included. The local source snapshot contains no watershed GeoJSON or
-station basin assignments, so basin membership is not inferred.
+## Weather stations and measured air
+
+Open the Weather stations tab directly with `?view=weather`. The UNBC weather
+catalog lists locations, coverage dates, published fields and units, original
+downloads, metadata and monthly gzip CSVs. The tab displays one station
+and variable at a time at the source interval. It defaults to the last month
+of that station's published record and fetches only months intersecting the
+applied date range. Each interactive window covers up to 92 days to keep the
+original-interval chart and table responsive. The original archive link
+covers the complete published record.
+
+Timestamp offsets, source units, multiple quality codes and missing readings
+are preserved. The QC summary counts supplied codes across the applied date
+range and the display filter controls the chart, table and filtered export.
+Some codes describe conditions such as nighttime or a station visit. The
+filtered CSV keeps the units row and all source columns. François Lake is a
+metadata-only station in the reviewed feed.
+
+Nulki Lake and Quesnel Lake West Arm are the two catalog IDs verified as
+co-located across the networks. Their optional comparison matches the water
+feed's daily date labels to the weather station's source calendar dates.
+A measured daily air mean requires at least 72 distinct quarter-hour slots
+marked Pass. Other sites need reviewed pairings and date conventions before
+being used for combined analysis. Weather feed support, attribution and
+reuse terms, update cadence, and the provenance of the water feed's supplied
+air values remain questions for UNBC.
+
+## Historical streamflow
+
+Open the Streamflow tab with `?view=flow`. It pulls archived daily discharge
+from Water Survey of Canada via GeoMet HYDAT for Vanderhoof (08JC001) and
+Isle Pierre (08JC002). Choose a Nechako River temperature site independently.
+The two charts share their date window and use different vertical units.
+The initial summer 2024 range is a worked example with observations from
+both sources. Missing dates stay open and CSV includes the discharge quality
+symbol where supplied. The gauge link opens current readings separately.
 
 ## Semantics and boundaries
 
@@ -136,9 +168,7 @@ inside the chart toolkit. The existing project-package schema is unchanged.
 
 Basemap appearance is shared through `buildBasemapStyle` in the toolkit's
 `/map/map-styles` export; both `/dev/design` and this dashboard use it. Source
-tile fetching and named color presets remain host-owned. The source map's
-watershed outlines/filtering are still unavailable in this checkout. This is
-a code comparison, not a claim of pixel-identical Leaflet/MapLibre rendering.
+tile fetching and named color presets remain host-owned. PGMaps draws its own BC Freshwater Atlas outline and filters station membership against that geometry.
 
 Validate with the focused Vitest calculation tests, TypeScript and ESLint, and
 `tests/e2e/water-temperature.spec.ts`. The browser tests stub station data and a

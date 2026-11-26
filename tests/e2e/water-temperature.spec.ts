@@ -1,3 +1,4 @@
+import { gzipSync } from 'node:zlib'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { choose } from './styled-select'
 
@@ -22,15 +23,40 @@ const observations = Array.from({ length: 90 }, (_, index) => ({
   airtemp_c: index % 25,
 }))
 
-async function prepare(page: Page) {
+const boundary = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: { boundaryCode: '8886' },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [-126, 53],
+            [-124.9, 53],
+            [-124.9, 54.5],
+            [-126, 54.5],
+            [-126, 53],
+          ],
+        ],
+      },
+    },
+  ],
+}
+
+async function prepare(page: Page, catalog = stations) {
+  await page.route('**/data/boundaries/BCFWA/named_watersheds_stream_order_8_50m.geojson.gz', (route) =>
+    route.fulfill({ json: boundary }),
+  )
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.route('**/__dev_water_temp/stations.json', (route) => route.fulfill({ json: stations }))
-  await page.route('**/__dev_water_temp/config.json', (route) =>
+  await page.route('https://nhgwatertemp.unbc.ca/data/stations.json', (route) => route.fulfill({ json: catalog }))
+  await page.route('https://nhgwatertemp.unbc.ca/data/config.json', (route) =>
     route.fulfill({ json: { last_updated: '2025-07-16', daymet_last_year: 2023 } }),
   )
-  await page.route('**/__dev_water_temp/data/*.json', (route) => route.fulfill({ json: observations }))
+  await page.route('https://nhgwatertemp.unbc.ca/data/data/*.json', (route) => route.fulfill({ json: observations }))
   await page.goto('/dev/water-temperature')
   await expect(page.getByRole('heading', { name: 'Nechako water temperature' })).toBeVisible()
 }
@@ -39,6 +65,7 @@ async function selectStation(page: Page, code: string) {
   await page.getByRole('button', { name: 'Browse stations', exact: true }).click()
   await page.getByRole('button', { name: `Select station ${code}`, exact: true }).click()
   await page.getByRole('button', { name: 'Close station browser', exact: true }).click()
+  await expect(page.locator('body')).not.toHaveCSS('pointer-events', 'none')
 }
 
 async function dragZoom(page: Page, region: Locator) {
@@ -71,7 +98,10 @@ test('map and station list share selection, with a four-station limit and stable
   })
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
-    if (message.type() === 'error' || message.type() === 'warning') errors.push(message.text())
+    const browserGpuDiagnostic =
+      message.text().startsWith('[.WebGL-') && message.text().includes('GPU stall due to ReadPixels')
+    if (!browserGpuDiagnostic && (message.type() === 'error' || message.type() === 'warning'))
+      errors.push(message.text())
   })
   await prepare(page)
   await expect(page.getByRole('region', { name: 'Station browser', exact: true })).toHaveCSS('overflow-y', 'visible')
@@ -187,7 +217,7 @@ test('edge tooltips stay inside charts and years hover emphasizes one original y
       airtemp_c: year === 2022 ? 10 : 20,
     })),
   )
-  await page.route('**/__dev_water_temp/data/A.json', (route) => route.fulfill({ json: years }))
+  await page.route('https://nhgwatertemp.unbc.ca/data/data/A.json', (route) => route.fulfill({ json: years }))
   await selectStation(page, 'A')
   await expect(page.getByTestId('range-summary')).toContainText('730 water observations')
   const timeline = page.getByRole('region', { name: 'Water temperature over time', exact: true })
@@ -243,7 +273,7 @@ test('failed observations retry, mobile controls fit, and selection survives res
   await page.setViewportSize({ width: 390, height: 844 })
   await prepare(page)
   let attempts = 0
-  await page.route('**/__dev_water_temp/data/A.json', (route) => {
+  await page.route('https://nhgwatertemp.unbc.ca/data/data/A.json', (route) => {
     attempts += 1
     return attempts === 1 ? route.fulfill({ status: 503 }) : route.fulfill({ json: observations })
   })
@@ -492,7 +522,7 @@ test('aggregate markers, period tooltips and all chart download formats retain t
     expect(await dialog.evaluate((element) => element.closest('[data-theme]')?.getAttribute('data-theme'))).toBe(
       await page.evaluate(() => (document.documentElement.classList.contains('dark') ? 'dark' : 'light')),
     )
-    await expect(dialog).toContainText(title === 'Air vs. water' ? 'through 2023' : 'Drag')
+    await expect(dialog).toContainText(title === 'Air vs. water' ? 'has no per-reading air source label' : 'Drag')
     for (const format of title === 'Air vs. water' ? ['SVG', 'PNG', 'PDF', 'JPEG'] : ['SVG', 'PNG', 'PDF']) {
       const download = page.waitForEvent('download')
       await dialog.getByRole('button', { name: `Download ${format}`, exact: true }).click()
@@ -549,7 +579,7 @@ test('chart loading remains visible when the station pane is collapsed', async (
   const pending = new Promise<void>((resolve) => {
     finish = resolve
   })
-  await page.route('**/__dev_water_temp/data/A.json', async (route) => {
+  await page.route('https://nhgwatertemp.unbc.ca/data/data/A.json', async (route) => {
     await pending
     await route.fulfill({ json: observations })
   })
@@ -561,4 +591,133 @@ test('chart loading remains visible when the station pane is collapsed', async (
   await expect(page.getByTestId('range-summary')).toContainText('90 water observations')
   for (const name of ['Water temperature over time', 'Seasonality', 'Air vs. water'])
     await expect(page.getByRole('region', { name, exact: true })).not.toHaveAttribute('aria-busy', 'true')
+})
+
+test('weather tab keeps source flags, requests only selected months, and exports the selection', async ({ page }) => {
+  const sample =
+    'TIMESTAMP,UTC Offset,AirT_C_Avg,AirT_C_Avg_Flag,Data_ID\n' +
+    'TS,UTC,Deg C,nan,nan\n' +
+    '2025-05-01 00:00:00,-07:00,0,P,source-a\n' +
+    '2025-05-01 00:15:00,-07:00,1.5,"C, DC",source-a\n' +
+    '2025-05-01 00:30:00,-07:00,NAN,M,source-a\n'
+  const path = '/data/weather/02FW005/2025-05.csv.gz'
+  await page.route('https://nhgwatertemp.unbc.ca/data/weather/stations.json', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: '02FW005',
+          name: 'Cheslatta Lake',
+          latitude: 54,
+          longitude: -125,
+          records: 3,
+          start: '2025-05-01',
+          end: '2025-05-01',
+          offsets: ['-07:00'],
+          months: [
+            { month: '2025-04', url: '/data/weather/02FW005/2025-04.csv.gz' },
+            { month: '2025-05', url: path },
+          ],
+          fields: ['TIMESTAMP', 'UTC Offset', 'AirT_C_Avg', 'AirT_C_Avg_Flag', 'Data_ID'],
+          units: { AirT_C_Avg: 'Deg C' },
+          files: [{ name: 'original.csv', url: '/data/weather/original.csv' }],
+          metadataUrl: '/data/weather/02FW005/MetadataLog.xlsx',
+        },
+        {
+          id: '02FW007',
+          name: 'François Lake',
+          latitude: 54,
+          longitude: -124.5,
+          metadataUrl: '/data/weather/02FW007/MetadataLog.xlsx',
+        },
+      ],
+    }),
+  )
+  const months: string[] = []
+  await page.route('https://nhgwatertemp.unbc.ca/data/weather/**/*.csv.gz', (route) => {
+    months.push(new URL(route.request().url()).pathname)
+    return route.fulfill({ contentType: 'application/gzip', body: gzipSync(sample) })
+  })
+  await prepare(page)
+  expect(months).toEqual([])
+  await page.getByRole('tab', { name: 'Weather stations' }).click()
+  await expect(page).toHaveURL(/view=weather/)
+  await expect(page.getByRole('table', { name: 'Weather observations' })).toContainText('2025-05-01 00:00:00 -07:00')
+  expect([...new Set(months)]).toEqual([path])
+  await choose(page.getByRole('combobox', { name: 'Quality codes' }), 'flagged')
+  const table = page.getByRole('table', { name: 'Weather observations' })
+  await expect(table).toContainText('C, DC')
+  await expect(table).toContainText('Missing')
+  await expect(table).not.toContainText('00:00:00')
+  await page.getByText('Quality code summary', { exact: true }).click()
+  await expect(page.getByText('Dependency caution', { exact: true })).toBeVisible()
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download selection' }).click()
+  const csv = await (await download).createReadStream()
+  const content: Buffer[] = []
+  for await (const chunk of csv!) content.push(Buffer.from(chunk))
+  expect(Buffer.concat(content).toString()).toContain('TS,UTC,Deg C,nan,nan')
+  expect(Buffer.concat(content).toString()).not.toContain('00:00:00')
+  await page.getByRole('button', { name: 'In Nechako' }).click()
+  await expect(page.getByRole('button', { name: /François Lake/ })).toHaveCount(0)
+  await page.getByRole('button', { name: 'All stations', exact: true }).click()
+  await page.getByText('François Lake', { exact: true }).click()
+  const detail = page.getByRole('region', { name: 'Weather observations' })
+  await expect(detail.getByText('Awaiting processed data')).toBeVisible()
+  await expect(detail.getByRole('link', { name: 'Station metadata' })).toHaveAttribute('href', /02FW007/)
+  expect([...new Set(months)]).toEqual([path])
+})
+
+test('streamflow compares date-aligned historical readings and switches gauges', async ({ page }) => {
+  const gaugeRequests: string[] = []
+  await page.route('https://api.weather.gc.ca/collections/hydrometric-daily-mean/items?*', (route) => {
+    const params = new URL(route.request().url()).searchParams
+    const gauge = params.get('STATION_NUMBER') ?? ''
+    gaugeRequests.push(gauge)
+    expect(params.get('datetime')).toBe('2024-06-01/2024-09-30')
+    return route.fulfill({
+      json: {
+        features: [
+          {
+            properties: {
+              STATION_NUMBER: gauge,
+              DATE: '2024-06-01',
+              DISCHARGE: 52,
+              DISCHARGE_SYMBOL_EN: 'Ice Conditions',
+            },
+          },
+          {
+            properties: {
+              STATION_NUMBER: gauge,
+              DATE: '2024-06-02',
+              DISCHARGE: 54,
+              DISCHARGE_SYMBOL_EN: null,
+            },
+          },
+        ],
+      },
+    })
+  })
+  await prepare(page, [
+    ...stations,
+    {
+      ...stations[0],
+      station_id: '01FW013',
+      station_code: '01FW013',
+      filename: '01FW013.json',
+      waterbody_name: 'Nechako River off Dellwood Road',
+      station_description: 'Nechako River off Dellwood Road',
+    },
+  ])
+  await page.route('https://nhgwatertemp.unbc.ca/data/data/01FW013.json', (route) =>
+    route.fulfill({ json: [{ date: '2024-06-02', temp_c: 12.5 }] }),
+  )
+  await page.getByRole('tab', { name: 'Streamflow' }).click()
+  await expect(page.getByRole('img', { name: 'Daily discharge at Vanderhoof' })).toBeVisible()
+  await expect(
+    page.getByRole('img', { name: 'Daily water temperature at Nechako River off Dellwood Road' }),
+  ).toBeVisible()
+  await expect(page.getByText('1 paired date in the applied range.')).toBeVisible()
+  await choose(page.getByRole('combobox', { name: 'Streamflow gauge' }), '08JC002')
+  await expect(page.getByRole('img', { name: 'Daily discharge at Isle Pierre' })).toBeVisible()
+  expect([...new Set(gaugeRequests)]).toEqual(['08JC001', '08JC002'])
 })

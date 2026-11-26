@@ -8,30 +8,7 @@ import {
   type Station,
 } from './data'
 
-const PUBLISHED_BASE = 'https://raw.githubusercontent.com/ahzs645/unbcwatertemp-viz/main/public/data/'
-const LOCAL_BASE = '/__dev_water_temp/'
-/**
- * In dev, a local checkout of the source (`../unbcwatertemp-viz` or
- * `PGMAPS_WATER_TEMP_DATA_DIR`) wins; without one, the dev server answers 404
- * and the page reads the published snapshot instead, as a build does.
- */
-let localSnapshot: boolean | undefined = import.meta.env.DEV ? undefined : false
-
-async function readJson(file: string, signal: AbortSignal): Promise<unknown> {
-  if (localSnapshot !== false) {
-    const response = await fetch(`${LOCAL_BASE}${file}`, { signal })
-    if (response.ok) {
-      localSnapshot = true
-      return response.json()
-    }
-    if (localSnapshot) throw new Error(`Could not load ${file} from the local UNBC snapshot directory.`)
-    localSnapshot = false
-  }
-  const response = await fetch(`${PUBLISHED_BASE}${file}`, { signal })
-  if (!response.ok)
-    throw new Error(`Could not load ${file}. The reference repository snapshot is unavailable. Try again shortly.`)
-  return response.json()
-}
+import { dailyWaterFile, waterJson } from './source'
 
 interface Selection {
   id: string
@@ -54,9 +31,8 @@ function selectionReducer(state: SelectionState, action: SelectionAction): Selec
 
 export function useWaterTemperature() {
   const [stations, setStations] = useState<Station[]>([])
-  const [config, setConfig] = useState<{ updated: string | null; airYear: number | null }>({
+  const [config, setConfig] = useState<{ updated: string | null }>({
     updated: null,
-    airYear: null,
   })
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [catalogError, setCatalogError] = useState('')
@@ -73,17 +49,16 @@ export function useWaterTemperature() {
     void (async () => {
       try {
         const [catalog, metadata] = await Promise.all([
-          readJson('stations.json', controller.signal),
-          readJson('config.json', controller.signal).catch(() => null),
+          waterJson('stations.json', controller.signal),
+          waterJson('config.json', controller.signal).catch(() => null),
         ])
         if (controller.signal.aborted) return
         const normalized = normalizeStations(catalog)
         if (!normalized.length) throw new Error('The snapshot has no valid station locations.')
         setStations(normalized)
-        const source = metadata as { last_updated?: unknown; daymet_last_year?: unknown } | null
+        const source = metadata as { last_updated?: unknown } | null
         setConfig({
           updated: typeof source?.last_updated === 'string' ? source.last_updated : null,
-          airYear: typeof source?.daymet_last_year === 'number' ? source.daymet_last_year : null,
         })
       } catch (error) {
         if (!controller.signal.aborted)
@@ -100,7 +75,7 @@ export function useWaterTemperature() {
     for (const selected of selection.items) {
       const station = stations.find((item) => item.station_id === selected.id)
       if (!station || cache.current.has(selected.id)) continue
-      void readJson(`data/${station.filename}`, controller.signal)
+      void waterJson(dailyWaterFile(station.filename), controller.signal)
         .then(normalizeObservations)
         .then((data) => {
           if (controller.signal.aborted) return

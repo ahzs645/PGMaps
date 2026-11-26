@@ -175,7 +175,9 @@ export function SeasonChart({
           })),
         })
     }
-    return { lines, extent: [Date.UTC(2000, 0, 1), Date.UTC(2000, 11, 31), lower, upper] as XYDomain }
+    // Keep the warmest curve inside the hover area, even at a whole-degree maximum.
+    const upperPadding = (upper - lower) * 0.04
+    return { lines, extent: [Date.UTC(2000, 0, 1), Date.UTC(2000, 11, 31), lower, upper + upperPadding] as XYDomain }
   }, [series, individual])
   return (
     <LineBandChart

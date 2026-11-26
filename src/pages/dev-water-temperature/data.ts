@@ -1,4 +1,5 @@
 import { csvRows } from '@pgmaps/geo-toolkit/export'
+import { validFilename, waterSourceLabel } from './source'
 
 export interface Station {
   station_id: string
@@ -8,6 +9,8 @@ export interface Station {
   latitude: number
   longitude: number
   filename: string
+  csv_filename?: string
+  airtemp_csv_filename?: string
   start: string
   end: string
   n: number
@@ -19,6 +22,9 @@ export interface Observation {
   date: string
   temp_c: number | null
   airtemp_c: number | null
+  min_temp_c?: number | null
+  max_temp_c?: number | null
+  n_values?: number | null
 }
 
 export interface Series {
@@ -44,7 +50,14 @@ export function normalizeObservations(input: unknown): Observation[] {
     if (!item || typeof item.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(item.date)) continue
     const time = timestamp(item.date)
     if (!Number.isFinite(time) || isoDate(time) !== item.date) continue
-    unique.set(item.date, { date: item.date, temp_c: finiteValue(item.temp_c), airtemp_c: finiteValue(item.airtemp_c) })
+    unique.set(item.date, {
+      date: item.date,
+      temp_c: finiteValue(item.temp_c),
+      airtemp_c: finiteValue(item.airtemp_c),
+      ...('min_temp_c' in item && { min_temp_c: finiteValue(item.min_temp_c) }),
+      ...('max_temp_c' in item && { max_temp_c: finiteValue(item.max_temp_c) }),
+      ...('n_values' in item && { n_values: finiteValue(item.n_values) }),
+    })
   }
   return [...unique.values()].sort((a, b) => a.date.localeCompare(b.date))
 }
@@ -56,8 +69,7 @@ export function normalizeStations(input: unknown): Station[] {
       (station): station is Station =>
         station &&
         typeof station.station_id === 'string' &&
-        typeof station.filename === 'string' &&
-        /^[A-Za-z0-9_-]+\.json$/.test(station.filename) &&
+        validFilename(station.filename, 'json') &&
         typeof station.station_code === 'string' &&
         typeof station.start === 'string' &&
         typeof station.end === 'string' &&
@@ -67,6 +79,13 @@ export function normalizeStations(input: unknown): Station[] {
         Math.abs(station.longitude) <= 180 &&
         Number.isFinite(station.n),
     )
+    .map((station) => ({
+      ...station,
+      csv_filename: validFilename(station.csv_filename, 'csv') ? station.csv_filename : undefined,
+      airtemp_csv_filename: validFilename(station.airtemp_csv_filename, 'csv')
+        ? station.airtemp_csv_filename
+        : undefined,
+    }))
     .sort((a, b) => a.station_code.localeCompare(b.station_code))
 }
 
@@ -210,10 +229,13 @@ export function observationsCsv(series: Series[], range: DateRange, updated: str
       'date',
       'water_temp_c',
       'air_temp_c',
+      'water_min_temp_c',
+      'water_max_temp_c',
+      'water_reading_count',
     ],
     ...series.flatMap((item) =>
       filterRange(item.data, range).map((point) => [
-        'UNBC water-temperature local snapshot',
+        waterSourceLabel,
         updated,
         item.station.station_id,
         item.station.waterbody_name,
@@ -222,6 +244,9 @@ export function observationsCsv(series: Series[], range: DateRange, updated: str
         point.date,
         point.temp_c,
         point.airtemp_c,
+        point.min_temp_c,
+        point.max_temp_c,
+        point.n_values,
       ]),
     ),
   ]

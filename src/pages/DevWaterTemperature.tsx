@@ -1,19 +1,19 @@
 import { FormField as Field, StyledSelect } from '@/components/ui/form-field'
-import { fitMapToPoints } from '@pgmaps/geo-toolkit/map/map-fit'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Check, Download, Droplets, Info, Library, LocateFixed, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Check, Download, Droplets, Info, Library, CloudSun, Waves, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { DashboardToolbar, RangeControls, SelectedSeriesList, SeriesLegend } from '@pgmaps/geo-toolkit/ui'
 import { dateColumn, numberColumn, textColumn } from '@/components/map/tableColumns'
 import { defineTableSource, MapTableBridge, useMapTable, useMapTableState } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
-import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, MarkerTooltip, useMap } from '@/components/ui/map'
+import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, MarkerTooltip } from '@/components/ui/map'
 import { InlineAlert, SearchInput, SidebarSection } from '@/components/ui/map-panels'
 import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { FullscreenButton, FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
 import { downloadText } from '@/lib/download'
+import { useSetUrlParams } from '@/hooks/useUrlState'
 import { AirWaterChart, ChartArea, SeasonChart, TimeChart } from './dev-water-temperature/Charts'
 import {
   filterRange,
@@ -28,6 +28,12 @@ import {
 } from './dev-water-temperature/data'
 import { useWaterTemperature } from './dev-water-temperature/useWaterTemperature'
 import { chartDownloads } from './dev-water-temperature/exportChart'
+import { FitStations } from './dev-water-temperature/FitStations'
+import { inNechako, NechakoOutline, NechakoScope, useNechakoBoundary } from './dev-water-temperature/NechakoScope'
+import { UNBC, waterDownload, waterSourceLabel, WATER_ARCHIVE_URL } from './dev-water-temperature/source'
+import { WeatherStations } from './dev-water-temperature/WeatherStations'
+import { TabBar } from '@/components/ui/tab-bar'
+import { Streamflow } from './dev-water-temperature/Streamflow'
 
 const fieldClass =
   'min-w-0 w-full rounded-md border border-input bg-background px-2 py-2 text-base text-foreground md:text-sm'
@@ -45,38 +51,77 @@ const STATION_COLUMNS = [
   numberColumn<Station>('days', 'Days', (station) => station.n),
 ]
 
-function FitStations({ stations }: { stations: Station[] }) {
-  const { map, isLoaded } = useMap()
+const views = [
+  { value: 'water', label: 'Water stations', icon: Droplets },
+  { value: 'weather', label: 'Weather stations', icon: CloudSun },
+  { value: 'flow', label: 'Streamflow', icon: Waves },
+] as const
+
+export default function DevWaterTemperature() {
+  const [params] = useSearchParams()
+  const setParams = useSetUrlParams()
+  const view = views.find((item) => item.value === params.get('view'))?.value ?? 'water'
+  const data = useWaterTemperature()
+  const boundary = useNechakoBoundary()
+  const [nechakoOnly, setNechakoOnly] = useState(false)
+
   return (
-    <Button
-      variant="outline"
-      size="icon"
-      aria-label="Fit all stations"
-      title="Fit all stations"
-      className="absolute right-2 top-24 z-10 size-8"
-      disabled={!map || !isLoaded || !stations.length}
-      onClick={() => {
-        if (map)
-          fitMapToPoints(
-            map,
-            stations.map((station) => [station.longitude, station.latitude]),
-            {
-              padding: 35,
-              maxZoom: 8,
-              duration: 0,
-              minSpan: 0,
-              pad: 0,
-            },
-          )
-      }}
-    >
-      <LocateFixed className="size-4" />
-    </Button>
+    <div className="flex min-h-full flex-col bg-background pt-20 md:pt-3 lg:h-full lg:min-h-0 lg:overflow-hidden">
+      <TabBar
+        value={view}
+        options={views}
+        onChange={(next) => setParams({ view: next === 'water' ? null : next })}
+        label="Water and weather explorer"
+        idPrefix="water-explorer"
+        variant="underline"
+        className="mx-3 shrink-0"
+      />
+      <div
+        role="tabpanel"
+        id="water-explorer-panel-water"
+        aria-labelledby="water-explorer-tab-water"
+        hidden={view !== 'water'}
+        className="min-h-0 flex-1"
+      >
+        <WaterStations data={data} boundary={boundary} nechakoOnly={nechakoOnly} setNechakoOnly={setNechakoOnly} />
+      </div>
+      <div
+        role="tabpanel"
+        id="water-explorer-panel-weather"
+        aria-labelledby="water-explorer-tab-weather"
+        hidden={view !== 'weather'}
+        className="min-h-0 flex-1 overflow-y-auto"
+      >
+        {view === 'weather' && (
+          <WeatherStations boundary={boundary} nechakoOnly={nechakoOnly} setNechakoOnly={setNechakoOnly} />
+        )}
+      </div>
+      <div
+        role="tabpanel"
+        id="water-explorer-panel-flow"
+        aria-labelledby="water-explorer-tab-flow"
+        hidden={view !== 'flow'}
+        className="min-h-0 flex-1 overflow-y-auto"
+      >
+        {view === 'flow' && (
+          <Streamflow stations={data.stations} catalogError={data.catalogError} retryCatalog={data.retry} />
+        )}
+      </div>
+    </div>
   )
 }
 
-export default function DevWaterTemperature() {
-  const data = useWaterTemperature()
+function WaterStations({
+  data,
+  boundary,
+  nechakoOnly,
+  setNechakoOnly,
+}: {
+  data: ReturnType<typeof useWaterTemperature>
+  boundary: ReturnType<typeof useNechakoBoundary>
+  nechakoOnly: boolean
+  setNechakoOnly: (active: boolean) => void
+}) {
   const {
     ref: dashboardRef,
     fullscreen: dashboardFullscreen,
@@ -104,9 +149,14 @@ export default function DevWaterTemperature() {
     const station = data.stations.find((station) => station.station_id === item.id)
     return station ? [{ station, color: SERIES_COLORS[item.slot] }] : []
   })
+  const outline = boundary.boundary
+  const scopedStations = useMemo(
+    () => (nechakoOnly && outline ? data.stations.filter((station) => inNechako(outline, station)) : data.stations),
+    [data.stations, nechakoOnly, outline],
+  )
   const filtered = useMemo(
     () =>
-      data.stations
+      scopedStations
         .filter(
           (station) =>
             (!search ||
@@ -125,7 +175,7 @@ export default function DevWaterTemperature() {
               ? (a.waterbody_name ?? '').localeCompare(b.waterbody_name ?? '')
               : a.station_code.localeCompare(b.station_code),
         ),
-    [data.stations, search, minimumDays, coversFrom, coversTo, selectedOnly, selectedIds, sort],
+    [scopedStations, search, minimumDays, coversFrom, coversTo, selectedOnly, selectedIds, sort],
   )
   const tableState = useMapTableState({ initialHeight: TABLE_PANE_HEIGHT })
   const tableSources = useMemo(
@@ -185,7 +235,7 @@ export default function DevWaterTemperature() {
   const exportDates = (range ?? extent)?.join(' – ') ?? 'No observations'
   const activeRange = range ?? extent
   const sourceDate = data.config.updated?.slice(0, 10)
-  const sourceDetails = `${import.meta.env.DEV ? 'Local UNBC snapshot' : 'UNBC snapshot from ahzs645/unbcwatertemp-viz on GitHub'}${sourceDate ? ` · updated ${sourceDate}` : ' · update date unavailable'}.${data.config.airYear ? ` Daymet air temperatures available through ${data.config.airYear}.` : ''}`
+  const sourceDetails = `${waterSourceLabel}${sourceDate ? ` · updated ${sourceDate}` : ' · update date unavailable'}. Air values are supplied with the water series and have no per-reading source label.`
 
   const changeRange = (next: DateRange) => {
     if (!next || next[0] <= next[1]) setRange(next)
@@ -260,21 +310,23 @@ export default function DevWaterTemperature() {
     <div
       ref={dashboardRef}
       data-fullscreen={dashboardFullscreen || undefined}
-      className="flex min-h-full flex-col gap-2 bg-background px-3 pb-3 pt-20 md:pt-3 lg:h-full lg:min-h-0 lg:overflow-hidden [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-overlay [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:overflow-y-auto [&[data-fullscreen]]:pt-3 max-lg:[&[data-fullscreen]]:block"
+      className="flex min-h-full flex-col gap-2 bg-background px-3 pb-3 pt-2 lg:h-full lg:min-h-0 lg:overflow-hidden [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-overlay [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:overflow-y-auto [&[data-fullscreen]]:pt-3 max-lg:[&[data-fullscreen]]:block"
     >
       <DashboardToolbar className="rounded-xl border bg-card p-2" title="Nechako water temperature">
         <>
           {rangeControls}
           {collapsed && renderSeriesLegend(true)}
           <div className="flex shrink-0 items-center gap-1">
-            <span
-              tabIndex={0}
+            <a
+              href={UNBC}
+              target="_blank"
+              rel="noreferrer"
               title={sourceDetails}
               aria-label={sourceDetails}
               className="inline-flex size-7 items-center justify-center text-muted-foreground"
             >
               <Info className="size-4" aria-hidden="true" />
-            </span>
+            </a>
             <Button
               variant="outline"
               size="sm"
@@ -353,7 +405,8 @@ export default function DevWaterTemperature() {
                 deferResize={table.deferResize}
               >
                 <MapTableBridge table={table} />
-                <FitStations stations={data.stations} />
+                <FitStations stations={scopedStations} />
+                <NechakoOutline boundary={boundary.boundary} />
                 <MapScaleBar position="bottom-left" />
                 {[...filtered]
                   .sort((a, b) => Number(selectedIds.has(a.station_id)) - Number(selectedIds.has(b.station_id)))
@@ -433,6 +486,7 @@ export default function DevWaterTemperature() {
               {table.button && <div className="absolute left-2 top-2 z-10">{table.button}</div>}
               {table.layout.bottomPane}
             </div>
+            <NechakoScope {...boundary} active={nechakoOnly} onChange={setNechakoOnly} />
           </SidebarSection>
           <div className="shrink-0 px-3 pt-3">
             <DialogShell
@@ -573,6 +627,55 @@ export default function DevWaterTemperature() {
                 testId="selected-stations"
                 empty="Choose a station to load its observations."
               />
+              {selectedStations.length > 0 && (
+                <details className="text-xs text-muted-foreground">
+                  <summary className="cursor-pointer">Daily details and source files</summary>
+                  <div className="mt-1 max-h-40 space-y-2 overflow-y-auto">
+                    {selectedStations.map(({ station }) => {
+                      const observations = data.series.find(
+                        (item) => item.station.station_id === station.station_id,
+                      )?.data
+                      const day =
+                        observations &&
+                        filterRange(observations, range)
+                          .filter((item) => item.temp_c !== null)
+                          .at(-1)
+                      return (
+                        <div key={station.station_id}>
+                          <p>
+                            <span className="font-medium text-foreground">{station.station_code}</span>
+                            {day && (
+                              <span>
+                                {' '}
+                                · {day.date}
+                                {day.min_temp_c != null &&
+                                  day.max_temp_c != null &&
+                                  ` · ${day.min_temp_c} to ${day.max_temp_c} °C`}
+                                {day.n_values != null && ` · ${day.n_values} readings`}
+                              </span>
+                            )}
+                          </p>
+                          <div className="flex flex-wrap gap-x-2">
+                            {station.csv_filename && (
+                              <a className="underline" href={waterDownload('csv', station.csv_filename)}>
+                                15-minute water
+                              </a>
+                            )}
+                            {station.airtemp_csv_filename && (
+                              <a className="underline" href={waterDownload('airtemp', station.airtemp_csv_filename)}>
+                                Hourly air
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <a className="underline" href={WATER_ARCHIVE_URL} target="_blank" rel="noreferrer">
+                      Citable water archive
+                    </a>
+                  </div>
+                </details>
+              )}
               {!browserOpen && data.selection.notice && (
                 <InlineAlert tone="warning">{data.selection.notice}</InlineAlert>
               )}
@@ -757,7 +860,7 @@ export default function DevWaterTemperature() {
                   `Minimum air ${minimumAir} °C · ${exportDates}`,
                   exportSeries,
                 )}
-                help={`Each point is a paired daily air/water reading. Hover for its station, date and temperatures. The dashed line marks equal temperatures. Min. air filters this plot. Drag to zoom; Reset zoom or Home restores the view. Daymet air data is available through ${data.config.airYear ?? 'the source snapshot’s last available year'}.`}
+                help="Each point pairs daily water temperature with the air value supplied in the same UNBC file. The file has no per-reading air source label. The dashed line marks equal temperatures. Drag to zoom and use Reset zoom or Home to restore the view."
                 compact
                 className="flex min-h-0 flex-col"
                 actions={
