@@ -110,6 +110,7 @@ export default function DevIllustratedMap() {
   const [geometry, setGeometry] = useState<MapGeometry>('geographic')
   const [coverage, setCoverage] = useState<HatchCoverage>(DEFAULT_GEOGRAPHIC_OPTIONS.coverage ?? 'coastal')
   const [page8Labels, setPage8Labels] = useState(false)
+  const [lakes, setLakes] = useState(true)
   const labelSet = page8Labels ? ('page8' as const) : ('all' as const)
   const [hatchingPreview, setHatchingPreview] = useState<HatchingPreview>('pattern')
   const [hatch, setHatch] = useState<HatchOptions>({ ...DEFAULT_HATCH_OPTIONS })
@@ -133,7 +134,17 @@ export default function DevIllustratedMap() {
   const drawsMap = view === 'map' || view === 'hatching' || view === 'compare'
   const buildMapSvg = () =>
     geometry === 'geographic'
-      ? buildGeographicMapSvg({ hatch, composition, layers, coverage, hatchStyle, patchHatch, channelGap, labelSet })
+      ? buildGeographicMapSvg({
+          hatch,
+          composition,
+          layers,
+          coverage,
+          hatchStyle,
+          patchHatch,
+          channelGap,
+          labelSet,
+          lakes,
+        })
       : buildIllustratedMapSvg({ hatch, composition, layers })
   const mapSvg = useMemo(
     () =>
@@ -149,6 +160,7 @@ export default function DevIllustratedMap() {
               patchHatch: deferredPatchHatch,
               channelGap: deferredChannelGap,
               labelSet,
+              lakes,
             })
           : buildIllustratedMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers }),
     [
@@ -162,6 +174,7 @@ export default function DevIllustratedMap() {
       deferredPatchHatch,
       deferredChannelGap,
       labelSet,
+      lakes,
     ],
   )
   const mapUrl = useSvgUrl(view === 'hatching' ? mapSvg : '')
@@ -300,6 +313,11 @@ export default function DevIllustratedMap() {
                   label="Page 8 labels only"
                   checked={page8Labels}
                   onCheckedChange={(checked) => setPage8Labels(checked === true)}
+                />
+                <CheckboxField
+                  label="Lakes"
+                  checked={lakes}
+                  onCheckedChange={(checked) => setLakes(checked === true)}
                 />
                 <Button
                   type="button"
@@ -549,6 +567,7 @@ export default function DevIllustratedMap() {
                       hatch={deferredHatch}
                       patchHatch={deferredPatchHatch}
                       channelGap={deferredChannelGap}
+                      lakes={lakes}
                     />
                   </Suspense>
                 </>

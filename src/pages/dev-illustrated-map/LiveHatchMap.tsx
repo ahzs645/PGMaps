@@ -23,6 +23,8 @@ export interface LiveHatchMapProps {
   patchHatch: PatchHatchStyleOptions
   /** Water kept along every shore, CSS pixels, as the drawing's channel gap in its units. */
   channelGap?: number
+  /** `false` fills every lake as land, as the drawing's `lakes` option does. */
+  lakes?: boolean
 }
 
 /** The workshop's settings as a saved recipe: artboard pixels become CSS pixels on the map. */
@@ -30,7 +32,7 @@ export function liveRecipe({
   hatchStyle,
   hatch,
   patchHatch,
-}: Omit<LiveHatchMapProps, 'coverage' | 'channelGap'>): OrganicHatchRecipe {
+}: Omit<LiveHatchMapProps, 'coverage' | 'channelGap' | 'lakes'>): OrganicHatchRecipe {
   const color = MAP_PALETTE.hatch.toLowerCase()
   if (hatchStyle === 'patch') {
     const { patchSize, lean, leanBias, seam, ...rest } = patchHatch
@@ -49,9 +51,12 @@ export default function LiveHatchMap(props: LiveHatchMapProps) {
     })
     return { light: style, dark: style }
   }, [])
-  const province = useMemo(() => liveLandGeoJson('bcLand'), [])
-  const land = useMemo(() => liveLandGeoJson('land'), [])
-  const areas = liveHatchAreas(props.coverage)
+  const lakes = props.lakes ?? true
+  // The basemap keeps its lakes (a new style would reload the map); without lakes, the frame's land
+  // is filled again over it, lakes and all, under the province.
+  const province = useMemo(() => liveLandGeoJson('bcLand', lakes), [lakes])
+  const land = useMemo(() => liveLandGeoJson('land', lakes), [lakes])
+  const areas = liveHatchAreas(props.coverage, lakes)
   const recipe = useMemo(
     () => liveRecipe(props),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the recipe follows these values, not the props object
@@ -65,6 +70,17 @@ export default function LiveHatchMap(props: LiveHatchMapProps) {
         viewport={{ center: [(west + east) / 2, (south + north) / 2], zoom: 4.6 }}
         controls={<MapControls showZoom />}
       >
+        {!lakes && (
+          <MapFillLayer
+            data={land}
+            fillColor={MAP_PALETTE.surrounding}
+            fillOpacity={1}
+            lineWidth={0}
+            lineOpacity={0}
+            interactive={false}
+            layerOrder={0}
+          />
+        )}
         <MapFillLayer
           data={province}
           fillColor={MAP_PALETTE.paper}

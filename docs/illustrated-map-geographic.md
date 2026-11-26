@@ -263,6 +263,12 @@ In the South Island PDF the place mark is one form XObject, placed 19 times.
 
 The workshop's **Page 8 edition** button sets all of these, and _Page 8 labels only_ switches the label set by itself.
 
+## Lakes and waves
+
+**Lakes off.** `lakes: false` (the workshop's _Lakes_ checkbox) fills every lake as dry land. `landPath(kind, false)` leaves out the lake holes, which the build writes with the opposite winding to the land, and the islands inside them: once a lake is land, an island in it would keep a shoreline and a channel gap in the middle of the province. BC's lakes and reservoirs hold about 3,800 such islets; 2,250 rings remain, the coast and its islands. The land, its hatch and the channel gap all use the filled path. On the live map, `liveHatchAreas(coverage, false)` and `liveLandGeoJson(kind, false)` do the same. The basemap keeps its lakes, so the map is not reloaded, and the filled land is drawn over it. Lakes stay on by default.
+
+**Waves on water.** A wave motif's coordinate is rounded, and at this scale the Central Coast and Juan de Fuca are full of islands: two waves sat on land. `drawnMotifs()` moves each wave to the nearest spot where its box, with a 3-unit margin, touches no land. It searches rings 3 units apart out to 150 units, and lakes count as land here. `boxTouchesLand` tests the box against every outer land ring, indexed in runs of 64 edges. The search runs once, in about 0.2 s. The north wave moved 45 units west into Queen Charlotte Sound; the orca wave moved 39 units west, off Cape Flattery. The west wave was already clear. Other motifs are drawn as built.
+
 ## Great Forest on map sheets
 
 The Great Forest fonts are committed under `public/illustrated-map/fonts/great-forest/` for this test project (their README has the copyright and licence notes). Any sheet text can name `family: 'great-forest'` (Small Caps) or `'great-forest-display'` (Simplified):

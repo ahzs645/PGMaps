@@ -2,14 +2,18 @@ import { DOMParser } from '@xmldom/xmldom'
 import { describe, expect, it } from 'vitest'
 import data from './geography.generated.json'
 import {
+  boxTouchesLand,
   buildGeographicLandMaskSvg,
   buildGeographicMapSvg,
+  drawnMotifs,
+  landPath,
   journeyInsetAccent,
   PAGE8_EDITION,
   PAGE8_JOURNEY_REGION,
   PLACE_LABELS,
 } from './geographic'
 import { lettering, letteringSize } from './lettering'
+import { ELEMENT_CATALOG } from './symbols'
 
 const parse = (svg: string) => new DOMParser().parseFromString(svg, 'image/svg+xml')
 const byId = (document: ReturnType<typeof parse>, id: string) =>
@@ -190,5 +194,50 @@ describe('page 8 edition', () => {
     const masked = buildGeographicMapSvg({ ...PAGE8_EDITION, vectorMasks: false })
     expect(masked).toContain('<mask id="geo-channel-gap"')
     expect(masked).toContain('<mask id="geo-compass-clearance"')
+  })
+})
+
+describe('lakes and waves', () => {
+  it('fills every lake as land when lakes are off, keeping the coast and islands', () => {
+    const count = (d: string) => (d.match(/M/g) ?? []).length
+    expect(count(landPath('bcLand'))).toBe(data.bcLand.polygons + data.bcLand.holes)
+    // Every lake goes, and the islands in lakes with them; the coast and its islands stay.
+    // (BC's lakes and reservoirs hold thousands of islets; the coast keeps over two thousand islands.)
+    const lakeless = landPath('bcLand', false)
+    expect(count(lakeless)).toBeLessThan(data.bcLand.polygons)
+    expect(count(lakeless)).toBeGreaterThan(2000)
+    // The two longest shores, the mainland and Vancouver Island, are kept as built.
+    for (const shore of data.bcLand.d
+      .split(/(?=M)/)
+      .sort((a, b) => b.length - a.length)
+      .slice(0, 2))
+      expect(lakeless).toContain(shore)
+    expect(count(landPath('land', false))).toBeLessThan(data.land.polygons)
+    const svg = buildGeographicMapSvg({ coverage: 'northern', lakes: false })
+    const document = parse(svg)
+    expect(byId(document, 'geo-bc-land-geometry')!.getAttribute('d')).toBe(landPath('bcLand', false))
+    expect(byId(document, 'geo-land-geometry')!.getAttribute('d')).toBe(landPath('land', false))
+    expect(svg).toContain('&quot;lakes&quot;:false')
+    // Lakes are on by default, and the default drawing records nothing new.
+    expect(buildGeographicMapSvg({ coverage: 'northern' })).not.toContain('&quot;lakes&quot;')
+  })
+
+  it('puts every wave on open water, clear of the shore', () => {
+    const waves = drawnMotifs().filter((motif) => motif.id.startsWith('wave-'))
+    expect(waves.length).toBe(3)
+    for (const wave of waves) {
+      const element = ELEMENT_CATALOG.find((candidate) => candidate.id === wave.id)!
+      const [w, h] = [element.width * wave.scale, element.height * wave.scale]
+      const [x, y] = [wave.point[0] + wave.offset[0], wave.point[1] + wave.offset[1]]
+      expect(boxTouchesLand({ x: x - w / 2 - 2, y: y - h / 2 - 2, w: w + 4, h: h + 4 })).toBe(false)
+      expect(Math.hypot(wave.offset[0], wave.offset[1])).toBeLessThanOrEqual(150)
+    }
+    // The north wave's built coordinate sits on the Central Coast's islands: it is moved.
+    const north = data.motifs.find((motif) => motif.id === 'wave-coast-north')!
+    const element = ELEMENT_CATALOG.find((candidate) => candidate.id === north.id)!
+    const [w, h] = [element.width * north.scale, element.height * north.scale]
+    expect(boxTouchesLand({ x: north.point[0] - w / 2, y: north.point[1] - h / 2, w, h })).toBe(true)
+    // Motifs on land stay as built.
+    expect(drawnMotifs().find((motif) => motif.id === 'bear')).toBe(data.motifs.find((motif) => motif.id === 'bear'))
   })
 })

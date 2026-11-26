@@ -7,7 +7,7 @@
 import proj4 from 'proj4'
 import type { HatchTileAreas, LngLatRings } from '@pgmaps/geo-toolkit/patterns'
 import data from './geography.generated.json'
-import { NORTHERN_REFERENCE_COVERAGE, PAGE8_JOURNEY_REGION, type GeographicMapOptions } from './geographic'
+import { landPath, NORTHERN_REFERENCE_COVERAGE, PAGE8_JOURNEY_REGION, type GeographicMapOptions } from './geographic'
 
 proj4.defs(
   'EPSG:3005',
@@ -93,8 +93,8 @@ let cache: {
 } | null = null
 function geography() {
   cache ??= {
-    land: rings(data.land.d),
-    bcLand: rings(data.bcLand.d),
+    land: rings(landPath('land')),
+    bcLand: rings(landPath('bcLand')),
     coastal: rings(data.coastalCoverage.d),
     northern: rings(NORTHERN_REFERENCE_COVERAGE.d),
     // The frame less page 8's journey region, as one even-odd polygon: the frame and the region.
@@ -111,6 +111,15 @@ function geography() {
     ).map((ring) => ring.map(artboardToLngLat)),
   }
   return cache
+}
+
+const lakeless = new Map<'land' | 'bcLand', LngLatRings>()
+/** Land rings with or without their lake holes (`lakes: false` fills every lake as land). */
+function landRings(kind: 'land' | 'bcLand', lakes: boolean): LngLatRings {
+  if (lakes) return geography()[kind]
+  let result = lakeless.get(kind)
+  if (!result) lakeless.set(kind, (result = rings(landPath(kind, false))))
+  return result
 }
 
 function inside([x, y]: readonly [number, number], ring: LngLatRings[number]) {
@@ -170,33 +179,40 @@ export function nestRings(all: LngLatRings): number[][][][] {
 }
 
 const landCache = new Map<string, GeoJSON.FeatureCollection>()
-/** Land in the frame (all of it, or BC's) as GeoJSON polygons with their lakes, for a basemap. */
-export function liveLandGeoJson(kind: 'land' | 'bcLand'): GeoJSON.FeatureCollection {
-  let collection = landCache.get(kind)
+/**
+ * Land in the frame (all of it, or BC's) as GeoJSON polygons, for a basemap: with their lakes as
+ * holes, or with `lakes` false every lake filled as land.
+ */
+export function liveLandGeoJson(kind: 'land' | 'bcLand', lakes = true): GeoJSON.FeatureCollection {
+  const key = `${kind}:${lakes}`
+  let collection = landCache.get(key)
   if (!collection) {
     collection = {
       type: 'FeatureCollection',
-      features: nestRings(geography()[kind]).map((coordinates) => ({
+      features: nestRings(landRings(kind, lakes)).map((coordinates) => ({
         type: 'Feature',
         properties: {},
         geometry: { type: 'Polygon', coordinates },
       })),
     }
-    landCache.set(kind, collection)
+    landCache.set(key, collection)
   }
   return collection
 }
 
 const areaCache = new Map<string, HatchTileAreas>()
 /**
- * Where the live hatch paints for a coverage choice: BC dry land (lakes as holes), intersected
+ * Where the live hatch paints for a coverage choice: BC dry land (lakes as holes, unless `lakes`
+ * is false), intersected
  * with the coastal region, the coastal region and the northern extent together, or nothing more.
  * The same object for the same choice, so a map layer sends it once.
  */
-export function liveHatchAreas(coverage: NonNullable<GeographicMapOptions['coverage']>): HatchTileAreas {
-  let areas = areaCache.get(coverage)
+export function liveHatchAreas(coverage: NonNullable<GeographicMapOptions['coverage']>, lakes = true): HatchTileAreas {
+  const key = `${coverage}:${lakes}`
+  let areas = areaCache.get(key)
   if (!areas) {
-    const { bcLand, coastal, northern, page8 } = geography()
+    const { coastal, northern, page8 } = geography()
+    const bcLand = landRings('bcLand', lakes)
     areas =
       coverage === 'province'
         ? { land: bcLand }
@@ -204,7 +220,7 @@ export function liveHatchAreas(coverage: NonNullable<GeographicMapOptions['cover
             land: bcLand,
             coverage: coverage === 'northern' ? [coastal, northern] : coverage === 'page8' ? [page8] : [coastal],
           }
-    areaCache.set(coverage, areas)
+    areaCache.set(key, areas)
   }
   return areas
 }

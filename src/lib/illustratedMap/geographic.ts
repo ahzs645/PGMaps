@@ -47,6 +47,11 @@ export interface GeographicMapOptions extends IllustratedMapOptions {
    * default, so earlier exports stay byte for byte as they were.
    */
   vectorMasks?: boolean
+  /**
+   * `false` fills every lake as dry land: no lake holes in the land, its hatch or the channel gap.
+   * The coastline and the islands stay. `true` (the default) keeps the lakes as water.
+   */
+  lakes?: boolean
 }
 
 /** The channel gap the workshop starts with: about a kilometre on the ground at this scale. */
@@ -107,6 +112,186 @@ const n = (value: number) => Number(value.toFixed(3))
 const elementById = new Map(ELEMENT_CATALOG.map((element) => [element.id, element]))
 type Point = readonly number[]
 
+/** The signed area of a subpath's points (`x,y` pairs); outer rings and lake holes have opposite signs. */
+function subpathArea(subpath: string) {
+  const values = subpath.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) ?? []
+  let area = 0
+  for (let i = 0; i + 1 < values.length; i += 2) {
+    const j = i + 2 < values.length - 1 ? i + 2 : 0
+    area += values[i] * values[j + 1] - values[j] * values[i + 1]
+  }
+  return area / 2
+}
+
+const lakelessPaths = new Map<string, string>()
+/**
+ * A land path as drawn: as built (lakes as holes), or with the lakes filled. The build writes
+ * outer rings and holes with opposite windings (`polygons` and `holes` in the data count them),
+ * so a lake is a subpath whose winding is the other way. Filling a lake also drops the islands in
+ * it, which would otherwise keep a shoreline (and a channel gap) in the middle of dry land.
+ */
+export function landPath(kind: 'land' | 'bcLand', lakes = true): string {
+  if (lakes) return data[kind].d
+  let d = lakelessPaths.get(kind)
+  if (d === undefined) {
+    const subpaths = data[kind].d.split(/(?=M)/).map((text) => {
+      const values = text.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) ?? []
+      let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity]
+      for (let i = 0; i + 1 < values.length; i += 2) {
+        x0 = Math.min(x0, values[i])
+        x1 = Math.max(x1, values[i])
+        y0 = Math.min(y0, values[i + 1])
+        y1 = Math.max(y1, values[i + 1])
+      }
+      return { text, values, area: subpathArea(text), box: [x0, y0, x1, y1] }
+    })
+    const lakeRings = subpaths.filter((subpath) => subpath.area < 0)
+    const inLake = ([x, y]: number[]) =>
+      lakeRings.some(({ values, box }) => {
+        if (x < box[0] || x > box[2] || y < box[1] || y > box[3]) return false
+        let hit = false
+        for (let i = 0, j = values.length - 2; i + 1 < values.length; j = i, i += 2)
+          if (
+            values[i + 1] > y !== values[j + 1] > y &&
+            x < ((values[j] - values[i]) * (y - values[i + 1])) / (values[j + 1] - values[i + 1]) + values[i]
+          )
+            hit = !hit
+        return hit
+      })
+    d = subpaths
+      .filter((subpath) => subpath.area > 0 && !inLake(subpath.values))
+      .map((subpath) => subpath.text)
+      .join('')
+    lakelessPaths.set(kind, d)
+  }
+  return d
+}
+
+type Box = { x: number; y: number; w: number; h: number }
+/** A run of a ring's edges (vertex indices `from` to `to`, each joined to the vertex before it) and their box. */
+type EdgeRun = { from: number; to: number; box: Box }
+let outerLandRings: { ring: number[]; box: Box; runs: EdgeRun[] }[] | null = null
+const EDGE_RUN = 64
+const boxOf = (ring: number[], from: number, to: number): Box => {
+  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity]
+  for (let i = from; i < to; i += 2) {
+    x0 = Math.min(x0, ring[i])
+    x1 = Math.max(x1, ring[i])
+    y0 = Math.min(y0, ring[i + 1])
+    y1 = Math.max(y1, ring[i + 1])
+  }
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
+}
+/** Every outer ring of the frame's land (lakes count as land here), indexed by runs of edges. */
+function landOutlines() {
+  outerLandRings ??= landPath('land', false)
+    .split(/(?=M)/)
+    .map((subpath) => subpath.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) ?? [])
+    .filter((ring) => ring.length >= 6)
+    .map((ring) => {
+      const runs: EdgeRun[] = []
+      for (let from = 0; from < ring.length; from += 2 * EDGE_RUN) {
+        const to = Math.min(ring.length, from + 2 * EDGE_RUN)
+        // The run's first edge comes from the vertex before it (the last vertex for the first run).
+        const box = boxOf(ring, from, to)
+        const previous = from ? from - 2 : ring.length - 2
+        const joined = boxOf([ring[previous], ring[previous + 1], box.x, box.y, box.x + box.w, box.y + box.h], 0, 6)
+        runs.push({ from, to, box: joined })
+      }
+      return { ring, box: boxOf(ring, 0, ring.length), runs }
+    })
+  return outerLandRings
+}
+
+const overlaps = (a: Box, b: Box) => a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h
+const segmentsCross = (
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number,
+  dx: number,
+  dy: number,
+) => {
+  const cross = (px: number, py: number, qx: number, qy: number, rx: number, ry: number) =>
+    (qx - px) * (ry - py) - (qy - py) * (rx - px)
+  const d1 = cross(cx, cy, dx, dy, ax, ay)
+  const d2 = cross(cx, cy, dx, dy, bx, by)
+  const d3 = cross(ax, ay, bx, by, cx, cy)
+  const d4 = cross(ax, ay, bx, by, dx, dy)
+  return d1 * d2 <= 0 && d3 * d4 <= 0
+}
+
+/** Whether a rectangle touches any dry land (or a lake): a ring vertex or edge in it, or it inside a ring. */
+export function boxTouchesLand(box: Box): boolean {
+  const corners = [
+    [box.x, box.y],
+    [box.x + box.w, box.y],
+    [box.x + box.w, box.y + box.h],
+    [box.x, box.y + box.h],
+  ]
+  const [cx, cy] = [box.x + box.w / 2, box.y + box.h / 2]
+  for (const { ring, box: ringBox, runs } of landOutlines()) {
+    if (!overlaps(box, ringBox)) continue
+    let inside = false
+    for (const run of runs) {
+      const near = overlaps(box, run.box)
+      // A ray from the centre to the right crosses only runs that span its height and reach right of it.
+      const ray = run.box.y <= cy && cy <= run.box.y + run.box.h && run.box.x + run.box.w >= cx
+      if (!near && !ray) continue
+      for (let i = run.from; i < run.to; i += 2) {
+        const j = i >= 2 ? i - 2 : ring.length - 2
+        const [x1, y1, x2, y2] = [ring[i], ring[i + 1], ring[j], ring[j + 1]]
+        if (ray && y1 > cy !== y2 > cy && cx < ((x2 - x1) * (cy - y1)) / (y2 - y1) + x1) inside = !inside
+        if (!near) continue
+        if (x1 >= box.x && x1 <= box.x + box.w && y1 >= box.y && y1 <= box.y + box.h) return true
+        for (let k = 0; k < 4; k++) {
+          const [px, py] = corners[k]
+          const [qx, qy] = corners[(k + 1) % 4]
+          if (segmentsCross(x1, y1, x2, y2, px, py, qx, qy)) return true
+        }
+      }
+    }
+    if (inside) return true
+  }
+  return false
+}
+
+/** Room kept between a wave and the nearest shore, drawing units. */
+const WAVE_SHORE_CLEARANCE = 3
+type Motif = (typeof data.motifs)[number]
+let placedMotifs: Motif[] | null = null
+/**
+ * The motifs as drawn. A wave belongs on open water, but its placement is a rounded coordinate
+ * and at this scale a coast is full of islands: each wave moves to the nearest spot, in rings of
+ * 3 units out to 150, where its box and a 3-unit margin touch no land. Other motifs are as built.
+ */
+export function drawnMotifs(): Motif[] {
+  placedMotifs ??= data.motifs.map((motif) => {
+    if (!motif.id.startsWith('wave-')) return motif
+    const element = elementById.get(motif.id)!
+    const [w, h] = [element.width * motif.scale, element.height * motif.scale]
+    const box = (dx: number, dy: number): Box => ({
+      x: motif.point[0] + motif.offset[0] + dx - w / 2 - WAVE_SHORE_CLEARANCE,
+      y: motif.point[1] + motif.offset[1] + dy - h / 2 - WAVE_SHORE_CLEARANCE,
+      w: w + 2 * WAVE_SHORE_CLEARANCE,
+      h: h + 2 * WAVE_SHORE_CLEARANCE,
+    })
+    for (let radius = 0; radius <= 150; radius += 3) {
+      const steps = radius ? Math.max(8, Math.round((2 * Math.PI * radius) / 3)) : 1
+      for (let step = 0; step < steps; step++) {
+        const angle = (2 * Math.PI * step) / steps
+        const [dx, dy] = [n(radius * Math.cos(angle)), n(radius * Math.sin(angle))]
+        if (!boxTouchesLand(box(dx, dy)))
+          return radius ? { ...motif, offset: [motif.offset[0] + dx, motif.offset[1] + dy] } : motif
+      }
+    }
+    return motif
+  })
+  return placedMotifs
+}
+
 function layer(id: string, title: string, body: string) {
   return `<g id="${id}" inkscape:groupmode="layer" inkscape:label="${escapeXml(title)}" aria-label="${escapeXml(title)}">${body}</g>`
 }
@@ -115,7 +300,7 @@ function start(title: string, description: string) {
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"><title>${escapeXml(title)}</title><desc>${escapeXml(description)}</desc>`
 }
 
-function resources(coverage: NonNullable<GeographicMapOptions['coverage']>) {
+function resources(coverage: NonNullable<GeographicMapOptions['coverage']>, lakes = true) {
   // These exact path objects paint the land and clip its hatching. They never
   // carry an inset, stroke, smoothing curve or independently fitted coastline.
   // Sibling clip shapes form a union. Combining their d strings in one
@@ -127,7 +312,7 @@ function resources(coverage: NonNullable<GeographicMapOptions['coverage']>) {
         ? // The frame less the journey region: a rectangle and the region, even-odd.
           `<clipPath id="geo-style-clip" clipPathUnits="userSpaceOnUse"><path id="geo-page8-journey-region" d="M-32 -32 H${width + 32} V${height + 32} H-32 Z ${PAGE8_JOURNEY_REGION.d}" fill-rule="evenodd" clip-rule="evenodd"/></clipPath>`
         : `<clipPath id="geo-style-clip" clipPathUnits="userSpaceOnUse"><path d="${data.coastalCoverage.d}" fill-rule="evenodd" clip-rule="evenodd"/>${coverage === 'northern' ? `<path id="geo-northern-style-extent" d="${NORTHERN_REFERENCE_COVERAGE.d}"/>` : ''}</clipPath>`
-  return `<defs><path id="geo-land-geometry" d="${data.land.d}" fill-rule="evenodd" clip-rule="evenodd"/><path id="geo-bc-land-geometry" d="${data.bcLand.d}" fill-rule="evenodd" clip-rule="evenodd"/><clipPath id="geo-land-clip" clipPathUnits="userSpaceOnUse"><use href="#geo-bc-land-geometry" xlink:href="#geo-bc-land-geometry" fill-rule="evenodd" clip-rule="evenodd"/></clipPath>${styleClip}<clipPath id="geo-frame-clip"><rect width="${width}" height="${height - data.projection.footer}"/></clipPath></defs>`
+  return `<defs><path id="geo-land-geometry" d="${landPath('land', lakes)}" fill-rule="evenodd" clip-rule="evenodd"/><path id="geo-bc-land-geometry" d="${landPath('bcLand', lakes)}" fill-rule="evenodd" clip-rule="evenodd"/><clipPath id="geo-land-clip" clipPathUnits="userSpaceOnUse"><use href="#geo-bc-land-geometry" xlink:href="#geo-bc-land-geometry" fill-rule="evenodd" clip-rule="evenodd"/></clipPath>${styleClip}<clipPath id="geo-frame-clip"><rect width="${width}" height="${height - data.projection.footer}"/></clipPath></defs>`
 }
 
 function symbol(id: string, point: Point, scale: number, offset: Point = [0, 0], anchor: Point = [0.5, 0.5]) {
@@ -318,12 +503,13 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
   const hatchStyle = options.hatchStyle ?? 'contour'
   const hatch = { ...DEFAULT_HATCH_OPTIONS, ...options.hatch }
   const patchHatch = { ...DEFAULT_PAGE8_HATCH_OPTIONS, ...options.patchHatch }
+  const lakes = options.lakes ?? true
   let svg = start(
     'Rainforest to Rockies — geographic illustration',
     'Real geographic shoreline, lake holes, province regions, highway centrelines and place coordinates projected together to BC Albers. Reconstructed page 8 symbols, glyph lettering and generated hatching provide the illustration style. Motifs are decorative regional illustrations. The title is a reconstructed study.',
   )
-  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-geographic-illustrated-map', version: 1, trace: false, coordinates: 'EPSG:3005', projection: data.projection, coverage, ...(hatchStyle === 'patch' ? { hatchStyle, patchHatch } : { hatch }), composition, provenance: data.provenance, ...(coverage === 'northern' ? { coverageStyle: NORTHERN_REFERENCE_COVERAGE } : {}), ...(coverage === 'page8' ? { coverageStyle: { kind: PAGE8_JOURNEY_REGION.kind, anchors: PAGE8_JOURNEY_REGION.anchors, d: PAGE8_JOURNEY_REGION.d }, labelSet: options.labelSet ?? 'all' } : {}) }))}</metadata>`
-  svg += resources(coverage)
+  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-geographic-illustrated-map', version: 1, trace: false, coordinates: 'EPSG:3005', projection: data.projection, coverage, ...(hatchStyle === 'patch' ? { hatchStyle, patchHatch } : { hatch }), composition, provenance: data.provenance, ...(coverage === 'northern' ? { coverageStyle: NORTHERN_REFERENCE_COVERAGE } : {}), ...(coverage === 'page8' ? { coverageStyle: { kind: PAGE8_JOURNEY_REGION.kind, anchors: PAGE8_JOURNEY_REGION.anchors, d: PAGE8_JOURNEY_REGION.d }, labelSet: options.labelSet ?? 'all' } : {}), ...(lakes ? {} : { lakes: false }) }))}</metadata>`
+  svg += resources(coverage, lakes)
   const channelGap = Math.max(0, options.channelGap ?? 0)
   // The coastline stroked out of the land and its hatch. Its frame edges are kept: the stroke is
   // clipped to the frame less the gap, so land running off the map gets no water line.
@@ -362,7 +548,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     const fieldWidth = Math.max(1, Math.min(width, Math.ceil(right + 8)))
     const clearances =
       !composition.allowIllustrationOverlap && layers.symbols
-        ? data.motifs
+        ? drawnMotifs()
             .map((motif) => {
               const element = elementById.get(motif.id)!
               const offset = 'offset' in motif ? motif.offset : [0, 0]
@@ -452,7 +638,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     svg += layer(
       'geo-illustrations',
       '07 Decorative regional illustrations',
-      data.motifs
+      drawnMotifs()
         .map(
           (motif) =>
             `<g id="geo-motif-${motif.id}">${symbol(motif.id, motif.point, motif.scale, 'offset' in motif ? motif.offset : [0, 0])}</g>`,

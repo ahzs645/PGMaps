@@ -29,6 +29,19 @@ describe('live geography', () => {
     expect(liveHatchAreas('coastal')).toBe(liveHatchAreas('coastal'))
     expect(liveHatchAreas('province').land.length).toBe(data.bcLand.polygons + data.bcLand.holes)
   })
+
+  it('fills the lakes on the live map when lakes are off', () => {
+    expect(liveHatchAreas('province', false).land.length).toBeLessThan(data.bcLand.polygons)
+    expect(liveHatchAreas('coastal', false)).toBe(liveHatchAreas('coastal', false))
+    expect(liveHatchAreas('coastal', false)).not.toBe(liveHatchAreas('coastal'))
+    const holes = (collection: GeoJSON.FeatureCollection) =>
+      collection.features.reduce(
+        (sum, feature) => sum + (feature.geometry as GeoJSON.Polygon).coordinates.length - 1,
+        0,
+      )
+    expect(holes(liveLandGeoJson('bcLand'))).toBe(data.bcLand.holes)
+    expect(holes(liveLandGeoJson('bcLand', false))).toBe(0)
+  })
 })
 
 describe('nested rings', () => {
