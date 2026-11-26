@@ -20,16 +20,19 @@ describe('procedural forest hatching', () => {
   })
 
   it('keeps the reference-size map at its requested pitch without counting invisible padding', () => {
-    const svg = buildHatchPaths(1536, 945)
+    // This is the actual forest extent, not the entire 1536-wide map artboard.
+    const svg = buildHatchPaths(790, 945)
     expect(svg).toContain('data-budget-limited="false"')
     expect(svg).toContain(`data-effective-spacing="${DEFAULT_HATCH_OPTIONS.spacing}"`)
-    expect(strokes(svg).length).toBeGreaterThan(28_000)
-    expect(strokes(svg).length).toBeLessThanOrEqual(30_000)
+    expect(strokes(svg).length).toBeGreaterThan(17_000)
+    expect(strokes(svg).length).toBeLessThan(20_000)
   })
 
   it('exports editable curves without images, external links, scripts or filters', () => {
     const svg = buildHatchSwatchSvg()
     expect(svg).toContain('viewBox="0 0 600 360"')
+    expect(svg).toContain('color="#BCC454"')
+    expect(svg).toContain('data-generator="ribbon-hatch-v2"')
     expect(svg).not.toMatch(/<(?:image|script|foreignObject|filter)\b|(?:href|onload)=/)
     expect(strokes(svg).every((stroke) => /d="M[-\d. ]+C[-\d. ]+"/.test(stroke))).toBe(true)
   })
@@ -48,8 +51,8 @@ describe('procedural forest hatching', () => {
     }
   })
 
-  it('keeps curves moving down the ribbon at the strongest permitted warp', () => {
-    const paths = strokes(buildHatchPaths(600, 360, { curvature: 24, bandHeight: 40 }))
+  it.each([8, 40])('keeps maximum-curvature strokes moving down %s-unit bands', (bandHeight) => {
+    const paths = strokes(buildHatchPaths(600, 360, { curvature: 24, bandHeight }))
     for (const path of paths) {
       const values = path
         .match(/d="([^"]+)"/)![1]

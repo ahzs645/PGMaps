@@ -3,7 +3,7 @@ import { Download, Layers, Map, RotateCcw, ScanEye, Shapes, Trees, Waves } from 
 
 import { DevLibraryBackLink } from '@/components/dev/PageBackLink'
 import { Button } from '@/components/ui/button'
-import { NumberField, SelectField } from '@/components/ui/form-field'
+import { CheckboxField, NumberField, SelectField } from '@/components/ui/form-field'
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { PicturePreview, ZoomablePreview } from '@/components/ui/picture-preview'
 import { TabBar } from '@/components/ui/tab-bar'
@@ -16,8 +16,10 @@ import {
   buildElementSvg,
   buildHatchSwatchSvg,
   buildIllustratedMapSvg,
+  DEFAULT_COMPOSITION_OPTIONS,
   DEFAULT_HATCH_OPTIONS,
   ELEMENT_CATALOG,
+  type CompositionOptions,
   type HatchOptions,
 } from '@/lib/illustratedMap'
 
@@ -61,18 +63,29 @@ export default function DevIllustratedMap() {
   const [view, setView] = useState<View>('map')
   const [hatch, setHatch] = useState<HatchOptions>({ ...DEFAULT_HATCH_OPTIONS })
   const deferredHatch = useDeferredValue(hatch)
+  const [composition, setComposition] = useState<CompositionOptions>({ ...DEFAULT_COMPOSITION_OPTIONS })
+  const deferredComposition = useDeferredValue(composition)
   const [layers, setLayers] = useState({ hatching: true, roads: true, symbols: true, labels: true })
   const [elementId, setElementId] = useState('all')
   const [overlay, setOverlay] = useState(50)
   const [comparisonMode, setComparisonMode] = useState('overlay')
   const [referenceFailed, setReferenceFailed] = useState(false)
-  const mapSvg = useMemo(() => buildIllustratedMapSvg({ hatch: deferredHatch, layers }), [deferredHatch, layers])
+  const mapSvg = useMemo(
+    () => buildIllustratedMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers }),
+    [deferredHatch, deferredComposition, layers],
+  )
+  const mapUrl = useMemo(() => svgUrl(mapSvg), [mapSvg])
   const overlaySvg = useMemo(
     () =>
       view === 'compare' && comparisonMode === 'overlay'
-        ? buildIllustratedMapSvg({ hatch: deferredHatch, layers, transparentBackground: true })
+        ? buildIllustratedMapSvg({
+            hatch: deferredHatch,
+            composition: deferredComposition,
+            layers,
+            transparentBackground: true,
+          })
         : '',
-    [deferredHatch, layers, view, comparisonMode],
+    [deferredHatch, deferredComposition, layers, view, comparisonMode],
   )
   const swatchSvg = useMemo(() => buildHatchSwatchSvg(deferredHatch), [deferredHatch])
   const sheetSvg = useMemo(() => buildElementSheetSvg(), [])
@@ -88,7 +101,7 @@ export default function DevIllustratedMap() {
       : view === 'hatching'
         ? 'rainforest-hatching.svg'
         : 'rainforest-to-rockies.svg'
-  const updating = deferredHatch !== hatch
+  const updating = deferredHatch !== hatch || deferredComposition !== composition
   const updateHatch = (key: keyof HatchOptions, value: number) =>
     setHatch((previous) => ({ ...previous, [key]: value }))
 
@@ -139,7 +152,8 @@ export default function DevIllustratedMap() {
               </h2>
             </div>
             <p className="text-xs leading-5 text-muted-foreground">
-              Short strokes follow gently warped ribbons. The same seed and settings reproduce the same pattern.
+              Short strokes follow flowing bands, clipped to the land. The pattern keeps its own flow. Compare the
+              texture at the full-map scale as well as enlarged.
             </p>
             <NumericRangeField
               label="Stroke spacing"
@@ -199,6 +213,44 @@ export default function DevIllustratedMap() {
           </section>
 
           <div className="space-y-4">
+            <section className="space-y-4 rounded-lg border bg-card p-4" aria-labelledby="composition-heading">
+              <h2 id="composition-heading" className="font-semibold">
+                Labels and overlaps
+              </h2>
+              <NumericRangeField
+                label="White label outline width"
+                value={composition.labelHalo}
+                min={0}
+                max={5}
+                step={0.2}
+                unit="px"
+                description="A white edge follows each letter where labels meet roads or hatching. Values are in drawing pixels."
+                onChange={(labelHalo) => setComposition((previous) => ({ ...previous, labelHalo }))}
+              />
+              <CheckboxField
+                label="Allow illustration overlap"
+                checked={composition.allowIllustrationOverlap}
+                onCheckedChange={(allowIllustrationOverlap) =>
+                  setComposition((previous) => ({ ...previous, allowIllustrationOverlap }))
+                }
+                description="Let drawings such as the bear cross the forest edge independently of the land-clipped hatching."
+              />
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                onClick={() =>
+                  setComposition((previous) => ({
+                    ...previous,
+                    labelHalo: DEFAULT_COMPOSITION_OPTIONS.labelHalo,
+                    allowIllustrationOverlap: DEFAULT_COMPOSITION_OPTIONS.allowIllustrationOverlap,
+                  }))
+                }
+              >
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                Reset labels and overlaps
+              </Button>
+            </section>
             <section className="space-y-3 rounded-lg border bg-card p-4" aria-labelledby="map-layers-heading">
               <div className="flex items-center gap-2">
                 <Layers className="h-4 w-4 text-muted-foreground" aria-hidden />
@@ -251,8 +303,32 @@ export default function DevIllustratedMap() {
                   <SvgPreview svg={swatchSvg} title="Generated forest hatching" resetKey="hatching" />
                   <p className="text-sm leading-6 text-muted-foreground">
                     Change spacing to control density, band height to change stroke length, and curvature to change the
-                    flow. This swatch uses the same generator as the forest on the map.
+                    flow. The map clips this pattern to the land; it does not turn the bands to follow the boundary.
                   </p>
+                  <div className="space-y-3 rounded-lg border bg-card p-4">
+                    <h2 className="font-semibold">Compare at map scale</h2>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      Fine strokes merge as the map gets smaller. Compare the overall density and flow in these small
+                      previews before judging the enlarged swatch.
+                    </p>
+                    <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                      <PicturePreview
+                        title="Page 8 at map scale"
+                        src={REFERENCE}
+                        alt="Original page 8 map reduced to show the forest texture at map scale"
+                        className="h-60 min-h-0"
+                        toolbarStart={<span className="text-xs text-muted-foreground">Original</span>}
+                      />
+                      <PicturePreview
+                        title="Reconstruction at map scale"
+                        src={mapUrl}
+                        alt="Current reconstructed map reduced to show the forest texture at map scale"
+                        open={() => new Blob([mapSvg], { type: SVG_TYPE })}
+                        className="h-60 min-h-0"
+                        toolbarStart={<span className="text-xs text-muted-foreground">Reconstruction</span>}
+                      />
+                    </div>
+                  </div>
                 </>
               )}
               {id === 'elements' && view === id && (

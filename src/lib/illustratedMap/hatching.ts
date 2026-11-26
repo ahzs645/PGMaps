@@ -1,7 +1,7 @@
 /**
  * An authored ribbon lattice, not a vectorization of the reference pixels.
- * A smooth, orientation-preserving warp bends short upright strokes between
- * neighboring row boundaries. Randomness is keyed to each row and column, so
+ * Aperiodic shared boundaries hold short strokes with locally varying lean and
+ * curvature. Randomness is keyed to each row and column, so
  * changing the ordinary artboard size keeps the existing marks in place.
  *
  * Research references: Tyler Hobbs, https://www.tylerxhobbs.com/words/flow-fields
@@ -18,9 +18,9 @@ export type HatchOptions = {
 
 export const DEFAULT_HATCH_OPTIONS: Readonly<HatchOptions> = Object.freeze({
   seed: 8,
-  spacing: 3.1,
-  bandHeight: 16,
-  strokeWidth: 1.2,
+  spacing: 3,
+  bandHeight: 14,
+  strokeWidth: 1.4,
   curvature: 8,
 })
 
@@ -55,57 +55,90 @@ function n(value: number): string {
   return String(Math.round(value * 100) / 100 || 0)
 }
 
-type PointWithTangent = { x: number; y: number; dx: number; dy: number }
+type Point = { x: number; y: number }
+type CubicStroke = { start: Point; c1: Point; c2: Point; end: Point }
 
-function makeWarp(curvature: number, seed: number) {
-  const phases = [0, 1, 2, 3].map((channel) => randomAt(seed, 0, 0, channel) * 100)
-  const noise = (position: number, channel: number) => {
+function makeStrokeField(options: HatchOptions) {
+  const { seed, curvature, bandHeight } = options
+  const rand = (row: number, column: number, channel: number) => randomAt(seed, row, column, channel)
+  const smooth = (t: number) => t * t * (3 - 2 * t)
+  const noise = (row: number, x: number, pitch: number, channel: number): number => {
+    const position = x / pitch + rand(row, 0, channel + 30) * 30
     const cell = Math.floor(position)
-    const t = position - cell
-    const smooth = t * t * (3 - 2 * t)
-    const a = randomAt(seed, 0, cell, channel)
-    const b = randomAt(seed, 0, cell + 1, channel)
-    return {
-      value: a + (b - a) * smooth - 0.5,
-      derivative: (b - a) * 6 * t * (1 - t),
-    }
+    const weight = smooth(position - cell)
+    return 2 * (rand(row, cell, channel) * (1 - weight) + rand(row, cell + 1, channel) * weight) - 1
   }
-  return (u: number, v: number): PointWithTangent => {
-    // Seeded, smoothly varying phases and amplitudes keep broad flowing bands
-    // without the visibly repeated cycles of an unmodulated sine-wave grid.
-    const verticalPhase = noise(v / 250 + phases[2], 20)
-    const fineVerticalPhase = noise(v / 180 + phases[0], 21)
-    const amplitude = 1 + 0.35 * noise(u / 200 + phases[3], 22).value
-    const firstWave =
-      u / 20 + 2.5 * noise(u / 75 + phases[1], 23).value + v / 70 + 0.5 * verticalPhase.value + phases[0]
-    const secondWave =
-      u / 9.5 + 1.3 * noise(u / 50 + phases[3], 24).value - v / 40 + 0.3 * fineVerticalPhase.value + phases[1]
-    const y = v + curvature * (amplitude * Math.sin(firstWave) + 0.45 * Math.sin(secondWave))
-    // Each noise derivative is bounded by 1.5; dy/dv remains above 0.21.
-    const dy =
-      1 +
-      curvature *
-        (amplitude * Math.cos(firstWave) * (1 / 70 + (0.5 * verticalPhase.derivative) / 250) +
-          0.45 * Math.cos(secondWave) * (-1 / 40 + (0.3 * fineVerticalPhase.derivative) / 180))
-    const leanPhase = noise(y / 100 + phases[0], 25)
-    const fineLeanPhase = noise(y / 150 + phases[2], 26)
-    const firstLean = u / 35 + y / 21 + phases[2] + 1.2 * noise(u / 200 + phases[1], 27).value + 1.2 * leanPhase.value
-    const secondLean = u / 70 + y / 24 + phases[3] + 1.1 * fineLeanPhase.value
-    const x = u + curvature * (0.8 * Math.sin(firstLean) + 0.14 * Math.sin(secondLean))
-    // At fixed y, dx/du remains above 0.23. The composition preserves order.
-    const dx =
-      curvature *
-      (0.8 * Math.cos(firstLean) * (1 / 21 + (1.2 * leanPhase.derivative) / 100) +
-        0.14 * Math.cos(secondLean) * (1 / 24 + (1.1 * fineLeanPhase.derivative) / 150)) *
-      dy
-    return { x, y, dx, dy }
+  const field = (x: number, y: number, channel: number): number => {
+    const ix = Math.floor(x)
+    const iy = Math.floor(y)
+    const wx = smooth(x - ix)
+    const wy = smooth(y - iy)
+    const top = rand(iy, ix, channel) * (1 - wx) + rand(iy, ix + 1, channel) * wx
+    const bottom = rand(iy + 1, ix, channel) * (1 - wx) + rand(iy + 1, ix + 1, channel) * wx
+    return 2 * (top * (1 - wy) + bottom * wy) - 1
+  }
+  const boundary = (row: number, x: number): number => {
+    const pitch = 34 + rand(row, 0, 10) * 38
+    return (
+      bandHeight *
+      (row +
+        0.18 * noise(row, x, pitch, 11) +
+        0.06 * noise(row, x, 17 + rand(row, 0, 12) * 15, 13) +
+        0.08 * (2 * rand(row, 0, 14) - 1))
+    )
+  }
+  // Shared aperiodic displacement gives adjacent seams related contours.
+  // There are no repeating trigonometric waves. Its bounded vertical
+  // derivative stays positive at the strongest permitted curvature.
+  const amplitude = curvature <= 8 ? curvature : 8 + (curvature - 8) * 0.4
+  const warpY = (x: number, y: number): number =>
+    y + amplitude * (2 * field(x / 60 + 13.2, y / 140 + 10.8, 40) + 0.6 * field(x / 22 + 6.1, y / 100 + 4.2, 41))
+
+  return (row: number, column: number, pitch: number): CubicStroke => {
+    const u = (column + (rand(row, 0, 5) - 0.5) * 0.9 + (rand(row, column, 6) - 0.5) * 0.36) * pitch
+    const leanPitch = 32 + rand(row, 0, 20) * 42
+    const leanField = 0.83 * field(u / 50 + 9.3, row * 0.65 + 7.5, 51) + 0.17 * noise(row, u, leanPitch, 21)
+    // Most marks stay near upright, with occasional stronger local groups.
+    // The earlier globally shared lean made long visible currents.
+    let lean = Math.min(curvature, 9) * 2.05 * Math.sign(leanField) * Math.abs(leanField) ** 1.5
+    const bend = curvature * 0.2 * noise(row, u, 40 + rand(row, 0, 22) * 40, 23)
+    const topInset = bandHeight * (0.035 + 0.06 * rand(row, column, 7))
+    const bottomInset = bandHeight * (0.035 + 0.06 * rand(row, column, 8))
+    const endpoints = (): { start: Point; end: Point } => {
+      const x0 = u - lean / 2
+      const x3 = u + lean / 2
+      return {
+        start: { x: x0, y: warpY(x0, boundary(row, x0) + topInset) },
+        end: { x: x3, y: warpY(x3, boundary(row + 1, x3) - bottomInset) },
+      }
+    }
+    let points = endpoints()
+    // A strongly tilted mark can reach a pinched part of a neighboring seam.
+    // Shorten its horizontal excursion rather than folding the stroke upward.
+    for (let attempt = 0; points.end.y - points.start.y < bandHeight * 0.12 && attempt < 8; attempt += 1) {
+      lean *= 0.5
+      points = endpoints()
+    }
+    if (points.end.y <= points.start.y) {
+      lean = 0
+      points = endpoints()
+    }
+    const { start, end } = points
+    const third = (end.y - start.y) / 3
+    return {
+      start,
+      c1: { x: start.x + lean / 3 + bend, y: start.y + third },
+      c2: { x: start.x + (lean * 2) / 3 + bend, y: end.y - third },
+      end,
+    }
   }
 }
 
 /**
  * Returns explicit cubic strokes in a color-inheriting SVG group.
- * The caller clips this field to the forest and subtracts label/illustration
- * keepouts. Width and height are artboard extents from the same global (0,0).
+ * The caller clips this field to the intersection of land and forest, and
+ * applies any illustration clearances. Labels can use independent halos.
+ * Width and height are artboard extents from the same global (0,0).
  * Non-positive/non-finite extents return an empty group; large finite extents
  * are capped at 4096. If a requested field exceeds the stroke budget, column
  * spacing is increased, reported in data-effective-spacing/data-budget-limited.
@@ -113,7 +146,7 @@ function makeWarp(curvature: number, seed: number) {
 export function buildHatchPaths(width: number, height: number, input: Partial<HatchOptions> = {}): string {
   const options = readOptions(input)
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return '<g data-generator="ribbon-hatch-v1" data-stroke-count="0"/>'
+    return '<g data-generator="ribbon-hatch-v2" data-stroke-count="0"/>'
   }
   const w = Math.min(width, MAX_DIMENSION)
   const h = Math.min(height, MAX_DIMENSION)
@@ -123,23 +156,8 @@ export function buildHatchPaths(width: number, height: number, input: Partial<Ha
   // Estimate visible marks, not off-artboard padding. The latter made a normal
   // map's texture too sparse. A bounded pass below checks the actual count.
   let spacing = Math.max(options.spacing, (w * h) / (options.bandHeight * (MAX_STROKES - 256)))
-  const warp = makeWarp(options.curvature, options.seed)
+  const strokeAt = makeStrokeField(options)
   const rand = (row: number, column: number, channel: number) => randomAt(options.seed, row, column, channel)
-
-  const boundary = (row: number, u: number): number => {
-    // Each boundary has its own smoothly varying profile. Both adjoining rows
-    // share that same boundary, so their white seam stays narrow and ordered.
-    const noise = (pitch: number, channel: number): number => {
-      const position = u / pitch
-      const cell = Math.floor(position)
-      const t = position - cell
-      const smooth = t * t * (3 - 2 * t)
-      return 2 * (rand(row, cell, channel) * (1 - smooth) + rand(row, cell + 1, channel) * smooth) - 1
-    }
-    const broad = noise(45 + 30 * rand(row, 0, 10), 11)
-    const fine = noise(18 + 10 * rand(row, 0, 12), 13)
-    return options.bandHeight * (row + 0.24 * broad + 0.06 * fine)
-  }
 
   const draw = (pitch: number): string[] => {
     const paths: string[] = []
@@ -149,19 +167,9 @@ export function buildHatchPaths(width: number, height: number, input: Partial<Ha
     // relative to column spacing so those regions do not turn into solid fills.
     const safeWidth = Math.min(options.strokeWidth, pitch * (0.68 - options.curvature * 0.01))
     for (let row = firstRow; row <= lastRow; row += 1) {
-      const rowOffset = (rand(row, 0, 5) - 0.5) * pitch * 0.7
       for (let column = firstColumn; column <= lastColumn; column += 1) {
-        const u = column * pitch + rowOffset + (rand(row, column, 6) - 0.5) * pitch * 0.12
-        const topInset = options.bandHeight * (0.04 + rand(row, column, 7) * 0.06)
-        const bottomInset = options.bandHeight * (0.04 + rand(row, column, 8) * 0.06)
-        const v0 = boundary(row, u) + topInset
-        const v1 = boundary(row + 1, u) - bottomInset
-        const start = warp(u, v0)
-        const end = warp(u, v1)
-        const third = (v1 - v0) / 3
-        const c1 = { x: start.x + third * start.dx, y: start.y + third * start.dy }
-        const c2 = { x: end.x - third * end.dx, y: end.y - third * end.dy }
-        const strokeWidth = safeWidth * (0.92 + rand(row, column, 9) * 0.16)
+        const { start, c1, c2, end } = strokeAt(row, column, pitch)
+        const strokeWidth = safeWidth * (0.78 + rand(row, column, 9) * 0.44)
         const halfWidth = strokeWidth / 2
         // A cubic stays within the convex hull of its controls. This only drops
         // wholly invisible marks; boundary marks are left for the caller's clip.
@@ -189,18 +197,18 @@ export function buildHatchPaths(width: number, height: number, input: Partial<Ha
     paths = draw(spacing)
   }
   return (
-    `<g data-generator="ribbon-hatch-v1" data-seed="${options.seed}" data-stroke-count="${paths.length}" ` +
+    `<g data-generator="ribbon-hatch-v2" data-seed="${options.seed}" data-stroke-count="${paths.length}" ` +
     `data-effective-spacing="${n(spacing)}" data-budget-limited="${spacing > options.spacing}" ` +
     `fill="none" stroke="currentColor" stroke-linecap="round">\n${paths.join('\n')}\n</g>`
   )
 }
 
-/** A standalone, fully vector 600 x 360 sample in the brand's Lush Moss color. */
+/** A standalone 600 x 360 vector sample in the map's source-reproduction color. */
 export function buildHatchSwatchSvg(options: Partial<HatchOptions> = {}): string {
   return (
-    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="360" viewBox="0 0 600 360" color="#B0BD36">' +
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="360" viewBox="0 0 600 360" color="#BCC454">' +
     '<title>Procedural forest hatching</title>' +
-    '<desc>Short cubic strokes in a seeded, smoothly warped ribbon lattice. Authored geometry, not a raster trace.</desc>' +
+    '<desc>Short cubic strokes with aperiodic shared seams and locally varied lean. Authored geometry, not a raster trace.</desc>' +
     '<rect width="600" height="360" fill="white"/>' +
     buildHatchPaths(600, 360, options) +
     '</svg>'

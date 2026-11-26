@@ -56,9 +56,22 @@ function layer(id: string, title: string, svg: string): string {
   return `<g id="${id}" inkscape:groupmode="layer" inkscape:label="${escapeXml(title)}" aria-label="${escapeXml(title)}">${svg}</g>`
 }
 
+export interface CompositionOptions {
+  /** White outline outside each letter, in drawing units. */
+  labelHalo: number
+  /** Draw motifs over the pattern without reserving their rectangular bounds. */
+  allowIllustrationOverlap: boolean
+}
+
+export const DEFAULT_COMPOSITION_OPTIONS: CompositionOptions = {
+  labelHalo: 1.8,
+  allowIllustrationOverlap: true,
+}
+
 export interface IllustratedMapOptions {
   hatch?: Partial<HatchOptions>
   layers?: { hatching?: boolean; roads?: boolean; symbols?: boolean; labels?: boolean }
+  composition?: Partial<CompositionOptions>
   /** Ink-only comparison. This affects the background, never the exported route coordinates. */
   transparentBackground?: boolean
 }
@@ -66,28 +79,28 @@ export interface IllustratedMapOptions {
 export function buildIllustratedMapSvg(options: IllustratedMapOptions = {}): string {
   const layers = { hatching: true, roads: true, symbols: true, labels: true, ...options.layers }
   const hatch = { ...DEFAULT_HATCH_OPTIONS, ...options.hatch }
+  const composition = { ...DEFAULT_COMPOSITION_OPTIONS, ...options.composition }
   const placed = DRAWN_ELEMENTS.filter((element) => element.sourceBox && element.category !== 'drafting')
   const inkBox = (box: readonly [number, number, number, number], pad = 2) =>
     `<rect x="${box[0] - pad}" y="${box[1] - pad}" width="${box[2] + pad * 2}" height="${box[3] + pad * 2}" rx="4"/>`
-  const clearNames = layers.labels
-    ? MAP_LABELS.filter((label) => label.face === 'regular' || ['mount', 'robson'].includes(label.id))
-        .map((label) => inkBox(label.box, 2))
-        .join('')
-    : ''
-  const clearIcons = layers.symbols
-    ? placed
-        .filter((element) => ['bear', 'waterfall'].includes(element.id))
-        .map((element) => inkBox(element.sourceBox!, 2))
-        .join('')
-    : ''
+  const clearIcons =
+    layers.symbols && !composition.allowIllustrationOverlap
+      ? placed
+          .filter((element) => element.category === 'illustration')
+          .map((element) => inkBox(element.sourceBox!, 2))
+          .join('')
+      : ''
   let svg = documentStart(
     ARTBOARD.width,
     ARTBOARD.height,
     'Rainforest to Rockies — geometric reconstruction',
     'Reconstructed from semantic drawing components and a procedural hatch field. Reference: Destination BC brand guidelines, page 8. Schematic artwork coordinates, not geographic data. Title is a drawn study, not an official logo master. Place names use supplied Great Forest glyphs.',
   )
-  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-illustrated-map', version: 1, sourcePage: 8, trace: false, coordinates: 'schematic-artboard', hatch }))}</metadata>`
-  svg += `<defs><clipPath id="forest-region"><path d="${FOREST_MAINLAND}"/><path d="${VANCOUVER_ISLAND}"/></clipPath><mask id="forest-clearances" maskUnits="userSpaceOnUse" x="0" y="0" width="1536" height="945"><rect width="1536" height="945" fill="white"/><g fill="black">${clearNames}${clearIcons}</g></mask></defs>`
+  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-illustrated-map', version: 2, sourcePage: 8, trace: false, coordinates: 'schematic-artboard', hatch, composition }))}</metadata>`
+  // Forest coverage and land are independent masks. Their intersection prevents
+  // any hatch stroke entering the ocean, even where the two authored edges differ.
+  // This clips a freely flowing field; the outline never changes stroke direction.
+  svg += `<defs><clipPath id="land-region"><path d="${MAINLAND}"/><path d="${VANCOUVER_ISLAND}"/></clipPath><clipPath id="forest-region"><path d="${FOREST_MAINLAND}"/><path d="${VANCOUVER_ISLAND}"/></clipPath>${clearIcons ? `<mask id="forest-clearances" maskUnits="userSpaceOnUse" x="0" y="0" width="1536" height="945"><rect width="1536" height="945" fill="white"/><g fill="black">${clearIcons}</g></mask>` : ''}</defs>`
   if (!options.transparentBackground) {
     svg += layer(
       'surroundings',
@@ -104,7 +117,7 @@ export function buildIllustratedMapSvg(options: IllustratedMapOptions = {}): str
     svg += layer(
       'forest-hatching',
       '03 Generated forest strokes',
-      `<g clip-path="url(#forest-region)" mask="url(#forest-clearances)" color="${MAP_PALETTE.hatch}">${buildHatchPaths(790, 945, hatch)}</g>`,
+      `<g clip-path="url(#land-region)"><g clip-path="url(#forest-region)"${clearIcons ? ' mask="url(#forest-clearances)"' : ''} color="${MAP_PALETTE.hatch}">${buildHatchPaths(790, 945, hatch)}</g></g>`,
     )
   if (!options.transparentBackground)
     svg += layer(
@@ -147,7 +160,7 @@ export function buildIllustratedMapSvg(options: IllustratedMapOptions = {}): str
     svg += layer(
       'lettering',
       '10 Great Forest lettering from font glyphs',
-      `<g fill="${MAP_PALETTE.canopy}">${MAP_LABELS.map((label) => `<g id="label-${label.id}">${label.id === 'golden' ? `<rect x="1034" y="384" width="95" height="17" rx="3" fill="white"/>` : ''}${lettering(label.text, label.box, label.face ?? 'smallcaps', label.face === 'regular' ? 35 : 120)}</g>`).join('')}</g>`,
+      `<g fill="${MAP_PALETTE.canopy}">${MAP_LABELS.map((label) => `<g id="label-${label.id}">${lettering(label.text, label.box, label.face ?? 'smallcaps', label.face === 'regular' ? 35 : 120, composition.labelHalo)}</g>`).join('')}</g>`,
     )
     svg += layer(
       'title-study',

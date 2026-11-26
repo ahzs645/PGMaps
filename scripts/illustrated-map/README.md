@@ -21,3 +21,20 @@ The script overwrites its named outputs and does not remove other files from
 the destination. Generated outputs belong outside committed source directories.
 Change geometry in `src/lib/illustratedMap/`, then regenerate; do not edit exported
 SVGs as the source of the workshop.
+
+The map exporter uses the current hatching preset and composition defaults:
+white glyph outlines and natural illustration overlap. The forest field is
+clipped to the intersection of the land and forest regions; its flow is not
+rotated to follow the boundary. The offline controls change these same options.
+
+The compass's BC shape is a compact derived geographic asset. Regenerate it
+from the saved response to the source query recorded in
+`src/lib/illustratedMap/bcInset.generated.json`:
+
+```sh
+node scripts/illustrated-map/build-bc-inset.mjs /absolute/path/to/statcan-bc-2021.json
+```
+
+The script projects to BC Albers, simplifies the retained landmasses and fits
+them uniformly. Source attribution and generalization metadata travel with the
+compass SVG. The moss-coloured journey accent remains illustrative.

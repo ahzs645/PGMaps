@@ -4,8 +4,12 @@
  * These are newly drawn components, not extracted or traced contours. Dimensions
  * and placements are measurements of the supplied raster; the geometry below is
  * authored from semantic parts (wheels, limbs, branches, bowls and peak vertices).
+ * The compass province is instead projected from a real geographic boundary;
+ * its generated data retain the source, transformation and simplification record.
  * Coordinates are local to each symbol. All output is editable, image-free SVG.
  */
+import bcInset from './bcInset.generated.json'
+
 export type ElementCategory = 'illustration' | 'navigation' | 'tree' | 'drafting'
 
 export interface ElementDef {
@@ -478,14 +482,28 @@ function shield(number = ''): string {
   )
 }
 function leaf(number = '', fill = CANOPY): string {
-  return (
-    path(
-      'M 29,4 Q 23,5 19,12 L 20,24 Q 11,17 6,23 Q 0,31 8,38 L 19,44 L 15,50 L 27,47 L 28,58 L 31,58 L 32,47 L 44,50 L 40,44 Q 54,39 54,29 Q 53,18 43,21 L 36,25 L 37,14 Q 35,7 29,4 Z',
-      fill,
-      WHITE,
-      3,
-    ) + (number ? badgeLettering(number, 29, 42, 32) : '')
-  )
+  // Three broad terminal lobes follow the source highway badge's construction.
+  // Pointed tips and shallow shoulders distinguish the blade from three petals;
+  // short curves soften the lobe bodies without adding flag-like serrations.
+  const blade =
+    'M 29.5,4 Q 24.1,6.8 20.2,11.8 L 21.2,24.2 ' +
+    'Q 16.3,20.8 12.8,21.7 L 10.3,20.5 L 9.4,22.3 L 4.2,23.7 ' +
+    'Q 4.1,36.6 19.7,43.6 L 16.8,49.2 L 27.2,46.9 L 28.2,58 L 31.8,58 L 32.2,46.9 ' +
+    'L 42.1,49.1 L 39.1,43.6 Q 54.6,36.4 54.9,23.6 ' +
+    'L 49.4,22.2 L 48.6,20.6 L 46.1,21.8 Q 42.2,20.8 37.9,24.1 ' +
+    'L 38.7,12 Q 34.7,7 29.5,4 Z'
+  const numeral =
+    number === '1'
+      ? `<g data-part="numeral">${path(
+          'M 23.4,24.4 L 29.9,20 L 33.1,20 L 33.1,42.1 L 37.8,42.1 L 37.8,45.2 L 22.6,45.2 L 22.6,42.1 L 28.5,42.1 L 28.5,25.1 L 23.4,28.2 Z',
+          WHITE,
+          'none',
+          0,
+        )}</g>`
+      : number
+        ? badgeLettering(number, 29.5, 44, 31)
+        : ''
+  return `<g data-part="maple-blade-and-stem">${path(blade, fill, WHITE, 2.2)}</g>${numeral}`
 }
 function flag(width = 68, height = 95, lean = 0): string {
   const svg =
@@ -497,22 +515,30 @@ function flag(width = 68, height = 95, lean = 0): string {
 const pin =
   path('M 21,4 C 10,4 4,12 4,22 Q 4,33 21,47 Q 38,32 38,21 C 38,12 31,4 21,4 Z', PIN, 'none', 0) +
   circle(21, 21, 6.5, WHITE)
+const bcBoundaryPaths = bcInset.parts.map((part) => `<path d="${part.d}"/>`).join('')
+const bcBoundaryMetadata = JSON.stringify(bcInset.provenance)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+const provinceInset =
+  `<g data-part="geographic-bc-inset"><metadata>${bcBoundaryMetadata}</metadata>` +
+  `<defs><clipPath id="compass-bc-geographic-inset"><path d="${bcInset.parts[0].d}"/></clipPath></defs>` +
+  `<g fill="${WHITE}">${bcBoundaryPaths}</g>` +
+  `<g clip-path="url(#compass-bc-geographic-inset)">` +
+  path('M 148,125 L 220,125 L 220,210 L 118,210 L 115,173 L 123,166 L 123,157 L 131,153 L 134,143 Z', MOSS, 'none', 0) +
+  `</g><g fill="none" stroke="${CANOPY}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">${bcBoundaryPaths}</g></g>`
 const compass =
   `<circle cx="116" cy="115" r="76" fill="none" stroke="${CANOPY}" stroke-width="13"/>` +
   path(
-    'M 105,39 L 116,14 L 127,39 M 193,104 L 217,115 L 193,126 M 127,191 L 116,216 L 105,191 M 39,126 L 15,115 L 39,104',
+    'M 105,39 L 108,25 Q 116,17 124,25 L 127,39 Z ' +
+      'M 193,104 L 207,107 Q 215,115 207,123 L 193,126 Z ' +
+      'M 127,191 L 124,205 Q 116,213 108,205 L 105,191 Z ' +
+      'M 39,126 L 25,123 Q 17,115 25,107 L 39,104 Z',
     CANOPY,
     'none',
     0,
   ) +
-  path(
-    'M 51,47 L 148,53 L 148,129 L 179,184 L 123,182 L 107,172 L 96,166 L 90,149 L 82,140 L 81,123 L 76,112 L 78,97 L 68,85 L 65,66 Z',
-    WHITE,
-    CANOPY,
-    2.6,
-  ) +
-  path('M 148,129 L 179,184 L 123,182 L 115,173 L 123,166 L 123,157 L 131,153 L 134,143 Z', MOSS, 'none', 0) +
-  path('M 69,129 L 78,138 L 83,154 L 99,175 L 88,171 L 77,157 L 69,144 Z', WHITE, CANOPY, 2) +
+  provinceInset +
   badgeLettering('BC', 117, 123, 19, CANOPY) +
   badgeLettering('N', 116, 14.5, 17, CANOPY) +
   badgeLettering('E', 224, 121, 17, CANOPY) +
@@ -526,7 +552,7 @@ const navigation: ElementDef[] = [
     232,
     229,
     compass,
-    'Circle, cardinal arrows, letters and a deliberately schematic BC polygon.',
+    'Circle and cardinal arrows with a BC Albers outline derived from the Statistics Canada 2021 province boundary. Mainland, Vancouver Island and the two main Haida Gwaii islands use area-based simplification at icon scale. The moss journey accent remains illustrative.',
     [69, 37, 232, 229],
   ),
   definition(
@@ -576,7 +602,7 @@ const navigation: ElementDef[] = [
     36,
     34,
     scaleDrawing(leaf('1', EMERALD), 59, 61, 36, 34),
-    'Three-lobed leaf, stem and constructed numeral; small scale instance.',
+    'Three broad maple lobes with pointed tips, shallow shoulders, a tapering stem and a geometric numeral; small scale instance.',
     [293, 872, 36, 34],
   ),
   definition(
@@ -596,7 +622,7 @@ const navigation: ElementDef[] = [
     59,
     61,
     leaf('1'),
-    'Three-lobed highway leaf and independently editable number.',
+    'Three broad maple lobes with pointed tips and shallow shoulders, a tapering stem and an independently editable geometric number.',
     [926, 431, 59, 61],
   ),
   definition(
@@ -723,7 +749,7 @@ const drafting: ElementDef[] = [
     59,
     61,
     leaf(),
-    'Reusable three-lobed leaf without a number.',
+    'Reusable three-lobed maple leaf with pointed tips, shallow shoulders and a tapering stem, without a number.',
   ),
   definition(
     'blank-highway-shield',
