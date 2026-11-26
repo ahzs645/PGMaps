@@ -7,7 +7,7 @@
  */
 import type { OrganicHatchRecipe } from '@pgmaps/geo-toolkit/patterns'
 import { ORGANIC_HATCH_PRESETS } from '@pgmaps/geo-toolkit/patterns'
-import type { DrawOp, Point } from '@/lib/mapSheet/drawOps'
+import { smoothedPath, type DrawOp, type Point } from '@/lib/mapSheet/drawOps'
 import { organicHatchOps } from '@/lib/mapSheet/symbols'
 
 /** The parts of a generated geography file the region sheet reads. */
@@ -20,7 +20,7 @@ export interface RegionGeography {
   bcLand: { d: string }
   /** The chosen hatch coverage, before it meets land. */
   coastalCoverage: { d: string }
-  roads: { d: string; role?: string }[]
+  roads: { d: string; role?: string; route?: string }[]
   places: { id: string; name: string; point: [number, number] }[]
   region?: { name: string }
 }
@@ -94,10 +94,16 @@ export function regionSheetOps(
   const { width, height } = geography.artboard
   const land = polygonPathRings(geography.land.d)
   const regionLand = polygonPathRings(geography.bcLand.d)
+  // Named layers, so the SVG opens in Inkscape or Illustrator with one layer a kind of thing.
   const ops: DrawOp[] = [
+    { op: 'group', id: 'water', label: 'Water', layer: true },
     { op: 'rect', x: 0, y: 0, w: width, h: height, fill: palette.water },
+    { op: 'endGroup' },
+    { op: 'group', id: 'land', label: 'Land', layer: true },
     { op: 'path', parts: land, closed: true, fill: palette.land },
     { op: 'path', parts: regionLand, closed: true, fill: palette.region },
+    { op: 'endGroup' },
+    { op: 'group', id: 'hatch', label: 'Hatch', layer: true },
     { op: 'clip', parts: regionLand },
   ]
   if (coverage === 'coverage') ops.push({ op: 'clip', parts: polygonPathRings(geography.coastalCoverage.d) })
@@ -132,6 +138,11 @@ export function regionSheetOps(
     })
     ops.push({ op: 'restore' })
   }
+  ops.push({ op: 'endGroup' }, { op: 'group', id: 'roads', label: 'Roads', layer: true })
+  // The longest stretch of each primary route carries its number along it.
+  const longest = new Map<string, Point[]>()
+  const length = (line: Point[]) =>
+    line.reduce((sum, point, i) => (i ? sum + Math.hypot(point[0] - line[i - 1][0], point[1] - line[i - 1][1]) : 0), 0)
   for (const road of geography.roads) {
     const parts = pathPointLists(road.d).filter((part) => part.length > 1)
     ops.push({
@@ -140,11 +151,35 @@ export function regionSheetOps(
       closed: false,
       stroke: { color: palette.road, width: road.role === 'secondary' ? 1.6 : 2.4, cap: 'round', join: 'round' },
     })
+    if (road.role === 'secondary' || !road.route) continue
+    for (const part of parts) if (length(part) > length(longest.get(road.route) ?? [])) longest.set(road.route, part)
   }
+  for (const [route, line] of longest)
+    if (length(line) > 120)
+      ops.push({
+        op: 'textPath',
+        // Smoothed over about the label's length, so its letters turn gently on a winding road.
+        path: smoothedPath(line, 18),
+        text: route,
+        size: 9,
+        style: 'bold',
+        color: palette.road,
+        baseline: 'middle',
+        halo: { color: '#ffffff', width: 2.2 },
+      })
+  ops.push({ op: 'endGroup' }, { op: 'group', id: 'places', label: 'Places', layer: true })
+  // One place mark, defined once and placed at every place.
+  ops.push({
+    op: 'symbol',
+    id: 'place',
+    label: 'Place',
+    ops: [{ op: 'circle', x: 0, y: 0, r: 3.3, fill: palette.text, stroke: { color: '#ffffff', width: 1.5 } }],
+    bounds: { x: -5, y: -5, w: 10, h: 10 },
+  })
   for (const place of geography.places) {
     if (places && !places.includes(place.id)) continue
     const [x, y] = place.point
-    ops.push({ op: 'circle', x, y, r: 3.3, fill: palette.text, stroke: { color: '#ffffff', width: 1.5 } })
+    ops.push({ op: 'use', id: 'place', x, y })
     ops.push({
       op: 'text',
       x: x + 7,
@@ -156,5 +191,6 @@ export function regionSheetOps(
       halo: { color: '#ffffff', width: 2.5 },
     })
   }
+  ops.push({ op: 'endGroup' })
   return { ops, width, height }
 }

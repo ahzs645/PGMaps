@@ -4,7 +4,7 @@
  * both show exactly the same sheet. The geometry helpers here (hatching, labels along lines,
  * stroke dashes) are what make the symbols look like the reference sheets. No DOM or network access.
  */
-import type { SheetFontStyle } from './textMetrics'
+import { textWidth, type SheetFontStyle } from './textMetrics'
 
 export type Point = [number, number]
 
@@ -83,6 +83,40 @@ export type DrawOp =
   /** Everything up to the matching `restore` is clipped to these rings (even-odd). */
   | { op: 'clip'; parts: Point[][] }
   | { op: 'restore' }
+  /**
+   * Everything up to the matching `endGroup` is one named group: an SVG `<g>` with this id, a layer
+   * when `layer` (Inkscape's layer, Illustrator's on import; in the PDF an optional content group).
+   */
+  | { op: 'group'; id: string; label?: string; layer?: boolean }
+  | { op: 'endGroup' }
+  /**
+   * A symbol drawn once and placed many times (`use`): an SVG `<symbol>`-like group in `<defs>`, a
+   * PDF form XObject. Its operations are in its own units around its origin; `bounds` holds them.
+   * Defining it draws nothing.
+   */
+  | { op: 'symbol'; id: string; label?: string; ops: DrawOp[]; bounds: { x: number; y: number; w: number; h: number } }
+  /** A defined symbol placed with its origin at (x, y), scaled, turned `rotation` degrees counter-clockwise. */
+  | { op: 'use'; id: string; x: number; y: number; scale?: number; rotation?: number }
+  /**
+   * Text along a line: SVG `<textPath>`, kept as editable text; in the PDF each glyph placed and
+   * turned along the line. The line is run left to right so the text reads upright.
+   */
+  | {
+      op: 'textPath'
+      path: Point[]
+      text: string
+      size: number
+      style?: SheetFontStyle
+      family?: 'helvetica' | 'times'
+      color: string
+      /** Where along the line: centred by default. */
+      align?: 'start' | 'center' | 'end'
+      /** Points in from the aligned end. */
+      offset?: number
+      /** `middle` centres the letters on the line, as a road's number on the road; default `alphabetic`. */
+      baseline?: 'alphabetic' | 'middle'
+      halo?: { color: string; width: number }
+    }
 
 export const rectRing = (x: number, y: number, w: number, h: number): Point[] => [
   [x, y],
@@ -296,4 +330,108 @@ export function labelSpacer(distance: number) {
     cells.set(key(x, y), list)
     return true
   }
+}
+
+/** One glyph of text set along a line: its left baseline point and its angle. */
+export interface GlyphPlacement {
+  char: string
+  x: number
+  y: number
+  /** Degrees counter-clockwise, as `text` takes it. */
+  angle: number
+}
+
+/** A line run so it reads left to right: reversed when it ends left of where it starts. */
+export const readingPath = (path: readonly Point[]): Point[] =>
+  path.length > 1 && path[path.length - 1][0] < path[0][0] ? [...path].reverse() : [...path]
+
+/** Where `text` starts along `path` (in reading order), points, for an alignment and an offset. */
+export function textPathStart(
+  path: readonly Point[],
+  text: string,
+  size: number,
+  style?: SheetFontStyle,
+  align: 'start' | 'center' | 'end' = 'center',
+  offset = 0,
+): number {
+  let length = 0
+  for (let i = 1; i < path.length; i++) length += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1])
+  const width = textWidth(text, size, style)
+  return align === 'start' ? offset : align === 'end' ? length - width - offset : (length - width) / 2 + offset
+}
+
+/**
+ * Each glyph of `text` along `path`, with the Helvetica widths the PDF uses: a glyph sits at the
+ * point its left edge reaches, turned to the line's direction at its middle. Past the line's end
+ * the last segment carries on straight.
+ */
+export function glyphsAlongPath(
+  path: readonly Point[],
+  text: string,
+  size: number,
+  style?: SheetFontStyle,
+  align: 'start' | 'center' | 'end' = 'center',
+  offset = 0,
+  /** Points the baseline sits below the line, across it. */
+  drop = 0,
+): GlyphPlacement[] {
+  const line = readingPath(path)
+  if (line.length < 2) return []
+  const cumulative = [0]
+  for (let i = 1; i < line.length; i++)
+    cumulative.push(cumulative[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]))
+  const segmentAt = (distance: number) => {
+    let i = 1
+    while (i < line.length - 1 && cumulative[i] < distance) i++
+    return i
+  }
+  const at = (distance: number): Point => {
+    const i = segmentAt(distance)
+    const span = cumulative[i] - cumulative[i - 1] || 1
+    const t = (distance - cumulative[i - 1]) / span
+    return [line[i - 1][0] + (line[i][0] - line[i - 1][0]) * t, line[i - 1][1] + (line[i][1] - line[i - 1][1]) * t]
+  }
+  const direction = (distance: number) => {
+    const i = segmentAt(distance)
+    return (Math.atan2(-(line[i][1] - line[i - 1][1]), line[i][0] - line[i - 1][0]) * 180) / Math.PI
+  }
+  const out: GlyphPlacement[] = []
+  let distance = textPathStart(line, text, size, style, align, offset)
+  for (const char of text) {
+    const advance = textWidth(char, size, style)
+    const [x, y] = at(distance)
+    const angle = direction(distance + advance / 2)
+    const a = (angle * Math.PI) / 180
+    // Below the line as the text reads: (sin, cos) of its angle on paper, where y runs down.
+    out.push({ char, x: x + drop * Math.sin(a), y: y + drop * Math.cos(a), angle })
+    distance += advance
+  }
+  return out
+}
+
+/**
+ * A line smoothed for a label: resampled every `step` points, then each point averaged with those
+ * within `radius` along the line, so letters set along a jagged road turn gently.
+ */
+export function smoothedPath(path: readonly Point[], radius: number, step = 2): Point[] {
+  if (path.length < 3 || !(radius > 0)) return [...path]
+  const samples: Point[] = [path[0]]
+  for (let i = 1; i < path.length; i++) {
+    const [ax, ay] = path[i - 1]
+    const [bx, by] = path[i]
+    const pieces = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / step))
+    for (let k = 1; k <= pieces; k++) samples.push([ax + ((bx - ax) * k) / pieces, ay + ((by - ay) * k) / pieces])
+  }
+  const reach = Math.max(1, Math.round(radius / step))
+  return samples.map((_, i) => {
+    let x = 0,
+      y = 0,
+      count = 0
+    for (let j = Math.max(0, i - reach); j <= Math.min(samples.length - 1, i + reach); j++) {
+      x += samples[j][0]
+      y += samples[j][1]
+      count++
+    }
+    return [x / count, y / count] as Point
+  })
 }

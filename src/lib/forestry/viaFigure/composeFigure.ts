@@ -2302,7 +2302,13 @@ export function translateOps(ops: readonly DrawOp[], dx: number, dy: number): Dr
             ),
           })),
         }
+      case 'textPath':
+        return { ...op, path: move([op.path])[0] }
+      // A group's bounds and a symbol's definition are not on the page; its placements are.
       case 'restore':
+      case 'group':
+      case 'endGroup':
+      case 'symbol':
         return op
       default:
         return { ...op, x: op.x + dx, y: op.y + dy }

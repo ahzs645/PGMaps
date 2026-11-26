@@ -6,7 +6,8 @@
  * text, every raster embedded as a data URL and nothing referenced outside the file.
  * No DOM or network access.
  */
-import type { CurvePart, DrawOp, Point, StrokeStyle } from './drawOps'
+import { readingPath, textPathStart, type CurvePart, type DrawOp, type Point, type StrokeStyle } from './drawOps'
+import type { SheetFontStyle } from './textMetrics'
 
 const escapeXml = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -53,12 +54,43 @@ const curveData = (parts: readonly CurvePart[], closed: boolean) =>
 type EncodeRgba = (image: { data: Uint8ClampedArray; width: number; height: number }) => string
 
 /** The `<defs>` and drawing of `ops`; `standalone` writes them for a file opened outside the app. */
+/** An id usable in a document: letters, digits, `-`, `_` and `.`, never starting with a digit. */
+const safeId = (id: string) => {
+  const cleaned = id.replace(/[^A-Za-z0-9_.-]+/g, '-')
+  return /^[A-Za-z_]/.test(cleaned) ? cleaned : `id-${cleaned}`
+}
+const fontFamily = (family: 'helvetica' | 'times' | undefined, standalone: boolean) =>
+  family === 'times'
+    ? standalone
+      ? "'Times New Roman', Times, serif"
+      : 'Times New Roman,Times,serif'
+    : standalone
+      ? 'Helvetica, Arial, sans-serif'
+      : 'Helvetica,Arial,sans-serif'
+const fontAttributes = (style?: SheetFontStyle) =>
+  (style === 'bold' || style === 'bolditalic' ? ' font-weight="bold"' : '') +
+  (style === 'italic' || style === 'bolditalic' ? ' font-style="italic"' : '')
+
 function svgParts(ops: readonly DrawOp[], encodeRgba: EncodeRgba | undefined, standalone: boolean) {
-  const body: string[] = []
   const defs: string[] = []
+  const counters = { clips: 0, textPaths: 0 }
+  const body = drawSvg(ops, encodeRgba, standalone, defs, counters)
+  return { defs: defs.join(''), body }
+}
+
+/** The body of `ops`, adding what it defines to `defs`; symbols recurse with the same counters. */
+function drawSvg(
+  ops: readonly DrawOp[],
+  encodeRgba: EncodeRgba | undefined,
+  standalone: boolean,
+  defs: string[],
+  counters: { clips: number; textPaths: number },
+): string {
+  const body: string[] = []
   const text = (value: string) => escapeXml(standalone ? value.replace(XML_FORBIDDEN, '') : value)
-  let clips = 0,
-    open = 0
+  const href = (id: string) => (standalone ? `xlink:href="#${id}"` : `href="#${id}"`)
+  let open = 0,
+    groups = 0
   for (const op of ops) {
     switch (op.op) {
       case 'rect':
@@ -128,24 +160,72 @@ function svgParts(ops: readonly DrawOp[], encodeRgba: EncodeRgba | undefined, st
         else body.push(`<rect x="${n(op.x)}" y="${n(op.y)}" width="${n(op.w)}" height="${n(op.h)}" fill="#e5e7eb"/>`)
         break
       }
-      case 'clip':
-        clips++
+      case 'clip': {
+        const clip = ++counters.clips
         defs.push(
-          `<clipPath id="sheet-clip-${clips}"><path d="${pathData(op.parts, true)}" clip-rule="evenodd"/></clipPath>`,
+          `<clipPath id="sheet-clip-${clip}"><path d="${pathData(op.parts, true)}" clip-rule="evenodd"/></clipPath>`,
         )
-        body.push(`<g clip-path="url(#sheet-clip-${clips})">`)
+        body.push(`<g clip-path="url(#sheet-clip-${clip})">`)
         open++
         break
+      }
       case 'restore':
         if (open > 0) {
           body.push('</g>')
           open--
         }
         break
+      case 'group': {
+        const name = op.label ? ` data-name="${escapeXml(op.label)}"` : ''
+        const layer = op.layer ? ` inkscape:groupmode="layer" inkscape:label="${escapeXml(op.label ?? op.id)}"` : ''
+        body.push(`<g id="${safeId(op.id)}"${name}${layer}>`)
+        groups++
+        break
+      }
+      case 'endGroup':
+        if (groups > 0) {
+          body.push('</g>')
+          groups--
+        }
+        break
+      case 'symbol': {
+        const name = op.label ? ` data-name="${escapeXml(op.label)}"` : ''
+        defs.push(
+          `<g id="${safeId(`symbol-${op.id}`)}"${name}>${drawSvg(op.ops, encodeRgba, standalone, defs, counters)}</g>`,
+        )
+        break
+      }
+      case 'use': {
+        const transform = [
+          `translate(${n(op.x)} ${n(op.y)})`,
+          op.rotation ? `rotate(${n(-op.rotation)})` : '',
+          op.scale !== undefined && op.scale !== 1 ? `scale(${n(op.scale)})` : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+        body.push(`<use ${href(safeId(`symbol-${op.id}`))} transform="${transform}"/>`)
+        break
+      }
+      case 'textPath': {
+        const id = `sheet-text-path-${++counters.textPaths}`
+        const line = readingPath(op.path)
+        defs.push(`<path id="${id}" d="${pathData([line], false)}" fill="none"/>`)
+        const start = textPathStart(line, op.text, op.size, op.style, op.align, op.offset)
+        const common = `font-family="${escapeXml(fontFamily(op.family, standalone))}" font-size="${n(op.size)}"${fontAttributes(op.style)}`
+        const drop = op.baseline === 'middle' ? ` dy="${n(op.size * SVG_MIDDLE_BASELINE_EM)}"` : ''
+        const content = `<textPath ${href(id)} startOffset="${n(start)}">${text(op.text)}</textPath>`
+        if (op.halo)
+          body.push(
+            `<text ${common}${drop} fill="${op.halo.color}" stroke="${op.halo.color}" stroke-width="${n(op.halo.width)}" stroke-linejoin="round">${content}</text>`,
+          )
+        body.push(`<text ${common}${drop} fill="${op.color}">${content}</text>`)
+        break
+      }
     }
   }
   while (open-- > 0) body.push('</g>')
-  return { defs: defs.join(''), body: body.join('') }
+  while (groups-- > 0) body.push('</g>')
+  return body.join('')
 }
 
 export function sheetSvg(
@@ -157,7 +237,10 @@ export function sheetSvg(
   background: string | null = '#ffffff',
 ): string {
   const { defs, body } = svgParts(ops, encodeRgba, false)
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n(width)} ${n(height)}" width="${n(width)}" height="${n(height)}">${background ? `<rect width="100%" height="100%" fill="${background}"/>` : ''}<defs>${defs}</defs>${body}</svg>`
+  const inkscape = ops.some((op) => op.op === 'group' && op.layer)
+    ? ' xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"'
+    : ''
+  return `<svg xmlns="http://www.w3.org/2000/svg"${inkscape} viewBox="0 0 ${n(width)} ${n(height)}" width="${n(width)}" height="${n(height)}">${background ? `<rect width="100%" height="100%" fill="${background}"/>` : ''}<defs>${defs}</defs>${body}</svg>`
 }
 
 /**
@@ -176,7 +259,11 @@ export function standaloneSheetSvg(
   const heading = title ? `<title>${escapeXml(title.replace(XML_FORBIDDEN, ''))}</title>` : ''
   return [
     '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n',
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"${
+      ops.some((op) => op.op === 'group' && op.layer)
+        ? ' xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"'
+        : ''
+    } version="1.1"`,
     ` width="${n(width)}pt" height="${n(height)}pt" viewBox="0 0 ${n(width)} ${n(height)}" xml:space="preserve">`,
     heading,
     background ? `<rect x="0" y="0" width="${n(width)}" height="${n(height)}" fill="${background}"/>` : '',

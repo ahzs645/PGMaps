@@ -232,3 +232,21 @@ The first, landscape frame showed far more ground than the data covered. The bui
 With the page 8 recipe, both coverages (coastal, and all of the region) make one-page vector PDFs with no raster images. In 2× renders, no hatch fell outside the land mask beyond the one-pixel edge band (0 of 4,277,296 water pixels), and every water checkpoint is water.
 
 Natural Earth's 1:10m data is generalised. Small lakes and islands are missing, and Iceland, tried first, has no lakes at all at this scale. One of its two “Lake Te Anau” features is a sub-pixel sliver; a checkpoint taken from it was water to the build but invisible in the drawing, so checkpoints use the main lake's interior point.
+
+## Channel gap and export structure
+
+**Channel gap.** At about a kilometre a pixel, Johnstone Strait and Discovery Passage are hairlines, and the hatch strokes bridge them. Vancouver Island is its own shape in the data, but it read as part of the mainland. `channelGap` (drawing units, default 0) masks the land and its hatch with the coastline's stroke, keeping that much water along every shore. The land path itself is unchanged, and the frame edges get no water line. The workshop starts at 1.2 (about a kilometre) with a **Channel gap** slider. The page 8 export, the live map and `compose-region.ts --channel-gap` draw the same gap; every earlier export keeps 0.
+
+**Export structure.** The sheet drawing model (`src/lib/mapSheet/drawOps.ts`) writes the same structure to SVG and PDF:
+
+- `group` / `endGroup`, with `layer: true`: named layers. In SVG these are Inkscape layers, which Illustrator imports as layers too. jsPDF cannot write optional content groups, so a PDF keeps only their drawing order.
+- `symbol` / `use`: a symbol drawn once and placed by position, scale and rotation (counter-clockwise, as icons turn). In SVG it is a group in `<defs>` placed with `<use>`; in PDF it is one form XObject drawn with `Do`.
+- `textPath`: text along a line, run left to right so it reads upright. In SVG it stays editable as `<textPath>`. In PDF each glyph is placed and turned along the line with the same Helvetica widths, every halo first. `baseline: 'middle'` centres the letters on the line. `smoothedPath` evens out a winding road under a label.
+
+`regionSheetOps` uses all three:
+
+- layers named Water, Land, Hatch, Roads and Places;
+- one place mark placed at every town;
+- each primary route's number set along its longest stretch.
+
+In the South Island PDF the place mark is one form XObject, placed 19 times.

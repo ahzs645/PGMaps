@@ -4,7 +4,7 @@
  * jsPDF module as an argument so callers import it lazily and tests run it in Node. No DOM access.
  */
 import type { GState as GStateClass, jsPDF as JsPdf } from 'jspdf'
-import type { CurvePart, DrawOp, Point, StrokeStyle } from './drawOps'
+import { glyphsAlongPath, type CurvePart, type DrawOp, type Point, type StrokeStyle } from './drawOps'
 
 /** The parts of the jsPDF module the renderer uses; callers import it lazily and pass it in. */
 export type JsPdfModule = { jsPDF: typeof JsPdf; GState: typeof GStateClass }
@@ -100,6 +100,10 @@ export function addSheetPage(pdf: JsPdf, width: number, height: number) {
 }
 
 /** Draws `ops` onto the current page of `pdf`. */
+let formCount = 0
+/** Half Helvetica's cap height, in ems: how far below a line a `middle` baseline sits. */
+const PDF_MIDDLE_BASELINE_EM = 0.358
+
 export function drawSheetPdf(pdf: JsPdf, module: JsPdfModule, ops: readonly DrawOp[], fonts?: SheetPdfFonts) {
   const opacity = (fill?: number, stroke?: number) => {
     pdf.setGState(
@@ -132,86 +136,146 @@ export function drawSheetPdf(pdf: JsPdf, module: JsPdfModule, ops: readonly Draw
       if (closed) pdf.close()
     }
   }
-  for (const op of ops) {
-    switch (op.op) {
-      case 'rect':
-      case 'path':
-      case 'curves':
-      case 'circle': {
-        const translucent = (op.op !== 'circle' && op.fillOpacity !== undefined) || op.stroke?.opacity !== undefined
-        if (translucent) {
-          pdf.saveGraphicsState()
-          opacity(op.op !== 'circle' ? op.fillOpacity : undefined, op.stroke?.opacity)
-        }
-        if (op.fill) pdf.setFillColor(op.fill)
-        if (op.stroke) applyStroke(op.stroke)
-        const mode = op.fill && op.stroke ? 'FD' : op.fill ? 'F' : op.stroke ? 'S' : null
-        if (mode) {
-          if (op.op === 'rect') pdf.rect(op.x, op.y, op.w, op.h, mode)
-          else if (op.op === 'circle') pdf.circle(op.x, op.y, op.r, mode)
-          else {
-            if (op.op === 'curves') traceCurves(op.parts, op.closed)
-            else trace(op.parts, op.closed)
-            if (mode === 'FD') pdf.fillStrokeEvenOdd()
-            else if (mode === 'F') pdf.fillEvenOdd()
-            else pdf.stroke()
+  // Symbols are form XObjects; their keys are unique in the document, whatever their ids.
+  const forms = new Map<string, string>()
+  const draw = (list: readonly DrawOp[]) => {
+    for (const op of list) {
+      switch (op.op) {
+        case 'rect':
+        case 'path':
+        case 'curves':
+        case 'circle': {
+          const translucent = (op.op !== 'circle' && op.fillOpacity !== undefined) || op.stroke?.opacity !== undefined
+          if (translucent) {
+            pdf.saveGraphicsState()
+            opacity(op.op !== 'circle' ? op.fillOpacity : undefined, op.stroke?.opacity)
           }
+          if (op.fill) pdf.setFillColor(op.fill)
+          if (op.stroke) applyStroke(op.stroke)
+          const mode = op.fill && op.stroke ? 'FD' : op.fill ? 'F' : op.stroke ? 'S' : null
+          if (mode) {
+            if (op.op === 'rect') pdf.rect(op.x, op.y, op.w, op.h, mode)
+            else if (op.op === 'circle') pdf.circle(op.x, op.y, op.r, mode)
+            else {
+              if (op.op === 'curves') traceCurves(op.parts, op.closed)
+              else trace(op.parts, op.closed)
+              if (mode === 'FD') pdf.fillStrokeEvenOdd()
+              else if (mode === 'F') pdf.fillEvenOdd()
+              else pdf.stroke()
+            }
+          }
+          if (translucent) pdf.restoreGraphicsState()
+          break
         }
-        if (translucent) pdf.restoreGraphicsState()
-        break
-      }
-      case 'text': {
-        pdf.setFont(
-          fonts ? (op.style === 'bold' ? fonts.heading : fonts.body) : (op.family ?? 'helvetica'),
-          fonts?.custom ? 'normal' : (op.style ?? 'normal'),
-        )
-        pdf.setFontSize(op.size)
-        const options = {
-          align: op.align ?? 'left',
-          baseline: op.baseline === 'middle' ? ('middle' as const) : ('alphabetic' as const),
-          ...(op.angle ? { angle: op.angle } : {}),
-        }
-        // A brand font is embedded with its own Unicode map, so every letter it has prints as written.
-        const value = pdfText(op.text, { unicodeLetters: fonts?.custom === true })
-        if (op.halo) {
-          pdf.saveGraphicsState()
-          pdf.setDrawColor(op.halo.color)
-          pdf.setLineWidth(op.halo.width)
-          pdf.setLineDashPattern([], 0)
-          pdf.setLineJoin('round')
-          pdf.setTextColor(op.halo.color)
-          pdf.text(value, op.x, op.y, { ...options, renderingMode: 'fillThenStroke' })
-          pdf.restoreGraphicsState()
-        }
-        pdf.setTextColor(op.color)
-        pdf.text(value, op.x, op.y, options)
-        break
-      }
-      case 'image':
-        if (op.image.kind === 'rgba')
-          pdf.addImage(
-            { data: op.image.data, width: op.image.width, height: op.image.height } as never,
-            'RGBA',
-            op.x,
-            op.y,
-            op.w,
-            op.h,
-            undefined,
-            'FAST',
+        case 'text': {
+          pdf.setFont(
+            fonts ? (op.style === 'bold' ? fonts.heading : fonts.body) : (op.family ?? 'helvetica'),
+            fonts?.custom ? 'normal' : (op.style ?? 'normal'),
           )
-        else pdf.addImage(op.image.url, op.image.format, op.x, op.y, op.w, op.h, undefined, 'FAST')
-        break
-      case 'clip':
-        pdf.saveGraphicsState()
-        trace(op.parts, true)
-        pdf.clipEvenOdd()
-        pdf.discardPath()
-        break
-      case 'restore':
-        pdf.restoreGraphicsState()
-        break
+          pdf.setFontSize(op.size)
+          const options = {
+            align: op.align ?? 'left',
+            baseline: op.baseline === 'middle' ? ('middle' as const) : ('alphabetic' as const),
+            ...(op.angle ? { angle: op.angle } : {}),
+          }
+          // A brand font is embedded with its own Unicode map, so every letter it has prints as written.
+          const value = pdfText(op.text, { unicodeLetters: fonts?.custom === true })
+          if (op.halo) {
+            pdf.saveGraphicsState()
+            pdf.setDrawColor(op.halo.color)
+            pdf.setLineWidth(op.halo.width)
+            pdf.setLineDashPattern([], 0)
+            pdf.setLineJoin('round')
+            pdf.setTextColor(op.halo.color)
+            pdf.text(value, op.x, op.y, { ...options, renderingMode: 'fillThenStroke' })
+            pdf.restoreGraphicsState()
+          }
+          pdf.setTextColor(op.color)
+          pdf.text(value, op.x, op.y, options)
+          break
+        }
+        case 'image':
+          if (op.image.kind === 'rgba')
+            pdf.addImage(
+              { data: op.image.data, width: op.image.width, height: op.image.height } as never,
+              'RGBA',
+              op.x,
+              op.y,
+              op.w,
+              op.h,
+              undefined,
+              'FAST',
+            )
+          else pdf.addImage(op.image.url, op.image.format, op.x, op.y, op.w, op.h, undefined, 'FAST')
+          break
+        case 'clip':
+          pdf.saveGraphicsState()
+          trace(op.parts, true)
+          pdf.clipEvenOdd()
+          pdf.discardPath()
+          break
+        case 'restore':
+          pdf.restoreGraphicsState()
+          break
+        // jsPDF cannot write optional content groups, so a PDF keeps a group's drawing order only;
+        // the SVG carries named layers.
+        case 'group':
+        case 'endGroup':
+          break
+        case 'symbol': {
+          const key = `sheet-symbol-${++formCount}`
+          forms.set(op.id, key)
+          const { x, y, w, h } = op.bounds
+          pdf.advancedAPI((advanced) => {
+            advanced.beginFormObject(x, y, w, h, advanced.unitMatrix)
+            draw(op.ops)
+            advanced.endFormObject(key)
+          })
+          break
+        }
+        case 'use': {
+          const key = forms.get(op.id)
+          if (!key) throw Error(`The sheet places symbol "${op.id}" before defining it.`)
+          const a = ((op.rotation ?? 0) * Math.PI) / 180
+          const k = op.scale ?? 1
+          // Counter-clockwise on paper, where y runs down, as `iconOps` turns icons.
+          pdf.advancedAPI((advanced) =>
+            advanced.doFormObject(
+              key,
+              advanced.Matrix(Math.cos(a) * k, -Math.sin(a) * k, Math.sin(a) * k, Math.cos(a) * k, op.x, op.y),
+            ),
+          )
+          break
+        }
+        case 'textPath': {
+          // Glyph by glyph along the line, every halo first so none covers a neighbour's letter.
+          const value = pdfText(op.text, { unicodeLetters: fonts?.custom === true })
+          const drop = op.baseline === 'middle' ? op.size * PDF_MIDDLE_BASELINE_EM : 0
+          const glyphs = glyphsAlongPath(op.path, value, op.size, op.style, op.align, op.offset, drop)
+          const glyph = (
+            g: (typeof glyphs)[number],
+            color: string,
+            halo?: { color: string; width: number },
+          ): DrawOp => ({
+            op: 'text',
+            x: g.x,
+            y: g.y,
+            text: g.char,
+            size: op.size,
+            color,
+            ...(op.style ? { style: op.style } : {}),
+            ...(op.family ? { family: op.family } : {}),
+            ...(g.angle ? { angle: g.angle } : {}),
+            ...(halo ? { halo } : {}),
+          })
+          if (op.halo) draw(glyphs.map((g) => glyph(g, op.halo!.color, op.halo)))
+          draw(glyphs.map((g) => glyph(g, op.color)))
+          break
+        }
+      }
     }
   }
+  draw(ops)
   // Leave the next caller with jsPDF's defaults.
   pdf.setLineDashPattern([], 0)
 }
