@@ -49,20 +49,9 @@ import {
 } from './dev-view/libraryOrganization'
 import { cn } from '@/lib/utils'
 import { StyledSelect } from '@/components/ui/styled-select'
+import { STREET_RASTER_STYLE } from '@/lib/geo/streetRasterStyle'
 
-const STREET: StyleSpecification = {
-  version: 8,
-  sources: {
-    reference: {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: '© OpenStreetMap contributors',
-    },
-  },
-  layers: [{ id: 'reference', type: 'raster', source: 'reference' }],
-}
+const STREET = STREET_RASTER_STYLE
 const SATELLITE: StyleSpecification = {
   version: 8,
   sources: {

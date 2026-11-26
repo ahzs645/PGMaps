@@ -220,6 +220,7 @@ function EquationChip({
 }) {
   const isNegative = weight < 0
   const chipRef = useRef<HTMLDivElement>(null)
+  const [popoverScope, setPopoverScope] = useState<Record<string, string>>({})
 
   return (
     <div className="relative flex items-center gap-2">
@@ -262,7 +263,10 @@ function EquationChip({
           data-score-builder-term-label={metric.key}
           aria-expanded={editing}
           aria-label={`Edit weight for ${metric.shortLabel}`}
-          onClick={onEdit}
+          onClick={() => {
+            setPopoverScope(workspaceScope(chipRef.current))
+            onEdit()
+          }}
           className="flex items-center gap-1.5 border-l border-border px-2 py-1.5 text-left transition-colors hover:bg-muted"
         >
           <span className={cn('h-2 w-2 rounded-sm', getCategoryTone(metric.category))} />
@@ -319,7 +323,8 @@ function EquationChip({
         width={352}
         className="max-w-[calc(100vw-2rem)] rounded-lg p-2"
       >
-        <div data-score-builder-weight-popover={metric.key}>
+        {/* The portal leaves the workspace; carry its desktop/mobile scope so the row's `workspace-*` sizes hold. */}
+        <div data-score-builder-weight-popover={metric.key} {...popoverScope}>
           <div className="mb-1.5 px-1 text-xs text-muted-foreground">{metric.label}</div>
           <CompactWeightRow
             metric={metric}
@@ -333,4 +338,18 @@ function EquationChip({
       </AnchoredPopover>
     </div>
   )
+}
+
+/**
+ * `className` and `data-workspace-*` attributes for a portalled panel, copied from the toolkit workspace
+ * around `anchor`. The toolkit's `workspace-desktop:` variants are scoped to that ancestor, so content
+ * rendered in `document.body` would otherwise fall back to its phone layout.
+ */
+function workspaceScope(anchor: HTMLElement | null): Record<string, string> {
+  const workspace = anchor?.closest<HTMLElement>('.geo-toolkit')
+  if (!workspace) return {}
+  const scope: Record<string, string> = { className: 'geo-toolkit' }
+  for (const { name, value } of Array.from(workspace.attributes))
+    if (name.startsWith('data-workspace-')) scope[name] = value
+  return scope
 }

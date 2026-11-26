@@ -1252,7 +1252,8 @@ function StoryMapRuntime({
           ) : null
         }
       >
-        <div className="space-y-2">
+        {/* One row pitch for every row, single layer or category, with a small gap between layers. */}
+        <div className="space-y-1">
           {legendLayers
             .filter(
               (resolved) =>
@@ -1278,7 +1279,7 @@ function StoryMapRuntime({
                     active={active}
                     disabled={locked}
                     onClick={() => toggleLayer(resolved.layer.id)}
-                    className="min-h-7 font-semibold text-foreground touch:min-h-11"
+                    className={cn(LEGEND_ROW, active && LEGEND_ROW_ACTIVE)}
                   />
                 )
               }
@@ -1289,7 +1290,11 @@ function StoryMapRuntime({
                     aria-pressed={active}
                     disabled={locked}
                     onClick={() => toggleLayer(resolved.layer.id)}
-                    className="flex min-h-7 w-full items-center rounded px-1 text-left text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[pressed=false]:opacity-50 touch:min-h-11 touch:px-2"
+                    className={cn(
+                      'flex w-full items-center rounded px-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      LEGEND_ROW,
+                      active ? LEGEND_ROW_ACTIVE : 'text-muted-foreground line-through',
+                    )}
                   >
                     <span>{resolved.label}</span>
                   </button>
@@ -1301,6 +1306,7 @@ function StoryMapRuntime({
                         label={entry.label}
                         swatchShape="circle"
                         active={active}
+                        className="min-h-6 pl-3 text-xs text-muted-foreground"
                       />
                     ))}
                   </MapLegendSection>
@@ -1310,7 +1316,13 @@ function StoryMapRuntime({
           {legendEntries
             .filter((entry) => !entry.layerId)
             .map((entry) => (
-              <LegendItem key={entry.key} color={entry.color} label={entry.label} swatchShape="circle" />
+              <LegendItem
+                key={entry.key}
+                color={entry.color}
+                label={entry.label}
+                swatchShape="circle"
+                className="min-h-6 px-1 text-xs text-muted-foreground"
+              />
             ))}
         </div>
       </MapLegendPanel>
@@ -1454,6 +1466,13 @@ function StoryMapRuntime({
 }
 
 /** Host chrome and viewport presentation for the extracted alternate story layouts. */
+/**
+ * Every layer row in the story legend, single or grouped, is the same size: the layers shown are bold,
+ * the ones turned off are muted and struck through. Category entries under a group sit indented and muted.
+ */
+const LEGEND_ROW = 'min-h-6 py-0.5 text-xs touch:min-h-11'
+const LEGEND_ROW_ACTIVE = 'font-semibold text-foreground'
+
 export function ProjectStoryMap(props: {
   project: ProjectPackage
   config: ProjectStoryWorkspaceDef

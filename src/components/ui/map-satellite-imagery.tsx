@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { BasemapThumbnailLabel } from '@/components/ui/basemap-thumbnail'
 import { useMap } from '@/components/ui/map'
 import { MapRasterLayer } from '@/components/ui/map-layers'
-import { CARTO_RASTER_TILES } from '@/lib/geo/basemapThumbnail'
+import { PLAIN_MAP_RASTER_TILES } from '@/lib/geo/basemapThumbnail'
 
 /** The imagery DevView, DevViewshed and the LiDAR basemaps already use. */
 export const SATELLITE_TILES = [
@@ -19,7 +19,7 @@ export type ImageryBasemap = 'map' | 'satellite'
  * imagery names it the same. The page applies the choice by rendering `SatelliteImagery`.
  */
 export const IMAGERY_BASEMAPS: ReadonlyArray<{ value: ImageryBasemap; label: ReactNode; description?: string }> = [
-  { value: 'map', label: <BasemapThumbnailLabel label="Map" tiles={CARTO_RASTER_TILES} /> },
+  { value: 'map', label: <BasemapThumbnailLabel label="Map" tiles={PLAIN_MAP_RASTER_TILES} /> },
   {
     value: 'satellite',
     label: <BasemapThumbnailLabel label="Satellite" tiles={SATELLITE_TILES[0]} />,

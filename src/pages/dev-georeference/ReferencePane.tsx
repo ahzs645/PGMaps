@@ -15,6 +15,7 @@ import type { LoadedSource } from './sources'
 import type { WarpedPreview } from './preview'
 import type { FittedTransformation } from './transforms'
 import { StyledSelect } from '@/components/ui/styled-select'
+import { STREET_RASTER_STYLE } from '@/lib/geo/streetRasterStyle'
 
 const protocol = new Protocol()
 maplibregl.addProtocol('pmtiles', protocol.tile)
@@ -31,19 +32,7 @@ const SATELLITE: StyleSpecification = {
   },
   layers: [{ id: 'reference', type: 'raster', source: 'reference' }],
 }
-const STREET: StyleSpecification = {
-  version: 8,
-  sources: {
-    reference: {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: '© OpenStreetMap contributors',
-    },
-  },
-  layers: [{ id: 'reference', type: 'raster', source: 'reference' }],
-}
+const STREET = STREET_RASTER_STYLE
 type ViewMode = 'reference' | 'current' | 'adjusted'
 
 function MapInteraction({

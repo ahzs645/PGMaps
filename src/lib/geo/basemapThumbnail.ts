@@ -25,12 +25,13 @@ export function basemapThumbnailUrl(template: string, lng: number, lat: number, 
 }
 
 /**
- * Carto's raster renderings of the Positron and Dark Matter vector styles PGMaps draws, so the
- * thumbnail of the plain map looks like the map.
+ * Raster stand-ins for the Positron and Dark Matter vector styles PGMaps draws, so the thumbnail of the
+ * plain map looks like the map: Esri's light and dark gray canvas, keyless like the satellite imagery.
+ * CARTO's own raster renderings now need an API key and return an "API KEY REQUIRED" watermark.
  */
-export const CARTO_RASTER_TILES = {
-  light: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-  dark: 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+export const PLAIN_MAP_RASTER_TILES = {
+  light: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+  dark: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
 } as const
 
 /** The zoom the thumbnails are taken at: Prince George and its surroundings fill the tile. */
