@@ -203,3 +203,32 @@ Measured with `scripts/map-loading/measure.mjs` and `setups/illustrated-live-hat
 
 - The layer was on screen on every frame of a drag, a zoom in, a zoom out and a change of style.
 - A drag left 0.9% of the view waiting; a fast zoom-out left 9.6% waiting, filled 0.4 s later.
+
+## A real region outside BC: Te Waipounamu / South Island
+
+The synthetic island showed that the pipeline was not tied to BC. New Zealand's South Island shows it on real geography with the same parts: fjords like BC's coast, large lakes, an offshore island (Stewart Island), two main highways (State Highways 1 and 6), and its own projection (EPSG:2193, NZTM2000).
+
+- `scripts/illustrated-map/prepare-natural-earth-region.py` turns Natural Earth 1:10m GeoJSON (public domain; edition and input SHA-256 recorded) into the build script's inputs for any bounding box:
+  - land and minor islands, with lakes cut out;
+  - the region's land, minus excluded parts (here the North Island's tip);
+  - a coastal coverage: land within `--coast-km` of the sea, as decorative as BC's coastal style;
+  - the chosen roads, and the places on the region.
+- `scripts/illustrated-map/regions/south-island.json` is the region config. It has a portrait frame (1100 × 1300) and eight checkpoints (three lakes, two seas, Christchurch, Fiordland, Stewart Island), which the build verifies. The four route shields are snapped onto SH1 and SH6.
+- `src/lib/illustratedMap/regions/south-island.generated.json` is the result: 21 land polygons and 17 lake holes.
+
+```sh
+python scripts/illustrated-map/prepare-natural-earth-region.py --ne-dir <natural-earth geojson> \
+  --bounds 164.5,-48.6,176.5,-39.4 --exclude 174.4,-41.75,178,-38 --epsg 2193 --coast-km 25 \
+  --road-labels SH1,SH6,SH8,SH73,SH94,SH7 --primary-roads SH1,SH6 --jurisdiction NZ --out <dir>
+python scripts/illustrated-map/build-geographic-map.py --geography <dir>/geography.geojson \
+  --land-provenance <dir>/land-provenance.json --roads <dir>/roads.geojson --places <dir>/places.geojson \
+  --road-provenance <dir>/road-provenance.json --region scripts/illustrated-map/regions/south-island.json \
+  --output src/lib/illustratedMap/regions/south-island.generated.json
+node --import tsx scripts/illustrated-map/compose-region.ts src/lib/illustratedMap/regions/south-island.generated.json <out> --preset page-8-reference
+```
+
+The first, landscape frame showed far more ground than the data covered. The build refused it (“Source land/water coverage misses … square metres”) instead of drawing that ground as ocean.
+
+With the page 8 recipe, both coverages (coastal, and all of the region) make one-page vector PDFs with no raster images. In 2× renders, no hatch fell outside the land mask beyond the one-pixel edge band (0 of 4,277,296 water pixels), and every water checkpoint is water.
+
+Natural Earth's 1:10m data is generalised. Small lakes and islands are missing, and Iceland, tried first, has no lakes at all at this scale. One of its two “Lake Te Anau” features is a sub-pixel sliver; a checkpoint taken from it was water to the build but invisible in the drawing, so checkpoints use the main lake's interior point.

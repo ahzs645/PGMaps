@@ -1,0 +1,31 @@
+{
+  "name": "Te Waipounamu / South Island",
+  "frame": { "width": 1100, "height": 1300 },
+  "viewBounds": [166.2, -47.4, 174.4, -40.4],
+  "epsg": 2193,
+  "regionKind": "region",
+  "coverageKind": "coastal-style",
+  "roadJurisdiction": "NZ",
+  "compass": [960, 150],
+  "motifs": [],
+  "trees": [
+    [167.6, -45.4], [168.3, -44.6], [169.4, -43.6], [170.6, -42.9], [171.6, -42.2],
+    [172.6, -41.6], [167.9, -46.95], [169.2, -45.9]
+  ],
+  "shields": [
+    { "id": "shield-sh1-south", "route": "SH1", "coordinate": [171.25, -44.4] },
+    { "id": "shield-sh1-north", "route": "SH1", "coordinate": [173.7, -42.4] },
+    { "id": "shield-sh6-west", "route": "SH6", "coordinate": [169.04, -43.88] },
+    { "id": "shield-sh6-north", "route": "SH6", "coordinate": [171.2, -42.45] }
+  ],
+  "checkpoints": [
+    ["christchurch-land", 172.636, -43.532, true],
+    ["stewart-island-land", 167.95, -46.98, true],
+    ["fiordland-land", 167.4, -45.6, true],
+    ["lake-te-anau-water", 167.7724, -45.1857, false],
+    ["lake-wakatipu-water", 168.5712, -45.0865, false],
+    ["lake-pukaki-water", 170.173, -44.044, false],
+    ["foveaux-strait-water", 168.15, -46.72, false],
+    ["tasman-sea-water", 167.5, -43.5, false]
+  ]
+}
