@@ -1,0 +1,117 @@
+{
+  "purpose": "Source attribution and licence texts for the geographic illustration, not raw geospatial archives.",
+  "sources": [
+    {
+      "id": "gshhg",
+      "title": "GSHHG 2.3.7",
+      "url": "https://www.soest.hawaii.edu/pwessel/gshhg/",
+      "version": "2.3.7",
+      "releaseDate": "2017-06-15",
+      "terms": "LGPL-3.0-or-later",
+      "noticeFiles": ["GSHHG-LICENSE.TXT", "GSHHG-COPYING.LESSERv3", "GSHHG-README.TXT", "GPL-3.0.txt"]
+    },
+    {
+      "id": "statcan-digital-boundaries",
+      "title": "2021 Census Digital Boundary Files",
+      "url": "https://geo.statcan.gc.ca/geo_wa/rest/services/2021/Digital_boundary_files/MapServer/0",
+      "licenceEvidenceUrl": "https://geo.statcan.gc.ca/geo_wa/rest/services/2021/Digital_boundary_files/MapServer/info/iteminfo",
+      "referenceDate": "2021-01-01",
+      "publicationDate": "2022-09-21",
+      "terms": "Open Government Licence - Canada 2.0",
+      "noticeFiles": ["OGL-CANADA-2.0.txt"]
+    },
+    {
+      "id": "nrn",
+      "title": "National Road Network",
+      "url": "https://open.canada.ca/data/en/dataset/3d282116-e556-400c-9306-ca1a3cada77f",
+      "terms": "Open Government Licence - Canada 2.0",
+      "noticeFiles": ["OGL-CANADA-2.0.txt"]
+    },
+    {
+      "id": "cgn",
+      "title": "Canadian Geographical Names",
+      "url": "https://open.canada.ca/data/en/dataset/e27c6eba-3c5d-4051-9db2-082dc6411c2c",
+      "terms": "Open Government Licence - Canada 2.0",
+      "noticeFiles": ["OGL-CANADA-2.0.txt"]
+    },
+    {
+      "id": "fwa-lakes",
+      "title": "Freshwater Atlas - Lakes",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/cb1e3aba-d3fe-4de1-a2d4-b8b6650fb1f6",
+      "terms": "Open Government Licence - British Columbia 2.0",
+      "noticeFiles": ["OGL-BC-2.0.txt"]
+    },
+    {
+      "id": "fwa-manmade",
+      "title": "Freshwater Atlas - Manmade Waterbodies",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/055fd71e-b771-4d47-a863-8a54f91a954c",
+      "terms": "Open Government Licence - British Columbia 2.0",
+      "noticeFiles": ["OGL-BC-2.0.txt"]
+    },
+    {
+      "id": "bec",
+      "title": "BEC Map 13.1",
+      "url": "https://catalogue.data.gov.bc.ca/dataset/f358a53b-ffde-4830-a325-a5a03ff672c3",
+      "version": "13.1",
+      "terms": "Open Government Licence - British Columbia 2.0",
+      "noticeFiles": ["OGL-BC-2.0.txt"]
+    },
+    {
+      "id": "wsdot-i5",
+      "title": "WSDOT State Routes of Washington State 1:24,000 (2025), Unrouted Lines",
+      "url": "https://data.wsdot.wa.gov/geospatial/DOT_TDO/LRS/24kLRS.htm",
+      "sourceDate": "2025-12-31",
+      "publicationDate": "2026-04-27",
+      "terms": "Source metadata lists no access constraints and provides liability/fitness terms. No blanket CC/OGL/public-domain licence inferred.",
+      "noticeFiles": ["NOTICE.md"]
+    },
+    {
+      "id": "census-seattle",
+      "title": "U.S. Census 2025 Gazetteer, Washington places",
+      "url": "https://www.census.gov/geographies/reference-files/time-series/geo/gazetteer-files.2025.html",
+      "policyUrl": "https://www2.census.gov/foia/ds_policies/ds027.pdf",
+      "citationGuidanceUrl": "https://www.census.gov/about/policies/citation.html",
+      "terms": "Census policy describes employee works as generally unprotected by copyright within the United States, with stated exceptions and possible foreign protection. No worldwide public-domain or CC0 claim.",
+      "noticeFiles": ["NOTICE.md"]
+    }
+  ],
+  "noticeCopies": [
+    {
+      "file": "NOTICE.md",
+      "bytes": 8720,
+      "sha256": "90ab29aa6f2c8be7db9e52cc213dfeed18cbc68185c5c06d24b99c3f72da931e"
+    },
+    {
+      "file": "GSHHG-LICENSE.TXT",
+      "bytes": 1375,
+      "sha256": "dc53a4833bf9121360a5286917683f041439327353ffe0231206c6b746005b81"
+    },
+    {
+      "file": "GSHHG-COPYING.LESSERv3",
+      "bytes": 7816,
+      "sha256": "ea7d049c7705dc13afc202dd18e1827f3484f8212fd3fa7b82fc4a0c363432c9"
+    },
+    {
+      "file": "GSHHG-README.TXT",
+      "bytes": 15350,
+      "sha256": "8c83b0d9e861c3cf9390ccfcc28d57dd484b192e1767524e094c988ee9f84ac7"
+    },
+    {
+      "file": "GPL-3.0.txt",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "file": "OGL-CANADA-2.0.txt",
+      "bytes": 3638,
+      "sha256": "e5fe45d4d94bc66881cf20f8d098799a112f2dc2e15273b9fe1398b6a84e724c"
+    },
+    {
+      "file": "OGL-BC-2.0.txt",
+      "bytes": 4154,
+      "sha256": "5177e6407adaf7663d0dc4ff9d5164db5520b605afca5a4bb6aa6dfe827e9f73"
+    }
+  ],
+  "copyMethod": "GSHHG release notices copied byte-for-byte. GPL copied from standard common-licences distribution. OGL texts preserve complete canonical official wording with website navigation removed.",
+  "checkedDateUtc": "2026-11-26"
+}

@@ -31,6 +31,39 @@ function fittedOutline(d: string, sx: number, sy: number, tx: number, ty: number
 export const escapeXml = (text: string) =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
+/** Measure genuine glyphs at one uniform em size for geographic label placement. */
+export function letteringSize(
+  text: string,
+  emSize = 23.923,
+  face: LetteringFace = 'smallcaps',
+  glyphText = text.toUpperCase(),
+): { width: number; height: number } {
+  if (glyphText.toUpperCase() !== text.toUpperCase())
+    throw new Error('The glyph sequence must preserve the lettering text')
+  const font = fontData[face]
+  const glyphs = font.glyphs as Record<string, Glyph>
+  let cursor = 0
+  let left = Infinity,
+    right = -Infinity,
+    bottom = Infinity,
+    top = -Infinity
+  for (const character of glyphText) {
+    const glyph = glyphs[character]
+    if (!glyph) throw new Error(`The illustrated-map font subset has no glyph for ${character}`)
+    if (glyph.bounds) {
+      left = Math.min(left, cursor + glyph.bounds[0])
+      right = Math.max(right, cursor + glyph.bounds[2])
+      bottom = Math.min(bottom, glyph.bounds[1])
+      top = Math.max(top, glyph.bounds[3])
+    }
+    cursor += glyph.advance
+  }
+  const scale = emSize / font.unitsPerEm
+  return Number.isFinite(left)
+    ? { width: (right - left) * scale, height: (top - bottom) * scale }
+    : { width: 0, height: 0 }
+}
+
 /**
  * Fit live source text to an authored ink box. Each letter remains a genuine font outline.
  * `glyphText` selects the regular font's capital-shaped lowercase alternates while

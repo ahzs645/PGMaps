@@ -2,9 +2,11 @@
 
 Reconstruction date: 25 November 2026. Reference: page 8 of Destination BC's supplied _Rainforest to Rockies Industry Brand Guidelines_. Workshop route: `/dev/illustrated-map/`.
 
+This guide documents the schematic reconstruction and its shared drawing system. The workshop now defaults to the [geographic illustration](illustrated-map-geographic.md), which uses sourced land, inland water, highways and place coordinates. Select **Schematic reference** to inspect the authored page 8 layout described below.
+
 ## What was built
 
-The map is now a drawing system. The scenery, trees, route markers, large-map land shapes, route network and title study are composed from authored geometry. The compass inset is derived from geographic province-boundary data. The forest is a deterministic field of short cubic strokes. The place names are composed from the supplied Great Forest font glyphs. No image tracing, threshold-to-contour conversion or old kit path data is used by this generator.
+The schematic is a drawing system. The scenery, trees, route markers, large-map land shapes, route network and title study are composed from authored geometry. The compass inset is derived from geographic province-boundary data. The forest is a deterministic field of short cubic strokes. The place names are composed from the supplied Great Forest font glyphs. No image tracing, threshold-to-contour conversion or old kit path data is used by this generator.
 
 The complete reference kit has 63 individual element files. All 63 have corresponding rebuilt outputs: 18 scenic motifs, 14 navigation marks, 23 individual trees and eight drafting assets. A separate reconstructed title study brings the new catalogue to 64 entries. The full map also contains editable land shapes, six continuous highway centrelines, connecting routes, arrowheads and 14 groups of place names (18 lines). The component descriptions below explain every catalogue element.
 
@@ -196,7 +198,7 @@ Dimensions below are each component's local viewBox. The full-map placement is i
 
 ## Use and export
 
-Open `/dev/illustrated-map/` in a development build. The Map, Elements, Hatching and Compare tabs use the same SVG builders as downloads. Compare offers an ink overlay with opacity or a side-by-side view. The Hatching tab also shows original and generated maps at a reduced scale, because a texture that works close up can form distracting bands when reduced. White label outlines and illustration overlap are composition controls, independent of the five hatch controls. Their current values are used by both preview and SVG export. The page needs no live geographic request to draw the illustration.
+Open `/dev/illustrated-map/` in a development build. The Map, Elements, Hatching and Compare tabs use the same SVG builders as downloads. In **Schematic reference** mode, Compare offers an ink overlay with opacity or a side-by-side view; real geography uses a side-by-side style comparison. The Hatching tab also shows original and generated maps at a reduced scale, because a texture that works close up can form distracting bands when reduced. White label outlines and illustration overlap are composition controls, independent of the five hatch controls. Their current values are used by both preview and SVG export. The page needs no live geographic request to draw the illustration.
 
 To write the independent vector package and an offline interactive review:
 
@@ -236,6 +238,6 @@ Visual verification uses the exact source raster, per-element side-by-side sheet
 
 A direct MuPDF SVG conversion can ignore clipping, masks, `currentColor` and dashed strokes in this kind of file. It can therefore produce a misleading preview. Use a standards-compliant browser or Resvg for the final SVG check; PDF exports in the delivery are printed from the browser's actual SVG rendering.
 
-## Extending this into a real PGMaps style
+## Geographic illustration
 
-The reusable pieces are the component grammar, vector stroke generator, palette and SVG composition. A later geographic mode should obtain actual coastline/forest/road features through PGMaps' existing map toolkit, project them to an artboard, generalize them for the intended scale, reserve labels and symbols, and generate texture in stable projected coordinates. Its scale, attribution and geographic data provenance should remain distinct from this page-8 schematic. This reconstruction does not replace any existing live basemap, route geometry or forestry analysis.
+The geographic mode reuses the component grammar, vector stroke generator, palette and font outlines. It projects sourced shoreline, inland-water polygons, highways and place points together to BC Albers. The same BC dry-land path paints the land and clips the forest, so a separately fitted coastal hatch edge cannot introduce a white strip. Its geographic data, scale, source notices and regeneration workflow are documented in [the geographic illustration guide](illustrated-map-geographic.md). The authored schematic remains available as a style reference.

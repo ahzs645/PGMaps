@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Download, Layers, Map, RotateCcw, ScanEye, Shapes, Trees, Waves } from 'lucide-react'
 
 import { DevLibraryBackLink } from '@/components/dev/PageBackLink'
@@ -11,6 +11,7 @@ import { ToggleRow } from '@/components/ui/toggle-row'
 import { ToolPageHeader } from '@/components/ui/tool-page-header'
 import { withBase } from '@/lib/dataUrl'
 import { downloadText } from '@/lib/download'
+import { buildPreviewSvg } from '@/lib/illustratedMap/preview'
 import {
   buildElementSheetSvg,
   buildElementSvg,
@@ -22,8 +23,18 @@ import {
   type CompositionOptions,
   type HatchOptions,
 } from '@/lib/illustratedMap'
+import {
+  buildGeographicLandMaskSvg,
+  buildGeographicMapSvg,
+  DEFAULT_GEOGRAPHIC_OPTIONS,
+  GEOGRAPHIC_MAP_INFO,
+  type GeographicMapOptions,
+} from '@/lib/illustratedMap/geographic'
 
 type View = 'map' | 'elements' | 'hatching' | 'compare'
+type MapGeometry = 'geographic' | 'schematic'
+type HatchCoverage = NonNullable<GeographicMapOptions['coverage']>
+type HatchingPreview = 'pattern' | 'land-mask'
 const VIEWS: View[] = ['map', 'elements', 'hatching', 'compare']
 const LAYERS = [
   { id: 'hatching', label: 'Forest hatching' },
@@ -40,19 +51,41 @@ const CATEGORY_LABELS = {
 const REFERENCE = withBase('/illustrated-map/page8-reference.jpg')
 const SVG_TYPE = 'image/svg+xml;charset=utf-8'
 
-function svgUrl(svg: string) {
-  return `data:${SVG_TYPE},${encodeURIComponent(svg)}`
+const EMPTY_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'
+const EMPTY_SVG_URL = `data:${SVG_TYPE},${encodeURIComponent(EMPTY_SVG)}`
+
+function useSvgUrl(svg: string) {
+  const [url, setUrl] = useState(EMPTY_SVG_URL)
+  useEffect(() => {
+    const next = URL.createObjectURL(new Blob([buildPreviewSvg(svg || EMPTY_SVG)], { type: SVG_TYPE }))
+    // Blob URLs are external resources: allocate only after commit and release
+    // each previous preview, including React's development remount cycle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUrl(next)
+    return () => URL.revokeObjectURL(next)
+  }, [svg])
+  return url
 }
 
-function SvgPreview({ svg, title, resetKey }: { svg: string; title: string; resetKey: string }) {
-  const src = useMemo(() => svgUrl(svg), [svg])
+function SvgPreview({
+  svg,
+  title,
+  resetKey,
+  className = 'min-h-[300px] sm:min-h-[460px] lg:h-[min(70vh,800px)]',
+}: {
+  svg: string
+  title: string
+  resetKey: string
+  className?: string
+}) {
+  const src = useSvgUrl(svg)
   return (
     <PicturePreview
       title={title}
       src={src}
       open={() => new Blob([svg], { type: SVG_TYPE })}
       resetKey={resetKey}
-      className="min-h-[300px] sm:min-h-[460px] lg:h-[min(70vh,800px)]"
+      className={className}
       stageClassName="bg-muted/40"
       toolbarStart={<span className="text-xs text-muted-foreground">Editable SVG</span>}
     />
@@ -61,6 +94,9 @@ function SvgPreview({ svg, title, resetKey }: { svg: string; title: string; rese
 
 export default function DevIllustratedMap() {
   const [view, setView] = useState<View>('map')
+  const [geometry, setGeometry] = useState<MapGeometry>('geographic')
+  const [coverage, setCoverage] = useState<HatchCoverage>(DEFAULT_GEOGRAPHIC_OPTIONS.coverage ?? 'coastal')
+  const [hatchingPreview, setHatchingPreview] = useState<HatchingPreview>('pattern')
   const [hatch, setHatch] = useState<HatchOptions>({ ...DEFAULT_HATCH_OPTIONS })
   const deferredHatch = useDeferredValue(hatch)
   const [composition, setComposition] = useState<CompositionOptions>({ ...DEFAULT_COMPOSITION_OPTIONS })
@@ -70,14 +106,19 @@ export default function DevIllustratedMap() {
   const [overlay, setOverlay] = useState(50)
   const [comparisonMode, setComparisonMode] = useState('overlay')
   const [referenceFailed, setReferenceFailed] = useState(false)
+  const isGeographic = geometry === 'geographic'
+  const mapTitle = isGeographic ? 'Real geography with illustrated styling' : 'Schematic reference reconstruction'
   const mapSvg = useMemo(
-    () => buildIllustratedMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers }),
-    [deferredHatch, deferredComposition, layers],
+    () =>
+      geometry === 'geographic'
+        ? buildGeographicMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers, coverage })
+        : buildIllustratedMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers }),
+    [deferredHatch, deferredComposition, layers, geometry, coverage],
   )
-  const mapUrl = useMemo(() => svgUrl(mapSvg), [mapSvg])
+  const mapUrl = useSvgUrl(view === 'hatching' ? mapSvg : '')
   const overlaySvg = useMemo(
     () =>
-      view === 'compare' && comparisonMode === 'overlay'
+      geometry === 'schematic' && view === 'compare' && comparisonMode === 'overlay'
         ? buildIllustratedMapSvg({
             hatch: deferredHatch,
             composition: deferredComposition,
@@ -85,22 +126,29 @@ export default function DevIllustratedMap() {
             transparentBackground: true,
           })
         : '',
-    [deferredHatch, deferredComposition, layers, view, comparisonMode],
+    [deferredHatch, deferredComposition, layers, view, comparisonMode, geometry],
   )
   const swatchSvg = useMemo(() => buildHatchSwatchSvg(deferredHatch), [deferredHatch])
+  const showLandMask = isGeographic && view === 'hatching' && hatchingPreview === 'land-mask'
+  const landMaskSvg = useMemo(() => (showLandMask ? buildGeographicLandMaskSvg() : ''), [showLandMask])
   const sheetSvg = useMemo(() => buildElementSheetSvg(), [])
   const element = ELEMENT_CATALOG.find((entry) => entry.id === elementId)
   const elementSvg = useMemo(() => (elementId === 'all' ? sheetSvg : buildElementSvg(elementId)), [elementId, sheetSvg])
-  const overlayUrl = useMemo(() => svgUrl(overlaySvg), [overlaySvg])
-  const currentSvg = view === 'elements' ? elementSvg : view === 'hatching' ? swatchSvg : mapSvg
+  const overlayUrl = useSvgUrl(overlaySvg)
+  const currentSvg =
+    view === 'elements' ? elementSvg : view === 'hatching' ? (showLandMask ? landMaskSvg : swatchSvg) : mapSvg
   const filename =
     view === 'elements'
       ? element
         ? `rainforest-${element.id}.svg`
         : 'rainforest-elements.svg'
       : view === 'hatching'
-        ? 'rainforest-hatching.svg'
-        : 'rainforest-to-rockies.svg'
+        ? showLandMask
+          ? 'rainforest-geographic-land-mask.svg'
+          : 'rainforest-hatching.svg'
+        : isGeographic
+          ? 'rainforest-to-rockies-geographic.svg'
+          : 'rainforest-to-rockies-schematic.svg'
   const updating = deferredHatch !== hatch || deferredComposition !== composition
   const updateHatch = (key: keyof HatchOptions, value: number) =>
     setHatch((previous) => ({ ...previous, [key]: value }))
@@ -113,16 +161,26 @@ export default function DevIllustratedMap() {
         eyebrow="Illustrated map workshop"
         eyebrowIcon={Trees}
         title="Rainforest to Rockies"
-        description="Explore the page 8 map as a set of constructed vector elements. Adjust the forest texture, inspect each symbol, and download the drawing."
+        description="Build the page 8 illustration style on real coastlines and roads. Adjust the forest texture, inspect each symbol, and download an editable vector map."
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="grid items-end gap-4 lg:grid-cols-[minmax(0,1fr)_260px_auto]">
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          A schematic reconstruction of Destination BC’s reference. Positions are illustration coordinates, not a
-          georeferenced map. The hatch is generated from curved bands; the symbols are built from editable geometry.
+          {isGeographic
+            ? 'Coastlines and highways come from geographic data. Hatching is clipped to the land boundary, while trees and activity motifs remain decorative.'
+            : 'A schematic reconstruction of Destination BC’s page 8 reference. Its positions are illustration coordinates. Curved-band hatching and constructed symbols keep the drawing editable.'}
         </p>
+        <SelectField
+          label="Map geometry"
+          value={geometry}
+          onChange={(event) => setGeometry(event.target.value as MapGeometry)}
+        >
+          <option value="geographic">Real geography</option>
+          <option value="schematic">Schematic reference</option>
+        </SelectField>
         <Button type="button" onClick={() => downloadText(currentSvg, filename, SVG_TYPE)} disabled={updating}>
           <Download className="h-4 w-4" aria-hidden />
-          Download {view === 'elements' ? 'element' : view === 'hatching' ? 'hatch' : 'map'} SVG
+          Download{' '}
+          {view === 'elements' ? 'element' : view === 'hatching' ? (showLandMask ? 'land mask' : 'hatch') : 'map'} SVG
         </Button>
       </div>
 
@@ -155,6 +213,17 @@ export default function DevIllustratedMap() {
               Short strokes follow flowing bands, clipped to the land. The pattern keeps its own flow. Compare the
               texture at the full-map scale as well as enlarged.
             </p>
+            {isGeographic && (
+              <SelectField
+                label="Hatch coverage"
+                value={coverage}
+                onChange={(event) => setCoverage(event.target.value as HatchCoverage)}
+                description="Coastal style uses broad coastal ecological regions. All BC land covers the whole province; the hatch remains decorative."
+              >
+                <option value="coastal">Coastal style</option>
+                <option value="province">All BC land</option>
+              </SelectField>
+            )}
             <NumericRangeField
               label="Stroke spacing"
               value={hatch.spacing}
@@ -276,13 +345,35 @@ export default function DevIllustratedMap() {
                 How the drawing is made
               </h2>
               <p className="text-xs leading-5 text-muted-foreground">
-                Curves describe the coastline and roads. Trees share a branch construction, and activity symbols are
-                assembled from shapes and strokes. The Elements view explains each construction.
+                {isGeographic
+                  ? 'Geographic land and highway data define the base map. Trees share a branch construction, and activity motifs are assembled from shapes and strokes. The Elements view explains each construction.'
+                  : 'Authored curves describe the schematic coastline and roads. Trees share a branch construction, and activity symbols are assembled from shapes and strokes. The Elements view explains each construction.'}
               </p>
               <p className="text-xs leading-5 text-muted-foreground">
-                Page 8 is the visual reference. Compare proportions and placement there; the reconstructed drawing is an
-                editable interpretation.
+                {isGeographic
+                  ? 'Page 8 is the style reference. Coastal hatch coverage and the decorative motifs are illustration choices, not mapped forest or activity locations.'
+                  : 'Page 8 is the visual reference. Compare proportions and placement there; the reconstructed drawing is an editable interpretation.'}
               </p>
+              {isGeographic && (
+                <>
+                  <p className="text-xs leading-5 text-muted-foreground">{GEOGRAPHIC_MAP_INFO.projection}</p>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    {GEOGRAPHIC_MAP_INFO.sources.map((source, index) => (
+                      <span key={source.url}>
+                        {index > 0 && ' · '}
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary underline-offset-2 hover:underline"
+                        >
+                          {source.title}
+                        </a>
+                      </span>
+                    ))}
+                  </p>
+                </>
+              )}
             </section>
           </div>
         </aside>
@@ -297,13 +388,28 @@ export default function DevIllustratedMap() {
               hidden={view !== id}
               className="space-y-4"
             >
-              {id === 'map' && view === id && <SvgPreview svg={mapSvg} title="Reconstructed map" resetKey="map" />}
+              {id === 'map' && view === id && <SvgPreview svg={mapSvg} title={mapTitle} resetKey={`map-${geometry}`} />}
               {id === 'hatching' && view === id && (
                 <>
-                  <SvgPreview svg={swatchSvg} title="Generated forest hatching" resetKey="hatching" />
+                  {isGeographic && (
+                    <SelectField
+                      label="Hatching preview"
+                      value={hatchingPreview}
+                      onChange={(event) => setHatchingPreview(event.target.value as HatchingPreview)}
+                    >
+                      <option value="pattern">Pattern swatch</option>
+                      <option value="land-mask">Geographic land mask</option>
+                    </SelectField>
+                  )}
+                  <SvgPreview
+                    svg={showLandMask ? landMaskSvg : swatchSvg}
+                    title={showLandMask ? 'Geographic land mask' : 'Generated forest hatching'}
+                    resetKey={showLandMask ? 'land-mask' : 'hatching'}
+                  />
                   <p className="text-sm leading-6 text-muted-foreground">
-                    Change spacing to control density, band height to change stroke length, and curvature to change the
-                    flow. The map clips this pattern to the land; it does not turn the bands to follow the boundary.
+                    {showLandMask
+                      ? 'These geographic land shapes clip the hatching in both coverage modes. Download the land mask SVG to inspect the boundary independently of the drawing.'
+                      : 'Change spacing to control density, band height to change stroke length, and curvature to change the flow. The map clips this pattern to the land; it does not turn the bands to follow the boundary.'}
                   </p>
                   <div className="space-y-3 rounded-lg border bg-card p-4">
                     <h2 className="font-semibold">Compare at map scale</h2>
@@ -320,12 +426,16 @@ export default function DevIllustratedMap() {
                         toolbarStart={<span className="text-xs text-muted-foreground">Original</span>}
                       />
                       <PicturePreview
-                        title="Reconstruction at map scale"
+                        title={isGeographic ? 'Geographic drawing at map scale' : 'Schematic drawing at map scale'}
                         src={mapUrl}
                         alt="Current reconstructed map reduced to show the forest texture at map scale"
                         open={() => new Blob([mapSvg], { type: SVG_TYPE })}
                         className="h-60 min-h-0"
-                        toolbarStart={<span className="text-xs text-muted-foreground">Reconstruction</span>}
+                        toolbarStart={
+                          <span className="text-xs text-muted-foreground">
+                            {isGeographic ? 'Real geography' : 'Schematic reference'}
+                          </span>
+                        }
                       />
                     </div>
                   </div>
@@ -364,15 +474,22 @@ export default function DevIllustratedMap() {
               )}
               {id === 'compare' && view === id && (
                 <>
-                  <SelectField
-                    label="Comparison mode"
-                    value={comparisonMode}
-                    onChange={(event) => setComparisonMode(event.target.value)}
-                  >
-                    <option value="overlay">Overlay reconstructed ink on page 8</option>
-                    <option value="side-by-side">Original and reconstruction side by side</option>
-                  </SelectField>
-                  {comparisonMode === 'overlay' ? (
+                  {isGeographic ? (
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      Page 8 is shown beside the geographic map as a style reference. Its schematic positions differ
+                      from the real coastline and roads, so the two views are compared side by side.
+                    </p>
+                  ) : (
+                    <SelectField
+                      label="Comparison mode"
+                      value={comparisonMode}
+                      onChange={(event) => setComparisonMode(event.target.value)}
+                    >
+                      <option value="overlay">Overlay reconstructed ink on page 8</option>
+                      <option value="side-by-side">Original and reconstruction side by side</option>
+                    </SelectField>
+                  )}
+                  {!isGeographic && comparisonMode === 'overlay' ? (
                     <>
                       <NumericRangeField
                         label="Reconstructed ink opacity"
@@ -416,13 +533,18 @@ export default function DevIllustratedMap() {
                   ) : (
                     <div className="grid min-w-0 gap-3 md:grid-cols-2">
                       <PicturePreview
-                        title="Original page 8 map"
+                        title={isGeographic ? 'Page 8 style reference' : 'Original page 8 map'}
                         src={REFERENCE}
                         alt="Original raster map extracted from the supplied guidelines"
-                        className="min-h-[360px] lg:h-[min(65vh,700px)]"
+                        className="min-h-[320px] sm:min-h-[400px] lg:h-[min(60vh,650px)]"
                         toolbarStart={<span className="text-xs text-muted-foreground">Original raster</span>}
                       />
-                      <SvgPreview svg={mapSvg} title="Reconstructed map" resetKey="side-by-side" />
+                      <SvgPreview
+                        svg={mapSvg}
+                        title={mapTitle}
+                        resetKey={`side-by-side-${geometry}`}
+                        className="min-h-[320px] sm:min-h-[400px] lg:h-[min(60vh,650px)]"
+                      />
                     </div>
                   )}
                   {referenceFailed && (

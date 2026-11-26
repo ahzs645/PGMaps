@@ -485,10 +485,33 @@ const illustrations: ElementDef[] = [
   ),
 ]
 
-function shield(number = ''): string {
+/**
+ * Compact highway numerals, drawn independently from the compass alphabet.
+ * The source's 3/5 occupy about half the coloured shield's height, with visibly
+ * wider side margins than the former size-27 badge lettering. These are a few
+ * authored bowl, bar and tail curves, not outlines recovered from raster masks.
+ */
+function shieldNumeral(number: string, lower = false): string {
+  const stroke = 2.3
+  const three =
+    'M 0.5,1.6 Q 4,-1 6.5,1.3 Q 9,4.1 6.1,6.6 Q 4.7,7.7 2.5,7.7 ' +
+    'Q 6.3,7.6 7.3,10.2 Q 9,13.9 5,15.6 Q 2.4,16.7 0,14.7'
+  const five = 'M 8,0 L 0.6,0 L 0.3,7.1 Q 3,5.5 6.2,7 Q 9,8.5 7.7,12.4 Q 6.5,16.4 2.4,15.6 Q 0.7,15.4 -0.1,14.7'
+  const nine = 'M 8.7,5 C 8.7,1 5.9,-0.5 2.5,0.3 C -1,1 -1,6 1.3,8 C 3.9,10 7.8,9 8.7,5 C 9.7,9.3 6.1,12.7 2.4,16'
+  let svg: string
+  if (number === '3') svg = group(path(three, 'none', WHITE, stroke), 'translate(23 15.55)')
+  else if (number === '5') svg = group(path(five, 'none', WHITE, stroke), `translate(23.4 ${lower ? 17.2 : 16.7})`)
+  else if (number === '99') {
+    const digit = path(nine, 'none', WHITE, 2.2)
+    svg = group(digit + group(digit, 'translate(13.3 0)'), 'translate(16.7 16.3)')
+  } else throw new Error(`No constructed highway numeral for ${number}`)
+  return `<g data-part="numeral" data-number="${number}">${svg}</g>`
+}
+
+function shield(number = '', lower = false): string {
   return (
     path('M 26.5,4 L 47,13 Q 48,33 26.5,45 Q 6,34 6,13 Z', CANOPY, WHITE, 3.5) +
-    (number ? badgeLettering(number, 26.5, 33, number.length > 1 ? 23 : 27) : '')
+    (number ? shieldNumeral(number, lower) : '')
   )
 }
 function leaf(number = '', fill = CANOPY, instance: 'standard' | 'west' | 'mile' = 'standard'): string {
@@ -676,7 +699,7 @@ const navigation: ElementDef[] = [
     53,
     49,
     shield('3'),
-    'Five-point shield with two curved sides and constructed numeral.',
+    'Five-point shield with two curved sides and a compact, separately authored two-bowl numeral.',
     [1188, 728, 53, 49],
   ),
   definition(
@@ -686,7 +709,7 @@ const navigation: ElementDef[] = [
     53,
     49,
     shield('3'),
-    'Shared shield shape and constructed numeral.',
+    'Shared shield shape and compact two-bowl numeral; generous side margins preserve the source proportions.',
     [719, 742, 53, 49],
   ),
   definition(
@@ -696,7 +719,7 @@ const navigation: ElementDef[] = [
     53,
     49,
     shield('5'),
-    'Shared shield shape and constructed numeral.',
+    'Shared shield shape with a compact bar-and-bowl numeral positioned below the shield shoulder.',
     [801, 235, 53, 49],
   ),
   definition(
@@ -705,8 +728,8 @@ const navigation: ElementDef[] = [
     'navigation',
     53,
     49,
-    shield('5'),
-    'Shared shield shape and constructed numeral.',
+    shield('5', true),
+    'Shared shield shape and compact numeral, set half a drawing unit lower for the southern source instance.',
     [643, 584, 53, 49],
   ),
   definition(
@@ -716,7 +739,7 @@ const navigation: ElementDef[] = [
     53,
     49,
     shield('99'),
-    'Shared shield shape with a two-digit number width.',
+    'Shared shield shape with two compact loop-and-tail digits and explicit inter-digit spacing.',
     [366, 632, 53, 49],
   ),
 ]

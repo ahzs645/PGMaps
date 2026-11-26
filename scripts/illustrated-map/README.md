@@ -1,5 +1,15 @@
 # Illustrated map exports
 
+The workshop defaults to real geography. Export that composition and its offline reviewer with:
+
+```sh
+node --import tsx scripts/illustrated-map/export-geographic.ts /absolute/path/to/output
+```
+
+This writes the styled geographic map, a base map, the dry-land mask, the all-BC hatch alternative, transparent layers, all 64 elements, a schematic style reference, provenance, and **geographic-review.html**. See [the geographic guide](../../docs/illustrated-map-geographic.md) for local GeoJSON preparation, projection, source notices and generalization limits. Land fill and hatch clip reuse the same geographic boundary, including water holes.
+
+## Schematic reference export
+
 Run from the PGMaps checkout after installing its dependencies:
 
 ```sh
