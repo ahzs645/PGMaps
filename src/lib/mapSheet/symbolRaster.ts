@@ -221,8 +221,8 @@ export function tileSide(periods: readonly number[], fallback: number): number {
 export function areaPatternTile(symbol: AreaSymbol, pixelRatio: number): PatternTile | null {
   if (symbol.organicHatch) {
     // Only the organic strokes and the fill: a symbol carries one pattern (`styledAreaSymbol`).
-    const { color, opacity, ...options } = symbol.organicHatch
-    const tile = organicHatchTile(organicHatchRecipe({ ...options, color, opacity: opacity ?? 1 }), {
+    const { opacity, ...fill } = symbol.organicHatch
+    const tile = organicHatchTile(organicHatchRecipe({ ...fill, opacity: opacity ?? 1 }), {
       pixelsPerUnit: PX_PER_PT * pixelRatio,
       targetPx: ORGANIC_PATTERN_TILE_PX,
       ...(symbol.fill && (symbol.fillOpacity ?? 1) > 0

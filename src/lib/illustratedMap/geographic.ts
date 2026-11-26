@@ -1,6 +1,12 @@
 /** Geographic land/roads with the reconstructed page 8 illustration style. */
 import data from './geography.generated.json'
-import { buildHatchPaths, DEFAULT_HATCH_OPTIONS } from './hatching'
+import {
+  buildHatchPaths,
+  buildPatchHatchPaths,
+  DEFAULT_HATCH_OPTIONS,
+  DEFAULT_PAGE8_HATCH_OPTIONS,
+  type PatchHatchStyleOptions,
+} from './hatching'
 import { DEFAULT_COMPOSITION_OPTIONS, type IllustratedMapOptions } from './index'
 import { MAP_PALETTE } from './layout'
 import { escapeXml, lettering, letteringSize } from './lettering'
@@ -9,6 +15,12 @@ import { TITLE_STUDY } from './title'
 
 export interface GeographicMapOptions extends IllustratedMapOptions {
   coverage?: 'coastal' | 'northern' | 'province'
+  /**
+   * `contour` (the default) is the continuous banded field every earlier export used. `patch` is
+   * the page 8 reference's own texture, drawn patch by patch with `patchHatch` settings.
+   */
+  hatchStyle?: 'contour' | 'patch'
+  patchHatch?: Partial<PatchHatchStyleOptions>
 }
 
 export const DEFAULT_GEOGRAPHIC_OPTIONS = { coverage: 'coastal' as const }
@@ -183,12 +195,14 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
   const coverage = options.coverage ?? DEFAULT_GEOGRAPHIC_OPTIONS.coverage
   const layers = { hatching: true, roads: true, symbols: true, labels: true, ...options.layers }
   const composition = { ...DEFAULT_COMPOSITION_OPTIONS, ...options.composition }
+  const hatchStyle = options.hatchStyle ?? 'contour'
   const hatch = { ...DEFAULT_HATCH_OPTIONS, ...options.hatch }
+  const patchHatch = { ...DEFAULT_PAGE8_HATCH_OPTIONS, ...options.patchHatch }
   let svg = start(
     'Rainforest to Rockies — geographic illustration',
     'Real geographic shoreline, lake holes, province regions, highway centrelines and place coordinates projected together to BC Albers. Reconstructed page 8 symbols, glyph lettering and generated hatching provide the illustration style. Motifs are decorative regional illustrations. The title is a reconstructed study.',
   )
-  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-geographic-illustrated-map', version: 1, trace: false, coordinates: 'EPSG:3005', projection: data.projection, coverage, hatch, composition, provenance: data.provenance, ...(coverage === 'northern' ? { coverageStyle: NORTHERN_REFERENCE_COVERAGE } : {}) }))}</metadata>`
+  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-geographic-illustrated-map', version: 1, trace: false, coordinates: 'EPSG:3005', projection: data.projection, coverage, ...(hatchStyle === 'patch' ? { hatchStyle, patchHatch } : { hatch }), composition, provenance: data.provenance, ...(coverage === 'northern' ? { coverageStyle: NORTHERN_REFERENCE_COVERAGE } : {}) }))}</metadata>`
   svg += resources(coverage)
   if (!options.transparentBackground) {
     svg += layer(
@@ -223,7 +237,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     svg += layer(
       'geo-forest-hatching',
       '03 Generated hatching clipped to geographic land',
-      `<g clip-path="url(#geo-land-clip)"><g${coverage !== 'province' ? ' clip-path="url(#geo-style-clip)"' : ''}${clearances ? ' mask="url(#geo-illustration-clearances)"' : ''} color="${MAP_PALETTE.hatch}">${buildHatchPaths(fieldWidth, height - data.projection.footer, hatch)}</g></g>`,
+      `<g clip-path="url(#geo-land-clip)"><g${coverage !== 'province' ? ' clip-path="url(#geo-style-clip)"' : ''}${clearances ? ' mask="url(#geo-illustration-clearances)"' : ''} color="${MAP_PALETTE.hatch}">${hatchStyle === 'patch' ? buildPatchHatchPaths(fieldWidth, height - data.projection.footer, patchHatch) : buildHatchPaths(fieldWidth, height - data.projection.footer, hatch)}</g></g>`,
     )
   }
   if (layers.roads) {

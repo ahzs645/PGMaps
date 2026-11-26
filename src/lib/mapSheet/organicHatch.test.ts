@@ -131,3 +131,19 @@ describe('place names in PDF text', () => {
     expect(textWidth('Québec', 10)).toBeCloseTo(textWidth('Quebec', 10), 9)
   })
 })
+
+describe('patch hatch (page 8) on a sheet', () => {
+  it('draws the page 8 patch field as curves, saves and reads back, and makes a map tile', () => {
+    const symbol = styledAreaSymbol(DEFAULTS, { pattern: 'patch', organic: { seed: 3 } })
+    expect(symbol.organicHatch).toMatchObject({ style: 'patch', seed: 3, patch: { patchSize: 240 } })
+    const ops = areaSymbolOps([rectRing(20, 20, 160, 100)], symbol, 1)
+    expect(curves(ops).length).toBeGreaterThan(0)
+    expect(checkedSheetSymbol(JSON.parse(JSON.stringify(symbol)))).toEqual(symbol)
+    expect(() =>
+      checkedSheetSymbol({ ...symbol, organicHatch: { ...symbol.organicHatch, patch: { patchSize: 2 } } }),
+    ).toThrow(/patch size|lean/i)
+    const [image] = symbolImages(symbol, 1)
+    expect(image.image.width).toBe(image.image.height * 2)
+    expect(areaPatternId(symbol)).not.toBe(areaPatternId(styledAreaSymbol(DEFAULTS, { pattern: 'organic' })))
+  })
+})

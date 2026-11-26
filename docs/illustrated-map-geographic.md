@@ -162,3 +162,30 @@ node --import tsx scripts/illustrated-map/compose-region.ts src/lib/illustratedM
 When this was added, the BC geography and a synthetic island region were checked. The island has a lake and an offshore islet and uses EPSG:3035. Both PDFs have one page and no raster images. In 2× renders, no hatch fell outside the land mask beyond the one-pixel edge band: 0 of 4,007,159 water pixels for BC, and 0 of 2,024,132 for the island. The lakes are clear and the islet is hatched.
 
 Map sheets offer the same field as the **Organic hatch** area pattern. Its seed, spacing, band height, stroke width and curvature are saved with a layer's look. It prints as curves in SVG and PDF. On the live map it becomes a 512-pixel tile that repeats without seams; the tile's field is blended to repeat, so its waves are calmer than in print. QGIS, ArcGIS Pro, SLD, MapLibre, GeoLibre and KML exports receive a near-vertical straight hatch at the same spacing, with a note in the bundle's README.
+
+## Page 8's own hatch
+
+The northern hatch on page 8 of the brand guidelines is not one continuous banded field. Measured on its embedded 1536 × 945 image, it is built like this:
+
+- Short strokes about 3 px apart, 8.6 px long and 1.2 px wide sit in rows about 11 px tall.
+- The rows are stacked ribbons. Neighbouring ribbons wave together every 60–100 px, and stay nearly parallel down the stack.
+- Each stroke stands square to its ribbon, so strokes lean where the ribbon slopes: a median of 6° from vertical, with a tenth of them past 25°, more often to the right.
+- The field is a mosaic of wide, irregular patches. Each patch leans its own way, and its ribbons stop against the next patch's.
+- About a third of the area is inked.
+
+The continuous field used so far draws longer strokes (11–12 px) in taller bands (13–14 px), and leans only half as far (90th percentile 12–15°).
+
+`hatchStyle: 'patch'` draws page 8's texture, with the toolkit's patch field (`patchHatchStrokes`, preset `page-8-reference`). It was fitted with `scripts/illustrated-map/measure-hatch.py`, which measures a rendered hatch the same way as page 8:
+
+| | page 8 | patch field | continuous field |
+|---|---|---|---|
+| ink coverage | 0.32–0.33 | 0.32 | 0.19–0.38 |
+| stroke spacing | 3 | 3 | 3 |
+| band period | 8–12 | 11 | 13–14 |
+| stroke length (median) | 8.5–8.9 | 8.6 | 11–12 |
+| lean from vertical, median abs | 6–6.7° | 6.5° | 4.5–5.6° |
+| lean from vertical, 90th percentile abs | 25–28° | 26° | 12–15° |
+
+Each patch is generated on its own, from the seed and its lattice position. A stroke that crosses a seam is cut there and kept by the patch holding its longest piece. As a result, any window of the field, anywhere, draws exactly what a larger window draws there. The same holds for map tiles and print pieces, and the cost doesn't grow with distance from the origin.
+
+The workshop's **Hatch style** chooses **Page 8 · patches**. The export adds `geographic-northern-page8.svg`, its transparent forest layer and `hatch-page8.svg`. Every earlier export is unchanged, because the default style is still the continuous field. Map sheets offer the same field as the **Patch hatch (page 8)** area pattern.

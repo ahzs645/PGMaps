@@ -17,7 +17,7 @@ import {
   LINE_MARKER_LABELS,
   ORGANIC_HATCH_SETTINGS,
   ORGANIC_HATCH_SETTING_LABELS,
-  ORGANIC_HATCH_SHEET,
+  organicHatchSheetDefaults,
   POINT_ICONS,
   SYMBOL_GROUND_WIDTH_LIMITS,
   SYMBOL_SIZE_LIMITS,
@@ -415,21 +415,22 @@ export function SymbolStyleEditor({
               Pattern colour
             </span>
           )}
-          {pattern === 'organic' && (
+          {(pattern === 'organic' || pattern === 'patch') && (
             <div className="grid grid-cols-2 gap-x-2 gap-y-1" data-organic-hatch-settings="">
               {ORGANIC_HATCH_SETTINGS.map((key) => (
                 <NumberField
                   key={key}
                   label={ORGANIC_HATCH_SETTING_LABELS[key]}
                   unit={ORGANIC_FIELDS[key].unit}
-                  value={value?.organic?.[key] ?? ORGANIC_HATCH_SHEET[key]}
+                  value={value?.organic?.[key] ?? organicHatchSheetDefaults(pattern)[key]}
                   min={ORGANIC_HATCH_LIMITS[key].min}
                   max={ORGANIC_HATCH_LIMITS[key].max}
                   step={ORGANIC_FIELDS[key].step}
                   updateOn="commit"
                   disabled={disabled}
                   onValueChange={(next) => {
-                    const organic = { ...value?.organic, [key]: next === ORGANIC_HATCH_SHEET[key] ? undefined : next }
+                    const fallback = organicHatchSheetDefaults(pattern)[key]
+                    const organic = { ...value?.organic, [key]: next === fallback ? undefined : next }
                     for (const name of ORGANIC_HATCH_SETTINGS) if (organic[name] === undefined) delete organic[name]
                     set('organic', Object.keys(organic).length ? organic : undefined)
                   }}

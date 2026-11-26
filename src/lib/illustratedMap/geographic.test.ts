@@ -114,3 +114,16 @@ describe('geographic illustration', () => {
     expect(() => letteringSize('ROCKIES', 36.728, 'regular', 'FORESTS')).toThrow('preserve the lettering text')
   })
 })
+
+describe('page 8 hatch style', () => {
+  it('draws the patch field under the same land and coverage clips, and records its settings', () => {
+    const svg = buildGeographicMapSvg({ coverage: 'northern', hatchStyle: 'patch' })
+    expect(svg).toContain('data-generator="patch-hatch-v1"')
+    expect(svg).not.toContain('data-generator="contour-hatch-v3"')
+    expect(svg).toContain('<g clip-path="url(#geo-land-clip)"><g clip-path="url(#geo-style-clip)"')
+    expect(svg).toContain('&quot;hatchStyle&quot;:&quot;patch&quot;')
+    expect(Number(svg.match(/data-stroke-count="(\d+)"/)![1])).toBeGreaterThan(20_000)
+    // The default stays the continuous field every earlier export drew.
+    expect(buildGeographicMapSvg({ coverage: 'northern' })).toContain('data-generator="contour-hatch-v3"')
+  })
+})

@@ -21,6 +21,7 @@ export const AREA_PATTERNS = [
   'grid',
   'dots',
   'organic',
+  'patch',
 ] as const
 export type AreaPattern = (typeof AREA_PATTERNS)[number]
 export const AREA_PATTERN_LABELS: Record<AreaPattern, string> = {
@@ -33,6 +34,7 @@ export const AREA_PATTERN_LABELS: Record<AreaPattern, string> = {
   grid: 'Grid',
   dots: 'Dots',
   organic: 'Organic hatch',
+  patch: 'Patch hatch (page 8)',
 }
 /** Hatch directions, counter-clockwise from east; `dots` is a marker fill instead. */
 const PATTERN_ANGLES: Record<AreaPattern, readonly number[]> = {
@@ -45,6 +47,7 @@ const PATTERN_ANGLES: Record<AreaPattern, readonly number[]> = {
   grid: [0, 90],
   dots: [],
   organic: [],
+  patch: [],
 }
 
 /** The settings of an organic hatch a person can change; the rest come from `ORGANIC_HATCH_SHEET`. */
@@ -59,6 +62,21 @@ export const ORGANIC_HATCH_SETTING_LABELS: Record<(typeof ORGANIC_HATCH_SETTINGS
   strokeWidth: 'Stroke width',
   curvature: 'Curvature',
 }
+/**
+ * A patch hatch on a sheet, in points: the page 8 field at about 0.8 of its artboard size, so its
+ * strokes read on a printed sheet as the reference's do on its page.
+ */
+export const PATCH_HATCH_SHEET: Required<OrganicHatchSettings> = {
+  seed: 8,
+  spacing: 2.4,
+  bandHeight: 8.8,
+  strokeWidth: 1.15,
+  curvature: 12.8,
+}
+export const PATCH_HATCH_SHEET_PATCHES = { patchSize: 240, lean: 30, leanBias: 5, seam: 0 } as const
+/** The sheet defaults of an organic or patch pattern. */
+export const organicHatchSheetDefaults = (pattern: AreaPattern) =>
+  pattern === 'patch' ? PATCH_HATCH_SHEET : ORGANIC_HATCH_SHEET
 /** An organic hatch on a sheet, in points: finer than the illustrated map's artboard field. */
 export const ORGANIC_HATCH_SHEET: Required<OrganicHatchSettings> = {
   seed: 8,
@@ -154,7 +172,7 @@ export interface SymbolStyle {
   icon?: PointIcon
   /** A point's size, points. */
   size?: number
-  /** The settings of an `organic` pattern that differ from `ORGANIC_HATCH_SHEET`. */
+  /** The settings of an `organic` or `patch` pattern that differ from its sheet defaults. */
   organic?: OrganicHatchSettings
 }
 
@@ -388,14 +406,24 @@ export function patternMarkerFill(pattern: AreaPattern, color: string, spacing: 
     : undefined
 }
 
-/** The organic hatch of a pattern: only `organic` has one. */
+/** The curved hatch of a pattern: `organic` draws the banded field, `patch` the page 8 patches. */
 export function patternOrganicHatch(
   pattern: AreaPattern,
   color: string,
   opacity: number,
   settings?: OrganicHatchSettings,
 ): OrganicHatchFill | undefined {
-  return pattern === 'organic' ? { ...ORGANIC_HATCH_SHEET, ...settings, color, opacity } : undefined
+  if (pattern === 'organic') return { ...ORGANIC_HATCH_SHEET, ...settings, color, opacity }
+  if (pattern === 'patch')
+    return {
+      ...PATCH_HATCH_SHEET,
+      ...settings,
+      color,
+      opacity,
+      style: 'patch',
+      patch: { ...PATCH_HATCH_SHEET_PATCHES },
+    }
+  return undefined
 }
 
 /** The line a style draws, casing first. */

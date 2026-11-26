@@ -4,7 +4,7 @@
  * icon ids PGMaps draws. Unknown fields are dropped. Throws an Error naming the first problem.
  * No DOM or network access.
  */
-import { ORGANIC_HATCH_LIMITS } from '@pgmaps/geo-toolkit/patterns'
+import { ORGANIC_HATCH_LIMITS, PATCH_HATCH_LIMITS } from '@pgmaps/geo-toolkit/patterns'
 import { ICON_IDS, type IconId } from '@/lib/mapSheet/icons'
 import type { StrokeStyle } from '@/lib/mapSheet/drawOps'
 import type {
@@ -124,9 +124,11 @@ function markerFill(value: unknown): MarkerFill {
 
 function organicHatch(value: unknown): OrganicHatchFill {
   const raw = object(value, 'An organic hatch')
-  const setting = (key: keyof typeof ORGANIC_HATCH_LIMITS, what: string) => {
-    const { min, max } = ORGANIC_HATCH_LIMITS[key]
-    const entry = raw[key]
+  if (raw.style !== undefined && raw.style !== 'patch') throw Error('Organic hatch style must be "patch" or absent.')
+  const limits = raw.style === 'patch' ? PATCH_HATCH_LIMITS : ORGANIC_HATCH_LIMITS
+  const setting = (key: keyof typeof ORGANIC_HATCH_LIMITS, what: string, from = raw) => {
+    const { min, max } = (limits as Record<string, { min: number; max: number }>)[key]
+    const entry = from[key]
     if (typeof entry !== 'number' || !Number.isFinite(entry) || entry < min || entry > max)
       throw Error(`Organic hatch ${what} must be a number from ${min} to ${max}.`)
     return entry
@@ -141,6 +143,24 @@ function organicHatch(value: unknown): OrganicHatchFill {
     curvature: setting('curvature', 'curvature'),
     color: color(raw.color, 'Organic hatch colour'),
     ...optional(raw, 'opacity', unit),
+    ...(raw.style === 'patch' ? { style: 'patch' as const, patch: patchSettings(raw.patch) } : {}),
+  }
+}
+
+function patchSettings(value: unknown) {
+  const raw = object(value, 'Patch hatch settings')
+  const read = (key: 'patchSize' | 'lean' | 'leanBias' | 'seam', what: string) => {
+    const { min, max } = PATCH_HATCH_LIMITS[key]
+    const entry = raw[key]
+    if (typeof entry !== 'number' || !Number.isFinite(entry) || entry < min || entry > max)
+      throw Error(`Patch hatch ${what} must be a number from ${min} to ${max}.`)
+    return entry
+  }
+  return {
+    patchSize: read('patchSize', 'patch size'),
+    lean: read('lean', 'lean'),
+    leanBias: read('leanBias', 'lean bias'),
+    seam: read('seam', 'seam'),
   }
 }
 

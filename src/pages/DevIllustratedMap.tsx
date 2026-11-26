@@ -17,12 +17,16 @@ import {
   buildElementSvg,
   buildHatchSwatchSvg,
   buildIllustratedMapSvg,
+  buildPatchHatchSwatchSvg,
   DEFAULT_COMPOSITION_OPTIONS,
   DEFAULT_HATCH_OPTIONS,
+  DEFAULT_PAGE8_HATCH_OPTIONS,
   ELEMENT_CATALOG,
   type CompositionOptions,
   type HatchOptions,
+  type PatchHatchStyleOptions,
 } from '@/lib/illustratedMap'
+import { ORGANIC_HATCH_LIMITS, PATCH_HATCH_LIMITS } from '@pgmaps/geo-toolkit/patterns'
 import {
   buildGeographicLandMaskSvg,
   buildGeographicMapSvg,
@@ -35,6 +39,7 @@ type View = 'map' | 'elements' | 'hatching' | 'compare'
 type MapGeometry = 'geographic' | 'schematic'
 type HatchCoverage = NonNullable<GeographicMapOptions['coverage']>
 type HatchingPreview = 'pattern' | 'land-mask'
+type HatchStyle = NonNullable<GeographicMapOptions['hatchStyle']>
 const VIEWS: View[] = ['map', 'elements', 'hatching', 'compare']
 const LAYERS = [
   { id: 'hatching', label: 'Forest hatching' },
@@ -99,6 +104,9 @@ export default function DevIllustratedMap() {
   const [hatchingPreview, setHatchingPreview] = useState<HatchingPreview>('pattern')
   const [hatch, setHatch] = useState<HatchOptions>({ ...DEFAULT_HATCH_OPTIONS })
   const deferredHatch = useDeferredValue(hatch)
+  const [hatchStyle, setHatchStyle] = useState<HatchStyle>('contour')
+  const [patchHatch, setPatchHatch] = useState<PatchHatchStyleOptions>({ ...DEFAULT_PAGE8_HATCH_OPTIONS })
+  const deferredPatchHatch = useDeferredValue(patchHatch)
   const [composition, setComposition] = useState<CompositionOptions>({ ...DEFAULT_COMPOSITION_OPTIONS })
   const deferredComposition = useDeferredValue(composition)
   const [layers, setLayers] = useState({ hatching: true, roads: true, symbols: true, labels: true })
@@ -111,9 +119,16 @@ export default function DevIllustratedMap() {
   const mapSvg = useMemo(
     () =>
       geometry === 'geographic'
-        ? buildGeographicMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers, coverage })
+        ? buildGeographicMapSvg({
+            hatch: deferredHatch,
+            composition: deferredComposition,
+            layers,
+            coverage,
+            hatchStyle,
+            patchHatch: deferredPatchHatch,
+          })
         : buildIllustratedMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers }),
-    [deferredHatch, deferredComposition, layers, geometry, coverage],
+    [deferredHatch, deferredComposition, layers, geometry, coverage, hatchStyle, deferredPatchHatch],
   )
   const mapUrl = useSvgUrl(view === 'hatching' ? mapSvg : '')
   const overlaySvg = useMemo(
@@ -128,7 +143,11 @@ export default function DevIllustratedMap() {
         : '',
     [deferredHatch, deferredComposition, layers, view, comparisonMode, geometry],
   )
-  const swatchSvg = useMemo(() => buildHatchSwatchSvg(deferredHatch), [deferredHatch])
+  const patchStyle = isGeographic && hatchStyle === 'patch'
+  const swatchSvg = useMemo(
+    () => (patchStyle ? buildPatchHatchSwatchSvg(deferredPatchHatch) : buildHatchSwatchSvg(deferredHatch)),
+    [patchStyle, deferredHatch, deferredPatchHatch],
+  )
   const showLandMask = isGeographic && view === 'hatching' && hatchingPreview === 'land-mask'
   const landMaskSvg = useMemo(() => (showLandMask ? buildGeographicLandMaskSvg() : ''), [showLandMask])
   const sheetSvg = useMemo(() => buildElementSheetSvg(), [])
@@ -147,13 +166,15 @@ export default function DevIllustratedMap() {
           ? 'rainforest-geographic-land-mask.svg'
           : 'rainforest-hatching.svg'
         : isGeographic
-          ? coverage === 'northern'
-            ? 'rainforest-to-rockies-geographic-northern.svg'
-            : 'rainforest-to-rockies-geographic.svg'
+          ? `rainforest-to-rockies-geographic${coverage === 'northern' ? '-northern' : ''}${patchStyle ? '-page8' : ''}.svg`
           : 'rainforest-to-rockies-schematic.svg'
-  const updating = deferredHatch !== hatch || deferredComposition !== composition
+  const updating = deferredHatch !== hatch || deferredComposition !== composition || deferredPatchHatch !== patchHatch
+  const activeHatch: HatchOptions = patchStyle ? patchHatch : hatch
+  const limits = patchStyle ? PATCH_HATCH_LIMITS : ORGANIC_HATCH_LIMITS
   const updateHatch = (key: keyof HatchOptions, value: number) =>
-    setHatch((previous) => ({ ...previous, [key]: value }))
+    patchStyle
+      ? setPatchHatch((previous) => ({ ...previous, [key]: value }))
+      : setHatch((previous) => ({ ...previous, [key]: value }))
 
   return (
     <div className="mx-auto max-w-[1680px] space-y-6 px-4 pb-12 pt-24 sm:px-6 md:pt-10">
@@ -227,27 +248,38 @@ export default function DevIllustratedMap() {
                 <option value="province">All BC land</option>
               </SelectField>
             )}
+            {isGeographic && (
+              <SelectField
+                label="Hatch style"
+                value={hatchStyle}
+                onChange={(event) => setHatchStyle(event.target.value as HatchStyle)}
+                description="Page 8 draws the reference's own texture patch by patch: stacked waving ribbons whose strokes lean with them, fitted to the brand guidelines by measurement."
+              >
+                <option value="contour">Continuous bands</option>
+                <option value="patch">Page 8 · patches</option>
+              </SelectField>
+            )}
             <NumericRangeField
               label="Stroke spacing"
-              value={hatch.spacing}
-              min={1.5}
-              max={12}
+              value={activeHatch.spacing}
+              min={limits.spacing.min}
+              max={limits.spacing.max}
               step={0.1}
               unit="px"
               onChange={(value) => updateHatch('spacing', value)}
             />
             <NumericRangeField
               label="Band height"
-              value={hatch.bandHeight}
-              min={8}
-              max={40}
+              value={activeHatch.bandHeight}
+              min={limits.bandHeight.min}
+              max={limits.bandHeight.max}
               step={0.5}
               unit="px"
               onChange={(value) => updateHatch('bandHeight', value)}
             />
             <NumericRangeField
               label="Stroke width"
-              value={hatch.strokeWidth}
+              value={activeHatch.strokeWidth}
               min={0.3}
               max={2.4}
               step={0.05}
@@ -256,15 +288,37 @@ export default function DevIllustratedMap() {
             />
             <NumericRangeField
               label="Band curvature"
-              value={hatch.curvature}
+              value={activeHatch.curvature}
               min={0}
               max={24}
               step={0.5}
               onChange={(value) => updateHatch('curvature', value)}
             />
+            {patchStyle && (
+              <>
+                <NumericRangeField
+                  label="Patch width"
+                  value={patchHatch.patchSize}
+                  min={PATCH_HATCH_LIMITS.patchSize.min}
+                  max={PATCH_HATCH_LIMITS.patchSize.max}
+                  step={5}
+                  unit="px"
+                  onChange={(patchSize) => setPatchHatch((previous) => ({ ...previous, patchSize }))}
+                />
+                <NumericRangeField
+                  label="Patch lean"
+                  value={patchHatch.lean}
+                  min={PATCH_HATCH_LIMITS.lean.min}
+                  max={PATCH_HATCH_LIMITS.lean.max}
+                  step={1}
+                  unit="°"
+                  onChange={(lean) => setPatchHatch((previous) => ({ ...previous, lean }))}
+                />
+              </>
+            )}
             <NumberField
               label="Pattern seed"
-              value={hatch.seed}
+              value={activeHatch.seed}
               min={0}
               max={999999}
               step={1}
@@ -274,7 +328,16 @@ export default function DevIllustratedMap() {
               onValueChange={(value) => updateHatch('seed', value)}
             />
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" size="xs" variant="outline" onClick={() => setHatch({ ...DEFAULT_HATCH_OPTIONS })}>
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                onClick={() =>
+                  patchStyle
+                    ? setPatchHatch({ ...DEFAULT_PAGE8_HATCH_OPTIONS })
+                    : setHatch({ ...DEFAULT_HATCH_OPTIONS })
+                }
+              >
                 <RotateCcw className="h-3.5 w-3.5" aria-hidden />
                 Reset hatching
               </Button>

@@ -16,7 +16,13 @@ import {
   type StrokeStyle,
 } from './drawOps'
 import { ICONS, type IconId, type IconPaint } from './icons'
-import { estimateOrganicHatchStrokes, organicHatchRecipe, recipeStrokes } from '@pgmaps/geo-toolkit/patterns'
+import {
+  estimateOrganicHatchStrokes,
+  estimatePatchHatchStrokes,
+  organicHatchRecipe,
+  recipeStrokes,
+  type PatchSettings,
+} from '@pgmaps/geo-toolkit/patterns'
 
 /** One stroke of a line symbol, moved sideways by `offset` points (positive to the right of travel). */
 export interface LineLayer extends StrokeStyle {
@@ -62,6 +68,9 @@ export interface OrganicHatchFill {
   curvature: number
   color: string
   opacity?: number
+  /** `patch` draws the field patch by patch, as the page 8 reference, with `patch` settings. */
+  style?: 'patch'
+  patch?: PatchSettings
 }
 /** An icon repeated on a grid inside an area: marsh marks, dots. */
 export interface MarkerFill {
@@ -261,10 +270,9 @@ export function organicHatchSpacing(
   fill: OrganicHatchFill,
   k: number,
 ): { spacing: number; limited: boolean } {
-  const estimate = estimateOrganicHatchStrokes(
-    { x: box.x / k, y: box.y / k, width: box.w / k, height: box.h / k },
-    fill,
-  )
+  const window = { x: box.x / k, y: box.y / k, width: box.w / k, height: box.h / k }
+  const estimate =
+    fill.style === 'patch' ? estimatePatchHatchStrokes(window, fill) : estimateOrganicHatchStrokes(window, fill)
   if (estimate <= MAX_ORGANIC_HATCH_STROKES) return { spacing: fill.spacing, limited: false }
   return { spacing: Math.min(12, (fill.spacing * estimate) / MAX_ORGANIC_HATCH_STROKES), limited: true }
 }
@@ -281,7 +289,7 @@ export function organicHatchOps(
   if (!(box.w > 0) || !(box.h > 0) || !(k > 0)) return []
   const { spacing } = organicHatchSpacing(box, fill, k)
   const strokes = recipeStrokes(
-    organicHatchRecipe({ ...fill, spacing, color: fill.color, opacity: fill.opacity ?? 1, origin: [0, 0], scale: k }),
+    organicHatchRecipe({ ...fill, spacing, opacity: fill.opacity ?? 1, origin: [0, 0], scale: k }),
     { x: box.x, y: box.y, width: box.w, height: box.h },
     { maxStrokes: Infinity },
   )

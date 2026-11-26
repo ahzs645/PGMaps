@@ -17,6 +17,7 @@ import { ELEMENT_CATALOG as DRAWN_ELEMENTS, type ElementDef } from './symbols'
 import { TITLE_STUDY } from './title'
 
 export { buildHatchSwatchSvg, DEFAULT_HATCH_OPTIONS, type HatchOptions }
+export { buildPatchHatchSwatchSvg, DEFAULT_PAGE8_HATCH_OPTIONS, type PatchHatchStyleOptions } from './hatching'
 export { ARTBOARD, MAP_PALETTE } from './layout'
 export type { ElementDef } from './symbols'
 
