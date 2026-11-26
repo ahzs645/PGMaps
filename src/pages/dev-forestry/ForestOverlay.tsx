@@ -19,6 +19,7 @@ import {
   bakedTreeMesh,
 } from './impostorBake'
 import { FIXED_TREE_SUN, createTreeLayer, type TreeLook, type TreeStyle } from './treeLayer'
+import { forestPatchBatch } from './forestPatchBatches'
 import { detailedCrownBase } from './treeGeometry'
 import { SHADOW_REACH_METERS, createTreeShadowLayer } from './treeShadows'
 import { debrisMesh, felledTreeMesh, logMesh, placeDebris, snagMesh, stumpMesh } from './harvestedGround'
@@ -451,7 +452,8 @@ export function ForestOverlay(props: ForestOverlayProps) {
     }
     map.addLayer(wrapper as never)
     const cache = patches
-    const uploadedKeys = bands.map(() => '')
+    const uploaded = bands.map(() => forestPatchBatch<TreeInstance>(undefined, new Map()))
+    let uploadedDebris = forestPatchBatch<TreeInstance>(undefined, new Map())
     let lastEye = initialEye,
       disposed = false,
       frame = 0,
@@ -507,29 +509,34 @@ export function ForestOverlay(props: ForestOverlayProps) {
       shadowLayer.setTrees(within, sun, elevation)
     }
     const upload = () => {
-      const grouped: TreeInstance[][] = bands.map(() => [])
-      for (const patch of wanted) grouped[patch.band].push(...(cache.get(patch.key) ?? []))
-      count = grouped.reduce((sum, group) => sum + group.length, 0)
-      if (debrisLayer) {
-        const piles: TreeInstance[] = []
-        for (const patch of wanted) piles.push(...(debrisCache.get(patch.key) ?? []))
-        debrisLayer.setTrees(piles)
+      const groups = bands.map(() => new Map<string, TreeInstance[]>())
+      const debrisGroups = new Map<string, TreeInstance[]>()
+      for (const patch of wanted) {
+        const trees = cache.get(patch.key)
+        if (trees?.length) groups[patch.band].set(patch.key, trees)
+        const debris = debrisCache.get(patch.key)
+        if (debris?.length) debrisGroups.set(patch.key, debris)
       }
-      grouped.forEach((trees, i) => {
-        const keys = wanted
-          .filter((patch) => patch.band === i && cache.has(patch.key))
-          .map((patch) => patch.key)
-          .sort()
-          .join('|')
-        if (keys !== uploadedKeys[i]) {
-          distantLayers[i].setTrees(trees)
-          uploadedKeys[i] = keys
+      if (debrisLayer) {
+        const batch = forestPatchBatch(uploadedDebris, debrisGroups)
+        if (batch !== uploadedDebris) {
+          debrisLayer.setTrees(batch.items)
+          uploadedDebris = batch
         }
+      }
+      count = 0
+      groups.forEach((parts, i) => {
+        const batch = forestPatchBatch(uploaded[i], parts)
+        if (batch !== uploaded[i]) {
+          distantLayers[i].setTrees(batch.items)
+          uploaded[i] = batch
+        }
+        count += batch.items.length
       })
-      nearestTrees = grouped[0]
+      nearestTrees = uploaded[0].items
       refreshDetail(nearestTrees)
       refreshShadows(nearestTrees)
-      const close = grouped[0].filter((tree) => haversineMeters(lastEye, tree) < 180)
+      const close = nearestTrees.filter((tree) => haversineMeters(lastEye, tree) < 180)
       nearCount = style === 'hybrid' || style === 'baked' ? close.length : 0
       patchCount = cache.size
       const triangles = layers.reduce((sum, layer) => sum + layer.treeCount * layer.trianglesPerTree, 0)
@@ -551,6 +558,8 @@ export function ForestOverlay(props: ForestOverlayProps) {
       })
       map.triggerRepaint()
     }
+    const needsDebrisFor = (patch: (typeof wanted)[number]) =>
+      !!debrisLayer && bands[patch.band].near < DEBRIS_REACH_METERS && !debrisCache.has(patch.key)
     const tick = (time: number) => {
       if (disposed) return
       const eye = eyeRef.current
@@ -580,34 +589,39 @@ export function ForestOverlay(props: ForestOverlayProps) {
         wanted = forestPatches(lastEye, bands, anchorLatitude, background?.key ?? null)
         const keys = new Set(wanted.map((patch) => patch.key))
         for (const key of cache.keys()) if (!keys.has(key)) cache.delete(key)
+        for (const key of debrisCache.keys()) if (!keys.has(key)) debrisCache.delete(key)
         dirty = true
       }
       const start = performance.now()
       for (const patch of wanted) {
-        if (cache.has(patch.key)) continue
+        const needsTrees = !cache.has(patch.key)
         const band = bands[patch.band]
+        const needsDebris = needsDebrisFor(patch)
+        if (!needsTrees && !needsDebris) continue
         // The background band stands on its own ground, reads its own inventory after the core's, and lays no canopy
         // over ground its read does not know.
         const own = band.background && background ? background : null
-        cache.set(
-          patch.key,
-          growForestPatch(
-            patch,
-            band,
-            {
-              stands,
-              clearings,
-              openings,
-              thinnings,
-              inventory: own ? own.inventory : inventory,
-              heightMeters: standHeightMeters,
-              ...(own ? { canopyKnownAt: own.knownAt } : {}),
-            },
-            own ? own.elevation : elevation,
-            anchorLatitude,
-          ),
-        )
-        if (debrisLayer && bands[patch.band].near < DEBRIS_REACH_METERS) {
+        if (needsTrees) {
+          cache.set(
+            patch.key,
+            growForestPatch(
+              patch,
+              band,
+              {
+                stands,
+                clearings,
+                openings,
+                thinnings,
+                inventory: own ? own.inventory : inventory,
+                heightMeters: standHeightMeters,
+                ...(own ? { canopyKnownAt: own.knownAt } : {}),
+              },
+              own ? own.elevation : elevation,
+              anchorLatitude,
+            ),
+          )
+        }
+        if (needsDebris) {
           debrisCache.set(
             patch.key,
             placeDebris(openings!, patch.bounds, 12, patch.band + 1).flatMap((pile) => {
@@ -627,7 +641,8 @@ export function ForestOverlay(props: ForestOverlayProps) {
       // Every frame only while there is work: a stand still growing or an upload waiting. Once the stand is whole the
       // eye is looked at a few times a second, so a still road view stops asking the page for frames (it drew about
       // 120 a second while an export waited, competing with the export's own captures).
-      if (dirty || wanted.some((patch) => !cache.has(patch.key))) frame = requestAnimationFrame(tick)
+      if (dirty || wanted.some((patch) => !cache.has(patch.key) || needsDebrisFor(patch)))
+        frame = requestAnimationFrame(tick)
       else
         idleTimer = window.setTimeout(() => {
           idleTimer = 0
