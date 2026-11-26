@@ -8,14 +8,14 @@ import { ELEMENT_CATALOG, evergreenMarkup, mossTreeMarkup } from './symbols'
 import { TITLE_STUDY } from './title'
 
 export interface GeographicMapOptions extends IllustratedMapOptions {
-  coverage?: 'coastal' | 'province'
+  coverage?: 'coastal' | 'northern' | 'province'
 }
 
 export const DEFAULT_GEOGRAPHIC_OPTIONS = { coverage: 'coastal' as const }
 export const GEOGRAPHIC_MAP_INFO = {
   projection: 'EPSG:3005 — NAD83 / BC Albers',
   coverageDescription:
-    'Coastal style uses the broad CWH, MH and CDF biogeoclimatic regions. Offshore extension lets the shared land polygon alone define the coastline. All BC land fills the whole province with the same decorative hatch.',
+    'Coastal style uses the broad CWH, MH and CDF biogeoclimatic regions. Northern BC adds a broad authored northwestern field like the page 8 reference, within the same regional map frame. All BC land fills the visible province. Every coverage uses the same geographic land mask; the hatch is decorative.',
   attribution: [
     'Shoreline: GSHHG. Inland water: GSHHG and BC Freshwater Atlas.',
     'Province boundaries and Canadian highways: Statistics Canada. I-5: Washington State Department of Transportation.',
@@ -61,10 +61,16 @@ function start(title: string, description: string) {
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"><title>${escapeXml(title)}</title><desc>${escapeXml(description)}</desc>`
 }
 
-function resources(coverage: 'coastal' | 'province') {
+function resources(coverage: NonNullable<GeographicMapOptions['coverage']>) {
   // These exact path objects paint the land and clip its hatching. They never
   // carry an inset, stroke, smoothing curve or independently fitted coastline.
-  return `<defs><path id="geo-land-geometry" d="${data.land.d}" fill-rule="evenodd" clip-rule="evenodd"/><path id="geo-bc-land-geometry" d="${data.bcLand.d}" fill-rule="evenodd" clip-rule="evenodd"/><clipPath id="geo-land-clip" clipPathUnits="userSpaceOnUse"><use href="#geo-bc-land-geometry" xlink:href="#geo-bc-land-geometry" fill-rule="evenodd" clip-rule="evenodd"/></clipPath>${coverage === 'coastal' ? `<clipPath id="geo-style-clip" clipPathUnits="userSpaceOnUse"><path d="${data.coastalCoverage.d}" fill-rule="evenodd" clip-rule="evenodd"/></clipPath>` : ''}<clipPath id="geo-frame-clip"><rect width="${width}" height="${height - data.projection.footer}"/></clipPath></defs>`
+  // Sibling clip shapes form a union. Combining their d strings in one
+  // even-odd path would instead cut holes where the two style regions overlap.
+  const styleClip =
+    coverage === 'province'
+      ? ''
+      : `<clipPath id="geo-style-clip" clipPathUnits="userSpaceOnUse"><path d="${data.coastalCoverage.d}" fill-rule="evenodd" clip-rule="evenodd"/>${coverage === 'northern' ? `<path id="geo-northern-style-extent" d="${NORTHERN_REFERENCE_COVERAGE.d}"/>` : ''}</clipPath>`
+  return `<defs><path id="geo-land-geometry" d="${data.land.d}" fill-rule="evenodd" clip-rule="evenodd"/><path id="geo-bc-land-geometry" d="${data.bcLand.d}" fill-rule="evenodd" clip-rule="evenodd"/><clipPath id="geo-land-clip" clipPathUnits="userSpaceOnUse"><use href="#geo-bc-land-geometry" xlink:href="#geo-bc-land-geometry" fill-rule="evenodd" clip-rule="evenodd"/></clipPath>${styleClip}<clipPath id="geo-frame-clip"><rect width="${width}" height="${height - data.projection.footer}"/></clipPath></defs>`
 }
 
 function symbol(id: string, point: Point, scale: number, offset: Point = [0, 0], anchor: Point = [0.5, 0.5]) {
@@ -79,6 +85,25 @@ type Place = (typeof data.places)[number]
 function place(id: string): Place | undefined {
   return data.places.find((p) => p.id === id)
 }
+
+/**
+ * A composed northern field, not a forest boundary or traced source contour.
+ * Three broad cubic bends connect the north cap, the area west of Mount Robson,
+ * and the bear/Whistler transition. The existing coast region continues south.
+ * Only the outer geographic land clip supplies coastlines and water holes.
+ */
+export const NORTHERN_REFERENCE_COVERAGE = (() => {
+  const robson = (place('mount-robson-peak') ?? place('mount-robson'))!.point
+  const kamloops = place('kamloops')!.point
+  const whistler = place('whistler')!.point
+  const p = (x: number, y: number) => `${n(x)} ${n(y)}`
+  return {
+    kind: 'authored-reference-style',
+    anchors: ['mount-robson', 'kamloops', 'whistler'],
+    right: robson[0] - 42,
+    d: `M-32 -32 H${n(robson[0] - 70)} C${p(robson[0] - 42, robson[1] - 190)} ${p(robson[0] - 105, robson[1] - 64)} ${p(robson[0] - 85, robson[1] + 28)} C${p(robson[0] - 56, robson[1] + 145)} ${p(kamloops[0] - 80, kamloops[1] - 127)} ${p(kamloops[0] - 151, kamloops[1] - 97)} C${p(whistler[0] + 24, kamloops[1] - 34)} ${p(whistler[0] - 61, whistler[1] - 110)} ${p(whistler[0] - 90, whistler[1] - 36)} H-32 Z`,
+  } as const
+})()
 
 function label(
   text: string,
@@ -163,7 +188,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     'Rainforest to Rockies — geographic illustration',
     'Real geographic shoreline, lake holes, province regions, highway centrelines and place coordinates projected together to BC Albers. Reconstructed page 8 symbols, glyph lettering and generated hatching provide the illustration style. Motifs are decorative regional illustrations. The title is a reconstructed study.',
   )
-  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-geographic-illustrated-map', version: 1, trace: false, coordinates: 'EPSG:3005', projection: data.projection, coverage, hatch, composition, provenance: data.provenance }))}</metadata>`
+  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-geographic-illustrated-map', version: 1, trace: false, coordinates: 'EPSG:3005', projection: data.projection, coverage, hatch, composition, provenance: data.provenance, ...(coverage === 'northern' ? { coverageStyle: NORTHERN_REFERENCE_COVERAGE } : {}) }))}</metadata>`
   svg += resources(coverage)
   if (!options.transparentBackground) {
     svg += layer(
@@ -180,7 +205,9 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
   svg += '<g clip-path="url(#geo-frame-clip)">'
   if (layers.hatching) {
     const bounds = coverage === 'coastal' ? data.coastalLand.bounds : data.bcLand.bounds
-    const fieldWidth = Math.max(1, Math.min(width, Math.ceil(bounds[2] + 8)))
+    const right =
+      coverage === 'northern' ? Math.max(data.coastalLand.bounds[2], NORTHERN_REFERENCE_COVERAGE.right) : bounds[2]
+    const fieldWidth = Math.max(1, Math.min(width, Math.ceil(right + 8)))
     const clearances =
       !composition.allowIllustrationOverlap && layers.symbols
         ? data.motifs
@@ -196,7 +223,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     svg += layer(
       'geo-forest-hatching',
       '03 Generated hatching clipped to geographic land',
-      `<g clip-path="url(#geo-land-clip)"><g${coverage === 'coastal' ? ' clip-path="url(#geo-style-clip)"' : ''}${clearances ? ' mask="url(#geo-illustration-clearances)"' : ''} color="${MAP_PALETTE.hatch}">${buildHatchPaths(fieldWidth, height - data.projection.footer, hatch)}</g></g>`,
+      `<g clip-path="url(#geo-land-clip)"><g${coverage !== 'province' ? ' clip-path="url(#geo-style-clip)"' : ''}${clearances ? ' mask="url(#geo-illustration-clearances)"' : ''} color="${MAP_PALETTE.hatch}">${buildHatchPaths(fieldWidth, height - data.projection.footer, hatch)}</g></g>`,
     )
   }
   if (layers.roads) {

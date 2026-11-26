@@ -6,7 +6,9 @@ The workshop defaults to real geography. Export that composition and its offline
 node --import tsx scripts/illustrated-map/export-geographic.ts /absolute/path/to/output
 ```
 
-This writes the styled geographic map, a base map, the dry-land mask, the all-BC hatch alternative, transparent layers, all 64 elements, a schematic style reference, provenance, and **geographic-review.html**. See [the geographic guide](../../docs/illustrated-map-geographic.md) for local GeoJSON preparation, projection, source notices and generalization limits. Land fill and hatch clip reuse the same geographic boundary, including water holes.
+This writes the styled geographic map, a base map, the dry-land mask, northern and all-BC hatch alternatives, transparent layers, all 64 elements, a schematic style reference, provenance, and **geographic-review.html**. The northern outputs are **geographic-northern-hatch.svg** (complete map) and **geographic-northern-forest.svg** (transparent hatch layer). See [the geographic guide](../../docs/illustrated-map-geographic.md) for local GeoJSON preparation, projection, source notices and generalization limits. Land fill and hatch clip reuse the same geographic boundary, including water holes.
+
+The workshop keeps coastal coverage as its default. Select **Northern BC · reference style** to add the reference's broad northwestern hatch field within the same geographic frame. Two sibling style-clip paths unite the coastal and authored northern extents; one continuous hatch field is clipped by that union and the shared geographic land mask. This is a decorative coverage choice, not a current forest inventory or an expansion to the whole northern province.
 
 ## Schematic reference export
 

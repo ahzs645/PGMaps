@@ -34,12 +34,15 @@ The footer includes a 100 km projected scale bar. The compass rotation is derive
 
 The renderer declares one geographic land path and one BC dry-land path. Those same SVG objects are reused to paint the land and clip its hatch, with even-odd fill/clip rules preserving water holes and islands. There is no inward land offset, white shoreline stroke or separately fitted hatch coastline.
 
-The two coverage modes change only the pattern's permitted region:
+The three coverage modes change only the pattern's permitted region:
 
-- **Coastal style** intersects the shared BC dry-land clip with a separate broad coastal style region.
+- **Coastal style** remains the default and intersects the shared BC dry-land clip with a separate broad coastal style region.
+- **Northern BC · reference style** adds a broad northwestern field, with an authored edge west of Mount Robson and Highway 5 that tapers southwest toward the bear/Whistler area.
 - **All BC land** uses the shared BC dry-land clip without the coastal restriction.
 
-The style region unions selected CWH/MH/CDF display polygons, fills small internal _style_ exclusions below 50 km², simplifies that styling boundary at 500 m, adds an offshore/coastal coverage extension, and simplifies the resulting style extent at 250 m. The extension includes marine area buffered by 3 km. It never becomes visible water hatching because the exact common dry-land clip is applied afterward. These are styling operations; actual lake holes are removed by the independent geographic land mask.
+The northern variant combines the coastal region and its authored northern extent as two sibling paths in one SVG style clip, forming their union. One continuous hatch field is drawn through that union, with the shared geographic BC dry-land clip applied outside it. This preserves coastlines, islands and water holes without doubled strokes or a seam where the style regions meet. The extent uses a few cubic bends positioned relative to existing Mount Robson, Kamloops and Whistler anchors; it is a composed interpretation of the reference, not a traced contour or a mapped forest boundary. It uses the existing regional geographic frame and does not extend the map to the whole northern province. Neither the new extent nor the coastal style is a current forest inventory.
+
+The coastal style region unions selected CWH/MH/CDF display polygons, fills small internal _style_ exclusions below 50 km², simplifies that styling boundary at 500 m, adds an offshore/coastal coverage extension, and simplifies the resulting style extent at 250 m. The extension includes marine area buffered by 3 km. It never becomes visible water hatching because the exact common dry-land clip is applied afterward. These are styling operations; actual lake holes are removed by the independent geographic land mask.
 
 GSHHG's full-resolution hierarchy provides the marine footprint and its original lake/island hierarchy. Selected Freshwater Atlas waters replace overlapping older GSHHG lake geometry inside BC, while unmatched GSHHG waters and cross-border continuations are retained. The acquired FWA lake candidate set contains **1,290 source polygons** with **4,222 interior rings**; a separately classified manmade-water set contributes **five polygons**. The service's conservative envelope query returns 67 lakes outside the exact WGS84 rectangle; 1,223 lake polygons intersect that rectangle. Land preparation clips the candidates to the exact working extent. Both queries use source `AREA_HA >= 100`, equivalent to 1 km². This threshold applies to each source polygon, including watershed partitions, rather than to a name-based merge of a whole lake.
 
@@ -136,6 +139,6 @@ To export:
 node --import tsx scripts/illustrated-map/export-geographic.ts /absolute/path/to/output
 ```
 
-The output includes the full geographic map, base land/water, literal land mask, all-BC hatch alternative, separate transparent forest/roads/lettering/illustration layers, schematic reference, 64 individually editable elements, the hatch swatch, and `Geographic-provenance.json`. The offline review embeds the engine and source preview, works directly from disk, and regenerates SVG downloads from the selected hatch, composition, coverage and layer state.
+The output includes the full geographic map, base land/water, literal land mask, northern and all-BC hatch alternatives, separate transparent forest/roads/lettering/illustration layers, schematic reference, 64 individually editable elements, the hatch swatch, and `Geographic-provenance.json`. `geographic-northern-hatch.svg` contains the complete northern variant; `geographic-northern-forest.svg` contains its transparent hatch layer. The offline review embeds the engine and source preview, works directly from disk, and regenerates SVG downloads from the selected hatch, composition, coverage and layer state. Select **Northern BC · reference style** to use the new coverage; the coastal default and all-BC option remain available.
 
 The five hatch controls remain seed, spacing, band height, stroke width and curvature. Geographic coverage and layer controls do not alter source road or place coordinates. The SVG layer groups, metadata, actual place coordinates and route IDs remain available to inspect or edit independently.

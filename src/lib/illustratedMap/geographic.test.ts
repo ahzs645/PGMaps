@@ -60,6 +60,34 @@ describe('geographic illustration', () => {
     expect(noRoads).toContain('id="geo-destinations"')
   })
 
+  it('unions the northern and coastal style regions over one stable hatch field and the same land clip', () => {
+    const options = { layers: { symbols: false, labels: false } }
+    const coastal = buildGeographicMapSvg(options)
+    const northern = buildGeographicMapSvg({ ...options, coverage: 'northern' })
+    const document = parse(northern)
+    const stylePaths = byId(document, 'geo-style-clip')!.getElementsByTagName('path')
+    expect(stylePaths.length).toBe(2)
+    expect(stylePaths[0].getAttribute('d')).toBe(data.coastalCoverage.d)
+    expect(stylePaths[1].getAttribute('id')).toBe('geo-northern-style-extent')
+    expect(byId(document, 'geo-bc-land-geometry')!.getAttribute('d')).toBe(data.bcLand.d)
+    expect(byId(document, 'geo-forest-hatching')!.getElementsByTagName('g')[0].getAttribute('clip-path')).toBe(
+      'url(#geo-land-clip)',
+    )
+    const field = Array.from(document.getElementsByTagName('g')).filter(
+      (node) => node.getAttribute('data-generator') === 'contour-hatch-v3',
+    )
+    expect(field.length).toBe(1)
+    expect(field[0].getAttribute('data-effective-spacing')).toBe('3')
+    expect(field[0].getAttribute('data-budget-limited')).toBe('false')
+    const marks = (svg: string) => new Set(svg.match(/<path d="M[^"]+" stroke-width="[^"]+"\/>/g))
+    const originalMarks = marks(coastal)
+    const northernMarks = marks(northern)
+    expect(originalMarks.size).toBeGreaterThan(10_000)
+    expect(northernMarks.size).toBeGreaterThan(originalMarks.size)
+    for (const mark of originalMarks) expect(northernMarks.has(mark)).toBe(true)
+    for (const road of data.roads) expect(northern).toContain(`d="${road.d}"`)
+  })
+
   it('keeps the true place coordinates and route identity in the exported markers', () => {
     const document = parse(buildGeographicMapSvg({ layers: { hatching: false } }))
     const vancouver = data.places.find((point) => point.id === 'vancouver')!

@@ -147,7 +147,9 @@ export default function DevIllustratedMap() {
           ? 'rainforest-geographic-land-mask.svg'
           : 'rainforest-hatching.svg'
         : isGeographic
-          ? 'rainforest-to-rockies-geographic.svg'
+          ? coverage === 'northern'
+            ? 'rainforest-to-rockies-geographic-northern.svg'
+            : 'rainforest-to-rockies-geographic.svg'
           : 'rainforest-to-rockies-schematic.svg'
   const updating = deferredHatch !== hatch || deferredComposition !== composition
   const updateHatch = (key: keyof HatchOptions, value: number) =>
@@ -218,9 +220,10 @@ export default function DevIllustratedMap() {
                 label="Hatch coverage"
                 value={coverage}
                 onChange={(event) => setCoverage(event.target.value as HatchCoverage)}
-                description="Coastal style uses broad coastal ecological regions. All BC land covers the whole province; the hatch remains decorative."
+                description="Northern BC adds the reference's broad northwestern field. All three choices use the same land mask; the hatch remains decorative."
               >
                 <option value="coastal">Coastal style</option>
+                <option value="northern">Northern BC · reference style</option>
                 <option value="province">All BC land</option>
               </SelectField>
             )}
@@ -351,7 +354,7 @@ export default function DevIllustratedMap() {
               </p>
               <p className="text-xs leading-5 text-muted-foreground">
                 {isGeographic
-                  ? 'Page 8 is the style reference. Coastal hatch coverage and the decorative motifs are illustration choices, not mapped forest or activity locations.'
+                  ? 'Page 8 is the style reference. Hatch coverage and the decorative motifs are illustration choices, not mapped forest or activity locations.'
                   : 'Page 8 is the visual reference. Compare proportions and placement there; the reconstructed drawing is an editable interpretation.'}
               </p>
               {isGeographic && (
@@ -408,7 +411,7 @@ export default function DevIllustratedMap() {
                   />
                   <p className="text-sm leading-6 text-muted-foreground">
                     {showLandMask
-                      ? 'These geographic land shapes clip the hatching in both coverage modes. Download the land mask SVG to inspect the boundary independently of the drawing.'
+                      ? 'These geographic land shapes clip the hatching in all three coverage modes. Download the land mask SVG to inspect the boundary independently of the drawing.'
                       : 'Change spacing to control density, band height to change stroke length, and curvature to change the flow. The map clips this pattern to the land; it does not turn the bands to follow the boundary.'}
                   </p>
                   <div className="space-y-3 rounded-lg border bg-card p-4">
