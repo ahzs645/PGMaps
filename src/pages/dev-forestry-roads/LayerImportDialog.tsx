@@ -12,6 +12,7 @@ import {
   layerImportOptions,
   linePartCount,
   suggestedLayerRole,
+  UNREADABLE_LAYER_NOTE,
   type LayerImportChoice,
   type LayerImportRole,
 } from './referenceImport'
@@ -106,7 +107,9 @@ export function LayerImportDialog({
     setIncluded((previous) => previous.map((value, i) => (i === index ? on : value)))
     setError('')
   }
-  const notes = groupNotes(files.flatMap((file) => file.notices ?? []))
+  const notices = files.flatMap((file) => file.notices ?? [])
+  const unreadable = [...new Set(notices.filter((note) => note.startsWith(UNREADABLE_LAYER_NOTE)))]
+  const notes = groupNotes(notices.filter((note) => !note.startsWith(UNREADABLE_LAYER_NOTE)))
   const includeMany = (indices: readonly number[], on: boolean) => {
     const chosen = new Set(indices)
     setIncluded((previous) => previous.map((value, i) => (chosen.has(i) ? on : value)))
@@ -301,6 +304,21 @@ export function LayerImportDialog({
       }
     >
       <div className="space-y-3">
+        {unreadable.length > 0 && (
+          <InlineAlert tone="warning">
+            <p>
+              {unreadable.length} {unreadable.length === 1 ? 'file was' : 'files were'} skipped. You can still import
+              the layers below.
+            </p>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              {unreadable.map((note) => (
+                <li key={note} className="break-words">
+                  {note}
+                </li>
+              ))}
+            </ul>
+          </InlineAlert>
+        )}
         {files.some((file) => file.pdf) && (
           <div className="space-y-2 text-xs">
             {files.some((file) => file.pdf) && (

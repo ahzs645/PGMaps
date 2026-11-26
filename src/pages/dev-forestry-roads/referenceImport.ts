@@ -341,6 +341,26 @@ export function unreadFilesNote(paths: readonly string[]): string | null {
   return `Not read: ${parts.join('; ')}.`
 }
 
+/** Mixed GIS layers need separate roles: keep their source paths and let the user choose. */
+function splitMixedLayer(file: SpatialFile): SpatialFile[] {
+  const groups = new Map<ReturnType<typeof shapeOf>, GeoJSON.Feature[]>()
+  for (const feature of file.collection.features) {
+    const shape = shapeOf(feature)
+    const group = groups.get(shape)
+    if (group) group.push(feature)
+    else groups.set(shape, [feature])
+  }
+  if (groups.size < 2) return [file]
+  const labels = { line: 'Lines', polygon: 'Polygons', point: 'Points' } as const
+  return Array.from(groups, ([shape, features]) => ({
+    ...file,
+    fileName: `${file.fileName}/${labels[shape]}`.slice(-200),
+    collection: { type: 'FeatureCollection', features },
+  }))
+}
+
+export const UNREADABLE_LAYER_NOTE = 'Could not read '
+
 /** Each file is a layer. Sidecars must have the same stem in the same directory. */
 export async function readReferenceImport(picked: readonly PickedFile[], signal?: AbortSignal): Promise<SpatialFile[]> {
   const files = picked.filter(
@@ -359,19 +379,36 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
     )
 
   const decoded: SpatialFile[] = []
-  for (const { file, path } of layers) {
+  const failures: string[] = []
+  // A folder commonly contains ancillary JSON, ZIPs or ordinary PDFs. Preserve its usable
+  // siblings, but surface every failed file before the user commits a partial import.
+  async function readLayer<T>(path: string, read: () => Promise<T>): Promise<T | undefined> {
     signal?.throwIfAborted()
+    try {
+      const result = await read()
+      signal?.throwIfAborted()
+      return result
+    } catch (cause) {
+      signal?.throwIfAborted()
+      if (cause instanceof Error && cause.name === 'AbortError') throw cause
+      failures.push(`${UNREADABLE_LAYER_NOTE}${path}: ${cause instanceof Error ? cause.message : String(cause)}`)
+      return undefined
+    }
+  }
+  for (const { file, path } of layers) {
     const stem = path.slice(0, -4).toLowerCase()
-    const read = /\.shp$/i.test(path)
-      ? [
-          await readLooseShapefile(file, path, {
-            prj: byPath.get(stem + '.prj'),
-            dbf: byPath.get(stem + '.dbf'),
-            cpg: byPath.get(stem + '.cpg'),
-          }),
-        ]
-      : await readSpatialFiles(file, path)
-    decoded.push(...read)
+    const read = await readLayer(path, async () =>
+      /\.shp$/i.test(path)
+        ? [
+            await readLooseShapefile(file, path, {
+              prj: byPath.get(stem + '.prj'),
+              dbf: byPath.get(stem + '.dbf'),
+              cpg: byPath.get(stem + '.cpg'),
+            }),
+          ]
+        : readSpatialFiles(file, path),
+    )
+    if (read) decoded.push(...read.flatMap(splitMixedLayer))
   }
   const blockIds = decoded.flatMap((file) => {
     const match = /^([A-Z]{2,}\d+)\.shp$/i.exec(file.fileName.split('/').at(-1)!)
@@ -410,12 +447,10 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
         if (decoded[0]) (decoded[0].notices ??= []).push(`${path}: identical to ${copyOf}; duplicate left out.`)
         continue
       }
-      const result = await importGeoPdf(
-        file,
-        path,
-        { maxFeatures: MAX_REFERENCE_FEATURES, maxVertices: MAX_REFERENCE_VERTICES },
-        signal,
+      const result = await readLayer(path, () =>
+        importGeoPdf(file, path, { maxFeatures: MAX_REFERENCE_FEATURES, maxVertices: MAX_REFERENCE_VERTICES }, signal),
       )
+      if (!result) continue
       const duplicate = seen.get(result.sha256)
       if (duplicate) {
         if (decoded[0]) (decoded[0].notices ??= []).push(`${path}: identical to ${duplicate}; duplicate left out.`)
@@ -484,7 +519,10 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
       )
     }
   }
-  if (unread && decoded[0]) (decoded[0].notices ??= []).push(unread)
+  if (!decoded.length && failures.length) {
+    throw Error(failures.length === 1 ? failures[0] : `No map layers could be read. ${failures.join(' ')}`)
+  }
+  if (decoded[0]) (decoded[0].notices ??= []).push(...failures, ...(unread ? [unread] : []))
   return decoded
 }
 
