@@ -146,6 +146,12 @@ twice that (at least 12 m) and 32 headings, and reads ground every 1 m along eac
 (`corridorSearchResolution`). **Find the best route → Search settings** shows these figures for the
 current road and corridor before a run.
 
+The route finder labels a covered amount **Known subtotal** when terrain or
+construction costs are incomplete, material allocation did not solve, drainage
+screening failed, or modelled drainage needs a price. It shows a percentage
+against **Your road** only when both amounts cover their planning inputs.
+These remain screening estimates, not final prices.
+
 A search that ends without a road throws `CorridorSearchError`. Its `failure` says whether the
 budget ran out or every line was tried, how near the end the search got, and how many trial lines
 each check stopped: grade, missing terrain, a blocked area or the corridor's edge.

@@ -14,6 +14,7 @@ import {
   DEFAULT_CROSS_DRAIN_COST,
   probeSteeperGrades,
   ROUTE_GOALS,
+  routeCostDeltaPercent,
   type RouteComparison,
   type RouteComparisonInput,
   type RouteGoal,
@@ -581,7 +582,7 @@ export function RouteFinder({
   )
 }
 
-function RouteResult({
+export function RouteResult({
   row,
   color,
   current,
@@ -596,10 +597,7 @@ function RouteResult({
   onView: () => void
   onHover: (on: boolean) => void
 }) {
-  const saving =
-    current?.totalCost && row.totalCost !== null && row !== current
-      ? Math.round(((row.totalCost - current.totalCost) / current.totalCost) * 100)
-      : null
+  const saving = row !== current ? routeCostDeltaPercent(row, current) : null
   return (
     <button
       className={`block w-full rounded-md border px-2 py-1.5 text-left text-xs transition-colors hover:bg-muted/50 ${viewing ? 'border-primary bg-primary/5' : ''}`}
@@ -617,6 +615,9 @@ function RouteResult({
         <span className="min-w-0 flex-1 font-medium">{row.label}</span>
         <span className="shrink-0 text-right font-semibold tabular-nums">
           {row.totalCost !== null ? money(row.totalCost) : '—'}
+          {row.totalCost !== null && !row.costComplete && (
+            <span className="block font-normal text-warning">Known subtotal</span>
+          )}
           {saving !== null && saving !== 0 && (
             <span className={`ml-1 font-normal ${saving < 0 ? 'text-success' : 'text-muted-foreground'}`}>
               {saving > 0 ? '+' : '−'}

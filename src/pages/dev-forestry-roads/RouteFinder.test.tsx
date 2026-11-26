@@ -1,10 +1,10 @@
 import { createElement, type ReactNode } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
-import { RouteFinder } from './RouteFinder'
+import { RouteFinder, RouteResult } from './RouteFinder'
 import { NumberField } from './Controls'
 import { analyzeRoad } from './engine'
-import { DEFAULT_CROSS_DRAIN_COST } from './routeComparison'
+import { DEFAULT_CROSS_DRAIN_COST, type RouteRow } from './routeComparison'
 import { createDemoProject, demoTerrain } from './terrain'
 import type { RoadProject } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
@@ -67,4 +67,46 @@ it('keeps entered cross-drain allowances in their own currency without convertin
   act(() => renderer!.update(render(usProject)))
   expect(field().props.value).toBe(4000)
   expect(field().props.hint).toContain('Entered USD allowance')
+})
+
+it('hides the percentage beside a known subtotal and keeps the prices visible', () => {
+  const baseline: RouteRow = {
+    id: 'base',
+    goal: 'current',
+    label: 'Your road',
+    color: '#000',
+    alignment: null,
+    coordinates: [],
+    lengthM: 1429,
+    maxGradePercent: 10,
+    earthworksM3: 27244,
+    constructionCost: 351_033,
+    drainage: null,
+    totalCost: 419_753,
+    costComplete: true,
+    blockers: [],
+    notes: [],
+    best: [],
+  }
+  const candidate: RouteRow = {
+    ...baseline,
+    id: 'candidate',
+    goal: 'cost',
+    label: 'Lowest cost',
+    totalCost: 204_664,
+  }
+  const render = (row: RouteRow, current?: RouteRow) => (
+    <RouteResult row={row} current={current} color="#000" viewing={false} onView={() => {}} onHover={() => {}} />
+  )
+  const contents = () => JSON.stringify(renderer!.toJSON())
+  act(() => {
+    renderer = create(render(candidate, baseline))
+  })
+  expect(contents()).toContain('−","51","%')
+  act(() => renderer!.update(render(candidate, { ...baseline, costComplete: false })))
+  expect(contents()).not.toContain('−","51","%')
+  expect(contents()).toContain('204,664')
+  act(() => renderer!.update(render({ ...candidate, costComplete: false }, baseline)))
+  expect(contents()).toContain('Known subtotal')
+  expect(contents()).not.toContain('−","51","%')
 })
