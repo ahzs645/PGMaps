@@ -8,6 +8,7 @@ Usage: python3 scripts/illustrated-map/build-font-glyphs.py \
 Requires fontTools. The complete fonts are not copied into the repository.
 """
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -16,12 +17,17 @@ from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.ttLib import TTFont
 
 
-def glyph_data(path: Path) -> dict:
+def glyph_data(path: Path, include_alternates: bool = False) -> dict:
     font = TTFont(path)
     glyph_set = font.getGlyphSet()
     cmap = font.getBestCmap()
     characters = {}
-    for character in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 &-,.":
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 &-,."
+    # The regular font maps its narrower capital alternates to lowercase codepoints.
+    # Keep those genuine outlines so a word need not squash all of its wide capitals.
+    if include_alternates:
+        alphabet += "abcdefghijklmnopqrstuvwxyz"
+    for character in alphabet:
         name = cmap.get(ord(character))
         if name is None:
             raise ValueError(f"{path.name} lacks {character!r}")
@@ -38,6 +44,8 @@ def glyph_data(path: Path) -> dict:
     return {
         "name": font["name"].getDebugName(1),
         "unitsPerEm": font["head"].unitsPerEm,
+        "version": font["name"].getDebugName(5),
+        "sourceSha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         "glyphs": characters,
     }
 
@@ -51,7 +59,7 @@ def main() -> None:
         default=Path(__file__).resolve().parents[2] / "src/lib/illustratedMap/fontGlyphs.generated.json",
     )
     args = parser.parse_args()
-    output = {"smallcaps": glyph_data(args.smallcaps), "regular": glyph_data(args.regular)}
+    output = {"smallcaps": glyph_data(args.smallcaps), "regular": glyph_data(args.regular, include_alternates=True)}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(output, separators=(",", ":")) + "\n")
     print(f"Wrote {args.output}")

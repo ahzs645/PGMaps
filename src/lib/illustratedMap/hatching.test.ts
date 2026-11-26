@@ -32,7 +32,7 @@ describe('procedural forest hatching', () => {
     const svg = buildHatchSwatchSvg()
     expect(svg).toContain('viewBox="0 0 600 360"')
     expect(svg).toContain('color="#BCC454"')
-    expect(svg).toContain('data-generator="ribbon-hatch-v2"')
+    expect(svg).toContain('data-generator="contour-hatch-v3"')
     expect(svg).not.toMatch(/<(?:image|script|foreignObject|filter)\b|(?:href|onload)=/)
     expect(strokes(svg).every((stroke) => /d="M[-\d. ]+C[-\d. ]+"/.test(stroke))).toBe(true)
   })

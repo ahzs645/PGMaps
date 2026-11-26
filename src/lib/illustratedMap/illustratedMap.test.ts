@@ -79,4 +79,23 @@ describe('editable illustrated-map exports', () => {
     expect(svg).not.toContain('<text')
     expect(() => lettering('é', [0, 0, 100, 20])).toThrow('no glyph')
   })
+
+  it('uses the font’s alternate capitals without changing the wording or outline width', () => {
+    const svg = lettering('RAINFOREST', [126, 684, 232, 36], 'regular', 0, 1.8, 'RaInFOrEsT')
+    const document = new DOMParser().parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg">${svg}</svg>`,
+      'image/svg+xml',
+    )
+    const characters = Array.from(document.getElementsByTagName('path')).map((path) =>
+      path.getAttribute('data-character'),
+    )
+    expect(characters.join('')).toBe('RaInFOrEsT')
+    expect(svg).toContain('data-text="RAINFOREST"')
+    expect(svg).toContain('data-tracking-units="0"')
+    expect(svg).toContain('stroke-width="3.6"')
+    expect(svg).toContain('paint-order="stroke fill"')
+    expect(() => lettering('ROCKIES', [0, 0, 152, 36], 'regular', 0, 0, 'FORESTS')).toThrow(
+      'must preserve the lettering text',
+    )
+  })
 })

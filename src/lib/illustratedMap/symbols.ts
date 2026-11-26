@@ -157,10 +157,20 @@ function ripples(width: number, height: number): string {
 }
 
 const bear = path(
-  'M 5,34 C 9,26 11,16 17,9 Q 23,4 32,7 Q 39,9 44,7 Q 49,7 52,11 L 59,12 L 64,22 Q 64,25 58,24 L 51,24 Q 49,28 54,33 Q 56,36 54,39 L 49,39 L 44,31 L 43,40 L 38,39 L 36,29 L 32,32 L 32,40 Q 27,42 24,39 L 22,29 Q 16,28 13,39 L 7,40 Q 3,39 5,34 Z',
+  // Rump, level back, small shoulder/ear rise, forehead and short flat muzzle.
+  'M 6.3,35 C 9,26.5 11.5,17.3 15.5,11.1 Q 18.9,6.3 23.7,5.7 ' +
+    'Q 28.3,5.5 32.4,6.7 Q 37.3,8.1 41.2,6.5 Q 44.6,5.2 46.2,8.7 ' +
+    'L 54.3,9.4 Q 57.1,9.4 57.8,12.5 L 62,20.8 Q 63.8,22.5 61.8,23.1 L 50.2,23 ' +
+    // Chin and near foreleg, followed by the shorter far foreleg and belly.
+    'Q 48,24 48.4,27.7 Q 48,29.5 51.4,31.1 Q 54,32.8 52.1,37.3 ' +
+    'Q 51.5,39.6 49.1,39.6 L 47.5,39.1 L 46.3,35.8 L 42.7,33.1 L 40.9,31.2 ' +
+    'Q 39.5,34.8 41.5,36.9 L 41,39.3 Q 38.6,40.5 35.1,38 L 34.1,26.6 ' +
+    // Two differently shaped hind-leg openings, broad paws and a rounded heel.
+    'L 29,29.4 L 29.9,39.2 Q 27.3,41 24.7,39.7 L 22.9,38.8 L 22.1,30.2 L 18.6,27.6 ' +
+    'Q 15.1,28.7 12.1,34.6 L 13.9,34.8 L 13.9,38.7 Q 10,39.7 7.8,38.5 Q 5.4,37.7 6.3,35 Z',
   WHITE,
   EMERALD,
-  3.3,
+  3.9,
 )
 const birds = path(
   'M 5,10 L 17,16 L 12,4 M 17,16 Q 27,8 33,6 M 32,18 L 43,24 L 39,12 M 43,24 Q 49,17 54,16',
@@ -300,7 +310,7 @@ const illustrations: ElementDef[] = [
     68,
     45,
     bear,
-    'Anatomical landmarks, four leg cutouts and one continuous cubic outline.',
+    'Level back, short muzzle, four differently shaped leg openings and broad paws, joined by one continuous 3.9-unit anatomical outline.',
     [387, 513, 68, 45],
   ),
   definition(
@@ -481,21 +491,28 @@ function shield(number = ''): string {
     (number ? badgeLettering(number, 26.5, 33, number.length > 1 ? 23 : 27) : '')
   )
 }
-function leaf(number = '', fill = CANOPY): string {
+function leaf(number = '', fill = CANOPY, instance: 'standard' | 'west' | 'mile' = 'standard'): string {
   // Three broad terminal lobes follow the source highway badge's construction.
   // Pointed tips and shallow shoulders distinguish the blade from three petals;
   // short curves soften the lobe bodies without adding flag-like serrations.
+  // The small Mile Zero instance has deeper lateral blades in the source, not
+  // a uniformly enlarged crown or stem. Keep that optical variation explicit.
+  const lobeDepth = instance === 'mile' ? 3 : 0
   const blade =
-    'M 29.5,4 Q 24.1,6.8 20.2,11.8 L 21.2,24.2 ' +
-    'Q 16.3,20.8 12.8,21.7 L 10.3,20.5 L 9.4,22.3 L 4.2,23.7 ' +
-    'Q 4.1,36.6 19.7,43.6 L 16.8,49.2 L 27.2,46.9 L 28.2,58 L 31.8,58 L 32.2,46.9 ' +
-    'L 42.1,49.1 L 39.1,43.6 Q 54.6,36.4 54.9,23.6 ' +
-    'L 49.4,22.2 L 48.6,20.6 L 46.1,21.8 Q 42.2,20.8 37.9,24.1 ' +
-    'L 38.7,12 Q 34.7,7 29.5,4 Z'
+    'M 29.2,5.4 C 25.3,7.3 22.1,9.6 19.9,12.6 Q 18.9,15.8 20.2,19.9 L 20.9,24.1 ' +
+    'Q 17.9,21.6 14.6,20.3 Q 12.4,19.6 10.5,21.1 L 6.1,21.8 ' +
+    `Q 4.8,23.7 5.2,28.2 L 5.4,${33.7 + lobeDepth} Q 8.5,${38.1 + lobeDepth} 17.4,${41.5 + lobeDepth * 0.6} ` +
+    'L 16.8,44.8 L 14.1,48.7 L 27.7,45.8 L 27.8,53.4 Q 28.2,56.3 29.7,56.4 ' +
+    `L 30.6,56.1 L 30.5,45.9 L 44.1,47.9 L 41.3,${43.3 + lobeDepth * 0.5} L 40.9,${41.8 + lobeDepth * 0.6} ` +
+    `Q 50.2,${38.8 + lobeDepth} 53.5,${32.8 + lobeDepth} Q 55.3,27.9 53.6,23.2 Q 50.4,20.9 45.6,20.4 ` +
+    'Q 43.1,19.6 40.5,21.7 L 37,24 L 38.2,17.9 Q 39,14.5 37.4,12 Q 33.9,8.3 29.2,5.4 Z'
+  const stemLeft = instance === 'mile' ? 29 : 28
+  const stemRight = instance === 'mile' ? 31.2 : 31.6
+  const footLeft = instance === 'mile' ? 25.2 : 24.5
   const numeral =
     number === '1'
       ? `<g data-part="numeral">${path(
-          'M 23.4,24.4 L 29.9,20 L 33.1,20 L 33.1,42.1 L 37.8,42.1 L 37.8,45.2 L 22.6,45.2 L 22.6,42.1 L 28.5,42.1 L 28.5,25.1 L 23.4,28.2 Z',
+          `M 25,25.2 L 28.6,21.6 L ${stemRight},21.6 L ${stemRight},37 L 34,37 L 34,39.1 L ${footLeft},39.1 L ${footLeft},37.1 L ${stemLeft},37.1 L ${stemLeft},25.3 L 25,26.7 Z`,
           WHITE,
           'none',
           0,
@@ -503,7 +520,24 @@ function leaf(number = '', fill = CANOPY): string {
       : number
         ? badgeLettering(number, 29.5, 44, 31)
         : ''
-  return `<g data-part="maple-blade-and-stem">${path(blade, fill, WHITE, 2.2)}</g>${numeral}`
+  // Put the white separation stroke behind the blade. A centred white stroke
+  // previously ate into the green silhouette and nearly opened the numeral hole.
+  const bladeMarkup = `<g data-part="maple-blade-and-stem">${path(blade, 'none', WHITE, 3.6)}${path(blade, fill, fill, 0.6)}</g>`
+  const positionedNumeral = group(numeral, 'translate(0.25 -0.3)')
+  const numberMarkup =
+    instance === 'west'
+      ? group(positionedNumeral, 'translate(-0.1 0.4)')
+      : instance === 'mile'
+        ? group(positionedNumeral, 'translate(-1.1 1)')
+        : positionedNumeral
+  const markup = bladeMarkup + numberMarkup
+  // Small registration differences are local to the source instances; the
+  // catalogue viewBoxes and map placements remain unchanged.
+  return instance === 'west'
+    ? group(markup, 'translate(-0.3 0.5)')
+    : instance === 'mile'
+      ? group(markup, 'translate(1.2 1.8)')
+      : markup
 }
 function flag(width = 68, height = 95, lean = 0): string {
   const svg =
@@ -601,8 +635,8 @@ const navigation: ElementDef[] = [
     'navigation',
     36,
     34,
-    scaleDrawing(leaf('1', EMERALD), 59, 61, 36, 34),
-    'Three broad maple lobes with pointed tips, shallow shoulders, a tapering stem and a geometric numeral; small scale instance.',
+    scaleDrawing(leaf('1', EMERALD, 'mile'), 59, 61, 36, 34),
+    'Shared three-lobed maple construction with deeper lateral blades and a narrower numeral at the small Mile Zero scale; separate outer white halo.',
     [293, 872, 36, 34],
   ),
   definition(
@@ -622,7 +656,7 @@ const navigation: ElementDef[] = [
     59,
     61,
     leaf('1'),
-    'Three broad maple lobes with pointed tips and shallow shoulders, a tapering stem and an independently editable geometric number.',
+    'Three broad, asymmetric maple lobes, a tapering stem, compact geometric numeral and a white halo painted outside the green blade.',
     [926, 431, 59, 61],
   ),
   definition(
@@ -631,8 +665,8 @@ const navigation: ElementDef[] = [
     'navigation',
     59,
     61,
-    leaf('1'),
-    'Same leaf grammar; placement distinguishes the route marker.',
+    leaf('1', CANOPY, 'west'),
+    'Shared three-lobed blade with small local registration and numeral adjustments measured from the west source instance.',
     [545, 564, 59, 61],
   ),
   definition(

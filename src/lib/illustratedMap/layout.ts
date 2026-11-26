@@ -350,28 +350,58 @@ export const CONNECTORS: readonly AuthoredRoute[] = [
   },
 ]
 
+/**
+ * Natural font proportions, measured against the source's label positions.
+ * One uniform design-unit scale per face: smallcaps 0.0284796584, regular 0.0179337162.
+ * Native advances provide the spacing; the regular face's lowercase codepoints
+ * select genuine capital-shaped alternates without changing the readable wording.
+ * The decimal boxes retain those metric proportions, not subpixel source certainty.
+ */
 export const MAP_LABELS: readonly {
   id: string
   text: string
   box: readonly [number, number, number, number]
   face?: 'regular' | 'smallcaps'
+  tracking?: number
+  glyphText?: string
 }[] = [
-  { id: 'mount', text: 'MOUNT', box: [738, 52, 75, 13] },
-  { id: 'robson', text: 'ROBSON', box: [733, 70, 84, 13] },
-  { id: 'jasper', text: 'JASPER &', box: [906, 46, 109, 13] },
-  { id: 'edmonton', text: 'EDMONTON', box: [896, 65, 126, 13] },
-  { id: 'alberta', text: 'ALBERTA', box: [1273, 286, 102, 13] },
-  { id: 'banff', text: 'BANFF &', box: [1310, 384, 96, 13] },
-  { id: 'calgary', text: 'CALGARY', box: [1308, 402, 101, 13] },
-  { id: 'golden', text: 'GOLDEN', box: [1037, 386, 88, 13] },
-  { id: 'kamloops', text: 'KAMLOOPS', box: [706, 533, 124, 13] },
-  { id: 'fernie', text: 'FERNIE', box: [1331, 705, 84, 13] },
-  { id: 'vancouver', text: 'VANCOUVER', box: [283, 786, 134, 13] },
-  { id: 'seattle', text: 'SEATTLE', box: [510, 868, 100, 13] },
-  { id: 'usa', text: 'USA', box: [959, 876, 47, 13] },
-  { id: 'victoria', text: 'VICTORIA', box: [301, 910, 113, 13] },
-  { id: 'mile-zero', text: 'MILE 0', box: [331, 884, 81, 13] },
-  { id: 'rainforest', text: 'RAINFOREST', box: [126, 684, 232, 36], face: 'regular' },
-  { id: 'canadian', text: 'CANADIAN', box: [1236, 535, 174, 36], face: 'regular' },
-  { id: 'rockies', text: 'ROCKIES', box: [1247, 579, 152, 36], face: 'regular' },
+  { id: 'mount', text: 'MOUNT', box: [743.4206, 54.2891, 68.3423, 11.7407], tracking: 0 },
+  { id: 'robson', text: 'ROBSON', box: [737.2354, 73.0052, 82.7192, 11.7407], tracking: 0 },
+  { id: 'jasper', text: 'JASPER &', box: [909.6036, 49.3337, 105.8822, 12.3317], tracking: 0 },
+  { id: 'edmonton', text: 'EDMONTON', box: [902.81, 68.2106, 111.4267, 11.7407], tracking: 0 },
+  { id: 'alberta', text: 'ALBERTA', box: [1276.1125, 287.8075, 96.6948, 11.2229], tracking: 0 },
+  { id: 'banff', text: 'BANFF &', box: [1317.211, 384.6278, 90.6171, 12.3317], tracking: 0 },
+  { id: 'calgary', text: 'CALGARY', box: [1310.2813, 403.8094, 96.9158, 11.3349], tracking: 0 },
+  { id: 'golden', text: 'GOLDEN', box: [1040.0676, 386.6438, 83.2603, 11.7407], tracking: 0 },
+  { id: 'kamloops', text: 'KAMLOOPS', box: [707.3471, 533.6098, 111.5805, 11.7407], tracking: 0 },
+  { id: 'fernie', text: 'FERNIE', box: [1335.0595, 705.7331, 81.6132, 11.212], tracking: 0 },
+  { id: 'vancouver', text: 'VANCOUVER', box: [285.2089, 785.7177, 125.4663, 11.7621], tracking: 0 },
+  { id: 'seattle', text: 'SEATTLE', box: [514.2743, 868.8362, 96.4905, 11.1925], tracking: 0 },
+  { id: 'usa', text: 'USA', box: [963.6438, 877.1107, 39.1961, 11.2621], tracking: 0 },
+  { id: 'victoria', text: 'VICTORIA', box: [303.1242, 911.7459, 109.2764, 11.7621], tracking: 0 },
+  { id: 'mile-zero', text: 'MILE 0', box: [333.3819, 886.171, 76.2369, 11.3919], tracking: 0 },
+  {
+    id: 'rainforest',
+    text: 'RAINFOREST',
+    box: [127.1675, 684.543, 233.8019, 36.3696],
+    tracking: 0,
+    face: 'regular',
+    glyphText: 'RaInFOrEsT',
+  },
+  {
+    id: 'canadian',
+    text: 'CANADIAN',
+    box: [1236.3812, 534.7643, 175.2841, 35.7598],
+    tracking: 0,
+    face: 'regular',
+    glyphText: 'cANaDIAn',
+  },
+  {
+    id: 'rockies',
+    text: 'ROCKIES',
+    box: [1246.6886, 578.7892, 154.5886, 36.1364],
+    tracking: 0,
+    face: 'regular',
+    glyphText: 'RoCkIeS',
+  },
 ]

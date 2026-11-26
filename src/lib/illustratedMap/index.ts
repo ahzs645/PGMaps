@@ -33,7 +33,7 @@ const HATCH_ELEMENTS: readonly ElementDef[] = [
     height: 225,
     svg: hatchElementBody(225, 225),
     construction:
-      'Seeded cubic strokes between smoothly warped rows. Regenerates at any extent; no raster contours or tiled source swatch.',
+      'Seeded cubic strokes follow locally varying contour bands, with spacing measured along each band and staggered ends. No raster contours or tiled source swatch.',
   },
   {
     id: 'forest-hatch-strip',
@@ -96,7 +96,7 @@ export function buildIllustratedMapSvg(options: IllustratedMapOptions = {}): str
     'Rainforest to Rockies — geometric reconstruction',
     'Reconstructed from semantic drawing components and a procedural hatch field. Reference: Destination BC brand guidelines, page 8. Schematic artwork coordinates, not geographic data. Title is a drawn study, not an official logo master. Place names use supplied Great Forest glyphs.',
   )
-  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-illustrated-map', version: 2, sourcePage: 8, trace: false, coordinates: 'schematic-artboard', hatch, composition }))}</metadata>`
+  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-illustrated-map', version: 3, sourcePage: 8, trace: false, coordinates: 'schematic-artboard', hatch, composition }))}</metadata>`
   // Forest coverage and land are independent masks. Their intersection prevents
   // any hatch stroke entering the ocean, even where the two authored edges differ.
   // This clips a freely flowing field; the outline never changes stroke direction.
@@ -160,7 +160,7 @@ export function buildIllustratedMapSvg(options: IllustratedMapOptions = {}): str
     svg += layer(
       'lettering',
       '10 Great Forest lettering from font glyphs',
-      `<g fill="${MAP_PALETTE.canopy}">${MAP_LABELS.map((label) => `<g id="label-${label.id}">${lettering(label.text, label.box, label.face ?? 'smallcaps', label.face === 'regular' ? 35 : 120, composition.labelHalo)}</g>`).join('')}</g>`,
+      `<g fill="${MAP_PALETTE.canopy}">${MAP_LABELS.map((label) => `<g id="label-${label.id}">${lettering(label.text, label.box, label.face ?? 'smallcaps', label.tracking ?? (label.face === 'regular' ? 35 : 120), composition.labelHalo, label.glyphText)}</g>`).join('')}</g>`,
     )
     svg += layer(
       'title-study',
