@@ -59,3 +59,14 @@ describe('region sheet', () => {
     expect(ops.some((op) => op.op === 'text' && op.text === 'Vancouver')).toBe(true)
   })
 })
+
+describe('region sheet lettering', () => {
+  it('sets names and route numbers in Great Forest when asked', () => {
+    const { ops } = regionSheetOps(island, { lettering: 'great-forest' })
+    const name = ops.find((op) => op.op === 'text')
+    expect(name).toMatchObject({ text: 'HÁRBOUR', family: 'great-forest', size: 12 })
+    const plain = regionSheetOps(island).ops.find((op) => op.op === 'text')
+    expect(plain).toMatchObject({ text: 'Hárbour', style: 'bold' })
+    expect(plain).not.toHaveProperty('family')
+  })
+})

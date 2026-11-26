@@ -3,8 +3,9 @@
  * or a PDF library: header fields placed side by side, table cells and legend labels fitted. The
  * numbers are the per-1000-em widths jsPDF itself uses for characters 32–126, which accented
  * letters share with their base letter; anything else is measured as an average glyph. No DOM or
- * network access.
+ * network access. Great Forest is measured from its own advances (`greatForestMetrics.generated.json`).
  */
+import greatForest from './greatForestMetrics.generated.json'
 
 /* prettier-ignore */
 const HELVETICA = [
@@ -25,8 +26,36 @@ const OTHER = 556
 
 export type SheetFontStyle = 'normal' | 'bold' | 'italic' | 'bolditalic'
 
+/**
+ * The faces a sheet sets text in. Helvetica and Times are the PDF standard fonts. The Great Forest
+ * faces (`public/illustrated-map/fonts/great-forest`) are embedded where they are used: Small Caps
+ * for names, Simplified for display lettering.
+ */
+export type SheetFontFamily = 'helvetica' | 'times' | 'great-forest' | 'great-forest-display'
+
+const GREAT_FOREST: Record<
+  'great-forest' | 'great-forest-display',
+  { unitsPerEm: number; advances: Record<string, number> }
+> = { 'great-forest': greatForest.smallcaps, 'great-forest-display': greatForest.simplified }
+const isGreatForest = (family?: SheetFontFamily): family is 'great-forest' | 'great-forest-display' =>
+  family === 'great-forest' || family === 'great-forest-display'
+
+/** Great Forest metrics: its own advances; a character it lacks is as wide as its `n`. */
+function greatForestWidth(text: string, size: number, family: 'great-forest' | 'great-forest-display') {
+  const { unitsPerEm, advances } = GREAT_FOREST[family]
+  let units = 0
+  for (const character of text) units += advances[character] ?? advances[character.normalize('NFD')[0]] ?? advances.n
+  return (units * size) / unitsPerEm
+}
+
 /** Width of `text` in points at `size` points. Italic is measured as the upright face. */
-export function textWidth(text: string, size: number, style: SheetFontStyle = 'normal'): number {
+export function textWidth(
+  text: string,
+  size: number,
+  style: SheetFontStyle = 'normal',
+  family?: SheetFontFamily,
+): number {
+  if (isGreatForest(family)) return greatForestWidth(text, size, family)
   const table = style === 'bold' || style === 'bolditalic' ? HELVETICA_BOLD : HELVETICA
   let units = 0
   for (const character of text) {

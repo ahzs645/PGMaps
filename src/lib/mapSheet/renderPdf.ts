@@ -5,12 +5,19 @@
  */
 import type { GState as GStateClass, jsPDF as JsPdf } from 'jspdf'
 import { glyphsAlongPath, type CurvePart, type DrawOp, type Point, type StrokeStyle } from './drawOps'
+import type { SheetFontFamily } from './textMetrics'
 
 /** The parts of the jsPDF module the renderer uses; callers import it lazily and pass it in. */
 export type JsPdfModule = { jsPDF: typeof JsPdf; GState: typeof GStateClass }
 
 /** Fonts a brand puts in the PDF (`configurePdfBrand`); without them the sheet prints Helvetica. */
-export type SheetPdfFonts = { body: string; heading: string; custom: boolean }
+export type SheetPdfFonts = {
+  body: string
+  heading: string
+  custom: boolean
+  /** jsPDF font names for text set in another family, such as the Great Forest faces (`greatForest.ts`). */
+  families?: Partial<Record<SheetFontFamily, string>>
+}
 
 /** Characters jsPDF's standard fonts print besides printable ASCII and Latin-1: WinAnsi's extras. */
 const WIN_ANSI_EXTRAS = 'ŒœŠšŽžŸ€ƒ‰•™†‡ˆ˜‹›'
@@ -168,9 +175,19 @@ export function drawSheetPdf(pdf: JsPdf, module: JsPdfModule, ops: readonly Draw
           break
         }
         case 'text': {
+          // A family with its own embedded font (Great Forest) takes it; others follow the brand.
+          const familyFont = op.family ? fonts?.families?.[op.family] : undefined
+          const embedded = !!familyFont || fonts?.custom === true
           pdf.setFont(
-            fonts ? (op.style === 'bold' ? fonts.heading : fonts.body) : (op.family ?? 'helvetica'),
-            fonts?.custom ? 'normal' : (op.style ?? 'normal'),
+            familyFont ??
+              (fonts
+                ? op.style === 'bold'
+                  ? fonts.heading
+                  : fonts.body
+                : op.family === 'times'
+                  ? 'times'
+                  : 'helvetica'),
+            embedded ? 'normal' : (op.style ?? 'normal'),
           )
           pdf.setFontSize(op.size)
           const options = {
@@ -179,7 +196,7 @@ export function drawSheetPdf(pdf: JsPdf, module: JsPdfModule, ops: readonly Draw
             ...(op.angle ? { angle: op.angle } : {}),
           }
           // A brand font is embedded with its own Unicode map, so every letter it has prints as written.
-          const value = pdfText(op.text, { unicodeLetters: fonts?.custom === true })
+          const value = pdfText(op.text, { unicodeLetters: embedded })
           if (op.halo) {
             pdf.saveGraphicsState()
             pdf.setDrawColor(op.halo.color)
@@ -249,9 +266,10 @@ export function drawSheetPdf(pdf: JsPdf, module: JsPdfModule, ops: readonly Draw
         }
         case 'textPath': {
           // Glyph by glyph along the line, every halo first so none covers a neighbour's letter.
-          const value = pdfText(op.text, { unicodeLetters: fonts?.custom === true })
+          const embedded = !!(op.family && fonts?.families?.[op.family]) || fonts?.custom === true
+          const value = pdfText(op.text, { unicodeLetters: embedded })
           const drop = op.baseline === 'middle' ? op.size * PDF_MIDDLE_BASELINE_EM : 0
-          const glyphs = glyphsAlongPath(op.path, value, op.size, op.style, op.align, op.offset, drop)
+          const glyphs = glyphsAlongPath(op.path, value, op.size, op.style, op.align, op.offset, drop, op.family)
           const glyph = (
             g: (typeof glyphs)[number],
             color: string,

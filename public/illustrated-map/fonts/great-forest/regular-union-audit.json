@@ -1,0 +1,547 @@
+{
+  "source_files": [
+    {
+      "path": "evidence/regular-source-streams/our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "sha256": "ec6055000386b5cf11bbb122f92a9c0f52abc7c8a2563724dc3130ca0c546597"
+    },
+    {
+      "path": "evidence/regular-source-streams/our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "sha256": "95fcca72c6d8771a79393305f37c2ea96854870e65e64c9f329bb17da9192797"
+    },
+    {
+      "path": "evidence/regular-source-streams/Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "sha256": "bf50ffc5f2304ad0bcc0cb9c1cbcad0731f59975479149030bfba641c2a8ee0c"
+    },
+    {
+      "path": "evidence/regular-source-streams/Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf",
+      "sha256": "6899898e4e15d5f0109b58ddcfd525860472b4796d4a5c09b128d98d71d232c7"
+    }
+  ],
+  "output": "fonts/recovered-regular-union/GreatForest-Regular-Recovered-PDF-Union-2015-2018.ttf",
+  "sha256": "6e6ee6e9996be543510ae5d2f34a1e481c92532cf11c1351e9c3f9c5477c7fde",
+  "source_editions": [
+    "April2015 our-brand.pdf",
+    "V4.2 internal January2018; official filename POSTED012019"
+  ],
+  "original_nonempty_union": 80,
+  "new_nonempty_union": 86,
+  "new_glyph_ids": [
+    42,
+    161,
+    175,
+    177,
+    188,
+    190
+  ],
+  "new_mapped_characters": [
+    {
+      "U+002F": "slash"
+    },
+    {
+      "U+0071": "q"
+    },
+    {
+      "U+0077": "w"
+    },
+    {
+      "U+00BA": "ordmasculine"
+    },
+    {
+      "U+02D9": "dotaccent"
+    },
+    {
+      "U+02DD": "hungarumlaut"
+    }
+  ],
+  "unicode_cmap": {
+    "U+0020": "space",
+    "U+0022": "quotedbl",
+    "U+0028": "parenleft",
+    "U+0029": "parenright",
+    "U+002D": "hyphen",
+    "U+002E": "period",
+    "U+002F": "slash",
+    "U+0030": "zero",
+    "U+0031": "one",
+    "U+0032": "two",
+    "U+0033": "three",
+    "U+0034": "four",
+    "U+0035": "five",
+    "U+0036": "six",
+    "U+0037": "seven",
+    "U+0038": "eight",
+    "U+0039": "nine",
+    "U+003E": "greater",
+    "U+0041": "A",
+    "U+0042": "B",
+    "U+0043": "C",
+    "U+0044": "D",
+    "U+0045": "E",
+    "U+0046": "F",
+    "U+0047": "G",
+    "U+0048": "H",
+    "U+0049": "I",
+    "U+004B": "K",
+    "U+004C": "L",
+    "U+004D": "M",
+    "U+004E": "N",
+    "U+004F": "O",
+    "U+0050": "P",
+    "U+0052": "R",
+    "U+0053": "S",
+    "U+0054": "T",
+    "U+0055": "U",
+    "U+0056": "V",
+    "U+0057": "W",
+    "U+0058": "X",
+    "U+0059": "Y",
+    "U+005A": "Z",
+    "U+005B": "bracketleft",
+    "U+005D": "bracketright",
+    "U+005F": "underscore",
+    "U+0061": "a",
+    "U+0062": "b",
+    "U+0063": "c",
+    "U+0064": "d",
+    "U+0065": "e",
+    "U+0066": "f",
+    "U+0067": "g",
+    "U+0068": "h",
+    "U+0069": "i",
+    "U+006B": "k",
+    "U+006C": "l",
+    "U+006D": "m",
+    "U+006E": "n",
+    "U+006F": "o",
+    "U+0070": "p",
+    "U+0071": "q",
+    "U+0072": "r",
+    "U+0073": "s",
+    "U+0074": "t",
+    "U+0075": "u",
+    "U+0076": "v",
+    "U+0077": "w",
+    "U+0079": "y",
+    "U+007B": "braceleft",
+    "U+007C": "bar",
+    "U+007D": "braceright",
+    "U+00AC": "logicalnot",
+    "U+00B2": "uni00B2",
+    "U+00B5": "mu",
+    "U+00BA": "ordmasculine",
+    "U+00BB": "guillemotright",
+    "U+00C5": "Aring",
+    "U+0142": "lslash",
+    "U+017E": "zcaron",
+    "U+02D8": "breve",
+    "U+02D9": "dotaccent",
+    "U+02DA": "ring",
+    "U+02DB": "ogonek",
+    "U+02DD": "hungarumlaut",
+    "U+2014": "emdash",
+    "U+2021": "daggerdbl",
+    "U+2122": "trademark"
+  },
+  "cmap_count": 87,
+  "missing_basic_letter_inputs": "JQjxz",
+  "glyph_origins": {
+    "4": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "5": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "6": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "7": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "8": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "9": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "10": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "11": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "12": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "13": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "14": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "15": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "16": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "17": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "20": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "22": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "23": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "24": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "25": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "26": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "27": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "28": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "29": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "30": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "31": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "32": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "33": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "34": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "35": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "36": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "37": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "38": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "39": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "40": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "41": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "43": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "45": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "46": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "49": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "50": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "51": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "52": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "53": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "54": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "55": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "56": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "57": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "58": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "59": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "60": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "61": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "62": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "63": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "64": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "68": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "74": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf"
+    ],
+    "75": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf"
+    ],
+    "77": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "83": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf"
+    ],
+    "90": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf"
+    ],
+    "91": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf"
+    ],
+    "92": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf"
+    ],
+    "93": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "94": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "169": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "172": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "173": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "187": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "191": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "192": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "200": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "201": [
+      "our-brand__2592__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__772__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "21": [
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "47": [
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "174": [
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "176": [
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "178": [
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "181": [
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "183": [
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "195": [
+      "our-brand__358__YLHKIZ+GreatForest-Regular.ttf",
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "42": [
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "161": [
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "175": [
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "177": [
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "188": [
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ],
+    "190": [
+      "Our_Brand_V4_2_2019__771__TURAMP+GreatForest-Regular.ttf"
+    ]
+  },
+  "validation": {
+    "shared_outlines_and_widths_identical": true,
+    "all_recovered_outlines_and_widths_identical_to_source": true,
+    "cmap_checked_against_both_CID_ToUnicode_maps": true,
+    "hint_programs_identical": true,
+    "no_composite_glyph_dependencies": true,
+    "fsType4_preserved": true,
+    "no_GSUB_or_GPOS_invented": true
+  }
+}

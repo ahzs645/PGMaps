@@ -7,7 +7,7 @@
 import proj4 from 'proj4'
 import type { HatchTileAreas, LngLatRings } from '@pgmaps/geo-toolkit/patterns'
 import data from './geography.generated.json'
-import { NORTHERN_REFERENCE_COVERAGE, type GeographicMapOptions } from './geographic'
+import { NORTHERN_REFERENCE_COVERAGE, PAGE8_JOURNEY_REGION, type GeographicMapOptions } from './geographic'
 
 proj4.defs(
   'EPSG:3005',
@@ -84,13 +84,31 @@ export function artboardToLngLat([x, y]: Point): Point {
 
 const rings = (d: string): LngLatRings => svgPathRings(d).map((ring) => ring.map(artboardToLngLat))
 
-let cache: { land: LngLatRings; bcLand: LngLatRings; coastal: LngLatRings; northern: LngLatRings } | null = null
+let cache: {
+  land: LngLatRings
+  bcLand: LngLatRings
+  coastal: LngLatRings
+  northern: LngLatRings
+  page8: LngLatRings
+} | null = null
 function geography() {
   cache ??= {
     land: rings(data.land.d),
     bcLand: rings(data.bcLand.d),
     coastal: rings(data.coastalCoverage.d),
     northern: rings(NORTHERN_REFERENCE_COVERAGE.d),
+    // The frame less page 8's journey region, as one even-odd polygon: the frame and the region.
+    page8: (
+      [
+        [
+          [-32, -32],
+          [data.artboard.width + 32, -32],
+          [data.artboard.width + 32, data.artboard.height + 32],
+          [-32, data.artboard.height + 32],
+        ],
+        PAGE8_JOURNEY_REGION.polygon.map(([x, y]) => [x, y]),
+      ] as Point[][]
+    ).map((ring) => ring.map(artboardToLngLat)),
   }
   return cache
 }
@@ -178,11 +196,14 @@ const areaCache = new Map<string, HatchTileAreas>()
 export function liveHatchAreas(coverage: NonNullable<GeographicMapOptions['coverage']>): HatchTileAreas {
   let areas = areaCache.get(coverage)
   if (!areas) {
-    const { bcLand, coastal, northern } = geography()
+    const { bcLand, coastal, northern, page8 } = geography()
     areas =
       coverage === 'province'
         ? { land: bcLand }
-        : { land: bcLand, coverage: coverage === 'northern' ? [coastal, northern] : [coastal] }
+        : {
+            land: bcLand,
+            coverage: coverage === 'northern' ? [coastal, northern] : coverage === 'page8' ? [page8] : [coastal],
+          }
     areaCache.set(coverage, areas)
   }
   return areas

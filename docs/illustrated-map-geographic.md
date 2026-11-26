@@ -148,7 +148,7 @@ The five hatch controls remain seed, spacing, band height, stroke width and curv
 The hatch, the land rule and the map frame are not tied to BC.
 
 - **The hatch is a saved recipe.** The generator lives in the toolkit (`@pgmaps/geo-toolkit/patterns`). `src/lib/illustratedMap/hatching.ts` wraps it and produces byte-identical SVG: all 77 SVGs of the v5 export were regenerated unchanged after the move. An `OrganicHatchRecipe` records the pattern type and version, seed, spacing, band height, stroke width, curvature, colour, opacity, origin and scale. `ORGANIC_HATCH_PRESETS['northern-bc-reference']` is this map's field; other presets are general treatments.
-- **Pattern field, coverage and land mask stay separate.** The painted area is *coverage ∩ dry land*. The coastline clips the strokes and never steers them. Coverage shapes share one clip, so overlapping coverage is inked once; the land clip uses even-odd, so lakes stay clear and islands are painted.
+- **Pattern field, coverage and land mask stay separate.** The painted area is _coverage ∩ dry land_. The coastline clips the strokes and never steers them. Coverage shapes share one clip, so overlapping coverage is inked once; the land clip uses even-odd, so lakes stay clear and islands are painted.
 - **Density is predictable.** `organicHatchStrokes` keeps the recipe's spacing for any window and refuses a window it cannot draw at that density. Neighbouring windows share the field's origin and draw identical strokes where they meet. Only the artboard writer used by this map widens its spacing past 30,000 strokes, and it records that as `data-budget-limited`.
 - **The region is configuration.** `build-geographic-map.py --region region.json` replaces any of the BC settings: frame, view bounds, margin, footer, EPSG code, the region and coverage feature kinds, road jurisdiction, compass position, motifs, trees, shields and land/water checkpoints. Without `--region` the output is unchanged; the old and new scripts were run on the same input and wrote identical bytes. A configured region also records its name and kinds under `region`.
 - **Any region prints through the sheet renderers.** `src/lib/illustratedMap/regionSheet.ts` draws a generated geography with a recipe as sheet operations. `scripts/illustrated-map/compose-region.ts` writes it as an editable SVG and a one-page vector PDF; in both, the hatch strokes are cubic curves.
@@ -177,14 +177,14 @@ The continuous field used so far draws longer strokes (11–12 px) in taller ban
 
 `hatchStyle: 'patch'` draws page 8's texture, with the toolkit's patch field (`patchHatchStrokes`, preset `page-8-reference`). It was fitted with `scripts/illustrated-map/measure-hatch.py`, which measures a rendered hatch the same way as page 8:
 
-| | page 8 | patch field | continuous field |
-|---|---|---|---|
-| ink coverage | 0.32–0.33 | 0.32 | 0.19–0.38 |
-| stroke spacing | 3 | 3 | 3 |
-| band period | 8–12 | 11 | 13–14 |
-| stroke length (median) | 8.5–8.9 | 8.6 | 11–12 |
-| lean from vertical, median abs | 6–6.7° | 6.5° | 4.5–5.6° |
-| lean from vertical, 90th percentile abs | 25–28° | 26° | 12–15° |
+|                                         | page 8    | patch field | continuous field |
+| --------------------------------------- | --------- | ----------- | ---------------- |
+| ink coverage                            | 0.32–0.33 | 0.32        | 0.19–0.38        |
+| stroke spacing                          | 3         | 3           | 3                |
+| band period                             | 8–12      | 11          | 13–14            |
+| stroke length (median)                  | 8.5–8.9   | 8.6         | 11–12            |
+| lean from vertical, median abs          | 6–6.7°    | 6.5°        | 4.5–5.6°         |
+| lean from vertical, 90th percentile abs | 25–28°    | 26°         | 12–15°           |
 
 Each patch is generated on its own, from the seed and its lattice position. A stroke that crosses a seam is cut there and kept by the patch holding its longest piece. As a result, any window of the field, anywhere, draws exactly what a larger window draws there. The same holds for map tiles and print pieces, and the cost doesn't grow with distance from the origin.
 
@@ -250,3 +250,25 @@ Natural Earth's 1:10m data is generalised. Small lakes and islands are missing, 
 - each primary route's number set along its longest stretch.
 
 In the South Island PDF the place mark is one form XObject, placed 19 times.
+
+## Page 8 edition
+
+`PAGE8_EDITION` draws the map the way the guide's page 8 does (`geographic-page8.svg`; `geographic-page8.pdf` is its vector print):
+
+- **Coverage `page8`.** All of BC west and north of the journey region is hatched with page 8's patch field. The journey region is left white. It is `PAGE8_JOURNEY_REGION`: a Catmull-Rom curve through anchors set off the real places (Mount Robson, Helmcken Falls, Lillooet, the Sea to Sky Gondola, Vancouver), closed east along the frame. The style clip is the frame less that region, even-odd; land still clips first. On the live map, `liveHatchAreas('page8')` gives the same area in longitude and latitude.
+- **Compass.** The top-left compass is the reference badge. Its BC inset colours the journey region itself: the same polygon taken from artboard units back to BC Albers, then into the inset's units by `COMPASS_INSET_FROM_ALBERS`. That transform is the inset's own uniform scale plus two offsets, fitted on BC's 49° N / 114.0683° W and 60° N / 120° W corners (`compassInset.test.ts`). Roads stop at the compass ring.
+- **Labels `page8`.** Only the names page 8 prints; the secondary towns are left out. The lettering is the outlined Great Forest glyphs every geographic export uses.
+- **Channels open.** `channelGap` 1.2, as in the workshop.
+- **Vector print.** `vectorMasks` draws the channel gap as a water-coloured stroke over land and hatch, and the compass and illustration clearances as even-odd clip paths. On screen it is the same as the masks, but Chromium's PDF turns SVG masks into 300 ppi images. With it the printed PDF has no images: `node scripts/illustrated-map/svg-to-pdf.mjs geographic-page8.svg geographic-page8.pdf`.
+
+The workshop's **Page 8 edition** button sets all of these, and _Page 8 labels only_ switches the label set by itself.
+
+## Great Forest on map sheets
+
+The Great Forest fonts are committed under `public/illustrated-map/fonts/great-forest/` for this test project (their README has the copyright and licence notes). Any sheet text can name `family: 'great-forest'` (Small Caps) or `'great-forest-display'` (Simplified):
+
+- **Layout.** `textWidth` uses the font's own advances, from `greatForestMetrics.generated.json` (`build-great-forest.py`). A character the font lacks takes its base letter's advance, so labels centre and run along paths as they print.
+- **SVG.** `standaloneSheetSvg(…, { fonts })` embeds the WOFF as an `@font-face` data URL, so the text stays text and editable.
+- **PDF.** `registerGreatForestPdf` adds the TTF to jsPDF as an Identity-H font, and `drawSheetPdf` sets those families in it.
+
+`compose-region.ts --lettering great-forest` sets a region sheet's place names in upper-case Small Caps, and its route numbers along the road, in Great Forest.

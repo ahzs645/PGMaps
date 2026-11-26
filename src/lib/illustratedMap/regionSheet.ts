@@ -37,6 +37,11 @@ export interface RegionSheetOptions {
    * land and hatch, so channels narrower than a pixel still read. 0 draws the coast as it is.
    */
   channelGap?: number
+  /**
+   * `great-forest` sets names in Great Forest Small Caps, upper case, as page 8 does (the font is
+   * embedded by the writer: `greatForest.ts`); `helvetica` (the default) in the standard font.
+   */
+  lettering?: 'helvetica' | 'great-forest'
 }
 
 export const REGION_SHEET_PALETTE = {
@@ -89,6 +94,7 @@ export function regionSheetOps(
     places,
     palette = REGION_SHEET_PALETTE,
     channelGap = 0,
+    lettering = 'helvetica',
   }: RegionSheetOptions = {},
 ): { ops: DrawOp[]; width: number; height: number } {
   const { width, height } = geography.artboard
@@ -161,8 +167,8 @@ export function regionSheetOps(
         // Smoothed over about the label's length, so its letters turn gently on a winding road.
         path: smoothedPath(line, 18),
         text: route,
-        size: 9,
-        style: 'bold',
+        size: lettering === 'great-forest' ? 10 : 9,
+        ...(lettering === 'great-forest' ? { family: 'great-forest' as const } : { style: 'bold' as const }),
         color: palette.road,
         baseline: 'middle',
         halo: { color: '#ffffff', width: 2.2 },
@@ -184,9 +190,9 @@ export function regionSheetOps(
       op: 'text',
       x: x + 7,
       y: y - 5,
-      text: place.name,
-      size: 11,
-      style: 'bold',
+      ...(lettering === 'great-forest'
+        ? { text: place.name.toUpperCase(), size: 12, family: 'great-forest' as const }
+        : { text: place.name, size: 11, style: 'bold' as const }),
       color: palette.text,
       halo: { color: '#ffffff', width: 2.5 },
     })

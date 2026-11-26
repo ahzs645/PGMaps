@@ -7,7 +7,7 @@
  * No DOM or network access.
  */
 import { readingPath, textPathStart, type CurvePart, type DrawOp, type Point, type StrokeStyle } from './drawOps'
-import type { SheetFontStyle } from './textMetrics'
+import type { SheetFontFamily, SheetFontStyle } from './textMetrics'
 
 const escapeXml = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -59,14 +59,21 @@ const safeId = (id: string) => {
   const cleaned = id.replace(/[^A-Za-z0-9_.-]+/g, '-')
   return /^[A-Za-z_]/.test(cleaned) ? cleaned : `id-${cleaned}`
 }
-const fontFamily = (family: 'helvetica' | 'times' | undefined, standalone: boolean) =>
-  family === 'times'
-    ? standalone
-      ? "'Times New Roman', Times, serif"
-      : 'Times New Roman,Times,serif'
-    : standalone
-      ? 'Helvetica, Arial, sans-serif'
-      : 'Helvetica,Arial,sans-serif'
+/** The CSS family names of the embedded Great Forest faces. */
+export const GREAT_FOREST_CSS: Record<'great-forest' | 'great-forest-display', string> = {
+  'great-forest': 'Great Forest Small Caps',
+  'great-forest-display': 'Great Forest Simplified',
+}
+const fontFamily = (family: SheetFontFamily | undefined, standalone: boolean) =>
+  family === 'great-forest' || family === 'great-forest-display'
+    ? `'${GREAT_FOREST_CSS[family]}', ${standalone ? 'Helvetica, Arial, sans-serif' : 'Helvetica,Arial,sans-serif'}`
+    : family === 'times'
+      ? standalone
+        ? "'Times New Roman', Times, serif"
+        : 'Times New Roman,Times,serif'
+      : standalone
+        ? 'Helvetica, Arial, sans-serif'
+        : 'Helvetica,Arial,sans-serif'
 const fontAttributes = (style?: SheetFontStyle) =>
   (style === 'bold' || style === 'bolditalic' ? ' font-weight="bold"' : '') +
   (style === 'italic' || style === 'bolditalic' ? ' font-style="italic"' : '')
@@ -121,14 +128,7 @@ function drawSvg(
         break
       case 'text': {
         const anchor = op.align === 'center' ? 'middle' : op.align === 'right' ? 'end' : 'start'
-        const family =
-          op.family === 'times'
-            ? standalone
-              ? "'Times New Roman', Times, serif"
-              : 'Times New Roman,Times,serif'
-            : standalone
-              ? 'Helvetica, Arial, sans-serif'
-              : 'Helvetica,Arial,sans-serif'
+        const family = fontFamily(op.family, standalone)
         const weight = op.style === 'bold' || op.style === 'bolditalic' ? ' font-weight="bold"' : ''
         const italic = op.style === 'italic' || op.style === 'bolditalic' ? ' font-style="italic"' : ''
         const rotate = op.angle ? ` transform="rotate(${n(-op.angle)} ${n(op.x)} ${n(op.y)})"` : ''
@@ -210,7 +210,7 @@ function drawSvg(
         const id = `sheet-text-path-${++counters.textPaths}`
         const line = readingPath(op.path)
         defs.push(`<path id="${id}" d="${pathData([line], false)}" fill="none"/>`)
-        const start = textPathStart(line, op.text, op.size, op.style, op.align, op.offset)
+        const start = textPathStart(line, op.text, op.size, op.style, op.align, op.offset, op.family)
         const common = `font-family="${escapeXml(fontFamily(op.family, standalone))}" font-size="${n(op.size)}"${fontAttributes(op.style)}`
         const drop = op.baseline === 'middle' ? ` dy="${n(op.size * SVG_MIDDLE_BASELINE_EM)}"` : ''
         const content = `<textPath ${href(id)} startOffset="${n(start)}">${text(op.text)}</textPath>`
@@ -228,6 +228,20 @@ function drawSvg(
   return body.join('')
 }
 
+/** Where a sheet's Great Forest faces load from: a served URL, or a `data:` URL to embed them. */
+export type SheetFontSources = Partial<Record<'great-forest' | 'great-forest-display', string>>
+
+/** `@font-face` rules for the faces given, WOFF. */
+function fontFaces(fonts: SheetFontSources | undefined): string {
+  const rules = Object.entries(fonts ?? {})
+    .filter((entry): entry is [keyof typeof GREAT_FOREST_CSS, string] => !!entry[1])
+    .map(
+      ([family, url]) =>
+        `@font-face{font-family:'${GREAT_FOREST_CSS[family]}';src:url(${escapeXml(url)}) format('woff');}`,
+    )
+  return rules.length ? `<style>${rules.join('')}</style>` : ''
+}
+
 export function sheetSvg(
   ops: readonly DrawOp[],
   width: number,
@@ -235,8 +249,12 @@ export function sheetSvg(
   encodeRgba?: EncodeRgba,
   /** Page colour behind everything; null leaves it transparent. */
   background: string | null = '#ffffff',
+  /** The Great Forest faces the text uses, if any. */
+  fonts?: SheetFontSources,
 ): string {
-  const { defs, body } = svgParts(ops, encodeRgba, false)
+  const parts = svgParts(ops, encodeRgba, false)
+  const { body } = parts
+  const defs = fontFaces(fonts) + parts.defs
   const inkscape = ops.some((op) => op.op === 'group' && op.layer)
     ? ' xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"'
     : ''
@@ -253,9 +271,20 @@ export function standaloneSheetSvg(
   ops: readonly DrawOp[],
   width: number,
   height: number,
-  { background = '#ffffff', title }: { background?: string | null; title?: string } = {},
+  {
+    background = '#ffffff',
+    title,
+    fonts,
+  }: {
+    background?: string | null
+    title?: string
+    /** Great Forest faces as `data:` URLs, embedded so the file shows its lettering anywhere. */
+    fonts?: SheetFontSources
+  } = {},
 ): string {
-  const { defs, body } = svgParts(ops, undefined, true)
+  const parts = svgParts(ops, undefined, true)
+  const { body } = parts
+  const defs = fontFaces(fonts) + parts.defs
   const heading = title ? `<title>${escapeXml(title.replace(XML_FORBIDDEN, ''))}</title>` : ''
   return [
     '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n',

@@ -10,11 +10,23 @@ import {
 import { DEFAULT_COMPOSITION_OPTIONS, type IllustratedMapOptions } from './index'
 import { MAP_PALETTE } from './layout'
 import { escapeXml, lettering, letteringSize } from './lettering'
-import { ELEMENT_CATALOG, evergreenMarkup, mossTreeMarkup } from './symbols'
+import {
+  COMPASS_INSET_FROM_ALBERS,
+  compassWithInsetAccent,
+  ELEMENT_CATALOG,
+  evergreenMarkup,
+  mossTreeMarkup,
+} from './symbols'
 import { TITLE_STUDY } from './title'
 
 export interface GeographicMapOptions extends IllustratedMapOptions {
-  coverage?: 'coastal' | 'northern' | 'province'
+  /**
+   * `page8` hatches all of BC west and north of page 8's journey region and leaves that region
+   * white, as the reference does; the compass inset colours the same region.
+   */
+  coverage?: 'coastal' | 'northern' | 'province' | 'page8'
+  /** `page8` draws only the place names page 8 prints; `all` (the default) adds the secondary towns. */
+  labelSet?: 'all' | 'page8'
   /**
    * `contour` (the default) is the continuous banded field every earlier export used. `patch` is
    * the page 8 reference's own texture, drawn patch by patch with `patchHatch` settings.
@@ -28,10 +40,30 @@ export interface GeographicMapOptions extends IllustratedMapOptions {
    * path itself is unchanged. 0 (the default) is the geometry as it is.
    */
   channelGap?: number
+  /**
+   * Draw the channel gap, the compass clearance and the illustration clearances with clip paths
+   * and a water-coloured stroke instead of SVG masks. It looks the same, but print and PDF
+   * converters (Chromium among them) keep it as vectors: masks there become images. Off by
+   * default, so earlier exports stay byte for byte as they were.
+   */
+  vectorMasks?: boolean
 }
 
 /** The channel gap the workshop starts with: about a kilometre on the ground at this scale. */
 export const DEFAULT_CHANNEL_GAP = 1.2
+
+/** Page 8 as a whole: its coverage, its patch hatch, its labels, with channels kept open. */
+export const PAGE8_EDITION = {
+  coverage: 'page8',
+  hatchStyle: 'patch',
+  channelGap: DEFAULT_CHANNEL_GAP,
+  labelSet: 'page8',
+  vectorMasks: true,
+} as const satisfies GeographicMapOptions
+
+/** A rounded rectangle as one path, so it can be cut out of an even-odd clip. */
+const roundedRectPath = (x: number, y: number, w: number, h: number, r: number) =>
+  `M${n(x + r)} ${n(y)}H${n(x + w - r)}A${n(r)} ${n(r)} 0 0 1 ${n(x + w)} ${n(y + r)}V${n(y + h - r)}A${n(r)} ${n(r)} 0 0 1 ${n(x + w - r)} ${n(y + h)}H${n(x + r)}A${n(r)} ${n(r)} 0 0 1 ${n(x)} ${n(y + h - r)}V${n(y + r)}A${n(r)} ${n(r)} 0 0 1 ${n(x + r)} ${n(y)}Z`
 
 export const DEFAULT_GEOGRAPHIC_OPTIONS = { coverage: 'coastal' as const }
 export const GEOGRAPHIC_MAP_INFO = {
@@ -91,7 +123,10 @@ function resources(coverage: NonNullable<GeographicMapOptions['coverage']>) {
   const styleClip =
     coverage === 'province'
       ? ''
-      : `<clipPath id="geo-style-clip" clipPathUnits="userSpaceOnUse"><path d="${data.coastalCoverage.d}" fill-rule="evenodd" clip-rule="evenodd"/>${coverage === 'northern' ? `<path id="geo-northern-style-extent" d="${NORTHERN_REFERENCE_COVERAGE.d}"/>` : ''}</clipPath>`
+      : coverage === 'page8'
+        ? // The frame less the journey region: a rectangle and the region, even-odd.
+          `<clipPath id="geo-style-clip" clipPathUnits="userSpaceOnUse"><path id="geo-page8-journey-region" d="M-32 -32 H${width + 32} V${height + 32} H-32 Z ${PAGE8_JOURNEY_REGION.d}" fill-rule="evenodd" clip-rule="evenodd"/></clipPath>`
+        : `<clipPath id="geo-style-clip" clipPathUnits="userSpaceOnUse"><path d="${data.coastalCoverage.d}" fill-rule="evenodd" clip-rule="evenodd"/>${coverage === 'northern' ? `<path id="geo-northern-style-extent" d="${NORTHERN_REFERENCE_COVERAGE.d}"/>` : ''}</clipPath>`
   return `<defs><path id="geo-land-geometry" d="${data.land.d}" fill-rule="evenodd" clip-rule="evenodd"/><path id="geo-bc-land-geometry" d="${data.bcLand.d}" fill-rule="evenodd" clip-rule="evenodd"/><clipPath id="geo-land-clip" clipPathUnits="userSpaceOnUse"><use href="#geo-bc-land-geometry" xlink:href="#geo-bc-land-geometry" fill-rule="evenodd" clip-rule="evenodd"/></clipPath>${styleClip}<clipPath id="geo-frame-clip"><rect width="${width}" height="${height - data.projection.footer}"/></clipPath></defs>`
 }
 
@@ -127,6 +162,81 @@ export const NORTHERN_REFERENCE_COVERAGE = (() => {
   } as const
 })()
 
+/**
+ * Page 8's journey region: the southern interior its routes cross, left white while the rest of
+ * BC is hatched. Like the northern extent it is composed, not mapped: one smooth curve through
+ * real anchors (just left of Mount Robson, through the Wells Gray waterfall, west of Lillooet and
+ * the Whistler gondola, west of Vancouver), then everything east and south of it in the frame.
+ * Vancouver Island, the Sunshine Coast and all of BC north and west of the curve stay hatched.
+ */
+export const PAGE8_JOURNEY_REGION = (() => {
+  const robson = (place('mount-robson-peak') ?? place('mount-robson'))!.point
+  const vancouver = place('vancouver')!.point
+  const lillooet = place('lillooet')!.point
+  const waterfall = data.motifs.find((motif) => motif.id === 'waterfall')!
+  const gondola = data.motifs.find((motif) => motif.id === 'gondola')!
+  const at = (motif: typeof waterfall): Point => [
+    motif.point[0] + ('offset' in motif ? motif.offset[0] : 0),
+    motif.point[1] + ('offset' in motif ? motif.offset[1] : 0),
+  ]
+  const [wx, wy] = at(waterfall)
+  const [gx, gy] = at(gondola)
+  const curve: Point[] = [
+    [robson[0] - 16, -32],
+    [robson[0] - 24, robson[1] + 8],
+    [wx, wy + 10],
+    [lillooet[0] - 24, lillooet[1] - 30],
+    [gx - 26, gy + 6],
+    [vancouver[0] - 11, vancouver[1] - 26],
+    [vancouver[0] + 4, vancouver[1] + 34],
+    [vancouver[0] + 16, height + 32],
+  ]
+  // Catmull-Rom through the anchors, as cubic segments.
+  const point = (k: number) => curve[Math.max(0, Math.min(curve.length - 1, k))]
+  const p = (q: Point) => `${n(q[0])} ${n(q[1])}`
+  let d = `M${p(curve[0])}`
+  const flat: Point[] = [curve[0]]
+  for (let k = 0; k < curve.length - 1; k++) {
+    const [a, b, c, e] = [point(k - 1), point(k), point(k + 1), point(k + 2)]
+    const c1: Point = [b[0] + (c[0] - a[0]) / 6, b[1] + (c[1] - a[1]) / 6]
+    const c2: Point = [c[0] - (e[0] - b[0]) / 6, c[1] - (e[1] - b[1]) / 6]
+    d += ` C${p(c1)} ${p(c2)} ${p(c)}`
+    for (let t = 1; t <= 12; t++) {
+      const s = t / 12
+      const u = 1 - s
+      flat.push([
+        u * u * u * b[0] + 3 * u * u * s * c1[0] + 3 * u * s * s * c2[0] + s * s * s * c[0],
+        u * u * u * b[1] + 3 * u * u * s * c1[1] + 3 * u * s * s * c2[1] + s * s * s * c[1],
+      ])
+    }
+  }
+  const corners: Point[] = [
+    [width + 32, height + 32],
+    [width + 32, -32],
+  ]
+  d += ` L${p(corners[0])} L${p(corners[1])} Z`
+  return {
+    kind: 'authored-reference-style',
+    anchors: ['mount-robson', 'waterfall', 'lillooet', 'gondola', 'vancouver'],
+    /** The curve's right-most reach: the hatch field need not run past it. */
+    right: Math.max(...flat.map((q) => q[0])),
+    d,
+    polygon: [...flat, ...corners],
+  } as const
+})()
+
+/** The journey region in the compass inset's units, as path data, for its accent. */
+export function journeyInsetAccent(): string {
+  const { scale: artScale, left, top, boundsMetres } = data.projection
+  const { scale, x, y } = COMPASS_INSET_FROM_ALBERS
+  const points = PAGE8_JOURNEY_REGION.polygon.map(([px, py]) => {
+    const easting = boundsMetres[0] + (px - left) / artScale
+    const northing = boundsMetres[3] - (py - top) / artScale
+    return `${n(scale * easting + x)},${n(-scale * northing + y)}`
+  })
+  return `M ${points.join(' L ')} Z`
+}
+
 function label(
   text: string,
   point: Point,
@@ -143,7 +253,7 @@ function label(
   return lettering(text, [x, y, size.width, size.height], face, 0, halo, glyphText)
 }
 
-const PLACE_LABELS = [
+export const PLACE_LABELS = [
   { id: 'vancouver', text: 'VANCOUVER', offset: [-17, 10], align: 'right' },
   { id: 'victoria', text: 'VICTORIA', offset: [17, 10] },
   { id: 'kamloops', text: 'KAMLOOPS', offset: [15, -3] },
@@ -161,13 +271,13 @@ const PLACE_LABELS = [
   { id: 'cranbrook', text: 'CRANBROOK', offset: [-8, 12], align: 'right', secondary: true },
 ] as const
 
-function locations(halo: number, drawSymbols: boolean, drawLabels: boolean) {
+function locations(halo: number, drawSymbols: boolean, drawLabels: boolean, labelSet: 'all' | 'page8' = 'all') {
   let symbols = '',
     labels = ''
   const destinationFlags: Record<string, string> = { golden: 'flag-golden', fernie: 'flag-fernie' }
   for (const definition of PLACE_LABELS) {
     const p = place(definition.id)
-    if (!p) continue
+    if (!p || (labelSet === 'page8' && 'secondary' in definition)) continue
     if (drawSymbols) {
       let mark = ''
       if (p.id === 'vancouver') mark = symbol('pin-vancouver', p.point, 0.72, [0, 0], [0.5, 0.94])
@@ -212,14 +322,20 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     'Rainforest to Rockies — geographic illustration',
     'Real geographic shoreline, lake holes, province regions, highway centrelines and place coordinates projected together to BC Albers. Reconstructed page 8 symbols, glyph lettering and generated hatching provide the illustration style. Motifs are decorative regional illustrations. The title is a reconstructed study.',
   )
-  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-geographic-illustrated-map', version: 1, trace: false, coordinates: 'EPSG:3005', projection: data.projection, coverage, ...(hatchStyle === 'patch' ? { hatchStyle, patchHatch } : { hatch }), composition, provenance: data.provenance, ...(coverage === 'northern' ? { coverageStyle: NORTHERN_REFERENCE_COVERAGE } : {}) }))}</metadata>`
+  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-geographic-illustrated-map', version: 1, trace: false, coordinates: 'EPSG:3005', projection: data.projection, coverage, ...(hatchStyle === 'patch' ? { hatchStyle, patchHatch } : { hatch }), composition, provenance: data.provenance, ...(coverage === 'northern' ? { coverageStyle: NORTHERN_REFERENCE_COVERAGE } : {}), ...(coverage === 'page8' ? { coverageStyle: { kind: PAGE8_JOURNEY_REGION.kind, anchors: PAGE8_JOURNEY_REGION.anchors, d: PAGE8_JOURNEY_REGION.d }, labelSet: options.labelSet ?? 'all' } : {}) }))}</metadata>`
   svg += resources(coverage)
   const channelGap = Math.max(0, options.channelGap ?? 0)
   // The coastline stroked out of the land and its hatch. Its frame edges are kept: the stroke is
   // clipped to the frame less the gap, so land running off the map gets no water line.
-  const gapMask = channelGap > 0 ? ' mask="url(#geo-channel-gap)"' : ''
-  if (channelGap > 0)
-    svg += `<defs><clipPath id="geo-channel-gap-frame"><rect x="${n(channelGap)}" y="${n(channelGap)}" width="${n(width - 2 * channelGap)}" height="${n(height - data.projection.footer - 2 * channelGap)}"/></clipPath><mask id="geo-channel-gap" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="white"/><g clip-path="url(#geo-channel-gap-frame)"><use href="#geo-land-geometry" xlink:href="#geo-land-geometry" fill="none" stroke="black" stroke-width="${n(channelGap)}" stroke-linejoin="round"/></g></mask></defs>`
+  // With vector masks the same line is drawn in the water's colour over land and hatch instead
+  // (only over an opaque ocean: a transparent background needs the mask to show through).
+  const vector = options.vectorMasks === true
+  const gapStroke = channelGap > 0 && vector && !options.transparentBackground
+  const gapMask = channelGap > 0 && !gapStroke ? ' mask="url(#geo-channel-gap)"' : ''
+  const gapFrame = `<clipPath id="geo-channel-gap-frame"><rect x="${n(channelGap)}" y="${n(channelGap)}" width="${n(width - 2 * channelGap)}" height="${n(height - data.projection.footer - 2 * channelGap)}"/></clipPath>`
+  if (gapStroke) svg += `<defs>${gapFrame}</defs>`
+  else if (channelGap > 0)
+    svg += `<defs>${gapFrame}<mask id="geo-channel-gap" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="white"/><g clip-path="url(#geo-channel-gap-frame)"><use href="#geo-land-geometry" xlink:href="#geo-land-geometry" fill="none" stroke="black" stroke-width="${n(channelGap)}" stroke-linejoin="round"/></g></mask></defs>`
   if (!options.transparentBackground) {
     svg += layer(
       'geo-ocean',
@@ -238,7 +354,11 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
   if (layers.hatching) {
     const bounds = coverage === 'coastal' ? data.coastalLand.bounds : data.bcLand.bounds
     const right =
-      coverage === 'northern' ? Math.max(data.coastalLand.bounds[2], NORTHERN_REFERENCE_COVERAGE.right) : bounds[2]
+      coverage === 'northern'
+        ? Math.max(data.coastalLand.bounds[2], NORTHERN_REFERENCE_COVERAGE.right)
+        : coverage === 'page8'
+          ? PAGE8_JOURNEY_REGION.right
+          : bounds[2]
     const fieldWidth = Math.max(1, Math.min(width, Math.ceil(right + 8)))
     const clearances =
       !composition.allowIllustrationOverlap && layers.symbols
@@ -250,15 +370,40 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
             })
             .join('')
         : ''
-    if (clearances)
+    // Vector form: one even-odd clip per clearance (the frame less that rectangle), nested, so
+    // overlapping clearances stay cut out.
+    const clearanceRects =
+      vector && clearances
+        ? [...clearances.matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" rx="3"\/>/g)]
+        : []
+    if (clearanceRects.length)
+      svg += `<defs>${clearanceRects.map(([, x, y, w, h], i) => `<clipPath id="geo-illustration-clearance-${i}" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" d="M0 0H${width}V${height}H0Z${roundedRectPath(Number(x), Number(y), Number(w), Number(h), 3)}"/></clipPath>`).join('')}</defs>`
+    const clearanceOpen = clearanceRects.map((_, i) => `<g clip-path="url(#geo-illustration-clearance-${i})">`).join('')
+    const clearanceClose = '</g>'.repeat(clearanceRects.length)
+    if (clearances && !clearanceRects.length)
       svg += `<defs><mask id="geo-illustration-clearances" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="white"/><g fill="black">${clearances}</g></mask></defs>`
     svg += layer(
       'geo-forest-hatching',
       '03 Generated hatching clipped to geographic land',
-      `<g clip-path="url(#geo-land-clip)"${gapMask}><g${coverage !== 'province' ? ' clip-path="url(#geo-style-clip)"' : ''}${clearances ? ' mask="url(#geo-illustration-clearances)"' : ''} color="${MAP_PALETTE.hatch}">${hatchStyle === 'patch' ? buildPatchHatchPaths(fieldWidth, height - data.projection.footer, patchHatch) : buildHatchPaths(fieldWidth, height - data.projection.footer, hatch)}</g></g>`,
+      `<g clip-path="url(#geo-land-clip)"${gapMask}><g${coverage !== 'province' ? ' clip-path="url(#geo-style-clip)"' : ''}${clearances && !clearanceRects.length ? ' mask="url(#geo-illustration-clearances)"' : ''} color="${MAP_PALETTE.hatch}">${clearanceOpen}${hatchStyle === 'patch' ? buildPatchHatchPaths(fieldWidth, height - data.projection.footer, patchHatch) : buildHatchPaths(fieldWidth, height - data.projection.footer, hatch)}${clearanceClose}</g></g>`,
+    )
+  }
+  if (gapStroke) {
+    svg += layer(
+      'geo-channel-gap',
+      '03b Channels kept open along every shore',
+      `<g clip-path="url(#geo-channel-gap-frame)"><use href="#geo-land-geometry" xlink:href="#geo-land-geometry" fill="none" stroke="${MAP_PALETTE.ocean}" stroke-width="${n(channelGap)}" stroke-linejoin="round"/></g>`,
     )
   }
   if (layers.roads) {
+    // Page 8 draws its compass over clear hatch: roads stop at the compass ring.
+    const clearCompass = coverage === 'page8' && layers.symbols
+    if (clearCompass)
+      svg += vector
+        ? `<defs><clipPath id="geo-compass-clearance" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" d="M0 0H${width}V${height}H0Z M217 165A62 62 0 1 0 93 165A62 62 0 1 0 217 165Z"/></clipPath></defs>`
+        : `<defs><mask id="geo-compass-clearance" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="white"/><circle cx="155" cy="165" r="62" fill="black"/></mask></defs>`
+    const masked = (body: string) =>
+      clearCompass ? `<g ${vector ? 'clip-path' : 'mask'}="url(#geo-compass-clearance)">${body}</g>` : body
     const paths = (role: string) =>
       data.roads
         .filter((road) => road.role === role)
@@ -270,25 +415,29 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     svg += layer(
       'geo-supporting-highways',
       '04 Supporting highways from NRN and WSDOT',
-      `<g fill="none" stroke="white" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round">${data.roads
-        .filter((road) => road.role === 'supporting')
-        .map((road) => `<path d="${road.d}"/>`)
-        .join(
-          '',
-        )}</g><g fill="none" stroke="${MAP_PALETTE.canopy}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 6">${paths('supporting')}</g>`,
+      masked(
+        `<g fill="none" stroke="white" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round">${data.roads
+          .filter((road) => road.role === 'supporting')
+          .map((road) => `<path d="${road.d}"/>`)
+          .join(
+            '',
+          )}</g><g fill="none" stroke="${MAP_PALETTE.canopy}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 6">${paths('supporting')}</g>`,
+      ),
     )
     svg += layer(
       'geo-primary-highways',
       '05 Primary highways from NRN',
-      `<g fill="none" stroke="white" stroke-width="7.8" stroke-linecap="round" stroke-linejoin="round">${data.roads
-        .filter((road) => road.role === 'primary')
-        .map((road) => `<path d="${road.d}"/>`)
-        .join(
-          '',
-        )}</g><g fill="none" stroke="${MAP_PALETTE.emerald}" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round">${paths('primary')}</g>`,
+      masked(
+        `<g fill="none" stroke="white" stroke-width="7.8" stroke-linecap="round" stroke-linejoin="round">${data.roads
+          .filter((road) => road.role === 'primary')
+          .map((road) => `<path d="${road.d}"/>`)
+          .join(
+            '',
+          )}</g><g fill="none" stroke="${MAP_PALETTE.emerald}" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round">${paths('primary')}</g>`,
+      ),
     )
   }
-  const placed = locations(composition.labelHalo, layers.symbols, layers.labels)
+  const placed = locations(composition.labelHalo, layers.symbols, layers.labels, options.labelSet)
   if (layers.symbols) {
     svg += layer(
       'geo-trees',
@@ -324,7 +473,12 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     svg += layer(
       'geo-compass',
       '10 Compass and geographic BC inset',
-      `<g transform="rotate(${n(data.projection.northArrowRotationDegrees)} 155 165)">${symbol('compass-bc', [155, 165], 0.72)}</g>`,
+      `<g transform="rotate(${n(data.projection.northArrowRotationDegrees)} 155 165)">${
+        coverage === 'page8'
+          ? // The inset colours the journey region the map leaves white, as page 8's does.
+            `<g data-symbol="compass-bc" data-inset-accent="page8-journey-region" transform="translate(${n(155 - 232 * 0.36)} ${n(165 - 229 * 0.36)}) scale(0.72)">${compassWithInsetAccent(journeyInsetAccent())}</g>`
+          : symbol('compass-bc', [155, 165], 0.72)
+      }</g>`,
     )
   }
   if (layers.labels) {

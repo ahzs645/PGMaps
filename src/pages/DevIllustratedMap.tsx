@@ -32,6 +32,7 @@ import {
   buildGeographicMapSvg,
   DEFAULT_CHANNEL_GAP,
   DEFAULT_GEOGRAPHIC_OPTIONS,
+  PAGE8_EDITION,
   GEOGRAPHIC_MAP_INFO,
   type GeographicMapOptions,
 } from '@/lib/illustratedMap/geographic'
@@ -108,6 +109,8 @@ export default function DevIllustratedMap() {
   })
   const [geometry, setGeometry] = useState<MapGeometry>('geographic')
   const [coverage, setCoverage] = useState<HatchCoverage>(DEFAULT_GEOGRAPHIC_OPTIONS.coverage ?? 'coastal')
+  const [page8Labels, setPage8Labels] = useState(false)
+  const labelSet = page8Labels ? ('page8' as const) : ('all' as const)
   const [hatchingPreview, setHatchingPreview] = useState<HatchingPreview>('pattern')
   const [hatch, setHatch] = useState<HatchOptions>({ ...DEFAULT_HATCH_OPTIONS })
   const deferredHatch = useDeferredValue(hatch)
@@ -130,7 +133,7 @@ export default function DevIllustratedMap() {
   const drawsMap = view === 'map' || view === 'hatching' || view === 'compare'
   const buildMapSvg = () =>
     geometry === 'geographic'
-      ? buildGeographicMapSvg({ hatch, composition, layers, coverage, hatchStyle, patchHatch, channelGap })
+      ? buildGeographicMapSvg({ hatch, composition, layers, coverage, hatchStyle, patchHatch, channelGap, labelSet })
       : buildIllustratedMapSvg({ hatch, composition, layers })
   const mapSvg = useMemo(
     () =>
@@ -145,6 +148,7 @@ export default function DevIllustratedMap() {
               hatchStyle,
               patchHatch: deferredPatchHatch,
               channelGap: deferredChannelGap,
+              labelSet,
             })
           : buildIllustratedMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers }),
     [
@@ -157,6 +161,7 @@ export default function DevIllustratedMap() {
       hatchStyle,
       deferredPatchHatch,
       deferredChannelGap,
+      labelSet,
     ],
   )
   const mapUrl = useSvgUrl(view === 'hatching' ? mapSvg : '')
@@ -201,7 +206,7 @@ export default function DevIllustratedMap() {
           ? 'rainforest-geographic-land-mask.svg'
           : 'rainforest-hatching.svg'
         : isGeographic
-          ? `rainforest-to-rockies-geographic${coverage === 'northern' ? '-northern' : ''}${patchStyle ? '-page8' : ''}.svg`
+          ? `rainforest-to-rockies-geographic${coverage === 'northern' ? '-northern' : coverage === 'page8' ? '-page8-coverage' : ''}${patchStyle ? '-page8' : ''}.svg`
           : 'rainforest-to-rockies-schematic.svg'
   const updating = deferredHatch !== hatch || deferredComposition !== composition || deferredPatchHatch !== patchHatch
   const activeHatch: HatchOptions = patchStyle ? patchHatch : hatch
@@ -281,12 +286,35 @@ export default function DevIllustratedMap() {
                 label="Hatch coverage"
                 value={coverage}
                 onChange={(event) => setCoverage(event.target.value as HatchCoverage)}
-                description="Northern BC adds the reference's broad northwestern field. All three choices use the same land mask; the hatch remains decorative."
+                description="Northern BC adds the reference's broad northwestern field. Page 8 hatches all of BC west and north of its journey region and leaves that region white, as the reference does. Every choice uses the same land mask; the hatch remains decorative."
               >
                 <option value="coastal">Coastal style</option>
                 <option value="northern">Northern BC · reference style</option>
+                <option value="page8">Northern BC · page 8 (journey left white)</option>
                 <option value="province">All BC land</option>
               </SelectField>
+            )}
+            {isGeographic && (
+              <div className="flex flex-wrap items-center gap-3">
+                <CheckboxField
+                  label="Page 8 labels only"
+                  checked={page8Labels}
+                  onCheckedChange={(checked) => setPage8Labels(checked === true)}
+                />
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  onClick={() => {
+                    setCoverage(PAGE8_EDITION.coverage)
+                    setHatchStyle(PAGE8_EDITION.hatchStyle)
+                    setChannelGap(PAGE8_EDITION.channelGap)
+                    setPage8Labels(true)
+                  }}
+                >
+                  Page 8 edition
+                </Button>
+              </div>
             )}
             {isGeographic && (
               <SelectField

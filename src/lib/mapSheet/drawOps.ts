@@ -4,7 +4,7 @@
  * both show exactly the same sheet. The geometry helpers here (hatching, labels along lines,
  * stroke dashes) are what make the symbols look like the reference sheets. No DOM or network access.
  */
-import { textWidth, type SheetFontStyle } from './textMetrics'
+import { textWidth, type SheetFontFamily, type SheetFontStyle } from './textMetrics'
 
 export type Point = [number, number]
 
@@ -69,7 +69,7 @@ export type DrawOp =
       text: string
       size: number
       style?: SheetFontStyle
-      family?: 'helvetica' | 'times'
+      family?: SheetFontFamily
       color: string
       align?: 'left' | 'center' | 'right'
       /** Baseline placement: `middle` centres the cap height on y. */
@@ -107,7 +107,7 @@ export type DrawOp =
       text: string
       size: number
       style?: SheetFontStyle
-      family?: 'helvetica' | 'times'
+      family?: SheetFontFamily
       color: string
       /** Where along the line: centred by default. */
       align?: 'start' | 'center' | 'end'
@@ -353,10 +353,11 @@ export function textPathStart(
   style?: SheetFontStyle,
   align: 'start' | 'center' | 'end' = 'center',
   offset = 0,
+  family?: SheetFontFamily,
 ): number {
   let length = 0
   for (let i = 1; i < path.length; i++) length += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1])
-  const width = textWidth(text, size, style)
+  const width = textWidth(text, size, style, family)
   return align === 'start' ? offset : align === 'end' ? length - width - offset : (length - width) / 2 + offset
 }
 
@@ -374,6 +375,7 @@ export function glyphsAlongPath(
   offset = 0,
   /** Points the baseline sits below the line, across it. */
   drop = 0,
+  family?: SheetFontFamily,
 ): GlyphPlacement[] {
   const line = readingPath(path)
   if (line.length < 2) return []
@@ -396,9 +398,9 @@ export function glyphsAlongPath(
     return (Math.atan2(-(line[i][1] - line[i - 1][1]), line[i][0] - line[i - 1][0]) * 180) / Math.PI
   }
   const out: GlyphPlacement[] = []
-  let distance = textPathStart(line, text, size, style, align, offset)
+  let distance = textPathStart(line, text, size, style, align, offset, family)
   for (const char of text) {
-    const advance = textWidth(char, size, style)
+    const advance = textWidth(char, size, style, family)
     const [x, y] = at(distance)
     const angle = direction(distance + advance / 2)
     const a = (angle * Math.PI) / 180

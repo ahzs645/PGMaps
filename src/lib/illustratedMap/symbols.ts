@@ -577,14 +577,28 @@ const bcBoundaryMetadata = JSON.stringify(bcInset.provenance)
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
-const provinceInset =
+/** The authored moss journey accent of the catalogue compass, in inset units. */
+const COMPASS_JOURNEY_ACCENT =
+  'M 148,125 L 220,125 L 220,210 L 118,210 L 115,173 L 123,166 L 123,157 L 131,153 L 134,143 Z'
+const provinceInsetWith = (accent: string, clipId: string) =>
   `<g data-part="geographic-bc-inset"><metadata>${bcBoundaryMetadata}</metadata>` +
-  `<defs><clipPath id="compass-bc-geographic-inset"><path d="${bcInset.parts[0].d}"/></clipPath></defs>` +
+  `<defs><clipPath id="${clipId}"><path d="${bcInset.parts[0].d}"/></clipPath></defs>` +
   `<g fill="${WHITE}">${bcBoundaryPaths}</g>` +
-  `<g clip-path="url(#compass-bc-geographic-inset)">` +
-  path('M 148,125 L 220,125 L 220,210 L 118,210 L 115,173 L 123,166 L 123,157 L 131,153 L 134,143 Z', MOSS, 'none', 0) +
+  `<g clip-path="url(#${clipId})">` +
+  path(accent, MOSS, 'none', 0) +
   `</g><g fill="none" stroke="${CANOPY}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">${bcBoundaryPaths}</g></g>`
-const compass =
+const provinceInset = provinceInsetWith(COMPASS_JOURNEY_ACCENT, 'compass-bc-geographic-inset')
+/**
+ * BC Albers metres to the compass inset's units: its uniform scale (`bcInset.provenance`) and the
+ * offsets that put BC's 49° N / 114.0683° W and 60° N / 120° W corners on the inset's own corner
+ * vertices (they agree within 0.012 units; `symbols.test.ts` checks them).
+ */
+export const COMPASS_INSET_FROM_ALBERS = {
+  scale: bcInset.provenance.uniformScale,
+  x: 13.2433,
+  y: 218.8223,
+} as const
+const compassMarkup = (inset: string) =>
   `<circle cx="116" cy="115" r="76" fill="none" stroke="${CANOPY}" stroke-width="13"/>` +
   path(
     'M 105,39 L 108,25 Q 116,17 124,25 L 127,39 Z ' +
@@ -595,12 +609,19 @@ const compass =
     'none',
     0,
   ) +
-  provinceInset +
+  inset +
   badgeLettering('BC', 117, 123, 19, CANOPY) +
   badgeLettering('N', 116, 14.5, 17, CANOPY) +
   badgeLettering('E', 224, 121, 17, CANOPY) +
   badgeLettering('S', 116, 227, 17, CANOPY) +
   badgeLettering('W', 8, 121, 17, CANOPY)
+const compass = compassMarkup(provinceInset)
+/**
+ * The compass with its inset's accent drawn from `accent` (SVG path data in inset units), such as
+ * the region a map leaves white, clipped to BC. Same size and lettering as `compass-bc`.
+ */
+export const compassWithInsetAccent = (accent: string) =>
+  compassMarkup(provinceInsetWith(accent, 'compass-bc-region-inset'))
 const navigation: ElementDef[] = [
   definition(
     'compass-bc',

@@ -8,13 +8,13 @@ import { boxLuminance, contrastRuns, inkOver, INK_COLOR, type Ink, type Luminanc
 import { boxesMeet, rectRing, type DrawOp, type Point, type StrokeStyle } from './drawOps'
 import { areaSymbolOps, type AreaSymbol } from './symbols'
 import { pdfText } from './renderPdf'
-import { fitText, textWidth, wrapText, type SheetFontStyle } from './textMetrics'
+import { fitText, textWidth, wrapText, type SheetFontStyle, type SheetFontFamily } from './textMetrics'
 
 /** Type as a figure prints it. Sizes are points. */
 export interface SheetTextStyle {
   size: number
   style?: SheetFontStyle
-  family?: 'helvetica' | 'times'
+  family?: SheetFontFamily
   color: string
   /** An outline under the glyphs, as a white halo over a photograph. */
   halo?: { color: string; width: number }

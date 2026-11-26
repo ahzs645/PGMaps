@@ -1,7 +1,14 @@
 import { DOMParser } from '@xmldom/xmldom'
 import { describe, expect, it } from 'vitest'
 import data from './geography.generated.json'
-import { buildGeographicLandMaskSvg, buildGeographicMapSvg } from './geographic'
+import {
+  buildGeographicLandMaskSvg,
+  buildGeographicMapSvg,
+  journeyInsetAccent,
+  PAGE8_EDITION,
+  PAGE8_JOURNEY_REGION,
+  PLACE_LABELS,
+} from './geographic'
 import { lettering, letteringSize } from './lettering'
 
 const parse = (svg: string) => new DOMParser().parseFromString(svg, 'image/svg+xml')
@@ -139,5 +146,49 @@ describe('channel gap', () => {
     // The land path itself is unchanged; the gap is a mask over it.
     expect(byId(document, 'geo-bc-land-geometry')!.getAttribute('d')).toBe(data.bcLand.d)
     expect(buildGeographicMapSvg({ coverage: 'northern' })).not.toContain('geo-channel-gap')
+  })
+})
+
+describe('page 8 edition', () => {
+  const svg = buildGeographicMapSvg(PAGE8_EDITION)
+  const document = parse(svg)
+
+  it('hatches BC outside the journey region and leaves the region white', () => {
+    expect(document.getElementsByTagName('parsererror').length).toBe(0)
+    expect(svg).toContain('data-generator="patch-hatch-v1"')
+    // The style clip is the frame less the journey region, even-odd.
+    const clip = byId(document, 'geo-style-clip')!
+    const clipPath = clip.getElementsByTagName('path')[0]
+    expect(clipPath.getAttribute('clip-rule')).toBe('evenodd')
+    expect(clipPath.getAttribute('d')).toContain(PAGE8_JOURNEY_REGION.d)
+    expect(svg).toContain('&quot;coverage&quot;:&quot;page8&quot;')
+  })
+
+  it('draws only page 8 place names', () => {
+    expect(byId(document, 'geo-label-vancouver')).toBeTruthy()
+    expect(byId(document, 'geo-label-mount-robson')).toBeTruthy()
+    const secondary = PLACE_LABELS.filter((definition) => 'secondary' in definition)
+    expect(secondary.length).toBeGreaterThan(0)
+    for (const definition of secondary) expect(byId(document, `geo-label-${definition.id}`)).toBeUndefined()
+  })
+
+  it('colours the journey region in the compass inset', () => {
+    expect(svg).toContain('data-inset-accent="page8-journey-region"')
+    expect(svg).toContain(journeyInsetAccent())
+  })
+
+  it('prints as vectors: clips and a water stroke, no masks', () => {
+    expect(svg).not.toContain('<mask')
+    expect(byId(document, 'geo-channel-gap')).toBeTruthy()
+    expect(svg).toContain('<clipPath id="geo-compass-clearance"')
+    expect(svg).toContain('<g clip-path="url(#geo-compass-clearance)">')
+    // Illustration clearances, when the hatch keeps clear of the motifs, are nested clips.
+    const cleared = buildGeographicMapSvg({ ...PAGE8_EDITION, composition: { allowIllustrationOverlap: false } })
+    expect(cleared).not.toContain('<mask')
+    expect(cleared).toContain('<clipPath id="geo-illustration-clearance-0"')
+    // The same edition with masks keeps the mask form.
+    const masked = buildGeographicMapSvg({ ...PAGE8_EDITION, vectorMasks: false })
+    expect(masked).toContain('<mask id="geo-channel-gap"')
+    expect(masked).toContain('<mask id="geo-compass-clearance"')
   })
 })
