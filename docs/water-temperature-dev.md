@@ -106,6 +106,18 @@ original-interval chart and table responsive. The original archive link
 covers the complete published record. The station map opens framed on every
 station; its legend explains the marker colours.
 
+Variable names come from UNBC's per-station data dictionaries (each
+station's `MetadataLog.xlsx`, sheet "Params": logger column, parameter,
+sensor model, height or depth), kept in `VARIABLE_LABELS` in
+`weatherData.ts`. `SV_` columns are the SnowVue10 snow sensor, `SR50AT_` the
+SR50AT, and the shortwave, longwave and albedo terms the Apogee SN-500 net
+radiometer. Where the dictionary does not settle a meaning the name says only
+what is certain: Browntop Mountain's `_2` columns are "second sensor", since
+its log lists two anemometers without saying which column is which. Names
+sort numerically, so depths read 5, 10, 15 cm. `weatherData.test.ts` pins
+every variable the catalog offered in November 2026; a new column UNBC
+publishes shows its raw name until it is added there.
+
 Timestamp offsets, source units, multiple quality codes and missing readings
 are preserved; units are printed as symbols (Deg C as °C) on screen, and the
 CSV keeps them as supplied. The quality code summary, an (i) beside the

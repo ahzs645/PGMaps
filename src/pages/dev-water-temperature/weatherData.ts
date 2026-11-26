@@ -47,6 +47,58 @@ const VARIABLE_LABELS: Record<string, string> = {
   SV_DBTCDT_Avg: 'Snow depth (SnowVue)',
   SR50AT_DBTCDT_Avg: 'Snow depth (SR50AT)',
   T109_AirT_C_Avg: 'Air temperature (T109)',
+  // The rest follow UNBC's per-station data dictionaries (`MetadataLog.xlsx`, sheet "Params": logger
+  // column, parameter code, sensor model, height or depth). Prefixes name the sensor: SV_ is the SnowVue10
+  // snow sensor, SR50AT_ the SR50AT; the radiation terms come from the Apogee SN-500 net radiometer.
+  Stmp_Avg: 'Air temperature at 17 cm (T109)',
+  Gtmp_Avg: 'Ground temperature',
+  Gtmp_0cm_Avg: 'Ground temperature at the surface',
+  Gtmp_5cm_Avg: 'Ground temperature, 5 cm deep',
+  Gtmp_10cm_Avg: 'Ground temperature, 10 cm deep',
+  Gtmp_15cm_Avg: 'Ground temperature, 15 cm deep',
+  Gtmp_20cm_Avg: 'Ground temperature, 20 cm deep',
+  GTMP_13cm: 'Ground temperature, 13 cm deep',
+  'Gtmp_24cm depth': 'Ground temperature, 24 cm deep',
+  RHT_C_Avg: 'Humidity sensor temperature',
+  WS_Std: 'Wind speed variability (standard deviation)',
+  WS_ms_Avg_2: 'Wind speed (second sensor)',
+  WindDir_2: 'Wind direction (second sensor)',
+  WindDir_SD1: 'Wind direction variability',
+  WindDir_SD1_WVT: 'Wind direction variability',
+  WindDir_SD1_WVT_2: 'Wind direction variability (second sensor)',
+  Original_WindDir: 'Wind direction (original record)',
+  Original_WindDir_Avg: 'Average wind direction (original record)',
+  SlrFD_W_Std: 'Solar radiation variability (standard deviation)',
+  SWin_Avg: 'Incoming shortwave radiation',
+  SWout_Avg: 'Reflected shortwave radiation',
+  SWnet_Avg: 'Net shortwave radiation',
+  LWin_Avg: 'Incoming longwave radiation',
+  LWout_Avg: 'Outgoing longwave radiation',
+  LWnet_Avg: 'Net longwave radiation',
+  NR_Avg: 'Net radiation',
+  SWalbedo_Avg: 'Albedo',
+  Strikes_Tot: 'Lightning strikes',
+  Dist_km_Avg: 'Lightning distance (average)',
+  Dist_km_Max: 'Lightning distance (farthest)',
+  DT_Avg: 'Snow sensor distance to surface',
+  TCDT_Avg: 'Snow sensor distance to surface (temperature-corrected)',
+  SV_DT_Avg: 'Snow sensor distance to surface (SnowVue)',
+  SV_TCDT_Avg: 'Snow sensor distance to surface, temperature-corrected (SnowVue)',
+  SV_Q_Avg: 'Snow sensor signal quality (SnowVue)',
+  SV_Alert: 'Snow sensor alert (SnowVue)',
+  SV_Freq: 'Snow sensor resonant frequency (SnowVue)',
+  SV_Pitch: 'Snow sensor pitch (SnowVue)',
+  SV_Roll: 'Snow sensor roll (SnowVue)',
+  SV_RH: 'Snow sensor internal humidity (SnowVue)',
+  SV_Tmp_Avg: 'Snow sensor internal temperature (SnowVue)',
+  SV_Volt: 'Snow sensor supply voltage (SnowVue)',
+  SR50AT_TCDT_Avg: 'Snow sensor distance to surface, temperature-corrected (SR50AT)',
+  SR50AT_Q_Avg: 'Snow sensor signal quality (SR50AT)',
+  SR50AT_SRTmp_C_Avg: 'Snow sensor air temperature (SR50AT)',
+  TiltNS_deg_Avg: 'Weather sensor tilt, north–south',
+  TiltWE_deg_Avg: 'Weather sensor tilt, west–east',
+  BattV_Avg: 'Logger battery voltage',
+  PTemp_C_Avg: 'Logger panel temperature',
 }
 export const variableLabel = (key: string) => VARIABLE_LABELS[key] ?? key
 
@@ -161,7 +213,9 @@ export function normalizeWeatherStations(input: unknown): WeatherStation[] {
         .filter((field) => names.has(`${field}_Flag`) && field !== 'RECORD')
         .sort(
           (a, b) =>
-            Number(b === MEASURED_AIR) - Number(a === MEASURED_AIR) || variableLabel(a).localeCompare(variableLabel(b)),
+            Number(b === MEASURED_AIR) - Number(a === MEASURED_AIR) ||
+            // Numeric, so depths read 5, 10, 15 cm rather than 10, 15, 5.
+            variableLabel(a).localeCompare(variableLabel(b), 'en', { numeric: true }),
         ),
     })
   }
