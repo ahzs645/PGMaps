@@ -2,18 +2,39 @@
 import fontData from './fontGlyphs.generated.json'
 
 export type LetteringFace = 'smallcaps' | 'regular'
-type Glyph = { d: string; advance: number; bounds: number[] | null }
+/** A glyph in font units, y up: outline (M/L/H/V/Q/C/Z), advance width and ink bounds. */
+export type Glyph = { d: string; advance: number; bounds: number[] | null }
+/**
+ * Any font the map can letter in: the committed Great Forest subsets (`LetteringFace`), or a font
+ * read at run time (`letteringFont.ts`, a map theme's). `capitalAlternates`: its lowercase are
+ * capital-shaped alternates (Great Forest Simplified), so a label's mixed-case glyph text is kept.
+ */
+export interface LetteringFont {
+  name: string
+  unitsPerEm: number
+  glyph: (character: string) => Glyph | undefined
+  capitalAlternates?: boolean
+}
+export type LetteringSource = LetteringFace | LetteringFont
+
+const builtIn = (face: LetteringFace): LetteringFont => {
+  const font = fontData[face]
+  const glyphs = font.glyphs as Record<string, Glyph>
+  return { name: font.name, unitsPerEm: font.unitsPerEm, glyph: (character) => glyphs[character] }
+}
+const BUILT_IN = { smallcaps: builtIn('smallcaps'), regular: builtIn('regular') }
+const resolve = (face: LetteringSource): LetteringFont => (typeof face === 'string' ? BUILT_IN[face] : face)
 
 /** Bake the font's absolute outline commands into drawing coordinates.
  * A halo can then use one map-unit width in both axes, including fitted lettering.
- * The supplied font subset uses M/L/H/V/Q/Z; rejecting other commands prevents a
+ * The supplied font subset uses M/L/H/V/Q/Z, a CFF font C; rejecting other commands prevents a
  * future font change from silently shifting or distorting its contours.
  */
 function fittedOutline(d: string, sx: number, sy: number, tx: number, ty: number): string {
   const round = (value: number) => Number(value.toFixed(3))
   return [...d.matchAll(/([A-Za-z])([^A-Za-z]*)/g)]
     .map(([, command, coordinates]) => {
-      if (!['M', 'L', 'H', 'V', 'Q', 'Z'].includes(command))
+      if (!['M', 'L', 'H', 'V', 'Q', 'C', 'Z'].includes(command))
         throw new Error(`Unsupported font outline command: ${command}`)
       const values = (coordinates.match(/-?\d*\.?\d+/g) ?? []).map(Number)
       return (
@@ -35,21 +56,20 @@ export const escapeXml = (text: string) =>
 export function letteringSize(
   text: string,
   emSize = 23.923,
-  face: LetteringFace = 'smallcaps',
+  face: LetteringSource = 'smallcaps',
   glyphText = text.toUpperCase(),
 ): { width: number; height: number } {
   if (glyphText.toUpperCase() !== text.toUpperCase())
     throw new Error('The glyph sequence must preserve the lettering text')
-  const font = fontData[face]
-  const glyphs = font.glyphs as Record<string, Glyph>
+  const font = resolve(face)
   let cursor = 0
   let left = Infinity,
     right = -Infinity,
     bottom = Infinity,
     top = -Infinity
   for (const character of glyphText) {
-    const glyph = glyphs[character]
-    if (!glyph) throw new Error(`The illustrated-map font subset has no glyph for ${character}`)
+    const glyph = font.glyph(character)
+    if (!glyph) throw new Error(`${font.name} has no glyph for ${character}`)
     if (glyph.bounds) {
       left = Math.min(left, cursor + glyph.bounds[0])
       right = Math.max(right, cursor + glyph.bounds[2])
@@ -73,15 +93,14 @@ export function letteringSize(
 export function lettering(
   text: string,
   box: readonly [number, number, number, number],
-  face: LetteringFace = 'smallcaps',
+  face: LetteringSource = 'smallcaps',
   tracking = 100,
   outlineWidth = 0,
   glyphText = text.toUpperCase(),
 ): string {
   if (glyphText.toUpperCase() !== text.toUpperCase())
     throw new Error('The glyph sequence must preserve the lettering text')
-  const font = fontData[face]
-  const glyphs = font.glyphs as Record<string, Glyph>
+  const font = resolve(face)
   let cursor = 0
   let minX = Infinity,
     minY = Infinity,
@@ -89,8 +108,8 @@ export function lettering(
     maxY = -Infinity
   const outlines: { glyph: Glyph; offset: number; character: string; index: number }[] = []
   for (const [index, char] of [...glyphText].entries()) {
-    const glyph = glyphs[char]
-    if (!glyph) throw new Error(`The illustrated-map font subset has no glyph for ${char}`)
+    const glyph = font.glyph(char)
+    if (!glyph) throw new Error(`${font.name} has no glyph for ${char}`)
     if (glyph.d && glyph.bounds) {
       outlines.push({ glyph, offset: cursor, character: char, index })
       minX = Math.min(minX, cursor + glyph.bounds[0])

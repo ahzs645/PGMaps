@@ -9,6 +9,7 @@
  * Coordinates are local to each symbol. All output is editable, image-free SVG.
  */
 import bcInset from './bcInset.generated.json'
+import { lettering, letteringSize, type LetteringSource } from './lettering'
 
 export type ElementCategory = 'illustration' | 'navigation' | 'tree' | 'drafting'
 
@@ -598,7 +599,17 @@ export const COMPASS_INSET_FROM_ALBERS = {
   x: 13.2433,
   y: 218.8223,
 } as const
-const compassMarkup = (inset: string) =>
+/**
+ * The compass's BC in Great Forest Small Caps outlines (`lettering.ts`), as page 8's place names
+ * are set: 17 units tall on the badge lettering's baseline, centred where it is.
+ */
+const smallCapsBc = (face: LetteringSource = 'smallcaps') => {
+  const height = 17
+  const size = letteringSize('BC', undefined, face)
+  const width = (height * size.width) / size.height
+  return `<g fill="${CANOPY}">${lettering('BC', [117 - width / 2, 123 - height, width, height], face)}</g>`
+}
+const compassMarkup = (inset: string, bc: 'badge' | 'smallcaps' = 'badge', face?: LetteringSource) =>
   `<circle cx="116" cy="115" r="76" fill="none" stroke="${CANOPY}" stroke-width="13"/>` +
   path(
     'M 105,39 L 108,25 Q 116,17 124,25 L 127,39 Z ' +
@@ -610,7 +621,7 @@ const compassMarkup = (inset: string) =>
     0,
   ) +
   inset +
-  badgeLettering('BC', 117, 123, 19, CANOPY) +
+  (bc === 'smallcaps' ? smallCapsBc(face) : badgeLettering('BC', 117, 123, 19, CANOPY)) +
   badgeLettering('N', 116, 14.5, 17, CANOPY) +
   badgeLettering('E', 224, 121, 17, CANOPY) +
   badgeLettering('S', 116, 227, 17, CANOPY) +
@@ -618,10 +629,14 @@ const compassMarkup = (inset: string) =>
 const compass = compassMarkup(provinceInset)
 /**
  * The compass with its inset's accent drawn from `accent` (SVG path data in inset units), such as
- * the region a map leaves white, clipped to BC. Same size and lettering as `compass-bc`.
+ * the region a map leaves white, clipped to BC. Same size as `compass-bc`; `bc: 'smallcaps'` sets
+ * its BC in Great Forest Small Caps instead of the constructed badge letters.
  */
-export const compassWithInsetAccent = (accent: string) =>
-  compassMarkup(provinceInsetWith(accent, 'compass-bc-region-inset'))
+export const compassWithInsetAccent = (accent: string, bc: 'badge' | 'smallcaps' = 'badge', face?: LetteringSource) =>
+  compassMarkup(provinceInsetWith(accent, 'compass-bc-region-inset'), bc, face)
+/** The catalogue compass (`compass-bc`, its own journey accent) with its BC in the given lettering. */
+export const compassWithLettering = (bc: 'badge' | 'smallcaps', face?: LetteringSource) =>
+  compassMarkup(provinceInset, bc, face)
 const navigation: ElementDef[] = [
   definition(
     'compass-bc',

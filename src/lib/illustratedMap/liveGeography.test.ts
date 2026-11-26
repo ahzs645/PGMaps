@@ -42,6 +42,13 @@ describe('live geography', () => {
     expect(holes(liveLandGeoJson('bcLand'))).toBe(data.bcLand.holes)
     expect(holes(liveLandGeoJson('bcLand', false))).toBe(0)
   })
+
+  it('leaves out small islands and lakes on the live map as the drawing does', () => {
+    const filter = { minIslandKm2: 1, minLakeKm2: 2 }
+    expect(liveHatchAreas('province', filter).land.length).toBeLessThan(liveHatchAreas('province').land.length / 3)
+    expect(liveHatchAreas('province', filter)).toBe(liveHatchAreas('province', { ...filter }))
+    expect(liveLandGeoJson('land', filter).features.length).toBeLessThan(liveLandGeoJson('land').features.length)
+  })
 })
 
 describe('nested rings', () => {

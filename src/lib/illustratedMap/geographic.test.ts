@@ -6,11 +6,13 @@ import {
   buildGeographicLandMaskSvg,
   buildGeographicMapSvg,
   drawnMotifs,
+  drawnRoads,
   landPath,
   journeyInsetAccent,
   PAGE8_EDITION,
   PAGE8_JOURNEY_REGION,
   PLACE_LABELS,
+  VANCOUVER_ISLAND_HIGHWAY_1,
 } from './geographic'
 import { lettering, letteringSize } from './lettering'
 import { ELEMENT_CATALOG } from './symbols'
@@ -239,5 +241,75 @@ describe('lakes and waves', () => {
     expect(boxTouchesLand({ x: north.point[0] - w / 2, y: north.point[1] - h / 2, w, h })).toBe(true)
     // Motifs on land stay as built.
     expect(drawnMotifs().find((motif) => motif.id === 'bear')).toBe(data.motifs.find((motif) => motif.id === 'bear'))
+  })
+})
+
+describe('cleaning up small shapes', () => {
+  const count = (d: string) => (d.match(/M/g) ?? []).length
+  it('leaves out islands and fills lakes below the given sizes', () => {
+    const all = count(landPath('land'))
+    const islands = count(landPath('land', { minIslandKm2: 1 }))
+    // Most of the frame's rings are islets under a square kilometre.
+    expect(islands).toBeLessThan(all * 0.25)
+    const lakes = count(landPath('land', { minLakeKm2: 2 }))
+    expect(all - lakes).toBeGreaterThan(400)
+    // A lake filled by size takes its islets with it, as lakes off does: every lake by size is lakes off.
+    expect(landPath('land', { minLakeKm2: 1e6 })).toBe(landPath('land', false))
+    // The two longest shores stay whatever the thresholds.
+    const filtered = landPath('bcLand', { minIslandKm2: 25, minLakeKm2: 25 })
+    for (const shore of data.bcLand.d
+      .split(/(?=M)/)
+      .sort((a, b) => b.length - a.length)
+      .slice(0, 2))
+      expect(filtered).toContain(shore)
+    // `true` and an empty filter are the land as built.
+    expect(landPath('land', {})).toBe(data.land.d)
+    expect(landPath('land', true)).toBe(data.land.d)
+  })
+
+  it('draws the land, hatch and channel gap from the filtered path and records the thresholds', () => {
+    const svg = buildGeographicMapSvg({ coverage: 'northern', minIslandKm2: 1, minLakeKm2: 2 })
+    const document = parse(svg)
+    const filter = { minIslandKm2: 1, minLakeKm2: 2 }
+    expect(byId(document, 'geo-bc-land-geometry')!.getAttribute('d')).toBe(landPath('bcLand', filter))
+    expect(byId(document, 'geo-land-geometry')!.getAttribute('d')).toBe(landPath('land', filter))
+    expect(svg).toContain('&quot;minIslandKm2&quot;:1')
+    expect(svg).toContain('&quot;minLakeKm2&quot;:2')
+  })
+})
+
+describe('hidden road stretches', () => {
+  it('leaves out Highway 1 on Vancouver Island and keeps it on the mainland', () => {
+    const built = data.roads.find((road) => road.id === 'bc-1')!
+    const drawn = drawnRoads([VANCOUVER_ISLAND_HIGHWAY_1]).find((road) => road.id === 'bc-1')!
+    const parts = (d: string) => d.split(/(?=M)/)
+    expect(parts(drawn.d).length).toBeLessThan(parts(built.d).length)
+    expect(parts(drawn.d).length).toBeGreaterThan(0)
+    // Nothing left west of the Strait of Georgia below Nanaimo, the island stretch.
+    const xs = (d: string) => (d.match(/M?(-?[\d.]+),/g) ?? []).map((value) => Number(value.replace(/[M,]/g, '')))
+    const victoria = data.places.find((place) => place.id === 'victoria')!.point
+    expect(Math.min(...xs(drawn.d))).toBeGreaterThan(victoria[0])
+    expect(Math.min(...xs(built.d))).toBeLessThan(victoria[0])
+    // Other roads are as built, and no stretch is the map as built.
+    expect(drawnRoads([VANCOUVER_ISLAND_HIGHWAY_1]).find((road) => road.id === 'bc-99')).toBe(
+      data.roads.find((road) => road.id === 'bc-99'),
+    )
+    expect(drawnRoads()).toBe(data.roads)
+    expect(() => drawnRoads([{ road: 'bc-1', landmassOf: 'nowhere' }])).toThrow(/No place/)
+    const svg = buildGeographicMapSvg({ ...PAGE8_EDITION })
+    expect(svg).toContain(`id="geo-road-bc-1"`)
+    expect(svg).toContain(drawn.d)
+  })
+})
+
+describe('compass lettering', () => {
+  it('sets BC in Small Caps outlines when asked, on either compass', () => {
+    const page8 = buildGeographicMapSvg({ ...PAGE8_EDITION })
+    const compass = (svg: string) => svg.match(/<g id="geo-compass".*?<\/g><\/g><\/g>/)![0]
+    expect(compass(page8)).toContain('data-text="BC"')
+    expect(compass(page8)).toContain('data-font="Great Forest"')
+    const coastal = buildGeographicMapSvg({ coverage: 'coastal', compassLettering: 'smallcaps' })
+    expect(compass(coastal)).toContain('data-text="BC"')
+    expect(compass(buildGeographicMapSvg({ coverage: 'coastal' }))).not.toContain('data-text="BC"')
   })
 })

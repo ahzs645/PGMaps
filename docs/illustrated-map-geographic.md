@@ -269,6 +269,55 @@ The workshop's **Page 8 edition** button sets all of these, and _Page 8 labels o
 
 **Waves on water.** A wave motif's coordinate is rounded, and at this scale the Central Coast and Juan de Fuca are full of islands: two waves sat on land. `drawnMotifs()` moves each wave to the nearest spot where its box, with a 3-unit margin, touches no land. It searches rings 3 units apart out to 150 units, and lakes count as land here. `boxTouchesLand` tests the box against every outer land ring, indexed in runs of 64 edges. The search runs once, in about 0.2 s. The north wave moved 45 units west into Queen Charlotte Sound; the orca wave moved 39 units west, off Cape Flattery. The west wave was already clear. Other motifs are drawn as built.
 
+## Cleaning up small shapes
+
+At this scale one drawing unit is 982 m on the ground, so a square unit is about 0.96 km². The frame's land has 6,289 outer rings and 1,183 lakes.
+
+| left out            | rings | path points        | land area       |
+| ------------------- | ----- | ------------------ | --------------- |
+| islands under 1 km² | 5,885 | 46%                | 0.03%           |
+| islands under 4 km² | 6,070 | 50%                | 0.06%           |
+| lakes under 2 km²   | 517   | 21% of lake points | 5% of lake area |
+
+The islets are what reads as specks offshore: almost every ring, almost none of the land. The lake data already stops at about 1 km², but the 500 lakes between 1 and 2 km² are pin-holes in the hatch. `minIslandKm2` and `minLakeKm2` (the workshop's _Smallest island_ and _Smallest lake_) leave them out, through `landPath(kind, filter)`. A filled lake takes its islets with it, and an island left out takes its own lakes. Leaving out islands under 1 km² also makes the SVG about 14% smaller. The page 8 edition uses 1 km² and 2 km². Hatching only the larger islands was tried and dropped: the small ones turned into white specks instead of hatched ones.
+
+## Hidden road stretches and the compass
+
+`hiddenRoads` leaves out a road's parts on the landmass holding a place. `VANCOUVER_ISLAND_HIGHWAY_1` is `{ road: 'bc-1', landmassOf: 'victoria' }`: Highway 1 from Victoria north to Nanaimo. The mainland stretch from Horseshoe Bay east is kept. `drawnRoads()` takes out each subpath whose middle point lies on Vancouver Island's outer ring. The page 8 edition hides it; the workshop's _Highway 1 on Vancouver Island_ turns it back on.
+
+`compassLettering: 'smallcaps'` sets the compass's BC in Great Forest Small Caps outlines, 17 units tall on the badge lettering's baseline, in place of the constructed badge letters. It applies to either compass, the page 8 one or the catalogue one. N, E, S and W keep their badge letters.
+
+## Map themes
+
+A map theme is the map's look as one file: a ZIP with `theme.json`, its fonts under `fonts/`, and a `README.txt` that lists each font's licence (`mapTheme.ts`). `theme.json` holds:
+
+- `hatch`: a saved `OrganicHatchRecipe`, as `compose-region.ts --recipe` reads.
+- `map`: coverage, label set, channel gap, lakes, smallest island and lake, hidden road stretches, compass lettering, vector masks.
+- `fonts`: each with an id, a file, a family, its SHA-256, a licence note, and whether its lowercase are capital-shaped alternates.
+- `lettering`: which font sets the `places` (place names, ALBERTA and USA, the compass's BC), the `regions` (RAINFOREST, CANADIAN ROCKIES) and the `body` (the footer). A role left out uses the built-in Great Forest, or Arial for the body.
+
+**Fonts.** Place and region names stay outlined glyphs. `letteringFontFromBytes` reads a theme's TrueType, OpenType (CFF) or WOFF font with opentype.js and gives `lettering()` its outlines, advances and bounds. Read from the same files, these match the committed `fontGlyphs.generated.json` (`mapTheme.test.ts`). The website Small Caps and v2 Simplified are exactly the files the built-in lettering was outlined from. The body font is embedded in the SVG as `@font-face`. WOFF2 is refused: opentype.js cannot read it.
+
+**Reading a theme** checks, before any font is parsed:
+
+- paths (only `theme.json`, `README.txt` and `fonts/…`; no `..` or absolute paths);
+- sizes (40 MB ZIP, 60 MB expanded, 12 MB a font, 12 fonts);
+- the JSON's shape and ranges, and that every lettering role names an included font;
+- each font's SHA-256 against `theme.json`;
+- each font's signature against its extension.
+
+Writing a theme works out the checksums from the bytes it writes.
+
+**In the workshop**, _Map theme_ lists the built-in themes (`mapThemePresets.ts`) and imported ones. Imports are kept in IndexedDB (`mapThemeStore.ts`), so they survive a reload. _Import theme_ reads a ZIP; _Export current settings as a theme_ writes the workshop's settings with the fonts of the theme in use. The built-in themes:
+
+- _Page 8 · Great Forest_: the page 8 edition, lettered in the website Small Caps and v2 Simplified, footer in BC Sans.
+- _Page 8 · Great Forest 2015_: the same, lettered in the 2015 Vancouver Island North builds.
+- _Coastal · continuous bands_: the first edition, with the built-in lettering.
+
+The palette is not part of a theme yet: the map's colours are still `MAP_PALETTE`. A hatch recipe's colour is kept in the file but not applied.
+
+Brand kits (`src/branding`) are separate: they style reports and documents. A map theme styles the illustrated map, and carries its own fonts so it works on its own.
+
 ## Great Forest on map sheets
 
 The Great Forest fonts are committed under `public/illustrated-map/fonts/great-forest/` for this test project (their README has the copyright and licence notes). Any sheet text can name `family: 'great-forest'` (Small Caps) or `'great-forest-display'` (Simplified):

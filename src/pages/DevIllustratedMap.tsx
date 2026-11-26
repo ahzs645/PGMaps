@@ -33,9 +33,14 @@ import {
   DEFAULT_CHANNEL_GAP,
   DEFAULT_GEOGRAPHIC_OPTIONS,
   PAGE8_EDITION,
+  VANCOUVER_ISLAND_HIGHWAY_1,
   GEOGRAPHIC_MAP_INFO,
   type GeographicMapOptions,
+  type HiddenRoadStretch,
 } from '@/lib/illustratedMap/geographic'
+import { hatchRecipeFromSettings, type MapThemeMap } from '@/lib/illustratedMap/mapTheme'
+import { MAP_PALETTE } from '@/lib/illustratedMap/layout'
+import MapThemePanel from './dev-illustrated-map/MapThemePanel'
 
 type View = 'map' | 'live' | 'elements' | 'hatching' | 'compare'
 type MapGeometry = 'geographic' | 'schematic'
@@ -111,6 +116,35 @@ export default function DevIllustratedMap() {
   const [coverage, setCoverage] = useState<HatchCoverage>(DEFAULT_GEOGRAPHIC_OPTIONS.coverage ?? 'coastal')
   const [page8Labels, setPage8Labels] = useState(false)
   const [lakes, setLakes] = useState(true)
+  const [minIslandKm2, setMinIslandKm2] = useState(0)
+  const [minLakeKm2, setMinLakeKm2] = useState(0)
+  const deferredMinIslandKm2 = useDeferredValue(minIslandKm2)
+  const deferredMinLakeKm2 = useDeferredValue(minLakeKm2)
+  const landFilter = useMemo(
+    () => ({ lakes, minIslandKm2: deferredMinIslandKm2, minLakeKm2: deferredMinLakeKm2 }),
+    [lakes, deferredMinIslandKm2, deferredMinLakeKm2],
+  )
+  const [hiddenRoads, setHiddenRoads] = useState<readonly HiddenRoadStretch[]>([])
+  const islandHighway = !hiddenRoads.some(
+    (stretch) =>
+      stretch.road === VANCOUVER_ISLAND_HIGHWAY_1.road && stretch.landmassOf === VANCOUVER_ISLAND_HIGHWAY_1.landmassOf,
+  )
+  const setIslandHighway = (shown: boolean) =>
+    setHiddenRoads((previous) =>
+      shown
+        ? previous.filter(
+            (stretch) =>
+              stretch.road !== VANCOUVER_ISLAND_HIGHWAY_1.road ||
+              stretch.landmassOf !== VANCOUVER_ISLAND_HIGHWAY_1.landmassOf,
+          )
+        : [...previous, VANCOUVER_ISLAND_HIGHWAY_1],
+    )
+  const [smallCapsCompass, setSmallCapsCompass] = useState(false)
+  const compassLettering = smallCapsCompass ? ('smallcaps' as const) : undefined
+  // A theme's fonts: place and region lettering outlined from them, the footer set in its body font.
+  const [lettering, setLettering] = useState<GeographicMapOptions['lettering']>(undefined)
+  // Clip paths instead of masks, as a theme may ask: the same look, and vectors in a printed PDF.
+  const [vectorMasks, setVectorMasks] = useState(false)
   const labelSet = page8Labels ? ('page8' as const) : ('all' as const)
   const [hatchingPreview, setHatchingPreview] = useState<HatchingPreview>('pattern')
   const [hatch, setHatch] = useState<HatchOptions>({ ...DEFAULT_HATCH_OPTIONS })
@@ -144,6 +178,12 @@ export default function DevIllustratedMap() {
           channelGap,
           labelSet,
           lakes,
+          minIslandKm2,
+          minLakeKm2,
+          hiddenRoads,
+          compassLettering,
+          lettering,
+          vectorMasks,
         })
       : buildIllustratedMapSvg({ hatch, composition, layers })
   const mapSvg = useMemo(
@@ -161,6 +201,12 @@ export default function DevIllustratedMap() {
               channelGap: deferredChannelGap,
               labelSet,
               lakes,
+              minIslandKm2: deferredMinIslandKm2,
+              minLakeKm2: deferredMinLakeKm2,
+              hiddenRoads,
+              compassLettering,
+              lettering,
+              vectorMasks,
             })
           : buildIllustratedMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers }),
     [
@@ -175,6 +221,12 @@ export default function DevIllustratedMap() {
       deferredChannelGap,
       labelSet,
       lakes,
+      deferredMinIslandKm2,
+      deferredMinLakeKm2,
+      hiddenRoads,
+      compassLettering,
+      lettering,
+      vectorMasks,
     ],
   )
   const mapUrl = useSvgUrl(view === 'hatching' ? mapSvg : '')
@@ -228,6 +280,38 @@ export default function DevIllustratedMap() {
     patchStyle
       ? setPatchHatch((previous) => ({ ...previous, [key]: value }))
       : setHatch((previous) => ({ ...previous, [key]: value }))
+
+  // The workshop's settings as a theme's hatch and map settings, and a theme applied to them.
+  const currentTheme = () => ({
+    hatch: hatchRecipeFromSettings(hatchStyle, hatch, patchHatch, MAP_PALETTE.hatch.toLowerCase()),
+    map: {
+      coverage,
+      labelSet,
+      channelGap,
+      lakes,
+      minIslandKm2,
+      minLakeKm2,
+      hiddenRoads: [...hiddenRoads],
+      compassLettering: smallCapsCompass ? 'smallcaps' : 'badge',
+      vectorMasks,
+    } satisfies MapThemeMap,
+  })
+  const applyTheme = (options: GeographicMapOptions) => {
+    setGeometry('geographic')
+    setCoverage(options.coverage ?? DEFAULT_GEOGRAPHIC_OPTIONS.coverage ?? 'coastal')
+    setPage8Labels(options.labelSet === 'page8')
+    setChannelGap(options.channelGap ?? 0)
+    setLakes(options.lakes ?? true)
+    setMinIslandKm2(options.minIslandKm2 ?? 0)
+    setMinLakeKm2(options.minLakeKm2 ?? 0)
+    setHiddenRoads(options.hiddenRoads ?? [])
+    setSmallCapsCompass(options.compassLettering === 'smallcaps')
+    setVectorMasks(options.vectorMasks ?? false)
+    setHatchStyle(options.hatchStyle ?? 'contour')
+    if (options.hatch) setHatch({ ...DEFAULT_HATCH_OPTIONS, ...options.hatch })
+    if (options.patchHatch) setPatchHatch({ ...DEFAULT_PAGE8_HATCH_OPTIONS, ...options.patchHatch })
+    setLettering(options.lettering)
+  }
 
   return (
     <div className="mx-auto max-w-[1680px] space-y-6 px-4 pb-12 pt-24 sm:px-6 md:pt-10">
@@ -283,6 +367,7 @@ export default function DevIllustratedMap() {
           className="order-2 grid min-w-0 gap-4 sm:grid-cols-2 xl:order-1 xl:grid-cols-1"
           aria-label="Drawing controls"
         >
+          {isGeographic && <MapThemePanel current={currentTheme} onApply={applyTheme} />}
           <section className="space-y-4 rounded-lg border bg-card p-4" aria-labelledby="hatching-heading">
             <div className="flex items-center gap-2">
               <Waves className="h-4 w-4 text-muted-foreground" aria-hidden />
@@ -319,6 +404,16 @@ export default function DevIllustratedMap() {
                   checked={lakes}
                   onCheckedChange={(checked) => setLakes(checked === true)}
                 />
+                <CheckboxField
+                  label="Highway 1 on Vancouver Island"
+                  checked={islandHighway}
+                  onCheckedChange={(checked) => setIslandHighway(checked === true)}
+                />
+                <CheckboxField
+                  label="Compass BC in Small Caps"
+                  checked={smallCapsCompass}
+                  onCheckedChange={(checked) => setSmallCapsCompass(checked === true)}
+                />
                 <Button
                   type="button"
                   size="xs"
@@ -328,6 +423,10 @@ export default function DevIllustratedMap() {
                     setHatchStyle(PAGE8_EDITION.hatchStyle)
                     setChannelGap(PAGE8_EDITION.channelGap)
                     setPage8Labels(true)
+                    setIslandHighway(false)
+                    setSmallCapsCompass(true)
+                    setMinIslandKm2(PAGE8_EDITION.minIslandKm2)
+                    setMinLakeKm2(PAGE8_EDITION.minLakeKm2)
                   }}
                 >
                   Page 8 edition
@@ -355,6 +454,30 @@ export default function DevIllustratedMap() {
                 unit="px"
                 description="Water kept along every shore, so channels narrower than a pixel at this scale still read: Vancouver Island stays apart from the mainland. 0 draws the coastline as it is."
                 onChange={setChannelGap}
+              />
+            )}
+            {isGeographic && (
+              <NumericRangeField
+                label="Smallest island"
+                value={minIslandKm2}
+                min={0}
+                max={25}
+                step={0.5}
+                unit="km²"
+                description="Islands smaller than this are left out of the land, its hatch and the channel gap. Most of the coast's 6,000 islets are under 1 km²: leaving them out clears the specks offshore."
+                onChange={setMinIslandKm2}
+              />
+            )}
+            {isGeographic && (
+              <NumericRangeField
+                label="Smallest lake"
+                value={minLakeKm2}
+                min={0}
+                max={25}
+                step={0.5}
+                unit="km²"
+                description="Lakes smaller than this are filled as land: no pin-holes in the hatch. 2 km² closes about 500 of BC's 1,150 lakes."
+                onChange={setMinLakeKm2}
               />
             )}
             <NumericRangeField
@@ -567,7 +690,7 @@ export default function DevIllustratedMap() {
                       hatch={deferredHatch}
                       patchHatch={deferredPatchHatch}
                       channelGap={deferredChannelGap}
-                      lakes={lakes}
+                      land={landFilter}
                     />
                   </Suspense>
                 </>

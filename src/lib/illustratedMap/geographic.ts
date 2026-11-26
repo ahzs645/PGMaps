@@ -9,10 +9,11 @@ import {
 } from './hatching'
 import { DEFAULT_COMPOSITION_OPTIONS, type IllustratedMapOptions } from './index'
 import { MAP_PALETTE } from './layout'
-import { escapeXml, lettering, letteringSize } from './lettering'
+import { escapeXml, lettering, letteringSize, type LetteringFont, type LetteringSource } from './lettering'
 import {
   COMPASS_INSET_FROM_ALBERS,
   compassWithInsetAccent,
+  compassWithLettering,
   ELEMENT_CATALOG,
   evergreenMarkup,
   mossTreeMarkup,
@@ -52,7 +53,38 @@ export interface GeographicMapOptions extends IllustratedMapOptions {
    * The coastline and the islands stay. `true` (the default) keeps the lakes as water.
    */
   lakes?: boolean
+  /**
+   * Leave out islands smaller than this many square kilometres (land, its hatch and the channel
+   * gap). At this scale a square kilometre is about one drawing unit square: 94% of the frame's
+   * 6,289 land rings are smaller, together 0.03% of the land. 0 (the default) keeps them all.
+   */
+  minIslandKm2?: number
+  /** Fill lakes smaller than this many square kilometres as land. 0 (the default) keeps them all. */
+  minLakeKm2?: number
+  /**
+   * Road stretches left off the map: each names a road (`bc-1`) and a place, and the road's parts
+   * on the landmass holding that place are not drawn. `{ road: 'bc-1', landmassOf: 'victoria' }`
+   * is Highway 1 on Vancouver Island, Victoria to Nanaimo.
+   */
+  hiddenRoads?: readonly HiddenRoadStretch[]
+  /** `smallcaps` sets the compass's BC in Great Forest Small Caps; `badge` (the default) in its badge letters. */
+  compassLettering?: 'badge' | 'smallcaps'
+  /**
+   * Fonts the map letters in, from a map theme (`mapTheme.ts`). `places`: place names, ALBERTA and
+   * USA, and the compass's Small Caps BC (Great Forest Small Caps when absent). `regions`:
+   * RAINFOREST and CANADIAN ROCKIES (Great Forest Simplified). Both are drawn as outlines. `body`:
+   * the footer's text, embedded in the SVG as a font (Arial when absent).
+   */
+  lettering?: { places?: LetteringFont; regions?: LetteringFont; body?: { family: string; src: string } }
 }
+
+export interface HiddenRoadStretch {
+  road: string
+  landmassOf: string
+}
+
+/** Highway 1 on Vancouver Island, from Victoria north to Nanaimo. */
+export const VANCOUVER_ISLAND_HIGHWAY_1: HiddenRoadStretch = { road: 'bc-1', landmassOf: 'victoria' }
 
 /** The channel gap the workshop starts with: about a kilometre on the ground at this scale. */
 export const DEFAULT_CHANNEL_GAP = 1.2
@@ -64,6 +96,10 @@ export const PAGE8_EDITION = {
   channelGap: DEFAULT_CHANNEL_GAP,
   labelSet: 'page8',
   vectorMasks: true,
+  hiddenRoads: [VANCOUVER_ISLAND_HIGHWAY_1],
+  compassLettering: 'smallcaps',
+  minIslandKm2: 1,
+  minLakeKm2: 2,
 } as const satisfies GeographicMapOptions
 
 /** A rounded rectangle as one path, so it can be cut out of an even-odd clip. */
@@ -123,17 +159,34 @@ function subpathArea(subpath: string) {
   return area / 2
 }
 
-const lakelessPaths = new Map<string, string>()
+/** What a land path keeps: its lakes, and its islands and lakes by size. */
+export interface LandFilter {
+  /** `false` fills every lake as land. */
+  lakes?: boolean
+  /** Islands (outer rings) smaller than this many square kilometres are left out. */
+  minIslandKm2?: number
+  /** Lakes smaller than this many square kilometres are filled as land. */
+  minLakeKm2?: number
+}
+
+/** Square kilometres to square drawing units at the map's one scale. */
+const km2ToUnits = (km2: number) => km2 * 1e6 * data.projection.scale ** 2
+
+const filteredPaths = new Map<string, string>()
 /**
- * A land path as drawn: as built (lakes as holes), or with the lakes filled. The build writes
- * outer rings and holes with opposite windings (`polygons` and `holes` in the data count them),
- * so a lake is a subpath whose winding is the other way. Filling a lake also drops the islands in
- * it, which would otherwise keep a shoreline (and a channel gap) in the middle of dry land.
+ * A land path as drawn: as built (lakes as holes), or filtered. The build writes outer rings and
+ * holes with opposite windings (`polygons` and `holes` in the data count them), so a lake is a
+ * subpath whose winding is the other way. A filled lake also takes the islands in it, which would
+ * otherwise keep a shoreline (and a channel gap) in the middle of dry land; an island left out
+ * takes its own lakes. `true` / `false` are `{ lakes }`.
  */
-export function landPath(kind: 'land' | 'bcLand', lakes = true): string {
-  if (lakes) return data[kind].d
-  let d = lakelessPaths.get(kind)
+export function landPath(kind: 'land' | 'bcLand', filter: boolean | LandFilter = {}): string {
+  const { lakes = true, minIslandKm2 = 0, minLakeKm2 = 0 } = typeof filter === 'boolean' ? { lakes: filter } : filter
+  if (lakes && minIslandKm2 <= 0 && minLakeKm2 <= 0) return data[kind].d
+  const key = `${kind}:${lakes}:${minIslandKm2}:${minLakeKm2}`
+  let d = filteredPaths.get(key)
   if (d === undefined) {
+    const [minIsland, minLake] = [km2ToUnits(minIslandKm2), km2ToUnits(minLakeKm2)]
     const subpaths = data[kind].d.split(/(?=M)/).map((text) => {
       const values = text.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) ?? []
       let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity]
@@ -145,9 +198,9 @@ export function landPath(kind: 'land' | 'bcLand', lakes = true): string {
       }
       return { text, values, area: subpathArea(text), box: [x0, y0, x1, y1] }
     })
-    const lakeRings = subpaths.filter((subpath) => subpath.area < 0)
-    const inLake = ([x, y]: number[]) =>
-      lakeRings.some(({ values, box }) => {
+    type Subpath = (typeof subpaths)[number]
+    const within = ([x, y]: number[], rings: Subpath[]) =>
+      rings.some(({ values, box }) => {
         if (x < box[0] || x > box[2] || y < box[1] || y > box[3]) return false
         let hit = false
         for (let i = 0, j = values.length - 2; i + 1 < values.length; j = i, i += 2)
@@ -158,11 +211,17 @@ export function landPath(kind: 'land' | 'bcLand', lakes = true): string {
             hit = !hit
         return hit
       })
+    const filled = subpaths.filter(({ area }) => area < 0 && (!lakes || -area < minLake))
+    const dropped = subpaths.filter(({ area }) => area > 0 && area < minIsland)
     d = subpaths
-      .filter((subpath) => subpath.area > 0 && !inLake(subpath.values))
+      .filter((subpath) =>
+        subpath.area > 0
+          ? subpath.area >= minIsland && !within(subpath.values, filled)
+          : lakes && -subpath.area >= minLake && !within(subpath.values, filled) && !within(subpath.values, dropped),
+      )
       .map((subpath) => subpath.text)
       .join('')
-    lakelessPaths.set(kind, d)
+    filteredPaths.set(key, d)
   }
   return d
 }
@@ -258,6 +317,47 @@ export function boxTouchesLand(box: Box): boolean {
   return false
 }
 
+const pointInRing = (x: number, y: number, ring: number[]) => {
+  let hit = false
+  for (let i = 0, j = ring.length - 2; i + 1 < ring.length; j = i, i += 2)
+    if (
+      ring[i + 1] > y !== ring[j + 1] > y &&
+      x < ((ring[j] - ring[i]) * (y - ring[i + 1])) / (ring[j + 1] - ring[i + 1]) + ring[i]
+    )
+      hit = !hit
+  return hit
+}
+
+type Road = (typeof data.roads)[number]
+/**
+ * The roads as drawn: each hidden stretch takes out its road's parts (subpaths) whose middle
+ * point lies on the outer land ring that holds the named place. The rest of the road is as built.
+ */
+export function drawnRoads(hidden: readonly HiddenRoadStretch[] = []): Road[] {
+  if (!hidden.length) return data.roads
+  return data.roads.map((road) => {
+    const stretches = hidden.filter((stretch) => stretch.road === road.id)
+    if (!stretches.length) return road
+    const landmasses = stretches.map(({ landmassOf }) => {
+      const where = place(landmassOf)
+      if (!where) throw new Error(`No place ${landmassOf} to find a landmass by`)
+      const [x, y] = where.point
+      const ring = landOutlines().find(
+        ({ ring, box }) =>
+          x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h && pointInRing(x, y, ring),
+      )
+      if (!ring) throw new Error(`${landmassOf} is not on land`)
+      return ring.ring
+    })
+    const parts = road.d.split(/(?=M)/).filter((part) => {
+      const values = part.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) ?? []
+      const middle = 2 * Math.floor(values.length / 4)
+      return !landmasses.some((ring) => pointInRing(values[middle], values[middle + 1], ring))
+    })
+    return { ...road, d: parts.join('') }
+  })
+}
+
 /** Room kept between a wave and the nearest shore, drawing units. */
 const WAVE_SHORE_CLEARANCE = 3
 type Motif = (typeof data.motifs)[number]
@@ -300,7 +400,7 @@ function start(title: string, description: string) {
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"><title>${escapeXml(title)}</title><desc>${escapeXml(description)}</desc>`
 }
 
-function resources(coverage: NonNullable<GeographicMapOptions['coverage']>, lakes = true) {
+function resources(coverage: NonNullable<GeographicMapOptions['coverage']>, land: LandFilter = {}) {
   // These exact path objects paint the land and clip its hatching. They never
   // carry an inset, stroke, smoothing curve or independently fitted coastline.
   // Sibling clip shapes form a union. Combining their d strings in one
@@ -312,7 +412,7 @@ function resources(coverage: NonNullable<GeographicMapOptions['coverage']>, lake
         ? // The frame less the journey region: a rectangle and the region, even-odd.
           `<clipPath id="geo-style-clip" clipPathUnits="userSpaceOnUse"><path id="geo-page8-journey-region" d="M-32 -32 H${width + 32} V${height + 32} H-32 Z ${PAGE8_JOURNEY_REGION.d}" fill-rule="evenodd" clip-rule="evenodd"/></clipPath>`
         : `<clipPath id="geo-style-clip" clipPathUnits="userSpaceOnUse"><path d="${data.coastalCoverage.d}" fill-rule="evenodd" clip-rule="evenodd"/>${coverage === 'northern' ? `<path id="geo-northern-style-extent" d="${NORTHERN_REFERENCE_COVERAGE.d}"/>` : ''}</clipPath>`
-  return `<defs><path id="geo-land-geometry" d="${landPath('land', lakes)}" fill-rule="evenodd" clip-rule="evenodd"/><path id="geo-bc-land-geometry" d="${landPath('bcLand', lakes)}" fill-rule="evenodd" clip-rule="evenodd"/><clipPath id="geo-land-clip" clipPathUnits="userSpaceOnUse"><use href="#geo-bc-land-geometry" xlink:href="#geo-bc-land-geometry" fill-rule="evenodd" clip-rule="evenodd"/></clipPath>${styleClip}<clipPath id="geo-frame-clip"><rect width="${width}" height="${height - data.projection.footer}"/></clipPath></defs>`
+  return `<defs><path id="geo-land-geometry" d="${landPath('land', land)}" fill-rule="evenodd" clip-rule="evenodd"/><path id="geo-bc-land-geometry" d="${landPath('bcLand', land)}" fill-rule="evenodd" clip-rule="evenodd"/><clipPath id="geo-land-clip" clipPathUnits="userSpaceOnUse"><use href="#geo-bc-land-geometry" xlink:href="#geo-bc-land-geometry" fill-rule="evenodd" clip-rule="evenodd"/></clipPath>${styleClip}<clipPath id="geo-frame-clip"><rect width="${width}" height="${height - data.projection.footer}"/></clipPath></defs>`
 }
 
 function symbol(id: string, point: Point, scale: number, offset: Point = [0, 0], anchor: Point = [0.5, 0.5]) {
@@ -422,6 +522,9 @@ export function journeyInsetAccent(): string {
   return `M ${points.join(' L ')} Z`
 }
 
+/** Room kept between a name and the frame's edge, drawing units. */
+const LABEL_MARGIN = 12
+
 function label(
   text: string,
   point: Point,
@@ -429,11 +532,15 @@ function label(
   halo: number,
   align: 'left' | 'center' | 'right' = 'left',
   emSize = 23.923,
-  face: 'smallcaps' | 'regular' = 'smallcaps',
-  glyphText = text.toUpperCase(),
+  face: LetteringSource = 'smallcaps',
+  authoredGlyphs = text.toUpperCase(),
 ) {
+  // Mixed-case glyph text picks Great Forest's capital-shaped alternates; another font sets capitals.
+  const glyphText = typeof face === 'string' || face.capitalAlternates ? authoredGlyphs : text.toUpperCase()
   const size = letteringSize(text, emSize, face, glyphText)
-  const x = point[0] + offset[0] - size.width * (align === 'left' ? 0 : align === 'center' ? 0.5 : 1)
+  const placed = point[0] + offset[0] - size.width * (align === 'left' ? 0 : align === 'center' ? 0.5 : 1)
+  // A theme's font may set a name wider than Great Forest does: keep it inside the frame.
+  const x = Math.min(Math.max(placed, LABEL_MARGIN), Math.max(LABEL_MARGIN, width - LABEL_MARGIN - size.width))
   const y = point[1] + offset[1]
   return lettering(text, [x, y, size.width, size.height], face, 0, halo, glyphText)
 }
@@ -456,7 +563,13 @@ export const PLACE_LABELS = [
   { id: 'cranbrook', text: 'CRANBROOK', offset: [-8, 12], align: 'right', secondary: true },
 ] as const
 
-function locations(halo: number, drawSymbols: boolean, drawLabels: boolean, labelSet: 'all' | 'page8' = 'all') {
+function locations(
+  halo: number,
+  drawSymbols: boolean,
+  drawLabels: boolean,
+  labelSet: 'all' | 'page8' = 'all',
+  face: LetteringSource = 'smallcaps',
+) {
   let symbols = '',
     labels = ''
   const destinationFlags: Record<string, string> = { golden: 'flag-golden', fernie: 'flag-fernie' }
@@ -474,25 +587,30 @@ function locations(halo: number, drawSymbols: boolean, drawLabels: boolean, labe
       symbols += `<g id="geo-place-${p.id}" data-longitude="${p.coordinate[0]}" data-latitude="${p.coordinate[1]}" aria-label="${escapeXml(p.name)}">${mark}</g>`
     }
     if (drawLabels)
-      labels += `<g id="geo-label-${p.id}">${label(definition.text, p.point, definition.offset, halo, 'align' in definition ? definition.align : 'left', 'secondary' in definition ? 19 : 23.923)}</g>`
+      labels += `<g id="geo-label-${p.id}">${label(definition.text, p.point, definition.offset, halo, 'align' in definition ? definition.align : 'left', 'secondary' in definition ? 19 : 23.923, face)}</g>`
   }
   const robson = place('mount-robson-peak') ?? place('mount-robson')
   if (robson) {
     if (drawSymbols)
       symbols += `<g id="geo-place-mount-robson">${symbol('flag-mount-robson', robson.point, 0.66, [0, 0], [18 / 68, 82 / 95])}</g>`
     if (drawLabels)
-      labels += `<g id="geo-label-mount-robson">${label('MOUNT', robson.point, [-13, -26], halo, 'right')}${label('ROBSON', robson.point, [-13, -10], halo, 'right')}</g>`
+      labels += `<g id="geo-label-mount-robson">${label('MOUNT', robson.point, [-13, -26], halo, 'right', undefined, face)}${label('ROBSON', robson.point, [-13, -10], halo, 'right', undefined, face)}</g>`
   }
   return { symbols, labels }
 }
 
-function footer() {
+function footer(body?: { family: string; src: string }) {
+  // A theme's body font, embedded so the file carries it; Arial otherwise.
+  const family = body ? `'${body.family.replace(/['\\<>&"]/g, '')}',Arial,sans-serif` : 'Arial,sans-serif'
+  const face = body
+    ? `<defs><style>@font-face{font-family:'${body.family.replace(/['\\<>&"]/g, '')}';src:url(${body.src.replace(/[^A-Za-z0-9+/=:;,.-]/g, '')})}</style></defs>`
+    : ''
   const y = height - data.projection.footer
   const scaleBar = 100000 * data.projection.scale
   return layer(
     'geo-cartographic-furniture',
     'Cartographic scale and sources',
-    `<rect y="${y}" width="${width}" height="${data.projection.footer}" fill="white"/><g fill="${MAP_PALETTE.canopy}" font-family="Arial,sans-serif" font-size="10"><text x="18" y="${y + 15}">Coast: GSHHG · Lakes: GSHHG / BC FWA · Roads: StatCan / WSDOT · Places: CGNDB / US Census · Coastal style: BEC</text><text x="18" y="${y + 29}">BC Albers · Geographic features share one projection and scale · Illustrations are regional motifs</text></g><g transform="translate(${width - scaleBar - 24} ${y + 15})" fill="none" stroke="${MAP_PALETTE.canopy}" stroke-width="1.5"><path d="M0 -4V3H${n(scaleBar)}V-4 M${n(scaleBar / 2)} 0V3"/></g><g fill="${MAP_PALETTE.canopy}" font-family="Arial,sans-serif" font-size="10"><text x="${width - scaleBar - 24}" y="${y + 29}">0</text><text x="${width - 24}" y="${y + 29}" text-anchor="end">100 km</text></g>`,
+    `${face}<rect y="${y}" width="${width}" height="${data.projection.footer}" fill="white"/><g fill="${MAP_PALETTE.canopy}" font-family="${family}" font-size="10"><text x="18" y="${y + 15}">Coast: GSHHG · Lakes: GSHHG / BC FWA · Roads: StatCan / WSDOT · Places: CGNDB / US Census · Coastal style: BEC</text><text x="18" y="${y + 29}">BC Albers · Geographic features share one projection and scale · Illustrations are regional motifs</text></g><g transform="translate(${width - scaleBar - 24} ${y + 15})" fill="none" stroke="${MAP_PALETTE.canopy}" stroke-width="1.5"><path d="M0 -4V3H${n(scaleBar)}V-4 M${n(scaleBar / 2)} 0V3"/></g><g fill="${MAP_PALETTE.canopy}" font-family="${family}" font-size="10"><text x="${width - scaleBar - 24}" y="${y + 29}">0</text><text x="${width - 24}" y="${y + 29}" text-anchor="end">100 km</text></g>`,
   )
 }
 
@@ -508,8 +626,13 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     'Rainforest to Rockies — geographic illustration',
     'Real geographic shoreline, lake holes, province regions, highway centrelines and place coordinates projected together to BC Albers. Reconstructed page 8 symbols, glyph lettering and generated hatching provide the illustration style. Motifs are decorative regional illustrations. The title is a reconstructed study.',
   )
-  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-geographic-illustrated-map', version: 1, trace: false, coordinates: 'EPSG:3005', projection: data.projection, coverage, ...(hatchStyle === 'patch' ? { hatchStyle, patchHatch } : { hatch }), composition, provenance: data.provenance, ...(coverage === 'northern' ? { coverageStyle: NORTHERN_REFERENCE_COVERAGE } : {}), ...(coverage === 'page8' ? { coverageStyle: { kind: PAGE8_JOURNEY_REGION.kind, anchors: PAGE8_JOURNEY_REGION.anchors, d: PAGE8_JOURNEY_REGION.d }, labelSet: options.labelSet ?? 'all' } : {}), ...(lakes ? {} : { lakes: false }) }))}</metadata>`
-  svg += resources(coverage, lakes)
+  svg += `<metadata>${escapeXml(JSON.stringify({ generator: 'pgmaps-geographic-illustrated-map', version: 1, trace: false, coordinates: 'EPSG:3005', projection: data.projection, coverage, ...(hatchStyle === 'patch' ? { hatchStyle, patchHatch } : { hatch }), composition, provenance: data.provenance, ...(coverage === 'northern' ? { coverageStyle: NORTHERN_REFERENCE_COVERAGE } : {}), ...(coverage === 'page8' ? { coverageStyle: { kind: PAGE8_JOURNEY_REGION.kind, anchors: PAGE8_JOURNEY_REGION.anchors, d: PAGE8_JOURNEY_REGION.d }, labelSet: options.labelSet ?? 'all' } : {}), ...(lakes ? {} : { lakes: false }), ...(options.minIslandKm2 ? { minIslandKm2: options.minIslandKm2 } : {}), ...(options.minLakeKm2 ? { minLakeKm2: options.minLakeKm2 } : {}) }))}</metadata>`
+  const landFilter: LandFilter = {
+    lakes,
+    minIslandKm2: Math.max(0, options.minIslandKm2 ?? 0),
+    minLakeKm2: Math.max(0, options.minLakeKm2 ?? 0),
+  }
+  svg += resources(coverage, landFilter)
   const channelGap = Math.max(0, options.channelGap ?? 0)
   // The coastline stroked out of the land and its hatch. Its frame edges are kept: the stroke is
   // clipped to the frame less the gap, so land running off the map gets no water line.
@@ -582,6 +705,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     )
   }
   if (layers.roads) {
+    const roads = drawnRoads(options.hiddenRoads)
     // Page 8 draws its compass over clear hatch: roads stop at the compass ring.
     const clearCompass = coverage === 'page8' && layers.symbols
     if (clearCompass)
@@ -591,7 +715,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     const masked = (body: string) =>
       clearCompass ? `<g ${vector ? 'clip-path' : 'mask'}="url(#geo-compass-clearance)">${body}</g>` : body
     const paths = (role: string) =>
-      data.roads
+      roads
         .filter((road) => road.role === role)
         .map(
           (road) =>
@@ -602,7 +726,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
       'geo-supporting-highways',
       '04 Supporting highways from NRN and WSDOT',
       masked(
-        `<g fill="none" stroke="white" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round">${data.roads
+        `<g fill="none" stroke="white" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round">${roads
           .filter((road) => road.role === 'supporting')
           .map((road) => `<path d="${road.d}"/>`)
           .join(
@@ -614,7 +738,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
       'geo-primary-highways',
       '05 Primary highways from NRN',
       masked(
-        `<g fill="none" stroke="white" stroke-width="7.8" stroke-linecap="round" stroke-linejoin="round">${data.roads
+        `<g fill="none" stroke="white" stroke-width="7.8" stroke-linecap="round" stroke-linejoin="round">${roads
           .filter((road) => road.role === 'primary')
           .map((road) => `<path d="${road.d}"/>`)
           .join(
@@ -623,7 +747,9 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
       ),
     )
   }
-  const placed = locations(composition.labelHalo, layers.symbols, layers.labels, options.labelSet)
+  const places = options.lettering?.places ?? 'smallcaps'
+  const regions = options.lettering?.regions ?? 'regular'
+  const placed = locations(composition.labelHalo, layers.symbols, layers.labels, options.labelSet, places)
   if (layers.symbols) {
     svg += layer(
       'geo-trees',
@@ -662,8 +788,10 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
       `<g transform="rotate(${n(data.projection.northArrowRotationDegrees)} 155 165)">${
         coverage === 'page8'
           ? // The inset colours the journey region the map leaves white, as page 8's does.
-            `<g data-symbol="compass-bc" data-inset-accent="page8-journey-region" transform="translate(${n(155 - 232 * 0.36)} ${n(165 - 229 * 0.36)}) scale(0.72)">${compassWithInsetAccent(journeyInsetAccent())}</g>`
-          : symbol('compass-bc', [155, 165], 0.72)
+            `<g data-symbol="compass-bc" data-inset-accent="page8-journey-region" transform="translate(${n(155 - 232 * 0.36)} ${n(165 - 229 * 0.36)}) scale(0.72)">${compassWithInsetAccent(journeyInsetAccent(), options.compassLettering, options.lettering?.places)}</g>`
+          : options.compassLettering === 'smallcaps'
+            ? `<g data-symbol="compass-bc" transform="translate(${n(155 - 232 * 0.36)} ${n(165 - 229 * 0.36)}) scale(0.72)">${compassWithLettering('smallcaps', options.lettering?.places)}</g>`
+            : symbol('compass-bc', [155, 165], 0.72)
       }</g>`,
     )
   }
@@ -671,7 +799,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     svg += layer(
       'geo-lettering',
       '11 Great Forest place lettering',
-      `<g fill="${MAP_PALETTE.canopy}">${placed.labels}${label('RAINFOREST', [260, 790], [0, 0], composition.labelHalo, 'center', 36.728, 'regular', 'RaInFOrEsT')}${label('CANADIAN', [1270, 525], [0, 0], composition.labelHalo, 'center', 36.728, 'regular', 'cANaDIAn')}${label('ROCKIES', [1270, 568], [0, 0], composition.labelHalo, 'center', 36.728, 'regular', 'RoCkIeS')}${label('ALBERTA', [1390, 395], [0, 0], composition.labelHalo, 'center')}${label('USA', [1070, 935], [0, 0], composition.labelHalo, 'center')}</g>`,
+      `<g fill="${MAP_PALETTE.canopy}">${placed.labels}${label('RAINFOREST', [260, 790], [0, 0], composition.labelHalo, 'center', 36.728, regions, 'RaInFOrEsT')}${label('CANADIAN', [1270, 525], [0, 0], composition.labelHalo, 'center', 36.728, regions, 'cANaDIAn')}${label('ROCKIES', [1270, 568], [0, 0], composition.labelHalo, 'center', 36.728, regions, 'RoCkIeS')}${label('ALBERTA', [1390, 395], [0, 0], composition.labelHalo, 'center', undefined, places)}${label('USA', [1070, 935], [0, 0], composition.labelHalo, 'center', undefined, places)}</g>`,
     )
     svg += layer(
       'geo-title-study',
@@ -680,7 +808,7 @@ export function buildGeographicMapSvg(options: GeographicMapOptions = {}): strin
     )
   }
   svg += '</g>'
-  if (!options.transparentBackground) svg += footer()
+  if (!options.transparentBackground) svg += footer(options.lettering?.body)
   return svg + '</svg>'
 }
 

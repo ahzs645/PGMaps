@@ -10,7 +10,7 @@ import { Map, MapControls } from '@/components/ui/map'
 import { MapFillLayer, MapHatchLayer } from '@/components/ui/map-layers'
 import type { HatchOptions, PatchHatchStyleOptions } from '@/lib/illustratedMap'
 import { MAP_PALETTE } from '@/lib/illustratedMap/layout'
-import type { GeographicMapOptions } from '@/lib/illustratedMap/geographic'
+import type { GeographicMapOptions, LandFilter } from '@/lib/illustratedMap/geographic'
 import { liveFrameBounds, liveHatchAreas, liveLandGeoJson } from '@/lib/illustratedMap/liveGeography'
 
 /** The layer's id, which measurements and captures look up. */
@@ -23,8 +23,8 @@ export interface LiveHatchMapProps {
   patchHatch: PatchHatchStyleOptions
   /** Water kept along every shore, CSS pixels, as the drawing's channel gap in its units. */
   channelGap?: number
-  /** `false` fills every lake as land, as the drawing's `lakes` option does. */
-  lakes?: boolean
+  /** Lakes and the smallest islands and lakes, as the drawing's `lakes`, `minIslandKm2` and `minLakeKm2`. */
+  land?: LandFilter
 }
 
 /** The workshop's settings as a saved recipe: artboard pixels become CSS pixels on the map. */
@@ -32,7 +32,7 @@ export function liveRecipe({
   hatchStyle,
   hatch,
   patchHatch,
-}: Omit<LiveHatchMapProps, 'coverage' | 'channelGap' | 'lakes'>): OrganicHatchRecipe {
+}: Omit<LiveHatchMapProps, 'coverage' | 'channelGap' | 'land'>): OrganicHatchRecipe {
   const color = MAP_PALETTE.hatch.toLowerCase()
   if (hatchStyle === 'patch') {
     const { patchSize, lean, leanBias, seam, ...rest } = patchHatch
@@ -51,12 +51,15 @@ export default function LiveHatchMap(props: LiveHatchMapProps) {
     })
     return { light: style, dark: style }
   }, [])
-  const lakes = props.lakes ?? true
-  // The basemap keeps its lakes (a new style would reload the map); without lakes, the frame's land
-  // is filled again over it, lakes and all, under the province.
-  const province = useMemo(() => liveLandGeoJson('bcLand', lakes), [lakes])
-  const land = useMemo(() => liveLandGeoJson('land', lakes), [lakes])
-  const areas = liveHatchAreas(props.coverage, lakes)
+  const { lakes = true, minIslandKm2 = 0, minLakeKm2 = 0 } = props.land ?? {}
+  const filtered = !lakes || minIslandKm2 > 0 || minLakeKm2 > 0
+  // The basemap keeps every lake and island (a new style would reload the map). When the land is
+  // filtered, the frame's land is drawn over it as filtered, under the province; islands left out
+  // then still show in the basemap's land colour, without hatch.
+  const filter = useMemo(() => ({ lakes, minIslandKm2, minLakeKm2 }), [lakes, minIslandKm2, minLakeKm2])
+  const province = useMemo(() => liveLandGeoJson('bcLand', filter), [filter])
+  const land = useMemo(() => liveLandGeoJson('land', filter), [filter])
+  const areas = liveHatchAreas(props.coverage, filter)
   const recipe = useMemo(
     () => liveRecipe(props),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the recipe follows these values, not the props object
@@ -70,7 +73,7 @@ export default function LiveHatchMap(props: LiveHatchMapProps) {
         viewport={{ center: [(west + east) / 2, (south + north) / 2], zoom: 4.6 }}
         controls={<MapControls showZoom />}
       >
-        {!lakes && (
+        {filtered && (
           <MapFillLayer
             data={land}
             fillColor={MAP_PALETTE.surrounding}
