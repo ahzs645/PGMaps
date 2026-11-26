@@ -4,6 +4,7 @@ Credentials arrive on hidden stdin and are never written to the state directory.
 Inventory/source paths and private collection URLs stay outside the public repo.
 Requires GDAL CLI, rasterio, Pillow, httpx and pmtiles (tested with 3.8.1).
 """
+from contextlib import closing
 from pathlib import Path
 import argparse, concurrent.futures, hashlib, io, json, math, os, sqlite3, subprocess, sys, tempfile, termios, threading, time
 import httpx, numpy as np, rasterio
@@ -17,30 +18,77 @@ def sha(path):
     with Path(path).open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
 
 def create_tiles(source, dest, title):
-    with rasterio.open(source) as ds:
-        t,_,_=calculate_default_transform(ds.crs,3857,ds.width,ds.height,*ds.bounds)
-        zoom=max(0,min(22,round(math.log2(156543.03392804097/t.a))))
-        bounds=list(transform_bounds(ds.crs,4326,*ds.bounds,densify_pts=41))
-        if not all(math.isfinite(x) for x in bounds):raise ValueError('Invalid geographic bounds')
-    res=156543.03392804097/2**zoom;mb=dest.with_suffix('.mbtiles')
-    env={**os.environ,'GDAL_PAM_ENABLED':'NO','GDAL_CACHEMAX':'128','TMPDIR':str(dest.parent)}
-    command=['gdalwarp','-q','-of','MBTiles','-co','TILE_FORMAT=WEBP','-co','QUALITY=95','-dstalpha','-r','bilinear','-t_srs','EPSG:3857','-tr',str(res),str(res),'-tap',str(source),str(mb)]
-    run=subprocess.run(command,capture_output=True,text=True,env=env)
-    if run.returncode:raise RuntimeError(run.stderr[:1000])
-    if zoom:subprocess.run(['gdaladdo','-q','-r','average',str(mb)]+[str(2**i) for i in range(1,zoom+1)],check=True,capture_output=True,env=env)
-    with sqlite3.connect(mb) as db:
-        meta=dict(db.execute('select name,value from metadata'))
-        rows=[(z,x,(1<<z)-1-y,data) for z,x,y,data in db.execute('select zoom_level,tile_column,tile_row,tile_data from tiles')]
-    rows.sort(key=lambda r:zxy_to_tileid(*r[:3]));assert rows
-    header={'tile_compression':Compression.NONE,'tile_type':TileType.WEBP,'min_lon_e7':round(bounds[0]*1e7),'min_lat_e7':round(bounds[1]*1e7),'max_lon_e7':round(bounds[2]*1e7),'max_lat_e7':round(bounds[3]*1e7),'center_zoom':zoom,'center_lon_e7':round((bounds[0]+bounds[2])*5e6),'center_lat_e7':round((bounds[1]+bounds[3])*5e6)}
+    with rasterio.open(source) as dataset:
+        transform, _, _ = calculate_default_transform(
+            dataset.crs, 3857, dataset.width, dataset.height, *dataset.bounds,
+        )
+        zoom = max(0, min(22, round(math.log2(156543.03392804097 / transform.a))))
+        bounds = list(transform_bounds(dataset.crs, 4326, *dataset.bounds, densify_pts=41))
+    if not all(math.isfinite(value) for value in bounds):
+        raise ValueError('Invalid geographic bounds')
+
+    resolution = str(156543.03392804097 / 2 ** zoom)
+    # Resampling compressed WebP intermediates makes overview pixels depend on
+    # partial tile writes. Keep GDAL's tiles lossless and encode each final tile once.
+    with tempfile.TemporaryDirectory(dir=dest.parent) as temporary:
+        mbtiles = Path(temporary) / 'tiles.mbtiles'
+        env = {
+            **os.environ, 'GDAL_PAM_ENABLED': 'NO', 'GDAL_CACHEMAX': '128',
+            'GDAL_NUM_THREADS': '1', 'TMPDIR': temporary,
+        }
+        subprocess.run([
+            'gdalwarp', '-q', '-of', 'MBTiles', '-co', 'TILE_FORMAT=PNG',
+            '-dstalpha', '-r', 'bilinear', '-et', '0', '-t_srs', 'EPSG:3857',
+            '-tr', resolution, resolution, '-tap', str(source), str(mbtiles),
+        ], check=True, capture_output=True, env=env)
+        if zoom:
+            levels = [str(2 ** level) for level in range(1, zoom + 1)]
+            subprocess.run(
+                ['gdaladdo', '-q', '-r', 'average', str(mbtiles), *levels],
+                check=True, capture_output=True, env=env,
+            )
+
+        tiles = []
+        with closing(sqlite3.connect(mbtiles)) as db:
+            for z, x, row, png in db.execute(
+                'SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles',
+            ):
+                y = (1 << z) - 1 - row
+                encoded = io.BytesIO()
+                with Image.open(io.BytesIO(png)) as tile:
+                    tile.convert('RGBA').save(encoded, format='WEBP', quality=95, method=4, exact=True)
+                tiles.append((zxy_to_tileid(z, x, y), z, x, y, encoded.getvalue()))
+    if not tiles:
+        raise ValueError('GDAL created an empty tile archive')
+    tiles.sort(key=lambda tile: tile[0])
+
+    west, south, east, north = bounds
+    header = {
+        'tile_compression': Compression.NONE, 'tile_type': TileType.WEBP,
+        'min_lon_e7': round(west * 1e7), 'min_lat_e7': round(south * 1e7),
+        'max_lon_e7': round(east * 1e7), 'max_lat_e7': round(north * 1e7),
+        'center_zoom': zoom, 'center_lon_e7': round((west + east) * 5e6),
+        'center_lat_e7': round((south + north) * 5e6),
+    }
     with write(dest) as writer:
-        for z,x,y,data in rows:writer.write_tile(zxy_to_tileid(z,x,y),data)
-        writer.finalize(header,{'name':title,'format':'webp','type':'overlay','description':'Web display derivative of the source GeoTIFF. Original placement and uncertainty are preserved.','attribution':'Historical source attribution and placement limits are recorded in the catalogue.'})
-    # Validate EVERY stored tile against GDAL's tile bytes, not just the header.
-    with dest.open('rb') as f:
-        reader=Reader(MmapSource(f));h=reader.header()
-        for z,x,y,data in rows:assert reader.get(z,x,y)==data,(z,x,y)
-    mb.unlink();return {'bounds':bounds,'minZoom':h['min_zoom'],'maxZoom':h['max_zoom'],'tileCount':len(rows),'width':256,'format':'webp'}
+        for tile_id, _, _, _, data in tiles:
+            writer.write_tile(tile_id, data)
+        writer.finalize(header, {
+            'name': title, 'format': 'webp', 'type': 'overlay',
+            'description': 'Web display derivative of the source GeoTIFF. Original placement and uncertainty are preserved.',
+            'attribution': 'Historical source attribution and placement limits are recorded in the catalogue.',
+        })
+    with dest.open('rb') as handle:
+        reader = Reader(MmapSource(handle))
+        stored = reader.header()
+        for _, z, x, y, data in tiles:
+            if reader.get(z, x, y) != data:
+                raise ValueError(f'Tile {z}/{x}/{y} differs from its generated payload')
+    return {
+        'bounds': bounds, 'minZoom': stored['min_zoom'], 'maxZoom': stored['max_zoom'],
+        'tileCount': len(tiles), 'width': 256, 'format': 'webp',
+    }
+
 
 def thumbnail(source,dest):
     with rasterio.open(source) as ds:
@@ -109,7 +157,9 @@ def main():
         original=index[id];title=original['source_title']+' · '+id.split('_')[-1]
         with tempfile.TemporaryDirectory(dir=scratch) as temp:
             td=Path(temp);pm=td/'tiles.pmtiles';thumb=td/'preview.webp';geometry=create_tiles(source,pm,title);thumbnail(source,thumb)
-            raw=upload(source,'raw/'+checksum+'.tif','image/tiff');tile=upload(pm,'tiles/'+checksum+'.pmtiles','application/vnd.pmtiles');preview=upload(thumb,'previews/'+checksum+'.webp','image/webp')
+            raw=upload(source,'raw/'+checksum+'.tif','image/tiff')
+            tile=upload(pm,'tiles/'+sha(pm)+'.pmtiles','application/vnd.pmtiles')
+            preview=upload(thumb,'previews/'+checksum+'.webp','image/webp')
             record={'id':id,'title':original['source_title'],'subtitle':id,'description':'Georeferenced raster representation from the map archive.','caveat':'Experimental placement; read the original review before drawing geographic conclusions.' if original['product_class']=='experimental_georeference' else 'Provisional archive placement under stated assumptions. This raster has not necessarily received an independent satellite accuracy review.','confidence':'experimental' if original['product_class']=='experimental_georeference' else 'provisional','assets':[{**geometry,'url':tile['url'],'bytes':tile['bytes'],'sha256':tile['sha256']}],'thumbnail':preview['url'],'download':raw,'sources':[{'title':original['source_title'],'url':original['source_url']}],'bounds':geometry['bounds'],'sourceProductClass':original['product_class']}
             recordfile.write_text(json.dumps(record,ensure_ascii=False,separators=(',',':'))+'\n')
         return record

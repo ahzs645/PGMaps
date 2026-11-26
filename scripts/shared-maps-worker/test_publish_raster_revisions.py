@@ -108,6 +108,28 @@ class RasterRevisionTests(unittest.TestCase):
         (self.root / 'stage.json').write_text(json.dumps(self.stage))
         self.after = after
 
+    def test_textured_raster_rebuild_preserves_full_detail_and_overview_tile_bytes(self):
+        y, x = np.indices((317, 453))
+        values = np.array([
+            (7 * x + 13 * y) % 256,
+            (11 * x + 3 * y) % 256,
+            (19 * x + y) % 256,
+            np.where((x + 2 * y) % 37 > 5, 255, 0),
+        ], dtype=np.uint8)
+        raster = self.root / 'textured.tif'
+        self.raster(raster.name, values, from_origin(1031230, 1168830, 16, 16))
+        archives = []
+        for directory in ('first', 'second'):
+            folder = self.root / directory
+            folder.mkdir()
+            archive = folder / 'map.pmtiles'
+            p.build_catalog.create_tiles(raster, archive, directory)
+            with archive.open('rb') as handle:
+                archives.append(list(all_tiles(MmapSource(handle))))
+            self.assertEqual(list(folder.iterdir()), [archive])
+        self.assertGreater(len({key[0] for key, _ in archives[0]}), 1)
+        self.assertEqual(archives[0], archives[1])
+
     def test_mask_publication_updates_every_alias_and_retains_reading_sources(self):
         _, _, objects = p.validate_stage(self.root / 'stage.json')
         self.assertEqual(len(objects), 3)
