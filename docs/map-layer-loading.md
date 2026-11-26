@@ -209,6 +209,7 @@ Real Chrome, Metal GPU, live hosts, 19 November 2026. Before is main at fc5abf3f
 | Outdoors planner rail, hunt zones, lake charts (21 November) | View window over the read | Not measured before (same reader as above) | Never gone; 4 reads a 3 s drag, none on a zoom-in inside the window |
 | Outdoors planner dated imagery, date change (21 November) | Hand-off + note, the shared imagery timeline | Gone on every frame of each of 4 day changes (a remount per day) | 0 frames without it, Wayback and NASA feeds; the road designer's Wayback on the same code 0 of 37 |
 | Sentinel-2 scenes as tiles (21 November) | Tiles through `pgmaps-s2` (`addProtocol`), read and warped in a worker | Read on the page's thread: 7–11 long frames a date step, worst 311 ms | 0 of 106 frames without it; at most one long frame (68 ms) |
+| Illustrated map live hatch (26 November) | Tiles through `pgmaps-hatch` (`addProtocol`, the toolkit's `MapHatchLayer`), drawn in a worker | New layer (the fill-pattern tile it supersedes repeats one image) | 0 frames without it over a drag, zoom in, zoom out and a style change; 0.9% of the view waiting mid-drag, 9.6% on a fast zoom-out (MapLibre fetches no parents), filled 0.4 s after; a style change is one 63 ms frame once the workshop stopped building its hidden SVG (2.6 s before). Software rendering in a Linux container (`--executable`) |
 | Block planner old forest, year change (24 November) | One source per drawing, kept up while the worker draws the next; legend note after `HANDOFF_NOTE_DELAY_MS` | New layer | 0 frames without it over three year changes (8 frames each); stubbed DataBC, software rendering in a Linux container (`--executable`), so frame timings are not comparable |
 
 ## Not built
@@ -240,6 +241,7 @@ toolkit (`docs/toolkit-extraction.md`):
 | Hand-off rule, layers and note | `map-layer-handoff.ts`, `map-raster-handoff.tsx` | `@/components/ui/map-raster-handoff` |
 | Tile and hillshade layers that follow `beforeId` and `tiles` | `layers/raster.tsx`, `layers/terrain.tsx`, `layers/place.ts` | `@/components/ui/map-layers` |
 | Image layer that takes pixels and a credit | `layers/canvas.tsx`, `layers/image-pixels.ts` | `@/components/ui/map-layers` |
+| Generated hatch as tiles (worker, area mask, `pgmaps-hatch` protocol) | `layers/hatch.tsx`, `layers/hatch-tile-renderer.ts`, `layers/hatch-tiles.worker.ts`, `patterns/hatch-tiles.ts` | `@/components/ui/map-layers` |
 | `map.transform` for deck.gl on MapLibre 6 | `map-transform.ts`, called by `useDeckOverlay` | `@/components/ui/map-deck` |
 
 A change to any of these goes to the `ahzs645/geo-toolkit` repository first, through its CI, and

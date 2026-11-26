@@ -1,5 +1,5 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { Download, Layers, Map, RotateCcw, ScanEye, Shapes, Trees, Waves } from 'lucide-react'
+import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { Download, Globe, Layers, Map, RotateCcw, ScanEye, Shapes, Trees, Waves } from 'lucide-react'
 
 import { DevLibraryBackLink } from '@/components/dev/PageBackLink'
 import { Button } from '@/components/ui/button'
@@ -35,12 +35,14 @@ import {
   type GeographicMapOptions,
 } from '@/lib/illustratedMap/geographic'
 
-type View = 'map' | 'elements' | 'hatching' | 'compare'
+type View = 'map' | 'live' | 'elements' | 'hatching' | 'compare'
 type MapGeometry = 'geographic' | 'schematic'
 type HatchCoverage = NonNullable<GeographicMapOptions['coverage']>
 type HatchingPreview = 'pattern' | 'land-mask'
 type HatchStyle = NonNullable<GeographicMapOptions['hatchStyle']>
-const VIEWS: View[] = ['map', 'elements', 'hatching', 'compare']
+const VIEWS: View[] = ['map', 'live', 'elements', 'hatching', 'compare']
+// The map engine loads with its tab only.
+const LiveHatchMap = lazy(() => import('./dev-illustrated-map/LiveHatchMap'))
 const LAYERS = [
   { id: 'hatching', label: 'Forest hatching' },
   { id: 'roads', label: 'Highways and connections' },
@@ -98,7 +100,11 @@ function SvgPreview({
 }
 
 export default function DevIllustratedMap() {
-  const [view, setView] = useState<View>('map')
+  // `?view=live` (or any tab) opens on that tab.
+  const [view, setView] = useState<View>(() => {
+    const asked = new URLSearchParams(window.location.search).get('view')
+    return VIEWS.includes(asked as View) ? (asked as View) : 'map'
+  })
   const [geometry, setGeometry] = useState<MapGeometry>('geographic')
   const [coverage, setCoverage] = useState<HatchCoverage>(DEFAULT_GEOGRAPHIC_OPTIONS.coverage ?? 'coastal')
   const [hatchingPreview, setHatchingPreview] = useState<HatchingPreview>('pattern')
@@ -116,19 +122,28 @@ export default function DevIllustratedMap() {
   const [referenceFailed, setReferenceFailed] = useState(false)
   const isGeographic = geometry === 'geographic'
   const mapTitle = isGeographic ? 'Real geography with illustrated styling' : 'Schematic reference reconstruction'
+  // The drawing is built only for the tabs that show it; the live map and the elements do not,
+  // and building it takes seconds with the patch style. A download from those tabs builds it then.
+  const drawsMap = view === 'map' || view === 'hatching' || view === 'compare'
+  const buildMapSvg = () =>
+    geometry === 'geographic'
+      ? buildGeographicMapSvg({ hatch, composition, layers, coverage, hatchStyle, patchHatch })
+      : buildIllustratedMapSvg({ hatch, composition, layers })
   const mapSvg = useMemo(
     () =>
-      geometry === 'geographic'
-        ? buildGeographicMapSvg({
-            hatch: deferredHatch,
-            composition: deferredComposition,
-            layers,
-            coverage,
-            hatchStyle,
-            patchHatch: deferredPatchHatch,
-          })
-        : buildIllustratedMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers }),
-    [deferredHatch, deferredComposition, layers, geometry, coverage, hatchStyle, deferredPatchHatch],
+      !drawsMap
+        ? ''
+        : geometry === 'geographic'
+          ? buildGeographicMapSvg({
+              hatch: deferredHatch,
+              composition: deferredComposition,
+              layers,
+              coverage,
+              hatchStyle,
+              patchHatch: deferredPatchHatch,
+            })
+          : buildIllustratedMapSvg({ hatch: deferredHatch, composition: deferredComposition, layers }),
+    [drawsMap, deferredHatch, deferredComposition, layers, geometry, coverage, hatchStyle, deferredPatchHatch],
   )
   const mapUrl = useSvgUrl(view === 'hatching' ? mapSvg : '')
   const overlaySvg = useMemo(
@@ -144,9 +159,15 @@ export default function DevIllustratedMap() {
     [deferredHatch, deferredComposition, layers, view, comparisonMode, geometry],
   )
   const patchStyle = isGeographic && hatchStyle === 'patch'
+  const showsSwatch = view === 'hatching'
   const swatchSvg = useMemo(
-    () => (patchStyle ? buildPatchHatchSwatchSvg(deferredPatchHatch) : buildHatchSwatchSvg(deferredHatch)),
-    [patchStyle, deferredHatch, deferredPatchHatch],
+    () =>
+      !showsSwatch
+        ? ''
+        : patchStyle
+          ? buildPatchHatchSwatchSvg(deferredPatchHatch)
+          : buildHatchSwatchSvg(deferredHatch),
+    [showsSwatch, patchStyle, deferredHatch, deferredPatchHatch],
   )
   const showLandMask = isGeographic && view === 'hatching' && hatchingPreview === 'land-mask'
   const landMaskSvg = useMemo(() => (showLandMask ? buildGeographicLandMaskSvg() : ''), [showLandMask])
@@ -200,7 +221,11 @@ export default function DevIllustratedMap() {
           <option value="geographic">Real geography</option>
           <option value="schematic">Schematic reference</option>
         </SelectField>
-        <Button type="button" onClick={() => downloadText(currentSvg, filename, SVG_TYPE)} disabled={updating}>
+        <Button
+          type="button"
+          onClick={() => downloadText(currentSvg || buildMapSvg(), filename, SVG_TYPE)}
+          disabled={updating}
+        >
           <Download className="h-4 w-4" aria-hidden />
           Download{' '}
           {view === 'elements' ? 'element' : view === 'hatching' ? (showLandMask ? 'land mask' : 'hatch') : 'map'} SVG
@@ -214,6 +239,7 @@ export default function DevIllustratedMap() {
         label="Illustrated map views"
         options={[
           { value: 'map', label: 'Map', icon: Map },
+          { value: 'live', label: 'Live map', icon: Globe },
           { value: 'elements', label: `Elements (${ELEMENT_CATALOG.length})`, icon: Shapes },
           { value: 'hatching', label: 'Hatching', icon: Waves },
           { value: 'compare', label: 'Compare with page 8', icon: ScanEye },
@@ -455,6 +481,23 @@ export default function DevIllustratedMap() {
               className="space-y-4"
             >
               {id === 'map' && view === id && <SvgPreview svg={mapSvg} title={mapTitle} resetKey={`map-${geometry}`} />}
+              {id === 'live' && view === id && (
+                <>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    The same hatch and coverage on a live map, drawn as tiles of one continuous field: a pan shows more
+                    of it, with no repeat or seam, and the strokes keep their size on screen up to zoom{' '}
+                    {hatchStyle === 'patch' ? 13 : 10}. Real geography only.
+                  </p>
+                  <Suspense fallback={<p className="text-sm text-muted-foreground">Loading the map…</p>}>
+                    <LiveHatchMap
+                      coverage={coverage}
+                      hatchStyle={hatchStyle}
+                      hatch={deferredHatch}
+                      patchHatch={deferredPatchHatch}
+                    />
+                  </Suspense>
+                </>
+              )}
               {id === 'hatching' && view === id && (
                 <>
                   {isGeographic && (

@@ -189,3 +189,17 @@ The continuous field used so far draws longer strokes (11–12 px) in taller ban
 Each patch is generated on its own, from the seed and its lattice position. A stroke that crosses a seam is cut there and kept by the patch holding its longest piece. As a result, any window of the field, anywhere, draws exactly what a larger window draws there. The same holds for map tiles and print pieces, and the cost doesn't grow with distance from the origin.
 
 The workshop's **Hatch style** chooses **Page 8 · patches**. The export adds `geographic-northern-page8.svg`, its transparent forest layer and `hatch-page8.svg`. Every earlier export is unchanged, because the default style is still the continuous field. Map sheets offer the same field as the **Patch hatch (page 8)** area pattern.
+
+## The hatch on a live map
+
+The workshop's **Live map** tab (`/dev/illustrated-map?view=live`) shows the same recipe and coverage on a MapLibre map, through the toolkit's `MapHatchLayer`.
+
+- Each 512 px tile is a window of the open field, drawn in a worker. It is inked only on BC land (lakes as holes) within the chosen coverage, on the same 4 × 4 sample grid as the strokes.
+- Tiles of one recipe meet without a seam, so a pan shows more of the same field. Nothing repeats, unlike the 512 px `fill-pattern` tile a map sheet uses.
+- The field is anchored to the ground at the land's north-west corner, and measured in CSS pixels at each tile's zoom. Its strokes keep their size on screen up to the last field zoom: 13 for the patch style and 10 for the continuous field, whose cost grows with distance from the anchor. Past that, MapLibre enlarges the last level's tiles and the strokes grow with the ground.
+- The land is the drawing's own, put back on the ground (`liveGeography.ts`). It undoes the artboard fit, inverts BC Albers with proj4, and nests the even-odd rings into polygons by their winding. All eight land/water checkpoints come back within 0.002° of their source coordinates.
+
+Measured with `scripts/map-loading/measure.mjs` and `setups/illustrated-live-hatch.mjs` (docs/map-layer-loading.md, **What was measured**):
+
+- The layer was on screen on every frame of a drag, a zoom in, a zoom out and a change of style.
+- A drag left 0.9% of the view waiting; a fast zoom-out left 9.6% waiting, filled 0.4 s later.
