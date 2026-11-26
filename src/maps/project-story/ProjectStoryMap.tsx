@@ -1306,7 +1306,7 @@ function StoryMapRuntime({
                         label={entry.label}
                         swatchShape="circle"
                         active={active}
-                        className="min-h-6 pl-3 text-xs text-muted-foreground"
+                        className="min-h-6 px-1 text-xs text-muted-foreground"
                       />
                     ))}
                   </MapLegendSection>
@@ -1468,7 +1468,7 @@ function StoryMapRuntime({
 /** Host chrome and viewport presentation for the extracted alternate story layouts. */
 /**
  * Every layer row in the story legend, single or grouped, is the same size: the layers shown are bold,
- * the ones turned off are muted and struck through. Category entries under a group sit indented and muted.
+ * the ones turned off are muted and struck through. Category entries under a group are muted, their swatches in line with every other row.
  */
 const LEGEND_ROW = 'min-h-6 py-0.5 text-xs touch:min-h-11'
 const LEGEND_ROW_ACTIVE = 'font-semibold text-foreground'
