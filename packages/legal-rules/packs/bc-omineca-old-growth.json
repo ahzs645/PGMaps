@@ -1,7 +1,7 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.omineca.old-growth",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "Omineca old growth and sensitive area orders",
   "description": "Block screens for the legal old growth management areas and sensitive areas set by Omineca land use orders (Dome and Slim, Humbug, the 2010 Mackenzie spatial order, the Ancient Forest Trail), the Mugaha Marsh sensitive area, the Obo River and Fox landscape units, and the Prince George candidate old forest areas the district managers expect to be left unharvested.",
   "coverage": {
@@ -62,11 +62,6 @@
     {
       "id": "cofa",
       "label": "Does the block or its road overlap a candidate old forest area (COFA) in the Prince George TSA?",
-      "type": "boolean"
-    },
-    {
-      "id": "cofa-variance",
-      "label": "Has the District Manager approved a variance for this incursion into the COFA?",
       "type": "boolean"
     },
     {
@@ -552,11 +547,6 @@
             "fact": "cofa",
             "op": "eq",
             "value": true
-          },
-          {
-            "fact": "cofa-variance",
-            "op": "eq",
-            "value": false
           }
         ]
       ],
@@ -566,37 +556,29 @@
           "kind": "obtain-approval",
           "description": "Seek the district manager's variance and identify the replacement area before the block proceeds, or move it out of the COFA."
         }
-      ]
-    },
-    {
-      "id": "cofa-variance",
-      "title": "COFA variance without a replacement area",
-      "source": "pgtsa-loe",
-      "provision": "PG DM ¶4",
-      "when": [
-        [
-          {
-            "fact": "cofa",
-            "op": "eq",
-            "value": true
-          },
-          {
-            "fact": "cofa-variance",
-            "op": "eq",
-            "value": true
-          },
-          {
-            "fact": "cofa-replacement",
-            "op": "eq",
-            "value": false
-          }
-        ]
       ],
-      "finding": "A variance to the no-harvest expectation rests on the impact being unavoidable and an alternative area of equal or greater ecological value being identified; no such area is identified.",
-      "actions": [
+      "exceptions": [
         {
-          "kind": "review",
-          "description": "Identify the replacement area and the rationale, supported by current science, so the COFAs keep 100% of each mBEC target."
+          "id": "variance",
+          "label": "A district manager’s variance to the no-harvest expectation, the impact unavoidable and a replacement area of equal or greater ecological value identified (PG DM ¶4)",
+          "source": "pgtsa-loe",
+          "provision": "PG DM ¶4",
+          "kind": "decision",
+          "decidedBy": "The district manager",
+          "when": [
+            [
+              {
+                "fact": "cofa-replacement",
+                "op": "eq",
+                "value": true
+              }
+            ]
+          ],
+          "evidence": [
+            "The rationale, supported by current science",
+            "The replacement area",
+            "The variance"
+          ]
         }
       ]
     },

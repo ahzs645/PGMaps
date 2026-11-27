@@ -26,6 +26,21 @@ const predicate = z.strictObject({
 })
 // An outer OR of inner AND groups. No source expressions are evaluated as JavaScript.
 const expression = z.array(z.array(predicate).min(1)).min(1)
+/**
+ * An exception the law makes to a rule, with its own citation. `by-law` holds once its facts do
+ * (its `when`, if the pack can state them); `decision` holds only once the person it names has
+ * decided. A reviewer claims one on a raised finding; the finding stays raised, with the claim.
+ */
+const exception = z.strictObject({
+  id,
+  label: title,
+  source: id,
+  provision: title,
+  kind: z.enum(['by-law', 'decision']),
+  decidedBy: title.optional(),
+  when: expression.optional(),
+  evidence: z.array(title).min(1).optional(),
+})
 const rule = z.strictObject({
   id,
   title,
@@ -33,6 +48,7 @@ const rule = z.strictObject({
   provision: title,
   scope: expression.optional(),
   when: expression,
+  exceptions: z.array(exception).min(1).optional(),
   finding: title,
   actions: z.array(
     z.strictObject({
@@ -57,17 +73,31 @@ export const packSchema = z.strictObject({
 })
 export type Pack = z.infer<typeof packSchema>
 export type Fact = Pack['facts'][number]
+export type Rule = Pack['rules'][number]
+export type RuleException = z.infer<typeof exception>
 export type Predicate = z.infer<typeof predicate>
 export type Expression = z.infer<typeof expression>
 export const releaseKey = (p: Pick<Pack, 'id' | 'version'>) => p.id + '@' + p.version
+const claim = z.strictObject({
+  rule: id,
+  exception: id,
+  rationale: z.string().optional(),
+  evidence: z
+    .array(z.strictObject({ label: title, reference: z.string().optional(), date: date.optional() }))
+    .optional(),
+  decision: z.strictObject({ by: z.string(), date: date.optional(), reference: z.string().optional() }).optional(),
+})
 export const factSetSchema = z.strictObject({
   format: z.literal('pgmaps-legal-facts/v1'),
   pack: id,
   version,
   source: title,
   facts: z.array(z.strictObject({ id, value: scalar.nullable(), evidence: title.optional() })),
+  /** The exceptions the reviewer relies on, one per rule at most. Never a fact. */
+  claims: z.array(claim).optional(),
 })
 export type FactSet = z.infer<typeof factSetSchema>
+export type Claim = z.infer<typeof claim>
 function unique<T>(items: T[], key: (v: T) => string, kind: string) {
   const ids = items.map(key)
   if (new Set(ids).size !== ids.length) throw Error('Duplicate ' + kind + ' identifier.')
@@ -117,7 +147,12 @@ export function parsePack(value: unknown): Pack {
   }
   for (const r of p.rules) {
     if (!p.sources.some((s) => s.id === r.source)) throw Error('Unknown source: ' + r.source)
-    for (const c of [...(r.scope ?? []), ...r.when].flat()) {
+    unique(r.exceptions ?? [], (x) => x.id, 'exception of ' + r.id)
+    for (const x of r.exceptions ?? []) {
+      if (!p.sources.some((s) => s.id === x.source)) throw Error('Unknown source: ' + x.source)
+      if (x.kind === 'decision' && !x.decidedBy) throw Error('A decision names who decides: ' + r.id + '#' + x.id)
+    }
+    for (const c of [...(r.scope ?? []), ...r.when, ...(r.exceptions ?? []).flatMap((x) => x.when ?? [])].flat()) {
       const f = p.facts.find((f) => f.id === c.fact)
       if (!f) throw Error('Unknown fact: ' + c.fact)
       const rhs = operand(p, c)
@@ -150,6 +185,10 @@ export function parseFacts(raw: unknown, p: Pack): FactSet {
     const f = p.facts.find((x) => x.id === input.id)
     if (!f || (input.value !== null && !accepts(f, input.value))) throw Error('Invalid case fact: ' + input.id)
   }
+  unique(set.claims ?? [], (c) => c.rule, 'claim')
+  for (const c of set.claims ?? [])
+    if (!p.rules.find((r) => r.id === c.rule)?.exceptions?.some((x) => x.id === c.exception))
+      throw Error('Unknown exception claimed: ' + c.rule + '#' + c.exception)
   return set
 }
 export const authoringSchema = () => z.toJSONSchema(packSchema)

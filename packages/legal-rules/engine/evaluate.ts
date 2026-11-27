@@ -8,6 +8,7 @@ import {
   type FactSet,
   type Pack,
   type Predicate,
+  type Rule,
   type Scalar,
 } from '../src/contract'
 
@@ -50,6 +51,37 @@ function test(expression: Expression, p: Pack, facts: FactSet) {
   const result = groups.includes(true) ? true : groups.includes(null) ? null : false
   return { result, trace }
 }
+/** 1.1.0 added a claimed exception to a raised finding; a 1.0.0 assessment reads the same. */
+export const ENGINE_VERSION = '1.1.0'
+export const READABLE_ENGINE_VERSIONS = ['1.0.0', '1.1.0']
+
+/**
+ * Where a claimed exception stands. `not_supported`: the answers contradict its own conditions;
+ * `unanswered`: its conditions wait on an answer; `pending`: it needs a decision not yet on file;
+ * `decided`: that decision is recorded; `relied_on`: an exception that holds by law, with nothing
+ * contradicting it. The reviewer's claim and the evidence decide; the finding is never cleared.
+ */
+export type ExceptionStanding = 'relied_on' | 'unanswered' | 'not_supported' | 'pending' | 'decided'
+
+function claimedException(r: Rule, p: Pack, facts: FactSet) {
+  const claim = facts.claims?.find((c) => c.rule === r.id)
+  const exception = claim && r.exceptions?.find((x) => x.id === claim.exception)
+  if (!claim || !exception) return undefined
+  const condition = exception.when ? test(exception.when, p, facts) : undefined
+  const decided = !!claim.decision?.by.trim() && !!claim.decision?.date
+  const standing: ExceptionStanding =
+    condition?.result === false
+      ? 'not_supported'
+      : condition?.result === null
+        ? 'unanswered'
+        : exception.kind === 'decision'
+          ? decided
+            ? 'decided'
+            : 'pending'
+          : 'relied_on'
+  return { ...exception, source: p.sources.find((s) => s.id === exception.source)!, claim, condition, standing }
+}
+
 export function assess(date: string, packs: Pack[], inputs: FactSet[]) {
   z.iso.date().parse(date)
   if (new Set(packs.map((p) => p.id)).size !== packs.length) throw Error('Select one release per instrument.')
@@ -90,13 +122,22 @@ export function assess(date: string, packs: Pack[], inputs: FactSet[]) {
           scope,
           condition,
         }
-      return { ...row, status: 'review_required' as const, scope, condition, finding: r.finding, actions: r.actions }
+      const exception = claimedException(r, p, facts)
+      return {
+        ...row,
+        status: 'review_required' as const,
+        scope,
+        condition,
+        finding: r.finding,
+        actions: r.actions,
+        ...(exception ? { exception } : {}),
+      }
     })
     return { pack: p, facts, findings }
   })
   return {
     format: 'pgmaps-legal-assessment/v1',
-    engineVersion: '1.0.0',
+    engineVersion: ENGINE_VERSION,
     assessmentDate: date,
     bindingDecision: false,
     releases,

@@ -66,7 +66,7 @@ const TOPICS: Record<string, TopicDef[]> = {
       id: 'spa',
       label: 'Special purpose areas (Forest Act §209, §215)',
       sections: [],
-      rules: ['spa-licence', 'spa-road', 'spa-exception'],
+      rules: ['spa-licence', 'spa-road'],
     },
   ],
   'bc.omineca.old-growth': [
@@ -91,7 +91,7 @@ const TOPICS: Record<string, TopicDef[]> = {
       id: 'cofa',
       label: 'Candidate old forest areas (Prince George TSA)',
       sections: [],
-      rules: ['cofa', 'cofa-variance', 'cofa-summary'],
+      rules: ['cofa', 'cofa-summary'],
     },
     { id: 'mugaha', label: 'Mugaha Marsh sensitive area', sections: [], rules: ['mugaha-share', 'mugaha-reserve'] },
     {

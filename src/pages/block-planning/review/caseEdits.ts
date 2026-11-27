@@ -1,8 +1,15 @@
 /**
- * Changes to one review case: which release of each instrument it uses, and the facts entered.
+ * Changes to one review case: which release of each instrument it uses, the facts entered and the
+ * exceptions claimed.
  * DOM- and network-free.
  */
-import { releaseKey, type FactSet, type Pack, type Scalar } from '../../../../packages/legal-rules/src/contract'
+import {
+  releaseKey,
+  type Claim,
+  type FactSet,
+  type Pack,
+  type Scalar,
+} from '../../../../packages/legal-rules/src/contract'
 import type { ReviewCase } from '../plan'
 
 export const instrumentOf = (key: string) => key.slice(0, key.lastIndexOf('@'))
@@ -22,18 +29,33 @@ export function setFact(
   evidence?: string,
 ): ReviewCase {
   const key = releaseKey(pack)
-  const set: FactSet = review.sets[key] ?? {
-    format: 'pgmaps-legal-facts/v1',
-    pack: pack.id,
-    version: pack.version,
-    source: 'Entered in the block planner',
-    facts: [],
-  }
+  const set = review.sets[key] ?? emptySet(pack)
   const previous = set.facts.find((f) => f.id === id)
   const facts = set.facts.filter((f) => f.id !== id)
   if (value !== undefined)
     facts.push({ id, value, evidence: evidence?.trim() || previous?.evidence || 'Entered in the block planner' })
   return { ...review, sets: { ...review.sets, [key]: { ...set, facts } } }
+}
+
+const emptySet = (pack: Pack): FactSet => ({
+  format: 'pgmaps-legal-facts/v1',
+  pack: pack.id,
+  version: pack.version,
+  source: 'Entered in the block planner',
+  facts: [],
+})
+
+/**
+ * Claims, changes or withdraws the exception relied on for one rule. A claim is the reviewer's
+ * record beside the answers, never a fact; withdrawing the last one leaves no `claims` key.
+ */
+export function setClaim(review: ReviewCase, pack: Pack, rule: string, claim: Claim | undefined): ReviewCase {
+  const key = releaseKey(pack)
+  const set = review.sets[key] ?? emptySet(pack)
+  const claims = [...(set.claims ?? []).filter((c) => c.rule !== rule), ...(claim ? [claim] : [])]
+  const next: FactSet = { ...set, claims }
+  if (!claims.length) delete next.claims
+  return { ...review, sets: { ...review.sets, [key]: next } }
 }
 
 /** The releases a case names that are not built in, so a saved plan opens anywhere. */

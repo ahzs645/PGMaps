@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parsePack } from '../../../packages/legal-rules/src/contract'
 import pg from '../../../packages/legal-rules/packs/bc-pgtsa-planning-1.2.0.json'
+import fppr from '../../../packages/legal-rules/packs/bc-fppr-planning-1.3.0.json'
 import { openPlanFile } from './migrate'
 import { parsePlan, samplePlan } from './plan'
 import { analyzePlan } from './planAnalysis'
@@ -30,6 +31,50 @@ const result = analyzePlan(plan, { schedule: 'proposed', year: 2026 })
 const library = [parsePack(pg)]
 
 describe('block planning exports', () => {
+  it('lists each exception relied on with its standing, rationale and evidence, and keeps it in the plan file', () => {
+    const block = plan.blocks[0]
+    const claimed = {
+      ...plan,
+      reviews: {
+        [block.id]: {
+          selected: ['bc.fppr@1.3.0'],
+          date: '2026-11-17',
+          sets: {
+            'bc.fppr@1.3.0': {
+              format: 'pgmaps-legal-facts/v1' as const,
+              pack: 'bc.fppr',
+              version: '1.3.0',
+              source: 'test',
+              facts: [
+                { id: 'applicable', value: true },
+                { id: 'holder', value: true },
+                { id: 'minor', value: false },
+                { id: 'region', value: 'Omineca' },
+                { id: 'nar', value: 75 },
+              ],
+              claims: [
+                {
+                  rule: 'limit-60',
+                  exception: 'fsp-result',
+                  rationale: 'The FSP sets patch size by landscape unit.',
+                  evidence: [{ label: 'The plan’s approval', reference: 'FSP 123' }],
+                },
+              ],
+            },
+          },
+        },
+      },
+    }
+    const both = [...library, parsePack(fppr)]
+    const summary = buildExport('summary', claimed, result, both, 'today')
+    expect(summary).toContain('<h2>Exceptions relied on</h2>')
+    expect(summary).toContain('Exception pending a decision')
+    expect(summary).toContain('The FSP sets patch size by landscape unit.')
+    expect(summary).toContain('FSP 123')
+    const reopened = openPlanFile(JSON.parse(buildExport('plan', claimed, undefined, both, 'today')))
+    expect(reopened.plan.reviews[block.id].sets['bc.fppr@1.3.0'].claims).toHaveLength(1)
+  })
+
   it('writes a plan file that opens again unchanged', () => {
     const reopened = openPlanFile(JSON.parse(buildExport('plan', plan, undefined, library, '2026-11-23')))
     expect(reopened.plan).toEqual(JSON.parse(JSON.stringify(plan)))

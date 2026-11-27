@@ -6,7 +6,7 @@ import type { ChangeEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormField, SelectField, FORM_INPUT_CLASS } from '@/components/ui/form-field'
 import { downloadText } from '@/lib/download'
-import { assess } from '../../../packages/legal-rules/engine/evaluate'
+import { assess, READABLE_ENGINE_VERSIONS } from '../../../packages/legal-rules/engine/evaluate'
 import {
   authoringSchema,
   accepts,
@@ -180,7 +180,8 @@ export default function LegalWorkbench({ plan }: { plan?: PlanReview } = {}) {
       } else {
         const data = payload[0]
         if (data?.format === 'pgmaps-legal-assessment/v1') {
-          if (data.engineVersion !== '1.0.0') throw Error('Unsupported assessment engine version.')
+          if (!READABLE_ENGINE_VERSIONS.includes(data.engineVersion))
+            throw Error('Unsupported assessment engine version.')
           if (!Array.isArray(data.releases) || !data.releases.length) throw Error('Assessment has no releases.')
           const ps: Pack[] = data.releases.map((r: { pack: unknown }) => parsePack(r.pack))
           const fs = ps.map((p, i) => parseFacts(data.releases[i].facts, p))

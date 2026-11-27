@@ -4,6 +4,7 @@
  *
  * DOM- and network-free.
  */
+import type { ExceptionStanding } from '../../../../packages/legal-rules/engine/evaluate'
 import type { Fact, Pack, Scalar } from '../../../../packages/legal-rules/src/contract'
 
 export type Status =
@@ -61,4 +62,13 @@ export function describeCheck(pack: Pack, check: CheckLine) {
   const answer = formatValue(fact, check.actual)
   const held = check.result === null ? 'unknown' : check.result ? 'met' : 'not met'
   return { asks, answer, held, result: check.result }
+}
+
+/** Where a claimed exception stands (the evaluator's `ExceptionStanding`), in words. */
+export const STANDING_WORDS: Record<ExceptionStanding, string> = {
+  relied_on: 'Exception relied on',
+  unanswered: 'Exception: to answer',
+  not_supported: 'Exception not supported',
+  pending: 'Exception pending a decision',
+  decided: 'Exception decided',
 }

@@ -303,11 +303,44 @@
       ]
     },
     "bc.fppr": {
+      "access#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
       "access": [
         {
           "source": "bc.fppr",
           "provision": "36",
           "quote": "An agreement holder must ensure that the area in a cutblock that is occupied by permanent access structures built by the holder or used by the holder does not exceed 7% of the cutblock, unless"
+        }
+      ],
+      "adjacency#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "adjacency#fsp-result": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.4",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 65 (2) if the person prepares and submits to the minister the proposed plan, including an intended result or strategy for wildlife and biodiversity at the landscape level set out in section 9"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "12.4",
+          "quote": "A holder of a timber sale licence or road permit to which a proposed forest stewardship plan relates is exempt from section 65 (2) if the timber sales manager"
+        }
+      ],
+      "adjacency#size-exception": [
+        {
+          "source": "bc.fppr",
+          "provision": "65",
+          "quote": "Subsection (2) does not apply if section 64 (2), (3) or (4) apply to the new cutblock."
         }
       ],
       "adjacency": [
@@ -327,6 +360,13 @@
           "source": "bc.fppr",
           "provision": "4.44",
           "quote": "Subject to section 4.45, an amendment referred to in section 4.43 is effective 30 days after the following documents have been provided to the minister:"
+        }
+      ],
+      "bank-stability#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
         }
       ],
       "bank-stability": [
@@ -371,6 +411,46 @@
           "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 66 if the person prepares and submits to the minister the proposed plan, including an intended result or strategy for wildlife and biodiversity at the stand level set out in section 9.1"
         }
       ],
+      "limit-40#basal-retention": [
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "Subsection (1) does not apply if the timber harvesting that is being carried out on the cutblock retains 40% or more of basal area of the stand that was on the cutblock before timber harvesting."
+        }
+      ],
+      "limit-40#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "limit-40#fsp-result": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.4",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 64 (1) if the person prepares and submits to the minister the proposed plan, including an intended result or strategy for wildlife and biodiversity at the landscape level set out in section 9"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "12.4",
+          "quote": "A holder of a timber sale licence or road permit to which a proposed forest stewardship plan relates is exempt from section 64 (1) if the timber sales manager"
+        }
+      ],
+      "limit-40#salvage-or-natural": [
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "Subsection (1) does not apply to an agreement holder where timber harvesting is being carried out on the cutblock to recover timber damaged by fire, insect infestation, wind or other similar events, or"
+        }
+      ],
+      "limit-40#tree-lengths": [
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "Subsection (1) does not apply if no point within the net area to be reforested is more than two tree lengths from either the cutblock boundary, or"
+        }
+      ],
       "limit-40": [
         {
           "source": "bc.fppr",
@@ -383,6 +463,46 @@
           "quote": "Subsection (1) does not apply to an agreement holder where timber harvesting is being carried out on the cutblock to recover timber damaged by fire, insect infestation, wind or other similar events, or"
         }
       ],
+      "limit-60#basal-retention": [
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "Subsection (1) does not apply if the timber harvesting that is being carried out on the cutblock retains 40% or more of basal area of the stand that was on the cutblock before timber harvesting."
+        }
+      ],
+      "limit-60#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "limit-60#fsp-result": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.4",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 64 (1) if the person prepares and submits to the minister the proposed plan, including an intended result or strategy for wildlife and biodiversity at the landscape level set out in section 9"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "12.4",
+          "quote": "A holder of a timber sale licence or road permit to which a proposed forest stewardship plan relates is exempt from section 64 (1) if the timber sales manager"
+        }
+      ],
+      "limit-60#salvage-or-natural": [
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "Subsection (1) does not apply to an agreement holder where timber harvesting is being carried out on the cutblock to recover timber damaged by fire, insect infestation, wind or other similar events, or"
+        }
+      ],
+      "limit-60#tree-lengths": [
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "Subsection (1) does not apply if no point within the net area to be reforested is more than two tree lengths from either the cutblock boundary, or"
+        }
+      ],
       "limit-60": [
         {
           "source": "bc.fppr",
@@ -393,6 +513,27 @@
           "source": "bc.fppr",
           "provision": "64",
           "quote": "Subsection (1) does not apply to an agreement holder where timber harvesting is being carried out on the cutblock to recover timber damaged by fire, insect infestation, wind or other similar events, or"
+        }
+      ],
+      "logs#agreement-or-enactment": [
+        {
+          "source": "bc.fppr",
+          "provision": "68",
+          "quote": "the holder's agreement or an enactment requires the holder to act in a manner contrary to that set out in subsection (1),"
+        }
+      ],
+      "logs#authorized-burn": [
+        {
+          "source": "bc.fppr",
+          "provision": "68",
+          "quote": "the holder carries out on the cutblock a controlled burn that is authorized under an enactment, or"
+        }
+      ],
+      "logs#fibre-recovery": [
+        {
+          "source": "bc.fppr",
+          "provision": "68",
+          "quote": "the holder is a fibre recovery tenure holder."
         }
       ],
       "logs": [
@@ -416,11 +557,25 @@
           "quote": "Subject to subsection (2), if the minister responsible for the Forest Act approves a result or strategy in a forest stewardship plan in respect of an established objective that conflicts with a requirement of Part 4 or 5"
         }
       ],
+      "other-soil#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
       "other-soil": [
         {
           "source": "bc.fppr",
           "provision": "35",
           "quote": "if the standards unit not is not predominantly comprised of sensitive soils, 10% of the area covered by the standards unit, excluding any area covered by a roadside work area;"
+        }
+      ],
+      "overlap-soil#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
         }
       ],
       "overlap-soil": [
@@ -442,11 +597,79 @@
           "quote": "Despite subsection (1), a holder of a cutting permit, a forestry licence to cut that does not provide for cutting permits or a timber sale licence may harvest timber in a targeted pine leading stand without retaining an adequate stocking density of suitable secondary structure if"
         }
       ],
+      "pine-secondary#blowdown": [
+        {
+          "source": "bc.fppr",
+          "provision": "43.1",
+          "quote": "the timber in the stand is subject to a significant risk of blowdown,"
+        }
+      ],
+      "pine-secondary#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "pine-secondary#live-beetle": [
+        {
+          "source": "bc.fppr",
+          "provision": "43.1",
+          "quote": "at the time of harvesting, at least 30% of the pine trees in the stand contain live mountain pine beetles,"
+        }
+      ],
+      "pine-secondary#road": [
+        {
+          "source": "bc.fppr",
+          "provision": "43.1",
+          "quote": "the harvesting is necessary to construct a road in the targeted pine leading stand and there is no other practicable option for locating the road, or"
+        }
+      ],
+      "pine-secondary#safety-hazard": [
+        {
+          "source": "bc.fppr",
+          "provision": "43.1",
+          "quote": "it is necessary to fell or modify a tree that is a safety hazard and there is no other practicable option for addressing the safety hazard,"
+        }
+      ],
+      "pine-secondary#seed": [
+        {
+          "source": "bc.fppr",
+          "provision": "43.1",
+          "quote": "harvesting the timber is necessary to facilitate collection of tree seed and the resulting opening does not exceed 1 ha."
+        }
+      ],
+      "pine-secondary#wildfire": [
+        {
+          "source": "bc.fppr",
+          "provision": "43.1",
+          "quote": "harvesting the timber is necessary to protect a community, or other area agreed to by the minister prior to harvesting, from wildfire, or"
+        }
+      ],
       "pine-secondary": [
         {
           "source": "bc.fppr",
           "provision": "43.1",
           "quote": "A holder of a cutting permit, a forestry licence to cut that does not provide for cutting permits or a timber sale licence must not carry out timber harvesting in a targeted pine leading stand, unless"
+        }
+      ],
+      "retention-block#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "retention-block#fsp-result": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.5",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 66 if the person prepares and submits to the minister the proposed plan, including an intended result or strategy for wildlife and biodiversity at the stand level set out in section 9.1"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "12.5",
+          "quote": "A holder of a timber sale licence or road permit to which a proposed forest stewardship plan relates is exempt from section 66 if the timber sales manager"
         }
       ],
       "retention-block": [
@@ -461,6 +684,25 @@
           "quote": "For the purposes of subsection (1) and (2), a wildlife tree retention area may relate to more than one cutblock if all of the cutblocks that relate to the wildlife tree retention area collectively meet the applicable requirements of this section."
         }
       ],
+      "retention-period#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "retention-period#fsp-result": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.5",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 66 if the person prepares and submits to the minister the proposed plan, including an intended result or strategy for wildlife and biodiversity at the stand level set out in section 9.1"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "12.5",
+          "quote": "A holder of a timber sale licence or road permit to which a proposed forest stewardship plan relates is exempt from section 66 if the timber sales manager"
+        }
+      ],
       "retention-period": [
         {
           "source": "bc.fppr",
@@ -473,11 +715,25 @@
           "quote": "For the purposes of subsection (1) and (2), a wildlife tree retention area may relate to more than one cutblock if all of the cutblocks that relate to the wildlife tree retention area collectively meet the applicable requirements of this section."
         }
       ],
+      "roadside-soil#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
       "roadside-soil": [
         {
           "source": "bc.fppr",
           "provision": "35",
           "quote": "25% of the area covered by a roadside work area."
+        }
+      ],
+      "sensitive-soil#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
         }
       ],
       "sensitive-soil": [
@@ -525,11 +781,25 @@
           "quote": "At least 48 hours before commencement of road construction or deactivation in a community watershed, a person must notify affected water licensees or affected water purveyors."
         }
       ],
+      "width-47-area#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
       "width-47-area": [
         {
           "source": "bc.fppr",
           "provision": "47",
           "quote": "Subject to subsections (5) and (6), for each riparian class of stream, the minimum riparian management area width, riparian reserve zone width and riparian management zone width, on each side of the stream, are as follows:"
+        }
+      ],
+      "width-47-management#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
         }
       ],
       "width-47-management": [
@@ -539,11 +809,25 @@
           "quote": "Subject to subsections (5) and (6), for each riparian class of stream, the minimum riparian management area width, riparian reserve zone width and riparian management zone width, on each side of the stream, are as follows:"
         }
       ],
+      "width-47-reserve#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
       "width-47-reserve": [
         {
           "source": "bc.fppr",
           "provision": "47",
           "quote": "Subject to subsections (5) and (6), for each riparian class of stream, the minimum riparian management area width, riparian reserve zone width and riparian management zone width, on each side of the stream, are as follows:"
+        }
+      ],
+      "width-48-area#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
         }
       ],
       "width-48-area": [
@@ -553,11 +837,25 @@
           "quote": "Subject to subsections (4) and (5), for each riparian class of wetland, the minimum riparian management area width, riparian reserve zone width and riparian management zone width for the wetland are as follows:"
         }
       ],
+      "width-48-management#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
       "width-48-management": [
         {
           "source": "bc.fppr",
           "provision": "48",
           "quote": "Subject to subsections (4) and (5), for each riparian class of wetland, the minimum riparian management area width, riparian reserve zone width and riparian management zone width for the wetland are as follows:"
+        }
+      ],
+      "width-48-reserve#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
         }
       ],
       "width-48-reserve": [
@@ -567,11 +865,25 @@
           "quote": "Subject to subsections (4) and (5), for each riparian class of wetland, the minimum riparian management area width, riparian reserve zone width and riparian management zone width for the wetland are as follows:"
         }
       ],
+      "width-49-area#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
       "width-49-area": [
         {
           "source": "bc.fppr",
           "provision": "49",
           "quote": "Subject to subsection (3), for each riparian class of lake, the minimum riparian management area width, riparian reserve zone width and riparian management zone width are as follows:"
+        }
+      ],
+      "width-49-management#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
         }
       ],
       "width-49-management": [
@@ -581,11 +893,37 @@
           "quote": "Subject to subsection (3), for each riparian class of lake, the minimum riparian management area width, riparian reserve zone width and riparian management zone width are as follows:"
         }
       ],
+      "width-49-reserve#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
       "width-49-reserve": [
         {
           "source": "bc.fppr",
           "provision": "49",
           "quote": "Subject to subsection (3), for each riparian class of lake, the minimum riparian management area width, riparian reserve zone width and riparian management zone width are as follows:"
+        }
+      ],
+      "wt-harvest#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "wt-harvest#fsp-result": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.5",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 67 if the person prepares and submits to the minister the proposed plan, including an intended result or strategy for wildlife and biodiversity at the stand level set out in section 9.1"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "12.5",
+          "quote": "A holder of a timber sale licence or road permit to which a proposed forest stewardship plan relates is exempt from section 67 if the timber sales manager"
         }
       ],
       "wt-harvest": [
@@ -714,6 +1052,18 @@
           "source": "bc.pg.ancient-forest-ogma.2009",
           "provision": "2",
           "quote": "Retain all timber within the Old Growth Management Area, as shown on the attached map titled Schedule A Map."
+        }
+      ],
+      "cofa#variance": [
+        {
+          "source": "bc.pgtsa.loe.2022",
+          "provision": "PG DM ¶4",
+          "quote": "As such, the District Manager may consider a variance to the no harvest expectation in a COFA when it is determined through"
+        },
+        {
+          "source": "bc.pgtsa.loe.2022",
+          "provision": "PG DM ¶4",
+          "quote": "An alternative area of ecological importance of equal or greater value has been identified."
         }
       ],
       "cofa": [
@@ -912,11 +1262,32 @@
       ]
     },
     "bc.forest-permits": {
+      "cutting-permit#authorized-without": [
+        {
+          "source": "bc.forest-act",
+          "provision": "52.02",
+          "quote": "Subsections (1) and (2) do not apply to the extent that harvesting without a cutting permit is specifically authorized under this Act or another enactment."
+        }
+      ],
       "cutting-permit": [
         {
           "source": "bc.forest-act",
           "provision": "52.02",
           "quote": "The holder of a forest licence or an area-based licence must not harvest the allowable annual cut available except as authorized under a cutting permit issued under this Part."
+        }
+      ],
+      "fdu#earlier-permit": [
+        {
+          "source": "bc.frpa",
+          "provision": "3",
+          "quote": "The holder of an agreement is exempt from subsection (1) (c) and (d) if the holder harvests timber or constructs roads in an area of land that is subject to a cutting permit or road permit issued before"
+        }
+      ],
+      "fdu#section-4-purpose": [
+        {
+          "source": "bc.frpa",
+          "provision": "4",
+          "quote": "If a forest stewardship plan held by the holder of an agreement referred to in section 3 (1) or by the timber sales manager referred to in section 3 (2) does not apply to an area outside the forest development unit to which the plan pertains"
         }
       ],
       "fdu": [
@@ -933,11 +1304,25 @@
           "quote": "A person required to prepare a forest stewardship plan must ensure that the plan identifies for the forest development units specified under subsection (1) those things described in subsection (3) that"
         }
       ],
+      "fom#section-4-purpose": [
+        {
+          "source": "bc.frpa",
+          "provision": "15.1",
+          "quote": "Subsections (1) to (3) do not apply to an application for a cutting permit or road permit if timber is to be harvested under the cutting permit or roads are to be constructed under the road permit, as applicable, only for the following purposes:"
+        }
+      ],
       "fom": [
         {
           "source": "bc.frpa",
           "provision": "15.1",
           "quote": "Subject to subsection (4) of this section and section 15.3, the holder of a forest stewardship plan may apply for a cutting permit or a road permit to construct a road only if the requirements under subsections (2) and (3) have been met."
+        }
+      ],
+      "fom-review#shorter-period": [
+        {
+          "source": "bc.fppr",
+          "provision": "34.2",
+          "quote": "a lesser number of days after that date that the minister may determine if the minister considers that the lesser number of days is necessary in order to respond to risks relating to the environment, forest health or wildfire."
         }
       ],
       "fom-review": [
@@ -971,6 +1356,13 @@
           "quote": "the road permit area is located in a forest landscape area and either of the following applies: the applicant does not hold a forest operations plan, as required under the Forest and Range Practices Act, that applies to the road permit area;"
         }
       ],
+      "permit-refusal#section-4-purpose": [
+        {
+          "source": "bc.frpa",
+          "provision": "4",
+          "quote": "If a forest stewardship plan held by the holder of an agreement referred to in section 3 (1) or by the timber sales manager referred to in section 3 (2) does not apply to an area outside the forest development unit to which the plan pertains"
+        }
+      ],
       "permit-refusal": [
         {
           "source": "bc.forest-act",
@@ -1002,11 +1394,46 @@
           "quote": "An authorized official may, under a road permit or special use permit, authorize the holder of the permit to construct a road in an area designated as a special purpose area if the authorized official is satisfied that one or more of the following apply:"
         }
       ],
+      "spa-licence#fltc-purpose": [
+        {
+          "source": "bc.forest-act",
+          "provision": "209",
+          "quote": "An authorized official may enter into or issue a licence or permit that grants rights exercisable in a special purpose area if the licence or permit is one of the following:"
+        }
+      ],
+      "spa-licence#special-purposes": [
+        {
+          "source": "bc.forest-act",
+          "provision": "223",
+          "quote": "The following provisions do not apply in relation to an area-based licence if the area-based licence is a licence entered into for special purposes:"
+        }
+      ],
       "spa-licence": [
         {
           "source": "bc.forest-act",
           "provision": "209",
           "quote": "Except as authorized under subsection (2), an authorized official must not enter into or issue any of the following licences or permits if the licence or permit would grant rights exercisable in a special purpose area:"
+        }
+      ],
+      "spa-road#earlier-licence": [
+        {
+          "source": "bc.forest-act",
+          "provision": "215",
+          "quote": "the road is necessary to carry out timber harvesting under a forestry licence to cut entered into before the effective date of the designation;"
+        }
+      ],
+      "spa-road#no-interference": [
+        {
+          "source": "bc.forest-act",
+          "provision": "215",
+          "quote": "the road does not significantly interfere with the purpose or purposes of the special purpose area;"
+        }
+      ],
+      "spa-road#purpose-licence": [
+        {
+          "source": "bc.forest-act",
+          "provision": "215",
+          "quote": "the road is necessary to carry out timber harvesting under a forestry licence to cut entered into for a purpose described in section 209 (2) (a) [restriction on entering into or amending certain other licences or permits];"
         }
       ],
       "spa-road": [

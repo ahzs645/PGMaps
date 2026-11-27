@@ -242,7 +242,9 @@ export function ProvisionText({ citation }: { citation: Citation }) {
     <div className="space-y-4">
       {quotes.length > 0 && (
         <div className="space-y-1">
-          <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">Quoted by this rule</p>
+          <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+            {citation.rule?.id.includes('#') ? 'Quoted for this exception' : 'Quoted by this rule'}
+          </p>
           {quotes.map((q) => (
             <blockquote key={q} className="border-l-2 border-primary pl-3 font-serif text-sm italic">
               “{q}”

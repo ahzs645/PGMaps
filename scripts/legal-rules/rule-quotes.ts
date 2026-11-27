@@ -11,7 +11,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { citedSpan, findSection, type LawSource } from '../../src/lib/legal/lawText'
 import { orderProvision, type OrderText } from '../../src/lib/legal/orderText'
 import { orderRefs, parseProvision } from '../../src/lib/legal/provisions'
-import { MAX_RULE_QUOTE_CHARS, type RuleQuote, type RuleQuotesFile } from '../../src/lib/legal/ruleQuotes'
+import { exceptionKey, MAX_RULE_QUOTE_CHARS, type RuleQuote, type RuleQuotesFile } from '../../src/lib/legal/ruleQuotes'
 import { parsePack } from '../../packages/legal-rules/src/contract'
 
 const root = new URL('../../packages/legal-rules/', import.meta.url)
@@ -103,12 +103,17 @@ function main() {
     .sort()) {
     const pack = parsePack(read('packs/' + name))
     const rules = (file.rules[pack.id] ??= {})
-    for (const rule of pack.rules) {
-      if (rules[rule.id]?.length) continue
-      const source = pack.sources.find((s) => s.id === rule.source)!
-      const quotes = startingQuotes(source.url, rule.provision)
-      if (quotes.length) rules[rule.id] = quotes
-      else missing.push(`${pack.id}:${rule.id} (${rule.provision})`)
+    // A rule's exceptions are quoted under "<rule>#<exception>", from their own provisions.
+    const cited = pack.rules.flatMap((rule) => [
+      { key: rule.id, source: rule.source, provision: rule.provision },
+      ...(rule.exceptions ?? []).map((x) => ({ key: exceptionKey(rule.id, x.id), ...x })),
+    ])
+    for (const c of cited) {
+      if (rules[c.key]?.length) continue
+      const source = pack.sources.find((s) => s.id === c.source)!
+      const quotes = startingQuotes(source.url, c.provision)
+      if (quotes.length) rules[c.key] = quotes
+      else missing.push(`${pack.id}:${c.key} (${c.provision})`)
     }
   }
   if (process.argv.includes('--check')) {

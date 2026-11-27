@@ -16,7 +16,7 @@ export interface RuleQuote {
 export interface RuleQuotesFile {
   format: 'pgmaps-rule-quotes/v1'
   notice: string
-  /** Pack id → rule id → quotes. */
+  /** Pack id → rule id (or `exceptionKey` for one of its exceptions) → quotes. */
   rules: Record<string, Record<string, RuleQuote[]>>
 }
 
@@ -25,6 +25,9 @@ export const MAX_RULE_QUOTE_CHARS = 320
 
 export const quotesFor = (file: RuleQuotesFile | null, packId: string, ruleId: string) =>
   file?.rules[packId]?.[ruleId] ?? []
+
+/** The key an exception's quotes are kept under, beside its rule's: "limit-60#basal-retention". */
+export const exceptionKey = (ruleId: string, exceptionId: string) => `${ruleId}#${exceptionId}`
 
 let pending: Promise<RuleQuotesFile> | null = null
 /** Loads the quotes once, on first use, as its own chunk. */

@@ -94,6 +94,16 @@ export function citationIndex(
       const source = sourceOf(p.sources.find((s) => s.id === r.source)?.url ?? '')
       if (source)
         add(source, r.provision, { kind: 'rule', id: `${p.id}@${p.version}:${r.id}`, label: `${p.title}: ${r.title}` })
+      // An exception a rule lists cites its own provision, so the law that makes it is reached too.
+      for (const x of r.exceptions ?? []) {
+        const from = sourceOf(p.sources.find((s) => s.id === x.source)?.url ?? '')
+        if (from)
+          add(from, x.provision, {
+            kind: 'rule',
+            id: `${p.id}@${p.version}:${r.id}#${x.id}`,
+            label: `${p.title}: ${r.title}, exception`,
+          })
+      }
     }
   const walk = (o: unknown, c: Citing): void => {
     if (Array.isArray(o)) o.forEach((x) => walk(x, c))

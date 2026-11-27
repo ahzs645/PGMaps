@@ -26,6 +26,7 @@ import { DEFAULT_INDEX_WEIGHTS, indexFormula, INDEX_INDICATORS, planningIndex } 
 import { pathways, trendYearOf } from './review/pathways'
 import { featureMeasure, GROUP_LABELS, layerSummary, MAPPED_LAYER_INFO } from './review/grazingEvidence'
 import { mappedReadCurrent, rangeReviewCurrent } from './review/rangeReview'
+import { STANDING_WORDS } from './review/wording'
 import { corridorSentence, excludedSentence } from './oldForest/recordText'
 import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
 import {
@@ -477,6 +478,42 @@ ${keys
 }
 
 /** A grazing review's mapped read, dated and named as candidates; a layer not read says so. */
+type AssessedFinding = ReturnType<typeof assess>['releases'][number]['findings'][number]
+
+/** A finding's claimed exception in one line: what is relied on, where it stands, and why. */
+function exceptionLine(f: AssessedFinding) {
+  const x = 'exception' in f ? f.exception : undefined
+  if (!x) return ''
+  const evidence = (x.claim.evidence ?? []).map(
+    (e) => `${e.label}: ${[e.reference, e.date].filter(Boolean).join(', ')}`,
+  )
+  const decision = x.claim.decision?.by
+    ? `Decided by ${x.claim.decision.by}${x.claim.decision.date ? ' on ' + x.claim.decision.date : ''}${x.claim.decision.reference ? ' (' + x.claim.decision.reference + ')' : ''}.`
+    : ''
+  return ` <em>${escape(STANDING_WORDS[x.standing])}:</em> ${escape(x.label)}.${x.claim.rationale ? ' ' + escape(x.claim.rationale) : ''}${decision ? ' ' + escape(decision) : ''}${evidence.length ? ' Evidence: ' + escape(evidence.join('; ')) + '.' : ''}`
+}
+
+/** Every exception relied on across the block reviews, with its standing, rationale and evidence. */
+function exceptionsHtml(plan: Plan, blockReviews: Record<string, ReturnType<typeof review>>) {
+  const rows = Object.entries(blockReviews).flatMap(([id, result]) =>
+    result && 'releases' in result
+      ? result.releases.flatMap((release) =>
+          release.findings
+            .filter((f) => 'exception' in f && f.exception)
+            .map(
+              (f) =>
+                `<li><strong>${escape(plan.blocks.find((b) => b.id === id)?.name ?? id)}</strong> · ${escape(release.pack.title)}, ${escape(f.title)} (§${escape(f.provision)}).${exceptionLine(f)}</li>`,
+            ),
+        )
+      : [],
+  )
+  return rows.length
+    ? `<h2>Exceptions relied on</h2>
+<p class="note">Each finding stays raised with the exception claimed on it; the reviewer's claim and evidence are the record.</p>
+<ul>${rows.join('')}</ul>`
+    : ''
+}
+
 function mappedHtml(mapped: MappedEvidence | undefined, current: boolean) {
   if (!mapped) return ''
   const cell = (c: unknown) => `<td>${escape(c)}</td>`
@@ -629,7 +666,7 @@ ${record.rangeReviews
 ${r.reference ? `<p>${escape(r.reference).replace(/\n/g, '<br>')}</p>` : ''}
 ${outsideWindow ? '<p>The assessment date is outside the rule pack’s source window.</p>' : ''}
 ${r.assessment && 'error' in r.assessment ? `<p>${escape(r.assessment.error)}</p>` : ''}
-${rows.length ? `<ul>${rows.map((f) => `<li>${escape(f.title)} (§${escape(f.provision)}) — ${f.status === 'review_required' ? escape(f.finding) : 'Evidence needed.'}</li>`).join('')}</ul>` : ''}
+${rows.length ? `<ul>${rows.map((f) => `<li>${escape(f.title)} (§${escape(f.provision)}) — ${f.status === 'review_required' ? escape(f.finding) + exceptionLine(f) : 'Evidence needed.'}</li>`).join('')}</ul>` : ''}
 ${mappedHtml(r.mapped, r.mappedCurrent)}`
   })
   .join('\n')}`
@@ -655,6 +692,7 @@ ${schedules}
 ${published}
 ${boardHtml}
 ${oldHtml}
+${exceptionsHtml(plan, record.blockReviews)}
 ${rangeHtml}
 ${groundSection}
 <h2>D.5 pathways</h2>

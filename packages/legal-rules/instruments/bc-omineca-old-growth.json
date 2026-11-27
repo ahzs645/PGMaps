@@ -1,7 +1,7 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.omineca.old-growth",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "Omineca old growth and sensitive area orders",
   "description": "Block screens for the legal old growth management areas and sensitive areas set by Omineca land use orders (Dome and Slim, Humbug, the 2010 Mackenzie spatial order, the Ancient Forest Trail), the Mugaha Marsh sensitive area, the Obo River and Fox landscape units, and the Prince George candidate old forest areas the district managers expect to be left unharvested.",
   "coverage": {
@@ -62,11 +62,6 @@
     {
       "id": "cofa",
       "label": "Does the block or its road overlap a candidate old forest area (COFA) in the Prince George TSA?",
-      "type": "boolean"
-    },
-    {
-      "id": "cofa-variance",
-      "label": "Has the District Manager approved a variance for this incursion into the COFA?",
       "type": "boolean"
     },
     {

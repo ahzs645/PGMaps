@@ -4,7 +4,7 @@ import { parsePack, type Pack } from '../../../packages/legal-rules/src/contract
 import { citedSpan, findSection, quoteFound, type LawSource } from './lawText'
 import { orderProvision, orderQuoteFound, parseOrderText, type OrderText } from './orderText'
 import { orderRefs, parseProvision } from './provisions'
-import { MAX_RULE_QUOTE_CHARS, type RuleQuotesFile } from './ruleQuotes'
+import { exceptionKey, MAX_RULE_QUOTE_CHARS, type RuleQuotesFile } from './ruleQuotes'
 
 const root = new URL('../../../packages/legal-rules/', import.meta.url)
 const read = (path: string) => JSON.parse(readFileSync(new URL(path, root), 'utf8'))
@@ -28,9 +28,12 @@ const packs: Pack[] = readdirSync(new URL('packs/', root))
 const quotes: RuleQuotesFile = read('catalogue/rule-quotes.json')
 
 describe('rule quotes', () => {
-  it('gives every shipped rule at least one quote', () => {
+  it('gives every shipped rule, and every exception a rule lists, at least one quote', () => {
     const missing = packs.flatMap((p) =>
-      p.rules.filter((r) => !quotes.rules[p.id]?.[r.id]?.length).map((r) => `${p.id}:${r.id}`),
+      p.rules
+        .flatMap((r) => [r.id, ...(r.exceptions ?? []).map((x) => exceptionKey(r.id, x.id))])
+        .filter((key) => !quotes.rules[p.id]?.[key]?.length)
+        .map((key) => `${p.id}:${key}`),
     )
     expect(missing).toEqual([])
   })
@@ -65,6 +68,11 @@ describe('citations', () => {
     for (const r of p.rules) {
       const source = byUrl.get(p.sources.find((s) => s.id === r.source)!.url)
       if (source) citations.push({ at: `${p.id}@${p.version}:${r.id}`, source, provision: r.provision })
+      for (const x of r.exceptions ?? []) {
+        const from = byUrl.get(p.sources.find((s) => s.id === x.source)!.url)
+        const at = `${p.id}@${p.version}:${exceptionKey(r.id, x.id)}`
+        if (from) citations.push({ at, source: from, provision: x.provision })
+      }
     }
   const ground = read('ground/instruments.json').instruments as unknown[]
   const walk = (o: unknown, at: string): void => {

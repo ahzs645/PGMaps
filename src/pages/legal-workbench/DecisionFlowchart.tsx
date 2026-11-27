@@ -7,10 +7,10 @@ import { DialogShell } from '@/components/ui/dialog-shell'
 import { downloadText } from '@/lib/download'
 import { useElementSize } from '@/hooks/useElementSize'
 import { ACTION_KIND, decisionTree, treeToMermaid, type DecisionTree, type TreeNode } from '@/lib/legal/decisionTree'
-import { loadRuleQuotes, quotesFor, type RuleQuotesFile } from '@/lib/legal/ruleQuotes'
+import { exceptionKey, loadRuleQuotes, quotesFor, type RuleQuotesFile } from '@/lib/legal/ruleQuotes'
 import { cn } from '@/lib/utils'
 import type { Pack, Scalar } from '../../../packages/legal-rules/src/contract'
-import { ProvisionText } from './ProvisionPreview'
+import { ProvisionLink, ProvisionText } from './ProvisionPreview'
 
 export interface FlowchartTopic {
   id: string
@@ -342,6 +342,35 @@ function Detail({
           </p>
         ))}
       </div>
+      {rule.exceptions?.length ? (
+        <div className="space-y-1 text-xs" data-testid="rule-exceptions">
+          <p className="font-medium">Exceptions the law makes</p>
+          <ul className="space-y-1">
+            {rule.exceptions.map((x) => {
+              const from = pack.sources.find((s) => s.id === x.source)!
+              return (
+                <li key={x.id}>
+                  {x.label}{' '}
+                  <span className="text-muted-foreground">
+                    · {x.kind === 'decision' ? `decided by ${x.decidedBy}` : 'holds by law'} ·{' '}
+                  </span>
+                  <ProvisionLink
+                    citation={{
+                      sourceUrl: from.url,
+                      sourceTitle: from.title,
+                      provision: x.provision,
+                      rule: { pack: pack.id, id: exceptionKey(rule.id, x.id) },
+                    }}
+                  />
+                </li>
+              )
+            })}
+          </ul>
+          <p className="text-muted-foreground">
+            A reviewer claims one on the finding, with a rationale and evidence; the finding stays raised.
+          </p>
+        </div>
+      ) : null}
       <ProvisionText
         citation={{
           sourceUrl: source.url,

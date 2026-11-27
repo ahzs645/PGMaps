@@ -357,13 +357,13 @@
       "n": "4",
       "relevance": "plan",
       "bearsOn": "An FSP holder may harvest or build road outside its forest development units, and no FSP is needed, only for safety hazards, seed collection (opening of 1 ha or less), removing felled trees from landings and rights of way, up to 500 m³ of threatened or treated timber, or prescribed purposes.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "A rule would test a claimed s. 4 exemption against its purposes, including the 1 ha opening and 500 m³ limits, for salvage blocks outside an FDU.",
-      "encodable": "numeric",
-      "proposedFacts": [
-        "Is the harvest outside a forest development unit only for a purpose FRPA s. 4(1) lists?",
-        "If the exemption relies on s. 4(1)(d), is the timber volume 500 m³ or less and has the minister formed the opinion that it is in danger of being lost or has been treated for pests?"
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "Claimed as an exception on the forest development unit, map and refusal rules; the 1 ha opening and 500 m³ limits are the evidence the reviewer records, not tested figures.",
+      "coveredBy": [
+        "bc.forest-permits@1.1.0:fdu#section-4-purpose",
+        "bc.forest-permits@1.1.0:fom#section-4-purpose",
+        "bc.forest-permits@1.1.0:permit-refusal#section-4-purpose"
       ]
     },
     {

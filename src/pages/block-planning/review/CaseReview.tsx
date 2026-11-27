@@ -10,16 +10,18 @@ import { assess } from '../../../../packages/legal-rules/engine/evaluate'
 import { spatialFacts, type Measurement } from '../../../../packages/legal-rules/engine/spatialFacts'
 import {
   releaseKey,
+  type Claim,
   type Fact,
   type FactSet,
   type Pack,
   type Scalar,
 } from '../../../../packages/legal-rules/src/contract'
 import type { ReviewCase } from '../plan'
-import { chooseRelease, instrumentOf, setFact } from './caseEdits'
+import { chooseRelease, instrumentOf, setClaim, setFact } from './caseEdits'
+import { ExceptionClaim, STANDING_TONE } from './ExceptionClaim'
 import { findingCounts, questions, type Finding, type Question } from './questions'
 import { topicSections } from './topics'
-import { describeCheck, formatValue, STATUS_WORDS, type Status } from './wording'
+import { describeCheck, formatValue, STANDING_WORDS, STATUS_WORDS, type Status } from './wording'
 
 const RuleFlow = lazy(() => import('../../legal-workbench/RuleFlow'))
 const ProvisionLink = lazy(() =>
@@ -94,7 +96,20 @@ function Answer({
   )
 }
 
-function FindingRow({ pack, finding, facts, date }: { pack: Pack; finding: Finding; facts: FactSet; date: string }) {
+function FindingRow({
+  pack,
+  finding,
+  facts,
+  date,
+  onClaim,
+}: {
+  pack: Pack
+  finding: Finding
+  facts: FactSet
+  date: string
+  onClaim: (claim: Claim | undefined) => void
+}) {
+  const exception = 'exception' in finding ? finding.exception : undefined
   const rule = pack.rules.find((r) => r.id === finding.rule)!
   const stages = (
     [
@@ -106,9 +121,16 @@ function FindingRow({ pack, finding, facts, date }: { pack: Pack; finding: Findi
     <DisclosureRow
       title={finding.title}
       summary={
-        <Badge tone={STATUS_TONE[finding.status]} size="sm">
-          {STATUS_WORDS[finding.status]}
-        </Badge>
+        // One badge fits the row: a claimed exception's standing says the rule was raised as well.
+        exception ? (
+          <Badge tone={STANDING_TONE[exception.standing]} size="sm">
+            {STANDING_WORDS[exception.standing]}
+          </Badge>
+        ) : (
+          <Badge tone={STATUS_TONE[finding.status]} size="sm">
+            {STATUS_WORDS[finding.status]}
+          </Badge>
+        )
       }
       contentClassName="space-y-2 text-xs"
     >
@@ -137,6 +159,7 @@ function FindingRow({ pack, finding, facts, date }: { pack: Pack; finding: Findi
             <span className="font-medium">{ACTION_KIND[a.kind]}:</span> {a.description}
           </p>
         ))}
+      <ExceptionClaim pack={pack} rule={rule} finding={finding} onChange={onClaim} />
       {stages.map(([heading, stage]) => (
         <div key={heading} className="space-y-1">
           <p className="font-medium">{heading}</p>
@@ -280,8 +303,9 @@ export function CaseReview({
               {release.pack.title} {release.pack.version}
               <span className="font-normal text-muted-foreground">
                 {' '}
-                · {counts.review} need review · {counts.open} need an answer · {counts.clear} not triggered ·{' '}
-                {counts.notApplicable} do not apply
+                · {counts.review} need review
+                {counts.exception ? ` (${counts.exception} relying on an exception)` : ''} · {counts.open} need an
+                answer · {counts.clear} not triggered · {counts.notApplicable} do not apply
               </span>
             </p>
             {!asked.some((q) => q.state === 'open') && (
@@ -355,7 +379,14 @@ export function CaseReview({
                     ),
                   )}
                   {active.map((f) => (
-                    <FindingRow key={f.rule} pack={release.pack} finding={f} facts={release.facts} date={review.date} />
+                    <FindingRow
+                      key={f.rule}
+                      pack={release.pack}
+                      finding={f}
+                      facts={release.facts}
+                      date={review.date}
+                      onClaim={(claim) => onChange(setClaim(review, release.pack, f.rule, claim))}
+                    />
                   ))}
                   {settled.length > 0 && (
                     <DisclosureRow title={`Settled rules (${settled.length})`} summary="Not triggered, or not applying">
@@ -366,6 +397,7 @@ export function CaseReview({
                           finding={f}
                           facts={release.facts}
                           date={review.date}
+                          onClaim={(claim) => onChange(setClaim(review, release.pack, f.rule, claim))}
                         />
                       ))}
                     </DisclosureRow>

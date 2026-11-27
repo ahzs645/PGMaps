@@ -21,11 +21,6 @@
             "No",
             "Partly"
           ]
-        },
-        {
-          "fact": "fsp-purpose",
-          "op": "eq",
-          "value": false
         }
       ]
     ],
@@ -43,6 +38,29 @@
       {
         "kind": "obtain-approval",
         "description": "Amend the forest stewardship plan to add the area to a forest development unit, and have the amendment approved, before applying."
+      }
+    ],
+    "exceptions": [
+      {
+        "id": "section-4-purpose",
+        "label": "The harvest or road is only for a FRPA §4 purpose: a safety hazard, seed collection leaving 1 ha or less, removing felled trees from landings and rights of way, up to 500 m³ at risk from insects, fire or disease, or a prescribed purpose",
+        "source": "frpa",
+        "provision": "4(1)–(2)",
+        "kind": "by-law",
+        "evidence": [
+          "The purpose and the volume or opening"
+        ]
+      },
+      {
+        "id": "earlier-permit",
+        "label": "The harvest or road is under a cutting or road permit issued before the forest stewardship plan that covered it expired or the holder left it (§3(1.1))",
+        "source": "frpa",
+        "provision": "3(1.1)",
+        "kind": "by-law",
+        "evidence": [
+          "The permit and its issue date",
+          "The plan’s expiry or the holder’s removal"
+        ]
       }
     ]
   },
@@ -162,11 +180,6 @@
             "No",
             "Partly"
           ]
-        },
-        {
-          "fact": "fsp-purpose",
-          "op": "eq",
-          "value": false
         }
       ]
     ],
@@ -196,6 +209,18 @@
       {
         "kind": "submit",
         "description": "Publish the map with both notices, run the review, then submit the review report before the permit application."
+      }
+    ],
+    "exceptions": [
+      {
+        "id": "section-4-purpose",
+        "label": "The harvest or road is only for a FRPA §4(1)(a)–(c) or (d)(ii) purpose (§15.1(4)): a safety hazard, seed collection leaving 1 ha or less, removing felled trees from landings and rights of way, up to 500 m³ at risk from insects, fire or disease, or a prescribed purpose",
+        "source": "frpa",
+        "provision": "15.1(4)",
+        "kind": "by-law",
+        "evidence": [
+          "The purpose and the volume or opening"
+        ]
       }
     ]
   },
@@ -237,11 +262,6 @@
           "value": {
             "parameter": "fom-review-period"
           }
-        },
-        {
-          "fact": "fom-short-set",
-          "op": "eq",
-          "value": false
         }
       ]
     ],
@@ -250,6 +270,19 @@
       {
         "kind": "review",
         "description": "Count the period from the later of the website and newspaper notices. Run the review again for the full period, or file the minister’s determination of a shorter one."
+      }
+    ],
+    "exceptions": [
+      {
+        "id": "shorter-period",
+        "label": "The minister set a shorter period as needed to respond to risks to the environment, forest health or wildfire (FPPR §34.2(3)(b)(ii))",
+        "source": "instrument",
+        "provision": "34.2(3)(b)",
+        "kind": "decision",
+        "decidedBy": "The minister",
+        "evidence": [
+          "The minister’s determination of the shorter period"
+        ]
       }
     ]
   },
@@ -316,11 +349,6 @@
             "No",
             "Partly"
           ]
-        },
-        {
-          "fact": "fsp-purpose",
-          "op": "eq",
-          "value": false
         }
       ]
     ],
@@ -394,6 +422,18 @@
         "kind": "review",
         "description": "Resolve the ground before applying: a plan that covers the area, a published and reviewed map, or a new map whose cutblock and road locations match the application."
       }
+    ],
+    "exceptions": [
+      {
+        "id": "section-4-purpose",
+        "label": "The harvest or road is only for a FRPA §4 purpose: a safety hazard, seed collection leaving 1 ha or less, removing felled trees from landings and rights of way, up to 500 m³ at risk from insects, fire or disease, or a prescribed purpose, for which no forest stewardship plan or map is required",
+        "source": "frpa",
+        "provision": "4(1)–(2)",
+        "kind": "by-law",
+        "evidence": [
+          "The purpose and the volume or opening"
+        ]
+      }
     ]
   },
   {
@@ -462,6 +502,18 @@
         "kind": "obtain-approval",
         "description": "Apply for the cutting permit once the plan and map requirements are met, and record the licence and permit numbers with the block."
       }
+    ],
+    "exceptions": [
+      {
+        "id": "authorized-without",
+        "label": "Harvesting without a cutting permit is specifically authorized under the Forest Act or another enactment (§52.02(3))",
+        "source": "forest-act",
+        "provision": "52.02(3)",
+        "kind": "by-law",
+        "evidence": [
+          "The enactment that authorizes it"
+        ]
+      }
     ]
   },
   {
@@ -469,7 +521,7 @@
     "title": "Special purpose area · licence or cutting permit",
     "source": "forest-act",
     "provision": "209(1)–(2)",
-    "scope": [
+    "when": [
       [
         {
           "fact": "spa",
@@ -478,20 +530,33 @@
         }
       ]
     ],
-    "when": [
-      [
-        {
-          "fact": "spa-licence",
-          "op": "eq",
-          "value": "None"
-        }
-      ]
-    ],
-    "finding": "No cutting permit, timber sale licence or forestry licence to cut may be issued with rights in a special purpose area unless a §209(2) or §223 exception applies.",
+    "finding": "No cutting permit, timber sale licence or forestry licence to cut may be issued with rights in a special purpose area unless an exception applies.",
     "actions": [
       {
         "kind": "review",
         "description": "Take the block out of the special purpose area, or document the licence purpose that brings it within an exception."
+      }
+    ],
+    "exceptions": [
+      {
+        "id": "fltc-purpose",
+        "label": "A forestry licence to cut entered into for fire, forest health or public safety, or a cutting permit under one (§209(2)(a), (c))",
+        "source": "forest-act",
+        "provision": "209(2)",
+        "kind": "by-law",
+        "evidence": [
+          "The licence and the purpose it was entered into for"
+        ]
+      },
+      {
+        "id": "special-purposes",
+        "label": "An area-based or forest licence entered into for the special purpose area’s own purposes (§223(2)–(3))",
+        "source": "forest-act",
+        "provision": "223(2)–(3)",
+        "kind": "by-law",
+        "evidence": [
+          "The licence and the designation’s purpose"
+        ]
       }
     ]
   },
@@ -500,21 +565,17 @@
     "title": "Special purpose area · new road",
     "source": "forest-act",
     "provision": "215",
-    "scope": [
+    "when": [
       [
         {
           "fact": "spa",
           "op": "eq",
           "value": true
-        }
-      ]
-    ],
-    "when": [
-      [
+        },
         {
-          "fact": "spa-road",
+          "fact": "spa-new-road",
           "op": "eq",
-          "value": "None of §215(2)"
+          "value": true
         }
       ]
     ],
@@ -524,50 +585,31 @@
         "kind": "review",
         "description": "Route the road outside the area, or document the §215(2) ground the official is to be satisfied of."
       }
-    ]
-  },
-  {
-    "id": "spa-exception",
-    "title": "Special purpose area · exception relied on",
-    "source": "forest-act",
-    "provision": "209(2), 215(2)",
-    "scope": [
-      [
-        {
-          "fact": "spa",
-          "op": "eq",
-          "value": true
-        }
-      ]
     ],
-    "when": [
-      [
-        {
-          "fact": "spa-licence",
-          "op": "in",
-          "value": [
-            "A forestry licence to cut for fire, forest health or public safety, or a cutting permit under it (§209(2)(a), (c))",
-            "A licence entered into for the area's own special purpose (§223(2)–(3))"
-          ]
-        }
-      ],
-      [
-        {
-          "fact": "spa-road",
-          "op": "in",
-          "value": [
-            "The road does not significantly interfere with the area's purposes (§215(2)(a))",
-            "The road serves a fire, forest health or safety licence to cut (§215(2)(b), (d))",
-            "The road serves a licence to cut entered into before the designation (§215(2)(c))"
-          ]
-        }
-      ]
-    ],
-    "finding": "The block or its road relies on a special purpose area exception, which an authorized official must be satisfied of.",
-    "actions": [
+    "exceptions": [
       {
-        "kind": "review",
-        "description": "Record the licence purpose or the road’s ground with its evidence, and the designation’s effective date."
+        "id": "no-interference",
+        "label": "The road does not significantly interfere with the area’s purposes (§215(2)(a))",
+        "source": "forest-act",
+        "provision": "215(2)(a)",
+        "kind": "decision",
+        "decidedBy": "An authorized official, satisfied that the ground applies"
+      },
+      {
+        "id": "purpose-licence",
+        "label": "The road is needed for a fire, forest health or safety licence to cut, or a cutting permit under it (§215(2)(b), (d))",
+        "source": "forest-act",
+        "provision": "215(2)(b)",
+        "kind": "decision",
+        "decidedBy": "An authorized official, satisfied that the ground applies"
+      },
+      {
+        "id": "earlier-licence",
+        "label": "The road is needed for a licence to cut entered into before the designation (§215(2)(c))",
+        "source": "forest-act",
+        "provision": "215(2)(c)",
+        "kind": "decision",
+        "decidedBy": "An authorized official, satisfied that the ground applies"
       }
     ]
   }

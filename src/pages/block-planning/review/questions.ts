@@ -5,7 +5,8 @@
  * A rule that is settled (out of scope, not triggered, needing review, outside its dates) asks
  * nothing more. A rule waiting on evidence asks only for the unknown facts of the stage it is
  * stuck at, in the alternatives that are still open, and of each alternative only its first
- * unknown: scope before trigger, so a trigger's questions appear once the rule is known to apply. Facts already answered stay listed so they
+ * unknown: scope before trigger, so a trigger's questions appear once the rule is known to apply. A raised rule
+ * asks only what an exception claimed on it waits on. Facts already answered stay listed so they
  * can be changed. Facts a measurement fills are never asked.
  *
  * DOM- and network-free.
@@ -42,6 +43,9 @@ function waitingOn(stage: Stage | undefined): string[] {
 
 /** The facts each finding still waits on. Empty for a settled rule. */
 export function openFacts(finding: Finding): string[] {
+  // A claimed exception whose own conditions wait on an answer asks for it.
+  if (finding.status === 'review_required')
+    return 'exception' in finding && finding.exception?.condition ? waitingOn(finding.exception.condition) : []
   if (finding.status !== 'missing_evidence') return []
   const scope = 'scope' in finding ? (finding.scope as Stage) : undefined
   if (scope && scope.result === null) return waitingOn(scope)
@@ -54,7 +58,11 @@ export function questions(pack: Pack, facts: FactSet, findings: Finding[], measu
     for (const id of new Set(openFacts(finding))) open.set(id, [...(open.get(id) ?? []), finding.rule])
   const readers = (id: string) =>
     pack.rules
-      .filter((r) => [...(r.scope ?? []), ...r.when].some((group) => group.some((c) => c.fact === id)))
+      .filter((r) =>
+        [...(r.scope ?? []), ...r.when, ...(r.exceptions ?? []).flatMap((x) => x.when ?? [])].some((group) =>
+          group.some((c) => c.fact === id),
+        ),
+      )
       .map((r) => r.id)
   const rows: Question[] = []
   for (const fact of pack.facts) {
@@ -75,10 +83,12 @@ export function questions(pack: Pack, facts: FactSet, findings: Finding[], measu
 
 /** How many rules a review has in each state, for a one-line summary. */
 export function findingCounts(findings: Finding[]) {
-  const counts = { review: 0, open: 0, clear: 0, notApplicable: 0 }
+  const counts = { review: 0, exception: 0, open: 0, clear: 0, notApplicable: 0 }
   for (const f of findings) {
-    if (f.status === 'review_required') counts.review++
-    else if (f.status === 'missing_evidence') counts.open++
+    if (f.status === 'review_required') {
+      counts.review++
+      if ('exception' in f && f.exception) counts.exception++
+    } else if (f.status === 'missing_evidence') counts.open++
     else if (f.status === 'condition_not_triggered') counts.clear++
     else counts.notApplicable++
   }
