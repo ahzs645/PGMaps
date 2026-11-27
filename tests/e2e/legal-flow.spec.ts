@@ -43,7 +43,6 @@ test('the block planner asks only what a block needs and shows the same graph', 
   await choose(answer(/^Agreement holder harvesting timber$/), 'Yes')
   await choose(answer(/^Minor tenure$/), 'No')
   await choose(answer(/^Administrative forest region$/), 'Omineca')
-  await choose(answer(/^§64\(1\) \/ §65\(2\) default applies here/), 'Yes')
   const nar = review.getByLabel(/Verified net area to be reforested/)
   await nar.fill('63')
   await nar.press('Enter')

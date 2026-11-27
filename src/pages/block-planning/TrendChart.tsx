@@ -123,8 +123,8 @@ export function TrendChart({ plan, result, year }: { plan: Plan; result: PlanAna
         ))}
       </div>
       <p className="shrink-0 text-2xs text-muted-foreground">
-        Share of young forest (0–20 years) in each patch size class, method pg-2005-buffer-v1. A class moving toward its
-        target is the order’s test; no figure here combines the four.
+        Share of young forest (0–20 years) in each patch size class, method pg-2005-buffer-v1. The order’s test is the
+        trend of the four together toward Table 7 (their summed distance, in the review); each chart shows one class.
         {published &&
           ` The published 2015 and 2018 shares are the Board’s, from other inventories; 2018 used the revised 2017 guidance, so the two years and this projection are not one series.`}
       </p>
