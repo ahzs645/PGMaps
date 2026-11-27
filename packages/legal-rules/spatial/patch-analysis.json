@@ -3,7 +3,7 @@
   "title": "Prince George young-forest patch distribution",
   "inputs": ["dated disturbance polygons", "schedule", "historic district", "natural disturbance sub-unit", "two successive projection periods"],
   "crs": "EPSG:3005",
-  "outputs": [{"id":"patch-class-away","type":"boolean"}],
-  "method": "Compare changes in absolute distance to Table 7 targets. Use the merge stages and young ages in the 2004 order record's 2005 implementation policy.",
+  "outputs": [{"id":"patch-class-away","type":"boolean"},{"id":"distance-growth","type":"number","unit":"points"}],
+  "method": "Use the merge stages and young ages in the 2004 order record's 2005 implementation policy. patch-class-away: whether any class's absolute distance to its Table 7 target grew. distance-growth: the four classes' absolute distances to their targets added, in percentage points of young forest, at the end of the interval minus at its start.",
   "missing": "Unknown for missing periods, empty denominators or unresolved size classes."
 }

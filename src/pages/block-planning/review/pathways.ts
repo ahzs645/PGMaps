@@ -11,6 +11,9 @@ import { firstShortfall, metOnlyWithD4, oldForestCurrent } from '../records'
 import type { FactSet } from '../../../../packages/legal-rules/src/contract'
 import { entryOf, periodYears, type Plan } from '../plan'
 import type { PlanAnalysis } from '../planAnalysis'
+import { distributionTrend, trendEvidence } from '../../forest-patches/legalEvidence'
+import type { Measurement } from '../../../../packages/legal-rules/engine/spatialFacts'
+import patchOperation from '../../../../packages/legal-rules/spatial/patch-analysis.json'
 
 export type StepState = 'done' | 'open' | 'blocked' | 'not-needed'
 
@@ -50,13 +53,47 @@ export const trendYearOf = (plan: Plan) => {
   return chosen !== undefined && years.indexOf(chosen) > 0 ? chosen : defaultTrendYear(plan)
 }
 
-/** Whether a class of the schedule under review moved away from its target over the trend interval. */
+/**
+ * The schedule under review over the trend interval: how much the distribution's summed distance
+ * from the Table 7 targets grew (the test from `bc.pgtsa.biodiversity` 1.3.0), whether any one class
+ * moved away (the test of earlier releases, and the evidence of which classes did), and both in words.
+ */
 export function measuredTrend(plan: Plan, result: PlanAnalysis | undefined) {
   if (!result) return null
   const year = trendYearOf(plan)
   const run = result.runs.find((r) => r.schedule === plan.reviewSchedule)
   const index = periodYears(plan.area.startYear).indexOf(year)
-  return run && index > 0 ? { year, movedAway: run.movedAway[index] } : null
+  if (!run || index <= 0) return null
+  const trend = distributionTrend(run.periods[index - 1], run.periods[index])
+  return {
+    year,
+    movedAway: run.movedAway[index],
+    growth: trend?.growth ?? null,
+    evidence: trendEvidence(trend, year - 5, year),
+  }
+}
+
+/**
+ * What the landscape review is handed from the patch calculation: both outputs, so a review on a
+ * release before 1.3.0 (bound to `patch-class-away`) reads its own test, and 1.3.0 (bound to
+ * `distance-growth`) reads the distance with the classes that moved away in its evidence.
+ */
+export function trendMeasurements(
+  plan: Plan,
+  trend: ReturnType<typeof measuredTrend>,
+  scheduleName: string,
+): Measurement[] {
+  if (!trend) return []
+  const where = `${scheduleName}, ${trend.year - 5}–${trend.year}, ${plan.area.district} · ${plan.area.ndu}, ${patchOperation.id}`
+  return [
+    { operation: patchOperation.id, output: 'patch-class-away', value: trend.movedAway, evidence: where },
+    {
+      operation: patchOperation.id,
+      output: 'distance-growth',
+      value: trend.growth,
+      evidence: `${where}. ${trend.evidence}`,
+    },
+  ]
 }
 
 /** Whether the plan compares the proposal with no further harvest and at least one other schedule. */
@@ -89,11 +126,11 @@ export function pathways(plan: Plan, facts: FactSet | undefined, result: PlanAna
     {
       id: 'trend',
       label: 'Trend measured',
-      state: trend && trend.movedAway !== null ? 'done' : 'open',
+      state: trend && trend.growth !== null ? 'done' : 'open',
       detail: trend
-        ? trend.movedAway === null
+        ? trend.growth === null
           ? `No complete distribution for ${trend.year - 5}–${trend.year}.`
-          : `${trend.year - 5}–${trend.year}: ${trend.movedAway ? 'a class moved farther from its target' : 'no class moved farther from its target'} (schedule under review, method pg-2005-buffer-v1).`
+          : `${trend.year - 5}–${trend.year}, schedule under review, method pg-2005-buffer-v1. ${trend.evidence}`
         : 'Set the reporting unit (step 1) so the patches can be calculated.',
     },
     {

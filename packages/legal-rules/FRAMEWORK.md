@@ -35,7 +35,7 @@ The evaluator distinguishes excluded scope, uncovered dates, missing evidence, a
 
 For a spatial, temporal or scientific calculation, add an adapter that outputs `pgmaps-legal-facts/v1` with a method reference, measured inputs or source record, unit and interval as appropriate. A producer may also include this object under `legalFacts` in its own evidence export. Existing operators and actions require only a new JSON pack. A new mathematical model or operator requires implementation and verification in code. Domain-specific algorithms remain outside the evaluator.
 
-The forest patch tool supplies the change in class-to-target distance across two periods. It sends an unknown measurement where an interval or complete distribution is missing. The adapter supplies no legal applicability or infeasibility determination. The workbench can also read older patch exports by recalculating the supported 2005 method from their project inputs. For technical details see [the patch method](../../docs/forestry-patch-scenarios.md).
+The forest patch tool supplies, for `bc.pgtsa.biodiversity` 1.3.0, how much the distribution's distance from Table 7 (the four classes' distances added, in percentage points) grew across two periods, with the classes that moved away in its evidence; earlier releases read whether any one class moved away. It sends an unknown measurement where an interval or complete distribution is missing. The adapter supplies no legal applicability or infeasibility determination. The workbench can also read older patch exports by recalculating the supported 2005 method from their project inputs. For technical details see [the patch method](../../docs/forestry-patch-scenarios.md).
 
 ## Run without the browser
 

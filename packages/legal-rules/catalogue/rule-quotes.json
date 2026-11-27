@@ -949,6 +949,18 @@
           "quote": "licensees and BC Timber Sales, may meet the combined requirement of those objectives over the combined area of the mBECs."
         }
       ],
+      "distribution-trend": [
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "C",
+          "quote": "Demonstrate a trend toward the young forest patch size distribution by"
+        },
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "Table 7",
+          "quote": "Percent of Young Forest for Natural Disturbance Sub-unit each patch size category"
+        }
+      ],
       "protected-credit": [
         {
           "source": "bc.pgtsa.2004",

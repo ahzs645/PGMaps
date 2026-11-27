@@ -19,8 +19,13 @@ describe('D.5 pathways', () => {
   it('measures the trend over the period after the proposal first cuts', () => {
     expect(defaultTrendYear(plan)).toBe(2031)
     const run = result.runs.find((r) => r.schedule === 'proposed')!
-    expect(measuredTrend(plan, result)).toEqual({ year: 2031, movedAway: run.movedAway[1] })
+    expect(measuredTrend(plan, result)).toMatchObject({
+      year: 2031,
+      movedAway: run.movedAway[1],
+      growth: run.distanceGrowth[1],
+    })
     expect(typeof run.movedAway[1]).toBe('boolean')
+    expect(typeof run.distanceGrowth[1]).toBe('number')
   })
 
   it('counts the sample’s schedules as a comparison with no further harvest', () => {

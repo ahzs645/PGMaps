@@ -24,7 +24,7 @@ validate applicability, amendments, exemptions, mapped orders, and all GIS facts
 | Source | Text stored? | Executable? |
 | --- | --- | --- |
 | FRPA, FPPR, GAR, RPPR, Forest Act, Land Act, Range Act, IPMA and the other catalogued BC Acts | Every section, from CiviX XML (`catalogue/generated/`) | FPPR §§4.33–92.1, with the §64(2)–(4) exceptions, the §65(3) green-up test, §43.1 and §52(2) (`bc.fppr` 1.3.0, its exceptions listed on each rule; 1.1.0 and 1.2.0 kept for earlier reviews); FRPA §§3, 10, 15.1, FPPR §§14, 34.2, 34.5 and Forest Act §§52.02, 52.05, 117, 209, 215 (`bc.forest-permits` 1.1.0); FRPA §29, Land Act §§11–17, Range Act §§1, 3, RPPR §44 and FPPR §46.11 (`bc.crown-grazing` 1.1.0); GAR §7 and FPPR §§1.1, 9.2 (`bc.omineca.visual-quality`) |
-| Prince George TSA biodiversity order, 2004, and its 2005 policy | Transcribed provisions (`catalogue/orders/`) | Objective C trends, D.1–D.5 and E (`bc.pgtsa.biodiversity` 1.2.0); Objectives A and B in the old-forest module |
+| Prince George TSA biodiversity order, 2004, and its 2005 policy | Transcribed provisions (`catalogue/orders/`) | Objective C's trend of the distribution as a whole, D.1–D.5 and E (`bc.pgtsa.biodiversity` 1.3.0; earlier releases kept); Objectives A and B in the old-forest module |
 | 2006 Omineca ADA/SRA order | Transcribed | Parts A–E and II (`bc.crown-grazing`) |
 | Dome/Slim, Humbug, Mackenzie 2010 OGMA and Ancient Forest OGMA orders; Mugaha Marsh; Obo River and Fox; the 2022 letter of expectations (COFAs) | Transcribed | `bc.omineca.old-growth` 1.1.0 |
 | Mackenzie non-spatial biodiversity order, 2008, amended 2010 | Transcribed | `bc.mackenzie.biodiversity` 1.0.0 (targets read by the reviewer) |

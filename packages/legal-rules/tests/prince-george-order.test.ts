@@ -5,7 +5,7 @@ import { parsePack } from '../src/contract'
 import { assess } from '../engine/evaluate'
 import { patchDistributionDistance, screenOldForestTarget } from '../src/screen.mjs'
 import { analyze } from '../../../src/pages/forest-patches/analysis'
-import { patchFacts } from '../../../src/pages/forest-patches/legalEvidence'
+import { distributionDistance, patchFacts } from '../../../src/pages/forest-patches/legalEvidence'
 import { bins, exampleProject, movementTowardTarget, order, table } from '../../../src/pages/forest-patches/project'
 
 const pack = parsePack(regional)
@@ -133,6 +133,21 @@ describe('TSA patch targets and district-specific observations, Board Appendix 4
       expect(findings.find((f) => f.rule === 'rationale')?.status).toBe('missing_evidence')
     },
   )
+  it('measures the distance the 1.3.0 trend rule compares, for every published distribution', () => {
+    let compared = 0
+    for (const row of benchmark.youngForest.distributions)
+      for (const observed of [row.observed2015, row.observed2018]) {
+        if (!row.target || !observed) continue
+        const record = (v: number[]) => Object.fromEntries(bins.map((b, i) => [b, v[i]]))
+        // The screen refuses a printed row whose rounded shares stray from 100 by more than 0.2.
+        const advisory = patchDistributionDistance(record(observed), record(row.target))
+        if (advisory.status !== 'advisory_only') continue
+        const summed = distributionDistance(observed.map((percent, i) => ({ percent, target: row.target![i] })))
+        expect(summed).toBeCloseTo(advisory.distancePercentagePoints, 10)
+        compared++
+      }
+    expect(compared).toBeGreaterThan(12)
+  })
   it('rejects impossible individual percentages even if their sum is 100', () => {
     const target = table.targets[0].percent
     expect(patchDistributionDistance({ ...target, under50ha: -1, between51and100ha: 16 }, target).status).toBe(
@@ -203,7 +218,7 @@ describe('Prince George order release, scope and independent alternatives', () =
     const measured = () => patchFacts(project, result, 2031, 'proposed').facts[0].value
     const row = result.timeline.find((r) => r.year === 2031 && r.scenario === 'proposed')!
     const original = measured()
-    expect(typeof original).toBe('boolean')
+    expect(typeof original).toBe('number')
     row.classes.reverse()
     expect(measured()).toBe(original)
     row.classes[0].percent = null

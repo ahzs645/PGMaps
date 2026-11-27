@@ -40,10 +40,6 @@ The permit and old-growth packs ask questions a layer could answer as a candidat
 
 FRPA §§2.35–2.47 and FPPR §§4.11–4.36: a block under a forest operations plan must be listed in it, its commencement year compared with the schedule, and its public review (60 days, 30 for an amendment adding a block) and notice to tenure holders checked. A new pack, switched on only where the block is in a forest landscape area.
 
-### The Prince George young-forest trend
-
-Objective C asks for a trend toward the target distribution; the pack raises a finding when any one class moves away (`patch-class-away`). A truer test would measure the distribution's distance from the targets over the interval, which changes `legalEvidence.ts` on the forest patches page and the planner's landscape review together, as a new release of `bc.pgtsa.biodiversity`.
-
 ### Prepared tables in bcdatamapper
 
 Sized in [Prepared tables for the block planner](research/block-planning-prepared-tables-2026-11-24.md): about 60 MB on bcdatamapper's Pages site, with VRI geometry (about 200 MB gzip) on R2. They make:
