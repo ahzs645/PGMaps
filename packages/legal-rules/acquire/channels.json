@@ -1,0 +1,516 @@
+{
+  "format": "pgmaps-acquire-channels/v1",
+  "version": "1.0.0",
+  "checkedOn": "2026-11-27",
+  "notes": "Where to ask for the records a block's or a crossing's review cannot answer from public data, from docs/research/acquiring-missing-records-2026-11-27.md. A holder is an office or a role, never a person. Every route URL answered with a page on the date checked. FOIPPA is not stored in PGMaps: its sections are named, not quoted.",
+  "channels": [
+    {
+      "id": "bcts-business-area",
+      "label": "BC Timber Sales business area",
+      "holder": "The BC Timber Sales business area that holds the plan, its planning staff",
+      "route": {
+        "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/contact",
+        "label": "BC Timber Sales offices"
+      },
+      "ask": "the plan, its amendment in force on the date asked, the site plan and the records behind it",
+      "identifiers": ["fsp", "licence", "cutting-permit", "opening", "timber-mark"],
+      "fee": "None stated",
+      "days": null,
+      "daysNote": "No time is set. Not tried on the traced cases (an email).",
+      "foippa": [],
+      "bcts": true,
+      "cites": [
+        {
+          "source": "bc.frpa",
+          "provision": "s. 20.25(3)",
+          "quote": "A timber sales manager who holds a plan must publish the plan on a ministry website."
+        },
+        {
+          "source": "bc.frpa",
+          "provision": "s. 20.25(1)(e)",
+          "quote": "a site plan referred to in section 10."
+        }
+      ],
+      "note": "BC Timber Sales posts each business area's current plan; no amendment from 2017 to 2021 and no site plan was posted for the traced cases, although FRPA s. 20.25(3) requires a timber sales manager's plans, site plans among them, on a ministry website."
+    },
+    {
+      "id": "holder",
+      "label": "The agreement holder",
+      "holder": "The holder of the licence and the forest stewardship plan, by its planning office",
+      "route": {
+        "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/managing-our-forest-resources/forest-stewardship-plans",
+        "label": "Forest stewardship plans (the province's page)"
+      },
+      "ask": "the plan and its amendment in force on the date asked, the site plan and the records behind it",
+      "identifiers": ["fsp", "licence", "cutting-permit", "opening", "timber-mark"],
+      "fee": "None stated",
+      "days": null,
+      "daysNote": "No time is set: the regulations name no manner or time for an FSP holder's publication. Holders' posted plans were current texts only, or none.",
+      "foippa": [],
+      "bcts": false,
+      "cites": [
+        {
+          "source": "bc.frpa",
+          "provision": "s. 20.25(2)",
+          "quote": "who holds a plan must make the plan publicly available in accordance with the regulations."
+        },
+        {
+          "source": "bc.frpa",
+          "provision": "s. 20.25(1)(e)",
+          "quote": "a site plan referred to in section 10."
+        }
+      ],
+      "note": "Ask by the plan's id and the licence, never by a person's name. The planner keeps no holder's name: a letter is addressed to the holder's planning office by role."
+    },
+    {
+      "id": "district-stewardship",
+      "label": "Natural resource district, stewardship",
+      "holder": "The natural resource district's stewardship staff",
+      "route": {
+        "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/managing-our-forest-resources/ministry-of-forests-lands-and-natural-resource-operations-region-district-contacts",
+        "label": "Ministry of Forests region and district contacts"
+      },
+      "ask": "the plan's amendment and approval letter in force on the date asked, and any site plan or fish-stream determination the district holds",
+      "identifiers": ["fsp", "licence", "cutting-permit", "opening"],
+      "fee": "None stated",
+      "days": null,
+      "daysNote": "No time is set. Not tried on the traced cases.",
+      "foippa": [],
+      "cites": [
+        {
+          "source": "bc.frpa",
+          "provision": "s. 10(2)(c)",
+          "quote": "identify how the intended results or strategies described in the forest stewardship plan apply to the site."
+        }
+      ],
+      "note": "The FSP Tracking System holds every plan and amendment by its id, but only with a government or Business BCeID sign-in; district staff can read it."
+    },
+    {
+      "id": "district-engineering",
+      "label": "Natural resource district, engineering (road permit file)",
+      "holder": "The natural resource district's engineering staff, who keep the road permit and forest service road files",
+      "route": {
+        "url": "https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/district-road-requirements",
+        "label": "Forest roads permits, authorizations and access agreements"
+      },
+      "ask": "the crossing's design, as-built record, installation date, inspections and who maintains it, from the road permit or forest service road file",
+      "identifiers": ["road-permit", "road-section", "location", "pscis"],
+      "fee": "None stated",
+      "days": null,
+      "daysNote": "No time is set. Road permits and maintenance agreements go to the district office's inbox.",
+      "foippa": [],
+      "cites": [
+        {
+          "source": "bc.forest-act",
+          "provision": "s. 115(1)",
+          "quote": "issue a road permit authorizing the holder to do one or both of the following"
+        }
+      ],
+      "note": "The road layers' responsibility and maintainer fields only point to the file: the file says who built the crossing, when, to what design, and whether it was replaced."
+    },
+    {
+      "id": "water-authorizations",
+      "label": "FrontCounter BC, water authorizations",
+      "holder": "FrontCounter BC or the region's water authorizations office",
+      "route": {
+        "url": "https://www2.gov.bc.ca/gov/content/environment/air-land-water/water/water-licensing-rights/water-licences-approvals/apply-for-a-change-approval-or-submit-notification-of-instream-work/submit-notification-authorized-changes",
+        "label": "Notification of authorized changes in and about a stream"
+      },
+      "ask": "the notification or change approval file for the crossing: the notice as given, the habitat officer's statement of terms, and any engineer's requirement",
+      "identifiers": ["water-file", "frontcounter-tracking", "location"],
+      "fee": "None stated",
+      "days": null,
+      "daysNote": "No time is set for a request for a file's documents. Quote the approval file and FrontCounter tracking numbers.",
+      "foippa": ["s. 21 (a third party's business interests)", "s. 22 (personal privacy)"],
+      "cites": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "s. 38(1)(b)",
+          "quote": "obtain from a habitat officer a statement of the terms and conditions described in section 44 (2)"
+        }
+      ],
+      "note": "A forestry crossing under WSR s. 39(2) needs no notice (s. 38(1) excludes s. 39(2)); a notice or approval file exists only for a change made on another route."
+    },
+    {
+      "id": "foi-forests",
+      "label": "Freedom of information request, Ministry of Forests",
+      "holder": "The Ministry of Forests (BC Timber Sales included), through the province's freedom of information operations",
+      "route": {
+        "url": "https://www2.gov.bc.ca/gov/content/governments/about-the-bc-government/open-government/open-information/freedom-of-information",
+        "label": "Request records from government"
+      },
+      "ask": "every record named, as at the dates given",
+      "identifiers": [
+        "fsp",
+        "licence",
+        "cutting-permit",
+        "opening",
+        "road-permit",
+        "road-section",
+        "water-file",
+        "location",
+        "dates"
+      ],
+      "fee": "$10 application fee for a general request (non-refundable); processing fees may apply",
+      "feeCad": 10,
+      "days": { "count": 30, "business": true, "extension": 30, "basis": "law" },
+      "daysNote": "Up to 30 business days, which may be extended. Released files are searchable on Open Information.",
+      "foippa": ["s. 21 (a third party's business interests)", "s. 22 (personal privacy)"],
+      "foi": true,
+      "cites": [
+        {
+          "source": "bc.frpa",
+          "provision": "s. 71",
+          "quote": "the minister may determine whether the person has contravened the provision."
+        }
+      ],
+      "note": "The only route found to an amendment's text and approval letter as at a date, and to a contravention determination. FOIPPA s. 7 sets the 30 days and s. 10 their extension; it is not stored in PGMaps."
+    },
+    {
+      "id": "foi-board",
+      "label": "Forest Practices Board",
+      "holder": "The Forest Practices Board, its own public body",
+      "route": { "url": "https://www.bcfpb.ca/", "label": "Forest Practices Board" },
+      "ask": "any audit, complaint investigation or record of the Board on the block, its roads or the crossing",
+      "identifiers": ["licence", "cutting-permit", "road-permit", "location", "dates"],
+      "fee": "$10 application fee for a general freedom of information request",
+      "feeCad": 10,
+      "days": { "count": 30, "business": true, "extension": 30, "basis": "law" },
+      "daysNote": "A freedom of information request to the Board runs as one to the ministry. A complaint about a current concern is its own route.",
+      "foippa": ["s. 21 (a third party's business interests)", "s. 22 (personal privacy)"],
+      "foi": true,
+      "cites": [
+        {
+          "source": "bc.frpa",
+          "provision": "s. 123(1)",
+          "quote": "the board must deal with complaints from the public respecting prescribed matters that relate to this Act."
+        }
+      ],
+      "note": "The Board's audits name licensees, so they are read, never kept in the repository."
+    },
+    {
+      "id": "compliance-search",
+      "label": "Compliance and appeal records (search first)",
+      "holder": "Public databases: the Natural Resource Compliance and Enforcement Database and the Forest Appeals Commission's decisions",
+      "route": { "url": "https://nrced.gov.bc.ca/", "label": "Natural Resource Compliance and Enforcement Database" },
+      "ask": "inspections, orders and decisions recorded for the crossing, its road or the block",
+      "identifiers": ["road-permit", "licence", "location", "dates"],
+      "fee": "None",
+      "days": null,
+      "daysNote": "A search, not a request. NRCED holds Natural Resource Officer inspections from January 2021; no FRPA s. 71 determination was found in it.",
+      "foippa": [],
+      "search": true,
+      "cites": [],
+      "note": "What is not found here is not proof that nothing was determined: a contravention determination is reached by FOI. The Forest Appeals Commission publishes its decisions at https://www.bcfac.ca/."
+    },
+    {
+      "id": "field-survey",
+      "label": "Field survey",
+      "holder": "The reviewer's own field crew",
+      "route": {
+        "url": "https://www2.gov.bc.ca/gov/content/environment/plants-animals-ecosystems/fish/aquatic-habitat-management/fish-passage",
+        "label": "Fish passage (the province's field protocols)"
+      },
+      "ask": "what the ground shows at each place: streams the maps miss, channel width and gradient, fish presence by the standard protocol, the structure and its size",
+      "identifiers": ["location", "pscis"],
+      "fee": "The crew's time",
+      "days": null,
+      "daysNote": "Set by the crew. A LiDAR flow screen, where a 1 m DEM is published, shows where to look first; it is never the answer.",
+      "foippa": [],
+      "field": true,
+      "cites": [],
+      "note": "Field confirmation is the source for small streams below the Freshwater Atlas and for fish-stream limbs. Submitting a PSCIS assessment needs a BCeID and a role granted by the fish passage program."
+    },
+    {
+      "id": "air-photos",
+      "label": "Air photo order, GeoBC",
+      "holder": "GeoBC, through the Base Map Online Store",
+      "route": {
+        "url": "https://www2.gov.bc.ca/gov/content/data/geographic-data-services/topographic-data/base-map-online-store",
+        "label": "Base Map Online Store"
+      },
+      "ask": "full-resolution scans of the frames that bracket when the road and crossing were first seen",
+      "identifiers": ["location", "dates"],
+      "fee": "About $18.50 a full-resolution scan, as priced when the research was done; free thumbnails first",
+      "days": { "count": 15, "business": true, "basis": "stated" },
+      "daysNote": "10 to 15 business days for scans. Thumbnails of each frame are free and immediate.",
+      "foippa": [],
+      "cites": [],
+      "note": "Imagery dates the road, not the pipe: whether the structure was replaced stays a question for the road permit file."
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "fsp-amendment",
+      "label": "Forest stewardship plan and amendment in force",
+      "subject": "block",
+      "ask": "the forest stewardship plan and amendment in force when the cutting permit was issued, with its approval letter, and its results and strategies for the block's forest development unit",
+      "why": "Which plan and amendment applied, and what it said, decide the FSP questions; the FDU layer misses amendments and the FSP Tracking System is login-only.",
+      "channels": ["bcts-business-area", "holder", "district-stewardship", "foi-forests"],
+      "facts": [
+        { "pack": "bc.forest-permits", "fact": "fsp-standing" },
+        { "pack": "bc.forest-permits", "fact": "fsp-soils" },
+        { "pack": "bc.forest-permits", "fact": "fsp-timber" },
+        { "pack": "bc.forest-permits", "fact": "fsp-wildlife" },
+        { "pack": "bc.forest-permits", "fact": "fsp-water" },
+        { "pack": "bc.forest-permits", "fact": "fsp-landscape" },
+        { "pack": "bc.forest-permits", "fact": "fsp-stand" },
+        { "pack": "bc.forest-permits", "fact": "fsp-visual" },
+        { "pack": "bc.forest-permits", "fact": "fsp-heritage" },
+        { "pack": "bc.forest-permits", "fact": "fsp-other" },
+        { "pack": "bc.forest-permits", "fact": "fdu-feature-shown" }
+      ]
+    },
+    {
+      "kind": "site-plan",
+      "label": "Site plan",
+      "subject": "block",
+      "ask": "the site plan for the cutblock and its roads (FRPA s. 10), with its standards units, reserves and their purposes",
+      "why": "The site plan says how the plan's results and strategies apply to the block; none was posted for the traced cases.",
+      "channels": ["bcts-business-area", "holder", "district-stewardship", "foi-forests"],
+      "facts": [{ "pack": "bc.forest-permits", "fact": "site-plan" }]
+    },
+    {
+      "kind": "riparian-class",
+      "label": "Riparian classes and management areas",
+      "subject": "block",
+      "ask": "the riparian class of each stream, wetland and lake in or beside the block, and its reserve and management zone widths, from the site plan and its field assessment",
+      "why": "No public layer holds a riparian class; it is set in the site plan from field evidence.",
+      "channels": ["bcts-business-area", "holder", "field-survey", "foi-forests"],
+      "facts": [
+        { "pack": "bc.fppr", "fact": "riparian-class" },
+        { "pack": "bc.fppr", "fact": "riparian-area-width" },
+        { "pack": "bc.fppr", "fact": "riparian-reserve-width" },
+        { "pack": "bc.fppr", "fact": "riparian-management-width" }
+      ]
+    },
+    {
+      "kind": "small-streams",
+      "label": "Streams the maps miss",
+      "subject": "block",
+      "ask": "every stream the block's roads and harvesting cross or border, including those below the Freshwater Atlas, located on the ground",
+      "why": "A third or more of assessed crossings in the three districts sit away from any modelled stream; only the ground shows them.",
+      "channels": ["field-survey", "holder", "bcts-business-area"],
+      "facts": [
+        { "pack": "bc.block-crossings", "fact": "crossings-listed" },
+        { "pack": "bc.fppr", "fact": "bank-tributary" }
+      ]
+    },
+    {
+      "kind": "fish-stream-determination",
+      "label": "Fish-stream determination",
+      "subject": "crossing",
+      "ask": "the fish-stream determination for the stream at the crossing, with the fish inventory or gradient survey behind it",
+      "why": "Whether a stream is a fish stream is asked limb by limb; a single visit seeing no fish is not absence.",
+      "channels": ["bcts-business-area", "holder", "field-survey", "foi-forests"],
+      "facts": [
+        { "pack": "bc.fppr-crossings", "fact": "listed-species" },
+        { "pack": "bc.fppr-crossings", "fact": "stream-gradient" },
+        { "pack": "bc.fppr-crossings", "fact": "no-listed-species" },
+        { "pack": "bc.fppr-crossings", "fact": "barrier-dry-upstream" },
+        { "pack": "bc.fppr-crossings", "fact": "barrier-no-habitat-upstream" },
+        { "pack": "bc.water-crossings", "fact": "fish-bearing" }
+      ]
+    },
+    {
+      "kind": "crossing-design",
+      "label": "Crossing design and as-built",
+      "subject": "crossing",
+      "ask": "the crossing's design (size, cover, fill, capacity, fish passage, any engineer's design) and its as-built record and inspections",
+      "why": "The structure's figures and design decide the culvert and bridge questions; PSCIS describes a structure, it does not give its design.",
+      "channels": ["district-engineering", "holder", "field-survey", "foi-forests"],
+      "facts": [
+        { "pack": "bc.fppr-crossings", "fact": "structure-sound" },
+        { "pack": "bc.fppr-crossings", "fact": "bridge-standards" },
+        { "pack": "bc.fppr-crossings", "fact": "bridge-loads" },
+        { "pack": "bc.water-crossings", "fact": "culvert-diameter" },
+        { "pack": "bc.water-crossings", "fact": "culvert-cover" },
+        { "pack": "bc.water-crossings", "fact": "culvert-fill" },
+        { "pack": "bc.water-crossings", "fact": "culvert-capacity" },
+        { "pack": "bc.water-crossings", "fact": "culvert-large" },
+        { "pack": "bc.water-crossings", "fact": "culvert-engineered" },
+        { "pack": "bc.water-crossings", "fact": "culvert-fish-passage" }
+      ]
+    },
+    {
+      "kind": "crossing-build-date",
+      "label": "When the crossing was built or replaced",
+      "subject": "crossing",
+      "ask": "when the crossing was built, and whether and when its structure was replaced",
+      "why": "FPPR s. 56(2) turns on a crossing built after June 15, 1995; a road permit's award date is the permit's, not the crossing's, and imagery dates the road, not the pipe.",
+      "channels": ["district-engineering", "air-photos", "foi-forests"],
+      "facts": [{ "pack": "bc.fppr-crossings", "fact": "built-after-1995" }]
+    },
+    {
+      "kind": "crossing-maintainer",
+      "label": "Who holds and maintains the crossing",
+      "subject": "crossing",
+      "ask": "who holds the road the crossing is on and who maintains the crossing, under which permit or agreement",
+      "why": "The authority and the duties at a crossing follow the person who builds and maintains it.",
+      "channels": ["district-engineering", "foi-forests"],
+      "facts": [
+        { "pack": "bc.fppr-crossings", "fact": "authorized-person" },
+        { "pack": "bc.fppr-crossings", "fact": "maintains" },
+        { "pack": "bc.water-crossings", "fact": "forest-holder" }
+      ]
+    },
+    {
+      "kind": "water-notice-terms",
+      "label": "Water Act notice, terms or approval",
+      "subject": "crossing",
+      "ask": "the notification or change approval for the crossing, the habitat officer's statement of terms, and any engineer's requirement",
+      "why": "Only the file says whether a notice was given, what terms bound the work, or what an approval allows.",
+      "channels": ["water-authorizations", "foi-forests"],
+      "facts": [
+        { "pack": "bc.water-crossings", "fact": "notice-given" },
+        { "pack": "bc.water-crossings", "fact": "statement-obtained" },
+        { "pack": "bc.water-crossings", "fact": "no-contact-45" },
+        { "pack": "bc.water-crossings", "fact": "officer-terms" },
+        { "pack": "bc.water-crossings", "fact": "within-officer-terms" },
+        { "pack": "bc.water-crossings", "fact": "approval-held" },
+        { "pack": "bc.water-crossings", "fact": "engineer-required" }
+      ]
+    },
+    {
+      "kind": "contravention",
+      "label": "Contravention determinations",
+      "subject": "crossing",
+      "ask": "any inspection, determination of contravention, penalty or order about the crossing or its road",
+      "why": "A determination bears on whether the crossing complies and affects fish passage; NRCED does not hold FRPA s. 71 determinations.",
+      "channels": ["compliance-search", "foi-forests", "foi-board"],
+      "facts": [
+        { "pack": "bc.fppr-crossings", "fact": "crossing-passage-effect" },
+        { "pack": "bc.water-crossings", "fact": "frpa-compliant" }
+      ]
+    }
+  ],
+  "bctsPlans": [
+    {
+      "fspId": 24,
+      "label": "BC Timber Sales Prince George FSP #24",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/prince-george"
+    },
+    {
+      "fspId": 142,
+      "label": "BC Timber Sales Fort St. James FSP #142",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/fort-st-james"
+    },
+    {
+      "fspId": 201,
+      "label": "BC Timber Sales Vanderhoof FSP #201",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/vanderhoof"
+    },
+    {
+      "fspId": 816,
+      "label": "BC Timber Sales 100 Mile House FSP #816",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/100-mile-house-816"
+    },
+    {
+      "fspId": 786,
+      "label": "BC Timber Sales Bulkley FSP #786",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/bulkley"
+    },
+    {
+      "fspId": 936,
+      "label": "BC Timber Sales Campbell River FSP #936",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/campbell-river"
+    },
+    {
+      "fspId": 828,
+      "label": "BC Timber Sales Cariboo-Chilcotin FSP #828",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/cariboo-chilcotin-fsp"
+    },
+    {
+      "fspId": 643,
+      "label": "BC Timber Sales Chilliwack FSP #643",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/chilliwack-fsp"
+    },
+    {
+      "fspId": 981,
+      "label": "BC Timber Sales Coast Mountains FSP #981",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/coast-mountains"
+    },
+    {
+      "fspId": 584,
+      "label": "BC Timber Sales South Peace FSP #584",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/dawson-creek-51736"
+    },
+    {
+      "fspId": 508,
+      "label": "BC Timber Sales Fort Nelson FSP #508",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/fort-nelson-508"
+    },
+    {
+      "fspId": 768,
+      "label": "BC Timber Sales Haida Gwaii FSP #768",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/haida-gwaii"
+    },
+    {
+      "fspId": 784,
+      "label": "BC Timber Sales Hazelton FSP #784",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/hazelton"
+    },
+    {
+      "fspId": 671,
+      "label": "BC Timber Sales Kamloops FSP #671",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/kamloops-fsp"
+    },
+    {
+      "fspId": 1030,
+      "label": "BC Timber Sales Kootenay FSP #1030",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/kootenay-forest-stewardship-plan-1030"
+    },
+    {
+      "fspId": 109,
+      "label": "BC Timber Sales Merritt / Lillooet TSA FSP #109",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/merrit-lillooet"
+    },
+    {
+      "fspId": 803,
+      "label": "BC Timber Sales Nadina FSP #803",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/nadina"
+    },
+    {
+      "fspId": 771,
+      "label": "BC Timber Sales Okanagan-Columbia FSP #771",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/okanagan-columbia-fsp"
+    },
+    {
+      "fspId": 943,
+      "label": "BC Timber Sales Pacific Maritime FSP #943",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/pacific-maritime-943"
+    },
+    {
+      "fspId": 941,
+      "label": "BC Timber Sales Sea-to-Sky (Squamish) FSP #941",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/sea-to-sky-fsp"
+    },
+    {
+      "fspId": 1000,
+      "label": "BC Timber Sales Seaward-tlasta FSP #1000",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/seaward-tlasta-fsp-1000"
+    },
+    {
+      "fspId": 672,
+      "label": "BC Timber Sales Sunshine Coast FSP #672",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/sunshine-coast"
+    },
+    {
+      "fspId": 892,
+      "label": "BC Timber Sales West Coast FSP #892",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp/west-coast-892-fsp"
+    }
+  ],
+  "fsp": {
+    "bctsIndex": {
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp",
+      "label": "BC Timber Sales forest stewardship plans"
+    },
+    "fom": {
+      "url": "https://fom.nrs.gov.bc.ca/public/",
+      "label": "Forest Operations Map",
+      "note": "Each forest operations map project names its plan's id (fspId), without a sign-in, but maps start in 2022, and its API sends no CORS headers, so the planner cannot read it from the browser: open the map and find the block's project."
+    },
+    "standardsNote": "Search the plan's stocking standards (the standards appendix or tables) for this regime id: the plan that lists it is the plan the opening's standards were taken from. The id can name the version that added the standard; it never names the amendment in force on a date."
+  }
+}

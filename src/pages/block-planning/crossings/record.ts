@@ -83,6 +83,8 @@ export interface CrossingEvidence {
   readOn: string
   summary: string
   reference?: string
+  /** A value the reviewer transcribed from a received record (`acquire/`), `<record id>/<value id>`; kind `received`. */
+  received?: string
 }
 
 export interface CrossingRecord {
@@ -230,7 +232,16 @@ function parseEvidence(value: unknown): CrossingEvidence[] {
     const readOn = day(e.readOn)
     const summary = shortText(e.summary, 2000)
     if (!kind || !source || !readOn || !summary) return []
-    return [defined({ kind, source, readOn, summary, reference: shortText(e.reference, 500) })]
+    return [
+      defined({
+        kind,
+        source,
+        readOn,
+        summary,
+        reference: shortText(e.reference, 500),
+        received: shortText(e.received, 130),
+      }),
+    ]
   })
 }
 

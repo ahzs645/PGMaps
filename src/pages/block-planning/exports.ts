@@ -10,6 +10,8 @@
  * - **Blocks and baseline (GeoJSON)**: each block shape with the year each schedule cuts it, and
  *   each past disturbance, for GIS.
  * - **Summary (HTML)**: a printable page of the same figures.
+ * - **Records to request (text)**: the drafted letters for the records the reviews lack, one per
+ *   channel per block, each with its freedom of information variant. Drafts only: nothing is sent.
  *
  * DOM- and network-free: the rule library and the patch result are passed in.
  */
@@ -62,6 +64,11 @@ import { documentRequests } from './ground/requests'
 import { exceptionsToRequest, wildlifeCitesText, wildlifeRows, withheldRequests } from './ground/wildlifeMeasures'
 import { CROSSING_ORIGIN_LABELS, CROSSING_ROLE_LABELS, CROSSING_STRUCTURE_LABELS } from './crossings/record'
 import { assessCrossing, CROSSING_STANDING_WORDS, crossingRollup, type CrossingAssessment } from './crossings/standing'
+import { channelOf, gapKindOf } from './acquire/channels'
+import { blockGaps, gapSubject, planGaps } from './acquire/gaps'
+import { FSP_BASIS_LABELS, RECORD_ID_FIELDS, RECORD_ID_LABELS, REQUEST_EVENT_LABELS } from './acquire/record'
+import { draftLetters, lettersText } from './acquire/requests'
+import { requestStanding } from './acquire/status'
 
 export const BLOCK_PLANNING_EXPORTS = [
   {
@@ -97,6 +104,15 @@ export const BLOCK_PLANNING_EXPORTS = [
     fileName: 'block-assessment-summary.html',
     type: { mime: 'text/html', extension: 'html', description: 'Web page' },
     needsResult: true,
+  },
+  {
+    id: 'requests',
+    label: 'Records to request (text)',
+    description:
+      'The drafted requests for the records the reviews cannot answer from public data: one per channel per block, each with its freedom of information version. Nothing is sent.',
+    fileName: 'block-records-requests.txt',
+    type: { mime: 'text/plain', extension: 'txt', description: 'Text' },
+    needsResult: false,
   },
 ] as const
 export type BlockPlanningExport = (typeof BLOCK_PLANNING_EXPORTS)[number]['id']
@@ -170,6 +186,7 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
     }),
     groundReads: (plan.groundReads ?? []).map((read) => groundRecord(plan, read)),
     crossings: crossingRecords(plan, library),
+    acquisition: acquisitionRecord(plan, library, generatedOn),
     pathways: pathways(plan, orderKey ? order?.sets[orderKey] : undefined, result),
     planningIndex: { notALegalTest: true, formula: indexFormula(weights), ...planningIndex(plan, result, weights) },
     boardCheck: plan.checks?.board ? { current: boardCheckCurrent(plan), ...plan.checks.board } : null,
@@ -225,6 +242,109 @@ function crossingRecords(plan: Plan, library: Pack[]) {
       })),
     }
   })
+}
+
+/**
+ * Records asked for and received: each request's status, dates and references, worked out against
+ * the gaps as they stand, and each received record with the values the reviewer transcribed. The
+ * documents themselves are never kept, so nothing else of them is printed.
+ */
+function acquisitionRecord(plan: Plan, library: Pack[], today: string) {
+  const a = plan.acquisition
+  const derived = new Map<string, Set<string>>()
+  const gapsOf = (block: string, schedule: string) => {
+    const key = `${block}|${schedule}`
+    if (!derived.has(key)) derived.set(key, new Set(blockGaps(plan, library, block, schedule).map((g) => g.id)))
+    return derived.get(key)!
+  }
+  return {
+    ids: a?.ids ?? [],
+    requests: (a?.requests ?? []).map((r) => {
+      const standing = requestStanding(r, channelOf(r.channel), today, gapsOf(r.block, r.schedule).has(r.gap))
+      return {
+        ...r,
+        state: standing.state,
+        due: standing.due ?? null,
+        overdue: standing.overdue,
+        noLongerNeeded: standing.noLongerNeeded,
+      }
+    }),
+    received: (a?.received ?? []).map((r) => ({
+      ...r,
+      values: r.values.map((v) => ({ ...v, transcribedBy: 'reviewer' as const })),
+    })),
+  }
+}
+
+/** The summary's section on records asked for and received; empty when there are none. */
+function acquisitionHtml(plan: Plan, library: Pack[], today: string, names: Record<string, string>) {
+  const a = plan.acquisition
+  const requests = a?.requests ?? []
+  const received = a?.received ?? []
+  const stated = (a?.ids ?? []).filter((i) => i.fsp || RECORD_ID_FIELDS.some((f) => i[f]))
+  if (!requests.length && !received.length && !stated.length) return ''
+  const blockName = (id: string) => plan.blocks.find((b) => b.id === id)?.name ?? id
+  const cell = (c: unknown) => `<td>${escape(c)}</td>`
+  const record = acquisitionRecord(plan, library, today)
+  const statedHtml = stated.length
+    ? `<h3>Identifiers and the plan relied on, as the reviewer stated them</h3>
+<ul>${stated
+        .map(
+          (i) =>
+            `<li>${escape(blockName(i.block))}: ${escape(
+              [
+                ...RECORD_ID_FIELDS.flatMap((f) => (i[f] ? [`${RECORD_ID_LABELS[f]} ${i[f]}`] : [])),
+                ...(i.permitIssued ? [`permit issued ${i.permitIssued}`] : []),
+                ...(i.fsp
+                  ? [
+                      `FSP ${i.fsp.id}${i.fsp.amendment ? ` amendment ${i.fsp.amendment}` : ''}, identified by: ${FSP_BASIS_LABELS[i.fsp.basis]} (${i.fsp.statedOn})`,
+                    ]
+                  : []),
+              ].join(' · '),
+            )}</li>`,
+        )
+        .join('')}</ul>`
+    : ''
+  const requestsHtml = record.requests.length
+    ? `<h3>Requests</h3>
+<table><thead><tr><th>For</th><th>Record</th><th>Through</th><th>Status</th><th>Events</th></tr></thead><tbody>
+${record.requests
+  .map((r) => {
+    const kind = r.gap.split(':')[0] as Parameters<typeof gapKindOf>[0]
+    const crossing = r.gap.split(':')[3]
+    const status = `${REQUEST_EVENT_LABELS[r.state as keyof typeof REQUEST_EVENT_LABELS] ?? r.state}${r.due ? ` · due ${r.due}` : ''}${r.overdue ? ' · overdue' : ''}${r.noLongerNeeded ? ' · no longer needed' : ''}`
+    const events = r.events
+      .map((e) => `${REQUEST_EVENT_LABELS[e.status]} ${e.date}${e.reference ? ` (${e.reference})` : ''}`)
+      .join('; ')
+    return `<tr>${cell(`${gapSubject(plan, { block: r.block, crossing })} · ${names[r.schedule] ?? r.schedule}`)}${cell(gapKindOf(kind)?.label ?? kind)}${cell(channelOf(r.channel)?.label ?? r.channel)}${cell(status)}${cell(events)}</tr>`
+  })
+  .join('\n')}
+</tbody></table>`
+    : ''
+  const receivedHtml = received.length
+    ? `<h3>Received</h3>
+<p class="note">Each value is the reviewer’s transcription of the record; the record itself is not kept. A value counts only where the reviewer used it.</p>
+<ul>${received
+        .map(
+          (r) =>
+            `<li><strong>${escape(r.title)}</strong> · ${escape(blockName(r.block))} · from ${escape(channelOf(r.from)?.label ?? r.from)} · ${r.documentDate ? `dated ${escape(r.documentDate)} · ` : ''}received ${escape(r.receivedOn)}${r.reference ? ` · ${escape(r.reference)}` : ''}${r.severed ? ` · severed${r.severedNote ? ` (${escape(r.severedNote)})` : ''}` : ''}${
+              r.values.length
+                ? `<ul>${r.values
+                    .map(
+                      (v) =>
+                        `<li>${escape(v.label)}: ${escape(v.value)}${v.page ? ` (p. ${escape(v.page)})` : ''}${v.uses?.length ? ` — used: ${escape(v.uses.map((u) => `${u.target} (${u.on})`).join('; '))}` : ' — not used'}</li>`,
+                    )
+                    .join('')}</ul>`
+                : ''
+            }</li>`,
+        )
+        .join('')}</ul>`
+    : ''
+  return `<h2>Records asked for and received</h2>
+<p class="note">What the reviews could not answer from public data, and what was done to get it. A received record answers nothing until the reviewer uses a value from it.</p>
+${statedHtml}
+${requestsHtml}
+${receivedHtml}`
 }
 
 /** A ground read for the record: the read, whether it is current, and the catalogue's reach for what it found. */
@@ -778,6 +898,7 @@ ${boardHtml}
 ${oldHtml}
 ${exceptionsHtml(plan, record.blockReviews, crossingAssessments)}
 ${crossingsHtml(plan, library, names)}
+${acquisitionHtml(plan, library, generatedOn, names)}
 ${rangeHtml}
 ${groundSection}
 <h2>D.5 pathways</h2>
@@ -805,6 +926,7 @@ export function buildExport(
 ): string {
   if (id === 'plan') return JSON.stringify(plan, null, 2)
   if (id === 'geojson') return JSON.stringify(blocksGeoJson(plan), null, 2)
+  if (id === 'requests') return lettersText(plan, draftLetters(plan, planGaps(plan, library), generatedOn), generatedOn)
   if (!result) throw Error('The patch calculation has not finished. Set the reporting unit and wait for the run.')
   if (id === 'record') return JSON.stringify(assessmentRecord(plan, result, library, generatedOn), null, 2)
   return summaryHtml(plan, result, library, generatedOn)
