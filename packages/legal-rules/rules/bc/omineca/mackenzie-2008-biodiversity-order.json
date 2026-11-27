@@ -1,0 +1,1554 @@
+{
+  "id": "bc.mackenzie.2008.objectives",
+  "schemaVersion": "1.0.0",
+  "reviewStatus": "data-transcribed-pending-legal-and-spatial-review",
+  "note": "Tables transcribed from the signed PDFs the catalogue transcriptions point at (bc.mackenzie.biodiversity.2008 and bc.mackenzie.biodiversity-amendment.2010), whose quotes hold one row of each table. Pages are the printed page numbers, as the transcriptions give them. The signed PDFs are the authority.",
+  "sources": {
+    "order": {
+      "sourceId": "bc.mackenzie.biodiversity.2008",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/mackenzie-lrmp/mackenzie-srmp/non-spatial_landscape_biodiversity_obj_mackenzie_forest_district.pdf",
+      "signedOn": "2008-04-09",
+      "transcribedFrom": "signed PDF, text layer (Table 2 parsed from it, then checked against the 2010 table)",
+      "pages": {
+        "1.2": 2,
+        "table1": 4,
+        "definitions": 4,
+        "objective2": 5,
+        "table2": "5-8",
+        "objective3": 9,
+        "table3": 9,
+        "guidance4": "12-13"
+      }
+    },
+    "amendment": {
+      "sourceId": "bc.mackenzie.biodiversity-amendment.2010",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/mackenzie-lrmp/mackenzie-srmp/order_min_argirculture_lands_amended.pdf",
+      "signedOn": "2010-09-23",
+      "transcribedFrom": "signed PDF, scanned; Table 2 typed from the page images",
+      "pages": {
+        "1(b)": 1,
+        "table2": "2-4"
+      }
+    }
+  },
+  "application": {
+    "provision": "1.2",
+    "quote": "These objectives apply to all Crown land in the Mackenzie Forest District, except for lands covered by woodlot licences, research forests or community forests licences that are 600 hectares or smaller."
+  },
+  "crownForestLandBase": {
+    "provision": "1.5 Crown Forest Land Base",
+    "quote": "“Crown Forest Land Base” means provincial Crown land which is forested. It has generally been divided into: non-contributing land base (e.g. parks, inoperable forest and environmentally sensitive areas); and, timber harvesting land base (i.e. suitable and available for timber harvesting). It does not include excluded land base, such as private land, federal land, municipal land and woodlots licenses."
+  },
+  "naturalForestArea": {
+    "provision": "1.5 Natural Forest Area",
+    "quote": "“Natural Forest Area” means an area in the mountain pine beetle infested units which has not been harvested and is in one or more of the following stages: old forest; dying forest; dead forest; or, young natural forest."
+  },
+  "deciduousSpecies": {
+    "provision": "1.5 Definitions (general)",
+    "quote": "Deciduous species” means birch or aspen."
+  },
+  "oldForest": {
+    "provision": "1.5 Old Forest",
+    "quote": "“Old Forest” means forests in BEC units SBSmk1 and SBSmk2 that are greater than 120 years old; forest in deciduous leading stands in BWBS BEC units that are greater than 100 years old; and, forests in all other stands and BEC units that are greater than 140 years old.",
+    "rules": [
+      {
+        "becUnits": ["SBSmk1", "SBSmk2"],
+        "olderThan": 120
+      },
+      {
+        "zone": "BWBS",
+        "leading": "deciduous",
+        "olderThan": 100
+      },
+      {
+        "otherwise": true,
+        "olderThan": 140
+      }
+    ]
+  },
+  "table1": {
+    "page": 4,
+    "groups": [
+      {
+        "group": "1",
+        "asPrinted": "ESSFmcp, ESSFmvp2, ESSFmvp3, ESSFmvp4, ESSFwcp3, SWBmks",
+        "variants": ["ESSFmcp", "ESSFmvp2", "ESSFmvp3", "ESSFmvp4", "ESSFwcp3", "SWBmks"]
+      },
+      {
+        "group": "2",
+        "asPrinted": "ESSFmc, ESSFmv2, ESSFmv3, ESSmv4, SWBmk",
+        "variants": ["ESSFmc", "ESSFmv2", "ESSFmv3", "ESSFmv4", "SWBmk"],
+        "readings": ["Printed ESSmv4; no BEC zone is ESS, read as ESSFmv4."]
+      },
+      {
+        "group": "3",
+        "asPrinted": "ESSFwc3, ESSFwk2",
+        "variants": ["ESSFwc3", "ESSFwk2"]
+      },
+      {
+        "group": "4",
+        "asPrinted": "SBSmk1, SBSmk2, SBSwk1",
+        "variants": ["SBSmk1", "SBSmk2", "SBSwk1"]
+      },
+      {
+        "group": "5",
+        "asPrinted": "SBSvk, SBSwk2",
+        "variants": ["SBSvk", "SBSwk2"]
+      },
+      {
+        "group": "6",
+        "asPrinted": "BWBSmw1, BWBSwk2 (Con)",
+        "variants": ["BWBSmw1", "BWBSwk2"],
+        "leading": "conifer"
+      },
+      {
+        "group": "7",
+        "asPrinted": "BWBSdk1 (Con)",
+        "variants": ["BWBSdk1"],
+        "leading": "conifer"
+      },
+      {
+        "group": "6&7",
+        "asPrinted": "BWBS deciduous leading",
+        "zone": "BWBS",
+        "leading": "deciduous"
+      }
+    ]
+  },
+  "table2": {
+    "provision": "1(b)",
+    "source": "amendment",
+    "dated": "2010-01-10",
+    "rows": [
+      {
+        "unitsAsPrinted": "Akie, Akie River",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Akie, Akie River",
+        "beo": "Low",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Blackwater",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Blackwater",
+        "beo": "Low",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Blackwater",
+        "beo": "Low",
+        "groupsAsPrinted": "4,7",
+        "groups": ["4", "7"],
+        "oldPercent": 11,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Buffalohead",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Buffalohead",
+        "beo": "Low",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 11,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Chunamon",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Chunamon",
+        "beo": "Low",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Chunamon",
+        "beo": "Low",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Collins-Davis",
+        "beo": "Low",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Collins-Davis",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Collins-Davis",
+        "beo": "Low",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Collins-Davis",
+        "beo": "Low",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Collins-Davis",
+        "beo": "Low",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Germansen Mountain",
+        "beo": "Low",
+        "groupsAsPrinted": "2,7",
+        "groups": ["2", "7"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Mesilinka",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Mesilinka",
+        "beo": "Low",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Osilinka",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Osilinka",
+        "beo": "Low",
+        "groupsAsPrinted": "4, 7",
+        "groups": ["4", "7"],
+        "oldPercent": 11,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Aiken",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Aiken",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Clearwater",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Clearwater",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Clearwater",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Discovery, Duckling",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Discovery, Duckling",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 2
+      },
+      {
+        "unitsAsPrinted": "Ingenika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Ingenika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Lower Ospika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Lower Ospika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Lower Ospika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Lower Ospika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Morfee",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Morfee",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Morfee",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Nabesche",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Nabesche",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Nabesche",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Nabesche",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "6",
+        "groups": ["6"],
+        "oldPercent": 11,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Nabesche",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Pesika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Pesika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Schooler",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Schooler",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "6",
+        "groups": ["6"],
+        "oldPercent": 11,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Philip, Philip Lake, Tudyah A",
+        "beo": "Low / Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Philip, Philip Lake, Tudyah A",
+        "beo": "Low / Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Philip, Philip Lake, Tudyah A",
+        "beo": "Low / Intermediate",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Fox",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Fox",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "LowAkie, LowPesika",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "LowAkie, LowPesika",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Nation",
+        "beo": "High",
+        "groupsAsPrinted": "4, 5",
+        "groups": ["4", "5"],
+        "oldPercent": 16,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Nina Creek",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Nina Creek",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "North Ingenika, Swannell",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "North Ingenika, Swannell",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Obo River",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Obo River",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 3
+      },
+      {
+        "unitsAsPrinted": "Pelly",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "Pelly",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "Selwyn",
+        "beo": "High",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 28,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "Selwyn",
+        "beo": "High",
+        "groupsAsPrinted": "5, 2",
+        "groups": ["5", "2"],
+        "oldPercent": 13,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "Selwyn",
+        "beo": "High",
+        "groupsAsPrinted": "6, 4",
+        "groups": ["6", "4"],
+        "oldPercent": 16,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "Thutade",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "Thutade",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "Tutizza",
+        "beo": "High",
+        "groupsAsPrinted": "2, 7",
+        "groups": ["2", "7"],
+        "oldPercent": 13,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "Upper Ospika",
+        "beo": "High",
+        "groupsAsPrinted": "2, 3",
+        "groups": ["2", "3"],
+        "oldPercent": 13,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "Upper Ospika",
+        "beo": "High",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 16,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "LUs with enhanced management emphasis",
+        "beo": "Low",
+        "groupsAsPrinted": "BWBS (deciduous leading only)",
+        "groups": ["6&7"],
+        "oldPercent": 13,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "LUs with general management emphasis",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "BWBS (deciduous leading only)",
+        "groups": ["6&7"],
+        "oldPercent": 13,
+        "page": 4
+      },
+      {
+        "unitsAsPrinted": "LUs with special management emphasis",
+        "beo": "High",
+        "groupsAsPrinted": "BWBS (deciduous leading only)",
+        "groups": ["6&7"],
+        "oldPercent": 19,
+        "page": 4
+      }
+    ]
+  },
+  "table2As2008": {
+    "provision": "Table 2 (2008)",
+    "source": "order",
+    "repealed": "2010-09-23",
+    "rows": [
+      {
+        "unitsAsPrinted": "Akie, Akie River",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 5
+      },
+      {
+        "unitsAsPrinted": "Akie, Akie River",
+        "beo": "Low",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 5
+      },
+      {
+        "unitsAsPrinted": "Blackwater",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 5
+      },
+      {
+        "unitsAsPrinted": "Blackwater",
+        "beo": "Low",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 9,
+        "page": 5
+      },
+      {
+        "unitsAsPrinted": "Blackwater",
+        "beo": "Low",
+        "groupsAsPrinted": "4,7",
+        "groups": ["4", "7"],
+        "oldPercent": 11,
+        "page": 5
+      },
+      {
+        "unitsAsPrinted": "Buffalohead",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 5
+      },
+      {
+        "unitsAsPrinted": "Buffalohead",
+        "beo": "Low",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 11,
+        "page": 5
+      },
+      {
+        "unitsAsPrinted": "Chunamon",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 5
+      },
+      {
+        "unitsAsPrinted": "Chunamon",
+        "beo": "Low",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 5
+      },
+      {
+        "unitsAsPrinted": "Chunamon",
+        "beo": "Low",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 5
+      },
+      {
+        "unitsAsPrinted": "Collins-Davis",
+        "beo": "Low",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Collins-Davis",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Collins-Davis",
+        "beo": "Low",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Collins-Davis",
+        "beo": "Low",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Collins-Davis",
+        "beo": "Low",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Germansen Mountain",
+        "beo": "Low",
+        "groupsAsPrinted": "2,7",
+        "groups": ["2", "7"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Gaffney, Manson River",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Gaffney, Manson River",
+        "beo": "Low",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Gaffney, Manson River",
+        "beo": "Low",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Mesilinka",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Mesilinka",
+        "beo": "Low",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Osilinka",
+        "beo": "Low",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Osilinka",
+        "beo": "Low",
+        "groupsAsPrinted": "4, 7",
+        "groups": ["4", "7"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Aiken",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Aiken",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Clearwater",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Clearwater",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Clearwater",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Discovery, Duckling",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Discovery, Duckling",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Gillis, Klawli",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Gillis, Klawli",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Gillis, Klawli",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Ingenika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Ingenika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Lower Ospika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Lower Ospika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Lower Ospika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Lower Ospika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Morfee",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Morfee",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Morfee",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 6
+      },
+      {
+        "unitsAsPrinted": "Nabesche",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Nabesche",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Nabesche",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Nabesche",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "6",
+        "groups": ["6"],
+        "oldPercent": 11,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Nabesche",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Parsnip",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Parsnip",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Parsnip",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Parsnip",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Pesika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Pesika",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Schooler",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Schooler",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "6",
+        "groups": ["6"],
+        "oldPercent": 11,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Twenty Mile",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Twenty Mile",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 11,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Misinchinka, Tudyah B",
+        "beo": "Low / Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Misinchinka, Tudyah B",
+        "beo": "Low / Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Misinchinka, Tudyah B",
+        "beo": "Low / Intermediate",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Misinchinka, Tudyah B",
+        "beo": "Low / Intermediate",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 19,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Philip, Philip Lake, Tudyah A",
+        "beo": "Low / Intermediate",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 9,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Philip, Philip Lake, Tudyah A",
+        "beo": "Low / Intermediate",
+        "groupsAsPrinted": "5",
+        "groups": ["5"],
+        "oldPercent": 9,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Philip, Philip Lake, Tudyah A",
+        "beo": "Low / Intermediate",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 11,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Connaghan Creek, Eklund, Jackfish, South Germansen-Upper Manson",
+        "beo": "High",
+        "groupsAsPrinted": "2, 5",
+        "groups": ["2", "5"],
+        "oldPercent": 13,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Connaghan Creek, Eklund, Jackfish, South Germansen-Upper Manson",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Connaghan Creek, Eklund, Jackfish, South Germansen-Upper Manson",
+        "beo": "High",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 16,
+        "page": 7
+      },
+      {
+        "unitsAsPrinted": "Fox",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Fox",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Kennedy",
+        "beo": "High",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 28,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Kennedy",
+        "beo": "High",
+        "groupsAsPrinted": "5, 4",
+        "groups": ["5", "4"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "LowAkie, LowPesika",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "LowAkie, LowPesika",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Nation",
+        "beo": "High",
+        "groupsAsPrinted": "4, 5",
+        "groups": ["4", "5"],
+        "oldPercent": 16,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Nina Creek",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Nina Creek",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "North Ingenika, Swannell",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "North Ingenika, Swannell",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Obo River",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Obo River",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Pelly",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Pelly",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Selwyn",
+        "beo": "High",
+        "groupsAsPrinted": "3",
+        "groups": ["3"],
+        "oldPercent": 28,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Selwyn",
+        "beo": "High",
+        "groupsAsPrinted": "5, 2",
+        "groups": ["5", "2"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Selwyn",
+        "beo": "High",
+        "groupsAsPrinted": "6, 4",
+        "groups": ["6", "4"],
+        "oldPercent": 16,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Thutade",
+        "beo": "High",
+        "groupsAsPrinted": "2",
+        "groups": ["2"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Thutade",
+        "beo": "High",
+        "groupsAsPrinted": "7",
+        "groups": ["7"],
+        "oldPercent": 16,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Tutizza",
+        "beo": "High",
+        "groupsAsPrinted": "2, 7",
+        "groups": ["2", "7"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Upper Ospika",
+        "beo": "High",
+        "groupsAsPrinted": "2, 3",
+        "groups": ["2", "3"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "Upper Ospika",
+        "beo": "High",
+        "groupsAsPrinted": "4",
+        "groups": ["4"],
+        "oldPercent": 16,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "LUs with enhanced management emphasis",
+        "beo": "Low",
+        "groupsAsPrinted": "BWBS (deciduous leading only)",
+        "groups": ["6&7"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "LUs with general management emphasis",
+        "beo": "Intermediate",
+        "groupsAsPrinted": "BWBS (deciduous leading only)",
+        "groups": ["6&7"],
+        "oldPercent": 13,
+        "page": 8
+      },
+      {
+        "unitsAsPrinted": "LUs with special management emphasis",
+        "beo": "High",
+        "groupsAsPrinted": "BWBS (deciduous leading only)",
+        "groups": ["6&7"],
+        "oldPercent": 19,
+        "page": 8
+      }
+    ]
+  },
+  "droppedIn2010": [
+    "Gaffney, Manson River",
+    "Gillis, Klawli",
+    "Parsnip",
+    "Twenty Mile",
+    "Misinchinka, Tudyah B",
+    "Connaghan Creek, Eklund, Jackfish, South Germansen-Upper Manson",
+    "Kennedy"
+  ],
+  "table3": {
+    "provision": "Table 3",
+    "page": 9,
+    "heading": "Minimum Percent of the Old Forest Retention in Table 1 that must be Old Interior Forest",
+    "rows": [
+      {
+        "group": "2",
+        "Low": 10,
+        "Intermediate": 25,
+        "High": 25
+      },
+      {
+        "group": "3",
+        "Low": 25,
+        "Intermediate": 50,
+        "High": 50
+      },
+      {
+        "group": "4",
+        "Low": 10,
+        "Intermediate": 25,
+        "High": 25
+      },
+      {
+        "group": "5",
+        "Low": 10,
+        "Intermediate": 25,
+        "High": 25
+      },
+      {
+        "group": "6",
+        "Low": 10,
+        "Intermediate": 25,
+        "High": 25
+      },
+      {
+        "group": "7",
+        "Low": 10,
+        "Intermediate": 25,
+        "High": 25
+      }
+    ]
+  },
+  "youngerStands": {
+    "provision": "Objective 2(b)",
+    "maxShareOfLiveOldPortion": 0.2,
+    "quote": "b) of the target amount listed in Table 2 and that proportion made up of live Old Forest, up to 20% can come from stands less than the age of old, where it can be demonstrated that equal or better conservation benefits would result;"
+  },
+  "naturalForestAreaCap": {
+    "provision": "Objective 2(a)",
+    "quote": "a) the target amount of old forest retention can be made up of live Old Forest and / or Natural Forest Area and. The proportion of Natural Forest Area that can contribute to the target can not exceed the percentage of the area that is affected by the epidemic or catastrophic event (for example, the mountain pine beetle epidemic);"
+  },
+  "parksMayContribute": {
+    "provision": "Objective 2(d), Objective 3(b)",
+    "parks": [
+      {
+        "park": "Heather Dina Lake Park",
+        "unit": "Parsnip"
+      },
+      {
+        "park": "Muscovite Lakes Park",
+        "unit": "Blackwater"
+      },
+      {
+        "park": "Ed Bird Estella Lake Park",
+        "unit": "Buffalohead"
+      }
+    ]
+  },
+  "interiorGuidance": {
+    "provision": "Guidance 4",
+    "binding": false,
+    "buffers": [
+      {
+        "leading": "pine and deciduous",
+        "edgeAgeClasses": "NSR or age class 1-3",
+        "metres": 200
+      },
+      {
+        "leading": "all other species",
+        "edgeAgeClasses": "NSR or age class 1-4",
+        "metres": 200
+      }
+    ],
+    "alsoBuffered": [
+      "lakes",
+      "transportation corridors attributed to all primary access roads (e.g. Forest Service Roads)",
+      "pipelines",
+      "railways",
+      "hydro transmission corridors"
+    ],
+    "notBuffered": ["secondary and tertiary roads"]
+  }
+}

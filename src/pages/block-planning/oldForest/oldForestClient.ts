@@ -5,6 +5,7 @@
 import type { OldForestDrawing } from './drawing'
 import type { OldForestAsk, OldForestReply } from './oldForest.worker'
 import type { OldForestRecord } from '../records'
+import type { MackenzieOldForestRecord } from './mackenzieRecord'
 
 type Ask<T = OldForestAsk> = T extends unknown ? Omit<T, 'id'> : never
 
@@ -53,6 +54,16 @@ export async function calculateOldForest(
   const reply = await post({ kind: 'calculate', ...ask }, onProgress)
   if (!reply.record) throw Error('Nothing came back.')
   return reply.record
+}
+
+/** The Mackenzie order's old and old interior forest (`mackenzie.ts`), on the same worker and session. */
+export async function calculateMackenzieOldForest(
+  ask: Omit<Extract<OldForestAsk, { kind: 'mackenzie' }>, 'id' | 'kind'>,
+  onProgress: (message: string) => void,
+): Promise<MackenzieOldForestRecord> {
+  const reply = await post({ kind: 'mackenzie', ...ask }, onProgress)
+  if (!reply.mackenzie) throw Error('Nothing came back.')
+  return reply.mackenzie
 }
 
 /** The map's shapes for one schedule and year; null when a newer draw replaced this one first. */

@@ -18,6 +18,7 @@ import {
   type Shape,
 } from './plan'
 import type { OldForestChoices, PlanChecks } from './records'
+import type { MackenzieOldForestChoices } from './oldForest/mackenzieRecord'
 import { rangeReviewCurrent } from './review/rangeReview'
 
 /** Keeps one grazing review per block and schedule if the evidence still describes its footprint. */
@@ -51,6 +52,18 @@ export function setOldForest(plan: Plan, change: Partial<OldForestChoices>): Pla
     next.pooledWith = next.pooledWith.filter((u) => u.district !== next.district || u.unit !== next.unit)
   if (!next.pooledWith?.length) delete next.pooledWith
   return { ...plan, oldForest: next }
+}
+
+/** Changes the Mackenzie calculation's choices; a plan without them starts at the given unit with the park off. */
+export function setMackenzieOldForest(plan: Plan, change: Partial<MackenzieOldForestChoices>): Plan {
+  const next: MackenzieOldForestChoices = {
+    ...(plan.mackenzieOldForest ?? { unit: change.unit ?? '', countPark: false }),
+    ...change,
+  }
+  if (next.affectedPercent === undefined) delete next.affectedPercent
+  if (!next.affectedSource) delete next.affectedSource
+  if (next.younger === undefined) delete next.younger
+  return { ...plan, mackenzieOldForest: next }
 }
 
 /** Keeps a calculation with the plan (`records.ts`). */

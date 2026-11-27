@@ -120,7 +120,8 @@ function robust<T>(op: (...g: Geometry[]) => T, ...raw: Geometry[]): T {
   }
 }
 
-const toAlbers = (shape: { type: string; coordinates: unknown }): Geometry => {
+/** WGS84 to BC Albers on the 1 cm grid; shared with the Mackenzie calculation (`mackenzie.ts`). */
+export const toAlbers = (shape: { type: string; coordinates: unknown }): Geometry => {
   const ring = (r: Position[]) => r.map(([x, y]) => snap(lngLatToAlbers(x, y)))
   const project = (c: unknown, depth: number): unknown =>
     depth === 0 ? ring(c as Position[]) : (c as unknown[]).map((x) => project(x, depth - 1))
@@ -135,10 +136,10 @@ const toAlbers = (shape: { type: string; coordinates: unknown }): Geometry => {
   return g
 }
 
-const area = (g: Geometry | null) => (g ? g.getArea() : 0)
+export const area = (g: Geometry | null) => (g ? g.getArea() : 0)
 /** Envelopes only: the overlay that follows finds whether they really meet. */
-const intersects = (a: Geometry, b: Geometry) => a.getEnvelopeInternal().intersects(b.getEnvelopeInternal())
-const intersection = (a: Geometry, b: Geometry): Geometry | null => {
+export const intersects = (a: Geometry, b: Geometry) => a.getEnvelopeInternal().intersects(b.getEnvelopeInternal())
+export const intersection = (a: Geometry, b: Geometry): Geometry | null => {
   if (!intersects(a, b)) return null
   const g = robust((x, y) => OverlayOp.intersection(x, y), a, b)
   return g.isEmpty() || !(g.getArea() > 0) ? null : g
@@ -148,7 +149,7 @@ const intersection = (a: Geometry, b: Geometry): Geometry | null => {
  * A6's old stands (about 2,000 polygons) where this takes 0.4 s, with the same interior to the
  * hectare. JSTS takes over if both grids fail.
  */
-function manyUnion(list: Geometry[]): Geometry | null {
+export function manyUnion(list: Geometry[]): Geometry | null {
   if (list.length < 2) return union(list)
   const coords = list.flatMap((g) => {
     const j = writer.write(polygonal(g)) as { type: string; coordinates: unknown }
@@ -171,7 +172,7 @@ function manyUnion(list: Geometry[]): Geometry | null {
   return union(list)
 }
 
-const union = (list: Geometry[]): Geometry | null =>
+export const union = (list: Geometry[]): Geometry | null =>
   list.length === 0
     ? null
     : list.length === 1
@@ -223,7 +224,7 @@ function clipper(area: Geometry): (g: Geometry) => Geometry | null {
   }
 }
 
-interface PreparedStand {
+export interface PreparedStand {
   stand: Stand
   /** The stand's ground inside the unit. Null when it only neighbours the unit. */
   inside: Geometry | null
@@ -245,8 +246,9 @@ interface PreparedStand {
   counted: () => Partial<Record<CountedArea['kind'], Geometry>>
 }
 
-export interface PreparedUnit {
-  unit: OldForestUnit
+/** A unit clipped once; `U` is the order's unit (the 2004 order's by default, or a Mackenzie unit). */
+export interface PreparedUnit<U = OldForestUnit> {
+  unit: U
   stands: PreparedStand[]
   /** The corridor lines, joined. */
   corridors: Geometry | null
@@ -282,7 +284,7 @@ export interface ExcludedFigures {
   cflbHa: number
 }
 
-const difference = (a: Geometry, b: Geometry): Geometry | null => {
+export const difference = (a: Geometry, b: Geometry): Geometry | null => {
   const g = robust((x, y) => OverlayOp.difference(x, y), a, b)
   return g.isEmpty() || !(g.getArea() > 0) ? null : polygonal(g)
 }
@@ -312,7 +314,7 @@ function excludedGround(excluded: ExcludedArea[], unitGeom: Geometry) {
 }
 
 /** Projects and clips everything once; the per-year work only adds areas and, for interior, overlays. */
-export function prepareUnit({
+export function prepareUnit<U = OldForestUnit>({
   unit,
   shape,
   stands,
@@ -320,14 +322,14 @@ export function prepareUnit({
   corridors,
   excluded = [],
 }: {
-  unit: OldForestUnit
+  unit: U
   shape: Shape
   stands: Stand[]
   counted: CountedArea[]
   corridors: Corridor[]
   /** Ground the order does not apply to (`landBase.ts`). None: the unit's whole ground counts. */
   excluded?: ExcludedArea[]
-}): PreparedUnit {
+}): PreparedUnit<U> {
   const unitGeom = toAlbers(shape)
   const ground = excludedGround(excluded, unitGeom)
   const removedM2 = new Map<ExcludedKind, number>()
@@ -423,7 +425,7 @@ export function ageIn(stand: Stand, year: number): number | null {
   return stand.projectedAge + (year - stand.projectedYear)
 }
 
-const unknownBecauseHarvestedLater = (stand: Stand, year: number) =>
+export const unknownBecauseHarvestedLater = (stand: Stand, year: number) =>
   stand.harvestYear !== null && stand.harvestYear > year
 
 export interface YearFigures extends Partial<YoungerStandsYear> {
@@ -543,7 +545,7 @@ function excludedOld(p: PreparedStand, year: number, unit: OldForestUnit, resets
  * parts counted and the buffered edges come back too (for D.3's interior split and the map); the
  * area is the same either way.
  */
-function interiorOf(
+export function interiorOf(
   old: Geometry | null,
   edges: Geometry[],
   notCounted: ((g: Geometry) => Geometry | null) | null = null,

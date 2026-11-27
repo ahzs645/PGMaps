@@ -1,0 +1,27 @@
+{
+  "id": "mackenzie-tsr-2020",
+  "title": "Mackenzie TSA Timber Supply Review Data Package, November 2020, Table 35",
+  "source": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/stewardship/forest-analysis-inventory/tsr-annual-allowable-cut/16ts_dp_2020_november.pdf",
+  "readOn": "2026-11-27",
+  "method": "Section 7.2 (pp. 69-71): 111 old forest reporting units under the 2004 provincial order (POGO) and the 2008 Mackenzie order (MOGO), from the district's 2019 reporting units. Table 35 lists only the units then in deficit; one is a MOGO unit. Its area is Crown management forest land base (CMFLB), not the order's CFLB, on the VRI updated to 2019 for harvest and major disturbance (section 4.1, p. 22). Interior old forest is not reported.",
+  "inventoryYear": 2019,
+  "rows": [
+    {
+      "unit": "Philip, Philip Lake, Tudyah A",
+      "label": "Philip_PhilipLake_TudyahA_9_140",
+      "reportingUnitId": 73,
+      "objective": "Low / Intermediate",
+      "order": "MOGO",
+      "becGroup": "5",
+      "targetPercent": 9,
+      "olderThan": 140,
+      "crownForestHa": 4911,
+      "thlbHa": 4201,
+      "oldHa": 292,
+      "oldPercent": 5.95,
+      "table": 35,
+      "page": 70
+    }
+  ],
+  "notListed": "Every other MOGO reporting unit is absent from Table 35, which the data package presents as the units in deficit: on its 2019 inventory each was at or above its target. No figures are published for them."
+}

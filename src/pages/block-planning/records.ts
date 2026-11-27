@@ -8,6 +8,7 @@
  */
 import type { Plan, Shape } from './plan'
 import type { OldForestRepresentation } from './oldForest/representation'
+import type { MackenzieOldForestRecord } from './oldForest/mackenzieRecord'
 
 export interface BoardCheckRecord {
   ranOn: string
@@ -126,6 +127,8 @@ export interface OldForestChoices {
 export interface PlanChecks {
   board?: BoardCheckRecord
   oldForest?: OldForestRecord
+  /** The Mackenzie order's old and old interior forest (`oldForest/mackenzieRecord.ts`). */
+  mackenzieOldForest?: MackenzieOldForestRecord
 }
 
 /** FNV-1a over a string: a short, stable key for "were these the inputs". */

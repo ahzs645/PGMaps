@@ -3,7 +3,7 @@
   "id": "bc.mackenzie.biodiversity",
   "version": "1.0.0",
   "title": "Mackenzie landscape biodiversity order",
-  "description": "The 2008 Mackenzie non-spatial landscape biodiversity objectives as amended in 2010: old forest and old interior forest retention by landscape unit and biogeoclimatic group, the younger-stand allowance, and the Wildlands landscape units. The reviewer reads the targets from the order's tables; PGMaps does not yet calculate them for Mackenzie.",
+  "description": "The 2008 Mackenzie non-spatial landscape biodiversity objectives as amended in 2010: old forest and old interior forest retention by landscape unit and biogeoclimatic group, the younger-stand allowance, and the Wildlands landscape units. The margins are the reviewer's answers; Review → Mackenzie old forest calculates each Table 2 row from DataBC's VRI as evidence shown beside them, never as the answer.",
   "coverage": {
     "from": "2026-11-17",
     "through": "2026-11-17"
