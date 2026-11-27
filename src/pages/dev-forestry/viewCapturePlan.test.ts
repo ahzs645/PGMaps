@@ -129,8 +129,14 @@ describe('waiting for the road view', () => {
     expect(timberFailure('stalled', stalled, { ...ready, timberProgress: { done: 19, total: 40 } })).toBe(
       "The road view's drawn timber stopped growing at 19 of 40 patches: no patch was added for 30 s.",
     )
-    // A regrown stand starting again from none counts as growth.
-    expect(step(stalled, 0, 1000).quietMs).toBe(0)
+    // Counters can flicker or the denominator can change without completing work.
+    expect(step(stalled, 0, 1000).quietMs).toBe(32_000)
+    expect(watchTimber(stalled, { done: 19, total: 41 }, 1000).quietMs).toBe(32_000)
+    expect(step(step(stalled, 18, 1000), 19, 1000).quietMs).toBe(33_000)
+    // A different revision gets a fresh quiet window without changing the hard limit.
+    const rebuilt = watchTimber(stalled, { done: 0, total: 40, revision: {} }, 1000)
+    expect(rebuilt.quietMs).toBe(0)
+    expect(rebuilt.spentMs).toBe(stalled.spentMs + 1000)
     // Past the cap it is given up whatever it does.
     const long = { spentMs: CAPTURE_TIMEOUTS.timberMaxMs + 1, quietMs: 0, progress: { done: 39, total: 40 } }
     expect(timberGivenUp(long, { done: 39, total: 40 })).toBe('too long')

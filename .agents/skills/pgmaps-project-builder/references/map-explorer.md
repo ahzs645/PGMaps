@@ -3,14 +3,14 @@
 Use this mode for a filterable map backed by a runtime data adapter.
 
 The complete contract and JSON example are in `docs/project-map-explorer.md`.
-The current adapter is `research-records-v1`; a different source shape belongs
-in a new adapter, not in the feature components.
+Use `research-records-v1` for Nechako-style tables or `geojson-points-v1` for
+one record per point, as in `public/data/projects/ecolens.json`. Normalize
+other source shapes in adapters.
 
 When the endpoint is available and data verification is in scope, inspect one
 payload for each configured file before claiming runtime readiness. Confirm the
-adapter can normalize its records, locations, categories, coordinates, and
-timeline buckets. A structurally valid package can still fail at runtime when a
-remote file is missing or has drifted from `research-records-v1`.
+adapter can normalize its records, locations, categories, coordinates, and any
+timeline buckets. Verify that bundled data URLs resolve after the sync step.
 
 ## Partitions
 

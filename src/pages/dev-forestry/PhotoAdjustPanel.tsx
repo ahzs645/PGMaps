@@ -16,6 +16,7 @@ import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 
 import type { PoseSource } from './exifPose'
 import { matchedCameraChecks, matchedCameraNamesPhoto, parseMatchedCamera } from './matchedCamera'
+import { photoHeadingIssue } from './photoAcceptance'
 import { formatKm } from './measureFormat'
 import { PairedPointsTable } from './PairedPointsTable'
 import { HeldAngles, SkylineSearch, heldAngleCount, type StartPlanPick } from './PhotoCameraTools'
@@ -31,6 +32,7 @@ export const SOURCE_TEXT: Record<PoseSource, string> = {
   default: 'a default',
   reviewer: 'set by you',
   skyline: 'fitted to the skyline',
+  texture: 'an experimental texture match',
   matched: 'from the matched camera',
   landmark: 'toward the spot picked at the photo’s centre',
   controls: 'solved from the paired points',
@@ -41,6 +43,8 @@ export const SOURCE_TEXT: Record<PoseSource, string> = {
 const roundDegrees = (value: number | null) => (value === null ? null : Math.round(value * 1e7) / 1e7)
 
 function headingNote(own: Own): string {
+  const issue = photoHeadingIssue(own.sources.heading, own.acceptance)
+  if (issue) return issue
   const source = SOURCE_TEXT[own.sources.heading]
   if (own.sources.heading !== 'exif' || own.headingReference === 'true') return source
   const recorded = own.exif?.heading?.degrees
@@ -206,6 +210,16 @@ export function PhotoAdjustPanel({
       </Section>
 
       <Section title="Which way it looked">
+        {photoHeadingIssue(own.sources.heading, own.acceptance) && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => photo.setOwnPose({ bearing: own.pose.bearing })}
+          >
+            Confirm {Math.round(own.pose.bearing * 10) / 10}° as the photo’s direction
+          </Button>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <NumberField
             label="Heading, ° from true north"

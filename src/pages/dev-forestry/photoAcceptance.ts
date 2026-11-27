@@ -9,12 +9,14 @@
  * directly) and a note are the reviewer's to add or leave out. Moving the pose afterwards lapses it
  * (`acceptanceLapsed`), and the page says so rather than carrying an acceptance over to a camera nobody chose.
  *
- * The gate (`acceptGate`) refuses one thing only: a point solve whose held-out pair misses, a measured failure, as
- * Smapshot refuses a validation over its residual. Checks, initials and a note were once required first; a forced
+ * The gate (`acceptGate`) refuses a placeholder direction and a point solve whose held-out pair misses.
+ * Checks, initials and a note were once required first; a forced
  * form before every use of a photo was not how a reviewer works through a flight.
  *
  * Free of DOM and network access: records are validated by hand, with no schema library.
  */
+
+import type { PoseSource } from './exifPose'
 
 const RAD = Math.PI / 180
 
@@ -63,6 +65,8 @@ export type PhotoAcceptance = {
     neighbourAgreesDegrees?: number | null
     /** Whether the check images had been drawn for this exact camera when it was accepted. */
     checksDrawn?: boolean
+    /** The heading had an actual source or was explicitly set, rather than inherited as preview geometry. */
+    directionKnown?: true
   }
   /** The reviewer's own words on why this camera, when they wrote any. */
   note: string
@@ -133,7 +137,31 @@ export function sameCamera(a: AcceptancePose, b: AcceptancePose): boolean {
   return true
 }
 
+/** Historic typed 0° could have been real north or an unlabelled preview default. Retain it, but ask before reuse. */
+export function legacyHeadingNeedsReview(acceptance: PhotoAcceptance | null | undefined): boolean {
+  return (
+    !!acceptance &&
+    acceptance.method === 'typed' &&
+    acceptance.pose.bearing === 0 &&
+    acceptance.evidence.directionKnown !== true
+  )
+}
+
+export function photoHeadingIssue(source: PoseSource, acceptance?: PhotoAcceptance | null): string | null {
+  if (source === 'default') return 'Direction unknown. Set the heading in Adjust or pair a landmark.'
+  if (source === 'texture')
+    return 'This direction is a texture-match starting value. Confirm it in Adjust or pair a landmark.'
+  if (source === 'road-view')
+    return 'This direction is a road-view starting value. Confirm it in Adjust or pair a landmark.'
+  if (source === 'record' && legacyHeadingNeedsReview(acceptance))
+    return 'This older record lists 0° without saying how it was set. Confirm the direction in Adjust.'
+  return null
+}
+
 export interface AcceptGateInput {
+  /** The current direction's provenance. Pass it before reducing it to a camera method. */
+  headingSource?: PoseSource
+  previous?: PhotoAcceptance | null
   /** The camera as it stands. */
   pose: AcceptancePose
   /** The camera the check images (skyline and layers on the photo) were last drawn for; null when never drawn. */
@@ -154,10 +182,12 @@ export function pointsHeldOutLimit(photoWidth?: number): number {
 }
 
 /**
- * Whether *Accept* may be pressed, and why not: only a point solve whose held-out pair lands too far off is refused,
- * and initials, when typed, must be initials. Nothing else is asked first.
+ * Whether *Accept* may be pressed. A placeholder direction and a measured held-out failure cannot be accepted.
+ * Initials, check images and notes are still optional.
  */
 export function acceptGate(input: AcceptGateInput): AcceptGateResult {
+  const direction = input.headingSource ? photoHeadingIssue(input.headingSource, input.previous) : null
+  if (direction) return { ok: false, reason: direction }
   if (input.method === 'points') {
     const worst = input.evidence.worstPairPixels
     const limit = pointsHeldOutLimit(input.photoWidth)
@@ -183,7 +213,11 @@ export function makePhotoAcceptance(
     acceptedAt: now.toISOString(),
     method: input.method,
     pose: input.pose,
-    evidence: { ...input.evidence, checksDrawn: !!input.checkedPose && sameCamera(input.checkedPose, input.pose) },
+    evidence: {
+      ...input.evidence,
+      checksDrawn: !!input.checkedPose && sameCamera(input.checkedPose, input.pose),
+      ...(input.headingSource ? { directionKnown: true } : {}),
+    },
     note: input.note.trim(),
   })
   return acceptance ? { ok: true, acceptance } : { ok: false, reason: 'The camera’s values are out of range.' }
@@ -243,6 +277,7 @@ function parseEvidence(raw: unknown): AcceptanceEvidence {
   share('agreeShare')
   if (typeof e.settled === 'boolean') out.settled = e.settled
   if (typeof e.checksDrawn === 'boolean') out.checksDrawn = e.checksDrawn
+  if (e.directionKnown === true) out.directionKnown = true
   maybeNumber('runnerUpBearing')
   maybeNumber('modelScore')
   maybeNumber('runnerUpModelScore')

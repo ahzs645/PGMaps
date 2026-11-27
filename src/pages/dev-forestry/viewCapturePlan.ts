@@ -160,7 +160,7 @@ export type CaptureWait = 'run' | 'road view' | 'timber' | 'facing' | 'lens' | n
 export type CaptureStage = 'full' | 'sheet'
 
 /** The drawn timber's growth: patches grown of those wanted. */
-export type TimberProgress = { done: number; total: number }
+export type TimberProgress = { done: number; total: number; revision?: object }
 
 const turn = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
 
@@ -198,22 +198,24 @@ export function waitAbandoned(wait: CaptureWait, facts: CaptureFacts): boolean {
 export const RUN_CANCELLED = 'The run for this place was cancelled.'
 
 /**
- * How long the capture has waited on the drawn timber at one view, and how long since it last saw it grow. Any change
- * in the patch count is growth: a stand regrown for a new configuration starts again from none, and is waited for
- * again (within `timberMaxMs`).
+ * How long the capture has waited, and how long since completed patches increased within this stand revision.
+ * A genuinely new stand gets a fresh quiet window, but not a fresh overall budget.
  */
-export type TimberWatch = { spentMs: number; quietMs: number; progress: TimberProgress | null }
+export type TimberWatch = { spentMs: number; quietMs: number; progress: TimberProgress | null; peakDone?: number }
 
 export const TIMBER_WATCH_START: TimberWatch = { spentMs: 0, quietMs: 0, progress: null }
 
 /** The watch after another `elapsedMs` of waiting on the timber, with the page's progress now. */
 export function watchTimber(watch: TimberWatch, progress: TimberProgress | null, elapsedMs: number): TimberWatch {
   const before = watch.progress
-  const grew = !!progress && (!before || progress.done !== before.done || progress.total !== before.total)
+  const rebuilt = !!progress?.revision && before?.revision !== progress.revision
+  const peak = watch.peakDone ?? before?.done ?? 0
+  const grew = !!progress && (!before || rebuilt || progress.done > peak)
   return {
     spentMs: watch.spentMs + elapsedMs,
     quietMs: grew ? 0 : watch.quietMs + elapsedMs,
     progress: progress ?? before,
+    peakDone: rebuilt ? progress!.done : Math.max(peak, progress?.done ?? 0),
   }
 }
 

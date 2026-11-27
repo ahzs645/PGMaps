@@ -9029,6 +9029,50 @@
         "layerCount": 1,
         "sceneCount": 9
       }
+    },
+    {
+      "file": "ecolens.json",
+      "revision": "d45e3eaa51f2",
+      "catalog": {
+        "slug": "ecolens",
+        "title": "EcoLens Climate Stories",
+        "kind": "research-pack",
+        "theme": "emerald",
+        "owner": "BC Centre for Disease Control",
+        "updated": "November 2026",
+        "region": "British Columbia and beyond",
+        "status": "Reference snapshot",
+        "summary": "Explore community stories about climate change and health. Filter by region, search by title or theme, and open the original story on EcoLens.",
+        "sourceNote": "BC DataMapper captured 78 pins from the public EcoLens map on November 26, 2026. EcoLens may adjust submitted locations for privacy.",
+        "links": [
+          {
+            "label": "Original EcoLens map",
+            "href": "https://ecolens.ca/explore-map/"
+          },
+          {
+            "label": "About EcoLens",
+            "href": "https://ecolens.ca/about/"
+          }
+        ],
+        "catalogMetrics": [
+          {
+            "label": "Story pins",
+            "value": "78"
+          },
+          {
+            "label": "Tagged Outside BC",
+            "value": "13"
+          }
+        ],
+        "files": [
+          {
+            "label": "Story pins",
+            "detail": "GeoJSON with published locations, titles, tags, and EcoLens story links."
+          }
+        ],
+        "layerCount": 1,
+        "sceneCount": 0
+      }
     }
   ]
 }

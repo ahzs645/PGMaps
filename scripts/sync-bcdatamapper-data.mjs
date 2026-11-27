@@ -81,6 +81,7 @@ const pathMappings = [
     'datascrapers/climate/echoscreen/project-layers/echoscreen-northern-health-hospitals.geojson',
     'health/echoscreen-northern-health-hospitals.geojson',
   ],
+  ['datascrapers/bc/ecolens/output', 'ecolens'],
   ['datascrapers/bc/laep/output', 'bc/laep'],
   ['datascrapers/bc/mhcca-cvi/output', 'climate-vulnerability'],
   ['datascrapers/manual/output/acknowledgement', 'acknowledgement'],

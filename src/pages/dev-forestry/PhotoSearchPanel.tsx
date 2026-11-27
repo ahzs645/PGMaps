@@ -45,6 +45,11 @@ export function PhotoSearchPanel({
   const undecided = work.combined?.result.undecided ?? null
   const accepted = photo.acceptanceState(own.id) === 'accepted'
   const landmarks = photo.pairs.filter((pair) => !photo.pairsOff.includes(pair.id)).length
+  const pairLandmark = startPick && current ? () => onPlacing(!placing) : undefined
+  const unresolved = (result: typeof manual) =>
+    result?.status === 'done' && (result.ambiguous || !result.candidates.length)
+  const inlineManual = unresolved(manual)
+  const inlineBackground = !manual && unresolved(places?.area ?? null)
   const searchArea = (centre: { lng: number; lat: number }) => void photo.findLocation(own.id, centre)
 
   const lines: Array<{ key: string; text: string; busy?: boolean }> = []
@@ -109,7 +114,12 @@ export function PhotoSearchPanel({
           <p className="text-xs font-medium">
             Nine places round {places.areaCentre?.on === 'high-ground' ? 'the high ground' : 'the GPS fix'}
           </p>
-          <LocationResults search={places.area} quiet />
+          <LocationResults
+            search={places.area}
+            quiet
+            onPair={inlineBackground ? pairLandmark : undefined}
+            placing={placing}
+          />
           {places.searches.some((placed) => placed.id === 'area') && (
             <p className="text-xs leading-5 text-muted-foreground">
               {places.area.status === 'done' && places.area.ambiguous
@@ -135,7 +145,17 @@ export function PhotoSearchPanel({
               </Button>
             )}
           </div>
-          <LocationResults search={manual} onUse={(candidate) => photo.useLocation(own.id, candidate)} />
+          <LocationResults
+            search={manual}
+            onUse={(candidate) => photo.useLocation(own.id, candidate)}
+            onPair={inlineManual ? pairLandmark : undefined}
+            placing={placing}
+            onTryTexture={
+              manual.status === 'done' && manual.centre && !manual.candidates.length && !manual.textureFallback
+                ? () => void photo.findLocation(own.id, manual.centre!, true)
+                : undefined
+            }
+          />
         </div>
       )}
       <div className="flex flex-wrap gap-1.5">
@@ -149,7 +169,7 @@ export function PhotoSearchPanel({
             onClick={() => void photo.findCamera()}
           >
             <Target className="h-4 w-4" />
-            Search here again
+            Search from this camera position
           </Button>
         )}
         {current && (
@@ -180,7 +200,7 @@ export function PhotoSearchPanel({
             {current ? 'Search another area…' : 'Pick the area it was taken in…'}
           </Button>
         )}
-        {startPick && current && (
+        {startPick && current && !inlineManual && !inlineBackground && (
           <Button
             type="button"
             variant={placing ? 'secondary' : 'outline'}

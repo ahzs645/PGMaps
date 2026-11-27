@@ -407,6 +407,8 @@ export function queueReasons(input: {
   search: Pick<WideSearchResult, 'trustworthy' | 'ambiguous'> | null
   /** Options other than the phone's own heading. */
   otherOptions: number
+  hasPhoneHeading?: boolean
+  headingUnknown?: boolean
   neighbourGap: number | null
   /**
    * Whether the place is in doubt: high ground was found near a fix far below its altitude and the camera still stands
@@ -420,6 +422,8 @@ export function queueReasons(input: {
     terrain: input.found?.terrain,
     search: input.search,
     otherOptions: input.otherOptions,
+    hasPhoneHeading: input.hasPhoneHeading,
+    headingUnknown: input.headingUnknown,
     neighbourGap: input.neighbourGap,
     highGround: input.placeInDoubt ?? !!input.found?.highGround,
   })

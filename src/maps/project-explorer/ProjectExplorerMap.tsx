@@ -77,7 +77,11 @@ export function ProjectExplorerMap({
         preAggregated
         pointLabelProperty="name"
         expandOverlappingPoints
-        onPointClick={(properties) => data.focusLocation(String(properties.id))}
+        onPointClick={(properties) => {
+          const id = String(properties.id)
+          if (config.data.adapter === 'geojson-points-v1') setSelectedLocationId(id)
+          else data.focusLocation(id)
+        }}
       />
       {legendFeature?.type === 'map-legend' ? (
         <MapLegendFeature config={config} feature={legendFeature} counts={legendCounts} />
@@ -98,6 +102,7 @@ export function ProjectExplorerMap({
             resourceTypeColors={data.resourceTypeColors}
             resourceTypeLabels={data.resourceTypeLabels}
             recordPlural={config.labels.recordPlural}
+            source={selectedLocation.source}
           />
         </MapPopup>
       ) : null}

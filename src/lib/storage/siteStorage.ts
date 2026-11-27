@@ -155,6 +155,15 @@ export const STORE_CATALOGUE: readonly StoreEntry[] = [
     href: '/dev/nechako/portal?panel=files',
   },
   {
+    id: 'illustrated-map-themes',
+    label: 'Illustrated map themes',
+    detail: 'Map theme ZIPs you imported, including their fonts and settings.',
+    role: 'work',
+    note: 'Manage imported themes in Illustrated map.',
+    databases: [{ name: 'pgmaps.illustrated-map-themes.v1' }],
+    href: '/dev/illustrated-map',
+  },
+  {
     id: 'index-lab',
     label: 'Labs datasets',
     detail: 'Datasets you added in the Labs.',

@@ -24,6 +24,7 @@ export function LocationPopupFeature({
   resourceTypeColors,
   resourceTypeLabels,
   recordPlural,
+  source,
 }: {
   feature: ExplorerFeature<'location-popup'>
   name: string
@@ -32,12 +33,38 @@ export function LocationPopupFeature({
   resourceTypeColors: Record<string, string>
   resourceTypeLabels: Record<string, string>
   recordPlural: string
+  source?: ResearchRecordsLocation['source']
 }) {
   const sorted = Object.entries(resourceTypes)
     .sort((a, b) => b[1] - a[1])
     .slice(0, feature.maxCategories)
   const maxTypeCount = sorted[0]?.[1] ?? 1
   const showComparisonBars = sorted.some(([, typeCount]) => typeCount !== maxTypeCount)
+
+  if (source) {
+    const region = sorted[0]?.[0]
+    return (
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold">{name}</h3>
+        <p className="text-xs text-muted-foreground">
+          {region ? (resourceTypeLabels[region] ?? region) : null}
+          {region && source.month ? ' · ' : null}
+          {source.month ? <time dateTime={source.month}>{source.month}</time> : null}
+        </p>
+        {source.tags.length > 0 ? (
+          <p className="text-xs text-muted-foreground">{source.tags.map((tag) => tag.replace(/-/g, ' ')).join(', ')}</p>
+        ) : null}
+        <a
+          href={source.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block text-sm font-medium text-primary underline underline-offset-4"
+        >
+          Read the original story
+        </a>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-2">

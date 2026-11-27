@@ -65,6 +65,8 @@ function positionStep({ position, airborne }: OwnPhotoStepsInput): OwnPhotoStepR
       return { state: 'done', note: 'solved from the paired points' }
     case 'reviewer':
       return { state: 'done', note: `set by you${height}` }
+    case 'texture':
+      return { state: 'todo', note: 'a texture-match starting place: confirm where it was taken' }
     case 'skyline':
       // *Find the photo location*: one of nine places 500 m apart that fit the skyline best, a start to work from.
       return { state: 'todo', note: 'a start from the location search: confirm where it was taken' }
@@ -79,6 +81,8 @@ function positionStep({ position, airborne }: OwnPhotoStepsInput): OwnPhotoStepR
 function directionStep(input: OwnPhotoStepsInput): OwnPhotoStepReading {
   const { heading, search, solved, matched, pairs, airborne } = input
   switch (heading) {
+    case 'texture':
+      return { state: 'todo', note: 'confirm the texture match or pair a landmark' }
     case 'skyline':
       if (!search) return { state: 'done', note: 'aligned to the skyline' }
       if (search.trustworthy) return { state: 'done', note: 'fitted to the skyline' }
@@ -108,8 +112,10 @@ function directionStep(input: OwnPhotoStepsInput): OwnPhotoStepReading {
           ? 'the phone’s heading, which from an aircraft can be far out'
           : 'the phone’s heading, often a few degrees out',
       }
+    case 'road-view':
+      return { state: 'todo', note: 'not known yet: showing the road view’s heading as a starting value' }
     default:
-      return { state: 'todo', note: 'not known yet: the road view’s heading, as it stood' }
+      return { state: 'todo', note: 'direction unknown: set it or pair a landmark' }
   }
 }
 

@@ -34,6 +34,10 @@ export async function joinEngineCapture(
   for (let i = 0; i < reply.frames.length; i++) {
     const bitmap = await createImageBitmap(reply.frames[i].image)
     try {
+      if (bitmap.width !== frameWidth || bitmap.height !== height)
+        throw new Error(
+          `Frame ${i + 1}'s picture decoded at ${bitmap.width} × ${bitmap.height}, expected ${frameWidth} × ${height}.`,
+        )
       context.drawImage(bitmap, i * frameWidth, 0, frameWidth, height)
     } finally {
       bitmap.close()

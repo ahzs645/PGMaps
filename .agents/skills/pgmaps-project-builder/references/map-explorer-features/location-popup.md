@@ -10,3 +10,6 @@ This is a map-only feature rendered inside the shared `MapPopup`. It presents
 adapter-normalized filtered counts and configured category labels/colours.
 Keep coordinate selection and popup lifecycle in `ProjectExplorerMap.tsx`; keep
 domain-specific record normalization in the adapter.
+
+For a GeoJSON point with source details, the popup shows its region, month,
+theme tags, and HTTPS story link.

@@ -341,7 +341,7 @@ describe('sunNote', () => {
 describe('queue states', () => {
   it('has words for every status and reason', () => {
     expect(Object.keys(PHOTO_STATUS_TEXT)).toHaveLength(7)
-    expect(Object.keys(PHOTO_FAILURE_TEXT)).toHaveLength(7)
+    expect(Object.keys(PHOTO_FAILURE_TEXT)).toHaveLength(8)
     expect(photoFailureText('disagrees-with-neighbour', 'IMG_0004')).toBe(
       'Disagrees with IMG_0004, taken just before or after it.',
     )

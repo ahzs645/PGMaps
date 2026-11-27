@@ -122,14 +122,17 @@ catalog/folder label. The Nechako dev showcase reuses the normalized research
 configuration with a root-relative repository data override; this does not
 change the package parser's HTTPS source contract or the original live project.
 
-`baseUrl` must be HTTPS. PGMaps fetches the configured files at runtime; it does
-not copy them into this repository.
+For `research-records-v1`, `baseUrl` must be HTTPS. PGMaps fetches the overview,
+record, location, and decade JSON files at runtime using the Nechako data shapes.
 
-`research-records-v1` is the only adapter currently implemented. It accepts the
-same overview, record, location, and decade JSON shapes used by the Nechako
-project. A future source with those shapes needs only a new project JSON. A
-source with different shapes needs one new adapter, while the workspace and
-capability blocks remain reusable.
+For `geojson-points-v1`, set `data.url` to a `/data/` path or an HTTPS URL. It
+loads a GeoJSON `FeatureCollection` with one `Point` per record. Use a stable
+string feature `id`, `[longitude, latitude]` coordinates, and properties `title`,
+`region` (a category ID), `tags` (strings), `url` (an optional HTTPS record link),
+and `month` (optional `YYYY-MM`). An unrecognized region maps to `other`. The
+location popup displays the source link and available story metadata. EcoLens
+uses a snapshot synced from BC DataMapper and the shared search, region filter,
+story pin list, and location popup.
 
 ## Planned feature-backed sub-projects
 

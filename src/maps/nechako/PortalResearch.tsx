@@ -23,14 +23,20 @@ import { ProjectMapExplorer } from '@/maps/project-explorer/ProjectMapExplorer'
 import { DEFAULT_LOCALE } from '@/lib/format'
 
 const project = normalizeProjectPackage(packageJson)
+type PortalResearchConfig = ProjectMapExplorerWorkspaceDef & {
+  data: Extract<ProjectMapExplorerWorkspaceDef['data'], { adapter: 'research-records-v1' }>
+}
 
-function researchConfig(source: 'snapshot' | 'live', withBoundary = false): ProjectMapExplorerWorkspaceDef | undefined {
-  if (project?.workspace?.type !== 'map-explorer') return undefined
+function researchConfig(source: 'snapshot' | 'live', withBoundary = false): PortalResearchConfig | undefined {
+  if (project?.workspace?.type !== 'map-explorer' || project.workspace.data.adapter !== 'research-records-v1') {
+    return undefined
+  }
+  const { data, ...workspace } = project.workspace
   return source === 'live'
-    ? project.workspace
+    ? { ...workspace, data }
     : {
-        ...project.workspace,
-        data: { ...project.workspace.data, baseUrl: SHOWCASE_BASE },
+        ...workspace,
+        data: { ...data, baseUrl: SHOWCASE_BASE },
         // The workbench snapshot stays self-contained; the native page reuses EchoScreen's built asset.
         features: project.workspace.features.flatMap<ProjectExplorerFeatureDef>((feature) =>
           feature.type !== 'aggregate-boundary'
@@ -51,7 +57,7 @@ export function PortalResearchMap({
   fill?: boolean
   backLabel?: string
 }) {
-  const config = researchConfig('snapshot', fill)
+  const config = useMemo(() => researchConfig('snapshot', fill), [fill])
   if (!config) return <InlineAlert tone="error">The research project configuration is unavailable.</InlineAlert>
   return (
     <div className={fill ? 'flex min-h-0 flex-1 flex-col gap-3' : 'space-y-3'}>
@@ -73,7 +79,7 @@ export function PortalResearchMap({
   )
 }
 
-function ResearchRecords({ config }: { config: ProjectMapExplorerWorkspaceDef }) {
+function ResearchRecords({ config }: { config: PortalResearchConfig }) {
   const data = useResearchRecordsAdapter(config)
   const [scope, setScope] = useState<'all' | 'unmapped'>('all')
   const [selected, setSelected] = useState<ResearchRecord | null>(null)

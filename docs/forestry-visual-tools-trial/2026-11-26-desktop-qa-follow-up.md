@@ -1,0 +1,18 @@
+# Desktop QA follow-up: photos and renderer evidence
+
+## Released guardrails in this change
+
+- A camera can be previewed with a starting heading, but a camera-based job cannot accept a placeholder. GPS position and direction are separate. Real EXIF north and a deliberately entered or confirmed 0° still work. Manual confirmation is available in **Camera → Adjust**, and older typed 0° records are retained and flagged for re-use. Ground observations do not need a camera.
+- **Search from this camera position** tests one known position. **Search round here** tests the same nine places on a 500 m grid as before. An unresolved result offers a landmark check nearby. A separately requested texture fallback uses the same area and lens, only after the normal reader set supplies no plausible candidates. It never overrules a tie or automatically moves or accepts a camera. An applied texture start still needs a landmark or explicit confirmation.
+- Report-quality engine replies must contain their actual camera, scene stamp, version, well-formed passes and positive final sample count. A nonempty requested stand also needs a screening pass and a positive reported stem count. A treeless scene can report zero stems. Image decode dimensions must match the request. The requested camera must not be copied into a missing reply and treated as observed. The scene stamp and origin check identifies the posted scene but is not a content hash.
+- A patch count regressing or a denominator changing cannot extend the native capture's quiet timer. An actual stand configuration change can reset the quiet window, not the overall deadline. Timber preparation is distinct from drawing the report sheet in progress text.
+
+## What the tests support
+
+Published mountain photos and the external ETH CH1 image archive are not part of the repository. The comparison tested 203 labelled masks offline: the standard colour reader put 70.7% of sampled columns within 2% of the frame height of the marked ridge; the texture reader put 54.3% there. Omitted columns count as misses. The texture reader helped on two local examples where snow or cloud confused the standard readers. That is why it remains an optional fallback; a good terrain fit alone proves neither camera location nor report-grade verification.
+
+## Experiments deliberately not enabled
+
+A successful parser check is not proof that an engine completed this scene on hardware, nor a speed comparison. A controlled desktop comparison should use the same saved camera, lens, viewport, world scene and weather. Replay one identical motion trace in each engine, verifying the drawn pose and the scene/content revision before comparing. Log renderer, adapter version, GPU/backend, completed frames, median and p95 frame time, dropped frames and warm-up time separately. Compare actual images at matched poses, and keep preview and report capture timings separate. Do not rank engines if one used a fallback, wrong camera, incomplete stand or software graphics when the others did not.
+
+For distant forests, compare retained parent patches during replacement, view-dependent crown cards, and a canopy-height-informed distant surface on both near forest and far ridges. Check the before/after block and water masks at each camera, including a gap smaller than a canopy tile. Height data is historical and does not imply current stand cover. Changes to the display must not create near-ground occlusion or alter the independent sightline figures. These experiments need matched GPU evidence before choosing new defaults; no forest geometry, CHM, or renderer-selection defaults change here.

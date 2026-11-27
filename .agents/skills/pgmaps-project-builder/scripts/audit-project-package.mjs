@@ -149,14 +149,21 @@ let mode = 'catalog-only'
 if (project.workspace?.type === 'map-explorer') {
   mode = project.workspace.schema ?? 'map-explorer (missing schema)'
   if (project.workspace.schema !== 'map-explorer-v1') errors.push('workspace.schema must be map-explorer-v1')
-  if (project.workspace.data?.adapter !== 'research-records-v1') {
-    errors.push('map-explorer-v1 currently supports data.adapter research-records-v1 only')
-  }
-  if (!isHttpsUrl(project.workspace.data?.baseUrl)) {
-    errors.push('workspace.data.baseUrl must be HTTPS')
-  }
-  for (const fileKey of ['overview', 'records', 'locations', 'timeline']) {
-    requireString(project.workspace.data?.files, fileKey, 'workspace.data.files')
+  const source = project.workspace.data
+  switch (source?.adapter) {
+    case 'research-records-v1':
+      if (!isHttpsUrl(source.baseUrl)) errors.push('workspace.data.baseUrl must be HTTPS')
+      for (const fileKey of ['overview', 'records', 'locations', 'timeline']) {
+        requireString(source.files, fileKey, 'workspace.data.files')
+      }
+      break
+    case 'geojson-points-v1':
+      if (!(typeof source.url === 'string' && source.url.startsWith('/data/')) && !isHttpsUrl(source.url)) {
+        errors.push('workspace.data.url must be a /data/ path or HTTPS URL')
+      }
+      break
+    default:
+      errors.push('map-explorer-v1 requires data.adapter research-records-v1 or geojson-points-v1')
   }
   const categories = project.workspace.data?.categories
   if (!Array.isArray(categories) || categories.length === 0) {

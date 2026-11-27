@@ -43,6 +43,10 @@ export type PhotoLocationSearch =
       /** Present when `ambiguous`: what the tie leaves open. */
       spread: PhotoLocationSpread | null
       sampled: number
+      /** The manually requested second reader, never used in the background. */
+      textureFallback?: boolean
+      noSkyline?: boolean
+      centre?: PhotoLocation
       basis: PhotoLocationBasis
     }
   | { status: 'error'; message: string }
@@ -77,7 +81,7 @@ export function photoLocationTrials(centre: PhotoLocation): PhotoLocation[] {
  * a mean loss is a distance between that reading and a place's terrain, and two places scored on different readers'
  * skylines are not comparable. The rule is the camera search's (`SKYLINE_READERS`), applied over the places: the first
  * reader (colour) is tried at every place and kept alone when its best fit settles (`READER_SETTLED_AGREEMENT`,
- * trusted); else every other reader is tried at every place, and the reader kept is the one whose fits sum to the
+ * credible and without a direction or location tie); else every other reader is tried at every place, and the reader kept is the one whose fits sum to the
  * highest `searchRank` over the places (a place it cannot read adds nothing), the earlier reader on a tie.
  *
  * `tryAt` answers a reader's fit at a place, or null where the reader's skyline is too short or not believable there,
@@ -97,13 +101,14 @@ export async function searchByOneReader<R>(
     firstResults.push(await tryAt(first, place))
     onPlace?.('first', place + 1)
   }
-  const bestOf = (results: ReadonlyArray<WideSearchResult | null>) =>
-    results.reduce<WideSearchResult | null>(
-      (best, result) => (result && (!best || searchRank(result) > searchRank(best)) ? result : best),
-      null,
-    )
-  const firstBest = bestOf(firstResults)
-  if (firstBest && firstBest.fit.trustworthy && firstBest.fit.agreement >= READER_SETTLED_AGREEMENT)
+  const [best, second] = firstResults.filter(isPlaceFit).sort((a, b) => a.meanLoss - b.meanLoss)
+  if (
+    best &&
+    best.trustworthy &&
+    !best.ambiguous &&
+    best.fit.agreement >= READER_SETTLED_AGREEMENT &&
+    (!second || second.meanLoss - best.meanLoss >= AMBIGUOUS_LOSS_GAP)
+  )
     return { reader: first, results: firstResults }
   const perReader: Array<Array<WideSearchResult | null>> = [firstResults, ...others.map(() => [])]
   for (let place = 0; place < places; place++) {
@@ -119,6 +124,10 @@ export async function searchByOneReader<R>(
     if (chosen < 0 || total(results) > total(perReader[chosen])) chosen = k
   })
   return chosen < 0 ? null : { reader: readers[chosen], results: perReader[chosen] }
+}
+
+function isPlaceFit(fit: WideSearchResult | null): fit is WideSearchResult {
+  return !!fit && fit.fit.trustworthy && fit.fit.agreeing >= MIN_SKYLINE_COLUMNS && Number.isFinite(fit.meanLoss)
 }
 
 const wrap = (degrees: number) => ((degrees % 360) + 360) % 360
@@ -148,11 +157,7 @@ export function rankPhotoLocations(trials: PhotoLocationCandidate[]): {
   ambiguous: boolean
   spread: PhotoLocationSpread | null
 } {
-  const ranked = trials
-    .filter(
-      ({ fit }) => fit.fit.trustworthy && fit.fit.agreeing >= MIN_SKYLINE_COLUMNS && Number.isFinite(fit.meanLoss),
-    )
-    .sort((a, b) => a.fit.meanLoss - b.fit.meanLoss)
+  const ranked = trials.filter(({ fit }) => isPlaceFit(fit)).sort((a, b) => a.fit.meanLoss - b.fit.meanLoss)
   const [first, second] = ranked
   const ambiguous =
     !!first?.fit.ambiguous || (!!second && second.fit.meanLoss - first.fit.meanLoss < AMBIGUOUS_LOSS_GAP)
