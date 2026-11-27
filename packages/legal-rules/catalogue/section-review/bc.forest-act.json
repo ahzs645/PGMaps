@@ -702,7 +702,8 @@
       "bearsOn": "Forest licence, area-based licence, timber licence, master licence to cut and some forestry licence to cut holders may harvest only as authorized under a cutting permit, so every such cutblock must lie in an issued cutting permit area before harvest.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.0.0:cutting-permit"
+        "bc.forest-permits@1.1.0:cutting-permit",
+        "bc.forest-permits@1.1.0:cutting-permit#authorized-without"
       ]
     },
     {
@@ -744,8 +745,8 @@
         "If the block is in a forest landscape area, does the applicant hold a forest operations plan that applies there, and is the block consistent with a proposed cutblock it shows?"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.0.0:permit-refusal",
-        "bc.forest-permits@1.0.0:fop"
+        "bc.forest-permits@1.1.0:permit-refusal",
+        "bc.forest-permits@1.1.0:fop"
       ]
     },
     {
@@ -1727,8 +1728,8 @@
         "Is any part of the road permit area inside a forest landscape area?"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.0.0:permit-refusal",
-        "bc.forest-permits@1.0.0:fop"
+        "bc.forest-permits@1.1.0:permit-refusal",
+        "bc.forest-permits@1.1.0:fop"
       ]
     },
     {
@@ -2819,8 +2820,8 @@
         "If so, is the authorizing licence a forestry licence to cut for fire suppression, forest health or public safety, or a licence entered into for the special purpose area's own purpose under s. 223?"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.0.0:spa-licence",
-        "bc.forest-permits@1.0.0:spa-exception"
+        "bc.forest-permits@1.1.0:spa-licence",
+        "bc.forest-permits@1.1.0:spa-licence#fltc-purpose"
       ]
     },
     {
@@ -2884,8 +2885,8 @@
         "If so, which s. 215(2) exception does the road rely on (no significant interference, a fire/forest health/safety FLTC, or a licence to cut entered into before the designation)?"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.0.0:spa-road",
-        "bc.forest-permits@1.0.0:spa-exception"
+        "bc.forest-permits@1.1.0:spa-road",
+        "bc.forest-permits@1.1.0:spa-road#no-interference"
       ]
     },
     {

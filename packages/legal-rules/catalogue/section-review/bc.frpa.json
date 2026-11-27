@@ -350,7 +350,8 @@
         "Is each proposed road inside a forest development unit of that approved forest stewardship plan?"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.0.0:fdu"
+        "bc.forest-permits@1.1.0:fdu",
+        "bc.forest-permits@1.1.0:fdu#earlier-permit"
       ]
     },
     {
@@ -426,7 +427,7 @@
       "bearsOn": "Except in prescribed circumstances, an FSP holder must prepare a site plan for each cutblock before harvesting and for each road before harvesting for its construction, consistent with the FSP and Act, identifying how the FSP's results or strategies apply to the site.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.0.0:site-plan"
+        "bc.forest-permits@1.1.0:site-plan"
       ]
     },
     {
@@ -483,7 +484,8 @@
       "bearsOn": "Before applying for a cutting or road permit an FSP holder must publish a forest operations map showing the cutblock or road for review and comment, report on that review to government, and apply within 2 years (or a longer prescribed period) of publication.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.0.0:fom"
+        "bc.forest-permits@1.1.0:fom",
+        "bc.forest-permits@1.1.0:fom#section-4-purpose"
       ]
     },
     {

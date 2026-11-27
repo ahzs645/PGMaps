@@ -554,9 +554,17 @@
       "bearsOn": "Lets the minister exempt a FOP holder (or TSL or road permit holder under it) from listed Part 4 practice provisions where the FOP carries a requirement at least as effective for the matter listed.",
       "review": "rule",
       "coveredBy": [
-        "bc.fppr@1.2.0:fop-relief",
-        "bc.fppr@1.2.0:fop-relief-unlisted"
-      ]
+        "bc.fppr@1.3.0:limit-60#fop-exemption",
+        "bc.fppr@1.3.0:adjacency#fop-exemption",
+        "bc.fppr@1.3.0:retention-block#fop-exemption",
+        "bc.fppr@1.3.0:wt-harvest#fop-exemption",
+        "bc.fppr@1.3.0:pine-secondary#fop-exemption",
+        "bc.fppr@1.3.0:sensitive-soil#fop-exemption",
+        "bc.fppr@1.3.0:width-47-area#fop-exemption",
+        "bc.fppr@1.3.0:bank-stability#fop-exemption"
+      ],
+      "gapNote": "Listed as a decision exception on every rule whose provision the table names, and on no other.",
+      "gapPriority": "low"
     },
     {
       "n": "4.52",
@@ -908,10 +916,9 @@
       "bearsOn": "Exempts an agreement holder (or TSL or road permit holder under a BCTS FSP) from s. 64(1) or s. 65(2) where the approved FSP carries its own landscape-level biodiversity result or strategy.",
       "review": "rule",
       "coveredBy": [
-        "bc.fppr@1.1.0:fsp-landscape",
-        "bc.fppr@1.1.0:limit-40",
-        "bc.fppr@1.1.0:limit-60",
-        "bc.fppr@1.1.0:adjacency"
+        "bc.fppr@1.3.0:limit-40#fsp-result",
+        "bc.fppr@1.3.0:limit-60#fsp-result",
+        "bc.fppr@1.3.0:adjacency#fsp-result"
       ],
       "encodable": "reviewer-question"
     },
@@ -921,10 +928,9 @@
       "bearsOn": "Exempts an agreement holder (or TSL or road permit holder under a BCTS FSP) from s. 66 or s. 67 where the approved FSP carries its own stand-level biodiversity result or strategy.",
       "review": "rule",
       "coveredBy": [
-        "bc.fppr@1.1.0:fsp-stand",
-        "bc.fppr@1.1.0:retention-block",
-        "bc.fppr@1.1.0:retention-period",
-        "bc.fppr@1.1.0:wt-harvest"
+        "bc.fppr@1.3.0:retention-period#fsp-result",
+        "bc.fppr@1.3.0:retention-block#fsp-result",
+        "bc.fppr@1.3.0:wt-harvest#fsp-result"
       ],
       "encodable": "reviewer-question"
     },
@@ -940,7 +946,7 @@
       "bearsOn": "Lets an FSP specify forest development units and requires it to identify, within each FDU, ungulate winter ranges, wildlife habitat areas, fisheries sensitive watersheds, lakeshore management zones, scenic areas, L1 lakes, community watersheds, OGMAs, areas closed to harvest by another enactment, and the holder's cutting and road permits.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.0.0:fdu-identifies"
+        "bc.forest-permits@1.1.0:fdu-identifies"
       ],
       "gapPriority": "medium",
       "gapNote": "The rule asks whether the plan identifies an area the block is in. Lakeshore management zones, fisheries sensitive watersheds and L1 lakes still have no map screen.",
@@ -1247,7 +1253,8 @@
       "bearsOn": "Requires notice of a forest operations map on a website and at least once in a newspaper, stating the 3-year reliance period, with a 30-day review (or a shorter period the minister sets for environment, forest health or wildfire risk) that cannot start until both notices are out.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.0.0:fom-review"
+        "bc.forest-permits@1.1.0:fom-review",
+        "bc.forest-permits@1.1.0:fom-review#shorter-period"
       ]
     },
     {
@@ -1274,7 +1281,7 @@
       "bearsOn": "Lets an FSP holder rely on a forest operations map for a cutting or road permit application only if it applies within 3 years after the map's review period began.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.0.0:fom-window"
+        "bc.forest-permits@1.1.0:fom-window"
       ]
     },
     {
@@ -1443,8 +1450,8 @@
         "Will the harvest retain that secondary structure, or which section 43.1 exception applies (safety, road, blowdown risk, at least 30% live beetle, wildfire protection or seed collection)?"
       ],
       "coveredBy": [
-        "bc.fppr@1.2.0:pine-secondary",
-        "bc.fppr@1.2.0:pine-exception"
+        "bc.fppr@1.3.0:pine-secondary",
+        "bc.fppr@1.3.0:pine-secondary#live-beetle"
       ]
     },
     {
@@ -1615,8 +1622,8 @@
       "bearsOn": "Requires a minor tenure holder felling in a riparian management zone to leave the table's share of basal area standing (20% for S1-S3, 10% for S4, S5, wetlands and lakes), representative of the zone's structure; and requires anyone cutting in the zone of an S4-S6 stream that is a direct tributary to an S1-S3 stream (or reaches sensitive marine areas) to keep enough trees to hold the bank and channel stable.",
       "review": "rule",
       "coveredBy": [
-        "bc.fppr@1.2.0:basal-retention",
-        "bc.fppr@1.2.0:bank-stability"
+        "bc.fppr@1.3.0:basal-retention",
+        "bc.fppr@1.3.0:bank-stability"
       ]
     },
     {
@@ -1762,12 +1769,14 @@
       "bearsOn": "Limits the net area to be reforested of an agreement holder's cutblock to 40 ha in the southern and coastal regions and 60 ha in the Cariboo, Northeast, Omineca and Skeena regions, unless the harvest is salvage or sanitation (or emulates a natural disturbance) and the block resembles a natural opening, retains 40% or more of the stand's basal area, or keeps every point of the net area within one or two tree lengths of the boundary or a reserve.",
       "review": "rule",
       "coveredBy": [
-        "bc.fppr@1.2.0:limit-40",
-        "bc.fppr@1.2.0:limit-60",
-        "bc.fppr@1.2.0:size-exception"
+        "bc.fppr@1.3.0:limit-40",
+        "bc.fppr@1.3.0:limit-60",
+        "bc.fppr@1.3.0:limit-60#salvage-or-natural",
+        "bc.fppr@1.3.0:limit-60#basal-retention",
+        "bc.fppr@1.3.0:limit-60#tree-lengths"
       ],
       "gapPriority": "low",
-      "gapNote": "The (2)-(4) exceptions are now their own questions. The tree-length test in (4) is answered by the reviewer; the planner could compute it from the block, its reserves and stand height.",
+      "gapNote": "The (2)-(4) exceptions are listed on the size rules: §64(3) is tested against the basal area entered, while (2) and (4) rest on the reviewer’s evidence. The planner could compute the tree-length test from the block, its reserves and stand height.",
       "encodable": "numeric",
       "proposedFacts": [
         "What share of the stand's pre-harvest basal area will the harvest retain?",
@@ -1781,7 +1790,8 @@
       "bearsOn": "Bars an agreement holder from harvesting a new cutblock adjacent to an existing (previously harvested) cutblock unless every adjacent existing cutblock meets green-up (75% of its net area, or the nearer half, stocked to standard or at least 700 stems/ha in the Interior, with the tallest 10% averaging 3 m), or the new block plus immediately adjacent non-conforming portions stays within the s. 64(1) size; not applying where s. 64(2)-(4) applies.",
       "review": "rule",
       "coveredBy": [
-        "bc.fppr@1.2.0:adjacency"
+        "bc.fppr@1.3.0:adjacency",
+        "bc.fppr@1.3.0:adjacency#size-exception"
       ],
       "gapPriority": "low",
       "gapNote": "The green-up shares, the nearer half and the combined area are entered by the reviewer; the planner does not yet measure stocking or height on adjacent existing cutblocks.",
@@ -1820,7 +1830,8 @@
       "bearsOn": "Requires an agreement holder to leave at least 4 logs per hectare on a cutblock (Interior: at least 2 m long and 7.5 cm at one end; Coast: 5 m and 30 cm), unless the agreement or an enactment requires otherwise, an authorized burn is carried out, or the holder is a fibre recovery tenure holder.",
       "review": "rule",
       "coveredBy": [
-        "bc.fppr@1.1.0:logs"
+        "bc.fppr@1.3.0:logs",
+        "bc.fppr@1.3.0:logs#authorized-burn"
       ],
       "encodable": "numeric"
     },

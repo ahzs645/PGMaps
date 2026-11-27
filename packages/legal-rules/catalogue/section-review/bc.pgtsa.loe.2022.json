@@ -82,7 +82,7 @@
       "gapPriority": "medium",
       "gapNote": "Whether the block or road overlaps a COFA is the reviewer’s answer: no planner screen reads the non-legal OGMA layer filtered to PRG_COFA and PRG_DPG (Appendix 5), though the visual quality route card does.",
       "coveredBy": [
-        "bc.omineca.old-growth@1.0.0:cofa"
+        "bc.omineca.old-growth@1.1.0:cofa"
       ]
     },
     {
@@ -105,7 +105,7 @@
       "gapPriority": "medium",
       "gapNote": "Whether the block or road overlaps a COFA is the reviewer’s answer: no planner screen reads the non-legal OGMA layer filtered to PRG_COFA and PRG_DPG (Appendix 5), though the visual quality route card does.",
       "coveredBy": [
-        "bc.omineca.old-growth@1.0.0:cofa-variance"
+        "bc.omineca.old-growth@1.1.0:cofa#variance"
       ]
     },
     {
@@ -125,7 +125,7 @@
       "gapPriority": "medium",
       "gapNote": "Whether the block or road overlaps a COFA is the reviewer’s answer: no planner screen reads the non-legal OGMA layer filtered to PRG_COFA and PRG_DPG (Appendix 5), though the visual quality route card does.",
       "coveredBy": [
-        "bc.omineca.old-growth@1.0.0:cofa-summary"
+        "bc.omineca.old-growth@1.1.0:cofa-summary"
       ]
     },
     {
