@@ -19,8 +19,14 @@ import profile from '../../../../packages/legal-rules/forestry-profile.json'
 import type { FactSet } from '../../../../packages/legal-rules/src/contract'
 import { entryOf, shapeOf, type Block, type Plan, type ReviewCase } from '../plan'
 import { shapeSignature } from '../records'
+import { parseSightings, type CrossingSighting } from './dating'
+import { parseAliases, type CrossingAlias } from './key'
 
-/** How a crossing came into the plan. Only `entered` is made today; the others are kept for the readers to come. */
+/**
+ * How a crossing came into the plan: entered by the reviewer, or added on the reviewer's click from
+ * a candidate the road designer's register (`designerImport.ts`) or the mapped read (`mappedRead.ts`)
+ * offered: a road × stream crossing (`mapped`) or a PSCIS site with no mapped crossing (`pscis`).
+ */
 export const CROSSING_ORIGINS = ['entered', 'designer', 'mapped', 'pscis'] as const
 export type CrossingOrigin = (typeof CROSSING_ORIGINS)[number]
 export const CROSSING_ORIGIN_LABELS: Record<CrossingOrigin, string> = {
