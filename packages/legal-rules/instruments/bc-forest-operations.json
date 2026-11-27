@@ -23,7 +23,8 @@
         "No",
         "Yes",
         "Partly"
-      ]
+      ],
+      "sameAs": "bc.forest-permits:landscape-area"
     },
     {
       "id": "holder",

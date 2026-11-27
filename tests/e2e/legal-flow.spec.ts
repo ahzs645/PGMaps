@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import { choose } from './styled-select'
+import { choose, expectSelected } from './styled-select'
 import example from '../../packages/legal-rules/examples/water-monitoring.json' with { type: 'json' }
 import facts from '../../packages/legal-rules/examples/water-facts.json' with { type: 'json' }
 
@@ -53,4 +53,36 @@ test('the block planner asks only what a block needs and shows the same graph', 
   await expect(finding).toContainText('more than 60 ha')
   await finding.getByRole('button', { name: 'Show rule flowchart' }).click()
   await expect(finding.locator('[data-node=review]')).toHaveAttribute('aria-label', /active/)
+})
+
+test('a question two instruments ask is asked once, and changing it changes both', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/dev/forestry/block-planning?interface=guided')
+  await page.getByTestId('block-planning-start').getByRole('button', { name: 'Open the sample' }).click()
+  await page.getByRole('tab', { name: 'Review' }).click()
+  const review = page.getByTestId('block-planning-block-review')
+  const operations = review.getByRole('region', { name: 'BC forest operations plans' })
+  const permits = review.getByRole('region', { name: 'BC cutting and road permits' })
+  const question = /in a forest landscape area/
+  // Questions with nothing left to answer fold away: unfold the permit pack's shared questions.
+  const unfold = async () => {
+    const whole = permits.locator('[data-topic="whole"]')
+    if ((await whole.getAttribute('aria-expanded')) !== 'true') await whole.click()
+  }
+  // Asked under forest operations plans only; the permit pack says where.
+  const line = permits.getByTestId('linked-question')
+  await unfold()
+  await expect(line).toContainText('Asked under BC forest operations plans')
+  await expect(permits.getByRole('combobox', { name: question })).toHaveCount(0)
+  await choose(operations.getByRole('combobox', { name: question }), 'Yes')
+  await unfold()
+  await expect(line).toContainText('Answered under BC forest operations plans: Yes')
+  await expect(permits.getByRole('combobox', { name: question })).toHaveCount(0)
+  // Changed from the permit pack's line, both change.
+  await line.getByRole('button', { name: 'Change' }).click()
+  await choose(permits.getByRole('combobox', { name: question }), 'Partly')
+  await expectSelected(operations.getByRole('combobox', { name: question }), 'Partly')
+  await expect(line).toContainText('Answered under BC forest operations plans: Partly')
+  await expect(permits.getByRole('combobox', { name: question })).toHaveCount(0)
 })

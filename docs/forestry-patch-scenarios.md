@@ -67,6 +67,10 @@ What the block packs test, as of 27 November 2026:
 - **Visual quality** names the order that set the objective: the Prince George and Fort St. James 2005 orders, and the 2006 Bobtail Lake variance, which flags any objective other than modification on polygons 959 to 962.
 - **Old growth** (`bc.omineca.old-growth` 1.1.0; 1.0.0 kept): the Dome and Slim rules cite both maps' strategies ("Strategy 1.02, 2.02"; `orderRefs` reads a list under one label), the 2022 letter's variance is the COFA rule's exception (a decision by the district manager, held only with a replacement area identified), and `cofa-summary` asks for the annual summary of requested variances.
 
+### One question, two instruments
+
+Two instruments can ask the very same fact about the ground. A pack says so on the fact (`sameAs: "<pack id>:<fact id>"`, **Add an instrument** in `packages/legal-rules/FRAMEWORK.md`); a link is refused unless both facts take exactly the same answers (type, unit, bounds and choices, `checkFactLinks` in `contract.ts`, checked for the bundled library and on every install). Linked today: whether the block or its road is in a forest landscape area, which the permit pack asks under FRPA §3(0.1) and the forest operations pack under §2.35(1). A block review asks a linked question once, under the first release that asks it; the others show *Answered under …* (or *Asked under …*) with **Change**, and changing or clearing it there changes both (`review/linkedFacts.ts`). The answer is copied into each release's own fact set, so each release still evaluates and replays from its own facts alone, and the evaluator and the decision flowchart read nothing across packs. A copy is never written without the reviewer: where the releases already hold different answers (a review saved before the link) both are shown and neither is overwritten until the reviewer chooses one answer for both, and an answer held under one release only (a release added to the case later) is offered there with **Record it here too**.
+
 ## Real data from DataBC
 
 Step 1's **Unit boundary and DataBC** builds the baseline from public records instead of the sample.
