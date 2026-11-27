@@ -41,7 +41,8 @@
         "bc.crown-grazing@1.0.0:not-exclusive",
         "bc.crown-grazing@1.0.0:lease-not-crown-range",
         "bc.crown-grazing@1.0.0:designation-not-lease",
-        "ground:range-tenure"
+        "ground:range-tenure",
+        "bc.crown-grazing@1.2.0:free-growing#exclusive-range"
       ],
       "topics": [
         "range-and-grazing"

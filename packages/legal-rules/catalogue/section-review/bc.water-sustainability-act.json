@@ -119,15 +119,14 @@
       "n": "11",
       "relevance": "roads",
       "bearsOn": "Changes in and about a stream (a culvert, bridge, ford, instream work or channel realignment for a block's road) may be made only under a change approval, the regulations, an authorization's terms or an order; this is the authority a road crossing needs under this Act.",
-      "review": "none",
-      "gapPriority": "high",
-      "gapNote": "No pack asks whether the block's roads make changes in and about a stream, or which authority covers each one (a change approval, the Water Sustainability Regulation with any notification it requires, an authorization or an order); the regulation is not stored, so the answer is the reviewer's.",
-      "encodable": "reviewer-question",
-      "proposedFacts": [
-        "Will the block's roads or harvesting make any change in and about a stream, such as a culvert, bridge, ford or work within a stream channel?",
-        "Is each change in and about a stream authorized by a change approval, by the Water Sustainability Regulation (with any notification it requires), by another authorization or by an order?",
-        "Where the regulation requires notice before the change, has the notice been given to a water manager in the time required?"
+      "review": "partial",
+      "coveredBy": [
+        "bc.water-crossings@1.0.0:change-authority",
+        "bc.water-crossings@1.0.0:approval-terms"
       ],
+      "gapPriority": "low",
+      "gapNote": "The water crossings pack asks once for the block whether its roads or harvesting change a stream and which authorities its changes rest on (WSR s. 39(2), a change s. 39(1) lists, or a change approval, authorization or order), and raises a change with none. It does not list the crossings one by one: the planner reads no crossing from the map, so the reviewer records each crossing with its authority.",
+      "encodable": "reviewer-question",
       "topics": [
         "stream-crossings-and-culverts",
         "water-rights-and-works",
@@ -1287,7 +1286,7 @@
     {
       "n": "127",
       "relevance": "admin",
-      "bearsOn": "Regulation-making power for licensing and use approvals, and in subsection (3) for authorizing changes in and about a stream without a change approval (with notice, standards and timing); it is the source of the Water Sustainability Regulation's rules for crossings, which are not stored.",
+      "bearsOn": "Regulation-making power for licensing and use approvals, and in subsection (3) for authorizing changes in and about a stream without a change approval (with notice, standards and timing); it is the source of the Water Sustainability Regulation's rules for crossings, stored as bc.water-sustainability-regulation and tested by the water crossings pack.",
       "review": "n/a",
       "topics": [
         "administration",

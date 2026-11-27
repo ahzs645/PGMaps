@@ -20,7 +20,7 @@ Built on 27 November 2026 and moved into the planner contract, **The law behind 
 
 ## Done: exceptions as a choice, with a rationale
 
-Built on 27 November 2026 and moved into the planner contract, **The law behind a finding** → **Exceptions**: a rule lists the exceptions the law makes to it, each holding by law or needing a decision; a reviewer claims one on a raised finding with a rationale, evidence and the decision, and the finding stays raised with the claim's standing beside it. FPPR 1.3.0, the permit pack 1.1.0 and old growth 1.1.0 moved their exception questions into exceptions. Crown grazing still asks its §44(3) purposes and FPPR §46.11 as questions (`exempt-purpose`, `opening-tolerance`); moving them is its next release.
+Built on 27 November 2026 and moved into the planner contract, **The law behind a finding** → **Exceptions**: a rule lists the exceptions the law makes to it, each holding by law or needing a decision; a reviewer claims one on a raised finding with a rationale, evidence and the decision, and the finding stays raised with the claim's standing beside it. FPPR 1.3.0, the permit pack 1.1.0 and old growth 1.1.0 moved their exception questions into exceptions, and Crown grazing 1.2.0 did the same for its §44(3) purposes and FPPR §46.11's tolerance.
 
 ## Next
 

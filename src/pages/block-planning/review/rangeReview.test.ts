@@ -1,29 +1,41 @@
 import { describe, expect, it } from 'vitest'
 import raw from '../../../../packages/legal-rules/packs/bc-crown-grazing.json'
+import raw110 from '../../../../packages/legal-rules/packs/bc-crown-grazing-v1.1.0.json'
 import { assess } from '../../../../packages/legal-rules/engine/evaluate'
-import { parsePack } from '../../../../packages/legal-rules/src/contract'
+import { parsePack, type Claim } from '../../../../packages/legal-rules/src/contract'
 import { removeBlock, removeSchedule, saveRangeReview, setEntry } from '../edits'
 import { assessmentRecord, buildExport } from '../exports'
 import { parsePlan, samplePlan } from '../plan'
 import { analyzePlan } from '../planAnalysis'
-import { rangeReviewCurrent, rangeReviewFor } from './rangeReview'
-import { setFact } from './caseEdits'
+import { RANGE_RELEASE, rangeReviewCurrent, rangeReviewFor } from './rangeReview'
+import { setClaim, setFact } from './caseEdits'
 
 const pack = parsePack(raw)
+const pack110 = parsePack(raw110)
 
-function findings(facts: Record<string, boolean | string | number>, date = '2026-11-17') {
+type Answers = Record<string, boolean | string | number>
+
+function evaluate(facts: Answers, claims: Claim[] = [], date = '2026-11-17') {
   const plan = samplePlan()
   const { record } = rangeReviewFor(plan, plan.blocks[0])
-  const review = Object.entries(facts).reduce((next, [id, value]) => setFact(next, pack, id, value), record.review)
+  const answered = Object.entries(facts).reduce((next, [id, value]) => setFact(next, pack, id, value), record.review)
+  const review = claims.reduce((next, claim) => setClaim(next, pack, claim.rule, claim), answered)
   const assessment = assess(date, [pack], Object.values(review.sets))
   expect(assessment.bindingDecision).toBe(false)
-  return Object.fromEntries(assessment.releases[0].findings.map((f) => [f.rule, f.status]))
+  return assessment.releases[0].findings
+}
+
+function findings(facts: Answers, date = '2026-11-17') {
+  return Object.fromEntries(evaluate(facts, [], date).map((f) => [f.rule, f.status]))
+}
+
+/** The rule's status, and where the exception claimed on it stands. */
+function claimed(facts: Answers, rule: string, exception: string) {
+  const finding = evaluate(facts, [{ rule, exception }]).find((f) => f.rule === rule)!
+  return { status: finding.status, standing: 'exception' in finding ? finding.exception?.standing : undefined }
 }
 
 const PART_B = 'Part B: forest-health harvest'
-const NOT_EXEMPT = 'No'
-const RANGE_D = '(d) land used exclusively for grazing or hay under a Range Act agreement'
-const INTERMEDIATE = '(h) commercial thinning, removal of individual trees or similar intermediate cutting'
 
 describe('Crown grazing rules', () => {
   // A beetle-killed block in a mapped agriculture development area, on an FSP holder with a
@@ -34,7 +46,6 @@ describe('Crown grazing rules', () => {
     'ada-sra-harvest': true,
     'ada-sra-pathway': PART_B,
     'section-29-scope': true,
-    'exempt-purpose': NOT_EXEMPT,
     'nar-reserved': false,
   }
 
@@ -67,17 +78,22 @@ describe('Crown grazing rules', () => {
     })
   })
 
-  it('leaves the order out where Part II excludes the permit, and an intermediate cut out of the free-growing duty', () => {
+  it('leaves the order out where Part II excludes the permit, and takes an intermediate cut as an exception', () => {
     const excluded = { ...adaPartB, 'ada-sra-excluded': true, 'natural-regen-meets-standard': false }
     expect(findings(excluded)).toMatchObject({
       'ada-sra-excluded': 'review_required',
       'cannot-reforest-ada-sra': 'condition_not_triggered',
       'ada-sra-part-c': 'outside_scope',
     })
-    const thinning = { ...adaPartB, 'exempt-purpose': INTERMEDIATE, 'natural-regen-meets-standard': false }
-    expect(findings(thinning)).toMatchObject({
-      'cannot-reforest-ada-sra': 'condition_not_triggered',
-      'intermediate-cut-stocking': 'review_required',
+    // An intermediate cut is the reviewer's claim on the raised finding, never an answer that clears it.
+    const stuck = { ...adaPartB, 'natural-regen-meets-standard': false }
+    expect(claimed(stuck, 'cannot-reforest-ada-sra', 'intermediate-cut')).toEqual({
+      status: 'review_required',
+      standing: 'relied_on',
+    })
+    expect(claimed(stuck, 'cannot-reforest-ada-sra', 'part-e-deviation')).toEqual({
+      status: 'review_required',
+      standing: 'pending',
     })
   })
 
@@ -101,46 +117,41 @@ describe('Crown grazing rules', () => {
   })
 
   it('flags a preharvest proposal to keep part of the reforestation area permanently open', () => {
-    const ordinary = { 'section-29-scope': true, 'exempt-purpose': NOT_EXEMPT }
+    const ordinary = { 'section-29-scope': true }
     expect(findings({ ...ordinary, 'permanent-grazing-opening': false })['permanent-grazing-opening']).toBe(
       'condition_not_triggered',
     )
-    expect(findings({ ...ordinary, 'permanent-grazing-opening': true, 'opening-largest': 3 })).toMatchObject({
+    expect(findings({ ...ordinary, 'permanent-grazing-opening': true })).toMatchObject({
       'free-growing': 'review_required',
       'permanent-grazing-opening': 'review_required',
-      'opening-tolerance': 'condition_not_triggered',
-      'exclusive-range': 'condition_not_triggered',
     })
   })
 
-  it('tolerates the small openings FPPR §46.11(2) allows in a conforming standards unit', () => {
-    const open = { 'section-29-scope': true, 'exempt-purpose': NOT_EXEMPT, 'permanent-grazing-opening': true }
-    expect(findings({ ...open, 'opening-largest': 0.6 })).toMatchObject({
-      'permanent-grazing-opening': 'condition_not_triggered',
-      'opening-tolerance': 'review_required',
+  it('takes the small openings FPPR §46.11(2) tolerates as an exception, tested on the openings entered', () => {
+    const open = { 'section-29-scope': true, 'permanent-grazing-opening': true }
+    const small = (answers: Answers) => claimed({ ...open, ...answers }, 'permanent-grazing-opening', 'small-openings')
+    expect(small({})).toEqual({ status: 'review_required', standing: 'unanswered' })
+    expect(small({ 'opening-largest': 0.6 })).toEqual({ status: 'review_required', standing: 'relied_on' })
+    expect(small({ 'opening-largest': 1.8, 'opening-share': 4 })).toEqual({
+      status: 'review_required',
+      standing: 'relied_on',
     })
-    expect(findings({ ...open, 'opening-largest': 1.8, 'opening-share': 4 })).toMatchObject({
-      'permanent-grazing-opening': 'condition_not_triggered',
-      'opening-tolerance': 'review_required',
-    })
-    expect(findings({ ...open, 'opening-largest': 1.8, 'opening-share': 7 })).toMatchObject({
-      'permanent-grazing-opening': 'review_required',
-      'opening-tolerance': 'condition_not_triggered',
-    })
+    expect(small({ 'opening-largest': 1.8, 'opening-share': 7 }).standing).toBe('not_supported')
+    expect(small({ 'opening-largest': 3, 'opening-share': 4 }).standing).toBe('not_supported')
   })
 
   it('needs a Range Act agreement and exclusive use for §44(3)(d), never a Land Act lease', () => {
-    const claim = { 'section-29-scope': true, 'exempt-purpose': RANGE_D }
-    expect(findings({ ...claim, 'range-act-agreement': true })['exclusive-range']).toBe('missing_evidence')
-    expect(findings({ ...claim, 'range-act-agreement': true, 'exclusive-range-use': true })).toMatchObject({
-      'exclusive-range': 'review_required',
-      'not-exclusive': 'condition_not_triggered',
-    })
-    expect(findings({ ...claim, 'range-act-agreement': true, 'exclusive-range-use': false })).toMatchObject({
-      'exclusive-range': 'condition_not_triggered',
-      'not-exclusive': 'review_required',
-    })
-    expect(findings({ ...claim, 'land-act-lease': true })).toMatchObject({
+    const duty = { 'section-29-scope': true }
+    const d = (answers: Answers) => claimed({ ...duty, ...answers }, 'free-growing', 'exclusive-range').standing
+    expect(d({ 'range-act-agreement': true })).toBe('unanswered')
+    expect(d({ 'range-act-agreement': true, 'exclusive-range-use': true, 'land-act-lease': false })).toBe('relied_on')
+    expect(d({ 'range-act-agreement': true, 'exclusive-range-use': false, 'land-act-lease': false })).toBe(
+      'not_supported',
+    )
+    expect(d({ 'range-act-agreement': true, 'exclusive-range-use': true, 'land-act-lease': true })).toBe(
+      'not_supported',
+    )
+    expect(findings({ ...duty, 'land-act-lease': true })).toMatchObject({
       'lease-not-crown-range': 'review_required',
       'lease-terms': 'review_required',
       'lease-review-with-lessee': 'review_required',
@@ -152,32 +163,36 @@ describe('Crown grazing rules', () => {
       'land-act-designation': 'Section 17 designated use area',
       'range-act-agreement': true,
       'section-29-scope': true,
-      'exempt-purpose': NOT_EXEMPT,
     }
     expect(findings(s17)).toMatchObject({
       'land-act-designation': 'review_required',
       'designation-terms': 'missing_evidence',
+      'designation-not-lease': 'review_required',
       'range-holder-livestock': 'review_required',
       'free-growing': 'review_required',
-      'lease-not-crown-range': 'condition_not_triggered',
     })
+    expect(findings({ ...s17, 'land-act-lease': false })['lease-not-crown-range']).toBe('condition_not_triggered')
     expect(findings({ ...s17, 'designation-terms-restrict': true })['designation-terms']).toBe('review_required')
-    expect(findings({ ...s17, 'exempt-purpose': RANGE_D })).toMatchObject({
-      'designation-not-lease': 'review_required',
-      'exclusive-range': 'missing_evidence',
-      'range-holder-livestock': 'condition_not_triggered',
-    })
+    // Exclusive range use relieves the free-growing duty the livestock duty serves; the finding stays raised.
+    expect(
+      claimed(
+        { ...s17, 'exclusive-range-use': true, 'land-act-lease': false },
+        'range-holder-livestock',
+        'exclusive-range',
+      ),
+    ).toEqual({ status: 'review_required', standing: 'relied_on' })
+    expect(claimed(s17, 'range-holder-livestock', 'keep-out-exemption').standing).toBe('pending')
   })
 
   it('sends an intention not to reforest to the minister’s exemption, and an unmet standard to a proposal', () => {
-    const open = { 'section-29-scope': true, 'exempt-purpose': NOT_EXEMPT, 'nar-reserved': false }
+    const open = { 'section-29-scope': true, 'nar-reserved': false }
     expect(findings({ ...open, 'no-reforestation-intended': true })['ministerial-exemption']).toBe('review_required')
     expect(
       findings({ ...open, 'no-reforestation-intended': true, 'nar-reserved': true })['ministerial-exemption'],
     ).toBe('condition_not_triggered')
     expect(
-      findings({ ...open, 'no-reforestation-intended': true, 'exempt-purpose': RANGE_D })['ministerial-exemption'],
-    ).toBe('condition_not_triggered')
+      claimed({ ...open, 'no-reforestation-intended': true }, 'ministerial-exemption', 'restricted-purpose'),
+    ).toEqual({ status: 'review_required', standing: 'relied_on' })
     expect(findings({ 'section-29-scope': true, 'existing-standard-unmet': true })['standard-cannot-be-met']).toBe(
       'review_required',
     )
@@ -201,8 +216,70 @@ describe('Crown grazing rules', () => {
     })
   })
 
+  it('asks no §44(3) purpose or §46.11 question: each is an exception on the rules it relieves', () => {
+    expect(pack.version).toBe('1.2.0')
+    expect(pack.facts.some((f) => f.id === 'exempt-purpose')).toBe(false)
+    for (const id of ['opening-tolerance', 'intermediate-cut-stocking', 'exclusive-range', 'not-exclusive'])
+      expect(pack.rules.some((r) => r.id === id)).toBe(false)
+    const listed = (rule: string) => pack.rules.find((r) => r.id === rule)?.exceptions?.map((x) => x.id)
+    expect(listed('free-growing')).toEqual([
+      'restricted-purpose',
+      'experimental',
+      'exclusive-range',
+      'intermediate-cut',
+      'minister-exemption',
+    ])
+    expect(listed('permanent-grazing-opening')).toEqual([
+      'small-openings',
+      'plan-specifies',
+      'exclusive-range',
+      'minister-exemption',
+    ])
+    // The opening figures are asked only once the §46.11(2) exception is claimed.
+    const tested = pack.rules.flatMap((r) => [...(r.scope ?? []), ...r.when].flat())
+    expect(tested.some((c) => c.fact.startsWith('opening-'))).toBe(false)
+  })
+
   it('marks a later legal assessment date as outside the verified source window', () => {
     expect(new Set(Object.values(findings({}, '2027-01-01')))).toEqual(new Set(['outside_source_window']))
+  })
+})
+
+describe('Grazing reviews saved with release 1.1.0', () => {
+  it('open on the release they were made with, with their answers, and still evaluate', () => {
+    const initial = samplePlan()
+    const block = initial.blocks[0]
+    const { record } = rangeReviewFor(initial, block)
+    expect(record.review.selected).toEqual([RANGE_RELEASE])
+    expect(RANGE_RELEASE).toBe('bc.crown-grazing@1.2.0')
+    const exempt = '(d) land used exclusively for grazing or hay under a Range Act agreement'
+    const answers = {
+      'section-29-scope': true,
+      'exempt-purpose': exempt,
+      'range-act-agreement': true,
+      'exclusive-range-use': true,
+    }
+    const start = { ...record.review, selected: ['bc.crown-grazing@1.1.0'] }
+    const old = {
+      ...record,
+      review: Object.entries(answers).reduce((next, [id, value]) => setFact(next, pack110, id, value), start),
+    }
+    const plan = parsePlan(JSON.parse(JSON.stringify(saveRangeReview(initial, old))))
+    const opened = rangeReviewFor(plan, block)
+    expect(opened.stale).toBe(false)
+    expect(opened.record.review.selected).toEqual(['bc.crown-grazing@1.1.0'])
+    expect(opened.record.review.sets['bc.crown-grazing@1.1.0'].facts).toContainEqual(
+      expect.objectContaining({ id: 'exempt-purpose', value: exempt }),
+    )
+    const report = assess('2026-11-17', [pack110], Object.values(opened.record.review.sets))
+    const statuses = Object.fromEntries(report.releases[0].findings.map((f) => [f.rule, f.status]))
+    expect(statuses).toMatchObject({ 'exclusive-range': 'review_required', 'not-exclusive': 'condition_not_triggered' })
+    // The assessment record evaluates it with 1.1.0 from a library holding both releases.
+    const result = analyzePlan(plan, { schedule: old.schedule, year: plan.area.startYear })
+    const exported = assessmentRecord(plan, result, [pack, pack110], '2026-11-27')
+    const assessment = exported.rangeReviews[0].assessment
+    const releases = assessment && 'releases' in assessment ? assessment.releases : []
+    expect(releases.map((r) => `${r.pack.id}@${r.pack.version}`)).toEqual(['bc.crown-grazing@1.1.0'])
   })
 })
 

@@ -1,0 +1,194 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.water-crossings",
+  "version": "1.0.0",
+  "title": "BC stream crossings under the Water Sustainability Act",
+  "description": "Which authority covers each change in and about a stream the block’s roads and harvesting make (a culvert, bridge, ford, ice bridge or snowfill), and the conditions the Water Sustainability Regulation sets for it: the forest route of WSR §39(2), the listed changes of §39(1) with their notice to a habitat officer, or a change approval. Every answer is the reviewer’s; the planner reads no crossing from the map.",
+  "relatedPacks": [
+    {
+      "id": "bc.fppr",
+      "relationship": "WSR §39(2) authorizes a forest crossing only while it complies with FRPA and its regulations; review the FPPR rules for the same roads separately."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "stream-changes",
+      "label": "Will the block’s roads or harvesting make any change in and about a stream: a culvert, bridge, ford, ice bridge, snowfill or other work in a stream channel or modifying a stream, a wetland, spring or dry channel included (Water Sustainability Act §1)?",
+      "type": "boolean"
+    },
+    {
+      "id": "route-forest",
+      "label": "Is any of these changes made under WSR §39(2): a change to which a FRPA standard applies, made by a Forest Act agreement or road use permit holder, a Range Act agreement holder or the Crown?",
+      "type": "boolean"
+    },
+    {
+      "id": "route-listed",
+      "label": "Is any of these changes made instead as a change WSR §39(1) lists (a culvert, clear span bridge, temporary ford, ice bridge, winter ford, snowfill or drainage outlet), by someone §39(2) does not cover?",
+      "type": "boolean"
+    },
+    {
+      "id": "route-approval",
+      "label": "Is any of these changes made under a change approval, another authorization or an order (Water Sustainability Act §11(2)(a), (c), (d))?",
+      "type": "boolean"
+    },
+    {
+      "id": "forest-holder",
+      "label": "Is every change relied on under §39(2) made by a person it names: a holder of a Forest Act agreement or road use permit, a Range Act agreement or a special use permit, a person authorized to build the road under the Coal, Geothermal Resources, Mining Right of Way or Petroleum and Natural Gas Act, or the Crown?",
+      "type": "boolean"
+    },
+    {
+      "id": "frpa-compliant",
+      "label": "Will every change relied on under §39(2) comply with FRPA and its regulations and standards (FPPR §§55–57 on stream crossings, fish passage and fish habitat among them)?",
+      "type": "boolean"
+    },
+    {
+      "id": "engineer-required",
+      "label": "Has an engineer required an application for a change approval or authorization for any change to be made under Part 3, because it may have a significant adverse impact on the stream, its flow or its channel (WSR §37(2))?",
+      "type": "boolean"
+    },
+    {
+      "id": "officer-terms",
+      "label": "Has a habitat officer given written terms for any change to be made under Part 3 (a timing window, minimum flow, removal or addition of material, fish and wildlife salvage, protection of vegetation, worksite restoration; WSR §44(2))?",
+      "type": "boolean"
+    },
+    {
+      "id": "within-officer-terms",
+      "label": "Is the work planned and scheduled within those terms?",
+      "type": "boolean"
+    },
+    {
+      "id": "approval-held",
+      "label": "Is every change approval, authorization or order relied on issued, and is the work planned within its terms and conditions?",
+      "type": "boolean"
+    },
+    {
+      "id": "notice-given",
+      "label": "For each change under §39(1), was a signed notice of its particulars given to a habitat officer at least 45 days before the work begins (WSR §38(1)(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "statement-obtained",
+      "label": "Has a habitat officer’s statement of the terms on which each such change can proceed been obtained (WSR §38(1)(b))?",
+      "type": "boolean"
+    },
+    {
+      "id": "no-contact-45",
+      "label": "Have 45 days passed since a habitat officer received the notice without the officer making contact (WSR §38(4))?",
+      "type": "boolean"
+    },
+    {
+      "id": "listed-culvert",
+      "label": "Is any change under §39(1) a culvert for a road, trail or footpath (§39(1)(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "culvert-diameter",
+      "label": "Smallest equivalent diameter of those culverts",
+      "type": "number",
+      "unit": "mm",
+      "min": 0
+    },
+    {
+      "id": "culvert-cover",
+      "label": "Least depth of fill cover over those culverts",
+      "type": "number",
+      "unit": "mm",
+      "min": 0
+    },
+    {
+      "id": "culvert-fill",
+      "label": "Greatest fill height above the top of those culverts",
+      "type": "number",
+      "unit": "m",
+      "min": 0
+    },
+    {
+      "id": "culvert-capacity",
+      "label": "Does each culvert have the stream channel’s hydraulic capacity, or pass the 1 in 200 year maximum daily flow without the water at its inlet rising above its top (§39(1)(a)(vii))?",
+      "type": "boolean"
+    },
+    {
+      "id": "fish-bearing",
+      "label": "Is any stream those culverts cross fish-bearing, with fish present at some time in the year?",
+      "type": "boolean"
+    },
+    {
+      "id": "culvert-fish-passage",
+      "label": "Does each culvert on a fish-bearing stream let fish pass up and down stream under all flow conditions?",
+      "type": "boolean"
+    },
+    {
+      "id": "culvert-large",
+      "label": "Is any culvert of 2 m or greater equivalent diameter, or designed to pass a flow of more than 6 m³ a second?",
+      "type": "boolean"
+    },
+    {
+      "id": "culvert-engineered",
+      "label": "Is each such culvert designed by an engineering professional and built to that design?",
+      "type": "boolean"
+    },
+    {
+      "id": "culvert-practices",
+      "label": "Will each culvert meet the rest of §39(1)(a): equipment in a dry channel or operated from the top of the bank, erosion protection at the inlet and outlet, debris passing through, a stable channel, no backwater or raised head, obstacles and debris removable, the channel outside the right of way unaltered, fill kept off the inlet and outlet, and CSA materials?",
+      "type": "boolean"
+    },
+    {
+      "id": "listed-bridge",
+      "label": "Is any change under §39(1) a clear span bridge (§39(1)(b))?",
+      "type": "boolean"
+    },
+    {
+      "id": "bridge-conditions",
+      "label": "Will each clear span bridge meet §39(1)(b): equipment in a dry channel or operated from the top of the bank, no backwater or raised head, the channel’s hydraulic capacity or the 1 in 200 year maximum daily flow, room under it for flood debris and ice, and CSA materials?",
+      "type": "boolean"
+    },
+    {
+      "id": "listed-ford",
+      "label": "Is any change under §39(1) a temporary ford for vehicles (§39(1)(v))?",
+      "type": "boolean"
+    },
+    {
+      "id": "ford-conditions",
+      "label": "Will each temporary ford meet §39(1)(v): built and removed when that risks no significant harm to fish, wildlife or the aquatic ecosystem, holding the 1 in 10 year maximum daily flow without loss or channel erosion, any culvert passing the average low flow, the channel protected from erosion during use and after removal, no sediment from approach ditches, an erosion-free running surface, the stream in its channel and debris passing over it?",
+      "type": "boolean"
+    },
+    {
+      "id": "listed-winter",
+      "label": "Is any change under §39(1) an ice bridge, winter ford or snowfill (§39(1)(n))?",
+      "type": "boolean"
+    },
+    {
+      "id": "winter-conditions",
+      "label": "Will each be built only of clean ice and snow removed from the channel before ice breakup, with an ice bridge’s logs, timber and other materials removed before breakup without a significant risk of harm?",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "culvert-min-diameter",
+      "value": 600,
+      "unit": "mm"
+    },
+    {
+      "id": "culvert-min-cover",
+      "value": 300,
+      "unit": "mm"
+    },
+    {
+      "id": "culvert-max-fill",
+      "value": 2,
+      "unit": "m"
+    }
+  ],
+  "sourceFiles": [
+    "sources/bc/water-sustainability-act.json",
+    "sources/bc/water-sustainability-regulation.json"
+  ],
+  "ruleFiles": [
+    "rules/bc/water-crossings.json"
+  ]
+}

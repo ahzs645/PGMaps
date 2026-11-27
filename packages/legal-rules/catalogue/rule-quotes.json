@@ -95,6 +95,49 @@
           "quote": "No area based forest tenures will be established within these agricultural development areas and settlement reserve areas."
         }
       ],
+      "cannot-reforest-ada-sra#exclusive-range": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting trees on land that is, or will be, exclusively used for harvesting hay or grazing livestock in accordance with an agreement under the Range Act;"
+        },
+        {
+          "source": "bc.range-act",
+          "provision": "1",
+          "quote": "Crown range means Crown land in a range district, but does not include Crown land leased under the Land Act;"
+        }
+      ],
+      "cannot-reforest-ada-sra#intermediate-cut": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "commercial thinning, removal of individual trees, or a similar type of intermediate cutting;"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "A person who harvests timber for the reasons referred to in subsection (3) (h) and (i) must ensure that, for a period of 12 months after completion of harvest, the area on which timber harvesting was carried out conforms to the stocking standards specified in section 16 (4) for the area."
+        }
+      ],
+      "cannot-reforest-ada-sra#minister-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "91",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "106.1",
+          "quote": "An order or an exemption under this regulation must be in writing, specify the matter to which it relates, specify when the order or exemption comes into effect,"
+        }
+      ],
+      "cannot-reforest-ada-sra#part-e-deviation": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "E",
+          "quote": "Deviations from Parts A, B, C and D Deviations may include the following:"
+        }
+      ],
       "cannot-reforest-ada-sra": [
         {
           "source": "bc.frpa",
@@ -131,6 +174,61 @@
           "source": "bc.fppr",
           "provision": "44",
           "quote": "harvesting trees on land that is, or will be, exclusively used for harvesting hay or grazing livestock in accordance with an agreement under the Range Act;"
+        }
+      ],
+      "free-growing#exclusive-range": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting trees on land that is, or will be, exclusively used for harvesting hay or grazing livestock in accordance with an agreement under the Range Act;"
+        },
+        {
+          "source": "bc.range-act",
+          "provision": "1",
+          "quote": "Crown range means Crown land in a range district, but does not include Crown land leased under the Land Act;"
+        }
+      ],
+      "free-growing#experimental": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting timber for experimental purposes if, in the opinion of the minister, the harvesting will be carried out under controlled scientific or investigative conditions;"
+        }
+      ],
+      "free-growing#intermediate-cut": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "commercial thinning, removal of individual trees, or a similar type of intermediate cutting;"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "A person who harvests timber for the reasons referred to in subsection (3) (h) and (i) must ensure that, for a period of 12 months after completion of harvest, the area on which timber harvesting was carried out conforms to the stocking standards specified in section 16 (4) for the area."
+        }
+      ],
+      "free-growing#minister-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "91",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "106.1",
+          "quote": "An order or an exemption under this regulation must be in writing, specify the matter to which it relates, specify when the order or exemption comes into effect,"
+        }
+      ],
+      "free-growing#restricted-purpose": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting timber to eliminate a safety hazard;"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "clearing areas for or within a recreation site or recreation trail;"
         }
       ],
       "free-growing": [
@@ -204,6 +302,37 @@
           "quote": "The minister may issue a lease of Crown land subject to the terms and reservations the minister considers advisable, including an option to purchase the land."
         }
       ],
+      "ministerial-exemption#exclusive-range": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting trees on land that is, or will be, exclusively used for harvesting hay or grazing livestock in accordance with an agreement under the Range Act;"
+        },
+        {
+          "source": "bc.range-act",
+          "provision": "1",
+          "quote": "Crown range means Crown land in a range district, but does not include Crown land leased under the Land Act;"
+        }
+      ],
+      "ministerial-exemption#experimental": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting timber for experimental purposes if, in the opinion of the minister, the harvesting will be carried out under controlled scientific or investigative conditions;"
+        }
+      ],
+      "ministerial-exemption#restricted-purpose": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting timber to eliminate a safety hazard;"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "clearing areas for or within a recreation site or recreation trail;"
+        }
+      ],
       "ministerial-exemption": [
         {
           "source": "bc.fppr",
@@ -249,6 +378,49 @@
           "quote": "the portion of the standards unit that is occupied by areas referred to in subparagraph (i) does not exceed 5% of the standards unit."
         }
       ],
+      "permanent-grazing-opening#exclusive-range": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting trees on land that is, or will be, exclusively used for harvesting hay or grazing livestock in accordance with an agreement under the Range Act;"
+        },
+        {
+          "source": "bc.range-act",
+          "provision": "1",
+          "quote": "Crown range means Crown land in a range district, but does not include Crown land leased under the Land Act;"
+        }
+      ],
+      "permanent-grazing-opening#minister-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "91",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "106.1",
+          "quote": "An order or an exemption under this regulation must be in writing, specify the matter to which it relates, specify when the order or exemption comes into effect,"
+        }
+      ],
+      "permanent-grazing-opening#plan-specifies": [
+        {
+          "source": "bc.fppr",
+          "provision": "46.11",
+          "quote": "must ensure that the obligation is fulfilled on each hectare within the net area to be reforested, unless otherwise specified in a forest stewardship plan."
+        }
+      ],
+      "permanent-grazing-opening#small-openings": [
+        {
+          "source": "bc.fppr",
+          "provision": "46.11",
+          "quote": "If the stocking within a standards unit conforms to the applicable stocking standards, an area within the standards unit is not required to meet the applicable stocking standards if"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "46.11",
+          "quote": "the portion of the standards unit that is occupied by areas referred to in subparagraph (i) does not exceed 5% of the standards unit."
+        }
+      ],
       "permanent-grazing-opening": [
         {
           "source": "bc.frpa",
@@ -261,6 +433,49 @@
           "source": "bc.frpa",
           "provision": "51",
           "quote": "Unless authorized in writing by the minister, a person must not store hay on Crown range, or carry out, construct, modify, remove, damage or destroy a range development on Crown range."
+        }
+      ],
+      "range-holder-livestock#exclusive-range": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting trees on land that is, or will be, exclusively used for harvesting hay or grazing livestock in accordance with an agreement under the Range Act;"
+        },
+        {
+          "source": "bc.range-act",
+          "provision": "1",
+          "quote": "Crown range means Crown land in a range district, but does not include Crown land leased under the Land Act;"
+        }
+      ],
+      "range-holder-livestock#intermediate-cut": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "commercial thinning, removal of individual trees, or a similar type of intermediate cutting;"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "A person who harvests timber for the reasons referred to in subsection (3) (h) and (i) must ensure that, for a period of 12 months after completion of harvest, the area on which timber harvesting was carried out conforms to the stocking standards specified in section 16 (4) for the area."
+        }
+      ],
+      "range-holder-livestock#keep-out-exemption": [
+        {
+          "source": "bc.rppr",
+          "provision": "44",
+          "quote": "If the minister is satisfied that sufficient measures have been taken to prevent interference with the establishment of a free growing stand from recurring, the minister may exempt a range agreement holder from the requirement of subsection (1) (b)."
+        }
+      ],
+      "range-holder-livestock#restricted-purpose": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting timber to eliminate a safety hazard;"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "clearing areas for or within a recreation site or recreation trail;"
         }
       ],
       "range-holder-livestock": [
@@ -1622,6 +1837,202 @@
           "source": "bc.frpa",
           "provision": "2.47",
           "quote": "Unless the regulations provide otherwise, the holder of a forest operations plan must prepare a site level plan for a cutblock, before the holder starts harvesting timber on the cutblock"
+        }
+      ]
+    },
+    "bc.water-crossings": {
+      "approval-terms": [
+        {
+          "source": "bc.water-sustainability-act",
+          "provision": "11",
+          "quote": "On application in accordance with section 12, the comptroller, a water manager or an engineer may issue an approval authorizing any of the following persons to make changes in and about a stream:"
+        },
+        {
+          "source": "bc.water-sustainability-act",
+          "provision": "11",
+          "quote": "Changes in and about a stream may only be made in accordance with the terms and conditions of a change approval,"
+        }
+      ],
+      "aquatic-damage": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "44",
+          "quote": "report the damage to a habitat officer within 72 hours after the damage is caused, and"
+        },
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "44",
+          "quote": "repair the damage and restore the aquatic ecosystem to the state that existed before the damage was caused, or as directed by the habitat officer."
+        }
+      ],
+      "bridge-conditions": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the construction, maintenance or removal of a clear span bridge, if all the following conditions are met:"
+        },
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the height of the underside of the bridge is adequate to provide free passage of flood debris and ice flows;"
+        }
+      ],
+      "change-authority": [
+        {
+          "source": "bc.water-sustainability-act",
+          "provision": "11",
+          "quote": "Changes in and about a stream may only be made in accordance with the terms and conditions of a change approval, the regulations, the terms and conditions of an authorization, or an order."
+        }
+      ],
+      "culvert-capacity": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the culvert capacity is equivalent to the hydraulic capacity of the stream channel or is capable of passing the 1 in 200 year maximum daily flow without the water level at the culvert inlet exceeding the top of the culvert;"
+        }
+      ],
+      "culvert-cover#manufacturer-cover": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the culvert has a depth of fill cover that is at least 300 mm or as required by the culvert manufacturer's specifications;"
+        }
+      ],
+      "culvert-cover": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the culvert has a depth of fill cover that is at least 300 mm or as required by the culvert manufacturer's specifications;"
+        }
+      ],
+      "culvert-design": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "if the culvert has an equivalent diameter of 2 m or greater, or has a design capacity to pass a flow of more than 6 m3 per second, the culvert is designed by an engineering professional and constructed in conformance with that design;"
+        }
+      ],
+      "culvert-fill": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the maximum fill heights above the top of the culvert do not exceed 2 m;"
+        }
+      ],
+      "culvert-fish": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "if the stream is fish-bearing, the culvert allows fish in the stream to pass up or down stream under all flow conditions;"
+        }
+      ],
+      "culvert-practices": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the equipment used for site preparation, or for installation, construction, maintenance or removal of the culvert, is situated in a dry stream channel or operated from the top of the bank;"
+        },
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the culvert inlet and outlet incorporate measures to protect the structure and the stream channel against erosion;"
+        }
+      ],
+      "culvert-size": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the culvert has a minimum equivalent diameter of 600 mm;"
+        }
+      ],
+      "engineer-requirement": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "37",
+          "quote": "if an engineer considers that an authorized change may have a significant adverse impact on the nature of the stream, including the flow of water in the stream, or the stream channel, the engineer may require that an application for a change approval or an authorization be made"
+        },
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "37",
+          "quote": "If an engineer imposes a requirement under subsection (2), the authorized change may not be carried out under this Part."
+        }
+      ],
+      "ford-conditions": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the construction of a temporary ford for vehicular traffic across a stream, if"
+        },
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the 1 in 10 year maximum daily flow over the ford is accommodated without the loss of the ford and without eroding the stream channel,"
+        }
+      ],
+      "forest-route": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "A change in and about a stream to which a standard or regulation under the Forest and Range Practices Act applies is an authorized change if"
+        },
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "the person making the change complies with the Forest and Range Practices Act and the regulations and standards established under that Act."
+        }
+      ],
+      "habitat-notice#not-notified": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "38",
+          "quote": "A person proposing to make an authorized change, other than an authorized change described in section 39 (1) (o) to (s), (2) and (5), must"
+        }
+      ],
+      "habitat-notice": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "38",
+          "quote": "provide a notice, signed by the person or the person's agent, to a habitat officer of the particulars of the proposal at least 45 days before beginning the authorized change"
+        }
+      ],
+      "habitat-statement#no-contact": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "38",
+          "quote": "if a person who has given notice under that subsection is not contacted by a habitat officer within 45 days after the notice is received by a habitat officer, the person may proceed with the authorized change that is the subject of the notice."
+        }
+      ],
+      "habitat-statement#not-notified": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "38",
+          "quote": "A person proposing to make an authorized change, other than an authorized change described in section 39 (1) (o) to (s), (2) and (5), must"
+        }
+      ],
+      "habitat-statement": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "38",
+          "quote": "obtain from a habitat officer a statement of the terms and conditions described in section 44 (2) [protection of aquatic ecosystem] on which the authorized change can proceed."
+        }
+      ],
+      "officer-terms": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "37",
+          "quote": "the changes in and about a stream are made in accordance with this Part, including, if applicable, the terms and conditions specified by a habitat officer under section 44"
+        },
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "44",
+          "quote": "the timing window during which the change may be made;"
+        }
+      ],
+      "winter-conditions": [
+        {
+          "source": "bc.water-sustainability-regulation",
+          "provision": "39",
+          "quote": "in the cases of ice bridges, winter fords or snowfills, only clean ice and snow are used in the construction or maintenance and are removed from the stream channel before ice breakup, and"
         }
       ]
     }

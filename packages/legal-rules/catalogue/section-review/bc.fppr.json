@@ -2053,14 +2053,18 @@
         "bc.crown-grazing@1.0.0:not-exclusive",
         "bc.crown-grazing@1.0.0:intermediate-cut-stocking",
         "bc.crown-grazing@1.0.0:designation-not-lease",
-        "bc.crown-grazing@1.0.0:lease-not-crown-range"
+        "bc.crown-grazing@1.0.0:lease-not-crown-range",
+        "bc.crown-grazing@1.2.0:free-growing",
+        "bc.crown-grazing@1.2.0:free-growing#restricted-purpose",
+        "bc.crown-grazing@1.2.0:free-growing#experimental",
+        "bc.crown-grazing@1.2.0:free-growing#exclusive-range",
+        "bc.crown-grazing@1.2.0:free-growing#intermediate-cut"
       ],
       "gapPriority": "medium",
-      "gapNote": "The crown-grazing pack covers the s. 44(3)(d), (h) and (i) purposes and the 12-month standard; nothing tests the 20-year ceiling on the free growing date in (1)(b) against the scheduled commencement year, and the other (3) purposes are asked only as one combined question.",
+      "gapNote": "Crown grazing 1.2.0 lists every s. 44(3) purpose as an exception on the rules the free growing duty raises: (a)-(c), (f) and (g) together, (e) as the minister’s decision, (d) tested on a Range Act agreement, exclusive use and no Land Act lease, and (h)-(i) with (4)’s 12-month stocking standard as its evidence. Nothing tests the 20-year ceiling on the free growing date in (1)(b) against the scheduled commencement year.",
       "encodable": "numeric",
       "proposedFacts": [
-        "What free growing date does the plan's stocking standard set for this cutblock, and is it no more than 20 years after the scheduled commencement date?",
-        "Is harvesting restricted to one of the section 44(3) purposes, and which one?"
+        "What free growing date does the plan's stocking standard set for this cutblock, and is it no more than 20 years after the scheduled commencement date?"
       ],
       "topics": [
         "reforestation"
@@ -2123,8 +2127,13 @@
       "review": "rule",
       "coveredBy": [
         "bc.crown-grazing@1.1.0:opening-tolerance",
-        "bc.crown-grazing@1.1.0:permanent-grazing-opening"
+        "bc.crown-grazing@1.1.0:permanent-grazing-opening",
+        "bc.crown-grazing@1.2.0:permanent-grazing-opening",
+        "bc.crown-grazing@1.2.0:permanent-grazing-opening#small-openings",
+        "bc.crown-grazing@1.2.0:permanent-grazing-opening#plan-specifies"
       ],
+      "gapPriority": "low",
+      "gapNote": "Since crown grazing 1.2.0 the (2) tolerance and an FSP that specifies otherwise under (1) are exceptions a reviewer claims on the permanent grazing opening, tested on the openings entered; no rule reads a standards unit’s mapped openings.",
       "topics": [
         "reforestation"
       ]
@@ -2892,10 +2901,12 @@
       "bearsOn": "Lets the minister, where impracticable for an area, exempt a person from FRPA ss. 10, 29 and 29.1 and from listed FPPR sections (41, 42, 46, 50(2)-(3), 51, 55-63, 68, 70(1), 72-79, 83-85(1) and others), exempt minor tenures from specified provisions, exempt small forestry licences to cut from ss. 35, 36, 47-52 and 64-67, exempt from s. 67 for equivalent replacement retention, and exempt from s. 43.1 in the public interest.",
       "review": "partial",
       "coveredBy": [
-        "bc.crown-grazing@1.0.0:ministerial-exemption"
+        "bc.crown-grazing@1.0.0:ministerial-exemption",
+        "bc.crown-grazing@1.2.0:free-growing#minister-exemption",
+        "bc.crown-grazing@1.2.0:permanent-grazing-opening#minister-exemption"
       ],
       "gapPriority": "low",
-      "gapNote": "ministerial-exemption covers (1)(a)(i) for the FRPA s. 29 free growing duty only. An exemption from s. 51 (riparian reserves), s. 68 (logs), ss. 55-63 or, for a small FLTC, ss. 35-36, 47-52 and 64-67 would also lift a rule's finding and is not asked; (2) offers a route around s. 67 the wt-harvest rule does not mention.",
+      "gapNote": "ministerial-exemption, and the minister-exemption exception crown grazing 1.2.0 lists on the free growing rules, cover (1)(a)(i) for the FRPA s. 29 free growing duty only. An exemption from s. 51 (riparian reserves), s. 68 (logs), ss. 55-63 or, for a small FLTC, ss. 35-36, 47-52 and 64-67 would also lift a rule's finding and is not asked; (2) offers a route around s. 67 the wt-harvest rule does not mention.",
       "encodable": "reviewer-question",
       "topics": [
         "exemptions-and-variances"
