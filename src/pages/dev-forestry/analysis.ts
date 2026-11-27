@@ -54,6 +54,8 @@ import type {
   RunGap,
 } from './types'
 export const MAX_TOTAL_SIGHTLINES = 250_000
+/** The largest sample points per polygon the run accepts from Simulation settings (its input's maximum). */
+export const MAX_SAMPLE_BUDGET = 20_000
 export type TerrainInfo = { tileCount: number; missingTileCount: number; resolutionMeters: number }
 export type AnalysisContext = {
   vegetation?: InventoryEvidence
@@ -77,6 +79,22 @@ export type PreparedTarget = {
   siteDisturbance: boolean
   /** A partial cut: seen and sampled, but not counted as cleared ground (its Table 6 equivalent is added later). */
   partialCut?: boolean
+  /**
+   * How much the sightline ceiling (`MAX_TOTAL_SIGHTLINES`) widened this polygon's spacing, where it did. While it
+   * binds, a larger sample budget is coarsened straight back, so the run must not advise raising it.
+   */
+  sightlineCapCoarsening?: number
+}
+/** The finest grid spacing the terrain supports: no budget samples a polygon closer than this. */
+function minimumSpacingMeters(input: AnalysisInput, stations: CorridorStation[]) {
+  return Math.max(5, demResolutionMeters(stations[0]?.lat ?? 0, input.settings.demZoom) * 0.75)
+}
+function capCoarsened(target: PreparedTarget, factor: number): PreparedTarget {
+  return {
+    ...target,
+    spacingMeters: target.spacingMeters * factor,
+    sightlineCapCoarsening: (target.sightlineCapCoarsening ?? 1) * factor,
+  }
 }
 function validate(input: AnalysisInput) {
   canonicalInput(input)
@@ -127,7 +145,7 @@ export function buildStations(input: AnalysisInput): CorridorStation[] {
 }
 export function prepareTargets(input: AnalysisInput, stations: CorridorStation[]): PreparedTarget[] {
   const landform = activeLandform(input.targets, input.activeLandformId)
-  const minimum = Math.max(5, demResolutionMeters(stations[0]?.lat ?? 0, input.settings.demZoom) * 0.75)
+  const minimum = minimumSpacingMeters(input, stations)
   let targets = input.targets
     .filter((t) => t.role !== 'landscape' || t.id === landform?.id)
     .map((target): PreparedTarget => {
@@ -172,7 +190,7 @@ export function prepareTargets(input: AnalysisInput, stations: CorridorStation[]
     const total = group.reduce((sum, t) => sum + cost(t), 0),
       allowance = Math.max(1, remaining - floor)
     const coarsen = total > allowance ? Math.sqrt(total / allowance) : 1
-    targets = targets.map((t) => (tier(t) === current ? { ...t, spacingMeters: t.spacingMeters * coarsen } : t))
+    if (coarsen > 1) targets = targets.map((t) => (tier(t) === current ? capCoarsened(t, coarsen) : t))
     remaining -= targets.filter((t) => tier(t) === current).reduce((sum, t) => sum + cost(t), 0)
   }
   return targets
@@ -224,6 +242,71 @@ type Pass = {
   distance: Float64Array
   visibleArea: Float64Array
 }
+/** How many under-resolved alterations the gap names before it counts the rest. */
+const NAMED_UNDER_RESOLVED = 3
+function namedList(names: string[]): string {
+  const shown = names.slice(0, NAMED_UNDER_RESOLVED),
+    more = names.length - shown.length
+  if (more > 0) return `${shown.join(', ')} and ${more} more`
+  return shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}` : (shown[0] ?? '')
+}
+const hectares = (squareMeters: number) =>
+  (squareMeters / 10_000).toFixed(squareMeters >= 100_000 ? 0 : 1).replace(/\.0$/, '')
+/**
+ * What the `under-resolved` gap tells the reviewer: which alterations, and the one change that would resolve them.
+ * The landform's ledger has about `sampleBudget` cells, so an alteration with area A inside a landform of area L
+ * gets about budget × A / L of them; the advice is worked from A inside the landform, never the alteration's whole
+ * area, and never suggests a budget the sightline ceiling, the terrain's finest spacing or the setting's maximum
+ * would undo.
+ */
+function underResolvedText(
+  input: AnalysisInput,
+  stations: CorridorStation[],
+  land: Pass,
+  flagged: Pass[],
+  insideArea: (pass: Pass) => number,
+  prepared: PreparedTarget[],
+): string {
+  const names = flagged.map((p) => p.target.name),
+    one = flagged.length === 1
+  const head = `${one ? `An alteration (${namedList(names)}) covers` : `${flagged.length} alterations (${namedList(names)}) cover`} fewer than ${MIN_LEDGER_CELLS_PER_PROPOSAL} cells of the landform's shared grid, so ${one ? 'its' : 'their'} share would move in whole-cell steps.`
+  const tail = 'before exporting numerical fields.'
+  const inRange = prepared.filter((t) => t.inRange)
+  const atLimit = (reached: boolean) =>
+    `${head} The run ${reached ? 'reached' : 'would reach'} its limit of ${MAX_TOTAL_SIGHTLINES.toLocaleString('en-CA')} sightlines with ${inRange.length.toLocaleString('en-CA')} polygons in range of the viewpoint${stations.length > 1 ? ` across ${stations.length} stations` : ''}, ${reached ? "so it coarsened the landform's grid and more sample points per polygon would be coarsened straight back" : 'and would coarsen the grid straight back'}. Remove the polygons that are not part of the assessment, or delineate a tighter landform, ${tail}`
+  if ((land.target.sightlineCapCoarsening ?? 1) > 1) return atLimit(true)
+  const minimum = minimumSpacingMeters(input, stations),
+    budget = input.settings.sampleBudget
+  const finest = `${head} The landform's grid is already at the finest spacing the terrain supports (about ${Math.round(minimum)} m), so more sample points per polygon would not refine it. Choose a finer terrain zoom (Simulation settings), or delineate a tighter landform, ${tail}`
+  if (Math.sqrt(land.target.areaMeters / budget) <= minimum) return finest
+  const sized = flagged.map((pass) => ({ pass, inside: Math.max(1, insideArea(pass)) }))
+  const smallest = sized.reduce((a, b) => (b.inside < a.inside ? b : a))
+  const name = smallest.pass.target.name,
+    whole = smallest.pass.target.areaMeters
+  const clipped =
+    smallest.inside < whole * 0.9
+      ? ` Only about ${hectares(smallest.inside)} ha of ${name}'s ${hectares(whole)} ha lies in the landform.`
+      : ''
+  let needed = Math.ceil((land.target.areaMeters * MIN_LEDGER_CELLS_PER_PROPOSAL * 1.3) / smallest.inside / 500) * 500
+  // The estimate is a mean; an alteration still short of cells at or under it is thin, so ask for more than now.
+  if (needed <= budget) needed = Math.ceil((budget * 2) / 500) * 500
+  if (needed > MAX_SAMPLE_BUDGET)
+    return `${head}${clipped} Resolving ${name} would take about ${needed.toLocaleString('en-CA')} sample points per polygon, past the setting's ${MAX_SAMPLE_BUDGET.toLocaleString('en-CA')} maximum. Delineate a tighter landform, or remove ${name} if it is not part of the assessment, ${tail}`
+  if (Math.sqrt(land.target.areaMeters / needed) < minimum) return finest
+  // The sightlines the first tier (the landform and the blocks) would take at that budget, with every other polygon
+  // in range at one sample: past the ceiling, the grid would be coarsened straight back.
+  const cost =
+    inRange.reduce(
+      (n, t) =>
+        n +
+        (t.role === 'harvested'
+          ? 1
+          : Math.max(1, t.areaMeters / Math.max(minimum, Math.sqrt(t.areaMeters / needed)) ** 2)),
+      0,
+    ) * stations.length
+  if (cost > MAX_TOTAL_SIGHTLINES) return atLimit(false)
+  return `${head}${clipped} Raise the sample points per polygon to about ${needed.toLocaleString('en-CA')} (Simulation settings), or delineate a tighter landform, ${tail}`
+}
 export function computeAnalysis(
   source: ElevationSource,
   input: AnalysisInput,
@@ -265,10 +348,8 @@ export function computeAnalysis(
     const actual = grids.reduce((n, grid, i) => n + (prepared[i].inRange ? grid.length * stations.length : 0), 0)
     if (actual <= MAX_TOTAL_SIGHTLINES) break
     if (attempt === 7) throw new Error('The geometry cannot fit the sightline budget. Use fewer polygons or stations.')
-    prepared = prepared.map((t) => ({
-      ...t,
-      spacingMeters: t.spacingMeters * Math.sqrt(actual / MAX_TOTAL_SIGHTLINES) * 1.05,
-    }))
+    const factor = Math.sqrt(actual / MAX_TOTAL_SIGHTLINES) * 1.05
+    prepared = prepared.map((t) => capCoarsened(t, factor))
   }
   const bounds = analysisBounds(input, stations)
   // Partial-opening fractions do not locate leave patches. Do not silently clear their entire canopy.
@@ -686,18 +767,23 @@ export function computeAnalysis(
     warnings.push(
       `The surveyed eye elevation (${surveyedEye!.toFixed(1)} m) is up to ${buriedEye.toFixed(1)} m below the terrain model's ground at the viewpoint, so its sightlines start inside that ground and what they hide is the model, not the view. Check the elevation, or stand the eye on the model's ground.`,
     )
-  if (underResolvedTargetIds.length) {
-    // Points the landform needs for the smallest under-resolved proposal to
-    // cover the minimum number of cells: its area over the landform's.
-    const smallest = Math.min(
-      ...passes
-        .filter((p) => underResolvedTargetIds.includes(p.target.id))
-        .map((p) => Math.max(1, p.target.areaMeters)),
+  if (underResolvedTargetIds.length && land) {
+    const text = underResolvedText(
+      input,
+      stations,
+      land,
+      passes.filter((p) => underResolvedTargetIds.includes(p.target.id)),
+      // The area of an alteration that counts in the landform's ledger, from the alteration's own samples: a block
+      // that only clips the landform's edge has far less there than its whole area.
+      (p) =>
+        p.samples.reduce((sum, sample, i) => {
+          const m = maskAt(sample.lng, sample.lat)
+          return inLand(sample) && !m.excludeGreen && !m.excludeAlteration && !(p.target.role === 'block' && m.retained)
+            ? sum + p.areas[i]
+            : sum
+        }, 0),
+      prepared,
     )
-    const needed = land
-      ? Math.ceil((land.target.areaMeters * MIN_LEDGER_CELLS_PER_PROPOSAL * 1.3) / smallest / 500) * 500
-      : null
-    const text = `An alteration covers fewer than ${MIN_LEDGER_CELLS_PER_PROPOSAL} cells of the landform's shared grid, so its share would move in whole-cell steps. Raise the sample points per polygon${needed ? ` to about ${needed.toLocaleString('en-CA')}` : ''} (Simulation settings), or delineate a tighter landform, before exporting numerical fields.`
     warnings.push(text)
     gaps.push({ id: 'under-resolved', text, editor: 'run' })
   }

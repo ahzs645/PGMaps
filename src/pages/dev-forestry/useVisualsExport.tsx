@@ -389,6 +389,15 @@ export function useVisualsExport(input: {
     jobFor: (viewId: string, engine: RenderEngineId, phase?: 'before') => RenderJob | null
     /** The road view is open with its terrain: an engine draws from it. */
     ready: boolean
+    /** The road view is open or opening (its terrain may still be loading). Absent: read as `ready`. */
+    open?: boolean
+    /**
+     * Opens the road view where the reviewer stands, for an export whose engine draws from it, and closes it again
+     * once the file is written (`VisualsExportDialog`'s `prepare`). Absent: a closed road view leaves the engine
+     * unavailable.
+     */
+    openRoadView?: () => void
+    leaveRoadView?: () => void
   }
   briefBlockId: string | null
   onBriefBlockId: (id: string) => void
@@ -507,6 +516,9 @@ export function useVisualsExport(input: {
   const [captureFailures, setCaptureFailures] = useState<Readonly<Record<string, { key: string; reason: string }>>>({})
   // Views of interest whose before-harvest render could not be taken, under the key they were captured with.
   const [beforeFailures, setBeforeFailures] = useState<Readonly<Record<string, { key: string; reason: string }>>>({})
+  // Views of interest stood at for an engine's renders whose renders were not drawn, by planned view id, with the
+  // saved view and engine they were tried for: a preview does not stand there again in a loop; a download does.
+  const [engineTried, setEngineTried] = useState<Readonly<Record<string, string>>>({})
 
   // The inventory near the note's block is read when the dialog opens on it, once per block, without
   // switching the plan's inventory layer on. Nothing to press; the section says when it is reading.
@@ -615,33 +627,42 @@ export function useVisualsExport(input: {
     hasFigure: (id) => !!images[id]?.figure,
     hasScreenshot: (id) => !!images[id]?.figureAt,
   })
-  const packageViews = allViews.filter((view) => pkg.viewIds.has(view.id))
+  // In the package's own order (`viewOrder`), never `allViews`': that puts the views shelved at other places before
+  // those saved where the reviewer stands, so the report printed the views in the order the capture visited them.
+  const packageViews = pkg.viewOrder.flatMap((id) => allViews.filter((view) => view.id === id))
   // The package's views the sheet, the document and the report cannot draw, each named in the file with why.
   const unprinted = unprintedViews(packageViews, images)
 
-  // With another engine chosen, each saved view's figure is that engine's render when it is done.
+  // With another engine chosen, each saved view's figure is that engine's render when it is done. A view saved at
+  // another place has its job too, keyed to that place's scene (`renderJobFor`): the engine draws it only while the
+  // road view stands there, so it is never queued from here, and a render a capture drew there is found from here.
   const renders = input.renders
   const engineId: RenderEngineId | null = figureRenderer === 'pgmaps' ? null : figureRenderer
-  const engineJobs =
+  const allEngineJobs =
     engineId && renders
       ? packageViews.flatMap((view) => {
           const job = images[view.id]?.figure ? renders.jobFor(view.id, engineId) : null
           return job ? [job] : []
         })
       : []
+  // The views the engine draws from here, or has drawn wherever they stand.
+  const engineJobs = allEngineJobs.filter((job) => here.has(job.viewId) || !!renders?.figures[job.key])
   const missingJobs = engineJobs.filter((job) => !renders?.figures[job.key])
   // The VIA report's before pictures by the same engine, so a pair never compares two renderers. A failed one is not
   // asked again or waited for: that pair falls back to PGMaps for both pictures, and says so.
-  const beforeJobs =
+  const allBeforeJobs =
     engineId && renders
       ? packageViews.flatMap((view) => {
           const job = images[view.id]?.figure ? renders.jobFor(view.id, engineId, 'before') : null
           return job ? [job] : []
         })
       : []
+  const beforeJobs = allBeforeJobs.filter((job) => here.has(job.viewId) || !!renders?.figures[job.key])
   const beforeFailed = (job: RenderJob) =>
     !!renders?.jobs.some((entry) => entry.job.key === job.key && entry.status === 'error')
-  const missingBeforeJobs = beforeJobs.filter((job) => !renders?.figures[job.key] && !beforeFailed(job))
+  const missingBeforeJobs = beforeJobs.filter(
+    (job) => here.has(job.viewId) && !renders?.figures[job.key] && !beforeFailed(job),
+  )
   // A view saved before the inventory was read takes its unit from the scene's read, by the rules its sheet uses.
   const readUnits = input.visualInventory?.units ?? null
   const withInventory = (image: (typeof images)[string]) =>
@@ -653,11 +674,40 @@ export function useVisualsExport(input: {
       return [id, withInventory(drawn ? { ...image, figure: savedIdentity(drawn, image.figure) } : image)]
     }),
   )
-  // Views saved at another place: an engine draws from the road view where the reviewer stands, so they have no job
-  // (`renderJobFor`) and keep PGMaps' figures, which the files say.
+  // Views saved at another place that the engine has not drawn: an engine draws from the road view where the reviewer
+  // stands, so they keep PGMaps' figures, which the files say, unless a capture stands at them for it (below).
   const engineElsewhere = engineId
-    ? new Set(packageViews.filter((view) => images[view.id]?.figure && !here.has(view.id)).map((view) => view.id))
+    ? new Set(
+        packageViews
+          .filter((view) => images[view.id]?.figure && !here.has(view.id))
+          .filter((view) => {
+            const job = allEngineJobs.find((entry) => entry.viewId === view.id)
+            return !job || !renders?.figures[job.key]
+          })
+          .map((view) => view.id),
+      )
     : new Set<string>()
+  // The views of interest a capture stands at for the engine's renders (stage `render`): saved at another place, still
+  // the view's current capture, and owing the engine's figure (or, for the VIA report, its before picture). One whose
+  // renders were tried there and not drawn is marked `tried` under that saved view and engine.
+  const engineStandAt = engineId
+    ? packageViews
+        .filter((view) => !here.has(view.id) && images[view.id]?.figure && view.plannedViewId)
+        .flatMap((view) => {
+          const planned = plannedViews.find(
+            (entry) => entry.id === view.plannedViewId && viewCaptureKey(entry) === view.plannedKey,
+          )
+          const after = allEngineJobs.find((job) => job.viewId === view.id)
+          const before = allBeforeJobs.find((job) => job.viewId === view.id)
+          if (!planned || !after) return []
+          const afterOwed = !renders?.figures[after.key]
+          const beforeOwed = !!before && !renders?.figures[before.key] && !beforeFailed(before)
+          if (!afterOwed && !beforeOwed) return []
+          return [
+            { id: planned.id, tried: engineTried[planned.id] === `${view.id}|${engineId}`, beforeOnly: !afterOwed },
+          ]
+        })
+    : []
   const engineState = engineId && renders ? renders.jobs.filter((entry) => entry.job.engine === engineId) : []
   const engineRunning = engineState.some((entry) => entry.status === 'running' || entry.status === 'waiting')
   const engineFailed = engineState.find(
@@ -677,14 +727,28 @@ export function useVisualsExport(input: {
         webGpu: typeof navigator !== 'undefined' && 'gpu' in navigator,
       })
     : null
-  // The road view's terrain reloads after a run (a report runs one when stale): the renders wait for it.
+  // The road view the engine draws from: open with its terrain, opening or reloading it, or closed.
+  const roadViewState: 'ready' | 'loading' | 'closed' = !renders
+    ? 'closed'
+    : renders.ready
+      ? 'ready'
+      : (renders.open ?? false)
+        ? 'loading'
+        : 'closed'
+  // Renders owed while the road view is closed or still loading its terrain (after a run, an import, or a capture's
+  // step back): an export opens it (`prepare`), waits for it and hands it back, rather than refusing.
   const engineSettling =
-    !!engineId && !engineBlocked && !!renders && !renders.ready && missingJobs.length + missingBeforeJobs.length > 0
+    !!engineId &&
+    !engineBlocked &&
+    !!renders &&
+    roadViewState !== 'ready' &&
+    (roadViewState === 'loading' || !!renders.openRoadView) &&
+    missingJobs.length + missingBeforeJobs.length > 0
   const engineUnavailable = engineId
     ? (engineBlocked ??
       (!renders
         ? 'background renders are not available here.'
-        : engineSettling
+        : roadViewState === 'closed' && !renders.openRoadView && missingJobs.length + missingBeforeJobs.length > 0
           ? 'open the road view and let its terrain load: the engine draws from it.'
           : null))
     : null
@@ -925,9 +989,11 @@ export function useVisualsExport(input: {
       failed: engineFailed ? `${engineFailed.job.viewName}: ${engineFailed.error}` : null,
       unavailable: engineUnavailable,
       settling: engineSettling,
+      roadView: roadViewState,
       missingBefore: missingBeforeJobs.length,
       leftWithBefore: reportLeftMs === null ? null : formatRemaining(reportLeftMs),
       elsewhere: engineElsewhere.size,
+      standAt: engineStandAt,
     },
     logo: chosenLogo
       ? chosenLogo.source === 'uploaded'
@@ -1042,6 +1108,9 @@ export function useVisualsExport(input: {
         leftWithBefore: null,
         measured: false,
         settling: false,
+        roadView: null,
+        // Which views a capture stands at follows the figures (above); whether one was tried is not content.
+        standAt: context.renderer.standAt?.map((entry) => ({ ...entry, tried: false })),
       },
     }
   }
@@ -1489,12 +1558,17 @@ export function useVisualsExport(input: {
           state: !shown.has(id) ? 'drawn' : engineRunning ? 'working' : 'stand-in',
           note: engineUnavailable
             ? `Cannot draw: ${engineUnavailable}`
-            : engineRunning
-              ? `Rendering in the background${reportLeftMs !== null ? `, ${formatRemaining(reportLeftMs)} left` : ''}.`
-              : owed
-                ? `${owed} render${owed === 1 ? '' : 's'} to draw.`
-                : null,
-          action: shown.has(id) && !engineRunning && !engineUnavailable ? 'Queue renders' : null,
+            : engineSettling && roadViewState === 'closed'
+              ? `${roadRendererInfo(engineId!).label} draws from the road view: Preview or Download opens it and draws.`
+              : engineRunning
+                ? `Rendering in the background${reportLeftMs !== null ? `, ${formatRemaining(reportLeftMs)} left` : ''}.`
+                : owed
+                  ? `${owed} render${owed === 1 ? '' : 's'} to draw.`
+                  : null,
+          action:
+            shown.has(id) && !engineRunning && !engineUnavailable && !(engineSettling && roadViewState === 'closed')
+              ? 'Queue renders'
+              : null,
         }
       }
       const kept = captured.drawn.has(id)
@@ -2123,19 +2197,42 @@ export function useVisualsExport(input: {
    */
   const captureViews = async (
     ids: readonly string[],
-    options: { before?: boolean } = {},
+    options: { before?: boolean; engine?: boolean; renderIds?: readonly string[] } = {},
   ): Promise<ViewCaptureReport> => {
     if (!input.viewCapture) throw new Error('Views of interest cannot be captured here.')
     const keys = Object.fromEntries(
       plannedViews.filter((view) => ids.includes(view.id)).map((view) => [view.id, viewCaptureKey(view)]),
     )
+    // The package's engine draws each view's figures where it stands, while the capture stands there; views only
+    // stood at for that (`renderIds`) keep their capture as it is.
+    const engine = options.engine && engineId && !engineUnavailable ? engineId : null
+    const renderIds = new Set(engine ? (options.renderIds ?? []) : [])
     // A view saved with its screenshot has only its analysis sheet drawn again; the rest are captured whole.
     const report = await captureAsNeeded(
       input.viewCapture.capture,
       ids,
       sheetOnlyViews({ planned: pkg.planned }, ids),
-      options.before ? { before: true } : {},
+      {
+        ...(options.before ? { before: true } : {}),
+        ...(engine ? { engine, ...(renderIds.size ? { renderIds } : {}) } : {}),
+      },
     )
+    // A view whose engine renders were not drawn where it stands is not stood at again by a preview, under the
+    // saved view and engine they were tried for.
+    if (engine) {
+      const notDrawn = new Set(
+        report.failures
+          .filter((failure) => failure.warning === 'engine' || (renderIds.has(failure.viewId) && !failure.warning))
+          .map((failure) => failure.viewId),
+      )
+      const savedOf = (plannedId: string) =>
+        allViews.find((view) => view.plannedViewId === plannedId && view.plannedKey === keys[plannedId])?.id ?? ''
+      if (notDrawn.size)
+        setEngineTried((current) => ({
+          ...current,
+          ...Object.fromEntries([...notDrawn].map((id) => [id, `${savedOf(id)}|${engine}`])),
+        }))
+    }
     // Each view captured for its before render is marked tried under its key: when the render was kept, the view no
     // longer owes one and the mark is never read; when it was not, a preview does not capture it again in a loop.
     if (options.before)
@@ -2154,13 +2251,19 @@ export function useVisualsExport(input: {
       // A view saved without its sheet still needs capturing (`no-figure`, or its sheet drawn again, `screenshot-only`):
       // its reason is kept so a preview does not
       // capture it again in a loop. One saved without its before render is a capture all the same.
+      // A view only stood at for the engine keeps its capture, and an engine's renders are not the capture's.
       for (const failure of report.failures)
-        if (failure.warning !== 'before' && keys[failure.viewId])
+        if (
+          failure.warning !== 'before' &&
+          failure.warning !== 'engine' &&
+          !renderIds.has(failure.viewId) &&
+          keys[failure.viewId]
+        )
           next[failure.viewId] = { key: keys[failure.viewId], reason: failure.reason }
       // A cancelled capture leaves the rest untried: a preview does not start it again, a download does.
       if (report.cancelled)
         for (const id of ids)
-          if (!report.captured.includes(id) && !next[id] && keys[id])
+          if (!report.captured.includes(id) && !renderIds.has(id) && !next[id] && keys[id])
             next[id] = { key: keys[id], reason: 'Its capture was cancelled.' }
       return next
     })
@@ -2263,6 +2366,9 @@ export function useVisualsExport(input: {
         ? { recordings: { 'road-video': videoRecording(video.api, videoPlan, videoScene.frame) } }
         : {})}
       {...(input.viewCapture ? { onCapture: captureViews, onCancelCapture: input.viewCapture.cancel } : {})}
+      {...(renders?.openRoadView && renders.leaveRoadView
+        ? { roadView: { open: renders.openRoadView, leave: renders.leaveRoadView } }
+        : {})}
       onRender={(kind) => {
         // Only the VIA report prints before pictures: the other outputs never wait for them.
         const owed = kind === 'via-report' ? [...missingJobs, ...missingBeforeJobs] : missingJobs

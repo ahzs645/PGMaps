@@ -26,11 +26,12 @@ import {
   X,
   ZoomIn,
 } from 'lucide-react'
-import { useRef, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ColorField } from '@/components/ui/color-field'
+import { ConfirmRemoveButton } from '@/components/ui/confirm-remove'
 import { FileButton } from '@/components/ui/file-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ListHeader, ResultRow } from '@/components/ui/result-list'
@@ -43,13 +44,16 @@ import { BC_DESIGN_HANDBOOK } from './LandformDesignPanel'
 import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, MapSidebarShell } from '@/components/ui/map-panels'
 import { Projectable } from '@/components/ui/movable-content'
-import { ToolSection, ToolSubsection } from '@/components/ui/tool-section'
+import { ToolDisclosure, ToolSection, ToolSubsection } from '@/components/ui/tool-section'
 import { StepMarker } from '@/components/ui/step-section'
 import { TabBar } from '@/components/ui/tab-bar'
 import { cn } from '@/lib/utils'
 
 import { summariseUnits, type BcSensitivityUnit } from './bcVisualInventory'
 import { ResultsPanel } from './ResultsPanel'
+import { FoldedBlockList } from './FoldedBlockList'
+import { blocksOutsideAssessment, splitBlockList } from './blockFocus'
+import { formatKm } from './measureFormat'
 import { SubLandformFields } from './ReviewRecordFields'
 import { ROLE_COLORS, targetAreaHectares, type ForestryScene } from './scene'
 import { gapsAsk, runFigures } from './runFigures'
@@ -58,6 +62,7 @@ import type { TreeLook, TreeStyle } from './treeLayer'
 import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
 import { findSceneLandform } from './sceneInput'
 import { START_SCENARIOS, startScenarioContents, type StartScenarioId } from './scenarioSummary'
+import { SHAPE_FILE_ACCEPT } from './shapeImport'
 import { lineLengthMeters } from './visibility'
 import { SENSITIVITY_UNIT_COLORS, TREE_FREE_COLOR } from './planMapStyle'
 import { VIEWPOINT_CLEARING, type TreeFreeArea, type ViewpointClearingSetting } from './treeFreeAreas'
@@ -529,6 +534,10 @@ export type SidebarProps = {
   onThresholdsChange: (thresholds: VisualQualityThresholds) => void
   onTargetChange: (targetId: string, patch: Partial<TargetPolygon>) => void
   onRemoveTarget: (targetId: string) => void
+  /** Removes several targets in one scene update (*Remove blocks outside the assessment…*); absent hides the action. */
+  onRemoveTargets?: (targetIds: string[]) => void
+  /** The block the reviewer works on (`reviewerBlockId`): a long Cutblocks list keeps it unfolded. */
+  reviewerBlockId?: string | null
   onZoomToTarget: (targetId: string) => void
   /** Opens a retention or partial-cut block's stand prescription. */
   onOpenPrescription?: (targetId: string) => void
@@ -572,7 +581,8 @@ export type SidebarProps = {
   drive: DriveState
   onDriveChange: (patch: Partial<DriveState>) => void
 
-  onImportFile: (file: File) => void
+  /** Files picked together: a loose shapefile arrives as its .shp, .dbf and .prj. */
+  onImportFiles: (files: File[]) => void
   importMessage: ImportNotice | null
 
   inventory: InventoryState
@@ -586,7 +596,7 @@ export type SidebarProps = {
   /** A realistic planner's case: a block across Purden Lake from Hwy 16. */
   onLoadHighwaySample: () => void
   /** A road from a GeoJSON or zipped shapefile, replacing the current one. */
-  onImportRoad: (file: File) => void
+  onImportRoad: (files: File[]) => void
   /**
    * Makes a landform the site's: the one the assessment is made against, and every view without a landform of its
    * own with it.
@@ -727,6 +737,8 @@ export function Sidebar({
   onThresholdsChange,
   onTargetChange,
   onRemoveTarget,
+  onRemoveTargets,
+  reviewerBlockId = null,
   onZoomToTarget,
   onOpenPrescription,
   prescriptionLines,
@@ -745,7 +757,7 @@ export function Sidebar({
   onSelectTarget,
   drive,
   onDriveChange,
-  onImportFile,
+  onImportFiles,
   importMessage,
   inventory,
   showInventory,
@@ -814,6 +826,43 @@ export function Sidebar({
   const running = analysis.status === 'running'
   const reverseRunning = reverse.status === 'running'
   const result = analysis.result
+
+  // A district plan (`blockFocus.ts`): the selected block, the reviewer's and the blocks the run assessed are listed
+  // first and the rest fold, and *Remove blocks outside the assessment…* names the blocks no viewpoint reaches.
+  // Display and editing only: nothing here changes the run until a removal changes the scene.
+  const [otherBlocksOpen, setOtherBlocksOpen] = useState(false)
+  const maxViewMeters = result?.settings.maxViewDistanceMeters ?? scene.settings.maxViewDistanceMeters
+  const assessedBlockIds = useMemo(
+    () =>
+      new Set(
+        (result?.targets ?? [])
+          .filter((target) => target.role === 'block' && !target.outOfRange)
+          .map((target) => target.targetId),
+      ),
+    [result],
+  )
+  const blockList = useMemo(
+    () =>
+      splitBlockList(
+        targets.filter((target) => target.role === 'block'),
+        { selectedId: selectedTargetId, reviewerId: reviewerBlockId, assessedIds: assessedBlockIds },
+      ),
+    [targets, selectedTargetId, reviewerBlockId, assessedBlockIds],
+  )
+  const plannedViews = scene.viewsOfInterest
+  const landformGeometry = findSceneLandform(scene)?.geometry ?? null
+  const canRemoveTargets = !!onRemoveTargets
+  const outsideBlockIds = useMemo(() => {
+    if (!canRemoveTargets) return []
+    const views = plannedViews ?? []
+    return blocksOutsideAssessment({
+      blocks: targets.filter((target) => target.role === 'block'),
+      viewpoints: [viewpoint.coordinates, ...views.map((view) => [[view.lng, view.lat] as [number, number]])],
+      maxViewDistanceMeters: maxViewMeters,
+      landforms: landformGeometry ? [landformGeometry] : [],
+      keepIds: new Set(views.map((view) => view.blockId)),
+    })
+  }, [canRemoveTargets, targets, viewpoint.coordinates, plannedViews, landformGeometry, maxViewMeters])
 
   const inventorySummary = summariseUnits(inventory.units)
   // Unrated units stay on the map for context but would swamp a list.
@@ -1220,11 +1269,12 @@ export function Sidebar({
                   ) : (
                     <FileButton
                       label="Road file"
-                      accept=".zip,.geojson,.json"
+                      accept={SHAPE_FILE_ACCEPT}
+                      multiple
                       variant="outline"
                       className={cn(GRID_BUTTON, 'w-full')}
-                      title="A road as GeoJSON or a zipped shapefile"
-                      onFiles={([file]) => onImportRoad(file)}
+                      title="A road as GeoJSON or a shapefile: its .zip, or the .shp with its .dbf and .prj"
+                      onFiles={onImportRoad}
                     >
                       <FileUp className="h-3.5 w-3.5" />
                       Import road
@@ -1379,11 +1429,12 @@ export function Sidebar({
               {/* Blocks are drawn with the plan map's *Draw block* tool; files come in here. */}
               <FileButton
                 label="Cutblock or landform file"
-                accept=".zip,.geojson,.json"
+                accept={SHAPE_FILE_ACCEPT}
+                multiple
                 variant="outline"
                 className={cn(GRID_BUTTON, 'w-full')}
-                title="Cutblocks or landforms as GeoJSON or a zipped shapefile"
-                onFiles={([file]) => onImportFile(file)}
+                title="Cutblocks or landforms as GeoJSON or a shapefile: its .zip, or the .shp with its .dbf and .prj. Files can also be dropped on the page."
+                onFiles={onImportFiles}
               >
                 <FileUp className="h-3.5 w-3.5" />
                 Import
@@ -1398,7 +1449,45 @@ export function Sidebar({
                   None yet. Draw one with the map&apos;s block tool, or import a file.
                 </p>
               ) : (
-                <ul className="space-y-1.5">{blocks.map((target) => renderTarget(target))}</ul>
+                <>
+                  {blockList.shown.length > 0 && (
+                    <ul className="space-y-1.5">{blockList.shown.map((target) => renderTarget(target))}</ul>
+                  )}
+                  {blockList.folded.length > 0 && (
+                    <ToolDisclosure
+                      label={
+                        blockList.shown.length
+                          ? `${formatNumber(blockList.folded.length)} other block${blockList.folded.length === 1 ? '' : 's'}`
+                          : `${formatNumber(blockList.folded.length)} blocks`
+                      }
+                      summary="Not selected or assessed"
+                      help="A long plan lists the selected block, the one you are working on and the blocks the last run assessed first. The rest are here, with the same controls; choosing one brings it to the top."
+                      open={otherBlocksOpen}
+                      onOpenChange={setOtherBlocksOpen}
+                      toggleProps={{ 'data-forestry-disclosure': 'other-cutblocks' }}
+                    >
+                      {/* Never drawn in a hidden step panel; drawn in Save & export wherever the step is. */}
+                      {otherBlocksOpen && (
+                        <StepShownContext.Provider value={activeStep === 'identify'}>
+                          <FoldedBlockList
+                            blocks={blockList.folded}
+                            renderRow={(target) => renderTarget(target, { flat: true })}
+                          />
+                        </StepShownContext.Provider>
+                      )}
+                    </ToolDisclosure>
+                  )}
+                  {onRemoveTargets && outsideBlockIds.length > 0 && (
+                    <ConfirmRemoveButton
+                      label="Remove blocks outside the assessment"
+                      question={`Remove ${formatNumber(outsideBlockIds.length)} block${outsideBlockIds.length === 1 ? '' : 's'} outside the assessment?`}
+                      detail={`No part of ${outsideBlockIds.length === 1 ? 'it' : 'them'} lies within the ${formatKm(maxViewMeters, 0)} view distance of the road, the viewpoint or any view of interest; none touches the active landform and no view of interest faces one. The run is then out of date.`}
+                      onConfirm={() => onRemoveTargets(outsideBlockIds)}
+                    >
+                      Remove blocks outside the assessment…
+                    </ConfirmRemoveButton>
+                  )}
+                </>
               )}
             </div>
           </ToolSection>

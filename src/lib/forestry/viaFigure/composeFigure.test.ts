@@ -49,6 +49,7 @@ import {
   factsOps,
   fittedLines,
   landformNumber,
+  tabloidFigure,
 } from './composeFigure'
 import { ALTERATION_RULES, sceneSheetRule, type AlterationRule } from './alteration'
 import { presetById, VIA_STYLE_PRESETS } from './presets'
@@ -404,8 +405,9 @@ describe('figure composition', () => {
         sightlineClass: null,
         sightlineWithheld: 'Withheld \u2014 Existing disturbance coverage has not been confirmed.',
       }).ops,
-    ).join('\n')
-    expect(withheld).toMatch(/Sightline measure \(PGMaps run\): Withheld \u2014 Existing disturbance/)
+    ).join(' ')
+    // Measured and drawn as it prints: the dash folded as the PDF prints it.
+    expect(withheld).toMatch(/Sightline measure \(PGMaps run\): Withheld - Existing disturbance/)
     expect(withheld).not.toMatch(/the assessment figure/)
     // The pixel figure still prints beside it.
     expect(withheld).toMatch(/Pixel measure, this image: 7\.43%/)
@@ -483,7 +485,48 @@ describe('figure composition', () => {
     const sheet = composeFigure(input('analysis-sheet-magenta', null))
     expect(sheet.counts).toBeNull()
     expect(sheet.notes[0]).toMatch(/No class pass/)
-    expect(texts(sheet.ops).some((t) => t.startsWith('Pixel measure, this image: n/a'))).toBe(true)
+    expect(texts(sheet.ops).some((t) => t.startsWith('Pixel measure, this image: not measured'))).toBe(true)
+    // A measure with no value prints in words, never "n/a%", in every style.
+    for (const preset of VIA_STYLE_PRESETS)
+      for (const text of texts(composeFigure({ ...input(preset.id, null), sightlinePercent: null }).ops))
+        expect(text, preset.id).not.toMatch(/n\/a\s*%/)
+  })
+
+  it('wraps every caption line under a figure to its width, never past the page', () => {
+    const long =
+      'the view was saved at another place and no before-harvest render was taken there (the road view draws only where you stand): capture it again, or save it again standing there'
+    const crowded: FigureInput = {
+      ...input('analysed-photo-hatched-rock'),
+      sightlinePercent: null,
+      sightlineWithheld:
+        'Withheld \u2014 the run is provisional: existing disturbance coverage has not been confirmed for this landform',
+      timber: { absent: long },
+      illustration: [
+        'Drawn without data: proposed blocks outside the landform cut at the terrain edge; landform past 12.0 km cut',
+      ],
+      lens: 'road view, 40° horizontal (49 mm full-frame equivalent), facing 13°, cropped to the landform',
+    }
+    const inside = (figure: { width: number; ops: DrawOp[] }, margin: number) => {
+      for (const op of figure.ops) {
+        if (op.op !== 'text') continue
+        const w = textWidth(op.text, op.size, op.style ?? 'normal')
+        const left = op.align === 'center' ? op.x - w / 2 : op.align === 'right' ? op.x - w : op.x
+        expect(left, op.text).toBeGreaterThanOrEqual(margin - 0.5)
+        expect(left + w, op.text).toBeLessThanOrEqual(figure.width - margin + 0.5)
+      }
+    }
+    for (const width of [612, 320]) {
+      const figure = analysedFigure(crowded, width)
+      inside(figure, 0)
+      const all = texts(figure.ops).join(' ')
+      // Nothing is dropped: the long reason prints whole, over several lines.
+      expect(all).toContain('capture it again, or save it again standing there')
+      expect(all).toContain('Sightline measure (PGMaps run): Withheld - the run is provisional')
+    }
+    // The report's 11 × 17 page: the figure as wide as fits, every line on the page.
+    inside(tabloidFigure(crowded), 0)
+    // The overlay style's figure line under the picture wraps to the page too.
+    inside(composeFigure({ ...crowded, preset: presetById(VIA_STYLE_PRESETS.find((p) => p.family === 'I')!.id) }), 0)
   })
 
   it('composes every preset, and draws every one to PDF and SVG', () => {

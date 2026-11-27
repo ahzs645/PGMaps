@@ -266,6 +266,67 @@ describe('visual-quality exports', () => {
     expect(exportUnavailable('via-report', blocked)).toBe(
       'threejs-worldgen cannot draw the figures: Needs WebGPU, which this browser does not offer.',
     )
+    expect(exportPreparation('via-report', blocked)).toMatchObject({ render: false, captureEngine: false })
+  })
+
+  it('opens a closed road view for the engine’s renders rather than calling the output unavailable', () => {
+    const renderer = {
+      id: 'nanite' as const,
+      label: 'Nanite Forest',
+      missing: 1,
+      views: 4,
+      running: false,
+      left: null,
+      measured: false,
+      failed: null,
+      unavailable: null,
+      settling: true,
+      roadView: 'closed' as const,
+    }
+    const closed = buildExportContext(input(createEmptyScene(), { renderer }))
+    expect(exportUnavailable('via-report', closed)).not.toMatch(/cannot draw the figures/)
+    const prep = exportPreparation('via-report', closed)
+    expect(prep).toMatchObject({ render: true, openRoadView: true, captureEngine: true })
+    expect(prep.note).toBe(
+      'Nanite Forest draws 1 saved view from the road view: the page opens it first, and closes it again once the file is written. Then the file is written.',
+    )
+    // Opening, or reloading its terrain: waited for, not opened again.
+    const loading = buildExportContext(input(createEmptyScene(), { renderer: { ...renderer, roadView: 'loading' } }))
+    expect(exportPreparation('via-report', loading)).toMatchObject({ render: true, openRoadView: false })
+    expect(exportPreparation('via-report', loading).note).toMatch(/the page waits for its terrain to load/)
+  })
+
+  it('stands at views saved elsewhere for the engine’s renders, once each, and the report also for before pictures', () => {
+    const renderer = {
+      id: 'nanite' as const,
+      label: 'Nanite Forest',
+      missing: 0,
+      views: 1,
+      running: false,
+      left: null,
+      measured: false,
+      failed: null,
+      unavailable: null,
+      elsewhere: 3,
+      standAt: [
+        { id: 'voi-b', tried: false, beforeOnly: false },
+        { id: 'voi-c', tried: true, beforeOnly: false },
+        { id: 'voi-d', tried: false, beforeOnly: true },
+      ],
+    }
+    const ctx = buildExportContext(input(createEmptyScene(), { renderer }))
+    expect(exportPreparation('analysis-sheet', ctx).renderAt).toEqual(['voi-b'])
+    expect(exportPreparation('via-report', ctx).renderAt).toEqual(['voi-b', 'voi-d'])
+    // A download tries again where a preview would not.
+    expect(exportPreparation('via-report', ctx, { retry: true }).capture).toEqual(['voi-b', 'voi-c', 'voi-d'])
+    expect(exportPreparation('via-report', ctx).note).toMatch(
+      /^The page stands at 2 views of interest saved at other places for Nanite Forest's renders/,
+    )
+    // PGMaps draws its own figures: nothing to stand at.
+    expect(exportPreparation('via-report', { ...ctx, renderer: { ...ctx.renderer, id: 'pgmaps' } }).renderAt).toEqual(
+      [],
+    )
+    expect(exportPreparation('fs1252', ctx).renderAt).toEqual([])
   })
 
   it('makes only the VIA report wait for the before pictures by the same engine', () => {
@@ -953,6 +1014,25 @@ describe('the package: one recipe, one renderer and one set of views for every o
     expect([...pkg.viewIds].sort()).toEqual(['a-new', 'gone-1', 'own-1'])
     // The block note's builder leaves out the rest: by hand, a view left out, a superseded or outdated capture.
     expect([...pkg.excludedViews].sort()).toEqual(['a-old', 'b-1', 'c-1', 'own-2'])
+  })
+
+  it('lists its views in its own order, whatever order the page holds them in', () => {
+    const [a, b, c, d] = ['a', 'b', 'c', 'd'].map((id) => planned(id))
+    const capture = (view: ViewOfInterest) => ({
+      id: `${view.id}-1`,
+      name: view.id.toUpperCase(),
+      plannedViewId: view.id,
+      plannedKey: viewCaptureKey(view),
+    })
+    // As a capture batch leaves them: the places shelved first, the one stood at last.
+    const pkg = resolvePackage({
+      ...base,
+      choice,
+      planned: [a, b, c, d],
+      savedViews: [capture(a), capture(c), { id: 'own-1', name: 'Pullout' }, capture(d), capture(b)],
+    })
+    expect(pkg.viewOrder).toEqual(['a-1', 'b-1', 'c-1', 'd-1', 'own-1'])
+    expect([...pkg.viewIds]).toEqual([...pkg.viewOrder])
   })
 
   it('keeps a failed capture only under the key it failed with', () => {

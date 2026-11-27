@@ -155,9 +155,11 @@ export type CaptureWait = 'run' | 'road view' | 'timber' | 'facing' | 'lens' | n
 /**
  * What a capture does at each view: `full` saves the view as *Save viewpoint* does; `sheet` draws again only the
  * analysis sheet of a view saved with its screenshot (`screenshot-only`), from the camera it was saved with, keeping
- * the saved view and its screenshot.
+ * the saved view and its screenshot; `render` keeps the view's capture as it is and only has the chosen engine draw
+ * its figure and before picture there (`ViewCaptureHost.render`), since an engine draws only where the road view
+ * stands.
  */
-export type CaptureStage = 'full' | 'sheet'
+export type CaptureStage = 'full' | 'sheet' | 'render'
 
 /** The drawn timber's growth: patches grown of those wanted. */
 export type TimberProgress = { done: number; total: number; revision?: object }
@@ -173,7 +175,7 @@ const turn = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
 export function captureWaitingFor(facts: CaptureFacts, want: CaptureWant, stage: CaptureStage = 'full'): CaptureWait {
   if (facts.key !== want.key || !facts.runFresh) return 'run'
   if (!facts.roadViewOpen) return 'road view'
-  if (stage === 'sheet') return facts.canSave ? null : 'timber'
+  if (stage !== 'full') return facts.canSave ? null : 'timber'
   if (facts.lookAtTargetId !== want.lookAtTargetId) return 'facing'
   if (want.lookBearing !== null && (facts.lookBearing === null || turn(facts.lookBearing, want.lookBearing) > 0.05))
     return 'facing'
@@ -232,7 +234,11 @@ export function timberGivenUp(watch: TimberWatch, progressNow: TimberProgress | 
 }
 
 /** The page's words for giving up on the timber (`timberGivenUp`), with the patch count where it was growing. */
-export function timberFailure(why: 'stalled' | 'too long', watch: TimberWatch, facts: CaptureFacts): string {
+export function timberFailure(
+  why: 'stalled' | 'too long',
+  watch: TimberWatch,
+  facts: Pick<CaptureFacts, 'timberProgress' | 'saveBlocker' | 'runError'>,
+): string {
   const now = facts.timberProgress ?? null
   const count = (progress: TimberProgress) => `${progress.done} of ${progress.total} patches`
   if (why === 'too long')
@@ -247,13 +253,16 @@ export function timberFailure(why: 'stalled' | 'too long', watch: TimberWatch, f
 }
 
 /** What the capture is doing while it waits, for its status line: "Preparing timber 12 of 40"; else null. */
-export function captureWaitNote(wait: CaptureWait, facts: CaptureFacts): string | null {
+export function captureWaitNote(wait: CaptureWait, facts: Pick<CaptureFacts, 'timberProgress'>): string | null {
   if (wait !== 'timber' || !facts.timberProgress) return null
   return `Preparing timber ${facts.timberProgress.done} of ${facts.timberProgress.total}`
 }
 
 /** The page's words for what a step timed out waiting for. */
-export function waitFailure(wait: Exclude<CaptureWait, null>, facts: CaptureFacts): string {
+export function waitFailure(
+  wait: Exclude<CaptureWait, null>,
+  facts: Pick<CaptureFacts, 'runError' | 'saveBlocker'>,
+): string {
   switch (wait) {
     case 'run':
       return facts.runError
@@ -274,9 +283,66 @@ export function waitFailure(wait: Exclude<CaptureWait, null>, facts: CaptureFact
 
 const minutes = (ms: number) => `${Math.round(ms / 60_000)} minute${ms === 60_000 ? '' : 's'}`
 
-/** "Capturing 2 of 5: VLI 144, arrow 1…"; drawing sheets again, "Drawing analysis sheet 2 of 5: VLI 144, arrow 1…". */
+/** Timers a wait runs on: the browser's, or a test's. */
+export type WaitClock = { now: () => number; sleep: (ms: number) => Promise<void> }
+
+/** What the road view's stand reports while a wait reads it: the page's `canSaveView` and what it waits for. */
+export type StandFacts = Pick<CaptureFacts, 'canSave' | 'saveBlocker' | 'timberProgress'>
+
+/** How often `waitForStand` looks at the road view. */
+const STAND_POLL_MS = 100
+
+/**
+ * Waits until the road view's stand could be saved (`canSave`), judged as a capture judges its timber
+ * (`watchTimber`, `timberGivenUp`): a stand still growing is waited for, one that stops growing is given up after
+ * `timberStallMs`, a wait on something else (the terrain, the forest records, the camera) after `roadViewMs` without
+ * progress, and every wait after `timberMaxMs` in all. What switching the harvest phase waits for: the phase regrows
+ * the whole stand, which takes minutes in a throttled tab. `onNote` hears "Preparing timber 12 of 40", or null. Resolves
+ * with the reason in the page's words when it gives up, naming the patch count; `stop` ends it with no reason.
+ */
+export async function waitForStand(
+  read: () => StandFacts,
+  clock: WaitClock,
+  options: { stop?: () => boolean; onNote?: (note: string | null) => void } = {},
+): Promise<{ ok: true } | { ok: false; reason: string | null }> {
+  let watch = TIMBER_WATCH_START
+  let note: string | null = null
+  let last = clock.now()
+  for (;;) {
+    if (options.stop?.()) return { ok: false, reason: null }
+    const facts = read()
+    const now = clock.now()
+    const elapsed = now - last
+    last = now
+    if (facts.canSave) {
+      if (note !== null) options.onNote?.(null)
+      return { ok: true }
+    }
+    const progress = facts.timberProgress ?? null
+    watch = watchTimber(watch, progress, elapsed)
+    const givenUp = timberGivenUp(watch, progress)
+    if (givenUp) return { ok: false, reason: timberFailure(givenUp, watch, { ...facts, runError: null }) }
+    const next = captureWaitNote('timber', facts)
+    if (next !== note) options.onNote?.((note = next))
+    await clock.sleep(STAND_POLL_MS)
+  }
+}
+
+/**
+ * The longest a place's before-harvest renders may take before the batch stops waiting on them: the regrown stand's
+ * own longest wait (`waitForStand`, `timberMaxMs`), its quiet window, and a save's time for each render. Above every
+ * limit the page's own wait has, so a stand still growing is never cut off by it; only a render that hangs is.
+ */
+export const beforeBudgetMs = (renders: number) =>
+  CAPTURE_TIMEOUTS.timberMaxMs + CAPTURE_TIMEOUTS.roadViewMs + CAPTURE_TIMEOUTS.saveMs * Math.max(1, renders)
+
+/**
+ * "Capturing 2 of 5: VLI 144, arrow 1…"; drawing sheets again, "Drawing analysis sheet 2 of 5: VLI 144, arrow 1…";
+ * standing at a view for an engine's renders, "Standing at view 2 of 5 for its renders: VLI 144, arrow 1…".
+ */
 export function captureMessage(index: number, total: number, name: string, stage: CaptureStage = 'full'): string {
-  return `${stage === 'sheet' ? 'Drawing analysis sheet' : 'Capturing'} ${index + 1} of ${total}: ${name}…`
+  const what = stage === 'sheet' ? 'Drawing analysis sheet' : stage === 'render' ? 'Standing at view' : 'Capturing'
+  return `${what} ${index + 1} of ${total}${stage === 'render' ? ' for its renders' : ''}: ${name}…`
 }
 
 /**
@@ -289,14 +355,16 @@ export function captureSummary(
   total: number,
   failed: number,
   cancelled: boolean,
-  warned: { sheet?: number; before?: number } = {},
+  warned: { sheet?: number; before?: number; engine?: number } = {},
   stage: CaptureStage = 'full',
 ): string {
   // A view saved without its analysis sheet is not captured yet: the list and *Capture N views* take it again.
   const head =
     stage === 'sheet'
       ? `Drew ${captured - (warned.sheet ?? 0)} of ${total} analysis sheet${total === 1 ? '' : 's'}`
-      : `Captured ${captured - (warned.sheet ?? 0)} of ${total} view${total === 1 ? '' : 's'}`
+      : stage === 'render'
+        ? `Stood at ${captured} of ${total} view${total === 1 ? '' : 's'} for ${total === 1 ? 'its' : 'their'} renders`
+        : `Captured ${captured - (warned.sheet ?? 0)} of ${total} view${total === 1 ? '' : 's'}`
   const without = (count: number | undefined, what: string) =>
     count ? `${count} saved without ${count === 1 ? 'its' : 'their'} ${what}${count === 1 ? '' : 's'}` : ''
   const parts = [
@@ -306,6 +374,9 @@ export function captureSummary(
       ? `${warned.sheet} still without ${warned.sheet === 1 ? 'its' : 'their'} analysis sheet${warned.sheet === 1 ? '' : 's'}`
       : without(warned.sheet, 'analysis sheet'),
     without(warned.before, 'before-harvest render'),
+    warned.engine
+      ? `${warned.engine} ${warned.engine === 1 ? 'keeps its' : 'keep their'} PGMaps figure${warned.engine === 1 ? '' : 's'}: the engine could not draw ${warned.engine === 1 ? 'it' : 'them'}`
+      : '',
   ].filter(Boolean)
   return parts.length ? `${head}; ${parts.join('; ')}.` : `${head}.`
 }
@@ -313,6 +384,18 @@ export function captureSummary(
 /** "Drawing the before-harvest renders at VLI 144…" */
 export function beforeMessage(count: number, placeName: string): string {
   return `Drawing the before-harvest render${count === 1 ? '' : 's'} at ${placeNameFromView(placeName)}…`
+}
+
+/** "Drawing 2 views with Nanite Forest at VLI 144…" */
+export function engineMessage(count: number, label: string, placeName: string): string {
+  return `Drawing ${count} view${count === 1 ? '' : 's'} with ${label} at ${placeNameFromView(placeName)}…`
+}
+
+/** A view whose engine renders could not be drawn where it stands: it keeps PGMaps' figure, and says why. */
+export function engineWarning(name: string, notes: readonly string[]): string {
+  const own = notes.find((note) => note.startsWith(`${name}:`))
+  const reason = own ? own.slice(name.length + 1).trim() : notes.join(' ')
+  return `It keeps its PGMaps figure: the engine could not draw it where it stands${reason ? `: ${reason.replace(/^[A-Z]/, (c) => c.toLowerCase())}` : '.'}`
 }
 
 /** A view saved without its before-harvest render, with the page's reason when it named this view. */
@@ -366,7 +449,8 @@ export type FramingAt = {
 /**
  * The frames a saved view's figure is drawn in: a single frame of the lens centred on the facing when the view asks
  * for one; else the scene's fixed frame when it set one; else the landform framed with the lens (the photo's, the
- * view's, else 50 mm). Null when there is nothing to frame on.
+ * view's, else 50 mm); else, with no landform ground in sight, a single frame of the lens along the view's facing.
+ * Null only without a pose to frame on.
  */
 export function figurePlanFor(
   at: FramingAt,
@@ -377,7 +461,12 @@ export function figurePlanFor(
   if (at.framing === 'single' && at.pose)
     return planSingleFrame(normalizeBearing(at.pose.bearing), lens, extent, at.framePitch ?? null)
   if (figureFrame) return planFixedFraming(figureFrame, extent)
-  return extent ? planFraming(extent, { lensHfovDeg: lens }) : null
+  if (extent) return planFraming(extent, { lensHfovDeg: lens })
+  // No landform ground in sight from the view (hidden behind nearer ground, or past the terrain read round it): one
+  // frame of its lens along its facing, so the figure's shape is the lens's, never the road view pane's.
+  if (!at.pose) return null
+  const single = planSingleFrame(normalizeBearing(at.pose.bearing), lens, null, at.framePitch ?? null)
+  return { ...single, label: `${single.label} (no landform ground in sight to frame on)` }
 }
 
 /** A single frame's shape, width over height: a full-frame camera's 3:2. */

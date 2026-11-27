@@ -555,13 +555,16 @@ export type ExportContext = {
     measured: boolean
     /** A render that failed, worded, or null. */
     failed: string | null
-    /** Why this engine cannot draw here, or null. */
+    /** Why this engine cannot draw here, or null. A road view closed or still loading is not a reason (`settling`). */
     unavailable: string | null
     /**
-     * `unavailable` is only the road view's terrain reloading (after a run or an import): an export waits for it
-     * rather than failing. Absent: false.
+     * Renders are owed while the road view is closed or still loading its terrain (after a run, an import or a
+     * capture's step back): an export opens it when closed (`roadView`), waits for its terrain, draws, and hands it
+     * back, rather than failing. Absent: false.
      */
     settling?: boolean
+    /** The road view the engine draws from: open with its terrain, opening or reloading, or closed. Absent: not known. */
+    roadView?: 'ready' | 'loading' | 'closed' | null
     /**
      * The VIA report's before pictures the engine still owes, beyond `missing`: each view drawn again before harvest
      * by the same engine, so a before/after pair never compares two renderers. Only the report waits for them, and a
@@ -571,10 +574,17 @@ export type ExportContext = {
     /** `left` with those before pictures added: the report's wait. */
     leftWithBefore?: string | null
     /**
-     * Views saved at another place than where the reviewer stands: an engine draws from the road view's terrain and
-     * the run there, so these keep PGMaps' figures (and before pictures), and the files say so. Absent: 0.
+     * Views saved at another place than where the reviewer stands that the engine has not drawn: an engine draws from
+     * the road view's terrain and the run there, so these keep PGMaps' figures (and before pictures), and the files
+     * say so. Absent: 0.
      */
     elsewhere?: number
+    /**
+     * The views of interest saved at another place whose engine renders are owed, which a capture stands at for them
+     * (`ViewCaptureOptions.renderIds`): `beforeOnly` when only the VIA report's before picture is owed, `tried` when
+     * they were tried there and not drawn (a preview does not stand there again; a download does). Absent: none.
+     */
+    standAt?: ReadonlyArray<{ id: string; tried: boolean; beforeOnly: boolean }>
   }
   /**
    * The block map sheet's choices and what its map draws (`visualsBlockSheet.ts`, `visualsSheetSummary`). Absent:
@@ -830,6 +840,18 @@ export function exportPreparation(
   capture: string[]
   /** The capture also takes each view's before-harvest render (`NEEDS_BEFORE`). */
   captureBefore: boolean
+  /**
+   * The capture also has the package's engine draw each view's figures where it stands (`ViewCaptureOptions.engine`):
+   * the output draws figures and another engine draws them.
+   */
+  captureEngine: boolean
+  /**
+   * Views of interest captured elsewhere that the capture only stands at for the engine's renders (they are listed in
+   * `capture` too).
+   */
+  renderAt: string[]
+  /** The road view is closed and owed renders draw from it: `prepare` opens it first and closes it after the file. */
+  openRoadView: boolean
   note: string | null
   /** `note` only names the views the file goes without, which a preview prints above itself too. */
   noteIsSkipped: boolean
@@ -843,7 +865,16 @@ export function exportPreparation(
   }
   const fresh = viewsToCapture(kind, planned, options)
   const again = beforeToCapture(kind, planned, options).filter((id) => !fresh.includes(id))
-  const capture = [...fresh, ...again]
+  const r = ctx.renderer
+  const captureEngine = DRAWS_FIGURES.has(kind) && r.id !== 'pgmaps' && !r.unavailable
+  // Captured elsewhere and owing the engine: stood at for its renders alone (a view captured again takes them anyway).
+  const renderAt = captureEngine
+    ? (r.standAt ?? [])
+        .filter((entry) => (!entry.tried || !!options.retry) && (kind === 'via-report' || !entry.beforeOnly))
+        .map((entry) => entry.id)
+        .filter((id) => !fresh.includes(id) && !again.includes(id))
+    : []
+  const capture = [...fresh, ...again, ...renderAt]
   const capturing = USES_PACKAGE_VIEWS.has(kind) && ctx.capture?.status === 'running'
   const captureNote = capturing
     ? `${ctx.capture?.message ?? 'Capturing the views of interest.'} The file is written when the views are saved.`
@@ -854,6 +885,12 @@ export function exportPreparation(
             : '',
           again.length
             ? `${again.length === 1 ? 'A captured view of interest is' : `${again.length} captured views of interest are`} captured again for ${again.length === 1 ? 'its' : 'their'} before-harvest render, which is taken where the view stands.`
+            : '',
+          renderAt.length
+            ? `The page stands at ${renderAt.length === 1 ? 'a view of interest saved at another place' : `${renderAt.length} views of interest saved at other places`} for ${r.label}'s renders, which it draws only where the road view stands.`
+            : '',
+          captureEngine && fresh.length + again.length
+            ? `${r.label} draws each captured view's figure${kind === 'via-report' ? ' and before picture' : ''} while the page stands there.`
             : '',
           'Then the file is written from the views as captured.',
         ]
@@ -873,8 +910,8 @@ export function exportPreparation(
       : vi.status === 'error'
         ? `The visual landscape inventory could not be read (${vi.error ?? 'no reason given'}): the file says it was not read. Downloading reads it again first.`
         : null
-  const r = ctx.renderer
   const render = rendererMissing(kind, r) > 0 && !r.unavailable
+  const openRoadView = render && !!r.settling && r.roadView === 'closed'
   // The VIA report also waits for the views' before pictures by the same engine.
   const before = kind === 'via-report' ? (r.missingBefore ?? 0) : 0
   const left = before ? (r.leftWithBefore ?? r.left) : r.left
@@ -884,9 +921,15 @@ export function exportPreparation(
   ].join(' and ')
   const renderNote = !render
     ? null
-    : r.running
-      ? `${r.label} is drawing the saved views at final quality in the background: ${r.views - r.missing} of ${r.views} done${before ? `, ${before} before picture${before === 1 ? '' : 's'} to draw` : ''}${left ? `, ${left} left` : ''}. The file is written when they finish; the page stays usable.`
-      : `${r.label} draws ${owed} at final quality first, in the background${left ? `: ${left}` : ''}${left ? (r.measured ? ' (from your renders)' : ' (first estimate)') : ''}. Then the file is written.`
+    : r.settling
+      ? `${r.label} draws ${owed} from the road view: ${
+          r.roadView === 'closed'
+            ? 'the page opens it first, and closes it again once the file is written'
+            : 'the page waits for its terrain to load'
+        }. Then the file is written.`
+      : r.running
+        ? `${r.label} is drawing the saved views at final quality in the background: ${r.views - r.missing} of ${r.views} done${before ? `, ${before} before picture${before === 1 ? '' : 's'} to draw` : ''}${left ? `, ${left} left` : ''}. The file is written when they finish; the page stays usable.`
+        : `${r.label} draws ${owed} at final quality first, in the background${left ? `: ${left}` : ''}${left ? (r.measured ? ' (from your renders)' : ' (first estimate)') : ''}. Then the file is written.`
   const note = captureNote
     ? captureNote
     : renderNote
@@ -901,7 +944,19 @@ export function exportPreparation(
             ? 'Land status checks are still reading: the file waits for them.'
             : (inventoryNote ?? (skipped ? `${skipped} Download tries again.` : null))
   const noteIsSkipped = !!skipped && note === `${skipped} Download tries again.`
-  return { run, landChecks, render, inventory, capture, captureBefore: NEEDS_BEFORE.has(kind), note, noteIsSkipped }
+  return {
+    run,
+    landChecks,
+    render,
+    inventory,
+    capture,
+    captureBefore: NEEDS_BEFORE.has(kind),
+    captureEngine,
+    renderAt,
+    openRoadView,
+    note,
+    noteIsSkipped,
+  }
 }
 
 /**
@@ -2479,6 +2534,12 @@ export type ResolvedPackage = {
   saved: Array<{ id: string; name: string; included: boolean }>
   /** Every saved view the package's outputs draw: the included saved views and each included view's capture. */
   viewIds: ReadonlySet<string>
+  /**
+   * `viewIds` in the package's own order, as its list shows them: each included view of interest's capture in the
+   * views' order, then the included saved views in saved order. Never the order the views happen to be held in (the
+   * views saved where the reviewer stands come after those shelved elsewhere).
+   */
+  viewOrder: readonly string[]
   /** Every saved view left out, for the block note's builder (`BlockNoteChoices.excludedViews`). */
   excludedViews: ReadonlySet<string>
 }
@@ -2532,10 +2593,13 @@ export function resolvePackage(input: PackageInput): ResolvedPackage {
   const saved = input.savedViews
     .filter((view) => !view.plannedViewId || !plannedIds.has(view.plannedViewId))
     .map((view) => ({ id: view.id, name: view.name, included: !choice.excludedViews.has(view.id) }))
-  const viewIds = new Set([
-    ...saved.filter((view) => view.included).map((view) => view.id),
-    ...planned.flatMap((view) => (view.include && view.savedViewId ? [view.savedViewId] : [])),
-  ])
+  const viewOrder = [
+    ...new Set([
+      ...planned.flatMap((view) => (view.include && view.savedViewId ? [view.savedViewId] : [])),
+      ...saved.filter((view) => view.included).map((view) => view.id),
+    ]),
+  ]
+  const viewIds = new Set(viewOrder)
   return {
     recipeId: recipe?.id ?? '',
     recipeChosen: !!chosenFormat,
@@ -2543,6 +2607,7 @@ export function resolvePackage(input: PackageInput): ResolvedPackage {
     planned,
     saved,
     viewIds,
+    viewOrder,
     excludedViews: new Set(input.savedViews.filter((view) => !viewIds.has(view.id)).map((view) => view.id)),
   }
 }

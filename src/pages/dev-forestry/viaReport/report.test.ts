@@ -229,8 +229,46 @@ describe('the templates the reference comparison found missing', () => {
       'Lakeshore looks toward Landform 1, 2.6 km from the nearest block it sees; Block X1 is in view (3.2% of the landform in the picture).',
     )
     expect(blockVisibilitySentences(ctx).map((s) => s.text)).toEqual([
-      'From Lakeshore, Block X1 is visible, with 40% of its ground in view.',
-      'From Lakeshore, Block X2 is not expected to be visible.',
+      'From Lakeshore, Block X1 is visible, with 40% of its ground in view; Block X2 is not expected to be visible.',
+    ])
+  })
+
+  it('write one visibility sentence per viewpoint, its blocks grouped by what the run says of them', () => {
+    const base = context('appendix-1-net-private-rock')
+    const vp = base.facts.viewpoints[0]
+    const ctx = {
+      ...base,
+      facts: {
+        ...base.facts,
+        viewpoints: [
+          {
+            ...vp,
+            name: 'Made-up Point 1',
+            blocks: [
+              { id: 'A', status: 'visible' as const, visiblePercent: 20.4 },
+              { id: 'B', status: 'not visible' as const, visiblePercent: 0 },
+              { id: 'C', status: 'visible' as const, visiblePercent: 23 },
+              { id: 'D', status: 'possible glimpses' as const, visiblePercent: 2 },
+              { id: 'E', status: 'not visible' as const, visiblePercent: 0 },
+              { id: 'F', status: 'unknown' as const, visiblePercent: 0 },
+            ],
+          },
+          {
+            ...vp,
+            name: 'Made-up Point 2',
+            blocks: [
+              { id: 'A', status: 'not visible' as const, visiblePercent: 0 },
+              { id: 'B', status: 'not visible' as const, visiblePercent: 0 },
+            ],
+          },
+          { ...vp, name: 'Made-up Point 3', blocks: [{ id: 'A', status: 'unknown' as const, visiblePercent: 0 }] },
+        ],
+      },
+    }
+    expect(blockVisibilitySentences(ctx).map((s) => s.text)).toEqual([
+      'From Made-up Point 1, Blocks A and C are visible, with 20% and 23% of their ground in view; Block D may be seen only in glimpses; Blocks B and E are not expected to be visible.',
+      'From Made-up Point 2, Blocks A and B are not expected to be visible.',
+      null,
     ])
   })
 

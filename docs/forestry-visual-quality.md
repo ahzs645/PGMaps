@@ -76,6 +76,29 @@ is typed survives switching.
 | 4 · Assess against the VQO | 3.4 | *Assessing from* (the group of views of interest the judgements are for; see **Step 4 per group of views** below), **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
 | 5 · Final rating and package | 3.5, 4.0 | **Rate and write up in Save & export**: *Rate and package…* opens the dialog's Package entry, whose top holds the **Final rating** (Table 7) and its rationale; *Visuals note…* opens **Block note**, whose options hold the Visuals paragraph and visual measures. The evidence record and checklist are *VIA evidence package*'s options, and *Import assessment workspace* is *Assessment workspace*'s |
 
+A district-wide plan can bring a hundred blocks or more, and the page follows
+the block the reviewer is working on, not the plan's first (`blockFocus.ts`,
+DOM-free, `reviewerBlockId`): the selected target when it is a block, else the
+block the view of interest the assessment stands at faces, else the first
+view's block, else the first block. Adopting a landform selects the landform,
+so this is what keeps *Find a landform in the BC inventory*'s *Search near
+cutblock*, the *Facing …* beside step 1's *Add a view on the map*, the map's
+*Add a view of interest*, the viewpoint inventory and the header's site name
+on that block (an opened project's own title still names the site). Over
+twelve blocks (`BLOCK_LIST_FOLD_ABOVE`) **Cutblocks** lists the selected block,
+the reviewer's block and the blocks the last run assessed first, and folds the
+rest into one *N other blocks* row whose cards, the same as above, are drawn
+only near the view (`splitBlockList`, `FoldedBlockList.tsx`). *Remove blocks
+outside the assessment…* asks once (`ConfirmRemoveButton`) and removes, in one
+scene update through the per-block removal's path, every block with no part
+within the run's view distance of the road, the spot or any view of interest,
+that does not touch the active landform and that no view of interest faces
+(`blocksOutsideAssessment`); with no viewpoint it offers nothing. Like any
+removal it stales the run. Step 3's **Results** lists the blocks the run
+assessed, in their order, and folds those beyond the view distance into one
+*N blocks beyond the 12 km view distance* card (the run's own distance) that
+names them; it is display only and changes neither the run nor the scene.
+
 Under every step, after step 5, a folded **Resources** section holds reading
 rather than controls: links to the VIA Handbook and FPPR, the five FPPR s. 1.1
 visually altered landscape categories (the `VISUAL_QUALITY_CLASSES`
@@ -306,7 +329,8 @@ links to *Save & export → Package* (`openPackage`); the renderer is held by th
 export opener (`useExportOpener`) so the panel can say it while the dialog is
 closed. Captures are always PGMaps'. With an engine chosen, a captured view
 saved at another place than the one stood at says that it keeps PGMaps' picture
-(`renderJobFor`'s rule), and that standing there lets the engine draw it.
+(`renderJobFor`'s rule), and that standing there lets the engine draw it; Save &
+export's capture stands there for it (**Capture on export**).
 
 **Everything about one view is in its row.** What the reviewer fills in for a
 viewpoint is entered once, in that view's open row, never in a section of its own
@@ -461,7 +485,8 @@ about a third of the way up when the landform is known, else level; a wide lens
 stays one rectilinear frame and is never tiled. Both reach the sheet through
 `figurePlanFor` (`viewCapturePlan.ts`): a single frame when the view asks for
 one, else the scene's fixed figure frame when one is set, else the landform
-framed with the lens (a lined-up photo's, the view's, else 50 mm). The saved
+framed with the lens (a lined-up photo's, the view's, else 50 mm), else, with no
+landform ground in sight, a single frame of the lens along the view's facing. The saved
 view's `figureAt` keeps the lens (`lensHfov`) and the framing, so a background
 render or a before picture is framed as the view was saved. The road view has
 the same lens for the reviewer's own saves: *View options → Lens* (*Road view
@@ -505,7 +530,53 @@ about half the views of a batch. With `capture(ids, { before: true })` (Save & e
 before pictures) each place's views are also drawn before harvest
 (`captureBeforeRenders`) once they are saved, while the road view still stands
 there; the harvest phase is put back, and the renders are kept by saved view in
-the page's `capturedBefore` with the planned key they were taken under. The saved view carries `plannedViewId` and `plannedKey`
+the page's `capturedBefore` with the planned key they were taken under. The
+switch to before harvest regrows the whole stand (some 440 patches at a far
+view, minutes in a throttled tab), so `showHarvestPhase` waits on its progress
+as a view's own wait does (`waitForStand` over `watchTimber`/`timberGivenUp`:
+the status line reads "Preparing timber 120 of 440", a stand that stops growing
+is given up after `timberStallMs` naming the count, another blocker after
+`roadViewMs`), never a flat minute; the batch allows the step `beforeBudgetMs`,
+above that wait's own limits, so a stand still growing never trips it and only a
+render that hangs stops the batch. The after-harvest stand is not grown a third
+time when the phase is put back: the page keeps the last two placements' patches
+(`patchCacheFor`, `forestPatches.ts`), and each phase keeps its own openings,
+clearings and thinnings (`openingsAt`, `clearingsAt`, `thinningsIn`), so the
+switch back hands the stand the arrays it was placed with. With
+`capture(ids, { engine })` (an output whose figures another engine draws) each
+place's views are then drawn by that engine, figure and before picture, while
+the road view still stands there (`ViewCaptureHost.render`, through the
+background renders' queue, waited for until each job settles); views captured
+earlier at another place are stood at for those renders alone
+(`renderIds`, stage `render`: run, road view and timber waited for, the capture
+kept as it is). A view the engine could not draw keeps PGMaps' figure, and the
+batch's closing line says so. Memory is held to one place at a time: as a
+place's engine renders start, the road view's own stand is put away
+(`RELEASE_ROAD_VIEW_STAND_FOR_ENGINE`, `forestPatches.ts`). `ForestOverlay`
+stands down on the eye map, so its tree and shadow layers are removed and their
+instance buffers and textures deleted (the shared programs and spray sheet go
+with the last tree layer on the map). Every kept placement's patches are then
+emptied (`releasePatchPlacements`, in the effect after that commit), and only
+the map the stand is handed stays in the cache. The engine is asked once that
+commit has run (`ROAD_STAND_RELEASE_WAIT_MS` at most), so PGMaps' stand and the
+engine's final stand and impostor atlas are never on the GPU together. A tab
+crashed every time the engine drew a place just after PGMaps had captured it,
+while the same view drew fine on its own. Nothing PGMaps saves is touched: its
+capture, before-harvest render and class pass at the place are all taken before
+the stand is put away. The stand's placement key is unchanged and so is every
+stem; the stand grows again, as it grows on opening, once the host returns. If
+one of the place's jobs is still drawing at that point (a stopped capture, or a
+queue given up on), it grows again when that job ends. The road view reads
+*Timber put away while … draws this place* until then. With the constant off,
+only the kept patches of every placement but the one the road view draws are
+let go (`keepOnlyPatchPlacement`, after the commit that puts the harvest phase
+back). In both cases, once that place's renders settle with none
+running the engine is started again (`restartEngine`: the tray's surface is
+keyed to a generation, the next job waits for the new engine's hello, and
+nothing queued is dropped), so one place's scene and final stand never stay
+alive while the next place's are built. Two road-view stands, the previous
+place's unpacked scene and the next one's 1.25 M-stem final stand together
+crashed the tab. The saved view carries `plannedViewId` and `plannedKey`
 (`viewCaptureKey`: the place to 1e-6°, block, facing to 0.1°, lens, framing and
 landform; never the name or *Include*, so renaming a view or leaving it out
 keeps its capture). A recapture removes the view's earlier saves wherever they
@@ -1056,10 +1127,12 @@ whose picture holds none of the landform says so rather than "no class pass"
 place, coordinates, direction, field of view, location map and inventory unit
 come from the view's saved figure (`viewImages[id]`, its `figureAt`), never the
 road view or the place stood at when the file is written. An engine draws only
-where the road view stands: a view saved at another place gets no background
-render (`renderJobFor`) and keeps PGMaps' figure and before picture, which the
-renderer row and the pair's note say; a render keeps the saved figure's names
-and place (`savedIdentity`).
+where the road view stands: a view saved at another place has its job keyed to
+that place's scene (`renderJobFor`), the queue's runner refuses it anywhere else,
+and the export never queues it from here. Its renders are drawn while a capture
+stands there (**Capture on export**); one the engine has not drawn keeps PGMaps'
+figure and before picture, which the renderer row and the pair's note say; a
+render keeps the saved figure's names and place (`savedIdentity`).
 
 **Capture on export.** Preview and Download of an output in
 `USES_PACKAGE_VIEWS` first capture the included views of interest not captured
@@ -1072,7 +1145,12 @@ Download. A file written without an included view says so (`uncapturedNote`),
 in the preview's note and in the download's *Saved* line, naming each view and
 why. A cancelled capture writes nothing, and closing the dialog cancels a
 capture it started. Such an output is available while any included view is
-still to capture, since the export captures it first.
+still to capture, since the export captures it first. When another engine draws
+the figures, that capture has the engine draw each view where it stands
+(`captureEngine`), and views of interest captured at another place that still
+owe the engine's figure (or the report's before picture) are stood at for it
+(`renderer.standAt`, `renderAt`); one tried there and not drawn is skipped by
+Preview and tried again by Download.
 
 The VIA report's before pictures and the analysis sheet's with-timber figure
 (`NEEDS_BEFORE`) pair a view with its before-harvest render. Their capture also
@@ -3380,7 +3458,9 @@ the table.
 away and grown again whenever how a stem is drawn, shaded or detailed was
 changed, half a minute at that view; it is now kept for as long as it is
 placed the same way (`forestPatches` in `DevForestryVisuals.tsx` is keyed to
-what places a stem and nothing else).
+what places a stem and nothing else). The last two placements are kept
+(`patchCacheFor`), each harvest phase's arrays are kept per phase, so a before
+render's switch to before harvest and back finds the after-harvest stand again.
 
 ### Harvested ground
 
@@ -3944,10 +4024,11 @@ of two ways (`EngineSurface.tsx`, `engineChannel.ts`):
   `crownWidthForClosure` at that density (about 3–4 m) and never pass 0.35 of
   the stem's height. Patches grow nearest first; at `FINAL_STAND_MAX_STEMS`
   (1.5 M) growing stops and the stand's radius comes in to the nearest ground
-  not grown, so it is always complete out to the radius it reports. A Gun Lake
-  VPT1-sized stand (landform to 6.3 km, one 50 mm frame) is about 1.0 M stems
-  (28 MB) grown in about 0.6 s in the browser; four frames across 166° hit the
-  budget at 4.6 km (1.38 M stems, 0.8 s). The ground class pass is unchanged
+  not grown, so it is always complete out to the radius it reports, and the
+  sheet's line names it ("real-density stand to 3.2 km (stem budget)"). A Gun
+  Lake VPT1-sized stand (landform to 6.3 km, one 50 mm frame) is about 1.0 M
+  stems (28 MB) grown in about 0.6 s in the browser; four frames across 166°
+  hit the budget at 4.6 km (1.38 M stems, 0.8 s). The ground class pass is unchanged
   (it never draws trees); the picture, the screened pass and depth use the
   final stems. The engine reports what it drew (`final`: samples, stems drawn,
   canopy cut-off, time), kept in the saved figure's `FigureIllustration` with
@@ -4771,7 +4852,11 @@ stretched. The lens is a field photo's own when the view is lined up on one,
 else the lens the view was saved with (*View options → Lens*, or a planned
 view's own; see **Views of interest**), else a 50 mm full-frame equivalent
 (39.6° across). A planned view framed *One frame along the facing* takes one
-frame of its lens instead (`planSingleFrame`); otherwise a landform wider than
+frame of its lens instead (`planSingleFrame`), and so does a view from which no
+landform ground is in sight (hidden behind nearer ground, or past the terrain
+read round the eye): its label says so, and its shape is the lens's 3:2, never
+the road view pane's (before this, such a view was the class pass of the road
+view as it stood, a portrait strip in a narrow pane); otherwise a landform wider than
 one frame takes up to four frames of the lens side by side across its bearings (the
 consultants' renders are 60–141° panoramas), and a long, low landform makes a
 strip up to 4:1. `captureFramed` (`mapCapture.ts`) stands the eye map at the pose
@@ -5876,6 +5961,12 @@ rather than "in the structure of" a reference.
 
 ## Figures drawn by another engine, in the background
 
+An engine reports each stage of its build, final stand and capture as it ends,
+and any GPU error or lost device (`pgmaps-engine-trace`, read by
+`readEngineTrace`). The page keeps the last 200 lines in this browser
+(`ENGINE_TRACE_KEY`) as each arrives, because the engine's worker shares the
+tab's process: a render that kills the tab still leaves the stage it reached.
+
 The analysis sheet, the VIA document and the VIA report take the package's
 _Figures drawn by_ (Save & export → *Package*, chosen once for all three):
 **PGMaps** (each saved view's figure as it was saved, ready at once) or
@@ -5941,7 +6032,12 @@ waits (up to 90 s) for the road view's terrain, which reloads whenever the
 scene's polygons change, rather than drawing the unframed road view, and the
 export waits through that reload (`renderer.settling`) instead of failing with
 *let its terrain load*; a view still missing with nothing queued is queued
-again. In development `window.__visualsSavedViews` lists the saved and shelved
+again. A closed road view is settling too, not unavailable (`renderer.roadView`):
+the export's `prepare` opens it where the reviewer stands, waits for its terrain
+(`ROAD_VIEW_SETTLE_MS`, counted from the open and only while no run is going),
+draws, and closes it again when the dialog closes, as a capture hands the road
+view back. Only a blocked engine (no WebGPU, no address) makes the output
+unavailable. In development `window.__visualsSavedViews` lists the saved and shelved
 views (name, station, pose, harvest phase, frame, landform, whether the figure
 is ready) for the reference-library harness.
 

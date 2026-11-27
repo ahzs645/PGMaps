@@ -7,7 +7,7 @@ import { RouteViewshedControls, routeViewshedSummary } from './dev-forestry/Rout
 import { planMapToolItems, PlanMapToolCard, isPlanDrawTool, type PlanDrawTool } from './dev-forestry/PlanMapTools'
 import { visibilityOutline } from '@/features/terrain-viewshed'
 import { sampleAlongLine } from './dev-forestry/visibility'
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -34,6 +34,7 @@ import { MapSketch, useMapSketch } from '@/components/ui/map-sketch'
 import { InlineAlert, MapOverlay } from '@/components/ui/map-panels'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { FileButton } from '@/components/ui/file-button'
+import { useFileDrop } from '@/components/ui/file-drop-target'
 import { TextButton } from '@/components/ui/text-button'
 import { PG_CENTER } from '@/components/ui/map-styles'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -77,7 +78,8 @@ import { movedReference, referenceMoveLine, referenceMoveOffer } from './dev-for
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
 import { ToolSourcesPanel, TOOL_SOURCES_TITLE, toolSourcesSummary } from './dev-forestry/ToolSourcesPanel'
 import { MapToolToggle } from '@/components/ui/map-tool-toggle'
-import { MapControlOverflow } from '@/components/ui/map-control-overflow'
+import { MapControlOverflow, type MapControlOverflowItem } from '@/components/ui/map-control-overflow'
+import { BELOW_MAP_TOOLBAR, MapToolbar, MapToolbarGroup } from '@/components/ui/map-toolbar'
 import { WildlifeTreePatchPanel } from './dev-forestry/WildlifeTreePatchPanel'
 import { MAX_ASSESSMENT_MASKS, withDrawnMask, masksForLandform } from './dev-forestry/assessmentMasks'
 import { LandformDesignPanel } from './dev-forestry/LandformDesignPanel'
@@ -124,6 +126,7 @@ import {
   standPlace,
   viewLensHfov,
   viewPhotoRecord,
+  waitForStand,
   withoutPlannedView,
   type CaptureFacts,
 } from './dev-forestry/viewCapturePlan'
@@ -218,7 +221,13 @@ import { fetchSceneCover } from './dev-forestry/bcVegetationInventory'
 import type { SceneCoverSource } from './dev-forestry/sceneCover'
 import { buildFinalStand, finalStandBearings, finalStandRadius, moveStandOrigin } from './dev-forestry/finalStand'
 import { ExternalRoadRenderer, type EngineCaptureHandle } from './dev-forestry/ExternalRoadRenderer'
-import { useBackgroundRenders, type RenderJob } from './dev-forestry/BackgroundRenders'
+import { tracePageStep, useBackgroundRenders, type RenderJob } from './dev-forestry/BackgroundRenders'
+import {
+  keepOnlyPatchPlacement,
+  patchCacheFor,
+  releasePatchPlacements,
+  RELEASE_ROAD_VIEW_STAND_FOR_ENGINE,
+} from './dev-forestry/forestPatches'
 import type { RenderEngineId } from './dev-forestry/renderEstimate'
 import {
   engineClassPalette,
@@ -289,7 +298,7 @@ import { profileStripPolygon, type ProfileStripChoice } from './dev-forestry/sta
 import { snagFates, snagStatesAt } from './dev-forestry/stand/snagDecay'
 import { Sidebar, type DrawMode, type DriveState, type StandPrescriptionLine } from './dev-forestry/Sidebar'
 import { TerrainSupport } from './dev-forestry/TerrainSupport'
-import { readShapeFile } from './dev-forestry/shapeImport'
+import { readShapeFiles, SHAPE_FILE_ACCEPT } from './dev-forestry/shapeImport'
 import { IMAGERY_BASEMAPS, SATELLITE_ATTRIBUTION, SatelliteImagery } from '@/components/ui/map-satellite-imagery'
 import {
   VIEWPOINT_ROAD_CLASSES,
@@ -464,7 +473,14 @@ import { DEFAULT_PLAN_SHOW, togglePlanLegendKey, type PlanBasemap, type PlanShow
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
 import { useVisualQualityTable } from './dev-forestry/useVisualQualityTable'
 import { ViewpointSummary, useViewpointSummaryPreferences } from './dev-forestry/ViewpointSummary'
-import { currentPlannedView, steppedView, viewForBlockHere, viewPosition } from './dev-forestry/summaryViewSwitch'
+import {
+  assessedStandPoint,
+  currentPlannedView,
+  steppedView,
+  viewForBlockHere,
+  viewPosition,
+} from './dev-forestry/summaryViewSwitch'
+import { reviewerBlockId } from './dev-forestry/blockFocus'
 import { ViewLandforms, ViewLandformSummary } from './dev-forestry/ViewLandforms'
 import {
   adoptViewLandform,
@@ -708,6 +724,11 @@ const CHECKPOINT_RESTORE_WAIT_MS = 15_000
 
 /** Longest a background render waits for the road view and its terrain to come back (a reload after a run). */
 const ROAD_VIEW_SETTLE_MS = 90_000
+/**
+ * Longest a capture's engine renders wait for the road view's stand to be put away (`RELEASE_ROAD_VIEW_STAND_FOR_ENGINE`):
+ * one commit, normally a frame. Past it the engine is asked anyway.
+ */
+const ROAD_STAND_RELEASE_WAIT_MS = 2_000
 
 /** A bearing in [0, 360). */
 const wrapBearing = (degrees: number) => ((degrees % 360) + 360) % 360
@@ -864,9 +885,9 @@ function DevForestryVisuals({
   const measuring = measure.state.mode !== 'idle'
   const { clear: clearMeasure, start: startMeasure } = measure
   const [draftCoordinates, setDraftCoordinates] = useState<Array<[number, number]>>([])
-  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(
-    () => scene.targets.find((target) => target.role === 'block')?.id ?? null,
-  )
+  // Nothing is selected until the reviewer selects it: a selection made for them (the plan's first block) would outrank
+  // the block the views face in `reviewerBlockId`, and the header named the plan's first block after every reload.
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null)
   const [importMessage, setImportMessage] = useState<ImportNotice | null>(null)
   const [projectTitle, setProjectTitle] = useState<string | null>(null)
   // `referenceMove`: the opened project's *Objective established by* reads as a historical reference
@@ -1330,16 +1351,17 @@ function DevForestryVisuals({
     [clearMeasure],
   )
 
-  const handleImportFile = useCallback(
-    async (file: File) => {
+  const handleImportFiles = useCallback(
+    async (files: File[]) => {
+      const label = files.length === 1 ? files[0].name : `${files.length} files`
       // Read for the site it was asked on: after a switch it belongs to no site here, and is not added to the next.
       const onSite = siteGeneration.guard()
       setImportMessage(importNotice.progress('Reading…'))
       try {
-        const imported = await readShapeFile(file)
+        const imported = await readShapeFiles(files)
         if (!onSite()) return
         if (imported.polygons.length === 0 && imported.lines.length === 0) {
-          setImportMessage(importNotice.error(`Could not find any polygons or lines in ${file.name}.`))
+          setImportMessage(importNotice.error(`Could not find any polygons or lines in ${imported.sourceName}.`))
           return
         }
 
@@ -1352,7 +1374,7 @@ function DevForestryVisuals({
           harvestYear: null,
           clearcutPercent: null,
           geometry: polygon.geometry,
-          source: file.name,
+          source: imported.sourceName,
           ...(polygon.planning ? { planning: polygon.planning } : {}),
         }))
 
@@ -1388,14 +1410,14 @@ function DevForestryVisuals({
           usedLine && 'a road centreline',
           imported.skippedCount > 0 && `${imported.skippedCount} skipped`,
         ].filter(Boolean)
-        setImportMessage(importNotice.info(`Imported ${parts.join(', ')} from ${file.name}.`))
+        setImportMessage(importNotice.info(`Imported ${parts.join(', ')} from ${imported.sourceName}.`))
 
         const bounds = newTargets.length > 0 ? polygonBounds(newTargets[0].geometry) : null
         window.setTimeout(() => fitBounds(bounds as [number, number, number, number] | null), 50)
       } catch (error) {
         if (!onSite()) return
         setImportMessage(
-          importNotice.error(`Could not read ${file.name}: ${error instanceof Error ? error.message : String(error)}`),
+          importNotice.error(`Could not read ${label}: ${error instanceof Error ? error.message : String(error)}`),
         )
       }
     },
@@ -1810,11 +1832,31 @@ function DevForestryVisuals({
     openPreview()
   }, [lookOnRoad, openPreview])
 
-  // The block the viewpoint inventory is read around: the selected one, else the first.
-  const viewpointBlock =
-    scene.targets.find((target) => target.id === selectedTargetId && target.role === 'block') ??
-    scene.targets.find((target) => target.role === 'block') ??
-    null
+  // The block the reviewer works on (`reviewerBlockId`): the selected block, else the block the view of interest the
+  // assessment stands at faces, else the first view's block, else the first block. Adopting a landform selects the
+  // landform, and a district plan's first block is rarely the one in hand, so every block picker defaults to this.
+  // The block the reviewer selected last: adopting a landform moves the selection off it, and the pickers keep to it.
+  const [lastSelectedBlockId, setLastSelectedBlockId] = useState<string | null>(null)
+  useEffect(() => {
+    if (selectedTargetId && scene.targets.some((target) => target.id === selectedTargetId && target.role === 'block'))
+      setLastSelectedBlockId(selectedTargetId)
+  }, [selectedTargetId, scene.targets])
+  const reviewerBlock = useMemo(() => {
+    const blocks = scene.targets.filter((target) => target.role === 'block')
+    const views = scene.viewsOfInterest ?? []
+    // Read from the viewpoint itself (a spot, or a stand's pullout), not the page's `standing`, which a reload loses.
+    const stoodAt = assessedStandPoint(scene.viewpoint)
+    const id = reviewerBlockId({
+      blockIds: blocks.map((block) => block.id),
+      selectedId: selectedTargetId,
+      assessedViewBlockId: stoodAt ? (currentPlannedView(views, stoodAt)?.blockId ?? null) : null,
+      lastSelectedBlockId,
+      viewBlockIds: views.map((view) => view.blockId),
+    })
+    return blocks.find((block) => block.id === id) ?? null
+  }, [scene.targets, scene.viewsOfInterest, scene.viewpoint, selectedTargetId, lastSelectedBlockId])
+  // The block the viewpoint inventory is read around: the reviewer's.
+  const viewpointBlock = reviewerBlock
   const viewpointCandidates = useMemo<ViewpointCandidate[]>(
     () =>
       viewpointInventory.data && viewpointBlock
@@ -2194,12 +2236,10 @@ function DevForestryVisuals({
     [viewsOfInterest, viewpointBlock?.id],
   )
   const viewBlocks = useMemo(() => scene.targets.filter((target) => target.role === 'block'), [scene.targets])
-  // The block the map's *Add a view of interest* places for: the one chosen in its card, else the selected block.
-  const viewAddBlockId =
-    viewBlocks.find((block) => block.id === viewAddBlockChoice)?.id ??
-    viewBlocks.find((block) => block.id === selectedTargetId)?.id ??
-    viewBlocks[0]?.id ??
-    null
+  // The block the map's *Add a view of interest* places for: the one chosen in its card, else the reviewer's block.
+  const viewAddBlockId = viewBlocks.find((block) => block.id === viewAddBlockChoice)?.id ?? reviewerBlock?.id ?? null
+  // Step 1's *Add a view on the map*, likewise: the block chosen beside it, else the reviewer's.
+  const assessAddBlock = viewBlocks.find((block) => block.id === assessAddBlockId) ?? reviewerBlock
   const capturedViewSources = useMemo(
     () => [...awayViews.flatMap((entry) => entry.views), ...savedViews],
     [awayViews, savedViews],
@@ -2582,12 +2622,13 @@ function DevForestryVisuals({
     [],
   )
   const importPreviewGeometry = useCallback(
-    async (file: File, kind: 'road' | 'blocks') => {
+    async (files: File[], kind: 'road' | 'blocks') => {
       const onSite = siteGeneration.guard()
       setImportMessage(importNotice.progress('Reading file…'))
       try {
-        if (file.size > 30 * 1024 * 1024) throw new Error('Use a file smaller than 30 MB.')
-        const imported = await readShapeFile(file)
+        if (files.reduce((sum, file) => sum + file.size, 0) > 30 * 1024 * 1024)
+          throw new Error('Use files smaller than 30 MB in all.')
+        const imported = await readShapeFiles(files)
         // Read for the site it was asked on: after a switch it belongs to no site here.
         if (!onSite()) return
         // The scene as it is now, not as it was when the file was picked.
@@ -2608,7 +2649,7 @@ function DevForestryVisuals({
           harvestYear: null,
           clearcutPercent: null,
           geometry: p.geometry,
-          source: file.name,
+          source: imported.sourceName,
           ...(p.planning ? { planning: p.planning } : {}),
         }))
         // A sample's road or blocks are replaced by a new site of the file's own, through the one site switch: the
@@ -2640,8 +2681,8 @@ function DevForestryVisuals({
         setImportMessage(
           importNotice.info(
             kind === 'road'
-              ? `Road imported from ${file.name}.${imported.lines.length > 1 ? ' Used the longest line; import a single route to choose another.' : ''}`
-              : `${targets.length} cutblocks imported from ${file.name}.`,
+              ? `Road imported from ${imported.sourceName}.${imported.lines.length > 1 ? ' Used the longest line; import a single route to choose another.' : ''}`
+              : `${targets.length} cutblocks imported from ${imported.sourceName}.`,
           ),
         )
         window.setTimeout(() => fitBounds(sceneBounds(next)), 50)
@@ -3467,11 +3508,21 @@ function DevForestryVisuals({
 
   // Ground actually cut: the block after harvest, and disturbance still counting.
   const openingYear = result?.inputSnapshot?.assessmentYear ?? scene.assessmentYear ?? new Date().getFullYear()
-  const forestOpenings = useMemo<Array<GeoJSON.Polygon | GeoJSON.MultiPolygon>>(
-    () =>
-      forestOpeningsFor(scene.targets, drive.harvestPhase, clipAlteration, openingYear, scene.settings.greenUpAgeYears),
-    [drive.harvestPhase, scene.targets, openingYear, scene.settings.greenUpAgeYears, clipAlteration],
-  )
+  // Kept per harvest phase: switching the phase and back hands the stand the very arrays it was placed with, so its
+  // placed patches are found again (`forestPatches`). Filled as each phase is asked for, emptied when their inputs change.
+  const openingsByPhase = useMemo(() => {
+    void [scene.targets, openingYear, scene.settings.greenUpAgeYears, clipAlteration]
+    return new globalThis.Map<HarvestPhase, PolygonGeometry[]>()
+  }, [scene.targets, openingYear, scene.settings.greenUpAgeYears, clipAlteration])
+  const openingsAt = (phase: HarvestPhase) => {
+    let openings = openingsByPhase.get(phase)
+    if (!openings) {
+      openings = forestOpeningsFor(scene.targets, phase, clipAlteration, openingYear, scene.settings.greenUpAgeYears)
+      openingsByPhase.set(phase, openings)
+    }
+    return openings
+  }
+  const forestOpenings: Array<GeoJSON.Polygon | GeoJSON.MultiPolygon> = openingsAt(drive.harvestPhase)
 
   // Ground that grows no timber whatever is harvested: the clearings less the cut blocks. A stand
   // prescription reads its trees with these, so its trees are the ones the road view draws.
@@ -3503,7 +3554,19 @@ function DevForestryVisuals({
     basemap.water,
     previewRoadScar,
   ])
-  const forestClearings = useMemo(() => [...forestOpenings, ...standClearings], [forestOpenings, standClearings])
+  const clearingsByPhase = useMemo(() => {
+    void [openingsByPhase, standClearings]
+    return new globalThis.Map<HarvestPhase, PolygonGeometry[]>()
+  }, [openingsByPhase, standClearings])
+  const clearingsAt = (phase: HarvestPhase) => {
+    let clearings = clearingsByPhase.get(phase)
+    if (!clearings) {
+      clearings = [...openingsAt(phase), ...standClearings]
+      clearingsByPhase.set(phase, clearings)
+    }
+    return clearings
+  }
+  const forestClearings = clearingsAt(drive.harvestPhase)
 
   // Each prescribed block's stand, read tree by tree from the stems the road view draws there, and
   // what its prescription takes (`stand/`). Display only: no figure the run reports reads it. A
@@ -3656,7 +3719,19 @@ function DevForestryVisuals({
       }),
     [drive.treeColours, scene.targets, clipAlteration, standPrescriptions],
   )
-  const forestThinnings = useMemo(() => thinningsAt(drive.harvestPhase), [thinningsAt, drive.harvestPhase])
+  const thinningsByPhase = useMemo(() => {
+    void thinningsAt
+    return new globalThis.Map<HarvestPhase, Thinning[]>()
+  }, [thinningsAt])
+  const thinningsIn = (phase: HarvestPhase) => {
+    let thinnings = thinningsByPhase.get(phase)
+    if (!thinnings) {
+      thinnings = thinningsAt(phase)
+      thinningsByPhase.set(phase, thinnings)
+    }
+    return thinnings
+  }
+  const forestThinnings = thinningsIn(drive.harvestPhase)
 
   // What a prescription leaves of each tree it takes: stumps, and felled stems or logs where it leaves them.
   const treatedStemsAt = useCallback(
@@ -3743,19 +3818,12 @@ function DevForestryVisuals({
    */
   const forestFor = (phase: HarvestPhase): typeof forestConfiguration => {
     if (phase === drive.harvestPhase) return forestConfiguration
-    const openings = forestOpeningsFor(
-      scene.targets,
-      phase,
-      clipAlteration,
-      openingYear,
-      scene.settings.greenUpAgeYears,
-    )
     return {
       ...forestConfiguration,
-      openings,
-      thinnings: thinningsAt(phase),
+      openings: openingsAt(phase),
+      thinnings: thinningsIn(phase),
       treated: treatedStemsAt(phase),
-      clearings: [...openings, ...standClearings],
+      clearings: clearingsAt(phase),
     }
   }
   // The trees' light: the sun where the site's clock puts it (the clock the other renderers are
@@ -4228,17 +4296,23 @@ function DevForestryVisuals({
     }
   }, [prescriptionTargetId, profileStrip, standPrescriptions])
 
-  const handleRemoveTarget = useCallback(
-    (targetId: string) => {
+  // One removal path for one target or many (*Remove blocks outside the assessment…*): one scene update, which
+  // stales the run as any change of the targets does.
+  const handleRemoveTargets = useCallback(
+    (targetIds: readonly string[]) => {
+      if (!targetIds.length) return
+      const removed = new Set(targetIds)
       setScene((current) => ({
         ...current,
-        targets: current.targets.filter((target) => target.id !== targetId),
-        activeLandformId: current.activeLandformId === targetId ? null : current.activeLandformId,
+        targets: current.targets.filter((target) => !removed.has(target.id)),
+        activeLandformId:
+          current.activeLandformId && removed.has(current.activeLandformId) ? null : current.activeLandformId,
       }))
-      setSelectedTargetId((current) => (current === targetId ? null : current))
+      setSelectedTargetId((current) => (current && removed.has(current) ? null : current))
     },
     [setScene],
   )
+  const handleRemoveTarget = useCallback((targetId: string) => handleRemoveTargets([targetId]), [handleRemoveTargets])
 
   const stops = useMemo(
     () => candidateDriveViews(result, drive.lookAtTargetId ?? selectedTargetId),
@@ -4653,6 +4727,9 @@ function DevForestryVisuals({
   canSaveViewRef.current = canSaveView
   const saveBlockerRef = useRef(saveBlocker)
   saveBlockerRef.current = saveBlocker
+  // The timber's growth, read by a harvest phase switch's wait (`waitForStand`) as a capture reads it.
+  const timberProgressRef = useRef(timberProgress)
+  timberProgressRef.current = timberProgress
   /** "View from Hwy 97 going north." — the caption a planning note puts under the screenshot. */
   const captionForView = (lookBearing: number | null) => {
     const coordinates = scene.viewpoint.coordinates
@@ -5073,7 +5150,9 @@ function DevForestryVisuals({
     const nearTerrain = captureTerrain(eye, layers)
     // VRI's open ground over the capture's terrain out to `farTerrain`, read beside the skyline (never rejects).
     const coverRead = fetchSceneCover(eye, nearTerrain.farTerrainRadiusMeters)
+    tracePageStep('skyline-begin', { farTerrainM: Math.round(nearTerrain.farTerrainRadiusMeters) })
     const skyline = await loadSkylineTerrain(previewTerrain.source, eye, nearTerrain.farTerrainRadiusMeters, { look })
+    tracePageStep('skyline', { reachM: Math.round(skyline.reach?.farthestMeters ?? 0) })
     const terrain = captureTerrain(eye, layers, undefined, skyline.reach)
     const first = plan.frames[0]
     const frameWidth = Math.floor(FRAMED_WIDTH / plan.frames.length)
@@ -5104,6 +5183,11 @@ function DevForestryVisuals({
     // It grows (in slices, on this thread) while the engine builds the scene in its own process: the scene is sent
     // first and the request waits for the stand, where the stand used to hold the scene back by its whole build.
     const standGround = skyline.source ?? previewTerrain.source
+    tracePageStep('scene-package', {
+      terrainM: Math.round(terrain.terrainRadiusMeters),
+      skylineM: Math.round(terrain.skylineTerrainRadiusMeters ?? 0),
+      standM: Math.round(finalStandRadius(terrain.reachMeters)),
+    })
     const growing = standGround
       ? buildFinalStand({
           origin: eye,
@@ -5112,13 +5196,27 @@ function DevForestryVisuals({
           bearings: finalStandBearings(plan.frames),
           forest,
           elevation: standGround,
+          onProgress: (() => {
+            let last = 0
+            return (progress: { patches: number; grown: number; stems: number }) => {
+              if (progress.grown && Date.now() - last < 2000) return
+              last = Date.now()
+              tracePageStep('stand-growing', progress)
+            }
+          })(),
         })
       : Promise.resolve(null)
     // A capture that fails before its request is made must not leave the stand's own failure unhandled.
     growing.catch(() => {})
     const asked: { request: EngineCaptureRequest | null } = { request: null }
     const raw = await engine.capture(scenePackage, async (pkg, renderOptions) => {
+      tracePageStep('stand-wait')
       const stand = await growing
+      tracePageStep('stand', {
+        stems: stand?.count ?? 0,
+        radiusM: Math.round(stand?.radiusMeters ?? 0),
+        clipped: stand?.clipped ? 1 : 0,
+      })
       asked.request = captureRequest({
         origin: pkg.origin,
         eye,
@@ -5134,6 +5232,7 @@ function DevForestryVisuals({
           canopyCutoffPx: renderOptions?.dissolvePixels,
         },
       })
+      tracePageStep('request-made')
       return asked.request
     })
     const request = asked.request
@@ -5204,7 +5303,7 @@ function DevForestryVisuals({
           pose: drivePoseRef.current,
           blocks: viewBlocks,
           lookAtTargetId: drive.lookAtTargetId,
-          fallbackBlockId: summaryBlock?.id ?? selectedTargetId,
+          fallbackBlockId: summaryBlock?.id ?? selectedTargetId ?? reviewerBlock?.id ?? null,
           focalMm: roadViewLens,
           name: caption,
         })
@@ -5588,9 +5687,12 @@ function DevForestryVisuals({
       const phaseBefore = driveRef.current.harvestPhase
       setPreviewMessage(`Drawing the analysis sheet of ${view.name} again…`)
       try {
-        if (!engine && phase !== phaseBefore && !(await showHarvestPhase(phase))) {
+        const shown = !engine && phase !== phaseBefore ? await showHarvestPhase(phase) : null
+        if (shown && !shown.ok) {
           if (!onSite()) return leftSite
-          const why = `the road view did not finish drawing ${phase === 'before' ? 'before' : 'after'} harvest, the phase it was saved in.`
+          const why = `the road view did not finish drawing ${phase === 'before' ? 'before' : 'after'} harvest, the phase it was saved in${
+            shown.reason ? `: ${shown.reason[0].toLowerCase()}${shown.reason.slice(1)}` : '.'
+          }`
           setPreviewMessage(`${view.name}: its analysis sheet could not be drawn: ${why}`)
           return { viewId: saved.id, warning: `Still saved without its analysis sheet: ${why}` }
         }
@@ -5633,9 +5735,9 @@ function DevForestryVisuals({
     savedViewIds: () => [...savedViews, ...awayViews.flatMap((entry) => entry.views)].map((view) => view.id),
     // Each view's before-harvest render, taken while the road view still stands at its place; `captureBeforeRenders`
     // puts the harvest phase back. Kept by saved view id with the planned view's key it was taken under.
-    before: async (saved) => {
+    before: async (saved, onNote) => {
       const onSite = siteGeneration.guard()
-      const { renders, notes } = await captureBeforeRenders(saved)
+      const { renders, notes } = await captureBeforeRenders(saved, onNote)
       if (!onSite()) return { taken: [], notes: ['The site changed before its renders were kept.'] }
       const taken = saved.filter((entry) => renders[entry.id])
       if (taken.length)
@@ -5646,6 +5748,107 @@ function DevForestryVisuals({
           ),
         }))
       return { taken: taken.map((entry) => entry.id), notes }
+    },
+    // The engine's figure and before picture of each view kept here, drawn by the background renders' queue while the
+    // road view stands here (the queue's runner refuses a view saved elsewhere), and waited for: each settles drawn
+    // or failed under the queue's own limits. Only a queue that never starts on them is given up, after `roadViewMs`.
+    render: async (kept, engine, { stop, onNote }) => {
+      const onSite = siteGeneration.guard()
+      const label = roadRendererInfo(engine).label
+      const notes: string[] = []
+      const jobs = kept.flatMap((entry) => {
+        const after = renderJobFor(entry.id, engine)
+        if (!after) {
+          notes.push(`${entry.name}: it has no figure or camera to draw again.`)
+          return []
+        }
+        const before = renderJobFor(entry.id, engine, 'before')
+        return [{ entry, job: after }, ...(before ? [{ entry, job: before }] : [])]
+      })
+      const asked = Date.now()
+      const owed = jobs.filter(({ job }) => !engineFiguresRef.current[job.key])
+      // PGMaps' capture, before-harvest render and class pass at this place are taken. While the engine draws here the
+      // road view's own stand is put away (`RELEASE_ROAD_VIEW_STAND_FOR_ENGINE`): its tree layers leave the eye map and
+      // its placed patches are emptied, so its GPU buffers are not held beside the engine's final stand and atlas, the
+      // pair that crashed the tab. Waited for (its commit), so the engine is asked only once the stand has gone. Off,
+      // only the stand the road view draws now stays, beside the engine's scenes.
+      const releaseStand = RELEASE_ROAD_VIEW_STAND_FOR_ENGINE && owed.length > 0
+      if (releaseStand)
+        await new Promise<void>((resolve) => {
+          const release = { label, keys: owed.map(({ job }) => job.key), host: true }
+          // Already put away for the last place's job still drawing: nothing is left to release.
+          if (roadStandReleasedRef.current) {
+            setRoadStandRelease(release)
+            resolve()
+            return
+          }
+          const timer = window.setTimeout(resolve, ROAD_STAND_RELEASE_WAIT_MS)
+          roadStandReleasedWaiter.current = () => {
+            window.clearTimeout(timer)
+            resolve()
+          }
+          setRoadStandRelease(release)
+        })
+      else setPatchPruneRequest((current) => current + 1)
+      // A failure from before this ask (a job tried earlier) does not count: the queue replaces it with this one.
+      const failure = (job: RenderJob) =>
+        renderJobsRef.current.find(
+          (entry) => entry.job.key === job.key && entry.status === 'error' && (entry.startedAt ?? 0) >= asked,
+        )
+      const settled = (job: RenderJob) => !!engineFiguresRef.current[job.key] || !!failure(job)
+      try {
+        if (owed.length) backgroundRenders.enqueue(owed.map(({ job }) => job))
+        let lastDone = -1
+        let quietSince = performance.now()
+        while (owed.length) {
+          if (stop() || !onSite()) {
+            notes.push('The capture stopped before the renders were drawn.')
+            break
+          }
+          const done = owed.filter(({ job }) => settled(job)).length
+          if (done === owed.length) break
+          const now = performance.now()
+          const running = renderJobsRef.current.some(
+            (entry) => entry.status === 'running' && owed.some(({ job }) => job.key === entry.job.key),
+          )
+          if (done !== lastDone || running) {
+            quietSince = now
+            if (done !== lastDone) onNote?.(`${done} of ${owed.length} renders drawn.`)
+            lastDone = done
+          } else if (now - quietSince > CAPTURE_TIMEOUTS.roadViewMs) {
+            notes.push(
+              `${label} did not start drawing within ${Math.round(CAPTURE_TIMEOUTS.roadViewMs / 60_000)} minutes.`,
+            )
+            break
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 250))
+        }
+        onNote?.(null)
+        // This place's renders have settled: the engine is started again (`restartEngine`), so its scene and stand go
+        // before the next place's are built. Not while a job runs; a queued one waits for the new engine's hello.
+        if (owed.length && !renderJobsRef.current.some((entry) => entry.status === 'running'))
+          backgroundRenders.restartEngine()
+      } finally {
+        // The stand comes back and grows again here (the overlay's own frames wake the map), unless one of this
+        // place's jobs is still drawing (a stopped capture, a queue given up on): then once that job ends.
+        if (releaseStand) setRoadStandRelease((current) => (current ? { ...current, host: false } : current))
+      }
+      for (const { entry, job } of jobs) {
+        const failed = failure(job)
+        if (failed)
+          notes.push(
+            `${entry.name}: ${job.phase === 'before' ? 'its before picture' : 'its figure'} could not be drawn: ${failed.error ?? 'no reason given'}`,
+          )
+      }
+      const drawn = jobs
+        .filter(({ job }) => !job.phase && engineFiguresRef.current[job.key])
+        .map(({ entry }) => entry.id)
+      return { drawn, notes }
+    },
+    // A planned view's current capture here, for standing at it for an engine's renders alone.
+    savedCapture: (view) => {
+      const kept = sheetOnlyCapture(view, savedViews, (id) => !!viewImages[id]?.figure)
+      return kept ? { id: kept.id, name: kept.name } : null
     },
     snapshot: () => {
       // Standing at a planned view whose landform the stand made active, the reviewer's own is the batch's base.
@@ -6333,6 +6536,11 @@ function DevForestryVisuals({
   captureViewFigureRef.current = captureViewFigure
   const viewImagesRef = useRef(viewImages)
   viewImagesRef.current = viewImages
+  // What a capture's engine step and the queue's runner read as they are now (`ViewCaptureHost.render`).
+  const savedViewsRef = useRef(savedViews)
+  savedViewsRef.current = savedViews
+  const engineFiguresRef = useRef(engineFigures)
+  engineFiguresRef.current = engineFigures
   const roadTerrainRef = useRef(previewTerrain.source)
   roadTerrainRef.current = previewTerrain.source
   const backgroundRenders = useBackgroundRenders({
@@ -6342,6 +6550,10 @@ function DevForestryVisuals({
     run: async (job, handle) => {
       const image = viewImagesRef.current[job.viewId]
       if (!image?.figureAt) throw new Error('its camera was not kept: save the view again.')
+      // Drawn only where it was saved: the road view's terrain and run elsewhere are not the view's (a capture stands
+      // there for it, `ViewCaptureHost.render`).
+      if (!savedViewsRef.current.some((view) => view.id === job.viewId))
+        throw new Error('it was saved at another place: the engine draws only where the road view stands.')
       // The road view's terrain reloads whenever the scene's polygons change (a report's run, an import): a job
       // started in that window had no terrain to frame on and drew the unframed road view instead of the engine's
       // frames. Wait it out; `captureViewFigureRef` is read after, so it holds the reloaded terrain.
@@ -6362,6 +6574,8 @@ function DevForestryVisuals({
       setEngineFigures((current) => ({ ...current, [job.key]: figure }))
     },
   })
+  const renderJobsRef = useRef(backgroundRenders.jobs)
+  renderJobsRef.current = backgroundRenders.jobs
   /** The latest site switch asked for (`transitionSite`). */
   const siteSwitchRequest = useRef(0)
   // The keep as the page is now: a switch that waited for a capture to stop keeps the site as the capture left it.
@@ -6527,7 +6741,8 @@ function DevForestryVisuals({
     const nextKey = sceneFingerprint(next.scene)
     setScene(next.scene)
     setSaved({ key: nextKey, views: next.views ?? [] })
-    setSelectedTargetId(next.scene.targets.find((target) => target.role === 'block')?.id ?? null)
+    // As on opening the page: the reviewer's block (`reviewerBlockId`) follows the new site's views, not its first block.
+    setSelectedTargetId(null)
     next.fill?.()
     window.setTimeout(() => fitBounds(sceneBounds(next.scene)), 50)
     if (next.preview && nextKey) {
@@ -6542,26 +6757,32 @@ function DevForestryVisuals({
    * The render job for a saved view by `engine`, sized from the figure it already has: its figure, or (`before`) the
    * same framing before harvest for a report's before picture. No before job for a view saved before harvest (its
    * figure is already one), one with a lined-up field photo (the photo is its before) or one without the drive's pose
-   * (nothing to frame it on). None for a view saved at another place: an engine draws from the road view's terrain and
-   * the run where the reviewer stands, which are not that view's (`ENGINE_ELSEWHERE`); its figures stay PGMaps'.
+   * (nothing to frame it on). A view saved at another place has its job keyed to that place's scene, so a render the
+   * capture had drawn while standing there is found from here; the queue draws it only while the road view stands
+   * there (`ENGINE_ELSEWHERE`: an engine draws from the road view's terrain and the run where the reviewer stands).
    */
   const renderJobFor = (viewId: string, engine: RenderEngineId, phase?: 'before'): RenderJob | null => {
     const image = viewImages[viewId]
     const figure = image?.figure
     if (!image?.figureAt || !figure) return null
-    if (!savedViews.some((view) => view.id === viewId)) return null
+    const sceneKey = savedViews.some((view) => view.id === viewId)
+      ? key
+      : (awayViews.find((entry) => entry.views.some((view) => view.id === viewId))?.key ?? null)
+    if (!sceneKey) return null
     if (
       phase === 'before' &&
       (image.viewpoint?.harvestPhase === 'before' || image.viewpoint?.photo || !image.figureAt.pose)
     )
       return null
     const frames = figure.camera?.frames ?? 1
-    const name = savedViews.find((view) => view.id === viewId)?.name ?? image.caption.replace(/\.$/, '')
+    const name =
+      [...savedViews, ...awayViews.flatMap((entry) => entry.views)].find((view) => view.id === viewId)?.name ??
+      image.caption.replace(/\.$/, '')
     return {
       key: renderJobKey({
         viewId,
         engine,
-        sceneKey: key,
+        sceneKey,
         phase,
         optionsKey: engineCaptureOptionsKey(engineBrowserOptions.render[engine]),
       }),
@@ -6578,15 +6799,35 @@ function DevForestryVisuals({
       },
     }
   }
-  /** Shows the road view in a harvest phase and waits until its regrown stand could be saved; false on a timeout. */
-  const showHarvestPhase = async (phase: 'before' | 'after') => {
-    if (driveRef.current.harvestPhase === phase) return true
+  /**
+   * Shows the road view in a harvest phase and waits until its regrown stand could be saved. The phase regrows the
+   * whole stand (some 440 patches at a far view, minutes in a throttled tab), so the wait follows the timber's progress
+   * as a capture's does (`waitForStand`): it gives up only on a stand that stops growing, or on another blocker after
+   * its own limit, and says why with the patch count. `onNote` hears "Preparing timber 12 of 40".
+   */
+  const showHarvestPhase = async (
+    phase: 'before' | 'after',
+    onNote?: (note: string | null) => void,
+  ): Promise<{ ok: true } | { ok: false; reason: string | null }> => {
+    if (driveRef.current.harvestPhase === phase) return { ok: true }
     return timed(`harvest phase ${phase}`, async () => {
       updateDrive({ harvestPhase: phase })
       await waitUntil(() => driveRef.current.harvestPhase === phase, 5000)
       // The stand is regrown for the phase: give it a moment to start, then wait until the view could be saved.
       await new Promise((resolve) => window.setTimeout(resolve, 600))
-      return waitUntil(() => canSaveViewRef.current, 60_000)
+      const onSite = siteGeneration.guard()
+      return waitForStand(
+        () => ({
+          canSave: canSaveViewRef.current,
+          saveBlocker: saveBlockerRef.current,
+          timberProgress: timberProgressRef.current,
+        }),
+        {
+          now: () => performance.now(),
+          sleep: (ms) => new Promise<void>((resolve) => window.setTimeout(resolve, ms)),
+        },
+        { stop: () => !onSite() || driveRef.current.harvestPhase !== phase, ...(onNote ? { onNote } : {}) },
+      )
     })
   }
   /**
@@ -6600,6 +6841,8 @@ function DevForestryVisuals({
    */
   const captureBeforeRenders = async (
     views: ReadonlyArray<{ id: string; name: string }>,
+    /** Hears how the regrown stand is coming on ("Preparing timber 12 of 40"), or null. */
+    onNote?: (note: string | null) => void,
   ): Promise<{
     renders: Record<string, { dataUrl: string; width: number; height: number; caption: string }>
     absent: Record<string, string>
@@ -6641,8 +6884,13 @@ function DevForestryVisuals({
     const onSite = siteGeneration.guard()
     const leftSite = 'The site changed before the before renders were taken.'
     try {
-      if (!(await showHarvestPhase('before'))) {
-        notes.push('The road view did not finish drawing before harvest, so the before renders were left out.')
+      const shown = await showHarvestPhase('before', onNote)
+      if (!shown.ok) {
+        notes.push(
+          `The road view did not finish drawing before harvest${
+            shown.reason ? `: ${shown.reason[0].toLowerCase()}${shown.reason.slice(1, -1)}` : ''
+          }, so the before renders were left out.`,
+        )
         for (const entry of toRender) absent[entry.id] = TIMBER_ABSENT.noBefore
         return { renders, absent, notes }
       }
@@ -6884,7 +7132,7 @@ function DevForestryVisuals({
       const phaseBefore = driveRef.current.harvestPhase
       try {
         // Overhead and oblique renders of the blocks after harvest, as the road view draws them (01 p7).
-        if (blocks.length && (await showHarvestPhase('after'))) {
+        if (blocks.length && (await showHarvestPhase('after')).ok) {
           const ground = previewTerrain.source
           const eyeCanvas = eyeMap.getCanvas()
           const window_ = captureFrame({ width: eyeCanvas.clientWidth, height: eyeCanvas.clientHeight }, 4 / 3)
@@ -7200,8 +7448,13 @@ function DevForestryVisuals({
       enqueue: backgroundRenders.enqueue,
       jobFor: renderJobFor,
       ready: !!eyeMapRef.current && !!previewTerrain.source,
+      // Open, or opening on a run (a swap held, a preview pending): the export waits for its terrain, never opens it again.
+      open: drive.active || roadViewHeld || !!pendingPreview,
+      // Lent to an export whose engine draws from it, and handed back once its file is written.
+      openRoadView: () => openPreview(),
+      leaveRoadView: () => leaveRoadView(),
     },
-    briefBlockId: briefBlockId ?? selectedTargetId,
+    briefBlockId: briefBlockId ?? selectedTargetId ?? reviewerBlock?.id ?? null,
     standingViewId: summaryView?.id ?? null,
     onBriefBlockId: setBriefBlockId,
     captureReportImages,
@@ -7304,6 +7557,13 @@ function DevForestryVisuals({
   const workspaceRoot = useElementFullscreen<HTMLDivElement>()
   const projectFileInput = useRef<HTMLInputElement>(null)
   const shapeFileInput = useRef<HTMLInputElement>(null)
+  // Files dropped anywhere on the page go where step 1's *Import* sends them: blocks, and the road when none is set.
+  // A loose shapefile can be dropped as its parts (.shp, .dbf, .prj together); a drop field inside keeps its own drop.
+  const pageDrop = useFileDrop({
+    label: 'Drop to add cutblocks',
+    hint: 'A zipped shapefile, a shapefile’s .shp with its .dbf and .prj, or GeoJSON',
+    onFiles: (files) => void handleImportFiles(files),
+  })
   // Starting the road view from anywhere (the roadside demo, a saved view, the map's tool) brings step 2
   // forward, where its progress and settings are, without opening the ribbon's pane over the view.
   // Adjusted during render rather than in an effect, so it lands in one paint.
@@ -7409,9 +7669,44 @@ function DevForestryVisuals({
   // The road view's map unmounts when it closes; the stand it placed outlives it, so reopening reuses it.
   // Kept for as long as the stand is placed the same way: how a stem is drawn, shaded or detailed
   // moves none, so changing those redraws the stand it has instead of growing it again (half a
-  // minute at a far view).
+  // minute at a far view). The last two placements are kept (`patchCacheFor`): a before-harvest render
+  // switches the phase and back, and the after-harvest stand is found again rather than grown a third time.
+  const patchPlacements = useRef<Array<{ placement: readonly unknown[]; patches: Map<string, TreeInstance[]> }>>([])
+  // Asked by a capture's per-place engine renders (`ViewCaptureHost.render`): every kept placement but the road view's
+  // own is let go (`keepOnlyPatchPlacement`). Done after the commit the request lands in, so the harvest phase the
+  // before-harvest render put back is the one kept, never the before stand it is leaving.
+  const [patchPruneRequest, setPatchPruneRequest] = useState(0)
+  const forestPatchesRef = useRef<Map<string, TreeInstance[]> | null>(null)
+  useEffect(() => {
+    if (patchPruneRequest && forestPatchesRef.current)
+      keepOnlyPatchPlacement(patchPlacements.current, forestPatchesRef.current)
+  }, [patchPruneRequest])
+  // The road view's stand put away while an engine draws a capture's place (`ViewCaptureHost.render`): the overlay
+  // stands down (its layers and their GPU buffers go in the commit's cleanups, which run before this effect) and the
+  // placed patches are emptied for collection. Held while the host waits and while any of its jobs still draws.
+  const [roadStandRelease, setRoadStandRelease] = useState<{
+    label: string
+    keys: readonly string[]
+    host: boolean
+  } | null>(null)
+  const roadStandReleasedWaiter = useRef<(() => void) | null>(null)
+  if (
+    roadStandRelease &&
+    !roadStandRelease.host &&
+    !backgroundRenders.jobs.some((entry) => entry.status === 'running' && roadStandRelease.keys.includes(entry.job.key))
+  )
+    setRoadStandRelease(null)
+  const roadStandReleased = !!roadStandRelease
+  const roadStandReleasedRef = useRef(roadStandReleased)
+  roadStandReleasedRef.current = roadStandReleased
+  useEffect(() => {
+    if (!roadStandReleased) return
+    releasePatchPlacements(patchPlacements.current, forestPatchesRef.current)
+    roadStandReleasedWaiter.current?.()
+    roadStandReleasedWaiter.current = null
+  }, [roadStandReleased])
   const forestPatches = useMemo(() => {
-    void [
+    return patchCacheFor(patchPlacements.current, [
       forestConfiguration.anchorLatitude,
       forestConfiguration.stands,
       forestConfiguration.clearings,
@@ -7421,8 +7716,7 @@ function DevForestryVisuals({
       forestConfiguration.standHeightMeters,
       forestConfiguration.elevation,
       forestConfiguration.farRadiusMeters,
-    ]
-    return new globalThis.Map<string, TreeInstance[]>()
+    ])
   }, [
     forestConfiguration.anchorLatitude,
     forestConfiguration.stands,
@@ -7434,6 +7728,7 @@ function DevForestryVisuals({
     forestConfiguration.elevation,
     forestConfiguration.farRadiusMeters,
   ])
+  forestPatchesRef.current = forestPatches
   // The legend folds while the map shares the screen with the road view or the summary, where it
   // would cover much of a half-width map; a click opens it, until the arrangement changes again.
   const mapSharesScreen =
@@ -7462,6 +7757,7 @@ function DevForestryVisuals({
     routeOutline,
     forestConfiguration,
     forestPatches,
+    forestReleased: roadStandReleased,
     treeSun,
     treeShadows: drive.treeShadows,
     viewingGapTarget,
@@ -8028,7 +8324,12 @@ function DevForestryVisuals({
               }
               onUndo={undoTerrainLandform}
             />
-            <LandformSuggestions scene={scene} onShow={showCandidate} onAdopt={adoptCandidate} />
+            <LandformSuggestions
+              scene={scene}
+              defaultBlockId={reviewerBlock?.id ?? null}
+              onShow={showCandidate}
+              onAdopt={adoptCandidate}
+            />
           </>
         )
       }
@@ -8168,6 +8469,8 @@ function DevForestryVisuals({
       onOpenPrescription={handleOpenPrescription}
       prescriptionLines={prescriptionLines}
       onRemoveTarget={handleRemoveTarget}
+      onRemoveTargets={handleRemoveTargets}
+      reviewerBlockId={reviewerBlock?.id ?? null}
       onZoomToTarget={handleZoomToTarget}
       drawMode={drawMode}
       onDrawModeChange={handleDrawModeChange}
@@ -8229,15 +8532,10 @@ function DevForestryVisuals({
           }
           disabled={viewCapture.state.status === 'running'}
           adding={drawMode === 'view' && assessOnPlaceRef.current}
-          addBlockId={
-            viewBlocks.find((block) => block.id === (assessAddBlockId ?? selectedTargetId))?.id ??
-            viewBlocks[0]?.id ??
-            null
-          }
+          addBlockId={assessAddBlock?.id ?? null}
           onAddBlockChange={setAssessAddBlockId}
           onAdd={() => {
-            const blockId =
-              viewBlocks.find((block) => block.id === (assessAddBlockId ?? selectedTargetId))?.id ?? viewBlocks[0]?.id
+            const blockId = assessAddBlock?.id
             if (!blockId) return
             viewPlacementBlockRef.current = blockId
             assessOnPlaceRef.current = true
@@ -8251,10 +8549,7 @@ function DevForestryVisuals({
           onChoose={(viewId) => viewCapture.standAt(viewId, { roadView: false })}
           onKeepSpot={() => {
             const spot = scene.viewpoint.coordinates[0]
-            const block =
-              scene.targets.find(
-                (target) => target.role === 'block' && target.id === (assessAddBlockId ?? selectedTargetId),
-              ) ?? scene.targets.find((target) => target.role === 'block')
+            const block = assessAddBlock
             if (!spot || !block) return
             const view = viewAtPoint({ lng: spot[0], lat: spot[1] }, block, viewsOfInterest)
             const added = addViews(viewsOfInterest, [view])
@@ -8299,7 +8594,7 @@ function DevForestryVisuals({
       onSelectTarget={setSelectedTargetId}
       drive={preliminaryDrive ? { ...drive, active: false } : drive}
       onDriveChange={updateDrive}
-      onImportFile={(file) => void handleImportFile(file)}
+      onImportFiles={(files) => void handleImportFiles(files)}
       importMessage={importMessage}
       inventory={inventory}
       showInventory={showInventory}
@@ -8310,7 +8605,7 @@ function DevForestryVisuals({
       // A road-view demo with no landform to assess: straight into the drive.
       onLoadDriveSample={() => handleLoadSample('roadside', true)}
       onLoadHighwaySample={() => handleLoadSample('purden')}
-      onImportRoad={(file) => void importPreviewGeometry(file, 'road')}
+      onImportRoad={(files) => void importPreviewGeometry(files, 'road')}
       onActivateLandform={setSiteLandform}
       siteLandformId={siteLandform?.id ?? null}
       assessmentScope={
@@ -8442,7 +8737,8 @@ function DevForestryVisuals({
       ? `The scene holds ${MAX_ASSESSMENT_MASKS} masks, the most it keeps.`
       : null
   const pickingRoad = !!mapPick?.hint && mapPick.onPoint === pickBasemapRoad
-  const siteName = projectTitle ?? scene.targets.find((target) => target.role === 'block')?.name ?? null
+  // An opened project's own title, else the block the reviewer works on (not the plan's first block).
+  const siteName = projectTitle ?? reviewerBlock?.name ?? null
   const ratingLine = viaAssessment?.rating
     ? `${viaAssessment.rating.label} · ${viaAssessment.objective.code} objective`
     : result
@@ -8736,6 +9032,119 @@ function DevForestryVisuals({
     header
   )
 
+  // The plan map's tools. In a desktop workspace they are a strip along the map's top-left edge (`MapToolbar`), as the
+  // road designer's plan draws its tools, and the right-hand column keeps the compass, zoom and Layers; on a phone they
+  // stay in that column's folding stack, whose More menu keeps them in reach of a thumb.
+  const planToolItems: MapControlOverflowItem[] = [
+    {
+      id: 'measure',
+      priority: 3,
+      node: (
+        <MapMeasureControl
+          active={measuring}
+          onToggle={toggleMeasure}
+          disabled={drawMode !== 'none'}
+          title={
+            drawMode !== 'none'
+              ? 'Measure · finish or cancel the drawing first'
+              : 'Measure a distance, an area or a circle'
+          }
+        />
+      ),
+      menu: {
+        icon: Ruler,
+        label: 'Measure',
+        description: drawMode !== 'none' ? 'Finish or cancel the drawing first' : undefined,
+        pressed: measuring,
+        disabled: drawMode !== 'none',
+        onSelect: toggleMeasure,
+      },
+    },
+    ...planMapToolItems({
+      drawMode: drawMode,
+      routePreviewOpen: routePreviewOpen,
+      routePreviewOn: routeViewshed.enabled,
+      addViewDisabled: !viewBlocks.length
+        ? 'Add a view of interest · draw or import a cutblock first'
+        : viewsOfInterest.length >= MAX_VIEWS_OF_INTEREST
+          ? `Add a view of interest · ${MAX_VIEWS_OF_INTEREST} views is the most`
+          : viewCapture.state.status === 'running'
+            ? 'Add a view of interest · wait for the capture to finish'
+            : null,
+      patchDisabled:
+        (scene.masks ?? []).length >= MAX_ASSESSMENT_MASKS
+          ? `Draw a wildlife tree patch · the scene holds ${MAX_ASSESSMENT_MASKS} masks, the most it keeps`
+          : null,
+      onDraw: startPlanDraw,
+      look: {
+        open: drive.active,
+        picking: pickingRoad,
+        disabled: drive.active ? 'The road view is open' : pendingPreview ? 'Preparing the road view…' : null,
+        onLook: lookFromRoad,
+      },
+      onRoutePreview: toggleRoutePreview,
+    }),
+    {
+      id: 'sources',
+      priority: 5,
+      node: (
+        <MapToolToggle
+          icon={FileUp}
+          label={TOOL_SOURCES_TITLE}
+          title={`${TOOL_SOURCES_TITLE} · ${toolSourcesSummary(scene)}`}
+          active={sourcesOpen}
+          on={!!(scene.masks?.length || scene.localRasters?.length)}
+          onToggle={() => setSourcesOpen((open) => !open)}
+        />
+      ),
+      menu: {
+        icon: FileUp,
+        label: TOOL_SOURCES_TITLE,
+        pressed: sourcesOpen,
+        onSelect: () => setSourcesOpen((open) => !open),
+      },
+    },
+  ]
+  const planLayersItem: MapControlOverflowItem = {
+    // Never folded: it opens its own panel, which a menu row cannot hold.
+    id: 'layers',
+    priority: 10,
+    node: (
+      <MapLayersControl
+        basemaps={IMAGERY_BASEMAPS}
+        basemap={planShow.basemap}
+        onBasemapChange={(value: PlanBasemap) => setPlanShow((current) => ({ ...current, basemap: value }))}
+        overlays={[
+          {
+            id: 'hillshade',
+            label: 'Hillshade',
+            checked: planShow.hillshade,
+            onCheckedChange: (checked) => setPlanShow((current) => ({ ...current, hillshade: checked })),
+          },
+          {
+            id: 'evqo',
+            label: 'Established VQO polygons',
+            description: !planShow.evqo
+              ? 'BC visual landscape inventory'
+              : !evqoCurrent
+                ? 'Loading…'
+                : evqoCurrent.error
+                  ? `Unavailable: ${evqoCurrent.error}`
+                  : evqoCurrent.collection.features.length
+                    ? `${evqoCurrent.collection.features.length} polygons around the scene`
+                    : 'None established around the scene',
+            checked: planShow.evqo,
+            onCheckedChange: (checked) => setPlanShow((current) => ({ ...current, evqo: checked })),
+          },
+        ]}
+      />
+    ),
+  }
+  const planToolGroups: { label: string; ids: string[] }[] = [
+    { label: 'View from the road', ids: ['look', 'route-preview'] },
+    { label: 'Draw', ids: ['block', 'road', 'view', 'patch'] },
+    { label: 'Map tools', ids: ['measure', 'sources'] },
+  ]
   const workspaceBody = (
     <MapSectionLayout
       // Below the workspace's header or ribbon, on the interface's panel canvas.
@@ -8928,120 +9337,7 @@ function DevForestryVisuals({
                                 label="More map tools"
                                 // A finger pinches to zoom, so under one the zoom pair folds first; a mouse keeps it.
                                 zoom={{ priority: coarsePointer ? 1 : 11 }}
-                                items={[
-                                  {
-                                    id: 'measure',
-                                    priority: 3,
-                                    node: (
-                                      <MapMeasureControl
-                                        active={measuring}
-                                        onToggle={toggleMeasure}
-                                        disabled={drawMode !== 'none'}
-                                        title={
-                                          drawMode !== 'none'
-                                            ? 'Measure · finish or cancel the drawing first'
-                                            : 'Measure a distance, an area or a circle'
-                                        }
-                                      />
-                                    ),
-                                    menu: {
-                                      icon: Ruler,
-                                      label: 'Measure',
-                                      description:
-                                        drawMode !== 'none' ? 'Finish or cancel the drawing first' : undefined,
-                                      pressed: measuring,
-                                      disabled: drawMode !== 'none',
-                                      onSelect: toggleMeasure,
-                                    },
-                                  },
-                                  ...planMapToolItems({
-                                    drawMode: drawMode,
-                                    routePreviewOpen: routePreviewOpen,
-                                    routePreviewOn: routeViewshed.enabled,
-                                    addViewDisabled: !viewBlocks.length
-                                      ? 'Add a view of interest · draw or import a cutblock first'
-                                      : viewsOfInterest.length >= MAX_VIEWS_OF_INTEREST
-                                        ? `Add a view of interest · ${MAX_VIEWS_OF_INTEREST} views is the most`
-                                        : viewCapture.state.status === 'running'
-                                          ? 'Add a view of interest · wait for the capture to finish'
-                                          : null,
-                                    patchDisabled:
-                                      (scene.masks ?? []).length >= MAX_ASSESSMENT_MASKS
-                                        ? `Draw a wildlife tree patch · the scene holds ${MAX_ASSESSMENT_MASKS} masks, the most it keeps`
-                                        : null,
-                                    onDraw: startPlanDraw,
-                                    look: {
-                                      open: drive.active,
-                                      picking: pickingRoad,
-                                      disabled: drive.active
-                                        ? 'The road view is open'
-                                        : pendingPreview
-                                          ? 'Preparing the road view…'
-                                          : null,
-                                      onLook: lookFromRoad,
-                                    },
-                                    onRoutePreview: toggleRoutePreview,
-                                  }),
-                                  {
-                                    // Never folded: it opens its own panel, which a menu row cannot hold.
-                                    id: 'layers',
-                                    priority: 10,
-                                    node: (
-                                      <MapLayersControl
-                                        basemaps={IMAGERY_BASEMAPS}
-                                        basemap={planShow.basemap}
-                                        onBasemapChange={(value: PlanBasemap) =>
-                                          setPlanShow((current) => ({ ...current, basemap: value }))
-                                        }
-                                        overlays={[
-                                          {
-                                            id: 'hillshade',
-                                            label: 'Hillshade',
-                                            checked: planShow.hillshade,
-                                            onCheckedChange: (checked) =>
-                                              setPlanShow((current) => ({ ...current, hillshade: checked })),
-                                          },
-                                          {
-                                            id: 'evqo',
-                                            label: 'Established VQO polygons',
-                                            description: !planShow.evqo
-                                              ? 'BC visual landscape inventory'
-                                              : !evqoCurrent
-                                                ? 'Loading…'
-                                                : evqoCurrent.error
-                                                  ? `Unavailable: ${evqoCurrent.error}`
-                                                  : evqoCurrent.collection.features.length
-                                                    ? `${evqoCurrent.collection.features.length} polygons around the scene`
-                                                    : 'None established around the scene',
-                                            checked: planShow.evqo,
-                                            onCheckedChange: (checked) =>
-                                              setPlanShow((current) => ({ ...current, evqo: checked })),
-                                          },
-                                        ]}
-                                      />
-                                    ),
-                                  },
-                                  {
-                                    id: 'sources',
-                                    priority: 5,
-                                    node: (
-                                      <MapToolToggle
-                                        icon={FileUp}
-                                        label={TOOL_SOURCES_TITLE}
-                                        title={`${TOOL_SOURCES_TITLE} · ${toolSourcesSummary(scene)}`}
-                                        active={sourcesOpen}
-                                        on={!!(scene.masks?.length || scene.localRasters?.length)}
-                                        onToggle={() => setSourcesOpen((open) => !open)}
-                                      />
-                                    ),
-                                    menu: {
-                                      icon: FileUp,
-                                      label: TOOL_SOURCES_TITLE,
-                                      pressed: sourcesOpen,
-                                      onSelect: () => setSourcesOpen((open) => !open),
-                                    },
-                                  },
-                                ]}
+                                items={phone ? [...planToolItems, planLayersItem] : [planLayersItem]}
                               />
                             </MapControls>
                           }
@@ -9084,7 +9380,11 @@ function DevForestryVisuals({
                           />
                           <LinkedCursorMarker point={photoDocked ? photoHoverGround : null} />
                           {drapeOnPlan && planDrapes.length > 0 && drawMode === 'none' && !mapPick && (
-                            <MapOverlay position="top-left" clearChrome className="w-72 max-w-[calc(100%-4rem)]">
+                            <MapOverlay
+                              position="top-left"
+                              clearChrome
+                              className={cn(BELOW_MAP_TOOLBAR, 'w-72 max-w-[calc(100%-4rem)]')}
+                            >
                               <PhotoDrapeCard
                                 candidates={planDrapes.map((drape) => ({
                                   id: drape.id,
@@ -9161,7 +9461,10 @@ function DevForestryVisuals({
                             <MapOverlay
                               position="top-left"
                               clearChrome
-                              className="w-72 max-w-[calc(100%-4.5rem)] border-0 bg-transparent shadow-none backdrop-blur-none"
+                              className={cn(
+                                BELOW_MAP_TOOLBAR,
+                                'w-72 max-w-[calc(100%-4.5rem)] border-0 bg-transparent shadow-none backdrop-blur-none',
+                              )}
                             >
                               <MapMeasurePanel sketch={measure} onClose={clearMeasure} />
                             </MapOverlay>
@@ -9170,7 +9473,10 @@ function DevForestryVisuals({
                             <MapOverlay
                               position="top-left"
                               clearChrome
-                              className="max-h-[calc(100%_-_1rem_-_var(--map-mobile-sheet-visible-height,0px))] w-80 max-w-[calc(100%-4.5rem)] overflow-y-auto overscroll-none border-0 bg-transparent shadow-none backdrop-blur-none"
+                              className={cn(
+                                BELOW_MAP_TOOLBAR,
+                                'max-h-[calc(100%_-_1rem_-_var(--map-toolbar-bottom,0px)_-_var(--map-mobile-sheet-visible-height,0px))] w-80 max-w-[calc(100%-4.5rem)] overflow-y-auto overscroll-none border-0 bg-transparent shadow-none backdrop-blur-none',
+                              )}
                             >
                               <PlanMapToolCard
                                 compact={phone || planShort}
@@ -9304,7 +9610,7 @@ function DevForestryVisuals({
                             <MapOverlay
                               position="top-left"
                               clearChrome
-                              className="flex items-center gap-2 px-3 py-2"
+                              className={cn(BELOW_MAP_TOOLBAR, 'flex items-center gap-2 px-3 py-2')}
                               role="status"
                               data-testid="map-pick-hint"
                             >
@@ -9321,9 +9627,24 @@ function DevForestryVisuals({
                             </MapOverlay>
                           )}
                         </Map>
+                        {!phone && (
+                          <MapToolbar label="Plan tools">
+                            {planToolGroups.map((group) => (
+                              <MapToolbarGroup key={group.label} label={group.label}>
+                                {planToolItems
+                                  .filter((item) => group.ids.includes(item.id))
+                                  .map((item) => (
+                                    <Fragment key={item.id}>{item.node}</Fragment>
+                                  ))}
+                              </MapToolbarGroup>
+                            ))}
+                          </MapToolbar>
+                        )}
                         {
                           <PlanMapLegend
-                            besideTools={planShort ? 'wide' : 'one'}
+                            // The legend keeps left of the tool stack only where the tools are in it (a phone), or
+                            // where a short plan could bring it up to the compass, zoom and Layers.
+                            besideTools={phone ? (planShort ? 'wide' : 'one') : planShort ? 'one' : undefined}
                             collapsed={legendCollapsed}
                             onCollapsedChange={(collapsed) => setLegendChoice({ shared: legendFolds, collapsed })}
                             blocks={{
@@ -9577,6 +9898,9 @@ function DevForestryVisuals({
                                               {previewTerrain.loading
                                                 ? `Loading terrain · ${previewTerrain.progress}%`
                                                 : (previewTerrain.message ??
+                                                  (roadStandRelease && drive.forest
+                                                    ? `Timber put away while ${roadStandRelease.label} draws this place`
+                                                    : null) ??
                                                   currentForestStatus?.error ??
                                                   `Preparing forest${currentForestStatus?.totalPatches ? ` · ${Math.round((100 * (currentForestStatus.patchCount ?? 0)) / currentForestStatus.totalPatches)}%` : '…'}${currentForestStatus?.nearbyReady ? ' · nearby view ready' : ''}`)}
                                               {!previewTerrain.loading && previewTerrain.message && (
@@ -9920,6 +10244,7 @@ function DevForestryVisuals({
       }}
     >
       <div
+        {...pageDrop.dropProps}
         ref={workspaceRoot.ref}
         // The interface's panel canvas and dock (`workspaceFrame.ts`), read by the shared workspace styles.
         {...workspaceFrameProps(active)}
@@ -9966,12 +10291,13 @@ function DevForestryVisuals({
         <input
           ref={shapeFileInput}
           type="file"
-          accept=".zip,.geojson,.json"
+          accept={SHAPE_FILE_ACCEPT}
+          multiple
           hidden
           onChange={(event) => {
-            const file = event.target.files?.[0]
+            const files = Array.from(event.target.files ?? [])
             event.target.value = ''
-            if (file) void handleImportFile(file)
+            if (files.length) void handleImportFiles(files)
           }}
         />
         <div className="lp-canvas-frame">
@@ -9985,6 +10311,7 @@ function DevForestryVisuals({
           </RibbonPaneColumns>
         </div>
         {createPortal(sidebar, editorHost)}
+        {pageDrop.overlay}
       </div>
     </RibbonPaneHost.Provider>
   )

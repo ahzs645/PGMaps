@@ -626,9 +626,32 @@ export type FigureIllustration = {
   stand?: { stems: number; radiusMeters: number; clipped: boolean; millis: number } | null
 }
 
+/**
+ * The class and zone layers' ids (`classPassLayers`, `zonePassLayers`) in the words a sheet prints. An engine names a
+ * layer by the id it was sent ("proposedOut cut at the terrain edge"); a printed line never shows one.
+ */
+export const CLASS_LAYER_WORDS: Readonly<Record<string, string>> = {
+  proposedIn: 'proposed blocks in the landform',
+  proposedOut: 'proposed blocks outside the landform',
+  existingIn: 'existing openings in the landform',
+  existingOut: 'existing openings outside the landform',
+  partialIn: 'partial cuts in the landform',
+  partialOut: 'partial cuts outside the landform',
+  privateIn: 'private land in the landform',
+  privateOut: 'private land outside the landform',
+}
+
+/** One of an engine's `missing` phrases with every layer id in it put in words (`CLASS_LAYER_WORDS`). */
+export function plainMissing(phrase: string): string {
+  return phrase
+    .replace(/\b(proposed|existing|partial|private)(In|Out)\b/g, (id) => CLASS_LAYER_WORDS[id] ?? id)
+    .replace(/\bzone-([A-Z]{1,2})\b/g, (_, code: string) => `the ${code} zone`)
+    .replace(/\blandform-(\w+)\b/g, (_, n: string) => `landform ${n}`)
+}
+
 /** The sheet's line of what the picture drew without data, or null when nothing. */
 export function missingLine(illustration: FigureIllustration): string | null {
-  return illustration.missing.length ? `Drawn without data: ${illustration.missing.join('; ')}` : null
+  return illustration.missing.length ? `Drawn without data: ${illustration.missing.map(plainMissing).join('; ')}` : null
 }
 
 /** One line for the sheet: what drew the picture and its pixel figure. */
@@ -640,7 +663,11 @@ export function illustrationLine(illustration: FigureIllustration): string {
     : final === null
       ? '; active render (final not drawn)'
       : ''
-  return `Picture and pixel measures: ${illustration.renderer}${version}, one capture${render}`
+  // A stand cut short by the stem budget says how far it reached: past it the engine draws its own coarser forest.
+  const stand = illustration.stand
+  const clipped =
+    final && stand?.clipped ? `; real-density stand to ${(stand.radiusMeters / 1000).toFixed(1)} km (stem budget)` : ''
+  return `Picture and pixel measures: ${illustration.renderer}${version}, one capture${render}${clipped}`
 }
 
 /** A stem count for a printed line: 812 or 1.38 M. */
@@ -648,6 +675,41 @@ function formatStems(stems: number): string {
   if (stems >= 1_000_000) return `${(stems / 1_000_000).toFixed(2)} M`
   if (stems >= 10_000) return `${Math.round(stems / 1000)} k`
   return String(stems)
+}
+
+/** One line of an engine's trace (`pgmaps-engine-trace`): a build, final-stand or capture stage as it ends, or a GPU event. */
+export type EngineTraceLine = {
+  at: number
+  phase: string
+  stage: string
+  ms: number | null
+  detail: Record<string, number | string> | null
+}
+
+/** Lines kept: enough for a few places' builds, final stands and captures, a few kilobytes. */
+export const ENGINE_TRACE_LINES = 200
+
+/** `{ type: 'pgmaps-engine-trace', … }` checked and trimmed, or null for anything else or anything malformed. */
+export function readEngineTrace(data: unknown): EngineTraceLine | null {
+  if (!isRecord(data) || data.type !== 'pgmaps-engine-trace') return null
+  if (typeof data.phase !== 'string' || typeof data.stage !== 'string') return null
+  const detail: Record<string, number | string> = {}
+  if (isRecord(data.detail))
+    for (const [key, value] of Object.entries(data.detail).slice(0, 12))
+      if (finite(value)) detail[key.slice(0, 40)] = value
+      else if (typeof value === 'string') detail[key.slice(0, 40)] = value.slice(0, 300)
+  return {
+    at: finite(data.at) ? data.at : Date.now(),
+    phase: data.phase.slice(0, 40),
+    stage: data.stage.slice(0, 80),
+    ms: finite(data.ms) ? data.ms : null,
+    detail: Object.keys(detail).length ? detail : null,
+  }
+}
+
+/** The trace with `line` appended, the oldest dropped past `max` lines. */
+export function withTraceLine(lines: readonly EngineTraceLine[], line: EngineTraceLine, max = ENGINE_TRACE_LINES) {
+  return [...lines, line].slice(-Math.max(1, max))
 }
 
 /** A capture's progress as an engine reports it: render steps done of the request's total. */

@@ -15,7 +15,13 @@ import { TextButton } from '@/components/ui/text-button'
 import type { EngineCaptureHandle } from './ExternalRoadRenderer'
 import type { EngineChannel } from './engineChannel'
 import { EngineSurface } from './EngineSurface'
-import { captureTransfer, readCaptureProgress } from './engineCapture'
+import {
+  captureTransfer,
+  readCaptureProgress,
+  readEngineTrace,
+  withTraceLine,
+  type EngineTraceLine,
+} from './engineCapture'
 import {
   engineCamera,
   engineEnvironment,
@@ -88,6 +94,36 @@ function renderLog(event: string, detail: Record<string, unknown> = {}) {
   if (!import.meta.env.DEV || typeof window === 'undefined') return
   const target = window as unknown as { __visualsRenderLog?: Array<Record<string, unknown>> }
   ;(target.__visualsRenderLog ??= []).push({ at: Math.round(performance.now()), event, ...detail })
+}
+
+/**
+ * The engine's trace (`readEngineTrace`), kept in this browser as each line arrives: a render that kills the tab (the
+ * worker shares its process) still leaves the last stage it reached. Diagnostics only, a few kilobytes.
+ */
+export const ENGINE_TRACE_KEY = 'pgmaps.forestryVisuals.engineTrace'
+function keepTraceLine(line: EngineTraceLine) {
+  try {
+    const kept = JSON.parse(localStorage.getItem(ENGINE_TRACE_KEY) ?? '[]') as EngineTraceLine[]
+    localStorage.setItem(ENGINE_TRACE_KEY, JSON.stringify(withTraceLine(Array.isArray(kept) ? kept : [], line)))
+  } catch {
+    // Storage full or unavailable: the trace is a diagnostic, never worth failing a render over.
+  }
+}
+
+/**
+ * A step of the page's own side of an engine capture (growing the final stand, making and posting the request), kept
+ * beside the engine's trace with the page's heap where the browser reports it: a crash between the two sides still
+ * names which side and step it was in.
+ */
+export function tracePageStep(stage: string, detail: Record<string, number | string> = {}) {
+  const memory = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory
+  keepTraceLine({
+    at: Date.now(),
+    phase: 'page',
+    stage,
+    ms: null,
+    detail: { ...detail, ...(memory ? { heapMB: Math.round(memory.usedJSHeapSize / 1e6) } : {}) },
+  })
 }
 
 const HELLO_TIMEOUT_MS = 30_000
@@ -185,6 +221,12 @@ function useCaptureBridge(
         reply?.(raw)
         return
       }
+      const line = readEngineTrace(message)
+      if (line) {
+        keepTraceLine(line)
+        renderLog('trace', line)
+        return
+      }
       const step = readCaptureProgress(message)
       if (step) {
         if (replies.has(step.id)) progress?.(step)
@@ -251,7 +293,11 @@ function useCaptureBridge(
                   resolve(data)
                 })
                 renderLog('request', { id: request.id })
+                const standStems =
+                  (request as { final?: { stand?: { count?: number } | null } }).final?.stand?.count ?? 0
+                tracePageStep('post-request', { standStems })
                 post(request, captureTransfer(request))
+                tracePageStep('posted-request')
               },
               (error: unknown) => {
                 finished = true
@@ -316,7 +362,8 @@ function useCaptureBridge(
       sendWhole = null
       handleRef.current = null
       postOptionsRef.current = null
-      helloRef.current = null
+      // A restart (`restartEngine`) has already put a new hello in its place for the next page to answer.
+      if (helloRef.current === hello) helloRef.current = null
     }
   }, [engine, channel])
   return { helloRef, handleRef }
@@ -347,6 +394,8 @@ export function useBackgroundRenders(input: {
     return () => window.clearTimeout(timer)
   }, [queued])
   const engine = queued ?? (jobs.length ? lingering : null)
+  // Bumped by `restartEngine`: the engine's surface is keyed to it, so a new one replaces the old (and its memory).
+  const [generation, setGeneration] = useState(0)
   // A worker on its own thread, or a page on a site of its own (`EngineSurface`): its long scripts never freeze the page.
   const url = engine ? input.urlFor(engine) : null
   const [channel, setChannel] = useState<EngineChannel | null>(null)
@@ -373,6 +422,27 @@ export function useBackgroundRenders(input: {
 
   // One job at a time, in order.
   const busy = useRef(false)
+  // A restart asked for while a job runs waits for it to settle (`restartEngine`).
+  const restartPending = useRef(false)
+  const applyRestart = useCallback(() => {
+    restartPending.current = false
+    warmEngine.current = null
+    // The next job is cold: it waits for this hello, which only the new engine's bridge resolves (the old bridge's
+    // cleanup leaves it in place).
+    helloRef.current = deferred()
+    renderLog('restart')
+    setGeneration((current) => current + 1)
+  }, [helloRef])
+  /**
+   * Starts the engine again before the next job: the worker or page goes, with every scene it still holds, and a new
+   * one says hello before the next job is sent. Asked between places of a capture batch, so one place's scene and
+   * stand never stay alive while the next place's are built. Nothing queued is dropped: the waiting jobs run on the new
+   * engine. Asked while a job runs, it waits for that job to settle.
+   */
+  const restartEngine = useCallback(() => {
+    if (busy.current) restartPending.current = true
+    else applyRestart()
+  }, [applyRestart])
   useEffect(() => {
     if (busy.current || running || !next || !url) return
     busy.current = true
@@ -470,9 +540,10 @@ export function useBackgroundRenders(input: {
         }
       } finally {
         busy.current = false
+        if (restartPending.current) applyRestart()
       }
     })()
-  }, [running, next, url, helloRef, handleRef])
+  }, [running, next, url, helloRef, handleRef, applyRestart])
 
   // A queue with nothing left to run lets the engine page go (and with it the GPU memory it holds).
   useEffect(() => {
@@ -579,7 +650,7 @@ export function useBackgroundRenders(input: {
         </div>
         {url && engine && (
           <EngineSurface
-            key={`${engine} ${url}`}
+            key={`${engine} ${url} ${generation}`}
             url={url}
             title={`Background renders by ${label}`}
             onConnect={setChannel}
@@ -626,5 +697,5 @@ export function useBackgroundRenders(input: {
       </div>
     ) : null
 
-  return { jobs, enqueue, cancel, status, tray, history }
+  return { jobs, enqueue, cancel, restartEngine, status, tray, history }
 }

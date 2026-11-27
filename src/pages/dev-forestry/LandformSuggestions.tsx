@@ -19,10 +19,13 @@ import { formatKm } from './measureFormat'
 
 export function LandformSuggestions({
   scene,
+  defaultBlockId = null,
   onShow,
   onAdopt,
 }: {
   scene: ForestryScene
+  /** The block searched near until one is chosen here: the block the reviewer works on (`reviewerBlockId`). */
+  defaultBlockId?: string | null
   onShow: (unit: BcSensitivityUnit) => void
   onAdopt: (unit: BcSensitivityUnit) => void
 }) {
@@ -31,7 +34,7 @@ export function LandformSuggestions({
   const [blockId, setBlockId] = useState('')
   const [shownId, setShownId] = useState<string | null>(null)
   const blocks = scene.targets.filter((t) => t.role === 'block')
-  const selected = blocks.find((b) => b.id === blockId) ?? blocks[0]
+  const selected = blocks.find((b) => b.id === blockId) ?? blocks.find((b) => b.id === defaultBlockId) ?? blocks[0]
   const b = selected ? polygonBounds(selected.geometry) : null
   const lng = b ? (b[0] + b[2]) / 2 : scene.viewpoint.coordinates[0]?.[0]
   const lat = b ? (b[1] + b[3]) / 2 : scene.viewpoint.coordinates[0]?.[1]

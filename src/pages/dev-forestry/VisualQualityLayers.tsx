@@ -98,6 +98,11 @@ export type SceneLayerData = {
   forestConfiguration: ComponentProps<typeof ForestOverlay>['configuration']
   /** The stand's placed patches, kept across the road view's map closing and reopening. */
   forestPatches: ComponentProps<typeof ForestOverlay>['patches']
+  /**
+   * The road view's stand is put away while another engine draws a capture's place (`RELEASE_ROAD_VIEW_STAND_FOR_ENGINE`):
+   * the overlay stands down, so its tree layers leave the map and their GPU buffers go, and it grows again when cleared.
+   */
+  forestReleased?: boolean
   /** The background band's ground and inventory once read (View options → *Distant trees*); null until then. */
   forestBackground: ComponentProps<typeof ForestOverlay>['background']
   /** The background band's read is still out: the stand is not ready until it comes or fails. */
@@ -412,7 +417,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         <>
           <MovingResolution active={drive.movingResolution === 'reduced'} />
           <ForestOverlay
-            active={drive.forest}
+            active={drive.forest && !data.forestReleased}
             configuration={forestConfiguration}
             patches={forestPatches}
             background={data.forestBackground}
@@ -493,8 +498,9 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       )}
       {!eye && (
         <>
-          {/* Hectares and kilometres are the page's units. It clears the phone sheet. */}
-          <MapScaleBar position="bottom-right" />
+          {/* Hectares and kilometres are the page's units. Bottom left, over the coordinate bar, as the road
+            designer's plan has it: the legend keeps the bottom-right corner. It clears the phone sheet. */}
+          <MapScaleBar position="bottom-left" />
           {/* Read while the road view is closed, as before it had a map of its own: the road view's
             water and road class stay as they were when it opened. */}
           <BasemapContextProbe

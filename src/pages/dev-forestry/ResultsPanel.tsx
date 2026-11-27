@@ -1,6 +1,7 @@
 import { Check, Mountain, X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { DisclosureCard } from '@/components/ui/disclosure'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { StackedShareBar } from '@/components/ui/share-bars'
 import { StatGroup } from '@/components/ui/stat-group'
@@ -96,7 +97,11 @@ export function ResultsPanel({
   onSeek,
 }: ResultsPanelProps) {
   const targetsById = new Map(targets.map((target) => [target.id, target]))
-  const blocks = result.targets.filter((target) => target.role === 'block')
+  const allBlocks = result.targets.filter((target) => target.role === 'block')
+  // A district plan puts most blocks past the view distance: the assessed ones come first, in their order, and the
+  // rest fold into one row naming them. Display only; the run is unchanged.
+  const blocks = allBlocks.filter((block) => !block.outOfRange && targetsById.has(block.targetId))
+  const beyond = allBlocks.filter((block) => block.outOfRange && targetsById.has(block.targetId))
   const landscape = result.targets.find((target) => target.role === 'landscape')
   const landformTarget = landscape ? targetsById.get(landscape.targetId) : undefined
   const isCorridor = result.stations.length > 1
@@ -268,62 +273,89 @@ export function ResultsPanel({
               </span>
             </button>
 
-            {block.outOfRange ? (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Beyond the {formatKm(result.settings.maxViewDistanceMeters, 0)} view distance — not assessed.
-              </p>
-            ) : (
-              <>
-                <KeyValueRows
-                  className="mt-2"
-                  rows={[
-                    {
-                      label: isCorridor ? 'Seen from anywhere on the road' : 'Seen from the viewpoint',
-                      value: `${formatHa(block.visibleAreaMeters)} of ${formatHa(block.areaMeters)}`,
-                    },
-                    {
-                      label: 'Share of its apparent size in view',
-                      value: formatPct(block.apparentVisiblePercent),
-                    },
-                    {
-                      label: 'Nearest / furthest visible ground',
-                      value: `${formatKm(block.nearestVisibleDistanceMeters)} / ${formatKm(
-                        block.farthestVisibleDistanceMeters,
-                      )}`,
-                    },
-                    ...(block.meanSlopePercent !== null && block.vegHeightMeters !== null
-                      ? [
-                          {
-                            // Steeper ground shows more of the cut surface, so
-                            // regeneration has to be taller before the opening
-                            // reads as forest again. The height is weighted over
-                            // the block's own slope classes rather than read off
-                            // the mean, which is what the procedure asks for.
-                            label: 'Mean slope · green-up height',
-                            value: `${formatPct(block.meanSlopePercent, 0)} · ${formatMeasure(block.vegHeightMeters, 'm', { minimumFractionDigits: 1 })}`,
-                          },
-                        ]
-                      : []),
-                  ]}
-                />
-                <ZoneBar target={block} />
+            <KeyValueRows
+              className="mt-2"
+              rows={[
+                {
+                  label: isCorridor ? 'Seen from anywhere on the road' : 'Seen from the viewpoint',
+                  value: `${formatHa(block.visibleAreaMeters)} of ${formatHa(block.areaMeters)}`,
+                },
+                {
+                  label: 'Share of its apparent size in view',
+                  value: formatPct(block.apparentVisiblePercent),
+                },
+                {
+                  label: 'Nearest / furthest visible ground',
+                  value: `${formatKm(block.nearestVisibleDistanceMeters)} / ${formatKm(
+                    block.farthestVisibleDistanceMeters,
+                  )}`,
+                },
+                ...(block.meanSlopePercent !== null && block.vegHeightMeters !== null
+                  ? [
+                      {
+                        // Steeper ground shows more of the cut surface, so
+                        // regeneration has to be taller before the opening
+                        // reads as forest again. The height is weighted over
+                        // the block's own slope classes rather than read off
+                        // the mean, which is what the procedure asks for.
+                        label: 'Mean slope · green-up height',
+                        value: `${formatPct(block.meanSlopePercent, 0)} · ${formatMeasure(block.vegHeightMeters, 'm', { minimumFractionDigits: 1 })}`,
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+            <ZoneBar target={block} />
 
-                {isCorridor && selected && (
-                  <div className="mt-3 border-t border-border pt-3">
-                    <p className="mb-1 text-xs font-medium text-foreground">Visible share along the road</p>
-                    <VisibilityProfile
-                      stations={block.stations}
-                      assessmentIndex={result.assessmentStationIndex}
-                      positionMeters={drivePositionMeters}
-                      onSeek={onSeek}
-                    />
-                  </div>
-                )}
-              </>
+            {isCorridor && selected && (
+              <div className="mt-3 border-t border-border pt-3">
+                <p className="mb-1 text-xs font-medium text-foreground">Visible share along the road</p>
+                <VisibilityProfile
+                  stations={block.stations}
+                  assessmentIndex={result.assessmentStationIndex}
+                  positionMeters={drivePositionMeters}
+                  onSeek={onSeek}
+                />
+              </div>
             )}
           </div>
         )
       })}
+
+      {beyond.length > 0 && (
+        <DisclosureCard
+          title={`${formatNumber(beyond.length)} block${beyond.length === 1 ? '' : 's'} beyond the ${formatKm(
+            result.settings.maxViewDistanceMeters,
+            0,
+          )} view distance`}
+          summary="Not assessed"
+          help="No part of these blocks lies within the run's view distance of the viewpoint, so the run did not assess them. Choose one to select it."
+          toggleProps={{ 'data-forestry-disclosure': 'results-beyond-view-distance' }}
+        >
+          <ul className="flex flex-wrap gap-1" aria-label="Blocks beyond the view distance">
+            {beyond.map((block) => {
+              const selected = selectedTargetId === block.targetId
+              return (
+                <li key={block.targetId}>
+                  <button
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => onSelectTarget(block.targetId)}
+                    className={cn(
+                      'rounded-md border px-1.5 py-0.5 text-2xs transition-colors hover:bg-muted',
+                      selected
+                        ? 'border-primary/60 bg-muted/30 text-foreground'
+                        : 'border-border text-muted-foreground',
+                    )}
+                  >
+                    {targetsById.get(block.targetId)?.name}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </DisclosureCard>
+      )}
 
       {landscape && (
         <div className="rounded-lg border border-border p-3">

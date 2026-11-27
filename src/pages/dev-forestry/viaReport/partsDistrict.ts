@@ -108,6 +108,18 @@ export interface DistrictFigures {
   total: string | null
   /** Read on the form's strict bounds (P=0%; R<1.5%; PR<7%; M<18%; MM<30%). */
   within: 'Yes' | 'No' | null
+  /** Why the view has no figure, in words for the table's note; null when it has one. */
+  unmeasured: string | null
+}
+
+/** What a district row's cell prints for a view with no figure: never an empty cell beside its neighbours'. */
+export const NOT_MEASURED_CELL = 'Not measured'
+
+/** Why a view's class pass gives no percent alteration. */
+function unmeasuredReason(vp: FactsViewpoint): string {
+  if (!vp.areas) return 'no class pass was captured with the view'
+  if (!(vp.areas.landform > 0)) return 'the landform is not in its picture'
+  return 'the landform’s ground in its picture is all deducted (private land or rock)'
 }
 
 /**
@@ -130,19 +142,41 @@ export function districtFigures(ctx: ReportContext): DistrictFigures[] {
       proposed: blank(row?.['Proposed %']) ?? part('proposed'),
       total: blank(row?.['Total %']) ?? out?.alteration?.printed ?? null,
       within: yesNo(within) as DistrictFigures['within'],
+      unmeasured: out?.alteration || blank(row?.['Total %']) ? null : unmeasuredReason(vp),
     }
   })
 }
 
-/** Row 1's inventory units: one row per distinct unit the viewpoints read, else the scene's inventory and office. */
+/**
+ * Row 1's inventory units: one row per distinct unit the viewpoints read, else the scene's inventory and office.
+ *
+ * With the inventory read, a row is a unit a block lies in, and only one that matters to this assessment: its blocks'
+ * ground in the unit lies in the assessed landform, or a block in it is seen from a viewpoint. A unit round a block
+ * outside the landform that no viewpoint sees is the scene's, not this assessment's, and is left out. The Landform
+ * column names the landforms that ground lies in (the assessed one first), blank when it lies in none; rows read
+ * without their landforms print the assessed landform, as before.
+ */
 function inventoryRows(ctx: ReportContext): string[][] {
   // The units the inventory read, one row each, when the report read it.
   // Only the units a block lies in, when any does: the read covers the whole scene around the viewpoints.
   const holding = (ctx.inventoryUnits ?? []).filter((unit) => Object.keys(unit.blocks ?? {}).length > 0)
-  const units = holding.length ? holding : (ctx.inventoryUnits ?? [])
+  const assessedLandform = ctx.landform?.name ?? null
+  const seenBlocks = new Set(
+    ctx.facts.viewpoints.flatMap((vp) => vp.blocks.filter((block) => seen(block)).map((block) => blockId(block.id))),
+  )
+  const matters = (unit: (typeof holding)[number]) =>
+    !unit.landforms ||
+    (assessedLandform !== null && unit.landforms.includes(assessedLandform)) ||
+    Object.keys(unit.blocks ?? {}).some((name) => seenBlocks.has(blockId(name)))
+  const relevant = holding.filter(matters)
+  const landformCell = (unit: (typeof holding)[number]) =>
+    unit.landforms
+      ? [...unit.landforms].sort((a, b) => Number(b === assessedLandform) - Number(a === assessedLandform)).join(', ')
+      : (assessedLandform ?? '')
+  const units = holding.length ? relevant : (ctx.inventoryUnits ?? [])
   if (units.length)
     return units.map((unit) => [
-      ctx.landform?.name ?? '',
+      landformCell(unit),
       unit.vsu,
       unit.vsc ?? '',
       unit.vac ?? '',
@@ -271,10 +305,21 @@ const districtSummaryForm: ReportPart = {
     toComplete.push(...missingFields([area]))
 
     const figures = districtFigures(ctx)
-    const percent = (value: string | null) => (value === null ? '' : `${value}%`)
-    const noFigure = figures.filter((vp) => vp.total === null).map((vp) => vp.name)
+    // One cell per viewpoint in row 4's order: a view with no figure says so, its reason in the note.
+    const percent = (vp: DistrictFigures, value: string | null) =>
+      value !== null ? `${value}%` : vp.unmeasured ? NOT_MEASURED_CELL : ''
+    const noFigure = figures.filter((vp) => vp.total === null)
     if (!figures.length) toComplete.push('4. Viewpoints for assessment: save a viewpoint')
-    if (noFigure.length) toComplete.push(`5-8. Percent alteration (no class pass): ${andList(noFigure)}`)
+    const reasons = new Map<string, string[]>()
+    for (const vp of noFigure) {
+      const why = vp.unmeasured ?? 'no figure'
+      reasons.set(why, [...(reasons.get(why) ?? []), vp.name])
+    }
+    for (const [why, names] of reasons) toComplete.push(`5-8. Percent alteration (${why}): ${andList(names)}`)
+    const unmeasuredNote = [...reasons]
+      .filter(([why]) => why !== 'no figure')
+      .map(([why, names]) => ` ${NOT_MEASURED_CELL} for ${andList(names)}: ${why}.`)
+      .join('')
     const noObjective = figures.filter((vp) => vp.total !== null && vp.within === null).map((vp) => vp.name)
     if (noObjective.length)
       toComplete.push(`8. Established VQO to read the guidelines against: ${andList(noObjective)}`)
@@ -332,12 +377,17 @@ const districtSummaryForm: ReportPart = {
         kind: 'table',
         columns: [DISTRICT_ROW.viewpoints, ...(figures.length ? figures.map((vp) => vp.name) : [''])],
         rows: [
-          [DISTRICT_ROW.existing, ...(figures.length ? figures.map((vp) => percent(vp.existing)) : [''])],
-          [DISTRICT_ROW.proposed, ...(figures.length ? figures.map((vp) => percent(vp.proposed)) : [''])],
-          [DISTRICT_ROW.total, ...(figures.length ? figures.map((vp) => percent(vp.total)) : [''])],
-          [DISTRICT_ROW.guidelines, ...(figures.length ? figures.map((vp) => vp.within ?? '') : [''])],
+          [DISTRICT_ROW.existing, ...(figures.length ? figures.map((vp) => percent(vp, vp.existing)) : [''])],
+          [DISTRICT_ROW.proposed, ...(figures.length ? figures.map((vp) => percent(vp, vp.proposed)) : [''])],
+          [DISTRICT_ROW.total, ...(figures.length ? figures.map((vp) => percent(vp, vp.total)) : [''])],
+          [
+            DISTRICT_ROW.guidelines,
+            ...(figures.length
+              ? figures.map((vp) => vp.within ?? (vp.total === null && vp.unmeasured ? NOT_MEASURED_CELL : ''))
+              : ['']),
+          ],
         ],
-        note: `Rows 5-7 measure each view’s class pass as ${ctx.document.format.rule.formula} (${ctx.document.format.rule.basis}); row 8 reads the total on the form’s strict bounds.${
+        note: `Rows 5-7 measure each view’s class pass as ${ctx.document.format.rule.formula} (${ctx.document.format.rule.basis}); row 8 reads the total on the form’s strict bounds.${unmeasuredNote}${
           sightline.length ? ` The run’s sightline figures, the assessment’s: ${sightline.join(', ')}.` : ''
         }${sightlineWithheld
           .map(

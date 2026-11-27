@@ -5,7 +5,11 @@
  */
 declare module 'shpjs' {
   export default function shp(
-    input: ArrayBuffer | string,
+    /** A zip, a URL, or one layer's loose parts (the visual quality page's dropped shapefile). */
+    input:
+      | ArrayBuffer
+      | string
+      | { shp: ArrayBuffer | ArrayBufferView; dbf?: ArrayBuffer | ArrayBufferView; prj?: string; cpg?: string },
   ): Promise<GeoJSON.FeatureCollection | GeoJSON.FeatureCollection[]>
   /** Geometries in the file's own coordinates when no projection is passed. */
   export function parseShp(shp: ArrayBuffer | ArrayBufferView, prj?: string): GeoJSON.Geometry[]

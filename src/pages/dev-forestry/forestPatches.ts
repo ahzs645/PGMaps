@@ -211,3 +211,77 @@ export function canopyRange(bands: ForestBand[], index: number): [number, number
     band.far,
   ]
 }
+
+/** How many stand placements keep their placed patches: one harvest phase and the other. */
+export const KEPT_PATCH_PLACEMENTS = 2
+
+/**
+ * The placed patches kept for a stand placement (the road view's `forestPatches`): the map made for this very
+ * placement when it is one of the last `limit` asked for (equal element by element, by identity), else a new one.
+ * `kept` holds them newest first and is updated in place. Switching the harvest phase and back hands the stand the
+ * same arrays (each phase keeps its own), so the after-harvest stand is found again rather than grown a third time.
+ * What a placement holds is the caller's: nothing here reads it, and a stem is placed as it would be from a new map.
+ */
+export function patchCacheFor<T>(
+  kept: Array<{ placement: readonly unknown[]; patches: Map<string, T> }>,
+  placement: readonly unknown[],
+  limit = KEPT_PATCH_PLACEMENTS,
+): Map<string, T> {
+  const index = kept.findIndex(
+    (entry) =>
+      entry.placement.length === placement.length && entry.placement.every((value, i) => value === placement[i]),
+  )
+  const entry = index >= 0 ? kept.splice(index, 1)[0] : { placement, patches: new Map<string, T>() }
+  kept.unshift(entry)
+  kept.splice(Math.max(1, limit))
+  return entry.patches
+}
+
+/**
+ * Lets go of every kept placement but the one whose patches are `current` (the stand the road view draws now), in
+ * place. Asked once as an engine starts drawing a place's views, after the before-harvest render: the other phase's
+ * stand is not drawn again there, and two road-view stands beside the engine's scenes and final stands were the peak
+ * that crashed the tab. The cache keeps its two placements from then on, as before. Returns how many were let go.
+ */
+export function keepOnlyPatchPlacement<T>(
+  kept: Array<{ placement: readonly unknown[]; patches: Map<string, T> }>,
+  current: Map<string, T>,
+): number {
+  const before = kept.length
+  const keep = kept.filter((entry) => entry.patches === current)
+  kept.splice(0, kept.length, ...keep)
+  return before - kept.length
+}
+
+/**
+ * Whether the road view's own stand is put away while another engine draws a capture's place
+ * (`ViewCaptureHost.render`): its tree layers leave the eye map, releasing their GPU buffers and textures, and its
+ * placed patches are emptied (`releasePatchPlacements`), so PGMaps' stand and the engine's final stand and atlas
+ * are never held on the GPU together. The stand regrows once that place's renders settle. Off, the stand stays drawn
+ * through the renders and only the other phase's placement is let go (`keepOnlyPatchPlacement`).
+ */
+export const RELEASE_ROAD_VIEW_STAND_FOR_ENGINE = true
+
+/**
+ * Empties every kept placement's patches in place and keeps only the entry whose patches are `current` (the map the
+ * road view's stand is handed), so the placed stems can be collected while the map itself stays the one the stand
+ * fills again. Nothing about where a stem stands changes: the patches are grown again from the same placement.
+ * Returns how many placed patches were let go.
+ */
+export function releasePatchPlacements<T>(
+  kept: Array<{ placement: readonly unknown[]; patches: Map<string, T> }>,
+  current: Map<string, T> | null,
+): number {
+  let released = 0
+  for (const entry of kept) {
+    released += entry.patches.size
+    entry.patches.clear()
+  }
+  if (current && current.size) {
+    released += current.size
+    current.clear()
+  }
+  if (current) keepOnlyPatchPlacement(kept, current)
+  else kept.splice(0)
+  return released
+}

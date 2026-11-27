@@ -10,18 +10,23 @@
  */
 import { useCallback, useRef, useState } from 'react'
 import { timed } from './exportTiming'
+import { roadRendererInfo } from './externalRenderers'
+import type { RenderEngineId } from './renderEstimate'
 
 import {
   CAPTURE_TIMEOUTS,
   FACING_SETTLE_MS,
   RUN_CANCELLED,
   TIMBER_WATCH_START,
+  beforeBudgetMs,
   beforeMessage,
   beforeWarning,
   captureMessage,
   captureSummary,
   captureWaitNote,
   captureWaitingFor,
+  engineMessage,
+  engineWarning,
   planCapture,
   standFacing,
   timberFailure,
@@ -55,9 +60,10 @@ export type ViewCaptureState = {
 
 /**
  * A view not captured (`warning` absent), or saved with something missing (`warning`): its analysis sheet (`sheet`,
- * the screenshot or the class pass) or its before-harvest render (`before`).
+ * the screenshot or the class pass), its before-harvest render (`before`), or the chosen engine's renders (`engine`),
+ * which leaves it with PGMaps' figure.
  */
-export type ViewCaptureFailure = { viewId: string; reason: string; warning?: 'sheet' | 'before' }
+export type ViewCaptureFailure = { viewId: string; reason: string; warning?: 'sheet' | 'before' | 'engine' }
 
 export type ViewCaptureReport = {
   captured: string[]
@@ -83,6 +89,17 @@ export type ViewCaptureOptions = {
    * batch, one step back to where the reviewer stood (`captureAsNeeded`).
    */
   sheetIds?: ReadonlySet<string>
+  /**
+   * The engine the package's figures are drawn with: at each place, once its views are saved (and their before
+   * renders taken), the engine draws each view's figure and before picture there (`ViewCaptureHost.render`), since
+   * it draws only where the road view stands. Absent: PGMaps' figures only.
+   */
+  engine?: RenderEngineId
+  /**
+   * Views whose capture is kept as it is and only stood at for `engine`'s renders (stage `render`): captured at
+   * another place, they owe that engine's figures. Ignored without `engine`.
+   */
+  renderIds?: ReadonlySet<string>
 }
 
 export type ViewCaptureApi = {
@@ -127,12 +144,28 @@ export type ViewCaptureHost<Snapshot = unknown> = {
   /**
    * Takes the before-harvest render of views just saved at this place, while the road view still stands there (the
    * page's `captureBeforeRenders`), keeps them for exports, and puts the harvest phase back. Returns the saved view
-   * ids it took one for, and the page's notes on the rest.
+   * ids it took one for, and the page's notes on the rest. `onNote` hears how the regrown stand is coming on
+   * ("Preparing timber 12 of 40"), or null.
    */
-  before?: (saved: ReadonlyArray<{ id: string; name: string; plannedKey: string }>) => Promise<{
+  before?: (
+    saved: ReadonlyArray<{ id: string; name: string; plannedKey: string }>,
+    onNote?: (note: string | null) => void,
+  ) => Promise<{
     taken: readonly string[]
     notes: readonly string[]
   }>
+  /**
+   * Has `engine` draw, in the background renders' queue, the figure and before picture of views saved at this place,
+   * while the road view stands there, and waits for them (each settles drawn or failed). Returns the saved view ids
+   * whose figure it drew, and notes on the rest. Absent: engines cannot be asked here.
+   */
+  render?: (
+    saved: ReadonlyArray<{ id: string; name: string }>,
+    engine: RenderEngineId,
+    options: { stop: () => boolean; onNote?: (note: string | null) => void },
+  ) => Promise<{ drawn: readonly string[]; notes: readonly string[] }>
+  /** A planned view's current capture among the views saved at this place, for stage `render`; null when none. */
+  savedCapture?: (view: ViewOfInterest) => { id: string; name: string } | null
   /** Where the reviewer stands now, and putting them back there. */
   snapshot: () => Snapshot
   restore: (snapshot: Snapshot) => void
@@ -262,11 +295,19 @@ export async function runViewCapture<S>(
     stage?: CaptureStage
     /** Views drawn at `sheet` whatever `stage` says (`ViewCaptureOptions.sheetIds`). */
     sheetIds?: ReadonlySet<string>
+    /** The engine the figures are drawn with, at each place (`ViewCaptureOptions.engine`). */
+    engine?: RenderEngineId
+    /** Views only stood at for `engine`'s renders (`ViewCaptureOptions.renderIds`). */
+    renderIds?: ReadonlySet<string>
   },
 ): Promise<ViewCaptureReport> {
   const clock = control.clock ?? BROWSER_CLOCK
   const stageOf = (view: Pick<ViewOfInterest, 'id'>): CaptureStage =>
-    control.sheetIds?.has(view.id) ? 'sheet' : (control.stage ?? 'full')
+    control.engine && control.renderIds?.has(view.id)
+      ? 'render'
+      : control.sheetIds?.has(view.id)
+        ? 'sheet'
+        : (control.stage ?? 'full')
   const host = getHost()
   if (!host)
     return {
@@ -281,10 +322,9 @@ export async function runViewCapture<S>(
     reason: 'The view is no longer listed.',
   }))
   const captured: string[] = []
-  // The batch's words: sheets only when every view in it is a sheet drawn again.
-  const stage: CaptureStage = places.every((place) => place.views.every((view) => stageOf(view) === 'sheet'))
-    ? 'sheet'
-    : 'full'
+  // The batch's words: sheets (or renders) only when every view in it is a sheet drawn again (or only stood at).
+  const allAt = (wanted: CaptureStage) => places.every((place) => place.views.every((view) => stageOf(view) === wanted))
+  const stage: CaptureStage = allAt('sheet') ? 'sheet' : allAt('render') ? 'render' : 'full'
   if (!total) {
     control.onState({ ...IDLE_VIEW_CAPTURE, status: 'done', failures: [...failures] })
     return { captured, failures, cancelled: false }
@@ -320,8 +360,10 @@ export async function runViewCapture<S>(
         for (const view of place.views) fail(view, stood.error)
         continue
       }
-      // The views saved at this place, for their before-harvest renders once every one of them is saved.
+      // The views saved at this place, for their before-harvest renders once every one of them is saved; and every
+      // view kept here (saved now, or only stood at), for the engine's renders.
       const savedHere: Array<{ viewId: string; id: string; name: string; plannedKey: string }> = []
+      const keptHere: Array<{ viewId: string; id: string; name: string }> = []
       for (let index = 0; index < place.views.length; index++) {
         if (control.cancelled()) break placeLoop
         const view = place.views[index]
@@ -356,6 +398,19 @@ export async function runViewCapture<S>(
           continue
         }
         const page = getHost()
+        // Only stood at for the engine: its capture is kept as it is.
+        if (viewStage === 'render') {
+          const kept = page?.savedCapture?.(view) ?? null
+          if (!kept) {
+            fail(view, 'Its capture is not kept here: capture it again.')
+            continue
+          }
+          captured.push(view.id)
+          keptHere.push({ viewId: view.id, id: kept.id, name: view.name })
+          done += 1
+          update({ done })
+          continue
+        }
         update({ message: `${message} Preparing and drawing the analysis sheet…` })
         // Aborted when the save runs out of time, so its analysis sheet capture stops moving the camera too.
         const stop = new AbortController()
@@ -386,20 +441,26 @@ export async function runViewCapture<S>(
         captured.push(view.id)
         if (outcome.warning) failures.push({ viewId: view.id, reason: outcome.warning, warning: 'sheet' })
         savedHere.push({ viewId: view.id, id: outcome.viewId, name: view.name, plannedKey: viewCaptureKey(view) })
+        keptHere.push({ viewId: view.id, id: outcome.viewId, name: view.name })
         done += 1
         update({ done })
       }
       if (control.before && savedHere.length && !control.cancelled()) {
         const before = getHost()?.before
-        update({ currentViewId: savedHere[0].viewId, message: beforeMessage(savedHere.length, place.views[0].name) })
+        const head = beforeMessage(savedHere.length, place.views[0].name)
+        update({ currentViewId: savedHere[0].viewId, message: head })
+        // The before phase regrows the whole stand, which takes minutes in a throttled tab: the page waits on its
+        // progress (`waitForStand`), and this budget is above that wait's own limits, so only a hung render trips it.
         const outcome = before
           ? await timed('view capture: before render', () =>
               Promise.race([
-                before(savedHere).catch((error: unknown) => ({
-                  taken: [] as string[],
-                  notes: [error instanceof Error ? error.message : String(error)],
-                })),
-                clock.sleep(CAPTURE_TIMEOUTS.saveMs).then(() => 'timeout' as const),
+                before(savedHere, (note) => update({ message: note ? `${head} ${note}` : head })).catch(
+                  (error: unknown) => ({
+                    taken: [] as string[],
+                    notes: [error instanceof Error ? error.message : String(error)],
+                  }),
+                ),
+                clock.sleep(beforeBudgetMs(savedHere.length)).then(() => 'timeout' as const),
               ]),
             )
           : { taken: [] as string[], notes: ['The page cannot take before-harvest renders.'] }
@@ -411,6 +472,30 @@ export async function runViewCapture<S>(
         update({})
         // A render still drawing may be moving the camera: nothing more is captured under it.
         if (outcome === 'timeout') break placeLoop
+      }
+      // The engine's figures and before pictures of every view kept here, while the road view stands here: it draws
+      // from the road view's terrain and the run at this place, so this is the only place it can draw them.
+      if (control.engine && keptHere.length && !control.cancelled()) {
+        const render = getHost()?.render
+        const head = engineMessage(keptHere.length, roadRendererInfo(control.engine).label, place.views[0].name)
+        update({ currentViewId: keptHere[0].viewId, message: head })
+        // Each render settles drawn or failed in the queue (its own limits stop a hung one): no flat limit here.
+        const outcome = render
+          ? await timed('view capture: engine renders', () =>
+              render(keptHere, control.engine!, {
+                stop: control.cancelled,
+                onNote: (note) => update({ message: note ? `${head} ${note}` : head }),
+              }).catch((error: unknown) => ({
+                drawn: [] as string[],
+                notes: [error instanceof Error ? error.message : String(error)],
+              })),
+            )
+          : { drawn: [] as string[], notes: ['The page cannot ask another engine here.'] }
+        const drawn = new Set(outcome.drawn)
+        for (const entry of keptHere)
+          if (!drawn.has(entry.id))
+            failures.push({ viewId: entry.viewId, reason: engineWarning(entry.name, outcome.notes), warning: 'engine' })
+        update({})
       }
     }
     if (control.cancelled()) status = 'cancelled'
@@ -425,7 +510,7 @@ export async function runViewCapture<S>(
   }
   const cancelled = status === 'cancelled'
   const notCaptured = new Set(failures.filter((entry) => !captured.includes(entry.viewId)).map((f) => f.viewId))
-  const warnedBy = (kind: 'sheet' | 'before') =>
+  const warnedBy = (kind: 'sheet' | 'before' | 'engine') =>
     new Set(failures.filter((entry) => entry.warning === kind && captured.includes(entry.viewId)).map((f) => f.viewId))
       .size
   update({
@@ -437,7 +522,7 @@ export async function runViewCapture<S>(
       total,
       notCaptured.size,
       cancelled,
-      { sheet: warnedBy('sheet'), before: warnedBy('before') },
+      { sheet: warnedBy('sheet'), before: warnedBy('before'), engine: warnedBy('engine') },
       stage,
     ),
   })
@@ -456,7 +541,8 @@ export async function captureAsNeeded(
   sheetIds: ReadonlySet<string>,
   options: Omit<ViewCaptureOptions, 'stage' | 'sheetIds'> = {},
 ): Promise<ViewCaptureReport> {
-  const sheets = new Set(viewIds.filter((id) => sheetIds.has(id)))
+  // A view only stood at for the engine keeps its capture: its sheet is never drawn again here.
+  const sheets = new Set(viewIds.filter((id) => sheetIds.has(id) && !options.renderIds?.has(id)))
   return capture(viewIds, sheets.size ? { ...options, sheetIds: sheets } : options)
 }
 
@@ -484,6 +570,8 @@ export function useViewCapture<Snapshot>(hostRef: {
           before: options.before,
           stage: options.stage,
           sheetIds: options.sheetIds,
+          engine: options.engine,
+          renderIds: options.renderIds,
         })
       } finally {
         runningRef.current = false

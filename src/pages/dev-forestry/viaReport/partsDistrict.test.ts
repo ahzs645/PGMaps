@@ -204,8 +204,62 @@ describe('the district summary table (02)', () => {
     if (figures.kind !== 'table') throw new Error('table expected')
     // Gross pixels, two decimals.
     expect(figures.rows.map((row) => row[1])).toEqual(['0.00%', '3.00%', '3.00%', 'Yes'])
-    expect(figures.rows.map((row) => row[2])).toEqual(['', '', '', ''])
-    expect(out.toComplete).toContain('5-8. Percent alteration (no class pass): Blind')
+    // A view with no figure says so in every row, never an empty cell beside its neighbour's, and the note says why.
+    expect(figures.rows.map((row) => row[2])).toEqual(['Not measured', 'Not measured', 'Not measured', 'Not measured'])
+    expect(figures.note).toContain('Not measured for Blind: no class pass was captured with the view.')
+    expect(out.toComplete).toContain('5-8. Percent alteration (no class pass was captured with the view): Blind')
+  })
+
+  it('lists only the inventory units this assessment reads, each under the landform its blocks lie in', () => {
+    const units: InventoryUnitRow[] = [
+      { vsu: '101', vsc: '2', vac: 'M', evc: 'R', vqo: 'PR', blocks: { X1: 5 }, landforms: ['Landform 1'] },
+      // A unit round a block outside every landform that no viewpoint sees: not this assessment's.
+      { vsu: '102', vsc: '3', vac: 'H', evc: 'P', vqo: 'M', blocks: { Z9: 3 }, landforms: [] },
+      // Outside the landform, but its block is seen (in glimpses from Ridge Road): listed, under no landform.
+      { vsu: '103', vsc: '1', vac: 'L', evc: 'R', vqo: 'R', blocks: { X2: 2 }, landforms: [] },
+      {
+        vsu: '104',
+        vsc: '2',
+        vac: 'M',
+        evc: 'R',
+        vqo: 'PR',
+        blocks: { X1: 1 },
+        landforms: ['Landform 2', 'Landform 1'],
+      },
+    ]
+    const out = build(
+      'district-summary-form',
+      context('district-summary', [lakeshore, ridge], { inventoryUnits: units }),
+    )
+    const inventory = tables(out.blocks)[0]
+    if (inventory.kind !== 'table') throw new Error('table expected')
+    expect(inventory.rows.map((row) => [row[0], row[1]])).toEqual([
+      ['Landform 1', '101'],
+      ['', '103'],
+      ['Landform 1, Landform 2', '104'],
+    ])
+    // Rows read without their landforms keep the assessed landform, as before.
+    const plain = build(
+      'district-summary-form',
+      context('district-summary', [lakeshore], { inventoryUnits: units.map(({ landforms: _, ...unit }) => unit) }),
+    )
+    const old = tables(plain.blocks)[0]
+    if (old.kind !== 'table') throw new Error('table expected')
+    expect(old.rows.map((row) => row[0])).toEqual(['Landform 1', 'Landform 1', 'Landform 1', 'Landform 1'])
+  })
+
+  it('keeps one cell per viewpoint in row 4’s order when some views have no figure', () => {
+    const away = { ...ridge, name: 'Away', areas: { landform: 0, proposed: 0, nonVeg: 0, privateLand: 0, rock: 0 } }
+    const blind = { ...ridge, name: 'Blind', areas: null }
+    const out = build('district-summary-form', context('district-summary', [away, lakeshore, blind, ridge]))
+    const figures = tables(out.blocks)[2]
+    if (figures.kind !== 'table') throw new Error('table expected')
+    expect(figures.columns.slice(1)).toEqual(['Away', 'Lakeshore', 'Blind', 'Ridge Road'])
+    for (const row of figures.rows) expect(row).toHaveLength(5)
+    expect(figures.rows[2].slice(1)).toEqual(['Not measured', '3.0%', 'Not measured', '8.0%'])
+    expect(figures.rows[3].slice(1)).toEqual(['Not measured', 'Yes', 'Not measured', 'No'])
+    expect(figures.note).toContain('Not measured for Away: the landform is not in its picture.')
+    expect(figures.note).toContain('Not measured for Blind: no class pass was captured with the view.')
   })
 
   it('fills rows 9 and 10 only from what the reviewer signed', () => {

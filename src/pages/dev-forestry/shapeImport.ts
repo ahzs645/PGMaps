@@ -67,13 +67,80 @@ export function featureName(
   fallbackIndex: number,
   prefix = 'Polygon',
 ): string {
-  if (properties) {
-    for (const key of NAME_KEYS) {
-      const value = attribute(properties, key)
-      if (value) return value
+  return ownName(properties) ?? `${prefix} ${fallbackIndex + 1}`
+}
+
+/** The label a feature's own attributes give it, if any of `NAME_KEYS` is filled. */
+function ownName(properties: Record<string, unknown> | null | undefined): string | null {
+  return properties ? firstAttribute(properties, NAME_KEYS) : null
+}
+
+/**
+ * Attributes that say where a block lies, most specific first: what an unnamed block is numbered
+ * within ("Buckhorn 3"), so a reviewer can tell blocks apart and find them. A licensee's plan often
+ * fills the block id on a few blocks only, while every block carries its operating area.
+ *
+ * Only text that names a place is taken: never the numeric area columns ArcGIS writes beside these
+ * (`Area`, `Shape_Area`), which are not on the list, nor a value with no letter in it.
+ */
+const GROUP_KEYS = [
+  'OPERATING_AREA',
+  'OPER_AREA',
+  'OP_AREA',
+  'AREA_NAME',
+  'SUPPLY_BLOCK',
+  'LANDSCAPE_UNIT',
+  'LU_NAME',
+  'DRAINAGE',
+  'LOCATION',
+]
+
+/** dBASE keeps 10 characters of a column name, so ArcGIS writes `OPERATING_AREA` as `Operating_`. */
+const DBASE_FIELD_NAME_LENGTH = 10
+
+/**
+ * The operating area (or other place grouping) a feature's attributes name, ignoring case and
+ * matching the 10-character name a shapefile cuts a longer column name to.
+ */
+export function featureGroup(properties: Record<string, unknown> | null | undefined): string | null {
+  if (!properties) return null
+  const columns = Object.keys(properties)
+  for (const key of GROUP_KEYS) {
+    const wanted = new Set([key.toLowerCase(), key.slice(0, DBASE_FIELD_NAME_LENGTH).toLowerCase()])
+    for (const column of columns) {
+      if (!wanted.has(column.toLowerCase())) continue
+      const value = properties[column]
+      if (typeof value === 'string' && /\p{L}/u.test(value)) return value.trim()
     }
   }
-  return `${prefix} ${fallbackIndex + 1}`
+  return null
+}
+
+/**
+ * Names for a collection's blocks, in file order. A block's own identifier is kept exactly; an
+ * unnamed block is numbered within its operating area ("Buckhorn 2" is the area's second unnamed
+ * block in the file), and one with no area either keeps `${prefix} N`, N its place among the
+ * collection's polygons. A made-up name never repeats another block's name: it takes the next free
+ * number instead.
+ */
+function blockNames(features: ReadonlyArray<Record<string, unknown>>, prefix: string): string[] {
+  const own = features.map(ownName)
+  const used = new Set(own.filter((name): name is string => name !== null))
+  const counts = new Map<string, number>()
+  return features.map((properties, index) => {
+    const named = own[index]
+    if (named) return named
+    const group = featureGroup(properties)
+    let number = group === null ? index : (counts.get(group) ?? 0)
+    let name: string
+    do {
+      number += 1
+      name = `${group ?? prefix} ${number}`
+    } while (used.has(name))
+    if (group !== null) counts.set(group, number)
+    used.add(name)
+    return name
+  })
 }
 
 /**
@@ -145,6 +212,7 @@ export function toFeatures(input: unknown): GeoJSON.Feature[] {
 export function collectImportedGeometry(input: unknown, namePrefix = 'Polygon'): ImportedGeometry {
   const features = toFeatures(input)
   const polygons: ImportedPolygon[] = []
+  const polygonProperties: Array<Record<string, unknown>> = []
   const lines: ImportedLine[] = []
   let skippedCount = 0
 
@@ -154,8 +222,10 @@ export function collectImportedGeometry(input: unknown, namePrefix = 'Polygon'):
 
     if (geometry?.type === 'Polygon' || geometry?.type === 'MultiPolygon') {
       const planning = planningIds(properties)
+      polygonProperties.push(properties)
       polygons.push({
-        name: featureName(properties, polygons.length, namePrefix),
+        // Named once the whole collection is read: an unnamed block is numbered within its area.
+        name: '',
         geometry,
         areaMeters: polygonAreaMeters(geometry),
         ...(planning ? { planning } : {}),
@@ -179,6 +249,11 @@ export function collectImportedGeometry(input: unknown, namePrefix = 'Polygon'):
     skippedCount += index >= 0 ? 1 : 0
   })
 
+  const names = blockNames(polygonProperties, namePrefix)
+  polygons.forEach((polygon, index) => {
+    polygon.name = names[index]
+  })
+
   return { polygons, lines, skippedCount }
 }
 
@@ -190,7 +265,12 @@ export function collectImportedGeometry(input: unknown, namePrefix = 'Polygon'):
 export async function readShapeFile(file: File): Promise<ImportedGeometry> {
   const lowerName = file.name.toLowerCase()
 
-  if (lowerName.endsWith('.zip') || lowerName.endsWith('.shp')) {
+  if (SHAPEFILE_PART.test(lowerName))
+    throw new Error(
+      `${file.name} is one part of a shapefile. Add its .shp, .dbf and .prj together, or zip them and import the .zip.`,
+    )
+
+  if (lowerName.endsWith('.zip')) {
     // Loaded on demand so the shapefile parser stays out of the page bundle.
     const shp = (await import('shpjs')).default
     const parsed = await shp(await file.arrayBuffer())
@@ -202,4 +282,82 @@ export async function readShapeFile(file: File): Promise<ImportedGeometry> {
   }
 
   throw new Error('Drop a zipped shapefile (.zip) or a GeoJSON file (.geojson)')
+}
+
+/** The parts of a shapefile the reader takes: geometry, attributes, projection and code page. */
+const SHAPEFILE_PART = /\.(shp|dbf|prj|cpg)$/i
+/**
+ * What ArcGIS writes beside a shapefile and the reader needs nothing from: the index, the spatial
+ * indexes, the metadata and the lock files a layer open in ArcGIS leaves (`.shp.<host>.<pid>.sr.lock`).
+ */
+const SHAPEFILE_EXTRA = /\.(shx|sbn|sbx|qix|fix|atx|ain|aih|xml|lock)$/i
+
+/** What a file picker for shapes offers: GeoJSON, a zipped shapefile, or a loose one's parts. */
+export const SHAPE_FILE_ACCEPT = '.zip,.geojson,.json,.shp,.dbf,.prj,.cpg,.shx'
+
+export type ImportedFiles = ImportedGeometry & {
+  /** What the blocks name as their source: the file, the shapefile's .shp, or a count of files. */
+  sourceName: string
+}
+
+/** A shapefile's name without the part's extension: `Plan.shp` and `Plan.DBF` are one layer. */
+function layerKey(name: string): string {
+  return name.replace(SHAPEFILE_PART, '').toLowerCase()
+}
+
+/**
+ * Reads files picked or dropped together. A loose shapefile arrives as its parts: the .shp, .dbf,
+ * .prj and .cpg of one layer are joined by name and read as the zip of them would be, and what
+ * ArcGIS keeps beside them (index, spatial index, metadata, lock files) is passed over. A .shp
+ * without its .prj is refused: its coordinates are in a projection nothing names, and read as
+ * longitude and latitude they land nowhere near BC. Zips and GeoJSON in the set are read one by one.
+ */
+export async function readShapeFiles(files: readonly File[]): Promise<ImportedFiles> {
+  const layers = new Map<string, { shp?: File; dbf?: File; prj?: File; cpg?: File }>()
+  const others: File[] = []
+  for (const file of files) {
+    const part = SHAPEFILE_PART.exec(file.name)?.[1]?.toLowerCase() as 'shp' | 'dbf' | 'prj' | 'cpg' | undefined
+    if (part) {
+      const key = layerKey(file.name)
+      layers.set(key, { ...layers.get(key), [part]: file })
+    } else if (!SHAPEFILE_EXTRA.test(file.name)) others.push(file)
+  }
+
+  const read: ImportedGeometry[] = []
+  const names: string[] = []
+  for (const parts of layers.values()) {
+    const named = parts.shp ?? parts.dbf ?? parts.prj ?? parts.cpg
+    if (!parts.shp)
+      throw new Error(
+        `${named?.name ?? 'A shapefile part'} came without its .shp. Add the layer's .shp, .dbf and .prj together.`,
+      )
+    if (!parts.prj)
+      throw new Error(
+        `${parts.shp.name} came without its .prj, so its coordinate system is unknown. Add the layer's .prj with it.`,
+      )
+    const shp = (await import('shpjs')).default
+    const parsed = await shp({
+      shp: await parts.shp.arrayBuffer(),
+      dbf: parts.dbf ? await parts.dbf.arrayBuffer() : undefined,
+      prj: await parts.prj.text(),
+      cpg: parts.cpg ? await parts.cpg.text() : undefined,
+    })
+    read.push(collectImportedGeometry(parsed))
+    names.push(parts.shp.name)
+  }
+  for (const file of others) {
+    read.push(await readShapeFile(file))
+    names.push(file.name)
+  }
+
+  if (read.length === 0)
+    throw new Error(
+      'None of these files hold shapes. Add a zipped shapefile, a .shp with its .dbf and .prj, or GeoJSON.',
+    )
+  return {
+    polygons: read.flatMap((geometry) => geometry.polygons),
+    lines: read.flatMap((geometry) => geometry.lines),
+    skippedCount: read.reduce((sum, geometry) => sum + geometry.skippedCount, 0),
+    sourceName: names.length === 1 ? names[0] : `${names.length} files`,
+  }
 }

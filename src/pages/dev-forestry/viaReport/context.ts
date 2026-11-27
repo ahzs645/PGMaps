@@ -118,9 +118,16 @@ export function inventoryUnitRows(
   blocks: readonly TargetPolygon[],
   chosen: ReadonlyArray<string | undefined> = [],
   masks: readonly AssessmentMask[] = [],
+  /**
+   * The scene's landforms: each row then names those its blocks' ground in the unit lies in (`InventoryUnitRow.landforms`,
+   * scene order). Absent, rows carry no landform.
+   */
+  landforms?: ReadonlyArray<{ name: string; geometry: PolygonGeometry }>,
 ): InventoryUnitRow[] {
   const held = new Map<BadgeUnit, Record<string, number>>()
   const heldNet = new Map<BadgeUnit, Record<string, number>>()
+  const inLandform = (landforms ?? []).map((entry) => preparePolygons([entry.geometry]).contains)
+  const landformsOf = new Map<BadgeUnit, Set<number>>()
   const prepared = preparePolygons(units.map((unit) => unit.geometry))
   const reserves = masks.filter((mask) => mask.kind === 'retained')
   const inReserve = reserves.length ? preparePolygons(reserves.map((mask) => mask.geometry)).contains : null
@@ -134,6 +141,13 @@ export function inventoryUnitRows(
     for (const [lng, lat] of points) {
       const unit = units[prepared.indexAt(lng, lat)]
       if (unit) counts.set(unit, (counts.get(unit) ?? 0) + 1)
+      if (unit && inLandform.length) {
+        const of = landformsOf.get(unit) ?? new Set<number>()
+        inLandform.forEach((contains, index) => {
+          if (contains(lng, lat)) of.add(index)
+        })
+        landformsOf.set(unit, of)
+      }
       if (inReserve?.(lng, lat)) continue
       netPoints++
       if (unit) netCounts.set(unit, (netCounts.get(unit) ?? 0) + 1)
@@ -161,6 +175,9 @@ export function inventoryUnitRows(
       ...unitValues(unit),
       blocks: rounded(ha),
       ...(heldNet.has(unit) ? { netBlocks: rounded(heldNet.get(unit)!) } : {}),
+      ...(landforms
+        ? { landforms: [...(landformsOf.get(unit) ?? [])].sort((a, b) => a - b).map((i) => landforms[i].name) }
+        : {}),
     }))
   for (const vsu of chosen) {
     if (!vsu || rows.some((row) => row.vsu === vsu)) continue
@@ -319,6 +336,7 @@ export function buildReportContext(input: {
             blocks,
             facts.viewpoints.map((vp) => vp.inventory?.vsu),
             scene.masks ?? [],
+            scene.targets.filter((target) => target.role === 'landscape'),
           ),
         }
       : {}),

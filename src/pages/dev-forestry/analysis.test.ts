@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MIN_LEDGER_CELLS_PER_PROPOSAL, computeAnalysis, prepareTargets } from './analysis'
+import { MAX_TOTAL_SIGHTLINES, MIN_LEDGER_CELLS_PER_PROPOSAL, computeAnalysis, prepareTargets } from './analysis'
 import type { CanopyStand } from './canopy'
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { DEFAULT_ANALYSIS_SETTINGS, type AnalysisInput, type TargetPolygon } from './types'
@@ -671,11 +671,84 @@ describe('resolution of a small proposal', () => {
     expect(coarse.quality!.warnings.join(' ')).toMatch(/to about 2,500/)
   })
 
+  it('names the alteration it withholds the figure for', () => {
+    const gap = run(400).quality!.gaps!.find((g) => g.id === 'under-resolved')!
+    expect(gap.text).toMatch(/^An alteration \(small\) covers fewer than/)
+  })
+
   it('measures it once the grid is fine enough, close to its true share', () => {
     const fine = run(10000)
     expect(fine.quality!.underResolvedTargetIds).toEqual([])
     expect(fine.planimetricAlteration!.cumulativePercent).toBeCloseTo(shareOfLandform(small), 0)
   })
+})
+
+describe('advice for an under-resolved alteration', () => {
+  const gapText = (result: ReturnType<typeof computeAnalysis>) =>
+    result.quality!.gaps!.find((gap) => gap.id === 'under-resolved')?.text ?? ''
+
+  it("works the suggestion from the block's area inside the landform, not its whole area", () => {
+    // About 9.9 ha, of which only the western quarter (about 2.5 ha) lies in the landform.
+    const edge = box(0.019, -0.001, 0.023, 0.001)
+    const result = analyse(
+      [
+        { id: 'landform', role: 'landscape', geometry: LANDFORM },
+        { id: 'edge', role: 'block', geometry: edge },
+      ],
+      { sampleBudget: 400, greenAreaConfirmed: true, existingDisturbanceConfirmed: true },
+    )
+    expect(result.quality!.underResolvedTargetIds).toEqual(['edge'])
+    const text = gapText(result)
+    expect(text).toMatch(/Only about 2\.\d ha of edge's 9\.9 ha lies in the landform/)
+    // ~9.7 km² × 8 cells × 1.3 ÷ 2.5 ha: about 4,000-4,500. The whole 9.9 ha would have suggested 1,500,
+    // which leaves the block still short of cells.
+    const suggested = Number(/to about ([\d,]+)/.exec(text)![1].replace(/,/g, ''))
+    expect(suggested).toBeGreaterThanOrEqual(3500)
+    expect(suggested).toBeLessThanOrEqual(5000)
+  })
+
+  it('does not ask for more sample points when the sightline limit sets the grid', () => {
+    // Sixty-four 123 ha blocks in range but off the landform spend the sightline limit at 4,000 points each, so the
+    // landform's grid is coarsened and a 1.4 ha block inside it gets about six cells. More points would be coarsened
+    // straight back.
+    const outside: TargetSpec[] = Array.from({ length: 64 }, (_, index) => ({
+      id: `outside-${index}`,
+      role: 'block' as const,
+      geometry: box(
+        0.03 + (index % 8) * 0.011,
+        -0.04 + Math.floor(index / 8) * 0.011,
+        0.04 + (index % 8) * 0.011,
+        -0.03 + Math.floor(index / 8) * 0.011,
+      ),
+    }))
+    const input: AnalysisInput = {
+      viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]] },
+      targets: [
+        { id: 'landform', role: 'landscape', geometry: LANDFORM } as TargetSpec,
+        { id: 'tiny', role: 'block', geometry: box(0.004, -0.00054, 0.00508, 0.00054) } as TargetSpec,
+        ...outside,
+      ].map(({ id, role, geometry }) => ({ id, name: id, role, geometry, harvestYear: null, clearcutPercent: null })),
+      settings: {
+        ...DEFAULT_ANALYSIS_SETTINGS,
+        observerHeightMeters: 3000,
+        maxViewDistanceMeters: 40000,
+        sampleBudget: 4000,
+        greenAreaConfirmed: true,
+        existingDisturbanceConfirmed: true,
+      },
+      assessmentYear: 2026,
+    }
+    // A coarse terrain step keeps the quarter of a million sightlines quick.
+    const result = computeAnalysis(FLAT, input, { ...TERRAIN, resolutionMeters: 500 })
+    expect(result.quality!.underResolvedTargetIds).toEqual(['tiny'])
+    const text = gapText(result)
+    expect(text).toContain('An alteration (tiny) covers')
+    expect(text).toContain(
+      `reached its limit of ${MAX_TOTAL_SIGHTLINES.toLocaleString('en-CA')} sightlines with 66 polygons in range`,
+    )
+    expect(text).toContain('Remove the polygons that are not part of the assessment')
+    expect(text).not.toMatch(/Raise the sample points/)
+  }, 30_000)
 })
 
 describe('a partial cut', () => {

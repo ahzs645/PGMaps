@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { CaptureFacts } from './viewCapturePlan'
-import { CAPTURE_TIMEOUTS, standFacing } from './viewCapturePlan'
+import { CAPTURE_TIMEOUTS, standFacing, waitForStand } from './viewCapturePlan'
 import {
   captureAsNeeded,
   runViewCapture,
@@ -35,6 +35,32 @@ function fastClock(): CaptureClock & { elapsed: () => number } {
       t += ms
       await Promise.resolve()
     },
+    elapsed: () => t,
+  }
+}
+
+/**
+ * A clock whose sleeps end in time order, each on its own turn of the event loop: two waits racing (a slow before
+ * render against the batch's budget) see time pass as they would in the browser, not jump by the longest sleep.
+ */
+function timerClock(): CaptureClock & { elapsed: () => number } {
+  let t = 0
+  const sleepers: Array<{ at: number; resolve: () => void }> = []
+  const tick = typeof setImmediate === 'function' ? setImmediate : (fn: () => void) => setTimeout(fn, 0)
+  const advance = () => {
+    if (!sleepers.length) return
+    sleepers.sort((a, b) => a.at - b.at)
+    const next = sleepers.shift()!
+    t = Math.max(t, next.at)
+    next.resolve()
+  }
+  return {
+    now: () => t,
+    sleep: (ms) =>
+      new Promise<void>((resolve) => {
+        sleepers.push({ at: t + ms, resolve })
+        tick(advance)
+      }),
     elapsed: () => t,
   }
 }
@@ -499,6 +525,146 @@ describe('capturing planned views', () => {
     expect(states.some((state) => state.message === 'Drawing analysis sheet 1 of 3: View a…')).toBe(true)
     expect(states.some((state) => state.message?.startsWith('Capturing 2 of 3: View b'))).toBe(true)
     expect(states.at(-1)?.message).toBe('Captured 3 of 3 views.')
+  })
+
+  it('waits for a before-harvest stand that regrows slowly, and takes its render', async () => {
+    const { host } = fakePage([view('a')])
+    const clock = timerClock()
+    // The before phase regrows 40 patches, one every 10 s: 400 s in all, past the flat 60 s the phase switch once
+    // waited and the 300 s the batch once allowed the whole step.
+    host.before = async (saved, onNote) => {
+      const startedAt = clock.now()
+      const shown = await waitForStand(
+        () => {
+          const grown = Math.min(40, Math.floor((clock.now() - startedAt) / 10_000))
+          return {
+            canSave: grown === 40,
+            saveBlocker: `the drawn timber (${grown} of 40 patches)`,
+            timberProgress: { done: grown, total: 40 },
+          }
+        },
+        clock,
+        onNote ? { onNote } : {},
+      )
+      return shown.ok
+        ? { taken: saved.map((entry) => entry.id), notes: [] }
+        : { taken: [], notes: [shown.reason ?? ''] }
+    }
+    const states: ViewCaptureState[] = []
+    const report = await runViewCapture(() => host, ['a'], {
+      cancelled: () => false,
+      onState: (state) => states.push(state),
+      clock,
+      before: true,
+    })
+    expect(report).toEqual({ captured: ['a'], failures: [], cancelled: false })
+    expect(clock.elapsed()).toBeGreaterThan(400_000)
+    expect(
+      states.some(
+        (state) => state.message === 'Drawing the before-harvest render at View a… Preparing timber 20 of 40',
+      ),
+    ).toBe(true)
+    expect(states.at(-1)?.message).toBe('Captured 1 of 1 view.')
+  })
+
+  it('gives up on a before-harvest stand that stops growing, naming the patch count, and goes on', async () => {
+    const views = [view('a'), view('b', { lng: -122.7 })]
+    const { host, log } = fakePage(views)
+    const clock = timerClock()
+    host.before = async (saved) => {
+      const startedAt = clock.now()
+      const shown = await waitForStand(() => {
+        const grown = Math.min(12, Math.floor((clock.now() - startedAt) / 5_000))
+        return { canSave: false, saveBlocker: null, timberProgress: { done: grown, total: 440 } }
+      }, clock)
+      log.push(`before ${saved.map((entry) => entry.id).join(' ')}`)
+      return shown.ok
+        ? { taken: saved.map((entry) => entry.id), notes: [] }
+        : { taken: [], notes: [`The road view did not finish drawing before harvest: ${shown.reason}`] }
+    }
+    const report = await runViewCapture(() => host, ['a', 'b'], {
+      cancelled: () => false,
+      onState: () => {},
+      clock,
+      before: true,
+    })
+    // The stall is the page's to report: the batch goes on to the next place rather than stopping.
+    expect(log).toContain('stand b')
+    expect(report.captured).toEqual(['a', 'b'])
+    expect(report.failures[0]).toMatchObject({ viewId: 'a', warning: 'before' })
+    expect(report.failures[0].reason).toMatch(/stopped growing at 12 of 440 patches/)
+  })
+
+  it('has the engine draw the views kept at each place while it stands there', async () => {
+    const views = [view('a'), view('b', { lng: -122.7 })]
+    const { host, log } = fakePage(views)
+    host.render = async (kept, engine) => {
+      log.push(`render ${engine} ${kept.map((entry) => entry.id).join(' ')}`)
+      return kept[0].id === 'saved-b'
+        ? { drawn: [], notes: ['View b: its figure could not be drawn: no answer from Nanite Forest.'] }
+        : { drawn: kept.map((entry) => entry.id), notes: [] }
+    }
+    const states: ViewCaptureState[] = []
+    const report = await runViewCapture(() => host, ['a', 'b'], {
+      cancelled: () => false,
+      onState: (state) => states.push(state),
+      clock: fastClock(),
+      engine: 'nanite',
+    })
+    expect(log).toEqual([
+      'stand a',
+      'save a facing block-1 at 50 mm',
+      'render nanite saved-a',
+      'stand b',
+      'save b facing block-1 at 50 mm',
+      'render nanite saved-b',
+      'restore where I stood',
+    ])
+    expect(report.captured).toEqual(['a', 'b'])
+    expect(report.failures).toEqual([
+      {
+        viewId: 'b',
+        reason:
+          'It keeps its PGMaps figure: the engine could not draw it where it stands: its figure could not be drawn: no answer from Nanite Forest.',
+        warning: 'engine',
+      },
+    ])
+    expect(states.some((state) => state.message === 'Drawing 1 view with Nanite Forest at View a…')).toBe(true)
+    expect(states.at(-1)?.message).toBe(
+      'Captured 2 of 2 views; 1 keeps its PGMaps figure: the engine could not draw it.',
+    )
+  })
+
+  it('stands at a view captured elsewhere for the engine alone, keeping its capture', async () => {
+    const views = [view('a'), view('b', { lng: -122.7 })]
+    const { host, log } = fakePage(views)
+    host.savedCapture = (v) => (v.id === 'b' ? { id: 'saved-b-earlier', name: v.name } : null)
+    host.render = async (kept) => {
+      log.push(`render ${kept.map((entry) => entry.id).join(' ')}`)
+      return { drawn: kept.map((entry) => entry.id), notes: [] }
+    }
+    const states: ViewCaptureState[] = []
+    const report = await runViewCapture(() => host, ['b'], {
+      cancelled: () => false,
+      onState: (state) => states.push(state),
+      clock: fastClock(),
+      engine: 'nanite',
+      renderIds: new Set(['b']),
+    })
+    // No save: the capture is kept as it is.
+    expect(log).toEqual(['stand b', 'render saved-b-earlier', 'restore where I stood'])
+    expect(report).toEqual({ captured: ['b'], failures: [], cancelled: false })
+    expect(states.some((state) => state.message === 'Standing at view 1 of 1 for its renders: View b…')).toBe(true)
+    expect(states.at(-1)?.message).toBe('Stood at 1 of 1 view for its renders.')
+    // Without the engine, a render-only view is captured as asked otherwise.
+    const plain = fakePage(views)
+    await runViewCapture(() => plain.host, ['b'], {
+      cancelled: () => false,
+      onState: () => {},
+      clock: fastClock(),
+      renderIds: new Set(['b']),
+    })
+    expect(plain.log).toEqual(['stand b', 'save b facing block-1 at 50 mm', 'restore where I stood'])
   })
 
   it('takes no before render unless asked', async () => {

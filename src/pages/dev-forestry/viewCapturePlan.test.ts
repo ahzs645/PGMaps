@@ -19,6 +19,8 @@ import {
   TIMBER_WATCH_START,
   captureWaitNote,
   timberFailure,
+  waitForStand,
+  beforeBudgetMs,
   timberGivenUp,
   watchTimber,
   waitAbandoned,
@@ -203,6 +205,69 @@ describe('waiting for the road view', () => {
   })
 })
 
+describe('waiting for a stand switched to another harvest phase', () => {
+  /** A clock for one wait: each sleep moves it on. */
+  const clock = () => {
+    let t = 0
+    return { now: () => t, sleep: async (ms: number) => void (t += ms) }
+  }
+
+  it('waits while the stand grows, however long, and says how far it has got', async () => {
+    const c = clock()
+    const notes: Array<string | null> = []
+    const result = await waitForStand(
+      () => {
+        const done = Math.min(440, Math.floor(c.now() / 1_000))
+        return { canSave: done === 440, saveBlocker: null, timberProgress: { done, total: 440 } }
+      },
+      c,
+      { onNote: (note) => notes.push(note) },
+    )
+    expect(result).toEqual({ ok: true })
+    expect(c.now()).toBeGreaterThanOrEqual(440_000)
+    expect(notes).toContain('Preparing timber 200 of 440')
+    expect(notes.at(-1)).toBeNull()
+  })
+
+  it('gives up on a stand that stops growing, naming the patch count, and on another blocker after its own limit', async () => {
+    const stalled = clock()
+    expect(
+      await waitForStand(
+        () => ({ canSave: false, saveBlocker: null, timberProgress: { done: 120, total: 440 } }),
+        stalled,
+      ),
+    ).toEqual({
+      ok: false,
+      reason: "The road view's drawn timber stopped growing at 120 of 440 patches: no patch was added for 30 s.",
+    })
+    expect(stalled.now()).toBeLessThan(CAPTURE_TIMEOUTS.timberStallMs + 1_000)
+    const blocked = clock()
+    const camera = await waitForStand(
+      () => ({ canSave: false, saveBlocker: 'the camera (placing)', timberProgress: null }),
+      blocked,
+    )
+    expect(camera).toEqual({
+      ok: false,
+      reason:
+        "The road view's terrain or drawn timber did not finish loading within 2 minutes: it was still waiting for the camera (placing).",
+    })
+    expect(blocked.now()).toBeGreaterThan(CAPTURE_TIMEOUTS.roadViewMs)
+    expect(
+      await waitForStand(() => ({ canSave: false, saveBlocker: null, timberProgress: null }), clock(), {
+        stop: () => true,
+      }),
+    ).toEqual({
+      ok: false,
+      reason: null,
+    })
+  })
+
+  it('allows a place’s before renders longer than the regrown stand may take', () => {
+    expect(beforeBudgetMs(1)).toBeGreaterThan(CAPTURE_TIMEOUTS.timberMaxMs + CAPTURE_TIMEOUTS.saveMs)
+    expect(beforeBudgetMs(3)).toBeGreaterThan(beforeBudgetMs(1))
+  })
+})
+
 describe('replacing a recaptured view', () => {
   it('removes its earlier saves here and wherever they were shelved, and drops emptied places', () => {
     const saved = [{ id: 's1', plannedViewId: 'a' }, { id: 's2' }]
@@ -258,10 +323,21 @@ describe('framing a saved view with its lens', () => {
     expect(plan.label).toBe('single frame: 24 mm full-frame equivalent, 73.7° across, facing 10°')
   })
 
-  it('keeps the scene’s fixed frame for a landform framing, and nothing to frame without an extent', () => {
+  it('keeps the scene’s fixed frame for a landform framing, and nothing to frame without a pose', () => {
     const fixed = figurePlanFor({ photoHfov: null, lensHfov: 60, pose }, extent, { bearingDeg: 90, spanDeg: 30 })!
     expect(fixed.totalHfovDeg).toBeCloseTo(30, 6)
-    expect(figurePlanFor({ photoHfov: null, pose }, null, null)).toBeNull()
+    expect(figurePlanFor({ photoHfov: null, pose: null }, null, null)).toBeNull()
+  })
+
+  it('frames a view that sees no landform ground as one frame of its lens, never the road view pane', () => {
+    const lens = lensHfovDeg(35)
+    const plan = figurePlanFor({ photoHfov: null, lensHfov: lens, pose }, null, null)!
+    expect(plan.frames).toHaveLength(1)
+    expect(plan.frames[0].bearingDeg).toBeCloseTo(250, 6)
+    expect(plan.totalHfovDeg).toBeCloseTo(lens, 6)
+    // A full-frame camera's 3:2, whatever the pane's shape.
+    expect(Math.tan((plan.vfovDeg * Math.PI) / 360) / Math.tan((lens * Math.PI) / 360)).toBeCloseTo(2 / 3, 9)
+    expect(plan.label).toMatch(/\(no landform ground in sight to frame on\)$/)
   })
 })
 

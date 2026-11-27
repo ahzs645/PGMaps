@@ -22,6 +22,7 @@ import {
   visibilityPhrase,
   type ReportContext,
 } from './parts'
+import { appendixEntries } from './partsConsultant'
 import { findReportPart } from './registry'
 import { assembleReport, REPORT_RECIPES } from './recipes'
 
@@ -101,6 +102,80 @@ describe('viewpoint order and the numbered list (06)', () => {
     // Unchanged when no name carries a number.
     const plain = context('appendix-1-net-private-rock', [viewpoint({ name: 'B' }), viewpoint({ name: 'A' })])
     expect(inViewpointOrder(plain)).toBe(plain)
+  })
+
+  it('puts the view the run stands at first when no name carries a number, its figures and numbers following', () => {
+    const figure = (view: string) => ({ view, caption: `View from ${view}`, dataUrl: '', width: 1, height: 1 })
+    const ctx = context(
+      'appendix-1-net-private-rock',
+      [
+        viewpoint({ name: 'North Point', n: '1' }),
+        viewpoint({ name: 'Lake Point', n: '2' }),
+        viewpoint({ name: 'Station Point', n: '3', atAssessment: true }),
+        viewpoint({ name: 'Road Point', n: '4' }),
+      ],
+      {
+        figures: [figure('North Point'), figure('Lake Point'), figure('Station Point'), figure('Road Point')],
+        draft: true,
+      },
+    )
+    const ordered = inViewpointOrder(ctx)
+    expect(ordered.facts.viewpoints.map((vp) => [vp.name, vp.n])).toEqual([
+      ['Station Point', '1'],
+      ['North Point', '2'],
+      ['Lake Point', '3'],
+      ['Road Point', '4'],
+    ])
+    expect(ordered.document.viewpoints.map((vp) => vp.name)).toEqual([
+      'Station Point',
+      'North Point',
+      'Lake Point',
+      'Road Point',
+    ])
+    expect(ordered.figures.map((entry) => entry.view)).toEqual([
+      'Station Point',
+      'North Point',
+      'Lake Point',
+      'Road Point',
+    ])
+    // Appendix numbers follow the order.
+    expect(
+      appendixEntries(ordered)
+        .filter((entry) => entry.kind === 'analysis')
+        .map((entry) => entry.viewpoint),
+    ).toEqual(['Station Point', 'North Point', 'Lake Point', 'Road Point'])
+    // Once ordered, nothing moves again; already first, nothing moves at all.
+    expect(inViewpointOrder(ordered)).toBe(ordered)
+    // Names that carry numbers are the reviewer's own order, kept whatever the station.
+    const numbered = context('appendix-1-net-private-rock', [
+      viewpoint({ name: 'Flats (VP1)' }),
+      viewpoint({ name: 'Dam (VP2)', atAssessment: true }),
+    ])
+    expect(inViewpointOrder(numbered).facts.viewpoints.map((vp) => vp.name)).toEqual(['Flats (VP1)', 'Dam (VP2)'])
+  })
+
+  it('keeps the package’s order after the station’s view, even where one name holds another', () => {
+    const figure = (view: string) => ({ view, caption: `View from ${view}`, dataUrl: '', width: 1, height: 1 })
+    // The package's order, the station's view already first: nothing moves.
+    const names = ['Ridge Top', 'Ridge', 'Creek Bend', 'Ridge Road']
+    const inPackage = context(
+      'appendix-1-net-private-rock',
+      names.map((name, index) => viewpoint({ name, atAssessment: index === 0 })),
+      { figures: names.map(figure), draft: true },
+    )
+    expect(inViewpointOrder(inPackage)).toBe(inPackage)
+    // The station's view last in the package: it leads, the rest keep the package's order, figures with their views.
+    const later = ['Ridge', 'Creek Bend', 'Ridge Road', 'Ridge Top']
+    const ordered = inViewpointOrder(
+      context(
+        'appendix-1-net-private-rock',
+        later.map((name) => viewpoint({ name, atAssessment: name === 'Ridge Top' })),
+        { figures: later.map(figure), draft: true },
+      ),
+    )
+    expect(ordered.facts.viewpoints.map((vp) => vp.name)).toEqual(['Ridge Top', 'Ridge', 'Creek Bend', 'Ridge Road'])
+    // "Ridge Road" and "Ridge Top" mention "Ridge": each figure still goes with the view it names.
+    expect(ordered.figures.map((entry) => entry.view)).toEqual(['Ridge Top', 'Ridge', 'Creek Bend', 'Ridge Road'])
   })
 
   it('prints sections, pairs and forms in number order, with the list in the methods', () => {

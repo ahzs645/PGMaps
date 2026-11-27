@@ -182,4 +182,69 @@ describe('background renders', () => {
     expect(BRIDGE_RESET).toMatch(/reset/)
     await act(async () => renderer.unmount())
   })
+  it('restarts the engine between places without losing a queued job, each job after it waiting for a new hello', async () => {
+    const seen: { current: ReturnType<typeof useBackgroundRenders> | null } = { current: null }
+    const ran: string[] = []
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const run: RenderRunner = async (entry) => {
+      ran.push(entry.key)
+      if (entry.key === 'held') await held
+    }
+    function Host(): ReactNode {
+      const renders = useBackgroundRenders({
+        urlFor: () => 'http://127.0.0.1:8460/',
+        environment: DEFAULT_ENGINE_ENVIRONMENT,
+        run,
+      })
+      useEffect(() => {
+        seen.current = renders
+      })
+      return renders.tray
+    }
+    let frames = 0
+    const options = {
+      createNodeMock: (element: { type: unknown }) => {
+        if (element.type !== 'iframe') return null
+        frames++
+        return { contentWindow: engineWindow }
+      },
+    }
+    const hello = () => act(async () => send('http://localhost:8460', { type: 'pgmaps-engine-hello' }))
+    const status = () => Object.fromEntries(seen.current!.jobs.map((entry) => [entry.job.key, entry.status]))
+    let renderer!: ReactTestRenderer
+    await act(async () => {
+      renderer = create(createElement(Host), options)
+    })
+    // The first place: drawn once the engine says hello.
+    await act(async () => seen.current!.enqueue([{ ...job, key: 'first' }]))
+    await hello()
+    expect(status()).toEqual({ first: 'done' })
+    const framesBefore = frames
+    // Between places, with nothing running: the engine is started again at once.
+    await act(async () => seen.current!.restartEngine())
+    expect(frames).toBeGreaterThan(framesBefore)
+    // The next place's job waits for the new engine's hello rather than posting to the one that went.
+    await act(async () => seen.current!.enqueue([{ ...job, key: 'held' }]))
+    expect(ran).toEqual(['first'])
+    expect(status().held).toBe('running')
+    await hello()
+    expect(ran).toEqual(['first', 'held'])
+    // A restart asked while a job runs waits for it, and the job queued behind it is kept, then drawn after a hello.
+    await act(async () => seen.current!.enqueue([{ ...job, key: 'queued' }]))
+    const framesRunning = frames
+    await act(async () => seen.current!.restartEngine())
+    expect(frames).toBe(framesRunning)
+    expect(status()).toMatchObject({ held: 'running', queued: 'waiting' })
+    await act(async () => release())
+    expect(frames).toBeGreaterThan(framesRunning)
+    expect(status()).toMatchObject({ held: 'done', queued: 'running' })
+    expect(ran).toEqual(['first', 'held'])
+    await hello()
+    expect(ran).toEqual(['first', 'held', 'queued'])
+    expect(status()).toEqual({ first: 'done', held: 'done', queued: 'done' })
+    // The engine's box stays in the tray throughout.
+    expect(renderer.root.findAllByType('iframe')).toHaveLength(1)
+    await act(async () => renderer.unmount())
+  })
 })

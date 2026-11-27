@@ -27,7 +27,8 @@ import { metersPerDegree } from './visibility'
 import { SCENE_TREE_FIELDS } from './scenePackage'
 import { treeComponents } from './sceneComponents'
 
-/** Most stems a final stand carries; appended metadata is transferred with its numeric buffer. */
+/** Most stems a final stand carries; appended metadata is transferred with its numeric buffer. A clipped stand is named
+ * on the sheet (`illustrationLine`). */
 export const FINAL_STAND_MAX_STEMS = 1_500_000
 
 /** How far past the farthest class polygon (the landform, the blocks) the stand reaches, metres. */
@@ -56,6 +57,8 @@ export type FinalStandInput = {
   /** The ground the package's stems stand on. */
   elevation: ElevationSource
   maxStems?: number
+  /** Called at each slice's end (diagnostics): patches planned and grown, stems kept so far. */
+  onProgress?: (progress: { patches: number; grown: number; stems: number }) => void
 }
 
 export type FinalStand = {
@@ -142,6 +145,7 @@ export function* finalStandSteps(
     return [{ patch, nearest: Math.max(0, distance - half) }]
   })
   patches.sort((a, b) => a.nearest - b.nearest)
+  input.onProgress?.({ patches: patches.length, grown: 0, stems: 0 })
 
   // The package's species; compatibility conversion happens only at the consumer boundary.
   const species = PACKAGE_SPECIES_IDS
@@ -195,6 +199,7 @@ export function* finalStandSteps(
     idChunks.push(chunkIds)
     count += kept
     if (now() - sliceStart >= sliceMillis) {
+      input.onProgress?.({ patches: patches.length, grown: i + 1, stems: count })
       yield
       sliceStart = now()
     }

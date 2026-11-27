@@ -207,4 +207,18 @@ describe('the visual inventory read reaches the VIA report', () => {
       ['381', null],
     ])
   })
+
+  it('names the landform each unit’s block ground lies in, and none for a block outside every landform', () => {
+    // A made-up landform over the west block only.
+    const west = { name: 'Made-up landform', geometry: square(-116.945, 50.105, 0.02) }
+    const rows = inventoryUnitRows(units, blocks, [], [], [west])
+    expect(rows.map((row) => [row.vsu, row.landforms])).toEqual([
+      ['382', ['Made-up landform']],
+      ['381', []],
+    ])
+    // Without the landforms, rows carry none, as before.
+    expect(inventoryUnitRows(units, blocks).every((row) => row.landforms === undefined)).toBe(true)
+    const ctx = contextWith(units)
+    expect(ctx.inventoryUnits?.map((row) => row.landforms)).toEqual([['VSU 382 + 381'], ['VSU 382 + 381']])
+  })
 })

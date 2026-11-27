@@ -53,6 +53,23 @@ export function currentPlannedView(
 }
 
 /**
+ * Where the assessment stands, read from the scene's own viewpoint so it holds after a reload: a spot's point, or the
+ * middle of a stand's pullout (a `stand-` viewpoint is the pullout `pulloutThrough` lays centred on the place stood
+ * at). Null for a road, which stands at no one place.
+ */
+export function assessedStandPoint(viewpoint: {
+  id?: string
+  mode: string
+  coordinates: ReadonlyArray<readonly number[]>
+}): [number, number] | null {
+  const [first, second] = viewpoint.coordinates
+  if (viewpoint.mode === 'spot') return first ? [first[0], first[1]] : null
+  if (viewpoint.id?.startsWith('stand-') && viewpoint.coordinates.length === 2 && first && second)
+    return [(first[0] + second[0]) / 2, (first[1] + second[1]) / 2]
+  return null
+}
+
+/**
  * The view the arrows step to from `currentId`, wrapping at the ends. From nowhere (no planned view is current)
  * ▶ goes to the first view and ◀ to the last. Null when there is no view to step to.
  */

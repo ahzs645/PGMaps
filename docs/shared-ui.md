@@ -1092,6 +1092,13 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   Its `zoom` draws the zoom pair as one of its items, so a touch screen, which pinches, can
   fold it first. The visual-quality plan is the reference. Stack squares are 44 px under a
   finger at every width (`touch:!size-11`), 32 px in a desktop workspace with a mouse.
+  In a desktop workspace a map with many tools can lay them along its top-left edge instead,
+  as the road designer's plan does: `MapToolbar` and `MapToolbarGroup` (`map-toolbar.tsx`),
+  rendered after the map in the element that holds it, wrap into rows and publish
+  `--map-toolbar-bottom`, so a top-left card passes `BELOW_MAP_TOOLBAR` in its `className` to
+  start under the strip. The right-hand column then keeps the compass, zoom and Layers, and the
+  legend sits flush in its corner. On a phone keep the tools in the folding stack. The
+  visual-quality plan does both (`phone` picks which).
 - Overlays: `MapOverlay` (`position`). Pass `clearChrome` rather than writing
   your own `calc(…)` offsets: it keeps clear of the phone toolbar above, the
   bottom sheet, safe area and timeline below, and the corner controls and

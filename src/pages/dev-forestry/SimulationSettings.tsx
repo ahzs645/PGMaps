@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 
 import { OptionRow } from './RoadViewOptions'
 import type { AnalysisSettings, Viewpoint } from './types'
+import { MAX_SAMPLE_BUDGET } from './analysis'
 import { stationCalculation, standEyeHeight, surveyedEyeElevation } from './viewpointStand'
 
 const CONTROL_CLASS =
@@ -201,7 +202,7 @@ export function SimulationSettingsPanel({
           info="More points resolve the edges of a block and small openings on a large landform; the run warns when a proposal covers too few landform cells. The grid is coarsened automatically if a run would take too long."
           value={settings.sampleBudget}
           min={100}
-          max={20000}
+          max={MAX_SAMPLE_BUDGET}
           step={100}
           onChange={(sampleBudget) => set({ sampleBudget })}
         />

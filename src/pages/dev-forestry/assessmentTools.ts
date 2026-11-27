@@ -15,6 +15,7 @@ import { heightCurveProblem, MAX_LIBRARY_CURVES, type LibraryCurve } from './cas
 import { greenUpReading } from './greenUp'
 import { runHeadline, type HeadlineScale } from './runRevision'
 import { parsePhotoAcceptance, type PhotoAcceptance } from './photoAcceptance'
+import { MAX_SAMPLE_BUDGET } from './analysis'
 
 export const MAX_TOOL_JOBS = 12
 export type ToolOption = { id: string; name: string; scene: ForestryScene }
@@ -513,7 +514,7 @@ export function matrixJobs(base: ForestryScene, views: ToolView[], landformIds: 
 export function stabilityJobs(scene: ForestryScene): ToolJob[] {
   const variants: Array<[string, Partial<ForestryScene['settings']>]> = [
     ['Baseline', {}],
-    ['Finer area sampling', { sampleBudget: Math.min(20000, scene.settings.sampleBudget * 2) }],
+    ['Finer area sampling', { sampleBudget: Math.min(MAX_SAMPLE_BUDGET, scene.settings.sampleBudget * 2) }],
     ['Closer viewing stations', { stationSpacingMeters: Math.max(10, scene.settings.stationSpacingMeters / 2) }],
     ['Eye 0.5 m lower', { observerHeightMeters: Math.max(0.1, scene.settings.observerHeightMeters - 0.5) }],
     ['Eye 0.5 m higher', { observerHeightMeters: scene.settings.observerHeightMeters + 0.5 }],

@@ -166,6 +166,14 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  // An external renderer's build (`public/engines/<id>/`, `npm run engines:build`) keeps its file names whatever changes:
+  // the page and the engine speak one protocol, so a new build must be the one that loads, never the one before it for
+  // a visit (stale while revalidate ran the previous engine once after every update). The kept copy serves offline.
+  if (pathname.startsWith('/engines/')) {
+    event.respondWith(networkFirst(request, DATA_CACHE, request, 'no-cache'))
+    return
+  }
+
   // Everything Vite emits under /assets/ has a content hash in its filename: scripts and styles,
   // and also the MapLibre worker (.mjs), WebAssembly, fonts and bundled data. Matching only .js and
   // .css left the map worker out, so no map could start offline.

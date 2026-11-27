@@ -143,6 +143,11 @@ export interface InventoryUnitRow {
   blocks?: Readonly<Record<string, number>>
   /** As `blocks`, less mapped reserves, for the blocks that hold one; a block absent here has none. */
   netBlocks?: Readonly<Record<string, number>>
+  /**
+   * The scene's landforms the blocks' ground in this unit lies in, scene order: empty when that ground is in none.
+   * Absent when the landforms were not read with the rows (hand-built rows, a unit held by no block).
+   */
+  landforms?: readonly string[]
 }
 
 export interface ReportContext {
@@ -504,15 +509,21 @@ export const viewpointPlaceName = (name: string) =>
     .trim() || name
 
 /**
- * The report's viewpoints in the order of the numbers their names carry (06 prints VP1 to VP7, whatever order the views
- * were saved in), each numbered by its name; a viewpoint whose name carries none follows, in saved order. The facts and
- * the resolved document are reordered together, so a part that pairs them by index still pairs the same viewpoint.
- * Unchanged when no name carries a number.
+ * The report's viewpoints in print order. Names that carry numbers are the reviewer's own order: the viewpoints print
+ * in the order of those numbers (06 prints VP1 to VP7, whatever order the views were saved in), each numbered by its
+ * name; a viewpoint whose name carries none follows, in saved order. With no numbered name the view the run stands at
+ * (`atAssessment`) leads, its figures being the assessment's, then the rest in the package's order, each numbered by
+ * its new place, and the figures follow their views. The facts and the resolved document are reordered together, so a
+ * part that pairs them by index still pairs the same viewpoint; figure and appendix numbers follow this order
+ * (`figurePageViewpoints`, `appendixEntries`). Unchanged when nothing moves.
+ *
+ * Applied when the report is assembled, never in `buildReportContext`: the page pairs the context's viewpoints with its
+ * own views by index to name their pictures.
  */
 export function inViewpointOrder(ctx: ReportContext): ReportContext {
   const vps = ctx.facts.viewpoints
   const numbers = vps.map((vp) => viewpointNumber(vp.name))
-  if (numbers.every((n) => n === null)) return ctx
+  if (numbers.every((n) => n === null)) return stationFirst(ctx)
   const order = vps
     .map((_, index) => index)
     .sort((i, j) => (numbers[i] ?? Infinity) - (numbers[j] ?? Infinity) || i - j)
@@ -524,6 +535,34 @@ export function inViewpointOrder(ctx: ReportContext): ReportContext {
       viewpoints: order.map((i) => (numbers[i] === null ? vps[i] : { ...vps[i], n: String(numbers[i]) })),
     },
     document: aligned ? { ...ctx.document, viewpoints: order.map((i) => ctx.document.viewpoints[i]) } : ctx.document,
+  }
+}
+
+/** `inViewpointOrder` with no numbered name: the view at the run's station first, then the package's order. */
+function stationFirst(ctx: ReportContext): ReportContext {
+  const vps = ctx.facts.viewpoints
+  const indices = vps.map((_, index) => index)
+  const first = indices.filter((i) => vps[i].atAssessment === true)
+  if (!first.length || first.every((i, k) => i === k)) return ctx
+  const order = [...first, ...indices.filter((i) => !first.includes(i))]
+  const aligned = ctx.document.viewpoints.length === vps.length
+  // Each figure goes with the first viewpoint it shows (`figureFor`'s match); one of no viewpoint keeps its place after.
+  const place = new Map(order.map((i, at) => [i, at]))
+  const rank = (figure: ReportFigure) => {
+    // The viewpoint the figure names first, then one its caption mentions: a name inside another ("Ridge" in "Ridge
+    // road") must not take the longer one's figures.
+    const named = vps.findIndex((vp) => figure.view === vp.name)
+    const shown = named >= 0 ? named : vps.findIndex((vp) => figure.caption.includes(vp.name))
+    return shown < 0 ? vps.length : place.get(shown)!
+  }
+  return {
+    ...ctx,
+    facts: { ...ctx.facts, viewpoints: order.map((i, at) => ({ ...vps[i], n: String(at + 1) })) },
+    document: aligned ? { ...ctx.document, viewpoints: order.map((i) => ctx.document.viewpoints[i]) } : ctx.document,
+    figures: ctx.figures
+      .map((figure, index) => ({ figure, index, rank: rank(figure) }))
+      .sort((a, b) => a.rank - b.rank || a.index - b.index)
+      .map((entry) => entry.figure),
   }
 }
 
@@ -2294,29 +2333,52 @@ const figuresAppendix: ReportPart = {
   },
 }
 
-/** What the run says each viewpoint sees of each block, in words (02's field comments, 06's rationales). */
+/**
+ * What the run says each viewpoint sees of its blocks, in words (02's field comments, 06's rationales): one sentence
+ * per viewpoint, the visible blocks named with their shares, then those seen only in glimpses, then those not expected
+ * to be visible, together ("From A, Blocks X1 and X2 are visible, with 20% and 23% of their ground in view; Block X3
+ * is not expected to be visible."). A block whose terrain is missing is left out, as the run cannot say; a viewpoint
+ * with no block it can speak of prints nothing.
+ */
 export function blockVisibilitySentences(ctx: ReportContext): Sentence[] {
-  return ctx.facts.viewpoints.flatMap((vp) =>
-    vp.blocks.map((block) =>
-      fillSentence(
-        'block-visibility',
-        'From {viewpoint}, Block {block} {seen}.',
-        {
-          viewpoint: vp.name,
-          block: block.id,
-          seen:
-            block.status === 'unknown'
-              ? null
-              : block.status === 'not visible'
-                ? 'is not expected to be visible'
-                : block.status === 'possible glimpses'
-                  ? 'may be seen only in glimpses'
-                  : `is visible, with ${Math.round(block.visiblePercent)}% of its ground in view`,
-        },
-        'run',
-      ),
-    ),
-  )
+  const verb = (names: readonly string[], one: string, many: string) =>
+    `${blockList(names)} ${names.length === 1 ? one : many}`
+  return ctx.facts.viewpoints.map((vp) => {
+    const of = (status: string) => vp.blocks.filter((block) => block.status === status)
+    const visible = of('visible')
+    const glimpses = of('possible glimpses')
+    const hidden = of('not visible')
+    const shares = visible.map((block) => `${Math.round(block.visiblePercent)}%`)
+    const clauses = [
+      visible.length
+        ? `${verb(
+            visible.map((block) => block.id),
+            'is visible',
+            'are visible',
+          )}, with ${andList(shares)} of ${visible.length === 1 ? 'its' : 'their'} ground in view`
+        : null,
+      glimpses.length
+        ? verb(
+            glimpses.map((block) => block.id),
+            'may be seen only in glimpses',
+            'may be seen only in glimpses',
+          )
+        : null,
+      hidden.length
+        ? verb(
+            hidden.map((block) => block.id),
+            'is not expected to be visible',
+            'are not expected to be visible',
+          )
+        : null,
+    ].filter((clause): clause is string => clause !== null)
+    return fillSentence(
+      'block-visibility',
+      'From {viewpoint}, {seen}.',
+      { viewpoint: vp.name, seen: clauses.length ? clauses.join('; ') : null },
+      'run',
+    )
+  })
 }
 
 /** The report's purpose (06's objective paragraph, 26's purpose line). */
@@ -2393,13 +2455,13 @@ const viewpointPages: ReportPart = {
                   ? 'no proposed block lies in the view'
                   : seen.length
                     ? glimpsesOnly(seen, resolvedVp?.printed?.percent ?? null)
-                      ? `${blockList(seen.map((block) => block.id))} may be seen only in glimpses (${resolvedVp?.printed?.percent ?? '?'}% of the landform in the picture)`
-                      : `${blockList(seen.map((block) => block.id))} ${seen.length === 1 ? 'is' : 'are'} in view (${resolvedVp?.printed?.percent ?? '?'}% of the landform in the picture)`
+                      ? `${blockList(seen.map((block) => block.id))} may be seen only in glimpses (${landformShare(resolvedVp?.printed?.percent ?? null, 'the')})`
+                      : `${blockList(seen.map((block) => block.id))} ${seen.length === 1 ? 'is' : 'are'} in view (${landformShare(resolvedVp?.printed?.percent ?? null, 'the')})`
                     : // The picture shows proposed ground the callouts' samples miss: a block is seen, at its figure.
                       pictureShowsProposal(vp)
                       ? resolvedVp?.printed && Number(resolvedVp.printed.percent) < GLIMPSE_LANDFORM_PERCENT
-                        ? `the proposed blocks may be seen only in glimpses (${resolvedVp?.printed?.percent ?? '?'}% of the landform in the picture)`
-                        : `part of the proposed blocks is in view (${resolvedVp?.printed?.percent ?? '?'}% of the landform in the picture)`
+                        ? `the proposed blocks may be seen only in glimpses (${landformShare(resolvedVp?.printed?.percent ?? null, 'the')})`
+                        : `part of the proposed blocks is in view (${landformShare(resolvedVp?.printed?.percent ?? null, 'the')})`
                       : `no proposed block is expected to be visible${hiddenCause(vp.blocks) ? `, ${hiddenCause(vp.blocks)}` : ''}`,
             },
             'run',
@@ -2512,6 +2574,13 @@ const boardComparison: ReportPart = {
   }),
 }
 
+/**
+ * A picture's share of the landform in a sentence: "3.2% of the landform in this picture", or, with no pixel figure,
+ * words, never "?%".
+ */
+export const landformShare = (percent: string | null, picture: 'this' | 'the' = 'this') =>
+  percent === null ? `no pixel figure for ${picture} picture` : `${percent}% of the landform in ${picture} picture`
+
 /** Below this share of the landform in the picture, percent, an alteration reads as at most glimpses. */
 export const GLIMPSE_LANDFORM_PERCENT = 0.1
 
@@ -2539,14 +2608,14 @@ export function visibilityPhrase(
   if (!seen.length)
     return percent !== null && Number(percent) < GLIMPSE_LANDFORM_PERCENT
       ? `may be seen only in glimpses (${percent}% of the landform in this picture)`
-      : `is expected to be partly visible (${percent ?? '?'}% of the landform in this picture)`
+      : `is expected to be partly visible (${landformShare(percent)})`
   if (glimpsesOnly(seen, percent))
-    return `may be seen only in glimpses (${percent ?? '?'}% of the landform in this picture)${
+    return `may be seen only in glimpses (${landformShare(percent)})${
       cause ? `; the rest of the blocks’ ground is ${cause}` : ''
     }`
   return seen.length < blocks.length
-    ? `is expected to be partly visible: ${seen.length} of ${blocks.length} blocks in view, ${percent ?? '?'}% of the landform in this picture`
-    : `is expected to be visible (${percent ?? '?'}% of the landform in this picture)`
+    ? `is expected to be partly visible: ${seen.length} of ${blocks.length} blocks in view, ${landformShare(percent)}`
+    : `is expected to be visible (${landformShare(percent)})`
 }
 
 /**

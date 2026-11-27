@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { currentPlannedView, steppedView, viewForBlockHere, viewPosition } from './summaryViewSwitch'
+import {
+  assessedStandPoint,
+  currentPlannedView,
+  steppedView,
+  viewForBlockHere,
+  viewPosition,
+} from './summaryViewSwitch'
+import { pulloutThrough } from './viewpointInventory'
 import { metersPerDegree } from './visibility'
 import type { ViewOfInterest } from './viewsOfInterest'
 
@@ -107,5 +114,18 @@ describe('switching the block at a place', () => {
     expect(viewForBlockHere(views, near(0.4), 'b2')?.id).toBe('b2-here')
     expect(viewForBlockHere(views, near(0.4), 'b3')).toBeNull()
     expect(viewForBlockHere(views, null, 'b2')).toBeNull()
+  })
+})
+
+describe('where the assessment stands, from the scene alone', () => {
+  it('reads a spot, a stand’s pullout and no road, so the view stood at is found again after a reload', () => {
+    const toward = { lng: PLACE.lng + 0.02, lat: PLACE.lat + 0.01 }
+    const stand = { id: 'stand-map-1', mode: 'corridor', coordinates: pulloutThrough(PLACE, toward) }
+    const point = assessedStandPoint(stand)!
+    const views = [elsewhere('away'), view('here', { blockId: 'b7' })]
+    expect(currentPlannedView(views, point)?.blockId).toBe('b7')
+    expect(assessedStandPoint({ id: 'spot', mode: 'spot', coordinates: [near(3)] })).toEqual(near(3))
+    // A road (or a pullout drawn by hand) stands at no one place.
+    expect(assessedStandPoint({ id: 'road', mode: 'corridor', coordinates: stand.coordinates })).toBeNull()
   })
 })

@@ -11,7 +11,12 @@ import {
   depthSummary,
   captureTransfer,
   illustrationLine,
+  readEngineTrace,
+  withTraceLine,
+  type EngineTraceLine,
   joinFrames,
+  missingLine,
+  plainMissing,
   readCaptureProgress,
   readCaptureReply,
   screeningCounts,
@@ -384,6 +389,17 @@ describe('a final capture', () => {
     expect(illustrationLine({ ...base, final: null })).toBe(
       'Picture and pixel measures: Nanite Forest d838ab2, one capture; active render (final not drawn)',
     )
+    // A stand the stem budget cut short says how far it reached; one that reached the landform says nothing more.
+    const stand = { stems: 1_000_000, radiusMeters: 3240, millis: 600 }
+    expect(illustrationLine({ ...base, final: drawn.final, stand: { ...stand, clipped: true } })).toBe(
+      'Picture and pixel measures: Nanite Forest d838ab2, one capture; final render: 24 samples, 1.38 M stems; real-density stand to 3.2 km (stem budget)',
+    )
+    expect(illustrationLine({ ...base, final: drawn.final, stand: { ...stand, clipped: false } })).toBe(
+      'Picture and pixel measures: Nanite Forest d838ab2, one capture; final render: 24 samples, 1.38 M stems',
+    )
+    expect(illustrationLine({ ...base, final: null, stand: { ...stand, clipped: true } })).toBe(
+      'Picture and pixel measures: Nanite Forest d838ab2, one capture; active render (final not drawn)',
+    )
   })
 })
 
@@ -400,5 +416,69 @@ describe('an engine capture’s progress', () => {
     expect(readCaptureProgress({ type: 'pgmaps-capture-progress', id: 'c1', done: 40, total: 36 })?.done).toBe(36)
     expect(readCaptureProgress({ type: 'pgmaps-capture-progress', id: 'c1', done: 1, total: 0 })).toBeNull()
     expect(readCaptureProgress({ type: 'pgmaps-engine-capture', id: 'c1' })).toBeNull()
+  })
+})
+
+describe('what a capture drew without data', () => {
+  it('prints the layers in words, never their ids', () => {
+    const line = missingLine({
+      renderer: 'Made-up engine',
+      version: 'unknown',
+      capturedAt: '2026-01-01T00:00:00Z',
+      sceneCreatedAt: null,
+      environment: null,
+      depth: { nearestM: null, farthestM: null, skyShare: 0 },
+      missing: [
+        'proposedOut cut at the terrain edge',
+        'landform past 12.0 km cut',
+        '3.1% of existingIn past terrain, not drawn',
+        'zone-PR, zone-M cut at the terrain edge',
+      ],
+    })
+    expect(line).toBe(
+      'Drawn without data: proposed blocks outside the landform cut at the terrain edge; landform past 12.0 km cut; ' +
+        '3.1% of existing openings in the landform past terrain, not drawn; the PR zone, the M zone cut at the terrain edge',
+    )
+    for (const id of ['proposedIn', 'proposedOut', 'existingOut', 'partialIn', 'privateOut'])
+      expect(plainMissing(`${id} cut`)).not.toMatch(/[a-z][A-Z]/)
+    expect(plainMissing('trees past 5.6 km not drawn')).toBe('trees past 5.6 km not drawn')
+  })
+})
+
+describe('an engine’s trace', () => {
+  it('reads a stage line, keeps finite numbers and short strings in its detail, and refuses anything else', () => {
+    expect(
+      readEngineTrace({
+        type: 'pgmaps-engine-trace',
+        phase: 'final-stand',
+        stage: 'merge',
+        ms: 812.4,
+        at: 1700000000000,
+        detail: { stems: 1380000, reason: 'destroyed', bad: { nested: 1 }, inf: Infinity },
+      }),
+    ).toEqual({
+      at: 1700000000000,
+      phase: 'final-stand',
+      stage: 'merge',
+      ms: 812.4,
+      detail: { stems: 1380000, reason: 'destroyed' },
+    })
+    expect(
+      readEngineTrace({ type: 'pgmaps-engine-trace', phase: 'gpu', stage: 'device-lost', detail: null }),
+    ).toMatchObject({
+      phase: 'gpu',
+      stage: 'device-lost',
+      ms: null,
+      detail: null,
+    })
+    expect(readEngineTrace({ type: 'pgmaps-capture-progress', id: 'c1', done: 1, total: 2 })).toBeNull()
+    expect(readEngineTrace({ type: 'pgmaps-engine-trace', stage: 'merge' })).toBeNull()
+  })
+
+  it('keeps the newest lines up to its limit', () => {
+    let lines: EngineTraceLine[] = []
+    for (const stage of ['a', 'b', 'c'])
+      lines = withTraceLine(lines, { at: 0, phase: 'build', stage, ms: 1, detail: null }, 2)
+    expect(lines.map((line) => line.stage)).toEqual(['b', 'c'])
   })
 })

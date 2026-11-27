@@ -755,8 +755,9 @@ export function ViewsOfInterestList({
                     )}
                     {engineElsewhere && (
                       <p className="text-2xs text-muted-foreground">
-                        {renderer!.label} redraws only views captured where you stand now: this one keeps PGMaps&apos;
-                        picture, and the files say so. Stand here to have {renderer!.label} draw it.
+                        {renderer!.label} draws a view only while the road view stands at it: Save &amp; export stands
+                        here to have it drawn before the file. Until it has, this one keeps PGMaps&apos; picture, and
+                        the files say so.
                       </p>
                     )}
                     <EarlierCaptures

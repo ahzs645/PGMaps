@@ -1244,6 +1244,13 @@ const OWN: TextStyle = { size: 9, color: '#1d4ed8' }
 const fixed = (value: number | null, digits = 2) =>
   value === null || !Number.isFinite(value) ? 'n/a' : value.toFixed(digits)
 
+/** What a measure prints with no value: words, never "n/a%". */
+export const NOT_MEASURED = 'not measured'
+
+/** A measure's percent as printed: "7.43%", or `NOT_MEASURED` with no value (no class pass, an empty landform). */
+export const measurePercent = (value: number | null, digits = 2) =>
+  value === null || !Number.isFinite(value) ? NOT_MEASURED : `${value.toFixed(digits)}%`
+
 /**
  * What a figure file says of itself in its document properties (`FigureSheetPanel`'s PDF), never on its face: the
  * style it is drawn in and the day it was made.
@@ -1360,7 +1367,8 @@ export function resolveCalc(
     let previousBold = false
     for (const template of calc.lines) {
       const bold = template.startsWith('**')
-      const text = fillTemplate(bold ? template.slice(2) : template, values)
+      // A share with no value prints "n/a", never "n/a%" (a template's `{proposedPct}%` over an empty landform).
+      const text = fillTemplate(bold ? template.slice(2) : template, values).replace(/\bn\/a\s*%/g, 'n/a')
       if (/\{\w+\}/.test(text)) continue
       rows.push({ text, bold, boldStart: bold && !previousBold })
       previousBold = bold
@@ -1722,20 +1730,57 @@ export function calcColumns(
 }
 
 /** The calculation lines, bold where a line starts with `**`, then PGMaps' own figures beside them. */
-function calcOps(input: FigureInput, counts: FigureCounts | null, x: number, y: number, align: 'left' | 'center') {
+function calcOps(
+  input: FigureInput,
+  counts: FigureCounts | null,
+  x: number,
+  y: number,
+  align: 'left' | 'center',
+  /** Wrap each line to this width (measured as printed); absent, lines are drawn as they are. */
+  width?: number,
+) {
   const calc = input.preset.calc
   const ops: DrawOp[] = []
   if (!calc) return { ops, bottom: y }
+  const rowsOf = (text: string, style: TextStyle) =>
+    width === undefined ? [text] : wrapText(pdfText(text), style.size, width, style.style ?? 'normal')
   if (calc.title.text) {
-    ops.push(...textOps(x, y, calc.title.text, calc.title, align))
+    const rows = rowsOf(calc.title.text, calc.title)
+    rows.forEach((row, i) => {
+      ops.push(...textOps(x, y, row, calc.title, align))
+      if (i < rows.length - 1) y += lineHeight(calc.title)
+    })
     y += lineHeight(calc.title) * 1.6
   }
   for (const row of resolveCalc(input, counts).rows) {
     if (row.boldStart) y += 4
     const style = row.bold ? (calc.emphasis ?? calc.line) : calc.line
-    ops.push(...textOps(x, y, row.text, style, align))
-    y += lineHeight(style)
+    for (const line of rowsOf(row.text, style)) {
+      ops.push(...textOps(x, y, line, style, align))
+      y += lineHeight(style)
+    }
   }
+  return { ops, bottom: y }
+}
+
+/**
+ * Lines centred on `x` from the baseline `y`, each folded as it prints (`pdfText`) and wrapped to `width`; a word wider
+ * than the line is ellipsized (`wrapText`). Nothing runs past `width`: the figure grows down to hold them.
+ */
+export function centredLines(
+  lines: readonly string[],
+  x: number,
+  y: number,
+  width: number,
+  style: TextStyle,
+  step = lineHeight(style) * 1.1,
+): { ops: DrawOp[]; bottom: number } {
+  const ops: DrawOp[] = []
+  for (const line of lines)
+    for (const row of wrapText(pdfText(line).replace(/\s+/g, ' ').trim(), style.size, width, style.style ?? 'normal')) {
+      ops.push(...textOps(x, y, row, style, 'center'))
+      y += step
+    }
   return { ops, bottom: y }
 }
 
@@ -1808,7 +1853,7 @@ export function timberLine(input: Pick<FigureInput, 'timber' | 'preset' | 'class
   if ('absent' in timber) return `Pixel measure, with drawn timber: not measured (${timber.absent})`
   const counts = countClasses(timber.classes)
   const openings = counts.nonVeg > 0 ? ' (existing openings as on the ground)' : ''
-  return `Pixel measure, with drawn timber: ${fixed(figurePercent(input, counts))}%${openings}`
+  return `Pixel measure, with drawn timber: ${measurePercent(figurePercent(input, counts))}${openings}`
 }
 
 const trimmed = (value: number) => String(Math.round(value * 10) / 10)
@@ -1878,9 +1923,9 @@ function measureLines(
   return [
     input.sightlinePercent === null && input.sightlineWithheld
       ? `Sightline measure (PGMaps run${of}): ${input.sightlineWithheld}`
-      : `Sightline measure (PGMaps run, the assessment figure${of}): ${fixed(input.sightlinePercent)}%${input.sightlineClass ? ` (${input.sightlineClass})` : ''}`,
-    `Pixel measure, this image${of}${ground}: ${fixed(pixel)}%`,
-    ...(input.screenedClasses ? [`Pixel measure with the drawn trees in front: ${fixed(screened)}%`] : []),
+      : `Sightline measure (PGMaps run, the assessment figure${of}): ${measurePercent(input.sightlinePercent)}${input.sightlineClass && input.sightlinePercent !== null ? ` (${input.sightlineClass})` : ''}`,
+    `Pixel measure, this image${of}${ground}: ${measurePercent(pixel)}`,
+    ...(input.screenedClasses ? [`Pixel measure with the drawn trees in front: ${measurePercent(screened)}`] : []),
     ...(timberLine(input) ? [timberLine(input)!] : []),
     ...partialCutLines(input, counts),
     ...(input.illustration ?? []),
@@ -2116,13 +2161,20 @@ export function analysedFigure(input: FigureInput, width = 612): ComposedFigure 
     ops.push(...labelKeyOps(panel.key, { x: margin, y, w: width - margin * 2, h: panel.key.length * 9.1 + 4 }, y))
     y += panel.key.length * 9.1 + 8
   }
-  const calc = calcOps(input, counts, width / 2, y, 'center')
+  const calc = calcOps(input, counts, width / 2, y, 'center', width - margin * 2)
   ops.push(...calc.ops)
   y = calc.bottom + 6
-  for (const line of measureLines(input, counts)) {
-    ops.push(...textOps(width / 2, y, line, { ...NOTE, size: 8, color: '#1d4ed8' }, 'center'))
-    y += 10.5
-  }
+  // Each line wrapped to the page's width: a long reason (why a figure was not measured) ran off both sides.
+  const measures = centredLines(
+    measureLines(input, counts),
+    width / 2,
+    y,
+    width - margin * 2,
+    { ...NOTE, size: 8, color: '#1d4ed8' },
+    10.5,
+  )
+  ops.push(...measures.ops)
+  y = measures.bottom
   const height = Math.ceil(y + 16)
   return { width, height, ops, frame, drawn: [...panel.drawn], counts, notes: notesFor(input, panel.drawn) }
 }
@@ -2140,7 +2192,8 @@ export function fittedLines(
   const layout = (scale: number) =>
     lines.map(({ text, style }) => {
       const sized = { ...style, size: style.size * scale }
-      return { style: sized, rows: wrapText(text, sized.size, box.width) }
+      // Measured as it prints, and drawn as measured.
+      return { style: sized, rows: wrapText(pdfText(text), sized.size, box.width, sized.style ?? 'normal') }
     })
   const height = (laid: ReturnType<typeof layout>) =>
     laid.reduce((sum, { style, rows }) => sum + rows.length * lineHeight(style) + GAP, 0) - GAP
@@ -2268,15 +2321,19 @@ export function overlaySheet(input: FigureInput): ComposedFigure {
       ...labelKeyOps(panel.key, { x: frame.x, y: frame.y + frame.h + 6, w: frame.w, h: 30 }, frame.y + frame.h + 14),
     )
   const counts = input.classes ? countClasses(input.classes) : null
-  const height = Math.ceil(frame.y + frame.h + 18 + (panel.key.length ? panel.key.length * 9.1 + 4 : 0) + 30)
-  ops.push(
-    ...textOps(
-      W / 2,
-      height - 26,
-      measureLines(input, counts).slice(0, figureLineCount(input)).join('   ·   '),
-      { size: 8, color: '#1d4ed8' },
-      'center',
-    ),
+  // PGMaps' figures in a line under the picture, wrapped to the page when they do not fit on one.
+  const style: TextStyle = { size: 8, color: '#1d4ed8' }
+  const figures = wrapText(
+    pdfText(measureLines(input, counts).slice(0, figureLineCount(input)).join('   ·   ')),
+    style.size,
+    W - margin * 2,
+  )
+  const step = lineHeight(style) * 1.1
+  const height = Math.ceil(
+    frame.y + frame.h + 18 + (panel.key.length ? panel.key.length * 9.1 + 4 : 0) + 30 + (figures.length - 1) * step,
+  )
+  figures.forEach((row, i) =>
+    ops.push(...textOps(W / 2, height - 26 - (figures.length - 1 - i) * step, row, style, 'center')),
   )
   return { width: W, height, ops, frame, drawn: [...panel.drawn], counts, notes: notesFor(input, panel.drawn) }
 }

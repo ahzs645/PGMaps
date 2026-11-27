@@ -815,6 +815,7 @@ export function VisualsExportDialog({
   recordings,
   onCapture,
   onCancelCapture,
+  roadView,
   portalContainer,
 }: {
   open: boolean
@@ -867,9 +868,23 @@ export function VisualsExportDialog({
    * Captures views of interest as saved views (`viewsToCapture`, `beforeToCapture`) before an output that draws them
    * is written; `before`, with each one's before-harvest render where it stands.
    */
-  onCapture?: (viewIds: readonly string[], options?: { before?: boolean }) => Promise<ViewCaptureReport>
+  onCapture?: (
+    viewIds: readonly string[],
+    options?: {
+      before?: boolean
+      /** The package's engine draws each view's figures while the capture stands there (`captureEngine`). */
+      engine?: boolean
+      /** Views captured elsewhere, only stood at for the engine's renders (`renderAt`). */
+      renderIds?: readonly string[]
+    },
+  ) => Promise<ViewCaptureReport>
   /** Stops a capture in flight; the views captured so far are kept. */
   onCancelCapture?: () => void
+  /**
+   * Opens the road view where the reviewer stands, for an engine that draws from it, and closes it: one the export
+   * opened is closed again when the dialog closes. Absent: a closed road view is waited for, never opened.
+   */
+  roadView?: { open: () => void; leave: () => void }
   portalContainer?: HTMLElement | null
 }) {
   const [selected, setSelected] = useState<VisualsExport>(initialOutput)
@@ -1036,6 +1051,10 @@ export function VisualsExportDialog({
   const latestReadInventory = useRef(onReadInventory)
   const latestCapture = useRef(onCapture)
   const latestCancelCapture = useRef(onCancelCapture)
+  const latestRoadView = useRef(roadView)
+  // The road view this dialog opened for an engine's renders: kept open while the dialog is (a preview restarted
+  // mid-wait reuses it, and nothing the file reads flips as it closes), and closed with the dialog.
+  const roadViewLent = useRef(false)
   const latestDrafts = useRef(drafts)
   const latestRecordings = useRef(recordings)
   // The capture this dialog started, while it runs: every wait shares it rather than starting another, since the
@@ -1050,6 +1069,7 @@ export function VisualsExportDialog({
     latestReadInventory.current = onReadInventory
     latestCapture.current = onCapture
     latestCancelCapture.current = onCancelCapture
+    latestRoadView.current = roadView
     latestDrafts.current = drafts
     latestRecordings.current = recordings
   })
@@ -1073,7 +1093,10 @@ export function VisualsExportDialog({
     if (captureInFlight.current || (USES_PACKAGE_VIEWS.has(kind) && capturing()) || toCapture.length) {
       waited = true
       if (!captureInFlight.current && !capturing() && latestCapture.current) {
-        const pending = latestCapture.current(toCapture, first.captureBefore ? { before: true } : {})
+        const pending = latestCapture.current(toCapture, {
+          ...(first.captureBefore ? { before: true } : {}),
+          ...(first.captureEngine ? { engine: true, renderIds: first.renderAt } : {}),
+        })
         captureInFlight.current = pending
         const clear = () => {
           if (captureInFlight.current === pending) captureInFlight.current = null
@@ -1157,9 +1180,35 @@ export function VisualsExportDialog({
         LAND_CHECK_WAIT_MS,
       )
     }
-    // Another engine's renders run in the background, in order; the file waits for the last of its views.
+    // Another engine's renders run in the background, in order; the file waits for the last of its views. The engine
+    // draws from the road view: closed, it is opened here (and closed with the dialog); loading, its terrain is
+    // waited for, counted from now and only while no run is going (the open may run the assessment first).
     if (needs.render) {
       waited = true
+      if (needs.openRoadView && latestRoadView.current) {
+        latestRoadView.current.open()
+        roadViewLent.current = true
+      }
+      if (latestContext.current.renderer.settling) {
+        let spent = 0
+        let last = Date.now()
+        await timed('road view for the engine', () =>
+          waitFor(() => {
+            const ctx = latestContext.current
+            const now = Date.now()
+            if (ctx.autoRun.status !== 'running') spent += now - last
+            last = now
+            if (!ctx.renderer.settling) return true
+            if (spent > ROAD_VIEW_SETTLE_MS)
+              throw new Error(
+                `${ctx.renderer.label} draws from the road view, which did not ${
+                  ctx.renderer.roadView === 'closed' ? 'open' : 'load its terrain'
+                } within ${Math.round(ROAD_VIEW_SETTLE_MS / 1000)} s.`,
+              )
+            return false
+          }, signal),
+        )
+      }
       latestRender.current?.(kind)
       const asked = Date.now()
       await timed('engine renders', () =>
@@ -1189,6 +1238,8 @@ export function VisualsExportDialog({
     return () => {
       controllers.forEach((controller) => controller.abort())
       if (captureInFlight.current) latestCancelCapture.current?.()
+      // The road view an engine's renders were drawn from goes back as the reviewer had it: closed.
+      if (roadViewLent.current) latestRoadView.current?.leave()
       for (const recording of Object.values(latestRecordings.current ?? {})) recording?.cancel()
     }
   }, [])
