@@ -10,6 +10,8 @@ const date = z.iso.date()
 const version = z.string().regex(/^\d+\.\d+\.\d+$/)
 const scalar = z.union([z.boolean(), z.number(), title])
 export type Scalar = z.infer<typeof scalar>
+/** Another instrument's fact, `<pack id>:<fact id>`. */
+const factRef = z.string().regex(/^[a-z][a-z0-9.-]*:[a-z][a-z0-9.-]*$/)
 const fact = z.strictObject({
   id,
   label: title,
@@ -18,6 +20,11 @@ const fact = z.strictObject({
   choices: z.array(title).min(1).optional(),
   min: z.number().optional(),
   max: z.number().optional(),
+  /**
+   * The same fact asked by another instrument (`bc.forest-permits:landscape-area`): one answer
+   * serves both, copied into each release's own facts. Only facts taking the same answers link.
+   */
+  sameAs: factRef.optional(),
 })
 const predicate = z.strictObject({
   fact: id,
@@ -137,6 +144,8 @@ export function parsePack(value: unknown): Pack {
       (f.type !== 'number' || (f.min ?? -Infinity) > (f.max ?? Infinity))
     )
       throw Error('Invalid numeric bounds: ' + f.id)
+    if (f.sameAs && splitFactRef(f.sameAs).pack === p.id)
+      throw Error('A fact links only to another instrument’s fact: ' + f.id)
   }
   unique(p.spatialBindings ?? [], (b) => b.fact, 'spatial fact')
   for (const binding of p.spatialBindings ?? []) {
@@ -192,3 +201,90 @@ export function parseFacts(raw: unknown, p: Pack): FactSet {
   return set
 }
 export const authoringSchema = () => z.toJSONSchema(packSchema)
+
+export const splitFactRef = (ref: string) => {
+  const at = ref.indexOf(':')
+  return { pack: ref.slice(0, at), fact: ref.slice(at + 1) }
+}
+
+/** Whether two facts take exactly the same answers: type, unit, bounds and choice list alike. */
+export const sameAnswers = (a: Fact, b: Fact) =>
+  a.type === b.type &&
+  a.unit === b.unit &&
+  a.min === b.min &&
+  a.max === b.max &&
+  JSON.stringify(a.choices ?? null) === JSON.stringify(b.choices ?? null)
+
+/**
+ * Checks every `sameAs` link against each release of the linked instrument among `packs` (a
+ * library may hold several): the fact must exist there and take the same answers, and if it
+ * declares a link of its own, that link names this fact back. A link to an instrument not among
+ * `packs` is not checked.
+ */
+export function checkFactLinks(packs: Pack[]) {
+  for (const p of packs)
+    for (const f of p.facts) {
+      if (!f.sameAs) continue
+      const target = splitFactRef(f.sameAs)
+      for (const q of packs.filter((q) => q.id === target.pack)) {
+        const g = q.facts.find((x) => x.id === target.fact)
+        const here = releaseKey(p) + ' ' + f.id
+        if (!g) throw Error(`Linked fact not found: ${here} names ${f.sameAs}, which ${releaseKey(q)} does not ask.`)
+        if (!sameAnswers(f, g))
+          throw Error(`Linked facts take different answers: ${here} and ${releaseKey(q)} ${g.id}.`)
+        if (g.sameAs && g.sameAs !== p.id + ':' + f.id)
+          throw Error(`Linked facts must name each other: ${releaseKey(q)} ${g.id} names ${g.sameAs}.`)
+      }
+    }
+}
+
+/** One fact of one release, in a group of facts linked as the same. */
+export interface LinkedFact {
+  pack: Pack
+  fact: Fact
+}
+
+/**
+ * The groups of linked facts among releases used together (one release of each instrument), in
+ * the order of `packs`. Either side's `sameAs` links the pair; a pair whose answers differ is not
+ * linked (`checkFactLinks` refuses it on install).
+ */
+export function linkedFactGroups(packs: Pack[]): LinkedFact[][] {
+  const key = (m: LinkedFact) => releaseKey(m.pack) + ':' + m.fact.id
+  const edges = new Map<string, LinkedFact[]>()
+  const join = (a: LinkedFact, b: LinkedFact) => {
+    edges.set(key(a), [...(edges.get(key(a)) ?? []), b])
+    edges.set(key(b), [...(edges.get(key(b)) ?? []), a])
+  }
+  for (const p of packs)
+    for (const f of p.facts) {
+      if (!f.sameAs) continue
+      const target = splitFactRef(f.sameAs)
+      for (const q of packs.filter((q) => q.id === target.pack && q.id !== p.id)) {
+        const g = q.facts.find((x) => x.id === target.fact)
+        if (g && sameAnswers(f, g)) join({ pack: p, fact: f }, { pack: q, fact: g })
+      }
+    }
+  const seen = new Set<string>()
+  const order = (m: LinkedFact) => packs.indexOf(m.pack)
+  const groups: LinkedFact[][] = []
+  for (const p of packs)
+    for (const f of p.facts) {
+      const start = { pack: p, fact: f }
+      if (seen.has(key(start)) || !edges.has(key(start))) continue
+      const group: LinkedFact[] = []
+      const queue = [start]
+      seen.add(key(start))
+      while (queue.length) {
+        const m = queue.shift()!
+        group.push(m)
+        for (const n of edges.get(key(m)) ?? [])
+          if (!seen.has(key(n))) {
+            seen.add(key(n))
+            queue.push(n)
+          }
+      }
+      groups.push(group.sort((a, b) => order(a) - order(b)))
+    }
+  return groups
+}

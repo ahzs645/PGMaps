@@ -3,6 +3,7 @@ import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { DisclosureRow } from '@/components/ui/disclosure'
 import { FORM_INPUT_CLASS, FormField, NullableNumberField, StyledSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { TextButton } from '@/components/ui/text-button'
 import { ToolDisclosure } from '@/components/ui/tool-section'
 import { ACTION_KIND } from '@/lib/legal/decisionTree'
 import { cn } from '@/lib/utils'
@@ -17,8 +18,9 @@ import {
   type Scalar,
 } from '../../../../packages/legal-rules/src/contract'
 import type { ReviewCase } from '../plan'
-import { chooseRelease, instrumentOf, setClaim, setFact } from './caseEdits'
+import { chooseRelease, instrumentOf, setClaim } from './caseEdits'
 import { ExceptionClaim, STANDING_TONE } from './ExceptionClaim'
+import { recordLinkedAnswer, setLinkedFact, sharedQuestion, type SharedQuestion } from './linkedFacts'
 import { findingCounts, questions, type Finding, type Question } from './questions'
 import { topicSections } from './topics'
 import { describeCheck, formatValue, STANDING_WORDS, STATUS_WORDS, type Status } from './wording'
@@ -53,15 +55,7 @@ function Answer({
   const { fact } = question
   const label = fact.label + (fact.unit && fact.type === 'number' ? ` (${fact.unit})` : '')
   if (fact.type === 'boolean' || fact.type === 'choice') {
-    const options = [
-      { value: '', label: 'Not answered' },
-      ...(fact.type === 'boolean'
-        ? [
-            { value: 'true', label: 'Yes' },
-            { value: 'false', label: 'No' },
-          ]
-        : fact.choices!.map((c) => ({ value: c, label: c }))),
-    ]
+    const options = answerOptions(fact)
     return (
       <FormField label={label} description={hint} group>
         <StyledSelect
@@ -93,6 +87,104 @@ function Answer({
         onBlur={(e) => onChange(e.target.value.trim() || undefined)}
       />
     </FormField>
+  )
+}
+
+/** Choices for a question, as the dropdown lists them. */
+const answerOptions = (fact: Fact) => [
+  { value: '', label: 'Not answered' },
+  ...(fact.type === 'boolean'
+    ? [
+        { value: 'true', label: 'Yes' },
+        { value: 'false', label: 'No' },
+      ]
+    : (fact.choices ?? []).map((c) => ({ value: c, label: c }))),
+]
+const fromOption = (fact: Fact, v: string): Scalar | undefined =>
+  v === '' ? undefined : fact.type === 'boolean' ? v === 'true' : v
+
+/**
+ * A question another instrument asks about the same fact, shown in place of asking it again: the
+ * release it is answered under, the copy recorded here, or both answers when they differ.
+ */
+function LinkedQuestion({
+  question,
+  shared,
+  hint,
+  onChange,
+  onRecord,
+}: {
+  question: Question
+  shared: Exclude<SharedQuestion, { kind: 'ask' }>
+  hint?: ReactNode
+  onChange: (value: Scalar | undefined, resolve?: boolean) => void
+  onRecord: () => void
+}) {
+  const { fact } = question
+  const [changing, setChanging] = useState(false)
+  if (shared.kind === 'conflict')
+    return (
+      <div className="space-y-1 rounded border border-warning/40 p-1.5 text-xs" data-testid="linked-question">
+        <p className="font-medium">{fact.label}</p>
+        <p>The instruments that ask this hold different answers:</p>
+        <ul className="list-disc pl-4">
+          {shared.answers.map((a) => (
+            <li key={releaseKey(a.pack)}>
+              {a.pack.title} {a.pack.version}: {formatValue(fact, a.value)}
+            </li>
+          ))}
+        </ul>
+        <FormField label="One answer for both" group>
+          <StyledSelect
+            aria-label={`One answer for both: ${fact.label}`}
+            value=""
+            options={answerOptions(fact)}
+            onValueChange={(v) => onChange(fromOption(fact, v), true)}
+          />
+        </FormField>
+      </div>
+    )
+  if (changing && shared.kind !== 'differs')
+    return (
+      <Answer
+        question={question}
+        value={shared.value}
+        hint={
+          <>
+            {hint}
+            {hint ? ' ' : ''}Changing it here changes the answer under {shared.under.title} too.
+          </>
+        }
+        onChange={(v) => {
+          setChanging(false)
+          onChange(v)
+        }}
+      />
+    )
+  const under = shared.under.title
+  return (
+    <div className="text-xs" data-testid="linked-question" data-fact={fact.id}>
+      <p className="font-medium">{fact.label}</p>
+      <p className="text-muted-foreground">
+        {shared.kind === 'differs' ? (
+          <>Answered differently under {under}; choose one answer there.</>
+        ) : shared.kind === 'unrecorded' ? (
+          <>
+            Answered under {under}: {formatValue(fact, shared.value)}. Not yet recorded for this release.{' '}
+            <TextButton onClick={onRecord}>Record it here too</TextButton>
+          </>
+        ) : shared.value === null ? (
+          <>
+            Asked under {under}. <TextButton onClick={() => setChanging(true)}>Answer here</TextButton>
+          </>
+        ) : (
+          <>
+            Answered under {under}: {formatValue(fact, shared.value)}.{' '}
+            <TextButton onClick={() => setChanging(true)}>Change</TextButton>
+          </>
+        )}
+      </p>
+    </div>
   )
 }
 
@@ -248,6 +340,59 @@ export function CaseReview({
   } catch (e) {
     problem = e instanceof Error ? e.message : 'The review could not be evaluated.'
   }
+  // Every release's questions first, so a question two instruments ask is asked under one of them.
+  const askedBy = new Map(
+    (report?.releases ?? []).map((release) => {
+      const measured = new Set((release.pack.spatialBindings ?? []).map((b) => b.fact))
+      return [releaseKey(release.pack), questions(release.pack, release.facts, release.findings, measured)] as const
+    }),
+  )
+  const listed = (pack: Pack, id: string) =>
+    !!askedBy.get(releaseKey(pack))?.some((q) => q.fact.id === id && q.state !== 'measured')
+  const linked = (pack: Pack, q: Question) =>
+    q.state === 'measured' ? null : sharedQuestion(review, packs, pack, q.fact.id, listed)
+  // A question asked under another release is not waiting here.
+  const waiting = (pack: Pack, q: Question) => {
+    const kind = q.state === 'open' ? linked(pack, q)?.kind : undefined
+    return q.state === 'open' && kind !== 'elsewhere' && kind !== 'differs'
+  }
+  const answer = (pack: Pack, q: Question, value: Scalar | null) => {
+    const shared = linked(pack, q)
+    const change = (v: Scalar | undefined, resolve?: boolean) =>
+      onChange(setLinkedFact(review, packs, pack, q.fact.id, v, { resolve }))
+    if (shared && shared.kind !== 'ask')
+      return (
+        <LinkedQuestion
+          key={q.fact.id}
+          question={q}
+          shared={shared}
+          hint={hints[q.fact.id]}
+          onChange={change}
+          onRecord={() =>
+            'under' in shared && onChange(recordLinkedAnswer(review, packs, pack, q.fact.id, shared.under))
+          }
+        />
+      )
+    const also = shared?.also.map((p) => p.title).join(' and ')
+    return (
+      <Answer
+        key={q.fact.id}
+        question={q}
+        value={value}
+        hint={
+          also ? (
+            <>
+              {hints[q.fact.id]}
+              {hints[q.fact.id] ? ' ' : ''}Also answers {also}, which asks the same.
+            </>
+          ) : (
+            hints[q.fact.id]
+          )
+        }
+        onChange={(v) => change(v)}
+      />
+    )
+  }
   return (
     <div className="space-y-3" data-testid={testId}>
       <div className="grid grid-cols-2 gap-2">
@@ -288,8 +433,7 @@ export function CaseReview({
       </p>
       {problem && <InlineAlert tone="error">{problem}</InlineAlert>}
       {report?.releases.map((release) => {
-        const measured = new Set((release.pack.spatialBindings ?? []).map((b) => b.fact))
-        const asked = questions(release.pack, release.facts, release.findings, measured)
+        const asked = askedBy.get(releaseKey(release.pack))!
         const counts = findingCounts(release.findings)
         const value = (fact: Fact) => release.facts.facts.find((f) => f.id === fact.id)?.value ?? null
         const sections = topicSections(release.pack, asked, release.findings, caseLabel)
@@ -308,22 +452,35 @@ export function CaseReview({
                 answer · {counts.clear} not triggered · {counts.notApplicable} do not apply
               </span>
             </p>
-            {!asked.some((q) => q.state === 'open') && (
+            {!asked.some((q) => waiting(release.pack, q)) && (
               <p className="text-xs text-muted-foreground">No rule is waiting on an answer.</p>
             )}
             {sections.map(({ topic, questions: asks, findings }) => {
-              const open = asks.filter((q) => q.state === 'open')
-              const rest = asks.filter((q) => q.state !== 'open')
+              const open = asks.filter((q) => waiting(release.pack, q))
+              const rest = asks.filter((q) => !open.includes(q))
               const active = findings.filter((f) => f.status === 'review_required' || f.status === 'missing_evidence')
               const reviewing = findings.filter((f) => f.status === 'review_required').length
               const settled = findings.filter((f) => !active.includes(f))
+              // A question asked under another instrument, and not yet answered there, is not answered here.
+              const askedElsewhere = rest.filter((q) => {
+                const shared = q.state === 'open' ? linked(release.pack, q) : null
+                return shared?.kind === 'elsewhere' && shared.value === null
+              }).length
               const summary =
                 [
                   open.length ? `${open.length} to answer` : '',
                   reviewing ? `${reviewing} need${reviewing === 1 ? 's' : ''} review` : '',
                 ]
                   .filter(Boolean)
-                  .join(' · ') || (findings.length ? 'Settled' : `${rest.length} answered`)
+                  .join(' · ') ||
+                (findings.length
+                  ? 'Settled'
+                  : [
+                      rest.length > askedElsewhere ? `${rest.length - askedElsewhere} answered` : '',
+                      askedElsewhere ? `${askedElsewhere} asked under another instrument` : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' · '))
               return (
                 <ToolDisclosure
                   // A provision that comes to need an answer or a review opens again, so a question
@@ -348,15 +505,7 @@ export function CaseReview({
                       </Suspense>
                     </div>
                   )}
-                  {open.map((q) => (
-                    <Answer
-                      key={q.fact.id}
-                      question={q}
-                      value={value(q.fact)}
-                      hint={hints[q.fact.id]}
-                      onChange={(v) => onChange(setFact(review, release.pack, q.fact.id, v))}
-                    />
-                  ))}
+                  {open.map((q) => answer(release.pack, q, value(q.fact)))}
                   {rest.length > 0 && open.length > 0 && (
                     <p className="text-2xs font-medium text-muted-foreground">Answered</p>
                   )}
@@ -369,13 +518,7 @@ export function CaseReview({
                         </span>
                       </p>
                     ) : (
-                      <Answer
-                        key={q.fact.id}
-                        question={q}
-                        value={value(q.fact)}
-                        hint={hints[q.fact.id]}
-                        onChange={(v) => onChange(setFact(review, release.pack, q.fact.id, v))}
-                      />
+                      answer(release.pack, q, value(q.fact))
                     ),
                   )}
                   {active.map((f) => (
