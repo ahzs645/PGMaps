@@ -9,14 +9,22 @@ const fmt = (n: number | null | undefined) => (n == null ? null : formatter.form
 
 /**
  * Every period of every schedule as rows: the chart's figures as a table, and its table view.
- * "Moved away" is whether any class moved farther from its target since the period before.
+ * "Distance grew" is how much the four classes' distances from their targets, added, grew since the
+ * period before (the order's trend test, `distributionTrend`); "A class moved away" is whether any one
+ * class moved farther, the evidence of which classes did.
  */
 export function PeriodTable({ plan, result, year }: { plan: Plan; result: PlanAnalysis; year: number }) {
   const names = Object.fromEntries(plan.schedules.map((s) => [s.id, s.name]))
   const rows = useMemo(
     () =>
       result.runs.flatMap((run) =>
-        run.periods.map((period, i) => ({ key: run.schedule + period.year, run, period, movedAway: run.movedAway[i] })),
+        run.periods.map((period, i) => ({
+          key: run.schedule + period.year,
+          run,
+          period,
+          movedAway: run.movedAway[i],
+          growth: run.distanceGrowth[i],
+        })),
       ),
     [result],
   )
@@ -39,6 +47,10 @@ export function PeriodTable({ plan, result, year }: { plan: Plan; result: PlanAn
             render: (r: (typeof rows)[number]) => fmt(r.period.classes[b].percent),
           })),
           { label: 'Unclassified ha', render: (r) => fmt(r.period.unclassifiedHa) },
+          {
+            label: 'Distance grew (points)',
+            render: (r) => (r.growth === null ? '—' : r.growth > 0 ? `+${fmt(r.growth)}` : fmt(r.growth)),
+          },
           {
             label: 'A class moved away',
             render: (r) => (r.movedAway === null ? '—' : r.movedAway ? 'Yes' : 'No'),

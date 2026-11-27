@@ -151,6 +151,7 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
         classes,
       })),
       movedAway: run.movedAway,
+      distanceGrowth: run.distanceGrowth,
     })),
     published: publishedUnit(plan.area.district, plan.area.ndu),
     landscapeReview: { trendYear: trendYearOf(plan), assessment: review(order, library) },
@@ -422,6 +423,7 @@ export function blocksGeoJson(plan: Plan): FeatureCollection {
 }
 
 const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`)
+const growthText = (v: number | null) => (v === null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}`)
 
 /**
  * D.3's summary for the printed record: what the order and the policy say representative refers
@@ -554,8 +556,8 @@ export function summaryHtml(plan: Plan, result: PlanAnalysis, library: Pack[], g
   const schedules = result.runs
     .map(
       (run) => `<h3>${escape(names[run.schedule])}</h3>
-<table><thead>${row(['Year', 'Young ha', ...table.labels, 'A class moved away'], 'th')}</thead><tbody>
-${run.periods.map((p, i) => row([p.year, p.totalHa.toFixed(1), ...p.classes.map((c) => pct(c.percent)), run.movedAway[i] === null ? '—' : run.movedAway[i] ? 'Yes' : 'No'])).join('\n')}
+<table><thead>${row(['Year', 'Young ha', ...table.labels, 'Distance grew (points)', 'A class moved away'], 'th')}</thead><tbody>
+${run.periods.map((p, i) => row([p.year, p.totalHa.toFixed(1), ...p.classes.map((c) => pct(c.percent)), growthText(run.distanceGrowth[i]), run.movedAway[i] === null ? '—' : run.movedAway[i] ? 'Yes' : 'No'])).join('\n')}
 </tbody></table>`,
     )
     .join('\n')

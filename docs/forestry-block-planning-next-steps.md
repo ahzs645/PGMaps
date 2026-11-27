@@ -32,9 +32,6 @@ The Mackenzie biodiversity pack takes the reviewer's old and old interior margin
 
 The permit and old-growth packs ask questions a layer could answer as a candidate, as *On this ground* does: candidate old forest areas (the non-legal OGMA layer filtered to `PRG_COFA` and `PRG_DPG`, the 2022 letter's Appendix 5; the visual quality route card already reads it), special purpose areas, pine-leading VRI polygons of 5 ha or more in the listed TSAs, lakeshore management zones, fisheries sensitive watersheds and mapped L1 lakes. FSP forest development units and forest landscape areas have no public layer found yet. Each is a ground catalogue layer with its reach cells cited, and stays a candidate the reviewer confirms.
 
-### The Prince George young-forest trend
-
-Objective C asks for a trend toward the target distribution; the pack raises a finding when any one class moves away (`patch-class-away`). A truer test would measure the distribution's distance from the targets over the interval, which changes `legalEvidence.ts` on the forest patches page and the planner's landscape review together, as a new release of `bc.pgtsa.biodiversity`.
 
 ### Prepared tables in bcdatamapper
 

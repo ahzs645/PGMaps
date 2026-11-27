@@ -2,9 +2,7 @@ import { blockAreaHa } from '@/lib/forestry/blockSheet/blockFacts'
 import { FORM_INPUT_CLASS, FormField, SelectField } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
-import type { Measurement } from '../../../../packages/legal-rules/engine/spatialFacts'
 import profile from '../../../../packages/legal-rules/forestry-profile.json'
-import patchOperation from '../../../../packages/legal-rules/spatial/patch-analysis.json'
 import { releaseKey } from '../../../../packages/legal-rules/src/contract'
 import { defaults } from '../../legal-workbench/registry'
 import { saveRangeReview } from '../edits'
@@ -15,7 +13,7 @@ import { GroundInstruments } from '../ground/GroundInstruments'
 import { groundReadOf } from '../ground/record'
 import { GrazingEvidence } from '../review/GrazingEvidence.tsx'
 import { PathwayCard } from '../review/PathwayCard'
-import { measuredTrend, pathways, trendYearOf } from '../review/pathways'
+import { measuredTrend, pathways, trendMeasurements, trendYearOf } from '../review/pathways'
 import { RANGE_INSTRUMENT, rangeReviewCurrent, rangeReviewFor } from '../review/rangeReview'
 import { shownResult } from '../usePlanAnalysis'
 import type { StepProps } from './types'
@@ -40,16 +38,7 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
   const grazing = block ? rangeReviewFor(plan, block) : null
   const trend = measuredTrend(plan, result)
   const reviewName = plan.schedules.find((s) => s.id === plan.reviewSchedule)?.name ?? ''
-  const measurements: Measurement[] = trend
-    ? [
-        {
-          operation: patchOperation.id,
-          output: 'patch-class-away',
-          value: trend.movedAway,
-          evidence: `${reviewName}, ${trend.year - 5}–${trend.year}, ${plan.area.district} · ${plan.area.ndu}, pg-2005-buffer-v1`,
-        },
-      ]
-    : []
+  const measurements = trendMeasurements(plan, trend, reviewName)
   const landscape = landscapeCase(plan)
   const orderPack = library.find(
     (p) => releaseKey(p) === landscape.selected.find((k) => k.startsWith(ORDER_INSTRUMENT + '@')),

@@ -188,10 +188,10 @@
       "bearsOn": "Licensees must demonstrate a trend toward the Table 7 young forest patch size distribution by natural disturbance sub-unit within each forest district; a block's size and placement changes the patches.",
       "review": "rule",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:trend",
-        "bc.pgtsa.biodiversity@1.2.0:rationale"
+        "bc.pgtsa.biodiversity@1.3.0:distribution-trend",
+        "bc.pgtsa.biodiversity@1.3.0:rationale"
       ],
-      "gapNote": "The patch analysis (spatial/patch-analysis.json, pg-2005-buffer-v1) computes the distribution; the trend rule flags any class that moved farther from its target. That is stricter than the text, which asks for a trend toward the distribution as a whole: a reviewer may see a flag while the overall distance shrinks.",
+      "gapNote": "The patch analysis (spatial/patch-analysis.json, pg-2005-buffer-v1) computes the distribution; from release 1.3.0 the rule reads the distribution as a whole, raising when the four classes' distances from their targets, added, grew over the interval, and names the classes that moved away as evidence. Releases to 1.2.0 flagged any one class moving away, stricter than the text. Left: the order sets no interval, so a five-year trend is the planner's reading, and whether a trend is shown over several periods stays the reviewer's; an incomplete distribution is unknown, never a trend.",
       "topics": [
         "cutblock-size",
         "landscape-biodiversity"
@@ -203,7 +203,7 @@
       "bearsOn": "Gives each natural disturbance sub-unit's target share of young forest in patches >1000, 101-1000, 51-100 and <50 ha.",
       "review": "code",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:trend"
+        "bc.pgtsa.biodiversity@1.3.0:distribution-trend"
       ],
       "gapNote": "Targets transcribed and match. The printed classes leave patches of 50-51 ha unassigned (\"<50\" and \"51 - 100\"); the JSON flags the 50 ha boundary for review. Table 7 names \"Omineca - Valley\" where Tables 2 and 5 say \"Omineca - low elevation\".",
       "topics": [
@@ -217,7 +217,7 @@
       "bearsOn": "OGMAs established before the order continue, and the entire area of OGMAs and of new spatially located old forest retention areas counts toward objectives A and B; parks and protected areas may count.",
       "review": "code",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:protected-credit",
+        "bc.pgtsa.biodiversity@1.3.0:protected-credit",
         "ground:ogma"
       ],
       "gapNote": "Code counts legal OGMAs whole, non-legal OGMAs (which now hold the PG district COFAs) by default, and parks by switch. The 2022 letter of expectations counts only the old forest inside OGMAs, parks, UWRs, WHAs and WTRAs, so its net targets will not match the planner's figures; the code follows the order's \"entire area\".",
@@ -232,7 +232,7 @@
       "bearsOn": "A licensee with similar mBECs in several forest districts may meet the old and old interior requirements over their combined area.",
       "review": "code",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:combined-units"
+        "bc.pgtsa.biodiversity@1.3.0:combined-units"
       ],
       "gapNote": "pooling.ts pools only units the reviewer names; each unit is calculated alone and summed.",
       "topics": [
@@ -246,7 +246,7 @@
       "bearsOn": "Affected stands may contribute a representative portion, and licensees must ensure a representative portion of unaffected (non-pine) stands is used to meet objectives A and B.",
       "review": "code",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:affected-stands"
+        "bc.pgtsa.biodiversity@1.3.0:affected-stands"
       ],
       "gapNote": "Code sets non-pine old forest against policy Tables 8-10 and prints a representation summary; whether old forest is representative stays the reviewer's judgement. The affected-stands rule only asks for evidence, although the second sentence is a \"must\".",
       "topics": [
@@ -260,9 +260,9 @@
       "bearsOn": "Up to 20% of the old forest and old interior objectives may be younger age classes where equal or better conservation benefits are demonstrated.",
       "review": "rule",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:younger-credit",
-        "bc.pgtsa.biodiversity@1.2.0:younger-old-ceiling",
-        "bc.pgtsa.biodiversity@1.2.0:younger-interior-ceiling"
+        "bc.pgtsa.biodiversity@1.3.0:younger-credit",
+        "bc.pgtsa.biodiversity@1.3.0:younger-old-ceiling",
+        "bc.pgtsa.biodiversity@1.3.0:younger-interior-ceiling"
       ],
       "gapNote": "youngerStands.ts caps D.4 at 20% of each requirement, off by default, and needs the reviewer's age and conservation-benefit statement.",
       "topics": [
@@ -276,7 +276,7 @@
       "bearsOn": "Where old or old interior objectives cannot be achieved, considering timely and economic harvesting, a recruitment strategy must be submitted, approved by the minister's designate and complied with.",
       "review": "rule",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:recruitment"
+        "bc.pgtsa.biodiversity@1.3.0:recruitment"
       ],
       "gapNote": "The determination is the reviewer's; the planner shows its A/B result beside it. The 2022 letter says mBECs inside COFAs need no recruitment strategy and that A04 runs under an approved 2012 spatial recruitment strategy; the rule does not know either.",
       "topics": [
@@ -291,7 +291,7 @@
       "bearsOn": "Where the young patch size objective cannot be achieved, a rationale with results or strategies reaching the objective in the shortest practicable time must be submitted.",
       "review": "rule",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:rationale"
+        "bc.pgtsa.biodiversity@1.3.0:rationale"
       ],
       "topics": [
         "cutblock-size",
@@ -305,7 +305,7 @@
       "bearsOn": "The order does not affect Category A cutblocks approved under the FPC on or before 20 October 2004.",
       "review": "partial",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:transition"
+        "bc.pgtsa.biodiversity@1.3.0:transition"
       ],
       "gapPriority": "low",
       "gapNote": "The transition rule asks one generic question about pre-existing approvals; nothing asks whether the block is a pre-order Category A cutblock. Rare today.",

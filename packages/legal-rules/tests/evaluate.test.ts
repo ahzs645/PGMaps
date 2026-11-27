@@ -3,6 +3,7 @@ import { assess } from '../engine/evaluate'
 import { parsePack, parseFacts, authoringSchema, type Scalar, type Pack } from '../src/contract'
 import bc from '../packs/bc-fppr.json'
 import regional from '../packs/bc-pgtsa-biodiversity.json'
+import regional130 from '../packs/bc-pgtsa-planning-1.3.0.json'
 import example from '../examples/water-monitoring.json'
 import waterFacts from '../examples/water-facts.json'
 import { legacyPatchFacts } from '../../../src/pages/forest-patches/legacyFacts'
@@ -120,10 +121,13 @@ describe('declarative pack runtime', () => {
       project: exampleProject(),
       displayed: { year: 2026, scenario: 'proposed' },
     }
-    expect(parseFacts(legacyPatchFacts(assessment), pg).facts).toMatchObject([{ id: 'patch-class-away', value: null }])
+    // Read against the current release: the distribution's distance from Table 7, unknown without a prior period.
+    expect(parseFacts(legacyPatchFacts(assessment), parsePack(regional130)).facts).toMatchObject([
+      { id: 'patch-distance-growth', value: null },
+    ])
     expect(
       typeof legacyPatchFacts({ ...assessment, displayed: { year: 2031, scenario: 'proposed' } }).facts[0].value,
-    ).toBe('boolean')
+    ).toBe('number')
   })
 })
 

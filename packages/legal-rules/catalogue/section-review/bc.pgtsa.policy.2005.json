@@ -106,7 +106,7 @@
       "bearsOn": "NFAs may stand in for live old forest; an affected licensee keeps a representative portion either in proportion to the unaffected area (a) or by following the non-pine minimums of Tables 8-10 (b).",
       "review": "code",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:affected-stands"
+        "bc.pgtsa.biodiversity@1.3.0:affected-stands"
       ],
       "gapNote": "Non-pine minimums are computed; option (a) is shown as figures in the D.3 representation summary without a judgement.",
       "topics": [
@@ -207,7 +207,7 @@
       "bearsOn": "Table 7 will not be met short to mid term in some units, and where other issues prevent trending toward it a rationale goes to the FSP decision maker.",
       "review": "rule",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:rationale"
+        "bc.pgtsa.biodiversity@1.3.0:rationale"
       ],
       "topics": [
         "cutblock-size",

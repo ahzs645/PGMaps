@@ -12,7 +12,7 @@
  */
 import type { Feature, MultiPolygon } from 'geojson'
 import { periodCalculator, type Period } from '../forest-patches/analysis'
-import { classMovements, trendsAway } from '../forest-patches/legalEvidence'
+import { classMovements, distributionTrend, trendsAway } from '../forest-patches/legalEvidence'
 import type { Footprint, Project } from '../forest-patches/project'
 import { baselineFootprintId, blockFootprintId, countingUnit, periodYears, scheduleHarvests, type Plan } from './plan'
 
@@ -63,6 +63,11 @@ export interface ScheduleRun {
   periods: Period[]
   /** Per period after the first: whether any class moved away from its target. Null when unknown. */
   movedAway: (boolean | null)[]
+  /**
+   * Per period after the first: how much the distribution's summed distance from the Table 7
+   * targets grew since the period before (`distributionTrend`; negative is closer). Null when unknown.
+   */
+  distanceGrowth: (number | null)[]
 }
 
 export interface PlanAnalysis {
@@ -87,6 +92,7 @@ export function analyzePlan(plan: Plan, shown: { schedule: string; year: number 
       schedule: schedule.id,
       periods,
       movedAway: periods.map((p, i) => (i === 0 ? null : trendsAway(classMovements(periods[i - 1], p)))),
+      distanceGrowth: periods.map((p, i) => (i === 0 ? null : (distributionTrend(periods[i - 1], p)?.growth ?? null))),
     }
   })
   return { runs, shown: { ...shown, patches } }

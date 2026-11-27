@@ -1,0 +1,439 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.pgtsa.biodiversity",
+  "version": "1.3.0",
+  "title": "Prince George TSA biodiversity order",
+  "description": "2004 instrument. Case-specific geographic and legal applicability needs review. D.5 pathways are independent of FPPR §64.",
+  "coverage": {
+    "from": "2004-10-20",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "applicable",
+      "label": "Reviewer verified the order applies to the footprint, tenure, date and plan, including exclusions and supersession",
+      "type": "boolean"
+    },
+    {
+      "id": "patch-distance-growth",
+      "label": "Growth over the selected interval in the young-forest distribution's distance from its Table 7 targets, the four classes' distances added (negative: closer)",
+      "type": "number",
+      "unit": "points",
+      "min": -200,
+      "max": 200
+    },
+    {
+      "id": "old-unachievable",
+      "label": "Reviewer determined old or old-interior objectives cannot be achieved, considering timely and economic harvesting of timber rights",
+      "type": "boolean"
+    },
+    {
+      "id": "patch-unachievable",
+      "label": "Reviewer determined the young-forest patch objective cannot be achieved",
+      "type": "boolean"
+    },
+    {
+      "id": "protected-credit",
+      "label": "Contribution from an OGMA, park or protected area is claimed",
+      "type": "boolean"
+    },
+    {
+      "id": "combined-units",
+      "label": "Combined old-forest accounting is proposed across district boundaries",
+      "type": "boolean"
+    },
+    {
+      "id": "affected-stands",
+      "label": "Epidemic or catastrophic-event contributions are being evaluated",
+      "type": "boolean"
+    },
+    {
+      "id": "younger-credit",
+      "label": "A younger-age contribution is proposed",
+      "type": "boolean"
+    },
+    {
+      "id": "transition",
+      "label": "A pre-existing approval, transition or later overlapping order may change applicability",
+      "type": "boolean"
+    },
+    {
+      "id": "younger-old-pct",
+      "label": "Younger-age share of old forest retention objective",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100
+    },
+    {
+      "id": "younger-interior-pct",
+      "label": "Younger-age share of old interior forest objective",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100
+    }
+  ],
+  "parameters": [
+    {
+      "id": "younger-ceiling",
+      "value": 20,
+      "unit": "%"
+    }
+  ],
+  "relatedPacks": [
+    {
+      "id": "bc.fppr",
+      "relationship": "Assess applicable FPPR requirements separately for the same operation. D.5 does not decide a section 64 exception."
+    }
+  ],
+  "spatialBindings": [
+    {
+      "fact": "patch-distance-growth",
+      "operation": "pg-2005-buffer-v1",
+      "output": "distance-growth"
+    }
+  ],
+  "sources": [
+    {
+      "id": "instrument",
+      "title": "Prince George TSA biodiversity order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/princegeorge_tsa_fpc_20oct2004.pdf",
+      "asOf": "2004-10-20"
+    }
+  ],
+  "rules": [
+    {
+      "id": "distribution-trend",
+      "title": "Young-forest distribution as a whole",
+      "source": "instrument",
+      "provision": "C / Table 7",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "patch-distance-growth",
+            "op": "gt",
+            "value": 0
+          }
+        ]
+      ],
+      "finding": "The distribution as a whole moved farther from the Table 7 targets over the interval. Review all classes, land coverage, geography and method.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Compare patch structure, locations and schedules across periods, including the classes that moved away. Record the professional interpretation of trend."
+        }
+      ]
+    },
+    {
+      "id": "recruitment",
+      "title": "Old or old-interior forest recruitment",
+      "source": "instrument",
+      "provision": "D.5(a)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "old-unachievable",
+            "value": true,
+            "op": "eq"
+          }
+        ]
+      ],
+      "finding": "An old-forest recruitment strategy is required under the entered circumstances.",
+      "actions": [
+        {
+          "kind": "submit",
+          "description": "Document the shortest practicable recovery strategy, considering timely and economic harvesting of timber rights."
+        },
+        {
+          "kind": "obtain-approval",
+          "description": "Record approval by the responsible designate."
+        },
+        {
+          "kind": "implement",
+          "description": "Track the commitments and evidence of performance."
+        }
+      ]
+    },
+    {
+      "id": "rationale",
+      "title": "Young-forest patch rationale",
+      "source": "instrument",
+      "provision": "D.5(b)",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "value": true,
+            "op": "eq"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "patch-unachievable",
+            "value": true,
+            "op": "eq"
+          }
+        ]
+      ],
+      "finding": "The entered determination calls for submission of a rationale.",
+      "actions": [
+        {
+          "kind": "submit",
+          "description": "Describe results or strategies for reaching a consistent forest condition in the shortest practicable time, considering timely and economic harvesting of timber rights."
+        }
+      ]
+    },
+    {
+      "id": "protected-credit",
+      "title": "OGMA, park or protected-area contribution",
+      "source": "instrument",
+      "provision": "D.1",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "protected-credit",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "OGMA, park or protected-area contribution requires supporting evidence.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify established objectives, footprint, overlap and the contribution permitted by D.1."
+        }
+      ]
+    },
+    {
+      "id": "combined-units",
+      "title": "Combined mBEC requirements across districts",
+      "source": "instrument",
+      "provision": "D.2",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "combined-units",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Combined mBEC requirements across districts requires supporting evidence.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Verify similar mBECs, the licensee and area in multiple districts, and reconcile combined requirements for A and B."
+        }
+      ]
+    },
+    {
+      "id": "affected-stands",
+      "title": "Affected and unaffected stands",
+      "source": "instrument",
+      "provision": "D.3",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "affected-stands",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Affected and unaffected stands requires supporting evidence.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Document representativeness. Review the requirement for an unaffected non-pine component under the described MPB epidemic."
+        }
+      ]
+    },
+    {
+      "id": "younger-credit",
+      "title": "Younger-age contribution",
+      "source": "instrument",
+      "provision": "D.4",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "younger-credit",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Younger-age contribution requires supporting evidence.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Quantify each objective separately, establish equal or better conservation benefits and check the 20% ceiling."
+        }
+      ]
+    },
+    {
+      "id": "transition",
+      "title": "Transition or subsequent order",
+      "source": "instrument",
+      "provision": "E",
+      "scope": [
+        [
+          {
+            "fact": "transition",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "transition",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "Transition or subsequent order requires supporting evidence.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Check Category A approval date, the plan regime, affected area and effective date of the new order. Reassess applicability before using A–D."
+        }
+      ]
+    },
+    {
+      "id": "younger-old-ceiling",
+      "source": "instrument",
+      "title": "Old forest retention younger-age ceiling",
+      "provision": "D.4",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "younger-credit",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "younger-old-pct",
+            "op": "gt",
+            "value": {
+              "parameter": "younger-ceiling"
+            }
+          }
+        ]
+      ],
+      "finding": "The proposed younger-age contribution exceeds 20% of this objective.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Reconcile the proposed younger-age hectares and objective denominator. Any contribution within the ceiling still needs evidence of equal or better conservation benefits."
+        }
+      ]
+    },
+    {
+      "id": "younger-interior-ceiling",
+      "source": "instrument",
+      "title": "Old interior forest younger-age ceiling",
+      "provision": "D.4",
+      "scope": [
+        [
+          {
+            "fact": "applicable",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "younger-credit",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "younger-interior-pct",
+            "op": "gt",
+            "value": {
+              "parameter": "younger-ceiling"
+            }
+          }
+        ]
+      ],
+      "finding": "The proposed younger-age contribution exceeds 20% of this objective.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Reconcile the proposed younger-age hectares and objective denominator. Any contribution within the ceiling still needs evidence of equal or better conservation benefits."
+        }
+      ]
+    }
+  ]
+}

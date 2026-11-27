@@ -272,7 +272,14 @@ export function CompareStep({ plan, edit, analysis, shown, setShown, oldForestMa
           </table>
         </div>
         <p className="text-2xs text-muted-foreground">
-          Periods in which a class moved farther from its target:{' '}
+          Periods in which the distribution moved farther from Table 7 (the four classes’ distances added):{' '}
+          {result.runs
+            .map(
+              (run) =>
+                `${names[run.schedule]} ${run.distanceGrowth.filter((v) => v !== null && v > 0).length} of ${years.length - 1}`,
+            )
+            .join(' · ')}
+          . Periods in which a class moved farther from its target:{' '}
           {result.runs
             .map(
               (run) =>
