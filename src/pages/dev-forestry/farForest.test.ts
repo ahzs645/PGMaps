@@ -5,7 +5,15 @@
 import { describe, expect, it } from 'vitest'
 
 import { CANOPY_CLOSES_AT_METERS, placeTrees, type InventoryStand } from './forest'
-import { canopyTileMeters, forestBands, forestPatches, growForestPatch, isFarBand } from './forestPatches'
+import {
+  canopyTileMeters,
+  forestBands,
+  forestPatches,
+  growForestPatch,
+  isFarBand,
+  orderForestPatches,
+  type ForestPatch,
+} from './forestPatches'
 import { lightBearing } from './GroundRelief'
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { pointInPolygon } from './visibility'
@@ -367,4 +375,27 @@ describe('the background band (Distant trees)', () => {
     expect(trees.length).toBeGreaterThan(200)
     expect(trees.every((tree) => tree.canopy?.reach === 1)).toBe(true)
   })
+})
+
+it('reprioritizes visible neighbours when the camera turns without changing patch membership', () => {
+  const patch = (key: string, band: number, east: number, north: number, radius = 30): ForestPatch => ({
+    key,
+    band,
+    centre: { lng: CENTRE.lng + east / EAST, lat: CENTRE.lat + north / 111_320 },
+    bounds: [0, 0, 0, 0],
+    radius,
+  })
+  const patches = [
+    patch('near', 0, 0, -80),
+    patch('behind', 2, 0, -1100),
+    patch('north', 3, 0, 1800),
+    patch('north-edge', 3, 900, 1800, 300),
+    patch('east', 3, 1800, 0),
+  ]
+  const north = orderForestPatches(patches, CENTRE, 0, 20)
+  const east = orderForestPatches(patches, CENTRE, 90, 20)
+  expect(north.map(({ key }) => key)).toEqual(['near', 'north', 'north-edge', 'behind', 'east'])
+  expect(east.map(({ key }) => key)).toEqual(['near', 'east', 'behind', 'north', 'north-edge'])
+  expect(north).toEqual(expect.arrayContaining(patches))
+  expect(patches[1].key).toBe('behind')
 })

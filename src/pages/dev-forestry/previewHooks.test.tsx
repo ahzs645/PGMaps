@@ -177,7 +177,7 @@ describe('the background band’s read (Distant trees)', () => {
     capped: 0,
   }
 
-  it('names its reach before the read comes, and keeps the road view’s own ground apart from it', async () => {
+  it('keeps the road view’s own ground while loading the background read', async () => {
     loaders.terrain.mockResolvedValue({ source, missingTileCount: 0 })
     const contextTask = deferred<{ source: ElevationSource; missingTileCount: number }>()
     loaders.contextTerrain.mockReturnValue(contextTask.promise)
@@ -191,13 +191,10 @@ describe('the background band’s read (Distant trees)', () => {
     expect(terrainResult(view).source).toBe(source)
     expect(terrainResult(view).forestContext).toBeNull()
     expect(terrainResult(view).forestContextLoading).toBe(true)
-    const radius = terrainResult(view).forestContextRadius
-    expect(radius).toBe(8000)
     await act(async () => contextTask.resolve({ source: contextSource, missingTileCount: 0 }))
     const read = terrainResult(view).forestContext
     expect(read?.source).toBe(contextSource)
-    // Neither the reach nor the road view's own ground changes when the read comes.
-    expect(terrainResult(view).forestContextRadius).toBe(radius)
+    expect(terrainResult(view).forestContextLoading).toBe(false)
     expect(terrainResult(view).source).toBe(source)
   })
 
@@ -316,7 +313,7 @@ describe('the background band’s read (Distant trees)', () => {
       view = create(<Terrain />)
     })
     views.push(view)
-    expect(terrainResult(view)).toMatchObject({ forestContext: null, forestContextRadius: undefined })
+    expect(terrainResult(view)).toMatchObject({ forestContext: null, forestContextLoading: false })
     expect(loaders.contextTerrain).not.toHaveBeenCalled()
     expect(loaders.openGround).not.toHaveBeenCalled()
   })

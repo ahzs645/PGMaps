@@ -88,6 +88,35 @@ export function forestPatches(
   // ground of its own and arrives after the rest, and a stand at 3–8 km matters less than the hillside before it.
   return result.sort((a, b) => a.band - b.band || haversineMeters(eye, a.centre) - haversineMeters(eye, b.centre))
 }
+/**
+ * Grow patches in and just beyond the view first, with the near bands retaining priority for driving.
+ * Sorting changes only the build order. Membership and the keys of already drawn patches stay the same.
+ */
+export function orderForestPatches(
+  patches: ForestPatch[],
+  eye: { lng: number; lat: number },
+  bearingDegrees: number,
+  horizontalFovDegrees: number,
+): ForestPatch[] {
+  const bearing = (bearingDegrees * Math.PI) / 180
+  const east = Math.sin(bearing)
+  const north = Math.cos(bearing)
+  const longitudeMeters = 111320 * Math.cos((eye.lat * Math.PI) / 180)
+  const viewHalfAngle = ((horizontalFovDegrees / 2 + 20) * Math.PI) / 180
+  return patches
+    .map((patch) => {
+      const x = (patch.centre.lng - eye.lng) * longitudeMeters
+      const y = (patch.centre.lat - eye.lat) * 111320
+      const distance = Math.hypot(x, y)
+      const angle = Math.atan2(Math.abs(x * north - y * east), x * east + y * north)
+      const nearView = angle <= viewHalfAngle + Math.atan2(patch.radius, distance)
+      const priority = patch.band < 2 ? patch.band * 2 + Number(!nearView) : nearView ? 4 : 5
+      return { patch, distance, priority }
+    })
+    .sort((a, b) => a.priority - b.priority || a.patch.band - b.patch.band || a.distance - b.distance)
+    .map(({ patch }) => patch)
+}
+
 export function growForestPatch(
   patch: ForestPatch,
   band: ForestBand,

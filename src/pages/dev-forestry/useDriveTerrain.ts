@@ -303,11 +303,6 @@ export function useDriveTerrain(
           : 'Distant trees could not be read; the road view keeps its own extent.'
   return {
     source: visible.source,
-    /**
-     * How far the background band reaches, metres: set as soon as it is asked for, never when its read comes, so the
-     * stand's placement (and its kept patches) do not change on arrival. Undefined while it is off or not needed.
-     */
-    forestContextRadius: contextRequest ? DRIVE_FOREST_CONTEXT_METERS : undefined,
     /** The background read, once it has come; null while it loads, failed or is off. */
     forestContext: activeContext?.read ?? null,
     forestContextLoading: !!contextRequest && !activeContext,

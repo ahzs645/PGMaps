@@ -10,6 +10,8 @@ import { Loader2 } from 'lucide-react'
 import type { MapRef } from '@/components/ui/map'
 import { MapOverlay } from '@/components/ui/map-panels'
 import { TextButton } from '@/components/ui/text-button'
+import { viewingGapToward } from './forest'
+import type { PolygonGeometry } from './visibility'
 import type { DrivePose } from './driveController'
 import {
   engineCamera,
@@ -35,6 +37,7 @@ type Props = {
   url: string
   mapRef: RefObject<MapRef | null>
   poseRef: RefObject<DrivePose | null>
+  viewingGapTarget: PolygonGeometry | null
   /** The scene package round an eye (the drive's current one when null), or null while the road view cannot make one. */
   buildScene: (eye: { lng: number; lat: number } | null) => ScenePackage | null
   /** A new object when the stand itself changes (harvest phase, forest records, openings, terrain): a new package. */
@@ -82,6 +85,7 @@ export function ExternalRoadRenderer({
   url,
   mapRef,
   poseRef,
+  viewingGapTarget,
   buildScene,
   stand,
   environment,
@@ -95,10 +99,12 @@ export function ExternalRoadRenderer({
   const [message, setMessage] = useState<string | null>(null)
   const [stats, setStats] = useState<Record<string, unknown> | null>(null)
   // The latest scene builder, for the bridge, which lives outside render.
+  const gapTargetRef = useRef(viewingGapTarget)
   const buildRef = useRef(buildScene)
   const environmentRef = useRef(environment)
   const renderOptionsRef = useRef(renderOptions)
   useLayoutEffect(() => {
+    gapTargetRef.current = viewingGapTarget
     buildRef.current = buildScene
     environmentRef.current = environment
     renderOptionsRef.current = renderOptions
@@ -108,6 +114,7 @@ export function ExternalRoadRenderer({
     sendScene: () => void
     sendEnvironment: () => void
     sendRenderOptions: () => void
+    sendCamera: () => void
   } | null>(null)
 
   useEffect(() => {
@@ -137,8 +144,9 @@ export function ExternalRoadRenderer({
       const eye = pose
         ? { lng: pose.lng, lat: pose.lat, elevationMeters: pose.eyeElevationMeters }
         : { lng: current.origin.lng, lat: current.origin.lat, elevationMeters: current.camera.position[2] }
-      post(
-        engineCamera(current.origin, eye, {
+      const gap = gapTargetRef.current
+      post({
+        ...engineCamera(current.origin, eye, {
           bearingDegrees: map.getBearing(),
           // MapLibre's pitch is 90° at the horizon.
           pitchDegrees: map.getPitch() - 90,
@@ -149,7 +157,8 @@ export function ExternalRoadRenderer({
             pixelRatio: canvas.width / canvas.clientWidth,
           },
         }),
-      )
+        ...(engineAccepts(accepts, 'viewing-gap-v1') ? { viewingGap: gap ? viewingGapToward(eye, gap) : null } : {}),
+      })
     }
     const sendEnvironment = () => {
       if (!listening) return
@@ -193,7 +202,7 @@ export function ExternalRoadRenderer({
       postScene(scene)
       sendCamera()
     }
-    bridgeRef.current = { sendScene, sendEnvironment, sendRenderOptions }
+    bridgeRef.current = { sendScene, sendEnvironment, sendRenderOptions, sendCamera }
 
     // Captures: the next `ready` after a capture's scene, then the reply with the request's id.
     let readyWaiter: (() => void) | null = null
@@ -324,6 +333,9 @@ export function ExternalRoadRenderer({
   useEffect(() => {
     bridgeRef.current?.sendScene()
   }, [stand])
+  useEffect(() => {
+    bridgeRef.current?.sendCamera()
+  }, [viewingGapTarget])
   // The light and weather, on their own.
   useEffect(() => {
     bridgeRef.current?.sendEnvironment()
