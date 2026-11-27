@@ -193,3 +193,11 @@ Needs records that are not public:
 - Forest Practices Board, [FPB/SIR/25, Fish Passage at Stream Crossings (2009)](https://www.bcfpb.ca/wp-content/uploads/2016/04/SIR25-Fish-Passage-at-Stream-Crossings.pdf) and [FPB/SIR/52 Part 2 (2020)](https://www.bcfpb.ca/wp-content/uploads/2020/05/SIR52-Fish-Habitat-Conservation-Part2.pdf) (from search results only).
 
 Not verified: whether the notices behind `N-CIAS` points can be had by file number without FOI; whether the province's OGL access model matches bcfishpass's current one; whether bcfishpass's road id stays equal to the road section's `OBJECTID` across DataBC refreshes (join on `FOREST_FILE_ID` + `ROAD_SECTION_ID` instead).
+
+## Corrections
+
+Found later on 27 November, while building on this note; the text above is left as written.
+
+- The FSP result that can stand in for FPPR §§55–57 is §12.31, not §12.3: §12.3 reaches only §§47–53, and §12.31 reaches §§55–57 only "as it pertains to cumulative hydrological effects on fish habitat in a fisheries sensitive watershed". `bc.fppr-crossings` lists it that way.
+- Water Sustainability Regulation §38(1) excludes §39(2), so a crossing on the forest route needs no notification. A notification (`N-CIAS`) beside a forestry road, as in Case 4, is another party's or the §39(1) route, not a candidate for the forest road's own crossing.
+- Within 15 m in BC Albers there are 82 pairs of different PSCIS ids, not 97 ([Getting the records a review lacks](acquiring-missing-records-2026-11-27.md), section 3).

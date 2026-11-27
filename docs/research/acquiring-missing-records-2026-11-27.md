@@ -162,4 +162,109 @@ interface RequestStatus {          // Plan.acquisition?.requests
 }
 ```
 
-**Received records, the FSP panel and the rest** were specified with the build; the contract is [Block planning](../forestry-patch-scenarios.md), **Getting the records a review lacks**.
+- A gap with no events reads *Not requested*.
+- "Due" and "overdue" are derived from the channel's days (FOI: 30 business days, and again after an extension).
+- A gap that public data later answers shows *No longer needed*; it is never deleted.
+
+**What came back, as the reviewer's entry.**
+
+```ts
+interface ReceivedRecord {         // Plan.acquisition?.received
+  id: string
+  gaps: string[]
+  title: string                    // the reviewer's description, no names
+  from: 'holder' | 'bcts' | 'district' | 'water' | 'foi' | 'fpb' | 'field' | 'other'
+  documentDate?: string
+  receivedOn: string
+  reference?: string               // their file number, FOI number, page
+  severed?: string                 // e.g. "s. 21 and s. 22 cuts on pp. 3–5"
+  values: { fact?: string; crossing?: string; field: string; value: string | number | boolean; page?: string; quote?: string }[]
+}
+```
+
+- Every value is marked the reviewer's transcription.
+- A value feeds nothing until the reviewer uses it as a fact, or as a claim's evidence (the existing claim `evidence` `{label, reference, date}`), or adds it to a crossing's `evidence` with origin `received`.
+- The document itself is never stored in the plan or the repository. A browser-only copy (like own photos) is a later owner decision.
+- Quotes are optional and short, the reviewer's own, and never names.
+
+**Crossings.**
+
+- `crossings/key.ts` mints the key and keeps aliases. `crossings/pscisSites.ts` applies the matching rule above, and its tests use made-up records for each case: same day, twins, two streams, replacement, chain refusal.
+- A crossing's evidence gains:
+  - `structure` entries per survey;
+  - `sighting` entries: `{ source: 'air-photo' | 'trim' | 'harvest' | 'pscis' | 'wayback' | 'sentinel-2' | 'landsat' | 'field'; date; state: 'present' | 'absent' | 'unclear'; reference; resolutionM?; note? }`.
+- `crossings/dating.ts` derives the bracket (the latest absent before the earliest present), printed "first seen between X and Y".
+- The bracket is a candidate for a `built-after-1995-06-15` fact: *No* only when the earliest present is before that day, *Yes* only when the latest absent is on or after it, otherwise unknown. It always carries the question "was the structure replaced since?", answered from the structure history or the road file.
+- Readers, all live and DOM-free:
+  - TRIM lines near the crossing (present by `ASRC`);
+  - air photo frames whose footprint (scale × 23 cm) holds the crossing, listed by date with thumbnails beside the map drawn at the frame's scale, so the reviewer marks present or absent;
+  - the imagery timeline gets a *Mark present / absent here* action that writes a sighting with the frame's capture date.
+
+**FSP panel.**
+
+- Shows the FDU rows over the block with the amendments approved before the permit's issue date, flagged where the layer is known to skip an amendment.
+- Shows the opening's stocking standard ids with "find this id in the plan's stocking standards" and the plan's BCTS page where it has one.
+- Shows the FOM `fspId` for blocks since 2022.
+- What the reviewer states (plan, amendment, how identified) is a received or entered record; asking for the amendment text is a drafted request.
+
+**Field survey.**
+
+- Move the road designer's field review core (issue, KML with `ExtendedData`, `readObservations`, `observationKey`) and its drainage to shared code (`src/lib/fieldReview/`, `src/lib/forestry/hydrology/`). The designer must not import the planner or the reverse.
+- A block pack issues checks:
+  - `C-` for each crossing candidate: mapped, modelled, PSCIS, and drainage cross-drain candidates where a published DEM covers the block;
+  - `S-` for stream class checks.
+- Each check has a return form: structure, size, length, channel width, gradient, fish sampling method, effort and result, photo refs.
+- A returned point joins a check only by its label. Otherwise it becomes a candidate crossing that only *Add* makes a record, with origin `entered` and its evidence `field`.
+
+**Kept out.**
+
+- Holder, client, consultant and crew names; licensee documents; air photo scans.
+- The project file holds statuses, dates, references, the reviewer's transcribed values and sightings.
+- Nothing here enters `usePlanAnalysis` or a check's key.
+
+## 7. Build order
+
+1. Crossing key, aliases and PSCIS sites (hangs on `Plan.crossings`).
+2. Channel catalogue, derived gaps, drafted requests and status tracking, with no reads.
+3. Received records and their links to facts, claims and crossing evidence.
+4. The FSP panel (FDU at issue date, stocking standard ids, BCTS pages, FOM).
+5. Dating: sightings and brackets; TRIM, harvest, PSCIS and permit candidates; air photo frames; the timeline's mark action.
+6. Field packs: move the field review core and drainage to shared code; block pack issue and import; LiDAR candidates.
+7. NRCED inspections near a crossing as evidence; an FOI draft for determinations.
+
+## Sources
+
+- **DataBC WFS:**
+  - `FSP_FDU_POLY_SPG`, `RSLT_STANDARDS_UNIT_SVW`;
+  - `PSCIS_ASSESSMENT_SVW`, `FWA_STREAM_NETWORKS_SP`;
+  - `TRIM_TRANSPORTATION_LINES`, `AIMG_PHOTO_CENTROIDS_SP` and thumbnails;
+  - `VEG_CONSOLIDATED_CUT_BLOCKS_SP`;
+  - `FTEN_ROAD_SECTION_LINES_SVW`, `FTEN_ROAD_SEGMENT_LINES_SVW`, `FTEN_RUP_SECTION_LINES_SP`, `RRI_BRIDGES_MAJOR_CULVERTS_SP`;
+  - `WLS_WATER_APPROVALS_SVW`.
+- bcfishpass `modelled_stream_crossings.gpkg` (ODbL).
+- LidarBC `LiDAR_BC_S3_Public` and its status layer.
+- Esri Wayback configuration and metadata.
+- Earth Search `sentinel-2-l2a`.
+- [BCTS forest stewardship plans](https://www2.gov.bc.ca/gov/content/industry/forestry/bc-timber-sales/fsp).
+- [FSP Tracking System](https://www2.gov.bc.ca/gov/content/industry/forestry/managing-our-forest-resources/forest-stewardship-plans/forest-stewardship-plan-tracking-system).
+- FOM public API.
+- [FOI requests](https://www2.gov.bc.ca/gov/content/governments/about-the-bc-government/open-government/open-information/freedom-of-information) and the Open Information search.
+- [NRCED](https://nrced.gov.bc.ca) and its FAQ.
+- Natural Resource Officer Service annual reports.
+- [Forest Practices Board: file a concern](https://www.bcfpb.ca/contact/file-concern/).
+- BC air photos page and the Base Map Online Store.
+- `TRIM_BY_DATE.pdf`.
+- The fish passage field assessment (4th ed.), the PSCIS template v2.4, the RISC reconnaissance inventory v2.0, and the *Riparian Management Area Guidebook* page.
+- Stored BC Laws text:
+  - FPPR §56;
+  - WSR §§37–39;
+  - FRPA §§20.25, 71, 103.1.
+
+**Not verified:**
+
+- whether Earth Search's Landsat assets can be read without a paying account;
+- the full-scan resolution of air photos;
+- BCTS and district response times by email;
+- whether past FOI releases already hold site plans for these districts.
+
+The build followed this design; the contract is [Block planning](../forestry-patch-scenarios.md), **Getting the records a review lacks**.
