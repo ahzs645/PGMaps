@@ -222,6 +222,7 @@ import type { RenderEngineId } from './dev-forestry/renderEstimate'
 import {
   engineClassPalette,
   cameraMismatch,
+  finalCaptureIssue,
   captureRequest,
   captureTerrain,
   depthSummary,
@@ -4632,7 +4633,11 @@ function DevForestryVisuals({
     currentForestStatus &&
     !currentForestStatus.error &&
     currentForestStatus.totalPatches
-      ? { done: currentForestStatus.patchCount ?? 0, total: currentForestStatus.totalPatches }
+      ? {
+          done: currentForestStatus.patchCount ?? 0,
+          total: currentForestStatus.totalPatches,
+          revision: forestConfiguration,
+        }
       : null
   useEffect(() => {
     try {
@@ -5133,7 +5138,7 @@ function DevForestryVisuals({
     if (!request) throw new Error(`${engine.label} did not take the capture.`)
     const stand = await growing
     const reply = readCaptureReply(raw, request)
-    const mismatch = cameraMismatch(reply, request)
+    const mismatch = finalCaptureIssue(reply, request, scenePackage) ?? cameraMismatch(reply, request)
     if (mismatch) throw new Error(`${engine.label}: ${mismatch}`)
     const joined = await joinEngineCapture(reply, request)
     const km = (metres: number) => `${(metres / 1000).toFixed(1)} km`

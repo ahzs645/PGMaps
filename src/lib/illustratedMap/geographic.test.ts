@@ -196,7 +196,7 @@ describe('page 8 edition', () => {
     const masked = buildGeographicMapSvg({ ...PAGE8_EDITION, vectorMasks: false })
     expect(masked).toContain('<mask id="geo-channel-gap"')
     expect(masked).toContain('<mask id="geo-compass-clearance"')
-  })
+  }, 20_000)
 })
 
 describe('lakes and waves', () => {

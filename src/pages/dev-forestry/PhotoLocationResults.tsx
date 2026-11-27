@@ -16,11 +16,17 @@ function headingSpan({ from, to }: PhotoLocationSpread['headings']) {
 export function LocationResults({
   search,
   onUse,
+  onPair,
+  placing,
+  onTryTexture,
   quiet = false,
 }: {
   search: PhotoLocationSearch
   /** Offered beside each place of a clear result; absent where the best place is already an options row. */
   onUse?: (candidate: PhotoLocationCandidate) => void
+  onPair?: () => void
+  placing?: boolean
+  onTryTexture?: () => void
   /** The background search's result: a clear best place is a row in the options, so only a tie or a miss is said. */
   quiet?: boolean
 }) {
@@ -33,15 +39,50 @@ export function LocationResults({
       </p>
     )
   if (search.status === 'error') return <InlineAlert tone="warning">{search.message}</InlineAlert>
+  const pair = onPair && (
+    <Button type="button" variant="outline" size="xs" onClick={onPair}>
+      {placing ? 'Cancel landmark pick' : 'Pair a landmark'}
+    </Button>
+  )
   if (!search.candidates.length)
     return (
-      <p className="text-xs leading-5 text-muted-foreground">
-        {search.sampled ? 'No clear skyline match at these places.' : 'Terrain could not be read at these places.'}
-      </p>
+      <div className="space-y-1">
+        {!quiet && search.centre && (
+          <p className="text-xs text-muted-foreground">
+            Search area: nine trial sites on a 500 m grid centred at {search.centre.lat.toFixed(5)},{' '}
+            {search.centre.lng.toFixed(5)}.
+          </p>
+        )}
+        <p className="text-xs leading-5 text-muted-foreground">
+          {search.noSkyline
+            ? 'Too little usable skyline. Set an approximate camera position and pair a landmark.'
+            : search.sampled
+              ? 'No clear skyline match at these places.'
+              : 'Terrain could not be read at these places.'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {pair}
+          {onTryTexture && (search.sampled > 0 || search.noSkyline) && (
+            <Button type="button" variant="outline" size="xs" onClick={onTryTexture}>
+              Try texture fallback
+            </Button>
+          )}
+        </div>
+      </div>
     )
   if (!search.ambiguous && quiet) return null
   return (
     <div className="space-y-1.5">
+      {search.textureFallback && (
+        <p className="text-xs text-muted-foreground">
+          Experimental texture match. Check a landmark before using it in a report.
+        </p>
+      )}
+      {search.centre && !quiet && (
+        <p className="text-xs text-muted-foreground">
+          Nine sites on a 500 m grid centred at {search.centre.lat.toFixed(5)}, {search.centre.lng.toFixed(5)}.
+        </p>
+      )}
       <p className="text-xs leading-5 text-muted-foreground">
         {search.ambiguous
           ? `Several places fit about as well${
@@ -76,6 +117,7 @@ export function LocationResults({
           </li>
         ))}
       </ol>
+      {search.ambiguous && pair}
     </div>
   )
 }

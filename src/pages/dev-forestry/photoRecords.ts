@@ -247,6 +247,7 @@ const POSE_SOURCES: Record<PoseSource, true> = {
   default: true,
   reviewer: true,
   skyline: true,
+  texture: true,
   matched: true,
   landmark: true,
   controls: true,

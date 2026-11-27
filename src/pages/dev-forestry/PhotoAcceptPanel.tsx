@@ -3,7 +3,7 @@
  * accepting the camera, then the jobs the photo does. *Accept* is the reviewer's, never automatic, and it is one
  * click: initials and a note are theirs to add behind a fold, never asked first. Putting the photo to a job that draws
  * from its camera (a viewpoint, the before image) accepts the camera in the same click. The gate (`acceptGate`)
- * refuses only a point solve whose held-out pair misses. A camera moved after it was accepted lapses the acceptance,
+ * refuses an unknown direction or a point solve whose held-out pair misses. A camera moved after it was accepted lapses the acceptance,
  * said plainly. One record holds the photo; every job is a link to it, never a copy.
  */
 import { useState } from 'react'
@@ -17,6 +17,7 @@ import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 
 import { PHOTO_JOBS, type PhotoJob } from './assessmentTools'
+import { legacyHeadingNeedsReview, photoHeadingIssue } from './photoAcceptance'
 import { PHOTO_REMOVE_DETAIL } from './photoOptions'
 import { METHOD_TEXT, type AcceptPreview } from './photoAcceptPreview'
 import type { FieldPhotoState } from './useFieldPhoto'
@@ -65,6 +66,7 @@ export function PhotoAcceptPanel({
   if (!own) return null
   const state = photo.acceptanceState(own.id)
   const acceptance = own.acceptance
+  const headingIssue = photoHeadingIssue(own.sources.heading, acceptance)
   return (
     <section className="space-y-3" aria-label="Accept the camera">
       <h4 className="text-sm font-semibold">Accept the camera</h4>
@@ -86,7 +88,9 @@ export function PhotoAcceptPanel({
               ? acceptance.acceptedBy
                 ? `Accepted by ${acceptance.acceptedBy}`
                 : 'Accepted'
-              : `Lapsed: the camera has moved since ${acceptance.acceptedBy || 'it was'} accepted${acceptance.acceptedBy ? ' it' : ''}`}
+              : legacyHeadingNeedsReview(acceptance)
+                ? 'Legacy acceptance: confirm the direction before reusing it'
+                : `Lapsed: the camera has moved since ${acceptance.acceptedBy || 'it was'} accepted${acceptance.acceptedBy ? ' it' : ''}`}
           </p>
           <KeyValueRows
             variant="divided"
@@ -109,7 +113,7 @@ export function PhotoAcceptPanel({
               acceptance.note ? { label: 'Note', value: acceptance.note } : null,
             ]}
           />
-          {state === 'lapsed' && (
+          {state === 'lapsed' && !legacyHeadingNeedsReview(acceptance) && (
             <p className="leading-5 text-muted-foreground">
               An acceptance never carries over to a camera nobody looked at: check this one and accept it again, or put
               the camera back.
@@ -120,7 +124,9 @@ export function PhotoAcceptPanel({
       {state !== 'accepted' && (
         <div className="space-y-2">
           <p className="text-xs leading-5 text-muted-foreground">
-            Camera {preview.evidence.overlapBasis ? 'from a flight photo match' : METHOD_TEXT[preview.method]}.
+            {headingIssue
+              ? 'Direction not established.'
+              : `Camera ${preview.evidence.overlapBasis ? 'from a flight photo match' : METHOD_TEXT[preview.method]}.`}
             Accepting keeps this camera with the photo: the time, how it was found and the evidence behind it.
           </p>
           <div className="flex flex-wrap items-center gap-2">
@@ -164,11 +170,13 @@ export function PhotoAcceptPanel({
 /** The jobs the photo does, a viewpoint first, and removing it from the set. */
 export function PhotoUsePanel({
   photo,
+  preview,
   initials = '',
   note = '',
   onRemoved,
 }: {
   photo: FieldPhotoState
+  preview: AcceptPreview
   /** What the reviewer typed beside *Accept*, kept with an acceptance a job makes. */
   initials?: string
   note?: string
@@ -179,6 +187,7 @@ export function PhotoUsePanel({
   const [message, setMessage] = useState<{ tone: 'success' | 'warning'; text: string } | null>(null)
   if (!own) return null
   const accepted = photo.acceptanceState(own.id) === 'accepted'
+  const blocker = !accepted && !preview.gate.ok ? preview.gate.reason : null
   const makeViewpoint = () => {
     const made = photo.makeViewpoint(own.id, { initials, note })
     setMessage(
@@ -197,6 +206,7 @@ export function PhotoUsePanel({
   return (
     <section className="space-y-3" aria-label="Use the photo">
       <h4 className="text-sm font-semibold">What this photo is for</h4>
+      {blocker && <p className="text-xs text-muted-foreground">Camera-based jobs: {blocker}</p>}
       <ul className="space-y-1.5">
         {PHOTO_JOBS.map((job) => {
           const text = PHOTO_JOB_TEXT[job]
@@ -208,7 +218,7 @@ export function PhotoUsePanel({
                   type="checkbox"
                   className="mt-0.5"
                   checked={has(job)}
-                  disabled={!own.recordId}
+                  disabled={!own.recordId || (accepts && !!blocker)}
                   onChange={(event) => {
                     if (job === 'viewpoint' && event.target.checked) return makeViewpoint()
                     // A job that draws from the camera accepts it in the same click.
@@ -223,7 +233,7 @@ export function PhotoUsePanel({
                   <span className="font-medium">{text.label}</span>{' '}
                   <span className="text-muted-foreground">
                     {text.note}
-                    {accepts ? ' Accepts this camera.' : ''}
+                    {accepts && !blocker ? ' Accepts this camera.' : ''}
                   </span>
                 </span>
               </label>
@@ -243,7 +253,7 @@ export function PhotoUsePanel({
           variant="outline"
           size="sm"
           className="touch:h-10"
-          disabled={!own.recordId}
+          disabled={!own.recordId || !!blocker}
           onClick={makeViewpoint}
         >
           <MapPin className="h-4 w-4" />

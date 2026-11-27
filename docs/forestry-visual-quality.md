@@ -2469,8 +2469,12 @@ street-level photo from Mapillary, or with a photo of your own.
     says in a line each where it looked and what it found (from where it
     stands, from the high ground, the nine places round it, headings the
     ground leaves open), and holds the searches left to start by hand:
-    *Search here again*, *Search round here*, *Search another area…*, *Pair
-    a landmark* and *Compare with depth*. The features check and the
+    *Search from this camera position*, *Search round here*, *Search another area…*, *Pair
+    a landmark* and *Compare with depth*. An unresolved manual area search
+    offers the experimental *Try texture fallback* on the same 500 m grid,
+    only when none of the standard readers supplied candidates. It does not
+    override a tie, and its result only offers a starting camera to confirm. The
+    features check and the
     combined camera search are folded under *More evidence*; the hand tools
     stay behind *Adjust*. A row is as tall as its model view: its name, its
     angles, and one line of what it was measured on and what agrees with it
@@ -2494,9 +2498,13 @@ street-level photo from Mapillary, or with a photo of your own.
   - **Accept** (`photoAcceptance.ts`, DOM-free) is the reviewer's, never
     automatic, and it is one click with nothing asked first. Initials and a
     note are behind a fold, theirs to add or leave out. The gate
-    (`acceptGate`) refuses one thing: a point-solved camera whose held-out
-    pair lands more than 40 px off in a 1,050-pixel-wide frame, a measured
-    failure. Putting a photo to a job that draws from its camera (a
+    (`acceptGate`) refuses a direction inherited from the road view or a
+    placeholder, and a point-solved camera whose held-out pair lands more
+    than 40 px off in a 1,050-pixel-wide frame. Enter, confirm or pair a
+    direction first. A true EXIF north or deliberately entered 0° is valid.
+    Older typed 0° acceptances without direction provenance are retained,
+    but new camera-based jobs require reconfirmation. Ground evidence still
+    needs no accepted camera. Putting a photo to a job that draws from its camera (a
     viewpoint, the before image, a check of the drawn forest) accepts the
     camera in the same click (`ensureAccepted`). The acceptance goes on the
     photo's field record: when, how the camera was found (skyline, points,

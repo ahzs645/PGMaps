@@ -38,6 +38,7 @@ export type PoseSource =
   | 'default'
   | 'reviewer'
   | 'skyline'
+  | 'texture'
   | 'matched'
   /** A spot picked on the plan at the photo's centre. */
   | 'landmark'

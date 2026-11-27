@@ -5,6 +5,7 @@ import {
   ENGINE_CLASS_COLOUR,
   ENGINE_CLASS_PALETTE,
   cameraMismatch,
+  finalCaptureIssue,
   captureRequest,
   captureTerrain,
   depthSummary,
@@ -299,6 +300,58 @@ describe('a final capture', () => {
     expect(captureTransfer(request())).toEqual([])
     expect(request().quality).toBeUndefined()
     expect(finalRequest(false).stand).toBeUndefined()
+  })
+
+  it('does not let a final frame borrow the requested camera or hide malformed passes', () => {
+    const asked = finalRequest()
+    expect(() =>
+      readCaptureReply(
+        reply(asked, (frame) => {
+          delete frame.camera
+        }),
+        asked,
+      ),
+    ).toThrow(/did not report the camera/)
+    expect(() =>
+      readCaptureReply(
+        reply(asked, (frame) => {
+          ;(frame.depth as Float32Array)[0] = NaN
+        }),
+        asked,
+      ),
+    ).toThrow(/invalid depth/)
+    expect(() =>
+      readCaptureReply(
+        reply(asked, (frame) => {
+          frame.screened = new Uint8Array(3)
+        }),
+        asked,
+      ),
+    ).toThrow(/screening pass/)
+  })
+  it('requires samples and a screening receipt only for a final request with trees', () => {
+    const asked = finalRequest()
+    const treeReply = { ...reply(asked), final: { samples: 24, stems: 2 } }
+    expect(finalCaptureIssue(readCaptureReply(treeReply, asked), asked)).toMatch(/screening/)
+    const withScreen = {
+      ...reply(asked, (frame) => {
+        frame.screened = frame.classes
+      }),
+      final: treeReply.final,
+    }
+    expect(finalCaptureIssue(readCaptureReply(withScreen, asked), asked, withScreen.scene)).toBeNull()
+    expect(
+      finalCaptureIssue(readCaptureReply(withScreen, asked), asked, {
+        ...withScreen.scene,
+        createdAt: '2026-11-12T19:00:00.000Z',
+      }),
+    ).toMatch(/different scene/)
+    const empty = finalRequest(false)
+    const noStand = { ...reply(empty), final: { samples: 24, stems: 0 } }
+    expect(finalCaptureIssue(readCaptureReply(noStand, empty), empty)).toBeNull()
+    expect(finalCaptureIssue(readCaptureReply({ ...noStand, final: { samples: 0, stems: 0 } }, empty), empty)).toMatch(
+      /samples/,
+    )
   })
 
   it('reads what the engine drew, or that it drew the active capture', () => {

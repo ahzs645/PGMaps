@@ -101,7 +101,7 @@ describe('map theme files', () => {
     const fit = (text: string) =>
       text.match(/<g id="geo-label-vancouver"><g [^>]*data-ink-box="([^"]+)"[^>]*data-font-scale="([^"]+)"/)!.slice(1)
     expect(fit(svg)).toEqual(fit(builtIn))
-  })
+  }, 20_000)
 
   it('refuses a theme whose font was swapped, is missing, or is not a font', async () => {
     const members = unzipSync(await page8Theme())

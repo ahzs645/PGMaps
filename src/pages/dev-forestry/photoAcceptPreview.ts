@@ -14,6 +14,7 @@ import {
   type AcceptancePose,
   type AcceptGateResult,
   type PhotoCameraMethod,
+  type PhotoAcceptance,
 } from './photoAcceptance'
 import type { PhotoOption, PhotoOptionKind } from './photoOptions'
 import { methodForOption, methodForSource } from './photoQueue'
@@ -22,6 +23,7 @@ export interface AcceptPreviewInput {
   pose: AcceptancePose | null
   chosen: { rowId: string; kind: PhotoOptionKind; pose: AcceptancePose; evidence: AcceptanceEvidence } | null
   headingSource: PoseSource
+  previous?: PhotoAcceptance | null
   rows: readonly PhotoOption[]
   checkedPose: AcceptancePose | null
   initials: string
@@ -64,6 +66,8 @@ export function acceptPreview(input: AcceptPreviewInput): AcceptPreview {
   if (!pose) return { gate: { ok: false, reason: 'Set where the photo was taken first.' }, method, evidence, row }
   const gate = acceptGate({
     pose,
+    headingSource: input.headingSource,
+    previous: input.previous,
     checkedPose: input.checkedPose,
     method,
     evidence,

@@ -113,6 +113,7 @@ import {
 import { photoSeenBounds, readPhotoFeatures, type Box, type PhotoFeatureReads } from './photoFeatures'
 import {
   acceptanceLapsed,
+  legacyHeadingNeedsReview,
   makePhotoAcceptance,
   sameCamera,
   wrapHeading,
@@ -611,7 +612,7 @@ const flightFrameOf = (photo: OwnPhoto): FlightMatchFrame => ({
   flightId: photo.flightId,
   takenAtUtc: photo.takenAtUtc,
   pose: acceptancePoseOf(photo),
-  acceptance: photo.acceptance,
+  acceptance: legacyHeadingNeedsReview(photo.acceptance) ? null : photo.acceptance,
   eyeHeightMeters: photo.pose.eyeHeightMeters,
 })
 
@@ -1506,7 +1507,7 @@ export function useFieldPhoto({
   const neighbourOf = (photo: OwnPhoto) => {
     if (!positioned(photo)) return null
     const accepted = photosRef.current.flatMap((other) =>
-      other.acceptance && other.id !== photo.id
+      other.acceptance && !legacyHeadingNeedsReview(other.acceptance) && other.id !== photo.id
         ? [
             {
               id: other.id,
@@ -1609,7 +1610,7 @@ export function useFieldPhoto({
     const [colourReader, ...others] = SKYLINE_READERS
     let chosen = await tryReader(colourReader, (done) => onProgress(done / 2))
     signal.throwIfAborted()
-    if (!chosen || !(chosen.result.fit.trustworthy && chosen.result.fit.agreement >= READER_SETTLED_AGREEMENT)) {
+    if (!chosen || !(chosen.result.trustworthy && chosen.result.fit.agreement >= READER_SETTLED_AGREEMENT)) {
       const done = others.map(() => 0)
       const more = await Promise.all(
         others.map((reader, k) =>
@@ -2790,6 +2791,7 @@ export function useFieldPhoto({
     (id: string): 'none' | 'accepted' | 'lapsed' => {
       const photo = photos.find((entry) => entry.id === id)
       if (!photo?.acceptance) return 'none'
+      if (legacyHeadingNeedsReview(photo.acceptance)) return 'lapsed'
       const pose = acceptancePoseOf(photo)
       return pose && !acceptanceLapsed(photo.acceptance, pose) ? 'accepted' : 'lapsed'
     },
@@ -2797,9 +2799,7 @@ export function useFieldPhoto({
   )
 
   /**
-   * Accepts a photo's camera as it stands (`makePhotoAcceptance`): the checks must have been drawn for this camera,
-   * a point solve's held-out pair must land, a fit that is not settled needs a note, and initials are typed. Written
-   * to its field record with the camera.
+   * Accepts a camera with a known direction (`makePhotoAcceptance`), then writes it to the photo’s field record.
    */
   const acceptCamera = useCallback(
     (
@@ -2825,6 +2825,8 @@ export function useFieldPhoto({
       const made = makePhotoAcceptance(
         {
           pose,
+          headingSource: photo.sources.heading,
+          previous: photo.acceptance,
           checkedPose: checksDrawnFor(id),
           method,
           evidence,
@@ -3393,6 +3395,7 @@ export function useFieldPhoto({
     centre: PhotoLocation,
     signal: AbortSignal,
     show: (state: PhotoLocationSearch) => void,
+    textureFallback = false,
   ): Promise<PhotoLocationSearch> => {
     const finish = (state: PhotoLocationSearch) => {
       show(state)
@@ -3404,15 +3407,27 @@ export function useFieldPhoto({
       const pixels = await readPixels(photo)
       // Every reader that finds a believable skyline in this photo may be searched, as the camera search tries them; one
       // reader is kept for the whole search (`searchByOneReader`), so every place's fit measures the same skyline.
-      const readers = SKYLINE_READERS.filter((reader) => {
-        const skyline = skylineRead(photo, pixels, reader)
+      const texture = textureFallback ? (await import('./textureSkyline')).textureSkyline(pixels) : null
+      const sourceReaders = textureFallback ? (['texture'] as const) : SKYLINE_READERS
+      const readers: Array<SkylineReader | 'texture'> = [...sourceReaders].filter((reader) => {
+        const skyline = reader === 'texture' ? texture! : skylineRead(photo, pixels, reader)
         return skyline.filter(Boolean).length >= MIN_SKYLINE_COLUMNS && believableSkyline(pixels, skyline)
       })
       if (!readers.length)
         return finish({
-          status: 'error',
-          message:
-            'There is too little clear skyline to locate this photo. Set a rough camera location in Adjust and pair landmarks.',
+          status: 'done',
+          candidates: [],
+          ambiguous: false,
+          spread: null,
+          sampled: 0,
+          noSkyline: true,
+          basis: {
+            hfov: photo.pose.hfov,
+            eyeHeightMeters: photo.pose.eyeHeightMeters,
+            altitudeMeters: photo.pose.altitudeMeters ?? null,
+          },
+          centre,
+          textureFallback,
         })
       const spec = photoTerrainSpec(centre.lng, centre.lat, PHOTO_TERRAIN_RINGS)
       const terrain = await loadOwnTerrain(centre.lng, centre.lat, signal)
@@ -3451,7 +3466,13 @@ export function useFieldPhoto({
           const horizon = await horizonAt(place)
           if (!horizon) return null
           const { base, profile } = horizon
-          const skyline = skylineOf(photo, pixels, base, reader)
+          const skyline =
+            reader === 'texture'
+              ? texture!.map(
+                  (point) =>
+                    point && { x: (point.x * base.width) / pixels.width, y: (point.y * base.height) / pixels.height },
+                )
+              : skylineOf(photo, pixels, base, reader)
           if (skyline.filter(Boolean).length < MIN_SKYLINE_COLUMNS) return null
           const fit = await runWideOrientation(
             {
@@ -3488,6 +3509,8 @@ export function useFieldPhoto({
         status: 'done',
         ...rankPhotoLocations(candidates),
         sampled,
+        centre,
+        textureFallback,
         basis: { hfov, eyeHeightMeters, altitudeMeters: altitudeMeters ?? null },
       })
     } catch (error) {
@@ -3496,9 +3519,25 @@ export function useFieldPhoto({
     }
   }
 
-  const findLocation = async (id: string, centre: PhotoLocation) => {
+  const findLocation = async (id: string, centre: PhotoLocation, textureFallback = false) => {
     const photo = photoById(id)
     if (!photo || activeRef.current !== id) return
+    if (textureFallback) {
+      const last = locationSearch?.id === id ? locationSearch.state : null
+      // Never let an experimental reader mask an existing plausible result or overturn a near tie.
+      if (
+        last?.status !== 'done' ||
+        last.textureFallback ||
+        last.candidates.length ||
+        !last.centre ||
+        last.centre.lng !== centre.lng ||
+        last.centre.lat !== centre.lat ||
+        last.basis.hfov !== photo.pose.hfov ||
+        last.basis.eyeHeightMeters !== photo.pose.eyeHeightMeters ||
+        last.basis.altitudeMeters !== (photo.pose.altitudeMeters ?? null)
+      )
+        return
+    }
     locationAbort.current?.abort()
     const controller = new AbortController()
     locationAbort.current = controller
@@ -3506,7 +3545,7 @@ export function useFieldPhoto({
     const show = (state: PhotoLocationSearch) => {
       if (!signal.aborted && activeRef.current === id) setLocationSearch({ id, state })
     }
-    await locateAround(photo, centre, signal, show).catch(() => undefined)
+    await locateAround(photo, centre, signal, show, textureFallback).catch(() => undefined)
   }
 
   const useLocation = (id: string, candidate: PhotoLocationCandidate) => {
@@ -3541,7 +3580,7 @@ export function useFieldPhoto({
         pitch: candidate.fit.pitch,
         roll: candidate.fit.roll,
       },
-      'skyline',
+      search.textureFallback ? 'texture' : 'skyline',
     )
     patchWork(id, (current) => ({
       ...current,
@@ -4221,7 +4260,7 @@ export function useFieldPhoto({
       const statusNow = photoQueueStatus({
         running: queueRun.running === photo.id,
         queued: queueRun.pending.includes(photo.id),
-        acceptance: photo.acceptance,
+        acceptance: legacyHeadingNeedsReview(photo.acceptance) ? null : photo.acceptance,
         pose,
         checked: w.checked,
         search: w.search.status,
@@ -4256,6 +4295,8 @@ export function useFieldPhoto({
           otherOptions: options.filter(
             (option) => option.kind !== 'phone' && option.kind !== 'high-ground' && option.kind !== 'ground',
           ).length,
+          hasPhoneHeading: !!photo.exif?.heading,
+          headingUnknown: photo.sources.heading === 'default' || photo.sources.heading === 'road-view',
           neighbourGap: winner?.evidence.neighbourAgreesDegrees ?? null,
           placeInDoubt: !!w.found?.highGround && photo.sources.position === 'exif' && !placeSettled(w.places),
         }),
