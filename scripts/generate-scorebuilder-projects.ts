@@ -12,7 +12,7 @@ import type {
   ScoreMethodSettings,
   ScorePreset,
 } from '../src/maps/scorebuilder/types.ts'
-import type { BoundarySource } from '../src/lib/studyArea.ts'
+import type { BoundarySource } from '../src/lib/studyArea/index.ts'
 
 type ProjectTheme = 'cyan' | 'amber' | 'emerald' | 'blue' | 'slate'
 

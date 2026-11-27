@@ -72,7 +72,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: public/data
-          key: ${{ runner.os }}-pgmaps-data-v2-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', '!scripts/lidar/**', '!scripts/nechako-server/**', '!scripts/nechako-worker/**', '!scripts/forestry/**','!scripts/prepare-lidar.py', '!scripts/lidar-environment.yml', 'package.json', 'package-lock.json', 'src/config/data-hosts.json', 'public/data/**') }}
+          key: ${{ runner.os }}-pgmaps-data-v2-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', '!scripts/lidar/**', '!scripts/nechako-server/**', '!scripts/nechako-worker/**', '!scripts/forestry/**', '!scripts/lidar-environment.yml', 'package.json', 'package-lock.json', 'src/config/data-hosts.json', 'public/data/**') }}
 
       # bcdatamapper commits its outputs already built, so this only copies them.
       - name: Assemble bcdatamapper snapshots

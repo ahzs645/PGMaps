@@ -64,7 +64,7 @@ python3 scripts/legal-rules/import_bclaws.py --source bc.frpa
 python3 scripts/legal-rules/import_bclaws.py --source bc.fppr
 python3 scripts/legal-rules/import_bclaws.py --source bc.gar
 python3 -m unittest discover -s scripts/legal-rules -p 'test_*.py'
-node --test packages/legal-rules/tests/screen.test.mjs
+npx vitest run packages/legal-rules/tests
 ```
 
 The importer uses official CiviX XML, not HTML scraping, and emits **every section**

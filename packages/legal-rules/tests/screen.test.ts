@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { test } from "node:test";
+import { test } from "vitest";
 import { buildZenFacts, screenOminecaCutblock, screenOldForestTarget, patchDistributionDistance } from "../src/screen.mjs";
 
 const json = rel => JSON.parse(readFileSync(new URL(rel, import.meta.url), "utf8"));
@@ -40,7 +40,7 @@ test("GoRules and json-rules-engine examples use the same trigger", () => {
 });
 test("all Prince George district table 3/6 percentages and table 7 targets are present", () => {
   const order=json("../rules/bc/prince-george/2004-biodiversity-order.json");
-  assert.equal(order.oldAndInteriorForest.length,25);
+  assert.equal(order.oldAndInteriorForest.length,49);
   assert.equal(order.youngForestPatchDistribution.targets.length,9);
   assert.equal(order.oldAndInteriorForest.find(x=>x.unit==="A7").oldForestMinPct,17);
   assert.equal(order.oldAndInteriorForest.find(x=>x.unit==="A7").interiorOfRequiredOldForestMinPct,10);

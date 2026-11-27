@@ -177,3 +177,6 @@ public/engines/
 
 # Optional photo-matching models (npm run photo-match:fetch-models)
 public/models/
+
+# Browser-tool page snapshots
+.playwright-mcp/
