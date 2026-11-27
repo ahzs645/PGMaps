@@ -1,0 +1,430 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.rppr",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines range terms (authorization, range agreement holder, range readiness criteria, riparian area, stream, stubble height) and exempts range holders from Part 4 as needed for Workers Compensation rules.",
+      "review": "n/a"
+    },
+    {
+      "n": "1.1",
+      "relevance": "definitions",
+      "bearsOn": "Prescribes grazing, hay cutting and range developments as range practices.",
+      "review": "n/a"
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "Applies FRPA s. 112's power to impose conditions to discretions under this regulation.",
+      "review": "n/a"
+    },
+    {
+      "n": "3",
+      "relevance": "range",
+      "bearsOn": "Lets the minister exempt a range agreement holder from needing a range use or stewardship plan for a set period if grazing will not endanger the range, is in the public interest and is consistent with the objectives.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Where grazing proceeds under an exemption there is no range plan for the block review to read; the range-plan rule assumes one exists.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "Lists what the minister considers before letting a range holder prepare a range stewardship plan.",
+      "review": "n/a"
+    },
+    {
+      "n": "5",
+      "relevance": "range",
+      "bearsOn": "Makes ss. 6-11 the government objectives that range use and stewardship plans must address.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "6",
+      "relevance": "range",
+      "bearsOn": "Sets range plan objectives for soils: protect soil, minimize erosion, compaction and disturbance, keep protective plant cover and litter, revegetate disturbance.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "7",
+      "relevance": "range",
+      "bearsOn": "Sets range plan objectives for forage: healthy plant communities, forage for livestock and wildlife, recruiting desirable plants including by forage seeding, structural variety, litter, and a competitive range industry.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Forage seeding on harvested ground (transitory range) competes with reforestation; the crown-grazing pack asks about permanent grazing openings but not about seeding forage on a block.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "8",
+      "relevance": "range",
+      "bearsOn": "Sets range plan objectives for water: maintain water resources, healthy riparian and upland areas, and shading riparian vegetation.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "9",
+      "relevance": "range",
+      "bearsOn": "Sets range plan objectives for fish: conserve fish, habitat and aquatic ecosystems, and manage deleterious material.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "10",
+      "relevance": "range",
+      "bearsOn": "Sets range plan objectives for wildlife: healthy populations and habitat, minimal disturbance in critical periods, and managed predator-livestock interaction.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "11",
+      "relevance": "range",
+      "bearsOn": "Sets range plan objectives for biodiversity: conserve it, keep native plant dynamics, encourage late seral communities, and keep successional stages where forage is seeded in transitory range.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Transitory range is harvested ground grazed until the new stand closes; the block planner's grazing review could note this objective.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "12",
+      "relevance": "range",
+      "bearsOn": "Applies water quality, wildlife habitat area and ungulate winter range objectives to range plans, with Wildlife Act minister exemptions for consistent alternatives.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "13",
+      "relevance": "range",
+      "bearsOn": "Lets the minister require a range use plan to contain plant community descriptions and actions, range readiness criteria and stubble heights.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "14",
+      "relevance": "range",
+      "bearsOn": "Lets a range stewardship plan propose plant community descriptions, readiness criteria and stubble heights with a rationale, and requires a monitoring and evaluation process.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "15",
+      "relevance": "range",
+      "bearsOn": "Requires a range plan to specify measures preventing invasive plants spread by range practices.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "16",
+      "relevance": "range",
+      "bearsOn": "Requires a range stewardship plan holder's grazing schedule to be consistent with the plan.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:range-plan"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The range-plan rule asks the reviewer to read the plan and its dates; the grazing schedule is where those dates sit for the season of harvest and planting.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "17",
+      "relevance": "range",
+      "bearsOn": "Lets the minister require public notice of a range plan, or of a request for a range development authorization, that would materially affect others.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A licensee's request to move or rebuild a fence or other range development under FRPA s. 51 may need notice; the range-development rule does not mention it.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "18",
+      "relevance": "range",
+      "bearsOn": "Requires a required notice to be followed by at least 30 days' review and comment, consideration of comments, and their submission to the district manager.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "19",
+      "relevance": "admin",
+      "bearsOn": "Lets the minister set up a range plan advisory committee of at least 3 persons.",
+      "review": "n/a"
+    },
+    {
+      "n": "20",
+      "relevance": "admin",
+      "bearsOn": "Requires a copy of a minor range plan amendment to be given to the district manager.",
+      "review": "n/a"
+    },
+    {
+      "n": "21",
+      "relevance": "admin",
+      "bearsOn": "Lets the minister void a wrongly made minor range plan amendment.",
+      "review": "n/a"
+    },
+    {
+      "n": "22",
+      "relevance": "range",
+      "bearsOn": "Requires a range plan amendment when an objective is set or changed, the Range Act agreement changes, or the minister gives notice about plant communities, readiness, stubble height or identified issues.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "23",
+      "relevance": "admin",
+      "bearsOn": "Lets the minister balance objectives and plan content when approving a range plan.",
+      "review": "n/a"
+    },
+    {
+      "n": "24",
+      "relevance": "range",
+      "bearsOn": "Lets the minister extend a range plan's term if it remains or will be made consistent with objectives and GAR actions.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "25-27",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; the range of sections holds no text in force.",
+      "review": "n/a"
+    },
+    {
+      "n": "28",
+      "relevance": "range",
+      "bearsOn": "Bars grazing on Crown range before the plan's range readiness criteria are met, or before the plan's dates unless authorized or readiness is met.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "29",
+      "relevance": "range",
+      "bearsOn": "Requires livestock to be removed at the first of the plan's removal date, its stubble height, or a browse use level (the plan's, else 25% of current annual growth), and grazing not to degrade plant communities.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Browse and stubble limits bear on a plantation only indirectly; RPPR s. 44 is the duty the crown-grazing pack tests.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "30",
+      "relevance": "range",
+      "bearsOn": "Bars range practices that would materially impair a riparian area's ability to withstand peak flows, filter runoff, store and release water and conserve wildlife habitat.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "31",
+      "relevance": "range",
+      "bearsOn": "Bars range practices that would materially and substantially accelerate soil loss, reduce infiltration or moisture storage, or decrease stability on uplands.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "32",
+      "relevance": "range",
+      "bearsOn": "Requires range practices to be timed and done so as to be unlikely to harm fish, fish passage or fish habitat, with ministerial exemptions where impracticable.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "33",
+      "relevance": "range",
+      "bearsOn": "Requires range practices not to deposit harmful material in water diverted for human consumption, nor to damage or destabilize ground round a licensed waterworks.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:community-watershed",
+        "ground:water-licence"
+      ],
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "34",
+      "relevance": "range",
+      "bearsOn": "Requires range practices to be consistent with a water quality objective from the January after it is set, and livestock to be removed and kept from any part where grazing would be inconsistent with it.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:community-watershed"
+      ],
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "35",
+      "relevance": "range",
+      "bearsOn": "Requires a range holder to keep dead livestock 100 m or more from a stream in a community watershed.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:community-watershed"
+      ],
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "36",
+      "relevance": "range",
+      "bearsOn": "Requires range practices to be consistent with a general wildlife measure (or an approved alternative) from the January after it is set.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:uwr-no-harvest",
+        "ground:uwr-conditional",
+        "ground:wha-no-harvest",
+        "ground:wha-conditional"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The UWR and WHA screens cite this for their grazing reach cells.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "36.1",
+      "relevance": "range",
+      "bearsOn": "Requires range practices to be consistent with a general ecological community measure (or approved alternative) from the January after it is set.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "37",
+      "relevance": "range",
+      "bearsOn": "Requires range practices not to damage or render ineffective a wildlife habitat feature.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "38",
+      "relevance": "range",
+      "bearsOn": "Requires range practices not to damage or render ineffective a resource feature, with exemptions where no other option exists and in the public interest.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "39",
+      "relevance": "range",
+      "bearsOn": "Bars the minister from authorizing a range development within 50 m of a stream in a community watershed, or one that would breach the riparian, upland, fish, waterworks, habitat feature or resource feature rules, unless consistent or restored.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:range-development"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The range-development rule asks whether the forest work touches a range development; it does not say that a replacement fence or water development is limited by this section.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "40",
+      "relevance": "range",
+      "bearsOn": "Requires a range agreement holder to keep range developments on its area in effective operating condition, unless exempted.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Where harvest damages a fence, the duty to repair it may move to the forest licensee by FRPA s. 51 authorization; the range-development rule covers the authorization.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "41",
+      "relevance": "range",
+      "bearsOn": "Requires exposed soil from range development construction to be revegetated with suitable species within 2 years.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "42",
+      "relevance": "admin",
+      "bearsOn": "Requires a range holder to attach livestock tags the minister supplies and report lost tags.",
+      "review": "n/a"
+    },
+    {
+      "n": "43",
+      "relevance": "range",
+      "bearsOn": "Authorizes cutting Crown timber in the course of a range development authorization or a range plan.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Cutting by range holders is outside the cutblock planner.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "44",
+      "relevance": "range",
+      "bearsOn": "Requires a range agreement holder who knows grazing will significantly interfere with establishing a free growing stand to remove the livestock and keep them out, unless the minister exempts the second duty once measures prevent recurrence.",
+      "review": "rule",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:range-holder-livestock"
+      ],
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "45",
+      "relevance": "enforcement",
+      "bearsOn": "Sets the content of intervention orders to range holders and when the holder may recover its costs.",
+      "review": "n/a"
+    },
+    {
+      "n": "46",
+      "relevance": "admin",
+      "bearsOn": "Requires a range stewardship plan holder to report livestock numbers, grazing period and issues each year by 31 December.",
+      "review": "n/a"
+    },
+    {
+      "n": "47",
+      "relevance": "enforcement",
+      "bearsOn": "Sets how seized livestock may be advertised and sold.",
+      "review": "n/a"
+    },
+    {
+      "n": "48",
+      "relevance": "enforcement",
+      "bearsOn": "Makes contravening the range practice sections (readiness, removal, riparian, upland, fish, water, GWMs, features, range developments, revegetation, tagging, livestock removal under s. 44, annual reports) an offence up to $5 000 or 6 months; the supplied text also carries the Schedule of range readiness leaf stages.",
+      "review": "n/a"
+    },
+    {
+      "n": "Schedule",
+      "relevance": "range",
+      "bearsOn": "Gives, for each listed forage species, the leaf stage at which it is ready for grazing, which range readiness under the regulation reads.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "No rule asks whether livestock turnout waits for the leaf stage of the key forage species; it bears on range use plans, not on a cutblock.",
+      "encodable": "reviewer-question"
+    }
+  ]
+}

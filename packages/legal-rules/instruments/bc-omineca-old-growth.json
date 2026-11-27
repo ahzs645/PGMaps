@@ -1,0 +1,150 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.omineca.old-growth",
+  "version": "1.0.0",
+  "title": "Omineca old growth and sensitive area orders",
+  "description": "Block screens for the legal old growth management areas and sensitive areas set by Omineca land use orders (Dome and Slim, Humbug, the 2010 Mackenzie spatial order, the Ancient Forest Trail), the Mugaha Marsh sensitive area, the Obo River and Fox landscape units, and the Prince George candidate old forest areas the district managers expect to be left unharvested.",
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-17"
+  },
+  "facts": [
+    {
+      "id": "ogma-order",
+      "label": "Does the block or its road overlap a legal old growth management area (OGMA), and which order established it?",
+      "type": "choice",
+      "choices": [
+        "No legal OGMA",
+        "Dome or Slim landscape unit (2002 order)",
+        "Humbug landscape unit (2003 order)",
+        "Mackenzie spatial order (2010)",
+        "Ancient Forest Trail (2009 order)",
+        "Another order"
+      ]
+    },
+    {
+      "id": "ogma-forest-health",
+      "label": "Is cutting in the OGMA absolutely necessary to control an insect or disease infestation?",
+      "type": "boolean"
+    },
+    {
+      "id": "ogma-road",
+      "label": "Does the proposal build a road in the OGMA?",
+      "type": "boolean"
+    },
+    {
+      "id": "ogma-road-alternative",
+      "label": "Is there another practicable option for the road outside the OGMA?",
+      "type": "boolean"
+    },
+    {
+      "id": "ogma-area",
+      "label": "Gross area of the OGMA, from the source spatial dataset",
+      "type": "number",
+      "unit": "ha",
+      "min": 0
+    },
+    {
+      "id": "ogma-disturbed-percent",
+      "label": "Share of the OGMA's gross area disturbed by this proposal and earlier minor activity",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100
+    },
+    {
+      "id": "ogma-disturbed-ha",
+      "label": "Area of the OGMA disturbed by this proposal and earlier minor activity",
+      "type": "number",
+      "unit": "ha",
+      "min": 0
+    },
+    {
+      "id": "cofa",
+      "label": "Does the block or its road overlap a candidate old forest area (COFA) in the Prince George TSA?",
+      "type": "boolean"
+    },
+    {
+      "id": "cofa-variance",
+      "label": "Has the District Manager approved a variance for this incursion into the COFA?",
+      "type": "boolean"
+    },
+    {
+      "id": "cofa-replacement",
+      "label": "Has an alternative area of equal or greater ecological value been identified to replace the incursion?",
+      "type": "boolean"
+    },
+    {
+      "id": "cofa-summary",
+      "label": "Was the incursion in the licensee’s (or BC Timber Sales’) annual summary of requested variances, before the permit application?",
+      "type": "boolean"
+    },
+    {
+      "id": "mugaha",
+      "label": "Is the block in the Mugaha Marsh sensitive area?",
+      "type": "boolean"
+    },
+    {
+      "id": "mugaha-share",
+      "label": "Share of the sensitive area's commercial forest harvested in the last 10 years, with this block",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100
+    },
+    {
+      "id": "mugaha-reserve",
+      "label": "Does the block reach within 100 m of a lake or wetland in the sensitive area?",
+      "type": "boolean"
+    },
+    {
+      "id": "obo-fox",
+      "label": "Is the block in the Obo River or Fox landscape unit?",
+      "type": "boolean"
+    },
+    {
+      "id": "weissener",
+      "label": "Does the block reach within 250 m (slope distance) of Weissener Lake?",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "small-ogma",
+      "value": 50,
+      "unit": "ha"
+    },
+    {
+      "id": "small-ogma-share",
+      "value": 10,
+      "unit": "%"
+    },
+    {
+      "id": "large-ogma-share",
+      "value": 5,
+      "unit": "%"
+    },
+    {
+      "id": "large-ogma-area",
+      "value": 40,
+      "unit": "ha"
+    },
+    {
+      "id": "mugaha-share",
+      "value": 10,
+      "unit": "%"
+    }
+  ],
+  "sourceFiles": [
+    "sources/bc/dome-slim-order.json",
+    "sources/bc/humbug-order.json",
+    "sources/bc/mackenzie-ogma-order.json",
+    "sources/bc/ancient-forest-order.json",
+    "sources/bc/mugaha-marsh-order.json",
+    "sources/bc/obo-fox-order.json",
+    "sources/bc/pgtsa-loe.json"
+  ],
+  "ruleFiles": [
+    "rules/bc/omineca/old-growth.json"
+  ]
+}

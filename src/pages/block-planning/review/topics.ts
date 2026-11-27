@@ -13,6 +13,8 @@ interface TopicDef {
   id: string
   label: string
   sections: string[]
+  /** Rules placed by id, for an instrument whose provisions do not number by section (an order's strategies). */
+  rules?: string[]
 }
 
 const TOPICS: Record<string, TopicDef[]> = {
@@ -21,7 +23,7 @@ const TOPICS: Record<string, TopicDef[]> = {
     {
       id: 'regeneration',
       label: 'Reforesting the harvested ground (FRPA §29, FPPR §44(3))',
-      sections: ['29', '44', '1', '91', '46.2'],
+      sections: ['29', '44', '1', '91', '46.2', '46.11'],
     },
     { id: 'lease', label: 'Land Act grazing lease', sections: ['11', '11.2'] },
     { id: 'designation', label: 'Land Act reserves and designated use areas (§§15–17)', sections: ['15', '17'] },
@@ -30,6 +32,7 @@ const TOPICS: Record<string, TopicDef[]> = {
   ],
   'bc.fppr': [
     { id: 'size', label: 'Cutblock size and adjacency (§64–65)', sections: ['64', '65'] },
+    { id: 'pine', label: 'Secondary structure in pine leading stands (§43.1)', sections: ['43.1'] },
     { id: 'wildlife', label: 'Wildlife trees and coarse woody debris (§66–68)', sections: ['66', '67', '68'] },
     { id: 'soil', label: 'Soil disturbance and permanent access (§35–36)', sections: ['35', '36'] },
     { id: 'riparian', label: 'Riparian management areas (§47–49, §52)', sections: ['47', '48', '49', '52'] },
@@ -38,6 +41,81 @@ const TOPICS: Record<string, TopicDef[]> = {
       id: 'plans',
       label: 'Plans, results and exemptions',
       sections: ['4.33', '4.44', '4.51', '12.4', '12.5', '34.6', '92.1'],
+    },
+  ],
+  'bc.forest-permits': [
+    {
+      id: 'fsp',
+      label: 'Forest stewardship plan and site plan (FRPA §3, §10; FPPR §14)',
+      sections: [],
+      rules: ['fdu', 'fdu-identifies', 'site-plan'],
+    },
+    {
+      id: 'fom',
+      label: 'Forest operations map (FRPA §15.1; FPPR §34.2, §34.5)',
+      sections: [],
+      rules: ['fom', 'fom-review', 'fom-window'],
+    },
+    {
+      id: 'permits',
+      label: 'Cutting and road permits (Forest Act §52.02, §52.05, §117)',
+      sections: [],
+      rules: ['cutting-permit', 'permit-refusal', 'fop'],
+    },
+    {
+      id: 'spa',
+      label: 'Special purpose areas (Forest Act §209, §215)',
+      sections: [],
+      rules: ['spa-licence', 'spa-road', 'spa-exception'],
+    },
+  ],
+  'bc.omineca.old-growth': [
+    {
+      id: 'ogma',
+      label: 'Legal old growth management areas',
+      sections: [],
+      rules: [
+        'dome-slim-cutting',
+        'dome-slim-forest-health',
+        'dome-slim-road',
+        'humbug-cutting',
+        'humbug-forest-health',
+        'humbug-road',
+        'mackenzie-retain',
+        'mackenzie-ceiling',
+        'mackenzie-notice',
+        'ancient-forest-retain',
+      ],
+    },
+    {
+      id: 'cofa',
+      label: 'Candidate old forest areas (Prince George TSA)',
+      sections: [],
+      rules: ['cofa', 'cofa-variance', 'cofa-summary'],
+    },
+    { id: 'mugaha', label: 'Mugaha Marsh sensitive area', sections: [], rules: ['mugaha-share', 'mugaha-reserve'] },
+    {
+      id: 'obo-fox',
+      label: 'Obo River and Fox landscape units',
+      sections: [],
+      rules: ['obo-fox-retention', 'weissener'],
+    },
+  ],
+  'bc.mackenzie.biodiversity': [
+    {
+      id: 'old-forest',
+      label: 'Old and old interior forest (2008 order, amended 2010)',
+      sections: [],
+      rules: ['old-shortfall', 'interior-shortfall', 'younger-allowance'],
+    },
+    { id: 'wildlands', label: 'Wildlands landscape units', sections: [], rules: ['wildlands'] },
+  ],
+  'bc.omineca.visual-quality': [
+    {
+      id: 'visual',
+      label: 'Visual quality objectives',
+      sections: ['7', '9.2', '1.1'],
+      rules: ['pg-vqo', 'bobtail-vqo', 'fsj-vqo'],
     },
   ],
   'bc.pgtsa.biodiversity': [
@@ -62,7 +140,7 @@ export const WHOLE_CASE: Topic = { id: 'whole', label: 'Whole case' }
 
 export function ruleTopic(pack: Pack, rule: Pack['rules'][number]): Topic {
   const section = sectionOf(rule.provision)
-  const known = TOPICS[pack.id]?.find((t) => t.sections.includes(section))
+  const known = TOPICS[pack.id]?.find((t) => t.rules?.includes(rule.id) || t.sections.includes(section))
   return known ? { id: known.id, label: known.label } : { id: `section-${section}`, label: `Section ${section}` }
 }
 

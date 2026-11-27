@@ -1,0 +1,145 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.mackenzie.obo-fox.2002",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "Establishment",
+      "relevance": "definitions",
+      "bearsOn": "Establishes the two landscape units, shown on Maps 1 and 2, as the area the objectives apply to; no DataBC layer the planner reads draws them.",
+      "review": "n/a"
+    },
+    {
+      "n": "1.A.a",
+      "relevance": "landscape",
+      "bearsOn": "Requires openings and cutblocks in each unit to follow Table 1 (NDT 2: under 40 ha 30-40%, 40-80 ha 30-40%, 80-250 ha 20-40%; NDT 3: under 40 ha 10-20%, 40-250 ha 10-20%, 250-1000 ha 60-80%), so a block's size moves its unit's distribution.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "The patch analysis runs the PG TSA Table 7 classes only; Obo-Fox Table 1 has its own classes (up to 1000 ha) split by NDT, and the unit boundaries are not in any layer the planner reads.",
+      "encodable": "numeric",
+      "proposedFacts": [
+        "Is the block in the Obo River or Fox landscape unit, and in NDT 2 or NDT 3?",
+        "After this block, what percent of the unit's openings fall in each Table 1 patch size class?",
+        "Does the block move any Table 1 class farther outside its range?"
+      ]
+    },
+    {
+      "n": "1.A.b",
+      "relevance": "landscape",
+      "bearsOn": "Requires forested patches to be retained by Table 1's distribution to limit fragmentation; the same table as 1.A.a, read for leave areas.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Falls with a Table 1 patch test for 1.A.a.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "1.A.c",
+      "relevance": "landscape",
+      "bearsOn": "Lets the two largest classes run larger where the district manager considers it required for caribou, forest health or natural disturbance patterns.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A reviewer question on a Table 1 rule.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "1.A.d",
+      "relevance": "landscape",
+      "bearsOn": "Lets the district manager approve clustered cutblocks that together emulate patches of 40 ha or more, so several blocks may count as one patch.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A Table 1 rule would need to group approved clusters before classing patches.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "1.A.e",
+      "relevance": "landscape",
+      "bearsOn": "Lets the district manager approve short-term departures from the Table 1 targets for fire-damaged stands, forest health or other significant constraints, the usual route for salvage blocks.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No rule records a deviation approval beside a Table 1 result.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Has the district manager approved a short-term deviation from the Table 1 patch size targets for this block, for fire damage, forest health or another operational constraint?"
+      ]
+    },
+    {
+      "n": "1.A.f",
+      "relevance": "landscape",
+      "bearsOn": "Requires each unit to hold Table 2's mature-plus-old and old percentages by zone (NDT 2 ESSF and SWB 42/13; NDT 3 BWBS 34/16, ESSF 34/21) and, where short, the old deficit to be mapped from non-early stands and reserved from harvest, which can take a block's stands out.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "The old forest module calculates the PG TSA order only. The 2008 Mackenzie non-spatial order says it applies where it conflicts on old (it names 1.A.g and Table 2), so a rule would test mature-plus-old here and old under the 2008 order.",
+      "encodable": "numeric",
+      "proposedFacts": [
+        "What percent of each biogeoclimatic variant in the landscape unit is mature plus old, against Table 2?",
+        "Is any of the block in an area mapped and reserved to make up an old or mature-plus-old deficit?"
+      ]
+    },
+    {
+      "n": "1.A.g",
+      "relevance": "landscape",
+      "bearsOn": "Asks that Table 2 targets be met where possible from areas already constrained for other values, which bears on where a deficit reserve may fall.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A reviewer note on any 1.A.f test.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "1.A.i",
+      "relevance": "landscape",
+      "bearsOn": "Lets BWBS retention vary as the Biodiversity Guidebook allows where deciduous stands predominate.",
+      "review": "none",
+      "gapPriority": "low",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "1.A.j",
+      "relevance": "landscape",
+      "bearsOn": "Asks that connectivity of important habitats be kept using areas already constrained from harvest; it names no measure a block can be tested against.",
+      "review": "none",
+      "gapPriority": "low",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "1.A.k",
+      "relevance": "block",
+      "bearsOn": "Requires every opening or cutblock to retain wildlife tree patches at the Table 3 percentage (3% to 18% of cutblock area, read from the unit's harvest history and the subzone's available share) unless operational plans detail retention that meets the unit's Table 3 targets.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "The rule asks the reviewer to compare retention with the order’s Table 3; the planner does not read the table by subzone."
+    },
+    {
+      "n": "2.A.a",
+      "relevance": "block",
+      "bearsOn": "Bars timber harvesting within 200 m (slope distance) of Weissener Lake (UTM NAD83 zone 10, 336161 E, 6403217 N) and requires 50% of basal area volume to be retained in a further 50 m.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "The rule asks whether the block reaches within 250 m of Weissener Lake; no screen measures the slope distance."
+    },
+    {
+      "n": "2.A.b",
+      "relevance": "block",
+      "bearsOn": "Lets the regional director (then MSRM) vary the no-harvest and managed distances for a specific area.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A reviewer question beside a 2.A.a rule; the approving office no longer exists under that name.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "Transition",
+      "relevance": "plan",
+      "bearsOn": "Required forest development plans submitted after the effective date to be consistent; under FRPA the objectives reach a block through Land Act s. 93.8 and the FSP's results or strategies.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A document check that the FSP carries results or strategies for these objectives.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "Effective date",
+      "relevance": "admin",
+      "bearsOn": "Sets the effective date, October 24, 2002.",
+      "review": "n/a"
+    }
+  ]
+}

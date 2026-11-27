@@ -1,0 +1,131 @@
+[
+  {
+    "id": "old-shortfall",
+    "title": "Old forest below the Table 2 target",
+    "source": "amendment",
+    "provision": "1(b)",
+    "scope": [
+      [
+        {
+          "fact": "applies",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "old-margin",
+          "op": "lt",
+          "value": 0
+        }
+      ]
+    ],
+    "finding": "Objective 2 maintains old forest on the Crown forest land base by the 2010 Table 2. After this harvest the unit and group are below the target. Units given legal OGMAs in 2010 were dropped from the table.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Recheck the unit's old forest against Table 2 and identify recruitment under Objective 2(c), or move the harvest out of old forest."
+      }
+    ]
+  },
+  {
+    "id": "interior-shortfall",
+    "title": "Old interior forest below the Table 3 target",
+    "source": "order",
+    "provision": "Objective 3",
+    "scope": [
+      [
+        {
+          "fact": "applies",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "interior-margin",
+          "op": "lt",
+          "value": 0
+        }
+      ]
+    ],
+    "finding": "Objective 3 keeps a share of the old forest requirement as old interior forest by Table 3. After this harvest the unit is below it.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Recheck interior old forest and the parks Objective 3(b) lets count, or reshape the block."
+      }
+    ]
+  },
+  {
+    "id": "younger-allowance",
+    "title": "Younger stands counted as old",
+    "source": "order",
+    "provision": "Objective 2(b)",
+    "scope": [
+      [
+        {
+          "fact": "applies",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "younger-share",
+          "op": "gt",
+          "value": {
+            "parameter": "younger-limit"
+          }
+        }
+      ],
+      [
+        {
+          "fact": "younger-share",
+          "op": "gt",
+          "value": 0
+        },
+        {
+          "fact": "conservation-benefit",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "Up to 20% of the live old forest part of the target can come from younger stands, only where equal or better conservation benefits are demonstrated. The allowance does not extend to old interior forest.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Reduce the younger-stand share to 20% or less and record the conservation benefit."
+      }
+    ]
+  },
+  {
+    "id": "wildlands",
+    "title": "Wildlands landscape unit",
+    "source": "order",
+    "provision": "Guidance 6",
+    "when": [
+      [
+        {
+          "fact": "wildlands",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The order's guidance manages these units as LRMP Special Resource Management Zones - Wildlands, which exclude commercial timber harvesting. The guidance is not itself an objective.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Confirm the unit and the LRMP direction with the district before planning harvest here."
+      }
+    ]
+  }
+]

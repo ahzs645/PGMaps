@@ -1,0 +1,62 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.mackenzie.biodiversity",
+  "version": "1.0.0",
+  "title": "Mackenzie landscape biodiversity order",
+  "description": "The 2008 Mackenzie non-spatial landscape biodiversity objectives as amended in 2010: old forest and old interior forest retention by landscape unit and biogeoclimatic group, the younger-stand allowance, and the Wildlands landscape units. The reviewer reads the targets from the order's tables; PGMaps does not yet calculate them for Mackenzie.",
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-17"
+  },
+  "facts": [
+    {
+      "id": "applies",
+      "label": "Does the order apply to the block: Crown land in the Mackenzie Forest District, outside woodlots, research forests and community forests of 600 ha or less?",
+      "type": "boolean"
+    },
+    {
+      "id": "old-margin",
+      "label": "Old forest in the block's unit and group after the harvest, minus the 2010 Table 2 target",
+      "type": "number",
+      "unit": "percentage points"
+    },
+    {
+      "id": "interior-margin",
+      "label": "Old interior forest after the harvest, minus the Table 3 target",
+      "type": "number",
+      "unit": "percentage points"
+    },
+    {
+      "id": "younger-share",
+      "label": "Share of the live old forest target met by stands younger than old",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100
+    },
+    {
+      "id": "conservation-benefit",
+      "label": "Has it been demonstrated that the younger stands give equal or better conservation benefits?",
+      "type": "boolean"
+    },
+    {
+      "id": "wildlands",
+      "label": "Is the block in a Wildlands landscape unit (Bluff Creek, Braid, Frog, McCusker, North or South Firesteel, Upper Akie River, Upper Gataga, Upper Pelly, Wicked River)?",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "younger-limit",
+      "value": 20,
+      "unit": "%"
+    }
+  ],
+  "sourceFiles": [
+    "sources/bc/mackenzie-biodiversity-order.json",
+    "sources/bc/mackenzie-biodiversity-amendment.json"
+  ],
+  "ruleFiles": [
+    "rules/bc/omineca/mackenzie-biodiversity.json"
+  ]
+}

@@ -1,0 +1,314 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.mackenzie.biodiversity.2008",
+  "title": "Ministerial Order: Non-spatial Landscape Biodiversity Objectives in the Mackenzie Forest District, 9 April 2008",
+  "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/mackenzie-lrmp/mackenzie-srmp/non-spatial_landscape_biodiversity_obj_mackenzie_forest_district.pdf",
+  "madeUnder": "Land Act s. 93.4",
+  "made": "2008-04-09",
+  "transcribedFrom": "signed PDF, text layer checked against the pages",
+  "transcribedOn": "2026-11-27",
+  "notes": [
+    "Prevails over: Replaces the Order Establishing Provincial Non-Spatial Old Growth Objectives (June 30, 2004) for its area (1.3); in uncertainty prevails over s. 1.A.g and Table 2 (\"old\") of the Order to Establish the Obo River and Fox Landscape Units and Objectives (November 1, 2002) (1.4)",
+    "Superseded by: Partly: Map #1 and Table 2 repealed and replaced by the 2010 amendment (mackenzie-amend-2010, signed 2010-09-23), which drops seven landscape units or groups (Gaffney/Manson River, Gillis/Klawli, Parsnip, Twenty Mile, Misinchinka/Tudyah B, Connaghan Creek/Eklund/Jackfish/South Germansen-Upper Manson, Kennedy); the companion Spatial Land Use Objectives for part of the Mackenzie Forest District (mackenzie-spatial-2010) says it creates spatial OGMAs in seven landscape units or groupings, the remainder staying under this order."
+  ],
+  "provisions": [
+    {
+      "id": "Preamble",
+      "heading": "Preamble",
+      "page": 1,
+      "quotes": [
+        "This order establishes non-spatial landscape biodiversity objectives, in the Mackenzie Forest District, for:",
+        "A. old forest retention;",
+        "B. old interior forest retention These objectives were developed considering the social direction of the Mackenzie Land and"
+      ]
+    },
+    {
+      "id": "1.1",
+      "heading": "Relationship with the Forest and Range Practices Act",
+      "page": 2,
+      "quotes": [
+        "Pursuant to section 93.4 of The Land Act the following objectives are established as land use objectives for the purposes of"
+      ]
+    },
+    {
+      "id": "1.2",
+      "heading": "Application and excluded tenures",
+      "page": 2,
+      "quotes": [
+        "These objectives apply to all Crown land in the Mackenzie Forest District, except for lands covered by woodlot licences"
+      ]
+    },
+    {
+      "id": "1.3",
+      "heading": "Replacement of the 2004 provincial order",
+      "page": 2,
+      "quotes": [
+        "These objectives replace the Order Establishing Provincial Non-Spatial Old Growth Objectives (June 30"
+      ]
+    },
+    {
+      "id": "1.4",
+      "heading": "Disclosed conflict with the Obo River and Fox order",
+      "page": 2,
+      "quotes": [
+        "In accordance with section 5 of the Land Use Objective Regulation, it is disclosed that there is a “conflict” with an",
+        "The nature and extent of the conflict is as follows:",
+        "The “conflict” is with Section 1.A.g. and Table 2 (for the portion that relates to “old”) of the Order to Establish the Obo"
+      ]
+    },
+    {
+      "id": "1.5 Definitions (general)",
+      "heading": "Definitions: BEO, BEC, community forest agreement area, deciduous species, licensee, young forest",
+      "page": 4,
+      "quotes": [
+        "“Biodiversity Emphasis Option” (BEO) is a designation assigned to Landscape Units through a process conducted by government",
+        "Deciduous species” means birch or aspen. “Licensee” means a person or party required to prepare a forest development plan",
+        "Act or a forest stewardship plan under the Forest and Range Practices Act. “Young forest” means forested areas which are"
+      ]
+    },
+    {
+      "id": "1.5 Table 1",
+      "heading": "Biogeoclimatic Grouping and Table 1",
+      "page": 4,
+      "quotes": [
+        "4 SBSmk1, SBSmk2, SBSwk1",
+        "“Biogeoclimatic Grouping” means an amalgamation of Biogeoclimatic variants as indicated in the table below",
+        "Biogeoclimatic Groups and their respective variants used in Objectives 2 and 3."
+      ]
+    },
+    {
+      "id": "1.5 Crown Forest Land Base",
+      "heading": "Definition: Crown Forest Land Base",
+      "page": 4,
+      "quotes": [
+        "“Crown Forest Land Base” means provincial Crown land which is forested.",
+        "It has generally been divided into: non-contributing land base (e.g. parks",
+        "It does not include excluded land base, such as private land, federal land, municipal land and woodlots licenses."
+      ]
+    },
+    {
+      "id": "1.5 Natural Forest Area",
+      "heading": "Definition: Natural Forest Area",
+      "page": 4,
+      "quotes": [
+        "“Natural Forest Area” means an area in the mountain pine beetle infested units which has not been harvested and is in one or"
+      ]
+    },
+    {
+      "id": "1.5 Old Forest",
+      "heading": "Definition: Old Forest",
+      "page": 4,
+      "quotes": [
+        "“Old Forest” means forests in BEC units SBSmk1 and SBSmk2 that are greater than 120 years old"
+      ]
+    },
+    {
+      "id": "Objective 2",
+      "heading": "Old Forest Retention",
+      "page": 5,
+      "quotes": [
+        "Maintain Old Forest on the Crown Forest Land Base (CFLB) in accordance with Table 2 and subject to the following:",
+        "Old Forest Retention Maintain Old Forest on the Crown Forest Land Base (CFLB) in accordance with Table 2 and subject to the"
+      ]
+    },
+    {
+      "id": "Objective 2(a)",
+      "heading": "Natural Forest Area contribution cap",
+      "page": 5,
+      "quotes": [
+        "a) the target amount of old forest retention can be made up of live Old Forest and / or Natural Forest Area and.",
+        "The proportion of Natural Forest Area that can contribute to the target can not exceed the percentage of the area that is"
+      ]
+    },
+    {
+      "id": "Objective 2(b)",
+      "heading": "Younger stands, up to 20%",
+      "page": 5,
+      "quotes": [
+        "b) of the target amount listed in Table 2 and that proportion made up of live Old Forest"
+      ]
+    },
+    {
+      "id": "Objective 2(c)",
+      "heading": "Recruitment where beetle harvest or fire removed retention",
+      "page": 5,
+      "quotes": [
+        "stands closest in age, to the minimum age of Old Forest must be identified and maintained",
+        "c) where harvesting of beetle wood or wildfire has eliminated opportunities for retention, then stands closest in age"
+      ]
+    },
+    {
+      "id": "Objective 2(d)",
+      "heading": "Parks may contribute",
+      "page": 5,
+      "quotes": [
+        "may contribute to the old forest retention targets.",
+        "d) Heather Dina Lake Park, Muscovite Lakes Park, and Ed Bird Estella Lake Park are contained within the corresponding"
+      ]
+    },
+    {
+      "id": "Table 2 (2008)",
+      "heading": "Old Forest Retention Requirements by Landscape Unit (or Landscape Unit Group)",
+      "page": 5,
+      "quotes": [
+        "Kennedy High 3 28",
+        "Old Forest Retention Requirements by Landscape Unit (or Landscape Unit Group) for the Mackenzie Forest District Landscape"
+      ]
+    },
+    {
+      "id": "Objective 3",
+      "heading": "Old Interior Forest Retention",
+      "page": 9,
+      "quotes": [
+        "Maintain a percentage of the Old Forest retention requirements as Old Interior Forest retention as per Table 3",
+        "Old Interior Forest Retention Maintain a percentage of the Old Forest retention requirements as Old Interior Forest"
+      ]
+    },
+    {
+      "id": "Objective 3(a)",
+      "heading": "Interior recruitment after beetle harvest or fire",
+      "page": 9,
+      "quotes": [
+        "a) where harvesting of beetle wood or wildfire has eliminated opportunities for retention of Old Interior Forest retention"
+      ]
+    },
+    {
+      "id": "Objective 3(b)",
+      "heading": "Parks may contribute to interior",
+      "page": 9,
+      "quotes": [
+        "may contribute to the old interior forest retention targets.",
+        "b) Heather Dina Lake Park, Muscovite Lakes Park, and Ed Bird Estella Lake Park are contained within the corresponding"
+      ]
+    },
+    {
+      "id": "Table 3",
+      "heading": "Mackenzie Forest District Old Interior Forest Requirements",
+      "page": 9,
+      "quotes": [
+        "3 25 50 50",
+        "Mackenzie Forest District Old Interior Forest Requirements Biogeoclimatic Group Minimum Percent of the Old Forest Retention"
+      ]
+    },
+    {
+      "id": "4.1",
+      "heading": "Effective date",
+      "page": 10,
+      "quotes": [
+        "This Order takes effect on the date that this order is published in the Gazette."
+      ]
+    },
+    {
+      "id": "4.2",
+      "heading": "Category A cutblocks",
+      "page": 10,
+      "quotes": [
+        "This Order does not affect any Category A cutblocks approved pursuant to the Forest Practices Code of British Columbia Act"
+      ]
+    },
+    {
+      "id": "4.3",
+      "heading": "Forest stewardship plans must be consistent",
+      "page": 10,
+      "quotes": [
+        "all forest stewardship plans submitted after the effective date must be consistent with this Order.",
+        "For the purposes of the Forest and Range Practices Act, and despite subsection 16(2) of that Act"
+      ]
+    },
+    {
+      "id": "4.4",
+      "heading": "Applicable period under FRPA s. 8(2)(b)",
+      "page": 10,
+      "quotes": [
+        "the period of time under section 8(2)(b) is 1 year."
+      ]
+    },
+    {
+      "id": "Guidance: Application",
+      "heading": "Implementation Guidance (status)",
+      "page": 11,
+      "quotes": [
+        "Implementation Guidance This policy applies to the application of the Order Establishing Non-Spatial Landscape Biodiversity",
+        "It is not legally binding."
+      ]
+    },
+    {
+      "id": "Guidance 1",
+      "heading": "Interim Measures for Natural Forest Areas (NFAs)",
+      "page": 11,
+      "quotes": [
+        "Interim Measures for Natural Forest Areas (NFAs) Due to the extraordinary situation of the Mountain Pine Beetle epidemic in",
+        "For this reason, these “non-live” old forests called Natural Forest Areas will be used as a surrogate for old forest as a",
+        "The intention is to allow a representative quantity of Natural Forest Area to fulfill the old forest retention requirement."
+      ]
+    },
+    {
+      "id": "Guidance 2",
+      "heading": "Rationale for future OGMAs",
+      "page": 11,
+      "quotes": [
+        "Rationale for future Old Growth Management Areas (OGMAs) Integrated Land Management Bureau",
+        "ILMB recognizes the need to develop OGMAs that capture representative elements of old forest that are contained in the",
+        "Therefore, OGMAs will be developed roughly in the amount equivalent to the figures required in Table 3 of the Order for old"
+      ]
+    },
+    {
+      "id": "Guidance 3",
+      "heading": "Targets by Landscape Unit Groups",
+      "page": 12,
+      "quotes": [
+        "retention of old forest and interior old forest will be distributed across landscape units that are grouped in Table 2.",
+        "Old Forest Retention and Interior Old Forest Retention Targets by Landscape Unit Groups Some landscape units were so small",
+        "Therefore, some landscape units listed in Table 2 are grouped for the purpose of providing a larger area over which to meet"
+      ]
+    },
+    {
+      "id": "Guidance 4",
+      "heading": "Interior Forest Condition and buffering method",
+      "page": 12,
+      "quotes": [
+        "Interior Forest Condition The purpose of an interior old forest objective is to provide a criterion for old forest and/or",
+        "Through this objective, as well as old forest retention, we are attempting to emulate natural disturbance landscape",
+        "The interior old forest objective is a critical component of assessing the quality and values of the aspatial old forest"
+      ]
+    },
+    {
+      "id": "Guidance 5",
+      "heading": "BEC groups under 2,000 ha",
+      "page": 14,
+      "quotes": [
+        "Biogeoclimatic Ecosystem Classification Groups Less than 2,000 Hectares in Size Table 1 contains a list of the primary",
+        "However, some smaller BEC units are combined in Table 1 with a different group where the area is too small to reasonably",
+        "For the purpose of Objective 2, where it can be demonstrated that there are other landscape units or landscape unit groups"
+      ]
+    },
+    {
+      "id": "Guidance 6",
+      "heading": "Wilderness Landscape Units (SRMZ - Wildlands)",
+      "page": 14,
+      "quotes": [
+        "Wilderness Landscape Units (Special Resource Management Zones – Wildlands) The following landscape units are to be managed"
+      ]
+    },
+    {
+      "id": "Guidance 7",
+      "heading": "Roles and Responsibilities",
+      "page": 15,
+      "quotes": [
+        "Roles and Responsibilities Forest Licensees or BC Timber Sales: • Prepare Forest Stewardship Plans. • Coordinate and",
+        "Integrated Land Management Bureau: • Provide advice and interpretation to agency staff related to the objectives and",
+        "Ministry of Forests: • Approval of Forest Stewardship Plans. • Compliance and Enforcement activities. • Participation with"
+      ]
+    },
+    {
+      "id": "Guidance 8",
+      "heading": "Adaptive Management Process",
+      "page": 15,
+      "quotes": [
+        "Adaptive Management Process Adaptive management principles will apply to this process",
+        "As a minimum, a review will coincide with Timber Supply Review process in the Mackenzie Timber Supply Area.",
+        "Certain elements that are uncertain or require additional analysis could be the focus of the monitoring program."
+      ]
+    }
+  ]
+}

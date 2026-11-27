@@ -1,0 +1,98 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.forestry-revitalization-act",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines licence, group of licences and timber licence for the 2003 take-back; no bearing on a block.",
+      "review": "n/a"
+    },
+    {
+      "n": "1.1",
+      "relevance": "definitions",
+      "bearsOn": "Defines allowable annual cut of a TFL in a group for the take-back reductions.",
+      "review": "n/a"
+    },
+    {
+      "n": "2",
+      "relevance": "tenure",
+      "bearsOn": "Reduced listed licences' AAC and cut 20% off every timber licence area in 2003; it changes tenure holdings, not the rules a block must meet.",
+      "review": "n/a"
+    },
+    {
+      "n": "3",
+      "relevance": "tenure",
+      "bearsOn": "Minister's orders attributing the 2003 AAC and timber licence area reductions and naming the land removed; a block on deleted timber licence or TFL land would fall outside that tenure.",
+      "review": "n/a"
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "Holders must supply information for the reduction orders; offence for failing to.",
+      "review": "n/a"
+    },
+    {
+      "n": "5",
+      "relevance": "tenure",
+      "bearsOn": "Licences and timber licences are deemed amended to reflect the 2003 reductions and orders.",
+      "review": "n/a"
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "Compensation to licence holders for the 2003 reductions; no bearing on a block.",
+      "review": "n/a"
+    },
+    {
+      "n": "7",
+      "relevance": "admin",
+      "bearsOn": "Caps compensation and bars further actions; no bearing on a block.",
+      "review": "n/a"
+    },
+    {
+      "n": "8",
+      "relevance": "admin",
+      "bearsOn": "Retroactive effect of the Act in proceedings.",
+      "review": "n/a"
+    },
+    {
+      "n": "9",
+      "relevance": "admin",
+      "bearsOn": "2002-03 appropriation for compensation.",
+      "review": "n/a"
+    },
+    {
+      "n": "10",
+      "relevance": "admin",
+      "bearsOn": "BC Forestry Revitalization Trust funding; no bearing on a block.",
+      "review": "n/a"
+    },
+    {
+      "n": "11",
+      "relevance": "admin",
+      "bearsOn": "Budget accounting for 2002-03.",
+      "review": "n/a"
+    },
+    {
+      "n": "12",
+      "relevance": "tenure",
+      "bearsOn": "Cabinet may amend the Schedule of licences for name corrections, consolidations, subdivisions and transfers.",
+      "review": "n/a"
+    },
+    {
+      "n": "13",
+      "relevance": "admin",
+      "bearsOn": "Regulation-making powers for valuation and compensation; the section text in the source also carries the Act's Schedule of licences and reductions.",
+      "review": "n/a"
+    },
+    {
+      "n": "Schedule",
+      "relevance": "tenure",
+      "bearsOn": "Lists the licences, by licensee and licence number, whose allowable annual cut the 2003 Act reduced, with the volume taken back from each.",
+      "review": "n/a"
+    }
+  ]
+}

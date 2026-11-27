@@ -1,0 +1,1021 @@
+{
+  "format": "pgmaps-rule-quotes/v1",
+  "notice": "Each quote is copied word for word from the law a rule rests on: statutes and regulations from BC Laws (King's Printer Licence – British Columbia; not an official version and not endorsed by the Province), orders from the signed order's PDF. src/lib/legal/ruleQuotes.test.ts fails when a stored text no longer prints a quote. A quote shows why a rule exists; it never says a block complies.",
+  "rules": {
+    "bc.crown-grazing": {
+      "ada-sra-deviation": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "E",
+          "quote": "Deviations from Parts A, B, C and D Deviations may include the following:"
+        }
+      ],
+      "ada-sra-excluded": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "Part II",
+          "quote": "This order applies only to Crown land and does not affect any of the following that are in effect at the beginning of the"
+        }
+      ],
+      "ada-sra-no-pathway": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "A",
+          "quote": "Harvesting For Environmental and Safety Reasons Harvesting is permitted for environmental and safety reasons"
+        },
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "B",
+          "quote": "Forest Practices Around Forest Health Harvesting is permitted for activities under the Bark Beetle Regulation"
+        }
+      ],
+      "ada-sra-part-a": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "A",
+          "quote": "Harvesting For Environmental and Safety Reasons Harvesting is permitted for environmental and safety reasons"
+        }
+      ],
+      "ada-sra-part-a-planting": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "A",
+          "quote": "Harvesting For Environmental and Safety Reasons Harvesting is permitted for environmental and safety reasons"
+        },
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "C",
+          "quote": "Each of the following conditions apply to forest practices permitted under Part B:"
+        }
+      ],
+      "ada-sra-part-b-basis": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "B",
+          "quote": "Forest Practices Around Forest Health Harvesting is permitted for activities under the Bark Beetle Regulation"
+        }
+      ],
+      "ada-sra-part-c": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "C.2",
+          "quote": "Harvested stumps must have a MINIMUM 15 cm (6 inch) stump height to facilitate future stump removal for agricultural"
+        },
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "C.3",
+          "quote": "Logging waste and residue must not be distributed across the cut block, but is to be piled and then appropriately disposed"
+        }
+      ],
+      "ada-sra-part-c1": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "C.1",
+          "quote": "Removal of dead or infested timber only"
+        }
+      ],
+      "ada-sra-planting-restriction": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "C.5",
+          "quote": "No activities related to site preparation and artificial regeneration"
+        }
+      ],
+      "ada-sra-referral": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "C.6",
+          "quote": "All harvesting proposals to be referred to the Ministry of Agriculture and Lands."
+        }
+      ],
+      "ada-sra-tenure": [
+        {
+          "source": "bc.omineca.ada-sra.2006",
+          "provision": "D.1",
+          "quote": "No area based forest tenures will be established within these agricultural development areas and settlement reserve areas."
+        }
+      ],
+      "cannot-reforest-ada-sra": [
+        {
+          "source": "bc.frpa",
+          "provision": "29",
+          "quote": "The holder of an agreement within the meaning of section 2.2 who harvests timber to which a forest operations plan applies must establish, in accordance with the plan, the prescribed requirements and the standards"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "A person is exempt from the requirements of section 29 (0.1), (1) and (2) [free growing stands] of the Act in respect of an area if timber harvesting is restricted to one or more of the following:"
+        }
+      ],
+      "designation-not-lease": [
+        {
+          "source": "bc.range-act",
+          "provision": "1",
+          "quote": "Crown range means Crown land in a range district, but does not include Crown land leased under the Land Act;"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting trees on land that is, or will be, exclusively used for harvesting hay or grazing livestock in accordance with an agreement under the Range Act;"
+        }
+      ],
+      "designation-terms": [
+        {
+          "source": "bc.land-act",
+          "provision": "17",
+          "quote": "The minister may impose any terms and conditions the minister considers necessary or advisable on the use of land designated under subsection (1)."
+        }
+      ],
+      "exclusive-range": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting trees on land that is, or will be, exclusively used for harvesting hay or grazing livestock in accordance with an agreement under the Range Act;"
+        }
+      ],
+      "free-growing": [
+        {
+          "source": "bc.frpa",
+          "provision": "29",
+          "quote": "The holder of an agreement within the meaning of section 2.2 who harvests timber to which a forest operations plan applies must establish, in accordance with the plan, the prescribed requirements and the standards"
+        }
+      ],
+      "fsp-ada-strategy": [
+        {
+          "source": "bc.frpa",
+          "provision": "20.22",
+          "quote": "The holder of a forest stewardship plan or woodlot licence plan must do the following: ensure that the intended results specified in the plan are achieved;"
+        }
+      ],
+      "intermediate-cut-stocking": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "commercial thinning, removal of individual trees, or a similar type of intermediate cutting;"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "A person who harvests timber for the reasons referred to in subsection (3) (h) and (i) must ensure that, for a period of 12 months after completion of harvest, the area on which timber harvesting was carried out conforms to the stocking standards specified in section 16 (4) for the area."
+        }
+      ],
+      "land-act-designation": [
+        {
+          "source": "bc.land-act",
+          "provision": "15",
+          "quote": "The Lieutenant Governor in Council may, by order, reserve Crown land from disposition under this Act for any purpose that the Lieutenant Governor in Council considers advisable in the public interest"
+        },
+        {
+          "source": "bc.land-act",
+          "provision": "16",
+          "quote": "The minister may temporarily withdraw Crown land from disposition under this Act for any purpose the minister considers advisable in the public interest, including for the use of a government body."
+        }
+      ],
+      "lease-conflict": [
+        {
+          "source": "bc.lwbc.grazing-policy.2004",
+          "provision": "11.2",
+          "quote": "For older leases (granted prior to November 2004) where consent is required and it is withheld by the lessee"
+        }
+      ],
+      "lease-not-crown-range": [
+        {
+          "source": "bc.range-act",
+          "provision": "1",
+          "quote": "Crown range means Crown land in a range district, but does not include Crown land leased under the Land Act;"
+        }
+      ],
+      "lease-review-with-lessee": [
+        {
+          "source": "bc.lwbc.grazing-policy.2004",
+          "provision": "11",
+          "quote": "The Crown reserves the right to all timber located on any Crown grazing leasehold"
+        }
+      ],
+      "lease-terms": [
+        {
+          "source": "bc.land-act",
+          "provision": "11",
+          "quote": "The minister may, under subsection (1), sell Crown land, lease Crown land, grant a right of way or easement over Crown land, grant a licence to occupy Crown land, or"
+        },
+        {
+          "source": "bc.land-act",
+          "provision": "38",
+          "quote": "The minister may issue a lease of Crown land subject to the terms and reservations the minister considers advisable, including an option to purchase the land."
+        }
+      ],
+      "ministerial-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "91",
+          "quote": "one or more of the following sections of the Act: 10; 29; 29.1, one or more of the following sections of this regulation: 41; 42; 46; 46.2 (5); 50 (2) or (3); 51; 55 to 63; 68; 70 (1); 72; 73; 75; 76; 78; 79; 83 to 85 (1); 111 (4), or"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "106.1",
+          "quote": "An order or an exemption under this regulation must be in writing, specify the matter to which it relates, specify when the order or exemption comes into effect,"
+        }
+      ],
+      "nar-reserved": [
+        {
+          "source": "bc.fppr",
+          "provision": "1",
+          "quote": "net area to be reforested means the portion of a cutblock that remains after the following have been excluded:"
+        }
+      ],
+      "natural-barrier": [
+        {
+          "source": "bc.frpa",
+          "provision": "48",
+          "quote": "that directly or indirectly removes or renders ineffective a natural range barrier must carry out measures that are"
+        }
+      ],
+      "not-exclusive": [
+        {
+          "source": "bc.fppr",
+          "provision": "44",
+          "quote": "harvesting trees on land that is, or will be, exclusively used for harvesting hay or grazing livestock in accordance with an agreement under the Range Act;"
+        }
+      ],
+      "opening-tolerance": [
+        {
+          "source": "bc.fppr",
+          "provision": "46.11",
+          "quote": "If the stocking within a standards unit conforms to the applicable stocking standards, an area within the standards unit is not required to meet the applicable stocking standards if"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "46.11",
+          "quote": "the portion of the standards unit that is occupied by areas referred to in subparagraph (i) does not exceed 5% of the standards unit."
+        }
+      ],
+      "permanent-grazing-opening": [
+        {
+          "source": "bc.frpa",
+          "provision": "29",
+          "quote": "The holder of an agreement within the meaning of section 2.2 who harvests timber to which a forest operations plan applies must establish, in accordance with the plan, the prescribed requirements and the standards"
+        }
+      ],
+      "range-development": [
+        {
+          "source": "bc.frpa",
+          "provision": "51",
+          "quote": "Unless authorized in writing by the minister, a person must not store hay on Crown range, or carry out, construct, modify, remove, damage or destroy a range development on Crown range."
+        }
+      ],
+      "range-holder-livestock": [
+        {
+          "source": "bc.rppr",
+          "provision": "44",
+          "quote": "A range agreement holder who knows that grazing livestock under the agreement will cause significant interference with the establishment of a free growing stand under section 29 [free growing stands] of the Act, must"
+        }
+      ],
+      "range-plan": [
+        {
+          "source": "bc.frpa",
+          "provision": "32",
+          "quote": "Before the holder of an agreement under the Range Act grazes livestock or cuts hay on Crown range to which the agreement applies, the holder must prepare, and obtain the minister's approval of,"
+        },
+        {
+          "source": "bc.frpa",
+          "provision": "33",
+          "quote": "A range use plan for grazing of livestock must include a map of a scale and format satisfactory to the minister that shows the area for the agreement under the Range Act that pertains to the plan,"
+        }
+      ],
+      "restricted-activity": [
+        {
+          "source": "bc.frpa",
+          "provision": "20.21",
+          "quote": "The holder of a forest operations plan must do the following: comply with the requirements included in the plan; comply with any other provision in the plan that relates to a requirement referred to in paragraph (a)."
+        },
+        {
+          "source": "bc.frpa",
+          "provision": "20.22",
+          "quote": "The holder of a forest stewardship plan or woodlot licence plan must do the following: ensure that the intended results specified in the plan are achieved;"
+        }
+      ],
+      "standard-cannot-be-met": [
+        {
+          "source": "bc.fppr",
+          "provision": "46.2",
+          "quote": "Subject to section 108 of the Act and section 97.1 of this regulation, a person who is required to establish a free growing stand under sections 44 to 46 of this regulation, and"
+        }
+      ]
+    },
+    "bc.fppr": {
+      "access": [
+        {
+          "source": "bc.fppr",
+          "provision": "36",
+          "quote": "An agreement holder must ensure that the area in a cutblock that is occupied by permanent access structures built by the holder or used by the holder does not exceed 7% of the cutblock, unless"
+        }
+      ],
+      "adjacency": [
+        {
+          "source": "bc.fppr",
+          "provision": "65",
+          "quote": "An agreement holder other than a holder of a minor tenure must not harvest timber on a new cutblock, unless all existing cutblocks that are adjacent to the new cutblock meet the requirements set out in subsection (3), or"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "65",
+          "quote": "at least 75% of the net area to be reforested of the existing cutblock is stocked such that the average height of the tallest 10% of the trees on the area is a minimum of 3 m and"
+        }
+      ],
+      "amendment": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.44",
+          "quote": "Subject to section 4.45, an amendment referred to in section 4.43 is effective 30 days after the following documents have been provided to the minister:"
+        }
+      ],
+      "bank-stability": [
+        {
+          "source": "bc.fppr",
+          "provision": "52",
+          "quote": "An authorized person who cuts, modifies or removes trees in a riparian management zone for an S4, S5 or S6 stream that has trees that contribute significantly to the maintenance of stream bank or channel stability must retain enough trees adjacent to the stream to maintain the stream bank or channel stability"
+        }
+      ],
+      "basal-retention": [
+        {
+          "source": "bc.fppr",
+          "provision": "52",
+          "quote": "A holder of a minor tenure who fells trees in a cutblock within a riparian management zone of a class described in Column 1 must ensure that"
+        }
+      ],
+      "fop-relief": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "fop-relief-unlisted": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "fsp-landscape": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.4",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 64 (1) if the person prepares and submits to the minister the proposed plan, including an intended result or strategy for wildlife and biodiversity at the landscape level set out in section 9"
+        }
+      ],
+      "fsp-stand": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.5",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 66 if the person prepares and submits to the minister the proposed plan, including an intended result or strategy for wildlife and biodiversity at the stand level set out in section 9.1"
+        }
+      ],
+      "limit-40": [
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "40 hectares for areas located in the Kootenay Boundary Forest Region, South Coast Forest Region, Thompson Okanagan Forest Region or West Coast Forest Region, as established by the Administrative Boundaries Regulation, and"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "Subsection (1) does not apply to an agreement holder where timber harvesting is being carried out on the cutblock to recover timber damaged by fire, insect infestation, wind or other similar events, or"
+        }
+      ],
+      "limit-60": [
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "60 hectares for areas located in the Cariboo Forest Region, Northeast Forest Region, Omineca Forest Region or Skeena Forest Region, as established by the Administrative Boundaries Regulation."
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "Subsection (1) does not apply to an agreement holder where timber harvesting is being carried out on the cutblock to recover timber damaged by fire, insect infestation, wind or other similar events, or"
+        }
+      ],
+      "logs": [
+        {
+          "source": "bc.fppr",
+          "provision": "68",
+          "quote": "An agreement holder who carries out timber harvesting must retain at least the following logs on a cutblock: if the area is on the Coast, a minimum of 4 logs per hectare, each being a minimum of 5 m in length and 30 cm in diameter at one end;"
+        }
+      ],
+      "map-retention": [
+        {
+          "source": "bc.fppr",
+          "provision": "34.6",
+          "quote": "A holder of a forest stewardship plan who publishes a notice in relation to a forest operations map under section 34.2 (1) must keep a record of the map for at least five years after the date referred to in section 34.2 (3) (a)."
+        }
+      ],
+      "objective-conflict": [
+        {
+          "source": "bc.fppr",
+          "provision": "92.1",
+          "quote": "Subject to subsection (2), if the minister responsible for the Forest Act approves a result or strategy in a forest stewardship plan in respect of an established objective that conflicts with a requirement of Part 4 or 5"
+        }
+      ],
+      "other-soil": [
+        {
+          "source": "bc.fppr",
+          "provision": "35",
+          "quote": "if the standards unit not is not predominantly comprised of sensitive soils, 10% of the area covered by the standards unit, excluding any area covered by a roadside work area;"
+        }
+      ],
+      "overlap-soil": [
+        {
+          "source": "bc.fppr",
+          "provision": "35",
+          "quote": "Despite subsections (3) and (4), if a first agreement holder is authorized to carry out timber harvesting in an area and a fibre recovery tenure holder is authorized to carry out timber harvesting in an area that overlaps with the area of the first agreement holder"
+        }
+      ],
+      "pine-exception": [
+        {
+          "source": "bc.fppr",
+          "provision": "43.1",
+          "quote": "it is necessary to fell or modify a tree that is a safety hazard and there is no other practicable option for addressing the safety hazard, the harvesting is necessary to construct a road in the targeted pine leading stand and there is no other practicable option for locating the road, or"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "43.1",
+          "quote": "Despite subsection (1), a holder of a cutting permit, a forestry licence to cut that does not provide for cutting permits or a timber sale licence may harvest timber in a targeted pine leading stand without retaining an adequate stocking density of suitable secondary structure if"
+        }
+      ],
+      "pine-secondary": [
+        {
+          "source": "bc.fppr",
+          "provision": "43.1",
+          "quote": "A holder of a cutting permit, a forestry licence to cut that does not provide for cutting permits or a timber sale licence must not carry out timber harvesting in a targeted pine leading stand, unless"
+        }
+      ],
+      "retention-block": [
+        {
+          "source": "bc.fppr",
+          "provision": "66",
+          "quote": "An agreement holder who harvests timber in a cutblock must ensure that, at the completion of harvesting, the total amount of wildlife tree retention areas that relates to the cutblock is a minimum of 3.5% of the cutblock."
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "66",
+          "quote": "For the purposes of subsection (1) and (2), a wildlife tree retention area may relate to more than one cutblock if all of the cutblocks that relate to the wildlife tree retention area collectively meet the applicable requirements of this section."
+        }
+      ],
+      "retention-period": [
+        {
+          "source": "bc.fppr",
+          "provision": "66",
+          "quote": "If an agreement holder completes harvesting in one or more cutblocks during any 12 month period beginning on April 1 of any calendar year, the holder must ensure that, at the end of that 12 month period"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "66",
+          "quote": "For the purposes of subsection (1) and (2), a wildlife tree retention area may relate to more than one cutblock if all of the cutblocks that relate to the wildlife tree retention area collectively meet the applicable requirements of this section."
+        }
+      ],
+      "roadside-soil": [
+        {
+          "source": "bc.fppr",
+          "provision": "35",
+          "quote": "25% of the area covered by a roadside work area."
+        }
+      ],
+      "sensitive-soil": [
+        {
+          "source": "bc.fppr",
+          "provision": "35",
+          "quote": "if the standards unit is predominantly comprised of sensitive soils, 5% of the area covered by the standards unit, excluding any area covered by a roadside work area;"
+        }
+      ],
+      "short-floor": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.33",
+          "quote": "The minister may authorize a shorter public review and comment period of not less than 10 days if the minister is satisfied that the 60-day period under subsection (1) would likely result in"
+        }
+      ],
+      "short-review": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.33",
+          "quote": "The person must make the forest operations plan publicly available for review and comment for a period of 60 days, unless the minister authorizes a shorter period under subsection (2)."
+        }
+      ],
+      "size-exception": [
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "Subsection (1) does not apply to an agreement holder where timber harvesting is being carried out on the cutblock to recover timber damaged by fire, insect infestation, wind or other similar events, or"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "Subsection (1) does not apply if the timber harvesting that is being carried out on the cutblock retains 40% or more of basal area of the stand that was on the cutblock before timber harvesting."
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "64",
+          "quote": "Subsection (1) does not apply if no point within the net area to be reforested is more than two tree lengths from either the cutblock boundary, or"
+        }
+      ],
+      "watershed-notice": [
+        {
+          "source": "bc.fppr",
+          "provision": "84",
+          "quote": "At least 48 hours before commencement of road construction or deactivation in a community watershed, a person must notify affected water licensees or affected water purveyors."
+        }
+      ],
+      "width-47-area": [
+        {
+          "source": "bc.fppr",
+          "provision": "47",
+          "quote": "Subject to subsections (5) and (6), for each riparian class of stream, the minimum riparian management area width, riparian reserve zone width and riparian management zone width, on each side of the stream, are as follows:"
+        }
+      ],
+      "width-47-management": [
+        {
+          "source": "bc.fppr",
+          "provision": "47",
+          "quote": "Subject to subsections (5) and (6), for each riparian class of stream, the minimum riparian management area width, riparian reserve zone width and riparian management zone width, on each side of the stream, are as follows:"
+        }
+      ],
+      "width-47-reserve": [
+        {
+          "source": "bc.fppr",
+          "provision": "47",
+          "quote": "Subject to subsections (5) and (6), for each riparian class of stream, the minimum riparian management area width, riparian reserve zone width and riparian management zone width, on each side of the stream, are as follows:"
+        }
+      ],
+      "width-48-area": [
+        {
+          "source": "bc.fppr",
+          "provision": "48",
+          "quote": "Subject to subsections (4) and (5), for each riparian class of wetland, the minimum riparian management area width, riparian reserve zone width and riparian management zone width for the wetland are as follows:"
+        }
+      ],
+      "width-48-management": [
+        {
+          "source": "bc.fppr",
+          "provision": "48",
+          "quote": "Subject to subsections (4) and (5), for each riparian class of wetland, the minimum riparian management area width, riparian reserve zone width and riparian management zone width for the wetland are as follows:"
+        }
+      ],
+      "width-48-reserve": [
+        {
+          "source": "bc.fppr",
+          "provision": "48",
+          "quote": "Subject to subsections (4) and (5), for each riparian class of wetland, the minimum riparian management area width, riparian reserve zone width and riparian management zone width for the wetland are as follows:"
+        }
+      ],
+      "width-49-area": [
+        {
+          "source": "bc.fppr",
+          "provision": "49",
+          "quote": "Subject to subsection (3), for each riparian class of lake, the minimum riparian management area width, riparian reserve zone width and riparian management zone width are as follows:"
+        }
+      ],
+      "width-49-management": [
+        {
+          "source": "bc.fppr",
+          "provision": "49",
+          "quote": "Subject to subsection (3), for each riparian class of lake, the minimum riparian management area width, riparian reserve zone width and riparian management zone width are as follows:"
+        }
+      ],
+      "width-49-reserve": [
+        {
+          "source": "bc.fppr",
+          "provision": "49",
+          "quote": "Subject to subsection (3), for each riparian class of lake, the minimum riparian management area width, riparian reserve zone width and riparian management zone width are as follows:"
+        }
+      ],
+      "wt-harvest": [
+        {
+          "source": "bc.fppr",
+          "provision": "67",
+          "quote": "An agreement holder must not harvest timber from a wildlife tree retention area unless the trees on the net area to be reforested of the cutblock to which the wildlife tree retention area relates have developed attributes that are consistent with a mature seral condition."
+        }
+      ]
+    },
+    "bc.pgtsa.biodiversity": {
+      "affected-stands": [
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "D.3",
+          "quote": "Epidemic or Catastrophic Events A representative portion of stands that have been affected by an epidemic or catastrophic"
+        }
+      ],
+      "combined-units": [
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "D.2",
+          "quote": "licensees and BC Timber Sales, may meet the combined requirement of those objectives over the combined area of the mBECs."
+        }
+      ],
+      "protected-credit": [
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "D.1",
+          "quote": "Contributions from Old Growth Management Areas (OGMAs) and Parks OGMAs and their associated objectives established prior to"
+        }
+      ],
+      "rationale": [
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "D.5(b)",
+          "quote": "Where the Young Patch Size Distribution objectives can not be achieved, a rationale must be submitted"
+        }
+      ],
+      "recruitment": [
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "D.5(a)",
+          "quote": "Alternatives to the Order (a) Where either the old forest retention or the old interior forest objectives can not be"
+        }
+      ],
+      "transition": [
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "E",
+          "quote": "When a new order of the Minister or designate establishes old forest objectives, this Order will"
+        }
+      ],
+      "trend": [
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "C",
+          "quote": "Young Forest Patch Size Distribution Objective Demonstrate a trend toward the young forest patch size distribution by"
+        }
+      ],
+      "younger-credit": [
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "D.4",
+          "quote": "up to 20% of the Old Forest Retention and Old Interior Forest objectives may be comprised of younger age classes."
+        }
+      ],
+      "younger-interior-ceiling": [
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "D.4",
+          "quote": "up to 20% of the Old Forest Retention and Old Interior Forest objectives may be comprised of younger age classes."
+        }
+      ],
+      "younger-old-ceiling": [
+        {
+          "source": "bc.pgtsa.2004",
+          "provision": "D.4",
+          "quote": "up to 20% of the Old Forest Retention and Old Interior Forest objectives may be comprised of younger age classes."
+        }
+      ]
+    },
+    "bc.mackenzie.biodiversity": {
+      "interior-shortfall": [
+        {
+          "source": "bc.mackenzie.biodiversity.2008",
+          "provision": "Objective 3",
+          "quote": "Maintain a percentage of the Old Forest retention requirements as Old Interior Forest retention as per Table 3"
+        }
+      ],
+      "old-shortfall": [
+        {
+          "source": "bc.mackenzie.biodiversity-amendment.2010",
+          "provision": "1(b)",
+          "quote": "Old Forest Retention Requirements by Landscape Unit (or Landscape Unit Group) for the Mackenzie Forest District is repealed"
+        },
+        {
+          "source": "bc.mackenzie.biodiversity.2008",
+          "provision": "Objective 2",
+          "quote": "Maintain Old Forest on the Crown Forest Land Base (CFLB) in accordance with Table 2 and subject to the following:"
+        }
+      ],
+      "wildlands": [
+        {
+          "source": "bc.mackenzie.biodiversity.2008",
+          "provision": "Guidance 6",
+          "quote": "Wilderness Landscape Units (Special Resource Management Zones – Wildlands) The following landscape units are to be managed"
+        }
+      ],
+      "younger-allowance": [
+        {
+          "source": "bc.mackenzie.biodiversity.2008",
+          "provision": "Objective 2(b)",
+          "quote": "b) of the target amount listed in Table 2 and that proportion made up of live Old Forest"
+        },
+        {
+          "source": "bc.mackenzie.biodiversity.2008",
+          "provision": "Objective 2",
+          "quote": "Maintain Old Forest on the Crown Forest Land Base (CFLB) in accordance with Table 2 and subject to the following:"
+        }
+      ]
+    },
+    "bc.omineca.old-growth": {
+      "ancient-forest-retain": [
+        {
+          "source": "bc.pg.ancient-forest-ogma.2009",
+          "provision": "2",
+          "quote": "Retain all timber within the Old Growth Management Area, as shown on the attached map titled Schedule A Map."
+        }
+      ],
+      "cofa": [
+        {
+          "source": "bc.pgtsa.loe.2022",
+          "provision": "PG DM ¶2",
+          "quote": "It is my expectation that the COFAs will be respected as no harvest areas."
+        }
+      ],
+      "cofa-summary": [
+        {
+          "source": "bc.pgtsa.loe.2022",
+          "provision": "PG DM annual: variance summary",
+          "quote": "All incursions require approval."
+        }
+      ],
+      "cofa-variance": [
+        {
+          "source": "bc.pgtsa.loe.2022",
+          "provision": "PG DM ¶4",
+          "quote": "An alternative area of ecological importance of equal or greater value has been identified."
+        }
+      ],
+      "dome-slim-cutting": [
+        {
+          "source": "bc.pg.dome-slim.2002",
+          "provision": "Strategy 1.02",
+          "quote": "Cutting trees within OGMAs, is limited to circumstances where it is absolutely necessary for insect or disease infestation"
+        }
+      ],
+      "dome-slim-forest-health": [
+        {
+          "source": "bc.pg.dome-slim.2002",
+          "provision": "Strategy 1.02",
+          "quote": "Cutting trees within OGMAs, is limited to circumstances where it is absolutely necessary for insect or disease infestation"
+        }
+      ],
+      "dome-slim-road": [
+        {
+          "source": "bc.pg.dome-slim.2002",
+          "provision": "Strategy 1.03",
+          "quote": "Do not construct roads in OGMAs unless there is no other practicable option."
+        }
+      ],
+      "humbug-cutting": [
+        {
+          "source": "bc.pg.humbug.2003",
+          "provision": "Strategy 3.02",
+          "quote": "Cutting trees within OGMAs, is limited to circumstances where it is absolutely necessary for insect or disease infestation"
+        }
+      ],
+      "humbug-forest-health": [
+        {
+          "source": "bc.pg.humbug.2003",
+          "provision": "Strategy 3.02",
+          "quote": "Cutting trees within OGMAs, is limited to circumstances where it is absolutely necessary for insect or disease infestation"
+        }
+      ],
+      "humbug-road": [
+        {
+          "source": "bc.pg.humbug.2003",
+          "provision": "Strategy 3.03",
+          "quote": "Permanent roads may be constructed and maintained in OGMAs where there are no other practicable options."
+        }
+      ],
+      "mackenzie-ceiling": [
+        {
+          "source": "bc.mackenzie.ogma.2010",
+          "provision": "3",
+          "quote": "Despite section 3, minor forestry activity into the OGMAs is permitted provided the disturbance to the gross area of the"
+        }
+      ],
+      "mackenzie-notice": [
+        {
+          "source": "bc.mackenzie.ogma.2010",
+          "provision": "5",
+          "quote": "In accordance with section 4, where disturbance in an OGMA occurs, written notification to the Integrated Land Management"
+        }
+      ],
+      "mackenzie-retain": [
+        {
+          "source": "bc.mackenzie.ogma.2010",
+          "provision": "2",
+          "quote": "Retain all timber within the Old Growth Management Areas (OGMAs), as shown on the attached Maps 1-7."
+        }
+      ],
+      "mugaha-reserve": [
+        {
+          "source": "bc.mackenzie.mugaha-marsh.2001",
+          "provision": "Strategy 1c",
+          "quote": "- Maintain a minimum 100m wide unlogged reserve zone adjacent to all lakes and wetlands"
+        }
+      ],
+      "mugaha-share": [
+        {
+          "source": "bc.mackenzie.mugaha-marsh.2001",
+          "provision": "Strategy 1b",
+          "quote": "- Limit timber harvesting within the sensitive area to a maximum of 10% of the commercial forest area"
+        }
+      ],
+      "obo-fox-retention": [
+        {
+          "source": "bc.mackenzie.obo-fox.2002",
+          "provision": "1.A.k",
+          "quote": "Wildlife tree patch retention targets, as determined using Table 3, will be applied to all openings / cutblocks"
+        }
+      ],
+      "weissener": [
+        {
+          "source": "bc.mackenzie.obo-fox.2002",
+          "provision": "2.A.a",
+          "quote": "not allowing timber harvesting within 200 metres (slope distance) of Weissener Lake indicated in Table 4"
+        }
+      ]
+    },
+    "bc.omineca.visual-quality": {
+      "bobtail-vqo": [
+        {
+          "source": "bc.pg.bobtail-vqo.2006",
+          "provision": "Variance",
+          "quote": "vary the visual quality objectives (VQOs) on the attached map, as per the following table"
+        }
+      ],
+      "fsj-vqo": [
+        {
+          "source": "bc.fsj.vqo.2005",
+          "provision": "Para 1",
+          "quote": "establish visual quality objectives (VQOs) for the Timber Supply Area portion of the Fort St. James Forest District"
+        },
+        {
+          "source": "bc.fsj.vqo.2005",
+          "provision": "Para 2",
+          "quote": "These VQOs apply to those scenic areas carried forward under FRPA Section 180 that were updated and designated under Section"
+        }
+      ],
+      "over-maximum-modification": [
+        {
+          "source": "bc.fppr",
+          "provision": "1.1",
+          "quote": "maximum modification: consisting of an altered forest landscape in which the alteration, when assessed from a significant public viewpoint, is very easy to see, and"
+        }
+      ],
+      "over-modification": [
+        {
+          "source": "bc.fppr",
+          "provision": "1.1",
+          "quote": "modification: consisting of an altered forest landscape in which the alteration, when assessed from a significant public viewpoint, is very easy to see, and"
+        }
+      ],
+      "over-partial-retention": [
+        {
+          "source": "bc.fppr",
+          "provision": "1.1",
+          "quote": "partial retention: consisting of an altered forest landscape in which the alteration, when assessed from a significant public viewpoint, is easy to see,"
+        }
+      ],
+      "over-preservation": [
+        {
+          "source": "bc.fppr",
+          "provision": "1.1",
+          "quote": "preservation: consisting of an altered forest landscape in which the alteration, when assessed from a significant public viewpoint, is very small in scale, and"
+        }
+      ],
+      "over-retention": [
+        {
+          "source": "bc.fppr",
+          "provision": "1.1",
+          "quote": "retention: consisting of an altered forest landscape in which the alteration, when assessed from a significant public viewpoint, is difficult to see,"
+        }
+      ],
+      "pg-vqo": [
+        {
+          "source": "bc.pg.vqo.2005",
+          "provision": "Para 1",
+          "quote": "establish visual quality objectives (VQOs) for the Prince George Forest District as shown on the attached map"
+        },
+        {
+          "source": "bc.pg.vqo.2005",
+          "provision": "Para 2",
+          "quote": "These VQOs apply to those Scenic Areas established under Section 7(1) of the GAR for the Prince George Forest District under"
+        }
+      ],
+      "scenic-made-known": [
+        {
+          "source": "bc.fppr",
+          "provision": "9.2",
+          "quote": "The objective set by government in relation to visual quality for a scenic area, that was established on or before October 24, 2002, and for which there is no visual quality objective"
+        }
+      ],
+      "vqo-established": [
+        {
+          "source": "bc.gar",
+          "provision": "7",
+          "quote": "The minister responsible for the Forest Act by order may establish for a scenic area visual quality objectives that are consistent with subsection (1) and are within the categories of altered forest landscape prescribed under section 1.1 of the Forest Planning and Practices Regulation."
+        }
+      ]
+    },
+    "bc.forest-permits": {
+      "cutting-permit": [
+        {
+          "source": "bc.forest-act",
+          "provision": "52.02",
+          "quote": "The holder of a forest licence or an area-based licence must not harvest the allowable annual cut available except as authorized under a cutting permit issued under this Part."
+        }
+      ],
+      "fdu": [
+        {
+          "source": "bc.frpa",
+          "provision": "3",
+          "quote": "If land subject to an agreement is located outside a forest landscape area, the holder of the agreement must not do any of the following unless the holder holds an approved forest stewardship plan that includes a forest development unit that contains the land:"
+        }
+      ],
+      "fdu-identifies": [
+        {
+          "source": "bc.fppr",
+          "provision": "14",
+          "quote": "A person required to prepare a forest stewardship plan must ensure that the plan identifies for the forest development units specified under subsection (1) those things described in subsection (3) that"
+        }
+      ],
+      "fom": [
+        {
+          "source": "bc.frpa",
+          "provision": "15.1",
+          "quote": "Subject to subsection (4) of this section and section 15.3, the holder of a forest stewardship plan may apply for a cutting permit or a road permit to construct a road only if the requirements under subsections (2) and (3) have been met."
+        }
+      ],
+      "fom-review": [
+        {
+          "source": "bc.fppr",
+          "provision": "34.2",
+          "quote": "30 days after that date, if no lesser number of days is determined under subparagraph (ii)"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "34.2",
+          "quote": "The review period for a forest operations map must not begin until the notice required under subsection (1) in relation to the map has been published both on a publicly accessible website and at least once in a newspaper."
+        }
+      ],
+      "fom-window": [
+        {
+          "source": "bc.fppr",
+          "provision": "34.5",
+          "quote": "For the purposes of section 15.1 (3) (b) of the Act, a holder of a forest stewardship plan who intends to rely on a forest operations map for the purposes of applying for a cutting permit or road permit must apply for the cutting permit or road permit, as applicable"
+        }
+      ],
+      "fop": [
+        {
+          "source": "bc.forest-act",
+          "provision": "52.05",
+          "quote": "the cutting permit area is located in a forest landscape area and either of the following applies: the applicant does not hold a forest operations plan, as required under the Forest and Range Practices Act, that applies to the cutting permit area;"
+        },
+        {
+          "source": "bc.forest-act",
+          "provision": "117",
+          "quote": "the road permit area is located in a forest landscape area and either of the following applies: the applicant does not hold a forest operations plan, as required under the Forest and Range Practices Act, that applies to the road permit area;"
+        }
+      ],
+      "permit-refusal": [
+        {
+          "source": "bc.forest-act",
+          "provision": "52.05",
+          "quote": "the cutting permit area is located outside a forest landscape area and one or more of the following applies: the applicant does not hold a forest stewardship plan or woodlot licence plan, as required under the Forest and Range Practices Act, in relation to the cutting permit area;"
+        },
+        {
+          "source": "bc.forest-act",
+          "provision": "117",
+          "quote": "the road permit area is located outside a forest landscape area and one or more of the following apply: the applicant does not hold a forest stewardship plan or woodlot licence plan, as required under the Forest and Range Practices Act, in relation to the road permit area;"
+        }
+      ],
+      "site-plan": [
+        {
+          "source": "bc.frpa",
+          "provision": "10",
+          "quote": "Except in prescribed circumstances, the holder of a forest stewardship plan must prepare a site plan in accordance with prescribed requirements for any"
+        }
+      ],
+      "spa-exception": [
+        {
+          "source": "bc.forest-act",
+          "provision": "209",
+          "quote": "An authorized official may enter into or issue a licence or permit that grants rights exercisable in a special purpose area if the licence or permit is one of the following:"
+        },
+        {
+          "source": "bc.forest-act",
+          "provision": "215",
+          "quote": "An authorized official may, under a road permit or special use permit, authorize the holder of the permit to construct a road in an area designated as a special purpose area if the authorized official is satisfied that one or more of the following apply:"
+        }
+      ],
+      "spa-licence": [
+        {
+          "source": "bc.forest-act",
+          "provision": "209",
+          "quote": "Except as authorized under subsection (2), an authorized official must not enter into or issue any of the following licences or permits if the licence or permit would grant rights exercisable in a special purpose area:"
+        }
+      ],
+      "spa-road": [
+        {
+          "source": "bc.forest-act",
+          "provision": "215",
+          "quote": "After the effective date of the designation of an area as a special purpose area, and except as authorized under subsection (2), an authorized official must not, under a road permit or special use permit, authorize the holder of the permit to construct a road in the special purpose area."
+        }
+      ]
+    }
+  }
+}

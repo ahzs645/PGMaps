@@ -2359,11 +2359,15 @@
       },
       "binds": {
         "kind": "via-fsp",
-        "note": "A legal OGMA is set by order as an objective set by government. A forest stewardship plan must specify results or strategies for it, and its holder must carry them out. In the Prince George TSA it contributes to Objectives A and B (D.1).",
+        "note": "A legal OGMA is set by order as an objective set by government: under Land Act s. 93.4, or, for one set under the Forest Practices Code (the 2001 to 2003 Prince George orders such as Dome/Slim, Humbug and Obo/Fox), as an objective that s. 93.8 continues. A forest stewardship plan must specify results or strategies for it, and its holder must carry them out. In the Prince George TSA it contributes to Objectives A and B (D.1).",
         "cites": [
           {
             "source": "bc.land-act",
             "provision": "s. 93.4(1)"
+          },
+          {
+            "source": "bc.land-act",
+            "provision": "s. 93.8"
           },
           {
             "source": "bc.frpa",
@@ -2383,6 +2387,10 @@
             {
               "source": "bc.land-act",
               "provision": "s. 93.4(1)"
+            },
+            {
+              "source": "bc.land-act",
+              "provision": "s. 93.8"
             }
           ]
         },
@@ -2393,6 +2401,10 @@
             {
               "source": "bc.land-act",
               "provision": "s. 93.4(1)"
+            },
+            {
+              "source": "bc.land-act",
+              "provision": "s. 93.8"
             }
           ]
         },
@@ -2403,6 +2415,10 @@
             {
               "source": "bc.land-act",
               "provision": "s. 93.4(1)"
+            },
+            {
+              "source": "bc.land-act",
+              "provision": "s. 93.8"
             }
           ]
         },
@@ -2413,6 +2429,10 @@
             {
               "source": "bc.land-act",
               "provision": "s. 93.4(1)"
+            },
+            {
+              "source": "bc.land-act",
+              "provision": "s. 93.8"
             },
             {
               "source": "bc.frpa",

@@ -11,7 +11,7 @@ import { setFact } from './caseEdits'
 
 const pack = parsePack(raw)
 
-function findings(facts: Record<string, boolean | string>, date = '2026-11-17') {
+function findings(facts: Record<string, boolean | string | number>, date = '2026-11-17') {
   const plan = samplePlan()
   const { record } = rangeReviewFor(plan, plan.blocks[0])
   const review = Object.entries(facts).reduce((next, [id, value]) => setFact(next, pack, id, value), record.review)
@@ -105,10 +105,27 @@ describe('Crown grazing rules', () => {
     expect(findings({ ...ordinary, 'permanent-grazing-opening': false })['permanent-grazing-opening']).toBe(
       'condition_not_triggered',
     )
-    expect(findings({ ...ordinary, 'permanent-grazing-opening': true })).toMatchObject({
+    expect(findings({ ...ordinary, 'permanent-grazing-opening': true, 'opening-largest': 3 })).toMatchObject({
       'free-growing': 'review_required',
       'permanent-grazing-opening': 'review_required',
+      'opening-tolerance': 'condition_not_triggered',
       'exclusive-range': 'condition_not_triggered',
+    })
+  })
+
+  it('tolerates the small openings FPPR §46.11(2) allows in a conforming standards unit', () => {
+    const open = { 'section-29-scope': true, 'exempt-purpose': NOT_EXEMPT, 'permanent-grazing-opening': true }
+    expect(findings({ ...open, 'opening-largest': 0.6 })).toMatchObject({
+      'permanent-grazing-opening': 'condition_not_triggered',
+      'opening-tolerance': 'review_required',
+    })
+    expect(findings({ ...open, 'opening-largest': 1.8, 'opening-share': 4 })).toMatchObject({
+      'permanent-grazing-opening': 'condition_not_triggered',
+      'opening-tolerance': 'review_required',
+    })
+    expect(findings({ ...open, 'opening-largest': 1.8, 'opening-share': 7 })).toMatchObject({
+      'permanent-grazing-opening': 'review_required',
+      'opening-tolerance': 'condition_not_triggered',
     })
   })
 

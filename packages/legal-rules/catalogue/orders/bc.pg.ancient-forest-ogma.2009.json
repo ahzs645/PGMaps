@@ -1,0 +1,42 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.pg.ancient-forest-ogma.2009",
+  "title": "Land Use Objectives for the Prince George LRMP Area: Ancient Forest Trail OGMA, 2009",
+  "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-lrmp/princegeorge_lrmp_luor_12mar2009.pdf",
+  "madeUnder": "Land Act s. 93.4",
+  "made": "2009-02-03",
+  "transcribedFrom": "signed PDF, text layer checked against the pages",
+  "transcribedOn": "2026-11-27",
+  "notes": [
+    "Superseded by: Not by its own terms; the OGMA now lies in Ancient Forest/Chun T'oh Whudujut Park (Class A, established 2016-05-19), whose Park Act protection governs (park layer read at the OGMA's location, 2026-11-27)."
+  ],
+  "provisions": [
+    {
+      "id": "1",
+      "heading": "Objective established under Land Act s. 93.4 for the Schedule A area",
+      "page": 1,
+      "quotes": [
+        "Part 1 - Interpretation Relationship with Forest and Range Practices Act Objectives 1.",
+        "Pursuant to section 93.4 of the Land Act the following objective is established as a land use objective for the purposes of"
+      ]
+    },
+    {
+      "id": "2",
+      "heading": "Retain all timber in the OGMA",
+      "page": 1,
+      "quotes": [
+        "Retain all timber within the Old Growth Management Area, as shown on the attached map titled Schedule A Map.",
+        "Part 2 - Objectives Old Growth Management Area (OGMA) 2."
+      ]
+    },
+    {
+      "id": "3",
+      "heading": "Effective date",
+      "page": 1,
+      "quotes": [
+        "Part 3 - Implementation Effective Date 3.",
+        "This Order, and the land use objective in this Order, take effect on the day that the notice of this Order is published in"
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.crown-grazing",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "BC Crown grazing and reforestation",
   "description": "Evidence review for forestry on grazing land, in Land Act designated areas and in the 2006 Omineca agriculture and settlement reserve areas: lease terms, designations, range plans, range barriers and developments, the order's harvest pathways and whether the harvested ground can be reforested.",
   "coverage": {
@@ -32,7 +32,7 @@
     },
     {
       "id": "designation-terms-restrict",
-      "label": "Do the designation's terms (its signed notice, conditions under §17(1.1) or the land use report) restrict harvesting, site preparation or planting on the area?",
+      "label": "Do the designation's terms (its signed notice, conditions under §15(4), §16(3) or §17(1.1), or the land use report) restrict harvesting, site preparation or planting on the area?",
       "type": "boolean"
     },
     {
@@ -113,7 +113,7 @@
     },
     {
       "id": "area-based-tenure",
-      "label": "Would the proposal establish an area-based forest tenure (a woodlot licence, community forest agreement or tree farm licence) in the area?",
+      "label": "Would the proposal establish an area-based forest tenure (such as a woodlot licence, community forest agreement, first nations woodland licence or tree farm licence) in the area?",
       "type": "boolean"
     },
     {
@@ -162,9 +162,40 @@
       "id": "permanent-grazing-opening",
       "label": "Would the proposal keep any of the area to be reforested permanently open for grazing?",
       "type": "boolean"
+    },
+    {
+      "id": "opening-largest",
+      "label": "Area of the largest patch to be kept open within the net area to be reforested",
+      "type": "number",
+      "min": 0,
+      "unit": "ha"
+    },
+    {
+      "id": "opening-share",
+      "label": "Share of its standards unit taken by the mappable openings of 1 to 2 ha together",
+      "type": "number",
+      "min": 0,
+      "max": 100,
+      "unit": "%"
     }
   ],
-  "parameters": [],
+  "parameters": [
+    {
+      "id": "opening-small",
+      "value": 1,
+      "unit": "ha"
+    },
+    {
+      "id": "opening-mappable",
+      "value": 2,
+      "unit": "ha"
+    },
+    {
+      "id": "opening-share",
+      "value": 5,
+      "unit": "%"
+    }
+  ],
   "sources": [
     {
       "id": "land-act",
@@ -334,7 +365,11 @@
           {
             "fact": "land-act-designation",
             "op": "in",
-            "value": ["Section 15 reserve", "Section 16 withdrawal from disposition", "Section 17 designated use area"]
+            "value": [
+              "Section 15 reserve",
+              "Section 16 withdrawal from disposition",
+              "Section 17 designated use area"
+            ]
           }
         ]
       ],
@@ -350,13 +385,17 @@
       "id": "designation-terms",
       "title": "Designation terms that restrict the forest work",
       "source": "land-act",
-      "provision": "17(1.1)–(2)",
+      "provision": "15(4), 16(3), 17(1.1)–(2)",
       "scope": [
         [
           {
             "fact": "land-act-designation",
             "op": "in",
-            "value": ["Section 15 reserve", "Section 16 withdrawal from disposition", "Section 17 designated use area"]
+            "value": [
+              "Section 15 reserve",
+              "Section 16 withdrawal from disposition",
+              "Section 17 designated use area"
+            ]
           }
         ]
       ],
@@ -634,7 +673,7 @@
           }
         ]
       ],
-      "finding": "The order allows harvest in an ADA or SRA only for environmental and safety reasons (Part A), forest health (Part B) or a deviation the agriculture ministry determines (Part E). With none of them, the proposal has no harvest pathway under the order.",
+      "finding": "The order allows harvest in an ADA or SRA only for environmental and safety reasons (Part A), forest health (Part B) or a deviation the agriculture ministry determines (Part E). With none of them, the proposal has no harvest pathway under the order. That is the reading taken: the order manages timber subject to Parts A to E and names no other harvest, without saying so in those words.",
       "actions": [
         {
           "kind": "review",
@@ -1140,14 +1179,116 @@
             "fact": "exempt-purpose",
             "op": "eq",
             "value": "No"
+          },
+          {
+            "fact": "opening-largest",
+            "op": "gt",
+            "value": {
+              "parameter": "opening-mappable"
+            }
+          }
+        ],
+        [
+          {
+            "fact": "permanent-grazing-opening",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "exempt-purpose",
+            "op": "eq",
+            "value": "No"
+          },
+          {
+            "fact": "opening-largest",
+            "op": "gte",
+            "value": {
+              "parameter": "opening-small"
+            }
+          },
+          {
+            "fact": "opening-share",
+            "op": "gt",
+            "value": {
+              "parameter": "opening-share"
+            }
           }
         ]
       ],
-      "finding": "Keeping part of the net area to be reforested open for grazing conflicts with the free-growing duty, because no FPPR §44(3) purpose relieves it.",
+      "finding": "Keeping part of the net area to be reforested open for grazing conflicts with the free-growing duty: no FPPR §44(3) purpose relieves it, and the openings are larger than §46.11(2) tolerates.",
       "actions": [
         {
           "kind": "review",
           "description": "Before harvest, take the opening out of the net area to be reforested only where the plan and the district allow it, or confirm a Range Act agreement and exclusive use that would support FPPR §44(3)(d). Verify clearing authority for the same footprint."
+        }
+      ]
+    },
+    {
+      "id": "opening-tolerance",
+      "title": "Small openings the free-growing standard tolerates",
+      "source": "instrument",
+      "provision": "46.11(2)",
+      "scope": [
+        [
+          {
+            "fact": "section-29-scope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "permanent-grazing-opening",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "exempt-purpose",
+            "op": "eq",
+            "value": "No"
+          },
+          {
+            "fact": "opening-largest",
+            "op": "lt",
+            "value": {
+              "parameter": "opening-small"
+            }
+          }
+        ],
+        [
+          {
+            "fact": "permanent-grazing-opening",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "exempt-purpose",
+            "op": "eq",
+            "value": "No"
+          },
+          {
+            "fact": "opening-largest",
+            "op": "lte",
+            "value": {
+              "parameter": "opening-mappable"
+            }
+          },
+          {
+            "fact": "opening-share",
+            "op": "lte",
+            "value": {
+              "parameter": "opening-share"
+            }
+          }
+        ]
+      ],
+      "finding": "The openings are within what §46.11(2) tolerates on a standards unit that otherwise meets its stocking standard: each under 1 ha, or mappable openings of 1 to 2 ha taking no more than 5% of the unit.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Keep the openings in the net area to be reforested and confirm at the free-growing survey that the standards unit as a whole conforms. A forest stewardship plan may specify otherwise (§46.11(1))."
         }
       ]
     },
@@ -1219,7 +1360,7 @@
           }
         ]
       ],
-      "finding": "A person who knows a free-growing stand cannot be established to the applicable standard must notify the minister with the reasons and submit a proposal for establishing one (stocking standards, free-growing height and latest date). The minister must approve it if it is consistent with FRPA §26(3); a rejection is reviewable.",
+      "finding": "A person who knows a free-growing stand cannot be established to the applicable standard must notify the minister with the reasons and submit a proposal for establishing one (stocking standards, free-growing height and latest date). The minister must approve it if it is consistent with FPPR §26(3); a rejection is reviewable.",
       "actions": [
         {
           "kind": "submit",

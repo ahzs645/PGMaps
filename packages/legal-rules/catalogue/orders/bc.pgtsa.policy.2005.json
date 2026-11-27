@@ -1,0 +1,229 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.pgtsa.policy.2005",
+  "title": "Prince George TSA Landscape Biodiversity Objectives Implementation Policy, revised December 2005",
+  "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/princegeorge_tsa_fpc_20oct2004.pdf",
+  "madeUnder": "Forest Practices Code of British Columbia Act s. 4(1) (landscape units) and s. 4(2) (objectives); continued as objectives under the Forest and Range Practices Act (its section E applies FRPA s. 16(2) ",
+  "made": "2004-10-20",
+  "transcribedFrom": "signed PDF, text layer checked against the pages",
+  "transcribedOn": "2026-11-27",
+  "notes": [
+    "Prevails over: Replaces the objectives of the Order Establishing Provincial Non-Spatial Old Growth Order (June 30, 2004) for this area (Order III)",
+    "Superseded by: None known. Section E: ceases to have effect for any area where a later order of the Minister or designate establishes old forest objectives. The 2022 District Managers' letter of expectations (pgtsa-loe) states the order has never been amended; it changes implementation (spatial COFAs) without amending it."
+  ],
+  "provisions": [
+    {
+      "id": "Policy: Application",
+      "heading": "Implementation Policy (status)",
+      "page": 14,
+      "quotes": [
+        "Implementation Policy This policy applies to the application of the Order Establishing Landscape Biodiversity Objectives for",
+        "It is intended to provide guidance for the implementation of the order.",
+        "It is not legally binding."
+      ]
+    },
+    {
+      "id": "Definition: Crown Forest Land Base",
+      "heading": "Definition: Crown Forest Land Base",
+      "page": 14,
+      "quotes": [
+        "“Crown Forest Land Base” means land which is Provincial publicly owned land which is forested.",
+        "It has generally been divided into: non-contributing land base (e.g. parks",
+        "It does not include excluded land base, such as private land, federal land, municipal land and woodlots licenses."
+      ]
+    },
+    {
+      "id": "Definition: Licensee",
+      "heading": "Definition: Licensee",
+      "page": 14,
+      "quotes": [
+        "“Licensee” means a party required to prepare a forest development plan under the Forest Practices Code of B.C.",
+        "Act or a forest stewardship plan under the Forest and Range Practices Act."
+      ]
+    },
+    {
+      "id": "Definition: Merged Biogeoclimatic Units",
+      "heading": "Definition: Merged Biogeoclimatic Units",
+      "page": 14,
+      "quotes": [
+        "“Merged Biogeoclimatic Units” means a grouping of Biogeoclimatic Units that were combined to facilitate implementation of",
+        "The grouping was based on similar ecological characteristics, size of unit and geographic location (see Map # 2)."
+      ]
+    },
+    {
+      "id": "Definition: Natural Disturbance Units",
+      "heading": "Definition: Natural Disturbance Units",
+      "page": 14,
+      "quotes": [
+        "“Natural Disturbance Units” mean geographic areas that are outlined in Natural Disturbance Units of the Prince George Forest",
+        "Guidance for Sustainable Forest Management, by Craig DeLong, 2002 (see Map #1).",
+        "These units are based on natural disturbance regimes which are the historic patterns (frequency and extent) of fire"
+      ]
+    },
+    {
+      "id": "Definition: Natural Forest Area",
+      "heading": "Definition: Natural Forest Area",
+      "page": 14,
+      "quotes": [
+        "“Natural Forest Area” means an area in the mountain pine beetle infested units which is in a stage of transition and could"
+      ]
+    },
+    {
+      "id": "Definition: Old forest",
+      "heading": "Definition: Old forest (age thresholds)",
+      "page": 14,
+      "quotes": [
+        "where old forests be will considered to be those stands >120 years.",
+        "“Old forest” means >140 year old forest stands*, from available forest inventory sources",
+        "A process will be developed in 2004 to deal with this issue."
+      ]
+    },
+    {
+      "id": "Definition: Old Interior Forest",
+      "heading": "Definition: Old Interior Forest (revised June 22, 2005)",
+      "page": 15,
+      "quotes": [
+        "all other species - leading NSR and 1-4 200 metres",
+        "“Old Interior Forest” means an area of ‘old forest’ or natural forest area’",
+        "The revised methodology (June 22, 2005) for this objective uses the indicated buffered distance"
+      ]
+    },
+    {
+      "id": "Definition: Young forest",
+      "heading": "Definition: Young forest",
+      "page": 15,
+      "quotes": [
+        "“Young forest” means forested areas which are between 0 and 20 years old."
+      ]
+    },
+    {
+      "id": "Policy 1",
+      "heading": "Natural Forest Areas (NFAs) and representative portions",
+      "page": 16,
+      "quotes": [
+        "by following Tables 8-10.",
+        "Natural Forest Areas (NFAs) Due to the extraordinary situation of the Mountain Pine Beetle epidemic in the Prince George",
+        "For this reason, these “non-live” old forests called Natural Forest Areas will be used as a surrogate for old forest as a"
+      ]
+    },
+    {
+      "id": "Table 8",
+      "heading": "Vanderhoof Forest District Retention for Non-pine leading forest",
+      "page": 17,
+      "quotes": [
+        "D4 Moist Interior - Plateau SBS dw2 12 2",
+        "Vanderhoof Forest District Retention for Non-pine leading forest.",
+        "Unit Minimum Minimum Label Merged percent of percent of the Natural Disturbance Biogeoclimatic the CFLB CFLB retained Unit"
+      ]
+    },
+    {
+      "id": "Table 9",
+      "heading": "Fort St. James Forest District Retention for Non-pine leading forest",
+      "page": 17,
+      "quotes": [
+        "E2 Moist Interior Plateau SBS dk 17 13",
+        "James Forest District Retention for Non-pine leading forest.",
+        "Unit Natural Disturbance Merged Minimum Minimum Label Unit (NDU) Biogeoclimatic Units retention % percent of the"
+      ]
+    },
+    {
+      "id": "Table 10",
+      "heading": "Prince George Forest District Retention for Non-pine leading forest",
+      "page": 18,
+      "quotes": [
+        "A6 Moist Interior - ESSF wk1 29 28",
+        "Prince George Forest District Retention for Non-pine leading forest.",
+        "Unit Natural Disturbance Merged Minimum Minimum Label Unit (NDU) Biogeoclimatic Units retention % percent of the"
+      ]
+    },
+    {
+      "id": "Policy 2",
+      "heading": "Rationale for Spatially Located Old Forest Retention Areas",
+      "page": 19,
+      "quotes": [
+        "Ministry of Sustainable Resource Management may require the establishment of spatially located old forest retention areas",
+        "Rationale for Spatially Located Old Forest Retention Areas Where deemed necessary"
+      ]
+    },
+    {
+      "id": "Policy 3",
+      "heading": "Interior Forest Condition",
+      "page": 19,
+      "quotes": [
+        "a critical part of the strategy will be to minimize fragmentation of mid-aged (60-100 year old) forest.",
+        "Interior Forest Condition The purpose of an interior old forest objective is to provide a criterion for old forest and/or",
+        "Through this objective, as well as old forest retention and patch size, we are attempting to emulate natural disturbance"
+      ]
+    },
+    {
+      "id": "Policy 3: Revised methodology",
+      "heading": "Buffering criteria for Interior Old Forest - Revised Methodology",
+      "page": 19,
+      "quotes": [
+        "Buffering criteria for the calculation of Interior Old Forest - Revised Methodology:",
+        "The methodology used for calculating old interior forest, during the development of the Landscape Biodiversity Objectives",
+        "Through discussion with Forest Licensees, BC Timber Sales and the Provincial government"
+      ]
+    },
+    {
+      "id": "Policy 4 ¶2",
+      "heading": "Retention in large openings",
+      "page": 21,
+      "quotes": [
+        "Increased retention and larger areas of retention (> 10ha) are required in larger openings (> 500 ha).",
+        "In order for the intent of this objective to be achieved it is important to retain structural attributes in cutblocks by",
+        "See guidance provided in DeLong (1999)."
+      ]
+    },
+    {
+      "id": "Policy 4 ¶3-4",
+      "heading": "Patch objective expectations and rationale to the decision maker",
+      "page": 21,
+      "quotes": [
+        "It is realized that we are not able to completely repeat the natural patterns and characteristics of habitat established by",
+        "However, it is desirable to manage harvest patches to more closely emulate the patterns that occurred on the landscape when",
+        "Management of the patch size objectives must also recognize that in some geographic areas of the Prince George Timber Supply"
+      ]
+    },
+    {
+      "id": "Policy 4: Analysis steps",
+      "heading": "Analysis Steps for Patch Size",
+      "page": 22,
+      "quotes": [
+        "Identify all remaining patches >1000 ha and buffer by 400 m.",
+        "Identify all patches < 50 ha with and buffer by 75 m. a.",
+        "If any of these patches touches another patch that also has a 75 m buffer then they must be within 150 m."
+      ]
+    },
+    {
+      "id": "Policy 5",
+      "heading": "Apportionment of Old and Natural Forest Areas between Licensees",
+      "page": 22,
+      "quotes": [
+        "have apportioned the objectives for old growth objectives according to the amount of old growth in licensee operating areas.",
+        "Apportionment of Old and Natural Forest Areas between Licensees (including BC Timber Sales) in the TSA.",
+        "The Forest Licensees and BC Timber Sales within the Prince George Timber Supply Area have apportioned the objectives for old"
+      ]
+    },
+    {
+      "id": "Policy 6",
+      "heading": "Roles and Responsibilities",
+      "page": 23,
+      "quotes": [
+        "Roles and Responsibilities Forest Licensees and BC Timber Sales: • Prepare Forest Development Plans",
+        "Landscape Objective Implementation Group).",
+        "Ministry of Sustainable Resource Management: • Endorse recruitment strategies may involve collaborative planning processes •"
+      ]
+    },
+    {
+      "id": "Policy 7",
+      "heading": "Adaptive Management Process",
+      "page": 24,
+      "quotes": [
+        "Adaptive Management Process Adaptive management principles will apply to this process",
+        "As a minimum, a review will coincide with Timber Supply Review process in the PG TSA.",
+        "Certain elements that are uncertain or require additional analysis could be the focus of the monitoring program."
+      ]
+    }
+  ]
+}

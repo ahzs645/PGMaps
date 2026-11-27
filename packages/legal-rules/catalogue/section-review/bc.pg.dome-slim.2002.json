@@ -1,0 +1,145 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.pg.dome-slim.2002",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "Establishment",
+      "relevance": "definitions",
+      "bearsOn": "Establishes the Dome and Slim landscape units (Maps 1 and 2) as the area the objectives apply to.",
+      "review": "n/a"
+    },
+    {
+      "n": "Objective 1",
+      "relevance": "landscape",
+      "bearsOn": "Sets the Dome unit's old growth distribution, by variant, as the OGMAs on Map 1; a block meets it by leaving those OGMAs intact.",
+      "review": "partial",
+      "coveredBy": [
+        "ground:ogma",
+        "bc.pgtsa.biodiversity@1.2.0:protected-credit"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The ogma screen draws the OGMAs and the old forest module counts legal OGMAs whole toward PG TSA Objectives A and B (D.1); no rule tests that a block stays out of them (see the strategies).",
+      "encodable": "spatial"
+    },
+    {
+      "n": "Strategy 1.01",
+      "relevance": "block",
+      "bearsOn": "Requires the OGMAs on Map 1 to be maintained, so a block or road inside one meets the limits in 1.02 and 1.03.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+    },
+    {
+      "n": "Strategy 1.02",
+      "relevance": "block",
+      "bearsOn": "Limits cutting in an OGMA to what is absolutely necessary for insect or disease control and, where a threat to adjacent stands requires it, to keeping old-growth structure as much as possible.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+    },
+    {
+      "n": "Strategy 1.03",
+      "relevance": "roads",
+      "bearsOn": "Bars road construction in an OGMA unless there is no other practicable option, and requires any temporary road there to be deactivated, rehabilitated and planted as soon as possible.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+    },
+    {
+      "n": "Strategy 1.04",
+      "relevance": "admin",
+      "bearsOn": "Allows fire suppression in OGMAs to keep their integrity; it does not bear on making a block.",
+      "review": "n/a"
+    },
+    {
+      "n": "Objective 2",
+      "relevance": "landscape",
+      "bearsOn": "Sets the Slim unit's old growth distribution, by variant, as the OGMAs on Map 2; a block meets it by leaving those OGMAs intact.",
+      "review": "partial",
+      "coveredBy": [
+        "ground:ogma",
+        "bc.pgtsa.biodiversity@1.2.0:protected-credit"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The ogma screen draws the OGMAs and the old forest module counts legal OGMAs whole toward PG TSA Objectives A and B (D.1); no rule tests that a block stays out of them (see the strategies).",
+      "encodable": "spatial"
+    },
+    {
+      "n": "Strategy 2.01",
+      "relevance": "block",
+      "bearsOn": "Requires the OGMAs on Map 2 to be maintained, so a block or road inside one meets the limits in 2.02 and 2.03.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+    },
+    {
+      "n": "Strategy 2.02",
+      "relevance": "block",
+      "bearsOn": "Limits cutting in an OGMA to what is absolutely necessary for insect or disease control and, where a threat to adjacent stands requires it, to keeping old-growth structure as much as possible.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+    },
+    {
+      "n": "Strategy 2.03",
+      "relevance": "roads",
+      "bearsOn": "Bars road construction in an OGMA unless there is no other practicable option, and requires any temporary road there to be deactivated, rehabilitated and planted as soon as possible.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+    },
+    {
+      "n": "Strategy 2.04",
+      "relevance": "admin",
+      "bearsOn": "Allows fire suppression in OGMAs to keep their integrity; it does not bear on making a block.",
+      "review": "n/a"
+    },
+    {
+      "n": "Strategy 2.05",
+      "relevance": "range",
+      "bearsOn": "Lets existing range use continue in Slim OGMAs under authorized tenures, carried out with regard to their old growth values.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The ogma screen's grazing reach is unknown; the order allows continued use with a sensitivity condition.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "Transition",
+      "relevance": "plan",
+      "bearsOn": "Required forest development plans submitted after the effective date to be consistent; under FRPA the objectives bind through Land Act s. 93.8 and the FSP.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A document check that the FSP carries results or strategies for the OGMAs.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "Effective date",
+      "relevance": "admin",
+      "bearsOn": "Sets the effective date, October 31, 2002.",
+      "review": "n/a"
+    }
+  ]
+}

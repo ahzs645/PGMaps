@@ -1,0 +1,59 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.mackenzie.biodiversity-amendment.2010",
+  "title": "Amendment Order for the Non-spatial Landscape Biodiversity Objectives in the Mackenzie Forest District, 23 September 2010",
+  "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/mackenzie-lrmp/mackenzie-srmp/order_min_argirculture_lands_amended.pdf",
+  "madeUnder": "Land Act s. 93.4",
+  "made": "2010-09-23",
+  "transcribedFrom": "signed PDF, scanned; read from the page images",
+  "transcribedOn": "2026-11-27",
+  "notes": [
+    "Amends: mackenzie-nonspatial-2008: Map #1 and Table 2 repealed and replaced"
+  ],
+  "provisions": [
+    {
+      "id": "1",
+      "heading": "Amendment of the non-spatial order",
+      "page": 1,
+      "quotes": [
+        "Pursuant to section 93.4 of the Land Act and by this order, the Non-spatial Landscape Biodiversity Objectives in the"
+      ]
+    },
+    {
+      "id": "1(a)",
+      "heading": "Map #1 replaced",
+      "page": 1,
+      "quotes": [
+        "Map #1: Landscape Units for the Mackenzie Forest District is repealed and replaced with attached Map#1",
+        "Landscape Units for the Mackenzie Forest District is repealed and replaced with attached Map#1:",
+        "Landscape Units for the Mackenzie Forest District date January 2010"
+      ]
+    },
+    {
+      "id": "1(b)",
+      "heading": "Table 2 replaced (January 10, 2010)",
+      "page": 1,
+      "quotes": [
+        "Selwyn | High | 3 | 28",
+        "Old Forest Retention Requirements by Landscape Unit (or Landscape Unit Group) for the Mackenzie Forest District is repealed",
+        "Old Forest Retention Requirements by Landscape Unit (or Landscape Unit Group) for the Mackenzie Forest District dated"
+      ]
+    },
+    {
+      "id": "1(c)",
+      "heading": "Effective date",
+      "page": 1,
+      "quotes": [
+        "c) This order takes effect on the day that notice of this order is published in the Gazette."
+      ]
+    },
+    {
+      "id": "1(d)",
+      "heading": "Applicable period under FRPA s. 8(2)(b)",
+      "page": 1,
+      "quotes": [
+        "The applicable period under 8(2)(b) is 12 months starting on the date this order comes into effect."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.omineca.visual-quality",
+  "version": "1.0.0",
+  "title": "Visual quality objectives (Prince George and Fort St. James)",
+  "description": "Scenic areas and visual quality objectives set under the Government Actions Regulation for the Prince George and Fort St. James districts, and scenic areas made known without one. The perspective-view ranges are the 2013 guide's, the scale the visual quality page measures on; the legal test is the category's own definition in FPPR s. 1.1.",
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-17"
+  },
+  "facts": [
+    {
+      "id": "vqo",
+      "label": "What visual quality objective is established for the scenic area the block is seen in?",
+      "type": "choice",
+      "choices": [
+        "None established",
+        "Preservation",
+        "Retention",
+        "Partial retention",
+        "Modification",
+        "Maximum modification"
+      ]
+    },
+    {
+      "id": "vqo-order",
+      "label": "Which order established the visual quality objective where the block is seen?",
+      "type": "choice",
+      "choices": [
+        "Prince George District order (2005)",
+        "Prince George, Bobtail Lake polygons 959 to 962 (2006 variance)",
+        "Fort St. James District order (2005)",
+        "Another order, such as a tree farm licence management plan"
+      ]
+    },
+    {
+      "id": "scenic-no-vqo",
+      "label": "Is the block in a scenic area made known but without an established visual quality objective?",
+      "type": "boolean"
+    },
+    {
+      "id": "perspective",
+      "label": "Alteration seen in perspective view from the significant viewpoint, as measured",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100
+    }
+  ],
+  "parameters": [
+    {
+      "id": "preservation",
+      "value": 0,
+      "unit": "%"
+    },
+    {
+      "id": "retention",
+      "value": 1.5,
+      "unit": "%"
+    },
+    {
+      "id": "partial-retention",
+      "value": 7,
+      "unit": "%"
+    },
+    {
+      "id": "modification",
+      "value": 18,
+      "unit": "%"
+    },
+    {
+      "id": "maximum-modification",
+      "value": 30,
+      "unit": "%"
+    }
+  ],
+  "sourceFiles": [
+    "sources/bc/gar.json",
+    "sources/bc/fppr.json",
+    "sources/bc/pg-vqo-order.json",
+    "sources/bc/pg-bobtail-vqo-order.json",
+    "sources/bc/fsj-vqo-order.json"
+  ],
+  "ruleFiles": [
+    "rules/bc/omineca/visual-quality.json"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.pg.vqo.2005",
+  "title": "Order for the Establishment of Visual Quality Objectives for the Prince George Forest District, 2005",
+  "url": "https://www2.gov.bc.ca/assets/gov/environment/natural-resource-policy-legislation/legislation-regulation/gar-ministerial-orders/dpg_vqo.pdf",
+  "madeUnder": "Government Actions Regulation s. 7(2) (signed by the district manager)",
+  "made": "2005-12-07",
+  "transcribedFrom": "signed PDF, scanned; read from the page images",
+  "transcribedOn": "2026-11-27",
+  "notes": [
+    "Superseded by: Varied for visual landscape inventory polygons 959-962 (Bobtail Lake), partial retention to modification, by the May 5, 2006 order (pg-bobtail-vqo)."
+  ],
+  "provisions": [
+    {
+      "id": "Para 1",
+      "heading": "VQOs established for the district as mapped",
+      "page": 1,
+      "quotes": [
+        "establish visual quality objectives (VQOs) for the Prince George Forest District as shown on the attached map",
+        "Order for the Establishment of Visual Quality Objectives for the Prince George Forest District Pursuant to Section 7(2) of",
+        "582/2004), I, Greg Rawling, District Manager for the Prince George Forest District, establish visual quality objectives"
+      ]
+    },
+    {
+      "id": "Para 2",
+      "heading": "Applies to the December 6, 2005 scenic areas",
+      "page": 1,
+      "quotes": [
+        "These VQOs apply to those Scenic Areas established under Section 7(1) of the GAR for the Prince George Forest District under"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.pg.humbug.2003",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "Establishment",
+      "relevance": "definitions",
+      "bearsOn": "Establishes the Humbug landscape unit (Map 3) as the area the objectives apply to.",
+      "review": "n/a"
+    },
+    {
+      "n": "Objective 3",
+      "relevance": "landscape",
+      "bearsOn": "Sets the unit's old growth distribution, by variant, as the OGMAs on Map 3; a block meets it by leaving those OGMAs intact.",
+      "review": "partial",
+      "coveredBy": [
+        "ground:ogma",
+        "bc.pgtsa.biodiversity@1.2.0:protected-credit"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The ogma screen draws the OGMAs and the old forest module counts them toward PG TSA Objectives A and B; no rule tests that a block stays out of them.",
+      "encodable": "spatial"
+    },
+    {
+      "n": "Strategy 3.01",
+      "relevance": "block",
+      "bearsOn": "Requires the Map 3 OGMAs to be maintained, so a block or road inside one meets 3.02 and 3.03.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+    },
+    {
+      "n": "Strategy 3.02",
+      "relevance": "block",
+      "bearsOn": "Limits cutting in an OGMA to what is absolutely necessary for insect or disease control, keeping old-growth structure where a threat to adjacent stands requires intervention.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+    },
+    {
+      "n": "Strategy 3.03",
+      "relevance": "roads",
+      "bearsOn": "Allows permanent and temporary roads in an OGMA only where there is no other practicable option, and requires temporary ones to be deactivated, rehabilitated and planted as soon as possible; unlike Dome and Slim it names permanent roads expressly.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+    },
+    {
+      "n": "Strategy 3.04",
+      "relevance": "admin",
+      "bearsOn": "Allows fire suppression in OGMAs; it does not bear on making a block.",
+      "review": "n/a"
+    },
+    {
+      "n": "Transition",
+      "relevance": "plan",
+      "bearsOn": "Required forest development plans submitted after the effective date to be consistent; under FRPA it binds through Land Act s. 93.8 and the FSP.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A document check that the FSP carries results or strategies for the OGMAs.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "Effective date",
+      "relevance": "admin",
+      "bearsOn": "Sets the effective date, August 1, 2003.",
+      "review": "n/a"
+    }
+  ]
+}

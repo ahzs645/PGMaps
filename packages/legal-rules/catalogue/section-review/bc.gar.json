@@ -1,0 +1,252 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.gar",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "States that GAR uses FRPA and FPPR definitions and applies despite FRPA s. 16(2).",
+      "review": "n/a"
+    },
+    {
+      "n": "2",
+      "relevance": "block",
+      "bearsOn": "Requires a minister making a GAR order to be satisfied it is consistent with established objectives and that public benefit outweighs impacts on delivered wood costs and tenure rights; and says an order does not apply to cutting permits, road permits, TSLs without CPs, BCTS forestry licences to cut and (unless stated) minor tenures entered into before it takes effect, to declared areas, or to FRPA s. 196(1) and FPPR s. 110 areas.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "The UWR, WHA and other GAR-order screens show the designation without asking whether the block's cutting permit, road permit or TSL predates the order, which (2)(a) says takes it outside the order. The crown-grazing pack asks the parallel question for the ADA/SRA order.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Was the cutting permit, road permit or timber sale licence for this cutblock entered into before the GAR order covering it took effect?",
+        "Is the cutblock in a declared area or an area to which FRPA section 196(1) applies?"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "admin",
+      "bearsOn": "Requires review and comment by affected (or representative) Forest Act and Range Act holders, and consultation with materially affected holders, before most GAR orders.",
+      "review": "n/a"
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "Requires notice of a GAR order in the Gazette and at the regional office, and makes it effective on the stated date or on Gazette publication.",
+      "review": "n/a"
+    },
+    {
+      "n": "5",
+      "relevance": "landscape",
+      "bearsOn": "Lets the Forest Act minister identify resource features by order (karst, range developments, research land, snow courses, unregulated cultural heritage resources of traditional use, authorized recreation trails and facilities, significant recreation features), with undisclosed locations notified only to affected holders under confidentiality conditions.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:recreation-site",
+        "ground:recreation-trail"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "Recreation sites and trails are screened and range developments are handled by the crown-grazing range-development rule under FRPA s. 51, but karst, research installations, snow courses and cultural heritage resource features have no screen, and confidential features can only be asked about.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Has the holder been notified under a GAR section 5 order of any resource feature, such as karst or a cultural heritage resource, in or next to this cutblock, including one whose location is confidential?"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "landscape",
+      "bearsOn": "Lets the Forest Act minister establish a lakeshore management zone of a stated width beside an L1 lake, with objectives, where forest resources need special management.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "No screen reads lakeshore management zones; they apply to L1 lakes where no default riparian zone exists.",
+      "encodable": "spatial"
+    },
+    {
+      "n": "7",
+      "relevance": "landscape",
+      "bearsOn": "Lets the Land Act minister establish scenic areas, and the Forest Act minister set visual quality objectives for them within the FPPR s. 1.1 categories.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:visual-quality-objective",
+        "ground:scenic-area"
+      ],
+      "gapPriority": "low",
+      "gapNote": "Rules now name the order and test the alteration entered from the visual quality page against the category; the planner does not read that page’s measurement itself."
+    },
+    {
+      "n": "8",
+      "relevance": "landscape",
+      "bearsOn": "Lets the Land Act minister designate the drainage upslope of a domestic licensed waterworks intake as a community watershed, and the Wildlife Act minister set water quality objectives for it.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:community-watershed"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The community watershed screen cites this section; no rule reads the watershed's water quality objectives and asks whether the block meets them.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "What water quality objectives have been set for the community watershed containing this cutblock, and does the planned harvest and road work meet them?"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "landscape",
+      "bearsOn": "Lets the Wildlife Act minister establish general wildlife measures for a category of species at risk, regionally important wildlife or ungulates over a specified area, or for a wildlife habitat area or ungulate winter range.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:uwr-no-harvest",
+        "ground:uwr-conditional",
+        "ground:uwr-uncoded",
+        "ground:wha-no-harvest",
+        "ground:wha-conditional",
+        "ground:wha-uncoded"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "Measures attached to a UWR or WHA (subsection (2)) feed the screens' reach cells; species-category measures over a specified area under subsection (1) are not read at all.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Does a general wildlife measure for a category of species, applied to a specified area rather than to a UWR or WHA, cover this cutblock?"
+      ]
+    },
+    {
+      "n": "9.1",
+      "relevance": "landscape",
+      "bearsOn": "Lets the Wildlife Act minister establish general measures for categories of ecological communities at risk over a specified area.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "No screen reads ecological community measures; few exist.",
+      "encodable": "spatial"
+    },
+    {
+      "n": "10",
+      "relevance": "landscape",
+      "bearsOn": "Lets the Wildlife Act minister establish wildlife habitat areas and objectives for species at risk or regionally important wildlife, with sensitive locations withheld from the order and notified only to affected holders.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:wha-no-harvest",
+        "ground:wha-conditional",
+        "ground:wha-uncoded"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The WHA screens read published WHAs; a WHA whose location is withheld under (3) can only appear through a reviewer question, and no rule asks for the WHA objective's terms.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Has the holder been notified in writing of a wildlife habitat area, including one whose location is not published, that overlaps or adjoins this cutblock?",
+        "What does that wildlife habitat area's objective require of harvesting in it?"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "landscape",
+      "bearsOn": "Lets the Wildlife Act minister identify wildlife habitat features (fisheries and marine sensitive features, significant mineral licks or wallows, nests of bald eagles, ospreys, great blue herons or listed birds, other localized features), with sensitive locations withheld.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No screen reads wildlife habitat features and no rule asks about them, though FPPR s. 70(2) bars damaging them.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Is a wildlife habitat feature, such as a significant mineral lick or wallow or a bald eagle, osprey or great blue heron nest, in or next to this cutblock, including one notified to the holder in confidence?"
+      ]
+    },
+    {
+      "n": "12",
+      "relevance": "landscape",
+      "bearsOn": "Lets the Wildlife Act minister establish ungulate winter ranges and their objectives where winter habitat for specified ungulates needs special management.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:uwr-no-harvest",
+        "ground:uwr-conditional",
+        "ground:uwr-uncoded"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The UWR screens read the ranges and apply their general wildlife measures to reach cells; no rule reads a UWR objective's terms (for example retention or forage targets) against the block.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "What does the ungulate winter range objective or measure for the unit this cutblock is in require of harvesting there?"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "definitions",
+      "bearsOn": "Lets the Wildlife Act minister establish categories of species at risk, regionally important wildlife and ungulate species needing winter range.",
+      "review": "n/a"
+    },
+    {
+      "n": "13.1",
+      "relevance": "definitions",
+      "bearsOn": "Lets the Wildlife Act minister establish categories of ecological communities at risk or regionally important.",
+      "review": "n/a"
+    },
+    {
+      "n": "14",
+      "relevance": "landscape",
+      "bearsOn": "Lets the Wildlife Act minister identify fisheries sensitive watersheds (significant downstream fisheries values and watershed sensitivity) and set objectives for them.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "No screen reads FSW orders; check whether any exist in the Omineca before building one.",
+      "encodable": "spatial"
+    },
+    {
+      "n": "15",
+      "relevance": "landscape",
+      "bearsOn": "Lets the Wildlife Act minister designate part of a fish stream as a temperature sensitive stream where streamside trees are needed to manage its temperature.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "No screen reads TSS designations; FPPR s. 53 depends on them.",
+      "encodable": "spatial"
+    },
+    {
+      "n": "16",
+      "relevance": "landscape",
+      "bearsOn": "Continues as GAR community watersheds those established under the Code after 31 January 2004 and existing when this section took effect.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:community-watershed"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The community watershed screen reads all designated watersheds; the route by which one was established matters only for which objective applies (FPPR s. 8.2).",
+      "encodable": "spatial"
+    },
+    {
+      "n": "17",
+      "relevance": "landscape",
+      "bearsOn": "Continues as a visual quality objective a visual quality class set before 24 October 2002 by district manager letter or in an approved TFL visual landscape inventory.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:visual-quality-objective"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The VQO screen reads the published layer; a class continued only by a district manager's letter may not appear there, so a reviewer may need to ask.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "18",
+      "relevance": "landscape",
+      "bearsOn": "Applies the FPPR s. 1.1 categories of altered forest landscape to continued visual quality objectives.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:visual-quality-objective"
+      ],
+      "gapPriority": "low",
+      "gapNote": "Same gap as FPPR s. 1.1: no rule tests a block against the category.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "19",
+      "relevance": "landscape",
+      "bearsOn": "Continues Code-era resource features (from higher level plans or made known to licence and woodlot holders) as GAR s. 5 resource features.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:recreation-site",
+        "ground:recreation-trail"
+      ],
+      "gapPriority": "low",
+      "gapNote": "Continued features known only from old notices to the holder can only be asked about.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "20",
+      "relevance": "admin",
+      "bearsOn": "Applies GAR orders to holders who must still comply with the Code under FRPA Part 11.",
+      "review": "n/a"
+    }
+  ]
+}

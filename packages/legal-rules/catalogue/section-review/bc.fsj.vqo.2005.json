@@ -1,0 +1,31 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.fsj.vqo.2005",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "Para 1",
+      "relevance": "block",
+      "bearsOn": "Sets visual quality objectives for the scenic areas of the district's TSA portion on the August 31, 2005 map; a block visible from a significant public viewpoint must keep alteration within the category.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:visual-quality-objective"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "Rules now name the order and test the alteration entered from the visual quality page against the category; the planner does not read that page’s measurement itself."
+    },
+    {
+      "n": "Para 2",
+      "relevance": "definitions",
+      "bearsOn": "Ties the VQOs to the scenic areas carried forward under FRPA s. 180 and updated and designated under GAR s. 7(1) by the order published September 22, 2005.",
+      "review": "n/a"
+    },
+    {
+      "n": "Para 3",
+      "relevance": "admin",
+      "bearsOn": "Says where the order and map can be viewed.",
+      "review": "n/a"
+    }
+  ]
+}

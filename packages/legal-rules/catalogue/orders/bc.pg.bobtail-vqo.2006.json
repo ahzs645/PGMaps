@@ -1,0 +1,34 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.pg.bobtail-vqo.2006",
+  "title": "Order for the variance of the Visual Quality Objectives for Bobtail Lake, Prince George Forest District, 2006",
+  "url": "https://www2.gov.bc.ca/assets/gov/environment/natural-resource-policy-legislation/legislation-regulation/gar-ministerial-orders/dpg_vqo_bobtail.pdf",
+  "madeUnder": "Government Actions Regulation s. 7(2) (signed by the district manager)",
+  "made": "2006-05-05",
+  "transcribedFrom": "signed PDF, scanned; read from the page images",
+  "transcribedOn": "2026-11-27",
+  "notes": [
+    "Amends: pg-vqo-2005 (December 7, 2005 VQO order)",
+    "Prevails over: pg-vqo-2005 for polygons 959-962"
+  ],
+  "provisions": [
+    {
+      "id": "Variance",
+      "heading": "Polygons 959-962: partial retention to modification",
+      "page": 1,
+      "quotes": [
+        "vary the visual quality objectives (VQOs) on the attached map, as per the following table",
+        "Order for the variance of the Visual Quality Objectives for Bobtail Lake within the Prince George Forest District Pursuant",
+        "582/2004), I, Greg Rawling, District Manager for the Prince George Forest District, vary the visual quality objectives"
+      ]
+    },
+    {
+      "id": "Scope",
+      "heading": "Varies the December 7, 2005 VQOs",
+      "page": 1,
+      "quotes": [
+        "This change applies to the VQOs established under Section 7(1) of the GAR for the Prince George Forest District under Order"
+      ]
+    }
+  ]
+}

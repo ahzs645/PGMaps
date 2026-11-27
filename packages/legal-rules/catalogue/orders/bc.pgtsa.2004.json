@@ -1,0 +1,210 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.pgtsa.2004",
+  "title": "Order Establishing Landscape Biodiversity Objectives for the Prince George Timber Supply Area, 20 October 2004",
+  "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/princegeorge_tsa_fpc_20oct2004.pdf",
+  "madeUnder": "Forest Practices Code of British Columbia Act s. 4(1) (landscape units) and s. 4(2) (objectives); continued as objectives under the Forest and Range Practices Act (its section E applies FRPA s. 16(2) ",
+  "made": "2004-10-20",
+  "transcribedFrom": "signed PDF, text layer checked against the pages",
+  "transcribedOn": "2026-11-27",
+  "notes": [
+    "Prevails over: Replaces the objectives of the Order Establishing Provincial Non-Spatial Old Growth Order (June 30, 2004) for this area (Order III)",
+    "Superseded by: None known. Section E: ceases to have effect for any area where a later order of the Minister or designate establishes old forest objectives. The 2022 District Managers' letter of expectations (pgtsa-loe) states the order has never been amended; it changes implementation (spatial COFAs) without amending it."
+  ],
+  "provisions": [
+    {
+      "id": "Preamble",
+      "heading": "Preamble",
+      "page": 1,
+      "quotes": [
+        "This order establishes landscape biodiversity objectives, across the Prince George Timber Supply Area, for:",
+        "A. old forest retention;",
+        "B. old interior forest; and, C. young forest patch size distribution."
+      ]
+    },
+    {
+      "id": "Order I",
+      "heading": "Landscape units established",
+      "page": 2,
+      "quotes": [
+        "landscape units are established for the Prince George Timber Supply Area, as per Map #2 (Merged Biogeoclimatic Units).",
+        "Pursuant to section 4(1) of the Forest Practices Code of British Columbia Act (the Act)"
+      ]
+    },
+    {
+      "id": "Order II",
+      "heading": "Objectives A to D established",
+      "page": 2,
+      "quotes": [
+        "the following objectives A through D are established as per Map #1(objective C) and Map #2 (objective A and B).",
+        "Pursuant to section 4(2) of the Act, the following objectives A through D are established as per Map #1(objective C) and Map"
+      ]
+    },
+    {
+      "id": "Order III",
+      "heading": "Application and replacement of the 2004 provincial order",
+      "page": 2,
+      "quotes": [
+        "These objectives apply to all Crown land in the Prince George Timber Supply Area (TSA)",
+        "These objectives replace objectives established in the Order Establishing Provincial Non-Spatial Old Growth Order (June 30"
+      ]
+    },
+    {
+      "id": "A",
+      "heading": "Old Forest Retention Objective",
+      "page": 5,
+      "quotes": [
+        "Old Forest Retention Objective Maintain old forest on the Crown Forest Land Base (CFLB) by merged biogeoclimatic"
+      ]
+    },
+    {
+      "id": "Table 1",
+      "heading": "Vanderhoof Forest District Old Forest Retention Requirements",
+      "page": 5,
+      "quotes": [
+        "D1 ESSF mv1, ESSF mvp1, Moist Interior - Mountain 29",
+        "Vanderhoof Forest District Old Forest Retention Requirements Unit Minimum Label Natural Disturbance Unit Merged"
+      ]
+    },
+    {
+      "id": "Table 2",
+      "heading": "Fort St. James Forest District Old Forest Retention Requirements",
+      "page": 6,
+      "quotes": [
+        "E9 Omineca - Mountain ESSF wvp, ESSF wv, 58",
+        "James Forest District Old Forest Retention Requirements Unit Label Natural Disturbance Merged Biogeoclimatic Minimum Unit"
+      ]
+    },
+    {
+      "id": "Table 3",
+      "heading": "Prince George Forest District Old Forest Retention Requirements",
+      "page": 7,
+      "quotes": [
+        "A10 Moist Interior - Plateau SBS wk1 17",
+        "Prince George Forest District Old Forest Retention Requirements Unit Label Natural Disturbance Merged Biogeoclimatic Minimum",
+        "ESSF wcp3 80 A19 Wet Trench - Mountain ESSF wcp3, ESSF mm1, 48 ESSF mmp1, ESSF mvp2, ESSF mv2"
+      ]
+    },
+    {
+      "id": "B",
+      "heading": "Old Interior Forest Objective",
+      "page": 8,
+      "quotes": [
+        "Old Interior Forest Objective Maintain a percentage of the old forest requirements specified in objective A as interior"
+      ]
+    },
+    {
+      "id": "Table 4",
+      "heading": "Vanderhoof Forest District Old Interior Forest Requirements",
+      "page": 8,
+      "quotes": [
+        "D1 ESSF mv1, ESSF 40 %",
+        "Vanderhoof Forest District Old Interior Forest Requirements Unit Natural Disturbance Merged Minimum percent Label Unit"
+      ]
+    },
+    {
+      "id": "Table 5",
+      "heading": "Fort St. James Forest District Old Interior Forest Requirements",
+      "page": 9,
+      "quotes": [
+        "E13 Omineca - low elevation ICH mc1 40 %",
+        "James Forest District Old Interior Forest Requirements Unit Natural Disturbance Merged Biogeoclimatic Minimum percent Label"
+      ]
+    },
+    {
+      "id": "Table 6",
+      "heading": "Prince George Forest District Old Interior Forest Requirements",
+      "page": 10,
+      "quotes": [
+        "A15 Wet Mountain ESSF wc3 40 %",
+        "Prince George Forest District Old Interior Forest Requirements Unit Natural Disturbance Merged Biogeoclimatic Minimum"
+      ]
+    },
+    {
+      "id": "C",
+      "heading": "Young Forest Patch Size Distribution Objective",
+      "page": 11,
+      "quotes": [
+        "Young Forest Patch Size Distribution Objective Demonstrate a trend toward the young forest patch size distribution by"
+      ]
+    },
+    {
+      "id": "Table 7",
+      "heading": "Young Forest Patch Size Distribution",
+      "page": 11,
+      "quotes": [
+        "Moist Interior - Plateau 70 20 5 5",
+        "Young Forest Patch Size Distribution Percent of Young Forest for Natural Disturbance Sub-unit each patch size category >1000"
+      ]
+    },
+    {
+      "id": "D.1",
+      "heading": "Contributions from Old Growth Management Areas (OGMAs) and Parks",
+      "page": 12,
+      "quotes": [
+        "Contributions from Old Growth Management Areas (OGMAs) and Parks OGMAs and their associated objectives established prior to",
+        "The entire area of these OGMAs and any new spatially located old forest retention areas established after the enforcement of",
+        "Parks and protected areas may contribute to meeting the objectives of this order."
+      ]
+    },
+    {
+      "id": "D.2",
+      "heading": "Merged Biogeoclimatic Units (mBEC) that overlap Forest District Boundaries",
+      "page": 12,
+      "quotes": [
+        "licensees and BC Timber Sales, may meet the combined requirement of those objectives over the combined area of the mBECs.",
+        "Merged Biogeoclimatic Units (mBEC) that overlap Forest District Boundaries For the purposes of the Old Forest Retention and"
+      ]
+    },
+    {
+      "id": "D.3",
+      "heading": "Epidemic or Catastrophic Events",
+      "page": 12,
+      "quotes": [
+        "Epidemic or Catastrophic Events A representative portion of stands that have been affected by an epidemic or catastrophic",
+        "Due to the current Mountain Pine Beetle epidemic, licensees and BC Timber Sales must ensure a representative portion of"
+      ]
+    },
+    {
+      "id": "D.4",
+      "heading": "A Portion of Younger Age Classes",
+      "page": 12,
+      "quotes": [
+        "up to 20% of the Old Forest Retention and Old Interior Forest objectives may be comprised of younger age classes.",
+        "A Portion of Younger Age Classes Where it can be demonstrated that equal or better conservation benefits would result"
+      ]
+    },
+    {
+      "id": "D.5(a)",
+      "heading": "Alternatives to the Order: recruitment strategy",
+      "page": 12,
+      "quotes": [
+        "Alternatives to the Order (a) Where either the old forest retention or the old interior forest objectives can not be",
+        "The recruitment strategy must contain results or strategies that will result in a forest condition that is consistent with",
+        "The recruitment strategy must be submitted to and approved by the designate of the Minister of Sustainable Resource"
+      ]
+    },
+    {
+      "id": "D.5(b)",
+      "heading": "Alternatives to the Order: young patch rationale",
+      "page": 12,
+      "quotes": [
+        "Where the Young Patch Size Distribution objectives can not be achieved, a rationale must be submitted",
+        "(b) Where the Young Patch Size Distribution objectives can not be achieved"
+      ]
+    },
+    {
+      "id": "E",
+      "heading": "Effective date",
+      "page": 13,
+      "quotes": [
+        "This Order comes into effect immediately.",
+        "For the purposes of the Forest Practices Code of British Columbia Act, all new forest development plans and all major",
+        "This Order does not affect any Category A cutblocks approved pursuant to the Forest Practices Code of British Columbia Act",
+        "all forest stewardship plans submitted after the effective date must be consistent with this Order.",
+        "For the purposes of the Forest and Range Practices Act, and despite subsection 16(2) of that Act",
+        "When a new order of the Minister or designate establishes old forest objectives, this Order will"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.pg.dome-slim.2002",
+  "title": "Order to Establish the Dome and Slim Landscape Units and Objectives, 31 October 2002",
+  "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-lrmp/princegeorge-srmp/legal_order_signed_oct_31_2002.pdf",
+  "madeUnder": "Forest Practices Code Act s. 4(1) and (2); continued as a Land Act s. 93.4 objective by Land Act s. 93.8",
+  "made": "2002-10-31",
+  "transcribedFrom": "signed PDF, text layer checked against the pages",
+  "transcribedOn": "2026-11-27",
+  "provisions": [
+    {
+      "id": "Establishment",
+      "heading": "Dome and Slim landscape units established",
+      "page": 1,
+      "quotes": [
+        "Pursuant to section 4 (1) of the Forest Practices Code of British Columbia Act (the Act)"
+      ]
+    },
+    {
+      "id": "Objective 1",
+      "heading": "Dome: old growth distribution through OGMAs",
+      "page": 1,
+      "quotes": [
+        "by maintaining the old growth management areas (OGMAs) as shown on Map 1",
+        "Meet the distribution of old growth for each Landscape Unit / Biogeoclimatic Unit"
+      ]
+    },
+    {
+      "id": "Strategy 1.01",
+      "heading": "Dome: maintain the mapped OGMAs",
+      "page": 1,
+      "quotes": [
+        "Maintain old growth management areas, which are established as shown on the attached Map 1."
+      ]
+    },
+    {
+      "id": "Strategy 1.02",
+      "heading": "Dome: cutting in OGMAs only for insect or disease control",
+      "page": 1,
+      "quotes": [
+        "Cutting trees within OGMAs, is limited to circumstances where it is absolutely necessary for insect or disease infestation",
+        "When intervention in OGMAs is required because of a forest health threat to adjacent areas"
+      ]
+    },
+    {
+      "id": "Strategy 1.03",
+      "heading": "Dome: no roads in OGMAs without no practicable option",
+      "page": 1,
+      "quotes": [
+        "Do not construct roads in OGMAs unless there is no other practicable option.",
+        "Any temporary roads that are built in OGMAs must be deactivated, rehabilitated and planted as soon as possible."
+      ]
+    },
+    {
+      "id": "Strategy 1.04",
+      "heading": "Dome: fire suppression in OGMAs",
+      "page": 1,
+      "quotes": [
+        "Fire suppression is permitted within OGMAs for the purposes of maintaining the integrity of the OGMAs."
+      ]
+    },
+    {
+      "id": "Objective 2",
+      "heading": "Slim: old growth distribution through OGMAs",
+      "page": 2,
+      "quotes": [
+        "by maintaining the old growth management areas (OGMAs) as shown on Map 2",
+        "Meet the distribution of old growth for each Landscape Unit / Biogeoclimatic Unit"
+      ]
+    },
+    {
+      "id": "Strategy 2.01",
+      "heading": "Slim: maintain the mapped OGMAs",
+      "page": 2,
+      "quotes": [
+        "Maintain old growth management areas, which are established as shown on the attached Map 2."
+      ]
+    },
+    {
+      "id": "Strategy 2.02",
+      "heading": "Slim: cutting in OGMAs only for insect or disease control",
+      "page": 2,
+      "quotes": [
+        "Cutting trees within OGMAs, is limited to circumstances where it is absolutely necessary for insect or disease infestation",
+        "When intervention in OGMAs is required because of a forest health threat to adjacent areas"
+      ]
+    },
+    {
+      "id": "Strategy 2.03",
+      "heading": "Slim: no roads in OGMAs without no practicable option",
+      "page": 2,
+      "quotes": [
+        "Do not construct roads in OGMAs unless there is no other practicable option.",
+        "Any temporary roads that are built in OGMAs must be deactivated, rehabilitated and planted as soon as possible."
+      ]
+    },
+    {
+      "id": "Strategy 2.04",
+      "heading": "Slim: fire suppression in OGMAs",
+      "page": 2,
+      "quotes": [
+        "Fire suppression is permitted within OGMAs for the purposes of maintaining the integrity of the OGMAs."
+      ]
+    },
+    {
+      "id": "Strategy 2.05",
+      "heading": "Slim: range use continues in OGMAs",
+      "page": 2,
+      "quotes": [
+        "Range use is permitted to continue, where it currently exists, through authorized tenures.",
+        "Range use must proceed in a way that is sensitive to the old growth values of the OGMA."
+      ]
+    },
+    {
+      "id": "Transition",
+      "heading": "Forest development plans consistent with the order",
+      "page": 2,
+      "quotes": [
+        "Pursuant to Section 10 (1) (d) (ii) of the Forest Practices Code of British Columbia Act"
+      ]
+    },
+    {
+      "id": "Effective date",
+      "heading": "Effective date",
+      "page": 2,
+      "quotes": [
+        "Effective Date of Order This Order takes effect on October 31, 2002."
+      ]
+    }
+  ]
+}

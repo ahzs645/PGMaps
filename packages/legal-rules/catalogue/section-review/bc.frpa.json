@@ -1,0 +1,2500 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.frpa",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines terms used throughout the Act (forest practice, free growing stand, objectives set by government, operational plan, range development, recreation site); no requirement for a block by itself.",
+      "review": "n/a"
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "Interpretation of references to the minister and non-application of offence provisions to government; does not bear on a block.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.01",
+      "relevance": "plan",
+      "bearsOn": "A forest landscape plan, and its planning guidelines, apply to a forest operations plan whenever any part of the forest operations area lies inside the forest landscape area, so a block's location decides which landscape guidelines reach it.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No rule asks whether the block lies inside an established forest landscape area, which decides whether the FOP/planning-guideline regime or the FSP regime governs it.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Is any part of the cutblock or its roads inside the forest landscape area of an established forest landscape plan?"
+      ]
+    },
+    {
+      "n": "2.1",
+      "relevance": "tenure",
+      "bearsOn": "A first nations woodland licence is treated as a community forest agreement if its Crown land exceeds 1200 ha outside the Coast (800 ha on the Coast), otherwise as a woodlot licence, which changes which planning and practice rules reach a block on it.",
+      "review": "none",
+      "gapNote": "The first-nations-woodland-licence screen does not say which regime (community forest or woodlot) the licence falls under by area; a rule would compare the licence's Crown area with the 1200 ha threshold.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "2.2",
+      "relevance": "definitions",
+      "bearsOn": "Defines 'agreement', 'proposed cutblock' and 'proposed road' for Part 1.1; community forests and first nations woodland licences over 1200 ha (Interior) are agreements that need a forest operations plan.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.21",
+      "relevance": "plan",
+      "bearsOn": "The chief forester may establish a forest landscape plan for Crown land and private land under a Forest Act agreement, effective on Gazette notice; a forest landscape plan does not apply to woodlot licences.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Nothing to test beyond whether a plan is in effect for the block's area (see s. 2.01) and that woodlot blocks are outside the regime.",
+      "encodable": "spatial"
+    },
+    {
+      "n": "2.22",
+      "relevance": "plan",
+      "bearsOn": "Lists the objectives (timber supply, environment, Indigenous and community values, disturbance and forest health) the chief forester must consider in preparing a forest landscape plan; a government duty, not a block requirement.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Government preparation duty; nothing for a block rule to test.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "2.23",
+      "relevance": "admin",
+      "bearsOn": "Chief forester must consult and cooperate with affected Indigenous peoples before establishing a forest landscape plan; government process, not a block requirement.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.24",
+      "relevance": "admin",
+      "bearsOn": "Notice to Indigenous governing bodies and a 60-day window to set up a consultation process for a forest landscape plan; government process.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.25",
+      "relevance": "admin",
+      "bearsOn": "Fallback information-sharing, comment and consent steps with an Indigenous governing body when no process is agreed for a forest landscape plan; government process.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.26",
+      "relevance": "admin",
+      "bearsOn": "Dispute resolution facilitation between the chief forester and an Indigenous governing body over a forest landscape plan; government process.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.27",
+      "relevance": "admin",
+      "bearsOn": "Alternative dispute resolution process for forest landscape plan disputes; government process.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.28",
+      "relevance": "landscape",
+      "bearsOn": "A forest landscape plan sets outcomes and may include planning guidelines on where new cutblocks or roads should not go, limits on cutblock size or configuration, and practice, silvicultural system or stocking requirements for FOPs.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "Where a forest landscape plan is established, a rule would read its planning-guideline areas and cutblock size/configuration limits against the drawn block; no pack or screen carries planning guidelines.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Does an applicable forest landscape plan planning guideline say new cutblocks or roads should not be located where this block or road is drawn?",
+        "Does the block exceed a size or configuration limit set in an applicable forest landscape plan planning guideline?"
+      ]
+    },
+    {
+      "n": "2.29",
+      "relevance": "plan",
+      "bearsOn": "A forest landscape plan has a 10-year term, and a replacement plan displaces the earlier one for its area.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Only matters for confirming which landscape plan is in effect on the block's date.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "2.3",
+      "relevance": "admin",
+      "bearsOn": "Chief forester may extend a forest landscape plan by up to 5 years at a time; government process.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.31",
+      "relevance": "admin",
+      "bearsOn": "Chief forester must report every 5 years on achievement of forest landscape plan outcomes; government reporting.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.32",
+      "relevance": "admin",
+      "bearsOn": "Chief forester may order agreement holders or FOP holders to supply plans, studies or information for a forest landscape plan; administrative order power.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.33",
+      "relevance": "plan",
+      "bearsOn": "Agreement holders get notice of an order amending, extending or cancelling a forest landscape plan, and an FOP submitted before that notice is assessed as though the order had not been made.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Bears only on which version of a landscape plan an FOP submission is judged against.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "2.34",
+      "relevance": "admin",
+      "bearsOn": "Chief forester must keep and publish records of forest landscape plans and related orders and reports.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.35",
+      "relevance": "plan",
+      "bearsOn": "Inside a forest landscape area an agreement holder must not apply for a cutting or road permit, harvest or build road unless it holds an approved forest operations plan for the land (BCTS likewise), subject to exemptions for safety, seed, landing clean-up, small salvage and prescribed purposes.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No rule asks whether a block inside a forest landscape area is covered by an approved forest operations plan held by the proponent, or whether a s. 2.35(4)–(5) exemption applies.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Is the cutblock or road on land inside a forest landscape area, and does the proponent hold an approved forest operations plan that applies to that land?",
+        "Is the harvest or road only for a purpose FRPA s. 2.35(5) exempts (safety hazard, seed collection opening of 1 ha or less, removing felled trees from landings and rights of way, or 500 m³ or less of damaged timber)?"
+      ]
+    },
+    {
+      "n": "2.36",
+      "relevance": "plan",
+      "bearsOn": "A forest operations plan must specify the forest operations area, set practice, silvicultural system and stocking requirements, and map the approximate location of every cutblock and road the holder intends to apply for during its term, with nearby existing cutblocks and roads.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would check that the block and its road are shown on the approved FOP map and that the FOP states stocking standards for the area; the packs test FOP review periods only.",
+      "encodable": "document-check",
+      "proposedFacts": [
+        "Is the proposed cutblock shown at its approximate location on the approved forest operations plan map?",
+        "Is the proposed road shown on the approved forest operations plan map?"
+      ]
+    },
+    {
+      "n": "2.37",
+      "relevance": "plan",
+      "bearsOn": "If a proposed cutblock's location, size or configuration, or a proposed road's location, is inconsistent with an applicable planning guideline, the forest operations plan must state the reasons; a dropped guideline requirement needs a reason or a substitute.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would compare the drawn block with the planning guideline's areas and size/configuration limits and, where inconsistent, ask whether the FOP states reasons.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Is the cutblock's location, size or configuration inconsistent with an applicable planning guideline, and does the forest operations plan state the reasons for the inconsistency?"
+      ]
+    },
+    {
+      "n": "2.38",
+      "relevance": "plan",
+      "bearsOn": "Before submitting a forest operations plan or amendment, the holder must make reasonable efforts to engage affected Indigenous nations and make the plan publicly available for review and comment, then summarize both and the changes made.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.fppr@1.1.0:short-floor",
+        "bc.fppr@1.1.0:short-review"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The FPPR rules test the length of the public review period only; nothing records Indigenous engagement or the required summaries.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "2.39",
+      "relevance": "plan",
+      "bearsOn": "The minister may approve an FOP or amendment if it meets ss. 2.36–2.37, engagement and review were done and given sufficient consideration, and may require deactivation of the holder's roads as a condition in prescribed circumstances.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Ministerial approval test; a block depends on it only through the plan being approved.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "2.4",
+      "relevance": "plan",
+      "bearsOn": "An FOP inconsistent with a forest landscape plan can be approved only if the inconsistent part still supports the plan's outcomes; a cutblock located, sized or configured contrary to a planning guideline makes the FOP inconsistent.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would flag a block that is contrary to a planning guideline area or size/configuration limit as making the FOP inconsistent, needing the s. 2.4(1) case.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Is the proposed cutblock located in an area, or of a size or configuration, contrary to a planning guideline under FRPA s. 2.28(2)(a) or (b)?"
+      ]
+    },
+    {
+      "n": "2.41",
+      "relevance": "plan",
+      "bearsOn": "Parts of a proposed FOP that relate to a cutting permit, road permit, timber sale licence or contract logging authorization in effect on submission are deemed approved.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Would only matter for blocks already under permit when an FOP is submitted.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "2.42",
+      "relevance": "plan",
+      "bearsOn": "A forest operations plan's term is up to 5 years from the date the minister sets, and a replacement plan displaces it for its area.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A date check that the FOP is in term when the cutting permit is applied for.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "2.43",
+      "relevance": "plan",
+      "bearsOn": "The minister may extend an FOP's term by up to 1 year in prescribed circumstances, or up to 2 years where consultation on a replacement is unlikely to finish.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Bears only on whether an FOP is still in term.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "2.44",
+      "relevance": "plan",
+      "bearsOn": "An FOP amendment is not effective until the minister approves it, unless the regulations say otherwise.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.fppr@1.1.0:amendment"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The FPPR amendment rule tests the s. 4.44 effective date; nothing checks that a block added by amendment has an approved amendment.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "2.45",
+      "relevance": "plan",
+      "bearsOn": "An FOP holder must submit an amendment within 6 months when an enactment change affects the area of a proposed cutblock or road, or when the regulations require it.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Plan maintenance duty; a rule could ask whether an enactment change since approval affects the block's mapped location.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "2.46",
+      "relevance": "plan",
+      "bearsOn": "By December 31 each year an FOP holder must make public a forest development schedule showing each location where it intends to start harvesting or building road in the next calendar year, consistent with the FOP.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would check that a block or road starting in a given year appeared in the schedule published by the previous December 31.",
+      "encodable": "numeric",
+      "proposedFacts": [
+        "Was the location where harvesting or road construction will start shown in the forest development schedule made public by December 31 of the previous year?"
+      ]
+    },
+    {
+      "n": "2.47",
+      "relevance": "block",
+      "bearsOn": "An FOP holder must prepare a site level plan for a cutblock before harvesting starts (and for a road before harvesting for its construction) that is consistent with the forest landscape plan and FOP.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No rule asks whether a site level plan exists for the block before harvest or whether it is consistent with the FLP and FOP.",
+      "encodable": "document-check",
+      "proposedFacts": [
+        "Has a site level plan been prepared for the cutblock, before harvesting starts, that is consistent with the applicable forest landscape plan and forest operations plan?"
+      ]
+    },
+    {
+      "n": "2.48",
+      "relevance": "plan",
+      "bearsOn": "An FSP holder whose forest development unit falls in a new forest landscape area may keep operating under the FSP for one year after the landscape plan takes effect, or until its FOP is decided if submitted within 6 months.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Transitional; a rule would need the landscape plan's effective date and the FOP submission date.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "2.49",
+      "relevance": "plan",
+      "bearsOn": "Harvest and road construction under a cutting or road permit issued before an FSP expired (or before the holder left the FSP) is exempt from the FOP requirement.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Applies only to blocks already under permit at the FSP-to-FOP change.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "2.5",
+      "relevance": "admin",
+      "bearsOn": "Defines decision-making agreements under the Declaration on the Rights of Indigenous Peoples Act for Part 1.1 decisions.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.51",
+      "relevance": "admin",
+      "bearsOn": "Chief forester's forest landscape plan orders are exercised in accordance with any decision-making agreement.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.52",
+      "relevance": "admin",
+      "bearsOn": "Chief forester's information orders under s. 2.32 follow any decision-making agreement.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.53",
+      "relevance": "admin",
+      "bearsOn": "Minister's relief and exemption powers for FOPs follow any decision-making agreement.",
+      "review": "n/a"
+    },
+    {
+      "n": "2.54",
+      "relevance": "admin",
+      "bearsOn": "FOP approval, extension and condition powers follow any decision-making agreement, with the s. 2.39 and 2.4 criteria still applying and modified review rights.",
+      "review": "n/a"
+    },
+    {
+      "n": "3",
+      "relevance": "plan",
+      "bearsOn": "Outside a forest landscape area an agreement holder (forest licence, TFL, community forest, timber licence, major licence) must not apply for a cutting or road permit, harvest or build road unless it holds an approved FSP whose forest development unit contains the land; BCTS likewise.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "Whether the block lies in a forest development unit is the reviewer’s answer; no map layer of FSP forest development units is read.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Is the cutblock inside a forest development unit of an approved forest stewardship plan held by the agreement holder or timber sales manager?",
+        "Is each proposed road inside a forest development unit of that approved forest stewardship plan?"
+      ],
+      "coveredBy": [
+        "bc.forest-permits@1.0.0:fdu"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "plan",
+      "bearsOn": "An FSP holder may harvest or build road outside its forest development units, and no FSP is needed, only for safety hazards, seed collection (opening of 1 ha or less), removing felled trees from landings and rights of way, up to 500 m³ of threatened or treated timber, or prescribed purposes.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would test a claimed s. 4 exemption against its purposes, including the 1 ha opening and 500 m³ limits, for salvage blocks outside an FDU.",
+      "encodable": "numeric",
+      "proposedFacts": [
+        "Is the harvest outside a forest development unit only for a purpose FRPA s. 4(1) lists?",
+        "If the exemption relies on s. 4(1)(d), is the timber volume 500 m³ or less and has the minister formed the opinion that it is in danger of being lost or has been treated for pests?"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "plan",
+      "bearsOn": "An FSP must map its forest development units and specify intended results or strategies for each objective set by government and other objectives under the Act, consistent with those objectives and with the area's timber harvesting rights.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:fsp-ada-strategy",
+        "ground:legal-objective",
+        "ground:pg-biodiversity",
+        "ground:ogma",
+        "ground:visual-quality-objective",
+        "ground:omineca-ada-sra",
+        "ground:community-forest"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The screens say which objectives reach the block through the FSP and one rule asks about an ADA/SRA result; no rule asks which FSP result or strategy answers each objective under the block (biodiversity, VQO, soils, wildlife, water).",
+      "encodable": "document-check",
+      "proposedFacts": [
+        "Which result or strategy in the applicable forest stewardship plan addresses each objective set by government that overlaps the block?"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "plan",
+      "bearsOn": "An FSP's term is up to 5 years from the date the minister sets, extendable by up to 5 more years in circumstances set by regulation.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A date check that the FSP is in term when the cutting permit is applied for.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "7",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2019).",
+      "review": "n/a"
+    },
+    {
+      "n": "8",
+      "relevance": "plan",
+      "bearsOn": "An FSP holder must submit an amendment, generally within 6 months, when an enactment change or the establishment, variation or cancellation of an objective set by government affects a forest development unit, or when ordered after catastrophic damage.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could ask whether an objective established since FSP approval (e.g. a new order) affects the block's FDU without an amendment.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "9",
+      "relevance": "landscape",
+      "bearsOn": "In prescribed circumstances the minister may set proportional targets among FSP holders for sharing responsibility for results consistent with objectives set by government.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Only matters where a proportional target has been set; none is known in Omineca.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "10",
+      "relevance": "block",
+      "bearsOn": "Except in prescribed circumstances, an FSP holder must prepare a site plan for each cutblock before harvesting and for each road before harvesting for its construction, consistent with the FSP and Act, identifying how the FSP's results or strategies apply to the site.",
+      "review": "rule",
+      "coveredBy": [
+        "bc.forest-permits@1.0.0:site-plan"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2021).",
+      "review": "n/a"
+    },
+    {
+      "n": "12",
+      "relevance": "plan",
+      "bearsOn": "A woodlot licence holder must not apply for a cutting or road permit, harvest or build road without an approved woodlot licence plan that includes the land, and may obtain permits only consistent with that plan.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "The woodlot-licence screen flags the tenure but no rule asks whether an approved woodlot licence plan includes the block and the permit is consistent with it.",
+      "encodable": "document-check",
+      "proposedFacts": [
+        "Does an approved woodlot licence plan include the land where the woodlot block and its road are drawn?"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "plan",
+      "bearsOn": "A woodlot licence plan must map its result areas and state results or strategies for objectives, but need not be consistent with objectives on old forest retention, seral distribution, connectivity or temporal and spatial distribution of cutblocks.",
+      "review": "partial",
+      "gapPriority": "medium",
+      "gapNote": "The old-forest code takes woodlots out of the unit, but no rule tells the reviewer that a woodlot block is not held to old forest, seral or cutblock-distribution objectives (e.g. PG TSA Objective C).",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Is the block on a woodlot licence, so that old forest, seral stage, connectivity and cutblock distribution objectives need not be met by its plan?"
+      ]
+    },
+    {
+      "n": "14",
+      "relevance": "plan",
+      "bearsOn": "A woodlot licence plan runs 10 years and must be extended for another 10 if it conforms to prescribed requirements.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Date check that the woodlot licence plan is in term.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "15",
+      "relevance": "plan",
+      "bearsOn": "A woodlot licence plan holder must submit an amendment within 5 years after a new objective makes the plan inconsistent, except for areas already under cutting or road permits.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Plan maintenance; a rule could ask whether a newer objective covers the woodlot block without an amendment.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "15.1",
+      "relevance": "block",
+      "bearsOn": "Before applying for a cutting or road permit an FSP holder must publish a forest operations map showing the cutblock or road for review and comment, report on that review to government, and apply within 2 years (or a longer prescribed period) of publication.",
+      "review": "rule",
+      "coveredBy": [
+        "bc.forest-permits@1.0.0:fom"
+      ]
+    },
+    {
+      "n": "15.2",
+      "relevance": "block",
+      "bearsOn": "Before each operating period of at least 2 years, a timber sales manager must publish a forest operations map showing cutblocks for timber sale licences and contract logging, and roads to be built, for review and comment.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "For BCTS blocks, a rule would check the block was on the forest operations map published for the operating period it is offered in.",
+      "encodable": "document-check",
+      "proposedFacts": [
+        "For a BC Timber Sales block, was it shown on the forest operations map published before the operating period in which the licence will be advertised?"
+      ]
+    },
+    {
+      "n": "15.3",
+      "relevance": "plan",
+      "bearsOn": "The minister may exempt a person in writing from publishing a forest operations map when timber should be harvested without delay because it is in danger of being damaged, losing value or being lost.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could accept a written exemption in place of a forest operations map for salvage.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "16",
+      "relevance": "plan",
+      "bearsOn": "The minister must approve an FSP or amendment that meets s. 5 and the engagement and review requirements, but cannot approve one whose forest development unit is in a forest landscape area; plans are judged against law as it was 4 months before submission.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Approval test; a block depends on it only through the FSP being approved.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "17",
+      "relevance": "plan",
+      "bearsOn": "In prescribed circumstances the minister may approve an FSP, WLP or amendment that does not comply with s. 16 when timber must be harvested without delay.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Emergency approval; rare.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "18",
+      "relevance": "plan",
+      "bearsOn": "Before submitting an FSP or amendment the holder must make reasonable efforts to engage affected Indigenous nations and make it publicly available for review and comment, then summarize both and the changes made.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Plan-level process; a block depends on it only through the FSP being approved.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "19",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2021).",
+      "review": "n/a"
+    },
+    {
+      "n": "20",
+      "relevance": "plan",
+      "bearsOn": "An FSP or woodlot plan amendment that does not materially change its results or strategies (or meets prescribed requirements) needs no approval, but the district manager must get a copy.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Only matters if a block relies on a minor amendment to an FDU or result.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "20.1",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2021).",
+      "review": "n/a"
+    },
+    {
+      "n": "20.2",
+      "relevance": "definitions",
+      "bearsOn": "Defines licence area, permit area and plan area for Part 2.1.",
+      "review": "n/a"
+    },
+    {
+      "n": "20.21",
+      "relevance": "block",
+      "bearsOn": "The holder of a forest operations plan must comply with its requirements, and the obligation continues after the plan expires or the holder is removed unless a replacement plan names a replacement requirement.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:restricted-activity"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "Only the grazing pack asks, generally, whether a plan clause restricts the activity; no rule lists the FOP requirements (practices, silvicultural systems, stocking) that apply to the block.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Which requirements of the applicable forest operations plan apply to this cutblock and its roads, and does the design meet each?"
+      ]
+    },
+    {
+      "n": "20.22",
+      "relevance": "block",
+      "bearsOn": "The holder of an FSP or woodlot licence plan must achieve the plan's intended results, carry out its strategies and comply with related provisions, and the obligation continues after expiry unless a replacement plan replaces it.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:restricted-activity",
+        "bc.crown-grazing@1.0.0:fsp-ada-strategy",
+        "ground:legal-objective",
+        "ground:pg-biodiversity",
+        "ground:ogma",
+        "ground:visual-quality-objective",
+        "ground:omineca-ada-sra"
+      ],
+      "gapPriority": "high",
+      "gapNote": "Two grazing-pack questions ask about a restricting clause or an ADA/SRA strategy and screens cite the provision, but no rule asks which FSP results and strategies govern an ordinary block (e.g. its cutblock size, adjacency, VQO, wildlife tree or stocking results).",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Which intended results and strategies in the applicable forest stewardship plan apply to this cutblock, and does the block design achieve or carry out each?",
+        "Has the forest stewardship plan that applies to this area expired or been replaced, and which plan's results continue to bind the block?"
+      ]
+    },
+    {
+      "n": "20.23",
+      "relevance": "plan",
+      "bearsOn": "The FOP, FSP or woodlot plan as it read when a cutting or road permit was issued (or a timber sale licence advertised) keeps applying to that permit area despite later amendment, replacement or expiry.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule would need the permit issue date to fix which plan version governs the block; proposed blocks take the current plan.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "20.24",
+      "relevance": "plan",
+      "bearsOn": "Mandatory amendment duties do not apply to plan areas under a cutting or road permit, timber sale licence or contract logging authorization, or with a minister-built BCTS road.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Affects only whether a plan amendment is owed for a permitted area.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "20.25",
+      "relevance": "plan",
+      "bearsOn": "FOPs, FSPs, woodlot licence plans, site level plans and site plans must be made publicly available (BCTS on a ministry website).",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Paperwork; a rule could check the site plan for the block is publicly available.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "20.26",
+      "relevance": "admin",
+      "bearsOn": "Adding or removing a party to an approved FOP, FSP or woodlot plan needs an approved amendment; an FOP is generally held by one person and a WLP only by the woodlot holder.",
+      "review": "n/a"
+    },
+    {
+      "n": "20.27",
+      "relevance": "admin",
+      "bearsOn": "Plan approvals do not affect the minister's discretion to build roads to access timber sale licences and contract logging authorizations.",
+      "review": "n/a"
+    },
+    {
+      "n": "21",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2021).",
+      "review": "n/a"
+    },
+    {
+      "n": "21.1",
+      "relevance": "definitions",
+      "bearsOn": "Defines forest resource road, modify, significant road work (including connecting a road to a forest service road), road prism and the default right of way of 37.5 m either side of a road's centre line.",
+      "review": "n/a"
+    },
+    {
+      "n": "22",
+      "relevance": "roads",
+      "bearsOn": "A forest service road or forest resource road must be used, built, maintained and deactivated only in accordance with the Act, regulations, standards and any applicable FOP, FSP or woodlot licence plan.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "Only the FPPR community-watershed notice rule touches road work; no rule tests the block's access road against the road construction, maintenance and deactivation requirements this section imports.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Will the block's new or modified road be built, maintained and deactivated to the requirements of the regulations and the applicable forest stewardship or operations plan?"
+      ]
+    },
+    {
+      "n": "22.1",
+      "relevance": "roads",
+      "bearsOn": "Using a forest service road for timber harvesting, silviculture or other resource development requires a road use permit or a minister's exemption (range operations excepted).",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No rule asks whether the block's haul or access route uses a forest service road and whether a road use permit or exemption is held.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Does the haul or access route for this block use a forest service road?",
+        "Does the operator hold a road use permit, or a minister's exemption, for that forest service road?"
+      ]
+    },
+    {
+      "n": "22.11",
+      "relevance": "roads",
+      "bearsOn": "Using a forest resource road for timber harvesting or silviculture requires authority under a road permit, cutting permit, woodlot licence, timber sale licence or licence to cut, the road's authorization under another person's permit, or an exemption.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask whether each non-FSR road on the haul route is authorized under the operator's or another holder's permit, or an exemption.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Is each forest resource road on the block's access route authorized under the operator's road permit, cutting permit or licence, or under another holder's permit?"
+      ]
+    },
+    {
+      "n": "22.12",
+      "relevance": "roads",
+      "bearsOn": "A person intending to use a forest service road, or a road under another holder's permit or licence, for harvesting, silviculture or resource development must notify the minister or that holder at least 6 days before starting.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No rule records the notice to the minister or road permit holder or checks the 6-day lead time.",
+      "encodable": "numeric",
+      "proposedFacts": [
+        "Was notice of road use given to the minister (for a forest service road) or to the road's permit or licence holder at least 6 days before use begins?"
+      ]
+    },
+    {
+      "n": "22.2",
+      "relevance": "roads",
+      "bearsOn": "Forest service roads and roads under road permits or woodlot licences may be used free for non-industrial purposes, and the district manager or holder may close or restrict use for damage, sediment or safety.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Bears on public access and closures of the block's road, not on whether the block may proceed.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "22.3",
+      "relevance": "roads",
+      "bearsOn": "The person responsible for maintaining a road may by written notice require industrial users to pay a reasonable maintenance contribution, modification cost or damage repair, with disputes to agreed resolution or arbitration.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Cost-sharing on the haul route; not a block screen.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "23",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2021).",
+      "review": "n/a"
+    },
+    {
+      "n": "23.1",
+      "relevance": "roads",
+      "bearsOn": "Significant road work on a forest service road, including connecting a road to it or building works in its prism or right of way, requires the minister's authorization or authority under the regulations.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No rule asks whether the block's new road connects to or works within a forest service road and whether s. 23.1 authorization is held; the road designer knows where roads join.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Will the block's road connect to a forest service road, or modify or build works within its road prism or right of way?",
+        "Is a minister's authorization for that significant road work held, or does a regulation authorize it?"
+      ]
+    },
+    {
+      "n": "23.2",
+      "relevance": "roads",
+      "bearsOn": "The minister may order a Forest Act agreement holder to deactivate a road it was authorized to build, by a stated date.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Reactive order; only matters if an order affects the block's access road.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "23.3",
+      "relevance": "roads",
+      "bearsOn": "The minister may exempt an agreement holder from road deactivation requirements after considering public safety, health and environment, social and resource values and community impacts.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Exemption only; no screen needed.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "24",
+      "relevance": "admin",
+      "bearsOn": "Public money spent on forest roads does not make them public highways under the Transportation Act or common law.",
+      "review": "n/a"
+    },
+    {
+      "n": "25",
+      "relevance": "silviculture",
+      "bearsOn": "The minister may exempt a person in writing from specified provisions so that a course of action to limit or mitigate forest pests can be followed.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A sanitation exemption would change which practice rules apply to a pest-control block; a rule could ask whether one is held.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "26",
+      "relevance": "silviculture",
+      "bearsOn": "The minister may require a private owner or an operational plan holder to propose and carry out measures to control insects, disease, animals or abiotic damage, and may exempt them from Act, agreement, cutting permit and plan provisions to do so.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Ministerial forest-health orders; a block harvested under one may be exempt from other rules, which a reviewer question could capture.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "27",
+      "relevance": "silviculture",
+      "bearsOn": "Cabinet may designate a forest health emergency management area and the minister may order licensees or BCTS to carry out measures there, with exemptions where compliance would prevent the measures.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Applies only inside a designated emergency area; a rule could ask whether the block is harvested under such an order.",
+      "encodable": "spatial"
+    },
+    {
+      "n": "28",
+      "relevance": "admin",
+      "bearsOn": "Trees established on Crown land under ss. 29–30 belong to the government.",
+      "review": "n/a"
+    },
+    {
+      "n": "29",
+      "relevance": "silviculture",
+      "bearsOn": "An agreement holder harvesting under an FOP or FSP, a timber sales manager, and a woodlot licence holder must establish a free growing stand on the net area to be reforested of the harvest, in accordance with the plan, prescribed requirements and standards.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:free-growing",
+        "bc.crown-grazing@1.0.0:nar-reserved",
+        "bc.crown-grazing@1.0.0:permanent-grazing-opening",
+        "bc.crown-grazing@1.0.0:cannot-reforest-ada-sra",
+        "bc.crown-grazing@1.0.0:ministerial-exemption",
+        "bc.crown-grazing@1.0.0:intermediate-cut-stocking",
+        "bc.crown-grazing@1.0.0:exclusive-range",
+        "ground:woodlot-licence",
+        "ground:private-land"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The crown-grazing pack confirms whether the duty applies and what relieves it, but no rule reads the plan's stocking standard, regeneration date or free growing date for the block's net area to be reforested.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Which stocking standard, regeneration date and free growing height from the applicable forest stewardship or operations plan apply to the block's net area to be reforested?",
+        "Is the planned regeneration method (planting or natural) expected to meet that standard by the regeneration date?"
+      ]
+    },
+    {
+      "n": "29.1",
+      "relevance": "silviculture",
+      "bearsOn": "A free growing obligation may be transferred to another person only by written agreement that meets prescribed requirements, includes the stocking requirements and is approved by the minister.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Bears on who carries the reforestation duty, not on the block design.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "30",
+      "relevance": "silviculture",
+      "bearsOn": "Holders of non-replaceable licences (timber licence, licence to cut, non-replaceable forest, woodlot or timber sale licences) may ask the government to assume the free growing obligation after harvest on payment of the estimated cost.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Bears on who carries the reforestation duty for non-replaceable licences only.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "31",
+      "relevance": "silviculture",
+      "bearsOn": "Seed used to establish a free growing stand must conform to prescribed requirements.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Seed transfer and registration are operational; a rule could ask whether registered seed within transfer limits will be used.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "31.1",
+      "relevance": "silviculture",
+      "bearsOn": "In prescribed circumstances the chief forester may order an FSP holder to follow stocking standards set out in the order instead of those in the plan or regulations.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Only matters where such an order exists; a rule could ask which stocking standard governs.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "32",
+      "relevance": "range",
+      "bearsOn": "A Range Act grazing or hay holder must have an approved range use plan (or range stewardship plan) covering the area before grazing livestock or cutting hay on Crown range.",
+      "review": "rule",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:range-plan",
+        "ground:range-tenure"
+      ]
+    },
+    {
+      "n": "33",
+      "relevance": "range",
+      "bearsOn": "A range use plan for grazing must map the agreement area, range developments and pastures, schedule livestock class, numbers and period of use per pasture, and be consistent with objectives set by government.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:range-plan",
+        "ground:legal-objective",
+        "ground:ogma",
+        "ground:visual-quality-objective"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The range-plan rule tells the reviewer to read the plan; nothing compares the plan's pastures, developments or periods of use with the block's harvest and regeneration timing.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "34",
+      "relevance": "range",
+      "bearsOn": "A range use plan for hay cutting must map the hay areas and range developments and schedule stubble height and cutting periods.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:range-plan"
+      ],
+      "gapPriority": "low",
+      "gapNote": "Hay-cutting areas are rarely in cutblocks; the range-plan rule only points to the plan.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "35",
+      "relevance": "range",
+      "bearsOn": "A range stewardship plan must map the agreement area, range developments and pastures, state actions on issues identified by the minister, and may set results or strategies for competent holders.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:range-plan"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The range-plan rule only points to the plan; it does not read its developments or pastures against the block.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "36",
+      "relevance": "range",
+      "bearsOn": "Range use and range stewardship plans run up to 5 years and may be extended by up to 5 more.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Date check that the range plan read for the block is in term.",
+      "encodable": "numeric"
+    },
+    {
+      "n": "37",
+      "relevance": "range",
+      "bearsOn": "The minister must approve a range use or stewardship plan consistent with its Range Act agreement and conforming to the Act, judged against the law 4 months before submission.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Approval test for range plans; not a block requirement.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "38",
+      "relevance": "range",
+      "bearsOn": "Range plan holders must keep their actions sufficient to deal with the minister's issues or achieve their results, amend when they are not, and amend when ordered for prescribed circumstances.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Range plan maintenance; a harvest that changes forage or barriers might prompt an amendment, but that is the range holder's duty.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "39",
+      "relevance": "range",
+      "bearsOn": "At a range holder's request the minister may order other range holders to amend plans that prevent the requester exercising its rights.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Between range holders only.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "40",
+      "relevance": "range",
+      "bearsOn": "A range plan amendment that conforms to the Act and does not materially affect its intended results needs no approval.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Range plan administration.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "41",
+      "relevance": "range",
+      "bearsOn": "In prescribed circumstances a range plan or amendment must be made available for review and comment before submission, with an exception for temporary permits.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A forest licensee may comment on a range plan; nothing for a block rule to test.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "42",
+      "relevance": "range",
+      "bearsOn": "In prescribed circumstances the minister may set proportional targets among range plan holders for achieving objectives set by government.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Only where targets are set.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "43",
+      "relevance": "range",
+      "bearsOn": "A range stewardship plan holder must prepare a yearly grazing schedule (livestock class, numbers and period of use per area) and submit it before grazing.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A reviewer could use the grazing schedule to time harvest and planting around livestock use; low priority.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "44",
+      "relevance": "range",
+      "bearsOn": "A person who prepared a grazing schedule must make it available on request.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "The planner could note that the schedule can be requested; nothing to test.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "45",
+      "relevance": "range",
+      "bearsOn": "Grazing, hay cutting and range developments on Crown range must follow the Act and the applicable range plan, and authorized livestock must be branded or marked.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "The range holder's duty; bears on a block only through livestock on regenerating ground, which RPPR s. 44 covers.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "46",
+      "relevance": "block",
+      "bearsOn": "A person must not carry out a forest practice that damages the environment unless acting under a plan, permit or exemption and not knowing, and unable reasonably to know, that weather or site factors may cause damage specified by regulation; damage must be stopped, reported and remedied.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No rule asks whether weather or site factors at the block (unstable terrain, wet soils, stream crossings) make prescribed environmental damage foreseeable.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Could weather conditions or site factors at this block or road (such as unstable terrain, saturated soils or high stream flows) foreseeably lead to damage to the environment as specified by regulation?"
+      ]
+    },
+    {
+      "n": "47",
+      "relevance": "block",
+      "bearsOn": "A person carrying out a forest practice must carry out the invasive plant measures specified in the operational plan or authorized by the minister, and the duty survives plan expiry for permitted areas.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could ask whether the FSP's invasive plant measures are planned for the block's roads and landings.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "48",
+      "relevance": "range",
+      "bearsOn": "A forest practice that removes or renders ineffective a natural range barrier must be followed by the mitigation specified in the operational plan or authorized by the minister.",
+      "review": "rule",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:natural-barrier",
+        "ground:range-tenure"
+      ]
+    },
+    {
+      "n": "49",
+      "relevance": "enforcement",
+      "bearsOn": "Acts reasonably necessary to control a fire are not contraventions unless an official has declared the fire under control.",
+      "review": "n/a"
+    },
+    {
+      "n": "50",
+      "relevance": "enforcement",
+      "bearsOn": "Prohibits grazing livestock or cutting hay on Crown range without a Range Act agreement or authority under the regulations.",
+      "review": "n/a"
+    },
+    {
+      "n": "51",
+      "relevance": "range",
+      "bearsOn": "Unless authorized in writing by the minister, a person must not build, modify, remove, damage or destroy a range development (fence, cattle guard, water development) on Crown range.",
+      "review": "rule",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:range-development",
+        "ground:range-tenure"
+      ]
+    },
+    {
+      "n": "52",
+      "relevance": "block",
+      "bearsOn": "A person must not cut, damage, destroy or remove Crown timber without authority under the Act, the Forest Act or an agreement, a minister's authorization, the Wildfire Act, a Land Act grant, the Park Act or the regulations.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No rule checks that every part of the drawn block and its road right of way lies inside an area where cutting is authorized (cutting permit, road permit, licence) rather than on Crown land outside it.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Does every part of the cutblock and its road right of way lie inside the area of a cutting permit, road permit, timber sale licence or other authorization to cut Crown timber?"
+      ]
+    },
+    {
+      "n": "52.1",
+      "relevance": "silviculture",
+      "bearsOn": "The minister may require review and comment, set conditions and take security before authorizing Crown timber to be cut for silviculture, stand tending, forest health or fire hazard abatement, and the holder must meet the conditions.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Only for treatments done under a s. 52(1)(b) authorization rather than a cutting permit.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "53",
+      "relevance": "block",
+      "bearsOn": "Before timber is cut or removed from private land next to Crown land, the owner must tell the operator the boundaries and the operator must ascertain them.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:private-land"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The private-land screen shows the parcel but no rule asks whether the private–Crown boundary has been ascertained before cutting.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "54",
+      "relevance": "enforcement",
+      "bearsOn": "Building or occupying a structure on Crown land in a Provincial forest needs the minister's consent unless another enactment authorizes it, with removal orders for contraventions.",
+      "review": "n/a"
+    },
+    {
+      "n": "55",
+      "relevance": "enforcement",
+      "bearsOn": "Prohibits tree spiking and soliciting it.",
+      "review": "n/a"
+    },
+    {
+      "n": "56",
+      "relevance": "block",
+      "bearsOn": "The minister may establish, vary or disestablish interpretive forest sites, recreation sites, recreation trails and trail-based recreation areas on Crown land and set objectives for them, consistent with objectives set by government.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:recreation-site",
+        "ground:recreation-trail"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The screens show a recreation site or trail under the block, but no rule asks whether an objective has been set for it under s. 56(3) or how the FSP addresses it.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Does the block or its road overlap or adjoin an established recreation site, recreation trail, interpretive forest site or trail-based recreation area?",
+        "Has the minister established an objective for that site or trail under FRPA s. 56(3), and does the plan address it?"
+      ]
+    },
+    {
+      "n": "57",
+      "relevance": "roads",
+      "bearsOn": "Unless authorized in writing, a person must not construct, rehabilitate or maintain a trail or other recreation facility on Crown land.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:recreation-site",
+        "ground:recreation-trail"
+      ],
+      "gapPriority": "low",
+      "gapNote": "Bears on a block only if harvest roads or works would rehabilitate or rebuild a recreation trail or facility; the screens cite it.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "58",
+      "relevance": "block",
+      "bearsOn": "To protect a recreation or range resource the minister may by posted order restrict or prohibit non-recreational use (such as harvesting) of recreation sites, trails, interpretive forest sites and Code recreation zones.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:recreation-site",
+        "ground:recreation-trail",
+        "ground:range-tenure"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The screens cite s. 58 but no rule asks whether an order restricting non-recreational use applies where the block or road is drawn.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Is there a FRPA s. 58 order restricting or prohibiting non-recreational use (such as timber harvesting or road use) at the recreation site, trail or area the block affects?"
+      ]
+    },
+    {
+      "n": "58.1",
+      "relevance": "definitions",
+      "bearsOn": "Defines 'Acts' for Part 6 as FRPA, the Forest Act, the Range Act and their regulations, and listed Code provisions.",
+      "review": "n/a"
+    },
+    {
+      "n": "58.2",
+      "relevance": "enforcement",
+      "bearsOn": "Applies FRPA's Part 6 compliance provisions, with Code penalties, to Forest Practices Code contraventions before January 31, 2004.",
+      "review": "n/a"
+    },
+    {
+      "n": "59",
+      "relevance": "enforcement",
+      "bearsOn": "Officials may enter land and premises (not dwellings) to inspect forest and range practices and require plans, permits and records.",
+      "review": "n/a"
+    },
+    {
+      "n": "60",
+      "relevance": "enforcement",
+      "bearsOn": "Officials and peace officers may stop and inspect vehicles or vessels carrying timber, seed, hay or botanical products.",
+      "review": "n/a"
+    },
+    {
+      "n": "61",
+      "relevance": "enforcement",
+      "bearsOn": "The minister may order agreement holders to produce records, and officials may inspect business records.",
+      "review": "n/a"
+    },
+    {
+      "n": "62",
+      "relevance": "enforcement",
+      "bearsOn": "Officials must show identification when inspecting or seizing.",
+      "review": "n/a"
+    },
+    {
+      "n": "63",
+      "relevance": "enforcement",
+      "bearsOn": "Vehicle operators must stop when required, and inspected persons must produce identification, plans, permits and records.",
+      "review": "n/a"
+    },
+    {
+      "n": "64",
+      "relevance": "enforcement",
+      "bearsOn": "A justice may issue Offence Act warrants to search for and seize evidence of contraventions.",
+      "review": "n/a"
+    },
+    {
+      "n": "65",
+      "relevance": "enforcement",
+      "bearsOn": "Peace officers may accompany officials.",
+      "review": "n/a"
+    },
+    {
+      "n": "66",
+      "relevance": "enforcement",
+      "bearsOn": "An official may order work to stop until a required licence, permit, plan, approval or exemption is obtained.",
+      "review": "n/a"
+    },
+    {
+      "n": "67",
+      "relevance": "enforcement",
+      "bearsOn": "Officials may seize unlawfully cut timber, timber products, seed, hay, botanical products and vehicles, with sale and proceeds rules.",
+      "review": "n/a"
+    },
+    {
+      "n": "68",
+      "relevance": "enforcement",
+      "bearsOn": "Officials may drive off, seize, sell or destroy livestock grazing without authority.",
+      "review": "n/a"
+    },
+    {
+      "n": "69",
+      "relevance": "enforcement",
+      "bearsOn": "The minister may release seized things, and a purchaser at a seizure sale takes clear title.",
+      "review": "n/a"
+    },
+    {
+      "n": "70",
+      "relevance": "enforcement",
+      "bearsOn": "Prohibits interfering with a posted seizure notice.",
+      "review": "n/a"
+    },
+    {
+      "n": "70.1",
+      "relevance": "enforcement",
+      "bearsOn": "Defines remedial action (including re-establishing a free growing stand) and remedial work orders for Division 3 of Part 6.",
+      "review": "n/a"
+    },
+    {
+      "n": "71",
+      "relevance": "enforcement",
+      "bearsOn": "After notice and a hearing, the minister may determine whether a person contravened the Acts.",
+      "review": "n/a"
+    },
+    {
+      "n": "72",
+      "relevance": "enforcement",
+      "bearsOn": "Due diligence, mistake of fact and officially induced error are defences to an administrative determination.",
+      "review": "n/a"
+    },
+    {
+      "n": "73",
+      "relevance": "enforcement",
+      "bearsOn": "A person is liable for contraventions by its contractors, employees and agents, and directors for corporate contraventions.",
+      "review": "n/a"
+    },
+    {
+      "n": "74",
+      "relevance": "enforcement",
+      "bearsOn": "The minister may impose administrative penalties after considering listed factors.",
+      "review": "n/a"
+    },
+    {
+      "n": "74.1",
+      "relevance": "enforcement",
+      "bearsOn": "Content of a notice of administrative penalty.",
+      "review": "n/a"
+    },
+    {
+      "n": "74.2",
+      "relevance": "enforcement",
+      "bearsOn": "The minister may order a contravener to carry out remedial action, such as re-establishing a free growing stand.",
+      "review": "n/a"
+    },
+    {
+      "n": "74.3",
+      "relevance": "enforcement",
+      "bearsOn": "Content of a notice of remedial work order.",
+      "review": "n/a"
+    },
+    {
+      "n": "74.4",
+      "relevance": "enforcement",
+      "bearsOn": "Consequences of not complying with a remedial work order, including government doing the work and realizing security.",
+      "review": "n/a"
+    },
+    {
+      "n": "74.5",
+      "relevance": "enforcement",
+      "bearsOn": "Notices following non-compliance with a remedial work order.",
+      "review": "n/a"
+    },
+    {
+      "n": "74.6",
+      "relevance": "enforcement",
+      "bearsOn": "The minister may order a contravener to pay the cost of remedial action.",
+      "review": "n/a"
+    },
+    {
+      "n": "74.7",
+      "relevance": "enforcement",
+      "bearsOn": "Content of a notice of remedial cost recovery order.",
+      "review": "n/a"
+    },
+    {
+      "n": "74.8",
+      "relevance": "enforcement",
+      "bearsOn": "Penalty and remedial order revenue goes to the Environmental Remediation Sub-account.",
+      "review": "n/a"
+    },
+    {
+      "n": "75",
+      "relevance": "enforcement",
+      "bearsOn": "Three-year limitation for notice of an alleged contravention.",
+      "review": "n/a"
+    },
+    {
+      "n": "76",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2004).",
+      "review": "n/a"
+    },
+    {
+      "n": "76.1",
+      "relevance": "enforcement",
+      "bearsOn": "Penalties under review or appeal fall due when the stay ends.",
+      "review": "n/a"
+    },
+    {
+      "n": "77",
+      "relevance": "enforcement",
+      "bearsOn": "The minister may order an agreement holder to remedy, mitigate or stop an act that will likely contravene the Acts and cause catastrophic harm, loss of a free growing stand or environmental harm, and may stop beetle-infested timber transport.",
+      "review": "n/a"
+    },
+    {
+      "n": "77.1",
+      "relevance": "enforcement",
+      "bearsOn": "If new information shows a plan or exempt practice will likely infringe aboriginal rights or title, the minister may vary or suspend the plan, practice, cutting permit or road permit.",
+      "review": "n/a"
+    },
+    {
+      "n": "78",
+      "relevance": "enforcement",
+      "bearsOn": "Determinations are stayed until review and appeal rights are exhausted, unless ordered otherwise.",
+      "review": "n/a"
+    },
+    {
+      "n": "79",
+      "relevance": "enforcement",
+      "bearsOn": "Correction of errors in determinations within 15 days.",
+      "review": "n/a"
+    },
+    {
+      "n": "80",
+      "relevance": "enforcement",
+      "bearsOn": "Review of determinations on new evidence, requested within 3 weeks.",
+      "review": "n/a"
+    },
+    {
+      "n": "81",
+      "relevance": "enforcement",
+      "bearsOn": "The Forest Practices Board may require a review of certain determinations with the person's consent.",
+      "review": "n/a"
+    },
+    {
+      "n": "82",
+      "relevance": "enforcement",
+      "bearsOn": "Appeals of determinations to the Forest Appeals Commission.",
+      "review": "n/a"
+    },
+    {
+      "n": "83",
+      "relevance": "enforcement",
+      "bearsOn": "Board appeals to the commission and applications for an order to make a determination.",
+      "review": "n/a"
+    },
+    {
+      "n": "83.1",
+      "relevance": "enforcement",
+      "bearsOn": "Applies Administrative Tribunals Act s. 33 to appeals.",
+      "review": "n/a"
+    },
+    {
+      "n": "84",
+      "relevance": "enforcement",
+      "bearsOn": "Powers of the commission on appeal.",
+      "review": "n/a"
+    },
+    {
+      "n": "85",
+      "relevance": "enforcement",
+      "bearsOn": "The minister must publish an annual enforcement report and keep licensee performance records.",
+      "review": "n/a"
+    },
+    {
+      "n": "86",
+      "relevance": "enforcement",
+      "bearsOn": "Three-year limitation for laying an information.",
+      "review": "n/a"
+    },
+    {
+      "n": "87",
+      "relevance": "enforcement",
+      "bearsOn": "Offences and maximum fines and imprisonment for contraventions of listed sections, including ss. 2.35, 3, 20.21, 20.22, 22, 29, 46 and 52.",
+      "review": "n/a"
+    },
+    {
+      "n": "88",
+      "relevance": "enforcement",
+      "bearsOn": "Offence proceedings do not relieve other liability or displace other remedies.",
+      "review": "n/a"
+    },
+    {
+      "n": "89",
+      "relevance": "enforcement",
+      "bearsOn": "Government may not pursue both an offence and an administrative penalty for the same contravention.",
+      "review": "n/a"
+    },
+    {
+      "n": "90",
+      "relevance": "enforcement",
+      "bearsOn": "The minister may apply to the Supreme Court to enforce listed orders.",
+      "review": "n/a"
+    },
+    {
+      "n": "91",
+      "relevance": "enforcement",
+      "bearsOn": "A court may order a convicted person to comply.",
+      "review": "n/a"
+    },
+    {
+      "n": "92",
+      "relevance": "enforcement",
+      "bearsOn": "A court may order compensation or restitution.",
+      "review": "n/a"
+    },
+    {
+      "n": "93",
+      "relevance": "enforcement",
+      "bearsOn": "Continuing offences are separate offences each day.",
+      "review": "n/a"
+    },
+    {
+      "n": "94",
+      "relevance": "enforcement",
+      "bearsOn": "Not knowing private land boundaries is no defence to unauthorized Crown timber cutting.",
+      "review": "n/a"
+    },
+    {
+      "n": "95",
+      "relevance": "enforcement",
+      "bearsOn": "Not knowing private land boundaries is no defence to unauthorized grazing or hay cutting.",
+      "review": "n/a"
+    },
+    {
+      "n": "96",
+      "relevance": "enforcement",
+      "bearsOn": "Not knowing land boundaries is no defence to unauthorized trail or facility construction.",
+      "review": "n/a"
+    },
+    {
+      "n": "97",
+      "relevance": "enforcement",
+      "bearsOn": "Prohibits interfering with or misleading officials, and lets the minister cancel a plan or permit obtained by misleading.",
+      "review": "n/a"
+    },
+    {
+      "n": "98",
+      "relevance": "enforcement",
+      "bearsOn": "Additional court orders on conviction.",
+      "review": "n/a"
+    },
+    {
+      "n": "99",
+      "relevance": "enforcement",
+      "bearsOn": "Fines may be increased by the monetary benefit gained.",
+      "review": "n/a"
+    },
+    {
+      "n": "100",
+      "relevance": "enforcement",
+      "bearsOn": "Employers are liable for offences by contractors, employees and agents.",
+      "review": "n/a"
+    },
+    {
+      "n": "101",
+      "relevance": "enforcement",
+      "bearsOn": "Due diligence, mistake of fact and officially induced error are defences to prosecution.",
+      "review": "n/a"
+    },
+    {
+      "n": "102",
+      "relevance": "enforcement",
+      "bearsOn": "Directors and officers who authorize a corporate offence also commit it.",
+      "review": "n/a"
+    },
+    {
+      "n": "103",
+      "relevance": "enforcement",
+      "bearsOn": "Section 5 of the Offence Act does not apply.",
+      "review": "n/a"
+    },
+    {
+      "n": "103.1",
+      "relevance": "enforcement",
+      "bearsOn": "The minister may disclose information about contraveners and sanctions.",
+      "review": "n/a"
+    },
+    {
+      "n": "104",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2003).",
+      "review": "n/a"
+    },
+    {
+      "n": "105",
+      "relevance": "admin",
+      "bearsOn": "Board, commission and council proceedings and reports are privileged for libel and slander.",
+      "review": "n/a"
+    },
+    {
+      "n": "106",
+      "relevance": "enforcement",
+      "bearsOn": "Persons are liable to government for control costs, damaged timber and forage, and the market value of unauthorized cutting.",
+      "review": "n/a"
+    },
+    {
+      "n": "106.1",
+      "relevance": "definitions",
+      "bearsOn": "For ss. 107–108, 'operational plan' includes forest development plans, logging plans, range use plans and site level plans under Part 11.",
+      "review": "n/a"
+    },
+    {
+      "n": "107",
+      "relevance": "silviculture",
+      "bearsOn": "An agreement holder must submit a signed declaration naming the cutblocks when it has met a free growing obligation (and prescribed road deactivation), which is deemed fulfilled unless the minister finds otherwise within the prescribed period.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Post-harvest paperwork; a planner may want the free growing declaration status of adjacent blocks, but no screen reads it.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "108",
+      "relevance": "silviculture",
+      "bearsOn": "The minister must relieve, or for free growing may fund, an obligation that a damaging event (not caused by the holder) makes significantly more expensive.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Bears on reforestation after fire or pests, not on the block design.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "108.1",
+      "relevance": "admin",
+      "bearsOn": "Not in force; no text.",
+      "review": "n/a"
+    },
+    {
+      "n": "108.2",
+      "relevance": "silviculture",
+      "bearsOn": "The minister may designate wildfire or prescribed natural-event areas as areas of catastrophic damage and relieve free growing obligations there, with conditions.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Large Omineca fire areas may be designated; a rule could flag a block inside one where reforestation obligations may differ.",
+      "encodable": "spatial"
+    },
+    {
+      "n": "108.3",
+      "relevance": "silviculture",
+      "bearsOn": "A person with a free growing obligation in an area of catastrophic damage may apply for relief, if completing it is not practicable, or for funding to restore the stand.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Reforestation relief only.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "108.4",
+      "relevance": "silviculture",
+      "bearsOn": "The minister may set a reforestation plan for an area of catastrophic damage and let an obligation holder establish its free growing stand at a different location within it.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Could move a block's reforestation duty elsewhere in a burned area; rare.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "108.5",
+      "relevance": "admin",
+      "bearsOn": "Conditions and recovery for free growing funding granted under ss. 108, 108.3 and 108.4.",
+      "review": "n/a"
+    },
+    {
+      "n": "108.6",
+      "relevance": "admin",
+      "bearsOn": "Money paid as a condition of free growing relief goes to the Silviculture Payments Sub-account.",
+      "review": "n/a"
+    },
+    {
+      "n": "109",
+      "relevance": "admin",
+      "bearsOn": "Confidentiality of information obtained under the Act.",
+      "review": "n/a"
+    },
+    {
+      "n": "110",
+      "relevance": "admin",
+      "bearsOn": "How notices may be given.",
+      "review": "n/a"
+    },
+    {
+      "n": "110.1",
+      "relevance": "admin",
+      "bearsOn": "Information submitted to government for an approval must be complete and accurate.",
+      "review": "n/a"
+    },
+    {
+      "n": "111",
+      "relevance": "admin",
+      "bearsOn": "Ministerial orders must be in writing and given to each person concerned.",
+      "review": "n/a"
+    },
+    {
+      "n": "112",
+      "relevance": "admin",
+      "bearsOn": "Decision makers may attach and vary conditions on orders, exemptions, consents, approvals and authorizations, and the person must comply.",
+      "review": "n/a"
+    },
+    {
+      "n": "113",
+      "relevance": "admin",
+      "bearsOn": "The minister may extend time limits other than appeals and proceedings.",
+      "review": "n/a"
+    },
+    {
+      "n": "114",
+      "relevance": "admin",
+      "bearsOn": "Evidence of an official's designation.",
+      "review": "n/a"
+    },
+    {
+      "n": "115",
+      "relevance": "admin",
+      "bearsOn": "Ministerial and official powers are cumulative.",
+      "review": "n/a"
+    },
+    {
+      "n": "116",
+      "relevance": "admin",
+      "bearsOn": "Amending an operational plan does not affect liability for an earlier contravention.",
+      "review": "n/a"
+    },
+    {
+      "n": "117",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2004).",
+      "review": "n/a"
+    },
+    {
+      "n": "118",
+      "relevance": "admin",
+      "bearsOn": "Government may enter agreements on seed, range developments, forest health, protection services and recreation sites.",
+      "review": "n/a"
+    },
+    {
+      "n": "119",
+      "relevance": "enforcement",
+      "bearsOn": "Whistle-blower protection.",
+      "review": "n/a"
+    },
+    {
+      "n": "120",
+      "relevance": "admin",
+      "bearsOn": "Obligations are performed at the person's own expense unless provided otherwise.",
+      "review": "n/a"
+    },
+    {
+      "n": "120.1",
+      "relevance": "admin",
+      "bearsOn": "Ministers may delegate powers and duties under the Act.",
+      "review": "n/a"
+    },
+    {
+      "n": "120.2",
+      "relevance": "admin",
+      "bearsOn": "Subdelegation of delegated powers.",
+      "review": "n/a"
+    },
+    {
+      "n": "120.3",
+      "relevance": "admin",
+      "bearsOn": "Evidence of delegation.",
+      "review": "n/a"
+    },
+    {
+      "n": "121",
+      "relevance": "admin",
+      "bearsOn": "Defines 'party' for the Forest Practices Board provisions.",
+      "review": "n/a"
+    },
+    {
+      "n": "122",
+      "relevance": "admin",
+      "bearsOn": "The Forest Practices Board must audit and may investigate compliance and government enforcement.",
+      "review": "n/a"
+    },
+    {
+      "n": "123",
+      "relevance": "admin",
+      "bearsOn": "The board must deal with public complaints, with grounds to refuse.",
+      "review": "n/a"
+    },
+    {
+      "n": "124",
+      "relevance": "admin",
+      "bearsOn": "Scope of board investigations.",
+      "review": "n/a"
+    },
+    {
+      "n": "125",
+      "relevance": "admin",
+      "bearsOn": "Board powers to require information, enter premises and compel evidence.",
+      "review": "n/a"
+    },
+    {
+      "n": "125.1",
+      "relevance": "admin",
+      "bearsOn": "Contempt proceedings for uncooperative witnesses.",
+      "review": "n/a"
+    },
+    {
+      "n": "125.2",
+      "relevance": "admin",
+      "bearsOn": "Immunity for board decision makers.",
+      "review": "n/a"
+    },
+    {
+      "n": "126",
+      "relevance": "admin",
+      "bearsOn": "Limits on information the board may require.",
+      "review": "n/a"
+    },
+    {
+      "n": "127",
+      "relevance": "admin",
+      "bearsOn": "The board must notify and consult the party audited or investigated.",
+      "review": "n/a"
+    },
+    {
+      "n": "128",
+      "relevance": "admin",
+      "bearsOn": "Opportunity to make representations before an adverse board report.",
+      "review": "n/a"
+    },
+    {
+      "n": "129",
+      "relevance": "admin",
+      "bearsOn": "Evidence before the board is generally inadmissible elsewhere.",
+      "review": "n/a"
+    },
+    {
+      "n": "130",
+      "relevance": "admin",
+      "bearsOn": "The board may reimburse expenses of producing documents.",
+      "review": "n/a"
+    },
+    {
+      "n": "131",
+      "relevance": "admin",
+      "bearsOn": "Board reports and recommendations.",
+      "review": "n/a"
+    },
+    {
+      "n": "132",
+      "relevance": "admin",
+      "bearsOn": "Parties must tell the board what steps they took on its recommendations.",
+      "review": "n/a"
+    },
+    {
+      "n": "133",
+      "relevance": "admin",
+      "bearsOn": "Board reports to ministers and Cabinet when no suitable action is taken.",
+      "review": "n/a"
+    },
+    {
+      "n": "134",
+      "relevance": "admin",
+      "bearsOn": "Complainants are informed of the outcome.",
+      "review": "n/a"
+    },
+    {
+      "n": "135",
+      "relevance": "admin",
+      "bearsOn": "Special reports by the board chair.",
+      "review": "n/a"
+    },
+    {
+      "n": "136",
+      "relevance": "admin",
+      "bearsOn": "Continues the Forest Practices Board and its membership.",
+      "review": "n/a"
+    },
+    {
+      "n": "137",
+      "relevance": "admin",
+      "bearsOn": "Board panels.",
+      "review": "n/a"
+    },
+    {
+      "n": "138",
+      "relevance": "admin",
+      "bearsOn": "Board staff and consultants.",
+      "review": "n/a"
+    },
+    {
+      "n": "139",
+      "relevance": "admin",
+      "bearsOn": "No oral hearing as of right before the board.",
+      "review": "n/a"
+    },
+    {
+      "n": "140",
+      "relevance": "admin",
+      "bearsOn": "Delegation of board powers.",
+      "review": "n/a"
+    },
+    {
+      "n": "140.1",
+      "relevance": "admin",
+      "bearsOn": "Continues the Forest Appeals Commission.",
+      "review": "n/a"
+    },
+    {
+      "n": "140.2",
+      "relevance": "admin",
+      "bearsOn": "Administrative Tribunals Act provisions that apply to the commission.",
+      "review": "n/a"
+    },
+    {
+      "n": "140.3",
+      "relevance": "admin",
+      "bearsOn": "Mandate of the commission.",
+      "review": "n/a"
+    },
+    {
+      "n": "140.4",
+      "relevance": "admin",
+      "bearsOn": "Time limits for board appeals.",
+      "review": "n/a"
+    },
+    {
+      "n": "140.5",
+      "relevance": "admin",
+      "bearsOn": "Parties and notice on appeals.",
+      "review": "n/a"
+    },
+    {
+      "n": "140.6",
+      "relevance": "admin",
+      "bearsOn": "Appeals may proceed by new hearing.",
+      "review": "n/a"
+    },
+    {
+      "n": "140.7",
+      "relevance": "admin",
+      "bearsOn": "Appeals from the commission to the courts.",
+      "review": "n/a"
+    },
+    {
+      "n": "141",
+      "relevance": "admin",
+      "bearsOn": "General regulation-making power.",
+      "review": "n/a"
+    },
+    {
+      "n": "142",
+      "relevance": "admin",
+      "bearsOn": "Regulations on forms and information.",
+      "review": "n/a"
+    },
+    {
+      "n": "143",
+      "relevance": "admin",
+      "bearsOn": "Regulations on fees and charges.",
+      "review": "n/a"
+    },
+    {
+      "n": "144",
+      "relevance": "admin",
+      "bearsOn": "Regulations on deposits and security from agreement holders.",
+      "review": "n/a"
+    },
+    {
+      "n": "145",
+      "relevance": "admin",
+      "bearsOn": "Regulations on recovery of money.",
+      "review": "n/a"
+    },
+    {
+      "n": "146",
+      "relevance": "admin",
+      "bearsOn": "Regulations creating exemptions.",
+      "review": "n/a"
+    },
+    {
+      "n": "147",
+      "relevance": "admin",
+      "bearsOn": "Regulations on criteria for discretionary powers.",
+      "review": "n/a"
+    },
+    {
+      "n": "148",
+      "relevance": "admin",
+      "bearsOn": "Regulations on recreation sites, trails and interpretive forest sites.",
+      "review": "n/a"
+    },
+    {
+      "n": "149",
+      "relevance": "landscape",
+      "bearsOn": "Cabinet may prescribe objectives on soils, visual quality, timber, forage, water, fish, wildlife, biodiversity, recreation, resource features, cultural heritage and wildfire, and a Land Act s. 93.4 objective prevails over a prescribed objective where they conflict.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "The packs apply the PG TSA order without stating that it prevails over the FPPR default objectives where they conflict; a note in the rules would make the precedence explicit.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "149.1",
+      "relevance": "admin",
+      "bearsOn": "Regulation power authorizing the Wildlife Act minister to establish ungulate winter ranges, wildlife habitat areas, general wildlife measures and their objectives (implemented by the Government Actions Regulation).",
+      "review": "n/a"
+    },
+    {
+      "n": "150",
+      "relevance": "admin",
+      "bearsOn": "Regulation power for designating community watersheds and water quality objectives.",
+      "review": "n/a"
+    },
+    {
+      "n": "150.1",
+      "relevance": "admin",
+      "bearsOn": "Regulation power for areas with significant downstream fisheries values and watershed sensitivity.",
+      "review": "n/a"
+    },
+    {
+      "n": "150.2",
+      "relevance": "admin",
+      "bearsOn": "Regulation power for lakeshore management zones and objectives.",
+      "review": "n/a"
+    },
+    {
+      "n": "150.3",
+      "relevance": "admin",
+      "bearsOn": "Regulation power for scenic areas and visual quality objectives.",
+      "review": "n/a"
+    },
+    {
+      "n": "150.4",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on procedures for and consistency among objectives.",
+      "review": "n/a"
+    },
+    {
+      "n": "150.5",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on stream, wetland and lake classification and riparian zones (implemented in FPPR ss. 47–52).",
+      "review": "n/a"
+    },
+    {
+      "n": "151",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on operational plan content, submission, extension and amendments.",
+      "review": "n/a"
+    },
+    {
+      "n": "151.1",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on forest operations map content, publication dates and operating periods.",
+      "review": "n/a"
+    },
+    {
+      "n": "151.2",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on dispute resolution for forest landscape plans.",
+      "review": "n/a"
+    },
+    {
+      "n": "152",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2003).",
+      "review": "n/a"
+    },
+    {
+      "n": "153",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on woodlot licences, community forests and first nations woodland licences.",
+      "review": "n/a"
+    },
+    {
+      "n": "154",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on resource features and forest health.",
+      "review": "n/a"
+    },
+    {
+      "n": "155",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on road use, construction, maintenance, deactivation and significant road work.",
+      "review": "n/a"
+    },
+    {
+      "n": "156",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2021).",
+      "review": "n/a"
+    },
+    {
+      "n": "156.1",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on forest practices, wildfire risk and wildland urban interface areas.",
+      "review": "n/a"
+    },
+    {
+      "n": "157",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on silvicultural systems, clearcutting and free growing requirements.",
+      "review": "n/a"
+    },
+    {
+      "n": "158",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on seed and tree gene resources.",
+      "review": "n/a"
+    },
+    {
+      "n": "159",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on terrain stability and soil disturbance.",
+      "review": "n/a"
+    },
+    {
+      "n": "160",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on cutblock size, shape and spatial distribution including green-up (implemented in FPPR ss. 64–65).",
+      "review": "n/a"
+    },
+    {
+      "n": "161",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on range practices and range developments.",
+      "review": "n/a"
+    },
+    {
+      "n": "162",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on notices of completed obligations.",
+      "review": "n/a"
+    },
+    {
+      "n": "162.1",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on relief and funding applications.",
+      "review": "n/a"
+    },
+    {
+      "n": "163",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on administrative remedies and penalties.",
+      "review": "n/a"
+    },
+    {
+      "n": "164",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on compliance, stop work and remediation orders.",
+      "review": "n/a"
+    },
+    {
+      "n": "165",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on reconsideration of determinations.",
+      "review": "n/a"
+    },
+    {
+      "n": "166",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on appeals and the commission.",
+      "review": "n/a"
+    },
+    {
+      "n": "167",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on the Forest Practices Board.",
+      "review": "n/a"
+    },
+    {
+      "n": "168",
+      "relevance": "admin",
+      "bearsOn": "Regulation power on botanical forest products.",
+      "review": "n/a"
+    },
+    {
+      "n": "168.1",
+      "relevance": "admin",
+      "bearsOn": "Minister's regulation power to prescribe areas, resources and objectives that FSPs must address under s. 5(1)(b)(i.1).",
+      "review": "n/a"
+    },
+    {
+      "n": "169",
+      "relevance": "admin",
+      "bearsOn": "Chief forester standards (seed, stocking, fire use, plans and practices), effective 4 months after Gazette notice and not overriding approved plans.",
+      "review": "n/a"
+    },
+    {
+      "n": "170",
+      "relevance": "admin",
+      "bearsOn": "Continues the Forest and Range Practices Advisory Council.",
+      "review": "n/a"
+    },
+    {
+      "n": "171",
+      "relevance": "admin",
+      "bearsOn": "Public review before a pilot project is approved.",
+      "review": "n/a"
+    },
+    {
+      "n": "172",
+      "relevance": "admin",
+      "bearsOn": "Tests for making a pilot project regulation.",
+      "review": "n/a"
+    },
+    {
+      "n": "173",
+      "relevance": "admin",
+      "bearsOn": "Regulation powers for pilot projects that may disapply provisions.",
+      "review": "n/a"
+    },
+    {
+      "n": "174",
+      "relevance": "admin",
+      "bearsOn": "Pilot project regulations apply only to consenting participants.",
+      "review": "n/a"
+    },
+    {
+      "n": "175",
+      "relevance": "admin",
+      "bearsOn": "Annual reports on pilot projects.",
+      "review": "n/a"
+    },
+    {
+      "n": "176",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (2003).",
+      "review": "n/a"
+    },
+    {
+      "n": "177",
+      "relevance": "definitions",
+      "bearsOn": "Defines Code, Code regulations, effective date (January 31, 2004) and site level plan (silviculture prescriptions, Code site plans, road layout and design) for the transitional Part.",
+      "review": "n/a"
+    },
+    {
+      "n": "177.1",
+      "relevance": "enforcement",
+      "bearsOn": "Applies FRPA's Part 6 compliance provisions to Code and Code regulation contraventions, with Code penalties.",
+      "review": "n/a"
+    },
+    {
+      "n": "178",
+      "relevance": "repealed",
+      "bearsOn": "Repealed.",
+      "review": "n/a"
+    },
+    {
+      "n": "179",
+      "relevance": "admin",
+      "bearsOn": "The Act applies to government and to existing agreement and permit holders regardless of when the agreement was made.",
+      "review": "n/a"
+    },
+    {
+      "n": "180",
+      "relevance": "landscape",
+      "bearsOn": "Every Code ungulate winter range, wildlife habitat area, scenic area, emergency bark beetle area, community watershed, fisheries-sensitive and watershed-sensitive area, lakeshore management zone, interpretive forest site, recreation site and trail, and forest ecosystem network in effect in 2004 continues under FRPA.",
+      "review": "partial",
+      "coveredBy": [
+        "ground:scenic-area",
+        "ground:visual-quality-objective",
+        "ground:uwr-no-harvest",
+        "ground:uwr-conditional",
+        "ground:wha-no-harvest",
+        "ground:wha-conditional",
+        "ground:community-watershed",
+        "ground:recreation-site",
+        "ground:recreation-trail"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "Screens cover winter ranges, habitat areas, scenic areas, community watersheds and recreation sites, but nothing reads continued forest ecosystem networks, lakeshore management zones or fisheries- and watershed-sensitive areas under the block.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Does the block overlap a forest ecosystem network, lakeshore management zone, or area with significant downstream fisheries values or watershed sensitivity continued from the Forest Practices Code?"
+      ]
+    },
+    {
+      "n": "181",
+      "relevance": "landscape",
+      "bearsOn": "Objectives that applied in 2004 to the areas continued by s. 180 (such as visual quality objectives for scenic areas) continue as objectives under FRPA.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:visual-quality-objective"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The VQO screen shows the continued objective but no rule asks how the FSP's result or strategy for it applies to the block, or reads continued objectives for other s. 180 areas.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Does an objective continued under FRPA s. 181 (for example a visual quality objective for a scenic area) apply to the block, and which FSP result or strategy addresses it?"
+      ]
+    },
+    {
+      "n": "182",
+      "relevance": "landscape",
+      "bearsOn": "General wildlife measures established under the Code and in effect in 2004 continue as general wildlife measures under FRPA.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:uwr-no-harvest",
+        "ground:uwr-conditional",
+        "ground:uwr-uncoded",
+        "ground:wha-no-harvest",
+        "ground:wha-conditional",
+        "ground:wha-uncoded"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The winter range and habitat area screens apply recorded general wildlife measures; whether a given Omineca order is a continued Code measure is recorded with the order, not tested.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "183",
+      "relevance": "plan",
+      "bearsOn": "Cutting permits in effect on January 31, 2004 are deemed FRPA cutting permits for their stated term.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent transition; no 2004 cutting permit is still in effect for a new block.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "184",
+      "relevance": "roads",
+      "bearsOn": "Road permits in effect on January 31, 2004 are deemed FRPA road permits.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Old road permits may still authorize existing access roads a block uses; a reviewer question could confirm the access road's permit.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "185",
+      "relevance": "roads",
+      "bearsOn": "Road use permits in effect in 2004 continue as FRPA road use permits, except those under Code s. 54(2)(e), which lapsed.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent transition.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "186",
+      "relevance": "admin",
+      "bearsOn": "The FSP transition division does not apply to woodlot licences or licences to cut.",
+      "review": "n/a"
+    },
+    {
+      "n": "187",
+      "relevance": "plan",
+      "bearsOn": "Code forest development plans in effect in 2004 stayed in effect until replaced by an FSP or, at the latest, March 31, 2007.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent: all such plans expired by March 31, 2007.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "188",
+      "relevance": "plan",
+      "bearsOn": "Forest development plans could still be prepared under the Code until December 31, 2005, and expired by March 31, 2007 at the latest.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent transition.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "189",
+      "relevance": "silviculture",
+      "bearsOn": "Site level plans (silviculture prescriptions and site plans) in effect in 2004 remain in effect under the Code, which governs the cutblocks they cover.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Matters only for old openings whose Code prescription still sets the stocking standard; a reviewer question could note it for adjacent openings.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "190",
+      "relevance": "roads",
+      "bearsOn": "Road layouts and designs in effect in 2004 remain in effect under the Code.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent for new roads; an old road's Code layout may still govern its maintenance.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "191",
+      "relevance": "silviculture",
+      "bearsOn": "Harvesting begun on a cutblock before January 31, 2004 stays under the Code requirements, including the government's Code free growing duties.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Bears only on old openings, for example whether an adjacent opening's green-up or free growing is judged under Code rules.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "192",
+      "relevance": "silviculture",
+      "bearsOn": "Harvesting begun after 2004 on a cutblock under a grandparented forest development plan stays under the Code requirements.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Bears only on openings harvested under forest development plans (2004–2007).",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "193",
+      "relevance": "roads",
+      "bearsOn": "Road construction, maintenance or deactivation begun before January 31, 2004 stays under the Code requirements.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Old roads only.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "194",
+      "relevance": "roads",
+      "bearsOn": "Road work begun after 2004 under a grandparented forest development plan or site plan stays under the Code requirements.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Old roads only.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "195",
+      "relevance": "plan",
+      "bearsOn": "Holders with a forest development plan in effect could obtain cutting and road permits under the Code before their FSP was approved.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent transition.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "196",
+      "relevance": "plan",
+      "bearsOn": "Cutblocks and roads in a forest development plan with completed assessments (and those in an FDP in effect at FSP submission, absent intervening changes) were deemed approved in the first FSP.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent transition into first-generation FSPs.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "197",
+      "relevance": "silviculture",
+      "bearsOn": "An approved FSP replaces the forest development plan; site level information and stocking standards for blocks begun under the FDP continue until free growing, and the Code continues for areas under permits in effect when the FSP was approved.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Bears only on old openings whose stocking standards come from a forest development plan; a reviewer question could ask which standard governs an adjacent opening.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "198",
+      "relevance": "silviculture",
+      "bearsOn": "A woodlot holder's incomplete Code obligations from forest practices before 2004 must still be met.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Old woodlot obligations only.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "199",
+      "relevance": "plan",
+      "bearsOn": "Woodlot forest development plans in effect in 2004 continued until replaced by a woodlot licence plan or, at the latest, December 31, 2007 (or their own term).",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent transition.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "200",
+      "relevance": "plan",
+      "bearsOn": "Woodlot holders could prepare forest development plans under the Code until December 31, 2005.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent transition.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "201",
+      "relevance": "plan",
+      "bearsOn": "Woodlot holders with a grandparented forest development plan prepare amendments and site plans, and practise, under the Code, and could apply for permits before their woodlot licence plan.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent transition.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "202",
+      "relevance": "silviculture",
+      "bearsOn": "A woodlot licence plan replaces the woodlot forest development plan, but earlier site plans continue and prevail over conflicting FRPA performance requirements.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Old woodlot openings only.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "203",
+      "relevance": "tenure",
+      "bearsOn": "A licence to cut entered into before 2004 stays under the Code; one entered into after must meet FRPA, its regulations and standards.",
+      "review": "none",
+      "gapNote": "For blocks under a licence to cut (e.g. salvage or rights-of-way), a rule could confirm FRPA rather than the Code applies by the licence's date.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "204",
+      "relevance": "tenure",
+      "bearsOn": "Harvest under a licence-to-cut cutting permit issued after 2004 must meet FRPA; one issued before stays under the Code.",
+      "review": "none",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "205",
+      "relevance": "range",
+      "bearsOn": "Code range use plans continued until replaced or, at the latest, December 31, 2007.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent transition.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "206",
+      "relevance": "range",
+      "bearsOn": "Holders with a grandparented range use plan could keep grazing as authorized in 2004, under Code requirements.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent transition.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "207",
+      "relevance": "range",
+      "bearsOn": "A range use or stewardship plan approved under s. 37 replaces a grandparented range use plan, and grazing must then follow s. 45.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Spent transition.",
+      "encodable": "not-encodable"
+    },
+    {
+      "n": "208",
+      "relevance": "admin",
+      "bearsOn": "Definitions for the pilot project transition division.",
+      "review": "n/a"
+    },
+    {
+      "n": "209",
+      "relevance": "admin",
+      "bearsOn": "Code pilot project regulations remain in effect.",
+      "review": "n/a"
+    },
+    {
+      "n": "210",
+      "relevance": "admin",
+      "bearsOn": "Regulations may still be made for proposed Code pilot projects.",
+      "review": "n/a"
+    },
+    {
+      "n": "211",
+      "relevance": "admin",
+      "bearsOn": "Code pilot project regulations are deemed made under this Act.",
+      "review": "n/a"
+    },
+    {
+      "n": "212",
+      "relevance": "admin",
+      "bearsOn": "The obligations-transfer division applies despite Divisions 1 to 8.",
+      "review": "n/a"
+    },
+    {
+      "n": "213",
+      "relevance": "admin",
+      "bearsOn": "Cabinet may continue outstanding Code obligations as requirements under this Act.",
+      "review": "n/a"
+    },
+    {
+      "n": "214",
+      "relevance": "admin",
+      "bearsOn": "Board mandate to audit and investigate compliance with the transitional provisions.",
+      "review": "n/a"
+    },
+    {
+      "n": "215",
+      "relevance": "admin",
+      "bearsOn": "Board mandate to audit compliance with Part 5 of the Code.",
+      "review": "n/a"
+    },
+    {
+      "n": "216",
+      "relevance": "admin",
+      "bearsOn": "The Code as of December 16, 2002 applies to the Nisga'a Final Agreement (outside Omineca).",
+      "review": "n/a"
+    },
+    {
+      "n": "217",
+      "relevance": "admin",
+      "bearsOn": "Commencement by regulation.",
+      "review": "n/a"
+    }
+  ]
+}

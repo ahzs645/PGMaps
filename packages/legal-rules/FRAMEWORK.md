@@ -50,6 +50,10 @@ npx vitest run packages/legal-rules/tests/evaluate.test.ts
 
 The runtime contract is `src/contract.ts`, the pure evaluator is `engine/evaluate.ts`, and the browser registry is `../../src/pages/legal-workbench/registry.ts`. The CLI prints the reproducible assessment to standard output and reports malformed input with a nonzero exit code.
 
+## Law text, quotes and coverage
+
+A rule's provision opens its text wherever the rule is shown. Statutes and regulations are imported whole from CiviX XML by `scripts/legal-rules/import_bclaws.py` into `catalogue/generated/`; orders are transcribed into `catalogue/orders/`, with quotes of at most 124 characters and the page of the signed PDF. Every shipped rule has the words it rests on in `catalogue/rule-quotes.json`; add a rule, then run `npx tsx scripts/legal-rules/rule-quotes.ts` for a starting quote and correct it by hand where the cited paragraph's opening words are not the reason. `src/lib/legal/ruleQuotes.test.ts` checks every quote against the stored text and every citation against the sections that exist. A new order needs its catalogue entry, its transcription and its source file before its rules, and its own provision ids (`Strategy 1.02`, `Objective 2(b)`) are the ones a rule cites.
+
 ## Starter release coverage
 
 **B.C. FPPR.** Section 64 covers the two regional size thresholds and routes exceptions for review. Section 65 flags the need for an adjacency review. Section 66 screens reported block and annual retention percentages, with their distinct denominators and fibre-recovery exclusion. Other provisions, the full §65 stocking calculations and exception adjudication require further packs or interpretation. The cited consolidation lists a January 1, 2026 last amendment and is current through November 17, 2026. [BC Laws consolidation](https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004)

@@ -1,0 +1,49 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.mackenzie.biodiversity-amendment.2010",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "admin",
+      "bearsOn": "Amends the Mackenzie non-spatial order under Land Act s. 93.4; misdates the order it amends.",
+      "review": "n/a"
+    },
+    {
+      "n": "1(a)",
+      "relevance": "landscape",
+      "bearsOn": "Replaces the landscape unit map with the January 2010 map, which is not in this PDF.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "The planner holds no Mackenzie old forest unit, table or rule: the old forest module covers only the PG TSA order (orderUnits.ts refuses Mackenzie). Only the generic legal-objective screen could show the order if DataBC maps its extent. The January 2010 map is not attached to the copy reviewed.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Which landscape unit of the January 2010 Map #1 does the block fall in?"
+      ]
+    },
+    {
+      "n": "1(b)",
+      "relevance": "landscape",
+      "bearsOn": "Replaces Table 2 with a table of 72 rows whose figures match the 2008 table for every unit kept, dropping the seven units or groups that the 2010 spatial order gave legal OGMAs.",
+      "review": "rule",
+      "gapPriority": "medium",
+      "gapNote": "Rules take the reviewer’s old and old interior margins; the planner does not yet calculate Mackenzie old forest (orderUnits.ts refuses Mackenzie units)."
+    },
+    {
+      "n": "1(c)",
+      "relevance": "admin",
+      "bearsOn": "Takes effect on Gazette notice.",
+      "review": "n/a"
+    },
+    {
+      "n": "1(d)",
+      "relevance": "plan",
+      "bearsOn": "Gave FSP holders 12 months from the amendment to amend their plans.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Expired.",
+      "encodable": "document-check"
+    }
+  ]
+}

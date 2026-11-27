@@ -1,0 +1,60 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.pg.scenic-areas.2005",
+  "title": "Order establishing Scenic Areas in the Prince George Forest District, 2005",
+  "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-lrmp/princegeorge-srmp/order_scenic_area.pdf",
+  "madeUnder": "Government Actions Regulation s. 7(1)",
+  "made": "2005-11-09",
+  "transcribedFrom": "signed PDF, text layer checked against the pages",
+  "transcribedOn": "2026-11-27",
+  "notes": [
+    "Amends: Scenic areas continued under FRPA s. 180(c): the preamble says the order carries them forward, adds new ones, deletes some and modifies others from the 2004 visual landscape inventory update"
+  ],
+  "provisions": [
+    {
+      "id": "1(a)",
+      "heading": "Scenic areas in Appendix 1 and on the 1:300,000 map",
+      "page": 2,
+      "quotes": [
+        "the Scenic Areas being established are described in Appendix 1 and are delineated on the accompanying 1:300,000 map",
+        "Order establishing Scenic Areas in the Prince George Forest District Pursuant to Section 7",
+        "For the purpose of this order: a. the Scenic Areas being established are described in Appendix 1 and are delineated on the"
+      ]
+    },
+    {
+      "id": "1(b)",
+      "heading": "Scenic areas include those carried forward under FRPA s. 180",
+      "page": 2,
+      "quotes": [
+        "b. the Scenic Areas include all areas carried forward under the Forest and Range Practices Act Section 180."
+      ]
+    },
+    {
+      "id": "2",
+      "heading": "Effective date",
+      "page": 2,
+      "quotes": [
+        "This order will take effect on December 6, 2005."
+      ]
+    },
+    {
+      "id": "Appendix 1",
+      "heading": "2005 Scenic Areas, Prince George Forest District",
+      "page": 3,
+      "quotes": [
+        "2005 Scenic Areas Prince George Forest District Adrian Lake Alexander Mackenzie Heritage Trail (inc.",
+        "Lower Blackwater River and portions of Blackwater Road West;",
+        "Blackwater Crossing Rec."
+      ]
+    },
+    {
+      "id": "Appendix 1 note",
+      "heading": "TFL 30 and 53 handled through TFL management planning",
+      "page": 6,
+      "quotes": [
+        "Scenic Areas and Visual Quality Objectives are currently established in TFL #30 and #53.",
+        "Future updates will be dealt with through the normal TFL Management Planning process"
+      ]
+    }
+  ]
+}

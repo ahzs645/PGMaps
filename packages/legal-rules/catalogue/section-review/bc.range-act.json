@@ -1,0 +1,542 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.range-act",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines Crown range as Crown land in a range district excluding Land Act leased land, and range development; the pack uses this to say a Land Act lease cannot carry a Range Act agreement for FPPR 44(3)(d).",
+      "review": "rule",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:lease-not-crown-range",
+        "bc.crown-grazing@1.0.0:designation-not-lease",
+        "ground:range-tenure",
+        "ground:private-land"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "tenure",
+      "bearsOn": "Grazing and hay rights over Crown range may be granted only under this Act, FRPA or the Land Act; it fixes where a grazing right over a block can come from.",
+      "review": "n/a"
+    },
+    {
+      "n": "3",
+      "relevance": "range",
+      "bearsOn": "Authorizes grazing licences and permits and hay cutting licences and permits over Crown range; whether one covers the block decides the range-plan review and any FPPR 44(3)(d) argument.",
+      "review": "rule",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:range-plan",
+        "bc.crown-grazing@1.0.0:exclusive-range",
+        "bc.crown-grazing@1.0.0:not-exclusive",
+        "bc.crown-grazing@1.0.0:lease-not-crown-range",
+        "bc.crown-grazing@1.0.0:designation-not-lease",
+        "ground:range-tenure"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "tenure",
+      "bearsOn": "A grazing licence describes its Crown range, runs 15 to 25 years and sets annual AUMs; it grants no exclusive use, which matters when FPPR 44(3)(d) is argued.",
+      "review": "n/a"
+    },
+    {
+      "n": "5",
+      "relevance": "tenure",
+      "bearsOn": "A grazing permit describes its Crown range, runs up to 10 years and sets annual AUMs.",
+      "review": "n/a"
+    },
+    {
+      "n": "6",
+      "relevance": "tenure",
+      "bearsOn": "A hay cutting licence describes its Crown range and grants the right to harvest a quantity of hay for 15 to 25 years.",
+      "review": "n/a"
+    },
+    {
+      "n": "7",
+      "relevance": "tenure",
+      "bearsOn": "A hay cutting permit grants the exclusive right to harvest a quantity of hay; exclusivity here is of hay harvest, not proof that the land is used exclusively for hay under FPPR 44(3)(d).",
+      "review": "n/a"
+    },
+    {
+      "n": "8",
+      "relevance": "tenure",
+      "bearsOn": "Minister may authorize ministry staff and agents to use Crown range to improve it; such an authorization counts for FRPA s. 51 range developments.",
+      "review": "n/a"
+    },
+    {
+      "n": "9",
+      "relevance": "tenure",
+      "bearsOn": "Applications for range licences and permits and the minister's invitation with public notice.",
+      "review": "n/a"
+    },
+    {
+      "n": "10",
+      "relevance": "tenure",
+      "bearsOn": "Eligibility and evaluation criteria for competitive range tenures.",
+      "review": "n/a"
+    },
+    {
+      "n": "11",
+      "relevance": "tenure",
+      "bearsOn": "Disposition of competing range applications by proposal.",
+      "review": "n/a"
+    },
+    {
+      "n": "12",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "13",
+      "relevance": "tenure",
+      "bearsOn": "Correcting errors in a range tenure proposal.",
+      "review": "n/a"
+    },
+    {
+      "n": "14",
+      "relevance": "tenure",
+      "bearsOn": "Minister may enter into range tenures when no applicant objects.",
+      "review": "n/a"
+    },
+    {
+      "n": "15",
+      "relevance": "tenure",
+      "bearsOn": "Objections to a range tenure proposal and their handling.",
+      "review": "n/a"
+    },
+    {
+      "n": "16",
+      "relevance": "tenure",
+      "bearsOn": "Direct award of small or Land Act-linked range licences and permits without competition.",
+      "review": "n/a"
+    },
+    {
+      "n": "17",
+      "relevance": "tenure",
+      "bearsOn": "Direct award of range tenures to or for a First Nation under treaty-related or interim measures.",
+      "review": "n/a"
+    },
+    {
+      "n": "18",
+      "relevance": "tenure",
+      "bearsOn": "Direct award with public notice of ancillary, compensatory and exchange range tenures.",
+      "review": "n/a"
+    },
+    {
+      "n": "19",
+      "relevance": "tenure",
+      "bearsOn": "Minister may set conditions before entering into a range tenure.",
+      "review": "n/a"
+    },
+    {
+      "n": "20",
+      "relevance": "tenure",
+      "bearsOn": "Applicant may be required to show it can comply with the Livestock Act.",
+      "review": "n/a"
+    },
+    {
+      "n": "21",
+      "relevance": "tenure",
+      "bearsOn": "A grazing tenure may be conditional on a private land grazing agreement.",
+      "review": "n/a"
+    },
+    {
+      "n": "21.1",
+      "relevance": "tenure",
+      "bearsOn": "A range tenure may require the holder to keep specified private land or other tenures.",
+      "review": "n/a"
+    },
+    {
+      "n": "22",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "23",
+      "relevance": "tenure",
+      "bearsOn": "Minister must offer a replacement range licence two years before expiry unless rights are suspended or money is owed.",
+      "review": "n/a"
+    },
+    {
+      "n": "24",
+      "relevance": "tenure",
+      "bearsOn": "A replacement range licence keeps the same area and AUMs or hay quantity.",
+      "review": "n/a"
+    },
+    {
+      "n": "25-27",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; the range of sections holds no text in force.",
+      "review": "n/a"
+    },
+    {
+      "n": "28",
+      "relevance": "tenure",
+      "bearsOn": "Consolidation, subdivision and transfer of Crown range between a holder's grazing tenures.",
+      "review": "n/a"
+    },
+    {
+      "n": "29",
+      "relevance": "tenure",
+      "bearsOn": "Holder must keep the associated private land or tenure a range tenure requires, or it may be cancelled.",
+      "review": "n/a"
+    },
+    {
+      "n": "30",
+      "relevance": "tenure",
+      "bearsOn": "Substitution of other land for a holder's associated private land.",
+      "review": "n/a"
+    },
+    {
+      "n": "31-33",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; the range of sections holds no text in force.",
+      "review": "n/a"
+    },
+    {
+      "n": "34",
+      "relevance": "range",
+      "bearsOn": "A range tenure does not stop the government using or granting other uses of the same Crown range, such as timber harvest, where the minister considers the use compatible with the grazing or hay rights; this is how a cutblock and a range tenure overlap.",
+      "review": "partial",
+      "coveredBy": [
+        "bc.crown-grazing@1.0.0:range-plan",
+        "ground:range-tenure"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "No rule states that harvest over a range tenure rests on the minister's view that it is compatible with the grazing or hay rights, or asks whether that compatibility has been considered with the range holder.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Has the district considered the proposed harvest, roads and reforestation compatible with the grazing or hay cutting rights of the range agreement over the block?"
+      ]
+    },
+    {
+      "n": "35",
+      "relevance": "tenure",
+      "bearsOn": "Minister may vary a range tenure's boundary or area with the holder's consent.",
+      "review": "n/a"
+    },
+    {
+      "n": "36",
+      "relevance": "range",
+      "bearsOn": "Minister may delete land from a range tenure or cut AUMs for more efficient resource use, or because the range no longer supports them.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Deleting a planned block from a range tenure is a ministry decision a planner might seek; the pack does not ask whether the block has been, or should be, deleted from the tenure.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Has the block area been deleted from the range agreement, or is a deletion requested, under Range Act §36 or §37?"
+      ]
+    },
+    {
+      "n": "37",
+      "relevance": "range",
+      "bearsOn": "Minister may delete land from a range tenure where it is required for a use incompatible with grazing or hay cutting.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Where harvest and reforestation are found incompatible with grazing, deletion of the block from the range tenure is the route; no rule asks about it.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Is the block land required for a use the district considers incompatible with grazing, so that it is to be deleted from the range agreement?"
+      ]
+    },
+    {
+      "n": "38",
+      "relevance": "tenure",
+      "bearsOn": "A deletion or AUM reduction takes effect only after 60 days' notice, or a year's notice with an AUM cut, unless waived; this sets the lead time before a deleted block is clear of the tenure.",
+      "review": "n/a"
+    },
+    {
+      "n": "39",
+      "relevance": "admin",
+      "bearsOn": "Compensation for AUM or hay reductions over 5%.",
+      "review": "n/a"
+    },
+    {
+      "n": "40",
+      "relevance": "admin",
+      "bearsOn": "Compensation for range developments made necessary by, or lost to, a deletion.",
+      "review": "n/a"
+    },
+    {
+      "n": "41",
+      "relevance": "admin",
+      "bearsOn": "Compensation disputes go to arbitration.",
+      "review": "n/a"
+    },
+    {
+      "n": "42",
+      "relevance": "admin",
+      "bearsOn": "Compensation may be paid as another range tenure.",
+      "review": "n/a"
+    },
+    {
+      "n": "43",
+      "relevance": "admin",
+      "bearsOn": "Compensation is reduced by benefits already received.",
+      "review": "n/a"
+    },
+    {
+      "n": "44",
+      "relevance": "admin",
+      "bearsOn": "Circumstances in which no compensation is payable.",
+      "review": "n/a"
+    },
+    {
+      "n": "45",
+      "relevance": "admin",
+      "bearsOn": "Caps compensation for deletions and reductions; Expropriation Act excluded.",
+      "review": "n/a"
+    },
+    {
+      "n": "46",
+      "relevance": "admin",
+      "bearsOn": "Grazing holder must use at least 90% of AUMs unless a non-use agreement says otherwise.",
+      "review": "n/a"
+    },
+    {
+      "n": "47",
+      "relevance": "admin",
+      "bearsOn": "AUMs may be reduced for under-use.",
+      "review": "n/a"
+    },
+    {
+      "n": "48",
+      "relevance": "admin",
+      "bearsOn": "AUMs may be reduced for breaching a non-use agreement.",
+      "review": "n/a"
+    },
+    {
+      "n": "49",
+      "relevance": "range",
+      "bearsOn": "Minister may order a range holder to refrain from using all or part of its Crown range for a period; a tool for keeping livestock off a regenerating block.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "The pack covers the holder's RPPR 44 duty to keep livestock off a regenerating stand but not a directed non-use order the district can make over the block.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Is a Range Act §49 directed non-use order in place, or to be requested, to keep livestock off the block while it regenerates?"
+      ]
+    },
+    {
+      "n": "50",
+      "relevance": "admin",
+      "bearsOn": "Exemption from AUM use requirements in exceptional circumstances or under a non-use order.",
+      "review": "n/a"
+    },
+    {
+      "n": "51",
+      "relevance": "admin",
+      "bearsOn": "Annual reporting of AUMs used.",
+      "review": "n/a"
+    },
+    {
+      "n": "52",
+      "relevance": "tenure",
+      "bearsOn": "Temporary AUM or hay increase where it will not harm range management.",
+      "review": "n/a"
+    },
+    {
+      "n": "53",
+      "relevance": "tenure",
+      "bearsOn": "Holder may earn more AUMs or hay through an approved range management plan.",
+      "review": "n/a"
+    },
+    {
+      "n": "53.1",
+      "relevance": "admin",
+      "bearsOn": "A range tenure reduced to zero may be cancelled without a hearing.",
+      "review": "n/a"
+    },
+    {
+      "n": "54",
+      "relevance": "enforcement",
+      "bearsOn": "Applies FRPA Part 6 Divisions 1 and 2 (inspection, stopping, seizing) to this Act.",
+      "review": "n/a"
+    },
+    {
+      "n": "55",
+      "relevance": "enforcement",
+      "bearsOn": "Suspension of range rights for misrepresentation or non-compliance.",
+      "review": "n/a"
+    },
+    {
+      "n": "56",
+      "relevance": "enforcement",
+      "bearsOn": "Suspension for breaching First Nation agreement conditions.",
+      "review": "n/a"
+    },
+    {
+      "n": "57",
+      "relevance": "enforcement",
+      "bearsOn": "Notice before suspension.",
+      "review": "n/a"
+    },
+    {
+      "n": "58",
+      "relevance": "enforcement",
+      "bearsOn": "Opportunity to be heard on a suspension.",
+      "review": "n/a"
+    },
+    {
+      "n": "59",
+      "relevance": "enforcement",
+      "bearsOn": "When a suspension takes effect.",
+      "review": "n/a"
+    },
+    {
+      "n": "60",
+      "relevance": "enforcement",
+      "bearsOn": "Immediate suspension for serious environmental damage or because weather makes range use detrimental to forest or forage productivity.",
+      "review": "n/a"
+    },
+    {
+      "n": "61",
+      "relevance": "enforcement",
+      "bearsOn": "Suspended rights must not be exercised.",
+      "review": "n/a"
+    },
+    {
+      "n": "62",
+      "relevance": "enforcement",
+      "bearsOn": "Reinstatement of suspended rights.",
+      "review": "n/a"
+    },
+    {
+      "n": "63",
+      "relevance": "enforcement",
+      "bearsOn": "Cancellation of suspended rights or tenure.",
+      "review": "n/a"
+    },
+    {
+      "n": "64",
+      "relevance": "enforcement",
+      "bearsOn": "Three months' notice of cancellation.",
+      "review": "n/a"
+    },
+    {
+      "n": "65",
+      "relevance": "enforcement",
+      "bearsOn": "Hearing on cancellation.",
+      "review": "n/a"
+    },
+    {
+      "n": "66",
+      "relevance": "enforcement",
+      "bearsOn": "Rescinding or postponing a cancellation.",
+      "review": "n/a"
+    },
+    {
+      "n": "67",
+      "relevance": "enforcement",
+      "bearsOn": "Gazette notice of cancellation.",
+      "review": "n/a"
+    },
+    {
+      "n": "68",
+      "relevance": "enforcement",
+      "bearsOn": "Former holders stay liable for obligations incurred before expiry or cancellation.",
+      "review": "n/a"
+    },
+    {
+      "n": "69",
+      "relevance": "admin",
+      "bearsOn": "Reviews of range orders and decisions on new evidence.",
+      "review": "n/a"
+    },
+    {
+      "n": "70",
+      "relevance": "admin",
+      "bearsOn": "Appeals of range orders to the Forest Appeals Commission.",
+      "review": "n/a"
+    },
+    {
+      "n": "70.1",
+      "relevance": "admin",
+      "bearsOn": "Interveners and Board standing in range appeals.",
+      "review": "n/a"
+    },
+    {
+      "n": "71",
+      "relevance": "admin",
+      "bearsOn": "Powers of the Forest Appeals Commission on a range appeal.",
+      "review": "n/a"
+    },
+    {
+      "n": "72",
+      "relevance": "admin",
+      "bearsOn": "A review or appeal is not a stay.",
+      "review": "n/a"
+    },
+    {
+      "n": "73",
+      "relevance": "enforcement",
+      "bearsOn": "Offences and penalties under the Range Act.",
+      "review": "n/a"
+    },
+    {
+      "n": "74",
+      "relevance": "enforcement",
+      "bearsOn": "Offence Act s. 5 does not apply.",
+      "review": "n/a"
+    },
+    {
+      "n": "75",
+      "relevance": "enforcement",
+      "bearsOn": "Applies FRPA offence provisions to this Act.",
+      "review": "n/a"
+    },
+    {
+      "n": "76",
+      "relevance": "enforcement",
+      "bearsOn": "Interference with or misleading officials is prohibited.",
+      "review": "n/a"
+    },
+    {
+      "n": "77",
+      "relevance": "admin",
+      "bearsOn": "Deemed delivery of notices.",
+      "review": "n/a"
+    },
+    {
+      "n": "78",
+      "relevance": "admin",
+      "bearsOn": "Cabinet establishes range districts; Crown range exists only inside one.",
+      "review": "n/a"
+    },
+    {
+      "n": "79",
+      "relevance": "admin",
+      "bearsOn": "Regulation-making powers, including use of Crown range other than for grazing or hay cutting.",
+      "review": "n/a"
+    },
+    {
+      "n": "80",
+      "relevance": "admin",
+      "bearsOn": "Regulations on criteria for discretionary powers.",
+      "review": "n/a"
+    },
+    {
+      "n": "81",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; the record also lists consequential amendments ss. 82 and 83 (Land Title Act, Park Act) with no text.",
+      "review": "n/a"
+    },
+    {
+      "n": "84",
+      "relevance": "admin",
+      "bearsOn": "Repeals the former Range Act.",
+      "review": "n/a"
+    },
+    {
+      "n": "85",
+      "relevance": "admin",
+      "bearsOn": "Commencement by regulation.",
+      "review": "n/a"
+    }
+  ]
+}

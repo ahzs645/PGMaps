@@ -1,0 +1,10 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.fsmf-act",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {"n":"1","relevance":"admin","bearsOn":"Cabinet may impose a levy on stumpage-bearing timber, collected as stumpage under the Forest Act; a cost on harvest, not a condition on a block.","review":"n/a"},
+    {"n":"2","relevance":"admin","bearsOn":"General regulation-making power.","review":"n/a"}
+  ]
+}

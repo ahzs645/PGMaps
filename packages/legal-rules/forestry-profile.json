@@ -1,5 +1,11 @@
 {
   "assessmentDate": "2026-11-17",
-  "blockReleases": ["bc.fppr@1.1.0"],
-  "releases": ["bc.fppr@1.1.0", "bc.pgtsa.biodiversity@1.2.0"]
+  "blockReleases": [
+    "bc.fppr@1.2.0",
+    "bc.forest-permits@1.0.0",
+    "bc.omineca.old-growth@1.0.0",
+    "bc.omineca.visual-quality@1.0.0",
+    "bc.mackenzie.biodiversity@1.0.0"
+  ],
+  "releases": ["bc.fppr@1.2.0", "bc.pgtsa.biodiversity@1.2.0"]
 }

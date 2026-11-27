@@ -1,0 +1,80 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.pg.humbug.2003",
+  "title": "Order to Establish the Humbug Landscape Unit and Objectives, 1 August 2003",
+  "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-lrmp/princegeorge-srmp/legal_order_signed_aug_1_2003.pdf",
+  "madeUnder": "Forest Practices Code Act s. 4(1) and (2); continued as a Land Act s. 93.4 objective by Land Act s. 93.8",
+  "made": "2003-08-01",
+  "transcribedFrom": "signed PDF, text layer checked against the pages",
+  "transcribedOn": "2026-11-27",
+  "provisions": [
+    {
+      "id": "Establishment",
+      "heading": "Humbug landscape unit established",
+      "page": 1,
+      "quotes": [
+        "Pursuant to section 4 (1) of the Forest Practices Code of British Columbia Act (the Act)"
+      ]
+    },
+    {
+      "id": "Objective 3",
+      "heading": "Humbug: old growth distribution through OGMAs",
+      "page": 1,
+      "quotes": [
+        "by maintaining the old growth management areas (OGMAs) as shown on Map 3",
+        "Meet the distribution of old growth for each Landscape Unit / Biogeoclimatic Unit"
+      ]
+    },
+    {
+      "id": "Strategy 3.01",
+      "heading": "Humbug: maintain the mapped OGMAs",
+      "page": 1,
+      "quotes": [
+        "Maintain old growth management areas, which are established as shown on the attached Map 3."
+      ]
+    },
+    {
+      "id": "Strategy 3.02",
+      "heading": "Humbug: cutting in OGMAs only for insect or disease control",
+      "page": 1,
+      "quotes": [
+        "Cutting trees within OGMAs, is limited to circumstances where it is absolutely necessary for insect or disease infestation",
+        "When intervention in OGMAs is required because of a forest health threat to adjacent areas"
+      ]
+    },
+    {
+      "id": "Strategy 3.03",
+      "heading": "Humbug: permanent and temporary roads in OGMAs only without a practicable option",
+      "page": 1,
+      "quotes": [
+        "Permanent roads may be constructed and maintained in OGMAs where there are no other practicable options.",
+        "Temporary roads may also be constructed in OGMAs where there are no other practicable options.",
+        "Any temporary roads that are built in OGMAs must be deactivated, rehabilitated and planted as soon as possible."
+      ]
+    },
+    {
+      "id": "Strategy 3.04",
+      "heading": "Humbug: fire suppression in OGMAs",
+      "page": 1,
+      "quotes": [
+        "Fire suppression is permitted within OGMAs for the purposes of maintaining the integrity of the OGMAs."
+      ]
+    },
+    {
+      "id": "Transition",
+      "heading": "Forest development plans consistent with the order",
+      "page": 1,
+      "quotes": [
+        "Pursuant to Section 10 (1) (d) (ii) of the Forest Practices Code of British Columbia Act"
+      ]
+    },
+    {
+      "id": "Effective date",
+      "heading": "Effective date",
+      "page": 1,
+      "quotes": [
+        "Effective Date of Order This Order takes effect on August 1, 2003."
+      ]
+    }
+  ]
+}

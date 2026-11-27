@@ -1,0 +1,25 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.pg.bobtail-vqo.2006",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "Variance",
+      "relevance": "block",
+      "bearsOn": "Changes the objective for polygons 959-962 from partial retention to modification, to allow salvage of beetle-attacked pine near Bobtail Lake; a block there is held to modification.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:visual-quality-objective"
+      ],
+      "gapPriority": "low",
+      "gapNote": "A rule now flags an objective other than modification for polygons 959 to 962."
+    },
+    {
+      "n": "Scope",
+      "relevance": "definitions",
+      "bearsOn": "Says the change applies to the VQOs set for the district by the December 7, 2005 order.",
+      "review": "n/a"
+    }
+  ]
+}

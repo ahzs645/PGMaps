@@ -1,0 +1,40 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.fsj.vqo.2005",
+  "title": "Visual Quality Objective Order, Fort St. James Forest District (Notice of Intent), 2005",
+  "url": "https://www2.gov.bc.ca/assets/gov/environment/natural-resource-policy-legislation/legislation-regulation/gar-ministerial-orders/signed20vqo20order.pdf",
+  "madeUnder": "Government Actions Regulation s. 7(2) (signed by the district manager)",
+  "made": "2005-11-02",
+  "transcribedFrom": "signed PDF, scanned; read from the page images",
+  "transcribedOn": "2026-11-27",
+  "provisions": [
+    {
+      "id": "Para 1",
+      "heading": "VQOs established for the Fort St. James TSA portion as mapped",
+      "page": 1,
+      "quotes": [
+        "establish visual quality objectives (VQOs) for the Timber Supply Area portion of the Fort St. James Forest District",
+        "VISUAL QUALITY OBJECTIVE ORDER Pursuant to Section 7(2) of the Government Actions Regulation (GAR) (B.C.",
+        "582/2004), I, Lynda Currie, District Manager for the Fort St."
+      ]
+    },
+    {
+      "id": "Para 2",
+      "heading": "Applies to the scenic areas designated under GAR s. 7(1)",
+      "page": 1,
+      "quotes": [
+        "These VQOs apply to those scenic areas carried forward under FRPA Section 180 that were updated and designated under Section",
+        "James Forest District under Order signed by Mike Lambert, Ministry of Agriculture and Lands and published in the Gazette on"
+      ]
+    },
+    {
+      "id": "Para 3",
+      "heading": "Where the order and map can be seen",
+      "page": 1,
+      "quotes": [
+        "This VQO order and map is available at http://www.for.gov.bc.ca/ftp/DJA/external/!publish/Scenic%20Areas-VQOs_DJA/.",
+        "The VQO order and map can also be viewed at the Ministry of Forest Regional office on the 5th Floor of 1011 4th Avenue"
+      ]
+    }
+  ]
+}

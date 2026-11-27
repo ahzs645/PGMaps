@@ -1,0 +1,74 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.mackenzie.ogma.2010",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Establishes the objectives under Land Act s. 93.4 for the seven named landscape units or groups on Maps 1-7.",
+      "review": "n/a"
+    },
+    {
+      "n": "2",
+      "relevance": "block",
+      "bearsOn": "Requires all timber in the mapped OGMAs to be retained, so a block may not take any OGMA timber beyond section 3's minor-activity allowance.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+    },
+    {
+      "n": "3",
+      "relevance": "block",
+      "bearsOn": "Allows minor forestry activity into an OGMA only while total disturbance stays within 10% of gross area for OGMAs under 50 ha, or the lesser of 5% or 40 ha for OGMAs of 50 ha or more.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The ceiling is tested on the gross OGMA area and disturbance the reviewer enters; the layer’s FEATURE_AREA_SQM could fill the area, and earlier disturbance is not mapped."
+    },
+    {
+      "n": "4",
+      "relevance": "block",
+      "bearsOn": "Makes the Geographic Data Warehouse dataset, not the printed map, decide an OGMA's boundary.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The ogma screen already reads the warehouse layer (RMP_OGMA_LEGAL_CURRENT_SVW) this section makes decisive.",
+      "encodable": "spatial"
+    },
+    {
+      "n": "5",
+      "relevance": "block",
+      "bearsOn": "Requires written notice to the Integrated Land Management Bureau's Land and Resource Team Leader when disturbance in an OGMA occurs under the allowance.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:ogma"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rule asks for the notice; the reviewer names the successor office."
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "Takes effect when notice is published in the Gazette.",
+      "review": "n/a"
+    },
+    {
+      "n": "7",
+      "relevance": "plan",
+      "bearsOn": "Sets 12 months from the effective date as the period for FSP holders to amend their plans for these objectives (FRPA s. 8 mandatory amendment).",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A document check that the FSP was amended within the period; the citation \"8(2)(b)\" matches no current FRPA paragraph.",
+      "encodable": "document-check"
+    }
+  ]
+}

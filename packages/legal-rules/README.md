@@ -21,13 +21,16 @@ validate applicability, amendments, exemptions, mapped orders, and all GIS facts
 
 ## Scope / what is actually complete
 
-| Source | Whole document indexed? | Provisions interpreted? | Executable? |
-| --- | --- | --- | --- |
-| FRPA (SBC 2002 c 69) | CiviX XML importer provided; full snapshot **not yet downloaded** | Priority references only | No |
-| FPPR (BC Reg 14/2004) | CiviX XML importer provided; full snapshot **not yet downloaded** | §§64–66 starter rules | Size, adjacency review and retention screens |
-| Government Actions Regulation (582/2004) | CiviX importer provided; full snapshot **not yet downloaded** | Priority references only | No |
-| Prince George TSA Biodiversity Order, 20 Oct 2004 | A–E order provisions identified | Tables 3, 6, 7 transcribed; D alternatives summarized | Objective C trends and D.5(a)/(b) review workflows |
-| 2005 Implementation Policy | Identified | Key buffering guidance stored | Five-stage worker model, pending historic GIS validation |
+| Source | Text stored? | Executable? |
+| --- | --- | --- |
+| FRPA, FPPR, GAR, RPPR, Forest Act, Land Act, Range Act, IPMA and the other catalogued BC Acts | Every section, from CiviX XML (`catalogue/generated/`) | FPPR §§4.33–92.1, with the §64(2)–(4) exceptions, the §65(3) green-up test, §43.1 and §52(2) (`bc.fppr` 1.2.0; 1.1.0 kept for earlier reviews); FRPA §§3, 10, 15.1, FPPR §§14, 34.2, 34.5 and Forest Act §§52.02, 52.05, 117, 209, 215 (`bc.forest-permits` 1.0.0); FRPA §29, Land Act §§11–17, Range Act §§1, 3, RPPR §44 and FPPR §46.11 (`bc.crown-grazing` 1.1.0); GAR §7 and FPPR §§1.1, 9.2 (`bc.omineca.visual-quality`) |
+| Prince George TSA biodiversity order, 2004, and its 2005 policy | Transcribed provisions (`catalogue/orders/`) | Objective C trends, D.1–D.5 and E (`bc.pgtsa.biodiversity` 1.2.0); Objectives A and B in the old-forest module |
+| 2006 Omineca ADA/SRA order | Transcribed | Parts A–E and II (`bc.crown-grazing`) |
+| Dome/Slim, Humbug, Mackenzie 2010 OGMA and Ancient Forest OGMA orders; Mugaha Marsh; Obo River and Fox; the 2022 letter of expectations (COFAs) | Transcribed | `bc.omineca.old-growth` 1.0.0 |
+| Mackenzie non-spatial biodiversity order, 2008, amended 2010 | Transcribed | `bc.mackenzie.biodiversity` 1.0.0 (targets read by the reviewer) |
+| Prince George and Fort St. James VQO orders, the 2006 Bobtail Lake variance and the scenic area order | Transcribed | `bc.omineca.visual-quality` 1.0.0 (the scenic area order is text only) |
+
+Every section of every source above was read on 27 November 2026 and recorded in `catalogue/section-review/`: what it bears on, whether a rule really tests it, and the gap. `/dev/legal-rules` shows it as the **Law coverage** map; see [the planner contract](../../docs/forestry-patch-scenarios.md), **The law behind a finding**. That reading supersedes `catalogue/interpretation-backlog.json`, which is kept as it was written.
 
 The CiviX API supports full statute/regulation XML and the King's Printer Licence permits
 reuse subject to required attribution, accuracy, currency, and non-endorsement notices.

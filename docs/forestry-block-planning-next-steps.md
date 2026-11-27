@@ -14,7 +14,45 @@ Built on 24 November 2026 with its own contract, [On this ground](forestry-groun
 
 Built on 24 November 2026 and moved into [the old-forest contract](forestry-old-forest.md): the plan map draws old forest, old interior, the 200 m edges, D.1 and D.4 ground and the ground left out for the schedule and year on the map, from the worker's own run of the calculation (**A map of old and interior forest**), and _Representative stands (D.3)_ sets old forest beside the CFLB by leading species, BEC variant, age class and site index, under the order's and the policy's words (**D.3: representative stands**). What they leave open is in the contract's **Limits and what is not built**.
 
+## Done: the law behind a finding, and what the rules reach
+
+Built on 27 November 2026 and moved into the planner contract, **The law behind a finding**: every citation opens its provision with the cited words marked, each topic has a decision flowchart, and every section of the stored Acts and regulations and every provision of the transcribed Omineca orders has a dated reading of what it bears on and whether a rule tests it (the **Law coverage** map, and the [coverage book](legal-coverage-book.md)). The high gaps that reading found became rules: FPPR 1.2.0, the cutting and road permit pack, and the Omineca old growth, Mackenzie biodiversity and visual quality packs. What is left is below and in the book's **Open gaps**.
+
 ## Next
+
+### Exceptions as a choice, with a rationale
+
+**Why.** Almost every rule the law sets has exceptions, and today a pack models them three ways: folded into a scope question (`landscape-default`, `debris-scope`), as questions of their own (`size-purpose`, `pine-exception`, `spa-licence`, `exempt-purpose`), or not at all. At a raised finding the reviewer cannot see which exceptions the law allows, pick the one relied on, say why, and attach the evidence, and the report cannot show that an exception was claimed rather than the rule never applying.
+
+**What it changes.**
+
+- *Packs.* A rule may list its exceptions (`exceptions` in `pgmaps-legal-pack/v1`, optional, so every existing pack reads unchanged): each with an id, a label, its own citation (quoted in `rule-quotes.json` under `<rule>#<exception>`), its kind, and the evidence it needs. Two kinds, because the law has two: an exception that **applies by law** once its facts hold (FPPR §64(3)'s 40% basal area, §43.1(2)(b)'s 30% live beetle), whose conditions the pack can state and the evaluator test; and one that **needs a decision** by someone named (a §4.51 exemption, a §12.4 FSP result, a district manager's COFA variance, a §215(2) road the official is satisfied of), which holds only once the decision is on file.
+- *Cases.* The reviewer's claim is kept beside the answers, per rule: the exception, a rationale in their words, evidence rows (what, reference, date) and, for a decision, who made it, when and its reference. It is never a fact and never chosen for the reviewer.
+- *Evaluator.* A raised rule with a claim stays in the report as *Exception relied on* (applies by law, its conditions met or not testable), *Exception pending a decision* or *Exception decided*; a claim whose own conditions the answers contradict reads *Exception not supported*. A claim never turns a finding into *not triggered*, so a reader always sees the rule and the exception together.
+- *Review and flowchart.* A raised finding gets *Rely on an exception*: the rule's exceptions in a dropdown, each opening its provision, then the rationale, evidence and decision fields. The flowchart draws each exception as a branch off its rule. The printed summary and the export list every claim with its rationale.
+- *Moving the packs.* The questions that are exceptions today become exceptions in each pack's next release (FPPR 1.3.0, the permit pack 1.1.0, crown grazing 1.2.0); the releases before keep their questions, so a saved review opens as it was.
+
+**What decides it.** The law's own list: an exception goes in only with the provision that creates it, and one whose holding turns on a decision is always *needs a decision*. **How to know it worked.** A claim never changes which rules the evaluator raises (`decisionTree.test.ts` still matches it); a claim of an exception that applies by law with contradicting answers reads *not supported*; reviews saved with the earlier releases open unchanged.
+
+### FRPA §20.22: the FSP's results for an ordinary block
+
+The holder must achieve the plan's intended results and carry out its strategies, and that is what most block rules reduce to in practice (cutblock size, adjacency, visual quality, wildlife trees, stocking). A rule would ask which results and strategies of the applicable FSP bear on the block and whether the design achieves each, and record the plan, its approval and whether it has expired or been replaced. It fits the exception system above, since a §12.4 or §12.5 result replaces a default rule.
+
+### Mackenzie old forest, calculated
+
+The Mackenzie biodiversity pack takes the reviewer's old and old interior margins. Calculating them means Mackenzie units in the old-forest module (`orderUnits.ts` refuses them today): the 2008 order's Tables 2 and 3 as replaced in 2010, its own CFLB and natural forest definitions, and the younger-stand allowance on the live-old portion only. Check it the way the Prince George tables were checked, against any published Mackenzie figures.
+
+### Map screens behind the reviewer's answers
+
+The permit and old-growth packs ask questions a layer could answer as a candidate, as *On this ground* does: candidate old forest areas (the non-legal OGMA layer filtered to `PRG_COFA` and `PRG_DPG`, the 2022 letter's Appendix 5; the visual quality route card already reads it), special purpose areas, pine-leading VRI polygons of 5 ha or more in the listed TSAs, lakeshore management zones, fisheries sensitive watersheds and mapped L1 lakes. FSP forest development units and forest landscape areas have no public layer found yet. Each is a ground catalogue layer with its reach cells cited, and stays a candidate the reviewer confirms.
+
+### The forest operations plan regime
+
+FRPA §§2.35–2.47 and FPPR §§4.11–4.36: a block under a forest operations plan must be listed in it, its commencement year compared with the schedule, and its public review (60 days, 30 for an amendment adding a block) and notice to tenure holders checked. A new pack, switched on only where the block is in a forest landscape area.
+
+### The Prince George young-forest trend
+
+Objective C asks for a trend toward the target distribution; the pack raises a finding when any one class moves away (`patch-class-away`). A truer test would measure the distribution's distance from the targets over the interval, which changes `legalEvidence.ts` on the forest patches page and the planner's landscape review together, as a new release of `bc.pgtsa.biodiversity`.
 
 ### Prepared tables in bcdatamapper
 

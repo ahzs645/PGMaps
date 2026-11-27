@@ -1,0 +1,574 @@
+[
+  {
+    "id": "fdu",
+    "title": "Forest development unit of an approved FSP",
+    "source": "frpa",
+    "provision": "3(1)–(2)",
+    "scope": [
+      [
+        {
+          "fact": "tenure",
+          "op": "in",
+          "value": [
+            "A forest licence, tree farm licence, community forest agreement, timber licence or major licence to cut",
+            "BC Timber Sales, under a timber sale licence"
+          ]
+        },
+        {
+          "fact": "landscape-area",
+          "op": "in",
+          "value": [
+            "No",
+            "Partly"
+          ]
+        },
+        {
+          "fact": "fsp-purpose",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "fdu",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "Outside a forest landscape area the holder may not apply for a cutting or road permit, harvest or build a road on land that no forest development unit of its approved forest stewardship plan contains.",
+    "actions": [
+      {
+        "kind": "obtain-approval",
+        "description": "Amend the forest stewardship plan to add the area to a forest development unit, and have the amendment approved, before applying."
+      }
+    ]
+  },
+  {
+    "id": "fdu-identifies",
+    "title": "What the FSP identifies in the unit",
+    "source": "instrument",
+    "provision": "14(2)–(3)",
+    "scope": [
+      [
+        {
+          "fact": "tenure",
+          "op": "in",
+          "value": [
+            "A forest licence, tree farm licence, community forest agreement, timber licence or major licence to cut",
+            "BC Timber Sales, under a timber sale licence"
+          ]
+        },
+        {
+          "fact": "landscape-area",
+          "op": "in",
+          "value": [
+            "No",
+            "Partly"
+          ]
+        },
+        {
+          "fact": "fdu",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "fdu-feature",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "fdu-feature-shown",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "The forest stewardship plan must identify, for the forest development unit, each such area in effect 4 months before the plan or amendment was submitted; this one is not shown.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Check the plan against the area as it stood 4 months before submission. If it was in effect then, the plan is missing it; if it came later, record what governs it now, such as its order or the plan’s results and strategies."
+      }
+    ]
+  },
+  {
+    "id": "site-plan",
+    "title": "Site plan before harvest",
+    "source": "frpa",
+    "provision": "10(1)–(2)",
+    "scope": [
+      [
+        {
+          "fact": "tenure",
+          "op": "in",
+          "value": [
+            "A forest licence, tree farm licence, community forest agreement, timber licence or major licence to cut",
+            "BC Timber Sales, under a timber sale licence"
+          ]
+        },
+        {
+          "fact": "landscape-area",
+          "op": "in",
+          "value": [
+            "No",
+            "Partly"
+          ]
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "site-plan",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "A site plan for the cutblock and its roads must be prepared before harvest starts, consistent with the forest stewardship plan and showing how the plan's results or strategies apply to the site.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Prepare the site plan with the block layout, unless a prescribed circumstance exempts it, and keep it with the block record."
+      }
+    ]
+  },
+  {
+    "id": "fom",
+    "title": "Forest operations map before applying",
+    "source": "frpa",
+    "provision": "15.1(1)–(2)",
+    "scope": [
+      [
+        {
+          "fact": "tenure",
+          "op": "in",
+          "value": [
+            "A forest licence, tree farm licence, community forest agreement, timber licence or major licence to cut",
+            "BC Timber Sales, under a timber sale licence"
+          ]
+        },
+        {
+          "fact": "landscape-area",
+          "op": "in",
+          "value": [
+            "No",
+            "Partly"
+          ]
+        },
+        {
+          "fact": "fsp-purpose",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "fom-published",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      [
+        {
+          "fact": "fom-published",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "fom-report",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "A forest stewardship plan holder may apply for a cutting or road permit only after the forest operations map showing it has been made public for review and comment and a report on that review has gone to government.",
+    "actions": [
+      {
+        "kind": "submit",
+        "description": "Publish the map with both notices, run the review, then submit the review report before the permit application."
+      }
+    ]
+  },
+  {
+    "id": "fom-review",
+    "title": "Forest operations map review period",
+    "source": "instrument",
+    "provision": "34.2(3)–(4)",
+    "scope": [
+      [
+        {
+          "fact": "tenure",
+          "op": "in",
+          "value": [
+            "A forest licence, tree farm licence, community forest agreement, timber licence or major licence to cut",
+            "BC Timber Sales, under a timber sale licence"
+          ]
+        },
+        {
+          "fact": "landscape-area",
+          "op": "in",
+          "value": [
+            "No",
+            "Partly"
+          ]
+        },
+        {
+          "fact": "fom-published",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "fom-review-days",
+          "op": "lt",
+          "value": {
+            "parameter": "fom-review-period"
+          }
+        },
+        {
+          "fact": "fom-short-set",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "The review period ran shorter than 30 days from the date both notices were out, and the minister set no shorter period.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Count the period from the later of the website and newspaper notices. Run the review again for the full period, or file the minister’s determination of a shorter one."
+      }
+    ]
+  },
+  {
+    "id": "fom-window",
+    "title": "Applying within 3 years of the map",
+    "source": "instrument",
+    "provision": "34.5",
+    "scope": [
+      [
+        {
+          "fact": "tenure",
+          "op": "in",
+          "value": [
+            "A forest licence, tree farm licence, community forest agreement, timber licence or major licence to cut",
+            "BC Timber Sales, under a timber sale licence"
+          ]
+        },
+        {
+          "fact": "landscape-area",
+          "op": "in",
+          "value": [
+            "No",
+            "Partly"
+          ]
+        },
+        {
+          "fact": "fom-published",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "fom-years",
+          "op": "gt",
+          "value": {
+            "parameter": "fom-reliance"
+          }
+        }
+      ]
+    ],
+    "finding": "The permit application comes more than 3 years after the map's review period began, so the holder cannot rely on that map.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Publish a new forest operations map showing the cutblock or road and review it again before applying."
+      }
+    ]
+  },
+  {
+    "id": "permit-refusal",
+    "title": "Grounds on which the minister must refuse the permit",
+    "source": "forest-act",
+    "provision": "52.05(1)(b), 117(3)(a)",
+    "scope": [
+      [
+        {
+          "fact": "landscape-area",
+          "op": "in",
+          "value": [
+            "No",
+            "Partly"
+          ]
+        },
+        {
+          "fact": "fsp-purpose",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "tenure",
+          "op": "in",
+          "value": [
+            "A forest licence, tree farm licence, community forest agreement, timber licence or major licence to cut",
+            "BC Timber Sales, under a timber sale licence"
+          ]
+        },
+        {
+          "fact": "fdu",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      [
+        {
+          "fact": "tenure",
+          "op": "eq",
+          "value": "A woodlot licence"
+        },
+        {
+          "fact": "wlp",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      [
+        {
+          "fact": "tenure",
+          "op": "in",
+          "value": [
+            "A forest licence, tree farm licence, community forest agreement, timber licence or major licence to cut",
+            "BC Timber Sales, under a timber sale licence"
+          ]
+        },
+        {
+          "fact": "fom-published",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      [
+        {
+          "fact": "tenure",
+          "op": "in",
+          "value": [
+            "A forest licence, tree farm licence, community forest agreement, timber licence or major licence to cut",
+            "BC Timber Sales, under a timber sale licence"
+          ]
+        },
+        {
+          "fact": "fom-published",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "fom-consistent",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "On these answers the minister must refuse the cutting or road permit: the applicant holds no plan for the area, did not publish the forest operations map, or the block or road departs from the locations the map shows.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Resolve the ground before applying: a plan that covers the area, a published and reviewed map, or a new map whose cutblock and road locations match the application."
+      }
+    ]
+  },
+  {
+    "id": "fop",
+    "title": "Forest operations plan in a forest landscape area",
+    "source": "forest-act",
+    "provision": "52.05(1)(c), 117(3)(b)",
+    "scope": [
+      [
+        {
+          "fact": "landscape-area",
+          "op": "in",
+          "value": [
+            "Yes",
+            "Partly"
+          ]
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "fop-held",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "In a forest landscape area the minister must refuse a cutting or road permit unless the applicant holds a forest operations plan for the area and the block and road match its proposed cutblocks and roads.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Confirm the forest operations plan in effect for the area and compare the block and road with the cutblocks and roads it proposes."
+      }
+    ]
+  },
+  {
+    "id": "cutting-permit",
+    "title": "Cutting permit",
+    "source": "forest-act",
+    "provision": "52.02",
+    "scope": [
+      [
+        {
+          "fact": "tenure",
+          "op": "in",
+          "value": [
+            "A forest licence, tree farm licence, community forest agreement, timber licence or major licence to cut",
+            "A woodlot licence"
+          ]
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "cutting-permit",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "Harvest under the licence needs a cutting permit whose area takes in the block.",
+    "actions": [
+      {
+        "kind": "obtain-approval",
+        "description": "Apply for the cutting permit once the plan and map requirements are met, and record the licence and permit numbers with the block."
+      }
+    ]
+  },
+  {
+    "id": "spa-licence",
+    "title": "Special purpose area · licence or cutting permit",
+    "source": "forest-act",
+    "provision": "209(1)–(2)",
+    "scope": [
+      [
+        {
+          "fact": "spa",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "spa-licence",
+          "op": "eq",
+          "value": "None"
+        }
+      ]
+    ],
+    "finding": "No cutting permit, timber sale licence or forestry licence to cut may be issued with rights in a special purpose area unless a §209(2) or §223 exception applies.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Take the block out of the special purpose area, or document the licence purpose that brings it within an exception."
+      }
+    ]
+  },
+  {
+    "id": "spa-road",
+    "title": "Special purpose area · new road",
+    "source": "forest-act",
+    "provision": "215",
+    "scope": [
+      [
+        {
+          "fact": "spa",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "spa-road",
+          "op": "eq",
+          "value": "None of §215(2)"
+        }
+      ]
+    ],
+    "finding": "No road permit may authorize a new road in the special purpose area unless a §215(2) ground applies.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Route the road outside the area, or document the §215(2) ground the official is to be satisfied of."
+      }
+    ]
+  },
+  {
+    "id": "spa-exception",
+    "title": "Special purpose area · exception relied on",
+    "source": "forest-act",
+    "provision": "209(2), 215(2)",
+    "scope": [
+      [
+        {
+          "fact": "spa",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "spa-licence",
+          "op": "in",
+          "value": [
+            "A forestry licence to cut for fire, forest health or public safety, or a cutting permit under it (§209(2)(a), (c))",
+            "A licence entered into for the area's own special purpose (§223(2)–(3))"
+          ]
+        }
+      ],
+      [
+        {
+          "fact": "spa-road",
+          "op": "in",
+          "value": [
+            "The road does not significantly interfere with the area's purposes (§215(2)(a))",
+            "The road serves a fire, forest health or safety licence to cut (§215(2)(b), (d))",
+            "The road serves a licence to cut entered into before the designation (§215(2)(c))"
+          ]
+        }
+      ]
+    ],
+    "finding": "The block or its road relies on a special purpose area exception, which an authorized official must be satisfied of.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the licence purpose or the road’s ground with its evidence, and the designation’s effective date."
+      }
+    ]
+  }
+]

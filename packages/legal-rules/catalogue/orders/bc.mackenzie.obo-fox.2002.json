@@ -1,0 +1,144 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.mackenzie.obo-fox.2002",
+  "title": "Order to Establish the Obo River and Fox Landscape Units and Objectives, 2002",
+  "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/mackenzie-lrmp/mackenzie-srmp/order_obo_river_fox_landscape_units_objectives.pdf",
+  "madeUnder": "Forest Practices Code Act s. 4(1) and (2); continued as a Land Act s. 93.4 objective by Land Act s. 93.8",
+  "made": "2002-10-24",
+  "transcribedFrom": "signed PDF, text layer checked against the pages",
+  "transcribedOn": "2026-11-27",
+  "notes": [
+    "Superseded by: In part: the Non-spatial Landscape Biodiversity Objectives for the Mackenzie Forest District (April 9, 2008), s. 1.4, discloses a conflict with \"Section 1.A.g. and Table 2 (for the portion that relates to old)\" and says that order applies on old forest retention."
+  ],
+  "provisions": [
+    {
+      "id": "Establishment",
+      "heading": "Obo River and Fox landscape units established",
+      "page": 1,
+      "quotes": [
+        "Pursuant to section 4 (1) of the Forest Practices Code of British Columbia Act (the Act)"
+      ]
+    },
+    {
+      "id": "1.A.a",
+      "heading": "Opening size and distribution by Table 1 patch size classes",
+      "page": 1,
+      "quotes": [
+        "Contribute to the conservation of biodiversity by: a.",
+        "Maintaining the size and distribution of openings/cutblock areas in each landscape unit consistent with patch size",
+        "Patch Size Distribution (%) in each Size Category (ha) Natural Disturbance <40 ha 40 – 80 ha 80 – 250 ha Type"
+      ]
+    },
+    {
+      "id": "1.A.b",
+      "heading": "Retain forested patches by Table 1",
+      "page": 1,
+      "quotes": [
+        "Minimizing fragmentation of forested areas by retaining forested patches according to Table 1 for each landscape unit."
+      ]
+    },
+    {
+      "id": "1.A.c",
+      "heading": "Larger patches by district manager opinion",
+      "page": 1,
+      "quotes": [
+        "For patch size classes 80-250 ha and 250-1000 ha, patch size may be larger if, in the opinion of the district manager"
+      ]
+    },
+    {
+      "id": "1.A.d",
+      "heading": "Clustered harvest to emulate 40 ha and larger patches",
+      "page": 1,
+      "quotes": [
+        "may approve the use of clustered harvest patterns to emulate patch sizes that are greater or equal to 40 hectares",
+        "The district manager, Ministry of Forests, for operational reasons, may approve the use of clustered harvest patterns to"
+      ]
+    },
+    {
+      "id": "1.A.e",
+      "heading": "Short-term deviation for fire, forest health or operational constraints",
+      "page": 1,
+      "quotes": [
+        "Short term deviations to patch size distribution targets may be approved by the district manager"
+      ]
+    },
+    {
+      "id": "1.A.f",
+      "heading": "Seral stage distribution (Table 2) and reserving the old deficit",
+      "page": 1,
+      "quotes": [
+        "Maintaining the seral stages for each landscape unit to the levels indicated in Table 2.",
+        "Where the amount of mature plus old seral stage is less than the levels indicated in Table 2",
+        "Seral Stage Distribution Natural Biogeoclimatic Mature plus Old Old Disturbance Type Zone (%) (%)"
+      ]
+    },
+    {
+      "id": "1.A.g",
+      "heading": "Use constrained areas first for seral targets",
+      "page": 2,
+      "quotes": [
+        "Seral stage targets indicated in Table 2 should be achieved, where possible"
+      ]
+    },
+    {
+      "id": "1.A.i",
+      "heading": "BWBS retention may vary with deciduous component",
+      "page": 2,
+      "quotes": [
+        "Retention for BWBS may vary, as specified in the Biodiversity Guidebook"
+      ]
+    },
+    {
+      "id": "1.A.j",
+      "heading": "Connectivity from constrained areas",
+      "page": 2,
+      "quotes": [
+        "Maintaining connectivity of important habitats using existing areas constrained from harvesting for the purposes of managing"
+      ]
+    },
+    {
+      "id": "1.A.k",
+      "heading": "Wildlife tree patch retention by Table 3",
+      "page": 2,
+      "quotes": [
+        "Wildlife tree patch retention targets, as determined using Table 3, will be applied to all openings / cutblocks",
+        "Percentage of a Cutblock Area Required in Wildlife Tree Retention Percent of the Area Available for Harvesting that has",
+        "The table axes refer to the area of the landscape unit."
+      ]
+    },
+    {
+      "id": "2.A.a",
+      "heading": "Weissener Lake: 200 m no harvest and 50 m at 50% basal area",
+      "page": 3,
+      "quotes": [
+        "not allowing timber harvesting within 200 metres (slope distance) of Weissener Lake indicated in Table 4",
+        "Contribute to the conservation of aquatic habitat through the following provisions: a.",
+        "Maintain aquatic habitat for lake trout by not allowing timber harvesting within 200 metres"
+      ]
+    },
+    {
+      "id": "2.A.b",
+      "heading": "Variance of the Weissener Lake distances",
+      "page": 3,
+      "quotes": [
+        "To permit the refinement of objective 2a to specific local circumstances"
+      ]
+    },
+    {
+      "id": "Transition",
+      "heading": "Forest development plans consistent with the order",
+      "page": 3,
+      "quotes": [
+        "Pursuant to Section 10 (1) (d) (ii) of the Forest Practices Code of British Columbia Act"
+      ]
+    },
+    {
+      "id": "Effective date",
+      "heading": "Effective date",
+      "page": 3,
+      "quotes": [
+        "Effective Date of Order This Order takes effect on October 24, 2002."
+      ]
+    }
+  ]
+}

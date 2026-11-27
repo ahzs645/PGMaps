@@ -1,7 +1,7 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.crown-grazing",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "BC Crown grazing and reforestation",
   "description": "Evidence review for forestry on grazing land, in Land Act designated areas and in the 2006 Omineca agriculture and settlement reserve areas: lease terms, designations, range plans, range barriers and developments, the order's harvest pathways and whether the harvested ground can be reforested.",
   "coverage": {
@@ -32,7 +32,7 @@
     },
     {
       "id": "designation-terms-restrict",
-      "label": "Do the designation's terms (its signed notice, conditions under §17(1.1) or the land use report) restrict harvesting, site preparation or planting on the area?",
+      "label": "Do the designation's terms (its signed notice, conditions under §15(4), §16(3) or §17(1.1), or the land use report) restrict harvesting, site preparation or planting on the area?",
       "type": "boolean"
     },
     {
@@ -113,7 +113,7 @@
     },
     {
       "id": "area-based-tenure",
-      "label": "Would the proposal establish an area-based forest tenure (a woodlot licence, community forest agreement or tree farm licence) in the area?",
+      "label": "Would the proposal establish an area-based forest tenure (such as a woodlot licence, community forest agreement, first nations woodland licence or tree farm licence) in the area?",
       "type": "boolean"
     },
     {
@@ -162,9 +162,40 @@
       "id": "permanent-grazing-opening",
       "label": "Would the proposal keep any of the area to be reforested permanently open for grazing?",
       "type": "boolean"
+    },
+    {
+      "id": "opening-largest",
+      "label": "Area of the largest patch to be kept open within the net area to be reforested",
+      "type": "number",
+      "min": 0,
+      "unit": "ha"
+    },
+    {
+      "id": "opening-share",
+      "label": "Share of its standards unit taken by the mappable openings of 1 to 2 ha together",
+      "type": "number",
+      "min": 0,
+      "max": 100,
+      "unit": "%"
     }
   ],
-  "parameters": [],
+  "parameters": [
+    {
+      "id": "opening-small",
+      "value": 1,
+      "unit": "ha"
+    },
+    {
+      "id": "opening-mappable",
+      "value": 2,
+      "unit": "ha"
+    },
+    {
+      "id": "opening-share",
+      "value": 5,
+      "unit": "%"
+    }
+  ],
   "sourceFiles": [
     "sources/bc/land-act.json",
     "sources/bc/range-act.json",
@@ -175,5 +206,7 @@
     "sources/bc/rppr.json",
     "sources/bc/crown-land-reserves-policy.json"
   ],
-  "ruleFiles": ["rules/bc/crown-grazing.json"]
+  "ruleFiles": [
+    "rules/bc/crown-grazing.json"
+  ]
 }

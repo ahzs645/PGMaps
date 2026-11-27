@@ -1,0 +1,575 @@
+[
+  {
+    "id": "dome-slim-cutting",
+    "title": "Cutting in an OGMA without a forest health need",
+    "source": "dome-slim",
+    "provision": "Strategy 1.01–1.02, 2.01–2.02",
+    "scope": [
+      [
+        {
+          "fact": "ogma-order",
+          "op": "eq",
+          "value": "Dome or Slim landscape unit (2002 order)"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ogma-forest-health",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "The order maintains the mapped OGMAs and limits cutting in them to circumstances where it is absolutely necessary for insect or disease infestation control. The answers give no such need.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Map the overlap against the order's OGMA map and the legal OGMA layer, and move the boundary out of the OGMA."
+      }
+    ]
+  },
+  {
+    "id": "dome-slim-forest-health",
+    "title": "Forest health cutting in an OGMA",
+    "source": "dome-slim",
+    "provision": "Strategy 1.02, 2.02",
+    "scope": [
+      [
+        {
+          "fact": "ogma-order",
+          "op": "eq",
+          "value": "Dome or Slim landscape unit (2002 order)"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ogma-forest-health",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Where intervention in an OGMA is required because of a forest health threat to adjacent areas, the structural features of old growth are retained as much as possible.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the forest health threat and the structure the prescription keeps."
+      }
+    ]
+  },
+  {
+    "id": "dome-slim-road",
+    "title": "Road in a Dome or Slim OGMA",
+    "source": "dome-slim",
+    "provision": "Strategy 1.03, 2.03",
+    "scope": [
+      [
+        {
+          "fact": "ogma-order",
+          "op": "eq",
+          "value": "Dome or Slim landscape unit (2002 order)"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ogma-road",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "ogma-road-alternative",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Roads are not built in these OGMAs unless there is no other practicable option, and a temporary road built in one is deactivated, rehabilitated and planted as soon as possible. The answers say another option exists.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the road options considered and why the route through the OGMA is needed, or reroute it."
+      }
+    ]
+  },
+  {
+    "id": "humbug-cutting",
+    "title": "Cutting in an OGMA without a forest health need",
+    "source": "humbug",
+    "provision": "Strategy 3.01–3.02",
+    "scope": [
+      [
+        {
+          "fact": "ogma-order",
+          "op": "eq",
+          "value": "Humbug landscape unit (2003 order)"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ogma-forest-health",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "The order maintains the mapped OGMAs and limits cutting in them to circumstances where it is absolutely necessary for insect or disease infestation control. The answers give no such need.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Map the overlap against the order's Map 3 and the legal OGMA layer, and move the boundary out of the OGMA."
+      }
+    ]
+  },
+  {
+    "id": "humbug-forest-health",
+    "title": "Forest health cutting in an OGMA",
+    "source": "humbug",
+    "provision": "Strategy 3.02",
+    "scope": [
+      [
+        {
+          "fact": "ogma-order",
+          "op": "eq",
+          "value": "Humbug landscape unit (2003 order)"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ogma-forest-health",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Where intervention in an OGMA is required because of a forest health threat to adjacent areas, the structural features of old growth are retained as much as possible.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the forest health threat and the structure the prescription keeps."
+      }
+    ]
+  },
+  {
+    "id": "humbug-road",
+    "title": "Road in a Humbug OGMA",
+    "source": "humbug",
+    "provision": "Strategy 3.03",
+    "scope": [
+      [
+        {
+          "fact": "ogma-order",
+          "op": "eq",
+          "value": "Humbug landscape unit (2003 order)"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ogma-road",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "ogma-road-alternative",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Permanent and temporary roads may be built in these OGMAs only where there are no other practicable options. The answers say another option exists.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the road options considered, or reroute the road."
+      }
+    ]
+  },
+  {
+    "id": "mackenzie-retain",
+    "title": "Timber in a Mackenzie OGMA",
+    "source": "mackenzie-ogma",
+    "provision": "2",
+    "scope": [
+      [
+        {
+          "fact": "ogma-order",
+          "op": "eq",
+          "value": "Mackenzie spatial order (2010)"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ogma-disturbed-percent",
+          "op": "gt",
+          "value": 0
+        }
+      ]
+    ],
+    "finding": "The order retains all timber in its OGMAs, except minor forestry activity within the section 3 ceiling.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Confirm the activity is minor forestry activity and record the OGMA's gross area and its total disturbance, including earlier activity."
+      }
+    ]
+  },
+  {
+    "id": "mackenzie-ceiling",
+    "title": "Minor activity over the OGMA ceiling",
+    "source": "mackenzie-ogma",
+    "provision": "3",
+    "scope": [
+      [
+        {
+          "fact": "ogma-order",
+          "op": "eq",
+          "value": "Mackenzie spatial order (2010)"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ogma-area",
+          "op": "lt",
+          "value": {
+            "parameter": "small-ogma"
+          }
+        },
+        {
+          "fact": "ogma-disturbed-percent",
+          "op": "gt",
+          "value": {
+            "parameter": "small-ogma-share"
+          }
+        }
+      ],
+      [
+        {
+          "fact": "ogma-area",
+          "op": "gte",
+          "value": {
+            "parameter": "small-ogma"
+          }
+        },
+        {
+          "fact": "ogma-disturbed-percent",
+          "op": "gt",
+          "value": {
+            "parameter": "large-ogma-share"
+          }
+        }
+      ],
+      [
+        {
+          "fact": "ogma-area",
+          "op": "gte",
+          "value": {
+            "parameter": "small-ogma"
+          }
+        },
+        {
+          "fact": "ogma-disturbed-ha",
+          "op": "gt",
+          "value": {
+            "parameter": "large-ogma-area"
+          }
+        }
+      ]
+    ],
+    "finding": "Minor forestry activity may disturb at most 10% of an OGMA under 50 ha, or the lesser of 5% and 40 ha of a larger one. The entered disturbance is over that ceiling.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Reduce the disturbance in the OGMA, or move the block or road out of it."
+      }
+    ]
+  },
+  {
+    "id": "mackenzie-notice",
+    "title": "Notice of disturbance in a Mackenzie OGMA",
+    "source": "mackenzie-ogma",
+    "provision": "5",
+    "scope": [
+      [
+        {
+          "fact": "ogma-order",
+          "op": "eq",
+          "value": "Mackenzie spatial order (2010)"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ogma-disturbed-percent",
+          "op": "gt",
+          "value": 0
+        }
+      ]
+    ],
+    "finding": "Where disturbance in an OGMA occurs, the order requires written notification to the Land and Resource Team Leader (now the regional land use planning office).",
+    "actions": [
+      {
+        "kind": "submit",
+        "description": "Send the written notification and keep a copy with the block record."
+      }
+    ]
+  },
+  {
+    "id": "ancient-forest-retain",
+    "title": "Timber in the Ancient Forest Trail OGMA",
+    "source": "ancient-forest",
+    "provision": "2",
+    "scope": [
+      [
+        {
+          "fact": "ogma-order",
+          "op": "eq",
+          "value": "Ancient Forest Trail (2009 order)"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "ogma-order",
+          "op": "eq",
+          "value": "Ancient Forest Trail (2009 order)"
+        }
+      ]
+    ],
+    "finding": "The order retains all timber in this OGMA, with no allowance for minor activity. The area has since been included in Ancient Forest/Chun T'oh Whudujut Park, which the On this ground screen reads separately.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Move the block or road out of the OGMA."
+      }
+    ]
+  },
+  {
+    "id": "cofa",
+    "title": "Candidate old forest area (Prince George TSA)",
+    "source": "pgtsa-loe",
+    "provision": "PG DM ¶2",
+    "when": [
+      [
+        {
+          "fact": "cofa",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "cofa-variance",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "The district managers expect candidate old forest areas to be left unharvested; any incursion needs a variance with a replacement area. This is a letter of expectations, not an order, and the 2004 order's objectives remain the legal test.",
+    "actions": [
+      {
+        "kind": "obtain-approval",
+        "description": "Seek the district manager's variance and identify the replacement area before the block proceeds, or move it out of the COFA."
+      }
+    ]
+  },
+  {
+    "id": "cofa-variance",
+    "title": "COFA variance without a replacement area",
+    "source": "pgtsa-loe",
+    "provision": "PG DM ¶4",
+    "when": [
+      [
+        {
+          "fact": "cofa",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "cofa-variance",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "cofa-replacement",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "A variance to the no-harvest expectation rests on the impact being unavoidable and an alternative area of equal or greater ecological value being identified; no such area is identified.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Identify the replacement area and the rationale, supported by current science, so the COFAs keep 100% of each mBEC target."
+      }
+    ]
+  },
+  {
+    "id": "cofa-summary",
+    "title": "COFA incursion in the annual variance summary",
+    "source": "pgtsa-loe",
+    "provision": "PG DM annual: variance summary",
+    "when": [
+      [
+        {
+          "fact": "cofa",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "cofa-summary",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "Every incursion into a COFA, whatever its size, needs approval, and is forecast in the annual summary of requested variances before the permit application.",
+    "actions": [
+      {
+        "kind": "submit",
+        "description": "Add the block and road, with their planned boundaries and the COFA area they take, to the annual summary of requested variances with the rationale."
+      }
+    ]
+  },
+  {
+    "id": "mugaha-share",
+    "title": "Harvest share in the Mugaha Marsh sensitive area",
+    "source": "mugaha",
+    "provision": "Strategy 1b",
+    "scope": [
+      [
+        {
+          "fact": "mugaha",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "mugaha-share",
+          "op": "gt",
+          "value": {
+            "parameter": "mugaha-share"
+          }
+        }
+      ]
+    ],
+    "finding": "The sensitive area plan limits harvest to 10% of its commercial forest in any 10 years, with herbicides considered incompatible. The strategies are district manager policy under the order's legal objectives, not objectives themselves.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Record the commercial forest harvested in the last 10 years and the share this block adds; reduce or defer the block."
+      }
+    ]
+  },
+  {
+    "id": "mugaha-reserve",
+    "title": "Reserve beside a Mugaha Marsh lake or wetland",
+    "source": "mugaha",
+    "provision": "Strategy 1c",
+    "scope": [
+      [
+        {
+          "fact": "mugaha",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "mugaha-reserve",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The plan keeps a 100 m unlogged reserve beside every lake and wetland in the sensitive area, unless harvesting it is needed for long-term retention of habitat values.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Pull the boundary back 100 m from lakes and wetlands, or record why harvest there retains habitat values."
+      }
+    ]
+  },
+  {
+    "id": "obo-fox-retention",
+    "title": "Wildlife tree patches in the Obo River and Fox units",
+    "source": "obo-fox",
+    "provision": "1.A.k",
+    "scope": [
+      [
+        {
+          "fact": "obo-fox",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "obo-fox",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Openings in these units take wildlife tree patch retention from the order's Table 3, by how much of the subzone is available for harvest and already harvested, unless operational plans meet the unit's targets another way. The FPPR retention rule tests a different figure.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Read Table 3 for the block's subzone and record the retention planned."
+      }
+    ]
+  },
+  {
+    "id": "weissener",
+    "title": "Weissener Lake buffer",
+    "source": "obo-fox",
+    "provision": "2.A.a",
+    "scope": [
+      [
+        {
+          "fact": "obo-fox",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "weissener",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "No timber harvesting within 200 m (slope distance) of Weissener Lake, and 50% of the basal area retained in the next 50 m, unless the regional director varies the distances.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Measure the slope distance to Weissener Lake and pull the boundary back, or record the regional director's variance."
+      }
+    ]
+  }
+]

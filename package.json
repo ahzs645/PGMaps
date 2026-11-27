@@ -169,7 +169,9 @@
     "lidar:preview:build": "vite build --config lidar-preview/vite.config.ts",
     "ci:prepare": "npm run toolkit:build && npm --prefix vendor/json-url run build && node scripts/ensure-tourkit.mjs && node scripts/ensure-document-kit.mjs",
     "example:access-history": "node --import tsx scripts/forestry/generate-access-history-example.ts",
-    "check:access-history": "tsc --project scripts/forestry/tsconfig.access-history.json"
+    "check:access-history": "tsc --project scripts/forestry/tsconfig.access-history.json",
+    "legal:coverage-book": "tsx scripts/legal-rules/coverage-book.ts",
+    "legal:coverage-book:check": "tsx scripts/legal-rules/coverage-book.ts --check"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.4",

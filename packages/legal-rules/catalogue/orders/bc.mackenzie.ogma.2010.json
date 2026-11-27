@@ -1,0 +1,75 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.mackenzie.ogma.2010",
+  "title": "Spatial Land Use Objectives for part of the Mackenzie Forest District, including old growth management areas, 23 September 2010",
+  "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/mackenzie-lrmp/mackenzie-srmp/spatial_land_use_obj_ogma.pdf",
+  "madeUnder": "Land Act s. 93.4",
+  "made": "2010-09-23",
+  "transcribedFrom": "signed PDF, scanned; read from the page images",
+  "transcribedOn": "2026-11-27",
+  "provisions": [
+    {
+      "id": "1",
+      "heading": "Objectives established under Land Act s. 93.4 for seven units",
+      "page": 2,
+      "quotes": [
+        "Pursuant to section 93.4 of the Land Act the following objectives are established as land use objectives for the purposes of",
+        "Twenty Mile, Gaffney-Manson River, Misinchinka-Tudyah B, Gillis-Klawli, Parsnip"
+      ]
+    },
+    {
+      "id": "2",
+      "heading": "Retain all timber in the OGMAs",
+      "page": 2,
+      "quotes": [
+        "Retain all timber within the Old Growth Management Areas (OGMAs), as shown on the attached Maps 1-7.",
+        "Old Growth Management Areas (OGMA) 2."
+      ]
+    },
+    {
+      "id": "3",
+      "heading": "Minor forestry activity allowance in OGMAs",
+      "page": 2,
+      "quotes": [
+        "Despite section 3, minor forestry activity into the OGMAs is permitted provided the disturbance to the gross area of the",
+        "10% in OGMAs less than 50 hectares; or, b.",
+        "5% or 40 hectares, whichever is less, in OGMAs of 50 hectares or greater."
+      ]
+    },
+    {
+      "id": "4",
+      "heading": "Source spatial dataset decides the boundary",
+      "page": 2,
+      "quotes": [
+        "the boundaries of the area as defined by the source spatial dataset will apply",
+        "Where an objective refers to an area shown on a map and the area is also defined by a source spatial dataset",
+        "All source spatial datasets are available in the Geographic Data Warehouse. www.geobc.gov.bc.ca"
+      ]
+    },
+    {
+      "id": "5",
+      "heading": "Written notice of disturbance in an OGMA",
+      "page": 2,
+      "quotes": [
+        "In accordance with section 4, where disturbance in an OGMA occurs, written notification to the Integrated Land Management"
+      ]
+    },
+    {
+      "id": "6",
+      "heading": "Effective date",
+      "page": 3,
+      "quotes": [
+        "Part 3 - Implementation Effective date 6.",
+        "This Order and the land use objectives in this order take effect on the day that notice of this order is published in the"
+      ]
+    },
+    {
+      "id": "7",
+      "heading": "FSP amendment period of 12 months",
+      "page": 3,
+      "quotes": [
+        "The applicable period under 8(2)(b) is 12 months starting on the date this order comes into effect."
+      ]
+    }
+  ]
+}

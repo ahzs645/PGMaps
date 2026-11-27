@@ -1,0 +1,39 @@
+{
+  "format": "pgmaps-order-text/v1",
+  "source": "bc.lwbc.grazing-policy.2004",
+  "title": "LWBC Land Policy: Grazing, effective 15 November 2004",
+  "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/grazing_lands_policy_2004.pdf",
+  "madeUnder": "Policy of Land and Water British Columbia; not an enactment",
+  "made": "2004-11-15",
+  "transcribedFrom": "published PDF, text layer checked against the page",
+  "transcribedOn": "2026-11-27",
+  "provisions": [
+    {
+      "id": "11",
+      "heading": "Disposition of timber on Crown grazing leases",
+      "page": 12,
+      "quotes": [
+        "The Crown reserves the right to all timber located on any Crown grazing leasehold",
+        "the proposal is to be reviewed with the grazing lessee to determine whether the lessee has any objections",
+        "For older leases (issued prior to November 2004) the lessee's rights in this regard may vary from lease to lease"
+      ]
+    },
+    {
+      "id": "11.1",
+      "heading": "Lessee consents",
+      "page": 12,
+      "quotes": [
+        "Formal consent is not required when a timber tenure is to be issued directly to the lessee."
+      ]
+    },
+    {
+      "id": "11.2",
+      "heading": "Lessee withholds consent",
+      "page": 12,
+      "quotes": [
+        "For older leases (granted prior to November 2004) where consent is required and it is withheld by the lessee",
+        "timber rights will not be granted over the grazing leasehold until such time as the lease expires"
+      ]
+    }
+  ]
+}

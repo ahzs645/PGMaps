@@ -145,12 +145,72 @@
       "id": "bc.forest-act",
       "title": "Forest Act, RSBC 1996 c. 157",
       "kind": "statute",
-      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96157_01",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96157_00_multi",
       "civix": {
         "aspect": "complete",
         "index": "statreg",
-        "documentId": "96157_01",
-        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96157_01/xml"
+        "documentId": "96157_00_multi",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96157_00_multi/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.ipma",
+      "title": "Integrated Pest Management Act, SBC 2003 c. 58",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/00_03058_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "00_03058_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/00_03058_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.forestry-revitalization-act",
+      "title": "Forestry Revitalization Act, SBC 2003 c. 17",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/03017_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "03017_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/03017_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.mofr-act",
+      "title": "Ministry of Forests and Range Act, RSBC 1996 c. 300",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96300_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "96300_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96300_01/xml"
+      },
+      "consolidationCurrentTo": "2026-11-17",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
+      "id": "bc.fsmf-act",
+      "title": "Forest Stand Management Fund Act, RSBC 1996 c. 161",
+      "kind": "statute",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96161_01",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "96161_01",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/96161_01/xml"
       },
       "consolidationCurrentTo": "2026-11-17",
       "sourceStatus": "identified",
@@ -408,6 +468,136 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2021-04-20",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.mackenzie.biodiversity.2008",
+      "title": "Ministerial Order: Non-spatial Landscape Biodiversity Objectives in the Mackenzie Forest District, 9 April 2008",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/mackenzie-lrmp/mackenzie-srmp/non-spatial_landscape_biodiversity_obj_mackenzie_forest_district.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2008-04-09",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.mackenzie.biodiversity-amendment.2010",
+      "title": "Amendment Order for the Non-spatial Landscape Biodiversity Objectives in the Mackenzie Forest District, 23 September 2010",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/mackenzie-lrmp/mackenzie-srmp/order_min_argirculture_lands_amended.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2010-09-23",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.mackenzie.ogma.2010",
+      "title": "Spatial Land Use Objectives for part of the Mackenzie Forest District, including old growth management areas, 23 September 2010",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/mackenzie-lrmp/mackenzie-srmp/spatial_land_use_obj_ogma.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2010-09-23",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.mackenzie.obo-fox.2002",
+      "title": "Order to Establish the Obo River and Fox Landscape Units and Objectives, 2002",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/mackenzie-lrmp/mackenzie-srmp/order_obo_river_fox_landscape_units_objectives.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2002-10-24",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.mackenzie.mugaha-marsh.2001",
+      "title": "Order to Establish a Sensitive Area and Objectives, Mugaha Marsh, 2001",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/mackenzie-lrmp/mackenzie-srmp/mugahamarsh_order.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2001-10-24",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.pg.dome-slim.2002",
+      "title": "Order to Establish the Dome and Slim Landscape Units and Objectives, 31 October 2002",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-lrmp/princegeorge-srmp/legal_order_signed_oct_31_2002.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2002-10-31",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.pg.humbug.2003",
+      "title": "Order to Establish the Humbug Landscape Unit and Objectives, 1 August 2003",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-lrmp/princegeorge-srmp/legal_order_signed_aug_1_2003.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2003-08-01",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.pg.ancient-forest-ogma.2009",
+      "title": "Land Use Objectives for the Prince George LRMP Area: Ancient Forest Trail OGMA, 2009",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-lrmp/princegeorge_lrmp_luor_12mar2009.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2009-02-03",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.pg.scenic-areas.2005",
+      "title": "Order establishing Scenic Areas in the Prince George Forest District, 2005",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-lrmp/princegeorge-srmp/order_scenic_area.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2005-11-09",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.pg.vqo.2005",
+      "title": "Order for the Establishment of Visual Quality Objectives for the Prince George Forest District, 2005",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/environment/natural-resource-policy-legislation/legislation-regulation/gar-ministerial-orders/dpg_vqo.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2005-12-07",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.pg.bobtail-vqo.2006",
+      "title": "Order for the variance of the Visual Quality Objectives for Bobtail Lake, Prince George Forest District, 2006",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/environment/natural-resource-policy-legislation/legislation-regulation/gar-ministerial-orders/dpg_vqo_bobtail.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2006-05-05",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.fsj.vqo.2005",
+      "title": "Visual Quality Objective Order, Fort St. James Forest District (Notice of Intent), 2005",
+      "kind": "regional_order",
+      "url": "https://www2.gov.bc.ca/assets/gov/environment/natural-resource-policy-legislation/legislation-regulation/gar-ministerial-orders/signed20vqo20order.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2005-11-02",
+      "supersessionStatus": "unverified_for_site"
+    },
+    {
+      "id": "bc.pgtsa.loe.2022",
+      "title": "District Managers' Letter of Expectations for implementing the Prince George TSA biodiversity order, 21 December 2022",
+      "kind": "guidance",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/district_managers_loe_for_impementation_of_the_pg_tsa_order.pdf",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed",
+      "signedOn": "2022-12-21",
       "supersessionStatus": "unverified_for_site"
     }
   ]

@@ -4,6 +4,7 @@ import { DisclosureRow } from '@/components/ui/disclosure'
 import { FORM_INPUT_CLASS, FormField, NullableNumberField, StyledSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolDisclosure } from '@/components/ui/tool-section'
+import { ACTION_KIND } from '@/lib/legal/decisionTree'
 import { cn } from '@/lib/utils'
 import { assess } from '../../../../packages/legal-rules/engine/evaluate'
 import { spatialFacts, type Measurement } from '../../../../packages/legal-rules/engine/spatialFacts'
@@ -21,6 +22,12 @@ import { topicSections } from './topics'
 import { describeCheck, formatValue, STATUS_WORDS, type Status } from './wording'
 
 const RuleFlow = lazy(() => import('../../legal-workbench/RuleFlow'))
+const ProvisionLink = lazy(() =>
+  import('../../legal-workbench/ProvisionPreview').then((m) => ({ default: m.ProvisionLink })),
+)
+const DecisionFlowchart = lazy(() =>
+  import('../../legal-workbench/DecisionFlowchart').then((m) => ({ default: m.DecisionFlowchart })),
+)
 
 const STATUS_TONE: Record<Status, BadgeTone> = {
   review_required: 'warning',
@@ -106,15 +113,28 @@ function FindingRow({ pack, finding, facts, date }: { pack: Pack; finding: Findi
       contentClassName="space-y-2 text-xs"
     >
       <p>
-        <a className="underline" href={finding.source.url} target="_blank" rel="noreferrer">
-          {finding.source.title}, {finding.provision}
-        </a>
+        <Suspense
+          fallback={
+            <a className="underline" href={finding.source.url} target="_blank" rel="noreferrer">
+              {finding.source.title}, {finding.provision}
+            </a>
+          }
+        >
+          <ProvisionLink
+            citation={{
+              sourceUrl: finding.source.url,
+              sourceTitle: finding.source.title,
+              provision: finding.provision,
+              rule: { pack: pack.id, id: rule.id },
+            }}
+          />
+        </Suspense>
       </p>
       {'finding' in finding && <p className="font-medium">{finding.finding}</p>}
       {'actions' in finding &&
         finding.actions.map((a, i) => (
           <p key={i}>
-            <span className="font-medium capitalize">{a.kind}:</span> {a.description}
+            <span className="font-medium">{ACTION_KIND[a.kind]}:</span> {a.description}
           </p>
         ))}
       {stages.map(([heading, stage]) => (
@@ -250,6 +270,10 @@ export function CaseReview({
         const counts = findingCounts(release.findings)
         const value = (fact: Fact) => release.facts.facts.find((f) => f.id === fact.id)?.value ?? null
         const sections = topicSections(release.pack, asked, release.findings, caseLabel)
+        const answers = Object.fromEntries(release.facts.facts.map((f) => [f.id, f.value]))
+        const chartTopics = sections
+          .filter((x) => x.findings.length)
+          .map((x) => ({ id: x.topic.id, label: x.topic.label, rules: x.findings.map((f) => f.rule) }))
         return (
           <section key={releaseKey(release.pack)} className="space-y-1" aria-label={release.pack.title}>
             <p className="text-xs font-medium">
@@ -287,6 +311,19 @@ export function CaseReview({
                   toggleProps={{ 'data-topic': topic.id }}
                   contentClassName="space-y-2"
                 >
+                  {findings.length > 0 && (
+                    <div className="flex justify-end">
+                      <Suspense fallback={null}>
+                        <DecisionFlowchart
+                          pack={release.pack}
+                          answers={answers}
+                          topics={chartTopics}
+                          initialTopic={topic.id}
+                          triggerLabel="Decision flowchart"
+                        />
+                      </Suspense>
+                    </div>
+                  )}
                   {open.map((q) => (
                     <Answer
                       key={q.fact.id}

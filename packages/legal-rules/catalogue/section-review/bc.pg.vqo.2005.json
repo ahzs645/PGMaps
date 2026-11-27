@@ -1,0 +1,25 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.pg.vqo.2005",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "Para 1",
+      "relevance": "block",
+      "bearsOn": "Sets a visual quality objective for each scenic area polygon on the November 9, 2005 map; a block visible from a significant public viewpoint must keep the landscape's alteration within that category.",
+      "review": "rule",
+      "coveredBy": [
+        "ground:visual-quality-objective"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "Rules now name the order and test the alteration entered from the visual quality page against the category; the planner does not read that page’s measurement itself."
+    },
+    {
+      "n": "Para 2",
+      "relevance": "definitions",
+      "bearsOn": "Ties the VQOs to the scenic areas established under GAR s. 7(1) by the December 6, 2005 order.",
+      "review": "n/a"
+    }
+  ]
+}

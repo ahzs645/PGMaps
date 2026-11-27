@@ -1,0 +1,177 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.mackenzie.mugaha-marsh.2001",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "Order",
+      "relevance": "definitions",
+      "bearsOn": "Establishes 612 ha in the Mugaha and Tutu Creek watersheds as a sensitive area from January 1, 2002.",
+      "review": "n/a"
+    },
+    {
+      "n": "Objective 1",
+      "relevance": "block",
+      "bearsOn": "Requires the current mix of forest and wetland habitat for resident wildlife to be maintained, which limits how much forest a block may take and where; the plan's 10% and 100 m strategies are the district's stated way to meet it.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:legal-objective"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The legal-objective screen shows the area with harvest reach unknown; a rule could flag overlap and ask the objective's question, citing the plan's strategies as guidance.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Does the block or its road fall in the Mugaha Marsh Sensitive Area?",
+        "Does the block maintain the current mix of forest and wetland habitat for resident wildlife species?"
+      ]
+    },
+    {
+      "n": "Objective 2",
+      "relevance": "admin",
+      "bearsOn": "Allows monitoring and research that does not conflict with the other objectives; it does not bear on making a block.",
+      "review": "n/a"
+    },
+    {
+      "n": "Objective 3",
+      "relevance": "block",
+      "bearsOn": "Requires the current range of recreational uses (trail, wildlife viewing, banding station) to be maintained, so a block or road that removes one would not meet it.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:legal-objective"
+      ],
+      "gapPriority": "low",
+      "gapNote": "A reviewer question on overlap with the sensitive area.",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "Objective 4",
+      "relevance": "roads",
+      "bearsOn": "Requires reasonable safety precautions for users, chiefly along the road through the marsh used by industrial traffic.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:legal-objective"
+      ],
+      "gapPriority": "low",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "Boundary",
+      "relevance": "definitions",
+      "bearsOn": "Fixes the boundary by the 1:50,000 map of October 24, 2001.",
+      "review": "n/a"
+    },
+    {
+      "n": "District Manager's Policy",
+      "relevance": "plan",
+      "bearsOn": "Under FPC s. 41(1) the district manager expected operational plans to take in the section 3.0 strategies or explain their omission; FRPA has no operational plan approval, so the policy has no current hook beyond the FSP's result or strategy for the objectives.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A document check of the FSP's result or strategy for the sensitive area.",
+      "encodable": "document-check"
+    },
+    {
+      "n": "Strategy 1a",
+      "relevance": "admin",
+      "bearsOn": "Concerns water levels under BC Hydro's licence; it does not bear on a block. Strategy, not a legal objective (plan pages 7 and 11).",
+      "review": "n/a"
+    },
+    {
+      "n": "Strategy 1b",
+      "relevance": "block",
+      "bearsOn": "Caps timber harvesting at 10% of the sensitive area's commercial forest (about 367 ha, plan s. 2.2) in any 10 years, favours native deciduous regeneration and treats herbicides as incompatible. Strategy, not a legal objective (plan pages 7 and 11).",
+      "review": "rule",
+      "coveredBy": [
+        "ground:legal-objective"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rule tests the 10-year harvested share the reviewer enters; the planner does not total it from the baseline."
+    },
+    {
+      "n": "Strategy 1c",
+      "relevance": "block",
+      "bearsOn": "Keeps a 100 m unlogged reserve zone beside every lake and wetland in the sensitive area, unless harvesting the zone is needed to keep habitat values, and treats pesticides as incompatible. Strategy, not a legal objective (plan pages 7 and 11).",
+      "review": "rule",
+      "coveredBy": [
+        "ground:legal-objective"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The rule asks whether the block reaches within 100 m of a lake or wetland; no screen buffers the area’s water."
+    },
+    {
+      "n": "Strategy 1d",
+      "relevance": "silviculture",
+      "bearsOn": "Asks that disturbed areas be treated to encourage native shrubs and other high-value habitat vegetation and discourage alien and noxious weeds. Strategy, not a legal objective (plan pages 7 and 11).",
+      "review": "screen",
+      "coveredBy": [
+        "ground:legal-objective"
+      ],
+      "gapPriority": "low",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "Strategy 1e",
+      "relevance": "admin",
+      "bearsOn": "Allows limited habitat work (transects, trails, netlanes, marsh management); it does not bear on a block. Strategy, not a legal objective (plan pages 7 and 11).",
+      "review": "n/a"
+    },
+    {
+      "n": "Strategies 2a-2c",
+      "relevance": "admin",
+      "bearsOn": "Encourage species documentation, the songbird program and research facilities; they do not bear on a block. Strategy, not a legal objective (plan pages 7 and 11).",
+      "review": "n/a"
+    },
+    {
+      "n": "Strategy 3a",
+      "relevance": "admin",
+      "bearsOn": "Concerns viewing opportunities; it does not bear on a block. Strategy, not a legal objective (plan pages 7 and 11).",
+      "review": "n/a"
+    },
+    {
+      "n": "Strategy 3b",
+      "relevance": "roads",
+      "bearsOn": "Limits permanent roads to those on the map and asks that any other road be kept to a minimum, treated as temporary and revegetated to limit motorized access. Strategy, not a legal objective (plan pages 7 and 11).",
+      "review": "screen",
+      "coveredBy": [
+        "ground:legal-objective"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The plan's road map is not among the pages read; a rule would need it.",
+      "encodable": "spatial"
+    },
+    {
+      "n": "Strategy 3c",
+      "relevance": "roads",
+      "bearsOn": "Asks that motor vehicles, ATVs and snowmobiles be kept to existing roads. Strategy, not a legal objective (plan pages 7 and 11).",
+      "review": "screen",
+      "coveredBy": [
+        "ground:legal-objective"
+      ],
+      "gapPriority": "low",
+      "encodable": "reviewer-question"
+    },
+    {
+      "n": "Strategy 4a",
+      "relevance": "roads",
+      "bearsOn": "Asks for signs cautioning road users of slow traffic and pedestrians on the road through the marsh. Strategy, not a legal objective (plan pages 7 and 11).",
+      "review": "screen",
+      "coveredBy": [
+        "ground:legal-objective"
+      ],
+      "gapPriority": "low",
+      "encodable": "document-check"
+    },
+    {
+      "n": "Strategy 4b",
+      "relevance": "admin",
+      "bearsOn": "Asks regular research users to give the road's industrial user their schedule; it does not bear on a block. Strategy, not a legal objective (plan pages 7 and 11).",
+      "review": "n/a"
+    },
+    {
+      "n": "4.0",
+      "relevance": "admin",
+      "bearsOn": "Says the provisions take effect on the order's date and that the area and objectives will be reviewed with Parsnip RMZ or landscape unit planning, or in ten years.",
+      "review": "n/a"
+    }
+  ]
+}

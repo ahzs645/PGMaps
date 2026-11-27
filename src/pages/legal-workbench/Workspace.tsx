@@ -1,7 +1,7 @@
 import RuleFlow from './RuleFlow'
 import { statusLabels } from '../../../packages/legal-rules/engine/explain'
 import { spatialFacts, type Measurement } from '../../../packages/legal-rules/engine/spatialFacts'
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormField, SelectField, FORM_INPUT_CLASS } from '@/components/ui/form-field'
@@ -21,6 +21,8 @@ import {
 import profile from '../../../packages/legal-rules/forestry-profile.json'
 import example from '../../../packages/legal-rules/examples/water-monitoring.json'
 import { defaults, loadLibrary, installPacks } from './registry'
+
+const CoverageMap = lazy(() => import('./CoverageMap'))
 
 /** One case: the releases chosen, the legal assessment date and the facts entered per release. */
 export interface ReviewCase {
@@ -433,6 +435,21 @@ export default function LegalWorkbench({ plan }: { plan?: PlanReview } = {}) {
           </p>
         </section>
       </fieldset>
+      {!plan && (
+        <section className="space-y-3" aria-labelledby="law-coverage-heading">
+          <h2 id="law-coverage-heading" className="text-xl font-semibold">
+            Law coverage
+          </h2>
+          <p className="max-w-3xl text-sm text-muted-foreground">
+            Every section of the forestry statutes and regulations, and every provision of the Omineca land use orders,
+            with whether a rule or a map screen reaches it and what a section-by-section reading found missing. Select a
+            section to read it.
+          </p>
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading the coverage map…</p>}>
+            <CoverageMap />
+          </Suspense>
+        </section>
+      )}
     </section>
   )
 }
