@@ -356,6 +356,7 @@ export async function runViewCapture<S>(
           continue
         }
         const page = getHost()
+        update({ message: `${message} Preparing and drawing the analysis sheet…` })
         // Aborted when the save runs out of time, so its analysis sheet capture stops moving the camera too.
         const stop = new AbortController()
         const saving = !page

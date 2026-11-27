@@ -167,6 +167,7 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
     pose: current,
     chosen: own?.chosen ?? null,
     headingSource: own?.sources.heading ?? 'default',
+    previous: own?.acceptance,
     rows: options,
     checkedPose,
     initials,
@@ -586,7 +587,13 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                   onAccept={accept}
                   acceptError={acceptError}
                 />
-                <PhotoUsePanel photo={photo} initials={initials} note={note} onRemoved={() => setTab('photos')} />
+                <PhotoUsePanel
+                  photo={photo}
+                  preview={preview}
+                  initials={initials}
+                  note={note}
+                  onRemoved={() => setTab('photos')}
+                />
               </div>
             </div>
           </TabPanel>

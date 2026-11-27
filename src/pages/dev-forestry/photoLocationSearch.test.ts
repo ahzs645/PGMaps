@@ -29,6 +29,7 @@ function fit(
     roll: 0,
     meanLoss,
     ambiguous,
+    trustworthy: trustworthy && !ambiguous,
     runnerUp: runnerUp === null ? null : { bearing: runnerUp, pitch: 0, roll: 0, meanLoss: meanLoss + 0.05 },
     fit: { trustworthy, agreeing, agreement },
   } as unknown as WideSearchResult
@@ -83,12 +84,12 @@ describe('photo location search', () => {
 describe('one skyline reader for the whole search', () => {
   it('keeps the colour reader alone when its best fit settles, trying no other reader', async () => {
     const tryAt = vi.fn(async (reader: string, place: number) =>
-      reader === 'colour' && place === 1 ? fit(0.2, { agreement: 0.97 }) : reader === 'colour' ? fit(0.3) : null,
+      reader === 'colour' && place === 1 ? fit(0.2, { agreement: 0.97 }) : reader === 'colour' ? fit(0.5) : null,
     )
     const passes: string[] = []
     const chosen = await searchByOneReader(['colour', 'bright', 'smooth'], 3, tryAt, (pass) => passes.push(pass))
     expect(chosen?.reader).toBe('colour')
-    expect(chosen?.results.map((result) => result?.meanLoss)).toEqual([0.3, 0.2, 0.3])
+    expect(chosen?.results.map((result) => result?.meanLoss)).toEqual([0.5, 0.2, 0.5])
     expect(tryAt.mock.calls.every(([reader]) => reader === 'colour')).toBe(true)
     expect(passes).toEqual(['first', 'first', 'first'])
   })
@@ -129,5 +130,25 @@ describe('one skyline reader for the whole search', () => {
     expect((await searchByOneReader(['colour', 'bright'], 2, async () => same))?.reader).toBe('colour')
     expect(await searchByOneReader(['colour', 'bright'], 2, async () => null)).toBeNull()
     expect(await searchByOneReader([], 2, async () => same)).toBeNull()
+  })
+})
+
+describe('ambiguity never settles the first reader', () => {
+  it('tries other readers after a strong but ambiguous heading', async () => {
+    const tryAt = vi.fn(async (reader: string) =>
+      reader === 'colour'
+        ? fit(0.2, { agreement: 0.97, ambiguous: true, runnerUp: 130 })
+        : fit(0.15, { agreement: 0.99 }),
+    )
+    await searchByOneReader(['colour', 'bright'], 1, tryAt)
+    expect(tryAt).toHaveBeenCalledWith('bright', 0)
+  })
+  it('tries other readers after a strong but ambiguous place', async () => {
+    const tryAt = vi.fn(async (reader: string, place: number) =>
+      reader === 'colour' ? fit(0.2 + place * 0.02, { agreement: 0.97 }) : null,
+    )
+    await searchByOneReader(['colour', 'bright'], 2, tryAt)
+    expect(tryAt).toHaveBeenCalledWith('bright', 0)
+    expect(tryAt).toHaveBeenCalledWith('bright', 1)
   })
 })

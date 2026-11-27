@@ -422,6 +422,28 @@ export function readCaptureReply(data: unknown, request: EngineCaptureRequest): 
       throw new Error(`Frame ${i + 1}'s zone pass is not ${pixels} RGBA pixels.`)
     const camera = isRecord(frame.camera) ? frame.camera : {}
     const position = Array.isArray(camera.position) && camera.position.length === 3 ? camera.position : null
+    if (request.quality === 'final') {
+      if (!(typeof Blob !== 'undefined' && frame.image instanceof Blob))
+        throw new Error(`Frame ${i + 1} did not return an image blob.`)
+      if (
+        !position?.every(finite) ||
+        ![camera.bearingDegrees, camera.pitchDegrees, camera.horizontalFovDegrees, camera.verticalFovDegrees].every(
+          finite,
+        )
+      )
+        throw new Error(`Frame ${i + 1} did not report the camera it drew with.`)
+      if (depth.some((sample) => !Number.isFinite(sample) || sample < 0))
+        throw new Error(`Frame ${i + 1} contains invalid depth samples.`)
+      if (
+        frame.screened !== undefined &&
+        frame.screened !== null &&
+        !(
+          (frame.screened instanceof Uint8ClampedArray || frame.screened instanceof Uint8Array) &&
+          frame.screened.length === pixels * 4
+        )
+      )
+        throw new Error(`Frame ${i + 1}'s screening pass is not ${pixels} RGBA pixels.`)
+    }
     return {
       width: asked.width,
       height: asked.height,
@@ -470,7 +492,8 @@ export function readCaptureReply(data: unknown, request: EngineCaptureRequest): 
 
 /** An engine's `final` record, or null when it did not report one (it drew the active capture). */
 function readFinal(value: unknown): EngineCaptureReply['final'] {
-  if (!isRecord(value) || !finite(value.samples) || !finite(value.stems)) return null
+  if (!isRecord(value) || !finite(value.samples) || !finite(value.stems) || value.samples < 0 || value.stems < 0)
+    return null
   return {
     samples: Math.max(0, Math.round(value.samples)),
     stems: Math.max(0, Math.round(value.stems)),
@@ -479,11 +502,30 @@ function readFinal(value: unknown): EngineCaptureReply['final'] {
   }
 }
 
-/**
- * Where the drawn camera parted from the one asked for, frame by frame: position (metres), bearing, pitch and fields
- * (degrees). The sheet's outlines and callouts are projected with the camera asked for, so a capture that moved its
- * camera is refused rather than printed with outlines off the picture.
- */
+/** Missing or inconsistent receipts cannot be labelled a final-quality capture. */
+export function finalCaptureIssue(
+  reply: EngineCaptureReply,
+  request: EngineCaptureRequest,
+  scene?: Pick<ScenePackage, 'createdAt' | 'origin'>,
+): string | null {
+  if (request.quality !== 'final') return null
+  if (reply.version === 'unknown' || !reply.scene.createdAt)
+    return 'The engine did not identify its version and the captured scene.'
+  if (
+    scene &&
+    (reply.scene.createdAt !== scene.createdAt ||
+      reply.scene.origin?.lng !== scene.origin.lng ||
+      reply.scene.origin.lat !== scene.origin.lat ||
+      reply.scene.origin.elevationMeters !== scene.origin.elevationMeters)
+  )
+    return 'The engine reported a different scene than the one sent for this capture.'
+  if (!reply.final || reply.final.samples <= 0) return 'The engine did not report any final-quality samples.'
+  if (request.stand?.count && (reply.final.stems <= 0 || reply.frames.some((frame) => !frame.screened)))
+    return 'The engine did not confirm the final stand or provide its screening pass.'
+  return null
+}
+
+/** Outlines and callouts are projected with the requested camera, never with a guess about the drawn camera. */
 export function cameraMismatch(reply: EngineCaptureReply, request: EngineCaptureRequest): string | null {
   const turn = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
   for (let i = 0; i < reply.frames.length; i++) {

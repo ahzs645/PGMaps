@@ -4,6 +4,7 @@ import {
   acceptGate,
   acceptanceLapsed,
   makePhotoAcceptance,
+  legacyHeadingNeedsReview,
   parsePhotoAcceptance,
   pointsHeldOutLimit,
   POINTS_MAX_HELD_OUT_PX,
@@ -171,5 +172,35 @@ describe('parsePhotoAcceptance', () => {
     expect(parsed?.pose.altitudeMeters).toBeNull()
     expect(parsed?.pose.bearing).toBe(12)
     expect(parsed?.evidence).toEqual({ modelScore: null, sunNote: 'sun in frame' })
+  })
+})
+
+describe('photo direction provenance', () => {
+  const north = { ...pose, bearing: 0 }
+  it('rejects unconfirmed defaults and road-view bearings, regardless of the numeric angle', () => {
+    const noDirection = { ...gate, pose: north, headingSource: 'default' as const, method: 'typed' as const }
+    expect(acceptGate(noDirection)).toMatchObject({ ok: false, reason: expect.stringMatching(/Direction unknown/) })
+    expect(makePhotoAcceptance(noDirection, new Date())).toMatchObject({ ok: false })
+    expect(acceptGate({ ...noDirection, pose, headingSource: 'road-view' })).toMatchObject({ ok: false })
+    expect(acceptGate({ ...noDirection, pose, headingSource: 'texture' })).toMatchObject({ ok: false })
+  })
+  it('accepts real north and optional checks without paperwork', () => {
+    for (const headingSource of ['reviewer', 'exif', 'landmark'] as const) {
+      const made = makePhotoAcceptance(
+        { ...gate, headingSource, method: 'typed', pose: north, initials: '', note: '', checkedPose: null },
+        new Date(),
+      )
+      expect(made).toMatchObject({
+        ok: true,
+        acceptance: { pose: { bearing: 0 }, evidence: { checksDrawn: false, directionKnown: true } },
+      })
+      expect(made.ok && legacyHeadingNeedsReview(parsePhotoAcceptance(made.acceptance))).toBe(false)
+    }
+  })
+  it('preserves an old typed north acceptance but requires an explicit reconfirmation', () => {
+    const older = parsePhotoAcceptance({ ...accepted, method: 'typed', pose: north })
+    expect(legacyHeadingNeedsReview(older)).toBe(true)
+    expect(acceptGate({ ...gate, pose: north, previous: older, headingSource: 'record' })).toMatchObject({ ok: false })
+    expect(acceptGate({ ...gate, pose: north, previous: older, headingSource: 'reviewer' })).toEqual({ ok: true })
   })
 })

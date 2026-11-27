@@ -643,6 +643,7 @@ export type PhotoFailureReason =
   | 'outside-terrain'
   | 'cropped-lens'
   | 'phone-heading-only'
+  | 'heading-unknown'
   | 'disagrees-with-neighbour'
   | 'gps-off'
 
@@ -671,6 +672,7 @@ export const PHOTO_FAILURE_TEXT: Record<PhotoFailureReason, string> = {
   'no-skyline': 'No skyline to read: the photo shows too little sky over the ridges. Pair points instead.',
   'outside-terrain': 'Outside the terrain: the photo was taken where no elevation data loaded.',
   'cropped-lens': 'Cropped: the photo is not the size the camera took, so its lens is unknown.',
+  'heading-unknown': 'Direction unknown: no heading was recorded in the photo.',
   'phone-heading-only': 'Only the phone’s heading, which from an aircraft can be far out.',
   'disagrees-with-neighbour': 'Disagrees with the frame taken just before or after it.',
   'gps-off':
@@ -732,6 +734,8 @@ export function photoStripState(entry: Pick<PhotoQueueEntry, 'status' | 'reasons
           short: 'Needs a landmark',
           text: 'More than one heading fits the skyline about as well: pair one landmark to settle it, or compare the options.',
         }
+      if (has('heading-unknown'))
+        return { tone: 'help', short: 'Direction unknown', text: 'Pair a landmark or set the direction in Adjust.' }
       if (has('phone-heading-only'))
         return {
           tone: 'help',
@@ -784,6 +788,8 @@ export function photoReasons(found: {
   search?: Pick<WideSearchResult, 'trustworthy' | 'ambiguous'> | null
   /** Options other than the phone's own heading. */
   otherOptions?: number
+  hasPhoneHeading?: boolean
+  headingUnknown?: boolean
   /** Heading gap to an accepted burst neighbour's camera, degrees. */
   neighbourGap?: number | null
   /** Ground at the GPS altitude lies near a fix far below it (`highGroundNearFix`). */
@@ -794,7 +800,7 @@ export function photoReasons(found: {
   if (found.skyline === false) reasons.push('no-skyline')
   if (found.lens?.cropped) reasons.push('cropped-lens')
   if (found.search && !found.search.trustworthy) reasons.push('not-settled')
-  if (found.otherOptions === 0) reasons.push('phone-heading-only')
+  if (found.otherOptions === 0) reasons.push(found.hasPhoneHeading === false ? 'heading-unknown' : 'phone-heading-only')
   if (found.neighbourGap !== null && found.neighbourGap !== undefined && found.neighbourGap > NEIGHBOUR_AGREE_DEGREES)
     reasons.push('disagrees-with-neighbour')
   // A settled skyline from the air says the fix and its altitude are right; otherwise the place is in doubt.
