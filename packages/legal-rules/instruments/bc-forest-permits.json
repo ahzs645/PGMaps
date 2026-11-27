@@ -1,9 +1,9 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.forest-permits",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "title": "BC cutting and road permits",
-  "description": "Whether a block and its roads can be applied for and harvested: the forest stewardship plan and its forest development unit, the site plan, the forest operations map and its review, the cutting permit, a forest operations plan in a forest landscape area, and special purpose areas. The minister decides every permit; these rules say what the law requires first, and list the exceptions it makes.",
+  "description": "Whether a block and its roads can be applied for and harvested: the forest stewardship plan and its forest development unit, the plan's results and strategies the block must achieve, the site plan, the forest operations map and its review, the cutting permit, a forest operations plan in a forest landscape area, and special purpose areas. The minister decides every permit; these rules say what the law requires first, and list the exceptions it makes.",
   "coverage": {
     "from": "2026-11-17",
     "through": "2026-11-27"
@@ -48,6 +48,111 @@
     {
       "id": "fdu-feature-shown",
       "label": "Does the forest stewardship plan identify that area for the forest development unit (FPPR §14(2))?",
+      "type": "boolean"
+    },
+    {
+      "id": "fsp-standing",
+      "label": "Where does the forest stewardship plan that applies to the block stand? It applies as it read when the cutting or road permit was issued, or the permit was amended to add the area (FRPA §20.23), and its term is at most 5 years unless the minister extends it (§6).",
+      "type": "choice",
+      "choices": [
+        "It is in its term",
+        "It has expired",
+        "The holder has been removed from it (a forest stewardship plan)"
+      ]
+    },
+    {
+      "id": "fsp-soils",
+      "label": "Does the plan give an intended result or strategy for soils (FPPR §5: soil disturbance and permanent access) that bears on the block, and does the block's design achieve it or carry it out?",
+      "type": "choice",
+      "choices": [
+        "The plan has none that bears on the block",
+        "Yes, and the design achieves it or carries it out",
+        "Yes, and the design falls short of it"
+      ]
+    },
+    {
+      "id": "fsp-timber",
+      "label": "Does the plan give an intended result or strategy for timber (FPPR §6) that bears on the block, and does the block's design achieve it or carry it out?",
+      "type": "choice",
+      "choices": [
+        "The plan has none that bears on the block",
+        "Yes, and the design achieves it or carries it out",
+        "Yes, and the design falls short of it"
+      ]
+    },
+    {
+      "id": "fsp-wildlife",
+      "label": "Does the plan give an intended result or strategy for wildlife, such as an ungulate winter range or wildlife habitat area (FPPR §7) that bears on the block, and does the block's design achieve it or carry it out?",
+      "type": "choice",
+      "choices": [
+        "The plan has none that bears on the block",
+        "Yes, and the design achieves it or carries it out",
+        "Yes, and the design falls short of it"
+      ]
+    },
+    {
+      "id": "fsp-water",
+      "label": "Does the plan give an intended result or strategy for water, fish, wildlife and biodiversity in riparian areas, fisheries sensitive watersheds or community watersheds (FPPR §§8–8.2) that bears on the block, and does the block's design achieve it or carry it out?",
+      "type": "choice",
+      "choices": [
+        "The plan has none that bears on the block",
+        "Yes, and the design achieves it or carries it out",
+        "Yes, and the design falls short of it"
+      ]
+    },
+    {
+      "id": "fsp-landscape",
+      "label": "Does the plan give an intended result or strategy for landscape level biodiversity, such as cutblock size, adjacency or patch pattern (FPPR §9) that bears on the block, and does the block's design achieve it or carry it out?",
+      "type": "choice",
+      "choices": [
+        "The plan has none that bears on the block",
+        "Yes, and the design achieves it or carries it out",
+        "Yes, and the design falls short of it"
+      ]
+    },
+    {
+      "id": "fsp-stand",
+      "label": "Does the plan give an intended result or strategy for stand level biodiversity, such as wildlife tree retention or coarse woody debris (FPPR §9.1) that bears on the block, and does the block's design achieve it or carry it out?",
+      "type": "choice",
+      "choices": [
+        "The plan has none that bears on the block",
+        "Yes, and the design achieves it or carries it out",
+        "Yes, and the design falls short of it"
+      ]
+    },
+    {
+      "id": "fsp-visual",
+      "label": "Does the plan give an intended result or strategy for visual quality (FPPR §9.2) that bears on the block, and does the block's design achieve it or carry it out?",
+      "type": "choice",
+      "choices": [
+        "The plan has none that bears on the block",
+        "Yes, and the design achieves it or carries it out",
+        "Yes, and the design falls short of it"
+      ]
+    },
+    {
+      "id": "fsp-heritage",
+      "label": "Does the plan give an intended result or strategy for cultural heritage resources (FPPR §10) that bears on the block, and does the block's design achieve it or carry it out?",
+      "type": "choice",
+      "choices": [
+        "The plan has none that bears on the block",
+        "Yes, and the design achieves it or carries it out",
+        "Yes, and the design falls short of it"
+      ]
+    },
+    {
+      "id": "fsp-other",
+      "label": "Does the plan give an intended result or strategy for another objective established under the Act for the area, such as a land use order's legal objective (FRPA §5(1)(b)(ii)) that bears on the block, and does the block's design achieve it or carry it out?",
+      "type": "choice",
+      "choices": [
+        "The plan has none that bears on the block",
+        "Yes, and the design achieves it or carries it out",
+        "Yes, and the design falls short of it"
+      ]
+    },
+    {
+      "id": "fsp-replacement",
+      "label": "Does the holder hold another forest stewardship plan or woodlot licence plan, or a forest operations plan, that applies to the same area and that includes a provision identified as replacing the result, strategy or provision concerned (FRPA §20.22(4))?",
       "type": "boolean"
     },
     {

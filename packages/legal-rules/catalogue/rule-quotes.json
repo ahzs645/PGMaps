@@ -1356,6 +1356,25 @@
           "quote": "the road permit area is located in a forest landscape area and either of the following applies: the applicant does not hold a forest operations plan, as required under the Forest and Range Practices Act, that applies to the road permit area;"
         }
       ],
+      "fsp-results#replaced": [
+        {
+          "source": "bc.frpa",
+          "provision": "20.22",
+          "quote": "that other plan includes a provision that is identified as being a replacement for the result, strategy or other provision to which the obligation relates."
+        }
+      ],
+      "fsp-results": [
+        {
+          "source": "bc.frpa",
+          "provision": "20.22",
+          "quote": "The holder of a forest stewardship plan or woodlot licence plan must do the following: ensure that the intended results specified in the plan are achieved;"
+        },
+        {
+          "source": "bc.frpa",
+          "provision": "20.22",
+          "quote": "carry out the strategies described in the plan;"
+        }
+      ],
       "permit-refusal#section-4-purpose": [
         {
           "source": "bc.frpa",
@@ -1441,6 +1460,168 @@
           "source": "bc.forest-act",
           "provision": "215",
           "quote": "After the effective date of the designation of an area as a special purpose area, and except as authorized under subsection (2), an authorized official must not, under a road permit or special use permit, authorize the holder of the permit to construct a road in the special purpose area."
+        }
+      ]
+    },
+    "bc.forest-operations": {
+      "engagement#resubmission": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.38",
+          "quote": "If the minister requests a person to resubmit a forest operations plan or amendment to address changes requested by the minister, the minister may relieve the person from the requirements under subsections (1) and (2) for the purposes of resubmitting the plan or amendment."
+        }
+      ],
+      "engagement": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.38",
+          "quote": "made reasonable efforts to engage with Indigenous nations affected by the plan;"
+        }
+      ],
+      "fop-amendment": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.44",
+          "quote": "Unless the regulations provide otherwise, an amendment to a forest operations plan is not effective unless the amendment is approved by the minister under section 2.39."
+        }
+      ],
+      "fop-listed": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.36",
+          "quote": "the approximate location of each proposed cutblock that is to be the subject of a cutting permit that the holder intends to apply for during the term of the forest operations plan;"
+        },
+        {
+          "source": "bc.frpa",
+          "provision": "2.36",
+          "quote": "the approximate location of each proposed cutblock that the timber sales manager intends to include in timber sale licences for which the timber sales manager will invite applications during the term of the forest operations plan;"
+        }
+      ],
+      "fop-required#earlier-permit": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.35",
+          "quote": "The holder of an agreement is exempt from subsection (2) (c) and (d) if the holder harvests timber or constructs roads in an area of land that is subject to a cutting permit or road permit issued before"
+        }
+      ],
+      "fop-required#fsp-permit": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.49",
+          "quote": "The holder of an agreement is exempt from section 2.35 (2) (c) and (d) if the holder harvests timber or constructs roads in an area of land that is subject to a cutting permit or road permit issued before"
+        }
+      ],
+      "fop-required#new-landscape-area": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.48",
+          "quote": "Subject to subsection (4), the holder of a forest stewardship plan is exempt from section 2.35 (2) and (3) in relation to a portion of a forest development unit included in the plan if the portion is within a new forest landscape area and either of the following applies:"
+        }
+      ],
+      "fop-required#purpose": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.35",
+          "quote": "The holder of an agreement is exempt from subsection (2) if the holder only does one or more of the following on land subject to the agreement:"
+        }
+      ],
+      "fop-required": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.35",
+          "quote": "If land subject to an agreement is located inside a forest landscape area, the holder of the agreement must not do any of the following unless the holder holds an approved forest operations plan that applies to the land:"
+        }
+      ],
+      "fop-requirements": [
+        {
+          "source": "bc.frpa",
+          "provision": "20.21",
+          "quote": "The holder of a forest operations plan must do the following: comply with the requirements included in the plan; comply with any other provision in the plan that relates to a requirement referred to in paragraph (a)."
+        }
+      ],
+      "fop-year": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.12",
+          "quote": "A forest operations plan must include, for each cutblock and road proposed in the plan, the year in which the person who will hold the forest operations plan proposes to begin"
+        }
+      ],
+      "public-review#shorter-period": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.33",
+          "quote": "The minister may authorize a shorter public review and comment period of not less than 10 days if the minister is satisfied that the 60-day period under subsection (1) would likely result in"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "4.34",
+          "quote": "The minister may authorize a shorter public review and comment period of not less than 10 days if the minister is satisfied that the 30-day period under subsection (1) would likely result in"
+        }
+      ],
+      "public-review": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.33",
+          "quote": "The person must make the forest operations plan publicly available for review and comment for a period of 60 days, unless the minister authorizes a shorter period under subsection (2)."
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "4.34",
+          "quote": "A person must make an amendment described in section 4.43 [amendments that do not require minister's approval] publicly available for review and comment for a period of 30 days, unless the minister authorizes a shorter period under subsection (2)."
+        }
+      ],
+      "review-notice": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.33",
+          "quote": "The person must publish notice of the review and comment period described in subsection (1) of this section on a publicly accessible website maintained by or on behalf of the person and in one of the following:"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "4.34",
+          "quote": "The person must publish notice of the review and comment period described in subsection (1) of this section on a publicly accessible website maintained by or on behalf of the person and in one of the following:"
+        }
+      ],
+      "rights-extension": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.36",
+          "quote": "If a person to whom notice is given under subsection (1) requests an extension to the time period for reviewing and providing comments on the forest operations plan or amendment, the person must be provided with an extension, up to a maximum total review and comment period of 60 days."
+        }
+      ],
+      "rights-notice": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.36",
+          "quote": "The person must give notice of the forest operations plan or amendment to each person whose rights are likely to be affected by the forest operations plan or amendment."
+        }
+      ],
+      "schedule": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.46",
+          "quote": "a forest development schedule that shows each location in the forest operations area where the holder intends to start harvesting timber or constructing roads in the next calendar year."
+        }
+      ],
+      "schedule-year": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.46",
+          "quote": "A forest development schedule must be consistent with the forest operations plan to which the schedule relates."
+        }
+      ],
+      "site-level-plan#no-plan-needed": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.59",
+          "quote": "The holder of a forest operations plan is not required to prepare a site level plan under section 2.47 (1) (a) [site level plans for cutblocks] of the Act if one or more of the following circumstances applies:"
+        }
+      ],
+      "site-level-plan": [
+        {
+          "source": "bc.frpa",
+          "provision": "2.47",
+          "quote": "Unless the regulations provide otherwise, the holder of a forest operations plan must prepare a site level plan for a cutblock, before the holder starts harvesting timber on the cutblock"
         }
       ]
     }

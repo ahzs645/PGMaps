@@ -195,9 +195,9 @@
       "n": "4.11",
       "relevance": "plan",
       "bearsOn": "Requires the FOP to list every existing and proposed cutblock and road, each proposed one with a unique identifier.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "Under the FOP regime a block can be harvested only if it is listed in the plan; nothing asks whether the planned block appears in an approved FOP under its identifier.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "The pack asks whether the plan lists the block under a unique name, number or code; the road's listing is not asked.",
       "encodable": "document-check",
       "proposedFacts": [
         "Is this cutblock listed in the approved forest operations plan under a unique name, number or code?",
@@ -205,21 +205,28 @@
       ],
       "topics": [
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:fop-listed"
       ]
     },
     {
       "n": "4.12",
       "relevance": "plan",
       "bearsOn": "Requires the FOP to state the year harvesting of each proposed cutblock, and construction of each proposed road, is to begin.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "The planner's schedule holds a harvest year per block; nothing compares it with the commencement year stated in the FOP.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "The pack asks whether the plan gives the block's commencement year and whether harvest is to start that year; the planner's own harvest year is not compared with it automatically, and a road's year is not asked.",
       "encodable": "numeric",
       "proposedFacts": [
         "What year does the forest operations plan state for beginning harvest on this cutblock?"
       ],
       "topics": [
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:fop-year",
+        "bc.forest-operations@1.0.0:schedule-year"
       ]
     },
     {
@@ -318,12 +325,16 @@
       "n": "4.19",
       "relevance": "plan",
       "bearsOn": "Requires the FOP map to show each proposed cutblock's identifier and start year, and existing cutblocks within 5 km harvested in the last 20 years, whoever harvested them.",
-      "review": "none",
+      "review": "partial",
       "gapPriority": "low",
-      "gapNote": "The planner's baseline harvests could draw this 5 km context, but no rule checks the FOP map.",
+      "gapNote": "The block's identifier and year on the map are asked; the existing cutblocks within 5 km the map must show are not.",
       "encodable": "document-check",
       "topics": [
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:fop-listed",
+        "bc.forest-operations@1.0.0:fop-year"
       ]
     },
     {
@@ -378,78 +389,96 @@
       "n": "4.24",
       "relevance": "plan",
       "bearsOn": "Makes Division 4's engagement steps the requirements for engaging Indigenous nations on a FOP or amendment under FRPA s. 2.38(1)(a).",
-      "review": "none",
+      "review": "rule",
       "gapPriority": "low",
-      "gapNote": "Process for the plan, not a block test; the planner could record that the plan carrying the block has completed engagement.",
+      "gapNote": "One question asks whether the engagement this Division sets out was done; each step is the reviewer's record.",
       "encodable": "document-check",
       "topics": [
         "first-nations",
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:engagement"
       ]
     },
     {
       "n": "4.25",
       "relevance": "plan",
       "bearsOn": "Lists the information (holder, contacts, submission date, term, activities, planning guideline text and FLP outcomes, substituted requirements, additional measures) given to an Indigenous nation at the start of FOP engagement.",
-      "review": "none",
+      "review": "partial",
       "gapPriority": "low",
-      "gapNote": "FOP paperwork; not a block test.",
+      "gapNote": "Part of the engagement question; the information given is not itemized.",
       "encodable": "document-check",
       "topics": [
         "first-nations",
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:engagement"
       ]
     },
     {
       "n": "4.26",
       "relevance": "plan",
       "bearsOn": "Requires digital and paper copies of the proposed FOP or amendment to be available to the Indigenous nation.",
-      "review": "none",
+      "review": "partial",
       "gapPriority": "low",
-      "gapNote": "FOP paperwork; not a block test.",
+      "gapNote": "Part of the engagement question; the copies made available are not asked one by one.",
       "encodable": "document-check",
       "topics": [
         "first-nations",
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:engagement"
       ]
     },
     {
       "n": "4.27",
       "relevance": "plan",
       "bearsOn": "Requires a planning-guideline assessment to be given to an Indigenous nation on request.",
-      "review": "none",
+      "review": "partial",
       "gapPriority": "low",
-      "gapNote": "FOP paperwork; not a block test.",
+      "gapNote": "Part of the engagement question; whether an assessment was asked for and given is not asked.",
       "encodable": "document-check",
       "topics": [
         "first-nations",
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:engagement"
       ]
     },
     {
       "n": "4.28",
       "relevance": "plan",
       "bearsOn": "Requires the FOP proponent to offer to meet the Indigenous nation about the plan or amendment.",
-      "review": "none",
+      "review": "partial",
       "gapPriority": "low",
-      "gapNote": "FOP paperwork; not a block test.",
+      "gapNote": "Part of the engagement question; the offer to meet is not asked on its own.",
       "encodable": "document-check",
       "topics": [
         "first-nations",
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:engagement"
       ]
     },
     {
       "n": "4.29",
       "relevance": "plan",
       "bearsOn": "Lists the engagement record (information given, version shared, unaddressed matters, timing, correspondence) submitted to the minister with a FOP.",
-      "review": "none",
+      "review": "partial",
       "gapPriority": "low",
-      "gapNote": "FOP paperwork; not a block test.",
+      "gapNote": "Part of the engagement question; the record sent to the minister is not checked.",
       "encodable": "document-check",
       "topics": [
         "first-nations",
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:engagement"
       ]
     },
     {
@@ -497,11 +526,14 @@
       "bearsOn": "Requires a FOP to be publicly available for 60 days, or a minister-authorized shorter period of at least 10 days on stated grounds, with notice on a website and in a newspaper or the Gazette.",
       "review": "rule",
       "coveredBy": [
+        "bc.forest-operations@1.0.0:public-review",
+        "bc.forest-operations@1.0.0:public-review#shorter-period",
+        "bc.forest-operations@1.0.0:review-notice",
         "bc.fppr@1.1.0:short-floor",
         "bc.fppr@1.1.0:short-review"
       ],
       "gapPriority": "low",
-      "gapNote": "The day count and authorization are tested; the notice publication in (3) (website plus newspaper or Gazette) is not asked.",
+      "gapNote": "The forest operations plan pack tests the 60 days for the plan or an amendment needing approval, takes a shorter period only as the minister's decision of at least 10 days, and asks for both notices in (3). Whether the minister's grounds in (2) were met is the minister's.",
       "encodable": "document-check",
       "topics": [
         "public-review-and-notice",
@@ -512,9 +544,9 @@
       "n": "4.34",
       "relevance": "plan",
       "bearsOn": "Requires a no-approval (s. 4.43) amendment to be publicly available for 30 days, or a minister-authorized shorter period of at least 10 days.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "The short-floor and short-review rules cite only s. 4.33, whose default is 60 days; an amendment that adds a block under s. 4.43 has a 30-day default here, so the review-period test needs to know whether it is the plan or an amendment.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "The forest operations plan pack tests 30 days for an amendment under §4.43, and its notices. Whether the amendment really qualifies under §4.43 is the reviewer's answer.",
       "encodable": "numeric",
       "proposedFacts": [
         "Was the amendment that adds this cutblock publicly available for review and comment for at least 30 days?",
@@ -523,6 +555,11 @@
       "topics": [
         "public-review-and-notice",
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:public-review",
+        "bc.forest-operations@1.0.0:public-review#shorter-period",
+        "bc.forest-operations@1.0.0:review-notice"
       ]
     },
     {
@@ -542,9 +579,9 @@
       "n": "4.36",
       "relevance": "plan",
       "bearsOn": "Requires notice of a FOP or amendment to each person whose rights it is likely to affect, with an extension on request up to a 60-day total.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "The ground screens find range agreements, water licences and other tenures under a block, but no rule asks whether their holders were notified of the plan or amendment carrying the block.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "The pack asks whether notice went to each person whose rights are likely to be affected and whether a requested extension was given. Who those people are is the reviewer's list: the ground screens find some tenures under a block, but no rule reads them into it.",
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Has notice of the forest operations plan or amendment proposing this cutblock been given to each rights holder likely to be affected, such as range agreement, trapline, guide outfitter and water licence holders?"
@@ -552,6 +589,10 @@
       "topics": [
         "public-review-and-notice",
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:rights-notice",
+        "bc.forest-operations@1.0.0:rights-extension"
       ]
     },
     {
@@ -637,7 +678,8 @@
       "bearsOn": "Lets a FOP amendment take effect without approval only if it proposes no harvest or road in a s. 4.18 constraint area, a riparian management area (other than for S5/S6 streams), a wildlife tree retention area or a cultural heritage or culturally significant area, and changes no plan requirement or the plan's scope.",
       "review": "partial",
       "coveredBy": [
-        "bc.fppr@1.1.0:amendment"
+        "bc.fppr@1.1.0:amendment",
+        "bc.forest-operations@1.0.0:fop-amendment"
       ],
       "gapPriority": "medium",
       "gapNote": "The amendment rule takes 's. 4.43 amendment confirmed' as an answer; the planner could test (1)(a) spatially: does the added block or road overlap a 4.18 area, any lake or wetland RMA or a fish-stream RMA, or a WTRA? If so, the amendment needs approval.",
@@ -659,7 +701,8 @@
       "bearsOn": "Makes a s. 4.43 amendment effective 30 days after the amended plan, a professional's statement on the 4.43 criteria and the engagement and review records are given to the minister.",
       "review": "rule",
       "coveredBy": [
-        "bc.fppr@1.1.0:amendment"
+        "bc.fppr@1.1.0:amendment",
+        "bc.forest-operations@1.0.0:fop-amendment"
       ],
       "encodable": "numeric",
       "topics": [
@@ -674,7 +717,8 @@
       "bearsOn": "Lets the minister, within 30 days of the documents, require approval of a s. 4.43 amendment to protect public health and safety, the environment or a cultural heritage resource.",
       "review": "partial",
       "coveredBy": [
-        "bc.fppr@1.1.0:amendment"
+        "bc.fppr@1.1.0:amendment",
+        "bc.forest-operations@1.0.0:fop-amendment"
       ],
       "gapPriority": "low",
       "gapNote": "The amendment rule asks that s. 4.45 was checked; whether the minister called it in is a yes/no record.",
@@ -771,26 +815,32 @@
       "n": "4.52",
       "relevance": "plan",
       "bearsOn": "Requires a FOP holder (other than BCTS) to publish its annual forest development schedule digitally and on paper, naming which holder will start harvest or roads at each location.",
-      "review": "none",
+      "review": "partial",
       "gapPriority": "low",
-      "gapNote": "The planner's schedules could export a draft annual forest development schedule; no rule checks one.",
+      "gapNote": "The schedule question names the publication rules; the copies and the notice are not asked one by one.",
       "encodable": "document-check",
       "topics": [
         "plans",
         "public-review-and-notice"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:schedule"
       ]
     },
     {
       "n": "4.53",
       "relevance": "plan",
       "bearsOn": "Lists the notice published with the annual forest development schedule and who must receive it.",
-      "review": "none",
+      "review": "partial",
       "gapPriority": "low",
-      "gapNote": "FOP paperwork; not a block test.",
+      "gapNote": "The schedule's notice, including to other plan holders and affected rights holders under (2)(b), is not asked on its own.",
       "encodable": "document-check",
       "topics": [
         "plans",
         "public-review-and-notice"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:schedule"
       ]
     },
     {
@@ -809,15 +859,18 @@
       "n": "4.55",
       "relevance": "plan",
       "bearsOn": "Requires a FOP site level plan to give the plan and block identifiers, standards units, stocking standards, soil disturbance limits, any site assessment and a map.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "The soil and stocking rules ask about standards units and limits but never whether a site level plan states them for the block.",
+      "review": "partial",
+      "gapPriority": "low",
+      "gapNote": "The site level plan question names its content; the items are not checked.",
       "encodable": "document-check",
       "proposedFacts": [
         "Does a site level plan for this cutblock identify its standards units, stocking standards and soil disturbance limits?"
       ],
       "topics": [
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:site-level-plan"
       ]
     },
     {
@@ -857,13 +910,16 @@
       "n": "4.59",
       "relevance": "plan",
       "bearsOn": "Waives a FOP site level plan for cutblocks harvested only for safety, seed collection (opening of 1 ha or less), 50 m3 or less, or restricted purposes such as exclusive Range Act grazing or hay land, experiments, recreation clearing, trap trees, intermediate cuts or special forest products.",
-      "review": "none",
+      "review": "rule",
       "gapPriority": "low",
-      "gapNote": "The crown-grazing pack reads the parallel FPPR s. 44(3) purposes; a FOP block that qualifies here needs no site level plan, which no rule records.",
+      "gapNote": "Listed as the exception to the site level plan; the purpose and volume are the reviewer's evidence.",
       "encodable": "document-check",
       "topics": [
         "plans",
         "exemptions-and-variances"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:site-level-plan#no-plan-needed"
       ]
     },
     {
@@ -1283,7 +1339,7 @@
       "bearsOn": "Lets an FSP specify forest development units and requires it to identify, within each FDU, ungulate winter ranges, wildlife habitat areas, fisheries sensitive watersheds, lakeshore management zones, scenic areas, L1 lakes, community watersheds, OGMAs, areas closed to harvest by another enactment, and the holder's cutting and road permits.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.1.0:fdu-identifies"
+        "bc.forest-permits@1.2.0:fdu-identifies"
       ],
       "gapPriority": "medium",
       "gapNote": "The rule asks whether the plan identifies an area the block is in. Lakeshore management zones, fisheries sensitive watersheds and L1 lakes still have no map screen.",
@@ -1703,8 +1759,8 @@
       "bearsOn": "Requires notice of a forest operations map on a website and at least once in a newspaper, stating the 3-year reliance period, with a 30-day review (or a shorter period the minister sets for environment, forest health or wildfire risk) that cannot start until both notices are out.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.1.0:fom-review",
-        "bc.forest-permits@1.1.0:fom-review#shorter-period"
+        "bc.forest-permits@1.2.0:fom-review",
+        "bc.forest-permits@1.2.0:fom-review#shorter-period"
       ],
       "topics": [
         "plans",
@@ -1741,7 +1797,7 @@
       "bearsOn": "Lets an FSP holder rely on a forest operations map for a cutting or road permit application only if it applies within 3 years after the map's review period began.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.1.0:fom-window"
+        "bc.forest-permits@1.2.0:fom-window"
       ],
       "topics": [
         "plans"

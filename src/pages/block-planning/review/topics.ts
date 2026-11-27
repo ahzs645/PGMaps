@@ -46,9 +46,9 @@ const TOPICS: Record<string, TopicDef[]> = {
   'bc.forest-permits': [
     {
       id: 'fsp',
-      label: 'Forest stewardship plan and site plan (FRPA §3, §10; FPPR §14)',
+      label: 'Forest stewardship plan, its results and the site plan (FRPA §§3, 10, 20.22; FPPR §14)',
       sections: [],
-      rules: ['fdu', 'fdu-identifies', 'site-plan'],
+      rules: ['fdu', 'fdu-identifies', 'fsp-results', 'site-plan'],
     },
     {
       id: 'fom',
@@ -67,6 +67,32 @@ const TOPICS: Record<string, TopicDef[]> = {
       label: 'Special purpose areas (Forest Act §209, §215)',
       sections: [],
       rules: ['spa-licence', 'spa-road'],
+    },
+  ],
+  'bc.forest-operations': [
+    {
+      id: 'fop',
+      label: 'Forest operations plan for the block (FRPA §§2.35, 2.36, 2.44)',
+      sections: [],
+      rules: ['fop-required', 'fop-listed', 'fop-amendment'],
+    },
+    {
+      id: 'schedule',
+      label: 'Commencement year and the annual schedule (FPPR §4.12; FRPA §2.46)',
+      sections: [],
+      rules: ['fop-year', 'schedule', 'schedule-year'],
+    },
+    {
+      id: 'review',
+      label: 'Public review, notice and engagement (FRPA §2.38; FPPR §§4.33–4.36)',
+      sections: [],
+      rules: ['public-review', 'review-notice', 'rights-notice', 'rights-extension', 'engagement'],
+    },
+    {
+      id: 'site',
+      label: 'Site level plan and the plan’s requirements (FRPA §§2.47, 20.21)',
+      sections: [],
+      rules: ['site-level-plan', 'fop-requirements'],
     },
   ],
   'bc.omineca.old-growth': [

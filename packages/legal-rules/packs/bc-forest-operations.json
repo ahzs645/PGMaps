@@ -1,0 +1,926 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.forest-operations",
+  "version": "1.0.0",
+  "title": "BC forest operations plans",
+  "description": "Inside a forest landscape area, where a forest operations plan takes the place of the forest stewardship plan: whether the holder holds an approved plan for the land, the block is listed in it with its commencement year, the year it is to start matches the plan and the annual forest development schedule, the plan or the amendment that added the block had its public review, notice to rights holders and engagement with Indigenous nations, a site level plan is ready, and the design meets the plan's requirements. Every rule applies only to a block in a forest landscape area; the minister approves every plan and amendment, and these rules list the exceptions the law makes.",
+  "relatedPacks": [
+    {
+      "id": "bc.forest-permits",
+      "relationship": "Forest Act §§52.05(1)(c) and 117(3)(b), in the permit pack's fop rule, refuse a cutting or road permit in a forest landscape area without a forest operations plan the block and road are consistent with."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "landscape-area",
+      "label": "Is the block or its road in a forest landscape area, one a forest landscape plan specifies now or did before (FRPA §2.35(1))?",
+      "type": "choice",
+      "choices": [
+        "No",
+        "Yes",
+        "Partly"
+      ]
+    },
+    {
+      "id": "holder",
+      "label": "Who will harvest the block (FRPA §2.2's agreement holders, or BC Timber Sales)?",
+      "type": "choice",
+      "choices": [
+        "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+        "BC Timber Sales, the timber sales manager",
+        "Another holder: a woodlot licence, a smaller community forest agreement or First Nations woodland licence, or another licence or permit"
+      ]
+    },
+    {
+      "id": "fop-held",
+      "label": "Does the holder hold a forest operations plan the minister approved that applies to the block's land and is in its term (at most 5 years, unless extended; FRPA §§2.35, 2.42–2.43)?",
+      "type": "boolean"
+    },
+    {
+      "id": "fop-listed",
+      "label": "Does the plan list the block as a proposed cutblock under a unique name, number or code, and show its approximate location on the plan's map (FRPA §2.36(2)(a), (3)(a); FPPR §§4.11, 4.19)?",
+      "type": "boolean"
+    },
+    {
+      "id": "fop-added",
+      "label": "How did the block come into the plan?",
+      "type": "choice",
+      "choices": [
+        "In the plan as the minister approved it",
+        "By an amendment the minister approved",
+        "By an amendment that needs no approval (FPPR §4.43), now in effect",
+        "By an amendment not yet approved or not yet in effect"
+      ]
+    },
+    {
+      "id": "year-shown",
+      "label": "Does the plan give the year harvest is proposed to begin on the block, or for BC Timber Sales the year applications for its timber sale licence are to be invited (FPPR §§4.12, 4.19(1))?",
+      "type": "boolean"
+    },
+    {
+      "id": "year-matches",
+      "label": "Is the year harvest is to start the year the plan gives for the block?",
+      "type": "boolean"
+    },
+    {
+      "id": "fds-shown",
+      "label": "Did the annual forest development schedule made public by December 31 of the year before harvest starts show the block's location (FRPA §2.46(1)–(2); FPPR §§4.52–4.53)?",
+      "type": "boolean"
+    },
+    {
+      "id": "review-days",
+      "label": "Days the plan, or the amendment that added the block, was publicly available for review and comment (FPPR §4.33(1), §4.34(1))",
+      "type": "number",
+      "min": 0,
+      "unit": "days"
+    },
+    {
+      "id": "review-notice",
+      "label": "Was notice of the review and comment period published on a website kept by or for the holder and in a newspaper circulating in the plan's area or the Gazette (FPPR §4.33(3), §4.34(3))?",
+      "type": "boolean"
+    },
+    {
+      "id": "rights-notice",
+      "label": "Was notice of the plan or amendment given to each person whose rights it is likely to affect, such as range, trapline, guide outfitter, water and other tenure holders in the area (FPPR §4.36(1))?",
+      "type": "boolean"
+    },
+    {
+      "id": "rights-extension",
+      "label": "Did a person given that notice ask for more time to review and comment (FPPR §4.36(2))?",
+      "type": "choice",
+      "choices": [
+        "No",
+        "Yes, and it was given (to at most 60 days in all)",
+        "Yes, and it was not given"
+      ]
+    },
+    {
+      "id": "engagement",
+      "label": "Before the plan or amendment went to the minister, did the holder make reasonable efforts to engage the Indigenous nations it affects, as FPPR §§4.24–4.29 set out (FRPA §2.38(1)(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "site-level-plan",
+      "label": "Is there a site level plan for the cutblock, prepared before harvest starts and consistent with the forest landscape plan and the forest operations plan (FRPA §2.47)?",
+      "type": "boolean"
+    },
+    {
+      "id": "fop-requirements",
+      "label": "Does the block's design comply with the plan's requirements (its planning guideline requirements, substituted requirements, additional measures and the FPPR Part 4 practice requirements the holder is not exempt from; FPPR §4.02) and the provisions that relate to them?",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "plan-review",
+      "value": 60,
+      "unit": "days"
+    },
+    {
+      "id": "amendment-review",
+      "value": 30,
+      "unit": "days"
+    },
+    {
+      "id": "shortest-review",
+      "value": 10,
+      "unit": "days"
+    }
+  ],
+  "sources": [
+    {
+      "id": "frpa",
+      "title": "Forest and Range Practices Act, SBC 2002 c. 69",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/02069_01",
+      "asOf": "2026-11-17"
+    },
+    {
+      "id": "instrument",
+      "title": "BC Forest Planning and Practices Regulation",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004",
+      "asOf": "2026-11-17"
+    }
+  ],
+  "rules": [
+    {
+      "id": "fop-required",
+      "title": "Approved forest operations plan for the land",
+      "source": "frpa",
+      "provision": "2.35(2)–(3)",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "In a forest landscape area the holder of an agreement may not apply for a cutting or road permit, harvest or build a road on the land, and BC Timber Sales may not offer a timber sale licence, issue a road permit or contract logging authorization or build the road, unless it holds an approved forest operations plan that applies to the land.",
+      "actions": [
+        {
+          "kind": "obtain-approval",
+          "description": "Prepare the forest operations plan, or an amendment that brings the land into its forest operations area, take it through engagement and public review, and have the minister approve it before applying, harvesting or building road."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "earlier-permit",
+          "label": "Harvest or road construction under a cutting or road permit issued before the forest operations plan that applied to the area expired, or before the holder was removed from it (§2.35(4); not an application for a new permit)",
+          "source": "frpa",
+          "provision": "2.35(4)",
+          "kind": "by-law",
+          "evidence": [
+            "The permit and its issue date",
+            "The plan's expiry or the holder's removal"
+          ]
+        },
+        {
+          "id": "fsp-permit",
+          "label": "Harvest or road construction under a cutting or road permit issued before the forest stewardship plan whose forest development unit contained the area expired, or before the holder left it (§2.49)",
+          "source": "frpa",
+          "provision": "2.49",
+          "kind": "by-law",
+          "evidence": [
+            "The permit and its issue date",
+            "The forest stewardship plan's expiry or the holder's removal"
+          ]
+        },
+        {
+          "id": "purpose",
+          "label": "The holder only harvests to eliminate a safety hazard, to collect seed leaving an opening of 1 ha or less, removes felled trees from landings and road rights of way, harvests up to 500 m³ the minister considers at risk from insects, fire or disease or treated to trap pests, or harvests or builds road for a prescribed purpose (§2.35(5))",
+          "source": "frpa",
+          "provision": "2.35(5)",
+          "kind": "by-law",
+          "evidence": [
+            "The purpose, and the volume or opening",
+            "For the 500 m³ purpose, the minister's opinion"
+          ]
+        },
+        {
+          "id": "new-landscape-area",
+          "label": "The land is in a new forest landscape area, the holder's forest stewardship plan for it was approved, or submitted, before the forest landscape plan took effect, and it is within a year of that date, or the holder submitted a forest operations plan within 6 months and the minister has not yet decided it (§2.48(3)–(4))",
+          "source": "frpa",
+          "provision": "2.48(3)–(4)",
+          "kind": "by-law",
+          "evidence": [
+            "The forest landscape plan and the date it took effect",
+            "The forest stewardship plan's approval or submission date",
+            "Any forest operations plan submitted for the portion, with its date"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fop-listed",
+      "title": "The block in the forest operations plan",
+      "source": "frpa",
+      "provision": "2.36(2)(a), (3)(a), with FPPR 4.11, 4.19",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fop-listed",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A forest operations plan's map must show each proposed cutblock the holder intends to apply for a cutting permit for during the plan's term, or BC Timber Sales intends to include in a timber sale licence; the plan lists each one under a unique name, number or code (FPPR §4.11). This block is not in it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Add the block to the plan by an amendment, with its own engagement and public review, and apply only once the amendment is in effect."
+        }
+      ]
+    },
+    {
+      "id": "fop-amendment",
+      "title": "Amendment that added the block",
+      "source": "frpa",
+      "provision": "2.44, with FPPR 4.43, 4.44, 4.45",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "fop-listed",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fop-added",
+            "op": "eq",
+            "value": "By an amendment not yet approved or not yet in effect"
+          }
+        ]
+      ],
+      "finding": "An amendment to a forest operations plan is not effective until the minister approves it, or, for one that needs no approval under FPPR §4.43, until 30 days after its documents reach the minister, if the minister does not require approval (FPPR §§4.44–4.45). Until then the block is not in the plan.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Check the amendment's approval, or the date its §4.44 documents reached the minister and any §4.45 determination, before relying on it."
+        }
+      ]
+    },
+    {
+      "id": "fop-year",
+      "title": "Commencement year in the plan",
+      "source": "instrument",
+      "provision": "4.12, 4.19(1)",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "fop-listed",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "year-shown",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A forest operations plan must give, for each proposed cutblock, the year the holder proposes to begin harvesting it, and its map must show that year (for BC Timber Sales, the year it intends to invite applications; FPPR §4.19(1)). The plan gives none for this block.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Have the plan amended to give the block's commencement year before scheduling it."
+        }
+      ]
+    },
+    {
+      "id": "schedule",
+      "title": "Annual forest development schedule",
+      "source": "frpa",
+      "provision": "2.46(1)–(2), with FPPR 4.52, 4.53",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "fop-listed",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fds-shown",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "By December 31 each year the holder must make public a forest development schedule showing each location where it intends to start harvesting or building roads in the next calendar year (BC Timber Sales: each location in a timber sale licence it intends to invite applications for, or a contract logging authorization it intends to issue). The schedule for the year harvest is to start does not show the block.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Find the schedule published for the year harvest is to start and record whether it shows the block; plan the start for a year whose schedule does, or record why it was left off."
+        }
+      ]
+    },
+    {
+      "id": "schedule-year",
+      "title": "Start year against the plan",
+      "source": "frpa",
+      "provision": "2.46(3)",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "fop-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "year-shown",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "year-matches",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "The annual forest development schedule must be consistent with the forest operations plan, and the year harvest is to start differs from the year the plan gives for the block (FPPR §4.12). The law sets no other bar on the year itself.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Compare the start year with the plan's. Amend the plan's year before the block goes on a schedule for another year, or record why the schedule stays consistent with the plan."
+        }
+      ]
+    },
+    {
+      "id": "public-review",
+      "title": "Public review period",
+      "source": "instrument",
+      "provision": "4.33(1), 4.34(1)",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "fop-listed",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fop-added",
+            "op": "in",
+            "value": [
+              "In the plan as the minister approved it",
+              "By an amendment the minister approved"
+            ]
+          },
+          {
+            "fact": "review-days",
+            "op": "lt",
+            "value": {
+              "parameter": "plan-review"
+            }
+          }
+        ],
+        [
+          {
+            "fact": "fop-added",
+            "op": "eq",
+            "value": "By an amendment that needs no approval (FPPR §4.43), now in effect"
+          },
+          {
+            "fact": "review-days",
+            "op": "lt",
+            "value": {
+              "parameter": "amendment-review"
+            }
+          }
+        ]
+      ],
+      "finding": "The plan, or an amendment that needs the minister's approval, must be publicly available for review and comment for 60 days (FPPR §4.33(1)); an amendment that needs no approval under §4.43, for 30 days (§4.34(1)). The period that put the block in the plan ran shorter.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Count the days the plan or amendment was available. File the minister's authorization of the shorter period, or run the review again for the full period before relying on the plan or amendment."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "shorter-period",
+          "label": "The minister authorized a shorter period of at least 10 days, satisfied that the full period would likely harm the proper management and conservation of forests and forest ecosystems, or raise the risk of wildfire or to public safety (§4.33(2), §4.34(2))",
+          "source": "instrument",
+          "provision": "4.33(2), 4.34(2)",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "when": [
+            [
+              {
+                "fact": "review-days",
+                "op": "gte",
+                "value": {
+                  "parameter": "shortest-review"
+                }
+              }
+            ]
+          ],
+          "evidence": [
+            "The minister's authorization of the shorter period and its grounds"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review-notice",
+      "title": "Notice of the review period",
+      "source": "instrument",
+      "provision": "4.33(3), 4.34(3)",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "fop-listed",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "review-notice",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "Notice of the review and comment period must be published on a website kept by or for the holder and in a newspaper published in British Columbia and circulating in the plan's area, or in the Gazette.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record both notices and their dates; publish the missing one and run the period again from it."
+        }
+      ]
+    },
+    {
+      "id": "rights-notice",
+      "title": "Notice to rights holders",
+      "source": "instrument",
+      "provision": "4.36(1)",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "fop-listed",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "rights-notice",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "Notice of the forest operations plan, or of the amendment that added the block, must be given to each person whose rights it is likely to affect.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "List the tenures and other rights in and near the block (range, traplines, guide outfitters, water licences, woodlots and others), record who was given notice and when, and give it to anyone missed."
+        }
+      ]
+    },
+    {
+      "id": "rights-extension",
+      "title": "More time asked by a rights holder",
+      "source": "instrument",
+      "provision": "4.36(2)",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "fop-listed",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "rights-extension",
+            "op": "eq",
+            "value": "Yes, and it was not given"
+          }
+        ]
+      ],
+      "finding": "A person given notice who asks for more time to review and comment must be given an extension, up to a total review and comment period of 60 days.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the request and give the extension, up to 60 days in all, before the plan or amendment is relied on."
+        }
+      ]
+    },
+    {
+      "id": "engagement",
+      "title": "Engagement with Indigenous nations",
+      "source": "frpa",
+      "provision": "2.38(1)(a), with FPPR 4.24, 4.25, 4.26, 4.27, 4.28, 4.29",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "fop-listed",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "engagement",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A forest operations plan or amendment may not go to the minister unless the holder has made reasonable efforts to engage the Indigenous nations it affects, as FPPR §§4.24–4.29 set out, and its submission summarizes that engagement and the changes made for it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Record the nations engaged, the information given at the start (FPPR §4.25), the offer to meet (§4.28), the deadlines and the record sent to the minister (§4.29)."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "resubmission",
+          "label": "The minister asked for the plan or amendment to be resubmitted with changes and relieved the holder of the engagement and review steps for that resubmission (§2.38(3))",
+          "source": "frpa",
+          "provision": "2.38(3)",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The minister's request and the relief given"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "site-level-plan",
+      "title": "Site level plan before harvest",
+      "source": "frpa",
+      "provision": "2.47(1)–(2), with FPPR 4.55",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "site-level-plan",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "Unless the regulations provide otherwise, the holder of a forest operations plan must prepare a site level plan for the cutblock before harvest starts, identifying the approximate locations of cutblocks and roads and consistent with the forest landscape plan and the forest operations plan.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Prepare the site level plan with what FPPR §4.55 lists and keep it until the block's obligations are complete (§4.57)."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "no-plan-needed",
+          "label": "Harvest only to eliminate a safety hazard, to collect seed leaving an opening of 1 ha or less, of 50 m³ or less, or restricted to removing felled trees from landings and road rights of way, Range Act grazing or hay land, experiments, recreation sites and trails, trap trees, intermediate cuts such as commercial thinning, or special forest products (FPPR §4.59)",
+          "source": "instrument",
+          "provision": "4.59",
+          "kind": "by-law",
+          "evidence": [
+            "The purpose and, where it counts, the volume or opening"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fop-requirements",
+      "title": "The plan's requirements for the block",
+      "source": "frpa",
+      "provision": "20.21(1), 20.23",
+      "scope": [
+        [
+          {
+            "fact": "landscape-area",
+            "op": "in",
+            "value": [
+              "Yes",
+              "Partly"
+            ]
+          },
+          {
+            "fact": "holder",
+            "op": "in",
+            "value": [
+              "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+              "BC Timber Sales, the timber sales manager"
+            ]
+          },
+          {
+            "fact": "fop-held",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fop-requirements",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "The holder of a forest operations plan must comply with the requirements included in it and the provisions that relate to them; on these answers the block's design does not.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Name each requirement the block falls short of, as the plan read when the permit was issued (FRPA §20.23), and change the design or amend the plan before harvest."
+        }
+      ]
+    }
+  ]
+}

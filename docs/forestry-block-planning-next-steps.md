@@ -24,10 +24,6 @@ Built on 27 November 2026 and moved into the planner contract, **The law behind 
 
 ## Next
 
-### FRPA §20.22: the FSP's results for an ordinary block
-
-The holder must achieve the plan's intended results and carry out its strategies, and that is what most block rules reduce to in practice (cutblock size, adjacency, visual quality, wildlife trees, stocking). A rule would ask which results and strategies of the applicable FSP bear on the block and whether the design achieves each, and record the plan, its approval and whether it has expired or been replaced. A §12.4 or §12.5 result is already an exception on the default rules it replaces; this rule would record the plan itself.
-
 ### Mackenzie old forest, calculated
 
 The Mackenzie biodiversity pack takes the reviewer's old and old interior margins. Calculating them means Mackenzie units in the old-forest module (`orderUnits.ts` refuses them today): the 2008 order's Tables 2 and 3 as replaced in 2010, its own CFLB and natural forest definitions, and the younger-stand allowance on the live-old portion only. Check it the way the Prince George tables were checked, against any published Mackenzie figures.
@@ -35,10 +31,6 @@ The Mackenzie biodiversity pack takes the reviewer's old and old interior margin
 ### Map screens behind the reviewer's answers
 
 The permit and old-growth packs ask questions a layer could answer as a candidate, as *On this ground* does: candidate old forest areas (the non-legal OGMA layer filtered to `PRG_COFA` and `PRG_DPG`, the 2022 letter's Appendix 5; the visual quality route card already reads it), special purpose areas, pine-leading VRI polygons of 5 ha or more in the listed TSAs, lakeshore management zones, fisheries sensitive watersheds and mapped L1 lakes. FSP forest development units and forest landscape areas have no public layer found yet. Each is a ground catalogue layer with its reach cells cited, and stays a candidate the reviewer confirms.
-
-### The forest operations plan regime
-
-FRPA §§2.35–2.47 and FPPR §§4.11–4.36: a block under a forest operations plan must be listed in it, its commencement year compared with the schedule, and its public review (60 days, 30 for an amendment adding a block) and notice to tenure holders checked. A new pack, switched on only where the block is in a forest landscape area.
 
 ### The Prince George young-forest trend
 
