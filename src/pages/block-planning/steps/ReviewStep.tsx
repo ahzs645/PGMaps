@@ -21,6 +21,10 @@ import { CROSSING_INSTRUMENTS, crossingsOf } from '../crossings/record'
 import { CrossingsSection } from '../crossings/CrossingsSection'
 import { crossingRollup, CROSSING_STANDING_WORDS } from '../crossings/standing'
 import { shownResult } from '../usePlanAnalysis'
+import { RecordsSection } from '../acquire/RecordsSection'
+import { FspPanel } from '../acquire/FspPanel'
+import { blockGaps } from '../acquire/gaps'
+import { recordIdsOf } from '../acquire/record'
 import type { StepProps } from './types'
 
 /** The Prince George order is reviewed once for the landscape; every other instrument per block. */
@@ -33,7 +37,7 @@ export const landscapeCase = (plan: Plan) =>
 export const blockCase = (plan: Plan, id: string) => plan.reviews[id] ?? freshCase(profile.blockReleases)
 
 /** Step 5: the order's landscape review with its two D.5 pathways, then the selected block's rules. */
-export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }: StepProps) {
+export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis, openExport }: StepProps) {
   const library = useLibrary(defaults)
   const result = shownResult(analysis)
   const block = plan.blocks.find((b) => b.id === selectedBlock) ?? null
@@ -175,6 +179,48 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
             schedule={plan.reviewSchedule}
             library={library}
             keepPacks={keepPacks}
+          />
+        </ToolSection>
+      )}
+      {block && (
+        <ToolSection
+          key={JSON.stringify(['fsp', block.id, plan.reviewSchedule])}
+          title="Forest stewardship plan"
+          summary={(() => {
+            const fsp = recordIdsOf(plan, block.id).fsp
+            return fsp ? `FSP ${fsp.id}${fsp.amendment ? `, amendment ${fsp.amendment}` : ''} as stated` : 'Not stated'
+          })()}
+          help="Which plan the block's permit relied on and its amendment then: the units mapped over the block, each plan's amendments as the layer holds them, and the opening's stocking standard ids. The plan you state is your record; public data never settles the amendment."
+        >
+          <FspPanel plan={plan} edit={edit} block={block} schedule={plan.reviewSchedule} />
+        </ToolSection>
+      )}
+      {block && (
+        <ToolSection
+          key={JSON.stringify(['records', block.id, plan.reviewSchedule])}
+          title="Records to get"
+          summary={(() => {
+            const gaps = blockGaps(plan, library, block.id, plan.reviewSchedule)
+            const asked = (plan.acquisition?.requests ?? []).filter(
+              (r) => r.block === block.id && r.schedule === plan.reviewSchedule,
+            ).length
+            return gaps.length
+              ? `${gaps.length} to get${asked ? ` · ${asked} requested` : ''}`
+              : asked
+                ? `${asked} requested`
+                : 'None open'
+          })()}
+          help="What the block's and its crossings' reviews cannot answer from public data, where to ask for each, drafted requests to copy, their status, and what came back as your transcription. Nothing is sent, and a received value answers a question only when you use it."
+        >
+          <p className="text-xs text-muted-foreground">{reviewName}. Change the schedule under review in step 3.</p>
+          <RecordsSection
+            plan={plan}
+            edit={edit}
+            block={block}
+            schedule={plan.reviewSchedule}
+            library={library}
+            keepPacks={keepPacks}
+            openExport={openExport}
           />
         </ToolSection>
       )}

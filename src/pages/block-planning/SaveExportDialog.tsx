@@ -42,6 +42,7 @@ export function SaveExportDialog({
   running,
   library,
   onTitle,
+  startAt,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -51,8 +52,16 @@ export function SaveExportDialog({
   library: Pack[]
   /** Sets the summary's title (`setTitle`); `undefined` follows its default heading again. */
   onTitle: (title: string | undefined) => void
+  /** The output to show when the dialog opens, when it was opened for one. */
+  startAt?: BlockPlanningExport
 }) {
-  const [chosen, setChosen] = useState<BlockPlanningExport>('plan')
+  const [chosen, setChosen] = useState<BlockPlanningExport>(startAt ?? 'plan')
+  // Opened for an output: show it, once per opening.
+  const [openedAt, setOpenedAt] = useState<BlockPlanningExport | undefined>()
+  if (open && startAt && openedAt !== startAt) {
+    setOpenedAt(startAt)
+    setChosen(startAt)
+  } else if (!open && openedAt) setOpenedAt(undefined)
   const output = BLOCK_PLANNING_EXPORTS.find((o) => o.id === chosen)!
   const today = new Date().toISOString().slice(0, 10)
   const waiting = output.needsResult && !result

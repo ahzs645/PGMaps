@@ -1,5 +1,6 @@
 import type { Plan } from '../plan'
 import type { AnalysisState } from '../usePlanAnalysis'
+import type { BlockPlanningExport } from '../exports'
 
 export type Drawing = 'block' | 'shape' | 'disturbance'
 export type ImportKind = 'blocks' | 'baseline' | 'zones' | 'unit'
@@ -22,4 +23,6 @@ export interface StepProps {
   setOldForestMapOn: (on: boolean) => void
   /** Runs a planner command (open a file, the sample) from inside a step. */
   onCommand: (id: 'open' | 'openSample') => void
+  /** Opens Save & export on one output (the drafted requests from *Records to get*). */
+  openExport?: (output: BlockPlanningExport) => void
 }

@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils'
 import { defaults, installPacks } from '../legal-workbench/registry'
 import { useLibrary } from './review/CaseReview'
 import { SaveExportDialog } from './SaveExportDialog'
+import type { BlockPlanningExport } from './exports'
 import { addBlock, addDisturbance, addShape, setArea, setTitle } from './edits'
 import { importBaseline, importBlocks, importUnit } from './imports'
 import { PLANNING_STEPS, type PlanningCommand, type PlanningEditor } from './interface/commands'
@@ -226,6 +227,7 @@ export default function BlockPlanner({
     }
   }
   const [exportOpen, setExportOpen] = useState(false)
+  const [exportStart, setExportStart] = useState<BlockPlanningExport | undefined>()
   const library = useLibrary(defaults)
 
   // --- Interface -------------------------------------------------------------------------------
@@ -305,6 +307,7 @@ export default function BlockPlanner({
       case 'open':
         return planFileInput.current?.click()
       case 'export':
+        setExportStart(undefined)
         return setExportOpen(true)
       case 'area':
       case 'blocks':
@@ -563,6 +566,10 @@ export default function BlockPlanner({
     oldForestMapOn,
     setOldForestMapOn,
     onCommand: runCommand,
+    openExport: (output) => {
+      setExportStart(output)
+      setExportOpen(true)
+    },
   }
   const stepStatus = (id: PlanningEditor): 'done' | 'current' | 'todo' => {
     const done = {
@@ -768,6 +775,7 @@ export default function BlockPlanner({
           running={analysis.status === 'running'}
           library={library}
           onTitle={(title) => edit((p) => setTitle(p, title))}
+          startAt={exportStart}
         />
         {choosingInterface && (
           <InterfaceChooser

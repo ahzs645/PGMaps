@@ -37,6 +37,7 @@ import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { districts, table } from '../forest-patches/project'
 import { parseGroundReads, type GroundRead } from './ground/record'
 import { parseCrossings, type CrossingRecord } from './crossings/record'
+import { parseAcquisition, type Acquisition } from './acquire/record'
 import {
   parseMackenzieChoices,
   parseMackenzieRecord,
@@ -311,6 +312,11 @@ export interface Plan {
    * and keyed to the footprint (`crossings/`). Absent in a plan that lists none.
    */
   crossings?: CrossingRecord[]
+  /**
+   * Getting the records a review lacks: the identifiers a request quotes, each request's status and
+   * what came back, as the reviewer's transcription (`acquire/`). Absent in a plan that has none.
+   */
+  acquisition?: Acquisition
 }
 
 /** The unit the patch calculation counts within, or none: the plan's unit unless patches are cut at it. */
@@ -1028,6 +1034,7 @@ export function parsePlan(value: unknown): Plan {
   }
   const l = object(p.landscape ?? {}, 'landscape')
   const crossings = parseCrossings(p.crossings, blocks, schedules)
+  const { acquisition } = parseAcquisition(p.acquisition, blocks, schedules)
   return {
     format: PLAN_FORMAT,
     ...withDocumentTitle('title', parseDocumentTitle(p.title)),
@@ -1101,5 +1108,6 @@ export function parsePlan(value: unknown): Plan {
     checks: optional(p, 'checks', parseChecks),
     groundReads: parseGroundReads(p.groundReads, blocks, schedules),
     ...(crossings ? { crossings } : {}),
+    ...(acquisition ? { acquisition } : {}),
   }
 }

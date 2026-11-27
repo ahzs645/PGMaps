@@ -22,6 +22,26 @@ import type { OldForestChoices, PlanChecks } from './records'
 import type { MackenzieOldForestChoices } from './oldForest/mackenzieRecord'
 import { rangeReviewCurrent } from './review/rangeReview'
 import { blankCrossing, crossingFootprint, type CrossingRecord } from './crossings/record'
+import type { Pack } from '../../../packages/legal-rules/src/contract'
+import {
+  dayOf,
+  fspIdToken,
+  identifierToken,
+  nextReceivedId,
+  RECORD_ID_FIELDS,
+  recordIdsOf,
+  type Acquisition,
+  type BlockRecordIds,
+  type FspStatement,
+  type ReceivedRecord,
+  type RequestEvent,
+} from './acquire/record'
+import {
+  applyValueAsClaimEvidence,
+  applyValueAsCrossingEvidence,
+  applyValueAsFact,
+  type UseResult,
+} from './acquire/received'
 
 /** Keeps one grazing review per block and schedule if the evidence still describes its footprint. */
 export function saveRangeReview(plan: Plan, record: RangeReview): Plan {
@@ -161,6 +181,11 @@ export function removeBlock(plan: Plan, id: string): Plan {
     rangeReviews: plan.rangeReviews?.filter((review) => review.block !== id),
     groundReads: plan.groundReads?.filter((read) => read.block !== id),
     ...withCrossings(plan, (c) => c.block !== id),
+    ...withAcquisition(
+      plan,
+      (block) => block !== id,
+      () => true,
+    ),
   }
 }
 
@@ -279,6 +304,11 @@ export function removeSchedule(plan: Plan, id: string): Plan {
     rangeReviews: plan.rangeReviews?.filter((review) => review.schedule !== id),
     groundReads: plan.groundReads?.filter((read) => read.schedule !== id),
     ...withCrossings(plan, (c) => c.schedule !== id),
+    ...withAcquisition(
+      plan,
+      () => true,
+      (schedule) => schedule !== id,
+    ),
   }
 }
 
@@ -361,3 +391,135 @@ export function confirmCrossing(plan: Plan, key: string): Plan {
 export function removeCrossing(plan: Plan, key: string): Plan {
   return plan.crossings ? { ...plan, crossings: plan.crossings.filter((c) => c.key !== key) } : plan
 }
+
+// ---------------------------------------------------------------------------------------------
+// Getting the records a review lacks (`acquire/`)
+
+/** The acquisition kept for the blocks and schedules `keep` keeps; a plan that had none stays without the key. */
+function withAcquisition(
+  plan: Plan,
+  keepBlock: (block: string) => boolean,
+  keepSchedule: (schedule: string) => boolean,
+): Pick<Plan, 'acquisition'> {
+  const a = plan.acquisition
+  if (!a) return {}
+  const next: Acquisition = {}
+  if (a.ids) next.ids = a.ids.filter((i) => keepBlock(i.block))
+  if (a.requests) next.requests = a.requests.filter((r) => keepBlock(r.block) && keepSchedule(r.schedule))
+  if (a.received) next.received = a.received.filter((r) => keepBlock(r.block))
+  return { acquisition: next }
+}
+
+export type RecordIdsChange = Partial<Omit<BlockRecordIds, 'block' | 'fsp'>> & { fsp?: FspStatement | null }
+
+/**
+ * Sets a block's identifiers as the reviewer entered them. An identifier without a number (a name)
+ * is not kept; a blank field, or a plan statement set to null, is removed rather than stored empty.
+ */
+export function setRecordIds(plan: Plan, blockId: string, change: RecordIdsChange): Plan {
+  if (!plan.blocks.some((b) => b.id === blockId)) return plan
+  const next: BlockRecordIds = { ...recordIdsOf(plan, blockId) }
+  for (const field of RECORD_ID_FIELDS)
+    if (field in change) {
+      const token = identifierToken(change[field])
+      if (token) next[field] = token
+      else delete next[field]
+    }
+  for (const field of ['permitIssued', 'recordsFrom', 'recordsTo'] as const)
+    if (field in change) {
+      const date = dayOf(change[field])
+      if (date) next[field] = date
+      else delete next[field]
+    }
+  if ('fsp' in change) {
+    const f = change.fsp
+    const id = f ? fspIdToken(f.id) : undefined
+    if (f && id && dayOf(f.statedOn)) {
+      const statement: FspStatement = { id, basis: f.basis, statedOn: f.statedOn }
+      const amendment = f.amendment?.trim()
+      if (amendment && /^\d{1,4}$/.test(amendment)) statement.amendment = amendment
+      if (f.note?.trim()) statement.note = f.note.trim()
+      next.fsp = statement
+    } else delete next.fsp
+  }
+  const others = (plan.acquisition?.ids ?? []).filter((i) => i.block !== blockId)
+  const ids = Object.keys(next).length > 1 ? [...others, next] : others
+  return { ...plan, acquisition: { ...plan.acquisition, ids } }
+}
+
+/**
+ * Records an event (requested, extended, received, partly received, refused, not held, withdrawn)
+ * on the request for each gap through a channel: a letter covers several gaps, and one click
+ * records the event on each. A request is kept for its gap even once the gap is answered.
+ */
+export function recordRequestEvent(
+  plan: Plan,
+  channel: string,
+  gaps: readonly { id: string; block: string; schedule: string }[],
+  event: RequestEvent,
+): Plan {
+  if (!dayOf(event.date) || !gaps.length) return plan
+  const clean: RequestEvent = { status: event.status, date: event.date }
+  if (event.reference?.trim()) clean.reference = event.reference.trim()
+  if (event.note?.trim()) clean.note = event.note.trim()
+  let requests = [...(plan.acquisition?.requests ?? [])]
+  for (const gap of gaps) {
+    const at = requests.findIndex((r) => r.gap === gap.id && r.channel === channel)
+    if (at >= 0) requests[at] = { ...requests[at], events: [...requests[at].events, clean] }
+    else requests = [...requests, { gap: gap.id, channel, block: gap.block, schedule: gap.schedule, events: [clean] }]
+  }
+  return { ...plan, acquisition: { ...plan.acquisition, requests } }
+}
+
+/** Keeps a record that came back, as the reviewer's transcription; its values feed nothing until used. */
+export function addReceivedRecord(plan: Plan, record: Omit<ReceivedRecord, 'id'>): { plan: Plan; id: string } {
+  if (!plan.blocks.some((b) => b.id === record.block) || !record.title.trim() || !dayOf(record.receivedOn))
+    return { plan, id: '' }
+  const id = nextReceivedId(plan)
+  const kept: ReceivedRecord = {
+    ...record,
+    id,
+    title: record.title.trim(),
+    values: record.values
+      .filter((v) => v.label.trim() && v.value.trim())
+      .map((v, i) => ({ ...v, id: v.id || `value-${i + 1}`, label: v.label.trim(), value: v.value.trim() })),
+  }
+  for (const key of ['documentDate', 'reference', 'severedNote', 'gaps'] as const)
+    if (kept[key] === undefined || kept[key] === '' || (Array.isArray(kept[key]) && !kept[key]!.length))
+      delete kept[key]
+  return {
+    plan: { ...plan, acquisition: { ...plan.acquisition, received: [...(plan.acquisition?.received ?? []), kept] } },
+    id,
+  }
+}
+
+/** Removes a received record. What its values already answered stays answered, with its evidence. */
+export function removeReceivedRecord(plan: Plan, id: string): Plan {
+  if (!plan.acquisition?.received?.some((r) => r.id === id)) return plan
+  return {
+    ...plan,
+    acquisition: { ...plan.acquisition, received: plan.acquisition.received.filter((r) => r.id !== id) },
+  }
+}
+
+/** Uses a received value as the answer to its fact (`acquire/received.ts`). */
+export const applyReceivedAsFact = (
+  plan: Plan,
+  library: Pack[],
+  record: string,
+  value: string,
+  today: string,
+): UseResult => applyValueAsFact(plan, library, record, value, today)
+
+/** Adds a received value to the evidence of an exception claimed on a rule. */
+export const applyReceivedAsClaimEvidence = (
+  plan: Plan,
+  record: string,
+  value: string,
+  target: { crossing?: string; release: string; rule: string },
+  today: string,
+): UseResult => applyValueAsClaimEvidence(plan, record, value, target, today)
+
+/** Adds a received value to its crossing's evidence, kind `received`. */
+export const applyReceivedAsCrossingEvidence = (plan: Plan, record: string, value: string, today: string): UseResult =>
+  applyValueAsCrossingEvidence(plan, record, value, today)

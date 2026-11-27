@@ -11,7 +11,7 @@ export type AnalysisState =
 /**
  * Every schedule's periods for the plan, from a worker. Only what changes the calculation starts a
  * run: the area, the baseline, the blocks and the schedules, and the schedule and year on the map.
- * Reviews, stream crossings, the rationale and the ground reads never do. While a run is going the last result stays
+ * Reviews, stream crossings, the records asked for, the rationale and the ground reads never do. While a run is going the last result stays
  * on screen.
  */
 export function usePlanAnalysis(plan: Plan, shown: { schedule: string; year: number }): AnalysisState {
@@ -24,6 +24,7 @@ export function usePlanAnalysis(plan: Plan, shown: { schedule: string; year: num
         rangeReviews: undefined,
         groundReads: undefined,
         crossings: undefined,
+        acquisition: undefined,
         landscape: {},
         packs: [],
         zones: undefined,
