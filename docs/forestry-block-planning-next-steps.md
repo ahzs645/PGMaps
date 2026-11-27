@@ -22,6 +22,14 @@ Built on 27 November 2026 and moved into the planner contract, **The law behind 
 
 Built on 27 November 2026 and moved into the planner contract, **The law behind a finding** → **Exceptions**: a rule lists the exceptions the law makes to it, each holding by law or needing a decision; a reviewer claims one on a raised finding with a rationale, evidence and the decision, and the finding stays raised with the claim's standing beside it. FPPR 1.3.0, the permit pack 1.1.0 and old growth 1.1.0 moved their exception questions into exceptions, and Crown grazing 1.2.0 did the same for its §44(3) purposes and FPPR §46.11's tolerance.
 
+## Done: the FSP's results, and forest operations plans
+
+Built on 27 November 2026 and moved into the planner contract, **What the block packs test**: `bc.forest-permits` 1.2.0 asks, under FRPA §20.22, which of the FSP's results and strategies bear on the block and whether the design achieves each, with the plan's term and §20.22(4)'s replacement as its exception; `bc.forest-operations` 1.0.0 checks a block in a forest landscape area against its forest operations plan, the annual schedule, the public review and the notices (FRPA §§2.35–2.49, FPPR §§4.11–4.59). The stored text corrected three points of the earlier note: the 30-day review is only for an amendment that needs no approval (§4.34 with §4.43), notice goes to everyone whose rights are likely to be affected (§4.36), and the commencement year is a schedule duty (§2.46), not a bar.
+
+## Done: the young-forest trend, and stream crossings
+
+Built on 27 November 2026 and moved into the planner contract: `bc.pgtsa.biodiversity` 1.3.0 tests Objective C on the distribution as a whole (**The young-forest trend**), keeping the one-class screen as evidence, and `bc.water-crossings` 1.0.0 asks which authority each change in and about a stream rests on and tests the Water Sustainability Regulation's §39(1) crossing conditions. The planner holds no roads or crossings, so every crossing answer is the reviewer's; FPPR §§55–57 and Regulation §§41, 43 and 45 have no rules yet.
+
 ## Done: Mackenzie old forest, calculated
 
 Built on 27 November 2026 and moved into [the old-forest contract](forestry-old-forest.md), **The Mackenzie order**: Review → *Mackenzie old forest* calculates every row of the 2008 order's Table 2 as replaced in 2010, with Table 3's interior shares, the order's own old age, CFLB and Natural Forest Area, and the younger-stand allowance on the live old forest part only, as evidence beside the Mackenzie pack's margins. What it leaves open is in the contract's **Limits and what is not built**.

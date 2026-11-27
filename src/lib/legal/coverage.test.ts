@@ -161,7 +161,10 @@ describe('coverage review', () => {
     const s64 = fppr.sections.find((s) => s.n === '64')
     expect(sectionState(index.get(sectionKey('bc.fppr', '64')), s64)).toBe('rule')
     const gaps = gapsOf(reviews)
-    expect(gaps[0].entry.gapPriority).toBe('high')
+    const rank = { high: 0, medium: 1, low: 2 } as const
+    const ranks = gaps.map((g) => rank[g.entry.gapPriority as keyof typeof rank])
+    expect(ranks.length).toBeGreaterThan(0)
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b))
     expect(coverageCsv(reviews, index).split('\n')[0]).toContain('gap_priority')
   })
 })
