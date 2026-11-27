@@ -3809,9 +3809,8 @@
       "n": "181",
       "relevance": "block",
       "bearsOn": "Cabinet may designate Crown land as a special purpose area for an access purpose (timber access, highway, pipeline or power right of way, water storage) or a non-timber production purpose.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "No map screen or rule tests overlap of a block or road with a designated special purpose area; DataBC publication of these areas would need to be confirmed.",
+      "review": "screen",
+      "gapNote": "On this ground reads WHSE_ADMIN_BOUNDARIES.FADM_SPECIAL_PURPOSE_AREAS_SP (not expired or cancelled) as a candidate, printing each area's purpose and regulation; the BC Data Catalogue says it holds no record because no special purpose area is in effect (checked 27 November 2026).",
       "encodable": "spatial",
       "proposedFacts": [
         "Does the block or its access road overlap an area designated as a special purpose area under Forest Act s. 181 or s. 182, and for what purpose?"
@@ -3819,21 +3818,27 @@
       "topics": [
         "designated-areas",
         "roads"
+      ],
+      "coveredBy": [
+        "ground:special-purpose-area"
       ]
     },
     {
       "n": "182",
       "relevance": "block",
       "bearsOn": "Cabinet may designate Crown land as a special purpose area for a first nation purpose, BCTS licences or community forest agreements.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "Same overlap test as s. 181; the purpose matters because s. 223 exempts licences entered into for that purpose.",
+      "review": "screen",
+      "gapPriority": "low",
+      "gapNote": "On this ground reads WHSE_ADMIN_BOUNDARIES.FADM_SPECIAL_PURPOSE_AREAS_SP (not expired or cancelled) as a candidate, printing each area's purpose and regulation; the BC Data Catalogue says it holds no record because no special purpose area is in effect (checked 27 November 2026). Whether the block's licence was entered into for the area's own purpose (s. 223) stays the reviewer's, as the permit pack's spa-licence exception asks.",
       "encodable": "spatial",
       "proposedFacts": [
         "Is the block inside a special purpose area designated for a first nation, BCTS licence or community forest purpose, and is the block's licence one entered into for that purpose?"
       ],
       "topics": [
         "designated-areas"
+      ],
+      "coveredBy": [
+        "ground:special-purpose-area"
       ]
     },
     {
@@ -4123,8 +4128,7 @@
       "relevance": "block",
       "bearsOn": "An official must not issue a new cutting permit (for a forest, timber, area-based licence or FLTC), timber sale licence or forestry licence to cut whose rights are exercisable in a special purpose area, except FLTCs for fire, forest health or public safety, or licences entered into for the area's own purpose (s. 223).",
       "review": "rule",
-      "gapPriority": "medium",
-      "gapNote": "Whether the block overlaps a special purpose area is the reviewer’s answer; no map screen reads designated special purpose areas.",
+      "gapNote": "Whether the block overlaps a special purpose area is the reviewer's answer. On this ground reads WHSE_ADMIN_BOUNDARIES.FADM_SPECIAL_PURPOSE_AREAS_SP (not expired or cancelled) as a candidate, printing each area's purpose and regulation; the BC Data Catalogue says it holds no record because no special purpose area is in effect (checked 27 November 2026).",
       "encodable": "spatial",
       "proposedFacts": [
         "Does the proposed block overlap an area designated as a special purpose area under Forest Act Part 15?",
@@ -4132,7 +4136,8 @@
       ],
       "coveredBy": [
         "bc.forest-permits@1.1.0:spa-licence",
-        "bc.forest-permits@1.1.0:spa-licence#fltc-purpose"
+        "bc.forest-permits@1.1.0:spa-licence#fltc-purpose",
+        "ground:special-purpose-area"
       ],
       "topics": [
         "designated-areas",
@@ -4212,8 +4217,7 @@
       "relevance": "roads",
       "bearsOn": "After a special purpose area is designated, no road permit or special use permit may authorize a new road in it unless the road does not significantly interfere with the area's purpose or serves a pre-existing or fire, forest health or safety forestry licence to cut.",
       "review": "rule",
-      "gapPriority": "medium",
-      "gapNote": "Whether a road enters a special purpose area is the reviewer’s answer; no map screen reads designated special purpose areas.",
+      "gapNote": "Whether the road overlaps a special purpose area is the reviewer's answer. On this ground reads WHSE_ADMIN_BOUNDARIES.FADM_SPECIAL_PURPOSE_AREAS_SP (not expired or cancelled) as a candidate, printing each area's purpose and regulation; the BC Data Catalogue says it holds no record because no special purpose area is in effect (checked 27 November 2026).",
       "encodable": "spatial",
       "proposedFacts": [
         "Would the proposed access road enter an area designated as a special purpose area under Forest Act Part 15?",
@@ -4221,7 +4225,8 @@
       ],
       "coveredBy": [
         "bc.forest-permits@1.1.0:spa-road",
-        "bc.forest-permits@1.1.0:spa-road#no-interference"
+        "bc.forest-permits@1.1.0:spa-road#no-interference",
+        "ground:special-purpose-area"
       ],
       "topics": [
         "designated-areas",

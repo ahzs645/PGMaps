@@ -22,6 +22,10 @@ Built on 27 November 2026 and moved into the planner contract, **The law behind 
 
 Built on 27 November 2026 and moved into the planner contract, **The law behind a finding** → **Exceptions**: a rule lists the exceptions the law makes to it, each holding by law or needing a decision; a reviewer claims one on a raised finding with a rationale, evidence and the decision, and the finding stays raised with the claim's standing beside it. FPPR 1.3.0, the permit pack 1.1.0 and old growth 1.1.0 moved their exception questions into exceptions. Crown grazing still asks its §44(3) purposes and FPPR §46.11 as questions (`exempt-purpose`, `opening-tolerance`); moving them is its next release.
 
+## Done: map screens behind the reviewer's answers
+
+Built on 27 November 2026 and moved into [On this ground](forestry-ground-instruments.md) (catalogue 1.3.0): candidate old forest areas and the 2009 non-legal OGMAs read with them (the 2022 letter's Appendix 5), special purpose areas (none in effect), pine-leading forest cover of 5 ha or more inside the TSAs and TFLs FPPR s. 1(4) lists, and fisheries sensitive watersheds, each a candidate for the permit, old growth or FPPR pack's fact. Lakeshore management zones, designated L1 lakes and forest landscape areas have no public layer; forest development units do, and are left for a decision. Both are in the contract's **Not built**.
+
 ## Next
 
 ### FRPA §20.22: the FSP's results for an ordinary block
@@ -31,10 +35,6 @@ The holder must achieve the plan's intended results and carry out its strategies
 ### Mackenzie old forest, calculated
 
 The Mackenzie biodiversity pack takes the reviewer's old and old interior margins. Calculating them means Mackenzie units in the old-forest module (`orderUnits.ts` refuses them today): the 2008 order's Tables 2 and 3 as replaced in 2010, its own CFLB and natural forest definitions, and the younger-stand allowance on the live-old portion only. Check it the way the Prince George tables were checked, against any published Mackenzie figures.
-
-### Map screens behind the reviewer's answers
-
-The permit and old-growth packs ask questions a layer could answer as a candidate, as *On this ground* does: candidate old forest areas (the non-legal OGMA layer filtered to `PRG_COFA` and `PRG_DPG`, the 2022 letter's Appendix 5; the visual quality route card already reads it), special purpose areas, pine-leading VRI polygons of 5 ha or more in the listed TSAs, lakeshore management zones, fisheries sensitive watersheds and mapped L1 lakes. FSP forest development units and forest landscape areas have no public layer found yet. Each is a ground catalogue layer with its reach cells cited, and stays a candidate the reviewer confirms.
 
 ### The forest operations plan regime
 

@@ -150,3 +150,80 @@ describe('reading a ground catalogue layer', () => {
     ).rejects.toThrow('DataBC answered 500 for WHSE_LAND_USE_PLANNING.RMP_OGMA_LEGAL_CURRENT_SVW.')
   })
 })
+
+describe('a layer read only inside its gates', () => {
+  const pine = layer('pine-leading-vri')
+  const TSA = 'pub:WHSE_ADMIN_BOUNDARIES.FADM_TSA_SV'
+  const TFL = 'pub:WHSE_ADMIN_BOUNDARIES.FADM_TFL_ALL_SP'
+  /** Answers each layer with its own records, by typeNames; a number is a failed read. */
+  function byLayer(answers: Record<string, unknown[] | number>) {
+    const asked: URLSearchParams[] = []
+    const fetch: Fetch = async (_url, init) => {
+      const body = new URLSearchParams(init?.body)
+      asked.push(body)
+      const answer = answers[body.get('typeNames') ?? ''] ?? []
+      if (typeof answer === 'number') return { ok: false, status: answer, json: async () => ({}) }
+      return { ok: true, status: 200, json: async () => ({ type: 'FeatureCollection', features: answer }) }
+    }
+    return { asked, fetch }
+  }
+  const stand = {
+    geometry: box(-122.5, 54, 0.01),
+    properties: { FEATURE_ID: 7, SPECIES_CD_1: 'PLI', POLYGON_AREA: 12.4, CLIENT_NAME: 'never kept' },
+  }
+  const read = (fetch: Fetch) =>
+    readGroundLayer({
+      layer: pine,
+      instruments: layerInstruments(pine),
+      footprint: box(-122.5, 54, 0.01),
+      fetch,
+      cap: 500,
+    })
+
+  it('asks the gates first by the footprint, keeps nothing of them, and reads the layer only inside one', async () => {
+    const { asked, fetch } = byLayer({
+      [TSA]: [
+        {
+          geometry: box(-123, 53, 2),
+          properties: { TSA_NUMBER_DESCRIPTION: 'Prince George TSA', WHO_UPDATED: 'IDIR' },
+        },
+      ],
+      [pine.typeName]: [stand],
+    })
+    const answer = await read(fetch)
+    // The TSA gate matched, so the TFL gate is never asked.
+    expect(asked.map((a) => a.get('typeNames'))).toEqual([TSA, pine.typeName])
+    expect(asked[0].get('CQL_FILTER')).toMatch(
+      /^INTERSECTS\(GEOMETRY,SRID=4326;POLYGON\(\(.*\)\)\) AND TSA_NUMBER_DESCRIPTION IN \('100 Mile House TSA'/,
+    )
+    expect(asked[0].get('propertyName')).toBe('TSA_NUMBER_DESCRIPTION,GEOMETRY')
+    expect(asked[1].get('CQL_FILTER')).toContain("SPECIES_CD_1 IN ('PL', 'PLI', 'PLC') AND POLYGON_AREA >= 5")
+    expect(answer.outsideGates).toBeUndefined()
+    expect(answer.rows).toHaveLength(1)
+    expect(answer.rows[0].properties).toEqual({ FEATURE_ID: 7, SPECIES_CD_1: 'PLI', POLYGON_AREA: 12.4 })
+  })
+
+  it('asks the next gate when the first holds nothing, a TFL by its hull', async () => {
+    const { asked, fetch } = byLayer({
+      [TFL]: [{ geometry: box(-123, 53, 2), properties: { FOREST_FILE_ID: 'TFL53' } }],
+      [pine.typeName]: [stand],
+    })
+    const answer = await read(fetch)
+    expect(asked.map((a) => a.get('typeNames'))).toEqual([TSA, TFL, pine.typeName])
+    expect(asked[1].get('CQL_FILTER')).toMatch(/^INTERSECTS\(SHAPE,SRID=4326;POLYGON\(\(/)
+    expect(asked[1].get('CQL_FILTER')).toContain("FOREST_FILE_ID IN ('TFL18'")
+    expect(answer.rows).toHaveLength(1)
+  })
+
+  it('reads nothing outside every gate, and says so', async () => {
+    const { asked, fetch } = byLayer({ [pine.typeName]: [stand] })
+    const answer = await read(fetch)
+    expect(asked.map((a) => a.get('typeNames'))).toEqual([TSA, TFL])
+    expect(answer).toEqual({ status: 'read', rows: [], outsideGates: true })
+  })
+
+  it('throws when a gate is not answered, so the layer reads Not read, never none', async () => {
+    const { fetch } = byLayer({ [TSA]: 503 })
+    await expect(read(fetch)).rejects.toThrow('DataBC answered 503 for WHSE_ADMIN_BOUNDARIES.FADM_TSA_SV.')
+  })
+})

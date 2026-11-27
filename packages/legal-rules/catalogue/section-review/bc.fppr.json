@@ -303,7 +303,7 @@
         "ground:legal-objective"
       ],
       "gapPriority": "medium",
-      "gapNote": "Several listed constraint areas have no screen: wildlife management areas (Wildlife Act s. 4), Forest Act Part 13/15 designated areas, ELUA s. 7 orders, Water Sustainability Act s. 43 objectives and s. 65 areas, FRPA s. 27 forest health emergency and s. 108.2 catastrophic damage areas. A block in any of them also cannot be added by a no-approval amendment (s. 4.43(1)(a)(i)).",
+      "gapNote": "Several listed constraint areas have no screen: wildlife management areas (Wildlife Act s. 4), Forest Act Part 13 designated areas (Part 15 special purpose areas are read, though none is in effect), ELUA s. 7 orders, Water Sustainability Act s. 43 objectives and s. 65 areas, FRPA s. 27 forest health emergency and s. 108.2 catastrophic damage areas. A block in any of them also cannot be added by a no-approval amendment (s. 4.43(1)(a)(i)).",
       "encodable": "spatial",
       "proposedFacts": [
         "Does the cutblock or its road overlap a wildlife management area designated under section 4 of the Wildlife Act?",
@@ -1283,10 +1283,11 @@
       "bearsOn": "Lets an FSP specify forest development units and requires it to identify, within each FDU, ungulate winter ranges, wildlife habitat areas, fisheries sensitive watersheds, lakeshore management zones, scenic areas, L1 lakes, community watersheds, OGMAs, areas closed to harvest by another enactment, and the holder's cutting and road permits.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.1.0:fdu-identifies"
+        "bc.forest-permits@1.1.0:fdu-identifies",
+        "ground:fisheries-sensitive-watershed"
       ],
-      "gapPriority": "medium",
-      "gapNote": "The rule asks whether the plan identifies an area the block is in. Lakeshore management zones, fisheries sensitive watersheds and L1 lakes still have no map screen.",
+      "gapPriority": "low",
+      "gapNote": "The rule asks whether the plan identifies an area the block is in. On this ground reads fisheries sensitive watersheds as a candidate for the fdu-feature fact, beside its winter ranges, habitat areas, scenic areas, community watersheds and legal OGMAs. DataBC publishes no layer of lakeshore management zones (GAR s. 6) or of lakes the minister designated L1-B (s. 49(1)(b)(ii)) (checked 27 November 2026), so those stay the reviewer's.",
       "encodable": "spatial",
       "proposedFacts": [
         "Does the cutblock, with its roads, lie entirely within a forest development unit of the approved forest stewardship plan?",
@@ -1547,7 +1548,8 @@
         "ground:uwr-conditional",
         "ground:wha-no-harvest",
         "ground:wha-conditional",
-        "ground:community-watershed"
+        "ground:community-watershed",
+        "ground:fisheries-sensitive-watershed"
       ],
       "gapPriority": "medium",
       "gapNote": "The UWR and WHA screens cite this section but nothing compares the designation's date with the FSP's approval to flag a block whose FSP has not been amended for an objective made since.",
@@ -1956,8 +1958,7 @@
       "relevance": "block",
       "bearsOn": "Bars a cutting permit, FLTC or TSL holder from harvesting in a targeted pine leading stand (pine-leading on forest cover, at least 5 ha, with adequate stocking of suitable secondary structure, in listed TSAs including Prince George and Lakes) unless it retains that secondary structure, with exceptions for safety, roads, blowdown risk, at least 30% live beetle, wildfire protection and seed collection.",
       "review": "rule",
-      "gapPriority": "medium",
-      "gapNote": "The rules ask whether the block takes in a targeted pine leading stand; no map screen yet flags pine-leading VRI polygons of 5 ha or more under the block in the listed TSAs.",
+      "gapNote": "The rules ask whether the block takes in a targeted pine leading stand. On this ground reads VRI rank 1 polygons led by lodgepole pine (PL, PLI, PLC) of 5 ha or more, only where the block meets a TSA or TFL the definition lists, as a candidate for the pine-stand fact. The inventory does not map secondary structure, so whether a stand is targeted stays the reviewer's.",
       "encodable": "spatial",
       "proposedFacts": [
         "Does the cutblock include a stand at least 5 ha in size shown as lodgepole pine leading on the government-endorsed forest cover map?",
@@ -1966,7 +1967,8 @@
       ],
       "coveredBy": [
         "bc.fppr@1.3.0:pine-secondary",
-        "bc.fppr@1.3.0:pine-secondary#live-beetle"
+        "bc.fppr@1.3.0:pine-secondary#live-beetle",
+        "ground:targeted-pine-candidate"
       ],
       "topics": [
         "salvage-and-forest-health",
@@ -1979,7 +1981,7 @@
       "bearsOn": "Lets the chief forester designate, through an AAC determination with a beetle uplift, TSAs or TFLs that may or may not contain targeted pine leading stands, effective after 4 months, with permits already issued or laid out excepted.",
       "review": "none",
       "gapPriority": "low",
-      "gapNote": "Feeds the s. 43.1 test: whether the block's TSA is designated in or out.",
+      "gapNote": "Feeds the s. 43.1 test: whether the block's TSA is designated in or out. The pine screen reads only the TSAs and TFLs the definition lists; no order under this section was looked for, and the screen asks for one.",
       "encodable": "reviewer-question",
       "topics": [
         "salvage-and-forest-health",

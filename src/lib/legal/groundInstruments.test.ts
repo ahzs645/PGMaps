@@ -3,6 +3,9 @@ import raw from '../../../packages/legal-rules/ground/instruments.json'
 import sources from '../../../packages/legal-rules/catalogue/sources.json'
 import grazingPack from '../../../packages/legal-rules/packs/bc-crown-grazing.json'
 import orderPack from '../../../packages/legal-rules/packs/bc-pgtsa-biodiversity.json'
+import permitPack from '../../../packages/legal-rules/packs/bc-forest-permits.json'
+import oldGrowthPack from '../../../packages/legal-rules/packs/bc-omineca-old-growth.json'
+import fpprPack from '../../../packages/legal-rules/packs/bc-fppr-planning-1.3.0.json'
 import {
   ACTIVITIES,
   conditionCql,
@@ -17,6 +20,9 @@ const sourceIds = new Set(sources.sources.map((s) => s.id))
 const packs: Record<string, { facts: { id: string }[] }> = {
   [grazingPack.id]: grazingPack,
   [orderPack.id]: orderPack,
+  [permitPack.id]: permitPack,
+  [oldGrowthPack.id]: oldGrowthPack,
+  [fpprPack.id]: fpprPack,
 }
 
 describe('the ground instrument catalogue', () => {
@@ -120,7 +126,7 @@ describe('the ground instrument catalogue', () => {
     expect(matches([c], {})).toBe(false)
     const copy = structuredClone(raw) as { instruments: { where: Record<string, unknown>[] }[] }
     copy.instruments[0].where[0] = { field: 'TENURE_SUBTYPE', prefix: ["W%' OR 1=1 --"] }
-    expect(() => parseGroundCatalogue(copy)).toThrow(/letters, digits or spaces/)
+    expect(() => parseGroundCatalogue(copy)).toThrow(/letters, digits, spaces or underscores/)
     copy.instruments[0].where[0] = { field: 'TENURE_SUBTYPE', in: ['A'], prefix: ['B'] }
     expect(() => parseGroundCatalogue(copy)).toThrow(/exactly one/)
   })
@@ -161,6 +167,101 @@ describe('the ground instrument catalogue', () => {
     const orphan = structuredClone(raw) as { layers: { id: string; context?: string }[] }
     delete orphan.layers.find((l) => l.id === 'indian-reserves')!.context
     expect(() => parseGroundCatalogue(orphan)).toThrow(/holds no instrument/)
+  })
+
+  it('reads the COFAs and the 2009 non-legal OGMAs Appendix 5 counts with them, never A04, as a candidate for the COFA fact', () => {
+    const layer = GROUND_CATALOGUE.layers.find((l) => l.id === 'ogma-non-legal-pg')!
+    expect(layer.typeName).toBe('pub:WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW')
+    const [cofa, dpg] = ['pg-cofa', 'pg-non-legal-ogma-2009'].map(
+      (id) => GROUND_CATALOGUE.instruments.find((x) => x.id === id)!,
+    )
+    expect(layerCql([cofa, dpg])).toBe(
+      "(((NON_LEGAL_OGMA_PROVID LIKE 'PRG_COFA%')) OR ((NON_LEGAL_OGMA_PROVID LIKE 'PRG_DPG%') AND OGMA_PRIMARY_REASON IN ('A22, orig non legal', 'A23, orig non legal')))",
+    )
+    expect(matches(cofa.where, { NON_LEGAL_OGMA_PROVID: 'PRG_COFA_1234' })).toBe(true)
+    // LIKE's underscore is a wildcard; the share tests the prefix exactly.
+    expect(matches(cofa.where, { NON_LEGAL_OGMA_PROVID: 'PRGXCOFA_1' })).toBe(false)
+    expect(matches(cofa.where, { NON_LEGAL_OGMA_PROVID: 'PRG_TFL30_1' })).toBe(false)
+    expect(
+      matches(dpg.where, { NON_LEGAL_OGMA_PROVID: 'PRG_DPG_217', OGMA_PRIMARY_REASON: 'A23, orig non legal' }),
+    ).toBe(true)
+    expect(matches(dpg.where, { NON_LEGAL_OGMA_PROVID: 'PRG_DPG_274', OGMA_PRIMARY_REASON: 'A04 anything' })).toBe(
+      false,
+    )
+    for (const x of [cofa, dpg]) {
+      expect(x.binds.kind, x.id).toBe('referral')
+      expect(x.facts).toEqual([{ pack: 'bc.omineca.old-growth', fact: 'cofa' }])
+      expect(
+        x.reach.harvest.cites.every((c) => c.source === 'bc.pgtsa.loe.2022'),
+        x.id,
+      ).toBe(true)
+    }
+    expect(cofa.reach.harvest.state).toBe('conditions')
+    expect(dpg.reach.harvest.state).toBe('unknown')
+    expect(oldGrowthPack.rules.some((r) => r.id === 'cofa' && r.source === 'pgtsa-loe')).toBe(true)
+  })
+
+  it('cites only provisions the letter of expectations transcribes', async () => {
+    const { default: loe } = await import('../../../packages/legal-rules/catalogue/orders/bc.pgtsa.loe.2022.json')
+    const ids = new Set(loe.provisions.map((p: { id: string }) => p.id))
+    const cited = GROUND_CATALOGUE.instruments.flatMap((x) =>
+      [x.statute, ...x.binds.cites, ...ACTIVITIES.flatMap((a) => x.reach[a].cites)].filter(
+        (c) => c.source === 'bc.pgtsa.loe.2022',
+      ),
+    )
+    expect(cited.length).toBeGreaterThan(5)
+    for (const c of cited) expect(ids.has(c.provision), c.provision).toBe(true)
+  })
+
+  it('keeps a special purpose area current only, and its terms in the designating regulation', () => {
+    const x = GROUND_CATALOGUE.instruments.find((i) => i.id === 'special-purpose-area')!
+    expect(conditionCql(x.where[0])).toBe("(EXPIRED_OR_CANCELLED IS NULL OR EXPIRED_OR_CANCELLED NOT IN ('Y'))")
+    expect(matches(x.where, { EXPIRED_OR_CANCELLED: 'N' })).toBe(true)
+    expect(matches(x.where, { EXPIRED_OR_CANCELLED: 'Y' })).toBe(false)
+    expect(x.reach.harvest.cites.map((c) => c.provision)).toContain('s. 209(1), (2)')
+    expect(x.reach.roads.cites.map((c) => c.provision)).toContain('s. 215(1), (2)')
+    expect(x.facts.map((f) => f.fact)).toEqual(['spa', 'spa-new-road'])
+  })
+
+  it('reads pine-leading stands of 5 ha or more only inside the areas FPPR s. 1(4) lists', () => {
+    const layer = GROUND_CATALOGUE.layers.find((l) => l.id === 'pine-leading-vri')!
+    expect(layer.within!.any.map((g) => g.typeName)).toEqual([
+      'pub:WHSE_ADMIN_BOUNDARIES.FADM_TSA_SV',
+      'pub:WHSE_ADMIN_BOUNDARIES.FADM_TFL_ALL_SP',
+    ])
+    expect(layer.within!.any[0].in).toContain('Prince George TSA')
+    expect(layer.within!.any[0].in).not.toContain('MacKenzie TSA')
+    expect(layer.within!.any[1].byHull).toBe(true)
+    const x = GROUND_CATALOGUE.instruments.find((i) => i.id === 'targeted-pine-candidate')!
+    expect(layerCql([x])).toBe("SPECIES_CD_1 IN ('PL', 'PLI', 'PLC') AND POLYGON_AREA >= 5")
+    expect(matches(x.where, { SPECIES_CD_1: 'PLI', POLYGON_AREA: 5 })).toBe(true)
+    expect(matches(x.where, { SPECIES_CD_1: 'PLI', POLYGON_AREA: 4.9 })).toBe(false)
+    expect(matches(x.where, { SPECIES_CD_1: 'PLI' })).toBe(false)
+    expect(matches(x.where, { SPECIES_CD_1: 'SX', POLYGON_AREA: 40 })).toBe(false)
+    expect(x.facts).toEqual([{ pack: 'bc.fppr', fact: 'pine-stand' }])
+  })
+
+  it('leaves out fisheries sensitive watersheds identified only under the Oil and Gas Activities Act', () => {
+    const x = GROUND_CATALOGUE.instruments.find((i) => i.id === 'fisheries-sensitive-watershed')!
+    expect(matches(x.where, { LEGISLATION_ACT_NAME: 'FRPA' })).toBe(true)
+    expect(matches(x.where, { LEGISLATION_ACT_NAME: 'FRPA;OGAA' })).toBe(true)
+    expect(matches(x.where, { LEGISLATION_ACT_NAME: 'OGAA' })).toBe(false)
+    expect(x.binds.kind).toBe('via-fsp')
+    expect(ACTIVITIES.map((a) => x.reach[a].state)).toEqual(['unknown', 'unknown', 'unknown', 'unknown'])
+    expect(x.facts).toEqual([{ pack: 'bc.forest-permits', fact: 'fdu-feature' }])
+  })
+
+  it('parses numeric conditions and layer gates, and refuses malformed ones', () => {
+    const copy = structuredClone(raw) as { instruments: { where: Record<string, unknown>[] }[] }
+    copy.instruments[0].where[0] = { field: 'TENURE_SUBTYPE', atLeast: '5' }
+    expect(() => parseGroundCatalogue(copy)).toThrow(/atLeast must be a number/)
+    copy.instruments[0].where[0] = { field: 'TENURE_SUBTYPE', atLeast: 5, in: ['A'] }
+    expect(() => parseGroundCatalogue(copy)).toThrow(/exactly one/)
+    const gated = structuredClone(raw) as { layers: { id: string; within?: { any: Record<string, unknown>[] } }[] }
+    gated.layers.find((l) => l.id === 'pine-leading-vri')!.within!.any[0].typeName = 'WHSE_ADMIN_BOUNDARIES.FADM_TSA_SV'
+    expect(() => parseGroundCatalogue(gated)).toThrow(/gate 1 typeName must start with pub:/)
+    gated.layers.find((l) => l.id === 'pine-leading-vri')!.within!.any = []
+    expect(() => parseGroundCatalogue(gated)).toThrow(/within any/)
   })
 
   it('keeps federal critical habitat unknown without an order, citing the Act', () => {
