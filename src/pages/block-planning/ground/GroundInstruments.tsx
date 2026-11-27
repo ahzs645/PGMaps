@@ -92,8 +92,12 @@ export function GroundInstruments({
 
   const read = groundReadOf(plan, block.id, schedule)
   const current = Boolean(read && groundReadCurrent(plan, read))
+  // The library holds each pack's releases; a fact a later release added is in that one only.
   const factLabel = (pack: string, fact: string) =>
-    library.find((p) => p.id === pack)?.facts.find((f) => f.id === fact)?.label
+    library
+      .filter((p) => p.id === pack)
+      .map((p) => p.facts.find((f) => f.id === fact)?.label)
+      .find(Boolean)
 
   async function run() {
     abort.current?.abort()
@@ -179,9 +183,10 @@ export function GroundInstruments({
         ranges and wildlife habitat areas; range tenures; parks, ecological reserves and protected areas; private
         parcels; community watersheds; mineral and placer tenures; water licences near the block; woodlots, community
         forests, First Nations woodland licences and tree farm licences; recreation sites and trails; scenic areas and
-        visual quality objectives; and federal critical habitat. For each one found it shows what it can reach for
-        harvest, replanting, roads and grazing, with the provision each answer rests on. This is a screen, never a legal
-        determination: it decides no fact, and an instrument that is not mapped can still apply.
+        visual quality objectives; federal critical habitat; and forest stewardship plans' development units and
+        identified areas. For each one found it shows what it can reach for harvest, replanting, roads and grazing, with
+        the provision each answer rests on. This is a screen, never a legal determination: it decides no fact, and an
+        instrument that is not mapped can still apply.
       </p>
       {state.status === 'reading' ? (
         <div className="flex items-center gap-2">

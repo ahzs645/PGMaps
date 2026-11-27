@@ -998,7 +998,8 @@
       "coveredBy": [
         "bc.fppr@1.1.0:sensitive-soil",
         "bc.fppr@1.1.0:other-soil",
-        "bc.fppr@1.1.0:access"
+        "bc.fppr@1.1.0:access",
+        "ground:fsp-forest-development-unit"
       ],
       "gapPriority": "low",
       "gapNote": "The soil rules test the s. 35 and 36 defaults, which are what an FSP undertaking under s. 12.1(1) adopts; an FSP result or strategy for this objective (s. 12.2) is not asked about.",
@@ -1340,10 +1341,12 @@
       "review": "rule",
       "coveredBy": [
         "bc.forest-permits@1.2.0:fdu-identifies",
-        "ground:fisheries-sensitive-watershed"
+        "ground:fisheries-sensitive-watershed",
+        "ground:fsp-section-196-area",
+        "ground:fsp-declared-area"
       ],
       "gapPriority": "low",
-      "gapNote": "The rule asks whether the plan identifies an area the block is in. On this ground reads fisheries sensitive watersheds as a candidate for the fdu-feature fact, beside its winter ranges, habitat areas, scenic areas, community watersheds and legal OGMAs. DataBC publishes no layer of lakeshore management zones (GAR s. 6) or of lakes the minister designated L1-B (s. 49(1)(b)(ii)) (checked 27 November 2026), so those stay the reviewer's.",
+      "gapNote": "The rule asks whether the plan identifies an area the block is in. On this ground reads fisheries sensitive watersheds as a candidate for the fdu-feature fact, beside its winter ranges, habitat areas, scenic areas, community watersheds and legal OGMAs. DataBC's FSP identified areas layer (FSP_IDENTIFIED_AREA_POLY_SPG) is not those things: it holds the areas a plan specifies under (1)(c) (FRPA s. 196) and the declared areas of the repealed (4), which On this ground reads as their own rows for the fdu fact. DataBC publishes no layer of lakeshore management zones (GAR s. 6) or of lakes the minister designated L1-B (s. 49(1)(b)(ii)) (checked 27 November 2026), so those stay the reviewer's.",
       "encodable": "spatial",
       "proposedFacts": [
         "Does the cutblock, with its roads, lie entirely within a forest development unit of the approved forest stewardship plan?",
@@ -1368,7 +1371,10 @@
       "review": "partial",
       "coveredBy": [
         "bc.crown-grazing@1.0.0:free-growing",
-        "bc.crown-grazing@1.0.0:intermediate-cut-stocking"
+        "bc.crown-grazing@1.0.0:intermediate-cut-stocking",
+        "ground:fsp-forest-development-unit",
+        "ground:fsp-forest-development-unit-submitted",
+        "ground:fsp-declared-area"
       ],
       "gapPriority": "medium",
       "gapNote": "The crown-grazing rules refer to 'the plan's stocking standards and dates' but do not ask which FSP standard applies to the block, so its regeneration and free growing dates are never shown beside the schedule.",
@@ -1414,7 +1420,8 @@
       "bearsOn": "Requires an FSP to specify measures to mitigate removing or rendering ineffective natural range barriers.",
       "review": "partial",
       "coveredBy": [
-        "bc.crown-grazing@1.0.0:natural-barrier"
+        "bc.crown-grazing@1.0.0:natural-barrier",
+        "ground:fsp-forest-development-unit"
       ],
       "gapPriority": "low",
       "gapNote": "The natural-barrier rule asks whether the practice removes a barrier and points to the plan's mitigation; it does not ask what the FSP's measure is or whether it is applied to this block.",
@@ -2932,7 +2939,8 @@
       "bearsOn": "Requires the minister to exempt an FSP holder from a Part 4 or 5 requirement that conflicts with an approved result or strategy for an established objective, with conditions, without affecting permits already in effect.",
       "review": "rule",
       "coveredBy": [
-        "bc.fppr@1.1.0:objective-conflict"
+        "bc.fppr@1.1.0:objective-conflict",
+        "ground:fsp-declared-area"
       ],
       "encodable": "reviewer-question",
       "topics": [

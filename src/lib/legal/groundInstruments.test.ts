@@ -264,6 +264,91 @@ describe('the ground instrument catalogue', () => {
     expect(() => parseGroundCatalogue(gated)).toThrow(/within any/)
   })
 
+  it('screens forest development units by their plan’s status, never reading a name, as candidates for the FDU facts', () => {
+    const fdu = GROUND_CATALOGUE.layers.find((l) => l.id === 'fsp-fdu')!
+    expect(fdu.typeName).toBe('pub:WHSE_FOREST_TENURE.FSP_FDU_POLY_SPG')
+    // No name of any kind: a plan's name is the holder's to set and often carries it.
+    expect(fdu.fields.filter((f) => /NAME|CLIENT|MAP_LABEL/.test(f))).toEqual([])
+    expect(fdu.feature.name).toEqual([])
+    expect(fdu.feature.unnamed).toMatch(/holder's name/)
+    expect(fdu.feature.details.find((d) => d.field === 'PLAN_END_DATE')).toMatchObject({ date: true, ends: true })
+    const [approved, submitted] = ['fsp-forest-development-unit', 'fsp-forest-development-unit-submitted'].map(
+      (id) => GROUND_CATALOGUE.instruments.find((x) => x.id === id)!,
+    )
+    expect(layerCql([approved, submitted])).toBe(
+      "((LIFE_CYCLE_STATUS_CODE IN ('APPROVED')) OR (LIFE_CYCLE_STATUS_CODE IN ('SUBMITTED')))",
+    )
+    // An earlier amendment's unit (PREVIOUS) and a draft are neither.
+    for (const [status, approves, submits] of [
+      ['APPROVED', true, false],
+      ['SUBMITTED', false, true],
+      ['PREVIOUS', false, false],
+      ['DRAFT', false, false],
+    ] as const) {
+      expect(matches(approved.where, { LIFE_CYCLE_STATUS_CODE: status }), status).toBe(approves)
+      expect(matches(submitted.where, { LIFE_CYCLE_STATUS_CODE: status }), status).toBe(submits)
+    }
+    expect(approved.facts).toEqual([
+      { pack: 'bc.forest-permits', fact: 'fdu' },
+      { pack: 'bc.forest-permits', fact: 'fsp-standing' },
+    ])
+    // The §20.22 rule's scope is these two facts; the screen informs both and answers neither.
+    const results = permitPack.rules.find((r) => r.id === 'fsp-results')!
+    const scoped = (results.scope ?? []).flat().map((c) => c?.fact)
+    expect(scoped).toEqual(expect.arrayContaining(['fdu', 'fsp-standing']))
+    expect(approved.binds.kind).toBe('direct')
+    for (const a of ['harvest', 'replant', 'roads'] as const) {
+      expect(approved.reach[a].state, a).toBe('unknown')
+      expect(approved.reach[a].note, a).toMatch(/The FSP decides\.$/)
+    }
+    expect(approved.reach.harvest.cites).toContainEqual({ source: 'bc.frpa', provision: 's. 3(1)(a), (c), (2)(a)' })
+    expect(submitted.binds.kind).toBe('none')
+    expect(ACTIVITIES.map((a) => submitted.reach[a].state)).toEqual(['no-reach', 'no-reach', 'no-reach', 'no-reach'])
+  })
+
+  it('reads a plan’s identified areas by the provision they were identified under, not as FPPR s. 14(3) features', () => {
+    const areas = GROUND_CATALOGUE.layers.find((l) => l.id === 'fsp-identified-areas')!
+    expect(areas.typeName).toBe('pub:WHSE_FOREST_TENURE.FSP_IDENTIFIED_AREA_POLY_SPG')
+    expect(areas.fields.filter((f) => /NAME|CLIENT|MAP_LABEL/.test(f))).toEqual([])
+    expect(areas.feature.name).toEqual([])
+    const [s196, declared] = ['fsp-section-196-area', 'fsp-declared-area'].map(
+      (id) => GROUND_CATALOGUE.instruments.find((x) => x.id === id)!,
+    )
+    const at = (code: string, status = 'APPROVED') => ({
+      FSP_LEGISLATION_TYPE_CODE: code,
+      LIFE_CYCLE_STATUS_CODE: status,
+    })
+    expect(matches(s196.where, at('FRPA196(1)'))).toBe(true)
+    expect(matches(s196.where, at('FRPA196(2)'))).toBe(true)
+    expect(matches(s196.where, at('FPPR14(4)'))).toBe(false)
+    expect(matches(declared.where, at('FPPR14(4)'))).toBe(true)
+    expect(matches(declared.where, at('FPPR14(4)', 'DRAFT'))).toBe(false)
+    expect(matches(declared.where, at('FPPR14(4)', 'SUBMITTED'))).toBe(false)
+    // Its areas are in a forest development unit (FPPR s. 14(1)(c), the repealed s. 14(4)(a)), so
+    // they inform the FDU fact; they are not the things s. 14(3) asks a plan to identify.
+    for (const x of [s196, declared]) {
+      expect(x.facts).toEqual([{ pack: 'bc.forest-permits', fact: 'fdu' }])
+      expect(x.facts.map((f) => f.fact)).not.toContain('fdu-feature-shown')
+    }
+    expect(declared.label).toMatch(/repealed 1 January 2026/)
+    expect(ACTIVITIES.slice(0, 3).map((a) => declared.reach[a].state)).toEqual(['unknown', 'unknown', 'unknown'])
+    expect(s196.binds.cites).toContainEqual({ source: 'bc.fppr', provision: 's. 14(1)(c)' })
+  })
+
+  it('names a record by a field, or says why it reads none, and marks only a date as ending a term', () => {
+    const copy = structuredClone(raw) as { layers: { id: string; feature: Record<string, unknown> }[] }
+    const fdu = copy.layers.find((l) => l.id === 'fsp-fdu')!
+    delete fdu.feature.unnamed
+    expect(() => parseGroundCatalogue(copy)).toThrow(/reads no name field: say why/)
+    fdu.feature.unnamed = 'Not read'
+    fdu.feature.name = ['FSP_ID']
+    expect(() => parseGroundCatalogue(copy)).toThrow(/cannot say it reads no name/)
+    const term = structuredClone(raw) as { layers: { id: string; feature: { details: Record<string, unknown>[] } }[] }
+    const end = term.layers.find((l) => l.id === 'fsp-fdu')!.feature.details.find((d) => d.field === 'PLAN_END_DATE')!
+    delete end.date
+    expect(() => parseGroundCatalogue(term)).toThrow(/ends a term but is not a date/)
+  })
+
   it('keeps federal critical habitat unknown without an order, citing the Act', () => {
     const x = GROUND_CATALOGUE.instruments.find((i) => i.id === 'federal-critical-habitat')!
     expect(ACTIVITIES.map((a) => x.reach[a].state)).toEqual(['unknown', 'unknown', 'unknown', 'unknown'])

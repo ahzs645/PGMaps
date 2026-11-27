@@ -1,6 +1,6 @@
 {
   "format": "pgmaps-ground-instruments/v1",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "readOn": "2026-11-27",
   "sourceLabels": {
     "bc.land-act": "Land Act",
@@ -1336,6 +1336,178 @@
         "field": "NOTICE_DATE",
         "label": "Notice"
       }
+    },
+    {
+      "id": "fsp-fdu",
+      "title": "Forest stewardship plans: forest development units",
+      "typeName": "pub:WHSE_FOREST_TENURE.FSP_FDU_POLY_SPG",
+      "geometryField": "GEOMETRY",
+      "key": "OBJECTID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/25bbc9a6-f0eb-47dd-849c-3161a6512468",
+      "fields": [
+        "OBJECTID",
+        "FSP_ID",
+        "FDU_ID",
+        "FSP_AMENDMENT_NUMBER",
+        "LIFE_CYCLE_STATUS_CODE",
+        "PLAN_DECISION_DATE",
+        "AMENDMENT_APPROVAL_DATE",
+        "PLAN_START_DATE",
+        "PLAN_END_DATE",
+        "LICENCE1",
+        "LICENCE2",
+        "LICENCE3",
+        "LICENCE4",
+        "LICENCE5",
+        "MORE_LICENCE_IND"
+      ],
+      "feature": {
+        "id": {
+          "label": "FSP and FDU",
+          "fields": ["FSP_ID", "FDU_ID"],
+          "fallback": "OBJECTID"
+        },
+        "name": [],
+        "unnamed": "Not read (a plan's names can carry its holder's name)",
+        "details": [
+          {
+            "label": "Status",
+            "field": "LIFE_CYCLE_STATUS_CODE"
+          },
+          {
+            "label": "Amendment",
+            "field": "FSP_AMENDMENT_NUMBER"
+          },
+          {
+            "label": "Plan decided",
+            "field": "PLAN_DECISION_DATE",
+            "date": true
+          },
+          {
+            "label": "Amendment approved",
+            "field": "AMENDMENT_APPROVAL_DATE",
+            "date": true
+          },
+          {
+            "label": "Term starts",
+            "field": "PLAN_START_DATE",
+            "date": true
+          },
+          {
+            "label": "Term ends",
+            "field": "PLAN_END_DATE",
+            "date": true,
+            "ends": true
+          },
+          {
+            "label": "Licence",
+            "field": "LICENCE1"
+          },
+          {
+            "label": "Licence",
+            "field": "LICENCE2"
+          },
+          {
+            "label": "Licence",
+            "field": "LICENCE3"
+          },
+          {
+            "label": "Licence",
+            "field": "LICENCE4"
+          },
+          {
+            "label": "Licence",
+            "field": "LICENCE5"
+          },
+          {
+            "label": "More than five licences",
+            "field": "MORE_LICENCE_IND"
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "FSP",
+            "field": "FSP_ID"
+          },
+          {
+            "label": "FDU",
+            "field": "FDU_ID"
+          },
+          {
+            "label": "Amendment",
+            "field": "FSP_AMENDMENT_NUMBER"
+          }
+        ]
+      },
+      "date": null,
+      "dateNote": "A unit has no effective date of its own: the layer's term dates follow the plan's latest amendment or extension (FRPA s. 6(2)), so precedent counts every date. Whether the term shown is the plan's whole term is in the plan."
+    },
+    {
+      "id": "fsp-identified-areas",
+      "title": "Forest stewardship plans: identified areas (FRPA s. 196 areas and declared areas)",
+      "typeName": "pub:WHSE_FOREST_TENURE.FSP_IDENTIFIED_AREA_POLY_SPG",
+      "geometryField": "GEOMETRY",
+      "key": "OBJECTID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/dad55255-0f8f-4a4a-a40f-38d22750d065",
+      "fields": [
+        "OBJECTID",
+        "FSP_ID",
+        "FSP_AMENDMENT_NUMBER",
+        "IDENTIFIED_AREA_ID",
+        "LIFE_CYCLE_STATUS_CODE",
+        "FSP_LEGISLATION_TYPE_CODE",
+        "PLAN_DECISION_DATE",
+        "AMENDMENT_APPROVAL_DATE"
+      ],
+      "feature": {
+        "id": {
+          "label": "FSP and identified area",
+          "fields": ["FSP_ID", "IDENTIFIED_AREA_ID"],
+          "fallback": "OBJECTID"
+        },
+        "name": [],
+        "unnamed": "Not read (typed by the plan's holder, who may name it)",
+        "details": [
+          {
+            "label": "Identified under",
+            "field": "FSP_LEGISLATION_TYPE_CODE"
+          },
+          {
+            "label": "Status",
+            "field": "LIFE_CYCLE_STATUS_CODE"
+          },
+          {
+            "label": "Amendment",
+            "field": "FSP_AMENDMENT_NUMBER"
+          },
+          {
+            "label": "Plan decided",
+            "field": "PLAN_DECISION_DATE",
+            "date": true
+          },
+          {
+            "label": "Amendment approved",
+            "field": "AMENDMENT_APPROVAL_DATE",
+            "date": true
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "FSP",
+            "field": "FSP_ID"
+          },
+          {
+            "label": "Identified area",
+            "field": "IDENTIFIED_AREA_ID"
+          },
+          {
+            "label": "Amendment",
+            "field": "FSP_AMENDMENT_NUMBER"
+          }
+        ]
+      },
+      "date": null,
+      "dateNote": "The layer does not say when an area was identified: the plan amendment that identified it does, and the plan and amendment dates are shown."
     },
     {
       "id": "treaty-lands",
@@ -5326,6 +5498,446 @@
         {
           "pack": "bc.forest-permits",
           "fact": "fdu-feature"
+        }
+      ]
+    },
+    {
+      "id": "fsp-forest-development-unit",
+      "label": "Forest development unit of an approved forest stewardship plan (candidate)",
+      "layer": "fsp-fdu",
+      "where": [
+        {
+          "field": "LIFE_CYCLE_STATUS_CODE",
+          "in": ["APPROVED"]
+        }
+      ],
+      "statute": {
+        "source": "bc.frpa",
+        "provision": "s. 3(1), (2)"
+      },
+      "note": "The units of each plan's current approved amendment. A candidate: the layer does not say whether the plan is held by the holder applying for the block (no holder's or client's name or number is read), and an approved plan whose term has ended still shows, with its end date. The reviewer confirms both from the plan.",
+      "binds": {
+        "kind": "direct",
+        "note": "An approved forest stewardship plan binds its holders: they must achieve its intended results, carry out its strategies and comply with the provisions that relate to them, and the duty continues after the plan expires or a holder is removed, as the plan then read, unless another plan replaces the provision. It binds no one else.",
+        "cites": [
+          {
+            "source": "bc.frpa",
+            "provision": "s. 20.22(1)–(4)"
+          },
+          {
+            "source": "bc.frpa",
+            "provision": "s. 3(1), (2)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "Outside a forest landscape area, a unit of its holder's approved plan containing the land is what lets the holder apply for a cutting permit and harvest there (FRPA s. 3(1), (2)). What harvest the plan allows is in its intended results and strategies, as it read when the permit was issued; the layer carries neither them nor whether the applicant holds the plan. The FSP decides.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 3(1)(a), (c), (2)(a)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 5(1)(b)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 20.22(1)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 20.23(1), (2)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "The plan's stocking standards, and the situations that decide which applies, set its holders' regeneration and free growing obligations. The FSP decides.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 16(1), (3), (4)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 29"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "A unit containing the land is what lets the holder apply for a road permit and build a road there (FRPA s. 3(1)(b), (d), (2)(b), (c)); the plan's results and strategies, for soils and permanent access among them, decide what more applies. The FSP decides.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 3(1)(b), (d), (2)(b), (c)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 20.22(1)"
+            },
+            {
+              "source": "bc.fppr",
+              "provision": "s. 5"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "no-reach",
+          "note": "The plan binds its holders, who carry out forest practices; grazing on Crown range is the Range Act agreement's. The measures the plan must specify for natural range barriers mitigate a forest practice that removes one, not grazing.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 20.22(1)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 48(1)"
+            },
+            {
+              "source": "bc.fppr",
+              "provision": "s. 18"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The forest stewardship plan as approved and amended: its map of forest development units (FRPA s. 5(1)(a)), its intended results and strategies, its stocking standards and its identified areas, by FSP id",
+        "holder": "The plan's holder; the natural resource district",
+        "channel": "The holder, who must make the plan publicly available (FRPA s. 20.25(2)); a BC Timber Sales plan is on a ministry website (s. 20.25(3)). The FSP Tracking System holds the plan by FSP id but needs a government sign-in, so no public link is given",
+        "ask": "The plan and amendment in effect for the block, its term and any extension (FRPA s. 6(2)), the agreements and holders it applies to, and its results, strategies and stocking standards for the forest development unit"
+      },
+      "facts": [
+        {
+          "pack": "bc.forest-permits",
+          "fact": "fdu"
+        },
+        {
+          "pack": "bc.forest-permits",
+          "fact": "fsp-standing"
+        }
+      ]
+    },
+    {
+      "id": "fsp-forest-development-unit-submitted",
+      "label": "Forest development unit in a forest stewardship plan or amendment submitted, not yet approved",
+      "layer": "fsp-fdu",
+      "where": [
+        {
+          "field": "LIFE_CYCLE_STATUS_CODE",
+          "in": ["SUBMITTED"]
+        }
+      ],
+      "statute": {
+        "source": "bc.frpa",
+        "provision": "s. 16(1)"
+      },
+      "note": "Units of a plan or amendment awaiting the minister's decision. Drafts are not read; earlier amendments' units (status PREVIOUS) are not read either.",
+      "binds": {
+        "kind": "none",
+        "note": "A plan or amendment awaiting decision authorizes nothing and binds no one: FRPA s. 3 asks for an approved plan, one the minister has approved, which the minister does on the tests of s. 16(1).",
+        "cites": [
+          {
+            "source": "bc.frpa",
+            "provision": "s. 3(0.1), (1)"
+          },
+          {
+            "source": "bc.frpa",
+            "provision": "s. 16(1)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "no-reach",
+          "note": "Until approved, the unit does not let a holder apply for a cutting permit or harvest on its land; once approved, the approved unit's row applies.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 3(0.1), (1)(a), (c)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 16(1)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "no-reach",
+          "note": "A submitted plan's stocking standards bind no one until it is approved.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 16(1)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 20.22(1)"
+            },
+            {
+              "source": "bc.fppr",
+              "provision": "s. 16(1)"
+            }
+          ]
+        },
+        "roads": {
+          "state": "no-reach",
+          "note": "Until approved, the unit does not let a holder apply for a road permit or build a road on its land.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 3(0.1), (1)(b), (d)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 16(1)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "no-reach",
+          "note": "Neither a submitted nor an approved plan regulates grazing; it binds its holders' forest practices.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 20.22(1)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 48(1)"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The plan or amendment as submitted, made publicly available for review and comment before it was submitted (FPPR ss. 20, 21)",
+        "holder": "The plan's proponent; the natural resource district",
+        "channel": "The proponent's review notice (FPPR s. 20(1)), or the district, by FSP id",
+        "ask": "Whether the submitted plan or amendment adds the block's area to a forest development unit, and when the minister's decision is expected"
+      },
+      "facts": [
+        {
+          "pack": "bc.forest-permits",
+          "fact": "fdu"
+        }
+      ]
+    },
+    {
+      "id": "fsp-section-196-area",
+      "label": "Area of a forest development plan's cutblock or road carried into a forest stewardship plan (FRPA s. 196)",
+      "layer": "fsp-identified-areas",
+      "where": [
+        {
+          "field": "FSP_LEGISLATION_TYPE_CODE",
+          "in": ["FRPA196(1)", "FRPA196(2)"]
+        },
+        {
+          "field": "LIFE_CYCLE_STATUS_CODE",
+          "in": ["APPROVED"]
+        }
+      ],
+      "statute": {
+        "source": "bc.frpa",
+        "provision": "s. 196(1), (2)"
+      },
+      "note": "Identified areas a plan specifies under FPPR s. 14(1)(c): a cutblock or road a forest development plan included, for which the plan's parts are considered approved. These are not the areas FPPR s. 14(2) and (3) require a plan to identify (winter ranges, watersheds and the rest), which the layer does not hold.",
+      "binds": {
+        "kind": "direct",
+        "note": "The plan's parts that pertain to the area are considered to have the minister's approval, and its holders carry them out like any other part. Unless the plan says otherwise, the Code and its regulations continue for a cutblock or road right of way under a permit in effect when the plan was approved.",
+        "cites": [
+          {
+            "source": "bc.frpa",
+            "provision": "s. 196(1), (2)"
+          },
+          {
+            "source": "bc.frpa",
+            "provision": "s. 197(7)"
+          },
+          {
+            "source": "bc.frpa",
+            "provision": "s. 20.22(1)"
+          },
+          {
+            "source": "bc.fppr",
+            "provision": "s. 14(1)(c)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "Harvest of the cutblock rests on the forest development plan that included it with its assessments completed, and on the plan's parts for it, considered approved unless an enactment, objective, community watershed or catastrophic damage changed in the period of s. 196(3) and the minister considers the unit inconsistent (s. 196(2)). Where harvest began before the plan's approval, its requirements are unaffected unless the plan says otherwise (s. 197(4)). The FSP and the forest development plan decide.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 196(1)(a), (2), (3)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 197(4)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "Where harvest of a cutblock began under the forest development plan, its stocking standards stay in effect until the free growing stand is established and its site level information continues, unless the FSP says otherwise. The FSP and the forest development plan decide.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 197(2), (5)"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "A road the forest development plan included with its assessments completed is part of the plan considered approved; a road right of way under a road permit in effect at the plan's approval stays under the Code unless the plan says otherwise. The FSP and the forest development plan decide.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 196(1)(b), (2)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 197(7)(b)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "no-reach",
+          "note": "Sections 196 and 197 carry cutblocks, roads and their stocking standards from a forest development plan into the FSP; they set nothing on grazing.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 196(1), (2)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 197(1)–(8)"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The forest stewardship plan's identified areas, and the forest development plan that included the cutblock or road",
+        "holder": "The plan's holder; the natural resource district",
+        "channel": "The holder, who must make the plan publicly available (FRPA s. 20.25(2)), or the district, by FSP and identified area id",
+        "ask": "The cutblock or road the area was identified for, the forest development plan and its completed assessments, and whether the minister found the unit inconsistent under FRPA s. 196(2)"
+      },
+      "facts": [
+        {
+          "pack": "bc.forest-permits",
+          "fact": "fdu"
+        }
+      ]
+    },
+    {
+      "id": "fsp-declared-area",
+      "label": "Declared area of a forest stewardship plan (FPPR s. 14(4), repealed 1 January 2026)",
+      "layer": "fsp-identified-areas",
+      "where": [
+        {
+          "field": "FSP_LEGISLATION_TYPE_CODE",
+          "in": ["FPPR14(4)"]
+        },
+        {
+          "field": "LIFE_CYCLE_STATUS_CODE",
+          "in": ["APPROVED"]
+        }
+      ],
+      "statute": {
+        "source": "bc.fppr",
+        "provision": "s. 14(4), repealed 1 January 2026"
+      },
+      "note": "As it read before its repeal, FPPR s. 14(4) let a plan identify as a declared area an area in a forest development unit in effect where every activity and evaluation needed to include cutblocks and roads in it had been completed (BC Laws point in time, read 27 November 2026). B.C. Reg. 163/2023 repealed it, with the definition, the deemed approval of s. 23, s. 30(1)'s amendment without approval and the protections of ss. 32.1(a) and 92.1(3)(e), effective 1 January 2026. The layer still holds the areas.",
+      "binds": {
+        "kind": "direct",
+        "note": "Part of the plan its holders carry out. What standing a declared area keeps after 1 January 2026 is in B.C. Reg. 163/2023's transitional provisions, which were not read.",
+        "cites": [
+          {
+            "source": "bc.frpa",
+            "provision": "s. 20.22(1)"
+          },
+          {
+            "source": "bc.fppr",
+            "provision": "s. 14(4), repealed 1 January 2026"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "Until 1 January 2026 a declared area was within the plan's deemed approval, was left out of the mandatory amendments for a new objective, and was unaffected by an exemption granted for an established objective. Those provisions are repealed; whether harvest planned there keeps that standing is in the amending regulation and the plan, which decide.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 14(4), repealed 1 January 2026"
+            },
+            {
+              "source": "bc.fppr",
+              "provision": "s. 92.1(3)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 20.22(1)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "The plan's stocking standards apply as in the rest of its unit; the declared area's own standing after the repeal is in the amending regulation and the plan, which decide.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 16(1)"
+            },
+            {
+              "source": "bc.fppr",
+              "provision": "s. 14(4), repealed 1 January 2026"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "A declared area was identified for the roads, as well as the cutblocks, whose activities and evaluations were complete; whether a road planned there keeps that standing after the repeal is in the amending regulation and the plan, which decide.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 14(4), repealed 1 January 2026"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 3(1)(b), (d)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "no-reach",
+          "note": "A declared area was about including cutblocks and roads in a forest development unit; it set nothing on grazing.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 14(4), repealed 1 January 2026"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The forest stewardship plan's declared areas, and B.C. Reg. 163/2023 with its transitional provisions",
+        "holder": "The plan's holder; the natural resource district",
+        "channel": "The holder, who must make the plan publicly available (FRPA s. 20.25(2)), or the district, by FSP and identified area id",
+        "ask": "The cutblocks and roads the area was declared for, whether a permit was issued for them before 1 January 2026, and how the district treats the area since the declared area provisions were repealed"
+      },
+      "facts": [
+        {
+          "pack": "bc.forest-permits",
+          "fact": "fdu"
         }
       ]
     }
