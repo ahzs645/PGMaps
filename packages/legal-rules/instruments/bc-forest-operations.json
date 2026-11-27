@@ -1,0 +1,141 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.forest-operations",
+  "version": "1.0.0",
+  "title": "BC forest operations plans",
+  "description": "Inside a forest landscape area, where a forest operations plan takes the place of the forest stewardship plan: whether the holder holds an approved plan for the land, the block is listed in it with its commencement year, the year it is to start matches the plan and the annual forest development schedule, the plan or the amendment that added the block had its public review, notice to rights holders and engagement with Indigenous nations, a site level plan is ready, and the design meets the plan's requirements. Every rule applies only to a block in a forest landscape area; the minister approves every plan and amendment, and these rules list the exceptions the law makes.",
+  "relatedPacks": [
+    {
+      "id": "bc.forest-permits",
+      "relationship": "Forest Act §§52.05(1)(c) and 117(3)(b), in the permit pack's fop rule, refuse a cutting or road permit in a forest landscape area without a forest operations plan the block and road are consistent with."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "landscape-area",
+      "label": "Is the block or its road in a forest landscape area, one a forest landscape plan specifies now or did before (FRPA §2.35(1))?",
+      "type": "choice",
+      "choices": [
+        "No",
+        "Yes",
+        "Partly"
+      ]
+    },
+    {
+      "id": "holder",
+      "label": "Who will harvest the block (FRPA §2.2's agreement holders, or BC Timber Sales)?",
+      "type": "choice",
+      "choices": [
+        "An agreement holder: a forest licence, tree farm licence, timber licence or major licence to cut, or a community forest agreement or First Nations woodland licence over 1 200 ha of Crown land (800 ha in the Coast Forest Region)",
+        "BC Timber Sales, the timber sales manager",
+        "Another holder: a woodlot licence, a smaller community forest agreement or First Nations woodland licence, or another licence or permit"
+      ]
+    },
+    {
+      "id": "fop-held",
+      "label": "Does the holder hold a forest operations plan the minister approved that applies to the block's land and is in its term (at most 5 years, unless extended; FRPA §§2.35, 2.42–2.43)?",
+      "type": "boolean"
+    },
+    {
+      "id": "fop-listed",
+      "label": "Does the plan list the block as a proposed cutblock under a unique name, number or code, and show its approximate location on the plan's map (FRPA §2.36(2)(a), (3)(a); FPPR §§4.11, 4.19)?",
+      "type": "boolean"
+    },
+    {
+      "id": "fop-added",
+      "label": "How did the block come into the plan?",
+      "type": "choice",
+      "choices": [
+        "In the plan as the minister approved it",
+        "By an amendment the minister approved",
+        "By an amendment that needs no approval (FPPR §4.43), now in effect",
+        "By an amendment not yet approved or not yet in effect"
+      ]
+    },
+    {
+      "id": "year-shown",
+      "label": "Does the plan give the year harvest is proposed to begin on the block, or for BC Timber Sales the year applications for its timber sale licence are to be invited (FPPR §§4.12, 4.19(1))?",
+      "type": "boolean"
+    },
+    {
+      "id": "year-matches",
+      "label": "Is the year harvest is to start the year the plan gives for the block?",
+      "type": "boolean"
+    },
+    {
+      "id": "fds-shown",
+      "label": "Did the annual forest development schedule made public by December 31 of the year before harvest starts show the block's location (FRPA §2.46(1)–(2); FPPR §§4.52–4.53)?",
+      "type": "boolean"
+    },
+    {
+      "id": "review-days",
+      "label": "Days the plan, or the amendment that added the block, was publicly available for review and comment (FPPR §4.33(1), §4.34(1))",
+      "type": "number",
+      "min": 0,
+      "unit": "days"
+    },
+    {
+      "id": "review-notice",
+      "label": "Was notice of the review and comment period published on a website kept by or for the holder and in a newspaper circulating in the plan's area or the Gazette (FPPR §4.33(3), §4.34(3))?",
+      "type": "boolean"
+    },
+    {
+      "id": "rights-notice",
+      "label": "Was notice of the plan or amendment given to each person whose rights it is likely to affect, such as range, trapline, guide outfitter, water and other tenure holders in the area (FPPR §4.36(1))?",
+      "type": "boolean"
+    },
+    {
+      "id": "rights-extension",
+      "label": "Did a person given that notice ask for more time to review and comment (FPPR §4.36(2))?",
+      "type": "choice",
+      "choices": [
+        "No",
+        "Yes, and it was given (to at most 60 days in all)",
+        "Yes, and it was not given"
+      ]
+    },
+    {
+      "id": "engagement",
+      "label": "Before the plan or amendment went to the minister, did the holder make reasonable efforts to engage the Indigenous nations it affects, as FPPR §§4.24–4.29 set out (FRPA §2.38(1)(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "site-level-plan",
+      "label": "Is there a site level plan for the cutblock, prepared before harvest starts and consistent with the forest landscape plan and the forest operations plan (FRPA §2.47)?",
+      "type": "boolean"
+    },
+    {
+      "id": "fop-requirements",
+      "label": "Does the block's design comply with the plan's requirements (its planning guideline requirements, substituted requirements, additional measures and the FPPR Part 4 practice requirements the holder is not exempt from; FPPR §4.02) and the provisions that relate to them?",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "plan-review",
+      "value": 60,
+      "unit": "days"
+    },
+    {
+      "id": "amendment-review",
+      "value": 30,
+      "unit": "days"
+    },
+    {
+      "id": "shortest-review",
+      "value": 10,
+      "unit": "days"
+    }
+  ],
+  "sourceFiles": [
+    "sources/bc/frpa.json",
+    "sources/bc/fppr.json"
+  ],
+  "ruleFiles": [
+    "rules/bc/forest-operations.json"
+  ]
+}

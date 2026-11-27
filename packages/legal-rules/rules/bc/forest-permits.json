@@ -117,6 +117,148 @@
     ]
   },
   {
+    "id": "fsp-results",
+    "title": "The FSP's results and strategies for the block",
+    "source": "frpa",
+    "provision": "20.22(1)–(3), 20.23",
+    "scope": [
+      [
+        {
+          "fact": "tenure",
+          "op": "in",
+          "value": [
+            "A forest licence, tree farm licence, community forest agreement, timber licence or major licence to cut",
+            "BC Timber Sales, under a timber sale licence"
+          ]
+        },
+        {
+          "fact": "landscape-area",
+          "op": "in",
+          "value": [
+            "No",
+            "Partly"
+          ]
+        },
+        {
+          "fact": "fdu",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "fsp-standing",
+          "op": "in",
+          "value": [
+            "It is in its term",
+            "It has expired",
+            "The holder has been removed from it (a forest stewardship plan)"
+          ]
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "fsp-soils",
+          "op": "eq",
+          "value": "Yes, and the design falls short of it"
+        }
+      ],
+      [
+        {
+          "fact": "fsp-timber",
+          "op": "eq",
+          "value": "Yes, and the design falls short of it"
+        }
+      ],
+      [
+        {
+          "fact": "fsp-wildlife",
+          "op": "eq",
+          "value": "Yes, and the design falls short of it"
+        }
+      ],
+      [
+        {
+          "fact": "fsp-water",
+          "op": "eq",
+          "value": "Yes, and the design falls short of it"
+        }
+      ],
+      [
+        {
+          "fact": "fsp-landscape",
+          "op": "eq",
+          "value": "Yes, and the design falls short of it"
+        }
+      ],
+      [
+        {
+          "fact": "fsp-stand",
+          "op": "eq",
+          "value": "Yes, and the design falls short of it"
+        }
+      ],
+      [
+        {
+          "fact": "fsp-visual",
+          "op": "eq",
+          "value": "Yes, and the design falls short of it"
+        }
+      ],
+      [
+        {
+          "fact": "fsp-heritage",
+          "op": "eq",
+          "value": "Yes, and the design falls short of it"
+        }
+      ],
+      [
+        {
+          "fact": "fsp-other",
+          "op": "eq",
+          "value": "Yes, and the design falls short of it"
+        }
+      ]
+    ],
+    "finding": "The holder must ensure the intended results the forest stewardship plan specifies are achieved, carry out the strategies it describes and comply with the provisions that relate to them; on these answers the block's design falls short of at least one that bears on it. A plan that has expired, or that the holder was removed from, still binds as it read then.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Name each result and strategy by its number in the plan, as the plan read when the permit was issued (FRPA §20.23), with the plan's approval and amendment, and change the design until it achieves each one, or amend the plan before harvest."
+      }
+    ],
+    "exceptions": [
+      {
+        "id": "replaced",
+        "label": "The plan has expired or the holder was removed from it, and the holder holds another forest stewardship plan, woodlot licence plan or forest operations plan for the same area with a provision identified as replacing the one concerned (§20.22(4))",
+        "source": "frpa",
+        "provision": "20.22(4)",
+        "kind": "by-law",
+        "when": [
+          [
+            {
+              "fact": "fsp-standing",
+              "op": "in",
+              "value": [
+                "It has expired",
+                "The holder has been removed from it (a forest stewardship plan)"
+              ]
+            },
+            {
+              "fact": "fsp-replacement",
+              "op": "eq",
+              "value": true
+            }
+          ]
+        ],
+        "evidence": [
+          "The other plan and its approval",
+          "The provision identified as the replacement"
+        ]
+      }
+    ]
+  },
+  {
     "id": "site-plan",
     "title": "Site plan before harvest",
     "source": "frpa",

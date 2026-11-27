@@ -29,8 +29,8 @@
       "relevance": "plan",
       "bearsOn": "A forest landscape plan, and its planning guidelines, apply to a forest operations plan whenever any part of the forest operations area lies inside the forest landscape area, so a block's location decides which landscape guidelines reach it.",
       "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "No rule asks whether the block lies inside an established forest landscape area, which decides whether the FOP/planning-guideline regime or the FSP regime governs it.",
+      "gapPriority": "low",
+      "gapNote": "The permit and forest operations plan packs ask whether the block is in a forest landscape area, which switches between them; it stays the reviewer's answer, because no layer of forest landscape areas is read, and no rule reads a planning guideline.",
       "encodable": "spatial",
       "proposedFacts": [
         "Is any part of the cutblock or its roads inside the forest landscape area of an established forest landscape plan?"
@@ -223,9 +223,9 @@
       "n": "2.35",
       "relevance": "plan",
       "bearsOn": "Inside a forest landscape area an agreement holder must not apply for a cutting or road permit, harvest or build road unless it holds an approved forest operations plan for the land (BCTS likewise), subject to exemptions for safety, seed, landing clean-up, small salvage and prescribed purposes.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "No rule asks whether a block inside a forest landscape area is covered by an approved forest operations plan held by the proponent, or whether a s. 2.35(4)–(5) exemption applies.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "Whether the block is in a forest landscape area and the holder holds an approved plan for it are the reviewer's answers: no layer of forest landscape areas or forest operations areas is read. (5)(e)'s prescribed purposes are listed with the exception, but the stored FPPR prescribes none, and (6)'s prescribed circumstances for BC Timber Sales are not listed for the same reason.",
       "encodable": "spatial",
       "proposedFacts": [
         "Is the cutblock or road on land inside a forest landscape area, and does the proponent hold an approved forest operations plan that applies to that land?",
@@ -233,15 +233,20 @@
       ],
       "topics": [
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:fop-required",
+        "bc.forest-operations@1.0.0:fop-required#earlier-permit",
+        "bc.forest-operations@1.0.0:fop-required#purpose"
       ]
     },
     {
       "n": "2.36",
       "relevance": "plan",
       "bearsOn": "A forest operations plan must specify the forest operations area, set practice, silvicultural system and stocking requirements, and map the approximate location of every cutblock and road the holder intends to apply for during its term, with nearby existing cutblocks and roads.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "A rule would check that the block and its road are shown on the approved FOP map and that the FOP states stocking standards for the area; the packs test FOP review periods only.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "The pack asks whether the plan lists and maps the block; the road's listing, the stocking standards the plan states (FPPR §4.14) and the 5 km of existing cutblocks and roads on the map (FPPR §§4.19–4.22) are not asked.",
       "encodable": "document-check",
       "proposedFacts": [
         "Is the proposed cutblock shown at its approximate location on the approved forest operations plan map?",
@@ -249,6 +254,9 @@
       ],
       "topics": [
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:fop-listed"
       ]
     },
     {
@@ -272,13 +280,15 @@
       "n": "2.38",
       "relevance": "plan",
       "bearsOn": "Before submitting a forest operations plan or amendment, the holder must make reasonable efforts to engage affected Indigenous nations and make the plan publicly available for review and comment, then summarize both and the changes made.",
-      "review": "partial",
+      "review": "rule",
       "coveredBy": [
+        "bc.forest-operations@1.0.0:engagement",
+        "bc.forest-operations@1.0.0:engagement#resubmission",
         "bc.fppr@1.1.0:short-floor",
         "bc.fppr@1.1.0:short-review"
       ],
       "gapPriority": "low",
-      "gapNote": "The FPPR rules test the length of the public review period only; nothing records Indigenous engagement or the required summaries.",
+      "gapNote": "The pack asks whether reasonable efforts were made to engage the Indigenous nations affected and lists the minister's relief on a resubmission (3) as an exception; whether the efforts were reasonable, and the summaries submitted under (2), stay the reviewer's. Public review under (1)(b) is asked through FPPR §§4.33–4.36.",
       "encodable": "document-check",
       "topics": [
         "plans",
@@ -353,12 +363,13 @@
       "n": "2.44",
       "relevance": "plan",
       "bearsOn": "An FOP amendment is not effective until the minister approves it, unless the regulations say otherwise.",
-      "review": "partial",
+      "review": "rule",
       "coveredBy": [
+        "bc.forest-operations@1.0.0:fop-amendment",
         "bc.fppr@1.1.0:amendment"
       ],
       "gapPriority": "low",
-      "gapNote": "The FPPR amendment rule tests the s. 4.44 effective date; nothing checks that a block added by amendment has an approved amendment.",
+      "gapNote": "The pack asks whether the amendment that added the block is approved or, under FPPR §4.43, in effect; whether an amendment really meets §4.43(1)'s criteria (no harvest in a §4.18 area, a fish-stream, lake or wetland riparian management area, a wildlife tree retention area or a culturally significant area) is the reviewer's.",
       "encodable": "document-check",
       "topics": [
         "plans"
@@ -380,24 +391,28 @@
       "n": "2.46",
       "relevance": "plan",
       "bearsOn": "By December 31 each year an FOP holder must make public a forest development schedule showing each location where it intends to start harvesting or building road in the next calendar year, consistent with the FOP.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "A rule would check that a block or road starting in a given year appeared in the schedule published by the previous December 31.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "The pack asks whether the schedule for the year harvest is to start showed the block and whether that year is the plan's; it reads no schedule, and the planner's own harvest year is not compared with it automatically.",
       "encodable": "numeric",
       "proposedFacts": [
         "Was the location where harvesting or road construction will start shown in the forest development schedule made public by December 31 of the previous year?"
       ],
       "topics": [
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:schedule",
+        "bc.forest-operations@1.0.0:schedule-year"
       ]
     },
     {
       "n": "2.47",
       "relevance": "block",
       "bearsOn": "An FOP holder must prepare a site level plan for a cutblock before harvesting starts (and for a road before harvesting for its construction) that is consistent with the forest landscape plan and FOP.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "No rule asks whether a site level plan exists for the block before harvest or whether it is consistent with the FLP and FOP.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "The pack asks whether a site level plan exists before harvest and lists FPPR §4.59's cases as the exception; a road's site level plan (§4.6) and the plan's content (§4.55) are left to the reviewer.",
       "encodable": "document-check",
       "proposedFacts": [
         "Has a site level plan been prepared for the cutblock, before harvesting starts, that is consistent with the applicable forest landscape plan and forest operations plan?"
@@ -405,32 +420,42 @@
       "topics": [
         "plans",
         "harvest-authority"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:site-level-plan",
+        "bc.forest-operations@1.0.0:site-level-plan#no-plan-needed"
       ]
     },
     {
       "n": "2.48",
       "relevance": "plan",
       "bearsOn": "An FSP holder whose forest development unit falls in a new forest landscape area may keep operating under the FSP for one year after the landscape plan takes effect, or until its FOP is decided if submitted within 6 months.",
-      "review": "none",
+      "review": "rule",
       "gapPriority": "low",
-      "gapNote": "Transitional; a rule would need the landscape plan's effective date and the FOP submission date.",
+      "gapNote": "Listed as an exception to the forest operations plan requirement; its dates (the landscape plan's effective date, the FSP's approval or submission, a forest operations plan submitted within 6 months) are the evidence the reviewer records.",
       "encodable": "numeric",
       "topics": [
         "plans",
         "exemptions-and-variances"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:fop-required#new-landscape-area"
       ]
     },
     {
       "n": "2.49",
       "relevance": "plan",
       "bearsOn": "Harvest and road construction under a cutting or road permit issued before an FSP expired (or before the holder left the FSP) is exempt from the FOP requirement.",
-      "review": "none",
+      "review": "rule",
       "gapPriority": "low",
-      "gapNote": "Applies only to blocks already under permit at the FSP-to-FOP change.",
+      "gapNote": "Listed as an exception to the forest operations plan requirement; the permit and the forest stewardship plan's expiry are the reviewer's evidence.",
       "encodable": "reviewer-question",
       "topics": [
         "plans",
         "exemptions-and-variances"
+      ],
+      "coveredBy": [
+        "bc.forest-operations@1.0.0:fop-required#fsp-permit"
       ]
     },
     {
@@ -491,8 +516,8 @@
         "Is each proposed road inside a forest development unit of that approved forest stewardship plan?"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.1.0:fdu",
-        "bc.forest-permits@1.1.0:fdu#earlier-permit"
+        "bc.forest-permits@1.2.0:fdu",
+        "bc.forest-permits@1.2.0:fdu#earlier-permit"
       ],
       "topics": [
         "plans"
@@ -506,9 +531,9 @@
       "gapPriority": "low",
       "gapNote": "Claimed as an exception on the forest development unit, map and refusal rules; the 1 ha opening and 500 m³ limits are the evidence the reviewer records, not tested figures.",
       "coveredBy": [
-        "bc.forest-permits@1.1.0:fdu#section-4-purpose",
-        "bc.forest-permits@1.1.0:fom#section-4-purpose",
-        "bc.forest-permits@1.1.0:permit-refusal#section-4-purpose"
+        "bc.forest-permits@1.2.0:fdu#section-4-purpose",
+        "bc.forest-permits@1.2.0:fom#section-4-purpose",
+        "bc.forest-permits@1.2.0:permit-refusal#section-4-purpose"
       ],
       "topics": [
         "plans",
@@ -529,8 +554,8 @@
         "ground:omineca-ada-sra",
         "ground:community-forest"
       ],
-      "gapPriority": "medium",
-      "gapNote": "The screens say which objectives reach the block through the FSP and one rule asks about an ADA/SRA result; no rule asks which FSP result or strategy answers each objective under the block (biodiversity, VQO, soils, wildlife, water).",
+      "gapPriority": "low",
+      "gapNote": "The permit pack's fsp-results rule (FRPA §20.22) asks, for each kind of objective set by government and any other established objective, whether the FSP gives a result or strategy that bears on the block and whether the design achieves it; naming the result and reading its words stay the reviewer's, and whether the plan's results are consistent with the objectives (1.1) is the approval's question, not a block's.",
       "encodable": "document-check",
       "proposedFacts": [
         "Which result or strategy in the applicable forest stewardship plan addresses each objective set by government that overlaps the block?"
@@ -589,7 +614,7 @@
       "bearsOn": "Except in prescribed circumstances, an FSP holder must prepare a site plan for each cutblock before harvesting and for each road before harvesting for its construction, consistent with the FSP and Act, identifying how the FSP's results or strategies apply to the site.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.1.0:site-plan"
+        "bc.forest-permits@1.2.0:site-plan"
       ],
       "topics": [
         "plans",
@@ -666,8 +691,8 @@
       "bearsOn": "Before applying for a cutting or road permit an FSP holder must publish a forest operations map showing the cutblock or road for review and comment, report on that review to government, and apply within 2 years (or a longer prescribed period) of publication.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.1.0:fom",
-        "bc.forest-permits@1.1.0:fom#section-4-purpose"
+        "bc.forest-permits@1.2.0:fom",
+        "bc.forest-permits@1.2.0:fom#section-4-purpose"
       ],
       "topics": [
         "plans",
@@ -780,12 +805,13 @@
       "n": "20.21",
       "relevance": "block",
       "bearsOn": "The holder of a forest operations plan must comply with its requirements, and the obligation continues after the plan expires or the holder is removed unless a replacement plan names a replacement requirement.",
-      "review": "partial",
+      "review": "rule",
       "coveredBy": [
+        "bc.forest-operations@1.0.0:fop-requirements",
         "bc.crown-grazing@1.0.0:restricted-activity"
       ],
-      "gapPriority": "medium",
-      "gapNote": "Only the grazing pack asks, generally, whether a plan clause restricts the activity; no rule lists the FOP requirements (practices, silvicultural systems, stocking) that apply to the block.",
+      "gapPriority": "low",
+      "gapNote": "The forest operations plan pack asks whether the design complies with the plan's requirements while the plan is in its term. The obligation that continues after expiry or removal ((2)–(3)) and its replacement in (4) are not asked, and naming each requirement stays the reviewer's.",
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Which requirements of the applicable forest operations plan apply to this cutblock and its roads, and does the design meet each?"
@@ -799,8 +825,10 @@
       "n": "20.22",
       "relevance": "block",
       "bearsOn": "The holder of an FSP or woodlot licence plan must achieve the plan's intended results, carry out its strategies and comply with related provisions, and the obligation continues after expiry unless a replacement plan replaces it.",
-      "review": "partial",
+      "review": "rule",
       "coveredBy": [
+        "bc.forest-permits@1.2.0:fsp-results",
+        "bc.forest-permits@1.2.0:fsp-results#replaced",
         "bc.crown-grazing@1.0.0:restricted-activity",
         "bc.crown-grazing@1.0.0:fsp-ada-strategy",
         "ground:legal-objective",
@@ -809,8 +837,8 @@
         "ground:visual-quality-objective",
         "ground:omineca-ada-sra"
       ],
-      "gapPriority": "high",
-      "gapNote": "Two grazing-pack questions ask about a restricting clause or an ADA/SRA strategy and screens cite the provision, but no rule asks which FSP results and strategies govern an ordinary block (e.g. its cutblock size, adjacency, VQO, wildlife tree or stocking results).",
+      "gapPriority": "low",
+      "gapNote": "The permit pack asks, for each kind of objective set by government (FPPR §§5–10) and any other established objective, whether the FSP gives a result or strategy that bears on the block and whether the design achieves it, records whether the plan is in its term, expired or left, and lists §20.22(4)'s replacement as an exception. Naming each result by its number, reading its wording and judging achievement stay the reviewer's; no FSP text is read. Woodlot licence plans are not asked: their objectives are in the Woodlot Licence Planning and Practices Regulation, which is not stored.",
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Which intended results and strategies in the applicable forest stewardship plan apply to this cutblock, and does the block design achieve or carry out each?",
@@ -825,12 +853,16 @@
       "n": "20.23",
       "relevance": "plan",
       "bearsOn": "The FOP, FSP or woodlot plan as it read when a cutting or road permit was issued (or a timber sale licence advertised) keeps applying to that permit area despite later amendment, replacement or expiry.",
-      "review": "none",
+      "review": "partial",
       "gapPriority": "low",
-      "gapNote": "A rule would need the permit issue date to fix which plan version governs the block; proposed blocks take the current plan.",
+      "gapNote": "Cited so the reviewer reads the plan as it stood when the permit was issued; no rule asks the permit's issue date or compares plan versions.",
       "encodable": "reviewer-question",
       "topics": [
         "plans"
+      ],
+      "coveredBy": [
+        "bc.forest-permits@1.2.0:fsp-results",
+        "bc.forest-operations@1.0.0:fop-requirements"
       ]
     },
     {
