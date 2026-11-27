@@ -136,6 +136,54 @@ describe('reading a ground catalogue layer', () => {
     expect(answer.rows).toHaveLength(2)
   })
 
+  it("cuts a forest stewardship plan's names and client numbers from every record as it arrives", async () => {
+    // DataBC sends a plan's holder-set names and its clients when they are not asked for out of the
+    // view, or by a server that ignores propertyName: nothing of them is kept.
+    for (const id of ['fsp-fdu', 'fsp-identified-areas']) {
+      const fsp = layer(id)
+      expect(fsp.fields.join(','), id).not.toMatch(/NAME|CLIENT|MAP_LABEL/)
+      const { asked, fetch } = stub([
+        {
+          geometry: box(-122.5, 54, 0.02),
+          properties: {
+            OBJECTID: 1,
+            FSP_ID: 479,
+            FDU_ID: 15228,
+            IDENTIFIED_AREA_ID: 7569,
+            FSP_AMENDMENT_NUMBER: 0,
+            LIFE_CYCLE_STATUS_CODE: 'APPROVED',
+            FSP_LEGISLATION_TYPE_CODE: 'FPPR14(4)',
+            PLAN_END_DATE: '2014-12-31Z',
+            LICENCE1: 'A00001',
+            PLAN_NAME: 'A plan named for its holder',
+            FDU_NAME: 'A unit name',
+            IDENTIFIED_AREA_NAME: 'A typed area name',
+            MAP_LABEL: '479 (0) -A unit name',
+            CLIENT_NUMBER1: '00000001',
+            CLIENT_NAME1: 'A holder',
+            CLIENT_NAME2: 'Another holder',
+          },
+        },
+      ])
+      const answer = await readGroundLayer({
+        layer: fsp,
+        instruments: layerInstruments(fsp),
+        footprint: box(-122.5, 54, 0.01),
+        fetch,
+        cap: 500,
+      })
+      expect(asked[0].get('propertyName'), id).not.toMatch(/NAME|CLIENT|MAP_LABEL/)
+      const kept = answer.rows[0].properties
+      expect(
+        Object.keys(kept).every((k) => fsp.fields.includes(k)),
+        id,
+      ).toBe(true)
+      expect(JSON.stringify(kept), id).not.toMatch(/holder|name|00000001/i)
+      expect(kept.FSP_ID, id).toBe(479)
+      expect(kept.LIFE_CYCLE_STATUS_CODE, id).toBe('APPROVED')
+    }
+  })
+
   it('throws when DataBC does not answer, so the caller can say Not read', async () => {
     const fetch: Fetch = async () => ({ ok: false, status: 500, json: async () => ({}) })
     const ogma = layer('ogma')

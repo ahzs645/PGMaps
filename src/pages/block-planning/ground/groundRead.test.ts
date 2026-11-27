@@ -97,6 +97,51 @@ const ANSWERS: Record<string, Answer> = {
     feature({ FEATURE_ID: 40, MAP_ID: '093G086', POLYGON_ID: 1, SPECIES_CD_1: 'PLI', POLYGON_AREA: 24.5 }, S17),
     feature({ FEATURE_ID: 41, MAP_ID: '093G086', POLYGON_ID: 2, SPECIES_CD_1: 'SX', POLYGON_AREA: 30 }, LEASE),
   ],
+  // Forest development units: one approved plan past its term, one in it, an amendment submitted and
+  // an earlier amendment's unit; every record sent with the names and clients a reader must cut.
+  'pub:WHSE_FOREST_TENURE.FSP_FDU_POLY_SPG': [
+    ...(
+      [
+        [1, 479, 15228, 0, 'APPROVED', '2014-12-31Z'],
+        [2, 10, 21664, 29, 'APPROVED', '2027-07-25Z'],
+        [3, 1067, 25566, 2, 'SUBMITTED', '2031-03-12Z'],
+        [4, 11, 19362, 57, 'PREVIOUS', '2020-01-01Z'],
+      ] as const
+    ).map(([OBJECTID, FSP_ID, FDU_ID, FSP_AMENDMENT_NUMBER, LIFE_CYCLE_STATUS_CODE, PLAN_END_DATE]) =>
+      feature(
+        {
+          OBJECTID,
+          FSP_ID,
+          FDU_ID,
+          FSP_AMENDMENT_NUMBER,
+          LIFE_CYCLE_STATUS_CODE,
+          PLAN_END_DATE,
+          LICENCE1: 'A00001',
+          PLAN_NAME: 'A plan named for SOMEONE',
+          FDU_NAME: 'A unit name',
+          MAP_LABEL: `${FSP_ID} (${FSP_AMENDMENT_NUMBER}) -A unit name`,
+          CLIENT_NUMBER1: '00000001',
+          CLIENT_NAME1: 'A private person',
+        },
+        WIDE,
+      ),
+    ),
+  ],
+  'pub:WHSE_FOREST_TENURE.FSP_IDENTIFIED_AREA_POLY_SPG': [
+    feature(
+      {
+        OBJECTID: 9,
+        FSP_ID: 999,
+        IDENTIFIED_AREA_ID: 7569,
+        FSP_AMENDMENT_NUMBER: 0,
+        LIFE_CYCLE_STATUS_CODE: 'APPROVED',
+        FSP_LEGISLATION_TYPE_CODE: 'FPPR14(4)',
+        IDENTIFIED_AREA_NAME: 'Typed by SOMEONE',
+        PLAN_NAME: 'A plan named for SOMEONE',
+      },
+      S17,
+    ),
+  ],
   'pub:WHSE_LAND_USE_PLANNING.RMP_PLAN_LEGAL_POLY_SVW': [
     feature(
       {
@@ -321,6 +366,24 @@ describe('reading the instruments on a block', () => {
     expect(instrument(read, 'pg-non-legal-ogma-2009')).toMatchObject({ status: 'read', features: [] })
     expect(instrument(read, 'targeted-pine-candidate').features.map((f) => f.id)).toEqual(['VRI polygon 093G086 1'])
     expect(instrument(read, 'special-purpose-area')).toMatchObject({ status: 'read', features: [] })
+    // A plan's units by its status, with whether its term had ended on the day read, and no name.
+    expect(
+      instrument(read, 'fsp-forest-development-unit').features.map((f) => [
+        f.id,
+        f.details.find((d) => d.startsWith('Term ends')),
+      ]),
+    ).toEqual([
+      ['FSP and FDU 10 21664', 'Term ends: 2027-07-25, still running on 2026-11-24'],
+      ['FSP and FDU 479 15228', 'Term ends: 2014-12-31, ended before the read of 2026-11-24'],
+    ])
+    expect(instrument(read, 'fsp-forest-development-unit').features[0].name).toMatch(/^Not read \(/)
+    expect(instrument(read, 'fsp-forest-development-unit-submitted').features.map((f) => f.id)).toEqual([
+      'FSP and FDU 1067 25566',
+    ])
+    expect(instrument(read, 'fsp-declared-area').features.map((f) => f.id)).toEqual([
+      'FSP and identified area 999 7569',
+    ])
+    expect(instrument(read, 'fsp-section-196-area')).toMatchObject({ status: 'read', features: [] })
     const gate = asked.find((b) => b.get('typeNames') === 'pub:WHSE_ADMIN_BOUNDARIES.FADM_TSA_SV')!
     expect(gate.get('propertyName')).toBe('TSA_NUMBER_DESCRIPTION,GEOMETRY')
   })
@@ -338,7 +401,16 @@ describe('reading the instruments on a block', () => {
   it('never keeps a holder, client or user field DataBC sent anyway', async () => {
     const { read } = await readSample()
     const text = JSON.stringify(read)
-    for (const word of ['A private person', 'CLIENT', 'IDIR', 'SOMEONE', 'INTEREST_HOLDER', 'GIS_CHANGE_PERSON'])
+    for (const word of [
+      'A private person',
+      'CLIENT',
+      'IDIR',
+      'SOMEONE',
+      'INTEREST_HOLDER',
+      'GIS_CHANGE_PERSON',
+      'A unit name',
+      '00000001',
+    ])
       expect(text).not.toContain(word)
   })
 

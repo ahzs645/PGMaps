@@ -509,7 +509,7 @@
       "bearsOn": "Outside a forest landscape area an agreement holder (forest licence, TFL, community forest, timber licence, major licence) must not apply for a cutting or road permit, harvest or build road unless it holds an approved FSP whose forest development unit contains the land; BCTS likewise.",
       "review": "rule",
       "gapPriority": "low",
-      "gapNote": "Whether the block lies in a forest development unit is the reviewer’s answer; no map layer of FSP forest development units is read.",
+      "gapNote": "Whether the block lies in a forest development unit of the applicant's approved plan stays the reviewer's answer. On this ground reads DataBC's forest development units (FSP_FDU_POLY_SPG) as candidates for the fdu fact: each plan's current approved units with their status and term, and units in a plan or amendment submitted and not yet approved. No holder's or client's name or number is read, so the screen cannot say whose plan a unit is; earlier amendments' units are not read.",
       "encodable": "spatial",
       "proposedFacts": [
         "Is the cutblock inside a forest development unit of an approved forest stewardship plan held by the agreement holder or timber sales manager?",
@@ -517,7 +517,10 @@
       ],
       "coveredBy": [
         "bc.forest-permits@1.2.0:fdu",
-        "bc.forest-permits@1.2.0:fdu#earlier-permit"
+        "bc.forest-permits@1.2.0:fdu#earlier-permit",
+        "ground:fsp-forest-development-unit",
+        "ground:fsp-forest-development-unit-submitted",
+        "ground:fsp-declared-area"
       ],
       "topics": [
         "plans"
@@ -552,7 +555,8 @@
         "ground:ogma",
         "ground:visual-quality-objective",
         "ground:omineca-ada-sra",
-        "ground:community-forest"
+        "ground:community-forest",
+        "ground:fsp-forest-development-unit"
       ],
       "gapPriority": "low",
       "gapNote": "The permit pack's fsp-results rule (FRPA §20.22) asks, for each kind of objective set by government and any other established objective, whether the FSP gives a result or strategy that bears on the block and whether the design achieves it; naming the result and reading its words stay the reviewer's, and whether the plan's results are consistent with the objectives (1.1) is the approval's question, not a block's.",
@@ -571,7 +575,7 @@
       "bearsOn": "An FSP's term is up to 5 years from the date the minister sets, extendable by up to 5 more years in circumstances set by regulation.",
       "review": "none",
       "gapPriority": "low",
-      "gapNote": "A date check that the FSP is in term when the cutting permit is applied for.",
+      "gapNote": "On this ground prints each forest development unit's term end as the layer records it and whether it had passed on the day read, beside the permit pack's fsp-standing fact; an extension is the minister's written notice, which the layer may not carry, and no rule compares the term with the permit's application date.",
       "encodable": "numeric",
       "topics": [
         "plans"
@@ -739,6 +743,9 @@
       "encodable": "reviewer-question",
       "topics": [
         "plans"
+      ],
+      "coveredBy": [
+        "ground:fsp-forest-development-unit-submitted"
       ]
     },
     {
@@ -835,7 +842,11 @@
         "ground:pg-biodiversity",
         "ground:ogma",
         "ground:visual-quality-objective",
-        "ground:omineca-ada-sra"
+        "ground:omineca-ada-sra",
+        "ground:fsp-forest-development-unit",
+        "ground:fsp-forest-development-unit-submitted",
+        "ground:fsp-section-196-area",
+        "ground:fsp-declared-area"
       ],
       "gapPriority": "low",
       "gapNote": "The permit pack asks, for each kind of objective set by government (FPPR §§5–10) and any other established objective, whether the FSP gives a result or strategy that bears on the block and whether the design achieves it, records whether the plan is in its term, expired or left, and lists §20.22(4)'s replacement as an exception. Naming each result by its number, reading its wording and judging achievement stay the reviewer's; no FSP text is read. Woodlot licence plans are not asked: their objectives are in the Woodlot Licence Planning and Practices Regulation, which is not stored.",
@@ -862,7 +873,8 @@
       ],
       "coveredBy": [
         "bc.forest-permits@1.2.0:fsp-results",
-        "bc.forest-operations@1.0.0:fop-requirements"
+        "bc.forest-operations@1.0.0:fop-requirements",
+        "ground:fsp-forest-development-unit"
       ]
     },
     {
@@ -1137,7 +1149,8 @@
         "bc.crown-grazing@1.0.0:intermediate-cut-stocking",
         "bc.crown-grazing@1.0.0:exclusive-range",
         "ground:woodlot-licence",
-        "ground:private-land"
+        "ground:private-land",
+        "ground:fsp-forest-development-unit"
       ],
       "gapPriority": "medium",
       "gapNote": "The crown-grazing pack confirms whether the duty applies and what relieves it, but no rule reads the plan's stocking standard, regeneration date or free growing date for the block's net area to be reforested.",
@@ -1434,7 +1447,9 @@
       "review": "rule",
       "coveredBy": [
         "bc.crown-grazing@1.0.0:natural-barrier",
-        "ground:range-tenure"
+        "ground:range-tenure",
+        "ground:fsp-forest-development-unit",
+        "ground:fsp-forest-development-unit-submitted"
       ],
       "topics": [
         "range-and-grazing",
@@ -3448,26 +3463,32 @@
       "n": "196",
       "relevance": "plan",
       "bearsOn": "Cutblocks and roads in a forest development plan with completed assessments (and those in an FDP in effect at FSP submission, absent intervening changes) were deemed approved in the first FSP.",
-      "review": "none",
+      "review": "screen",
       "gapPriority": "low",
-      "gapNote": "Spent transition into first-generation FSPs.",
+      "gapNote": "Not spent: DataBC still maps 111 approved FSP identified areas under s. 196(1) or (2) (checked 27 November 2026), and On this ground reads them as their own row, reach unknown but for grazing, naming the plan and the forest development plan. Whether the minister found a unit inconsistent under (2) is not in the layer.",
       "encodable": "not-encodable",
       "topics": [
         "plans",
         "administration"
+      ],
+      "coveredBy": [
+        "ground:fsp-section-196-area"
       ]
     },
     {
       "n": "197",
       "relevance": "silviculture",
       "bearsOn": "An approved FSP replaces the forest development plan; site level information and stocking standards for blocks begun under the FDP continue until free growing, and the Code continues for areas under permits in effect when the FSP was approved.",
-      "review": "none",
+      "review": "screen",
       "gapPriority": "low",
-      "gapNote": "Bears only on old openings whose stocking standards come from a forest development plan; a reviewer question could ask which standard governs an adjacent opening.",
+      "gapNote": "On this ground's s. 196 row cites (2), (4), (5) and (7) for an identified area carried from a forest development plan; no rule asks which stocking standard or which Code requirements govern an opening begun under one.",
       "encodable": "reviewer-question",
       "topics": [
         "plans",
         "administration"
+      ],
+      "coveredBy": [
+        "ground:fsp-section-196-area"
       ]
     },
     {

@@ -78,22 +78,32 @@ export const dayOf = (v: unknown) => {
   return m ? m[0] : null
 }
 
-/** A record as the catalogue names it. Exported for the tests. */
-export function describeFeature(layer: GroundLayer, p: Record<string, unknown>) {
+/** Whether a term that ends on `day` had passed on the day read, as it prints. */
+const termState = (day: string, readOn: string | undefined) =>
+  !readOn ? '' : day < readOn ? `, ended before the read of ${readOn}` : `, still running on ${readOn}`
+
+/**
+ * A record as the catalogue names it; `readOn` says whether a term's end date had passed on the
+ * day read. Exported for the tests.
+ */
+export function describeFeature(layer: GroundLayer, p: Record<string, unknown>, readOn?: string) {
   const spec = layer.feature
   const idParts = spec.id.fields.map((f) => valueText(p[f])).filter((v): v is string => v !== null)
   const fallback = valueText(p[spec.id.fallback])
   const id = idParts.length
     ? `${spec.id.label} ${idParts.join(' ')}`
     : `${spec.id.label} (record ${fallback ?? 'not numbered'})`
-  const name =
-    spec.name
-      .map((f) => valueText(p[f]))
-      .filter(Boolean)
-      .join(' · ') || 'Not named in the layer'
+  const name = spec.name.length
+    ? spec.name
+        .map((f) => valueText(p[f]))
+        .filter(Boolean)
+        .join(' · ') || 'Not named in the layer'
+    : (spec.unnamed ?? 'Names not read')
   const details = spec.details.flatMap((d) => {
     const v = d.date ? dayOf(p[d.field]) : valueText(p[d.field])
-    return v === null ? [] : [`${d.label}: ${v}${d.unit ? ` ${d.unit}` : ''}`.slice(0, 1000)]
+    if (v === null) return []
+    const ends = d.ends ? termState(v, readOn) : ''
+    return [`${d.label}: ${v}${d.unit ? ` ${d.unit}` : ''}${ends}`.slice(0, 1000)]
   })
   const identifiers = spec.identifiers.flatMap((i) => {
     const v = valueText(p[i.field])
@@ -114,6 +124,7 @@ export function measureNear(
   rows: LayerAnswer<Lines | Points>['rows'],
   footprint: Shape,
   overlay: GroundOverlay,
+  readOn?: string,
 ): { features: GroundFeature[]; near: NearMeasure } {
   const metres = layer.near?.metres ?? 0
   if (layer.geometry === 'line') {
@@ -137,7 +148,7 @@ export function measureNear(
       : { insideM: 0, nearM: 0 }
     return {
       features: kept.map(({ r, m }) => ({
-        ...describeFeature(layer, r.properties),
+        ...describeFeature(layer, r.properties, readOn),
         overlapHa: 0,
         sharePercent: 0,
         near: { metres, insideM: m.insideM, nearM: m.nearM },
@@ -159,7 +170,7 @@ export function measureNear(
     .sort((a, b) => b.c.insideCount - a.c.insideCount || b.c.nearCount - a.c.nearCount)
   return {
     features: kept.map(({ r, c }) => ({
-      ...describeFeature(layer, r.properties),
+      ...describeFeature(layer, r.properties, readOn),
       overlapHa: 0,
       sharePercent: 0,
       near: { metres, insideCount: c.insideCount, nearCount: c.nearCount },
@@ -179,6 +190,7 @@ export function measureInstrument(
   footprint: Shape,
   footprintHa: number,
   overlay: GroundOverlay,
+  readOn?: string,
 ): { features: (GroundFeature & { geometry: Shape })[]; coveredHa: number } {
   if (!rows.length) return { features: [], coveredHa: 0 }
   const { eachHa } = overlay.measure(
@@ -186,7 +198,7 @@ export function measureInstrument(
     rows.map((r) => r.geometry),
   )
   const kept = rows
-    .map((r, i) => ({ ...describeFeature(layer, r.properties), geometry: r.geometry, overlapHa: eachHa[i] }))
+    .map((r, i) => ({ ...describeFeature(layer, r.properties, readOn), geometry: r.geometry, overlapHa: eachHa[i] }))
     .filter((f) => f.overlapHa >= MIN_GROUND_OVERLAP_HA)
     .sort((a, b) => b.overlapHa - a.overlapHa || a.id.localeCompare(b.id))
   const coveredHa =
@@ -275,6 +287,7 @@ export async function readGroundInstruments({
           shares.get(x.id)! as LayerAnswer<Lines | Points>['rows'],
           footprint,
           overlay,
+          readOn,
         )
         reads.push({ instrument: x.id, status: answer.status, ...incomplete, features, coveredHa: 0, near })
         continue
@@ -285,6 +298,7 @@ export async function readGroundInstruments({
         footprint,
         footprintHa,
         overlay,
+        readOn,
       )
       reads.push({
         instrument: x.id,

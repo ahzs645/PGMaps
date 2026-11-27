@@ -91,6 +91,8 @@ export interface FeatureDetail {
   label: string
   field: string
   date?: boolean
+  /** A date that ends the record's term (a plan's end date): printed with whether it had passed on the day read. */
+  ends?: boolean
   unit?: string
 }
 
@@ -119,7 +121,10 @@ export interface GroundLayer {
   within?: { why: string; any: LayerGate[] }
   feature: {
     id: { label: string; fields: string[]; fallback: string }
+    /** The fields a record is named by; none where every name field could carry a holder's name. */
     name: string[]
+    /** Why a layer with no name fields reads none, printed in place of a name. */
+    unnamed?: string
     details: FeatureDetail[]
     /** What a document request quotes. */
     identifiers: { label: string; field: string }[]
@@ -214,6 +219,14 @@ function gate(value: unknown, label: string): LayerGate {
   }
 }
 
+/** A layer names its records by at least one field, or says why it reads none (`unnamed`). */
+function unnamed(f: JsonObject, label: string): { unnamed?: string } {
+  const named = Array.isArray(f.name) && f.name.length > 0
+  if (named && f.unnamed !== undefined) throw Error(`${label} names its records, so it cannot say it reads no name.`)
+  if (!named && f.unnamed === undefined) throw Error(`${label} reads no name field: say why in unnamed.`)
+  return named ? {} : { unnamed: text(f.unnamed, `${label} feature unnamed`, 300) }
+}
+
 function layer(value: unknown, i: number): GroundLayer {
   const label = `ground layer ${i + 1}`
   const l = object(value, label)
@@ -254,13 +267,16 @@ function layer(value: unknown, i: number): GroundLayer {
         fields: fields(id.fields, `${label} feature id fields`, 5, 1),
         fallback: field(id.fallback, `${label} feature id fallback`),
       },
-      name: fields(f.name, `${label} feature name`, 5, 1),
+      name: fields(f.name, `${label} feature name`, 5),
+      ...unnamed(f, label),
       details: list(f.details, `${label} feature details`, 20).map((d, j) => {
         const o = object(d, `${label} detail ${j + 1}`)
+        if (o.ends === true && o.date !== true) throw Error(`${label} detail ${j + 1} ends a term but is not a date.`)
         return {
           label: text(o.label, `${label} detail ${j + 1} label`),
           field: field(o.field, `${label} detail ${j + 1} field`),
           ...(o.date === true ? { date: true } : {}),
+          ...(o.ends === true ? { ends: true } : {}),
           ...(o.unit !== undefined ? { unit: text(o.unit, `${label} detail ${j + 1} unit`, 20) } : {}),
         }
       }),
