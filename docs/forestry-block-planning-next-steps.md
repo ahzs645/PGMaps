@@ -40,6 +40,10 @@ Built on 27 November 2026 and moved into [On this ground](forestry-ground-instru
 
 ## Next
 
+### One answer set per stream crossing
+
+`bc.water-crossings` 1.0.0 answers once per block, for its worst crossing, so a crossing with no authority can be hidden behind one that has one. [Working backwards from a harvested block](research/harvested-blocks-backwards-2026-11-27.md) traced five real openings and proposes the fix and its order: a crossing record per block and schedule (`Plan.crossings`, keyed by its own id, never a PSCIS id), `bc.water-crossings` 2.0.0 evaluated per crossing with the block's roll-up derived, a new `bc.fppr-crossings` pack (FPPR §§55–57, 72–73 and the fish-stream definition's limbs), then crossings from the road designer's register, mapped crossings and their evidence (PSCIS, fish observations, access models, Water Act notifications) read on the reviewer's click as candidates. A PSCIS barrier is evidence about a structure, never a §56 finding.
+
 ### Prepared tables in bcdatamapper
 
 Sized in [Prepared tables for the block planner](research/block-planning-prepared-tables-2026-11-24.md): about 60 MB on bcdatamapper's Pages site, with VRI geometry (about 200 MB gzip) on R2. They make:
