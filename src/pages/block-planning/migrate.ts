@@ -17,6 +17,7 @@
 import { object, text } from '@/lib/jsonGuards'
 import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { blankCrossing, type CrossingRecord } from './crossings/record'
+import { parseAcquisition } from './acquire/record'
 import { parseProject, type Footprint, type Project } from '../forest-patches/project'
 import {
   emptyPlan,
@@ -202,6 +203,11 @@ function openV2(raw: unknown, data: Record<string, unknown>): Opened {
   if (given > kept)
     notes.push(
       `${given - kept} stream crossing${given - kept === 1 ? '' : 's'} could not be read, or named a block or schedule the plan no longer has, and ${given - kept === 1 ? 'was' : 'were'} left out.`,
+    )
+  const { dropped } = parseAcquisition(data.acquisition, parsed.blocks, parsed.schedules)
+  if (dropped)
+    notes.push(
+      `${dropped} record${dropped === 1 ? '' : 's'} of the records asked for or received could not be read, or named a block or schedule the plan no longer has, and ${dropped === 1 ? 'was' : 'were'} left out.`,
     )
   const migrated = migrateCrossings(parsed)
   return { plan: migrated.plan, notes: [...notes, ...migrated.notes] }

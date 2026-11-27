@@ -38,6 +38,15 @@ Built on 27 November 2026 and moved into [the old-forest contract](forestry-old-
 
 Built on 27 November 2026 and moved into [On this ground](forestry-ground-instruments.md) (catalogue 1.3.0): candidate old forest areas and the 2009 non-legal OGMAs read with them (the 2022 letter's Appendix 5), special purpose areas (none in effect), pine-leading forest cover of 5 ha or more inside the TSAs and TFLs FPPR s. 1(4) lists, and fisheries sensitive watersheds, each a candidate for the permit, old growth or FPPR pack's fact. Lakeshore management zones, designated L1 lakes and forest landscape areas have no public layer; forest development units do, and are left for a decision. Both are in the contract's **Not built**.
 
+## Done: getting the records a review lacks
+
+Built on 27 November 2026 and moved into the planner contract, **Getting the records a review lacks**, from sections 1, 5 and 6 of [Getting the records a harvested block's review lacks](research/acquiring-missing-records-2026-11-27.md): a channel catalogue (`packages/legal-rules/acquire/channels.json`), gaps derived from each block's and crossing's open facts, one drafted request per channel per block with its freedom of information version, each request's status with its due date, received records kept as the reviewer's transcription and used only on the reviewer's click, and a forest stewardship plan panel. What is left:
+
+1. **Crossing keys and aliases.** A request quotes PSCIS ids from a crossing's aliases or PSCIS evidence; once crossings are read from PSCIS and the map, check the letters quote each site's aliases and nothing else.
+2. **Dating a crossing from imagery.** Section 4's air photo thumbnails, TRIM source dates and Sentinel-2 bracket a road's first sighting; offer the bracket as evidence for `built-after-1995` beside the air photo channel's request, never as the answer.
+3. **The Forest Operations Map's `fspId`.** Its API sends no CORS headers, so the panel links to the map; a bcdatamapper snapshot of `publicSummary` cut to `id`, `fspId` and the point (no project or client names) would let the panel name the plan for blocks since 2022.
+4. **A LiDAR flow screen for small streams**, where a 1 m DEM is published, through the road designer's drainage, as places for the field survey to check.
+
 ## Next
 
 ### Stream crossings from the road designer and the map

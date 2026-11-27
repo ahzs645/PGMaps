@@ -160,3 +160,6 @@ interface RequestStatus {          // Plan.acquisition?.requests
   channel: string
   events: { status: 'requested' | 'received' | 'partial' | 'refused' | 'not-held' | 'withdrawn'; date: string; reference?: string; note?: string }[]
 }
+```
+
+**Received records, the FSP panel and the rest** were specified with the build; the contract is [Block planning](../forestry-patch-scenarios.md), **Getting the records a review lacks**.
