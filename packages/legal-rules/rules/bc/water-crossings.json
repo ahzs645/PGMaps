@@ -28,11 +28,11 @@
         }
       ]
     ],
-    "finding": "Changes in and about a stream may only be made in accordance with a change approval, the regulations, an authorization or an order. On these answers a change the block makes rests on none of them.",
+    "finding": "Changes in and about a stream may only be made in accordance with a change approval, the regulations, an authorization or an order. On these answers this crossing rests on none of them.",
     "actions": [
       {
         "kind": "review",
-        "description": "List each crossing with the authority it is made under: the forest route of WSR §39(2), a change §39(1) lists, or a change approval applied for under §11(1) before the work."
+        "description": "Record the authority this crossing is made under: the forest route of WSR §39(2), a change §39(1) lists, or a change approval applied for under §11(1) before the work."
       }
     ]
   },
@@ -64,7 +64,7 @@
         }
       ]
     ],
-    "finding": "A change approval is issued on application, and a change under it, under an authorization or under an order may only be made in accordance with its terms and conditions. On these answers one relied on is not yet issued, or the work departs from it.",
+    "finding": "A change approval is issued on application, and a change under it, under an authorization or under an order may only be made in accordance with its terms and conditions. On these answers the one relied on is not yet issued, or the work departs from it.",
     "actions": [
       {
         "kind": "obtain-approval",
@@ -107,7 +107,7 @@
         }
       ]
     ],
-    "finding": "WSR §39(2) makes a change to which a FRPA standard applies an authorized change only when a person it names makes it and complies with FRPA and its regulations and standards. On these answers a change relied on under §39(2) is not authorized by it.",
+    "finding": "WSR §39(2) makes a change to which a FRPA standard applies an authorized change only when a person it names makes it and complies with FRPA and its regulations and standards. On these answers this crossing is not authorized by it.",
     "actions": [
       {
         "kind": "review",
@@ -259,12 +259,12 @@
     "exceptions": [
       {
         "id": "not-notified",
-        "label": "Every change under §39(1) is one §38(1) leaves out: emergency flood works or clearing an obstruction from a bridge or culvert by government during a flood (§39(1)(o)–(p)), installing or cleaning drainage outlets (q), repairing a bridge’s superstructure (r) or a fence (s)",
+        "label": "The change is one §38(1) leaves out: emergency flood works or clearing an obstruction from a bridge or culvert by government during a flood (§39(1)(o)–(p)), installing or cleaning drainage outlets (q), repairing a bridge’s superstructure (r) or a fence (s)",
         "source": "water-sustainability-regulation",
         "provision": "38(1)",
         "kind": "by-law",
         "evidence": [
-          "Each change and the paragraph of §39(1) it is made under"
+          "The paragraph of §39(1) the change is made under"
         ]
       }
     ]
@@ -331,12 +331,12 @@
       },
       {
         "id": "not-notified",
-        "label": "Every change under §39(1) is one §38(1) leaves out: emergency flood works or clearing an obstruction from a bridge or culvert by government during a flood (§39(1)(o)–(p)), installing or cleaning drainage outlets (q), repairing a bridge’s superstructure (r) or a fence (s)",
+        "label": "The change is one §38(1) leaves out: emergency flood works or clearing an obstruction from a bridge or culvert by government during a flood (§39(1)(o)–(p)), installing or cleaning drainage outlets (q), repairing a bridge’s superstructure (r) or a fence (s)",
         "source": "water-sustainability-regulation",
         "provision": "38(1)",
         "kind": "by-law",
         "evidence": [
-          "Each change and the paragraph of §39(1) it is made under"
+          "The paragraph of §39(1) the change is made under"
         ]
       }
     ]
@@ -380,7 +380,7 @@
     "actions": [
       {
         "kind": "review",
-        "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
       }
     ]
   },
@@ -423,7 +423,7 @@
     "actions": [
       {
         "kind": "review",
-        "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
       }
     ],
     "exceptions": [
@@ -479,7 +479,7 @@
     "actions": [
       {
         "kind": "review",
-        "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
       }
     ]
   },
@@ -520,7 +520,7 @@
     "actions": [
       {
         "kind": "review",
-        "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
       }
     ]
   },
@@ -566,7 +566,7 @@
     "actions": [
       {
         "kind": "review",
-        "description": "Redesign the crossing, as a clear span bridge or an embedded culvert, to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        "description": "Redesign the crossing, as a clear span bridge or an embedded culvert, to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
       }
     ]
   },
@@ -653,7 +653,7 @@
     "actions": [
       {
         "kind": "review",
-        "description": "Redesign the culvert or its installation to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        "description": "Redesign the culvert or its installation to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
       }
     ]
   },
@@ -694,7 +694,7 @@
     "actions": [
       {
         "kind": "review",
-        "description": "Redesign the bridge to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        "description": "Redesign the bridge to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
       }
     ]
   },
@@ -735,7 +735,7 @@
     "actions": [
       {
         "kind": "review",
-        "description": "Redesign the ford, its timing or its removal to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        "description": "Redesign the ford, its timing or its removal to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
       }
     ]
   },
@@ -776,7 +776,7 @@
     "actions": [
       {
         "kind": "review",
-        "description": "Redesign the winter crossing and plan its removal before breakup to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        "description": "Redesign the winter crossing and plan its removal before breakup to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
       }
     ]
   },
@@ -814,7 +814,7 @@
     "actions": [
       {
         "kind": "monitor",
-        "description": "Inspect the crossings during and after the work; report any damage to the aquatic ecosystem to a habitat officer within 72 hours, and record the repair."
+        "description": "Inspect the crossing during and after the work; report any damage to the aquatic ecosystem to a habitat officer within 72 hours, and record the repair."
       }
     ]
   }

@@ -13,6 +13,7 @@ import {
   type Disturbance,
   type Plan,
   type RangeReview,
+  type ReviewCase,
   type Schedule,
   type ScheduleEntry,
   type Shape,
@@ -20,6 +21,7 @@ import {
 import type { OldForestChoices, PlanChecks } from './records'
 import type { MackenzieOldForestChoices } from './oldForest/mackenzieRecord'
 import { rangeReviewCurrent } from './review/rangeReview'
+import { blankCrossing, crossingFootprint, type CrossingRecord } from './crossings/record'
 
 /** Keeps one grazing review per block and schedule if the evidence still describes its footprint. */
 export function saveRangeReview(plan: Plan, record: RangeReview): Plan {
@@ -158,6 +160,7 @@ export function removeBlock(plan: Plan, id: string): Plan {
     reviews,
     rangeReviews: plan.rangeReviews?.filter((review) => review.block !== id),
     groundReads: plan.groundReads?.filter((read) => read.block !== id),
+    ...withCrossings(plan, (c) => c.block !== id),
   }
 }
 
@@ -275,6 +278,7 @@ export function removeSchedule(plan: Plan, id: string): Plan {
     reviewSchedule: plan.reviewSchedule === id ? schedules[0].id : plan.reviewSchedule,
     rangeReviews: plan.rangeReviews?.filter((review) => review.schedule !== id),
     groundReads: plan.groundReads?.filter((read) => read.schedule !== id),
+    ...withCrossings(plan, (c) => c.schedule !== id),
   }
 }
 
@@ -292,4 +296,68 @@ export function followWouldLoop(plan: Plan, id: string, from: string) {
     next = plan.schedules.find((s) => s.id === next)?.follows?.schedule
   }
   return false
+}
+
+// ---------------------------------------------------------------------------------------------
+// Stream crossings (`crossings/`)
+
+/** The plan's crossings that `keep` keeps; a plan that had none stays without the key. */
+function withCrossings(plan: Plan, keep: (c: CrossingRecord) => boolean): Pick<Plan, 'crossings'> {
+  return plan.crossings ? { crossings: plan.crossings.filter(keep) } : {}
+}
+
+/** Lists a crossing the reviewer entered for a block under a schedule, with nothing answered. */
+export function addCrossing(plan: Plan, blockId: string, schedule: string, label: string): { plan: Plan; key: string } {
+  const block = plan.blocks.find((b) => b.id === blockId)
+  if (!block || !plan.schedules.some((s) => s.id === schedule)) return { plan, key: '' }
+  const record = blankCrossing(plan, block, schedule, label)
+  return { plan: { ...plan, crossings: [...(plan.crossings ?? []), record] }, key: record.key }
+}
+
+export type CrossingChange = Partial<Pick<CrossingRecord, 'label' | 'role' | 'structure' | 'at' | 'note'>>
+
+/**
+ * Renames a crossing or changes what is recorded about it. A blank label keeps the old one; a
+ * structure, place or note set to `undefined` (or a blank note) is removed, not stored empty.
+ */
+export function updateCrossing(plan: Plan, key: string, change: CrossingChange): Plan {
+  if (!plan.crossings?.some((c) => c.key === key)) return plan
+  return {
+    ...plan,
+    crossings: plan.crossings.map((c) => {
+      if (c.key !== key) return c
+      const next: CrossingRecord = { ...c, ...change }
+      if (change.label !== undefined) next.label = change.label.trim() || c.label
+      for (const field of ['structure', 'at', 'note'] as const)
+        if (field in change && (next[field] === undefined || (field === 'note' && !next.note?.trim())))
+          delete next[field]
+      if (next.note) next.note = next.note.trim()
+      return next
+    }),
+  }
+}
+
+/** Keeps a crossing's own answers, exceptions claimed and releases chosen. */
+export function setCrossingReview(plan: Plan, key: string, review: ReviewCase): Plan {
+  if (!plan.crossings?.some((c) => c.key === key)) return plan
+  return { ...plan, crossings: plan.crossings.map((c) => (c.key === key ? { ...c, review } : c)) }
+}
+
+/**
+ * Keys a crossing to its block's footprint as it stands now: the reviewer's word that the crossing
+ * is still made after the block's shape or schedule changed. Its answers are kept.
+ */
+export function confirmCrossing(plan: Plan, key: string): Plan {
+  const record = plan.crossings?.find((c) => c.key === key)
+  const block = record && plan.blocks.find((b) => b.id === record.block)
+  if (!record || !block || !plan.schedules.some((s) => s.id === record.schedule)) return plan
+  const { shape, signature } = crossingFootprint(plan, block, record.schedule)
+  return {
+    ...plan,
+    crossings: plan.crossings!.map((c) => (c.key === key ? { ...c, shape: shape.id, footprint: signature } : c)),
+  }
+}
+
+export function removeCrossing(plan: Plan, key: string): Plan {
+  return plan.crossings ? { ...plan, crossings: plan.crossings.filter((c) => c.key !== key) } : plan
 }

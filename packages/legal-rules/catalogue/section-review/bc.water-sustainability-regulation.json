@@ -495,9 +495,9 @@
       "bearsOn": "Lets a person make an authorized change in and about a stream (a culvert, bridge, ford, snowfill or other change listed in s. 39) without a change approval if the person meets Part 3 and any habitat officer terms, unless an engineer requires a change approval because the change may significantly affect the stream's nature, flow or channel.",
       "review": "rule",
       "coveredBy": [
-        "bc.water-crossings@1.0.0:engineer-requirement",
-        "bc.water-crossings@1.0.0:officer-terms",
-        "bc.water-crossings@1.0.0:change-authority"
+        "bc.water-crossings@2.0.0:engineer-requirement",
+        "bc.water-crossings@2.0.0:officer-terms",
+        "bc.water-crossings@2.0.0:change-authority"
       ],
       "gapPriority": "low",
       "gapNote": "The pack asks whether a crossing rests on Part 3 (s. 39(2) or a change s. 39(1) lists), whether an engineer has required a change approval under (2), and whether the work keeps to a habitat officer’s terms under (1)(b); whether the person meets the rest of Part 3 is asked through s. 38’s notice and s. 39’s conditions.",
@@ -514,9 +514,9 @@
       "bearsOn": "Requires a person making an authorized change other than one under s. 39(1)(o)-(s), (2) or (5) to give a habitat officer signed notice with the change approval information at least 45 days before starting and to obtain the officer's terms (or proceed if not contacted within 45 days); a Forest Act agreement or road permit holder building under FRPA (s. 39(2)) gives no such notice.",
       "review": "rule",
       "coveredBy": [
-        "bc.water-crossings@1.0.0:habitat-notice",
-        "bc.water-crossings@1.0.0:habitat-statement",
-        "bc.water-crossings@1.0.0:habitat-statement#no-contact"
+        "bc.water-crossings@2.0.0:habitat-notice",
+        "bc.water-crossings@2.0.0:habitat-statement",
+        "bc.water-crossings@2.0.0:habitat-statement#no-contact"
       ],
       "gapPriority": "low",
       "gapNote": "The 45-day notice and the officer’s statement are asked for a change s. 39(1) lists, with (4)’s 45 days without contact as an exception; (5)’s 72-hour report after emergency flood works or clearing an obstruction ((o), (p)) is government work and not asked.",
@@ -533,20 +533,20 @@
       "bearsOn": "Lists the changes in and about a stream that need no change approval: a culvert for a road under fifteen conditions (600 mm minimum, fish passage under all flows on a fish-bearing stream, capacity for the channel or the 1 in 200 year maximum daily flow, 300 mm cover, at most 2 m fill, an engineer's design at 2 m or 6 m³/s and more), a clear span bridge, a pipeline crossing, ice bridges, winter fords and snowfills of clean ice and snow removed before break-up, a temporary ford sized for the 1 in 10 year flow, a temporary diversion round a worksite, drainage outlets, bridge superstructure repair and beaver dam removal, and (s. 39(2)) any change by a Forest Act agreement or road permit holder, Range Act agreement holder or the Crown to which FRPA standards apply, if the person complies with FRPA and its regulations.",
       "review": "partial",
       "coveredBy": [
-        "bc.water-crossings@1.0.0:forest-route",
-        "bc.water-crossings@1.0.0:culvert-size",
-        "bc.water-crossings@1.0.0:culvert-cover",
-        "bc.water-crossings@1.0.0:culvert-fill",
-        "bc.water-crossings@1.0.0:culvert-capacity",
-        "bc.water-crossings@1.0.0:culvert-fish",
-        "bc.water-crossings@1.0.0:culvert-design",
-        "bc.water-crossings@1.0.0:culvert-practices",
-        "bc.water-crossings@1.0.0:bridge-conditions",
-        "bc.water-crossings@1.0.0:ford-conditions",
-        "bc.water-crossings@1.0.0:winter-conditions"
+        "bc.water-crossings@2.0.0:forest-route",
+        "bc.water-crossings@2.0.0:culvert-size",
+        "bc.water-crossings@2.0.0:culvert-cover",
+        "bc.water-crossings@2.0.0:culvert-fill",
+        "bc.water-crossings@2.0.0:culvert-capacity",
+        "bc.water-crossings@2.0.0:culvert-fish",
+        "bc.water-crossings@2.0.0:culvert-design",
+        "bc.water-crossings@2.0.0:culvert-practices",
+        "bc.water-crossings@2.0.0:bridge-conditions",
+        "bc.water-crossings@2.0.0:ford-conditions",
+        "bc.water-crossings@2.0.0:winter-conditions"
       ],
       "gapPriority": "low",
-      "gapNote": "The pack tests the s. 39(2) forest route (a person it names, complying with FRPA) and, for a change s. 39(1) lists, a culvert under (a) figure by figure (600 mm, 300 mm cover or the manufacturer’s, 2 m of fill, capacity, fish passage, an engineered design at 2 m or 6 m³/s, the installation conditions together), a clear span bridge (b), an ice bridge, winter ford or snowfill (n) and a temporary ford (v), each as one answer. Every figure is the reviewer’s for the block’s worst crossing: nothing reads the road designer’s culvert schedule. Compliance with FRPA under (2) is one answer, and FPPR ss. 55-57 have no rules yet; the pipeline, diversion and other paragraphs are not asked.",
+      "gapNote": "The pack tests the s. 39(2) forest route (a person it names, complying with FRPA) and, for a change s. 39(1) lists, a culvert under (a) figure by figure (600 mm, 300 mm cover or the manufacturer’s, 2 m of fill, capacity, fish passage, an engineered design at 2 m or 6 m³/s, the installation conditions together), a clear span bridge (b), an ice bridge, winter ford or snowfill (n) and a temporary ford (v), each as one answer. Every figure is the reviewer’s for each crossing the reviewer lists (release 2.0.0 answers one crossing at a time; 1.0.0 answered for the block’s worst crossing): nothing reads the road designer’s culvert schedule yet. Compliance with FRPA under (2) is one answer, beside the bc.fppr-crossings pack’s FPPR ss. 55-57, 72 and 73 for the same crossing; the pipeline, diversion and other paragraphs are not asked.",
       "encodable": "numeric",
       "topics": [
         "stream-crossings-and-culverts",
@@ -622,8 +622,8 @@
       "bearsOn": "Lets a habitat officer give written terms for an authorized change (the timing window, minimum instream flow, removal or addition of material, fish and wildlife salvage, protection of streamside vegetation, worksite restoration), and requires a person whose change damages the aquatic ecosystem (the s. 39(2) forest route included) to report it within 72 hours and repair and restore it.",
       "review": "partial",
       "coveredBy": [
-        "bc.water-crossings@1.0.0:officer-terms",
-        "bc.water-crossings@1.0.0:aquatic-damage"
+        "bc.water-crossings@2.0.0:officer-terms",
+        "bc.water-crossings@2.0.0:aquatic-damage"
       ],
       "gapPriority": "low",
       "gapNote": "The pack asks whether a habitat officer has given terms under (2) and whether the work keeps to them, and raises (3)’s 72-hour report and repair for every change under Part 3 as a monitoring action; it does not read the timing window itself.",

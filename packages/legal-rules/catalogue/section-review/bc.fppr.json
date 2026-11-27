@@ -13,9 +13,11 @@
         "bc.fppr@1.1.0:limit-40",
         "bc.fppr@1.1.0:limit-60",
         "bc.crown-grazing@1.0.0:nar-reserved",
-        "bc.fppr@1.1.0:sensitive-soil"
+        "bc.fppr@1.1.0:sensitive-soil",
+        "bc.fppr-crossings@1.0.0:fish-passage-activity",
+        "bc.fppr-crossings@1.0.0:fish-passage-crossing"
       ],
-      "gapNote": "The net area to be reforested is entered as a verified figure rather than derived from the block's geometry by subtracting the six 1(2) exclusions (permanent access, non-productive and non-commercial patches of at least 0.1 ha and 10 m wide, wildlife tree retention areas, riparian reserve zones, reserved areas); only exclusion (f) has its own rule. The 'stream' and 'fish stream' definitions (20% gradient presumption, 100 m channel) drive every riparian class but are not asked.",
+      "gapNote": "The net area to be reforested is entered as a verified figure rather than derived from the block's geometry by subtracting the six 1(2) exclusions (permanent access, non-productive and non-commercial patches of at least 0.1 ha and 10 m wide, wildlife tree retention areas, riparian reserve zones, reserved areas); only exclusion (f) has its own rule. The 'fish stream' definition is asked limb by limb for each listed crossing (bc.fppr-crossings: limb (a)'s species, limb (b)'s 20% gradient and its three rebuttals), and 'stream' once per crossing; neither is asked for the riparian classes of the block's own streams, whose class the riparian rules take as entered.",
       "topics": [
         "administration",
         "soils",
@@ -57,10 +59,13 @@
         "bc.fppr@1.1.0:width-47-reserve",
         "bc.fppr@1.1.0:width-47-management",
         "bc.fppr@1.1.0:width-48-reserve",
-        "bc.fppr@1.1.0:width-49-reserve"
+        "bc.fppr@1.1.0:width-49-reserve",
+        "bc.fppr-crossings@1.0.0:crossing-build#workers-compensation",
+        "bc.fppr-crossings@1.0.0:fish-passage-activity#workers-compensation",
+        "bc.fppr-crossings@1.0.0:structure-sound#workers-compensation"
       ],
       "gapPriority": "low",
-      "gapNote": "The riparian width rules compare an entered width with the table minimum without saying the statutory distance is slope distance; a width taken off a map is horizontal and should be stated as such (it is conservative, never short, against the slope-distance minimum).",
+      "gapNote": "The riparian width rules compare an entered width with the table minimum without saying the statutory distance is slope distance; a width taken off a map is horizontal and should be stated as such (it is conservative, never short, against the slope-distance minimum). Subsection (3)'s Workers Compensation Act exemption is listed as a by-law exception on each crossing rule (bc.fppr-crossings), and not yet on the block FPPR rules.",
       "encodable": "reviewer-question",
       "topics": [
         "riparian",
@@ -802,7 +807,10 @@
         "bc.fppr@1.3.0:pine-secondary#fop-exemption",
         "bc.fppr@1.3.0:sensitive-soil#fop-exemption",
         "bc.fppr@1.3.0:width-47-area#fop-exemption",
-        "bc.fppr@1.3.0:bank-stability#fop-exemption"
+        "bc.fppr@1.3.0:bank-stability#fop-exemption",
+        "bc.fppr-crossings@1.0.0:crossing-build#fop-exemption",
+        "bc.fppr-crossings@1.0.0:fish-passage-activity#fop-exemption",
+        "bc.fppr-crossings@1.0.0:fish-habitat#fop-exemption"
       ],
       "gapNote": "Listed as a decision exception on every rule whose provision the table names, and on no other.",
       "gapPriority": "low",
@@ -1270,14 +1278,18 @@
       "n": "12.31",
       "relevance": "plan",
       "bearsOn": "Exempts a holder from ss. 55-57 as they pertain to cumulative hydrological effects in a fisheries sensitive watershed where the FSP has an s. 8.1 result or strategy.",
-      "review": "none",
+      "review": "rule",
       "gapPriority": "low",
-      "gapNote": "ss. 55-57 have no rules; fisheries sensitive watersheds are rare in the Omineca.",
-      "encodable": "reviewer-question",
+      "gapNote": "Listed as a decision exception on each crossing rule under ss. 55-57, held only where the reviewer says the crossing is in a fisheries sensitive watershed and the matter is cumulative hydrological effects on fish habitat there. Whether the approved FSP has an s. 8.1 result or strategy, and the area it applies to, is the reviewer's evidence.",
       "topics": [
         "plans",
         "exemptions-and-variances",
         "fish-habitat"
+      ],
+      "coveredBy": [
+        "bc.fppr-crossings@1.0.0:crossing-build#fsp-fsw-result",
+        "bc.fppr-crossings@1.0.0:fish-passage-activity#fsp-fsw-result",
+        "bc.fppr-crossings@1.0.0:fish-habitat#fsp-fsw-result"
       ]
     },
     {
@@ -2293,49 +2305,51 @@
       "n": "55",
       "relevance": "roads",
       "bearsOn": "Requires a stream crossing on a road or access structure to be located, built and used so as to protect the channel and banks above and below and mitigate disturbance at the crossing, and a temporary crossing to be removed when no longer needed.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "The road designer keeps a crossing register; the block planner does not list the stream crossings a block's roads and trails need or ask how they protect the channel.",
-      "encodable": "spatial",
-      "proposedFacts": [
-        "How many stream crossings do the roads and access structures for this cutblock need, and on which riparian classes?",
-        "For each temporary crossing, when will it be removed?"
-      ],
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "Asked per crossing the reviewer lists: whether an authorized person builds it as part of a road or an access structure over a stream, whether it is located, built and used to protect the channel and banks above and below it and mitigate disturbance at it, and whether a temporary crossing's removal is planned. The crossings are entered, not yet read from the road designer's register or mapped, so a crossing not listed is not asked; how the channel is protected is one answer, not a design check.",
+      "encodable": "reviewer-question",
       "topics": [
         "stream-crossings-and-culverts",
         "fish-habitat",
         "riparian"
+      ],
+      "coveredBy": [
+        "bc.fppr-crossings@1.0.0:crossing-build",
+        "bc.fppr-crossings@1.0.0:crossing-removal"
       ]
     },
     {
       "n": "56",
       "relevance": "roads",
       "bearsOn": "Requires a primary forest activity not to have a material adverse effect on fish passage in a fish stream, and maintained post-1995 crossings to keep passage, except temporarily during construction when fish are not migrating or spawning.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "No rule asks whether a road or crossing for the block is on a fish stream or how passage is kept.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "Asked per listed crossing: whether the stream is a fish stream, limb by limb (unknown until each limb it turns on is answered), whether the work would have a material adverse effect on fish passage (56(1)), and for a maintained crossing built after June 15, 1995, whether the crossing has one (56(2)); 56(3)'s temporary effect is a by-law exception. No fish observation, gradient, access model or PSCIS assessment is read yet: a PSCIS barrier would be evidence about the structure, never the answer, and 'material adverse effect' stays the reviewer's.",
       "encodable": "reviewer-question",
-      "proposedFacts": [
-        "Will any crossing on a road for this cutblock be on a fish stream, and how is fish passage provided there?"
-      ],
       "topics": [
         "fish-habitat",
         "stream-crossings-and-culverts"
+      ],
+      "coveredBy": [
+        "bc.fppr-crossings@1.0.0:fish-passage-activity",
+        "bc.fppr-crossings@1.0.0:fish-passage-crossing",
+        "bc.fppr-crossings@1.0.0:fish-passage-activity#temporary-effect"
       ]
     },
     {
       "n": "57",
       "relevance": "block",
       "bearsOn": "Requires a primary forest activity to be done at a time and in a manner unlikely to harm fish or harmfully alter fish habitat.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "No rule asks about timing windows or the manner of in-stream and near-stream work for the block and its roads.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "Asked per listed crossing as one answer: whether the work is timed and done in a manner unlikely to harm fish or fish habitat. The block's other primary forest activities away from its crossings (harvesting beside a stream) are not asked here, and no timing window is read.",
       "encodable": "reviewer-question",
-      "proposedFacts": [
-        "Is in-stream or near-stream work for this cutblock or its roads scheduled within a reduced-risk timing window for the fish present?"
-      ],
       "topics": [
         "fish-habitat"
+      ],
+      "coveredBy": [
+        "bc.fppr-crossings@1.0.0:fish-habitat"
       ]
     },
     {
@@ -2602,27 +2616,33 @@
       "n": "72",
       "relevance": "roads",
       "bearsOn": "Requires roads and their bridges, culverts and fords to be structurally sound and safe for industrial users.",
-      "review": "none",
+      "review": "rule",
       "gapPriority": "low",
-      "gapNote": "Engineering standard for the road designer.",
+      "gapNote": "Asked per listed crossing on a road that is built or maintained: whether its structure will be sound and safe for industrial users, one answer. The road's other structures and the road itself are not asked, and no design or inspection is read.",
       "encodable": "reviewer-question",
       "topics": [
         "roads",
         "stream-crossings-and-culverts",
         "drainage"
+      ],
+      "coveredBy": [
+        "bc.fppr-crossings@1.0.0:structure-sound"
       ]
     },
     {
       "n": "73",
       "relevance": "roads",
       "bearsOn": "Requires bridge design and fabrication to meet CSA S6 and the Canadian Foundation Engineering Manual and allow for unbalanced loads and off-centre driving.",
-      "review": "none",
+      "review": "rule",
       "gapPriority": "low",
-      "gapNote": "Engineering standard for the road designer.",
+      "gapNote": "Asked per listed crossing that is a bridge built for a road: whether its design and fabrication meet CAN/CSA-S6 and the foundation manual, and allow for unbalanced loads and off-centre driving, two answers. The standards themselves are not read.",
       "encodable": "reviewer-question",
       "topics": [
         "stream-crossings-and-culverts",
         "roads"
+      ],
+      "coveredBy": [
+        "bc.fppr-crossings@1.0.0:bridge-design"
       ]
     },
     {

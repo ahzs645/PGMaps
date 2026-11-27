@@ -1,0 +1,1022 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.water-crossings",
+  "version": "1.0.0",
+  "title": "BC stream crossings under the Water Sustainability Act",
+  "description": "Which authority covers each change in and about a stream the block’s roads and harvesting make (a culvert, bridge, ford, ice bridge or snowfill), and the conditions the Water Sustainability Regulation sets for it: the forest route of WSR §39(2), the listed changes of §39(1) with their notice to a habitat officer, or a change approval. Every answer is the reviewer’s; the planner reads no crossing from the map.",
+  "relatedPacks": [
+    {
+      "id": "bc.fppr",
+      "relationship": "WSR §39(2) authorizes a forest crossing only while it complies with FRPA and its regulations; review the FPPR rules for the same roads separately."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "stream-changes",
+      "label": "Will the block’s roads or harvesting make any change in and about a stream: a culvert, bridge, ford, ice bridge, snowfill or other work in a stream channel or modifying a stream, a wetland, spring or dry channel included (Water Sustainability Act §1)?",
+      "type": "boolean"
+    },
+    {
+      "id": "route-forest",
+      "label": "Is any of these changes made under WSR §39(2): a change to which a FRPA standard applies, made by a Forest Act agreement or road use permit holder, a Range Act agreement holder or the Crown?",
+      "type": "boolean"
+    },
+    {
+      "id": "route-listed",
+      "label": "Is any of these changes made instead as a change WSR §39(1) lists (a culvert, clear span bridge, temporary ford, ice bridge, winter ford, snowfill or drainage outlet), by someone §39(2) does not cover?",
+      "type": "boolean"
+    },
+    {
+      "id": "route-approval",
+      "label": "Is any of these changes made under a change approval, another authorization or an order (Water Sustainability Act §11(2)(a), (c), (d))?",
+      "type": "boolean"
+    },
+    {
+      "id": "forest-holder",
+      "label": "Is every change relied on under §39(2) made by a person it names: a holder of a Forest Act agreement or road use permit, a Range Act agreement or a special use permit, a person authorized to build the road under the Coal, Geothermal Resources, Mining Right of Way or Petroleum and Natural Gas Act, or the Crown?",
+      "type": "boolean"
+    },
+    {
+      "id": "frpa-compliant",
+      "label": "Will every change relied on under §39(2) comply with FRPA and its regulations and standards (FPPR §§55–57 on stream crossings, fish passage and fish habitat among them)?",
+      "type": "boolean"
+    },
+    {
+      "id": "engineer-required",
+      "label": "Has an engineer required an application for a change approval or authorization for any change to be made under Part 3, because it may have a significant adverse impact on the stream, its flow or its channel (WSR §37(2))?",
+      "type": "boolean"
+    },
+    {
+      "id": "officer-terms",
+      "label": "Has a habitat officer given written terms for any change to be made under Part 3 (a timing window, minimum flow, removal or addition of material, fish and wildlife salvage, protection of vegetation, worksite restoration; WSR §44(2))?",
+      "type": "boolean"
+    },
+    {
+      "id": "within-officer-terms",
+      "label": "Is the work planned and scheduled within those terms?",
+      "type": "boolean"
+    },
+    {
+      "id": "approval-held",
+      "label": "Is every change approval, authorization or order relied on issued, and is the work planned within its terms and conditions?",
+      "type": "boolean"
+    },
+    {
+      "id": "notice-given",
+      "label": "For each change under §39(1), was a signed notice of its particulars given to a habitat officer at least 45 days before the work begins (WSR §38(1)(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "statement-obtained",
+      "label": "Has a habitat officer’s statement of the terms on which each such change can proceed been obtained (WSR §38(1)(b))?",
+      "type": "boolean"
+    },
+    {
+      "id": "no-contact-45",
+      "label": "Have 45 days passed since a habitat officer received the notice without the officer making contact (WSR §38(4))?",
+      "type": "boolean"
+    },
+    {
+      "id": "listed-culvert",
+      "label": "Is any change under §39(1) a culvert for a road, trail or footpath (§39(1)(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "culvert-diameter",
+      "label": "Smallest equivalent diameter of those culverts",
+      "type": "number",
+      "unit": "mm",
+      "min": 0
+    },
+    {
+      "id": "culvert-cover",
+      "label": "Least depth of fill cover over those culverts",
+      "type": "number",
+      "unit": "mm",
+      "min": 0
+    },
+    {
+      "id": "culvert-fill",
+      "label": "Greatest fill height above the top of those culverts",
+      "type": "number",
+      "unit": "m",
+      "min": 0
+    },
+    {
+      "id": "culvert-capacity",
+      "label": "Does each culvert have the stream channel’s hydraulic capacity, or pass the 1 in 200 year maximum daily flow without the water at its inlet rising above its top (§39(1)(a)(vii))?",
+      "type": "boolean"
+    },
+    {
+      "id": "fish-bearing",
+      "label": "Is any stream those culverts cross fish-bearing, with fish present at some time in the year?",
+      "type": "boolean"
+    },
+    {
+      "id": "culvert-fish-passage",
+      "label": "Does each culvert on a fish-bearing stream let fish pass up and down stream under all flow conditions?",
+      "type": "boolean"
+    },
+    {
+      "id": "culvert-large",
+      "label": "Is any culvert of 2 m or greater equivalent diameter, or designed to pass a flow of more than 6 m³ a second?",
+      "type": "boolean"
+    },
+    {
+      "id": "culvert-engineered",
+      "label": "Is each such culvert designed by an engineering professional and built to that design?",
+      "type": "boolean"
+    },
+    {
+      "id": "culvert-practices",
+      "label": "Will each culvert meet the rest of §39(1)(a): equipment in a dry channel or operated from the top of the bank, erosion protection at the inlet and outlet, debris passing through, a stable channel, no backwater or raised head, obstacles and debris removable, the channel outside the right of way unaltered, fill kept off the inlet and outlet, and CSA materials?",
+      "type": "boolean"
+    },
+    {
+      "id": "listed-bridge",
+      "label": "Is any change under §39(1) a clear span bridge (§39(1)(b))?",
+      "type": "boolean"
+    },
+    {
+      "id": "bridge-conditions",
+      "label": "Will each clear span bridge meet §39(1)(b): equipment in a dry channel or operated from the top of the bank, no backwater or raised head, the channel’s hydraulic capacity or the 1 in 200 year maximum daily flow, room under it for flood debris and ice, and CSA materials?",
+      "type": "boolean"
+    },
+    {
+      "id": "listed-ford",
+      "label": "Is any change under §39(1) a temporary ford for vehicles (§39(1)(v))?",
+      "type": "boolean"
+    },
+    {
+      "id": "ford-conditions",
+      "label": "Will each temporary ford meet §39(1)(v): built and removed when that risks no significant harm to fish, wildlife or the aquatic ecosystem, holding the 1 in 10 year maximum daily flow without loss or channel erosion, any culvert passing the average low flow, the channel protected from erosion during use and after removal, no sediment from approach ditches, an erosion-free running surface, the stream in its channel and debris passing over it?",
+      "type": "boolean"
+    },
+    {
+      "id": "listed-winter",
+      "label": "Is any change under §39(1) an ice bridge, winter ford or snowfill (§39(1)(n))?",
+      "type": "boolean"
+    },
+    {
+      "id": "winter-conditions",
+      "label": "Will each be built only of clean ice and snow removed from the channel before ice breakup, with an ice bridge’s logs, timber and other materials removed before breakup without a significant risk of harm?",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "culvert-min-diameter",
+      "value": 600,
+      "unit": "mm"
+    },
+    {
+      "id": "culvert-min-cover",
+      "value": 300,
+      "unit": "mm"
+    },
+    {
+      "id": "culvert-max-fill",
+      "value": 2,
+      "unit": "m"
+    }
+  ],
+  "sources": [
+    {
+      "id": "water-sustainability-act",
+      "title": "Water Sustainability Act, SBC 2014 c. 15",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14015",
+      "asOf": "2026-11-17"
+    },
+    {
+      "id": "water-sustainability-regulation",
+      "title": "Water Sustainability Regulation, BC Reg 36/2016",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/36_2016",
+      "asOf": "2026-11-27"
+    }
+  ],
+  "rules": [
+    {
+      "id": "change-authority",
+      "title": "Changes in and about a stream · authority",
+      "source": "water-sustainability-act",
+      "provision": "11(2)",
+      "when": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-forest",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "route-approval",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "Changes in and about a stream may only be made in accordance with a change approval, the regulations, an authorization or an order. On these answers a change the block makes rests on none of them.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "List each crossing with the authority it is made under: the forest route of WSR §39(2), a change §39(1) lists, or a change approval applied for under §11(1) before the work."
+        }
+      ]
+    },
+    {
+      "id": "approval-terms",
+      "title": "Change approval, authorization or order · terms",
+      "source": "water-sustainability-act",
+      "provision": "11(1), 11(2)(a), (c)–(d)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-approval",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "approval-held",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A change approval is issued on application, and a change under it, under an authorization or under an order may only be made in accordance with its terms and conditions. On these answers one relied on is not yet issued, or the work departs from it.",
+      "actions": [
+        {
+          "kind": "obtain-approval",
+          "description": "Apply for the change approval (§§11(1), 12) before the work, and plan the crossing within its terms and conditions."
+        }
+      ]
+    },
+    {
+      "id": "forest-route",
+      "title": "Forest road crossings under FRPA",
+      "source": "water-sustainability-regulation",
+      "provision": "39(2)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-forest",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "forest-holder",
+            "op": "eq",
+            "value": false
+          }
+        ],
+        [
+          {
+            "fact": "frpa-compliant",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "WSR §39(2) makes a change to which a FRPA standard applies an authorized change only when a person it names makes it and complies with FRPA and its regulations and standards. On these answers a change relied on under §39(2) is not authorized by it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Bring the crossing within FRPA and FPPR (§§55–57 on stream crossings, fish passage and fish habitat among them), or authorize it another way: a change §39(1) lists, with its notice, or a change approval."
+        }
+      ]
+    },
+    {
+      "id": "engineer-requirement",
+      "title": "An engineer requires a change approval",
+      "source": "water-sustainability-regulation",
+      "provision": "37(2)–(3)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "route-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "engineer-required",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "engineer-required",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "An engineer who considers that an authorized change may significantly affect the stream, its flow or its channel may require an application for a change approval or authorization, and the change may then not be carried out under Part 3.",
+      "actions": [
+        {
+          "kind": "obtain-approval",
+          "description": "Apply for the change approval or authorization the engineer requires before the work."
+        }
+      ]
+    },
+    {
+      "id": "officer-terms",
+      "title": "A habitat officer’s terms",
+      "source": "water-sustainability-regulation",
+      "provision": "37(1)(b), 44(2)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "route-forest",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "officer-terms",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "within-officer-terms",
+            "op": "eq",
+            "value": false
+          }
+        ],
+        [
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "officer-terms",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "within-officer-terms",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A change under Part 3 must be made in accordance with the terms and conditions a habitat officer specified under §44, the timing window among them. On these answers the work is not planned within them.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Schedule and plan the crossing work within the habitat officer’s terms, or ask the officer about them."
+        }
+      ]
+    },
+    {
+      "id": "habitat-notice",
+      "title": "Notice to a habitat officer, 45 days ahead",
+      "source": "water-sustainability-regulation",
+      "provision": "38(1)(a)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "notice-given",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A person proposing a change §39(1) lists must give a habitat officer signed notice of its particulars, on the comptroller’s form, at least 45 days before beginning it.",
+      "actions": [
+        {
+          "kind": "submit",
+          "description": "Give the notice at least 45 days before the crossing work, and record when the officer received it."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "not-notified",
+          "label": "Every change under §39(1) is one §38(1) leaves out: emergency flood works or clearing an obstruction from a bridge or culvert by government during a flood (§39(1)(o)–(p)), installing or cleaning drainage outlets (q), repairing a bridge’s superstructure (r) or a fence (s)",
+          "source": "water-sustainability-regulation",
+          "provision": "38(1)",
+          "kind": "by-law",
+          "evidence": [
+            "Each change and the paragraph of §39(1) it is made under"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "habitat-statement",
+      "title": "The habitat officer’s statement of terms",
+      "source": "water-sustainability-regulation",
+      "provision": "38(1)(b)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "notice-given",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "statement-obtained",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "After notice, the person must obtain a habitat officer’s statement of the §44(2) terms and conditions on which the change can proceed.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Obtain the statement before the work, and plan the crossing within its terms."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "no-contact",
+          "label": "A habitat officer did not contact the person within 45 days after receiving the notice (§38(4))",
+          "source": "water-sustainability-regulation",
+          "provision": "38(4)",
+          "kind": "by-law",
+          "when": [
+            [
+              {
+                "fact": "no-contact-45",
+                "op": "eq",
+                "value": true
+              }
+            ]
+          ],
+          "evidence": [
+            "The notice and the date the officer received it"
+          ]
+        },
+        {
+          "id": "not-notified",
+          "label": "Every change under §39(1) is one §38(1) leaves out: emergency flood works or clearing an obstruction from a bridge or culvert by government during a flood (§39(1)(o)–(p)), installing or cleaning drainage outlets (q), repairing a bridge’s superstructure (r) or a fence (s)",
+          "source": "water-sustainability-regulation",
+          "provision": "38(1)",
+          "kind": "by-law",
+          "evidence": [
+            "Each change and the paragraph of §39(1) it is made under"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "culvert-size",
+      "title": "Culvert · 600 mm minimum",
+      "source": "water-sustainability-regulation",
+      "provision": "39(1)(a)(viii)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-culvert",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "culvert-diameter",
+            "op": "lt",
+            "value": {
+              "parameter": "culvert-min-diameter"
+            }
+          }
+        ]
+      ],
+      "finding": "A culvert under §39(1)(a) needs an equivalent diameter of at least 600 mm. On these answers it does not, so the change is not an authorized change under Part 3 and needs a change approval or another authority (Water Sustainability Act §11(2)), unless §39(2) covers it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        }
+      ]
+    },
+    {
+      "id": "culvert-cover",
+      "title": "Culvert · 300 mm cover",
+      "source": "water-sustainability-regulation",
+      "provision": "39(1)(a)(xiii)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-culvert",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "culvert-cover",
+            "op": "lt",
+            "value": {
+              "parameter": "culvert-min-cover"
+            }
+          }
+        ]
+      ],
+      "finding": "A culvert under §39(1)(a) needs at least 300 mm of fill cover, or the cover its manufacturer’s specifications require. On these answers it does not, so the change is not an authorized change under Part 3 and needs a change approval or another authority (Water Sustainability Act §11(2)), unless §39(2) covers it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "manufacturer-cover",
+          "label": "The culvert manufacturer’s specifications require a different depth of cover, and the culvert has it (§39(1)(a)(xiii))",
+          "source": "water-sustainability-regulation",
+          "provision": "39(1)(a)(xiii)",
+          "kind": "by-law",
+          "evidence": [
+            "The manufacturer’s specification for the culvert",
+            "The cover as designed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "culvert-fill",
+      "title": "Culvert · 2 m of fill at most",
+      "source": "water-sustainability-regulation",
+      "provision": "39(1)(a)(xiv)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-culvert",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "culvert-fill",
+            "op": "gt",
+            "value": {
+              "parameter": "culvert-max-fill"
+            }
+          }
+        ]
+      ],
+      "finding": "A culvert under §39(1)(a) may have no more than 2 m of fill above its top. On these answers it does not, so the change is not an authorized change under Part 3 and needs a change approval or another authority (Water Sustainability Act §11(2)), unless §39(2) covers it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        }
+      ]
+    },
+    {
+      "id": "culvert-capacity",
+      "title": "Culvert · capacity",
+      "source": "water-sustainability-regulation",
+      "provision": "39(1)(a)(vii)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-culvert",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "culvert-capacity",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A culvert under §39(1)(a) needs the stream channel’s hydraulic capacity, or must pass the 1 in 200 year maximum daily flow without the water at its inlet rising above its top. On these answers it does not, so the change is not an authorized change under Part 3 and needs a change approval or another authority (Water Sustainability Act §11(2)), unless §39(2) covers it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        }
+      ]
+    },
+    {
+      "id": "culvert-fish",
+      "title": "Culvert · fish passage",
+      "source": "water-sustainability-regulation",
+      "provision": "39(1)(a)(ii)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-culvert",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fish-bearing",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "culvert-fish-passage",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "On a fish-bearing stream, a culvert under §39(1)(a) must let fish pass up and down stream under all flow conditions. On these answers it does not, so the change is not an authorized change under Part 3 and needs a change approval or another authority (Water Sustainability Act §11(2)), unless §39(2) covers it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Redesign the crossing, as a clear span bridge or an embedded culvert, to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        }
+      ]
+    },
+    {
+      "id": "culvert-design",
+      "title": "Culvert · engineered design",
+      "source": "water-sustainability-regulation",
+      "provision": "39(1)(a)(ix)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-culvert",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "culvert-large",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "culvert-engineered",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A culvert of 2 m or greater equivalent diameter, or designed for more than 6 m³ a second, must be designed by an engineering professional and built to that design. On these answers it does not, so the change is not an authorized change under Part 3 and needs a change approval or another authority (Water Sustainability Act §11(2)), unless §39(2) covers it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Have an engineering professional design the culvert and build it to that design, or apply for a change approval before the work."
+        }
+      ]
+    },
+    {
+      "id": "culvert-practices",
+      "title": "Culvert · installation",
+      "source": "water-sustainability-regulation",
+      "provision": "39(1)(a)(i), (iii)–(vi), (x)–(xii), (xv)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-culvert",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "culvert-practices",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A culvert under §39(1)(a) must also be installed from a dry channel or the top of the bank, protected against erosion at both ends, pass debris, leave the channel stable, raise no backwater, allow obstacles to be cleared, leave the channel outside the right of way unaltered, keep fill off its ends and be of CSA materials. On these answers it does not, so the change is not an authorized change under Part 3 and needs a change approval or another authority (Water Sustainability Act §11(2)), unless §39(2) covers it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Redesign the culvert or its installation to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        }
+      ]
+    },
+    {
+      "id": "bridge-conditions",
+      "title": "Clear span bridge",
+      "source": "water-sustainability-regulation",
+      "provision": "39(1)(b)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-bridge",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "bridge-conditions",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A clear span bridge is an authorized change under §39(1)(b) only while every condition of that paragraph holds. On these answers it does not, so the change is not an authorized change under Part 3 and needs a change approval or another authority (Water Sustainability Act §11(2)), unless §39(2) covers it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Redesign the bridge to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        }
+      ]
+    },
+    {
+      "id": "ford-conditions",
+      "title": "Temporary ford",
+      "source": "water-sustainability-regulation",
+      "provision": "39(1)(v)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-ford",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "ford-conditions",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A temporary ford is an authorized change under §39(1)(v) only while every condition of that paragraph holds. On these answers it does not, so the change is not an authorized change under Part 3 and needs a change approval or another authority (Water Sustainability Act §11(2)), unless §39(2) covers it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Redesign the ford, its timing or its removal to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        }
+      ]
+    },
+    {
+      "id": "winter-conditions",
+      "title": "Ice bridge, winter ford or snowfill",
+      "source": "water-sustainability-regulation",
+      "provision": "39(1)(n)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-winter",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "winter-conditions",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "An ice bridge, winter ford or snowfill is an authorized change under §39(1)(n) only while every condition of that paragraph holds. On these answers it does not, so the change is not an authorized change under Part 3 and needs a change approval or another authority (Water Sustainability Act §11(2)), unless §39(2) covers it.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Redesign the winter crossing and plan its removal before breakup to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+        }
+      ]
+    },
+    {
+      "id": "aquatic-damage",
+      "title": "Damage to the aquatic ecosystem",
+      "source": "water-sustainability-regulation",
+      "provision": "44(3)",
+      "scope": [
+        [
+          {
+            "fact": "stream-changes",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "route-forest",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "route-listed",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "A person making a change under Part 3, the §39(2) forest route included, who damages the aquatic ecosystem must report it to a habitat officer within 72 hours, and repair the damage and restore the ecosystem as it was or as the officer directs.",
+      "actions": [
+        {
+          "kind": "monitor",
+          "description": "Inspect the crossings during and after the work; report any damage to the aquatic ecosystem to a habitat officer within 72 hours, and record the repair."
+        }
+      ]
+    }
+  ]
+}

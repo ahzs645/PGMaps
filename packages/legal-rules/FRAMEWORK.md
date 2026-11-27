@@ -23,7 +23,7 @@ The forestry releases in `packs/` are assembled from instrument headers in `inst
 
 A pack may declare `spatialBindings` entries with a fact ID, operation ID and output ID. For example, a numeric hectare fact can bind to `mapped-riparian-overlap-v1` and `overlap-ha`. The installer checks types and units. Bound facts follow the selected geometry and interval in the planner. See the versioned operation descriptions in `spatial/`. The earlier Prince George 1.0.0 release remains available for replay. Version 1.1.0 adds the binding to the patch trend.
 
-To ship another pack in PGMaps, add its JSON file to `packages/legal-rules/packs/`. Vite discovers the files at build time. The forestry starting selection and case date live in `forestry-profile.json`. A library can hold multiple releases of one instrument. The profile and each case pin the particular releases they use.
+To ship another pack in PGMaps, add its JSON file to `packages/legal-rules/packs/`. Vite discovers the files at build time. The forestry starting selection and case date live in `forestry-profile.json`. Its `blockReleases` are reviewed once per block; its `crossingReleases` once per stream crossing a block lists, each crossing with its own fact sets. A library can hold multiple releases of one instrument. The profile and each case pin the particular releases they use.
 
 ## Evidence and extensions
 

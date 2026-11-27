@@ -121,11 +121,12 @@
       "bearsOn": "Changes in and about a stream (a culvert, bridge, ford, instream work or channel realignment for a block's road) may be made only under a change approval, the regulations, an authorization's terms or an order; this is the authority a road crossing needs under this Act.",
       "review": "partial",
       "coveredBy": [
-        "bc.water-crossings@1.0.0:change-authority",
-        "bc.water-crossings@1.0.0:approval-terms"
+        "bc.water-crossings@2.0.0:change-authority",
+        "bc.water-crossings@2.0.0:approval-terms",
+        "bc.block-crossings@1.0.0:list-crossings"
       ],
       "gapPriority": "low",
-      "gapNote": "The water crossings pack asks once for the block whether its roads or harvesting change a stream and which authorities its changes rest on (WSR s. 39(2), a change s. 39(1) lists, or a change approval, authorization or order), and raises a change with none. It does not list the crossings one by one: the planner reads no crossing from the map, so the reviewer records each crossing with its authority.",
+      "gapNote": "The block review asks once whether the block’s roads or harvesting change a stream and whether every crossing is listed (bc.block-crossings); each listed crossing is then asked which authority it rests on (WSR s. 39(2), a change s. 39(1) lists, or a change approval, authorization or order), and one with none is raised under its own name. Crossings are entered by the reviewer: none is read from the road designer’s register or from mapped roads and streams yet, so a crossing the reviewer does not list is not asked about.",
       "encodable": "reviewer-question",
       "topics": [
         "stream-crossings-and-culverts",
