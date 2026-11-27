@@ -3692,6 +3692,8 @@ a clearing that moved with the eye would regrow every forest patch each frame.
 moves either way.
 
 The Worldgen and Nanite road previews accept `viewing-gap-v1` on the live camera channel.
+They also stream detailed trees over a resident coarse canopy on the road. The tile handoff,
+terrain limits, exposure adjustment and browser probe are in [Streaming trees in the road view](forestry-tree-streaming.md).
 Worldgen drops stems from its draw and shadow lists. Nanite applies the wedge in its camera and
 shadow instance passes and clips across the procedural canopy's patch boundaries. Both reuse the
 stored tree placements during camera updates and draw the complete stand for report captures.

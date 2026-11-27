@@ -53,7 +53,7 @@ import { detailedTreeMesh } from './treeGeometry'
 // 3 km of terrain and 600 m of stems.
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { curvatureDrop, EARTH_RADIUS_M, STANDARD_REFRACTION } from './skylineReach'
-import { metersPerDegree, type PolygonGeometry } from './visibility'
+import { metersPerDegree, polygonBounds, type PolygonGeometry } from './visibility'
 import type { EngineEnvironment } from './externalRenderers'
 import { checkSceneCamera, scenePerspective, type SceneCamera, type SceneViewport } from './sceneCamera'
 import { SCENE_TREE_FIELDS, treeComponents } from './sceneComponents'
@@ -216,6 +216,8 @@ export type ScenePackage = {
   fires?: Array<{ fireNumber: string | null; year: number; yearsSinceFire: number; sizeHectares: number | null }>
   /** How far out the trees go, metres; the terrain reaches further. */
   treeRadiusMeters: number
+  /** Live previews use an overlapping window of tree tiles in this package's fixed coordinate frame. */
+  liveTreeTiles?: { generation: number; size: number }
   notes: string[]
 }
 
@@ -256,6 +258,8 @@ export type ScenePackageInput = {
   greenUpAgeYears?: number
   /** Trees out to here (default 600 m: the two bands drawn stem by stem or nearly). */
   treeRadiusMeters?: number
+  /** Terrain and inventory only for the live tiled road view. */
+  liveTreeTiles?: ScenePackage['liveTreeTiles']
   /** Terrain out to here (default 3 km), at `terrainSpacingMeters` (default 15 m). */
   terrainRadiusMeters?: number
   terrainSpacingMeters?: number
@@ -320,7 +324,7 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
   // band up to the middle of its overlap with the next.
   const anchorLatitude = forest.anchorLatitude ?? eye.lat
   const bands = forestBands(treeRadiusMeters)
-  const patches = forestPatches(eye, bands, anchorLatitude)
+  const patches = input.liveTreeTiles ? [] : forestPatches(eye, bands, anchorLatitude)
   // Component-aware consumers keep the native species; sceneForEngine negotiates old six-species consumers.
   const species = [...PACKAGE_SPECIES_IDS]
   const treeData: number[] = []
@@ -378,13 +382,41 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
     }
   }
 
+  // The streamed background seats the road's slash once, using the opening bounds to limit the sampling work.
+  if (input.liveTreeTiles && openings.length) {
+    const boxes = openings.map(polygonBounds)
+    const extentLng = terrainRadiusMeters / scale.lng,
+      extentLat = terrainRadiusMeters / scale.lat
+    const bounds: [number, number, number, number] = [
+      Math.max(eye.lng - extentLng, Math.min(...boxes.map((box) => box[0]))),
+      Math.max(eye.lat - extentLat, Math.min(...boxes.map((box) => box[1]))),
+      Math.min(eye.lng + extentLng, Math.max(...boxes.map((box) => box[2]))),
+      Math.min(eye.lat + extentLat, Math.max(...boxes.map((box) => box[3]))),
+    ]
+    const area = (bounds[2] - bounds[0]) * scale.lng * (bounds[3] - bounds[1]) * scale.lat
+    if (bounds[2] > bounds[0] && bounds[3] > bounds[1]) {
+      const spacing = Math.max(12, Math.sqrt(area / 30000))
+      for (const pile of placeDebris(openings, bounds, spacing)) {
+        const [x, y] = toLocal(pile.lng, pile.lat)
+        const z = elevation.elevationAt(pile.lng, pile.lat)
+        if (Number.isFinite(z))
+          debrisData.push(round(x), round(y), round(z), round(pile.slenderness / CONE_BASE_DIAMETER))
+      }
+    }
+  }
+
   // A prescription's stumps, felled trees, logs and snags near enough to be drawn as stems.
   const treatedData: number[] = []
   if (forest.treated) {
     SCENE_TREATED_KINDS.forEach((kind, kindIndex) => {
       for (const stem of forest.treated?.[kind] ?? []) {
         const [x, y] = toLocal(stem.lng, stem.lat)
-        if (Math.hypot(x, y) >= treeRadiusMeters) continue
+        if (
+          input.liveTreeTiles
+            ? Math.max(Math.abs(x), Math.abs(y)) >= terrainRadiusMeters
+            : Math.hypot(x, y) >= treeRadiusMeters
+        )
+          continue
         const z = elevation.elevationAt(stem.lng, stem.lat)
         if (!Number.isFinite(z)) continue
         // The solid layer's width scale is height × slenderness / cone base (`treatedStems`): a standing
@@ -636,6 +668,7 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
         }
       : {}),
     treeRadiusMeters,
+    ...(input.liveTreeTiles ? { liveTreeTiles: input.liveTreeTiles } : {}),
     notes: [
       ...(input.notes ?? []),
       ...(input.cover?.length

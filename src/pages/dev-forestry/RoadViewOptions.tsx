@@ -487,6 +487,19 @@ export function RoadViewOptions({
                 <option value="daylight">Kept to daylight</option>
               </StyledSelect>
             </Row>
+            <Row label="Exposure">
+              <StyledSelect
+                aria-label="Engine exposure"
+                className={SELECT_CLASS}
+                value={drive.engineEnvironment.exposureStops ?? 0}
+                onChange={(event) => setEnvironment({ exposureStops: Number(event.target.value) })}
+              >
+                <option value={-1}>−1 stop</option>
+                <option value={0}>Default</option>
+                <option value={1}>+1 stop</option>
+                <option value={2}>+2 stops</option>
+              </StyledSelect>
+            </Row>
             <Row label="Ground">
               <StyledSelect
                 aria-label="Engine ground"
