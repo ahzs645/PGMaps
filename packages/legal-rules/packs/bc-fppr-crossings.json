@@ -1,0 +1,874 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.fppr-crossings",
+  "version": "1.0.0",
+  "title": "FPPR at a stream crossing",
+  "description": "One stream crossing at a time, under the Forest Planning and Practices Regulation: locating, building and using the crossing so it protects and least disturbs the channel and banks, and removing a temporary one (§55); fish passage in a fish stream, while the work is done and at a crossing built after 15 June 1995 that is maintained (§56); fish and fish habitat (§57); a sound and safe structure (§72); and a bridge's design (§73). Whether the stream is a fish stream is asked limb by limb from the definition in §1(1), and stays unknown until each limb it turns on is answered. A crossing release: the block planner keeps one answer set per crossing, and every answer is the reviewer's. The exceptions the regulation makes are listed on the rules: §56(3)'s temporary effect while a road is built, maintained or deactivated, an approved forest stewardship plan's result for a fisheries sensitive watershed (§12.31), a ministerial exemption for a forest operations plan holder (§4.51) and the Workers Compensation Act (§2(3)).",
+  "relatedPacks": [
+    {
+      "id": "bc.water-crossings",
+      "relationship": "WSR §39(2) authorizes a forest crossing only while it complies with FRPA and its regulations; these rules are the FPPR side of that test for the same crossing, reviewed beside it."
+    },
+    {
+      "id": "bc.fppr",
+      "relationship": "The block's riparian classes and management areas (FPPR §§47–53) are in the block's FPPR review; this pack covers one crossing."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "authorized-person",
+      "label": "Is the work at this crossing done by an authorized person (FPPR §1(1)): an agreement holder under the Forest Act other than a woodlot licence holder, a person authorized in respect of the road (the district manager, timber sales manager or another person the minister authorizes for a forest service road, a road use permit holder ordered under §79(4), an agreement holder authorized under a road permit, cutting permit or agreement, or another person authorized under a special use permit or another Act), or a special use permit holder for silviculture or wildlife habitat enhancement?",
+      "type": "boolean"
+    },
+    {
+      "id": "builds",
+      "label": "Will the holder build this crossing, rather than use or maintain one already there?",
+      "type": "boolean"
+    },
+    {
+      "id": "maintains",
+      "label": "Will the holder maintain this crossing?",
+      "type": "boolean"
+    },
+    {
+      "id": "built-as",
+      "label": "What is the crossing part of?",
+      "type": "choice",
+      "choices": [
+        "A road",
+        "A temporary access structure",
+        "A permanent access structure",
+        "Something else"
+      ]
+    },
+    {
+      "id": "is-stream",
+      "label": "Is the watercourse a stream as FPPR §1(1) defines it: water on a perennial or seasonal basis, scoured or with deposits of mineral alluvium, and either a continuous channel bed 100 m or more long or flowing directly into a fish stream, a fish-bearing lake or wetland, or a licensed waterworks?",
+      "type": "boolean"
+    },
+    {
+      "id": "channel-protected",
+      "label": "Will the crossing be located, built and used so that it protects the stream channel and stream bank immediately above and below it (§55(1)(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "disturbance-mitigated",
+      "label": "Will it be located, built and used so that it mitigates disturbance to the stream channel and stream bank at the crossing (§55(1)(b))?",
+      "type": "boolean"
+    },
+    {
+      "id": "removal-planned",
+      "label": "Is the crossing to be removed when the person no longer requires it (§55(2))?",
+      "type": "boolean"
+    },
+    {
+      "id": "listed-species",
+      "label": "Fish stream, limb (a): is the watercourse frequented by any of the fish the definition lists: anadromous salmonids; rainbow, cutthroat or brown trout, bull trout, Dolly Varden char, lake trout, brook trout, kokanee, largemouth or smallmouth bass, mountain or lake whitefish, arctic grayling, burbot, white sturgeon, black crappie, yellow perch, walleye or northern pike; a species identified as a species at risk; or a species identified as regionally important wildlife?",
+      "type": "boolean"
+    },
+    {
+      "id": "stream-gradient",
+      "label": "Fish stream, limb (b): the watercourse's slope gradient",
+      "type": "number",
+      "unit": "%",
+      "min": 0
+    },
+    {
+      "id": "no-listed-species",
+      "label": "Fish stream, limb (b)(i): has it been shown that the watercourse does not contain any of the fish limb (a) lists?",
+      "type": "boolean"
+    },
+    {
+      "id": "barrier-dry-upstream",
+      "label": "Fish stream, limb (b)(ii): is the watercourse upstream of a barrier to fish passage, with all reaches upstream of the barrier simultaneously dry at some time during the year?",
+      "type": "boolean"
+    },
+    {
+      "id": "barrier-no-habitat-upstream",
+      "label": "Fish stream, limb (b)(iii): is the watercourse upstream of a barrier to fish passage, with no perennial fish habitat upstream of the barrier?",
+      "type": "boolean"
+    },
+    {
+      "id": "activity-passage-effect",
+      "label": "Will a primary forest activity at or near this crossing (building, maintaining or deactivating the road and the crossing, or harvesting), carried out by an authorized person, have a material adverse effect on fish passage in the stream (§56(1))?",
+      "type": "boolean"
+    },
+    {
+      "id": "built-after-1995",
+      "label": "Was the crossing built after June 15, 1995, or will it be (§56(2))?",
+      "type": "boolean"
+    },
+    {
+      "id": "crossing-passage-effect",
+      "label": "Does the crossing, as maintained, have a material adverse effect on fish passage (§56(2))?",
+      "type": "boolean"
+    },
+    {
+      "id": "temporary-road-work",
+      "label": "Is the effect on fish passage only temporary, allowed to construct, maintain or deactivate the road or the crossing (§56(3))?",
+      "type": "boolean"
+    },
+    {
+      "id": "fish-not-migrating",
+      "label": "Will that work be done while fish are not migrating or spawning (§56(3)(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "source-removed",
+      "label": "Will the source of the effect be removed immediately on completion of the construction, maintenance or deactivation (§56(3)(b))?",
+      "type": "boolean"
+    },
+    {
+      "id": "fisheries-sensitive-watershed",
+      "label": "Is the crossing in a fisheries sensitive watershed (FPPR §8.1), and is the matter the cumulative hydrological effects on fish habitat there (§12.31)?",
+      "type": "boolean"
+    },
+    {
+      "id": "fish-habitat-protected",
+      "label": "Will the work at this crossing be done at a time and in a manner unlikely to harm fish or destroy, damage or harmfully alter fish habitat (§57)?",
+      "type": "boolean"
+    },
+    {
+      "id": "structure",
+      "label": "What is the crossing structure?",
+      "type": "choice",
+      "choices": [
+        "Culvert",
+        "Bridge",
+        "Ford",
+        "Ice bridge or snowfill",
+        "Other"
+      ]
+    },
+    {
+      "id": "structure-sound",
+      "label": "Will the road and the crossing's bridge, culvert, ford or other structure be structurally sound and safe for use by industrial users (§72)?",
+      "type": "boolean"
+    },
+    {
+      "id": "bridge-standards",
+      "label": "Will the bridge's design and fabrication meet or exceed the standards applicable when it is designed or fabricated: CAN/CSA-S6 for bridge design, and the Canadian Foundation Engineering Manual for soil properties as they apply to piers and abutments (§73(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "bridge-loads",
+      "label": "Will the bridge's design and fabrication take into account logging trucks with unbalanced loads and off-centre driving (§73(b))?",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "fish-stream-gradient",
+      "value": 20,
+      "unit": "%"
+    }
+  ],
+  "sources": [
+    {
+      "id": "instrument",
+      "title": "BC Forest Planning and Practices Regulation",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004",
+      "asOf": "2026-11-17"
+    }
+  ],
+  "rules": [
+    {
+      "id": "crossing-build",
+      "title": "Stream crossing · channel and banks",
+      "source": "instrument",
+      "provision": "55(1)",
+      "scope": [
+        [
+          {
+            "fact": "authorized-person",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "builds",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "built-as",
+            "op": "in",
+            "value": [
+              "A road",
+              "A temporary access structure",
+              "A permanent access structure"
+            ]
+          },
+          {
+            "fact": "is-stream",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "channel-protected",
+            "op": "eq",
+            "value": false
+          }
+        ],
+        [
+          {
+            "fact": "disturbance-mitigated",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "fsp-fsw-result",
+          "label": "An approved forest stewardship plan with an intended result or strategy for fish habitat in a fisheries sensitive watershed, as the section pertains to cumulative hydrological effects on fish habitat there (§12.31)",
+          "source": "instrument",
+          "provision": "12.31(1), (4)",
+          "kind": "decision",
+          "decidedBy": "The minister, approving the forest stewardship plan",
+          "when": [
+            [
+              {
+                "fact": "fisheries-sensitive-watershed",
+                "op": "eq",
+                "value": true
+              }
+            ]
+          ],
+          "evidence": [
+            "The order establishing the fisheries sensitive watershed",
+            "The plan’s result or strategy for fish habitat in the watershed (§8.1) and the area it applies to",
+            "The plan’s approval"
+          ]
+        },
+        {
+          "id": "fop-exemption",
+          "label": "A ministerial exemption for a forest operations plan holder, where the plan addresses the matter at least as effectively (§4.51)",
+          "source": "instrument",
+          "provision": "4.51",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The forest operations plan’s requirement or measure for the matter",
+            "The minister’s exemption"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "The departure is necessary to allow the person to conform to the Workers Compensation Act and its regulations (§2(3))",
+          "source": "instrument",
+          "provision": "2(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The Workers Compensation Act requirement, and why meeting it needs the departure"
+          ]
+        }
+      ],
+      "finding": "An authorized person who builds a stream crossing as part of a road or an access structure must locate, build and use it so that it protects the stream channel and banks immediately above and below it and mitigates disturbance to them at the crossing. On these answers this crossing does not.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Relocate or redesign the crossing, or its construction and use, to protect the channel and banks above and below it and to mitigate disturbance at it, and record how."
+        }
+      ]
+    },
+    {
+      "id": "crossing-removal",
+      "title": "Temporary crossing · removal",
+      "source": "instrument",
+      "provision": "55(2)",
+      "scope": [
+        [
+          {
+            "fact": "authorized-person",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "builds",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "built-as",
+            "op": "eq",
+            "value": "A temporary access structure"
+          },
+          {
+            "fact": "is-stream",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "removal-planned",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "fsp-fsw-result",
+          "label": "An approved forest stewardship plan with an intended result or strategy for fish habitat in a fisheries sensitive watershed, as the section pertains to cumulative hydrological effects on fish habitat there (§12.31)",
+          "source": "instrument",
+          "provision": "12.31(1), (4)",
+          "kind": "decision",
+          "decidedBy": "The minister, approving the forest stewardship plan",
+          "when": [
+            [
+              {
+                "fact": "fisheries-sensitive-watershed",
+                "op": "eq",
+                "value": true
+              }
+            ]
+          ],
+          "evidence": [
+            "The order establishing the fisheries sensitive watershed",
+            "The plan’s result or strategy for fish habitat in the watershed (§8.1) and the area it applies to",
+            "The plan’s approval"
+          ]
+        },
+        {
+          "id": "fop-exemption",
+          "label": "A ministerial exemption for a forest operations plan holder, where the plan addresses the matter at least as effectively (§4.51)",
+          "source": "instrument",
+          "provision": "4.51",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The forest operations plan’s requirement or measure for the matter",
+            "The minister’s exemption"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "The departure is necessary to allow the person to conform to the Workers Compensation Act and its regulations (§2(3))",
+          "source": "instrument",
+          "provision": "2(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The Workers Compensation Act requirement, and why meeting it needs the departure"
+          ]
+        }
+      ],
+      "finding": "An authorized person who builds a stream crossing as part of a temporary access structure must remove it when the person no longer requires it. On these answers its removal is not planned.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Plan the crossing’s removal for when it is no longer required, and record when and how it is to be removed."
+        }
+      ]
+    },
+    {
+      "id": "fish-passage-activity",
+      "title": "Fish passage in a fish stream · the work",
+      "source": "instrument",
+      "provision": "56(1), 1 \"fish stream\"",
+      "scope": [
+        [
+          {
+            "fact": "authorized-person",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-species",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "authorized-person",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "stream-gradient",
+            "op": "lt",
+            "value": {
+              "parameter": "fish-stream-gradient"
+            }
+          },
+          {
+            "fact": "no-listed-species",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "barrier-dry-upstream",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "barrier-no-habitat-upstream",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "activity-passage-effect",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "temporary-effect",
+          "label": "A temporary effect, allowed to construct, maintain or deactivate the road or crossing while fish are not migrating or spawning, its source removed immediately on completion (§56(3))",
+          "source": "instrument",
+          "provision": "56(3)",
+          "kind": "by-law",
+          "when": [
+            [
+              {
+                "fact": "temporary-road-work",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "fish-not-migrating",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "source-removed",
+                "op": "eq",
+                "value": true
+              }
+            ]
+          ],
+          "evidence": [
+            "The work’s timing against the fish’s migration and spawning periods",
+            "How and when the source of the effect is removed"
+          ]
+        },
+        {
+          "id": "fsp-fsw-result",
+          "label": "An approved forest stewardship plan with an intended result or strategy for fish habitat in a fisheries sensitive watershed, as the section pertains to cumulative hydrological effects on fish habitat there (§12.31)",
+          "source": "instrument",
+          "provision": "12.31(2), (5)",
+          "kind": "decision",
+          "decidedBy": "The minister, approving the forest stewardship plan",
+          "when": [
+            [
+              {
+                "fact": "fisheries-sensitive-watershed",
+                "op": "eq",
+                "value": true
+              }
+            ]
+          ],
+          "evidence": [
+            "The order establishing the fisheries sensitive watershed",
+            "The plan’s result or strategy for fish habitat in the watershed (§8.1) and the area it applies to",
+            "The plan’s approval"
+          ]
+        },
+        {
+          "id": "fop-exemption",
+          "label": "A ministerial exemption for a forest operations plan holder, where the plan addresses the matter at least as effectively (§4.51)",
+          "source": "instrument",
+          "provision": "4.51",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The forest operations plan’s requirement or measure for the matter",
+            "The minister’s exemption"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "The departure is necessary to allow the person to conform to the Workers Compensation Act and its regulations (§2(3))",
+          "source": "instrument",
+          "provision": "2(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The Workers Compensation Act requirement, and why meeting it needs the departure"
+          ]
+        }
+      ],
+      "finding": "An authorized person who carries out a primary forest activity must ensure that it does not have a material adverse effect on fish passage in a fish stream. On these answers the stream is a fish stream and the work at this crossing would have that effect.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Design and time the work so that fish can pass, or record the temporary effect §56(3) allows, with its timing and the removal of its source."
+        }
+      ]
+    },
+    {
+      "id": "fish-passage-crossing",
+      "title": "Fish passage · a crossing built after June 15, 1995",
+      "source": "instrument",
+      "provision": "56(2), 1 \"fish stream\"",
+      "scope": [
+        [
+          {
+            "fact": "authorized-person",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "maintains",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "built-after-1995",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "listed-species",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "authorized-person",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "maintains",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "built-after-1995",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "stream-gradient",
+            "op": "lt",
+            "value": {
+              "parameter": "fish-stream-gradient"
+            }
+          },
+          {
+            "fact": "no-listed-species",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "barrier-dry-upstream",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "barrier-no-habitat-upstream",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "crossing-passage-effect",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "temporary-effect",
+          "label": "A temporary effect, allowed to construct, maintain or deactivate the road or crossing while fish are not migrating or spawning, its source removed immediately on completion (§56(3))",
+          "source": "instrument",
+          "provision": "56(3)",
+          "kind": "by-law",
+          "when": [
+            [
+              {
+                "fact": "temporary-road-work",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "fish-not-migrating",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "source-removed",
+                "op": "eq",
+                "value": true
+              }
+            ]
+          ],
+          "evidence": [
+            "The work’s timing against the fish’s migration and spawning periods",
+            "How and when the source of the effect is removed"
+          ]
+        },
+        {
+          "id": "fsp-fsw-result",
+          "label": "An approved forest stewardship plan with an intended result or strategy for fish habitat in a fisheries sensitive watershed, as the section pertains to cumulative hydrological effects on fish habitat there (§12.31)",
+          "source": "instrument",
+          "provision": "12.31(2), (5)",
+          "kind": "decision",
+          "decidedBy": "The minister, approving the forest stewardship plan",
+          "when": [
+            [
+              {
+                "fact": "fisheries-sensitive-watershed",
+                "op": "eq",
+                "value": true
+              }
+            ]
+          ],
+          "evidence": [
+            "The order establishing the fisheries sensitive watershed",
+            "The plan’s result or strategy for fish habitat in the watershed (§8.1) and the area it applies to",
+            "The plan’s approval"
+          ]
+        },
+        {
+          "id": "fop-exemption",
+          "label": "A ministerial exemption for a forest operations plan holder, where the plan addresses the matter at least as effectively (§4.51)",
+          "source": "instrument",
+          "provision": "4.51",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The forest operations plan’s requirement or measure for the matter",
+            "The minister’s exemption"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "The departure is necessary to allow the person to conform to the Workers Compensation Act and its regulations (§2(3))",
+          "source": "instrument",
+          "provision": "2(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The Workers Compensation Act requirement, and why meeting it needs the departure"
+          ]
+        }
+      ],
+      "finding": "An authorized person who maintains a fish stream crossing built after June 15, 1995 must ensure that the crossing does not have a material adverse effect on fish passage. On these answers this crossing does.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Restore fish passage at the crossing in its maintenance (replacing or retrofitting the structure where needed), and record the assessment it rests on."
+        }
+      ]
+    },
+    {
+      "id": "fish-habitat",
+      "title": "Fish and fish habitat",
+      "source": "instrument",
+      "provision": "57",
+      "scope": [
+        [
+          {
+            "fact": "authorized-person",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fish-habitat-protected",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "fsp-fsw-result",
+          "label": "An approved forest stewardship plan with an intended result or strategy for fish habitat in a fisheries sensitive watershed, as the section pertains to cumulative hydrological effects on fish habitat there (§12.31)",
+          "source": "instrument",
+          "provision": "12.31(3), (6)",
+          "kind": "decision",
+          "decidedBy": "The minister, approving the forest stewardship plan",
+          "when": [
+            [
+              {
+                "fact": "fisheries-sensitive-watershed",
+                "op": "eq",
+                "value": true
+              }
+            ]
+          ],
+          "evidence": [
+            "The order establishing the fisheries sensitive watershed",
+            "The plan’s result or strategy for fish habitat in the watershed (§8.1) and the area it applies to",
+            "The plan’s approval"
+          ]
+        },
+        {
+          "id": "fop-exemption",
+          "label": "A ministerial exemption for a forest operations plan holder, where the plan addresses the matter at least as effectively (§4.51)",
+          "source": "instrument",
+          "provision": "4.51",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The forest operations plan’s requirement or measure for the matter",
+            "The minister’s exemption"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "The departure is necessary to allow the person to conform to the Workers Compensation Act and its regulations (§2(3))",
+          "source": "instrument",
+          "provision": "2(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The Workers Compensation Act requirement, and why meeting it needs the departure"
+          ]
+        }
+      ],
+      "finding": "An authorized person who carries out a primary forest activity must conduct it at a time and in a manner that is unlikely to harm fish or destroy, damage or harmfully alter fish habitat. On these answers the work at this crossing is not.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Time the work outside the periods when fish there are most at risk, and change its manner (isolating the work site, controlling sediment), and record both."
+        }
+      ]
+    },
+    {
+      "id": "structure-sound",
+      "title": "Crossing structure · sound and safe",
+      "source": "instrument",
+      "provision": "72",
+      "scope": [
+        [
+          {
+            "fact": "built-as",
+            "op": "eq",
+            "value": "A road"
+          },
+          {
+            "fact": "builds",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "built-as",
+            "op": "eq",
+            "value": "A road"
+          },
+          {
+            "fact": "maintains",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "structure-sound",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "workers-compensation",
+          "label": "The departure is necessary to allow the person to conform to the Workers Compensation Act and its regulations (§2(3))",
+          "source": "instrument",
+          "provision": "2(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The Workers Compensation Act requirement, and why meeting it needs the departure"
+          ]
+        }
+      ],
+      "finding": "A person who constructs or maintains a road must ensure that the road and its bridges, culverts, fords and other structures are structurally sound and safe for use by industrial users. On these answers this crossing’s structure is not.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Design, build or repair the structure to be sound and safe for industrial users, and record its design and inspection."
+        }
+      ]
+    },
+    {
+      "id": "bridge-design",
+      "title": "Bridge · design and fabrication",
+      "source": "instrument",
+      "provision": "73",
+      "scope": [
+        [
+          {
+            "fact": "built-as",
+            "op": "eq",
+            "value": "A road"
+          },
+          {
+            "fact": "builds",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "structure",
+            "op": "eq",
+            "value": "Bridge"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "bridge-standards",
+            "op": "eq",
+            "value": false
+          }
+        ],
+        [
+          {
+            "fact": "bridge-loads",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "workers-compensation",
+          "label": "The departure is necessary to allow the person to conform to the Workers Compensation Act and its regulations (§2(3))",
+          "source": "instrument",
+          "provision": "2(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The Workers Compensation Act requirement, and why meeting it needs the departure"
+          ]
+        }
+      ],
+      "finding": "A person who builds a bridge for a road must ensure that its design and fabrication meet or exceed CAN/CSA-S6 and the Canadian Foundation Engineering Manual as they apply when the design or fabrication is done, and take into account logging trucks with unbalanced loads and off-centre driving. On these answers this bridge’s do not.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Have the bridge designed and fabricated to those standards and loads, and record the design and who prepared it."
+        }
+      ]
+    }
+  ]
+}

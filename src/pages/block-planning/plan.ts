@@ -10,7 +10,8 @@
  * - **Schedules** say when each block is cut (or that it is not), and which shape. A schedule may
  *   follow another one shifted by a number of years ("deferred ten years"); its own entries then
  *   override the followed schedule block by block.
- * - **Reviews** are kept per block, independent of the year shown on the map.
+ * - **Reviews** are kept per block, independent of the year shown on the map; a block's stream
+ *   crossings each keep their own review, per block and schedule (`crossings/`).
  *
  * DOM- and network-free. Parsed by hand (`src/lib/jsonGuards.ts`): a file that does not read is
  * refused with the field named, never repaired.
@@ -35,6 +36,7 @@ import {
 import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { districts, table } from '../forest-patches/project'
 import { parseGroundReads, type GroundRead } from './ground/record'
+import { parseCrossings, type CrossingRecord } from './crossings/record'
 import {
   parseMackenzieChoices,
   parseMackenzieRecord,
@@ -304,6 +306,11 @@ export interface Plan {
   checks?: PlanChecks
   /** "On this ground": the instruments read on a block's footprint, per block and schedule (`ground/`). */
   groundReads?: GroundRead[]
+  /**
+   * Stream crossings, each with its own review over the crossing releases, per block and schedule
+   * and keyed to the footprint (`crossings/`). Absent in a plan that lists none.
+   */
+  crossings?: CrossingRecord[]
 }
 
 /** The unit the patch calculation counts within, or none: the plan's unit unless patches are cut at it. */
@@ -1020,6 +1027,7 @@ export function parsePlan(value: unknown): Plan {
     reviews[blockId] = parseReview(review, `review of ${blockId}`)
   }
   const l = object(p.landscape ?? {}, 'landscape')
+  const crossings = parseCrossings(p.crossings, blocks, schedules)
   return {
     format: PLAN_FORMAT,
     ...withDocumentTitle('title', parseDocumentTitle(p.title)),
@@ -1092,5 +1100,6 @@ export function parsePlan(value: unknown): Plan {
     mackenzieOldForest: optional(p, 'mackenzieOldForest', parseMackenzieChoices),
     checks: optional(p, 'checks', parseChecks),
     groundReads: parseGroundReads(p.groundReads, blocks, schedules),
+    ...(crossings ? { crossings } : {}),
   }
 }

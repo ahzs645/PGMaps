@@ -4,8 +4,9 @@
  *
  * - **Plan file**: the plan itself, to reopen and keep working.
  * - **Assessment record**: the plan with every schedule's periods, the published comparators, both
- *   reviews' findings as the evaluator gave them, the D.5 checklists and the planning index, so a
- *   reviewer can rerun or audit the assessment.
+ *   reviews' findings as the evaluator gave them (each stream crossing's on its own, with the block's
+ *   roll-up beside them), the D.5 checklists and the planning index, so a reviewer can rerun or
+ *   audit the assessment.
  * - **Blocks and baseline (GeoJSON)**: each block shape with the year each schedule cuts it, and
  *   each past disturbance, for GIS.
  * - **Summary (HTML)**: a printable page of the same figures.
@@ -59,6 +60,8 @@ import { precedentSummary } from './ground/precedent'
 import { failedByReason, groundReadCurrent, nearText, type GroundRead } from './ground/record'
 import { documentRequests } from './ground/requests'
 import { exceptionsToRequest, wildlifeCitesText, wildlifeRows, withheldRequests } from './ground/wildlifeMeasures'
+import { CROSSING_ORIGIN_LABELS, CROSSING_ROLE_LABELS, CROSSING_STRUCTURE_LABELS } from './crossings/record'
+import { assessCrossing, CROSSING_STANDING_WORDS, crossingRollup, type CrossingAssessment } from './crossings/standing'
 
 export const BLOCK_PLANNING_EXPORTS = [
   {
@@ -166,6 +169,7 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
       }
     }),
     groundReads: (plan.groundReads ?? []).map((read) => groundRecord(plan, read)),
+    crossings: crossingRecords(plan, library),
     pathways: pathways(plan, orderKey ? order?.sets[orderKey] : undefined, result),
     planningIndex: { notALegalTest: true, formula: indexFormula(weights), ...planningIndex(plan, result, weights) },
     boardCheck: plan.checks?.board ? { current: boardCheckCurrent(plan), ...plan.checks.board } : null,
@@ -195,6 +199,32 @@ export function assessmentRecord(plan: Plan, result: PlanAnalysis, library: Pack
       : null,
     limitations: LIMITATIONS,
   }
+}
+
+/**
+ * Each block's stream crossings per schedule: every crossing with its own assessment, and the
+ * block's roll-up (the worst standing, with the crossings at it), derived here and never stored.
+ */
+function crossingRecords(plan: Plan, library: Pack[]) {
+  const pairs = [...new Set((plan.crossings ?? []).map((c) => JSON.stringify([c.block, c.schedule])))].map(
+    (k) => JSON.parse(k) as [string, string],
+  )
+  return pairs.map(([block, schedule]) => {
+    const rollup = crossingRollup(plan, block, schedule, library)
+    return {
+      block,
+      schedule,
+      standing: rollup.standing,
+      worst: rollup.worst.map((c) => c.record.key),
+      crossings: rollup.crossings.map((c) => ({
+        ...c.record,
+        current: c.current,
+        standing: c.standing,
+        openQuestions: c.openQuestions,
+        assessment: c.report ?? { error: c.error },
+      })),
+    }
+  })
 }
 
 /** A ground read for the record: the read, whether it is current, and the catalogue's reach for what it found. */
@@ -495,8 +525,21 @@ function exceptionLine(f: AssessedFinding) {
   return ` <em>${escape(STANDING_WORDS[x.standing])}:</em> ${escape(x.label)}.${x.claim.rationale ? ' ' + escape(x.claim.rationale) : ''}${decision ? ' ' + escape(decision) : ''}${evidence.length ? ' Evidence: ' + escape(evidence.join('; ')) + '.' : ''}`
 }
 
-/** Every exception relied on across the block reviews, with its standing, rationale and evidence. */
-function exceptionsHtml(plan: Plan, blockReviews: Record<string, ReturnType<typeof review>>) {
+/** Every exception relied on across the block reviews and their crossings, with its standing, rationale and evidence. */
+function exceptionsHtml(
+  plan: Plan,
+  blockReviews: Record<string, ReturnType<typeof review>>,
+  crossings: CrossingAssessment[],
+) {
+  const blockName = (id: string) => escape(plan.blocks.find((b) => b.id === id)?.name ?? id)
+  const crossingRows = crossings.flatMap((c) =>
+    c.raised
+      .filter(({ finding }) => 'exception' in finding && finding.exception)
+      .map(
+        ({ pack, finding }) =>
+          `<li><strong>${blockName(c.record.block)} · ${escape(c.record.label)}</strong> · ${escape(pack.title)}, ${escape(finding.title)} (§${escape(finding.provision)}).${exceptionLine(finding)}</li>`,
+      ),
+  )
   const rows = Object.entries(blockReviews).flatMap(([id, result]) =>
     result && 'releases' in result
       ? result.releases.flatMap((release) =>
@@ -509,11 +552,49 @@ function exceptionsHtml(plan: Plan, blockReviews: Record<string, ReturnType<type
         )
       : [],
   )
+  rows.push(...crossingRows)
   return rows.length
     ? `<h2>Exceptions relied on</h2>
 <p class="note">Each finding stays raised with the exception claimed on it; the reviewer's claim and evidence are the record.</p>
 <ul>${rows.join('')}</ul>`
     : ''
+}
+
+/** One finding as the summary prints it: its title, provision and words, and any exception claimed on it. */
+const findingItem = (f: AssessedFinding) =>
+  `<li>${escape(f.title)} (§${escape(f.provision)}) — ${'finding' in f ? escape(f.finding) : ''}${exceptionLine(f)}</li>`
+
+/** Each block's stream crossings per schedule: the roll-up, then each crossing with its own findings. */
+function crossingsHtml(plan: Plan, library: Pack[], names: Record<string, string>) {
+  const pairs = [...new Set((plan.crossings ?? []).map((c) => JSON.stringify([c.block, c.schedule])))].map(
+    (k) => JSON.parse(k) as [string, string],
+  )
+  if (!pairs.length) return ''
+  const cell = (c: unknown) => `<td>${escape(c)}</td>`
+  return `<h2>Stream crossings</h2>
+<p class="note">Each crossing is answered on its own; a block’s standing is the worst of its crossings, worked out from their answers and never kept. A finding flags a provision to review; none decides that a crossing complies.</p>
+${pairs
+  .map(([block, schedule]) => {
+    const rollup = crossingRollup(plan, block, schedule, library)
+    const name = plan.blocks.find((b) => b.id === block)?.name ?? block
+    const worst = rollup.worst.map((c) => c.record.label).join(', ')
+    return `<h3>${escape(name)} · ${escape(names[schedule] ?? schedule)}${rollup.standing ? ` — ${escape(CROSSING_STANDING_WORDS[rollup.standing])}: ${escape(worst)}` : ''}</h3>
+<table><thead><tr><th>Crossing</th><th>Origin</th><th>Road</th><th>Structure</th><th>Standing</th><th>Findings</th></tr></thead><tbody>
+${rollup.crossings
+  .map((c) => {
+    const s = c.record.structure
+    const structure = s
+      ? `${CROSSING_STRUCTURE_LABELS[s.kind]}${s.spanOrDiameterM === undefined ? '' : ` ${s.spanOrDiameterM} m`}`
+      : 'Not stated'
+    const findings = c.error
+      ? `<p>${escape(c.error)}</p>`
+      : `${c.raised.length ? `<ul>${c.raised.map(({ finding }) => findingItem(finding)).join('')}</ul>` : ''}${c.openQuestions ? `<p class="note">${c.openQuestions} question${c.openQuestions === 1 ? '' : 's'} to answer.</p>` : ''}`
+    return `<tr>${cell(c.record.label + (c.current ? '' : ' (the block’s shape changed since it was listed)'))}${cell(CROSSING_ORIGIN_LABELS[c.record.origin])}${cell(CROSSING_ROLE_LABELS[c.record.role])}${cell(structure)}${cell(CROSSING_STANDING_WORDS[c.standing])}<td>${findings || '—'}</td></tr>`
+  })
+  .join('\n')}
+</tbody></table>`
+  })
+  .join('\n')}`
 }
 
 function mappedHtml(mapped: MappedEvidence | undefined, current: boolean) {
@@ -652,6 +733,7 @@ ${representationHtml(old, names, row)}`
     ? `<h2>On this ground</h2>
 ${(plan.groundReads ?? []).map((read) => groundHtml(plan, read, names)).join('\n')}`
     : ''
+  const crossingAssessments = (plan.crossings ?? []).map((c) => assessCrossing(plan, c, library))
   const index = record.planningIndex
   const rangeHtml = record.rangeReviews.length
     ? `<h2>Crown grazing and reforestation</h2>
@@ -694,7 +776,8 @@ ${schedules}
 ${published}
 ${boardHtml}
 ${oldHtml}
-${exceptionsHtml(plan, record.blockReviews)}
+${exceptionsHtml(plan, record.blockReviews, crossingAssessments)}
+${crossingsHtml(plan, library, names)}
 ${rangeHtml}
 ${groundSection}
 <h2>D.5 pathways</h2>

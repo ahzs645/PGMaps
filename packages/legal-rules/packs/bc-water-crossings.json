@@ -1,13 +1,17 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.water-crossings",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "BC stream crossings under the Water Sustainability Act",
-  "description": "Which authority covers each change in and about a stream the block’s roads and harvesting make (a culvert, bridge, ford, ice bridge or snowfill), and the conditions the Water Sustainability Regulation sets for it: the forest route of WSR §39(2), the listed changes of §39(1) with their notice to a habitat officer, or a change approval. Every answer is the reviewer’s; the planner reads no crossing from the map.",
+  "description": "One stream crossing at a time: which authority the change in and about a stream it makes rests on (a culvert, bridge, ford, ice bridge or snowfill), and the conditions the Water Sustainability Regulation sets for it: the forest route of WSR §39(2), a change §39(1) lists with its notice to a habitat officer, or a change approval. A crossing release: the block planner keeps one answer set per crossing it lists, and every answer is the reviewer’s. Release 1.0.0 answered once for the whole block, for its worst crossing.",
   "relatedPacks": [
     {
-      "id": "bc.fppr",
-      "relationship": "WSR §39(2) authorizes a forest crossing only while it complies with FRPA and its regulations; review the FPPR rules for the same roads separately."
+      "id": "bc.fppr-crossings",
+      "relationship": "WSR §39(2) authorizes a forest crossing only while it complies with FRPA and its regulations; FPPR §§55–57, 72 and 73 for the same crossing are reviewed in that pack, beside this one."
+    },
+    {
+      "id": "bc.block-crossings",
+      "relationship": "The block review asks whether the block’s roads or harvesting change a stream at all, and to list each crossing; each listed crossing is answered here."
     }
   ],
   "coverage": {
@@ -17,42 +21,42 @@
   "facts": [
     {
       "id": "stream-changes",
-      "label": "Will the block’s roads or harvesting make any change in and about a stream: a culvert, bridge, ford, ice bridge, snowfill or other work in a stream channel or modifying a stream, a wetland, spring or dry channel included (Water Sustainability Act §1)?",
+      "label": "Will this crossing make a change in and about a stream: a culvert, bridge, ford, ice bridge, snowfill or other work in a stream channel or modifying a stream, a wetland, spring or dry channel included (Water Sustainability Act §1)?",
       "type": "boolean"
     },
     {
       "id": "route-forest",
-      "label": "Is any of these changes made under WSR §39(2): a change to which a FRPA standard applies, made by a Forest Act agreement or road use permit holder, a Range Act agreement holder or the Crown?",
+      "label": "Is the change made under WSR §39(2): a change to which a FRPA standard applies, made by a Forest Act agreement or road use permit holder, a Range Act agreement holder or the Crown?",
       "type": "boolean"
     },
     {
       "id": "route-listed",
-      "label": "Is any of these changes made instead as a change WSR §39(1) lists (a culvert, clear span bridge, temporary ford, ice bridge, winter ford, snowfill or drainage outlet), by someone §39(2) does not cover?",
+      "label": "Is the change made instead as a change WSR §39(1) lists (a culvert, clear span bridge, temporary ford, ice bridge, winter ford, snowfill or drainage outlet), by someone §39(2) does not cover?",
       "type": "boolean"
     },
     {
       "id": "route-approval",
-      "label": "Is any of these changes made under a change approval, another authorization or an order (Water Sustainability Act §11(2)(a), (c), (d))?",
+      "label": "Is the change made under a change approval, another authorization or an order (Water Sustainability Act §11(2)(a), (c), (d))?",
       "type": "boolean"
     },
     {
       "id": "forest-holder",
-      "label": "Is every change relied on under §39(2) made by a person it names: a holder of a Forest Act agreement or road use permit, a Range Act agreement or a special use permit, a person authorized to build the road under the Coal, Geothermal Resources, Mining Right of Way or Petroleum and Natural Gas Act, or the Crown?",
+      "label": "Is the change relied on under §39(2) made by a person it names: a holder of a Forest Act agreement or road use permit, a Range Act agreement or a special use permit, a person authorized to build the road under the Coal, Geothermal Resources, Mining Right of Way or Petroleum and Natural Gas Act, or the Crown?",
       "type": "boolean"
     },
     {
       "id": "frpa-compliant",
-      "label": "Will every change relied on under §39(2) comply with FRPA and its regulations and standards (FPPR §§55–57 on stream crossings, fish passage and fish habitat among them)?",
+      "label": "Will the change comply with FRPA and its regulations and standards (FPPR §§55–57 on stream crossings, fish passage and fish habitat among them)?",
       "type": "boolean"
     },
     {
       "id": "engineer-required",
-      "label": "Has an engineer required an application for a change approval or authorization for any change to be made under Part 3, because it may have a significant adverse impact on the stream, its flow or its channel (WSR §37(2))?",
+      "label": "Has an engineer required an application for a change approval or authorization for this change, because it may have a significant adverse impact on the stream, its flow or its channel (WSR §37(2))?",
       "type": "boolean"
     },
     {
       "id": "officer-terms",
-      "label": "Has a habitat officer given written terms for any change to be made under Part 3 (a timing window, minimum flow, removal or addition of material, fish and wildlife salvage, protection of vegetation, worksite restoration; WSR §44(2))?",
+      "label": "Has a habitat officer given written terms for this change (a timing window, minimum flow, removal or addition of material, fish and wildlife salvage, protection of vegetation, worksite restoration; WSR §44(2))?",
       "type": "boolean"
     },
     {
@@ -62,17 +66,17 @@
     },
     {
       "id": "approval-held",
-      "label": "Is every change approval, authorization or order relied on issued, and is the work planned within its terms and conditions?",
+      "label": "Is the change approval, authorization or order relied on issued, and is the work planned within its terms and conditions?",
       "type": "boolean"
     },
     {
       "id": "notice-given",
-      "label": "For each change under §39(1), was a signed notice of its particulars given to a habitat officer at least 45 days before the work begins (WSR §38(1)(a))?",
+      "label": "Was a signed notice of the change’s particulars given to a habitat officer at least 45 days before the work begins (WSR §38(1)(a))?",
       "type": "boolean"
     },
     {
       "id": "statement-obtained",
-      "label": "Has a habitat officer’s statement of the terms on which each such change can proceed been obtained (WSR §38(1)(b))?",
+      "label": "Has a habitat officer’s statement of the terms on which the change can proceed been obtained (WSR §38(1)(b))?",
       "type": "boolean"
     },
     {
@@ -82,88 +86,88 @@
     },
     {
       "id": "listed-culvert",
-      "label": "Is any change under §39(1) a culvert for a road, trail or footpath (§39(1)(a))?",
+      "label": "Is the change under §39(1) a culvert for a road, trail or footpath (§39(1)(a))?",
       "type": "boolean"
     },
     {
       "id": "culvert-diameter",
-      "label": "Smallest equivalent diameter of those culverts",
+      "label": "Equivalent diameter of the culvert",
       "type": "number",
       "unit": "mm",
       "min": 0
     },
     {
       "id": "culvert-cover",
-      "label": "Least depth of fill cover over those culverts",
+      "label": "Depth of fill cover over the culvert",
       "type": "number",
       "unit": "mm",
       "min": 0
     },
     {
       "id": "culvert-fill",
-      "label": "Greatest fill height above the top of those culverts",
+      "label": "Fill height above the top of the culvert",
       "type": "number",
       "unit": "m",
       "min": 0
     },
     {
       "id": "culvert-capacity",
-      "label": "Does each culvert have the stream channel’s hydraulic capacity, or pass the 1 in 200 year maximum daily flow without the water at its inlet rising above its top (§39(1)(a)(vii))?",
+      "label": "Does the culvert have the stream channel’s hydraulic capacity, or pass the 1 in 200 year maximum daily flow without the water at its inlet rising above its top (§39(1)(a)(vii))?",
       "type": "boolean"
     },
     {
       "id": "fish-bearing",
-      "label": "Is any stream those culverts cross fish-bearing, with fish present at some time in the year?",
+      "label": "Is the stream the culvert crosses fish-bearing, with a fish population present at some time in the year (WSR §36)?",
       "type": "boolean"
     },
     {
       "id": "culvert-fish-passage",
-      "label": "Does each culvert on a fish-bearing stream let fish pass up and down stream under all flow conditions?",
+      "label": "Does the culvert let fish pass up and down stream under all flow conditions?",
       "type": "boolean"
     },
     {
       "id": "culvert-large",
-      "label": "Is any culvert of 2 m or greater equivalent diameter, or designed to pass a flow of more than 6 m³ a second?",
+      "label": "Is the culvert of 2 m or greater equivalent diameter, or designed to pass a flow of more than 6 m³ a second?",
       "type": "boolean"
     },
     {
       "id": "culvert-engineered",
-      "label": "Is each such culvert designed by an engineering professional and built to that design?",
+      "label": "Is the culvert designed by an engineering professional and built to that design?",
       "type": "boolean"
     },
     {
       "id": "culvert-practices",
-      "label": "Will each culvert meet the rest of §39(1)(a): equipment in a dry channel or operated from the top of the bank, erosion protection at the inlet and outlet, debris passing through, a stable channel, no backwater or raised head, obstacles and debris removable, the channel outside the right of way unaltered, fill kept off the inlet and outlet, and CSA materials?",
+      "label": "Will the culvert meet the rest of §39(1)(a): equipment in a dry channel or operated from the top of the bank, erosion protection at the inlet and outlet, debris passing through, a stable channel, no backwater or raised head, obstacles and debris removable, the channel outside the right of way unaltered, fill kept off the inlet and outlet, and CSA materials?",
       "type": "boolean"
     },
     {
       "id": "listed-bridge",
-      "label": "Is any change under §39(1) a clear span bridge (§39(1)(b))?",
+      "label": "Is the change under §39(1) a clear span bridge (§39(1)(b))?",
       "type": "boolean"
     },
     {
       "id": "bridge-conditions",
-      "label": "Will each clear span bridge meet §39(1)(b): equipment in a dry channel or operated from the top of the bank, no backwater or raised head, the channel’s hydraulic capacity or the 1 in 200 year maximum daily flow, room under it for flood debris and ice, and CSA materials?",
+      "label": "Will the clear span bridge meet §39(1)(b): equipment in a dry channel or operated from the top of the bank, no backwater or raised head, the channel’s hydraulic capacity or the 1 in 200 year maximum daily flow, room under it for flood debris and ice, and CSA materials?",
       "type": "boolean"
     },
     {
       "id": "listed-ford",
-      "label": "Is any change under §39(1) a temporary ford for vehicles (§39(1)(v))?",
+      "label": "Is the change under §39(1) a temporary ford for vehicles (§39(1)(v))?",
       "type": "boolean"
     },
     {
       "id": "ford-conditions",
-      "label": "Will each temporary ford meet §39(1)(v): built and removed when that risks no significant harm to fish, wildlife or the aquatic ecosystem, holding the 1 in 10 year maximum daily flow without loss or channel erosion, any culvert passing the average low flow, the channel protected from erosion during use and after removal, no sediment from approach ditches, an erosion-free running surface, the stream in its channel and debris passing over it?",
+      "label": "Will the temporary ford meet §39(1)(v): built and removed when that risks no significant harm to fish, wildlife or the aquatic ecosystem, holding the 1 in 10 year maximum daily flow without loss or channel erosion, any culvert passing the average low flow, the channel protected from erosion during use and after removal, no sediment from approach ditches, an erosion-free running surface, the stream in its channel and debris passing over it?",
       "type": "boolean"
     },
     {
       "id": "listed-winter",
-      "label": "Is any change under §39(1) an ice bridge, winter ford or snowfill (§39(1)(n))?",
+      "label": "Is the change under §39(1) an ice bridge, winter ford or snowfill (§39(1)(n))?",
       "type": "boolean"
     },
     {
       "id": "winter-conditions",
-      "label": "Will each be built only of clean ice and snow removed from the channel before ice breakup, with an ice bridge’s logs, timber and other materials removed before breakup without a significant risk of harm?",
+      "label": "Will it be built only of clean ice and snow removed from the channel before ice breakup, with an ice bridge’s logs, timber and other materials removed before breakup without a significant risk of harm?",
       "type": "boolean"
     }
   ],
@@ -228,11 +232,11 @@
           }
         ]
       ],
-      "finding": "Changes in and about a stream may only be made in accordance with a change approval, the regulations, an authorization or an order. On these answers a change the block makes rests on none of them.",
+      "finding": "Changes in and about a stream may only be made in accordance with a change approval, the regulations, an authorization or an order. On these answers this crossing rests on none of them.",
       "actions": [
         {
           "kind": "review",
-          "description": "List each crossing with the authority it is made under: the forest route of WSR §39(2), a change §39(1) lists, or a change approval applied for under §11(1) before the work."
+          "description": "Record the authority this crossing is made under: the forest route of WSR §39(2), a change §39(1) lists, or a change approval applied for under §11(1) before the work."
         }
       ]
     },
@@ -264,7 +268,7 @@
           }
         ]
       ],
-      "finding": "A change approval is issued on application, and a change under it, under an authorization or under an order may only be made in accordance with its terms and conditions. On these answers one relied on is not yet issued, or the work departs from it.",
+      "finding": "A change approval is issued on application, and a change under it, under an authorization or under an order may only be made in accordance with its terms and conditions. On these answers the one relied on is not yet issued, or the work departs from it.",
       "actions": [
         {
           "kind": "obtain-approval",
@@ -307,7 +311,7 @@
           }
         ]
       ],
-      "finding": "WSR §39(2) makes a change to which a FRPA standard applies an authorized change only when a person it names makes it and complies with FRPA and its regulations and standards. On these answers a change relied on under §39(2) is not authorized by it.",
+      "finding": "WSR §39(2) makes a change to which a FRPA standard applies an authorized change only when a person it names makes it and complies with FRPA and its regulations and standards. On these answers this crossing is not authorized by it.",
       "actions": [
         {
           "kind": "review",
@@ -459,12 +463,12 @@
       "exceptions": [
         {
           "id": "not-notified",
-          "label": "Every change under §39(1) is one §38(1) leaves out: emergency flood works or clearing an obstruction from a bridge or culvert by government during a flood (§39(1)(o)–(p)), installing or cleaning drainage outlets (q), repairing a bridge’s superstructure (r) or a fence (s)",
+          "label": "The change is one §38(1) leaves out: emergency flood works or clearing an obstruction from a bridge or culvert by government during a flood (§39(1)(o)–(p)), installing or cleaning drainage outlets (q), repairing a bridge’s superstructure (r) or a fence (s)",
           "source": "water-sustainability-regulation",
           "provision": "38(1)",
           "kind": "by-law",
           "evidence": [
-            "Each change and the paragraph of §39(1) it is made under"
+            "The paragraph of §39(1) the change is made under"
           ]
         }
       ]
@@ -531,12 +535,12 @@
         },
         {
           "id": "not-notified",
-          "label": "Every change under §39(1) is one §38(1) leaves out: emergency flood works or clearing an obstruction from a bridge or culvert by government during a flood (§39(1)(o)–(p)), installing or cleaning drainage outlets (q), repairing a bridge’s superstructure (r) or a fence (s)",
+          "label": "The change is one §38(1) leaves out: emergency flood works or clearing an obstruction from a bridge or culvert by government during a flood (§39(1)(o)–(p)), installing or cleaning drainage outlets (q), repairing a bridge’s superstructure (r) or a fence (s)",
           "source": "water-sustainability-regulation",
           "provision": "38(1)",
           "kind": "by-law",
           "evidence": [
-            "Each change and the paragraph of §39(1) it is made under"
+            "The paragraph of §39(1) the change is made under"
           ]
         }
       ]
@@ -580,7 +584,7 @@
       "actions": [
         {
           "kind": "review",
-          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
         }
       ]
     },
@@ -623,7 +627,7 @@
       "actions": [
         {
           "kind": "review",
-          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
         }
       ],
       "exceptions": [
@@ -679,7 +683,7 @@
       "actions": [
         {
           "kind": "review",
-          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
         }
       ]
     },
@@ -720,7 +724,7 @@
       "actions": [
         {
           "kind": "review",
-          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+          "description": "Redesign the culvert to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
         }
       ]
     },
@@ -766,7 +770,7 @@
       "actions": [
         {
           "kind": "review",
-          "description": "Redesign the crossing, as a clear span bridge or an embedded culvert, to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+          "description": "Redesign the crossing, as a clear span bridge or an embedded culvert, to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
         }
       ]
     },
@@ -853,7 +857,7 @@
       "actions": [
         {
           "kind": "review",
-          "description": "Redesign the culvert or its installation to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+          "description": "Redesign the culvert or its installation to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
         }
       ]
     },
@@ -894,7 +898,7 @@
       "actions": [
         {
           "kind": "review",
-          "description": "Redesign the bridge to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+          "description": "Redesign the bridge to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
         }
       ]
     },
@@ -935,7 +939,7 @@
       "actions": [
         {
           "kind": "review",
-          "description": "Redesign the ford, its timing or its removal to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+          "description": "Redesign the ford, its timing or its removal to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
         }
       ]
     },
@@ -976,7 +980,7 @@
       "actions": [
         {
           "kind": "review",
-          "description": "Redesign the winter crossing and plan its removal before breakup to meet the condition, or apply for a change approval before the work, and record each crossing with its station, stream and design."
+          "description": "Redesign the winter crossing and plan its removal before breakup to meet the condition, or apply for a change approval before the work, and record the crossing’s station, stream and design."
         }
       ]
     },
@@ -1014,7 +1018,7 @@
       "actions": [
         {
           "kind": "monitor",
-          "description": "Inspect the crossings during and after the work; report any damage to the aquatic ecosystem to a habitat officer within 72 hours, and record the repair."
+          "description": "Inspect the crossing during and after the work; report any damage to the aquatic ecosystem to a habitat officer within 72 hours, and record the repair."
         }
       ]
     }

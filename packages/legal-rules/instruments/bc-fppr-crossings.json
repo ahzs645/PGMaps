@@ -1,0 +1,176 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.fppr-crossings",
+  "version": "1.0.0",
+  "title": "FPPR at a stream crossing",
+  "description": "One stream crossing at a time, under the Forest Planning and Practices Regulation: locating, building and using the crossing so it protects and least disturbs the channel and banks, and removing a temporary one (§55); fish passage in a fish stream, while the work is done and at a crossing built after 15 June 1995 that is maintained (§56); fish and fish habitat (§57); a sound and safe structure (§72); and a bridge's design (§73). Whether the stream is a fish stream is asked limb by limb from the definition in §1(1), and stays unknown until each limb it turns on is answered. A crossing release: the block planner keeps one answer set per crossing, and every answer is the reviewer's. The exceptions the regulation makes are listed on the rules: §56(3)'s temporary effect while a road is built, maintained or deactivated, an approved forest stewardship plan's result for a fisheries sensitive watershed (§12.31), a ministerial exemption for a forest operations plan holder (§4.51) and the Workers Compensation Act (§2(3)).",
+  "relatedPacks": [
+    {
+      "id": "bc.water-crossings",
+      "relationship": "WSR §39(2) authorizes a forest crossing only while it complies with FRPA and its regulations; these rules are the FPPR side of that test for the same crossing, reviewed beside it."
+    },
+    {
+      "id": "bc.fppr",
+      "relationship": "The block's riparian classes and management areas (FPPR §§47–53) are in the block's FPPR review; this pack covers one crossing."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "authorized-person",
+      "label": "Is the work at this crossing done by an authorized person (FPPR §1(1)): an agreement holder under the Forest Act other than a woodlot licence holder, a person authorized in respect of the road (the district manager, timber sales manager or another person the minister authorizes for a forest service road, a road use permit holder ordered under §79(4), an agreement holder authorized under a road permit, cutting permit or agreement, or another person authorized under a special use permit or another Act), or a special use permit holder for silviculture or wildlife habitat enhancement?",
+      "type": "boolean"
+    },
+    {
+      "id": "builds",
+      "label": "Will the holder build this crossing, rather than use or maintain one already there?",
+      "type": "boolean"
+    },
+    {
+      "id": "maintains",
+      "label": "Will the holder maintain this crossing?",
+      "type": "boolean"
+    },
+    {
+      "id": "built-as",
+      "label": "What is the crossing part of?",
+      "type": "choice",
+      "choices": [
+        "A road",
+        "A temporary access structure",
+        "A permanent access structure",
+        "Something else"
+      ]
+    },
+    {
+      "id": "is-stream",
+      "label": "Is the watercourse a stream as FPPR §1(1) defines it: water on a perennial or seasonal basis, scoured or with deposits of mineral alluvium, and either a continuous channel bed 100 m or more long or flowing directly into a fish stream, a fish-bearing lake or wetland, or a licensed waterworks?",
+      "type": "boolean"
+    },
+    {
+      "id": "channel-protected",
+      "label": "Will the crossing be located, built and used so that it protects the stream channel and stream bank immediately above and below it (§55(1)(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "disturbance-mitigated",
+      "label": "Will it be located, built and used so that it mitigates disturbance to the stream channel and stream bank at the crossing (§55(1)(b))?",
+      "type": "boolean"
+    },
+    {
+      "id": "removal-planned",
+      "label": "Is the crossing to be removed when the person no longer requires it (§55(2))?",
+      "type": "boolean"
+    },
+    {
+      "id": "listed-species",
+      "label": "Fish stream, limb (a): is the watercourse frequented by any of the fish the definition lists: anadromous salmonids; rainbow, cutthroat or brown trout, bull trout, Dolly Varden char, lake trout, brook trout, kokanee, largemouth or smallmouth bass, mountain or lake whitefish, arctic grayling, burbot, white sturgeon, black crappie, yellow perch, walleye or northern pike; a species identified as a species at risk; or a species identified as regionally important wildlife?",
+      "type": "boolean"
+    },
+    {
+      "id": "stream-gradient",
+      "label": "Fish stream, limb (b): the watercourse's slope gradient",
+      "type": "number",
+      "unit": "%",
+      "min": 0
+    },
+    {
+      "id": "no-listed-species",
+      "label": "Fish stream, limb (b)(i): has it been shown that the watercourse does not contain any of the fish limb (a) lists?",
+      "type": "boolean"
+    },
+    {
+      "id": "barrier-dry-upstream",
+      "label": "Fish stream, limb (b)(ii): is the watercourse upstream of a barrier to fish passage, with all reaches upstream of the barrier simultaneously dry at some time during the year?",
+      "type": "boolean"
+    },
+    {
+      "id": "barrier-no-habitat-upstream",
+      "label": "Fish stream, limb (b)(iii): is the watercourse upstream of a barrier to fish passage, with no perennial fish habitat upstream of the barrier?",
+      "type": "boolean"
+    },
+    {
+      "id": "activity-passage-effect",
+      "label": "Will a primary forest activity at or near this crossing (building, maintaining or deactivating the road and the crossing, or harvesting), carried out by an authorized person, have a material adverse effect on fish passage in the stream (§56(1))?",
+      "type": "boolean"
+    },
+    {
+      "id": "built-after-1995",
+      "label": "Was the crossing built after June 15, 1995, or will it be (§56(2))?",
+      "type": "boolean"
+    },
+    {
+      "id": "crossing-passage-effect",
+      "label": "Does the crossing, as maintained, have a material adverse effect on fish passage (§56(2))?",
+      "type": "boolean"
+    },
+    {
+      "id": "temporary-road-work",
+      "label": "Is the effect on fish passage only temporary, allowed to construct, maintain or deactivate the road or the crossing (§56(3))?",
+      "type": "boolean"
+    },
+    {
+      "id": "fish-not-migrating",
+      "label": "Will that work be done while fish are not migrating or spawning (§56(3)(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "source-removed",
+      "label": "Will the source of the effect be removed immediately on completion of the construction, maintenance or deactivation (§56(3)(b))?",
+      "type": "boolean"
+    },
+    {
+      "id": "fisheries-sensitive-watershed",
+      "label": "Is the crossing in a fisheries sensitive watershed (FPPR §8.1), and is the matter the cumulative hydrological effects on fish habitat there (§12.31)?",
+      "type": "boolean"
+    },
+    {
+      "id": "fish-habitat-protected",
+      "label": "Will the work at this crossing be done at a time and in a manner unlikely to harm fish or destroy, damage or harmfully alter fish habitat (§57)?",
+      "type": "boolean"
+    },
+    {
+      "id": "structure",
+      "label": "What is the crossing structure?",
+      "type": "choice",
+      "choices": [
+        "Culvert",
+        "Bridge",
+        "Ford",
+        "Ice bridge or snowfill",
+        "Other"
+      ]
+    },
+    {
+      "id": "structure-sound",
+      "label": "Will the road and the crossing's bridge, culvert, ford or other structure be structurally sound and safe for use by industrial users (§72)?",
+      "type": "boolean"
+    },
+    {
+      "id": "bridge-standards",
+      "label": "Will the bridge's design and fabrication meet or exceed the standards applicable when it is designed or fabricated: CAN/CSA-S6 for bridge design, and the Canadian Foundation Engineering Manual for soil properties as they apply to piers and abutments (§73(a))?",
+      "type": "boolean"
+    },
+    {
+      "id": "bridge-loads",
+      "label": "Will the bridge's design and fabrication take into account logging trucks with unbalanced loads and off-centre driving (§73(b))?",
+      "type": "boolean"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "fish-stream-gradient",
+      "value": 20,
+      "unit": "%"
+    }
+  ],
+  "sourceFiles": [
+    "sources/bc/fppr.json"
+  ],
+  "ruleFiles": [
+    "rules/bc/fppr-crossings.json"
+  ]
+}

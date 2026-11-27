@@ -121,6 +121,13 @@ const TOPICS: Record<string, TopicDef[]> = {
     },
     { id: 'notice', label: 'Habitat officer notice and aquatic damage (WSR §§38, 44)', sections: ['38', '44'] },
   ],
+  'bc.fppr-crossings': [
+    { id: 'crossing', label: 'The crossing and its channel (FPPR §55)', sections: ['55'] },
+    { id: 'fish-passage', label: 'Fish passage in a fish stream (FPPR §56, §1 “fish stream”)', sections: ['56'] },
+    { id: 'fish-habitat', label: 'Fish and fish habitat (FPPR §57)', sections: ['57'] },
+    { id: 'structure', label: 'The structure and a bridge’s design (FPPR §§72–73)', sections: ['72', '73'] },
+  ],
+  'bc.block-crossings': [{ id: 'crossings', label: 'Stream crossings on the block (WSA §11)', sections: ['11'] }],
   'bc.omineca.old-growth': [
     {
       id: 'ogma',

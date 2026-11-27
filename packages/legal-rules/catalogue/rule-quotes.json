@@ -2047,6 +2047,214 @@
           "quote": "in the cases of ice bridges, winter fords or snowfills, only clean ice and snow are used in the construction or maintenance and are removed from the stream channel before ice breakup, and"
         }
       ]
+    },
+    "bc.block-crossings": {
+      "list-crossings": [
+        {
+          "source": "bc.water-sustainability-act",
+          "provision": "11",
+          "quote": "Changes in and about a stream may only be made in accordance with the terms and conditions of a change approval, the regulations, the terms and conditions of an authorization, or an order."
+        }
+      ]
+    },
+    "bc.fppr-crossings": {
+      "bridge-design#workers-compensation": [
+        {
+          "source": "bc.fppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "bridge-design": [
+        {
+          "source": "bc.fppr",
+          "provision": "73",
+          "quote": "A person who builds a bridge for the purpose of constructing or maintaining a road must ensure that the design and fabrication of the bridge"
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "73",
+          "quote": "takes into account the effect of logging trucks with unbalanced loads and off-centre driving"
+        }
+      ],
+      "crossing-build#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "crossing-build#fsp-fsw-result": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.31",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 55 as it pertains to cumulative hydrological effects on fish habitat in a fisheries sensitive watershed if the person"
+        }
+      ],
+      "crossing-build#workers-compensation": [
+        {
+          "source": "bc.fppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "crossing-build": [
+        {
+          "source": "bc.fppr",
+          "provision": "55",
+          "quote": "An authorized person who builds a stream crossing as part of a road, a temporary access structure or permanent access structure must locate, build and use the crossing in a manner that"
+        }
+      ],
+      "crossing-removal#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "crossing-removal#fsp-fsw-result": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.31",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 55 as it pertains to cumulative hydrological effects on fish habitat in a fisheries sensitive watershed if the person"
+        }
+      ],
+      "crossing-removal#workers-compensation": [
+        {
+          "source": "bc.fppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "crossing-removal": [
+        {
+          "source": "bc.fppr",
+          "provision": "55",
+          "quote": "An authorized person who builds a stream crossing as part of a temporary access structure must remove the crossing when it is no longer required by the person."
+        }
+      ],
+      "fish-habitat#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "fish-habitat#fsp-fsw-result": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.31",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 57 as it pertains to cumulative hydrological effects on fish habitat in a fisheries sensitive watershed if the person"
+        }
+      ],
+      "fish-habitat#workers-compensation": [
+        {
+          "source": "bc.fppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "fish-habitat": [
+        {
+          "source": "bc.fppr",
+          "provision": "57",
+          "quote": "An authorized person who carries out a primary forest activity must conduct the primary forest activity at a time and in a manner that is unlikely to harm fish or destroy, damage or harmfully alter fish habitat."
+        }
+      ],
+      "fish-passage-activity#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "fish-passage-activity#fsp-fsw-result": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.31",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 56 as it pertains to cumulative hydrological effects on fish habitat in a fisheries sensitive watershed if the person"
+        }
+      ],
+      "fish-passage-activity#temporary-effect": [
+        {
+          "source": "bc.fppr",
+          "provision": "56",
+          "quote": "an authorized person may temporarily allow a material adverse effect on fish passage to construct, maintain or deactivate a road, including a stream crossing"
+        }
+      ],
+      "fish-passage-activity#workers-compensation": [
+        {
+          "source": "bc.fppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "fish-passage-activity": [
+        {
+          "source": "bc.fppr",
+          "provision": "56",
+          "quote": "An authorized person who carries out a primary forest activity must ensure that the primary forest activity does not have a material adverse effect on fish passage in a fish stream."
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "1",
+          "quote": "has a slope gradient of less than 20%, unless the watercourse (i) does not contain any of the species of fish referred to in paragraph (a)"
+        }
+      ],
+      "fish-passage-crossing#fop-exemption": [
+        {
+          "source": "bc.fppr",
+          "provision": "4.51",
+          "quote": "The minister may exempt an agreement holder who holds a forest operations plan, or a holder of a timber sales licence or road permit to which a forest operations plan relates, from a provision of Part 4 listed in column 1 of the following table if"
+        }
+      ],
+      "fish-passage-crossing#fsp-fsw-result": [
+        {
+          "source": "bc.fppr",
+          "provision": "12.31",
+          "quote": "An agreement holder who is required to prepare a forest stewardship plan is exempt from section 56 as it pertains to cumulative hydrological effects on fish habitat in a fisheries sensitive watershed if the person"
+        }
+      ],
+      "fish-passage-crossing#temporary-effect": [
+        {
+          "source": "bc.fppr",
+          "provision": "56",
+          "quote": "an authorized person may temporarily allow a material adverse effect on fish passage to construct, maintain or deactivate a road, including a stream crossing"
+        }
+      ],
+      "fish-passage-crossing#workers-compensation": [
+        {
+          "source": "bc.fppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "fish-passage-crossing": [
+        {
+          "source": "bc.fppr",
+          "provision": "56",
+          "quote": "An authorized person who maintains a fish stream crossing built after June 15, 1995, must ensure that the crossing does not have a material adverse effect on fish passage."
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "1",
+          "quote": "has a slope gradient of less than 20%, unless the watercourse (i) does not contain any of the species of fish referred to in paragraph (a)"
+        }
+      ],
+      "structure-sound#workers-compensation": [
+        {
+          "source": "bc.fppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "structure-sound": [
+        {
+          "source": "bc.fppr",
+          "provision": "72",
+          "quote": "A person who constructs or maintains a road must ensure that the road and the bridges, culverts, fords and other structures associated with the road are structurally sound and safe for use by industrial users."
+        }
+      ]
     }
   }
 }

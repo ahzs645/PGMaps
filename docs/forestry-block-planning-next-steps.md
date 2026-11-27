@@ -40,9 +40,15 @@ Built on 27 November 2026 and moved into [On this ground](forestry-ground-instru
 
 ## Next
 
-### One answer set per stream crossing
+### Stream crossings from the road designer and the map
 
-`bc.water-crossings` 1.0.0 answers once per block, for its worst crossing, so a crossing with no authority can be hidden behind one that has one. [Working backwards from a harvested block](research/harvested-blocks-backwards-2026-11-27.md) traced five real openings and proposes the fix and its order: a crossing record per block and schedule (`Plan.crossings`, keyed by its own id, never a PSCIS id), `bc.water-crossings` 2.0.0 evaluated per crossing with the block's roll-up derived, a new `bc.fppr-crossings` pack (FPPR §§55–57, 72–73 and the fish-stream definition's limbs), then crossings from the road designer's register, mapped crossings and their evidence (PSCIS, fish observations, access models, Water Act notifications) read on the reviewer's click as candidates. A PSCIS barrier is evidence about a structure, never a §56 finding.
+One answer set per crossing is built (27 November 2026; the planner contract's **Stream crossings, one at a time**): crossing records per block and schedule, `bc.water-crossings` 2.0.0 and `bc.fppr-crossings` 1.0.0 evaluated per crossing with the block's roll-up derived, and `bc.block-crossings` keeping the block's one question. Every crossing is entered by the reviewer. What is left, in the order of [Working backwards from a harvested block](research/harvested-blocks-backwards-2026-11-27.md), section 6:
+
+1. **From the road designer.** Offer `buildCrossingRegister`'s rows (chainage, mapped or modelled source, culvert sizing, reviewed class, approach and skew notes) as candidates, each added as a record of origin `designer` only on the reviewer's click, with the designer's sizing in its `evidence`.
+2. **Mapped crossings, on the reviewer's click.** Road sections and segments in a stated corridor (by name, timber mark or distance) × Freshwater Atlas streams, matched to bcfishpass modelled crossings within 30 m and PSCIS within 50 m; PSCIS records with no mapped stream within 15 m on the same road offered as one crossing the reviewer can split. Added as origin `mapped` or `pscis`, keyed by the record's own key. Names are cut on arrival (`keepFields`) and only file-id tokens kept from `ROAD_TENURE`; unreviewed candidates are counted beside the block question.
+3. **Evidence per crossing**, into `CrossingRecord.evidence`, each with its read date and source: all four PSCIS stages, ministry structures, Water Act approvals and notifications, fish observations by `blue_line_key` and measure, gradient and the access models (the province's OGL model first). Each is a candidate for a fact (the limbs of the fish stream definition, `route-listed`, `notice-given`, structure kind and size), never the answer: a PSCIS barrier is evidence about a structure, never a §56 finding.
+4. **The plan map** draws crossings by standing, with read-but-unadded candidates dimmed.
+5. **Water Sustainability Regulation §§41, 43 and 45** in the water pack, and per-block exception signals (`VARIANCE_IND`, `FFTITSL`/`FFTFLTC`, `CATASTROPHIC_IND`/`SALVAGE_TYPE_CODE`) beside the existing precedent.
 
 ### Prepared tables in bcdatamapper
 

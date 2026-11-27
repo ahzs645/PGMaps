@@ -1,0 +1,29 @@
+[
+  {
+    "id": "list-crossings",
+    "title": "Changes in and about a stream · one crossing at a time",
+    "source": "water-sustainability-act",
+    "provision": "11(2)",
+    "when": [
+      [
+        {
+          "fact": "stream-changes",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "crossings-listed",
+          "op": "eq",
+          "value": false
+        }
+      ]
+    ],
+    "finding": "Changes in and about a stream may only be made in accordance with a change approval, the regulations, an authorization or an order, and each crossing rests on its own. On these answers the block makes changes in and about a stream that are not yet listed, so no crossing’s authority has been reviewed.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "List each crossing the block’s roads and harvesting make under Stream crossings, with its role and structure, and answer its questions there."
+      }
+    ]
+  }
+]

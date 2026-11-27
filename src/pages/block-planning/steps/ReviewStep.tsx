@@ -17,6 +17,9 @@ import { GrazingEvidence } from '../review/GrazingEvidence.tsx'
 import { PathwayCard } from '../review/PathwayCard'
 import { measuredTrend, pathways, trendMeasurements, trendYearOf } from '../review/pathways'
 import { RANGE_INSTRUMENT, rangeReviewCurrent, rangeReviewFor } from '../review/rangeReview'
+import { CROSSING_INSTRUMENTS, crossingsOf } from '../crossings/record'
+import { CrossingsSection } from '../crossings/CrossingsSection'
+import { crossingRollup, CROSSING_STANDING_WORDS } from '../crossings/standing'
 import { shownResult } from '../usePlanAnalysis'
 import type { StepProps } from './types'
 
@@ -34,8 +37,9 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
   const library = useLibrary(defaults)
   const result = shownResult(analysis)
   const block = plan.blocks.find((b) => b.id === selectedBlock) ?? null
+  // A crossing's instruments are answered per crossing, never for the block.
   const blockInstruments = [...new Set(library.map((p) => p.id))].filter(
-    (id) => id !== ORDER_INSTRUMENT && id !== RANGE_INSTRUMENT,
+    (id) => id !== ORDER_INSTRUMENT && id !== RANGE_INSTRUMENT && !CROSSING_INSTRUMENTS.includes(id),
   )
   const grazing = block ? rangeReviewFor(plan, block) : null
   const trend = measuredTrend(plan, result)
@@ -49,7 +53,12 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
   const keepPacks = (next: Plan): Plan => ({
     ...next,
     packs: extraPacks(
-      [landscapeCase(next), ...Object.values(next.reviews), ...(next.rangeReviews ?? []).map((r) => r.review)],
+      [
+        landscapeCase(next),
+        ...Object.values(next.reviews),
+        ...(next.rangeReviews ?? []).map((r) => r.review),
+        ...(next.crossings ?? []).map((c) => c.review),
+      ],
       library,
       defaults,
     ),
@@ -63,6 +72,15 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
     })
   }
   const years = periodYears(plan.area.startYear)
+  const listed = block ? crossingsOf(plan, block.id, plan.reviewSchedule) : []
+  const crossingHints = {
+    'stream-changes': listed.length
+      ? `${listed.length} crossing${listed.length === 1 ? '' : 's'} listed under Stream crossings for ${reviewName}.`
+      : 'No crossing is listed under Stream crossings yet.',
+    'crossings-listed': listed.length
+      ? `Listed for ${reviewName}: ${listed.map((c) => c.label).join(', ')}.`
+      : `None listed for ${reviewName} yet; add each under Stream crossings below.`,
+  }
   return (
     <>
       <ToolSection
@@ -124,6 +142,7 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
             review={blockCase(plan, block.id)}
             measurements={[]}
             hints={{
+              ...crossingHints,
               nar: `The drawing’s gross area is ${area.format(blockAreaHa(block.shapes[0].geometry))} ha. Net area to be reforested needs its own survey and exclusions.`,
               ...mackenzieEvidence(plan, block.id),
             }}
@@ -135,6 +154,30 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
           <InlineAlert tone="info">Select a block here, on the map or in step 2.</InlineAlert>
         )}
       </ToolSection>
+      {block && (
+        <ToolSection
+          key={JSON.stringify(['crossings', block.id, plan.reviewSchedule])}
+          title="Stream crossings"
+          summary={(() => {
+            const rollup = crossingRollup(plan, block.id, plan.reviewSchedule, library)
+            return rollup.standing
+              ? `${rollup.crossings.length} listed · ${CROSSING_STANDING_WORDS[rollup.standing]}`
+              : 'None listed'
+          })()}
+          help="Each crossing the block's roads and harvesting make, answered on its own under the Water Sustainability Act and Regulation and FPPR §§55–57, 72 and 73, so a crossing with no authority is never hidden behind one that has one. The block's standing is the worst of its crossings, worked out each time. Every answer is the reviewer's."
+          defaultOpen
+        >
+          <p className="text-xs text-muted-foreground">{reviewName}. Change the schedule under review in step 3.</p>
+          <CrossingsSection
+            plan={plan}
+            edit={edit}
+            block={block}
+            schedule={plan.reviewSchedule}
+            library={library}
+            keepPacks={keepPacks}
+          />
+        </ToolSection>
+      )}
       <MackenzieOldForestSection plan={plan} edit={edit} />
       {block && grazing && (
         <ToolSection

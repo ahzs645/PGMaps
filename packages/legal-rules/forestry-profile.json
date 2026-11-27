@@ -7,7 +7,8 @@
     "bc.omineca.old-growth@1.1.0",
     "bc.omineca.visual-quality@1.0.0",
     "bc.mackenzie.biodiversity@1.0.0",
-    "bc.water-crossings@1.0.0"
+    "bc.block-crossings@1.0.0"
   ],
+  "crossingReleases": ["bc.water-crossings@2.0.0", "bc.fppr-crossings@1.0.0"],
   "releases": ["bc.fppr@1.3.0", "bc.pgtsa.biodiversity@1.3.0"]
 }
