@@ -1,7 +1,7 @@
 {
   "format": "pgmaps-ground-instruments/v1",
-  "version": "1.2.0",
-  "readOn": "2026-11-24",
+  "version": "1.3.0",
+  "readOn": "2026-11-27",
   "sourceLabels": {
     "bc.land-act": "Land Act",
     "bc.forest-act": "Forest Act",
@@ -22,7 +22,8 @@
     "bc.water-sustainability-act": "Water Sustainability Act",
     "bc.mineral-tenure-act": "Mineral Tenure Act",
     "ca.sara": "Species at Risk Act",
-    "bc.robson-valley.ada.2006": "2006 Robson Valley ADA order"
+    "bc.robson-valley.ada.2006": "2006 Robson Valley ADA order",
+    "bc.pgtsa.loe.2022": "2022 Prince George letter of expectations"
   },
   "notes": "What each legal instrument mapped on a block can and cannot govern for harvest, replanting, roads and grazing, as read from the primary texts on the date above. A screen, not a legal determination: every cell cites the provision it rests on, and a cell whose answer depends on terms that are not public is 'unknown', naming the document that decides. Layers are read by each footprint part's own polygon (or its convex hull, for a layer of a few very detailed polygons); areas are clipped to the footprint, and lines and points are measured inside it and within the layer's stated margin. Fields are listed narrowly and never include a holder's, client's, owner's or applicant's name or an IDIR user; DataBC returns a layer's mandatory attributes whatever propertyName asks, so the reader keeps only the fields listed here. A context layer names no instrument and has no reach cell: it is read only for what lies under a block (the visual quality page's land status checks), and says why it has no cells.",
   "layers": [
@@ -1029,6 +1030,312 @@
       },
       "date": null,
       "dateNote": "The critical habitat layer records when a polygon was last edited, not when the recovery strategy identifying it was posted; the Species at Risk Public Registry gives that date."
+    },
+    {
+      "id": "ogma-non-legal-pg",
+      "title": "Candidate old forest areas and the 2009 non-legal OGMAs counted with them (Prince George TSA)",
+      "typeName": "pub:WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW",
+      "geometryField": "GEOMETRY",
+      "key": "NON_LEGAL_OGMA_INTERNAL_ID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/f063bff2-d8dd-4cc3-b3a4-00165aba58e1",
+      "fields": [
+        "NON_LEGAL_OGMA_INTERNAL_ID",
+        "NON_LEGAL_OGMA_PROVID",
+        "OGMA_TYPE",
+        "OGMA_PRIMARY_REASON",
+        "ORIGINAL_DECISION_DATE",
+        "LAST_AMENDMENT_DATE"
+      ],
+      "feature": {
+        "id": {
+          "label": "Non-legal OGMA",
+          "fields": ["NON_LEGAL_OGMA_PROVID"],
+          "fallback": "NON_LEGAL_OGMA_INTERNAL_ID"
+        },
+        "name": ["OGMA_PRIMARY_REASON"],
+        "details": [
+          {
+            "label": "Decided",
+            "field": "ORIGINAL_DECISION_DATE",
+            "date": true
+          },
+          {
+            "label": "Last amended",
+            "field": "LAST_AMENDMENT_DATE",
+            "date": true
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "Non-legal OGMA",
+            "field": "NON_LEGAL_OGMA_PROVID"
+          }
+        ]
+      },
+      "date": {
+        "field": "ORIGINAL_DECISION_DATE",
+        "label": "Decided"
+      },
+      "dateNote": "The 2009 non-legal OGMAs (PRG_DPG) carry no decision date in the layer; the district's 2009 direction that set them aside gives it."
+    },
+    {
+      "id": "special-purpose-areas",
+      "title": "Special purpose areas (Forest Act Part 15)",
+      "typeName": "pub:WHSE_ADMIN_BOUNDARIES.FADM_SPECIAL_PURPOSE_AREAS_SP",
+      "geometryField": "SHAPE",
+      "key": "FADM_SPURA_SYSID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/6290c008-4d1a-429f-bec0-1c3c61aefbdd",
+      "fields": [
+        "FADM_SPURA_SYSID",
+        "SPECIAL_PURPOSE_AREA_NAME",
+        "PURPOSE",
+        "OIC_YEAR",
+        "OIC_NUMBER",
+        "BC_REGULATION_NUMBER",
+        "EFFECTIVE_DATE",
+        "EXPIRY_DATE",
+        "CANCELLATION_DATE",
+        "EXPIRED_OR_CANCELLED"
+      ],
+      "feature": {
+        "id": {
+          "label": "Special purpose area",
+          "fields": ["BC_REGULATION_NUMBER"],
+          "fallback": "FADM_SPURA_SYSID"
+        },
+        "name": ["SPECIAL_PURPOSE_AREA_NAME"],
+        "details": [
+          {
+            "label": "Purpose",
+            "field": "PURPOSE"
+          },
+          {
+            "label": "Order in council",
+            "field": "OIC_NUMBER"
+          },
+          {
+            "label": "Order year",
+            "field": "OIC_YEAR"
+          },
+          {
+            "label": "Effective",
+            "field": "EFFECTIVE_DATE",
+            "date": true
+          },
+          {
+            "label": "Expires",
+            "field": "EXPIRY_DATE",
+            "date": true
+          },
+          {
+            "label": "Cancelled",
+            "field": "CANCELLATION_DATE",
+            "date": true
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "B.C. Reg.",
+            "field": "BC_REGULATION_NUMBER"
+          },
+          {
+            "label": "Order in council",
+            "field": "OIC_NUMBER"
+          }
+        ]
+      },
+      "date": {
+        "field": "EFFECTIVE_DATE",
+        "label": "Effective"
+      }
+    },
+    {
+      "id": "pine-leading-vri",
+      "title": "Pine-leading forest cover of 5 ha or more in the areas FPPR s. 1(4) lists (VRI rank 1)",
+      "typeName": "pub:WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY",
+      "geometryField": "GEOMETRY",
+      "key": "FEATURE_ID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/2ebb35d8-c82f-4a17-9c96-612ac3532d55",
+      "fields": [
+        "FEATURE_ID",
+        "MAP_ID",
+        "POLYGON_ID",
+        "POLYGON_AREA",
+        "SPECIES_CD_1",
+        "SPECIES_PCT_1",
+        "SPECIES_CD_2",
+        "SPECIES_PCT_2",
+        "PROJ_AGE_1",
+        "PROJ_HEIGHT_1",
+        "STAND_PERCENTAGE_DEAD",
+        "VRI_LIVE_STEMS_PER_HA",
+        "REFERENCE_YEAR",
+        "HARVEST_DATE"
+      ],
+      "within": {
+        "why": "A targeted pine leading stand lies in the Prince George, Quesnel, Williams Lake, 100 Mile House, Lakes, Kamloops, Merritt or Okanagan TSA, or TFL 18, 35, 42, 48, 49, 52 or 53, unless the chief forester has ordered otherwise (FPPR s. 1(4) \"targeted pine leading stand\" (c), s. 43.2). Elsewhere the layer is not asked; a block that straddles a listed area's boundary is screened whole.",
+        "any": [
+          {
+            "title": "Timber supply areas FPPR s. 1(4) lists",
+            "typeName": "pub:WHSE_ADMIN_BOUNDARIES.FADM_TSA_SV",
+            "geometryField": "GEOMETRY",
+            "field": "TSA_NUMBER_DESCRIPTION",
+            "in": [
+              "100 Mile House TSA",
+              "Kamloops TSA",
+              "Lakes TSA",
+              "Merritt TSA",
+              "Prince George TSA",
+              "Quesnel TSA",
+              "Williams Lake TSA",
+              "Okanagan TSA"
+            ]
+          },
+          {
+            "title": "Tree farm licences FPPR s. 1(4) lists",
+            "typeName": "pub:WHSE_ADMIN_BOUNDARIES.FADM_TFL_ALL_SP",
+            "geometryField": "SHAPE",
+            "field": "FOREST_FILE_ID",
+            "in": ["TFL18", "TFL35", "TFL42", "TFL48", "TFL49", "TFL52", "TFL53"],
+            "byHull": true
+          }
+        ]
+      },
+      "feature": {
+        "id": {
+          "label": "VRI polygon",
+          "fields": ["MAP_ID", "POLYGON_ID"],
+          "fallback": "FEATURE_ID"
+        },
+        "name": ["SPECIES_CD_1"],
+        "details": [
+          {
+            "label": "Polygon area",
+            "field": "POLYGON_AREA",
+            "unit": "ha"
+          },
+          {
+            "label": "Leading species share",
+            "field": "SPECIES_PCT_1",
+            "unit": "%"
+          },
+          {
+            "label": "Second species",
+            "field": "SPECIES_CD_2"
+          },
+          {
+            "label": "Second species share",
+            "field": "SPECIES_PCT_2",
+            "unit": "%"
+          },
+          {
+            "label": "Projected age",
+            "field": "PROJ_AGE_1",
+            "unit": "years"
+          },
+          {
+            "label": "Projected height",
+            "field": "PROJ_HEIGHT_1",
+            "unit": "m"
+          },
+          {
+            "label": "Dead",
+            "field": "STAND_PERCENTAGE_DEAD",
+            "unit": "%"
+          },
+          {
+            "label": "Live stems",
+            "field": "VRI_LIVE_STEMS_PER_HA",
+            "unit": "/ha"
+          },
+          {
+            "label": "Inventory reference year",
+            "field": "REFERENCE_YEAR"
+          },
+          {
+            "label": "Harvested",
+            "field": "HARVEST_DATE",
+            "date": true
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "Map sheet",
+            "field": "MAP_ID"
+          },
+          {
+            "label": "Polygon",
+            "field": "POLYGON_ID"
+          }
+        ]
+      },
+      "date": null,
+      "dateNote": "A forest cover polygon has no effective date: the inventory's reference year is when it was described, and FPPR s. 43.1 does not apply where a cutting permit was issued, a timber sale licence advertised or the cruise or layout done before the section came into force (s. 43.1(4)(e), (f))."
+    },
+    {
+      "id": "fisheries-sensitive-watersheds",
+      "title": "Fisheries sensitive watersheds (approved)",
+      "typeName": "pub:WHSE_WILDLIFE_MANAGEMENT.WCP_FISH_SENSITIVE_WS_POLY",
+      "geometryField": "GEOMETRY",
+      "key": "FISH_SENSITIVE_WS_POLY_ID",
+      "catalogue": "https://catalogue.data.gov.bc.ca/dataset/1a560a12-9be1-49a4-971a-dbc80875a0d7",
+      "fields": [
+        "FISH_SENSITIVE_WS_POLY_ID",
+        "FSW_TAG",
+        "UNIT_NUMBER",
+        "GAZETTED_NAME",
+        "LOCAL_NAME",
+        "WATERSHED_CODE",
+        "APPROVAL_DATE",
+        "NOTICE_DATE",
+        "LEGISLATION_ACT_NAME"
+      ],
+      "feature": {
+        "id": {
+          "label": "FSW",
+          "fields": ["FSW_TAG", "UNIT_NUMBER"],
+          "fallback": "FISH_SENSITIVE_WS_POLY_ID"
+        },
+        "name": ["GAZETTED_NAME"],
+        "details": [
+          {
+            "label": "Local name",
+            "field": "LOCAL_NAME"
+          },
+          {
+            "label": "Approved",
+            "field": "APPROVAL_DATE",
+            "date": true
+          },
+          {
+            "label": "Notice",
+            "field": "NOTICE_DATE",
+            "date": true
+          },
+          {
+            "label": "Watershed code",
+            "field": "WATERSHED_CODE"
+          },
+          {
+            "label": "Legislation",
+            "field": "LEGISLATION_ACT_NAME"
+          }
+        ],
+        "identifiers": [
+          {
+            "label": "FSW",
+            "field": "FSW_TAG"
+          },
+          {
+            "label": "Unit",
+            "field": "UNIT_NUMBER"
+          }
+        ]
+      },
+      "date": {
+        "field": "NOTICE_DATE",
+        "label": "Notice"
+      }
     },
     {
       "id": "treaty-lands",
@@ -4496,6 +4803,531 @@
         "ask": "Whether any order under SARA s. 58(4), 61(2) or 80 applies to this portion of the critical habitat, and which provincial measures the federal minister relies on to protect it"
       },
       "facts": []
+    },
+    {
+      "id": "pg-cofa",
+      "label": "Candidate old forest area (Prince George TSA, 2022 letter of expectations)",
+      "layer": "ogma-non-legal-pg",
+      "where": [
+        {
+          "field": "NON_LEGAL_OGMA_PROVID",
+          "prefix": ["PRG_COFA"]
+        }
+      ],
+      "statute": {
+        "source": "bc.pgtsa.loe.2022",
+        "provision": "Background ¶3-5"
+      },
+      "note": "Non-legal OGMA records numbered PRG_COFA: the COFAs the letter's Appendix 5 says are in this layer. Not legally designated: a candidate the reviewer confirms against the letter and the district.",
+      "binds": {
+        "kind": "referral",
+        "note": "A district manager's expectation, not an enactment: the COFAs \"are not legally designated or considered an amendment to the Order\", and the 2004 order's Objectives A and B stay the legal test. The Prince George district manager presents the letter as information \"I consider to be of weight\", and expects the COFAs to be respected as no harvest areas.",
+        "cites": [
+          {
+            "source": "bc.pgtsa.loe.2022",
+            "provision": "Background ¶3-5"
+          },
+          {
+            "source": "bc.pgtsa.loe.2022",
+            "provision": "PG DM ¶1"
+          },
+          {
+            "source": "bc.pgtsa.loe.2022",
+            "provision": "PG DM ¶2"
+          },
+          {
+            "source": "bc.pgtsa.2004",
+            "provision": "A"
+          },
+          {
+            "source": "bc.pgtsa.2004",
+            "provision": "B"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "conditions",
+          "note": "Expected to be left unharvested and avoided in harvest planning; an incursion is considered only by the district manager's variance, where the impact is unavoidable and an alternative area of equal or greater value is identified, and \"All incursions require approval\", forecast in the annual summary of requested variances. An expectation, not a legal requirement.",
+          "cites": [
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶2"
+            },
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶3"
+            },
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶4"
+            },
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM annual: variance summary"
+            }
+          ]
+        },
+        "replant": {
+          "state": "no-reach",
+          "note": "The letter sets nothing on planting or reforestation; COFAs lost to wildfire or forest health agents are not replaced.",
+          "cites": [
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶1"
+            },
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶2"
+            }
+          ]
+        },
+        "roads": {
+          "state": "conditions",
+          "note": "A road into a COFA is an incursion like a block: the variance process and the annual summary, which includes planned road locations, apply.",
+          "cites": [
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶4"
+            },
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM annual: variance summary"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "no-reach",
+          "note": "The letter is about harvest planning and old forest retention; it sets nothing on grazing.",
+          "cites": [
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶2"
+            },
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶3"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The district managers' letter of expectations, 21 December 2022; its Appendix 5 describes the layer",
+        "holder": "Prince George Natural Resource District",
+        "channel": "The district manager, through the annual summary of requested variances",
+        "ask": "Whether the incursion would be considered for a variance, the replacement area expected, and whether the COFA is still current"
+      },
+      "facts": [
+        {
+          "pack": "bc.omineca.old-growth",
+          "fact": "cofa"
+        }
+      ]
+    },
+    {
+      "id": "pg-non-legal-ogma-2009",
+      "label": "2009 non-legal OGMA counted with the COFAs (Prince George TSA, mBEC A22 or A23)",
+      "layer": "ogma-non-legal-pg",
+      "where": [
+        {
+          "field": "NON_LEGAL_OGMA_PROVID",
+          "prefix": ["PRG_DPG"]
+        },
+        {
+          "field": "OGMA_PRIMARY_REASON",
+          "in": ["A22, orig non legal", "A23, orig non legal"]
+        }
+      ],
+      "statute": {
+        "source": "bc.pgtsa.loe.2022",
+        "provision": "Appendix 5"
+      },
+      "note": "Non-legal OGMA records numbered PRG_DPG in mBEC A22 or A23, which Appendix 5 says are viewed with the COFAs; the PRG_DPG records in A04, which it excepts, are not asked for, nor two slivers with no reason given.",
+      "binds": {
+        "kind": "referral",
+        "note": "Appendix 5: the legacy (2009) non-legal OGMAs in mBECs A22 and A23 \"contribute towards the spatialization of old growth under the Order\", so the COFAs and these are read together to see all the spatialized old growth. Not legally designated; the letter's no-harvest expectation names the COFAs.",
+        "cites": [
+          {
+            "source": "bc.pgtsa.loe.2022",
+            "provision": "Appendix 5"
+          },
+          {
+            "source": "bc.pgtsa.loe.2022",
+            "provision": "Background ¶3-5"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "Whether the district manager's no-harvest expectation and variance process reach these as they reach the COFAs is not stated; the district decides. They count toward the order's targets.",
+          "cites": [
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "Appendix 5"
+            },
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶2"
+            },
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶4"
+            }
+          ]
+        },
+        "replant": {
+          "state": "no-reach",
+          "note": "The letter sets nothing on planting or reforestation.",
+          "cites": [
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "Appendix 5"
+            },
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶2"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "As for harvest: the district decides whether a road into one is treated as a COFA incursion.",
+          "cites": [
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "Appendix 5"
+            },
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "PG DM ¶4"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "no-reach",
+          "note": "The letter sets nothing on grazing.",
+          "cites": [
+            {
+              "source": "bc.pgtsa.loe.2022",
+              "provision": "Appendix 5"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The district managers' letter of expectations, Appendix 5; the district's 2009 non-legal OGMA direction",
+        "holder": "Prince George Natural Resource District",
+        "channel": "The natural resource district",
+        "ask": "Whether the no-harvest expectation and the COFA variance process apply to this 2009 non-legal OGMA"
+      },
+      "facts": [
+        {
+          "pack": "bc.omineca.old-growth",
+          "fact": "cofa"
+        }
+      ]
+    },
+    {
+      "id": "special-purpose-area",
+      "label": "Special purpose area (Forest Act Part 15)",
+      "layer": "special-purpose-areas",
+      "where": [
+        {
+          "field": "EXPIRED_OR_CANCELLED",
+          "notIn": ["Y"]
+        }
+      ],
+      "statute": {
+        "source": "bc.forest-act",
+        "provision": "ss. 181, 182"
+      },
+      "note": "Designated by regulation for an access, non-timber production, First Nation, BC Timber Sales or community forest purpose, for at most 3 years unless extended. The BC Data Catalogue says the layer holds no record because no special purpose area is in effect (checked 27 November 2026), so a read finds none; a designation can be made retroactive to 15 July 2023 (s. 225(2)).",
+      "binds": {
+        "kind": "direct",
+        "note": "Part 15 binds the officials who issue Forest Act licences, permits and road permits, and lets the minister amend, suspend or cancel rights already granted in the area.",
+        "cites": [
+          {
+            "source": "bc.forest-act",
+            "provision": "ss. 183, 196, 206, 208, 209, 213, 215"
+          },
+          {
+            "source": "bc.forest-act",
+            "provision": "s. 225(2)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "governs",
+          "note": "No cutting permit, timber sale licence, forestry licence to cut or free use permit may be issued with rights in the area, except a licence to cut for fire, forest health or public safety, its cutting permit, or a free use permit for science, a traditional and cultural activity or a treaty first nation (s. 209(2)), or a licence entered into for the designation's own purposes (s. 223); rights already granted may be amended, suspended or cancelled.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 209(1), (2)"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "ss. 196, 206, 208, 223"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "Part 15 restricts licences, roads and timber production improvements, not planting; whether reforestation under an existing obligation fits the area's purpose is not stated. The designating regulation names the purpose.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 183(1)"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 180 \"timber production improvement\", s. 220"
+            }
+          ]
+        },
+        "roads": {
+          "state": "governs",
+          "note": "After designation no new road may be authorized under a road permit or special use permit unless an official is satisfied of a s. 215(2) ground; a road under an earlier permit must not be built without the minister's order, and existing roads may be ordered deactivated or their permits amended, suspended or cancelled.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 215(1), (2)"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "ss. 210, 211, 213, 214, 223(5)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "Part 15 names no Range Act agreement; it protects livestock fencing only as an ancillary road structure. The designating regulation's purpose, and the enactment that purpose serves, decide.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 180 \"ancillary road structure\", s. 216"
+            },
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 183(1)"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The regulation designating the area (its B.C. Reg. number), which states the purpose and cancellation date",
+        "holder": "Ministry of Forests",
+        "channel": "BC Laws, by the regulation number; the natural resource district",
+        "ask": "The designating regulation, any extension, and any order made under Part 15 for licences, permits or roads in the area"
+      },
+      "facts": [
+        {
+          "pack": "bc.forest-permits",
+          "fact": "spa"
+        },
+        {
+          "pack": "bc.forest-permits",
+          "fact": "spa-new-road"
+        }
+      ]
+    },
+    {
+      "id": "targeted-pine-candidate",
+      "label": "Pine-leading stand of 5 ha or more in a listed area (candidate targeted pine leading stand)",
+      "layer": "pine-leading-vri",
+      "where": [
+        {
+          "field": "SPECIES_CD_1",
+          "in": ["PL", "PLI", "PLC"]
+        },
+        {
+          "field": "POLYGON_AREA",
+          "atLeast": 5
+        }
+      ],
+      "statute": {
+        "source": "bc.fppr",
+        "provision": "s. 1(4) \"targeted pine leading stand\", s. 43.1"
+      },
+      "note": "VRI rank 1 polygons whose leading species is lodgepole pine (PL, PLI, PLC) and whose polygon is 5 ha or more, read only in the listed TSAs and TFLs. The inventory does not map secondary structure, so whether the stand has an adequate stocking density of it, and so is a targeted stand, is the reviewer's.",
+      "binds": {
+        "kind": "direct",
+        "note": "A holder of a cutting permit, a forestry licence to cut without cutting permits or a timber sale licence must not harvest in a targeted pine leading stand unless one of s. 43.1(1)'s cases or s. 43.1(2)'s exceptions applies; the section does not apply to the holders and areas s. 43.1(4) lists.",
+        "cites": [
+          {
+            "source": "bc.fppr",
+            "provision": "s. 43.1(1), (2), (4)"
+          },
+          {
+            "source": "bc.fppr",
+            "provision": "s. 43.2"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "conditions",
+          "note": "Harvest only to fell a safety hazard, to build a road with no other practicable location, or retaining an adequate stocking density of suitable secondary structure, unless the stand is at significant blowdown risk, at least 30% of its pine holds live beetles, harvest protects a community from wildfire, or it collects seed in an opening of 1 ha or less.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 43.1(1), (2)"
+            },
+            {
+              "source": "bc.fppr",
+              "provision": "s. 1(4) \"suitable secondary structure\""
+            }
+          ]
+        },
+        "replant": {
+          "state": "conditions",
+          "note": "Where harvest leaves an obligation to establish a free growing stand, each retained tree of suitable secondary structure counts as a preferred species where it was retained.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 43.1(3)"
+            }
+          ]
+        },
+        "roads": {
+          "state": "conditions",
+          "note": "Harvest to build a road through the stand is allowed only where there is no other practicable location; a road permit is outside the section.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 43.1(1)(b), (4)(c)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "no-reach",
+          "note": "The section governs timber harvesting by the listed holders; it sets nothing on grazing.",
+          "cites": [
+            {
+              "source": "bc.fppr",
+              "provision": "s. 43.1(1)"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The regulation; the government-endorsed forest cover map, a cruise of the stand, and any chief forester order under FPPR s. 43.2",
+        "holder": "Ministry of Forests",
+        "channel": "The natural resource district",
+        "ask": "Any chief forester order under FPPR s. 43.2 for the area, and the cruise or survey of secondary structure in the stand"
+      },
+      "facts": [
+        {
+          "pack": "bc.fppr",
+          "fact": "pine-stand"
+        }
+      ]
+    },
+    {
+      "id": "fisheries-sensitive-watershed",
+      "label": "Fisheries sensitive watershed",
+      "layer": "fisheries-sensitive-watersheds",
+      "where": [
+        {
+          "field": "LEGISLATION_ACT_NAME",
+          "notIn": ["OGAA"]
+        }
+      ],
+      "statute": {
+        "source": "bc.gar",
+        "provision": "s. 14(1)"
+      },
+      "note": "Watersheds identified by order under the Government Actions Regulation; the 17 identified only under the Oil and Gas Activities Act are left out.",
+      "binds": {
+        "kind": "via-fsp",
+        "note": "The order may establish a fisheries sensitive watershed objective; a forest stewardship plan must identify the watershed for its forest development unit, specify results or strategies for an objective established under FRPA, and be amended when one is set.",
+        "cites": [
+          {
+            "source": "bc.gar",
+            "provision": "s. 14(1), (2)"
+          },
+          {
+            "source": "bc.fppr",
+            "provision": "s. 1 \"fisheries sensitive watershed objective\", s. 14(3)(c), s. 28.1(1)(e)"
+          },
+          {
+            "source": "bc.frpa",
+            "provision": "s. 5(1)(b)(ii)"
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "The order's objective for the watershed, and the forest stewardship plan's results or strategies for it, decide what harvest it allows (often by equivalent clearcut area).",
+          "cites": [
+            {
+              "source": "bc.gar",
+              "provision": "s. 14(1), (2)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 5(1)(b)(ii)"
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "The order's objective decides; hydrological recovery may depend on regeneration.",
+          "cites": [
+            {
+              "source": "bc.gar",
+              "provision": "s. 14(1), (2)"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "The order's objective decides; stream channel integrity and the timing of flow are what it protects.",
+          "cites": [
+            {
+              "source": "bc.gar",
+              "provision": "s. 14(1)(a), (2)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 5(1)(b)(ii)"
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "A range use plan must be consistent with an objective established under FRPA; the order decides what it sets.",
+          "cites": [
+            {
+              "source": "bc.gar",
+              "provision": "s. 14(2)"
+            },
+            {
+              "source": "bc.frpa",
+              "provision": "s. 33(1)(e)"
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": true,
+        "where": "The order identifying the watershed and any objective for it, given notice",
+        "holder": "Ministry of Water, Land and Resource Stewardship",
+        "channel": "The ministry's approved fisheries sensitive watershed orders (https://www.env.gov.bc.ca/wld/frpa/fsw/approved.html), by the FSW tag",
+        "ask": "The order and its objective for the unit, and the forest stewardship plan's results or strategies for it"
+      },
+      "facts": [
+        {
+          "pack": "bc.forest-permits",
+          "fact": "fdu-feature"
+        }
+      ]
     }
   ]
 }

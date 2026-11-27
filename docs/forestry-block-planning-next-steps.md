@@ -26,11 +26,11 @@ Built on 27 November 2026 and moved into the planner contract, **The law behind 
 
 Built on 27 November 2026 and moved into [the old-forest contract](forestry-old-forest.md), **The Mackenzie order**: Review → *Mackenzie old forest* calculates every row of the 2008 order's Table 2 as replaced in 2010, with Table 3's interior shares, the order's own old age, CFLB and Natural Forest Area, and the younger-stand allowance on the live old forest part only, as evidence beside the Mackenzie pack's margins. What it leaves open is in the contract's **Limits and what is not built**.
 
+## Done: map screens behind the reviewer's answers
+
+Built on 27 November 2026 and moved into [On this ground](forestry-ground-instruments.md) (catalogue 1.3.0): candidate old forest areas and the 2009 non-legal OGMAs read with them (the 2022 letter's Appendix 5), special purpose areas (none in effect), pine-leading forest cover of 5 ha or more inside the TSAs and TFLs FPPR s. 1(4) lists, and fisheries sensitive watersheds, each a candidate for the permit, old growth or FPPR pack's fact. Lakeshore management zones, designated L1 lakes and forest landscape areas have no public layer; forest development units do, and are left for a decision. Both are in the contract's **Not built**.
+
 ## Next
-
-### Map screens behind the reviewer's answers
-
-The permit and old-growth packs ask questions a layer could answer as a candidate, as *On this ground* does: candidate old forest areas (the non-legal OGMA layer filtered to `PRG_COFA` and `PRG_DPG`, the 2022 letter's Appendix 5; the visual quality route card already reads it), special purpose areas, pine-leading VRI polygons of 5 ha or more in the listed TSAs, lakeshore management zones, fisheries sensitive watersheds and mapped L1 lakes. FSP forest development units and forest landscape areas have no public layer found yet. Each is a ground catalogue layer with its reach cells cited, and stays a candidate the reviewer confirms.
 
 ### Prepared tables in bcdatamapper
 

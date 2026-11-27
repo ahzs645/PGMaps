@@ -58,8 +58,29 @@ export interface Condition {
   field: string
   in?: string[]
   notIn?: string[]
-  /** The value starts with one of these (a forest file's letter: W a woodlot, K a community forest). */
+  /**
+   * The value starts with one of these (a forest file's letter: W a woodlot, K a community forest; a
+   * non-legal OGMA's `PRG_COFA`). In the CQL an underscore is LIKE's one-character wildcard, so the
+   * read may ask for a little more; the share (`matches`) tests the prefix exactly.
+   */
   prefix?: string[]
+  /** The value is a number at least this (a VRI polygon's area in hectares). */
+  atLeast?: number
+}
+
+/**
+ * A layer read only where the footprint meets one of these records (the listed TSAs or TFLs of the
+ * FPPR's targeted pine leading stand): each is asked by the footprint's own parts, in order, and the
+ * layer is read only when one is found. Nothing of a gate's record is kept.
+ */
+export interface LayerGate {
+  title: string
+  typeName: string
+  geometryField: string
+  field: string
+  in: string[]
+  /** Asked by each part's convex hull, as a layer of a few very detailed polygons is. */
+  byHull?: boolean
 }
 
 /** How a layer's records are measured against the footprint. */
@@ -94,6 +115,8 @@ export interface GroundLayer {
    * detailed polygons (TFLs), where the server times out on the ring (`readAcrossParts`).
    */
   byHull?: boolean
+  /** Read only where the footprint meets one of the gates; why, with the provision. */
+  within?: { why: string; any: LayerGate[] }
   feature: {
     id: { label: string; fields: string[]; fallback: string }
     name: string[]
@@ -164,13 +187,31 @@ function condition(value: unknown, label: string): Condition {
   if (c.notIn !== undefined) out.notIn = strings(c.notIn, `${label} notIn`, 50, 1)
   if (c.prefix !== undefined) {
     out.prefix = strings(c.prefix, `${label} prefix`, 10, 1)
-    // A prefix becomes a LIKE pattern: keep it to plain letters, digits and spaces.
+    // A prefix becomes a LIKE pattern: keep it to plain letters, digits, spaces and underscores.
     for (const p of out.prefix)
-      if (!/^[A-Za-z0-9 ]+$/.test(p)) throw Error(`${label} prefix must be letters, digits or spaces.`)
+      if (!/^[A-Za-z0-9 _]+$/.test(p)) throw Error(`${label} prefix must be letters, digits, spaces or underscores.`)
   }
-  if ([out.in, out.notIn, out.prefix].filter(Boolean).length !== 1)
-    throw Error(`${label} needs exactly one of in, notIn or prefix.`)
+  if (c.atLeast !== undefined) {
+    if (typeof c.atLeast !== 'number' || !Number.isFinite(c.atLeast)) throw Error(`${label} atLeast must be a number.`)
+    out.atLeast = c.atLeast
+  }
+  if ([out.in, out.notIn, out.prefix, out.atLeast !== undefined].filter(Boolean).length !== 1)
+    throw Error(`${label} needs exactly one of in, notIn, prefix or atLeast.`)
   return out
+}
+
+function gate(value: unknown, label: string): LayerGate {
+  const g = object(value, label)
+  const typeName = text(g.typeName, `${label} typeName`)
+  if (!typeName.startsWith('pub:')) throw Error(`${label} typeName must start with pub:.`)
+  return {
+    title: text(g.title, `${label} title`),
+    typeName,
+    geometryField: field(g.geometryField, `${label} geometryField`),
+    field: field(g.field, `${label} field`),
+    in: strings(g.in, `${label} in`, 50, 1),
+    ...(g.byHull === true ? { byHull: true } : {}),
+  }
 }
 
 function layer(value: unknown, i: number): GroundLayer {
@@ -187,6 +228,7 @@ function layer(value: unknown, i: number): GroundLayer {
   const metres = near?.metres
   if (near && (typeof metres !== 'number' || !Number.isFinite(metres) || metres < 0 || metres > 1000))
     throw Error(`${label} near metres must be 0 to 1,000.`)
+  const within = l.within === undefined ? undefined : object(l.within, `${label} within`)
   return {
     id: text(l.id, `${label} id`, 50),
     title: text(l.title, `${label} title`),
@@ -198,6 +240,14 @@ function layer(value: unknown, i: number): GroundLayer {
     geometry,
     ...(near ? { near: { metres: metres as number, why: text(near.why, `${label} near why`, 1000) } } : {}),
     ...(l.byHull === true ? { byHull: true } : {}),
+    ...(within
+      ? {
+          within: {
+            why: text(within.why, `${label} within why`, 1000),
+            any: list(within.any, `${label} within any`, 5, 1).map((g, j) => gate(g, `${label} gate ${j + 1}`)),
+          },
+        }
+      : {}),
     feature: {
       id: {
         label: text(id.label, `${label} feature id label`),
@@ -337,6 +387,10 @@ export function matches(where: readonly Condition[], properties: Record<string, 
   return where.every((c) => {
     const v = properties[c.field]
     const s = typeof v === 'string' ? v : typeof v === 'number' ? String(v) : null
+    if (c.atLeast !== undefined) {
+      const n = typeof v === 'number' ? v : s !== null && s.trim() ? Number(s) : NaN
+      return Number.isFinite(n) && n >= c.atLeast
+    }
     if (c.in) return s !== null && c.in.includes(s)
     if (c.prefix) return s !== null && c.prefix.some((p) => s.startsWith(p))
     return s === null || !c.notIn!.includes(s)
@@ -347,6 +401,7 @@ const quote = (s: string) => `'${s.replace(/'/g, "''")}'`
 
 /** One condition as CQL; a `notIn` also keeps blank values, as `matches` does. */
 export function conditionCql(c: Condition): string {
+  if (c.atLeast !== undefined) return `${c.field} >= ${c.atLeast}`
   if (c.in) return `${c.field} IN (${c.in.map(quote).join(', ')})`
   if (c.prefix) return `(${c.prefix.map((p) => `${c.field} LIKE ${quote(`${p}%`)}`).join(' OR ')})`
   return `(${c.field} IS NULL OR ${c.field} NOT IN (${c.notIn!.map(quote).join(', ')}))`

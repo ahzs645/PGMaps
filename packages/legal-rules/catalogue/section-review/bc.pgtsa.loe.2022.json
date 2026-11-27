@@ -47,7 +47,7 @@
       "bearsOn": "Old forest within parks, OGMAs, UWRs, WHAs and WTRAs counts toward each mBEC's target, with old defined by the 2020 VRI.",
       "review": "partial",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:protected-credit"
+        "bc.pgtsa.biodiversity@1.3.0:protected-credit"
       ],
       "gapPriority": "medium",
       "gapNote": "The ministry counts only the old forest inside these areas and includes UWRs, WHAs and WTRAs; the code counts legal and non-legal OGMAs whole (as order D.1's \"entire area\" says), parks by switch, and UWR, WHA and WTRA old forest only as ordinary old forest. The planner's surplus or deficit will differ from Appendix 2's net targets; the record should say which accounting it used.",
@@ -67,8 +67,8 @@
       "bearsOn": "Restates D.5 (recruitment strategy for mBECs in deficit) and D.4 (up to 20% younger), and says mBECs within COFAs that are in deficit do not need recruitment strategies because the COFAs were designed to meet the targets.",
       "review": "partial",
       "coveredBy": [
-        "bc.pgtsa.biodiversity@1.2.0:recruitment",
-        "bc.pgtsa.biodiversity@1.2.0:younger-credit"
+        "bc.pgtsa.biodiversity@1.3.0:recruitment",
+        "bc.pgtsa.biodiversity@1.3.0:younger-credit"
       ],
       "gapPriority": "low",
       "gapNote": "The recruitment rule does not know that the letter treats COFA mBECs in the PG district as needing no recruitment strategy.",
@@ -110,10 +110,10 @@
       "relevance": "block",
       "bearsOn": "The Prince George District Manager expects COFAs to be respected as no-harvest areas; they hold at least 100% of each mBEC's target outside the ESI area.",
       "review": "rule",
-      "gapPriority": "medium",
-      "gapNote": "Whether the block or road overlaps a COFA is the reviewer’s answer: no planner screen reads the non-legal OGMA layer filtered to PRG_COFA and PRG_DPG (Appendix 5), though the visual quality route card does.",
+      "gapNote": "On this ground reads the non-legal OGMA layer (WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW) by NON_LEGAL_OGMA_PROVID, PRG_COFA, with the 2009 PRG_DPG records in A22 and A23, as a candidate for the old growth pack's cofa fact; whether the block or road overlaps a COFA stays the reviewer's answer.",
       "coveredBy": [
-        "bc.omineca.old-growth@1.1.0:cofa"
+        "bc.omineca.old-growth@1.1.0:cofa",
+        "ground:pg-cofa"
       ],
       "topics": [
         "old-growth",
@@ -124,9 +124,9 @@
       "n": "PG DM ¶3",
       "relevance": "block",
       "bearsOn": "COFAs are to remain intact and be avoided in future harvest planning until another landscape-level process replaces the implementation.",
-      "review": "none",
-      "gapPriority": "high",
-      "gapNote": "No rule or ground screen tests a block or road against the COFAs (WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW, PRG_COFA and PRG_DPG). The old forest code reads that layer only to count non-legal OGMAs under D.1; the visual quality route card shows a COFA overlap row, the block planner does not.",
+      "review": "screen",
+      "gapPriority": "low",
+      "gapNote": "On this ground reads the non-legal OGMA layer (WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW) by NON_LEGAL_OGMA_PROVID, PRG_COFA, with the 2009 PRG_DPG records in A22 and A23, as a candidate for the old growth pack's cofa fact; whether the block or road overlaps a COFA stays the reviewer's answer. The cofa rule rests on ¶2; no rule cites the avoidance expectation itself.",
       "encodable": "spatial",
       "proposedFacts": [
         "Does the block or its road overlap a candidate old forest area (COFA) or a 2009 non-legal OGMA in mBEC A22 or A23?"
@@ -134,6 +134,9 @@
       "topics": [
         "old-growth",
         "plans"
+      ],
+      "coveredBy": [
+        "ground:pg-cofa"
       ]
     },
     {
@@ -141,10 +144,10 @@
       "relevance": "block",
       "bearsOn": "A block or road may enter a COFA only on a District Manager variance, where the impact is shown to be unavoidable, an alternative area of equal or greater ecological value is identified and the rationale is supported by current science; the variance is replaced to keep 100% of the target.",
       "review": "rule",
-      "gapPriority": "medium",
-      "gapNote": "Whether the block or road overlaps a COFA is the reviewer’s answer: no planner screen reads the non-legal OGMA layer filtered to PRG_COFA and PRG_DPG (Appendix 5), though the visual quality route card does.",
+      "gapNote": "On this ground reads the non-legal OGMA layer (WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW) by NON_LEGAL_OGMA_PROVID, PRG_COFA, with the 2009 PRG_DPG records in A22 and A23, as a candidate for the old growth pack's cofa fact; whether the block or road overlaps a COFA stays the reviewer's answer.",
       "coveredBy": [
-        "bc.omineca.old-growth@1.1.0:cofa#variance"
+        "bc.omineca.old-growth@1.1.0:cofa#variance",
+        "ground:pg-cofa"
       ],
       "topics": [
         "exemptions-and-variances",
@@ -170,10 +173,10 @@
       "relevance": "plan",
       "bearsOn": "Each licensee and BCTS submit annually a summary of requested COFA variances with rationales, planned roads and boundary adjustments; incursions are to be forecast before permits are submitted, and every incursion, whatever its size, needs approval.",
       "review": "rule",
-      "gapPriority": "medium",
-      "gapNote": "Whether the block or road overlaps a COFA is the reviewer’s answer: no planner screen reads the non-legal OGMA layer filtered to PRG_COFA and PRG_DPG (Appendix 5), though the visual quality route card does.",
+      "gapNote": "On this ground reads the non-legal OGMA layer (WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW) by NON_LEGAL_OGMA_PROVID, PRG_COFA, with the 2009 PRG_DPG records in A22 and A23, as a candidate for the old growth pack's cofa fact; whether the block or road overlaps a COFA stays the reviewer's answer.",
       "coveredBy": [
-        "bc.omineca.old-growth@1.1.0:cofa-summary"
+        "bc.omineca.old-growth@1.1.0:cofa-summary",
+        "ground:pg-cofa"
       ],
       "topics": [
         "exemptions-and-variances",
@@ -335,9 +338,8 @@
       "n": "Appendix 5",
       "relevance": "block",
       "bearsOn": "Says the COFAs are in the BCGW non-legal OGMA layer, to be read together with the 2009 non-legal OGMAs in A22 and A23 (PRG_COFA and PRG_DPG, excluding A04), and defines the OGMA_PRIMARY_REASON values.",
-      "review": "partial",
-      "gapPriority": "high",
-      "gapNote": "No rule or ground screen tests a block or road against the COFAs (WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW, PRG_COFA and PRG_DPG). The old forest code reads that layer only to count non-legal OGMAs under D.1; the visual quality route card shows a COFA overlap row, the block planner does not. This appendix gives the exact layer and filter a screen would use.",
+      "review": "screen",
+      "gapNote": "On this ground reads the layer this appendix names by NON_LEGAL_OGMA_PROVID: PRG_COFA as candidate old forest areas, and PRG_DPG with OGMA_PRIMARY_REASON 'A22, orig non legal' or 'A23, orig non legal' as the 2009 non-legal OGMAs read with them. A04's PRG_DPG records, which the appendix excepts, are not asked for, nor two PRG_DPG slivers (0.1 ha) with no reason given. The old growth pack's cofa fact asks about COFAs only.",
       "encodable": "spatial",
       "proposedFacts": [
         "Does the block or its road overlap a candidate old forest area (COFA) or a 2009 non-legal OGMA in mBEC A22 or A23?"
@@ -345,6 +347,10 @@
       "topics": [
         "designated-areas",
         "old-growth"
+      ],
+      "coveredBy": [
+        "ground:pg-cofa",
+        "ground:pg-non-legal-ogma-2009"
       ]
     }
   ]

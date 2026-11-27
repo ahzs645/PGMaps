@@ -77,6 +77,26 @@ const ANSWERS: Record<string, Answer> = {
     feature({ INTRID_SID: 3, CROWN_LANDS_FILE: '7400003', TENURE_STAGE: 'APPLICATION', TENURE_TYPE: 'LICENCE' }, WIDE),
   ],
   'pub:WHSE_LEGAL_ADMIN_BOUNDARIES.OATS_ALR_POLYS': [feature({ ALR_POLY_ID: 9, STATUS: 'ALR' }, FAR)],
+  'pub:WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW': [
+    feature(
+      {
+        NON_LEGAL_OGMA_INTERNAL_ID: 30,
+        NON_LEGAL_OGMA_PROVID: 'PRG_COFA_5',
+        OGMA_PRIMARY_REASON: 'A25 vri mat',
+        ORIGINAL_DECISION_DATE: '2022-12-22Z',
+        INITIATOR_OF_CHANGE: 'IDIR',
+      },
+      LEASE,
+    ),
+    // A04's 2009 non-legal OGMAs are excepted by Appendix 5: no instrument takes one.
+    feature({ NON_LEGAL_OGMA_INTERNAL_ID: 31, NON_LEGAL_OGMA_PROVID: 'PRG_DPG_9', OGMA_PRIMARY_REASON: 'A04 x' }, WIDE),
+  ],
+  // The pine layer is read only inside a listed TSA or TFL: the gate answers first.
+  'pub:WHSE_ADMIN_BOUNDARIES.FADM_TSA_SV': [feature({ TSA_NUMBER_DESCRIPTION: 'Prince George TSA' }, WIDE)],
+  'pub:WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY': [
+    feature({ FEATURE_ID: 40, MAP_ID: '093G086', POLYGON_ID: 1, SPECIES_CD_1: 'PLI', POLYGON_AREA: 24.5 }, S17),
+    feature({ FEATURE_ID: 41, MAP_ID: '093G086', POLYGON_ID: 2, SPECIES_CD_1: 'SX', POLYGON_AREA: 30 }, LEASE),
+  ],
   'pub:WHSE_LAND_USE_PLANNING.RMP_PLAN_LEGAL_POLY_SVW': [
     feature(
       {
@@ -294,6 +314,15 @@ describe('reading the instruments on a block', () => {
     expect(instrument(read, 'legal-objective').features).toEqual([])
     expect(instrument(read, 'range-tenure').features.map((f) => f.id)).toEqual(['RAN file RAN000001 1'])
     expect(instrument(read, 'private-land').features.map((f) => f.id)).toEqual(['PID 000-000-001'])
+    // The screens behind the reviewer's answers: candidates, each in its own row.
+    expect(instrument(read, 'pg-cofa').features.map((f) => [f.id, f.effective])).toEqual([
+      ['Non-legal OGMA PRG_COFA_5', '2022-12-22'],
+    ])
+    expect(instrument(read, 'pg-non-legal-ogma-2009')).toMatchObject({ status: 'read', features: [] })
+    expect(instrument(read, 'targeted-pine-candidate').features.map((f) => f.id)).toEqual(['VRI polygon 093G086 1'])
+    expect(instrument(read, 'special-purpose-area')).toMatchObject({ status: 'read', features: [] })
+    const gate = asked.find((b) => b.get('typeNames') === 'pub:WHSE_ADMIN_BOUNDARIES.FADM_TSA_SV')!
+    expect(gate.get('propertyName')).toBe('TSA_NUMBER_DESCRIPTION,GEOMETRY')
   })
 
   it('says Not read for a layer DataBC did not answer, for every instrument it holds', async () => {

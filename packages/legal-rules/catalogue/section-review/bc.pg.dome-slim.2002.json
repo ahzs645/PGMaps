@@ -21,7 +21,7 @@
       "review": "partial",
       "coveredBy": [
         "ground:ogma",
-        "bc.pgtsa.biodiversity@1.2.0:protected-credit"
+        "bc.pgtsa.biodiversity@1.3.0:protected-credit"
       ],
       "gapPriority": "low",
       "gapNote": "The ogma screen draws the OGMAs and the old forest module counts legal OGMAs whole toward PG TSA Objectives A and B (D.1); no rule tests that a block stays out of them (see the strategies).",
@@ -94,7 +94,7 @@
       "review": "partial",
       "coveredBy": [
         "ground:ogma",
-        "bc.pgtsa.biodiversity@1.2.0:protected-credit"
+        "bc.pgtsa.biodiversity@1.3.0:protected-credit"
       ],
       "gapPriority": "low",
       "gapNote": "The ogma screen draws the OGMAs and the old forest module counts legal OGMAs whole toward PG TSA Objectives A and B (D.1); no rule tests that a block stays out of them (see the strategies).",

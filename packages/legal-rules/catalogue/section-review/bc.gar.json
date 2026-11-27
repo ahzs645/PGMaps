@@ -75,7 +75,7 @@
       "bearsOn": "Lets the Forest Act minister establish a lakeshore management zone of a stated width beside an L1 lake, with objectives, where forest resources need special management.",
       "review": "none",
       "gapPriority": "low",
-      "gapNote": "No screen reads lakeshore management zones; they apply to L1 lakes where no default riparian zone exists.",
+      "gapNote": "No screen reads lakeshore management zones: DataBC publishes no layer of them. Searched on 27 November 2026: the public WFS's layer titles (lakeshore, lake, zone) and the legal planning layer's objectives, which hold only the Cariboo-Chilcotin and Lakes District lake and lakeshore management classes, legal land use objectives the legal objective row reads. The establishing order's map decides.",
       "encodable": "spatial",
       "topics": [
         "riparian",
@@ -238,13 +238,15 @@
       "n": "14",
       "relevance": "landscape",
       "bearsOn": "Lets the Wildlife Act minister identify fisheries sensitive watersheds (significant downstream fisheries values and watershed sensitivity) and set objectives for them.",
-      "review": "none",
-      "gapPriority": "low",
-      "gapNote": "No screen reads FSW orders; check whether any exist in the Omineca before building one.",
+      "review": "screen",
+      "gapNote": "On this ground reads WHSE_WILDLIFE_MANAGEMENT.WCP_FISH_SENSITIVE_WS_POLY (327 units, 27 November 2026; the 17 identified under the Oil and Gas Activities Act alone left out) as a candidate; the order's objective decides each activity, so every cell is unknown and names it.",
       "encodable": "spatial",
       "topics": [
         "fish-habitat",
         "objectives"
+      ],
+      "coveredBy": [
+        "ground:fisheries-sensitive-watershed"
       ]
     },
     {

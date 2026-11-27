@@ -7,8 +7,9 @@
  * through `src/lib/forestry/wfsReads.ts`; by each part's hull for a layer of a few very detailed
  * polygons), never its box, with every instrument's conditions joined by OR (a context layer, which
  * no instrument names, is read whole). A line or point layer is read against the footprint grown by
- * its stated margin. Every record is cut to the catalogue's fields as it arrives (`keepFields`):
- * DataBC returns a layer's mandatory attributes whatever `propertyName` asks, and nothing else is
+ * its stated margin. A layer with gates (`within`, the FPPR's listed pine areas) is read only where
+ * the footprint meets a gate's record, each gate asked the same way. Every record is cut to the
+ * catalogue's fields as it arrives (`keepFields`): DataBC returns a layer's mandatory attributes whatever `propertyName` asks, and nothing else is
  * ever held. What a tool measures on the records it gets back is its own.
  *
  * A read DataBC does not answer throws; the caller reads that as *Not read*, never as none.
@@ -18,6 +19,7 @@
 import type { LineString, MultiLineString, MultiPoint, Point } from 'geojson'
 import { keepFields, readAcrossParts, wfsRead, type Fetch, type RawFeature, type Shape } from '@/lib/forestry/wfsReads'
 import {
+  conditionCql,
   GROUND_CATALOGUE,
   layerCql,
   matches,
@@ -57,6 +59,48 @@ export interface GroundLayerAnswer<G = GroundGeometry> {
   /** `truncated`: DataBC holds more records against the footprint than `cap`; only the first are kept. */
   status: 'read' | 'truncated'
   rows: GroundRow<G>[]
+  /** The layer has gates (`within`) and the footprint met none: the layer itself was not asked. */
+  outsideGates?: true
+}
+
+/**
+ * Whether the footprint meets a record of any of the layer's gates, asked in order by the
+ * footprint's own parts; the first found ends it. Only the gate's own field is asked for, and nothing
+ * of its records is kept. A gate DataBC does not answer throws, as the layer's read would.
+ */
+export async function withinGates({
+  layer,
+  footprint,
+  fetch,
+  signal,
+}: {
+  layer: GroundLayer
+  footprint: Shape
+  fetch: Fetch
+  signal?: AbortSignal
+}): Promise<boolean> {
+  for (const gate of layer.within?.any ?? []) {
+    const found = await readAcrossParts(
+      footprint,
+      async (intersects) =>
+        (
+          await wfsRead({
+            fetch,
+            signal,
+            layer: gate.typeName,
+            filter: `${intersects} AND ${conditionCql({ field: gate.field, in: gate.in })}`,
+            propertyName: [gate.field, gate.geometryField].join(','),
+            sortBy: gate.field,
+            cap: 1,
+          })
+        ).features.map((f) => ({ ...f, properties: keepFields(f.properties, [gate.field]) })),
+      gate.geometryField,
+      (f) => valueText(f.properties[gate.field]) ?? '',
+      gate.byHull === true,
+    )
+    if (found.some((f) => gate.in.includes(valueText(f.properties[gate.field]) ?? ''))) return true
+  }
+  return false
 }
 
 /**
@@ -87,6 +131,8 @@ export async function readGroundLayer({
   if (layer.context && instruments.length) throw Error(`${layer.id} is a context layer: no instrument reads it.`)
   if (instruments.some((x) => x.layer !== layer.id)) throw Error(`An instrument given is not read from ${layer.id}.`)
   if (layer.near && !grow) throw Error(`${layer.id} is read within ${layer.near.metres} m: pass grow.`)
+  if (layer.within && !(await withinGates({ layer, footprint, fetch, signal })))
+    return { status: 'read', rows: [], outsideGates: true }
   const where = instruments.length ? layerCql(instruments) : null
   const asked = layer.near && grow ? grow(footprint, layer.near.metres + NEAR_READ_SLACK_METRES) : footprint
   let truncated = false
