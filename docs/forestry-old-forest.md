@@ -1,6 +1,6 @@
 # Old and old interior forest (Objectives A and B) in the block planner
 
-**Compare → Old and old interior forest** calculates Objectives A and B of the 2004 Prince George order for one of its Map 2 units, or for units the reviewer pools under D.2: old forest against the unit's share of the Crown Forest Land Base (CFLB), old non-pine-leading forest against the implementation policy's Tables 8–10, and old interior forest against the required old forest. It runs for every schedule over the plan's eleven periods. Code: `src/pages/block-planning/oldForest/` (`units.ts`, `reads.ts`, `landBase.ts`, `oldForest.ts`, `recordText.ts`, `youngerStands.ts`, `pooling.ts`, `representation.ts`, `drawing.ts`, `oldForest.worker.ts`, `oldForestClient.ts`), the panel `OldForestSection.tsx` with `RepresentationSummary.tsx`, the map layer `useOldForestMap.ts` and `PlanMap.tsx`, the record `records.ts`. Research behind it: [Old forest under the Prince George order](research/prince-george-old-forest-2026-11-23.md).
+**Compare → Old and old interior forest** calculates Objectives A and B of the 2004 Prince George order for one of its Map 2 units, or for units the reviewer pools under D.2: old forest against the unit's share of the Crown Forest Land Base (CFLB), old non-pine-leading forest against the implementation policy's Tables 8–10, and old interior forest against the required old forest. It runs for every schedule over the plan's eleven periods. Code: `src/pages/block-planning/oldForest/` (`units.ts`, `reads.ts`, `landBase.ts`, `oldForest.ts`, `recordText.ts`, `youngerStands.ts`, `pooling.ts`, `representation.ts`, `drawing.ts`, `oldForest.worker.ts`, `oldForestClient.ts`), the panel `OldForestSection.tsx` with `RepresentationSummary.tsx`, the map layer `useOldForestMap.ts` and `PlanMap.tsx`, the record `records.ts`. Research behind it: [Old forest under the Prince George order](research/prince-george-old-forest-2026-11-23.md). The 2008 Mackenzie order has its own calculation on the same machinery, in the review step: **The Mackenzie order**, below.
 
 The figures are VRI age-based and not field-verified. Nothing in the planner decides whether D.5(a) applies. D.5(a)'s _Recruitment analysis_ step shows the result beside the reviewer's own entry, and never writes into it.
 
@@ -182,6 +182,78 @@ The first run of the day, on the whole unit and without pipelines, read A6 at 22
 - **D.1 matters at the margins.** Counting parks adds 382 ha to A5 and 1,335 ha to A10. Non-legal OGMAs add 556 ha (A6) and 636 ha (A10) of ground that is not old by age.
 - **Time.** A unit's first calculation took 12 s (A5) to 90 s (A10) after a read of 20–80 s (the land-base and pipeline reads add a few seconds; leaving the excluded ground out added about 10 s to A10's preparation). A changed setting recalculates without reading again, 3–20 s a year with interior. Interior is calculated for every period of the schedule under review, and for the first and last of the others.
 
+## The Mackenzie order
+
+**Review → Mackenzie old forest** calculates Objectives 2 and 3 of the 2008 Mackenzie non-spatial order, Table 2 as the 2010 amendment replaced it, for one landscape unit or group of that table. Each unit has several targets, one per row of Table 2: a share of the CFLB in the row's biogeoclimatic groups kept old, and Table 3's share of that requirement kept as old interior forest. It runs for every schedule over the plan's eleven periods. Code: `oldForest/mackenzieUnits.ts` (the tables, groups and definitions), `mackenzieReads.ts` (landscape units and land base), `mackenzie.ts` (the calculation), `mackenzieRecord.ts` (choices, record, key), `mackenzieEvidence.ts` (the review's evidence lines), the panel `MackenzieOldForestSection.tsx`, the worker's `mackenzie` message.
+
+The result is evidence, never an answer. The Mackenzie pack still asks the reviewer for the old and old interior margins and the younger-stand share; under each question the block review prints the calculated figure for every row of the unit, at the first period from the block's harvest in the schedule under review, and says it is evidence (`mackenzieEvidence.ts`). A record out of date says so there too. The Prince George calculation is unchanged: it reads the two new VRI fields and ignores them (`mackenzie.test.ts` pins its figures equal with and without them), and `OLD_FOREST_CALCULATION` stays at 2.
+
+### The tables
+
+The catalogue's transcriptions quote one row of each table, so the tables were transcribed from the signed PDFs they point at into `packages/legal-rules/rules/bc/omineca/mackenzie-2008-biodiversity-order.json`, with the printed page of every row:
+
+- **Table 1** (p. 4) and **Table 3** (p. 9), from the 2008 order's text layer.
+- **Table 2 as printed in 2008** (pp. 5–8, 93 rows), parsed from the same text layer, and **Table 2 of 10 January 2010** (amendment pp. 2–4, 72 rows), typed from the scanned page images.
+- The two Table 2 transcriptions were made apart, and they agree: the 2010 table is the 2008 table less the seven groups the 2010 spatial order gave legal OGMAs, row for row (`mackenzie.test.ts`). The test also holds every table row the catalogue transcriptions quote ("Kennedy High 3 28", "Selwyn | High | 3 | 28", "3 25 50 50", "4 SBSmk1, SBSmk2, SBSwk1") equal to the data.
+
+That gives 29 units or groups. Each is read from DataBC's landscape unit layer, `WHSE_LAND_USE_PLANNING.RMP_LANDSCAPE_UNIT_SVW`, by `LANDSCAPE_UNIT_PROVID`. Names repeat across districts (three Blackwaters, two Clearwaters, two Nations), so each Table 2 name was matched on 27 November 2026 to the one record of that name inside the Mackenzie Natural Resource District (`ADM_NR_DISTRICTS_SPG`, `DMK`), and its `BIODIVERSITY_EMPHASIS_OPTION` is the one Table 2 prints. Philip is Low, and Philip Lake and Tudyah A are Intermediate: their group is printed "Low / Intermediate". The layer spells three names differently: Collins - Davis, Lower Akie and Lower Pesika. A read checks every record's name and emphasis option again and refuses a unit whose record has changed.
+
+### Readings
+
+Where the order does not say how to read it, PGMaps chose as below. Each choice is the owner's to change, with the evidence.
+
+| # | Question | Reading | Why |
+| --- | --- | --- | --- |
+| 1 | Which Table 2? | **The 2010 table**, in full; Table 3 was not amended. | Amendment 1(b) repeals and replaces Table 2. |
+| 2 | Old age | **Per stand**: older than 120 in SBSmk1 and SBSmk2, older than 100 in BWBS stands led by birch or aspen, older than 140 elsewhere. | 1.5, *Old Forest*. |
+| 3 | Deciduous | **Birch (codes starting E) or trembling aspen (AT)**. A cottonwood-leading stand is not deciduous. | 1.5: "Deciduous species" means birch or aspen. |
+| 4 | Today's BEC labels | **A later label stands for the Table 1 variants it begins, only where they all lie in one group**: BWBSdk for BWBSdk1 (group 7), BWBSmw for BWBSmw1 (6), ESSFmvp for ESSFmvp2–4 and ESSFwcp for ESSFwcp3 (both 1). Printed "ESSmv4" is read as ESSFmv4. | The VRI carries the current BEC version. In Nation, Akie River and Selwyn it holds BWBSdk, BWBSmw, ESSFmvp and ESSFwcp, which Table 1 (2008) does not list. |
+| 5 | BWBS deciduous rows | **Every unit takes the row of its own emphasis option**. A "Low / Intermediate" unit takes both, which agree on 13%. | The rows name "LUs with enhanced / general / special management emphasis" by emphasis option. |
+| 6 | Interior share of a combined row | **One figure where every group and emphasis option the row covers gives the same one; otherwise open**, with the two figures named. Two units are left open: Upper Ospika's "2, 3" (25% or 50% at High), and every row of Philip, Philip Lake, Tudyah A (10% or 25%). Group 6&7 reads Table 3's rows 6 and 7, which agree. | Table 3 is by group and emphasis option, and the order says nothing of rows that span two. |
+| 7 | Land base | **Out**: land that is not provincial Crown (the `F_OWN` codes of the Prince George read), every woodlot licence, and community forests whose whole licence is 600 ha or less. **In**: larger community forests, TFLs and parks. Research forests are not read: no public layer of them was found. | Section 1.2 applies the order to Crown land except woodlots, research forests and community forests "that are 600 hectares or smaller". The CFLB definition names woodlots with no size, and names parks as part of the CFLB. In November 2026 K2M (26,302 ha) was the district's one community forest, so it stays, and TFL 48 reaches the district. |
+| 8 | CFLB | **The Prince George proxy** (treed on the forest management land base) on that ground. No stated CFLB is offered yet. | 1.5's definition: "provincial Crown land which is forested". |
+| 9 | Natural Forest Area, 2(a) | **Old forest by age is live and dead together, split by the VRI's `STAND_PERCENTAGE_DEAD`** (area × dead share; none recorded is none). The dead part is the NFA counted. When the reviewer states the share of the area the epidemic affected (no default; no layer gives it), the NFA counted toward each row's target is capped at that share of the target. Young natural forest is not counted as NFA. | 2(a): the target "can be made up of live Old Forest and / or Natural Forest Area", the NFA proportion no more than the affected share. The 2012 TSR data package prorated NFA "using the assumed 75% mortality of pine"; the VRI's own dead share is used here instead. |
+| 10 | Younger stands, 2(b) | **Off unless the reviewer states the age they count from (below 141) and the benefit.** They count toward at most 20% of the row's target less the NFA counted toward it (`liveOldAllowance`), and never toward interior. A stand counts from that age up to its own old age. | 2(b) applies "of the target amount listed in Table 2 and that proportion made up of live Old Forest". Objective 3 has no allowance. |
+| 11 | Parks, 2(d) and 3(b) | **Off by default; when on, the park joins its unit**, with its CFLB, old forest and interior. Muscovite Lakes joins Blackwater and Ed Bird Estella Lake joins Buffalohead. Heather Dina Lake's unit, Parsnip, left Table 2 in 2010. | The order says the parks "are contained within" those units and "may contribute". DataBC maps each park as its own landscape unit polygon (Muscovite, Ed Bird Estells Lake), outside its unit. |
+| 12 | Interior | **Guidance 4's table plus lakes**: 200 m from pine- or deciduous-leading stands 60 years or younger, other stands 80 or younger, unaged land-base ground, reset ground, FSRs, railways, transmission lines, pipelines, and lakes and reservoirs (VRI `BCLCS_LEVEL_5` LA and RE). Only parts wider than 200 m count. Old forest on excluded ground shapes interior but is never counted, as in the Prince George calculation. | Guidance 4 (not binding) lists lakes, primary roads, pipelines, railways and hydro corridors. Williston Lake is a reservoir. |
+| 13 | Interior by row | **Found over all the unit's old forest, then shared out to each row by the old ground under it.** | One patch can span two groups. |
+| 14 | Ground no row holds | **Named, never counted**: group 1, alpine, unlisted variants, and a group the unit has no row for (Nation's ESSFmv3). | Table 2 sets it no target. The 2020 TSR applied the 2004 provincial order to some of that ground (POGO units); that is not modelled. |
+
+There is no D.1 here: OGMAs and parks count only by age (and parks by 2(d)).
+
+### How it runs
+
+- **Same machinery.** The reads and preparation are the Prince George calculation's (`readStands`, `readCorridors`, `prepareUnit`, `ageIn`, `interiorOf`), on the Mackenzie land base. The VRI read gained `BCLCS_LEVEL_5` and `STAND_PERCENTAGE_DEAD`.
+- **Interior patch by patch.** Each connected piece of old forest is buffered only against the edges within 200 m of it (`interiorByPatch`). Interior is then shared to rows through an index of the stands' own old pieces. A Mackenzie unit can be several times A10, and one overlay of every young stand ran out of a 4 GB heap on the Philip group, and then ran for minutes on a 14 GB one. On Nation the patch-wise interior is within 2 ha of the single overlay (1,128 against 1,130 ha in 2019): vertices on buffer arcs fall differently.
+- **The record** (`checks.mackenzieOldForest`) is keyed to the choices, the baseline, the blocks, the schedules and the first year, under its own `MACKENZIE_OLD_FOREST_CALCULATION` (1). It holds every row and period for every schedule; interior is every period of the schedule under review and the first and last of the others. It also holds the ground left out by kind, the community forests kept, the CFLB no row holds, and, for a unit with a published figure, the baseline alone in 2019. It never feeds the patch run or the review's evaluation.
+
+### Run live, and checked against the one published figure
+
+Run on 27 November 2026 from Node through the module's own functions (`readMackenzieUnit`, `readStands`, `readCorridors`, `readMackenzieExcluded`, `prepareUnit`, `mackenzieYears`), live DataBC reads, baseline only (VRI ages carry harvests up to the projection), defaults: no 2(a) cap, 2(b) off, parks off.
+
+| Unit and row (target) | CFLB | Old 2019 | Old 2026 | Interior 2019 / required |
+| --- | --- | --- | --- | --- |
+| Nation (High), groups 4, 5 (16%, 25% of it interior) | 10,303 ha | 3,105 ha, 30.1% (954 ha dead) | 3,203 ha, 31.1% | 1,128 / 412 ha |
+| Philip, Philip Lake, Tudyah A, group 2 (9%) | 61,521 ha | 19,572 ha, 31.8% (1,640 dead) | 21,664 ha, 35.2% | 10,456 ha / open |
+| Philip, Philip Lake, Tudyah A, group 4 (11%) | 113,983 ha | 29,711 ha, 26.1% (6,063 dead) | 32,836 ha, 28.8% | 8,047 ha / open |
+| Philip, Philip Lake, Tudyah A, group 5 (9%) | 4,913 ha | 251 ha, 5.1% (18 dead) | 467 ha, 9.5% | 0 ha / open |
+
+- **Nation**: 2,143 stands (43 lakes and reservoirs), nothing left out, 0.1 ha of ESSFmv3 in no row. The BWBS deciduous row has no CFLB. Read 4–7 s, prepared in under 1 s, two years with interior in 4 s.
+- **Philip, Philip Lake, Tudyah A**: 20,114 stands (546 lakes and reservoirs), CFLB proxy 180,417 ha. 25 ha of private land left out (24 ha of it CFLB), no woodlot or community forest. Read in 22 s, prepared in 7 s, two years with interior in 96 s (about 45 s a year), 2.8 GB resident. With the single overlay instead, the same run exhausted a 4 GB heap. The worker calculates every period of the schedule under review with interior, so this unit takes several minutes. Table 3 leaves every row's interior share open, so interior is shown, not set against a requirement.
+
+**The published figure.** The Mackenzie TSA Timber Supply Review data package of November 2020 (§7.2, Table 35, p. 70; `packages/legal-rules/observations/mackenzie-tsr-2020.json`) lists the old forest reporting units then in deficit. One is under this order: Philip_PhilipLake_TudyahA_9_140, BEC group 5, target 9%, older than 140, 4,911 ha of Crown forest, 292 ha old, 5.95%. It is on the TSR's own Crown management forest land base and the VRI updated to 2019 (§4.1). Against it, PGMaps' baseline in 2019 gives:
+
+- **CFLB**: 4,913 ha against 4,911 ha (0.04% over).
+- **Old forest**: 251 ha (5.1%) against 292 ha (5.95%). Both are short of the 9% target.
+- **Ages not known in 2019**: 40 ha of group 5 CFLB was harvested between 2019 and the VRI projection. Its 2019 age is not kept, so it is not counted as old. Had it been old then, 291 ha would match the TSR's 292 ha.
+
+The panel shows this comparison for the unit (_Check against the published figure_). No other unit or interior figure under this order has been published:
+
+- **The TSR's other units**: every MOGO unit missing from Table 35 was, by the data package's account, at or above its target on the 2019 inventory. That matches Nation's and Philip's groups 2 and 4 here, which are well above theirs.
+- **The 2012 data package**: it called interior "cannot be realistically modeled".
+- **The 2010 Biodiversity Chapter**: its tables cover only the seven units that left Table 2.
+- **Not found online**: the Forsite (2004) and Industrial Forestry Service (2003) reports the order cites, and any Forest Practices Board figures for Mackenzie old forest.
+
 ## Limits and what is not built
 
 | Limit                   | Value            | Constant / where               |
@@ -194,6 +266,9 @@ The first run of the day, on the whole unit and without pipelines, read A6 at 22
 | Pool overlap refused at | 0.01 ha          | `POOL_OVERLAP_TOLERANCE_HA`    |
 | Map shapes simplified by | 10 m (display only) | `MAP_SIMPLIFY_METRES`, `drawing.ts` |
 | D.3 site index classes  | 5 m steps        | `SITE_INDEX_STEP_METRES`, `representation.ts` |
+| Mackenzie: community forest left out at | 600 ha or less (whole licence) | `MACKENZIE_SMALL_TENURE_HA`, `mackenzieReads.ts` |
+| Mackenzie: younger stands, 2(b) | at most 20% of the target less the NFA counted | `MACKENZIE_YOUNGER_MAX_SHARE`, `mackenzieUnits.ts` |
+| Mackenzie: lakes buffered | VRI `BCLCS_LEVEL_5` LA, RE | `LAKE_COVER`, `mackenzie.ts` |
 
 Not built (each is planned in [Block planner: next steps](forestry-block-planning-next-steps.md)):
 
@@ -202,3 +277,7 @@ Not built (each is planned in [Block planner: next steps](forestry-block-plannin
 - A pipeline that holds neither a Crown right-of-way nor a Regulator permit (one on private land under another regulator) is not read.
 - The map does not draw what D.4's younger stands add to interior, and does not draw the excluded ground's old forest that shapes interior. It does not colour old forest by species or BEC.
 - Units above 30,000 stands (A13 is about 545,000 ha gross), alone or pooled (A3 with A13), wait for the prepared tables in [Prepared tables for the block planner](research/block-planning-prepared-tables-2026-11-24.md).
+- Mackenzie: the units are large (Thutade 406,498 ha, Buffalohead 250,130 ha gross), and one past 30,000 stands is refused like A13. Which unit a block lies in is the reviewer's to say: nothing intersects the block with the landscape units yet.
+- Mackenzie: no stated CFLB, no pooling (Guidance 5's proposal to combine small groups goes to the minister's designate), no map layer, no D.3-style summary, and the printed summary does not carry the record yet. Young natural forest is never counted as Natural Forest Area, and no layer gives the affected share 2(a) caps it by.
+- Mackenzie: Table 3's share stays open for Upper Ospika's "2, 3" row and for Philip, Philip Lake, Tudyah A; the reviewer gives the interior margin there. CFLB in no row (group 1, alpine) is named but not set against the 2004 provincial order, which the 2020 TSR applied to some of it.
+- Mackenzie: the only published figure to check against is one row (below); the district's 2019 reporting units and the TSR's full 111-unit table would check every unit, and need asking for.

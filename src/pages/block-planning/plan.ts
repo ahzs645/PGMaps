@@ -35,6 +35,11 @@ import {
 import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { districts, table } from '../forest-patches/project'
 import { parseGroundReads, type GroundRead } from './ground/record'
+import {
+  parseMackenzieChoices,
+  parseMackenzieRecord,
+  type MackenzieOldForestChoices,
+} from './oldForest/mackenzieRecord'
 
 export const PLAN_FORMAT = 'pgmaps-block-plan/v2'
 export const YEAR_RANGE = [1600, 2250] as const
@@ -293,6 +298,8 @@ export interface Plan {
   indexWeights?: Record<string, number>
   /** The reviewer's choices for Objectives A and B (`oldForest/`). Absent: not assessed. */
   oldForest?: OldForestChoices
+  /** The reviewer's choices for the Mackenzie order's old forest (`oldForest/mackenzie.ts`). Absent: not assessed. */
+  mackenzieOldForest?: MackenzieOldForestChoices
   /** Calculations kept with the plan, each keyed to its inputs (`records.ts`). */
   checks?: PlanChecks
   /** "On this ground": the instruments read on a block's footprint, per block and schedule (`ground/`). */
@@ -766,6 +773,7 @@ function parseChecks(value: unknown): PlanChecks {
         ...parseOldForestExtras(r),
       }
     }),
+    mackenzieOldForest: optional(c, 'mackenzieOldForest', parseMackenzieRecord),
   }
 }
 
@@ -1081,6 +1089,7 @@ export function parsePlan(value: unknown): Plan {
       ),
     ),
     oldForest: optional(p, 'oldForest', parseOldForestChoices),
+    mackenzieOldForest: optional(p, 'mackenzieOldForest', parseMackenzieChoices),
     checks: optional(p, 'checks', parseChecks),
     groundReads: parseGroundReads(p.groundReads, blocks, schedules),
   }

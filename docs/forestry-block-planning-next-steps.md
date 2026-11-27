@@ -22,16 +22,15 @@ Built on 27 November 2026 and moved into the planner contract, **The law behind 
 
 Built on 27 November 2026 and moved into the planner contract, **The law behind a finding** → **Exceptions**: a rule lists the exceptions the law makes to it, each holding by law or needing a decision; a reviewer claims one on a raised finding with a rationale, evidence and the decision, and the finding stays raised with the claim's standing beside it. FPPR 1.3.0, the permit pack 1.1.0 and old growth 1.1.0 moved their exception questions into exceptions, and Crown grazing 1.2.0 did the same for its §44(3) purposes and FPPR §46.11's tolerance.
 
+## Done: Mackenzie old forest, calculated
+
+Built on 27 November 2026 and moved into [the old-forest contract](forestry-old-forest.md), **The Mackenzie order**: Review → *Mackenzie old forest* calculates every row of the 2008 order's Table 2 as replaced in 2010, with Table 3's interior shares, the order's own old age, CFLB and Natural Forest Area, and the younger-stand allowance on the live old forest part only, as evidence beside the Mackenzie pack's margins. What it leaves open is in the contract's **Limits and what is not built**.
+
 ## Next
-
-### Mackenzie old forest, calculated
-
-The Mackenzie biodiversity pack takes the reviewer's old and old interior margins. Calculating them means Mackenzie units in the old-forest module (`orderUnits.ts` refuses them today): the 2008 order's Tables 2 and 3 as replaced in 2010, its own CFLB and natural forest definitions, and the younger-stand allowance on the live-old portion only. Check it the way the Prince George tables were checked, against any published Mackenzie figures.
 
 ### Map screens behind the reviewer's answers
 
 The permit and old-growth packs ask questions a layer could answer as a candidate, as *On this ground* does: candidate old forest areas (the non-legal OGMA layer filtered to `PRG_COFA` and `PRG_DPG`, the 2022 letter's Appendix 5; the visual quality route card already reads it), special purpose areas, pine-leading VRI polygons of 5 ha or more in the listed TSAs, lakeshore management zones, fisheries sensitive watersheds and mapped L1 lakes. FSP forest development units and forest landscape areas have no public layer found yet. Each is a ground catalogue layer with its reach cells cited, and stays a candidate the reviewer confirms.
-
 
 ### Prepared tables in bcdatamapper
 

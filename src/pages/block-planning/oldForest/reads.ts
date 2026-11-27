@@ -43,6 +43,10 @@ export const VRI_FIELDS = [
   'BEC_SUBZONE',
   'BEC_VARIANT',
   'SITE_INDEX',
+  // The Mackenzie order only (`mackenzie.ts`): lakes make an interior edge, and dead stems split old
+  // forest into live and Natural Forest Area. They change no Prince George figure.
+  'BCLCS_LEVEL_5',
+  'STAND_PERCENTAGE_DEAD',
 ] as const
 
 /** Past this many stands the read stops and says so: a unit that large needs a prepared table. */
@@ -129,6 +133,10 @@ export interface Stand {
   bec?: string | null
   /** VRI `SITE_INDEX` (metres at 50 years), for D.3's summary; null or absent when the VRI gives none. */
   siteIndex?: number | null
+  /** VRI `BCLCS_LEVEL_5` (LA a lake, RE a reservoir), for the Mackenzie interior's lake edges; absent when not read. */
+  cover5?: string | null
+  /** VRI `STAND_PERCENTAGE_DEAD`, for the Mackenzie order's live and dead old forest; null when the VRI records none. */
+  deadPercent?: number | null
   geometry: Polygon | MultiPolygon
 }
 
@@ -143,6 +151,7 @@ export function standFromVri(f: RawFeature): Stand | null {
   const p = f.properties
   const age = Number(p.PROJ_AGE_1)
   const site = Number(p.SITE_INDEX)
+  const dead = Number(p.STAND_PERCENTAGE_DEAD)
   const part = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
   const zone = part(p.BEC_ZONE_CODE).toUpperCase()
   return {
@@ -155,6 +164,8 @@ export function standFromVri(f: RawFeature): Stand | null {
     leading: typeof p.SPECIES_CD_1 === 'string' && p.SPECIES_CD_1.trim() ? p.SPECIES_CD_1.trim().toUpperCase() : null,
     bec: zone ? `${zone} ${part(p.BEC_SUBZONE).toLowerCase()}${part(p.BEC_VARIANT)}`.trim() : null,
     siteIndex: p.SITE_INDEX == null || !Number.isFinite(site) ? null : site,
+    cover5: part(p.BCLCS_LEVEL_5).toUpperCase() || null,
+    deadPercent: p.STAND_PERCENTAGE_DEAD == null || !Number.isFinite(dead) ? null : dead,
     geometry: g,
   }
 }

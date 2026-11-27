@@ -10,6 +10,8 @@ import { periodYears, type Plan, type RangeReview, type ReviewCase } from '../pl
 import { extraPacks } from '../review/caseEdits'
 import { CaseReview, useLibrary } from '../review/CaseReview'
 import { GroundInstruments } from '../ground/GroundInstruments'
+import { MackenzieOldForestSection } from '../MackenzieOldForestSection'
+import { mackenzieEvidence } from '../oldForest/mackenzieEvidence'
 import { groundReadOf } from '../ground/record'
 import { GrazingEvidence } from '../review/GrazingEvidence.tsx'
 import { PathwayCard } from '../review/PathwayCard'
@@ -123,6 +125,7 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
             measurements={[]}
             hints={{
               nar: `The drawing’s gross area is ${area.format(blockAreaHa(block.shapes[0].geometry))} ha. Net area to be reforested needs its own survey and exclusions.`,
+              ...mackenzieEvidence(plan, block.id),
             }}
             onChange={(review) => edit((p) => keepPacks({ ...p, reviews: { ...p.reviews, [block.id]: review } }))}
             caseLabel="Whole block"
@@ -132,6 +135,7 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis }:
           <InlineAlert tone="info">Select a block here, on the map or in step 2.</InlineAlert>
         )}
       </ToolSection>
+      <MackenzieOldForestSection plan={plan} edit={edit} />
       {block && grazing && (
         <ToolSection
           key={JSON.stringify([

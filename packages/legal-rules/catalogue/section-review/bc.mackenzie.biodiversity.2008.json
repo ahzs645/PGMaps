@@ -18,13 +18,9 @@
       "n": "1.1",
       "relevance": "landscape",
       "bearsOn": "Establishes the objectives under Land Act s. 93.4 for FRPA purposes, applying to the landscape units of Map #1 and Table 1.",
-      "review": "none",
-      "gapPriority": "high",
-      "gapNote": "The planner holds no Mackenzie old forest unit, table or rule: the old forest module covers only the PG TSA order (orderUnits.ts refuses Mackenzie). Only the generic legal-objective screen could show the order if DataBC maps its extent.",
-      "encodable": "spatial",
-      "proposedFacts": [
-        "Is the block in the Mackenzie Forest District, and in which landscape unit or landscape unit group of Table 2?"
-      ],
+      "review": "code",
+      "gapPriority": "low",
+      "gapNote": "Code reads each Table 2 unit's landscape units from DataBC's RMP_LANDSCAPE_UNIT_SVW by LANDSCAPE_UNIT_PROVID, checking each record's name and emphasis option (mackenzieUnits.ts, mackenzieReads.ts). Review → Mackenzie old forest (oldForest/mackenzie.ts) calculates it as evidence beside the pack's margins, which stay the reviewer's answers. Which unit a block lies in is still the reviewer's to say.",
       "topics": [
         "objectives",
         "landscape-biodiversity"
@@ -34,13 +30,9 @@
       "n": "1.2",
       "relevance": "landscape",
       "bearsOn": "The objectives apply to all Crown land in the district except land under woodlot licences, research forests or community forest licences \"that are 600 hectares or smaller\".",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "Not modelled. The 600 ha qualifier is ambiguous: it can be read to limit only community forests or all three tenures; a reviewer must decide. Note also it names research forests, which the PG TSA order does not.",
-      "encodable": "spatial",
-      "proposedFacts": [
-        "Is the block or the old forest counted for it under a woodlot licence, research forest or community forest licence, and is that tenure 600 ha or smaller?"
-      ],
+      "review": "code",
+      "gapPriority": "low",
+      "gapNote": "Code leaves out land that is not provincial Crown, every woodlot licence (the CFLB definition names them without a size) and community forests whose whole licence is 600 ha or less; larger community forests (K2M, 26,302 ha) and TFLs stay (mackenzieReads.ts). Research forests are not read: no public layer of them was found. Reading the 600 ha as qualifying all three tenures would change only research forests here.",
       "topics": [
         "objectives",
         "forest-tenures"
@@ -76,13 +68,9 @@
       "n": "Map #1",
       "relevance": "landscape",
       "bearsOn": "Bounds the landscape units the objectives are measured over (replaced by the January 2010 map).",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "Landscape unit polygons are on DataBC (RMP_LANDSCAPE_UNIT_SVW) and could be read as the PG units are.",
-      "encodable": "spatial",
-      "proposedFacts": [
-        "Which Mackenzie landscape unit (January 2010 map) does the block fall in?"
-      ],
+      "review": "code",
+      "gapPriority": "low",
+      "gapNote": "Code reads DataBC's current landscape unit polygons, not the January 2010 map, which is not attached to the amendment as published; the units' names and emphasis options match Table 2.",
       "topics": [
         "landscape-biodiversity"
       ]
@@ -101,13 +89,9 @@
       "n": "1.5 Table 1",
       "relevance": "landscape",
       "bearsOn": "Groups BEC variants into Groups 1-7 (and BWBS deciduous-leading as 6&7) for Objectives 2 and 3.",
-      "review": "none",
-      "gapPriority": "high",
-      "gapNote": "The planner holds no Mackenzie old forest unit, table or rule: the old forest module covers only the PG TSA order (orderUnits.ts refuses Mackenzie). Only the generic legal-objective screen could show the order if DataBC maps its extent. Printed typo: Group 2 lists \"ESSmv4\" (presumably ESSFmv4).",
-      "encodable": "numeric",
-      "proposedFacts": [
-        "Which Biogeoclimatic Group of Table 1 does each stand in the landscape unit belong to?"
-      ],
+      "review": "code",
+      "gapPriority": "low",
+      "gapNote": "Code puts each VRI stand in its group (mackenzieUnits.ts): \"ESSmv4\" is read as ESSFmv4, and a later BEC label that dropped a variant number (BWBSdk, BWBSmw, ESSFmvp, ESSFwcp) stands for the Table 1 variants it begins only where they all lie in one group. Group 1 and unlisted variants have no row and are reported, never counted.",
       "topics": [
         "old-growth",
         "administration"
@@ -117,7 +101,8 @@
       "n": "1.5 Crown Forest Land Base",
       "relevance": "definitions",
       "bearsOn": "Defines the CFLB, the denominator of Objective 2, excluding private, federal, municipal land and woodlots.",
-      "review": "none",
+      "review": "code",
+      "gapNote": "Code uses the VRI proxy (treed on the forest management land base) on the ground 1.2 and this definition leave in; parks stay in it (mackenzie.ts).",
       "topics": [
         "old-growth",
         "administration"
@@ -127,7 +112,9 @@
       "n": "1.5 Natural Forest Area",
       "relevance": "definitions",
       "bearsOn": "Defines NFAs as unharvested beetle-affected stands that may count toward the old forest target.",
-      "review": "none",
+      "review": "code",
+      "gapPriority": "low",
+      "gapNote": "Code splits old forest by age into live and dead by the VRI's STAND_PERCENTAGE_DEAD; the dead part is the NFA counted. Young natural forest is not counted as NFA.",
       "topics": [
         "old-growth",
         "salvage-and-forest-health",
@@ -138,13 +125,8 @@
       "n": "1.5 Old Forest",
       "relevance": "landscape",
       "bearsOn": "Old forest is >120 years in SBSmk1 and SBSmk2, >100 years in BWBS deciduous-leading stands, and >140 years elsewhere.",
-      "review": "none",
-      "gapPriority": "high",
-      "gapNote": "The planner holds no Mackenzie old forest unit, table or rule: the old forest module covers only the PG TSA order (orderUnits.ts refuses Mackenzie). Only the generic legal-objective screen could show the order if DataBC maps its extent. The thresholds differ from the PG TSA policy (deciduous BWBS at 100).",
-      "encodable": "numeric",
-      "proposedFacts": [
-        "Is the stand older than the Mackenzie order's old age for its BEC unit and leading species (120, 100 or 140 years)?"
-      ],
+      "review": "code",
+      "gapNote": "Code applies it stand by stand (mackenzieOldFrom): from 121 in SBSmk1 and SBSmk2, from 101 in BWBS stands led by birch or aspen, from 141 elsewhere.",
       "topics": [
         "old-growth",
         "administration"
@@ -154,15 +136,9 @@
       "n": "Objective 2",
       "relevance": "landscape",
       "bearsOn": "Old forest must be maintained on the CFLB of each landscape unit (or group) and BEC group at no less than the Table 2 minimum, subject to (a)-(d).",
-      "review": "none",
-      "gapPriority": "high",
-      "gapNote": "The planner holds no Mackenzie old forest unit, table or rule: the old forest module covers only the PG TSA order (orderUnits.ts refuses Mackenzie). Only the generic legal-objective screen could show the order if DataBC maps its extent. A Mackenzie block that harvests old forest is never set against the target.",
-      "encodable": "numeric",
-      "proposedFacts": [
-        "Is the block in the Mackenzie Forest District, and in which landscape unit or landscape unit group of Table 2?",
-        "After the schedule's harvest, what percent of the Crown forest land base in each Biogeoclimatic Group of the landscape unit is Old Forest?",
-        "Is that percent at or above the Table 2 minimum for the unit's Biodiversity Emphasis Option and group?"
-      ],
+      "review": "code",
+      "gapPriority": "low",
+      "gapNote": "Code calculates every Table 2 row of a unit for every schedule and period (mackenzie.ts). Review → Mackenzie old forest (oldForest/mackenzie.ts) calculates it as evidence beside the pack's margins, which stay the reviewer's answers.",
       "topics": [
         "old-growth",
         "landscape-biodiversity"
@@ -172,14 +148,9 @@
       "n": "Objective 2(a)",
       "relevance": "landscape",
       "bearsOn": "NFA may make up the old forest target, but its share cannot exceed the share of the area affected by the epidemic or catastrophic event.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "Unlike the PG TSA, the cap is in the order itself. Needs the affected share of the unit and the NFA share of what is counted.",
-      "encodable": "numeric",
-      "proposedFacts": [
-        "What share of the landscape unit is affected by the mountain pine beetle or another catastrophic event?",
-        "What share of the old forest counted toward the target is Natural Forest Area?"
-      ],
+      "review": "code",
+      "gapPriority": "low",
+      "gapNote": "Code caps the NFA counted at the affected share the reviewer states (no default; without one, all old forest by age counts). No layer gives the affected share.",
       "topics": [
         "old-growth",
         "salvage-and-forest-health"
@@ -191,7 +162,7 @@
       "bearsOn": "Of the live old forest portion of the target, up to 20% may come from stands younger than old where equal or better conservation benefits are shown; unlike PG TSA D.4 it does not extend to interior.",
       "review": "rule",
       "gapPriority": "medium",
-      "gapNote": "The rule tests the younger-stand share the reviewer enters; the planner’s D.4 code has no Mackenzie variant.",
+      "gapNote": "The rule tests the younger-stand share the reviewer enters; the calculation, when the reviewer switches it on with an age and the benefit, counts younger stands toward at most 20% of the target less the NFA counted, never toward interior, and shows the share as evidence.",
       "topics": [
         "old-growth",
         "exemptions-and-variances"
@@ -218,10 +189,9 @@
       "n": "Objective 2(d)",
       "relevance": "landscape",
       "bearsOn": "Heather Dina Lake, Muscovite Lakes and Ed Bird Estella Lake parks may count toward the targets of Parsnip, Blackwater and Buffalohead.",
-      "review": "none",
+      "review": "code",
       "gapPriority": "low",
-      "gapNote": "After the 2010 amendment Parsnip is no longer in Table 2, so Heather Dina Lake Park's contribution has no target left under this order.",
-      "encodable": "spatial",
+      "gapNote": "Code lets the reviewer join Muscovite Lakes and Ed Bird Estella Lake parks (DataBC's own landscape unit polygons) to Blackwater and Buffalohead; off by default. After the 2010 amendment Parsnip is no longer in Table 2, so Heather Dina Lake Park has no target left.",
       "topics": [
         "old-growth",
         "protected-areas"
@@ -231,14 +201,8 @@
       "n": "Table 2 (2008)",
       "relevance": "landscape",
       "bearsOn": "Sets the minimum percent of CFLB retained as old forest by landscape unit (group), BEO and BEC group (9-28%); repealed and replaced by the 2010 amendment.",
-      "review": "none",
-      "gapPriority": "high",
-      "gapNote": "The planner holds no Mackenzie old forest unit, table or rule: the old forest module covers only the PG TSA order (orderUnits.ts refuses Mackenzie). Only the generic legal-objective screen could show the order if DataBC maps its extent. Use the 2010 table (mackenzie-amend-2010 1(b)).",
-      "encodable": "numeric",
-      "proposedFacts": [
-        "After the schedule's harvest, what percent of the Crown forest land base in each Biogeoclimatic Group of the landscape unit is Old Forest?",
-        "Is that percent at or above the Table 2 minimum for the unit's Biodiversity Emphasis Option and group?"
-      ],
+      "review": "code",
+      "gapNote": "Repealed; kept as data (mackenzie-2008-biodiversity-order.json) only to check the 2010 table's transcription, which equals it less the seven groups (mackenzie.test.ts).",
       "topics": [
         "old-growth",
         "landscape-biodiversity"
@@ -250,7 +214,7 @@
       "bearsOn": "A percentage of the old forest requirement must be old interior forest per Table 3, subject to (a) and (b).",
       "review": "rule",
       "gapPriority": "medium",
-      "gapNote": "Rules take the reviewer’s old and old interior margins; the planner does not yet calculate Mackenzie old forest (orderUnits.ts refuses Mackenzie units).",
+      "gapNote": "Rules take the reviewer’s old and old interior margins. Review → Mackenzie old forest (oldForest/mackenzie.ts) calculates it as evidence beside the pack's margins, which stay the reviewer's answers. Interior follows Guidance 4 with lakes and reservoirs buffered.",
       "topics": [
         "old-growth",
         "landscape-biodiversity"
@@ -276,10 +240,9 @@
       "n": "Objective 3(b)",
       "relevance": "landscape",
       "bearsOn": "The same three parks may count toward the old interior targets.",
-      "review": "none",
+      "review": "code",
       "gapPriority": "low",
-      "gapNote": "See 2(d).",
-      "encodable": "spatial",
+      "gapNote": "As 2(d): the park joins its unit's interior when the reviewer switches it on.",
       "topics": [
         "old-growth",
         "protected-areas"
@@ -289,13 +252,9 @@
       "n": "Table 3",
       "relevance": "landscape",
       "bearsOn": "Sets the minimum percent of old forest retention that must be interior, by BEC group and BEO (10-50%).",
-      "review": "none",
-      "gapPriority": "high",
-      "gapNote": "The planner holds no Mackenzie old forest unit, table or rule: the old forest module covers only the PG TSA order (orderUnits.ts refuses Mackenzie). Only the generic legal-objective screen could show the order if DataBC maps its extent. Its heading refers to \"the Old Forest Retention in Table 1\"; the retention figures are in Table 2.",
-      "encodable": "numeric",
-      "proposedFacts": [
-        "What percent of the unit's required old forest is old interior forest, against Table 3 for its BEC group and BEO?"
-      ],
+      "review": "code",
+      "gapPriority": "low",
+      "gapNote": "Code sets each row's interior share from Table 3 by its groups and emphasis option. Two rows are left open: Upper Ospika's \"2, 3\" (25% or 50% at High) and Philip, Philip Lake, Tudyah A, printed \"Low / Intermediate\" (10% or 25%). Its heading's \"Table 1\" is read as Table 2.",
       "topics": [
         "old-growth"
       ]
@@ -401,13 +360,8 @@
       "n": "Guidance 4",
       "relevance": "landscape",
       "bearsOn": "Suggests computing old interior forest as old forest or NFA at least 200 m from younger stands (200 m from pine/deciduous NSR or age class 1-3 and other NSR or 1-4), and from lakes, primary roads, pipelines, railways and hydro corridors, but not secondary roads.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "Same as the PG 2005 method except lakes are also buffered; the PG interior code could be reused with lakes added.",
-      "encodable": "spatial",
-      "proposedFacts": [
-        "Should lakes be buffered by 200 m when old interior forest is calculated for this Mackenzie unit?"
-      ],
+      "review": "code",
+      "gapNote": "Code follows the table and buffers lakes and reservoirs (VRI BCLCS_LEVEL_5 LA and RE), FSRs, railways, transmission lines and pipelines by 200 m, patch by patch (mackenzie.ts).",
       "topics": [
         "old-growth",
         "roads"
@@ -419,7 +373,7 @@
       "bearsOn": "Small BEC units are merged into other groups; a proposal may combine BEC group targets across units with under 2,000 ha of CFLB; Group 1 is left out of Objective 2 because large harvest is not expected there.",
       "review": "none",
       "gapPriority": "low",
-      "gapNote": "Group 1 (parkland and alpine variants) has no target; harvest there falls back on the LRMP.",
+      "gapNote": "Group 1 (parkland and alpine variants) has no target; the calculation reports CFLB no row holds and never counts it. Combining small groups is a proposal to the minister's designate, not modelled.",
       "encodable": "reviewer-question",
       "topics": [
         "old-growth",

@@ -16,6 +16,10 @@ import { readExcludedAreas, type ExcludedArea } from './landBase'
 import { readCorridors, readCountedAreas, readMap2Unit, readStands, type CountedArea, type Map2Unit } from './reads'
 import { oldForestUnit, type OldForestUnit } from './units'
 import { youngerStandsSettings } from './youngerStands'
+import { mackenzieYears, outsideRows, LAKE_COVER } from './mackenzie'
+import { readMackenzieExcluded, readMackenzieUnit, type MackenzieUnitRead, type KeptTenure } from './mackenzieReads'
+import { mackenzieYoungerProblem, type MackenzieOldForestRecord } from './mackenzieRecord'
+import { mackenzieUnit, type MackenzieUnit } from './mackenzieUnits'
 
 /**
  * `calculate` runs Objectives A and B for every schedule and makes the record. `draw` runs the same
@@ -26,10 +30,12 @@ import { youngerStandsSettings } from './youngerStands'
 export type OldForestAsk =
   | { kind: 'calculate'; id: number; plan: Plan; key: string; ranOn: string }
   | { kind: 'draw'; id: number; plan: Plan; key: string; ranOn: string; schedule: string; year: number }
+  | { kind: 'mackenzie'; id: number; plan: Plan; key: string; ranOn: string }
 export type OldForestReply = {
   id: number
   progress?: string
   record?: OldForestRecord
+  mackenzie?: MackenzieOldForestRecord
   drawing?: OldForestDrawing
   /** A draw a newer one replaced before it started. */
   superseded?: boolean
@@ -282,6 +288,109 @@ async function draw({ id, plan, key, ranOn, schedule, year }: Extract<OldForestA
   self.postMessage({ id, drawing } satisfies OldForestReply)
 }
 
+interface MackenzieRead {
+  unit: MackenzieUnitRead
+  stands: Awaited<ReturnType<typeof readStands>>
+  corridors: Awaited<ReturnType<typeof readCorridors>>
+  excluded: ExcludedArea[]
+  keptCommunityForests: KeptTenure[]
+  readOn: string
+}
+
+/** This session's Mackenzie reads, by unit and whether its 2(d) park joined. */
+const mackenzieReads = new Map<string, MackenzieRead>()
+let mackenziePrepared: { key: string; prepared: PreparedUnit<MackenzieUnit> } | null = null
+
+/** The Mackenzie order's Objectives 2 and 3 for one Table 2 unit, every schedule (`mackenzie.ts`). */
+async function calculateMackenzie({ id, plan, key, ranOn }: Extract<OldForestAsk, { kind: 'mackenzie' }>) {
+  const say = (progress: string) => self.postMessage({ id, progress } satisfies OldForestReply)
+  const choices = plan.mackenzieOldForest
+  const unit = choices ? mackenzieUnit(choices.unit) : null
+  if (!choices || !unit) throw Error('Choose a Mackenzie landscape unit first.')
+  const problem = mackenzieYoungerProblem(choices.younger)
+  if (problem) throw Error(problem)
+  const withPark = choices.countPark && unit.park !== null
+  const readKey = `${unit.id}|${withPark}`
+  let read = mackenzieReads.get(readKey)
+  if (!read) {
+    say(`Reading ${unit.asPrinted}’s landscape units…`)
+    const unitRead = await readMackenzieUnit({ unit, withPark, fetch: fetchFn, readOn: ranOn, union: joinShapes })
+    const stands = await readStands({ unit: unitRead.geometry, fetch: fetchFn, onProgress: say })
+    say('Reading forest service roads, railways, transmission lines and pipelines…')
+    const corridors = await readCorridors({ unit: unitRead.geometry, fetch: fetchFn })
+    say('Reading private land, woodlots and community forests…')
+    const land = await readMackenzieExcluded({ unit: unitRead.geometry, fetch: fetchFn })
+    read = { unit: unitRead, stands, corridors, ...land, readOn: ranOn }
+    mackenzieReads.set(readKey, read)
+  }
+  const prepKey = `${readKey}|${read.readOn}`
+  if (mackenziePrepared?.key !== prepKey) {
+    say(`Clipping ${read.stands.length.toLocaleString()} stands to the unit…`)
+    mackenziePrepared = {
+      key: prepKey,
+      prepared: prepareUnit({
+        unit,
+        shape: read.unit.geometry,
+        stands: read.stands,
+        counted: [],
+        corridors: read.corridors,
+        excluded: read.excluded,
+      }),
+    }
+  }
+  const prepared = mackenziePrepared.prepared
+  const settings = {
+    affectedPercent: choices.affectedPercent ?? null,
+    youngerFromAge: choices.younger?.fromAge ?? null,
+  }
+  const years = periodYears(plan.area.startYear)
+  const baseline: Reset[] = plan.baseline.map((d) => ({ year: d.year, geometry: d.geometry }))
+  const schedules = plan.schedules.map((schedule, i) => {
+    say(`Calculating ${schedule.name} (${i + 1} of ${plan.schedules.length})…`)
+    const resets: Reset[] = [
+      ...baseline,
+      ...scheduleHarvests(plan, schedule.id).map(({ shape, year }) => ({ year, geometry: shape.geometry })),
+    ]
+    const interiorYears = schedule.id === plan.reviewSchedule ? years : [years[0], years.at(-1)!]
+    return { schedule: schedule.id, years: mackenzieYears(prepared, resets, years, interiorYears, settings) }
+  })
+  const published = unit.published[0]
+  const record: MackenzieOldForestRecord = {
+    ranOn,
+    readOn: read.readOn,
+    key,
+    unit: unit.id,
+    source: read.unit.source,
+    park: read.unit.park,
+    cflbProxyHa: prepared.cflbProxyHa,
+    projectedYear: prepared.projectedYear,
+    counts: {
+      stands: read.stands.length,
+      corridors: read.corridors.length,
+      lakes: read.stands.filter((s) => s.cover5 && (LAKE_COVER as readonly string[]).includes(s.cover5)).length,
+    },
+    excluded: prepared.excluded.filter(
+      (e): e is typeof e & { kind: 'non-crown' | 'woodlot' | 'community-forest' } => e.kind !== 'tfl',
+    ),
+    keptCommunityForests: read.keptCommunityForests,
+    outsideRows: outsideRows(prepared),
+    schedules,
+  }
+  if (published) {
+    // The published figure is the baseline alone on its inventory year, without 2(a)'s cap or 2(b).
+    say(`Setting ${CALIBRATION_YEAR} beside the 2020 timber supply review’s figure…`)
+    record.published = mackenzieYears(prepared, baseline, [CALIBRATION_YEAR], [CALIBRATION_YEAR], {
+      affectedPercent: null,
+      youngerFromAge: null,
+    })[0]
+  }
+  if (choices.affectedPercent !== undefined)
+    record.affected = { percent: choices.affectedPercent, source: choices.affectedSource?.trim() ?? '' }
+  if (choices.younger?.fromAge !== undefined)
+    record.younger = { fromAge: choices.younger.fromAge, benefit: choices.younger.benefit.trim() }
+  self.postMessage({ id, mackenzie: record } satisfies OldForestReply)
+}
+
 /** One message at a time, in order: a draw never reads or prepares beside a calculation. */
 let queue: Promise<void> = Promise.resolve()
 
@@ -289,7 +398,7 @@ self.onmessage = ({ data }: MessageEvent<OldForestAsk>) => {
   if (data.kind === 'draw') latestDraw = Math.max(latestDraw, data.id)
   queue = queue.then(async () => {
     try {
-      await (data.kind === 'draw' ? draw(data) : calculate(data))
+      await (data.kind === 'draw' ? draw(data) : data.kind === 'mackenzie' ? calculateMackenzie(data) : calculate(data))
     } catch (error) {
       self.postMessage({
         id: data.id,

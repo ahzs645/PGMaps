@@ -18,13 +18,9 @@
       "n": "1(a)",
       "relevance": "landscape",
       "bearsOn": "Replaces the landscape unit map with the January 2010 map, which is not in this PDF.",
-      "review": "none",
-      "gapPriority": "medium",
-      "gapNote": "The planner holds no Mackenzie old forest unit, table or rule: the old forest module covers only the PG TSA order (orderUnits.ts refuses Mackenzie). Only the generic legal-objective screen could show the order if DataBC maps its extent. The January 2010 map is not attached to the copy reviewed.",
-      "encodable": "spatial",
-      "proposedFacts": [
-        "Which landscape unit of the January 2010 Map #1 does the block fall in?"
-      ],
+      "review": "code",
+      "gapPriority": "low",
+      "gapNote": "Code reads DataBC's current landscape unit polygons by LANDSCAPE_UNIT_PROVID (mackenzieReads.ts); the January 2010 map is not attached to the copy reviewed.",
       "topics": [
         "landscape-biodiversity",
         "old-growth"
@@ -35,8 +31,8 @@
       "relevance": "landscape",
       "bearsOn": "Replaces Table 2 with a table of 72 rows whose figures match the 2008 table for every unit kept, dropping the seven units or groups that the 2010 spatial order gave legal OGMAs.",
       "review": "rule",
-      "gapPriority": "medium",
-      "gapNote": "Rules take the reviewer’s old and old interior margins; the planner does not yet calculate Mackenzie old forest (orderUnits.ts refuses Mackenzie units).",
+      "gapPriority": "low",
+      "gapNote": "Rules take the reviewer’s margins; Review → Mackenzie old forest calculates every row of the replaced table as evidence beside them (oldForest/mackenzie.ts). The table is data transcribed from the page images and checked equal to the 2008 table less the seven groups.",
       "topics": [
         "old-growth",
         "landscape-biodiversity"
