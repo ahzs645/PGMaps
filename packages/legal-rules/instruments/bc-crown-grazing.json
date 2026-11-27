@@ -1,7 +1,7 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.crown-grazing",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "title": "BC Crown grazing and reforestation",
   "description": "Evidence review for forestry on grazing land, in Land Act designated areas and in the 2006 Omineca agriculture and settlement reserve areas: lease terms, designations, range plans, range barriers and developments, the order's harvest pathways and whether the harvested ground can be reforested.",
   "coverage": {
@@ -122,20 +122,8 @@
       "type": "boolean"
     },
     {
-      "id": "exempt-purpose",
-      "label": "Is the harvest restricted to a purpose FPPR §44(3) lists, which relieves the free-growing duty?",
-      "type": "choice",
-      "choices": [
-        "No",
-        "(d) land used exclusively for grazing or hay under a Range Act agreement",
-        "(h) commercial thinning, removal of individual trees or similar intermediate cutting",
-        "(i) special forest products other than woodchips or hogged material",
-        "Another purpose: (a)–(c) or (e)–(g)"
-      ]
-    },
-    {
       "id": "exclusive-range-use",
-      "label": "Is the area used, or will it be used, exclusively for grazing livestock or cutting hay under that Range Act agreement?",
+      "label": "Is the area used, or will it be used, exclusively for grazing livestock or cutting hay under a Range Act agreement?",
       "type": "boolean"
     },
     {
@@ -165,7 +153,7 @@
     },
     {
       "id": "opening-largest",
-      "label": "Area of the largest patch to be kept open within the net area to be reforested",
+      "label": "Area of the largest patch to be kept open within the net area to be reforested, where the standards unit otherwise conforms to its stocking standard",
       "type": "number",
       "min": 0,
       "unit": "ha"

@@ -570,7 +570,9 @@
       "bearsOn": "Requires a range agreement holder who knows grazing will significantly interfere with establishing a free growing stand to remove the livestock and keep them out, unless the minister exempts the second duty once measures prevent recurrence.",
       "review": "rule",
       "coveredBy": [
-        "bc.crown-grazing@1.0.0:range-holder-livestock"
+        "bc.crown-grazing@1.0.0:range-holder-livestock",
+        "bc.crown-grazing@1.2.0:range-holder-livestock",
+        "bc.crown-grazing@1.2.0:range-holder-livestock#keep-out-exemption"
       ],
       "encodable": "reviewer-question",
       "topics": [

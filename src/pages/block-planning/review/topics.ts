@@ -69,6 +69,32 @@ const TOPICS: Record<string, TopicDef[]> = {
       rules: ['spa-licence', 'spa-road'],
     },
   ],
+  'bc.water-crossings': [
+    {
+      id: 'authority',
+      label: 'Authority for changes in and about a stream (WSA §11; WSR §37)',
+      sections: ['11', '37'],
+    },
+    { id: 'forest', label: 'Forest road crossings under FRPA (WSR §39(2))', sections: [], rules: ['forest-route'] },
+    {
+      id: 'listed',
+      label: 'Culverts, bridges, fords and winter crossings (WSR §39(1))',
+      sections: [],
+      rules: [
+        'culvert-size',
+        'culvert-cover',
+        'culvert-fill',
+        'culvert-capacity',
+        'culvert-fish',
+        'culvert-design',
+        'culvert-practices',
+        'bridge-conditions',
+        'ford-conditions',
+        'winter-conditions',
+      ],
+    },
+    { id: 'notice', label: 'Habitat officer notice and aquatic damage (WSR §§38, 44)', sections: ['38', '44'] },
+  ],
   'bc.omineca.old-growth': [
     {
       id: 'ogma',

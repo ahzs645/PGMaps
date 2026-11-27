@@ -1,7 +1,7 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.crown-grazing",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "title": "BC Crown grazing and reforestation",
   "description": "Evidence review for forestry on grazing land, in Land Act designated areas and in the 2006 Omineca agriculture and settlement reserve areas: lease terms, designations, range plans, range barriers and developments, the order's harvest pathways and whether the harvested ground can be reforested.",
   "coverage": {
@@ -122,20 +122,8 @@
       "type": "boolean"
     },
     {
-      "id": "exempt-purpose",
-      "label": "Is the harvest restricted to a purpose FPPR §44(3) lists, which relieves the free-growing duty?",
-      "type": "choice",
-      "choices": [
-        "No",
-        "(d) land used exclusively for grazing or hay under a Range Act agreement",
-        "(h) commercial thinning, removal of individual trees or similar intermediate cutting",
-        "(i) special forest products other than woodchips or hogged material",
-        "Another purpose: (a)–(c) or (e)–(g)"
-      ]
-    },
-    {
       "id": "exclusive-range-use",
-      "label": "Is the area used, or will it be used, exclusively for grazing livestock or cutting hay under that Range Act agreement?",
+      "label": "Is the area used, or will it be used, exclusively for grazing livestock or cutting hay under a Range Act agreement?",
       "type": "boolean"
     },
     {
@@ -165,7 +153,7 @@
     },
     {
       "id": "opening-largest",
-      "label": "Area of the largest patch to be kept open within the net area to be reforested",
+      "label": "Area of the largest patch to be kept open within the net area to be reforested, where the standards unit otherwise conforms to its stocking standard",
       "type": "number",
       "min": 0,
       "unit": "ha"
@@ -437,9 +425,9 @@
       "when": [
         [
           {
-            "fact": "exempt-purpose",
+            "fact": "section-29-scope",
             "op": "eq",
-            "value": "(d) land used exclusively for grazing or hay under a Range Act agreement"
+            "value": true
           }
         ]
       ],
@@ -484,20 +472,15 @@
             "fact": "range-act-agreement",
             "op": "eq",
             "value": true
-          },
-          {
-            "fact": "section-29-scope",
-            "op": "eq",
-            "value": true
           }
         ]
       ],
       "when": [
         [
           {
-            "fact": "exempt-purpose",
+            "fact": "section-29-scope",
             "op": "eq",
-            "value": "No"
+            "value": true
           }
         ]
       ],
@@ -510,6 +493,73 @@
         {
           "kind": "implement",
           "description": "Agree the measures (fencing, timing, herding) with the range agreement holder and the district, and record who carries each."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "exclusive-range",
+          "label": "The land is, or will be, used exclusively for grazing livestock or cutting hay under a Range Act agreement (FPPR §44(3)(d)); never on land leased under the Land Act, which is not Crown range (Range Act §1)",
+          "source": "instrument",
+          "provision": "44(3)(d)",
+          "kind": "by-law",
+          "when": [
+            [
+              {
+                "fact": "range-act-agreement",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "exclusive-range-use",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "land-act-lease",
+                "op": "eq",
+                "value": false
+              }
+            ]
+          ],
+          "evidence": [
+            "The Range Act agreement and its range use plan over the area",
+            "The mapped footprint of the exclusive use, confirmed with the district",
+            "That no Land Act lease covers the ground"
+          ]
+        },
+        {
+          "id": "restricted-purpose",
+          "label": "Harvesting is restricted to a purpose FPPR §44(3)(a)–(c), (f) or (g) lists: eliminating a safety hazard, collecting seed with an opening of 1 ha or less, removing felled trees from landings and road rights of way, clearing for a recreation site or trail, or felling trees treated to trap pests",
+          "source": "instrument",
+          "provision": "44(3)(a)–(c), (f)–(g)",
+          "kind": "by-law",
+          "evidence": [
+            "The purpose, and that harvesting is restricted to it",
+            "For seed collection, the opening’s area"
+          ]
+        },
+        {
+          "id": "intermediate-cut",
+          "label": "Harvesting is restricted to commercial thinning, removal of individual trees or similar intermediate cutting, or to special forest products (FPPR §44(3)(h)–(i)); for 12 months after harvest the area must conform to the plan’s §16(4) stocking standard (§44(4))",
+          "source": "instrument",
+          "provision": "44(3)(h)–(i), 44(4)",
+          "kind": "by-law",
+          "evidence": [
+            "The prescription and the stand left after harvest",
+            "The plan’s §16(4) stocking standard, and the stand checked against it over the 12 months after harvest"
+          ]
+        },
+        {
+          "id": "keep-out-exemption",
+          "label": "The minister, satisfied that measures prevent the interference recurring, has exempted the range agreement holder from keeping the livestock out (RPPR §44(2)); removing them still stands",
+          "source": "rppr",
+          "provision": "44(2)",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The measures taken",
+            "The minister’s exemption"
+          ]
         }
       ]
     },
@@ -1059,11 +1109,89 @@
           }
         ]
       ],
-      "finding": "The holder must establish a free-growing stand on the net area to be reforested, to the plan's stocking standards and dates, unless an FPPR §44(3) purpose relieves it.",
+      "finding": "The holder must establish a free-growing stand on the net area to be reforested, to the plan’s stocking standards and dates, unless an exception this rule lists relieves it.",
       "actions": [
         {
           "kind": "review",
           "description": "Record the timber authority, applicable plan and stocking standard, planting or natural regeneration method, regeneration and free-growing dates, and any approved transfer of the duty (§29.1)."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "restricted-purpose",
+          "label": "Harvesting is restricted to a purpose FPPR §44(3)(a)–(c), (f) or (g) lists: eliminating a safety hazard, collecting seed with an opening of 1 ha or less, removing felled trees from landings and road rights of way, clearing for a recreation site or trail, or felling trees treated to trap pests",
+          "source": "instrument",
+          "provision": "44(3)(a)–(c), (f)–(g)",
+          "kind": "by-law",
+          "evidence": [
+            "The purpose, and that harvesting is restricted to it",
+            "For seed collection, the opening’s area"
+          ]
+        },
+        {
+          "id": "experimental",
+          "label": "Harvesting is restricted to experimental purposes that, in the minister’s opinion, will be carried out under controlled scientific or investigative conditions (FPPR §44(3)(e))",
+          "source": "instrument",
+          "provision": "44(3)(e)",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The experiment’s design",
+            "The minister’s opinion that its conditions are controlled"
+          ]
+        },
+        {
+          "id": "exclusive-range",
+          "label": "The land is, or will be, used exclusively for grazing livestock or cutting hay under a Range Act agreement (FPPR §44(3)(d)); never on land leased under the Land Act, which is not Crown range (Range Act §1)",
+          "source": "instrument",
+          "provision": "44(3)(d)",
+          "kind": "by-law",
+          "when": [
+            [
+              {
+                "fact": "range-act-agreement",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "exclusive-range-use",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "land-act-lease",
+                "op": "eq",
+                "value": false
+              }
+            ]
+          ],
+          "evidence": [
+            "The Range Act agreement and its range use plan over the area",
+            "The mapped footprint of the exclusive use, confirmed with the district",
+            "That no Land Act lease covers the ground"
+          ]
+        },
+        {
+          "id": "intermediate-cut",
+          "label": "Harvesting is restricted to commercial thinning, removal of individual trees or similar intermediate cutting, or to special forest products (FPPR §44(3)(h)–(i)); for 12 months after harvest the area must conform to the plan’s §16(4) stocking standard (§44(4))",
+          "source": "instrument",
+          "provision": "44(3)(h)–(i), 44(4)",
+          "kind": "by-law",
+          "evidence": [
+            "The prescription and the stand left after harvest",
+            "The plan’s §16(4) stocking standard, and the stand checked against it over the 12 months after harvest"
+          ]
+        },
+        {
+          "id": "minister-exemption",
+          "label": "The minister, satisfied that the duty is not practicable given the circumstances or conditions of the area, has exempted the holder from FRPA §29 (FPPR §91(1)(a))",
+          "source": "instrument",
+          "provision": "91(1)(a), 106.1",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The written exemption, what it covers and when it takes effect, filed with the district office"
+          ]
         }
       ]
     },
@@ -1095,11 +1223,6 @@
             "value": true
           },
           {
-            "fact": "exempt-purpose",
-            "op": "eq",
-            "value": "No"
-          },
-          {
             "fact": "nar-reserved",
             "op": "eq",
             "value": false
@@ -1111,7 +1234,7 @@
           }
         ]
       ],
-      "finding": "On these answers the block cannot be both harvested under Part B and reforested as FRPA §29 requires: Part C.5 rules out site preparation and planting, no FPPR §44(3) purpose relieves the free-growing duty, and natural regeneration is not expected to meet the stocking standard by its regeneration date.",
+      "finding": "On these answers the block cannot be both harvested under Part B and reforested as FRPA §29 requires: Part C.5 rules out site preparation and planting, and natural regeneration is not expected to meet the stocking standard by its regeneration date. Only an exception this rule lists changes that.",
       "actions": [
         {
           "kind": "review",
@@ -1120,6 +1243,72 @@
         {
           "kind": "obtain-approval",
           "description": "Ask the agriculture ministry whether a Part E deviation allowing planting applies, and record its determination."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "intermediate-cut",
+          "label": "Harvesting is restricted to commercial thinning, removal of individual trees or similar intermediate cutting, or to special forest products (FPPR §44(3)(h)–(i)); for 12 months after harvest the area must conform to the plan’s §16(4) stocking standard (§44(4))",
+          "source": "instrument",
+          "provision": "44(3)(h)–(i), 44(4)",
+          "kind": "by-law",
+          "evidence": [
+            "The prescription and the stand left after harvest",
+            "The plan’s §16(4) stocking standard, and the stand checked against it over the 12 months after harvest"
+          ]
+        },
+        {
+          "id": "exclusive-range",
+          "label": "The land is, or will be, used exclusively for grazing livestock or cutting hay under a Range Act agreement (FPPR §44(3)(d)); never on land leased under the Land Act, which is not Crown range (Range Act §1)",
+          "source": "instrument",
+          "provision": "44(3)(d)",
+          "kind": "by-law",
+          "when": [
+            [
+              {
+                "fact": "range-act-agreement",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "exclusive-range-use",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "land-act-lease",
+                "op": "eq",
+                "value": false
+              }
+            ]
+          ],
+          "evidence": [
+            "The Range Act agreement and its range use plan over the area",
+            "The mapped footprint of the exclusive use, confirmed with the district",
+            "That no Land Act lease covers the ground"
+          ]
+        },
+        {
+          "id": "part-e-deviation",
+          "label": "The agriculture ministry has determined a Part E deviation from Parts A to D that allows site preparation or planting",
+          "source": "ada-sra-order",
+          "provision": "I, Part E",
+          "kind": "decision",
+          "decidedBy": "The agriculture ministry",
+          "evidence": [
+            "The ministry’s determination and its conditions"
+          ]
+        },
+        {
+          "id": "minister-exemption",
+          "label": "The minister, satisfied that the duty is not practicable given the circumstances or conditions of the area, has exempted the holder from FRPA §29 (FPPR §91(1)(a))",
+          "source": "instrument",
+          "provision": "91(1)(a), 106.1",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The written exemption, what it covers and when it takes effect, filed with the district office"
+          ]
         }
       ]
     },
@@ -1174,121 +1363,107 @@
             "fact": "permanent-grazing-opening",
             "op": "eq",
             "value": true
-          },
-          {
-            "fact": "exempt-purpose",
-            "op": "eq",
-            "value": "No"
-          },
-          {
-            "fact": "opening-largest",
-            "op": "gt",
-            "value": {
-              "parameter": "opening-mappable"
-            }
-          }
-        ],
-        [
-          {
-            "fact": "permanent-grazing-opening",
-            "op": "eq",
-            "value": true
-          },
-          {
-            "fact": "exempt-purpose",
-            "op": "eq",
-            "value": "No"
-          },
-          {
-            "fact": "opening-largest",
-            "op": "gte",
-            "value": {
-              "parameter": "opening-small"
-            }
-          },
-          {
-            "fact": "opening-share",
-            "op": "gt",
-            "value": {
-              "parameter": "opening-share"
-            }
           }
         ]
       ],
-      "finding": "Keeping part of the net area to be reforested open for grazing conflicts with the free-growing duty: no FPPR §44(3) purpose relieves it, and the openings are larger than §46.11(2) tolerates.",
+      "finding": "Keeping part of the net area to be reforested open for grazing conflicts with the free-growing duty, which applies to each hectare of it, unless an exception this rule lists applies.",
       "actions": [
         {
           "kind": "review",
           "description": "Before harvest, take the opening out of the net area to be reforested only where the plan and the district allow it, or confirm a Range Act agreement and exclusive use that would support FPPR §44(3)(d). Verify clearing authority for the same footprint."
         }
-      ]
-    },
-    {
-      "id": "opening-tolerance",
-      "title": "Small openings the free-growing standard tolerates",
-      "source": "instrument",
-      "provision": "46.11(2)",
-      "scope": [
-        [
-          {
-            "fact": "section-29-scope",
-            "op": "eq",
-            "value": true
-          }
-        ]
       ],
-      "when": [
-        [
-          {
-            "fact": "permanent-grazing-opening",
-            "op": "eq",
-            "value": true
-          },
-          {
-            "fact": "exempt-purpose",
-            "op": "eq",
-            "value": "No"
-          },
-          {
-            "fact": "opening-largest",
-            "op": "lt",
-            "value": {
-              "parameter": "opening-small"
-            }
-          }
-        ],
-        [
-          {
-            "fact": "permanent-grazing-opening",
-            "op": "eq",
-            "value": true
-          },
-          {
-            "fact": "exempt-purpose",
-            "op": "eq",
-            "value": "No"
-          },
-          {
-            "fact": "opening-largest",
-            "op": "lte",
-            "value": {
-              "parameter": "opening-mappable"
-            }
-          },
-          {
-            "fact": "opening-share",
-            "op": "lte",
-            "value": {
-              "parameter": "opening-share"
-            }
-          }
-        ]
-      ],
-      "finding": "The openings are within what §46.11(2) tolerates on a standards unit that otherwise meets its stocking standard: each under 1 ha, or mappable openings of 1 to 2 ha taking no more than 5% of the unit.",
-      "actions": [
+      "exceptions": [
         {
-          "kind": "review",
-          "description": "Keep the openings in the net area to be reforested and confirm at the free-growing survey that the standards unit as a whole conforms. A forest stewardship plan may specify otherwise (§46.11(1))."
+          "id": "small-openings",
+          "label": "The standards unit otherwise conforms to its stocking standard, and each opening is under 1 ha, or the mappable openings of 1 to 2 ha take no more than 5% of the unit (FPPR §46.11(2))",
+          "source": "instrument",
+          "provision": "46.11(2)",
+          "kind": "by-law",
+          "when": [
+            [
+              {
+                "fact": "opening-largest",
+                "op": "lt",
+                "value": {
+                  "parameter": "opening-small"
+                }
+              }
+            ],
+            [
+              {
+                "fact": "opening-largest",
+                "op": "lte",
+                "value": {
+                  "parameter": "opening-mappable"
+                }
+              },
+              {
+                "fact": "opening-share",
+                "op": "lte",
+                "value": {
+                  "parameter": "opening-share"
+                }
+              }
+            ]
+          ],
+          "evidence": [
+            "The openings mapped within the standards unit, with their areas",
+            "The unit’s stocking survey"
+          ]
+        },
+        {
+          "id": "plan-specifies",
+          "label": "The forest stewardship plan specifies otherwise than that the duty is met on each hectare of the net area to be reforested (FPPR §46.11(1))",
+          "source": "instrument",
+          "provision": "46.11(1)",
+          "kind": "decision",
+          "decidedBy": "The minister, approving the forest stewardship plan",
+          "evidence": [
+            "The plan’s provision and its approval"
+          ]
+        },
+        {
+          "id": "exclusive-range",
+          "label": "The land is, or will be, used exclusively for grazing livestock or cutting hay under a Range Act agreement (FPPR §44(3)(d)); never on land leased under the Land Act, which is not Crown range (Range Act §1)",
+          "source": "instrument",
+          "provision": "44(3)(d)",
+          "kind": "by-law",
+          "when": [
+            [
+              {
+                "fact": "range-act-agreement",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "exclusive-range-use",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "land-act-lease",
+                "op": "eq",
+                "value": false
+              }
+            ]
+          ],
+          "evidence": [
+            "The Range Act agreement and its range use plan over the area",
+            "The mapped footprint of the exclusive use, confirmed with the district",
+            "That no Land Act lease covers the ground"
+          ]
+        },
+        {
+          "id": "minister-exemption",
+          "label": "The minister, satisfied that the duty is not practicable given the circumstances or conditions of the area, has exempted the holder from FRPA §29 (FPPR §91(1)(a))",
+          "source": "instrument",
+          "provision": "91(1)(a), 106.1",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The written exemption, what it covers and when it takes effect, filed with the district office"
+          ]
         }
       ]
     },
@@ -1314,18 +1489,13 @@
             "value": true
           },
           {
-            "fact": "exempt-purpose",
-            "op": "eq",
-            "value": "No"
-          },
-          {
             "fact": "nar-reserved",
             "op": "eq",
             "value": false
           }
         ]
       ],
-      "finding": "With no FPPR §44(3) purpose and no reserved ground, leaving the net area unreforested needs an exemption from FRPA §29, which the minister may grant only if satisfied that the duty is not practicable given the circumstances or conditions of the particular area. It must be in writing, say what it covers and when it takes effect, and be filed with the district office.",
+      "finding": "With no reserved ground, leaving the net area unreforested needs an exemption from FRPA §29, which the minister may grant only if satisfied that the duty is not practicable given the circumstances or conditions of the particular area. It must be in writing, say what it covers and when it takes effect, and be filed with the district office. A §44(3) purpose, listed as this rule’s exceptions, needs no exemption.",
       "actions": [
         {
           "kind": "obtain-approval",
@@ -1334,6 +1504,62 @@
         {
           "kind": "review",
           "description": "Record nearby openings that were reforested under the same conditions: they bear on whether the duty is practicable."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "restricted-purpose",
+          "label": "Harvesting is restricted to a purpose FPPR §44(3)(a)–(c), (f) or (g) lists: eliminating a safety hazard, collecting seed with an opening of 1 ha or less, removing felled trees from landings and road rights of way, clearing for a recreation site or trail, or felling trees treated to trap pests",
+          "source": "instrument",
+          "provision": "44(3)(a)–(c), (f)–(g)",
+          "kind": "by-law",
+          "evidence": [
+            "The purpose, and that harvesting is restricted to it",
+            "For seed collection, the opening’s area"
+          ]
+        },
+        {
+          "id": "experimental",
+          "label": "Harvesting is restricted to experimental purposes that, in the minister’s opinion, will be carried out under controlled scientific or investigative conditions (FPPR §44(3)(e))",
+          "source": "instrument",
+          "provision": "44(3)(e)",
+          "kind": "decision",
+          "decidedBy": "The minister",
+          "evidence": [
+            "The experiment’s design",
+            "The minister’s opinion that its conditions are controlled"
+          ]
+        },
+        {
+          "id": "exclusive-range",
+          "label": "The land is, or will be, used exclusively for grazing livestock or cutting hay under a Range Act agreement (FPPR §44(3)(d)); never on land leased under the Land Act, which is not Crown range (Range Act §1)",
+          "source": "instrument",
+          "provision": "44(3)(d)",
+          "kind": "by-law",
+          "when": [
+            [
+              {
+                "fact": "range-act-agreement",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "exclusive-range-use",
+                "op": "eq",
+                "value": true
+              },
+              {
+                "fact": "land-act-lease",
+                "op": "eq",
+                "value": false
+              }
+            ]
+          ],
+          "evidence": [
+            "The Range Act agreement and its range use plan over the area",
+            "The mapped footprint of the exclusive use, confirmed with the district",
+            "That no Land Act lease covers the ground"
+          ]
         }
       ]
     },
@@ -1369,133 +1595,6 @@
       ]
     },
     {
-      "id": "intermediate-cut-stocking",
-      "title": "Stocking after an intermediate cut",
-      "source": "instrument",
-      "provision": "44(3)(h)–(i), 44(4)",
-      "scope": [
-        [
-          {
-            "fact": "section-29-scope",
-            "op": "eq",
-            "value": true
-          }
-        ]
-      ],
-      "when": [
-        [
-          {
-            "fact": "exempt-purpose",
-            "op": "in",
-            "value": [
-              "(h) commercial thinning, removal of individual trees or similar intermediate cutting",
-              "(i) special forest products other than woodchips or hogged material"
-            ]
-          }
-        ]
-      ],
-      "finding": "The free-growing duty does not apply to this intermediate cut or special forest products harvest, but for 12 months after harvest the area must conform to the stocking standards the plan sets under FPPR §16(4).",
-      "actions": [
-        {
-          "kind": "review",
-          "description": "Record the plan's §16(4) stocking standard and the stand left after harvest. In an ADA or SRA, a Part B removal of individual dead trees from a living stand is the case to check here; a clearcut of dead timber is not an intermediate cut."
-        },
-        {
-          "kind": "monitor",
-          "description": "Check the stand against that standard over the 12 months after harvest."
-        }
-      ]
-    },
-    {
-      "id": "exclusive-range",
-      "title": "Exclusive grazing or hay exemption",
-      "source": "instrument",
-      "provision": "44(3)(d)",
-      "scope": [
-        [
-          {
-            "fact": "section-29-scope",
-            "op": "eq",
-            "value": true
-          }
-        ]
-      ],
-      "when": [
-        [
-          {
-            "fact": "exempt-purpose",
-            "op": "eq",
-            "value": "(d) land used exclusively for grazing or hay under a Range Act agreement"
-          },
-          {
-            "fact": "exclusive-range-use",
-            "op": "eq",
-            "value": true
-          },
-          {
-            "fact": "range-act-agreement",
-            "op": "eq",
-            "value": true
-          }
-        ]
-      ],
-      "finding": "The entered evidence supports reviewing FPPR §44(3)(d), which relieves the free-growing duty for harvest on land used, or to be used, exclusively for grazing or hay under a Range Act agreement.",
-      "actions": [
-        {
-          "kind": "review",
-          "description": "Confirm the legal footprint and exclusive use with the district, that harvesting is restricted to that purpose, and the authority to clear the land."
-        }
-      ]
-    },
-    {
-      "id": "not-exclusive",
-      "title": "Shared use is not exclusive range use",
-      "source": "instrument",
-      "provision": "44(3)(d)",
-      "scope": [
-        [
-          {
-            "fact": "section-29-scope",
-            "op": "eq",
-            "value": true
-          }
-        ]
-      ],
-      "when": [
-        [
-          {
-            "fact": "exempt-purpose",
-            "op": "eq",
-            "value": "(d) land used exclusively for grazing or hay under a Range Act agreement"
-          },
-          {
-            "fact": "exclusive-range-use",
-            "op": "eq",
-            "value": false
-          }
-        ],
-        [
-          {
-            "fact": "exempt-purpose",
-            "op": "eq",
-            "value": "(d) land used exclusively for grazing or hay under a Range Act agreement"
-          },
-          {
-            "fact": "range-act-agreement",
-            "op": "eq",
-            "value": false
-          }
-        ]
-      ],
-      "finding": "FPPR §44(3)(d) needs land used, or to be used, exclusively for grazing or hay under a Range Act agreement. Seasonal grazing on land managed for timber too, or grazing with no Range Act agreement, does not meet it, so the free-growing duty stands.",
-      "actions": [
-        {
-          "kind": "review",
-          "description": "Plan the block's reforestation under FRPA §29, or record the agreement and the exclusive use that would support the exemption."
-        }
-      ]
-    },
-    {
       "id": "lease-not-crown-range",
       "title": "A Land Act lease is not Crown range",
       "source": "range-act",
@@ -1508,13 +1607,13 @@
             "value": true
           },
           {
-            "fact": "exempt-purpose",
+            "fact": "section-29-scope",
             "op": "eq",
-            "value": "(d) land used exclusively for grazing or hay under a Range Act agreement"
+            "value": true
           }
         ]
       ],
-      "finding": "The Range Act grants grazing and hay rights only over Crown range, which excludes Crown land leased under the Land Act. On leased ground, FPPR §44(3)(d) cannot rest on a Range Act agreement.",
+      "finding": "The Range Act grants grazing and hay rights only over Crown range, which excludes Crown land leased under the Land Act. On leased ground, FPPR §44(3)(d) cannot relieve the free-growing duty.",
       "actions": [
         {
           "kind": "review",
