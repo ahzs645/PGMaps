@@ -8,7 +8,10 @@
       "n": "1",
       "relevance": "definitions",
       "bearsOn": "States that GAR uses FRPA and FPPR definitions and applies despite FRPA s. 16(2).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "2",
@@ -21,19 +24,30 @@
       "proposedFacts": [
         "Was the cutting permit, road permit or timber sale licence for this cutblock entered into before the GAR order covering it took effect?",
         "Is the cutblock in a declared area or an area to which FRPA section 196(1) applies?"
+      ],
+      "topics": [
+        "objectives",
+        "administration"
       ]
     },
     {
       "n": "3",
       "relevance": "admin",
       "bearsOn": "Requires review and comment by affected (or representative) Forest Act and Range Act holders, and consultation with materially affected holders, before most GAR orders.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "public-review-and-notice"
+      ]
     },
     {
       "n": "4",
       "relevance": "admin",
       "bearsOn": "Requires notice of a GAR order in the Gazette and at the regional office, and makes it effective on the stated date or on Gazette publication.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "public-review-and-notice",
+        "objectives"
+      ]
     },
     {
       "n": "5",
@@ -49,6 +63,10 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Has the holder been notified under a GAR section 5 order of any resource feature, such as karst or a cultural heritage resource, in or next to this cutblock, including one whose location is confidential?"
+      ],
+      "topics": [
+        "designated-areas",
+        "objectives"
       ]
     },
     {
@@ -58,7 +76,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No screen reads lakeshore management zones; they apply to L1 lakes where no default riparian zone exists.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "riparian",
+        "objectives"
+      ]
     },
     {
       "n": "7",
@@ -70,7 +92,11 @@
         "ground:scenic-area"
       ],
       "gapPriority": "low",
-      "gapNote": "Rules now name the order and test the alteration entered from the visual quality page against the category; the planner does not read that page’s measurement itself."
+      "gapNote": "Rules now name the order and test the alteration entered from the visual quality page against the category; the planner does not read that page’s measurement itself.",
+      "topics": [
+        "visual-quality",
+        "objectives"
+      ]
     },
     {
       "n": "8",
@@ -85,6 +111,10 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "What water quality objectives have been set for the community watershed containing this cutblock, and does the planned harvest and road work meet them?"
+      ],
+      "topics": [
+        "water-quality-and-supply",
+        "objectives"
       ]
     },
     {
@@ -105,6 +135,10 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Does a general wildlife measure for a category of species, applied to a specified area rather than to a UWR or WHA, cover this cutblock?"
+      ],
+      "topics": [
+        "wildlife",
+        "objectives"
       ]
     },
     {
@@ -114,7 +148,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No screen reads ecological community measures; few exist.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "wildlife",
+        "landscape-biodiversity",
+        "objectives"
+      ]
     },
     {
       "n": "10",
@@ -132,6 +171,10 @@
       "proposedFacts": [
         "Has the holder been notified in writing of a wildlife habitat area, including one whose location is not published, that overlaps or adjoins this cutblock?",
         "What does that wildlife habitat area's objective require of harvesting in it?"
+      ],
+      "topics": [
+        "wildlife",
+        "objectives"
       ]
     },
     {
@@ -144,6 +187,10 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Is a wildlife habitat feature, such as a significant mineral lick or wallow or a bald eagle, osprey or great blue heron nest, in or next to this cutblock, including one notified to the holder in confidence?"
+      ],
+      "topics": [
+        "wildlife",
+        "objectives"
       ]
     },
     {
@@ -161,19 +208,31 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "What does the ungulate winter range objective or measure for the unit this cutblock is in require of harvesting there?"
+      ],
+      "topics": [
+        "wildlife",
+        "objectives"
       ]
     },
     {
       "n": "13",
       "relevance": "definitions",
       "bearsOn": "Lets the Wildlife Act minister establish categories of species at risk, regionally important wildlife and ungulate species needing winter range.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "wildlife",
+        "administration"
+      ]
     },
     {
       "n": "13.1",
       "relevance": "definitions",
       "bearsOn": "Lets the Wildlife Act minister establish categories of ecological communities at risk or regionally important.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "wildlife",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "14",
@@ -182,7 +241,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No screen reads FSW orders; check whether any exist in the Omineca before building one.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "fish-habitat",
+        "objectives"
+      ]
     },
     {
       "n": "15",
@@ -191,7 +254,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No screen reads TSS designations; FPPR s. 53 depends on them.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "fish-habitat",
+        "riparian"
+      ]
     },
     {
       "n": "16",
@@ -203,7 +270,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The community watershed screen reads all designated watersheds; the route by which one was established matters only for which objective applies (FPPR s. 8.2).",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "water-quality-and-supply",
+        "objectives"
+      ]
     },
     {
       "n": "17",
@@ -215,7 +286,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The VQO screen reads the published layer; a class continued only by a district manager's letter may not appear there, so a reviewer may need to ask.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "visual-quality",
+        "objectives"
+      ]
     },
     {
       "n": "18",
@@ -227,7 +302,10 @@
       ],
       "gapPriority": "low",
       "gapNote": "Same gap as FPPR s. 1.1: no rule tests a block against the category.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "visual-quality"
+      ]
     },
     {
       "n": "19",
@@ -240,13 +318,21 @@
       ],
       "gapPriority": "low",
       "gapNote": "Continued features known only from old notices to the holder can only be asked about.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "designated-areas",
+        "objectives"
+      ]
     },
     {
       "n": "20",
       "relevance": "admin",
       "bearsOn": "Applies GAR orders to holders who must still comply with the Code under FRPA Part 11.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "objectives",
+        "administration"
+      ]
     }
   ]
 }

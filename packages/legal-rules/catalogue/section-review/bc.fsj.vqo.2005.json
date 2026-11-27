@@ -13,19 +13,30 @@
         "ground:visual-quality-objective"
       ],
       "gapPriority": "medium",
-      "gapNote": "Rules now name the order and test the alteration entered from the visual quality page against the category; the planner does not read that page’s measurement itself."
+      "gapNote": "Rules now name the order and test the alteration entered from the visual quality page against the category; the planner does not read that page’s measurement itself.",
+      "topics": [
+        "visual-quality"
+      ]
     },
     {
       "n": "Para 2",
       "relevance": "definitions",
       "bearsOn": "Ties the VQOs to the scenic areas carried forward under FRPA s. 180 and updated and designated under GAR s. 7(1) by the order published September 22, 2005.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "visual-quality",
+        "designated-areas"
+      ]
     },
     {
       "n": "Para 3",
       "relevance": "admin",
       "bearsOn": "Says where the order and map can be viewed.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "public-review-and-notice"
+      ]
     }
   ]
 }

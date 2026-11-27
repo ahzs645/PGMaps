@@ -1,0 +1,856 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.mineral-tenure-act",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines claim, lease, mineral title, recorded holder, mining activity, mineral lands, mineral and placer mineral (sand, gravel, earth and soil are not minerals, so a road gravel pit is not under this Act) and construction purpose (road building and fill).",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "Regulations may prescribe a rock or substance as, or not as, a mineral; no compensation follows.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "admin",
+      "bearsOn": "The chief gold commissioner designates mining divisions.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "Appointment of the chief gold commissioner, gold commissioners and inspectors, who may enter titled land.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "admin",
+      "bearsOn": "Certified copies of registry records are evidence; how notices are given.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "Searching the registry.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.1",
+      "relevance": "admin",
+      "bearsOn": "The Electronic Transactions Act applies to the online registry.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.2",
+      "relevance": "admin",
+      "bearsOn": "The mineral titles online registry, from which the mineral tenure layer the screen reads is published.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.3",
+      "relevance": "admin",
+      "bearsOn": "Registering a claim.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.31",
+      "relevance": "admin",
+      "bearsOn": "Claim and lease changes take effect on registration.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.32",
+      "relevance": "admin",
+      "bearsOn": "Applications to convert claims to leases.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.33",
+      "relevance": "admin",
+      "bearsOn": "Abandoning a claim or surrendering a lease by registered discharge.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.34",
+      "relevance": "admin",
+      "bearsOn": "Registering transfers of claims and leases.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.35",
+      "relevance": "admin",
+      "bearsOn": "Registering documents and notices against a title.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.36",
+      "relevance": "admin",
+      "bearsOn": "Deleting or correcting registry entries.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.4",
+      "relevance": "admin",
+      "bearsOn": "Registry information prevails over other documents.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.5",
+      "relevance": "admin",
+      "bearsOn": "Interpretation Act time rules do not apply to the registry.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.6",
+      "relevance": "admin",
+      "bearsOn": "Suspending registry functions.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.7",
+      "relevance": "admin",
+      "bearsOn": "Only one claim or lease a cell, with listed exceptions.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.8",
+      "relevance": "admin",
+      "bearsOn": "Registration priority by time of payment.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6.9",
+      "relevance": "admin",
+      "bearsOn": "Registration by other means to avoid hardship.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "admin",
+      "bearsOn": "Only a free miner may hold a claim or lease.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "admin",
+      "bearsOn": "Issue of free miner certificates.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "admin",
+      "bearsOn": "Recreational hand panning, not on a title without the holder's permission.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "recreation"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "enforcement",
+      "bearsOn": "Suspension or cancellation of a free miner certificate for contraventions, including of the Heritage Conservation Act.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "tenure",
+      "bearsOn": "A free miner may enter mineral lands, Crown forest land included, to explore, but not land under cultivation, occupied buildings, heritage property or parks; a block over mineral lands remains open to exploration entry.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "crown-land"
+      ]
+    },
+    {
+      "n": "11.1",
+      "relevance": "roads",
+      "bearsOn": "A recorded holder with a Mines Act permit must, with the Chief Inspector's approval, be issued a special use permit for access to the title for exploration; it governs a mining road's authority, not a forest road's.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "roads"
+      ]
+    },
+    {
+      "n": "12",
+      "relevance": "admin",
+      "bearsOn": "Claims and leases are distinct titles.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "admin",
+      "bearsOn": "The chief gold commissioner decides disputes between recorded holders and holders of mineral substance rights.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "appeals-and-reviews"
+      ]
+    },
+    {
+      "n": "14",
+      "relevance": "block",
+      "bearsOn": "A recorded holder may use, enter and occupy the surface of a claim or lease for exploration and production once any Mines Act permit is issued, and on request is issued a free use permit or occupant licence to cut for the timber; a land use designation or objective does not preclude its applications except in parks, ecological reserves, ELUA no-mining areas and designated Land Act areas.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:mineral-placer-tenure"
+      ],
+      "topics": [
+        "mining",
+        "harvest-authority",
+        "objectives"
+      ]
+    },
+    {
+      "n": "15",
+      "relevance": "tenure",
+      "bearsOn": "The Land Act minister must dispose of surface rights on unreserved, unoccupied Crown land to a mining lease holder when the minister certifies they are required for mining.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "crown-land"
+      ]
+    },
+    {
+      "n": "16",
+      "relevance": "block",
+      "bearsOn": "Land Act acquisitions applied for before a claim have priority; a later disposition of surface rights over a valid mineral title does not diminish the holder's rights except as an order of the chief gold commissioner or minister, a Surface Rights Board settlement or a quit claim agreement determines.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:mineral-placer-tenure"
+      ],
+      "topics": [
+        "mining",
+        "crown-land"
+      ]
+    },
+    {
+      "n": "17",
+      "relevance": "tenure",
+      "bearsOn": "The minister may by order restrict surface rights or mineral rights in a title where the surface holds a cultural heritage resource or should be used for purposes other than mining; such an order is what would settle a conflict between a claim and forest use.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "cultural-heritage"
+      ]
+    },
+    {
+      "n": "17.1",
+      "relevance": "admin",
+      "bearsOn": "Compensation when Park Act s. 11 expropriates a claim or lease.",
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "mining",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "18",
+      "relevance": "enforcement",
+      "bearsOn": "The chief gold commissioner may order compliance, suspend operations and cancel a claim for contraventions.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "19",
+      "relevance": "tenure",
+      "bearsOn": "Before a mining activity, notice must be served on private surface owners and Land Act lease and disposition holders, who are compensated for loss; disputes go to the Surface Rights Board. Forest tenure holders are not listed.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "private-land",
+        "compensation",
+        "crown-land"
+      ]
+    },
+    {
+      "n": "20",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "21",
+      "relevance": "admin",
+      "bearsOn": "No location, exploration or production in a park or provincial heritage property without Cabinet authorization.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "22",
+      "relevance": "admin",
+      "bearsOn": "Mineral reserves may bar titles or mining activity on specified land, or protect works there from interference.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "designated-areas"
+      ]
+    },
+    {
+      "n": "23",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "24",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "24.1",
+      "relevance": "admin",
+      "bearsOn": "Legacy claims continue until forfeited or converted; priority of location.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "24.2",
+      "relevance": "admin",
+      "bearsOn": "Amalgamating adjoining cell claims.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "24.3",
+      "relevance": "admin",
+      "bearsOn": "Subdividing cell claims.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "25",
+      "relevance": "admin",
+      "bearsOn": "Reducing a cell claim's area.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "26",
+      "relevance": "admin",
+      "bearsOn": "Reverted Crown granted 2 post claims.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "27",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "28",
+      "relevance": "admin",
+      "bearsOn": "A claim holder is entitled to the Crown's minerals beneath the claim, as a chattel interest.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "29",
+      "relevance": "admin",
+      "bearsOn": "Holding a claim by exploration and development work or payment and a revised expiry date.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "30",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "31",
+      "relevance": "admin",
+      "bearsOn": "Portable assessment credits.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "32",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "33",
+      "relevance": "admin",
+      "bearsOn": "Reports on exploration and development work.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "33.1",
+      "relevance": "admin",
+      "bearsOn": "Registering a revised expiry date.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "34",
+      "relevance": "admin",
+      "bearsOn": "Forfeiture by a co-holder who fails to contribute work.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "35",
+      "relevance": "admin",
+      "bearsOn": "Forfeiture for failing to perform or register required work.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "36-38",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "39",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "40",
+      "relevance": "admin",
+      "bearsOn": "Complaints that a title rests on false statements or is held for non-mining purposes.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "40.1",
+      "relevance": "enforcement",
+      "bearsOn": "Powers to compel answers and records in disputes and complaints.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "40.2",
+      "relevance": "enforcement",
+      "bearsOn": "Contempt for refusing those orders.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "40.3",
+      "relevance": "admin",
+      "bearsOn": "Immunity of the chief gold commissioner.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "41",
+      "relevance": "admin",
+      "bearsOn": "Producing ore or pay dirt from a claim under the regulations.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "42",
+      "relevance": "admin",
+      "bearsOn": "Converting a mineral claim to a mining lease.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "43",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "44",
+      "relevance": "admin",
+      "bearsOn": "Amending a mining lease's area.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "45",
+      "relevance": "admin",
+      "bearsOn": "Issuing placer leases.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "46",
+      "relevance": "admin",
+      "bearsOn": "Designating placer lease land.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "47",
+      "relevance": "admin",
+      "bearsOn": "Continuing and amending placer leases.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "48",
+      "relevance": "admin",
+      "bearsOn": "A lease is an interest in land conveying the minerals.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "49",
+      "relevance": "admin",
+      "bearsOn": "Court proceedings on adverse claims to a lease application.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "appeals-and-reviews"
+      ]
+    },
+    {
+      "n": "50",
+      "relevance": "admin",
+      "bearsOn": "Lease rental obligations and forfeiture.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "51",
+      "relevance": "admin",
+      "bearsOn": "A lease may be challenged only for fraud.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "52",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "53",
+      "relevance": "admin",
+      "bearsOn": "Preserves pre-1988 rights to mineral substances and their conversion to titles.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "54",
+      "relevance": "admin",
+      "bearsOn": "Amending the B.C. Reg. 138/94 reserved area over Crown-granted land.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "55",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "56",
+      "relevance": "admin",
+      "bearsOn": "Court orders changing title boundaries require a filed plan.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "57-58",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "59",
+      "relevance": "admin",
+      "bearsOn": "A former holder must remove property within a year of a title ending.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "60",
+      "relevance": "admin",
+      "bearsOn": "Limits on advertising a mineral title for sale; surface rights are not included.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "61",
+      "relevance": "admin",
+      "bearsOn": "Holders must report address changes.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "62",
+      "relevance": "admin",
+      "bearsOn": "Service of notices.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "63",
+      "relevance": "enforcement",
+      "bearsOn": "Offences, including moving posts and exploring contrary to the Act.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "63.1",
+      "relevance": "admin",
+      "bearsOn": "Audit information requirements.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "64",
+      "relevance": "admin",
+      "bearsOn": "Survey rules for mineral titles.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "65",
+      "relevance": "admin",
+      "bearsOn": "Regulation-making powers.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "66",
+      "relevance": "admin",
+      "bearsOn": "The chief gold commissioner may extend time limits.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "67",
+      "relevance": "admin",
+      "bearsOn": "Restoring forfeited claims or expired leases.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "68",
+      "relevance": "admin",
+      "bearsOn": "Transferring legacy claims and leases to the registry.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "69",
+      "relevance": "admin",
+      "bearsOn": "Extending cell claims over a cell when a legacy title ends.",
+      "review": "n/a",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "70",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    }
+  ]
+}

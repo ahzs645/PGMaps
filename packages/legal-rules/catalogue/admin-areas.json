@@ -1,0 +1,155 @@
+{
+  "format": "pgmaps-admin-areas/v1",
+  "notice": "BC natural resource regions and districts by the codes of WHSE_ADMIN_BOUNDARIES.ADM_NR_REGIONS_SPG and ADM_NR_DISTRICTS_SPG (public/data/boundaries/BCNR), so an order can name the areas it covers. Names only; the boundaries stay in the boundary files.",
+  "regions": [
+    {
+      "code": "RCB",
+      "name": "Cariboo Natural Resource Region"
+    },
+    {
+      "code": "RKB",
+      "name": "Kootenay-Boundary Natural Resource Region"
+    },
+    {
+      "code": "RNO",
+      "name": "Northeast Natural Resource Region"
+    },
+    {
+      "code": "ROM",
+      "name": "Omineca Natural Resource Region"
+    },
+    {
+      "code": "RSK",
+      "name": "Skeena Natural Resource Region"
+    },
+    {
+      "code": "RSC",
+      "name": "South Coast Natural Resource Region"
+    },
+    {
+      "code": "RTO",
+      "name": "Thompson-Okanagan Natural Resource Region"
+    },
+    {
+      "code": "RWC",
+      "name": "West Coast Natural Resource Region"
+    }
+  ],
+  "districts": [
+    {
+      "code": "DMH",
+      "name": "100 Mile House Natural Resource District",
+      "region": "RCB"
+    },
+    {
+      "code": "DCR",
+      "name": "Campbell River Natural Resource District",
+      "region": "RWC"
+    },
+    {
+      "code": "DCC",
+      "name": "Cariboo-Chilcotin Natural Resource District",
+      "region": "RCB"
+    },
+    {
+      "code": "DCS",
+      "name": "Cascades Natural Resource District",
+      "region": "RTO"
+    },
+    {
+      "code": "DCK",
+      "name": "Chilliwack Natural Resource District",
+      "region": "RSC"
+    },
+    {
+      "code": "DKM",
+      "name": "Coast Mountains Natural Resource District",
+      "region": "RSK"
+    },
+    {
+      "code": "DFN",
+      "name": "Fort Nelson Natural Resource District",
+      "region": "RNO"
+    },
+    {
+      "code": "DQC",
+      "name": "Haida Gwaii Natural Resource District",
+      "region": "RWC"
+    },
+    {
+      "code": "DMK",
+      "name": "Mackenzie Natural Resource District",
+      "region": "ROM"
+    },
+    {
+      "code": "DND",
+      "name": "Nadina Natural Resource District",
+      "region": "RSK"
+    },
+    {
+      "code": "DNI",
+      "name": "North Island - Central Coast Natural Resource District",
+      "region": "RWC"
+    },
+    {
+      "code": "DOS",
+      "name": "Okanagan Shuswap Natural Resource District",
+      "region": "RTO"
+    },
+    {
+      "code": "DPC",
+      "name": "Peace Natural Resource District",
+      "region": "RNO"
+    },
+    {
+      "code": "DPG",
+      "name": "Prince George Natural Resource District",
+      "region": "ROM"
+    },
+    {
+      "code": "DQU",
+      "name": "Quesnel Natural Resource District",
+      "region": "RCB"
+    },
+    {
+      "code": "DRM",
+      "name": "Rocky Mountain Natural Resource District",
+      "region": "RKB"
+    },
+    {
+      "code": "DSQ",
+      "name": "Sea to Sky Natural Resource District",
+      "region": "RSC"
+    },
+    {
+      "code": "DSE",
+      "name": "Selkirk Natural Resource District",
+      "region": "RKB"
+    },
+    {
+      "code": "DSS",
+      "name": "Skeena Stikine Natural Resource District",
+      "region": "RSK"
+    },
+    {
+      "code": "DSI",
+      "name": "South Island Natural Resource District",
+      "region": "RWC"
+    },
+    {
+      "code": "DVA",
+      "name": "Stuart Nechako Natural Resource District",
+      "region": "ROM"
+    },
+    {
+      "code": "DSC",
+      "name": "Sunshine Coast Natural Resource District",
+      "region": "RSC"
+    },
+    {
+      "code": "DKA",
+      "name": "Thompson Rivers Natural Resource District",
+      "region": "RTO"
+    }
+  ]
+}

@@ -16,25 +16,40 @@
         "ground:land-act-right-of-way",
         "ground:mineral-placer-tenure",
         "ground:woodlot-licence"
+      ],
+      "topics": [
+        "administration",
+        "forest-tenures",
+        "private-land",
+        "harvest-authority"
       ]
     },
     {
       "n": "1.1",
       "relevance": "admin",
       "bearsOn": "Lets the minister delegate powers; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "1.2",
       "relevance": "admin",
       "bearsOn": "Lets the chief forester delegate powers; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "1.3",
       "relevance": "admin",
       "bearsOn": "Defines corporate control and affiliation for tenure transfers; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "2-4",
@@ -46,73 +61,117 @@
       "n": "5",
       "relevance": "admin",
       "bearsOn": "Designates Provincial forests and limits Land Act dispositions within them; a land classification, not a constraint on harvesting a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land",
+        "administration"
+      ]
     },
     {
       "n": "6",
       "relevance": "admin",
       "bearsOn": "Lets Cabinet designate wilderness areas inside Provincial forests; the designation itself sets no harvest rule for a block (no Omineca wilderness area is modelled).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "crown-land"
+      ]
     },
     {
       "n": "7",
       "relevance": "admin",
       "bearsOn": "Lets the minister designate and change timber supply areas; context for which AAC a block counts against, not a block constraint.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "forest-tenures"
+      ]
     },
     {
       "n": "8",
       "relevance": "admin",
       "bearsOn": "Chief forester's allowable annual cut determination for TSAs and TFLs, including partitions by timber type, terrain or area under (5); cut control at the unit level, not a test on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "administration"
+      ]
     },
     {
       "n": "8.1",
       "relevance": "admin",
       "bearsOn": "Adjusts the AAC by regulation after boundary changes; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "9",
       "relevance": "admin",
       "bearsOn": "TFL holder must supply analyses for the AAC determination, with AAC reductions for failure; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "plans"
+      ]
     },
     {
       "n": "10",
       "relevance": "admin",
       "bearsOn": "Minister apportions the TSA AAC among forms of agreement; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "forest-tenures"
+      ]
     },
     {
       "n": "11",
       "relevance": "tenure",
       "bearsOn": "Rights to harvest Crown timber may be granted only under this Act and its regulations (subject to the Land Act and Park Act), so every block of Crown timber needs an agreement under the Act.",
-      "review": "none"
+      "review": "none",
+      "topics": [
+        "forest-tenures",
+        "harvest-authority"
+      ]
     },
     {
       "n": "12",
       "relevance": "tenure",
       "bearsOn": "Lists the forms of agreement (forest licence, timber licence, TFL, CFA, FNWL, woodlot, licences to cut, permits, cutting permit, road permit) under which a block's timber may be harvested.",
-      "review": "none"
+      "review": "none",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "13",
       "relevance": "tenure",
       "bearsOn": "Competitive application process for forest licences; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "13.1",
       "relevance": "tenure",
       "bearsOn": "Direct award of non-replaceable bioenergy forest licences, which must restrict harvest to a type of timber or terrain or a portion of a TSA; matters to a block only if it is harvested under such a licence.",
-      "review": "none"
+      "review": "none",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "13.2",
       "relevance": "admin",
       "bearsOn": "Minister designates bioenergy supply contracts and caps their AAC; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "forest-tenures"
+      ]
     },
     {
       "n": "14",
@@ -125,6 +184,10 @@
       "proposedFacts": [
         "Which forest licence is the block to be harvested under, and does the block lie within the timber supply area that licence specifies?",
         "Does the forest licence restrict harvesting to a portion of the timber supply area, a type of timber or a type of terrain, and does the block's timber fall within that restriction?"
+      ],
+      "topics": [
+        "forest-tenures",
+        "harvest-authority"
       ]
     },
     {
@@ -132,19 +195,30 @@
       "relevance": "tenure",
       "bearsOn": "Cabinet may designate mountain pine beetle salvage areas; a forest licence there may bar harvest until a processing facility is substantially completed and may secure reforestation of described areas at a set rate, terms a block under such a licence inherits.",
       "review": "none",
-      "gapNote": "Relevant only to blocks under a licence issued for a designated salvage area; a reviewer would read the licence terms (facility condition, reforestation security)."
+      "gapNote": "Relevant only to blocks under a licence issued for a designated salvage area; a reviewer would read the licence terms (facility condition, reforestation security).",
+      "topics": [
+        "salvage-and-forest-health",
+        "forest-tenures"
+      ]
     },
     {
       "n": "14.2",
       "relevance": "tenure",
       "bearsOn": "A restricted non-replaceable forest licence may bar harvest until the holder has taken steps to source fibre elsewhere; a licence-level condition, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "harvest-authority"
+      ]
     },
     {
       "n": "15",
       "relevance": "admin",
       "bearsOn": "Replacement of forest licences on a 10-year cycle; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "15.1",
@@ -156,7 +230,10 @@
       "n": "16",
       "relevance": "admin",
       "bearsOn": "Surrender of a TFL for replacement by forest licences; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "17",
@@ -168,19 +245,31 @@
       "n": "18",
       "relevance": "admin",
       "bearsOn": "Temporary transfer of forest licence cutting rights to another TSA with the minister's approval; changes where a licence may harvest but is not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "cut-control"
+      ]
     },
     {
       "n": "19",
       "relevance": "admin",
       "bearsOn": "Consolidation and subdivision of forest licences; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "20",
       "relevance": "tenure",
       "bearsOn": "BCTS competitive sale of timber sale licences; how a BCTS block is sold, not a constraint on its layout.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "harvest-authority",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "21",
@@ -199,13 +288,20 @@
       "proposedFacts": [
         "Is the block within an area of land described in the timber sale licence it is to be harvested under?",
         "Does the timber sale licence set requirements or restrictions more stringent than the Forest and Range Practices Act that apply to this block?"
+      ],
+      "topics": [
+        "forest-tenures",
+        "harvest-authority"
       ]
     },
     {
       "n": "22.1",
       "relevance": "admin",
       "bearsOn": "Bonus offer not owed if a TSL ends before harvest; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "22.2",
@@ -217,19 +313,30 @@
         "ground:community-forest",
         "ground:first-nations-woodland-licence",
         "ground:tree-farm-licence"
+      ],
+      "topics": [
+        "forest-tenures",
+        "cut-control"
       ]
     },
     {
       "n": "22.3",
       "relevance": "admin",
       "bearsOn": "BCTS harvest from released rights counts against the releasing licence for cut control; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "22.4",
       "relevance": "admin",
       "bearsOn": "Payment to holders whose licences are reduced for BCTS; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "cut-control"
+      ]
     },
     {
       "n": "22.5",
@@ -243,6 +350,11 @@
         "Is the block inside a forest landscape area, and if so does the timber sales manager hold a forest operations plan that applies to the land?",
         "Is the block consistent with the approximate location of a proposed cutblock shown on that forest operations plan?",
         "Outside a forest landscape area, does the timber sales manager hold a forest stewardship plan that applies to the block's land?"
+      ],
+      "topics": [
+        "forest-tenures",
+        "plans",
+        "harvest-authority"
       ]
     },
     {
@@ -261,68 +373,104 @@
       "n": "24.91",
       "relevance": "admin",
       "bearsOn": "No compensation for the repealed tenure conversion division; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation"
+      ]
     },
     {
       "n": "25",
       "relevance": "admin",
       "bearsOn": "Permanent transfer of a forest licence to an adjacent TSA after a boundary change; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "cut-control"
+      ]
     },
     {
       "n": "26",
       "relevance": "admin",
       "bearsOn": "Reallocating a forest licence's AAC after a TSA is divided; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "cut-control"
+      ]
     },
     {
       "n": "27",
       "relevance": "tenure",
       "bearsOn": "A timber licence in a TFL that ends without replacement expires a year later; tenure status of old timber licences, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "28",
       "relevance": "tenure",
       "bearsOn": "Replacement timber licences for timber licences left by a terminated TFL, on a harvest schedule; no bearing on an ordinary block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "29",
       "relevance": "admin",
       "bearsOn": "Minister may combine replacement timber licences into one; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "29.1",
       "relevance": "admin",
       "bearsOn": "Consolidation of timber licences with the holder's consent; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "30",
       "relevance": "tenure",
       "bearsOn": "A timber licence grants the exclusive right to harvest all merchantable timber in its described Crown land, and inside a TFL must be harvested per the TFL and its management plan; decides who may harvest a block on timber licence land.",
       "review": "none",
-      "gapNote": "Timber licences are rare in the Omineca; no ground screen reads the timber licence layer."
+      "gapNote": "Timber licences are rare in the Omineca; no ground screen reads the timber licence layer.",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "31",
       "relevance": "admin",
       "bearsOn": "Historical 2004 extension of timber licence terms; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "32",
       "relevance": "tenure",
       "bearsOn": "Outside a TFL, the minister may require timber licence land needed for another purpose to be harvested by a set time, then delete it; a tenure action, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "crown-land"
+      ]
     },
     {
       "n": "33",
       "relevance": "tenure",
       "bearsOn": "Public hearing and competitive award of new TFLs, with timber reservable meanwhile; no bearing on an ordinary block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "34",
@@ -337,6 +485,9 @@
       "review": "screen",
       "coveredBy": [
         "ground:tree-farm-licence"
+      ],
+      "topics": [
+        "forest-tenures"
       ]
     },
     {
@@ -355,13 +506,20 @@
       ],
       "gapPriority": "low",
       "gapNote": "The TFL screen flags the licence area but nothing asks whether the block fits the approved management plan; no TFL lies in the PG TSA work area, so this is rare.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "forest-tenures"
+      ]
     },
     {
       "n": "36",
       "relevance": "admin",
       "bearsOn": "Replacement of TFLs on a 10-year cycle; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "36.1",
@@ -373,25 +531,39 @@
       "n": "37",
       "relevance": "tenure",
       "bearsOn": "Land of an expired timber licence held by the TFL holder stays in the TFL area; affects which tenure governs the ground, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "private-land"
+      ]
     },
     {
       "n": "38",
       "relevance": "tenure",
       "bearsOn": "Private land in a TFL that is transferred to the Crown stays subject to the TFL; affects which tenure governs the ground, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "private-land"
+      ]
     },
     {
       "n": "39",
       "relevance": "admin",
       "bearsOn": "Consolidation and subdivision of TFLs; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "39.1",
       "relevance": "admin",
       "bearsOn": "Change of a TFL boundary with the holder's consent; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "40",
@@ -403,7 +575,10 @@
       "n": "41",
       "relevance": "tenure",
       "bearsOn": "Legacy pulpwood agreements give an option to forestry licences to cut in a pulpwood area; no pulpwood agreement constrains an ordinary block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "42",
@@ -415,7 +590,10 @@
       "n": "43",
       "relevance": "admin",
       "bearsOn": "Consolidation and subdivision of pulpwood agreements; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "43.1",
@@ -427,7 +605,10 @@
       "n": "43.2",
       "relevance": "tenure",
       "bearsOn": "Award of community forest agreements; the minister may reserve timber in an advertised area pending award, which would stop other harvest there.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "43.3",
@@ -437,13 +618,19 @@
       "coveredBy": [
         "ground:community-forest"
       ],
-      "gapNote": "The community forest screen flags the area; nothing asks whether the block is the CFA holder's and consistent with the approved management plan."
+      "gapNote": "The community forest screen flags the area; nothing asks whether the block is the CFA holder's and consistent with the approved management plan.",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "43.4",
       "relevance": "admin",
       "bearsOn": "Replacement of community forest agreements; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "43.41",
@@ -461,19 +648,30 @@
       "n": "43.51",
       "relevance": "admin",
       "bearsOn": "Direct award of community forest agreements to First Nations or in prescribed cases; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "first-nations"
+      ]
     },
     {
       "n": "43.52",
       "relevance": "admin",
       "bearsOn": "Change of a CFA boundary with the holder's consent; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "43.53",
       "relevance": "admin",
       "bearsOn": "Transition reference for CFA allowable annual cut; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "forest-tenures"
+      ]
     },
     {
       "n": "43.54",
@@ -482,6 +680,10 @@
       "review": "screen",
       "coveredBy": [
         "ground:first-nations-woodland-licence"
+      ],
+      "topics": [
+        "forest-tenures",
+        "first-nations"
       ]
     },
     {
@@ -491,19 +693,31 @@
       "review": "screen",
       "coveredBy": [
         "ground:first-nations-woodland-licence"
+      ],
+      "topics": [
+        "forest-tenures",
+        "first-nations"
       ]
     },
     {
       "n": "43.56",
       "relevance": "admin",
       "bearsOn": "Replacement of first nations woodland licences; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "first-nations"
+      ]
     },
     {
       "n": "43.57",
       "relevance": "admin",
       "bearsOn": "Change of an FNWL boundary with consent; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "first-nations"
+      ]
     },
     {
       "n": "43.6-43.8",
@@ -515,7 +729,10 @@
       "n": "44",
       "relevance": "tenure",
       "bearsOn": "Woodlot licence eligibility and award; the minister may reserve advertised timber pending award.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "45",
@@ -525,19 +742,29 @@
       "coveredBy": [
         "ground:woodlot-licence"
       ],
-      "gapNote": "The woodlot screen flags the area; the FPPR pack only asks the reviewer to confirm the FPPR regime applies, without saying that woodlot blocks fall under the woodlot licence plan regime instead."
+      "gapNote": "The woodlot screen flags the area; the FPPR pack only asks the reviewer to confirm the FPPR regime applies, without saying that woodlot blocks fall under the woodlot licence plan regime instead.",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "45.1",
       "relevance": "admin",
       "bearsOn": "Transition reference for woodlot allowable annual cut; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "forest-tenures"
+      ]
     },
     {
       "n": "46",
       "relevance": "admin",
       "bearsOn": "Replacement of woodlot licences; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "46.1",
@@ -549,7 +776,10 @@
       "n": "46.2",
       "relevance": "admin",
       "bearsOn": "Consolidation of two woodlot licences within the Crown land limit; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "47",
@@ -561,7 +791,10 @@
       "n": "47.1",
       "relevance": "admin",
       "bearsOn": "Change of a woodlot boundary with consent; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "47.2",
@@ -573,26 +806,43 @@
       "n": "47.3",
       "relevance": "tenure",
       "bearsOn": "Direct award of forest licences, woodlots and licences to cut to First Nations, to mitigate treaty or Part 13 effects, or for bioenergy; how a tenure is awarded, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "first-nations",
+        "harvest-authority"
+      ]
     },
     {
       "n": "47.4",
       "relevance": "tenure",
       "bearsOn": "Occupant licences to cut (clearing by an owner or occupier of land) and master licences to cut (energy resource activities and their roads); land clearing under these is not a planned cutblock.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
+      ]
     },
     {
       "n": "47.5",
       "relevance": "tenure",
       "bearsOn": "Payment and term rules for occupant and master licences to cut; no bearing on a planned block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
+      ]
     },
     {
       "n": "47.6",
       "relevance": "tenure",
       "bearsOn": "When a forestry licence to cut may be issued: small volumes (500 m3 scientific, 50 m3), removal only, residual fibre, BCTS contract areas, and harvest restricted to infested timber under a competitively awarded forest health project consistent with a bark beetle strategy.",
       "review": "none",
-      "gapNote": "A small-scale salvage or forest health block under a forestry licence to cut carries its own volume and timber-type limits; no pack asks which tenure the block is under."
+      "gapNote": "A small-scale salvage or forest health block under a forestry licence to cut carries its own volume and timber-type limits; no pack asks which tenure the block is under.",
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
+      ]
     },
     {
       "n": "47.7",
@@ -604,61 +854,100 @@
       "encodable": "document-check",
       "proposedFacts": [
         "If the block is harvested under a forestry licence to cut, is it within an area the licence describes and does the licence authorize harvesting (not only cutting or removal) there?"
+      ],
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
       ]
     },
     {
       "n": "47.71",
       "relevance": "tenure",
       "bearsOn": "Competitive award of fibre supply licences to cut; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "47.72",
       "relevance": "tenure",
       "bearsOn": "Fibre supply licences to cut operate through fibre recovery permits for residual fibre only in areas a licensee has given notice of under s. 79.1; affects residual fibre on a harvested block, not its layout.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "harvest-authority"
+      ]
     },
     {
       "n": "47.73",
       "relevance": "admin",
       "bearsOn": "Residual fibre removed under s. 47.6(2.11) or a fibre recovery permit counts against the notifying licensee's cut control; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "47.8",
       "relevance": "admin",
       "bearsOn": "Disposition of AAC taken from TFLs under the Forestry Revitalization Act; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "forest-tenures"
+      ]
     },
     {
       "n": "47.9",
       "relevance": "admin",
       "bearsOn": "Timber left unharvested and notified under s. 79.1 may go to residual fibre licences; no bearing on block layout.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "cut-control",
+        "salvage-and-forest-health"
+      ]
     },
     {
       "n": "48",
       "relevance": "tenure",
       "bearsOn": "Who may hold a free use permit (agricultural clearing, firewood, Christmas trees, science, mineral and coal titles, traditional and cultural use, treaty First Nations); small personal or incidental harvest, not a planned cutblock.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
+      ]
     },
     {
       "n": "49",
       "relevance": "tenure",
       "bearsOn": "Free use permits run at most 1 or 5 years and 50 m3 (except prescribed cultural use), with no stumpage; not a planned cutblock.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
+      ]
     },
     {
       "n": "49.1",
       "relevance": "tenure",
       "bearsOn": "A free use permit may be issued inside a CFA, FNWL or woodlot only with the area-based licence holder's consent.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "harvest-authority"
+      ]
     },
     {
       "n": "50",
       "relevance": "tenure",
       "bearsOn": "Christmas tree permits to harvest or grow Christmas trees on Crown land; not a cutblock.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
+      ]
     },
     {
       "n": "51",
@@ -670,7 +959,11 @@
       "n": "51.1",
       "relevance": "tenure",
       "bearsOn": "BCTS may authorize a contractor to harvest under a contract logging authorization, which may impose terms more stringent than FRPA that the contractor must follow.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
+      ]
     },
     {
       "n": "51.2",
@@ -682,19 +975,31 @@
       "encodable": "spatial",
       "proposedFacts": [
         "If BCTS will log this block under a contract logging authorization, does the timber sales manager hold an operational plan that applies to the block's area?"
+      ],
+      "topics": [
+        "harvest-authority",
+        "plans"
       ]
     },
     {
       "n": "52",
       "relevance": "tenure",
       "bearsOn": "Government employees and agents may be authorized to harvest Crown timber or occupy Provincial forest land, with terms that may exceed FRPA.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
+      ]
     },
     {
       "n": "52.01",
       "relevance": "definitions",
       "bearsOn": "Defines \"agreement\" for the cutting permit Part as forest licences, area-based licences and the licences in s. 52.02(2).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "harvest-authority"
+      ]
     },
     {
       "n": "52.02",
@@ -704,6 +1009,9 @@
       "coveredBy": [
         "bc.forest-permits@1.1.0:cutting-permit",
         "bc.forest-permits@1.1.0:cutting-permit#authorized-without"
+      ],
+      "topics": [
+        "harvest-authority"
       ]
     },
     {
@@ -717,6 +1025,11 @@
       "proposedFacts": [
         "Are there known cultural heritage resources (archaeological sites or traditional use areas) in or next to the block or its access roads, and how does the plan address them?",
         "Could harvesting the block or building its roads affect public health and safety (for example a water intake, a residence or a public road below the block)?"
+      ],
+      "topics": [
+        "harvest-authority",
+        "cultural-heritage",
+        "roads"
       ]
     },
     {
@@ -729,6 +1042,10 @@
       "encodable": "document-check",
       "proposedFacts": [
         "Are the existing and proposed roads that will give access to the block identified for the cutting permit application?"
+      ],
+      "topics": [
+        "roads",
+        "harvest-authority"
       ]
     },
     {
@@ -747,19 +1064,32 @@
       "coveredBy": [
         "bc.forest-permits@1.1.0:permit-refusal",
         "bc.forest-permits@1.1.0:fop"
+      ],
+      "topics": [
+        "harvest-authority",
+        "objectives",
+        "plans"
       ]
     },
     {
       "n": "52.06",
       "relevance": "tenure",
       "bearsOn": "A cutting permit for a supplemental forest licence must be refused unless the s. 14.2 fibre-sourcing condition is met; a licence-level condition, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
+      ]
     },
     {
       "n": "52.07",
       "relevance": "tenure",
       "bearsOn": "A cutting permit under a master licence to cut requires authority to occupy the area or a prescribed purpose; concerns energy-resource clearing, not planned cutblocks.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
+      ]
     },
     {
       "n": "52.08",
@@ -772,49 +1102,79 @@
       "proposedFacts": [
         "Does the cutting permit for this block reserve timber from harvest, set periods when harvest may not occur, or restrict vehicles, machinery or harvesting methods?",
         "Does the block's scheduled harvest fall within the cutting permit's term (at most 4 years plus any extension)?"
+      ],
+      "topics": [
+        "harvest-authority",
+        "roads"
       ]
     },
     {
       "n": "52.09",
       "relevance": "enforcement",
       "bearsOn": "The cutting permit holder must comply with its terms and conditions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "harvest-authority"
+      ]
     },
     {
       "n": "52.10",
       "relevance": "admin",
       "bearsOn": "Extension of a cutting permit by up to one year within the maximum term, unless barred; affects schedule timing only.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority"
+      ]
     },
     {
       "n": "52.11",
       "relevance": "admin",
       "bearsOn": "Postponement of a cutting permit for up to 2 years, during which its rights cannot be exercised; affects schedule timing only.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority"
+      ]
     },
     {
       "n": "52.12",
       "relevance": "admin",
       "bearsOn": "Cutting permits end when their agreement ends; no bearing on block layout.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "forest-tenures"
+      ]
     },
     {
       "n": "52.13",
       "relevance": "admin",
       "bearsOn": "The cutting permit Part applies to agreements whenever entered into.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "harvest-authority"
+      ]
     },
     {
       "n": "53",
       "relevance": "definitions",
       "bearsOn": "Defines agreement, disposition and marketing of fibre for Part 4.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "forest-tenures"
+      ]
     },
     {
       "n": "53.1",
       "relevance": "definitions",
       "bearsOn": "Defines who holds an agreement for Part 4.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "forest-tenures"
+      ]
     },
     {
       "n": "53.2",
@@ -826,25 +1186,38 @@
       "n": "53.3",
       "relevance": "admin",
       "bearsOn": "Cutting permits are treated as part of their agreement for transfers.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "harvest-authority"
+      ]
     },
     {
       "n": "54",
       "relevance": "admin",
       "bearsOn": "Transfer of agreements requires the minister's approval and paid debts; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.01",
       "relevance": "admin",
       "bearsOn": "Conditions the minister may attach to approving a tenure transfer, including on associated road permits; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.02",
       "relevance": "admin",
       "bearsOn": "Minister must weigh fibre competition and public interest before approving a transfer; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.1",
@@ -856,19 +1229,28 @@
       "n": "54.2",
       "relevance": "admin",
       "bearsOn": "Confirming a completed transfer; the acquirer becomes the holder.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.3",
       "relevance": "admin",
       "bearsOn": "Security interests and transmissions exempt from transfer approval.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.4",
       "relevance": "admin",
       "bearsOn": "Transfers barred for CFAs, FNWLs, some forest licences, occupant licences and free use permits without Cabinet approval; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.5",
@@ -880,67 +1262,106 @@
       "n": "54.6",
       "relevance": "admin",
       "bearsOn": "A new holder takes on all obligations of the agreement, including outstanding FRPA obligations (such as reforestation on harvested blocks); affects who is liable, not whether a block may proceed.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.61",
       "relevance": "enforcement",
       "bearsOn": "Suspension of rights where a transfer breaches its conditions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.62",
       "relevance": "definitions",
       "bearsOn": "Defines change of control and amalgamation for Division 2.1.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.63",
       "relevance": "admin",
       "bearsOn": "Corporations must notify changes of control or amalgamations within 30 days.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.64",
       "relevance": "admin",
       "bearsOn": "Minister reviews changes of control for fibre competition and public interest.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.65",
       "relevance": "admin",
       "bearsOn": "Grounds for administrative action after a change of control.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "54.66",
       "relevance": "enforcement",
       "bearsOn": "Suspension of an agreement or its cutting permits, or forced disposition, after a problematic change of control; a suspended cutting permit would stop harvest on its blocks but this is not a planning test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.67",
       "relevance": "admin",
       "bearsOn": "A corporation may propose divestitures after administrative action.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.68",
       "relevance": "admin",
       "bearsOn": "Changes of control by bankruptcy or estate transmission are exempt.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.69",
       "relevance": "enforcement",
       "bearsOn": "Suspension or cancellation where divestiture requirements are not met.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "forest-tenures"
+      ]
     },
     {
       "n": "54.7",
       "relevance": "admin",
       "bearsOn": "Minister's consent needed to dispose of private land in a TFL or woodlot; no bearing on block layout.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "private-land"
+      ]
     },
     {
       "n": "54.8",
@@ -964,7 +1385,11 @@
       "n": "57",
       "relevance": "admin",
       "bearsOn": "Exchanges of timber licences and of Crown and private forest land with independent appraisal; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "private-land"
+      ]
     },
     {
       "n": "58",
@@ -976,7 +1401,11 @@
       "n": "58.1",
       "relevance": "admin",
       "bearsOn": "Timber sale licence extension up to a 4-year total for a fee, refusable if it would prevent an FRPA obligation; affects BCTS schedule timing only.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "harvest-authority"
+      ]
     },
     {
       "n": "58.2",
@@ -994,7 +1423,10 @@
       "n": "58.3",
       "relevance": "admin",
       "bearsOn": "Surrender of an unharvested timber sale licence; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "59-59.1",
@@ -1012,55 +1444,85 @@
       "n": "61",
       "relevance": "admin",
       "bearsOn": "Temporary AAC reductions by consent, with the volume disposable to others; cut control, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "forest-tenures"
+      ]
     },
     {
       "n": "62",
       "relevance": "admin",
       "bearsOn": "Restoring AAC after a temporary reduction.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "62.1",
       "relevance": "definitions",
       "bearsOn": "Definitions for distributing TSA AAC reductions among forest licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "cut-control"
+      ]
     },
     {
       "n": "63",
       "relevance": "admin",
       "bearsOn": "Distributing a TSA AAC reduction among forest licences; cut control, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "forest-tenures"
+      ]
     },
     {
       "n": "63.01",
       "relevance": "admin",
       "bearsOn": "Grouping related licences for AAC reductions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "63.02",
       "relevance": "admin",
       "bearsOn": "Formula for sharing a TSA reduction among groups and ungrouped licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "63.03",
       "relevance": "admin",
       "bearsOn": "Distributing any remaining TSA reduction.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "63.04",
       "relevance": "admin",
       "bearsOn": "Sharing a group's AAC reduction among its licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "63.05",
       "relevance": "admin",
       "bearsOn": "Distributing any remaining group reduction.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "63.1",
@@ -1072,7 +1534,10 @@
       "n": "63.2",
       "relevance": "admin",
       "bearsOn": "Effective date and prorating of AAC changes.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "64-66",
@@ -1090,19 +1555,33 @@
       "n": "68",
       "relevance": "tenure",
       "bearsOn": "Land a TFL management plan identifies as not needed for the AAC may be sold to others or deleted from the TFL; affects who may harvest there, not block design.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "cut-control"
+      ]
     },
     {
       "n": "69",
       "relevance": "admin",
       "bearsOn": "AAC reductions where a TFL or forest licence fails to harvest a partitioned portion (timber type, terrain or area); cut control, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "70",
       "relevance": "enforcement",
       "bearsOn": "AAC reductions where the holder exceeded the operational plan's soil disturbance limits on a cutting permit area, or failed to establish a free growing stand; consequences, not block tests (the soil limits themselves are tested by the FPPR s. 35 rules).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "cut-control",
+        "soils",
+        "reforestation"
+      ]
     },
     {
       "n": "71",
@@ -1115,20 +1594,33 @@
       "relevance": "tenure",
       "bearsOn": "Inside a timber licence or area-based licence, the minister may give a third party a forestry licence to cut for under 2 000 m3 of windthrown, dead, damaged, infested or diseased timber if the holder, once invited, does not agree to harvest it by a set date.",
       "review": "none",
-      "gapNote": "Small salvage patches inside an area-based licence may go to a third party; no pack records the notice or its harvest deadline."
+      "gapNote": "Small salvage patches inside an area-based licence may go to a third party; no pack records the notice or its harvest deadline.",
+      "topics": [
+        "salvage-and-forest-health",
+        "forest-tenures",
+        "harvest-authority"
+      ]
     },
     {
       "n": "73",
       "relevance": "tenure",
       "bearsOn": "In a TSA, before giving a third party a forestry licence to cut for small salvage, the minister must invite the forest licensee whose operational plan covers the area to harvest it by a set date; decides who salvages a small damaged patch.",
       "review": "none",
-      "gapNote": "A salvage block in an Omineca TSA can be taken by a third party if the licensee whose FSP covers it does not agree within 14 days; no pack records such a notice or its deadline."
+      "gapNote": "A salvage block in an Omineca TSA can be taken by a third party if the licensee whose FSP covers it does not agree within 14 days; no pack records such a notice or its deadline.",
+      "topics": [
+        "salvage-and-forest-health",
+        "forest-tenures",
+        "harvest-authority"
+      ]
     },
     {
       "n": "74",
       "relevance": "admin",
       "bearsOn": "Timber cruise of a timber licence area, with expiry or deletion of land without merchantable timber.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "75",
@@ -1140,157 +1632,246 @@
         "ground:land-act-licence",
         "ground:land-act-right-of-way"
       ],
-      "gapNote": "The Land Act screens show overlapping dispositions; nothing ties this section to them."
+      "gapNote": "The Land Act screens show overlapping dispositions; nothing ties this section to them.",
+      "topics": [
+        "forest-tenures",
+        "crown-land"
+      ]
     },
     {
       "n": "75.01",
       "relevance": "definitions",
       "bearsOn": "Definitions for AAC partition orders.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "cut-control"
+      ]
     },
     {
       "n": "75.02",
       "relevance": "admin",
       "bearsOn": "Partition orders cap a licence's harvested volume by timber type, terrain or area to carry out an AAC partition; cut control accounting rather than a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.03",
       "relevance": "admin",
       "bearsOn": "Increase or waiver of a partition harvest limit.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.04",
       "relevance": "admin",
       "bearsOn": "Carrying partition volumes through licence consolidation or replacement.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.05",
       "relevance": "enforcement",
       "bearsOn": "Penalty for exceeding a partition harvest limit.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "cut-control"
+      ]
     },
     {
       "n": "75.06",
       "relevance": "admin",
       "bearsOn": "Relief from a partition penalty.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.07",
       "relevance": "admin",
       "bearsOn": "Regulation-making powers for partition orders.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "cut-control"
+      ]
     },
     {
       "n": "75.1",
       "relevance": "definitions",
       "bearsOn": "Defines cut control period and volume of timber harvested (scaled, cruised, waste and unauthorized volumes) for cut control.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "cut-control"
+      ]
     },
     {
       "n": "75.11",
       "relevance": "admin",
       "bearsOn": "A licence may carry its own definition of volume harvested.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.12",
       "relevance": "admin",
       "bearsOn": "Bonus bid equalization when volumes are attributed between licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "75.2",
       "relevance": "admin",
       "bearsOn": "Total cut limit for short-term licences, with a penalty for overcutting; cut control, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.21",
       "relevance": "admin",
       "bearsOn": "A forestry licence to cut may not exceed its maximum harvestable volume; cut control.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "harvest-authority"
+      ]
     },
     {
       "n": "75.22",
       "relevance": "admin",
       "bearsOn": "Cut control periods for extended short-term forest licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.3",
       "relevance": "admin",
       "bearsOn": "Reconciling cut control when short-term licences are replaced.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.4",
       "relevance": "admin",
       "bearsOn": "Five-year cut control periods for major licences and woodlots.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.41",
       "relevance": "admin",
       "bearsOn": "Harvest in a cut control period may not exceed 110% (120% for woodlots) of the AAC, 100% in the final period; cut control over a licence, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.5",
       "relevance": "admin",
       "bearsOn": "Cut control periods for small forest licences and TSLs.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.51",
       "relevance": "admin",
       "bearsOn": "120% cut control limit for small forest licences and TSLs.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.6",
       "relevance": "admin",
       "bearsOn": "Reconciling cut control when licences are replaced.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.61",
       "relevance": "admin",
       "bearsOn": "Reconciling cut control when woodlots are consolidated.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.7",
       "relevance": "admin",
       "bearsOn": "Overcut carries into the next cut control period.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.8",
       "relevance": "admin",
       "bearsOn": "Undercut is not carried forward and may be disposed of to others in TFLs and woodlots.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control"
+      ]
     },
     {
       "n": "75.9",
       "relevance": "admin",
       "bearsOn": "Exemption from cut control limits where timber is at risk from wind, fire, insects or disease.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "salvage-and-forest-health",
+        "fire"
+      ]
     },
     {
       "n": "75.91",
       "relevance": "enforcement",
       "bearsOn": "Penalty for exceeding cut control limits.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "cut-control"
+      ]
     },
     {
       "n": "75.92",
       "relevance": "admin",
       "bearsOn": "Relief from cut control penalties.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "75.93-75.96",
@@ -1302,37 +1883,63 @@
       "n": "76",
       "relevance": "enforcement",
       "bearsOn": "Suspension of an agreement or its cutting permits for misrepresentation (including in an operational plan), unperformed obligations, non-compliance or failure to establish a free growing stand; a suspended permit stops harvest on its blocks but this is not a planning test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "forest-tenures"
+      ]
     },
     {
       "n": "76.1",
       "relevance": "enforcement",
       "bearsOn": "Notice, hearing and reinstatement of a suspension.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "appeals-and-reviews"
+      ]
     },
     {
       "n": "77",
       "relevance": "enforcement",
       "bearsOn": "Cancellation of a suspended agreement after notice; may set a road deactivation date for a cancelled road permit.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "forest-tenures",
+        "roads"
+      ]
     },
     {
       "n": "78",
       "relevance": "enforcement",
       "bearsOn": "BCTS disqualification, suspension and cancellation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "forest-tenures"
+      ]
     },
     {
       "n": "78.1",
       "relevance": "enforcement",
       "bearsOn": "Minister's suspension of BCTS agreements for operational plan misstatements or non-compliance.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "forest-tenures",
+        "plans"
+      ]
     },
     {
       "n": "79",
       "relevance": "admin",
       "bearsOn": "Obligations incurred (including FRPA reforestation on harvested blocks) survive expiry, surrender, cancellation or suspension, with entry onto Crown land to perform them; affects liability, not whether a block may proceed.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "reforestation"
+      ]
     },
     {
       "n": "79.1",
@@ -1344,13 +1951,22 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Does a residual fibre order under Forest Act section 79.1 cover the block, requiring residual fibre not be damaged (for example, piles not burned) for a period?"
+      ],
+      "topics": [
+        "harvest-authority",
+        "timber-pricing-and-scaling",
+        "fire"
       ]
     },
     {
       "n": "80",
       "relevance": "admin",
       "bearsOn": "No compensation for AAC reductions, deletions, cutting permit or road permit refusals and terms, and residual fibre cancellations.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "forest-tenures"
+      ]
     },
     {
       "n": "80.01",
@@ -1368,13 +1984,21 @@
       "n": "80.2",
       "relevance": "admin",
       "bearsOn": "Compliance during Forestry Revitalization Act interim periods is judged without regard to the take-back orders; historical.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "forest-tenures"
+      ]
     },
     {
       "n": "81",
       "relevance": "admin",
       "bearsOn": "Grounds for refusing an authorization or cutting permit for unpaid money, missing security, suspensions or past non-compliance; holder status, not block design.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "81.1",
@@ -1386,145 +2010,224 @@
       "n": "82",
       "relevance": "definitions",
       "bearsOn": "Defines registrar and unscaled timber for timber marking.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "83",
       "relevance": "admin",
       "bearsOn": "Timber mark suspension, cancellation and expiry.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "84",
       "relevance": "admin",
       "bearsOn": "Unscaled timber decked or removed must carry the land's timber mark; log handling, not block design.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "85",
       "relevance": "admin",
       "bearsOn": "Issuing timber marks for private land.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "private-land"
+      ]
     },
     {
       "n": "86",
       "relevance": "admin",
       "bearsOn": "Scaled timber must carry the scale site's brand when removed; log handling. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "87",
       "relevance": "admin",
       "bearsOn": "Issuing and suspending scaled timber brand certificates. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "88",
       "relevance": "admin",
       "bearsOn": "Approving marine log brands. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "89",
       "relevance": "admin",
       "bearsOn": "Applying marine log brands to marked and scaled timber. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "90",
       "relevance": "admin",
       "bearsOn": "Timber marks and brands are not used or transferred without consent. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "91",
       "relevance": "admin",
       "bearsOn": "Registrar certificates as evidence. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "92",
       "relevance": "admin",
       "bearsOn": "Timber mark and marine log brand registers. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "93",
       "relevance": "definitions",
       "bearsOn": "Defines scale and the kinds of scaler for Part 6.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "93.1",
       "relevance": "enforcement",
       "bearsOn": "No one may claim to be authorized to scale without authority.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "94",
       "relevance": "admin",
       "bearsOn": "Timber must be scaled by an authorized scaler before manufacture, sale or transport elsewhere; log accounting. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "94.1",
       "relevance": "admin",
       "bearsOn": "Scaling special forest products made where timber is felled, after an approved waste assessment. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "95",
       "relevance": "admin",
       "bearsOn": "Scale site authorizations. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "96",
       "relevance": "admin",
       "bearsOn": "Scaling must follow prescribed procedures in cubic metres. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "97",
       "relevance": "admin",
       "bearsOn": "Scale returns and check scales. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "98",
       "relevance": "admin",
       "bearsOn": "Scaling charges payable to government. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "99",
       "relevance": "admin",
       "bearsOn": "Second scales and second check scales. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "100",
       "relevance": "admin",
       "bearsOn": "Scaling licences and appointments. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "101",
       "relevance": "admin",
       "bearsOn": "Re-examination of licensed scalers. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "102",
       "relevance": "admin",
       "bearsOn": "Suspension and cancellation of scaling licences. No bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "102.1",
       "relevance": "definitions",
       "bearsOn": "Defines forest resource, recreation resource and visual resource for the area-based licence inventory Part.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "recreation",
+        "visual-quality"
+      ]
     },
     {
       "n": "102.2",
@@ -1536,13 +2239,21 @@
       "encodable": "document-check",
       "proposedFacts": [
         "If the block is inside an area-based licence, has the holder prepared the forest resource inventories required by Forest Act section 102.2 for the block's area?"
+      ],
+      "topics": [
+        "plans",
+        "forest-tenures"
       ]
     },
     {
       "n": "102.3",
       "relevance": "admin",
       "bearsOn": "Deadlines for area-based licence inventories (TFLs by 2024; CFAs, FNWLs and woodlots by 2026; new licences within 2 years).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "forest-tenures"
+      ]
     },
     {
       "n": "102.4",
@@ -1551,109 +2262,174 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Folded into the s. 102.2 question; no pack checks inventory adequacy.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "soils",
+        "fish-habitat"
+      ]
     },
     {
       "n": "102.5",
       "relevance": "admin",
       "bearsOn": "Ten-year review and update of area-based licence inventories.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "102.6",
       "relevance": "admin",
       "bearsOn": "Record keeping for area-based licence inventories.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "administration"
+      ]
     },
     {
       "n": "102.7",
       "relevance": "admin",
       "bearsOn": "Submitting area-based licence inventories to the chief forester.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "102.8",
       "relevance": "admin",
       "bearsOn": "Chief forester may order an inventory review after wildfire, pests, windthrow or prescribed events.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "salvage-and-forest-health",
+        "fire"
+      ]
     },
     {
       "n": "102.9",
       "relevance": "enforcement",
       "bearsOn": "Inventory officials may inspect records and enter land to verify inventories.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "plans"
+      ]
     },
     {
       "n": "103",
       "relevance": "admin",
       "bearsOn": "Stumpage is volume times rate plus bonus bid, with stumpage for unauthorized harvest; no bearing on block layout.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "103.1",
       "relevance": "admin",
       "bearsOn": "Waste assessments on merchantable timber left at the holder's discretion; a requirement to cut and remove timber is without effect after 4 November 2003. Billing, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "103.2",
       "relevance": "admin",
       "bearsOn": "Waste assessments on road permit timber.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "roads"
+      ]
     },
     {
       "n": "104",
       "relevance": "admin",
       "bearsOn": "Stumpage on timber licences; no royalty on private land timber.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "private-land"
+      ]
     },
     {
       "n": "105",
       "relevance": "admin",
       "bearsOn": "Stumpage rates set by ministry policy and procedures.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "105.1",
       "relevance": "enforcement",
       "bearsOn": "Information submitted for stumpage or other purposes must be complete and accurate.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "105.2",
       "relevance": "admin",
       "bearsOn": "Minister may direct a stumpage redetermination.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "105.3",
       "relevance": "admin",
       "bearsOn": "Small scale salvage stumpage portion goes to a special account.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "salvage-and-forest-health"
+      ]
     },
     {
       "n": "106",
       "relevance": "admin",
       "bearsOn": "Stumpage may be calculated from a pre-harvest cruise, including the block area in hectares, instead of scale.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "107",
       "relevance": "admin",
       "bearsOn": "A single averaged stumpage rate where several apply.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "108",
       "relevance": "admin",
       "bearsOn": "Stumpage on unscaled or incorrectly scaled timber.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "109",
       "relevance": "admin",
       "bearsOn": "BC Timber Sales Account revenue and expenditures (including operational plans, roads and reforestation for BCTS); no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "administration"
+      ]
     },
     {
       "n": "110",
@@ -1665,31 +2441,51 @@
       "n": "111",
       "relevance": "admin",
       "bearsOn": "Annual rent on licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "administration"
+      ]
     },
     {
       "n": "112",
       "relevance": "admin",
       "bearsOn": "Sets how annual rent is calculated for tree farm, woodlot, community forest and first nations woodland licences; it does not bear on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "administration"
+      ]
     },
     {
       "n": "112.1",
       "relevance": "admin",
       "bearsOn": "Lets part of woodlot annual rent be paid to the Woodlot Product Development Council; revenue administration only.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "administration"
+      ]
     },
     {
       "n": "113",
       "relevance": "admin",
       "bearsOn": "Lets the minister or timber sales manager require the requester to pay for a timber cruise before Crown timber is disposed of, with cost recovery from the successful licensee; a disposal cost, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "administration"
+      ]
     },
     {
       "n": "114",
       "relevance": "definitions",
       "bearsOn": "Defines \"eligible holder\" (who may apply for a road permit or road use permit) and \"forest development plan\" for Part 8.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "roads"
+      ]
     },
     {
       "n": "115",
@@ -1702,6 +2498,9 @@
       "proposedFacts": [
         "Does the block's access require constructing or maintaining a road on Crown land outside the cutting permit area, so that a road permit under Forest Act s. 115 is needed?",
         "For a new road, has the applicant identified alternative means of accessing the timber and their impacts on forest resources, cultural heritage resources and public safety?"
+      ],
+      "topics": [
+        "roads"
       ]
     },
     {
@@ -1711,7 +2510,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Application content is ministry-specified; a rule could only record whether required studies (e.g. terrain or crossing assessments) were attached.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "roads"
+      ]
     },
     {
       "n": "117",
@@ -1730,6 +2532,9 @@
       "coveredBy": [
         "bc.forest-permits@1.1.0:permit-refusal",
         "bc.forest-permits@1.1.0:fop"
+      ],
+      "topics": [
+        "roads"
       ]
     },
     {
@@ -1744,6 +2549,9 @@
         "Does the road permit for the block's access specify a deactivation date, and does the planned harvest and hauling finish before it?",
         "Does the road permit restrict the periods when the road may be built, maintained, deactivated or used (for example blasting or hauling windows)?",
         "Will gravel or rock for the road come from pits or quarries in the right of way, and does the road permit authorize them?"
+      ],
+      "topics": [
+        "roads"
       ]
     },
     {
@@ -1759,7 +2567,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No rule asks whether right-of-way timber on the access road lies in the holder's TSA or licence area and is unencumbered, which decides whether it can be harvested under the road permit.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "roads",
+        "harvest-authority"
+      ]
     },
     {
       "n": "119.1",
@@ -1768,13 +2580,21 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No rule identifies encumbered roadway timber (another tenure's cutting permit, licence or area-based licence over the road right of way).",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "roads",
+        "harvest-authority"
+      ]
     },
     {
       "n": "119.2",
       "relevance": "admin",
       "bearsOn": "Counts timber cut under a road permit against another holder's licence for cut control where that holder has removal rights; cut control accounting only.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "roads"
+      ]
     },
     {
       "n": "119.3",
@@ -1787,6 +2607,9 @@
       "proposedFacts": [
         "What is the earliest of the road permit expiry date and any deactivation date it specifies for the block's access road?",
         "Will hauling, silviculture access or other planned use of the road continue past that deactivation date?"
+      ],
+      "topics": [
+        "roads"
       ]
     },
     {
@@ -1796,7 +2619,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "The duty is general; any test depends on the permit terms captured under s. 118.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "roads"
+      ]
     },
     {
       "n": "119.5",
@@ -1808,6 +2634,9 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Does the haul route from the block use a forest service road, and does the holder have a road use permit for it?"
+      ],
+      "topics": [
+        "roads"
       ]
     },
     {
@@ -1817,7 +2646,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Applies to non-timber users of forest service roads; rarely relevant to a cutblock.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "roads"
+      ]
     },
     {
       "n": "119.7",
@@ -1826,7 +2658,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Permit terms are case-specific paperwork.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "roads"
+      ]
     },
     {
       "n": "120",
@@ -1841,7 +2676,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Changes the road's status from road permit to FSR; would only matter for recording the access road's tenure.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "roads"
+      ]
     },
     {
       "n": "121",
@@ -1850,7 +2688,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No rule checks whether the block's access forest service road has been discontinued or closed by notice under s. 121(9).",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "roads",
+        "private-land"
+      ]
     },
     {
       "n": "121.1",
@@ -1862,85 +2704,132 @@
       "n": "122",
       "relevance": "admin",
       "bearsOn": "Lets the minister establish log salvage districts; marine log salvage, not a cutblock matter.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "123",
       "relevance": "admin",
       "bearsOn": "Receiving station licences for salvaged logs in a log salvage district; marine log salvage administration.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "124",
       "relevance": "admin",
       "bearsOn": "Requires a log salvage permit to salvage logs in a log salvage district; coastal marine salvage, not a cutblock.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "125",
       "relevance": "admin",
       "bearsOn": "Restricts disposal and acceptance of salvaged logs to what the regulations allow; marine log salvage.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "126",
       "relevance": "admin",
       "bearsOn": "Lets the minister close coastal waters to log salvaging for up to 10 days after logs are lost; marine only.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "127",
       "relevance": "admin",
       "bearsOn": "Requires Crown timber and its wood residue to be used or manufactured in BC unless exempted; a timber disposition rule, not a block constraint.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "127.1",
       "relevance": "admin",
       "bearsOn": "Prohibits attempting to export unexempted Crown timber or its residue; log export control.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "128",
       "relevance": "admin",
       "bearsOn": "Sets who may exempt timber or wood residue from the manufacture-in-BC rule and on what grounds; log export administration.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "129",
       "relevance": "admin",
       "bearsOn": "Lets an export exemption carry conditions, fees and a permit; log export administration.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "130",
       "relevance": "admin",
       "bearsOn": "Makes money owed under the forest Acts a debt with interest and a lien on timber and chattels; revenue recovery.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "administration"
+      ]
     },
     {
       "n": "130.1",
       "relevance": "admin",
       "bearsOn": "Sets a 7-year limitation for recovering money or enforcing liens, unlimited for wilful default or fraud.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "administration"
+      ]
     },
     {
       "n": "131",
       "relevance": "admin",
       "bearsOn": "Requires a person acquiring timber on which stumpage is unpaid to report it and pay; revenue.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "administration"
+      ]
     },
     {
       "n": "132",
       "relevance": "admin",
       "bearsOn": "Lets the minister order a defaulting person to pay up to 10% of timber value and bars removal without a permit; revenue recovery.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "administration"
+      ]
     },
     {
       "n": "133",
       "relevance": "admin",
       "bearsOn": "Makes the money recovery powers cumulative with seizure and fines.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "administration"
+      ]
     },
     {
       "n": "134",
@@ -1958,31 +2847,47 @@
       "n": "136",
       "relevance": "admin",
       "bearsOn": "Requires agreement holders, harvesters, buyers and mills to keep and report records of volumes, silviculture and costs; record keeping, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "136.1",
       "relevance": "admin",
       "bearsOn": "Limits ministry disclosure of reported cost and sales information.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "136.2",
       "relevance": "admin",
       "bearsOn": "Requires agreement holders to report security interests in their agreement on request.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "136.3",
       "relevance": "admin",
       "bearsOn": "Requires corporate agreement holders to report affiliates on request.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "137",
       "relevance": "enforcement",
       "bearsOn": "Authorizes forest officials to enter land to administer and enforce the Act or verify applications.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "138-139",
@@ -1994,217 +2899,333 @@
       "n": "140",
       "relevance": "admin",
       "bearsOn": "Sets how notices and documents are served under the Act.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "141",
       "relevance": "admin",
       "bearsOn": "Lets the minister extend time limits under the Act, except those on government.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "141.1",
       "relevance": "enforcement",
       "bearsOn": "Requires a person subject to an order, exemption or condition under the Act to comply with it.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "142",
       "relevance": "admin",
       "bearsOn": "Protects officials from personal liability for good-faith acts.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "142.1",
       "relevance": "definitions",
       "bearsOn": "Defines terms for Part 11.1 (assessments, fee in lieu, forest revenue official) and the harvests and exports it applies to.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "administration"
+      ]
     },
     {
       "n": "142.11",
       "relevance": "admin",
       "bearsOn": "Lets the revenue minister designate a commissioner and forest revenue officials.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "142.2",
       "relevance": "enforcement",
       "bearsOn": "Lets forest revenue officials enter land or premises to inspect or audit harvesting, stumpage and export compliance.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "142.21",
       "relevance": "enforcement",
       "bearsOn": "Lets forest revenue officials inspect, audit and copy records.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "142.3",
       "relevance": "admin",
       "bearsOn": "Requires records to be kept for 6 years, longer while a waiver or assessment is open.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "142.31",
       "relevance": "enforcement",
       "bearsOn": "Lets forest revenue officials demand information and records.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "142.4",
       "relevance": "admin",
       "bearsOn": "Requires forest revenue officials to show identification on request.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "142.41",
       "relevance": "enforcement",
       "bearsOn": "Requires persons in charge to produce identification and records to forest revenue officials.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "142.42",
       "relevance": "enforcement",
       "bearsOn": "Sets a $100 per day penalty, up to $10,000, for failing to provide information.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "142.43",
       "relevance": "enforcement",
       "bearsOn": "Lets the commissioner seek a court compliance order for information demands.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "142.5",
       "relevance": "admin",
       "bearsOn": "Makes an official's affidavit evidence of a default.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "142.51",
       "relevance": "admin",
       "bearsOn": "Lets the commissioner estimate and assess stumpage where timber was not or wrongly scaled, cruised or rated.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "administration"
+      ]
     },
     {
       "n": "142.52",
       "relevance": "admin",
       "bearsOn": "Lets the commissioner estimate and assess fees in lieu on exported timber or residue.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "administration"
+      ]
     },
     {
       "n": "142.6",
       "relevance": "admin",
       "bearsOn": "Limits assessments to a 6-year look-back unless fraud or a waiver applies.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "timber-pricing-and-scaling",
+        "administration"
+      ]
     },
     {
       "n": "142.61",
       "relevance": "enforcement",
       "bearsOn": "Sets penalties of up to 100% (wilful) or 25% of an assessment.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "142.7",
       "relevance": "admin",
       "bearsOn": "Requires payment of assessed amounts.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "142.71",
       "relevance": "admin",
       "bearsOn": "Requires a notice of assessment to be served.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "142.8",
       "relevance": "admin",
       "bearsOn": "Sets how a notice of assessment is served.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "142.81",
       "relevance": "admin",
       "bearsOn": "Puts the onus of disproving an assessment on the person assessed.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "142.9",
       "relevance": "admin",
       "bearsOn": "Sets appeals of assessments to the revenue minister within 90 days.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "142.91",
       "relevance": "admin",
       "bearsOn": "Sets appeals of the revenue minister's decision to the Supreme Court.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "142.92",
       "relevance": "admin",
       "bearsOn": "An appeal does not delay payment or collection of an assessment.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "142.921",
       "relevance": "admin",
       "bearsOn": "Excludes Part 12 reviews and appeals from Part 11.1 assessments.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "142.93",
       "relevance": "admin",
       "bearsOn": "Restricts use and sharing of confidential revenue information.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "142.931",
       "relevance": "admin",
       "bearsOn": "Lets the revenue minister enter information-sharing agreements.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "142.94",
       "relevance": "admin",
       "bearsOn": "Regulation-making powers for inspections, audits, appeals and record categories.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "143",
       "relevance": "admin",
       "bearsOn": "Lists the minister's and timber sales manager's determinations (suspensions, cancellations, cut control and rent) that may be reviewed.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews"
+      ]
     },
     {
       "n": "144",
       "relevance": "admin",
       "bearsOn": "Sets the 3-week deadline and content for requesting a review.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews"
+      ]
     },
     {
       "n": "145",
       "relevance": "admin",
       "bearsOn": "Sets how a review is decided and the reviewer's powers.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews"
+      ]
     },
     {
       "n": "146",
       "relevance": "admin",
       "bearsOn": "Lists determinations that may be appealed to the Forest Appeals Commission.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews"
+      ]
     },
     {
       "n": "146.1",
       "relevance": "admin",
       "bearsOn": "Applies FRPA Part 8.1 to Forest Act appeals.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews"
+      ]
     },
     {
       "n": "147",
       "relevance": "admin",
       "bearsOn": "Limits the parties to an appeal to the appellant and government.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews"
+      ]
     },
     {
       "n": "148-148.6",
@@ -2216,7 +3237,10 @@
       "n": "149",
       "relevance": "admin",
       "bearsOn": "Sets the Forest Appeals Commission's powers on appeal.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews"
+      ]
     },
     {
       "n": "149.1",
@@ -2228,7 +3252,11 @@
       "n": "149.2",
       "relevance": "enforcement",
       "bearsOn": "Lets the commission, minister or appellant seek a court order to comply with a commission decision.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "appeals-and-reviews"
+      ]
     },
     {
       "n": "150",
@@ -2240,25 +3268,37 @@
       "n": "150.1",
       "relevance": "admin",
       "bearsOn": "Applies FRPA Part 6 Division 4 to contravention reviews and appeals under the Forest Act.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews"
+      ]
     },
     {
       "n": "151",
       "relevance": "admin",
       "bearsOn": "General regulation-making powers (log transport, scaling, fees, reviews, security deposits); no direct block requirement.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "151.01",
       "relevance": "admin",
       "bearsOn": "Lets regulations set criteria for discretionary decisions under the Act.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "151.1",
       "relevance": "admin",
       "bearsOn": "Lets regulations establish forest districts, regions and BCTS business areas by reference to maps.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "151.2",
@@ -2270,7 +3310,11 @@
       "n": "151.3",
       "relevance": "admin",
       "bearsOn": "Allows a regulated trial of area-based allowable annual cut; cut determination, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "administration"
+      ]
     },
     {
       "n": "151.4",
@@ -2282,151 +3326,233 @@
       "n": "151.5",
       "relevance": "admin",
       "bearsOn": "Regulation power adapting cut control for converted timber sale licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "administration"
+      ]
     },
     {
       "n": "151.51",
       "relevance": "admin",
       "bearsOn": "Regulation power adapting cut control for first nations woodland licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "cut-control",
+        "administration"
+      ]
     },
     {
       "n": "151.6",
       "relevance": "admin",
       "bearsOn": "Regulation power for fibre supply and forestry licences to cut, including harvest completion notices.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "administration"
+      ]
     },
     {
       "n": "151.7",
       "relevance": "admin",
       "bearsOn": "Regulation power for first nations woodland licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "administration"
+      ]
     },
     {
       "n": "151.71",
       "relevance": "admin",
       "bearsOn": "Regulation power for cutting permit extension fees and postponement conditions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "administration"
+      ]
     },
     {
       "n": "151.8",
       "relevance": "admin",
       "bearsOn": "Regulation power for dispositions of agreements and corporate changes of control.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures",
+        "administration"
+      ]
     },
     {
       "n": "151.9",
       "relevance": "admin",
       "bearsOn": "Regulation power for records and returns.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "152",
       "relevance": "definitions",
       "bearsOn": "Defines contractor, replaceable contract and related terms for the timber harvesting contract provisions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "153",
       "relevance": "admin",
       "bearsOn": "Regulation power requiring written harvesting contracts and subcontracts.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "154",
       "relevance": "admin",
       "bearsOn": "Regulation power on assignability of harvesting contracts.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "155",
       "relevance": "admin",
       "bearsOn": "Regulation power for mediation and arbitration of harvesting contract disputes.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "156",
       "relevance": "admin",
       "bearsOn": "Register of timber harvesting contract mediators and arbitrators.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "157",
       "relevance": "admin",
       "bearsOn": "Regulation power for replaceable contracts and subcontracts.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "157.1",
       "relevance": "admin",
       "bearsOn": "Allows agreements making replaceable contracts non-replaceable.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "157.2",
       "relevance": "admin",
       "bearsOn": "Allows waiver of certain contract regulation provisions by agreement.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "158",
       "relevance": "admin",
       "bearsOn": "Transitional replacement offers for contracts that expired in 1991.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "159",
       "relevance": "admin",
       "bearsOn": "Lets contract regulations apply to existing contracts.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "160",
       "relevance": "admin",
       "bearsOn": "Deems non-conforming contracts amended to include prescribed standard provisions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "161",
       "relevance": "admin",
       "bearsOn": "Supplementary regulation powers for the contract provisions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "162",
       "relevance": "admin",
       "bearsOn": "No compensation for the effect of the contract provisions on licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "163",
       "relevance": "enforcement",
       "bearsOn": "Sets fines and imprisonment for offences, including failing to deactivate a road under s. 119.3(2) (up to $500,000).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "roads"
+      ]
     },
     {
       "n": "163.1",
       "relevance": "enforcement",
       "bearsOn": "Prohibits interfering with, disobeying or misleading officials.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "164",
       "relevance": "enforcement",
       "bearsOn": "Prohibits bid rigging and intimidation in applications under Part 3.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "164.01",
       "relevance": "enforcement",
       "bearsOn": "Offences for misuse of confidential revenue information.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "164.1",
       "relevance": "enforcement",
       "bearsOn": "Lets an official cancel agreements and disqualify persons for Part 3 bid offences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "165",
@@ -2438,19 +3564,28 @@
       "n": "165.1",
       "relevance": "enforcement",
       "bearsOn": "Prohibits conspiring to restrict competition in log sales.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "165.2",
       "relevance": "enforcement",
       "bearsOn": "An offence does not relieve other liability.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "166",
       "relevance": "enforcement",
       "bearsOn": "Makes corporate officers liable for offences they authorized.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "167",
@@ -2462,25 +3597,38 @@
       "n": "167.1",
       "relevance": "enforcement",
       "bearsOn": "Due diligence, mistake of fact and officially induced error are defences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "167.2",
       "relevance": "enforcement",
       "bearsOn": "Excludes Offence Act s. 5 from the Forest Act.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "167.3",
       "relevance": "enforcement",
       "bearsOn": "Applies FRPA Part 6 Divisions 1 to 3 (administrative penalties) to the Forest Act.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "168",
       "relevance": "definitions",
       "bearsOn": "Defines \"agreement\" and \"designated area\" for Part 13.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "designated-areas"
+      ]
     },
     {
       "n": "169",
@@ -2492,6 +3640,9 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Does the block or its access road lie in Crown land specified as a designated area by a regulation under Forest Act s. 169, and is the designation still in effect?"
+      ],
+      "topics": [
+        "designated-areas"
       ]
     },
     {
@@ -2505,6 +3656,10 @@
       "proposedFacts": [
         "Has the minister made a Forest Act s. 170 order that suspends or varies the cutting permit, road permit or plan for this block, or directs that it not be issued?",
         "If a s. 170(2)(b)(ii) direction applies, what conditions must the cutting permit or road permit carry because of the designated area?"
+      ],
+      "topics": [
+        "designated-areas",
+        "harvest-authority"
       ]
     },
     {
@@ -2514,25 +3669,41 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A rule could record designated-area conditions attached to the licence that govern the block.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "designated-areas",
+        "harvest-authority"
+      ]
     },
     {
       "n": "172",
       "relevance": "enforcement",
       "bearsOn": "Makes failure to comply with a designated-area variance or condition grounds to suspend or cancel rights.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "173",
       "relevance": "admin",
       "bearsOn": "Lets the chief forester or minister reduce AAC for a TSA, TFL, community forest, first nations woodland or woodlot licence while land is a designated area; cut control, not a block test.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "173.1",
       "relevance": "admin",
       "bearsOn": "A designated-area AAC reduction is not an AAC determination for s. 8 timing.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "174",
@@ -2541,37 +3712,61 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Only matters once a s. 170 or 171 order is identified; it makes the order govern over the block's permits.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "designated-areas",
+        "objectives"
+      ]
     },
     {
       "n": "175",
       "relevance": "admin",
       "bearsOn": "Part 13 orders may be made without a hearing.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "administration"
+      ]
     },
     {
       "n": "175.1",
       "relevance": "admin",
       "bearsOn": "No compensation for a designated area in its first 4 years.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "175.2",
       "relevance": "admin",
       "bearsOn": "Compensation for AAC reductions after the fourth year of designation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "175.3",
       "relevance": "admin",
       "bearsOn": "Sets off government benefits against designated-area compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "175.4",
       "relevance": "admin",
       "bearsOn": "Limits designated-area compensation to the statutory amount.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "176",
@@ -2589,7 +3784,10 @@
       "n": "178",
       "relevance": "tenure",
       "bearsOn": "Lets a forest licence or forestry licence to cut be awarded without competition to holders who lost harvest rights under the Nisga'a Final Agreement; outside the Omineca blocks the planner serves.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "forest-tenures"
+      ]
     },
     {
       "n": "179",
@@ -2601,7 +3799,11 @@
       "n": "180",
       "relevance": "definitions",
       "bearsOn": "Defines access purpose, ancillary road structure, timber production purpose and improvement, profile of timber and other Part 15 terms.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "roads"
+      ]
     },
     {
       "n": "181",
@@ -2613,6 +3815,10 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Does the block or its access road overlap an area designated as a special purpose area under Forest Act s. 181 or s. 182, and for what purpose?"
+      ],
+      "topics": [
+        "designated-areas",
+        "roads"
       ]
     },
     {
@@ -2625,55 +3831,88 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Is the block inside a special purpose area designated for a first nation, BCTS licence or community forest purpose, and is the block's licence one entered into for that purpose?"
+      ],
+      "topics": [
+        "designated-areas"
       ]
     },
     {
       "n": "183",
       "relevance": "admin",
       "bearsOn": "A designation must state its purpose and a cancellation date no more than 3 years out.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas"
+      ]
     },
     {
       "n": "184",
       "relevance": "admin",
       "bearsOn": "Limits extending a designation to one extension of up to 3 years.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas"
+      ]
     },
     {
       "n": "185",
       "relevance": "admin",
       "bearsOn": "The chief forester must specify harvest profiles and AAC reductions for area-based licences overlapped by a special purpose area.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "186",
       "relevance": "admin",
       "bearsOn": "The chief forester must specify harvest profile, hectares and volume for non-TFL timber licence overlaps, excluding cutting permit areas.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "187",
       "relevance": "admin",
       "bearsOn": "Lets the chief forester require management plan and inventory information from licence holders.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "forest-tenures"
+      ]
     },
     {
       "n": "188",
       "relevance": "admin",
       "bearsOn": "Notice to licence holders of the chief forester's determinations.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "forest-tenures"
+      ]
     },
     {
       "n": "189",
       "relevance": "tenure",
       "bearsOn": "Deletes Crown land overlapping a special purpose area from an area-based licence or timber licence one year after the designation, which removes it from the licence a block may be planned under.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "forest-tenures"
+      ]
     },
     {
       "n": "190",
       "relevance": "tenure",
       "bearsOn": "Lets the minister bring a licence-area deletion forward to as early as 2 months after the designation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "forest-tenures"
+      ]
     },
     {
       "n": "191",
@@ -2682,19 +3921,31 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A rule could compare the block's harvest completion with any extended deletion date and the cutting permit expiry.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "designated-areas",
+        "harvest-authority"
+      ]
     },
     {
       "n": "192",
       "relevance": "admin",
       "bearsOn": "Lets the minister cancel a licence whose whole area is deleted.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "forest-tenures"
+      ]
     },
     {
       "n": "193",
       "relevance": "admin",
       "bearsOn": "Sets when an area-based licence AAC reduction takes effect.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "194",
@@ -2706,13 +3957,21 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Does any part of the block's cutting permit area overlap a special purpose area, and what is the deletion date for that overlap?"
+      ],
+      "topics": [
+        "designated-areas",
+        "harvest-authority"
       ]
     },
     {
       "n": "195",
       "relevance": "admin",
       "bearsOn": "Deems licences and cutting permits amended to reflect deletions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "harvest-authority"
+      ]
     },
     {
       "n": "196",
@@ -2721,61 +3980,101 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A rule could record a s. 196 suspension order over the block's overlap.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "designated-areas",
+        "harvest-authority"
+      ]
     },
     {
       "n": "197",
       "relevance": "tenure",
       "bearsOn": "Bars entering into or enlarging an area-based or timber licence over a special purpose area, except replacements.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "forest-tenures"
+      ]
     },
     {
       "n": "198",
       "relevance": "definitions",
       "bearsOn": "Defines AAC available for BCTS licences and AAC reduction terms for Part 15 Division 4.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "199",
       "relevance": "admin",
       "bearsOn": "The chief forester must determine harvest profile and AAC reduction for a TSA overlapped by a special purpose area.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "200",
       "relevance": "admin",
       "bearsOn": "Notice to forest licence holders of TSA determinations.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "201",
       "relevance": "admin",
       "bearsOn": "A TSA AAC reduction takes effect 40 days after determination.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "202",
       "relevance": "admin",
       "bearsOn": "Requires the minister to reduce forest licence AACs after a TSA AAC reduction for a special purpose area.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "203",
       "relevance": "admin",
       "bearsOn": "Formula for the BCTS share of a TSA AAC reduction.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "204",
       "relevance": "admin",
       "bearsOn": "Method for distributing the remaining reduction among forest licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "205",
       "relevance": "admin",
       "bearsOn": "Notice and effective date of forest licence AAC reductions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "cut-control"
+      ]
     },
     {
       "n": "206",
@@ -2787,13 +4086,21 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Has the minister made a Forest Act s. 206 order amending, suspending or cancelling rights under the cutting permit for the part of the block that overlaps a special purpose area?"
+      ],
+      "topics": [
+        "designated-areas",
+        "harvest-authority"
       ]
     },
     {
       "n": "207",
       "relevance": "tenure",
       "bearsOn": "Bars entering into or amending a forest licence that would restrict harvest to a TSA portion overlapping a special purpose area.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "forest-tenures"
+      ]
     },
     {
       "n": "208",
@@ -2805,6 +4112,10 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "If the block is under a timber sale licence or forestry licence to cut, has a Forest Act s. 208 order amended, suspended or cancelled the rights exercisable in a special purpose area?"
+      ],
+      "topics": [
+        "designated-areas",
+        "harvest-authority"
       ]
     },
     {
@@ -2822,13 +4133,21 @@
       "coveredBy": [
         "bc.forest-permits@1.1.0:spa-licence",
         "bc.forest-permits@1.1.0:spa-licence#fltc-purpose"
+      ],
+      "topics": [
+        "designated-areas",
+        "harvest-authority"
       ]
     },
     {
       "n": "210",
       "relevance": "definitions",
       "bearsOn": "Limits Part 15 Division 6 to special use permit roads that access a timber production purpose and excludes master licence to cut roads.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "roads"
+      ]
     },
     {
       "n": "211",
@@ -2837,7 +4156,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A rule could record a s. 211 deactivation order affecting the block's access road.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "designated-areas",
+        "roads"
+      ]
     },
     {
       "n": "212",
@@ -2846,7 +4169,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Cost arrangement only; no block test beyond s. 211.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "designated-areas",
+        "roads"
+      ]
     },
     {
       "n": "213",
@@ -2858,6 +4185,10 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Does the block's access road under a road permit or special use permit pass through a special purpose area, and has a s. 213 order amended, suspended or cancelled it?"
+      ],
+      "topics": [
+        "designated-areas",
+        "roads"
       ]
     },
     {
@@ -2870,6 +4201,10 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Does any unbuilt segment of the block's access road lie inside a special purpose area, and has the minister made an order allowing its construction?"
+      ],
+      "topics": [
+        "designated-areas",
+        "roads"
       ]
     },
     {
@@ -2887,6 +4222,10 @@
       "coveredBy": [
         "bc.forest-permits@1.1.0:spa-road",
         "bc.forest-permits@1.1.0:spa-road#no-interference"
+      ],
+      "topics": [
+        "designated-areas",
+        "roads"
       ]
     },
     {
@@ -2896,421 +4235,711 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Affects deactivation prescriptions for the block's road: structures may have to be left in place.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "designated-areas",
+        "roads"
+      ]
     },
     {
       "n": "217",
       "relevance": "admin",
       "bearsOn": "Lets the minister vest property in ancillary road structures in government; deactivation duty continues.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "roads"
+      ]
     },
     {
       "n": "218",
       "relevance": "tenure",
       "bearsOn": "Bars constructing a timber production improvement (camp, log dump, airstrip) inside a special purpose area under a pre-existing authorization unless the minister allows.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "forest-tenures"
+      ]
     },
     {
       "n": "219",
       "relevance": "tenure",
       "bearsOn": "Lets the minister amend, suspend or cancel special use permit rights for a timber production improvement in a special purpose area.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "forest-tenures"
+      ]
     },
     {
       "n": "220",
       "relevance": "tenure",
       "bearsOn": "Bars authorizing a new timber production improvement in a special purpose area.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "forest-tenures"
+      ]
     },
     {
       "n": "221",
       "relevance": "admin",
       "bearsOn": "Requires notice of Part 15 orders to affected holders.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "administration"
+      ]
     },
     {
       "n": "222",
       "relevance": "admin",
       "bearsOn": "Lets the minister extend Part 15 time periods in special circumstances.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "administration"
+      ]
     },
     {
       "n": "223",
       "relevance": "tenure",
       "bearsOn": "Exempts licences entered into for a special purpose area's own purpose (first nation, BCTS or community forest) and their road permits from the Part 15 restrictions, including the bar on new cutting permits.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "forest-tenures"
+      ]
     },
     {
       "n": "224",
       "relevance": "admin",
       "bearsOn": "A Part 15 suspension does not count as a suspension for licence replacement or cutting permit extension.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "administration"
+      ]
     },
     {
       "n": "225",
       "relevance": "admin",
       "bearsOn": "Regulation-making power for Part 15, including designating special purpose areas.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "administration"
+      ]
     },
     {
       "n": "226",
       "relevance": "definitions",
       "bearsOn": "Defines deletion and reduction purposes, established practices, net income and harvest profiles for Part 16 compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "227",
       "relevance": "definitions",
       "bearsOn": "Defines the 15- and 25-year deletion periods used for compensation thresholds.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "228",
       "relevance": "definitions",
       "bearsOn": "Defines net income (revenue less costs, including road and silviculture costs) for compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "229",
       "relevance": "definitions",
       "bearsOn": "Defines remaining term for compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "230",
       "relevance": "definitions",
       "bearsOn": "Defines total compensable AAC and area (amounts beyond the 5% threshold).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "231",
       "relevance": "admin",
       "bearsOn": "Compensation for an area-based licence whose AAC falls more than 5% from access-purpose deletions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "232",
       "relevance": "admin",
       "bearsOn": "Compensation for an area-based licence for non-timber production deletions over 5%.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "233",
       "relevance": "admin",
       "bearsOn": "Compensation for an area-based licence for other special purpose deletions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "234",
       "relevance": "admin",
       "bearsOn": "Compensation for a non-TFL timber licence for access-purpose deletions over 5% of area.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "235",
       "relevance": "admin",
       "bearsOn": "Compensation for a non-TFL timber licence for non-timber production deletions over 5%.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "236",
       "relevance": "admin",
       "bearsOn": "Compensation for a non-TFL timber licence for other special purpose deletions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "237",
       "relevance": "definitions",
       "bearsOn": "Defines total compensable AAC for forest licences.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "238",
       "relevance": "admin",
       "bearsOn": "Compensation for forest licence AAC reductions over 5% for access purposes.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "239",
       "relevance": "admin",
       "bearsOn": "Compensation for forest licence AAC reductions over 5% for non-timber production purposes.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "240",
       "relevance": "admin",
       "bearsOn": "Compensation for forest licence AAC reductions for other special purposes.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "241",
       "relevance": "admin",
       "bearsOn": "Discretionary compensation where a special purpose area overlaps a cutting permit area that is deleted or cancelled.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "242",
       "relevance": "admin",
       "bearsOn": "Discretionary compensation where a special purpose area cuts off practicable access to a cutting permit area issued before designation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "243",
       "relevance": "admin",
       "bearsOn": "Compensation for community forest or woodlot cutting permits per regulation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "244",
       "relevance": "admin",
       "bearsOn": "Cutting permit holders must provide information for compensation on request.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "245",
       "relevance": "admin",
       "bearsOn": "No compensation for fibre supply licences to cut or free use permits.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "246",
       "relevance": "admin",
       "bearsOn": "Compensation for a cancelled forestry licence to cut per regulation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "247",
       "relevance": "admin",
       "bearsOn": "Compensation for a cancelled timber sale licence per regulation; none for amendment or suspension.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "248",
       "relevance": "admin",
       "bearsOn": "No compensation for pulpwood agreements unless regulations provide otherwise.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "249",
       "relevance": "admin",
       "bearsOn": "Compensation for a cancelled Christmas tree permit per regulation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "250",
       "relevance": "definitions",
       "bearsOn": "An ancillary road structure forms part of the road for compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "roads",
+        "designated-areas"
+      ]
     },
     {
       "n": "251",
       "relevance": "definitions",
       "bearsOn": "Limits Part 16 Division 6 to special use permit roads accessing a timber production purpose and excludes master licence to cut roads.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "roads",
+        "designated-areas"
+      ]
     },
     {
       "n": "252",
       "relevance": "admin",
       "bearsOn": "Compensation for construction costs of a road in a special purpose area whose rights are cancelled.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "roads",
+        "designated-areas"
+      ]
     },
     {
       "n": "253",
       "relevance": "admin",
       "bearsOn": "General conditions for road compensation (costs incurred, not paid by government, not already compensated, just).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "roads",
+        "designated-areas"
+      ]
     },
     {
       "n": "254",
       "relevance": "admin",
       "bearsOn": "Compensation for a road outside a special purpose area serving a cutting permit whose harvest is impacted.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "roads",
+        "designated-areas"
+      ]
     },
     {
       "n": "255",
       "relevance": "admin",
       "bearsOn": "Defines when cutting permit harvesting rights are impacted for road compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "roads",
+        "designated-areas"
+      ]
     },
     {
       "n": "256",
       "relevance": "admin",
       "bearsOn": "Compensation for other road permit roads outside a special purpose area per regulation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "roads",
+        "designated-areas"
+      ]
     },
     {
       "n": "257",
       "relevance": "admin",
       "bearsOn": "Compensation for special use permit roads outside a special purpose area per regulation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "roads",
+        "designated-areas"
+      ]
     },
     {
       "n": "258",
       "relevance": "admin",
       "bearsOn": "Compensation for a timber production improvement in a special purpose area whose rights are cancelled.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "259",
       "relevance": "admin",
       "bearsOn": "Compensation for a timber production improvement cut off by a special purpose area.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "260",
       "relevance": "admin",
       "bearsOn": "Road and special use permit holders must provide harvest and cost information on request.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "261",
       "relevance": "admin",
       "bearsOn": "Lets the minister cancel road rights outside a special purpose area when compensating for them.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "roads",
+        "designated-areas"
+      ]
     },
     {
       "n": "262",
       "relevance": "admin",
       "bearsOn": "Compensation may take the form of a new agreement.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "263",
       "relevance": "admin",
       "bearsOn": "Reduces compensation by government benefits and allows waivers.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "264",
       "relevance": "admin",
       "bearsOn": "No compensation for special purpose area designations except as Part 16 provides.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "265",
       "relevance": "admin",
       "bearsOn": "General regulation-making powers for Part 16 compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "266",
       "relevance": "admin",
       "bearsOn": "Regulation powers for determining net income.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "267",
       "relevance": "admin",
       "bearsOn": "Regulation powers for information required for compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "268",
       "relevance": "admin",
       "bearsOn": "Regulation powers for cutting permit compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "269",
       "relevance": "admin",
       "bearsOn": "Regulation powers for road and improvement compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "roads",
+        "designated-areas"
+      ]
     },
     {
       "n": "270",
       "relevance": "definitions",
       "bearsOn": "Definitions for Part 17 reductions for first nation or BCTS purposes.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "cut-control"
+      ]
     },
     {
       "n": "271",
       "relevance": "admin",
       "bearsOn": "Cabinet may authorize forest licence AAC reductions to make timber available for first nations forest licences or BCTS.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "cut-control"
+      ]
     },
     {
       "n": "272",
       "relevance": "admin",
       "bearsOn": "Chief forester must specify harvest profiles affected by a reduction authorization order.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "cut-control"
+      ]
     },
     {
       "n": "273",
       "relevance": "admin",
       "bearsOn": "Minister may reduce forest licence AACs within 2 years under a reduction authorization order.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "cut-control"
+      ]
     },
     {
       "n": "274",
       "relevance": "admin",
       "bearsOn": "Compensation for forest licence AAC reductions under Part 17.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "cut-control"
+      ]
     },
     {
       "n": "275",
       "relevance": "admin",
       "bearsOn": "Applies Part 16 general compensation provisions to Part 17.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "cut-control"
+      ]
     },
     {
       "n": "276",
       "relevance": "admin",
       "bearsOn": "Regulation powers for Part 17 compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "cut-control"
+      ]
     },
     {
       "n": "277",
       "relevance": "definitions",
       "bearsOn": "Definitions for Park Act deletions and expropriations.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "protected-areas"
+      ]
     },
     {
       "n": "278",
       "relevance": "admin",
       "bearsOn": "Purposes of Part 18: compensation for Park Act deletions and expropriations.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "protected-areas"
+      ]
     },
     {
       "n": "279",
       "relevance": "admin",
       "bearsOn": "Regulation powers for Park Act deletion and expropriation compensation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "protected-areas"
+      ]
     },
     {
       "n": "280",
       "relevance": "definitions",
       "bearsOn": "Definitions for Part 19 transitional provisions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "administration"
+      ]
     },
     {
       "n": "281",
       "relevance": "admin",
       "bearsOn": "Counts deletions or reductions made under the repealed ss. 60.2 to 60.4 toward the 5% compensation thresholds; transitional.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "282",
       "relevance": "admin",
       "bearsOn": "Counts deletions or reductions made under the repealed ss. 60.2 to 60.4 toward the 5% compensation thresholds; transitional.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "283",
       "relevance": "admin",
       "bearsOn": "Counts deletions or reductions made under the repealed ss. 60.2 to 60.4 toward the 5% compensation thresholds; transitional.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "284",
       "relevance": "admin",
       "bearsOn": "Counts deletions or reductions made under the repealed ss. 60.2 to 60.4 toward the 5% compensation thresholds; transitional.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     },
     {
       "n": "285",
       "relevance": "admin",
       "bearsOn": "Preserves compensation entitlements under the former ss. 60.6 to 60.92 that were unpaid on July 15, 2023.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "designated-areas"
+      ]
     }
   ]
 }

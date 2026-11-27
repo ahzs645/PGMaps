@@ -12,7 +12,10 @@ import {
   sectionState,
   STATE_LABEL,
   type Citing,
+  type AdminAreasFile,
   type CoverageReview,
+  type LawTopic,
+  type OrderLinks,
   type SectionState,
 } from './coverage'
 
@@ -32,13 +35,18 @@ export interface BookInput {
   packs: Pack[]
   /** Statutes first, in the order a planner meets them, then the orders. */
   priority: string[]
+  /** The shared vocabulary sections are labelled with (`catalogue/topics.json`). */
+  topics: LawTopic[]
+  /** Orders and policies with the areas they cover and the sections they are made under. */
+  orders: OrderLinks[]
+  areas: AdminAreasFile
 }
 
 const cell = (text: string | undefined) => (text ?? '').replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim()
 const SHOWN: SectionState[] = ['rule', 'screen', 'gap-high', 'gap-medium', 'gap-low']
 const newer = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }) > 0
 
-export function coverageBook({ reviews, index, sources, packs, priority }: BookInput): string {
+export function coverageBook({ reviews, index, sources, packs, priority, topics, orders, areas }: BookInput): string {
   const source = (id: string) => sources.find((s) => s.id === id)
   const title = (id: string) => source(id)?.title ?? id
   const label = (id: string, n: string) => (source(id)?.order ? n : `s. ${n}`)
@@ -115,6 +123,55 @@ export function coverageBook({ reviews, index, sources, packs, priority }: BookI
     out.push('')
   }
 
+  out.push('## By topic', '')
+  out.push(
+    'Every section and order provision labelled with each topic, from every source, so one topic gathers the law on it. A label says what a provision is about, never that it applies to a block.',
+    '',
+  )
+  const topicLabel = (id: string) => topics.find((t) => t.id === id)?.label ?? id
+  for (const group of [...new Set(topics.map((t) => t.group))]) {
+    out.push(`### ${cell(group)}`, '')
+    for (const t of topics.filter((x) => x.group === group)) {
+      const bySource = ordered
+        .map((r) => ({ r, ns: r.sections.filter((s) => s.topics?.includes(t.id)).map((s) => s.n) }))
+        .filter((x) => x.ns.length)
+      out.push(`**${cell(t.label)}** (\`${t.id}\`). ${cell(t.description)}`, '')
+      if (!bySource.length) out.push('- None labelled.', '')
+      else {
+        for (const { r, ns } of bySource)
+          out.push(`- ${cell(title(r.source))}: ${ns.map((n) => cell(label(r.source, n))).join(', ')}`)
+        out.push('')
+      }
+    }
+  }
+
+  out.push('## Orders: where they apply and what they are made under', '')
+  out.push(
+    'Each order and policy with the sections it is made under and the natural resource districts it covers. A district says an order applies somewhere in it; the map layers decide whether it reaches a block.',
+    '',
+  )
+  const districtName = (code: string) =>
+    areas.districts.find((d) => d.code === code)?.name.replace(' Natural Resource District', '') ?? code
+  const enabling = (o: OrderLinks) =>
+    (o.enabling ?? [])
+      .map((e) => (e.source ? `${title(e.source).replace(/,.*$/, '')} s. ${e.provision}` : e.text))
+      .join('; ') || 'None recorded'
+  const covers = (o: OrderLinks) =>
+    o.areas?.scope === 'province' ? 'The province' : (o.areas?.districts ?? []).map(districtName).join(', ')
+  out.push('| Order | Made under | Covers | How the area was found |', '| --- | --- | --- | --- |')
+  for (const o of orders)
+    out.push(`| ${cell(o.title)} | ${cell(enabling(o))} | ${cell(covers(o))} | ${cell(o.areas?.basis)} |`)
+  out.push('', '### By district', '')
+  for (const d of areas.districts) {
+    const here = orders.filter((o) => o.areas?.districts?.includes(d.code))
+    if (here.length) out.push(`- **${cell(districtName(d.code))}**: ${here.map((o) => cell(o.title)).join('; ')}`)
+  }
+  out.push(
+    '',
+    'Policies that apply across the province are listed in the table above and not repeated by district.',
+    '',
+  )
+
   out.push('## Rules by instrument', '')
   const latest = new Map<string, Pack>()
   for (const p of packs) if (!latest.has(p.id) || newer(p.version, latest.get(p.id)!.version)) latest.set(p.id, p)
@@ -138,12 +195,15 @@ export function coverageBook({ reviews, index, sources, packs, priority }: BookI
     )
     const shown = r.sections.filter((s) => SHOWN.includes(state(r, s.n)))
     if (shown.length) {
-      out.push('| Section | Status | Bears on | Cited by | What is left |', '| --- | --- | --- | --- | --- |')
+      out.push(
+        '| Section | Status | Bears on | Topics | Cited by | What is left |',
+        '| --- | --- | --- | --- | --- | --- |',
+      )
       for (const s of shown) {
         const st = state(r, s.n)
         const cited = [...new Set((index.get(sectionKey(r.source, s.n)) ?? []).map((c) => c.id))]
         out.push(
-          `| ${cell(label(r.source, s.n))} | ${STATE_LABEL[st]} | ${cell(s.bearsOn)} | ${cited.map((c) => `\`${c}\``).join(', ')} | ${cell(s.gapNote)} |`,
+          `| ${cell(label(r.source, s.n))} | ${STATE_LABEL[st]} | ${cell(s.bearsOn)} | ${(s.topics ?? []).map((t) => cell(topicLabel(t))).join(', ')} | ${cited.map((c) => `\`${c}\``).join(', ')} | ${cell(s.gapNote)} |`,
         )
       }
       out.push('')

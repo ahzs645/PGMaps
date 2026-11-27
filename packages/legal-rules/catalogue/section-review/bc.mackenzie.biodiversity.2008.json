@@ -8,7 +8,11 @@
       "n": "Preamble",
       "relevance": "admin",
       "bearsOn": "Background; states the preamble is not part of the order.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "landscape-biodiversity",
+        "objectives"
+      ]
     },
     {
       "n": "1.1",
@@ -20,6 +24,10 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Is the block in the Mackenzie Forest District, and in which landscape unit or landscape unit group of Table 2?"
+      ],
+      "topics": [
+        "objectives",
+        "landscape-biodiversity"
       ]
     },
     {
@@ -32,6 +40,10 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Is the block or the old forest counted for it under a woodlot licence, research forest or community forest licence, and is that tenure 600 ha or smaller?"
+      ],
+      "topics": [
+        "objectives",
+        "forest-tenures"
       ]
     },
     {
@@ -41,7 +53,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Nothing to test beyond knowing which order governs Mackenzie old forest.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "objectives",
+        "old-growth"
+      ]
     },
     {
       "n": "1.4",
@@ -50,7 +66,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Matters only in the Obo River and Fox units; a rule would point the reviewer to this order's figures there.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "objectives",
+        "old-growth"
+      ]
     },
     {
       "n": "Map #1",
@@ -62,13 +82,20 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Which Mackenzie landscape unit (January 2010 map) does the block fall in?"
+      ],
+      "topics": [
+        "landscape-biodiversity"
       ]
     },
     {
       "n": "1.5 Definitions (general)",
       "relevance": "definitions",
       "bearsOn": "Defines the biodiversity emphasis option, BEC, community forest agreement area, deciduous species (birch or aspen), licensee and young forest (0-20 years).",
-      "review": "none"
+      "review": "none",
+      "topics": [
+        "administration",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "1.5 Table 1",
@@ -80,19 +107,32 @@
       "encodable": "numeric",
       "proposedFacts": [
         "Which Biogeoclimatic Group of Table 1 does each stand in the landscape unit belong to?"
+      ],
+      "topics": [
+        "old-growth",
+        "administration"
       ]
     },
     {
       "n": "1.5 Crown Forest Land Base",
       "relevance": "definitions",
       "bearsOn": "Defines the CFLB, the denominator of Objective 2, excluding private, federal, municipal land and woodlots.",
-      "review": "none"
+      "review": "none",
+      "topics": [
+        "old-growth",
+        "administration"
+      ]
     },
     {
       "n": "1.5 Natural Forest Area",
       "relevance": "definitions",
       "bearsOn": "Defines NFAs as unharvested beetle-affected stands that may count toward the old forest target.",
-      "review": "none"
+      "review": "none",
+      "topics": [
+        "old-growth",
+        "salvage-and-forest-health",
+        "administration"
+      ]
     },
     {
       "n": "1.5 Old Forest",
@@ -104,6 +144,10 @@
       "encodable": "numeric",
       "proposedFacts": [
         "Is the stand older than the Mackenzie order's old age for its BEC unit and leading species (120, 100 or 140 years)?"
+      ],
+      "topics": [
+        "old-growth",
+        "administration"
       ]
     },
     {
@@ -118,6 +162,10 @@
         "Is the block in the Mackenzie Forest District, and in which landscape unit or landscape unit group of Table 2?",
         "After the schedule's harvest, what percent of the Crown forest land base in each Biogeoclimatic Group of the landscape unit is Old Forest?",
         "Is that percent at or above the Table 2 minimum for the unit's Biodiversity Emphasis Option and group?"
+      ],
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
       ]
     },
     {
@@ -131,6 +179,10 @@
       "proposedFacts": [
         "What share of the landscape unit is affected by the mountain pine beetle or another catastrophic event?",
         "What share of the old forest counted toward the target is Natural Forest Area?"
+      ],
+      "topics": [
+        "old-growth",
+        "salvage-and-forest-health"
       ]
     },
     {
@@ -139,7 +191,11 @@
       "bearsOn": "Of the live old forest portion of the target, up to 20% may come from stands younger than old where equal or better conservation benefits are shown; unlike PG TSA D.4 it does not extend to interior.",
       "review": "rule",
       "gapPriority": "medium",
-      "gapNote": "The rule tests the younger-stand share the reviewer enters; the planner’s D.4 code has no Mackenzie variant."
+      "gapNote": "The rule tests the younger-stand share the reviewer enters; the planner’s D.4 code has no Mackenzie variant.",
+      "topics": [
+        "old-growth",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "Objective 2(c)",
@@ -152,6 +208,10 @@
       "proposedFacts": [
         "Has beetle harvest or wildfire eliminated opportunities to meet the old forest target in this unit?",
         "Have the stands closest to old age been identified and kept out of the schedule?"
+      ],
+      "topics": [
+        "old-growth",
+        "salvage-and-forest-health"
       ]
     },
     {
@@ -161,7 +221,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "After the 2010 amendment Parsnip is no longer in Table 2, so Heather Dina Lake Park's contribution has no target left under this order.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "old-growth",
+        "protected-areas"
+      ]
     },
     {
       "n": "Table 2 (2008)",
@@ -174,6 +238,10 @@
       "proposedFacts": [
         "After the schedule's harvest, what percent of the Crown forest land base in each Biogeoclimatic Group of the landscape unit is Old Forest?",
         "Is that percent at or above the Table 2 minimum for the unit's Biodiversity Emphasis Option and group?"
+      ],
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
       ]
     },
     {
@@ -182,7 +250,11 @@
       "bearsOn": "A percentage of the old forest requirement must be old interior forest per Table 3, subject to (a) and (b).",
       "review": "rule",
       "gapPriority": "medium",
-      "gapNote": "Rules take the reviewer’s old and old interior margins; the planner does not yet calculate Mackenzie old forest (orderUnits.ts refuses Mackenzie units)."
+      "gapNote": "Rules take the reviewer’s old and old interior margins; the planner does not yet calculate Mackenzie old forest (orderUnits.ts refuses Mackenzie units).",
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "Objective 3(a)",
@@ -194,6 +266,10 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Have stands closest to old age been identified to recruit old interior forest where beetle harvest or fire removed it?"
+      ],
+      "topics": [
+        "old-growth",
+        "salvage-and-forest-health"
       ]
     },
     {
@@ -203,7 +279,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "See 2(d).",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "old-growth",
+        "protected-areas"
+      ]
     },
     {
       "n": "Table 3",
@@ -215,13 +295,19 @@
       "encodable": "numeric",
       "proposedFacts": [
         "What percent of the unit's required old forest is old interior forest, against Table 3 for its BEC group and BEO?"
+      ],
+      "topics": [
+        "old-growth"
       ]
     },
     {
       "n": "4.1",
       "relevance": "admin",
       "bearsOn": "Takes effect on Gazette publication.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "4.2",
@@ -230,7 +316,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Rare now; a transition question as in the PG pack would do.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "harvest-authority",
+        "administration"
+      ]
     },
     {
       "n": "4.3",
@@ -239,7 +329,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No FSP check for Mackenzie old forest objectives.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "4.4",
@@ -248,13 +342,21 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Period long expired.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "administration"
+      ]
     },
     {
       "n": "Guidance: Application",
       "relevance": "admin",
       "bearsOn": "States the guidance is not legally binding.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "objectives",
+        "administration"
+      ]
     },
     {
       "n": "Guidance 1",
@@ -263,7 +365,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Guidance to Objective 2(a); see that gap.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "old-growth",
+        "salvage-and-forest-health"
+      ]
     },
     {
       "n": "Guidance 2",
@@ -272,7 +378,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Legal OGMAs are already shown by the ogma screen.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "old-growth",
+        "designated-areas"
+      ]
     },
     {
       "n": "Guidance 3",
@@ -281,7 +391,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Grouping is part of the Table 2 gap; distribution across grouped units is a reviewer judgement.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "Guidance 4",
@@ -293,6 +407,10 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Should lakes be buffered by 200 m when old interior forest is calculated for this Mackenzie unit?"
+      ],
+      "topics": [
+        "old-growth",
+        "roads"
       ]
     },
     {
@@ -302,7 +420,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Group 1 (parkland and alpine variants) has no target; harvest there falls back on the LRMP.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "Guidance 6",
@@ -310,19 +432,32 @@
       "bearsOn": "Ten named landscape units are to be managed as LRMP Wildlands, which exclude commercial timber harvesting; the guidance says this part of the LRMP is guidance, not legal.",
       "review": "rule",
       "gapPriority": "low",
-      "gapNote": "A rule asks whether the block is in a wildlands landscape unit; no screen maps those units."
+      "gapNote": "A rule asks whether the block is in a wildlands landscape unit; no screen maps those units.",
+      "topics": [
+        "designated-areas",
+        "harvest-authority",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "Guidance 7",
       "relevance": "admin",
       "bearsOn": "Assigns FSP preparation to licensees and BCTS, approval and enforcement to Forests.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "administration"
+      ]
     },
     {
       "n": "Guidance 8",
       "relevance": "admin",
       "bearsOn": "Review with the Mackenzie TSR and a coordination group.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "old-growth"
+      ]
     }
   ]
 }

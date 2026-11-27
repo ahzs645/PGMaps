@@ -1,0 +1,203 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.ecological-reserve-act",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines disposition broadly (any grant of, or permission to use, Crown land, minerals, timber or water), ecology, ecosystem and habitat; the breadth of \"disposition\" is what makes s. 5 bar a cutting or road permit.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "The purpose of ecological reserves: research and education, representative and recovering ecosystems, rare species and unique phenomena.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "landscape",
+      "bearsOn": "Cabinet establishes, enlarges or reduces ecological reserves on Crown land; those in Protected Areas Act Schedules A and B change only by statute.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "Orders establishing or modifying reserves must be published in the Gazette.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "block",
+      "bearsOn": "An ecological reserve is withdrawn and reserved from any further disposition under any Act, the Forest Act, Land Act, Range Act, Mineral Tenure Act and Water Sustainability Act among them, except a s. 5.1 research permit; no cutting permit, road permit or grazing tenure can be granted in one.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:ecological-reserve"
+      ],
+      "topics": [
+        "protected-areas",
+        "harvest-authority",
+        "roads"
+      ]
+    },
+    {
+      "n": "5.1",
+      "relevance": "block",
+      "bearsOn": "The minister may permit use and occupation of a reserve only for ecological research or education, on terms protecting it.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:ecological-reserve"
+      ],
+      "topics": [
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "A designated wildland area may be made an ecological reserve despite the Park Act.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "6.1",
+      "relevance": "admin",
+      "bearsOn": "The minister may designate directors and delegate penalty powers.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "6.2",
+      "relevance": "enforcement",
+      "bearsOn": "Administrative penalties for contravening the regulations or a permit.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "6.3",
+      "relevance": "enforcement",
+      "bearsOn": "Compliance agreements reducing administrative penalties.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "6.4",
+      "relevance": "enforcement",
+      "bearsOn": "Recovery of administrative penalties.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "6.5",
+      "relevance": "admin",
+      "bearsOn": "Appeals of administrative penalties to the Environmental Appeal Board.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "admin",
+      "bearsOn": "Regulations controlling use of reserves and other ministers' powers in them, permits and offences.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "7.01",
+      "relevance": "admin",
+      "bearsOn": "Regulations on administrative penalties.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "7.1",
+      "relevance": "enforcement",
+      "bearsOn": "Offences against the regulations: fines up to $200 000 a day.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "7.2",
+      "relevance": "enforcement",
+      "bearsOn": "Limitation period for prosecutions.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "admin",
+      "bearsOn": "The minister administers ecological reserves.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "admin",
+      "bearsOn": "The minister may appoint advisers on reserves.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "admin",
+      "bearsOn": "The Act and its regulations apply to every reserve despite any other Act.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    }
+  ]
+}

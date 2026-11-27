@@ -15,7 +15,13 @@
         "bc.crown-grazing@1.0.0:nar-reserved",
         "bc.fppr@1.1.0:sensitive-soil"
       ],
-      "gapNote": "The net area to be reforested is entered as a verified figure rather than derived from the block's geometry by subtracting the six 1(2) exclusions (permanent access, non-productive and non-commercial patches of at least 0.1 ha and 10 m wide, wildlife tree retention areas, riparian reserve zones, reserved areas); only exclusion (f) has its own rule. The 'stream' and 'fish stream' definitions (20% gradient presumption, 100 m channel) drive every riparian class but are not asked."
+      "gapNote": "The net area to be reforested is entered as a verified figure rather than derived from the block's geometry by subtracting the six 1(2) exclusions (permanent access, non-productive and non-commercial patches of at least 0.1 ha and 10 m wide, wildlife tree retention areas, riparian reserve zones, reserved areas); only exclusion (f) has its own rule. The 'stream' and 'fish stream' definitions (20% gradient presumption, 100 m channel) drive every riparian class but are not asked.",
+      "topics": [
+        "administration",
+        "soils",
+        "riparian",
+        "reforestation"
+      ]
     },
     {
       "n": "1.1",
@@ -27,13 +33,19 @@
         "ground:scenic-area"
       ],
       "gapPriority": "low",
-      "gapNote": "Rules now name the order and test the alteration entered from the visual quality page against the category; the planner does not read that page’s measurement itself."
+      "gapNote": "Rules now name the order and test the alteration entered from the visual quality page against the category; the planner does not read that page’s measurement itself.",
+      "topics": [
+        "visual-quality"
+      ]
     },
     {
       "n": "1.2",
       "relevance": "definitions",
       "bearsOn": "Prescribes the activities and persons that make up a 'forest practice' under the Act; it does not itself constrain a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "2",
@@ -49,31 +61,51 @@
       ],
       "gapPriority": "low",
       "gapNote": "The riparian width rules compare an entered width with the table minimum without saying the statutory distance is slope distance; a width taken off a map is horizontal and should be stated as such (it is conservative, never short, against the slope-distance minimum).",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "riparian",
+        "administration"
+      ]
     },
     {
       "n": "3",
       "relevance": "definitions",
       "bearsOn": "Defines 'damage' to the environment for FRPA s. 46 (landslides, Coast gully processes and fan destabilization, soil disturbance, harmful deposits into water, debris torrents into fish streams, changes to soil).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "soils",
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "4",
       "relevance": "tenure",
       "bearsOn": "Lets agreement holders and the timber sales manager cut Crown timber as needed for silviculture, stand tending and forest health treatments, and lets free miners and surveyors cut minimally; it does not authorize harvesting a cutblock.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "salvage-and-forest-health"
+      ]
     },
     {
       "n": "4.01",
       "relevance": "admin",
       "bearsOn": "Lets the minister exempt removal of non-merchantable timber to protect a community from wildfire from FRPA s. 52(3).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "fire",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "4.02",
       "relevance": "definitions",
       "bearsOn": "Defines additional measures, existing cutblocks and roads, planning guideline and substituted requirements for the forest operations plan (FOP) Part 1.1.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "plans"
+      ]
     },
     {
       "n": "4.03",
@@ -82,7 +114,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No FOP content check exists; the planner does not hold FOP documents.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.04",
@@ -91,7 +126,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.05",
@@ -100,7 +138,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.06",
@@ -109,7 +150,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only; the approval date could anchor a check that the block was in an approved plan before harvest.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.07",
@@ -118,7 +162,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A rule could compare a scheduled harvest year with the FOP's expiry, but the planner records no FOP term.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.08",
@@ -127,7 +174,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.09",
@@ -136,7 +186,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.11",
@@ -149,6 +202,9 @@
       "proposedFacts": [
         "Is this cutblock listed in the approved forest operations plan under a unique name, number or code?",
         "Are the roads that access this cutblock listed in the forest operations plan as existing or proposed roads?"
+      ],
+      "topics": [
+        "plans"
       ]
     },
     {
@@ -161,6 +217,9 @@
       "encodable": "numeric",
       "proposedFacts": [
         "What year does the forest operations plan state for beginning harvest on this cutblock?"
+      ],
+      "topics": [
+        "plans"
       ]
     },
     {
@@ -170,7 +229,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.14",
@@ -183,6 +245,9 @@
       "proposedFacts": [
         "Which stocking standard situation in the forest operations plan applies to this cutblock?",
         "What regeneration date and free growing date or height does that situation set?"
+      ],
+      "topics": [
+        "plans"
       ]
     },
     {
@@ -192,7 +257,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.16",
@@ -201,7 +269,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Map content only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.17",
@@ -210,7 +281,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Map content; the ground screens already read most of these layers under a block, but no rule checks the FOP map.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.18",
@@ -235,6 +309,9 @@
         "Does the cutblock or its road overlap a wildlife management area designated under section 4 of the Wildlife Act?",
         "Does the cutblock overlap an area designated under Part 13 or Part 15 of the Forest Act or an Environment and Land Use Act section 7 order?",
         "Does the cutblock overlap a forest landscape plan area where harvesting is restricted or prohibited?"
+      ],
+      "topics": [
+        "plans"
       ]
     },
     {
@@ -244,7 +321,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "The planner's baseline harvests could draw this 5 km context, but no rule checks the FOP map.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.2",
@@ -253,7 +333,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.21",
@@ -262,7 +345,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.22",
@@ -271,7 +357,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.23",
@@ -280,7 +369,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.24",
@@ -289,7 +381,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Process for the plan, not a block test; the planner could record that the plan carrying the block has completed engagement.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "first-nations",
+        "plans"
+      ]
     },
     {
       "n": "4.25",
@@ -298,7 +394,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "first-nations",
+        "plans"
+      ]
     },
     {
       "n": "4.26",
@@ -307,7 +407,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "first-nations",
+        "plans"
+      ]
     },
     {
       "n": "4.27",
@@ -316,7 +420,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "first-nations",
+        "plans"
+      ]
     },
     {
       "n": "4.28",
@@ -325,7 +433,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "first-nations",
+        "plans"
+      ]
     },
     {
       "n": "4.29",
@@ -334,7 +446,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "first-nations",
+        "plans"
+      ]
     },
     {
       "n": "4.3",
@@ -343,7 +459,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "public-review-and-notice",
+        "plans"
+      ]
     },
     {
       "n": "4.31",
@@ -352,7 +472,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "public-review-and-notice",
+        "plans"
+      ]
     },
     {
       "n": "4.32",
@@ -361,7 +485,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "public-review-and-notice",
+        "plans"
+      ]
     },
     {
       "n": "4.33",
@@ -374,7 +502,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The day count and authorization are tested; the notice publication in (3) (website plus newspaper or Gazette) is not asked.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "public-review-and-notice",
+        "plans"
+      ]
     },
     {
       "n": "4.34",
@@ -387,6 +519,10 @@
       "proposedFacts": [
         "Was the amendment that adds this cutblock publicly available for review and comment for at least 30 days?",
         "If the period was shorter, did the minister authorize that period of at least 10 days under section 4.34(2)?"
+      ],
+      "topics": [
+        "public-review-and-notice",
+        "plans"
       ]
     },
     {
@@ -396,7 +532,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "public-review-and-notice",
+        "plans"
+      ]
     },
     {
       "n": "4.36",
@@ -408,6 +548,10 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Has notice of the forest operations plan or amendment proposing this cutblock been given to each rights holder likely to be affected, such as range agreement, trapline, guide outfitter and water licence holders?"
+      ],
+      "topics": [
+        "public-review-and-notice",
+        "plans"
       ]
     },
     {
@@ -417,7 +561,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "public-review-and-notice",
+        "plans"
+      ]
     },
     {
       "n": "4.38",
@@ -426,7 +574,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.39",
@@ -435,7 +586,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "These are the minister's approval tests; a block-level cue would be a cumulative-impact threshold set in the FOP, which the planner could compare once the threshold is entered.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "fire",
+        "objectives"
+      ]
     },
     {
       "n": "4.4",
@@ -444,7 +600,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "4.41",
@@ -453,7 +613,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Could be flagged when a proposed road falls in an area the FOP or FLP marks at maximum disturbance; nothing records that today.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "roads"
+      ]
     },
     {
       "n": "4.42",
@@ -462,7 +626,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan administration.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.43",
@@ -479,6 +646,11 @@
         "Does the cutblock or road added by this amendment overlap a riparian management area of a fish stream, a wetland or a lake?",
         "Does it overlap a wildlife tree retention area, a cultural heritage resource or an area an Indigenous nation has identified as culturally significant?",
         "Does it overlap any area listed in section 4.18?"
+      ],
+      "topics": [
+        "plans",
+        "riparian",
+        "exemptions-and-variances"
       ]
     },
     {
@@ -489,7 +661,12 @@
       "coveredBy": [
         "bc.fppr@1.1.0:amendment"
       ],
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "plans",
+        "riparian",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "4.45",
@@ -501,7 +678,12 @@
       ],
       "gapPriority": "low",
       "gapNote": "The amendment rule asks that s. 4.45 was checked; whether the minister called it in is a yes/no record.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "riparian",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "4.46",
@@ -510,7 +692,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.47",
@@ -519,7 +704,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Could flag blocks under a new designation made after the plan was approved; the planner keeps no plan approval date.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.48",
@@ -528,7 +716,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Landscape cumulative-impact thresholds come from each FOP or FLP; none are loaded.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.49",
@@ -537,7 +728,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan administration.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.5",
@@ -546,7 +740,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan administration.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.51",
@@ -564,7 +761,11 @@
         "bc.fppr@1.3.0:bank-stability#fop-exemption"
       ],
       "gapNote": "Listed as a decision exception on every rule whose provision the table names, and on no other.",
-      "gapPriority": "low"
+      "gapPriority": "low",
+      "topics": [
+        "exemptions-and-variances",
+        "plans"
+      ]
     },
     {
       "n": "4.52",
@@ -573,7 +774,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "The planner's schedules could export a draft annual forest development schedule; no rule checks one.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "public-review-and-notice"
+      ]
     },
     {
       "n": "4.53",
@@ -582,7 +787,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "public-review-and-notice"
+      ]
     },
     {
       "n": "4.54",
@@ -591,7 +800,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.55",
@@ -603,6 +815,9 @@
       "encodable": "document-check",
       "proposedFacts": [
         "Does a site level plan for this cutblock identify its standards units, stocking standards and soil disturbance limits?"
+      ],
+      "topics": [
+        "plans"
       ]
     },
     {
@@ -612,13 +827,19 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "FOP paperwork; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.57",
       "relevance": "admin",
       "bearsOn": "Requires a site level plan to be kept until all obligations for its area are complete or relieved.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.58",
@@ -627,7 +848,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.59",
@@ -636,7 +860,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "The crown-grazing pack reads the parallel FPPR s. 44(3) purposes; a FOP block that qualifies here needs no site level plan, which no rule records.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "4.6",
@@ -645,13 +873,20 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "4.61",
       "relevance": "admin",
       "bearsOn": "Allows a FOP to have more than one holder.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.62",
@@ -660,13 +895,19 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.63",
       "relevance": "admin",
       "bearsOn": "Requires a FOP, maps and amendments to be kept for the forest landscape plan's term and given to the minister on request.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.64",
@@ -675,7 +916,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork only.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "4.99",
@@ -684,7 +928,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Scoping fact the packs should carry: a block under a FOP is measured against planning guideline requirements, not these FSP objectives. Rules that ask about FSP results should first ask which plan regime governs the block.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "5",
@@ -698,7 +946,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The soil rules test the s. 35 and 36 defaults, which are what an FSP undertaking under s. 12.1(1) adopts; an FSP result or strategy for this objective (s. 12.2) is not asked about.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "soils"
+      ]
     },
     {
       "n": "6",
@@ -707,7 +959,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Not a block constraint; only s. 12.21 uses it, for secondary structure.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "objectives",
+        "timber-pricing-and-scaling",
+        "forest-tenures"
+      ]
     },
     {
       "n": "7",
@@ -726,6 +983,10 @@
       "proposedFacts": [
         "Has the minister responsible for the Wildlife Act given notice under FPPR section 7(2) of species and habitat indicators for the area containing this cutblock?",
         "If so, what does the forest stewardship plan's result or strategy for that notice require of this cutblock?"
+      ],
+      "topics": [
+        "objectives",
+        "wildlife"
       ]
     },
     {
@@ -740,7 +1001,12 @@
       ],
       "gapPriority": "low",
       "gapNote": "The riparian width and basal-area rules test the default practices an FSP adopts by undertaking (s. 12.1(2)); an FSP result instead of them (s. 12.3) is folded into 'any applicable plan or relief'.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "riparian",
+        "fish-habitat"
+      ]
     },
     {
       "n": "8.1",
@@ -749,7 +1015,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No screen reads fisheries sensitive watersheds. Schedule 2 (appended to the last Schedule 1 section in the supplied text) lists none in an Omineca district; subsection (2) is limited to 31 December 2005 on its face, though s. 115 continues earlier wording for FSPs in effect.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "objectives",
+        "fish-habitat",
+        "water-quality-and-supply"
+      ]
     },
     {
       "n": "8.2",
@@ -766,6 +1037,10 @@
       "proposedFacts": [
         "Is the cutblock in a community watershed continued under FRPA section 180(e) that has no water quality objective of its own?",
         "What cumulative hydrological effect limit does the forest stewardship plan's result or strategy set for that watershed, and does the planned harvest stay within it?"
+      ],
+      "topics": [
+        "objectives",
+        "water-quality-and-supply"
       ]
     },
     {
@@ -780,7 +1055,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The cutblock-size and adjacency rules and the patch analysis code test the default practices (ss. 64-65) an FSP adopts by undertaking under s. 12.1(3); an FSP result or strategy for this objective is folded into fsp-landscape (s. 12.4).",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "9.1",
@@ -794,7 +1073,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The wildlife tree retention rules test the ss. 66-67 defaults; fsp-stand handles an FSP result instead (s. 12.5).",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "stand-retention"
+      ]
     },
     {
       "n": "9.2",
@@ -805,7 +1088,11 @@
         "ground:scenic-area"
       ],
       "gapPriority": "low",
-      "gapNote": "A rule asks whether a scenic area made known lacks an established objective; the sensitivity-class lookup is not encoded."
+      "gapNote": "A rule asks whether a scenic area made known lacks an established objective; the sensitivity-class lookup is not encoded.",
+      "topics": [
+        "visual-quality",
+        "objectives"
+      ]
     },
     {
       "n": "10",
@@ -818,6 +1105,11 @@
       "proposedFacts": [
         "Has information about cultural heritage resources that are the focus of a continuing traditional use been sought for this cutblock from the affected First Nations?",
         "What does the forest stewardship plan's cultural heritage result or strategy require of this cutblock?"
+      ],
+      "topics": [
+        "objectives",
+        "cultural-heritage",
+        "first-nations"
       ]
     },
     {
@@ -833,7 +1125,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan-level drafting rules; the 4-month freeze in (2) could matter when a new land use objective post-dates the FSP's submission.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "12.1",
@@ -846,7 +1142,13 @@
       ],
       "gapPriority": "low",
       "gapNote": "The pack rules assume the defaults apply once the reviewer has checked ss. 12.4/12.5; asking directly whether the FSP gives an s. 12.1 undertaking for the matter would settle which regime applies.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "exemptions-and-variances",
+        "riparian",
+        "soils"
+      ]
     },
     {
       "n": "12.2",
@@ -863,6 +1165,11 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Does the approved forest stewardship plan carry its own result or strategy for soils that exempts this holder from section 35 or 36 under section 12.2?"
+      ],
+      "topics": [
+        "plans",
+        "exemptions-and-variances",
+        "soils"
       ]
     },
     {
@@ -872,7 +1179,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "s. 43.1 itself has no rule, so the exemption has nothing to lift yet.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "exemptions-and-variances",
+        "reforestation"
+      ]
     },
     {
       "n": "12.3",
@@ -890,6 +1202,11 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Does the approved forest stewardship plan carry its own riparian result or strategy that exempts this holder from the section 47 to 53 defaults under section 12.3?"
+      ],
+      "topics": [
+        "plans",
+        "exemptions-and-variances",
+        "riparian"
       ]
     },
     {
@@ -899,7 +1216,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "ss. 55-57 have no rules; fisheries sensitive watersheds are rare in the Omineca.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "exemptions-and-variances",
+        "fish-habitat"
+      ]
     },
     {
       "n": "12.32",
@@ -908,7 +1230,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "ss. 59-61 have no rules (only the community watershed screen); this exemption becomes relevant once they do.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "exemptions-and-variances",
+        "water-quality-and-supply"
+      ]
     },
     {
       "n": "12.4",
@@ -920,7 +1247,12 @@
         "bc.fppr@1.3.0:limit-60#fsp-result",
         "bc.fppr@1.3.0:adjacency#fsp-result"
       ],
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "exemptions-and-variances",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "12.5",
@@ -932,7 +1264,12 @@
         "bc.fppr@1.3.0:retention-block#fsp-result",
         "bc.fppr@1.3.0:wt-harvest#fsp-result"
       ],
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "exemptions-and-variances",
+        "stand-retention"
+      ]
     },
     {
       "n": "13",
@@ -954,6 +1291,11 @@
       "proposedFacts": [
         "Does the cutblock, with its roads, lie entirely within a forest development unit of the approved forest stewardship plan?",
         "Is the cutblock inside a lakeshore management zone, a fisheries sensitive watershed or within the reach of an L1 lake identified on a map?"
+      ],
+      "topics": [
+        "plans",
+        "riparian",
+        "wildlife"
       ]
     },
     {
@@ -977,6 +1319,10 @@
       "proposedFacts": [
         "Which forest stewardship plan stocking standard (and situation) applies to each standards unit of this cutblock?",
         "What regeneration date and free growing date or height does that standard set, counted from the scheduled commencement date?"
+      ],
+      "topics": [
+        "plans",
+        "reforestation"
       ]
     },
     {
@@ -986,7 +1332,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A chief forester's order would replace the FSP stocking standard for unharvested blocks; the planner could flag scheduled blocks in an area under such an order.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "reforestation",
+        "plans"
+      ]
     },
     {
       "n": "17",
@@ -995,7 +1345,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan content; a reviewer prompt about invasive-plant measures near roads and landings would be the block-level analogue.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "salvage-and-forest-health"
+      ]
     },
     {
       "n": "18",
@@ -1007,7 +1361,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The natural-barrier rule asks whether the practice removes a barrier and points to the plan's mitigation; it does not ask what the FSP's measure is or whether it is applied to this block.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "19",
@@ -1016,7 +1374,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A target set this way would be a landscape share the planner could hold a holder's blocks to; none are loaded.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "plans",
+        "forest-tenures"
+      ]
     },
     {
       "n": "19.1",
@@ -1025,7 +1387,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan administration.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "forest-tenures",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "19.2",
@@ -1034,7 +1401,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Rare case.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "forest-tenures",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "20",
@@ -1043,7 +1415,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "The short-floor and short-review rules test only the FOP period (s. 4.33). An FSP amendment adding an FDU follows this section instead, where the minister may set a lesser period with no 10-day floor, and 10 days applies automatically for damaged timber.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "plans",
+        "public-review-and-notice"
+      ]
     },
     {
       "n": "21",
@@ -1052,7 +1428,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan-level process; not a block test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "public-review-and-notice"
+      ]
     },
     {
       "n": "22",
@@ -1061,7 +1441,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan-level process.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "public-review-and-notice"
+      ]
     },
     {
       "n": "22.1",
@@ -1079,7 +1463,11 @@
       "n": "24",
       "relevance": "admin",
       "bearsOn": "Limits the information the minister may request about FSP results and strategies to Schedule 1 factors and factors the person addressed.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "25",
@@ -1088,7 +1476,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A Land Act minister's exemption from a pre-2004 Code objective would change how a land use order binds a block through the FSP; the pgtsa biodiversity pack does not ask about one.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "25.1",
@@ -1097,25 +1489,41 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan approval test.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "26",
       "relevance": "admin",
       "bearsOn": "Sets the factors and tests by which the minister approves FSP regeneration dates, free growing heights and stocking standards.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "reforestation"
+      ]
     },
     {
       "n": "27",
       "relevance": "admin",
       "bearsOn": "Lets the minister balance objectives, results and strategies when approving an FSP.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "27.1",
       "relevance": "admin",
       "bearsOn": "Prescribes the emergency-approval circumstances for FRPA s. 17.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "28",
@@ -1124,7 +1532,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan administration; an expired FSP leaves a block without a plan.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "28.1",
@@ -1144,6 +1555,12 @@
       "proposedFacts": [
         "Was the ungulate winter range, wildlife habitat area, water quality or lakeshore objective under this cutblock established or varied after the forest stewardship plan was approved?",
         "If so, has the plan been amended for it under section 28.1?"
+      ],
+      "topics": [
+        "plans",
+        "fish-habitat",
+        "water-quality-and-supply",
+        "wildlife"
       ]
     },
     {
@@ -1153,7 +1570,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A block outside the FSP's FDUs needs an approved FDU amendment first; see s. 14.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "30",
@@ -1162,19 +1582,28 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan administration.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "31",
       "relevance": "admin",
       "bearsOn": "Lets the minister void an FSP amendment the holder wrongly determined needed no approval, and protects operations carried out in good faith before that.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "32",
       "relevance": "admin",
       "bearsOn": "Lets the minister exempt a mandatory FSP amendment from review and comment where impracticable.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "32.1",
@@ -1183,7 +1612,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Rare case.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "forest-tenures"
+      ]
     },
     {
       "n": "32.2",
@@ -1198,7 +1631,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Pairs with an FDU-containment test (s. 14): the only allowance for harvest outside an FDU is 50 m3 incidental or research.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "32.4",
@@ -1207,7 +1643,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Rare case.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "33",
@@ -1216,7 +1655,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "The crown-grazing pack evaluates s. 44(3) purposes; it could add that the same purposes waive the site plan.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "34",
@@ -1233,6 +1676,10 @@
       "encodable": "document-check",
       "proposedFacts": [
         "Does the site plan for this cutblock identify each standards unit with the stocking standard and soil disturbance limit that applies to it?"
+      ],
+      "topics": [
+        "plans",
+        "reforestation"
       ]
     },
     {
@@ -1245,6 +1692,9 @@
       "encodable": "document-check",
       "proposedFacts": [
         "Is this cutblock shown on a forest operations map of the holder's forest stewardship plan, with the approximate period harvesting is intended?"
+      ],
+      "topics": [
+        "plans"
       ]
     },
     {
@@ -1255,6 +1705,10 @@
       "coveredBy": [
         "bc.forest-permits@1.1.0:fom-review",
         "bc.forest-permits@1.1.0:fom-review#shorter-period"
+      ],
+      "topics": [
+        "plans",
+        "public-review-and-notice"
       ]
     },
     {
@@ -1264,7 +1718,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Process step behind s. 34.2; a block's record could note that comments were considered.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "34.4",
@@ -1273,7 +1730,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Paperwork after the review.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "34.5",
@@ -1282,6 +1742,9 @@
       "review": "rule",
       "coveredBy": [
         "bc.forest-permits@1.1.0:fom-window"
+      ],
+      "topics": [
+        "plans"
       ]
     },
     {
@@ -1291,6 +1754,9 @@
       "review": "rule",
       "coveredBy": [
         "bc.fppr@1.1.0:map-retention"
+      ],
+      "topics": [
+        "plans"
       ]
     },
     {
@@ -1300,7 +1766,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "BCTS blocks are advertised within the operating period their map covers; the planner records no operating period.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "34.8",
@@ -1309,7 +1778,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Map content for BCTS.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "34.9",
@@ -1322,6 +1794,10 @@
       "proposedFacts": [
         "Was the BC Timber Sales forest operations map showing this cutblock published on a website and in a newspaper at least 30 days before its operating period began?",
         "Did its review period run 30 days, or a shorter period the minister set for environment, forest health or wildfire risk?"
+      ],
+      "topics": [
+        "plans",
+        "public-review-and-notice"
       ]
     },
     {
@@ -1331,13 +1807,19 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Process step behind s. 34.9.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "34.11",
       "relevance": "admin",
       "bearsOn": "Requires a timber sales manager to keep a record of a forest operations map for at least five years.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans"
+      ]
     },
     {
       "n": "35",
@@ -1352,7 +1834,10 @@
       ],
       "gapPriority": "low",
       "gapNote": "The four limits and the overlap rule are tested; the (4) allowances are not: stump removal or windthrow salvage (minimum necessary) and temporary access structures (up to 5 percentage points more if rehabilitated before the regeneration date). A measurement over 5% or 10% may still be lawful under (4)(b).",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "soils"
+      ]
     },
     {
       "n": "36",
@@ -1364,7 +1849,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The 7% screen is tested from an entered share; the exceptions in (1)(a)-(b) (no practicable option, access beyond the cutblock) are not asked, and the planner's own roads could compute the share inside the block.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "soils",
+        "roads"
+      ]
     },
     {
       "n": "37",
@@ -1377,6 +1866,9 @@
       "proposedFacts": [
         "Does the cutblock or any road to it cross terrain mapped as unstable or potentially unstable, or slopes steep enough to call for a terrain stability assessment?",
         "Has a terrain stability assessment been completed for that ground, and what does it recommend?"
+      ],
+      "topics": [
+        "soils"
       ]
     },
     {
@@ -1386,7 +1878,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Coast only; does not apply to Omineca blocks.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "soils"
+      ]
     },
     {
       "n": "39",
@@ -1398,6 +1893,10 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Does the road and access structure layout for this cutblock maintain natural surface drainage patterns, with cross-drains where it crosses draws and seepage?"
+      ],
+      "topics": [
+        "drainage",
+        "roads"
       ]
     },
     {
@@ -1407,7 +1906,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A dated follow-up obligation after construction; the planner could schedule it.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "roads",
+        "drainage",
+        "soils"
+      ]
     },
     {
       "n": "41",
@@ -1416,7 +1920,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Operational forest health practice.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "salvage-and-forest-health"
+      ]
     },
     {
       "n": "42",
@@ -1425,7 +1932,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "The crown-grazing pack covers grazing against reforestation but not prescribed grazing used as a silviculture treatment.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "range-and-grazing",
+        "silviculture-treatments"
+      ]
     },
     {
       "n": "43",
@@ -1434,7 +1945,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Seed transfer is a planting prescription detail, not a block-layout test.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "reforestation",
+        "silviculture-treatments"
+      ]
     },
     {
       "n": "43.1",
@@ -1452,6 +1967,10 @@
       "coveredBy": [
         "bc.fppr@1.3.0:pine-secondary",
         "bc.fppr@1.3.0:pine-secondary#live-beetle"
+      ],
+      "topics": [
+        "salvage-and-forest-health",
+        "harvest-authority"
       ]
     },
     {
@@ -1461,7 +1980,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Feeds the s. 43.1 test: whether the block's TSA is designated in or out.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "salvage-and-forest-health",
+        "harvest-authority"
+      ]
     },
     {
       "n": "44",
@@ -1482,6 +2005,9 @@
       "proposedFacts": [
         "What free growing date does the plan's stocking standard set for this cutblock, and is it no more than 20 years after the scheduled commencement date?",
         "Is harvesting restricted to one of the section 44(3) purposes, and which one?"
+      ],
+      "topics": [
+        "reforestation"
       ]
     },
     {
@@ -1491,7 +2017,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Grouped obligations are rare; the planner keeps blocks separate.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "reforestation"
+      ]
     },
     {
       "n": "45.1",
@@ -1506,7 +2035,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Rare case.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "reforestation",
+        "harvest-authority"
+      ]
     },
     {
       "n": "46",
@@ -1515,7 +2048,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Applies to small-tenure FLTC blocks only.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "reforestation",
+        "harvest-authority"
+      ]
     },
     {
       "n": "46.1",
@@ -1531,6 +2068,9 @@
       "coveredBy": [
         "bc.crown-grazing@1.1.0:opening-tolerance",
         "bc.crown-grazing@1.1.0:permanent-grazing-opening"
+      ],
+      "topics": [
+        "reforestation"
       ]
     },
     {
@@ -1541,7 +2081,10 @@
       "coveredBy": [
         "bc.crown-grazing@1.0.0:standard-cannot-be-met"
       ],
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "reforestation"
+      ]
     },
     {
       "n": "47",
@@ -1555,7 +2098,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The width tests take a verified class; the class itself is not derived. Two points worth asking: a non-fish stream inside a community watershed is classed S1-S4 by width, not S5/S6; and (5) widens the management zone to the active flood plain.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "riparian",
+        "fish-habitat"
+      ]
     },
     {
       "n": "48",
@@ -1569,7 +2116,10 @@
       ],
       "gapPriority": "low",
       "gapNote": "The width tests take a verified class. In the Omineca's SBS, BWBS and ESSF zones a wetland under 1 ha has no riparian class (W4 exists only in the dry southern zones) and a 1-5 ha wetland is W3, never W2; any code that classes wetlands should apply that, and should group W5 complexes by the 100/80/60 m spacing and 5 ha total.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "riparian"
+      ]
     },
     {
       "n": "49",
@@ -1583,7 +2133,10 @@
       ],
       "gapPriority": "low",
       "gapNote": "As for wetlands, a lake under 1 ha in the Omineca's zones has no riparian class, and a 1-5 ha lake is L3. L1-A lakes carry no default zone, so a lakeshore management zone or ministerial specification is what governs them.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "riparian"
+      ]
     },
     {
       "n": "50",
@@ -1596,6 +2149,10 @@
       "proposedFacts": [
         "Does any road planned to or within this cutblock run inside a riparian management area other than at a stream crossing?",
         "If so, is locating it outside the area a higher sediment risk, or is there no other practicable option?"
+      ],
+      "topics": [
+        "riparian",
+        "roads"
       ]
     },
     {
@@ -1614,6 +2171,9 @@
       "proposedFacts": [
         "Does the cutblock's harvest area overlap a riparian reserve zone?",
         "If so, is every tree to be cut there for a purpose listed in section 51(1), such as a stream crossing or a full-suspension yarding corridor?"
+      ],
+      "topics": [
+        "riparian"
       ]
     },
     {
@@ -1624,6 +2184,10 @@
       "coveredBy": [
         "bc.fppr@1.3.0:basal-retention",
         "bc.fppr@1.3.0:bank-stability"
+      ],
+      "topics": [
+        "riparian",
+        "stand-retention"
       ]
     },
     {
@@ -1633,7 +2197,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No screen reads temperature sensitive stream designations (GAR s. 15); few exist in the Omineca.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "riparian",
+        "fish-habitat"
+      ]
     },
     {
       "n": "54",
@@ -1642,7 +2210,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Coast only; does not apply to Omineca blocks.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "soils"
+      ]
     },
     {
       "n": "55",
@@ -1655,6 +2226,11 @@
       "proposedFacts": [
         "How many stream crossings do the roads and access structures for this cutblock need, and on which riparian classes?",
         "For each temporary crossing, when will it be removed?"
+      ],
+      "topics": [
+        "stream-crossings-and-culverts",
+        "fish-habitat",
+        "riparian"
       ]
     },
     {
@@ -1667,6 +2243,10 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Will any crossing on a road for this cutblock be on a fish stream, and how is fish passage provided there?"
+      ],
+      "topics": [
+        "fish-habitat",
+        "stream-crossings-and-culverts"
       ]
     },
     {
@@ -1679,6 +2259,9 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Is in-stream or near-stream work for this cutblock or its roads scheduled within a reduced-risk timing window for the fish present?"
+      ],
+      "topics": [
+        "fish-habitat"
       ]
     },
     {
@@ -1688,7 +2271,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Prescribed grazing for brushing is rare; the crown-grazing pack does not cover it.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "range-and-grazing",
+        "riparian",
+        "water-quality-and-supply"
+      ]
     },
     {
       "n": "59",
@@ -1705,6 +2293,9 @@
       "proposedFacts": [
         "Does the cutblock or any of its roads drain to a stream above a licensed waterworks that diverts water for human consumption?",
         "What measures keep sediment and other harmful material from reaching that intake?"
+      ],
+      "topics": [
+        "water-quality-and-supply"
       ]
     },
     {
@@ -1722,6 +2313,10 @@
       "proposedFacts": [
         "Is any part of the cutblock or a road for it within 100 m upslope of a licensed waterworks intake that diverts water for human consumption in a community watershed?",
         "If so, what shows the harvest or road will not increase sediment delivery to the intake?"
+      ],
+      "topics": [
+        "water-quality-and-supply",
+        "roads"
       ]
     },
     {
@@ -1735,7 +2330,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "Only the community watershed screen; a reviewer prompt about trail construction in a community watershed would cover it.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "water-quality-and-supply",
+        "roads"
+      ]
     },
     {
       "n": "62",
@@ -1748,7 +2347,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "Springs identified by the minister are not read; only the community watershed screen.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "water-quality-and-supply",
+        "roads"
+      ]
     },
     {
       "n": "63",
@@ -1761,7 +2364,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "Fertilization is a later treatment, not part of block layout.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "water-quality-and-supply",
+        "silviculture-treatments"
+      ]
     },
     {
       "n": "64",
@@ -1782,6 +2389,9 @@
         "What share of the stand's pre-harvest basal area will the harvest retain?",
         "Is every point in the net area to be reforested within two tree lengths of the cutblock boundary or a reserve of at least 0.25 ha, or within one tree length of a smaller reserve?",
         "Is the harvest salvage of damaged timber or a sanitation treatment, or designed to emulate a natural disturbance opening?"
+      ],
+      "topics": [
+        "cutblock-size"
       ]
     },
     {
@@ -1800,6 +2410,10 @@
         "What share of each adjacent existing cutblock's net area to be reforested has trees whose tallest 10% average at least 3 m?",
         "Is that area stocked to its stocking standard, or with at least 700 stems/ha of commercially valuable species at least 1.3 m tall?",
         "What is the combined area of the new cutblock and the non-conforming portions of existing cutblocks immediately adjacent to it?"
+      ],
+      "topics": [
+        "cutblock-size",
+        "landscape-biodiversity"
       ]
     },
     {
@@ -1812,7 +2426,10 @@
         "bc.fppr@1.1.0:retention-block"
       ],
       "gapNote": "Both thresholds are tested. The denominator is the cutblock's area, not its net area to be reforested, and the planner could compute the per-block share from drawn retention areas.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "stand-retention"
+      ]
     },
     {
       "n": "67",
@@ -1822,7 +2439,10 @@
       "coveredBy": [
         "bc.fppr@1.1.0:wt-harvest"
       ],
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "stand-retention"
+      ]
     },
     {
       "n": "68",
@@ -1833,7 +2453,10 @@
         "bc.fppr@1.3.0:logs",
         "bc.fppr@1.3.0:logs#authorized-burn"
       ],
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "stand-retention"
+      ]
     },
     {
       "n": "69",
@@ -1854,6 +2477,9 @@
       "proposedFacts": [
         "Which general wildlife measures of the ungulate winter range or wildlife habitat area order apply to the zone this cutblock is in?",
         "Does the planned harvest meet each of those measures' figures, such as retention, opening size or timing?"
+      ],
+      "topics": [
+        "wildlife"
       ]
     },
     {
@@ -1871,6 +2497,10 @@
       "proposedFacts": [
         "Is any wildlife habitat feature identified under GAR section 11, such as a mineral lick, wallow, nest or den, in or next to the cutblock?",
         "Is any GAR resource feature, such as karst or a research installation, in or next to the cutblock?"
+      ],
+      "topics": [
+        "wildlife",
+        "recreation"
       ]
     },
     {
@@ -1880,13 +2510,19 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Authorization comes from the road or cutting permit; the planner does not record which permit covers a block road.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "roads"
+      ]
     },
     {
       "n": "71",
       "relevance": "admin",
       "bearsOn": "Applies ss. 72-78 and 82-84 only to persons authorized in respect of a road.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "roads"
+      ]
     },
     {
       "n": "72",
@@ -1895,7 +2531,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Engineering standard for the road designer.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "roads",
+        "stream-crossings-and-culverts",
+        "drainage"
+      ]
     },
     {
       "n": "73",
@@ -1904,7 +2545,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Engineering standard for the road designer.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "stream-crossings-and-culverts",
+        "roads"
+      ]
     },
     {
       "n": "74",
@@ -1913,7 +2558,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Belongs to the road designer's culvert hydraulics, not the block planner.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "stream-crossings-and-culverts",
+        "roads"
+      ]
     },
     {
       "n": "75",
@@ -1922,7 +2571,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Maintenance practice.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "roads",
+        "stream-crossings-and-culverts"
+      ]
     },
     {
       "n": "76",
@@ -1931,13 +2584,21 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Engineering standard.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "stream-crossings-and-culverts",
+        "roads"
+      ]
     },
     {
       "n": "77",
       "relevance": "admin",
       "bearsOn": "Requires construction records and as-built drawings for bridges and major culverts, and inspection records, to be kept and handed over when a permit ends.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "roads",
+        "stream-crossings-and-culverts"
+      ]
     },
     {
       "n": "78",
@@ -1946,7 +2607,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Clearing width feeds the permanent access share under s. 36; the road designer computes it.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "roads"
+      ]
     },
     {
       "n": "79",
@@ -1955,7 +2619,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Maintenance duty after construction.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "roads",
+        "stream-crossings-and-culverts",
+        "drainage"
+      ]
     },
     {
       "n": "79.1",
@@ -1964,7 +2633,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Road use permission for small salvage; not a block test.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "roads",
+        "salvage-and-forest-health",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "79.2",
@@ -1973,7 +2647,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Small-tenure road duties.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "roads",
+        "exemptions-and-variances",
+        "forest-tenures"
+      ]
     },
     {
       "n": "79.21",
@@ -1982,7 +2661,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Road use permission; not a block test.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "roads",
+        "exemptions-and-variances",
+        "forest-tenures"
+      ]
     },
     {
       "n": "79.3",
@@ -1991,7 +2675,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Rare case.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "roads",
+        "exemptions-and-variances",
+        "forest-tenures"
+      ]
     },
     {
       "n": "80",
@@ -2006,7 +2695,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Road use notice; haul planning, not block layout.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "roads",
+        "crown-land"
+      ]
     },
     {
       "n": "81",
@@ -2015,7 +2708,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Road maintenance.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "roads"
+      ]
     },
     {
       "n": "82",
@@ -2024,7 +2720,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "The planner could carry a deactivation year and level per block road; nothing checks it.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "roads",
+        "stream-crossings-and-culverts",
+        "drainage"
+      ]
     },
     {
       "n": "83",
@@ -2033,7 +2734,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Operational.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "roads"
+      ]
     },
     {
       "n": "84",
@@ -2043,43 +2747,72 @@
       "coveredBy": [
         "bc.fppr@1.1.0:watershed-notice"
       ],
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "roads",
+        "water-quality-and-supply"
+      ]
     },
     {
       "n": "85",
       "relevance": "admin",
       "bearsOn": "Requires an agreement holder to notify the minister, with location, contact and projected date, before starting (or restarting after 3 months idle) harvesting or non-temporary road construction.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "roads"
+      ]
     },
     {
       "n": "86",
       "relevance": "admin",
       "bearsOn": "Requires agreement holders and timber sales managers to report each year (by June 1) harvested areas, forest cover updates, wildlife tree retention areas, newly found resource and wildlife habitat features, seed use and silviculture treatments.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "reforestation",
+        "stand-retention"
+      ]
     },
     {
       "n": "86.1",
       "relevance": "admin",
       "bearsOn": "Exempts some forest cover updates and cutblocks under 1 ha from the annual report.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "86.2",
       "relevance": "admin",
       "bearsOn": "Exempts BCTS forestry licences to cut and restricted-category timber sale licences from the annual report.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "87",
       "relevance": "admin",
       "bearsOn": "Requires a map of standards units and their standards to be submitted to the district manager with the annual report, and updated when they change.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "reforestation",
+        "administration"
+      ]
     },
     {
       "n": "88",
       "relevance": "admin",
       "bearsOn": "Requires silviculture treatment records to be kept until after free growing is declared.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "reforestation",
+        "administration"
+      ]
     },
     {
       "n": "89",
@@ -2091,7 +2824,11 @@
       "n": "90",
       "relevance": "admin",
       "bearsOn": "Exempts an FSP holder from achieving results or strategies to the extent government-authorized actions prevent it.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "91",
@@ -2103,7 +2840,10 @@
       ],
       "gapPriority": "low",
       "gapNote": "ministerial-exemption covers (1)(a)(i) for the FRPA s. 29 free growing duty only. An exemption from s. 51 (riparian reserves), s. 68 (logs), ss. 55-63 or, for a small FLTC, ss. 35-36, 47-52 and 64-67 would also lift a rule's finding and is not asked; (2) offers a route around s. 67 the wt-harvest rule does not mention.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "92",
@@ -2112,7 +2852,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "The UWR and WHA screens do not ask whether a GWM exemption has been granted for the block, which would change their reach cells.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "92.1",
@@ -2122,7 +2865,11 @@
       "coveredBy": [
         "bc.fppr@1.1.0:objective-conflict"
       ],
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "exemptions-and-variances",
+        "plans"
+      ]
     },
     {
       "n": "93",
@@ -2137,25 +2884,40 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Obligation transfer; not a block-layout test.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "reforestation"
+      ]
     },
     {
       "n": "95",
       "relevance": "tenure",
       "bearsOn": "Defines which small non-replaceable licence holders may ask government to assume their free growing obligations, and requires the request with their first cutting permit application.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "reforestation",
+        "forest-tenures"
+      ]
     },
     {
       "n": "96",
       "relevance": "admin",
       "bearsOn": "Sets when the minister may relieve or fund obligations after wildfire, landslide or flood damage (or catastrophic damage), what an application contains, and its 2-year deadline.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "reforestation",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "96.1",
       "relevance": "admin",
       "bearsOn": "Lets a person submit a plan for late relief or funding applications, at least 90 days before the deadline.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "reforestation",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "97",
@@ -2164,7 +2926,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Declaration rules apply years after harvest; the 20-year horizon echoes s. 44(1)(b).",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "reforestation"
+      ]
     },
     {
       "n": "97.1",
@@ -2177,6 +2942,9 @@
       "proposedFacts": [
         "If grazing or another constraint means the free growing stand cannot be fully established on part of this cutblock, will a section 97.1 declaration that the obligation was met to the extent practicable be relied on?",
         "What part of the area would remain unmet, and what explains why meeting it fully is not practicable?"
+      ],
+      "topics": [
+        "reforestation"
       ]
     },
     {
@@ -2201,13 +2969,20 @@
       "n": "102",
       "relevance": "enforcement",
       "bearsOn": "Sets three penalty tiers for contraventions: up to $500 000 and 2 years (soils, landslides, free growing, riparian, watershed, wildlife tree retention, GWMs, bridges and others), $100 000 and 1 year (drainage, revegetation, cutblock size and adjacency, resource features, maintenance), and $5 000 and 6 months (rehabilitation, permanent access, logs, clearing width, notices).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "103",
       "relevance": "enforcement",
       "bearsOn": "Makes failing to achieve an FSP result or carry out a strategy adopted under ss. 12.2-12.5 an offence carrying the penalty of the default provision it replaced.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "plans"
+      ]
     },
     {
       "n": "104",
@@ -2228,6 +3003,10 @@
       "review": "partial",
       "coveredBy": [
         "bc.crown-grazing@1.0.0:ministerial-exemption"
+      ],
+      "topics": [
+        "administration",
+        "exemptions-and-variances"
       ]
     },
     {
@@ -2237,7 +3016,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "For BCTS blocks the governing results are the timber sales manager's; the exemption rules could ask whether the TSM consented.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "forest-tenures",
+        "reforestation"
+      ]
     },
     {
       "n": "106.3",
@@ -2246,7 +3030,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Plan administration for shared FSPs.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "forest-tenures"
+      ]
     },
     {
       "n": "107",
@@ -2264,13 +3052,21 @@
       "n": "107.3",
       "relevance": "admin",
       "bearsOn": "Keeps the Forest Practices Code applying to forest development plans described in FRPA s. 187.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "plans"
+      ]
     },
     {
       "n": "108",
       "relevance": "admin",
       "bearsOn": "Continues district managers' Code-era exemption powers.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "exemptions-and-variances",
+        "administration"
+      ]
     },
     {
       "n": "109",
@@ -2282,25 +3078,43 @@
       "n": "110",
       "relevance": "admin",
       "bearsOn": "Treats a Code-era cutblock with a site plan, identified in a forest development plan and meeting the OSPR transition test, as approved for FRPA s. 196(1).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "administration",
+        "reforestation"
+      ]
     },
     {
       "n": "110.1",
       "relevance": "admin",
       "bearsOn": "Requires Code site plans for areas harvested under certain pulpwood agreements after the FRPA transition dates.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "reforestation",
+        "administration"
+      ]
     },
     {
       "n": "111",
       "relevance": "admin",
       "bearsOn": "Lets the minister amalgamate Code-era free growing obligations under a consolidated site level plan.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "reforestation",
+        "administration"
+      ]
     },
     {
       "n": "112",
       "relevance": "admin",
       "bearsOn": "Exempts Code-era road obligations from an old Forest Road Regulation reporting rule.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "roads",
+        "administration"
+      ]
     },
     {
       "n": "113",
@@ -2321,13 +3135,21 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Older FSPs answer to the earlier objective wording; a rule quoting an objective should say which version applies to the block's FSP.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "administration",
+        "plans"
+      ]
     },
     {
       "n": "116",
       "relevance": "admin",
       "bearsOn": "Continues the repealed s. 32.1(b) for FRPA s. 196(1) areas for a limited transition period.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "plans"
+      ]
     },
     {
       "n": "Schedule 1.1",
@@ -2336,7 +3158,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Factors for drafting FSP results; not block tests.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "plans",
+        "soils"
+      ]
     },
     {
       "n": "Schedule 1.1.1",
@@ -2345,7 +3171,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Factors for drafting FSP results.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "plans",
+        "reforestation"
+      ]
     },
     {
       "n": "Schedule 1.2",
@@ -2354,7 +3184,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Factors for drafting FSP results.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "plans",
+        "riparian",
+        "fish-habitat"
+      ]
     },
     {
       "n": "Schedule 1.3",
@@ -2363,7 +3198,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Factors for drafting FSP results; the patch analysis code measures the landscape side.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "plans",
+        "landscape-biodiversity",
+        "stand-retention"
+      ]
     },
     {
       "n": "Schedule 1.4",
@@ -2372,7 +3212,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Factors for drafting FSP results.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "plans",
+        "cultural-heritage"
+      ]
     },
     {
       "n": "Schedule 1.5",
@@ -2381,7 +3225,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Factors for drafting FSP results.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "Schedule 1.6",
@@ -2390,13 +3238,21 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Factors for drafting stocking standards.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "plans",
+        "reforestation"
+      ]
     },
     {
       "n": "Schedule 2",
       "relevance": "landscape",
       "bearsOn": "Lists the fisheries sensitive watersheds continued under the regulation, each with its forest district; every one is on the South Island, none in the Omineca.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "fish-habitat",
+        "water-quality-and-supply"
+      ]
     }
   ]
 }

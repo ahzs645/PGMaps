@@ -1,0 +1,781 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.water-sustainability-regulation",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines terms used across the regulation, among them \"fish habitat\" (spawning, nursery, rearing, food supply and migration areas), \"erosion\" of a stream channel or works, \"point of diversion\" and \"worksite\" (the area used to build works), which Part 3 uses for crossing work.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "fish-habitat",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "definitions",
+      "bearsOn": "Designates the water uses listed in Schedule A as industrial purposes; the schedule's table, which would say whether road watering or dust control for a block's roads is an industrial use, is not in the stored text (only Schedule A.1 is).",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "2.1",
+      "relevance": "range",
+      "bearsOn": "Takes range practices to which FRPA s. 46 applies out of the Act's s. 46(1) ban on introducing foreign matter into a stream, so livestock practices beside a stream answer to FRPA s. 46 instead.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A carve-out with nothing new to test: whether a range practice puts matter into a stream is FRPA s. 46's question, which the grazing review would ask if it asks one.",
+      "encodable": "not-encodable",
+      "topics": [
+        "range-and-grazing",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "admin",
+      "bearsOn": "Lists what an application for a licence or use approval must contain (source stream, purposes, quantities, point of diversion, works, Crown land authority, a scaled drawing), the form a licensee follows when applying to take water for a camp or road watering.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "Lists what an application for a change approval must contain (the stream, the place, start and finish dates, the works and activities, land owner consent, Crown land authority); s. 38 makes the same information the content of a Part 3 notice for a crossing.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "stream-crossings-and-culverts",
+        "administration"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "admin",
+      "bearsOn": "Lists what an application for a drilling authorization for a well must contain; no bearing on a cutblock.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "Lists what an application to amend an authorization, change approval or drilling authorization must contain.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "admin",
+      "bearsOn": "Lists what an application to transfer the appurtenancy of an authorization must contain.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "admin",
+      "bearsOn": "Lists what an application to apportion rights under a licence among parcels must contain.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "admin",
+      "bearsOn": "Lists what an application to abandon rights under an authorization must contain, including plans to remove or deactivate the works.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "admin",
+      "bearsOn": "Lists what an application for a final licence after a conditional licence must contain.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "admin",
+      "bearsOn": "Requires an application that involves using or flooding Crown land to include a request for a permit unless the applicant already holds authority to occupy the land or has applied for a disposition.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "crown-land"
+      ]
+    },
+    {
+      "n": "12",
+      "relevance": "admin",
+      "bearsOn": "Requires an application (and, through s. 38(3), a Part 3 notice) that includes personal information to carry written consent to its disclosure to listed governments and affected persons.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "admin",
+      "bearsOn": "Requires applications to be signed and filed and to carry the consents of co-applicants and co-holders.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "14",
+      "relevance": "admin",
+      "bearsOn": "Lets the decision maker require newspaper notice of an application and gives notified persons 30 days to object.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "15",
+      "relevance": "admin",
+      "bearsOn": "Sets the information and evidence a groundwater user must give to establish a date of first use.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "16",
+      "relevance": "admin",
+      "bearsOn": "Excuses the decision maker from considering environmental flow needs for some applications, including every application for a change approval such as one for a road crossing.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "17",
+      "relevance": "admin",
+      "bearsOn": "Designates the streams listed in Schedule B as sensitive streams; Schedule B's list is not in the stored text, so whether any Omineca stream is on it cannot be read here.",
+      "review": "n/a",
+      "topics": [
+        "fish-habitat",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "18",
+      "relevance": "admin",
+      "bearsOn": "Lets the decision maker require a fish inventory, flow analysis, habitat assessment and works design from an applicant for an authorization on a sensitive stream.",
+      "review": "n/a",
+      "topics": [
+        "fish-habitat",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "19",
+      "relevance": "admin",
+      "bearsOn": "Makes mitigation or full compensatory mitigation for the protected fish population a term of every licence issued on a sensitive stream.",
+      "review": "n/a",
+      "topics": [
+        "fish-habitat",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "20",
+      "relevance": "admin",
+      "bearsOn": "Sets the mitigation measures (construction timing, bank stability, fish migration, water quality, channel restoration) an applicant on a sensitive stream must propose, and the monitoring that goes with them.",
+      "review": "n/a",
+      "topics": [
+        "fish-habitat",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "21",
+      "relevance": "admin",
+      "bearsOn": "Sets how compensatory mitigation for fish habitat lost on a sensitive stream must be designed, located and monitored.",
+      "review": "n/a",
+      "topics": [
+        "fish-habitat",
+        "water-rights-and-works",
+        "compensation"
+      ]
+    },
+    {
+      "n": "22",
+      "relevance": "definitions",
+      "bearsOn": "Defines affected land, benefiting land and the court for a water licensee's expropriation of land.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "compensation"
+      ]
+    },
+    {
+      "n": "23",
+      "relevance": "admin",
+      "bearsOn": "Sets how a licensee petitions Cabinet for consent to an expropriation that floods land.",
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "24",
+      "relevance": "admin",
+      "bearsOn": "Sets how a licensee starts expropriation proceedings for land its works need.",
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "25",
+      "relevance": "admin",
+      "bearsOn": "Lets the comptroller order substituted service of expropriation documents.",
+      "review": "n/a",
+      "topics": [
+        "compensation"
+      ]
+    },
+    {
+      "n": "26",
+      "relevance": "admin",
+      "bearsOn": "Lets an expropriating licensee amend and re-serve its documents before court proceedings begin.",
+      "review": "n/a",
+      "topics": [
+        "compensation"
+      ]
+    },
+    {
+      "n": "27",
+      "relevance": "admin",
+      "bearsOn": "Gives a land owner 30 days to accept an expropriating licensee's offer of compensation.",
+      "review": "n/a",
+      "topics": [
+        "compensation"
+      ]
+    },
+    {
+      "n": "28",
+      "relevance": "admin",
+      "bearsOn": "Lets either party go to the Supreme Court once the 30 days pass to settle the land, compensation or conveyance terms.",
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "appeals-and-reviews"
+      ]
+    },
+    {
+      "n": "29",
+      "relevance": "admin",
+      "bearsOn": "Applies the Expropriation Act's powers and compensation rules to the court's determination.",
+      "review": "n/a",
+      "topics": [
+        "compensation"
+      ]
+    },
+    {
+      "n": "30",
+      "relevance": "admin",
+      "bearsOn": "Sets when an owner whose land is expropriated by a licensee recovers costs.",
+      "review": "n/a",
+      "topics": [
+        "compensation"
+      ]
+    },
+    {
+      "n": "31",
+      "relevance": "roads",
+      "bearsOn": "Exempts from the Act's s. 6(1) licensing requirement the groundwater a road's ditch diverts to drain the road surface or lower the water table, if the water is not used on the way and is discharged without a significant risk of harm to public safety, the environment, land or property.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Relieves a block's road ditches of any water authorization; the only condition, discharge without significant risk of harm, is the same question FPPR's drainage provisions ask of ditch outlets.",
+      "encodable": "reviewer-question",
+      "topics": [
+        "drainage",
+        "roads",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "32",
+      "relevance": "admin",
+      "bearsOn": "Exempts a local government's drainage works from the s. 6(1) licensing requirement on the same conditions as road ditches.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "drainage"
+      ]
+    },
+    {
+      "n": "32.1",
+      "relevance": "roads",
+      "bearsOn": "Exempts dewatering of groundwater for construction (no more than 300 m³ a day for no more than 24 months, no water use, no harm to other users, discharge without significant risk) from the licensing requirement, which could apply to an excavation for a bridge footing.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Rare on a cutblock's roads; a large excavation for a bridge abutment that pumps groundwater would need its daily volume and period kept within these limits.",
+      "encodable": "numeric",
+      "topics": [
+        "water-rights-and-works",
+        "roads"
+      ]
+    },
+    {
+      "n": "32.2",
+      "relevance": "roads",
+      "bearsOn": "Exempts construction dewatering of up to 1 000 m³ of groundwater a day if a hydrogeology or geotechnical registrant designs or supervises it and keeps a record for 3 years.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Rare on a cutblock's roads; only a large structure's excavation would pump this much.",
+      "encodable": "document-check",
+      "topics": [
+        "water-rights-and-works",
+        "roads"
+      ]
+    },
+    {
+      "n": "32.3",
+      "relevance": "enforcement",
+      "bearsOn": "Requires a person who exceeds the construction dewatering volume or period to report it within 72 hours and take the remedial measures a water officer specifies.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "33",
+      "relevance": "admin",
+      "bearsOn": "Exempts agricultural drainage works from the s. 6(1) licensing requirement if the water is not used and is discharged without significant risk of harm.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "agricultural-land",
+        "drainage"
+      ]
+    },
+    {
+      "n": "34",
+      "relevance": "admin",
+      "bearsOn": "Exempts building perimeter drains from the s. 6(1) licensing requirement on the same conditions.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "drainage"
+      ]
+    },
+    {
+      "n": "34.1",
+      "relevance": "admin",
+      "bearsOn": "Exempts mine drainage works from the s. 6(1) licensing requirement on the same conditions.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "34.2",
+      "relevance": "definitions",
+      "bearsOn": "Defines mineral exploration activities, placer mining activities and a Mines Act permit for the mineral exploration water exemptions.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "34.3",
+      "relevance": "admin",
+      "bearsOn": "Exempts a Mines Act permit holder's water use for exploration, placer mining and a camp of up to 20 people from the licensing requirement; a forestry camp gets no such exemption.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "34.31",
+      "relevance": "roads",
+      "bearsOn": "Exempts water diverted to build an ice road from the licensing requirement only where the road gives access for decommissioning or restoration work in the Northeast regional economic zone and melts before May 1; a forestry ice road or flooded ice bridge in the Omineca gets no exemption here.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Not available to a cutblock's winter roads; water flooded to build one needs an authorization under the Act's s. 6, which the Act's review already asks about.",
+      "encodable": "reviewer-question",
+      "topics": [
+        "water-rights-and-works",
+        "roads"
+      ]
+    },
+    {
+      "n": "34.4",
+      "relevance": "admin",
+      "bearsOn": "Sets the rules for the mineral exploration and Northeast ice road exemptions: no recorded water, no sensitive, protected-area, reserved or ordered streams, no permanent works in the channel, screened intakes and minimal channel disturbance.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "fish-habitat",
+        "mining"
+      ]
+    },
+    {
+      "n": "34.5",
+      "relevance": "admin",
+      "bearsOn": "Lets an engineer require an application in place of the mineral exploration or ice road exemption where the diversion may significantly harm a stream or other users, or harm a cultural heritage resource.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "mining"
+      ]
+    },
+    {
+      "n": "35",
+      "relevance": "admin",
+      "bearsOn": "Exempts remediation wells and drainage wells from the s. 6(1) licensing requirement if the water is not used and is discharged without significant risk of harm.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "35.1",
+      "relevance": "admin",
+      "bearsOn": "Lets a fire department divert and store water to maintain and test equipment and train firefighters without an authorization, if other users, fish and the aquatic ecosystem are not harmed; it does not extend to a licensee's own fire preparedness.",
+      "review": "n/a",
+      "topics": [
+        "fire",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "36",
+      "relevance": "definitions",
+      "bearsOn": "Defines the terms of Part 3 that decide what a road crossing is: \"culvert\" (pipes or structures under fill, not log structures), \"clear span bridge\" (abutments outside the channel, no piers), \"embankment\", \"fish-bearing\" (fish present at some time of year), \"engineering professional\" and \"habitat officer\".",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "stream-crossings-and-culverts",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "37",
+      "relevance": "roads",
+      "bearsOn": "Lets a person make an authorized change in and about a stream (a culvert, bridge, ford, snowfill or other change listed in s. 39) without a change approval if the person meets Part 3 and any habitat officer terms, unless an engineer requires a change approval because the change may significantly affect the stream's nature, flow or channel.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "No pack asks whether each crossing on the block's roads relies on Part 3 for its authority under the Act's s. 11, or whether an engineer has required a change approval for one; for an ordinary Omineca block the answer is usually Part 3 through s. 39(2), but the tool never says so or asks.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Will each change in and about a stream on the block's roads or harvest area (a culvert, bridge, ford, snowfill or instream work) be made under Part 3 of the Water Sustainability Regulation rather than under a change approval?",
+        "Has an engineer required a change approval or authorization for any of the block's crossings because it may significantly affect the stream's nature, flow or channel (WSR s. 37(2))?"
+      ],
+      "topics": [
+        "stream-crossings-and-culverts",
+        "water-rights-and-works",
+        "roads"
+      ]
+    },
+    {
+      "n": "38",
+      "relevance": "roads",
+      "bearsOn": "Requires a person making an authorized change other than one under s. 39(1)(o)-(s), (2) or (5) to give a habitat officer signed notice with the change approval information at least 45 days before starting and to obtain the officer's terms (or proceed if not contacted within 45 days); a Forest Act agreement or road permit holder building under FRPA (s. 39(2)) gives no such notice.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "For a crossing not made by a Forest Act agreement or road permit holder under FRPA (s. 39(2)), such as one on a private access road or by another party, no pack asks whether the 45-day notice was given and the habitat officer's terms obtained before work starts.",
+      "encodable": "document-check",
+      "proposedFacts": [
+        "Is any crossing for the block made by someone other than a Forest Act agreement or road permit holder working under FRPA, so that WSR s. 39(2) does not cover it?",
+        "For each such crossing, was signed notice with the change approval particulars given to a habitat officer at least 45 days before work began, and has the officer's statement of terms been obtained or 45 days passed without contact?"
+      ],
+      "topics": [
+        "stream-crossings-and-culverts",
+        "water-rights-and-works",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "39",
+      "relevance": "roads",
+      "bearsOn": "Lists the changes in and about a stream that need no change approval: a culvert for a road under fifteen conditions (600 mm minimum, fish passage under all flows on a fish-bearing stream, capacity for the channel or the 1 in 200 year maximum daily flow, 300 mm cover, at most 2 m fill, an engineer's design at 2 m or 6 m³/s and more), a clear span bridge, a pipeline crossing, ice bridges, winter fords and snowfills of clean ice and snow removed before break-up, a temporary ford sized for the 1 in 10 year flow, a temporary diversion round a worksite, drainage outlets, bridge superstructure repair and beaver dam removal, and (s. 39(2)) any change by a Forest Act agreement or road permit holder, Range Act agreement holder or the Crown to which FRPA standards apply, if the person complies with FRPA and its regulations.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "No pack asks which s. 39 route each of the block's crossings takes or tests its conditions: under s. 39(2) the crossing is authorized only if it meets FRPA and FPPR (ss. 55-57 among them); under s. 39(1)(a) a rule would test each culvert's equivalent diameter (600 mm or more), cover (300 mm or more), fill above it (2 m or less), capacity (the channel's, or the 1 in 200 year maximum daily flow without the inlet water rising above the culvert's top), fish passage under all flows on a fish-bearing stream, erosion protection at inlet and outlet, debris passage, no backwater, equipment in a dry channel or on the bank, and an engineering professional's design at 2 m or 6 m³/s; a ford, ice bridge or snowfill would be tested on its materials, design flow and removal before break-up. Diameter, cover, fill and design flow could come from the road's culvert schedule.",
+      "encodable": "numeric",
+      "proposedFacts": [
+        "Is each change in and about a stream for the block made by the holder of a Forest Act agreement or road permit (or the Crown) in compliance with FRPA and its regulations, so that it is an authorized change under WSR s. 39(2)?",
+        "For a culvert installed instead under WSR s. 39(1)(a), is its equivalent diameter at least 600 mm, with at least 300 mm of cover, no more than 2 m of fill above it, and capacity equal to the channel's or able to pass the 1 in 200 year maximum daily flow without the inlet water rising above its top?",
+        "On a fish-bearing stream, does that culvert let fish pass up and down stream under all flow conditions, and is any culvert of 2 m or more equivalent diameter or more than 6 m³/s design flow designed by an engineering professional and built to that design?",
+        "Is any temporary ford built for the 1 in 10 year maximum daily flow at a time that does not risk significant harm to fish, and is any ice bridge, winter ford or snowfill made only of clean ice and snow and removed, with its logs and timbers, before ice break-up?"
+      ],
+      "topics": [
+        "stream-crossings-and-culverts",
+        "water-rights-and-works",
+        "fish-habitat",
+        "roads"
+      ]
+    },
+    {
+      "n": "40",
+      "relevance": "roads",
+      "bearsOn": "Bars a person making an authorized change from entering private land or using privately owned works for it without the owner's written consent.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Matters only where a crossing or its worksite is on private land; the private land screen shows the parcel but asks nothing about consent for crossing work.",
+      "encodable": "reviewer-question",
+      "topics": [
+        "stream-crossings-and-culverts",
+        "private-land",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "41",
+      "relevance": "roads",
+      "bearsOn": "Requires a person making an authorized change (the s. 39(2) forest route included) to give an engineer or habitat officer the information they request, to finish the change without delay once begun, and to design, build and maintain it so it poses no significant risk of harm to public safety, the environment, land or property.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "Applies to every crossing on the block's roads, including those built under FRPA through s. 39(2); no pack asks whether a crossing, once started, is finished without delay or is designed and maintained to avoid a significant risk of harm.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Once work on a crossing begins, will it be completed without delay unless a delay is needed to preserve the stream or its channel?",
+        "Is each crossing designed, built and maintained so it poses no significant risk of harm to public safety, the environment, land or other property?"
+      ],
+      "topics": [
+        "stream-crossings-and-culverts",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "42",
+      "relevance": "enforcement",
+      "bearsOn": "Requires a person who fails to meet Part 3 while making an authorized change to report it to the regional office within 72 hours and take the remedial measures an engineer or habitat officer specifies.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "43",
+      "relevance": "roads",
+      "bearsOn": "Requires a person making an authorized change (the s. 39(2) forest route included) to avoid a significant adverse impact on the stream's ambient water quality, leave stable natural materials and vegetation that hold the channel, remove temporary fill, culverts, pumps and other construction structures when done, keep cast-in-place concrete and grout away from fish-bearing water for 48 hours, use no acid-generating rock and restore the stream when the change is complete.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "Applies to every crossing on the block's roads; no pack asks about construction rock from acid-generating formations, concrete or grout near fish-bearing water, removal of temporary construction works, or restoring the stream after a crossing is built.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Will crossing work avoid a significant adverse impact on the stream's water quality and avoid disturbing stable natural materials and vegetation that keep the channel stable, beyond what the crossing needs?",
+        "Will temporary fill, culverts, pumps, pipes, ditches or other structures used to build a crossing be removed on completion and the stream restored to its state before the change?",
+        "Will any cast-in-place concrete or grout at a crossing be kept completely separated from fish-bearing water for at least 48 hours?",
+        "Will any rock used to build a crossing come from an acid-generating formation (paste pH below 4.5)?"
+      ],
+      "topics": [
+        "water-quality-and-supply",
+        "stream-crossings-and-culverts",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "44",
+      "relevance": "roads",
+      "bearsOn": "Lets a habitat officer give written terms for an authorized change (the timing window, minimum instream flow, removal or addition of material, fish and wildlife salvage, protection of streamside vegetation, worksite restoration), and requires a person whose change damages the aquatic ecosystem (the s. 39(2) forest route included) to report it within 72 hours and repair and restore it.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No pack asks whether a habitat officer has set a timing window or other terms for a crossing and whether the work is scheduled within them, or whether damage to the aquatic ecosystem from crossing work would be reported within 72 hours and repaired; for the s. 39(2) route, FPPR s. 57's timing is the usual limit.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Has a habitat officer specified a timing window, minimum instream flow, fish salvage or worksite restoration terms for any of the block's crossings, and is the crossing work scheduled within them?",
+        "If crossing work damages the aquatic ecosystem, will the damage be reported to a habitat officer within 72 hours and repaired and the ecosystem restored?"
+      ],
+      "topics": [
+        "fish-habitat",
+        "stream-crossings-and-culverts",
+        "riparian"
+      ]
+    },
+    {
+      "n": "45",
+      "relevance": "roads",
+      "bearsOn": "Requires a person making an authorized change other than one under s. 39(1)(o)-(s), (2) or (5) to keep licensed water users' supply and works unaffected, or give them 3 days' notice and an adequate supply while the change is made; a Forest Act holder building under FRPA (s. 39(2)) is not bound by it.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "For a crossing not made under s. 39(2), no pack asks whether a licensed point of diversion downstream may be affected and whether its users get 3 days' notice and a supply; the water licence screen shows points of diversion near the block but cites only the Act.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "For a crossing not made under WSR s. 39(2), is there a licensed point of diversion or waterworks downstream whose supply or works the crossing work may affect?",
+        "If so, will those water users be given 3 days' notice before work starts and an adequate supply of water during it if they ask for one?"
+      ],
+      "topics": [
+        "water-quality-and-supply",
+        "water-rights-and-works",
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "46",
+      "relevance": "definitions",
+      "bearsOn": "Defines \"protected area\" (parks, conservancies, recreation areas, ecological reserves and dedicated community parks) and other terms for the well-drilling water use in Part 4.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "47",
+      "relevance": "admin",
+      "bearsOn": "Lets a registered well driller or professional take water for drilling, developing or decommissioning a well without an authorization, unless an engineer requires one.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "48",
+      "relevance": "admin",
+      "bearsOn": "Limits water taken for well drilling (5 days at one place, 10 days a month, 10 m³ a day, no wetlands, small streams, protected areas, recorded or reserved water) and bars permanent works in the channel.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "49",
+      "relevance": "admin",
+      "bearsOn": "Requires water taken for well drilling to cause no significant harm to fish or the aquatic ecosystem, with screened intakes and minimal channel disturbance.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "50",
+      "relevance": "admin",
+      "bearsOn": "Requires water taken for well drilling not to affect lawful water users.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "51",
+      "relevance": "definitions",
+      "bearsOn": "Defines deep groundwater and the northeast subject area for oil and gas water use.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "52",
+      "relevance": "admin",
+      "bearsOn": "Lets an oil and gas well permit holder use unrecorded deep groundwater in the northeast subject area without an authorization.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "53",
+      "relevance": "admin",
+      "bearsOn": "Lets a water manager stop deep groundwater use that affects other users' rights.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "54",
+      "relevance": "enforcement",
+      "bearsOn": "Makes it an offence to breach listed duties, among them the Part 3 duties of a person making a crossing (s. 41, 42, 43(1)(b)-(c), 44(3) and 45), the firefighting conditions and the well-drilling and deep groundwater limits, with the Act's s. 106(6) penalties.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "stream-crossings-and-culverts",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "55",
+      "relevance": "admin",
+      "bearsOn": "Required existing groundwater users to apply for a licence by March 1, 2022, fee-free and with their date of first use preserved.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "56",
+      "relevance": "repealed",
+      "bearsOn": "Repealed.",
+      "review": "n/a"
+    },
+    {
+      "n": "Schedule A.1",
+      "relevance": "definitions",
+      "bearsOn": "Defines fur farming, game farm and recreational camp for Schedule A's industrial purposes, and includes lawn in \"garden\" for domestic purpose; Schedule A's own table is not in the stored text.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "Schedule B",
+      "relevance": "admin",
+      "bearsOn": "The list of streams designated as sensitive under s. 17; its text is empty in the stored copy, so it cannot be read here.",
+      "review": "n/a",
+      "topics": [
+        "fish-habitat",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "Schedule C",
+      "relevance": "admin",
+      "bearsOn": "The map of the Northeast regional economic zone for the s. 34.31 ice road exemption; its text is empty in the stored copy.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "roads"
+      ]
+    }
+  ]
+}

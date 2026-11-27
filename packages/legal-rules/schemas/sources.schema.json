@@ -44,6 +44,55 @@
           },
           "civix": {
             "type": "object"
+          },
+          "areas": {
+            "type": "object",
+            "description": "For an order or policy: the BC natural resource regions and districts it covers, by the codes in catalogue/admin-areas.json, and how they were found.",
+            "required": [
+              "scope",
+              "basis"
+            ],
+            "properties": {
+              "scope": {
+                "enum": [
+                  "province",
+                  "districts"
+                ]
+              },
+              "regions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "districts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "basis": {
+                "type": "string"
+              }
+            }
+          },
+          "enabling": {
+            "type": "array",
+            "description": "For an order: the stored sections it is made under (source and provision), and a text note for an authority PGMaps does not store.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string"
+                },
+                "provision": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }

@@ -8,7 +8,11 @@
       "n": "Executive summary",
       "relevance": "admin",
       "bearsOn": "Background: the FPB found old forest at risk under aspatial management, the ministry committed to spatialize the order through COFAs, and licensees and BCTS are expected to abide by the letter.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "old-growth",
+        "objectives"
+      ]
     },
     {
       "n": "Background ¶1",
@@ -17,7 +21,12 @@
       "review": "partial",
       "gapPriority": "low",
       "gapNote": "Code (landBase.ts) follows the order: it removes woodlots, community forests and TFLs but keeps First Nations woodland licences and research forests. The letter and the ministry's COFA analysis leave all area-based tenures out, so the planner's CFLB will differ where those tenures lie; a switch or note would show it.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "old-growth",
+        "forest-tenures",
+        "objectives"
+      ]
     },
     {
       "n": "Background ¶3-5",
@@ -26,7 +35,11 @@
       "review": "partial",
       "gapPriority": "low",
       "gapNote": "Non-legal OGMAs (including COFAs) count under D.1 by default in the old forest code. Reporting duties are outside the planner.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "old-growth",
+        "objectives"
+      ]
     },
     {
       "n": "Methodology ¶2",
@@ -41,6 +54,11 @@
       "encodable": "numeric",
       "proposedFacts": [
         "Should old forest inside UWRs, WHAs and WTRAs be reported as the ministry's Appendix 2 does, beside the order's D.1 accounting?"
+      ],
+      "topics": [
+        "old-growth",
+        "protected-areas",
+        "wildlife"
       ]
     },
     {
@@ -54,7 +72,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The recruitment rule does not know that the letter treats COFA mBECs in the PG district as needing no recruitment strategy.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "old-growth",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "Methodology: phased approach",
@@ -63,7 +85,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Determines which regime a block falls under; a screen of the ESI boundary is not public (Ministry data). A04's approved recruitment strategy could be a note on the D.5(a) rule.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "old-growth",
+        "first-nations",
+        "objectives"
+      ]
     },
     {
       "n": "PG DM ¶1",
@@ -72,7 +99,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Only matters when projecting old forest inside COFAs after a disturbance.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "old-growth",
+        "wildlife"
+      ]
     },
     {
       "n": "PG DM ¶2",
@@ -83,6 +114,10 @@
       "gapNote": "Whether the block or road overlaps a COFA is the reviewer’s answer: no planner screen reads the non-legal OGMA layer filtered to PRG_COFA and PRG_DPG (Appendix 5), though the visual quality route card does.",
       "coveredBy": [
         "bc.omineca.old-growth@1.1.0:cofa"
+      ],
+      "topics": [
+        "old-growth",
+        "harvest-authority"
       ]
     },
     {
@@ -95,6 +130,10 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Does the block or its road overlap a candidate old forest area (COFA) or a 2009 non-legal OGMA in mBEC A22 or A23?"
+      ],
+      "topics": [
+        "old-growth",
+        "plans"
       ]
     },
     {
@@ -106,6 +145,11 @@
       "gapNote": "Whether the block or road overlaps a COFA is the reviewer’s answer: no planner screen reads the non-legal OGMA layer filtered to PRG_COFA and PRG_DPG (Appendix 5), though the visual quality route card does.",
       "coveredBy": [
         "bc.omineca.old-growth@1.1.0:cofa#variance"
+      ],
+      "topics": [
+        "exemptions-and-variances",
+        "old-growth",
+        "roads"
       ]
     },
     {
@@ -115,7 +159,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A WTRA the reviewer draws (retention areas) could be tagged as meeting the 2 ha and old tests.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "old-growth",
+        "stand-retention"
+      ]
     },
     {
       "n": "PG DM annual: variance summary",
@@ -126,13 +174,22 @@
       "gapNote": "Whether the block or road overlaps a COFA is the reviewer’s answer: no planner screen reads the non-legal OGMA layer filtered to PRG_COFA and PRG_DPG (Appendix 5), though the visual quality route card does.",
       "coveredBy": [
         "bc.omineca.old-growth@1.1.0:cofa-summary"
+      ],
+      "topics": [
+        "exemptions-and-variances",
+        "old-growth",
+        "roads"
       ]
     },
     {
       "n": "PG DM annual: actual incursions",
       "relevance": "admin",
       "bearsOn": "Licensees report all actual incursions into COFAs under approved variances each year.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "old-growth",
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "PG DM annual: additions",
@@ -140,20 +197,32 @@
       "bearsOn": "Licensees and BCTS should bring areas of higher ecological value to the District Manager to add to COFAs.",
       "review": "none",
       "gapPriority": "low",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "old-growth",
+        "designated-areas"
+      ]
     },
     {
       "n": "PG DM annual: technical team",
       "relevance": "admin",
       "bearsOn": "A provincial technical team reviews variance rationales and recommends to the District Manager.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "exemptions-and-variances",
+        "old-growth"
+      ]
     },
     {
       "n": "PG DM non-spatial mBECs",
       "relevance": "landscape",
       "bearsOn": "For non-spatial mBECs (and A04), the ministry updates Appendix 2 from current VRI and licensees keep reporting annually as before.",
       "review": "code",
-      "gapNote": "The old forest module projects old forest per unit against the order; the Board check compares with LLOWG reporting."
+      "gapNote": "The old forest module projects old forest per unit against the order; the Board check compares with LLOWG reporting.",
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "PG DM closing",
@@ -161,14 +230,22 @@
       "bearsOn": "COFAs stay in place until the order's implementation is amended through a legislative or landscape-level planning process.",
       "review": "none",
       "gapPriority": "low",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "old-growth",
+        "objectives"
+      ]
     },
     {
       "n": "Stuart Nechako DM",
       "relevance": "landscape",
       "bearsOn": "In Stuart Nechako (former Vanderhoof and Fort St. James districts) the objectives stay non-spatial, managed against the Appendix 2 targets.",
       "review": "code",
-      "gapNote": "The old forest module calculates D and E units non-spatially against the order."
+      "gapNote": "The old forest module calculates D and E units non-spatially against the order.",
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "Appendix 2 Table 1",
@@ -177,7 +254,11 @@
       "review": "partial",
       "gapPriority": "low",
       "gapNote": "The planner uses the order's percentages with its own CFLB proxy; these hectares (2017 CFLB, 2020 VRI) are a comparison point like the Board's 2019 table, not loaded.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "Appendix 2 Table 2",
@@ -186,7 +267,11 @@
       "review": "partial",
       "gapPriority": "low",
       "gapNote": "As Table 1. The minimum ages match the code's oldAgeRule for every unit.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "Appendix 2 Table 3",
@@ -195,13 +280,21 @@
       "review": "partial",
       "gapPriority": "low",
       "gapNote": "The split of a unit at the ESI boundary is the ministry's implementation, not the order's; the planner calculates whole units.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "Appendix 3",
       "relevance": "admin",
       "bearsOn": "Tabulates the age classes of the COFAs by mBEC (December 2022); data, not a requirement.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "old-growth",
+        "designated-areas"
+      ]
     },
     {
       "n": "Appendix 4 §1",
@@ -210,20 +303,33 @@
       "review": "partial",
       "gapPriority": "low",
       "gapNote": "Method for the COFA layer; relevant to the planner only through the layer and the accounting differences noted under Methodology ¶2 and Background ¶1.",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "old-growth",
+        "designated-areas"
+      ]
     },
     {
       "n": "Appendix 4 §2-3",
       "relevance": "landscape",
       "bearsOn": "Uses the 2017 TSR CFLB and 2020 VRI, splits mBECs at the ESI boundary, nets out old forest in no-harvest areas, and selects COFAs with species-at-risk habitat, First Nations input and TAP deferrals.",
       "review": "n/a",
-      "gapNote": "Methodology for the ministry's analysis; nothing for a block rule."
+      "gapNote": "Methodology for the ministry's analysis; nothing for a block rule.",
+      "topics": [
+        "old-growth",
+        "first-nations",
+        "wildlife"
+      ]
     },
     {
       "n": "Appendix 4 Tables 1-2",
       "relevance": "admin",
       "bearsOn": "Tables of overlays, assumptions and BCGW sources used to design COFAs.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "old-growth",
+        "designated-areas"
+      ]
     },
     {
       "n": "Appendix 5",
@@ -235,6 +341,10 @@
       "encodable": "spatial",
       "proposedFacts": [
         "Does the block or its road overlap a candidate old forest area (COFA) or a 2009 non-legal OGMA in mBEC A22 or A23?"
+      ],
+      "topics": [
+        "designated-areas",
+        "old-growth"
       ]
     }
   ]

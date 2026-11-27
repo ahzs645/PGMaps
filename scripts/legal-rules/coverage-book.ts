@@ -6,7 +6,13 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { parsePack } from '../../packages/legal-rules/src/contract'
-import { citationIndex, type CoverageReview } from '../../src/lib/legal/coverage'
+import {
+  citationIndex,
+  type AdminAreasFile,
+  type CoverageReview,
+  type LawTopicsFile,
+  type OrderLinks,
+} from '../../src/lib/legal/coverage'
 import { coverageBook } from '../../src/lib/legal/coverageBook'
 
 const root = new URL('../../packages/legal-rules/', import.meta.url)
@@ -28,7 +34,7 @@ const PRIORITY = [
 ]
 
 export function bookFromDisk() {
-  const catalogue = read('catalogue/sources.json').sources as { id: string; url: string; kind: string; title: string }[]
+  const catalogue = read('catalogue/sources.json').sources as (OrderLinks & { url: string; kind: string })[]
   const byUrl = new Map<string, string>()
   for (const s of catalogue) if (!byUrl.has(s.url)) byUrl.set(s.url, s.id)
   const isOrder = (id: string) =>
@@ -47,6 +53,9 @@ export function bookFromDisk() {
     index,
     packs,
     priority: PRIORITY,
+    topics: (read('catalogue/topics.json') as LawTopicsFile).topics,
+    orders: catalogue.filter((s) => s.areas),
+    areas: read('catalogue/admin-areas.json') as AdminAreasFile,
     sources: catalogue.map((s) => ({ id: s.id, title: s.title, url: s.url, order: isOrder(s.id) })),
   })
 }

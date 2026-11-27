@@ -4,27 +4,260 @@
   "reviewedOn": "2026-11-27",
   "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
   "sections": [
-    {"n":"Policy: Application","relevance":"admin","bearsOn":"States that the implementation policy guides the order's application and is not legally binding.","review":"n/a"},
-    {"n":"Definition: Crown Forest Land Base","relevance":"definitions","bearsOn":"Defines the CFLB, the denominator of objective A: forested provincial Crown land, excluding private, federal, municipal land and woodlots.","review":"code","gapNote":"Code builds a CFLB proxy (or takes a stated CFLB and scales by it)."},
-    {"n":"Definition: Licensee","relevance":"definitions","bearsOn":"Defines licensee as a party preparing an FDP or FSP.","review":"n/a"},
-    {"n":"Definition: Merged Biogeoclimatic Units","relevance":"definitions","bearsOn":"Defines mBECs as groupings of BEC units shown on Map #2.","review":"code"},
-    {"n":"Definition: Natural Disturbance Units","relevance":"definitions","bearsOn":"Defines NDUs by reference to DeLong (2002), Map #1.","review":"code"},
-    {"n":"Definition: Natural Forest Area","relevance":"definitions","bearsOn":"Defines NFAs as unharvested beetle-affected stands (old, dying, dead or young natural) used as a surrogate for old forest.","review":"code","gapNote":"Decision 3: a beetle-killed stand keeps its VRI age and counts as old until harvested."},
-    {"n":"Definition: Old forest","relevance":"landscape","bearsOn":"Old is >140 years, except >120 years in all Moist Interior - Plateau variants, Omineca Valley SBSdk, SBSdw3, BWBSdk1, SBSmc2, SBSmk1 and McGregor Plateau SBSmk1 and SBSmh; the ICH is left undecided.","review":"code","gapNote":"oldAgeRule (units.ts) implements it, using 140 for the ICH as the LLOWG and the Board did; its ages match the 2022 letter's Appendix 2 for every unit."},
-    {"n":"Definition: Old Interior Forest","relevance":"landscape","bearsOn":"Old interior forest is old forest or NFA buffered from younger stands: 200 m from pine/deciduous-leading NSR or age class 1-3 and from other species NSR or age class 1-4, 0 m from older classes if the area is over 200 m wide.","review":"code","gapNote":"The 2005 interior method in oldForest.ts."},
-    {"n":"Definition: Young forest","relevance":"definitions","bearsOn":"Young forest, for objective C, is forest 0-20 years old.","review":"code","gapNote":"youngForestAgeYearsInclusive [0, 20] in the order JSON."},
-    {"n":"Policy 1","relevance":"landscape","bearsOn":"NFAs may stand in for live old forest; an affected licensee keeps a representative portion either in proportion to the unaffected area (a) or by following the non-pine minimums of Tables 8-10 (b).","review":"code","coveredBy":["bc.pgtsa.biodiversity@1.2.0:affected-stands"],"gapNote":"Non-pine minimums are computed; option (a) is shown as figures in the D.3 representation summary without a judgement."},
-    {"n":"Table 8","relevance":"landscape","bearsOn":"Minimum percent of CFLB retained as old non-pine-leading forest for D1-D7 (2-16%).","review":"code","gapNote":"nonPineLeadingOldMinPctOfCflb in the order JSON; values match."},
-    {"n":"Table 9","relevance":"landscape","bearsOn":"Minimum percent of CFLB retained as old non-pine-leading forest for E1-E5 (4-33%).","review":"code","gapNote":"Values match."},
-    {"n":"Table 10","relevance":"landscape","bearsOn":"Minimum percent of CFLB retained as old non-pine-leading forest for A5-A13 (1-28%).","review":"code","gapNote":"Values match."},
-    {"n":"Policy 2","relevance":"landscape","bearsOn":"The ministry may require spatially located old forest retention areas where values are at risk or aspatial management fails; this is the basis the 2022 letter used for COFAs.","review":"none","gapPriority":"low","gapNote":"Nothing to test on its own; its outcome (COFAs) is the block-level gap recorded under pgtsa-loe.","encodable":"not-encodable"},
-    {"n":"Policy 3","relevance":"landscape","bearsOn":"Interior old forest is to be managed over time, and the near-term strategy is expected to minimize fragmentation of mid-aged (60-100 year) forest.","review":"partial","gapPriority":"low","gapNote":"Interior is projected over the plan's periods; nothing measures fragmentation of 60-100 year forest a block causes.","encodable":"spatial"},
-    {"n":"Policy 3: Revised methodology","relevance":"landscape","bearsOn":"Replaces the original 200 m buffer against all stands under old age with the June 22, 2005 age-class and species table, and buffers primary roads, pipelines, railways and hydro corridors by 200 m but not secondary or tertiary roads.","review":"code","gapNote":"The 2005 method is the default in oldForest.ts, with corridors from DRA primary roads, Crown rights-of-way and Energy Regulator permits; 2004 on request."},
-    {"n":"Policy 4 ¶2","relevance":"block","bearsOn":"For the patch objective, cutblocks are to keep wildlife tree retention and leave areas, and openings over 500 ha need more and larger (>10 ha) retention areas.","review":"none","gapPriority":"medium","gapNote":"No rule flags a block or merged opening over 500 ha that lacks retention patches over 10 ha. Policy, not binding, but it is a per-opening test the planner could make from drawn retention.","encodable":"spatial","proposedFacts":["Is the opening, with any adjacent cutblocks it merges with, larger than 500 ha?","Does the opening keep wildlife tree retention or leave areas larger than 10 ha?"]},
-    {"n":"Policy 4 ¶3-4","relevance":"landscape","bearsOn":"Table 7 will not be met short to mid term in some units, and where other issues prevent trending toward it a rationale goes to the FSP decision maker.","review":"rule","coveredBy":["bc.pgtsa.biodiversity@1.2.0:rationale"]},
-    {"n":"Policy 4: Analysis steps","relevance":"landscape","bearsOn":"Gives the five-stage buffer, merge and de-buffer method (75/100/200/300/400 m) that turns young openings into patches for Table 7.","review":"code","gapNote":"patchMergeStages in the order JSON and spatial/patch-analysis.json (pg-2005-buffer-v1)."},
-    {"n":"Policy 5","relevance":"landscape","bearsOn":"Licensees and BCTS apportion the old growth objectives among their operating areas by MOU and report under a July 2005 protocol.","review":"none","gapPriority":"low","gapNote":"The planner reports unit totals, not a licensee's apportioned share; a reviewer could enter the share.","encodable":"reviewer-question"},
-    {"n":"Policy 6","relevance":"admin","bearsOn":"Assigns plan preparation to licensees, endorsement to MSRM and approval and enforcement to MOF.","review":"n/a"},
-    {"n":"Policy 7","relevance":"admin","bearsOn":"Sets periodic review with timber supply reviews and asks licensees to strive for a representative pine/non-pine portion of interior old forest, benchmark to be calculated.","review":"n/a","gapNote":"The interior non-pine share is shown in the D.3 summary without a target, as the policy gives none."}
+    {
+      "n": "Policy: Application",
+      "relevance": "admin",
+      "bearsOn": "States that the implementation policy guides the order's application and is not legally binding.",
+      "review": "n/a",
+      "topics": [
+        "objectives",
+        "administration"
+      ]
+    },
+    {
+      "n": "Definition: Crown Forest Land Base",
+      "relevance": "definitions",
+      "bearsOn": "Defines the CFLB, the denominator of objective A: forested provincial Crown land, excluding private, federal, municipal land and woodlots.",
+      "review": "code",
+      "gapNote": "Code builds a CFLB proxy (or takes a stated CFLB and scales by it).",
+      "topics": [
+        "old-growth",
+        "administration"
+      ]
+    },
+    {
+      "n": "Definition: Licensee",
+      "relevance": "definitions",
+      "bearsOn": "Defines licensee as a party preparing an FDP or FSP.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "plans"
+      ]
+    },
+    {
+      "n": "Definition: Merged Biogeoclimatic Units",
+      "relevance": "definitions",
+      "bearsOn": "Defines mBECs as groupings of BEC units shown on Map #2.",
+      "review": "code",
+      "topics": [
+        "landscape-biodiversity",
+        "administration"
+      ]
+    },
+    {
+      "n": "Definition: Natural Disturbance Units",
+      "relevance": "definitions",
+      "bearsOn": "Defines NDUs by reference to DeLong (2002), Map #1.",
+      "review": "code",
+      "topics": [
+        "landscape-biodiversity",
+        "administration"
+      ]
+    },
+    {
+      "n": "Definition: Natural Forest Area",
+      "relevance": "definitions",
+      "bearsOn": "Defines NFAs as unharvested beetle-affected stands (old, dying, dead or young natural) used as a surrogate for old forest.",
+      "review": "code",
+      "gapNote": "Decision 3: a beetle-killed stand keeps its VRI age and counts as old until harvested.",
+      "topics": [
+        "old-growth",
+        "salvage-and-forest-health",
+        "administration"
+      ]
+    },
+    {
+      "n": "Definition: Old forest",
+      "relevance": "landscape",
+      "bearsOn": "Old is >140 years, except >120 years in all Moist Interior - Plateau variants, Omineca Valley SBSdk, SBSdw3, BWBSdk1, SBSmc2, SBSmk1 and McGregor Plateau SBSmk1 and SBSmh; the ICH is left undecided.",
+      "review": "code",
+      "gapNote": "oldAgeRule (units.ts) implements it, using 140 for the ICH as the LLOWG and the Board did; its ages match the 2022 letter's Appendix 2 for every unit.",
+      "topics": [
+        "old-growth",
+        "administration"
+      ]
+    },
+    {
+      "n": "Definition: Old Interior Forest",
+      "relevance": "landscape",
+      "bearsOn": "Old interior forest is old forest or NFA buffered from younger stands: 200 m from pine/deciduous-leading NSR or age class 1-3 and from other species NSR or age class 1-4, 0 m from older classes if the area is over 200 m wide.",
+      "review": "code",
+      "gapNote": "The 2005 interior method in oldForest.ts.",
+      "topics": [
+        "old-growth",
+        "administration"
+      ]
+    },
+    {
+      "n": "Definition: Young forest",
+      "relevance": "definitions",
+      "bearsOn": "Young forest, for objective C, is forest 0-20 years old.",
+      "review": "code",
+      "gapNote": "youngForestAgeYearsInclusive [0, 20] in the order JSON.",
+      "topics": [
+        "cutblock-size",
+        "administration"
+      ]
+    },
+    {
+      "n": "Policy 1",
+      "relevance": "landscape",
+      "bearsOn": "NFAs may stand in for live old forest; an affected licensee keeps a representative portion either in proportion to the unaffected area (a) or by following the non-pine minimums of Tables 8-10 (b).",
+      "review": "code",
+      "coveredBy": [
+        "bc.pgtsa.biodiversity@1.2.0:affected-stands"
+      ],
+      "gapNote": "Non-pine minimums are computed; option (a) is shown as figures in the D.3 representation summary without a judgement.",
+      "topics": [
+        "old-growth",
+        "salvage-and-forest-health"
+      ]
+    },
+    {
+      "n": "Table 8",
+      "relevance": "landscape",
+      "bearsOn": "Minimum percent of CFLB retained as old non-pine-leading forest for D1-D7 (2-16%).",
+      "review": "code",
+      "gapNote": "nonPineLeadingOldMinPctOfCflb in the order JSON; values match.",
+      "topics": [
+        "old-growth",
+        "salvage-and-forest-health"
+      ]
+    },
+    {
+      "n": "Table 9",
+      "relevance": "landscape",
+      "bearsOn": "Minimum percent of CFLB retained as old non-pine-leading forest for E1-E5 (4-33%).",
+      "review": "code",
+      "gapNote": "Values match.",
+      "topics": [
+        "old-growth",
+        "salvage-and-forest-health"
+      ]
+    },
+    {
+      "n": "Table 10",
+      "relevance": "landscape",
+      "bearsOn": "Minimum percent of CFLB retained as old non-pine-leading forest for A5-A13 (1-28%).",
+      "review": "code",
+      "gapNote": "Values match.",
+      "topics": [
+        "old-growth",
+        "salvage-and-forest-health"
+      ]
+    },
+    {
+      "n": "Policy 2",
+      "relevance": "landscape",
+      "bearsOn": "The ministry may require spatially located old forest retention areas where values are at risk or aspatial management fails; this is the basis the 2022 letter used for COFAs.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Nothing to test on its own; its outcome (COFAs) is the block-level gap recorded under pgtsa-loe.",
+      "encodable": "not-encodable",
+      "topics": [
+        "old-growth",
+        "designated-areas"
+      ]
+    },
+    {
+      "n": "Policy 3",
+      "relevance": "landscape",
+      "bearsOn": "Interior old forest is to be managed over time, and the near-term strategy is expected to minimize fragmentation of mid-aged (60-100 year) forest.",
+      "review": "partial",
+      "gapPriority": "low",
+      "gapNote": "Interior is projected over the plan's periods; nothing measures fragmentation of 60-100 year forest a block causes.",
+      "encodable": "spatial",
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
+      ]
+    },
+    {
+      "n": "Policy 3: Revised methodology",
+      "relevance": "landscape",
+      "bearsOn": "Replaces the original 200 m buffer against all stands under old age with the June 22, 2005 age-class and species table, and buffers primary roads, pipelines, railways and hydro corridors by 200 m but not secondary or tertiary roads.",
+      "review": "code",
+      "gapNote": "The 2005 method is the default in oldForest.ts, with corridors from DRA primary roads, Crown rights-of-way and Energy Regulator permits; 2004 on request.",
+      "topics": [
+        "old-growth",
+        "roads"
+      ]
+    },
+    {
+      "n": "Policy 4 ¶2",
+      "relevance": "block",
+      "bearsOn": "For the patch objective, cutblocks are to keep wildlife tree retention and leave areas, and openings over 500 ha need more and larger (>10 ha) retention areas.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No rule flags a block or merged opening over 500 ha that lacks retention patches over 10 ha. Policy, not binding, but it is a per-opening test the planner could make from drawn retention.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Is the opening, with any adjacent cutblocks it merges with, larger than 500 ha?",
+        "Does the opening keep wildlife tree retention or leave areas larger than 10 ha?"
+      ],
+      "topics": [
+        "cutblock-size",
+        "stand-retention"
+      ]
+    },
+    {
+      "n": "Policy 4 ¶3-4",
+      "relevance": "landscape",
+      "bearsOn": "Table 7 will not be met short to mid term in some units, and where other issues prevent trending toward it a rationale goes to the FSP decision maker.",
+      "review": "rule",
+      "coveredBy": [
+        "bc.pgtsa.biodiversity@1.2.0:rationale"
+      ],
+      "topics": [
+        "cutblock-size",
+        "plans"
+      ]
+    },
+    {
+      "n": "Policy 4: Analysis steps",
+      "relevance": "landscape",
+      "bearsOn": "Gives the five-stage buffer, merge and de-buffer method (75/100/200/300/400 m) that turns young openings into patches for Table 7.",
+      "review": "code",
+      "gapNote": "patchMergeStages in the order JSON and spatial/patch-analysis.json (pg-2005-buffer-v1).",
+      "topics": [
+        "cutblock-size",
+        "landscape-biodiversity"
+      ]
+    },
+    {
+      "n": "Policy 5",
+      "relevance": "landscape",
+      "bearsOn": "Licensees and BCTS apportion the old growth objectives among their operating areas by MOU and report under a July 2005 protocol.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "The planner reports unit totals, not a licensee's apportioned share; a reviewer could enter the share.",
+      "encodable": "reviewer-question",
+      "topics": [
+        "old-growth",
+        "forest-tenures"
+      ]
+    },
+    {
+      "n": "Policy 6",
+      "relevance": "admin",
+      "bearsOn": "Assigns plan preparation to licensees, endorsement to MSRM and approval and enforcement to MOF.",
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "administration"
+      ]
+    },
+    {
+      "n": "Policy 7",
+      "relevance": "admin",
+      "bearsOn": "Sets periodic review with timber supply reviews and asks licensees to strive for a representative pine/non-pine portion of interior old forest, benchmark to be calculated.",
+      "review": "n/a",
+      "gapNote": "The interior non-pine share is shown in the D.3 summary without a target, as the policy gives none.",
+      "topics": [
+        "administration",
+        "old-growth"
+      ]
+    }
   ]
 }

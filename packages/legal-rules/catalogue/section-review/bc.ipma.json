@@ -4,47 +4,434 @@
   "reviewedOn": "2026-11-27",
   "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
   "sections": [
-    {"n":"1","relevance":"definitions","bearsOn":"Defines pesticide (including plant growth regulators, defoliants and desiccants, so forestry herbicides), pest management plan, integrated pest management and use.","review":"n/a"},
-    {"n":"2","relevance":"admin","bearsOn":"Cabinet may suspend or add to the Act in a declared emergency.","review":"n/a"},
-    {"n":"3","relevance":"silviculture","bearsOn":"Bars any pesticide use, including herbicide brushing or site preparation on a block, that causes or is likely to cause an unreasonable adverse effect, departs from the label, or is not a use the federal registration allows.","review":"none","gapPriority":"medium","gapNote":"No pack asks whether a block's silviculture prescription includes herbicide, nor flags the label, registration and unreasonable-adverse-effect limits on it.","encodable":"reviewer-question","proposedFacts":["Will herbicide or another pesticide be used on this block for brushing, site preparation or stand tending?","Is each pesticide proposed for the block registered under the Pest Control Products Act for that forestry use and to be applied as its label specifies?"]},
-    {"n":"4","relevance":"silviculture","bearsOn":"A person must hold the licence the regulations require to use a pesticide for a prescribed use or to provide a pesticide service, such as a contractor applying herbicide on a block.","review":"none","gapPriority":"low","gapNote":"Whether the herbicide applicator holds the required pesticide licence is contractor paperwork the planner could only note.","encodable":"document-check","proposedFacts":["Does the contractor applying pesticide on the block hold the pesticide licence the Integrated Pest Management Regulation requires for that use?"]},
-    {"n":"5","relevance":"silviculture","bearsOn":"An individual using a prescribed class of pesticide or a pesticide for a prescribed use must hold the required applicator certificate.","review":"none","gapPriority":"low","gapNote":"Applicator certification for block herbicide treatments is operational paperwork; the packs do not record it.","encodable":"document-check","proposedFacts":["Will a certified pesticide applicator carry out or supervise the herbicide treatment on the block?"]},
-    {"n":"6","relevance":"silviculture","bearsOn":"Use of a prescribed pesticide or a pesticide for a prescribed use needs a permit, which the administrator may issue only if the use will not cause an unreasonable adverse effect.","review":"none","gapPriority":"low","gapNote":"A block treatment that falls under a permit rather than a pest management plan is uncommon; no rule asks whether one is needed or held.","encodable":"document-check","proposedFacts":["Does the proposed pesticide use on the block need an Integrated Pest Management Act permit, and is one held?"]},
-    {"n":"7","relevance":"silviculture","bearsOn":"A prescribed pesticide use, which includes herbicide use for forest management on Crown land, may proceed only under a pest management plan that applies at the place, with a pesticide use notice given and confirmed and the use carried out strictly as the notice says.","review":"none","gapPriority":"medium","gapNote":"Herbicide brushing on Omineca blocks is done under a licensee's or BC Timber Sales' pest management plan; no rule checks that the block lies within a plan area with a confirmed pesticide use notice, or that confirmation is not approval of the plan.","encodable":"document-check","proposedFacts":["Is the block within the area of a pest management plan that applies to the proposed pesticide use?","Has a pesticide use notice for that plan been given and confirmed, and is the confirmation unexpired for the treatment year?"]},
-    {"n":"8","relevance":"enforcement","bearsOn":"Minister may restrict or prohibit a pesticide use, or order seizure, where an unreasonable adverse effect results or is likely, despite any authorization.","review":"n/a"},
-    {"n":"9","relevance":"admin","bearsOn":"Appointment and powers of the pesticide administrator.","review":"n/a"},
-    {"n":"10","relevance":"admin","bearsOn":"Delegation of the administrator's powers.","review":"n/a"},
-    {"n":"11","relevance":"enforcement","bearsOn":"Designation of inspectors; persons subject to the Act must give inspectors their pest management plan and details of intended pesticide use.","review":"n/a"},
-    {"n":"12","relevance":"admin","bearsOn":"Only persons with prescribed qualifications may act as qualified monitors.","review":"n/a"},
-    {"n":"13","relevance":"admin","bearsOn":"Integrated Pest Management Committee, including a forests ministry representative.","review":"n/a"},
-    {"n":"14","relevance":"admin","bearsOn":"Appeals of pesticide decisions to the Environmental Appeal Board.","review":"n/a"},
-    {"n":"15","relevance":"enforcement","bearsOn":"Suspension or revocation of licences, certificates, permits and confirmations.","review":"n/a"},
-    {"n":"16","relevance":"enforcement","bearsOn":"Administrator's orders to stop, change or remediate a pesticide use causing an unreasonable adverse effect.","review":"n/a"},
-    {"n":"17","relevance":"enforcement","bearsOn":"Inspectors' powers of entry and inspection.","review":"n/a"},
-    {"n":"18","relevance":"enforcement","bearsOn":"Inspection of a private residence only with consent or warrant.","review":"n/a"},
-    {"n":"19","relevance":"enforcement","bearsOn":"Inspection of vehicles carrying pesticides.","review":"n/a"},
-    {"n":"20","relevance":"enforcement","bearsOn":"Seizure and prevention orders.","review":"n/a"},
-    {"n":"21","relevance":"enforcement","bearsOn":"Duty not to interfere with inspectors.","review":"n/a"},
-    {"n":"22","relevance":"enforcement","bearsOn":"No compensation for lawful seizure or destruction.","review":"n/a"},
-    {"n":"23","relevance":"enforcement","bearsOn":"Administrative penalties.","review":"n/a"},
-    {"n":"24","relevance":"enforcement","bearsOn":"No administrative penalty once an offence is charged.","review":"n/a"},
-    {"n":"25","relevance":"enforcement","bearsOn":"Recovery of administrative penalties.","review":"n/a"},
-    {"n":"26","relevance":"enforcement","bearsOn":"Offences and fines, including for breaching ss. 3 to 7.","review":"n/a"},
-    {"n":"27","relevance":"enforcement","bearsOn":"Liability of corporate officers and due diligence.","review":"n/a"},
-    {"n":"28","relevance":"enforcement","bearsOn":"Continuing offences.","review":"n/a"},
-    {"n":"29","relevance":"enforcement","bearsOn":"Limitation period for prosecutions.","review":"n/a"},
-    {"n":"30","relevance":"enforcement","bearsOn":"Additional fine equal to monetary benefit.","review":"n/a"},
-    {"n":"31","relevance":"enforcement","bearsOn":"Additional sentencing orders.","review":"n/a"},
-    {"n":"32","relevance":"enforcement","bearsOn":"Variation of sentencing orders.","review":"n/a"},
-    {"n":"33","relevance":"enforcement","bearsOn":"Offence Act ss. 4 and 5 do not apply.","review":"n/a"},
-    {"n":"34","relevance":"enforcement","bearsOn":"Analyst certificates as evidence.","review":"n/a"},
-    {"n":"35","relevance":"admin","bearsOn":"Service of documents.","review":"n/a"},
-    {"n":"36","relevance":"admin","bearsOn":"General rules for regulations, including adopting outside standards.","review":"n/a"},
-    {"n":"37","relevance":"admin","bearsOn":"Cabinet regulations, including limiting municipal bylaws on pesticide use for forestry.","review":"n/a"},
-    {"n":"38","relevance":"admin","bearsOn":"Minister's regulations: classes, prescribed uses, public consultation and notification, records and monitoring for pesticide uses.","review":"n/a"},
-    {"n":"39","relevance":"admin","bearsOn":"Administrator's regulations: licence and permit categories, environmental and health protection standards, pest management plan content and pesticide use notices.","review":"n/a"},
-    {"n":"40","relevance":"admin","bearsOn":"Transition of licences, permits and approved pest management plans from the Pesticide Control Act.","review":"n/a"},
-    {"n":"41","relevance":"admin","bearsOn":"Transitional regulations; the record also lists consequential amendments ss. 42 to 46 with no text.","review":"n/a"},
-    {"n":"47","relevance":"admin","bearsOn":"Commencement by regulation.","review":"n/a"}
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines pesticide (including plant growth regulators, defoliants and desiccants, so forestry herbicides), pest management plan, integrated pest management and use.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "Cabinet may suspend or add to the Act in a declared emergency.",
+      "review": "n/a",
+      "topics": [
+        "pesticides",
+        "administration"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "silviculture",
+      "bearsOn": "Bars any pesticide use, including herbicide brushing or site preparation on a block, that causes or is likely to cause an unreasonable adverse effect, departs from the label, or is not a use the federal registration allows.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No pack asks whether a block's silviculture prescription includes herbicide, nor flags the label, registration and unreasonable-adverse-effect limits on it.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Will herbicide or another pesticide be used on this block for brushing, site preparation or stand tending?",
+        "Is each pesticide proposed for the block registered under the Pest Control Products Act for that forestry use and to be applied as its label specifies?"
+      ],
+      "topics": [
+        "pesticides"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "silviculture",
+      "bearsOn": "A person must hold the licence the regulations require to use a pesticide for a prescribed use or to provide a pesticide service, such as a contractor applying herbicide on a block.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Whether the herbicide applicator holds the required pesticide licence is contractor paperwork the planner could only note.",
+      "encodable": "document-check",
+      "proposedFacts": [
+        "Does the contractor applying pesticide on the block hold the pesticide licence the Integrated Pest Management Regulation requires for that use?"
+      ],
+      "topics": [
+        "pesticides"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "silviculture",
+      "bearsOn": "An individual using a prescribed class of pesticide or a pesticide for a prescribed use must hold the required applicator certificate.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Applicator certification for block herbicide treatments is operational paperwork; the packs do not record it.",
+      "encodable": "document-check",
+      "proposedFacts": [
+        "Will a certified pesticide applicator carry out or supervise the herbicide treatment on the block?"
+      ],
+      "topics": [
+        "pesticides"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "silviculture",
+      "bearsOn": "Use of a prescribed pesticide or a pesticide for a prescribed use needs a permit, which the administrator may issue only if the use will not cause an unreasonable adverse effect.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A block treatment that falls under a permit rather than a pest management plan is uncommon; no rule asks whether one is needed or held.",
+      "encodable": "document-check",
+      "proposedFacts": [
+        "Does the proposed pesticide use on the block need an Integrated Pest Management Act permit, and is one held?"
+      ],
+      "topics": [
+        "pesticides"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "silviculture",
+      "bearsOn": "A prescribed pesticide use, which includes herbicide use for forest management on Crown land, may proceed only under a pest management plan that applies at the place, with a pesticide use notice given and confirmed and the use carried out strictly as the notice says.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "Herbicide brushing on Omineca blocks is done under a licensee's or BC Timber Sales' pest management plan; no rule checks that the block lies within a plan area with a confirmed pesticide use notice, or that confirmation is not approval of the plan.",
+      "encodable": "document-check",
+      "proposedFacts": [
+        "Is the block within the area of a pest management plan that applies to the proposed pesticide use?",
+        "Has a pesticide use notice for that plan been given and confirmed, and is the confirmation unexpired for the treatment year?"
+      ],
+      "topics": [
+        "pesticides",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "enforcement",
+      "bearsOn": "Minister may restrict or prohibit a pesticide use, or order seizure, where an unreasonable adverse effect results or is likely, despite any authorization.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "admin",
+      "bearsOn": "Appointment and powers of the pesticide administrator.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "admin",
+      "bearsOn": "Delegation of the administrator's powers.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "enforcement",
+      "bearsOn": "Designation of inspectors; persons subject to the Act must give inspectors their pest management plan and details of intended pesticide use.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "12",
+      "relevance": "admin",
+      "bearsOn": "Only persons with prescribed qualifications may act as qualified monitors.",
+      "review": "n/a",
+      "topics": [
+        "pesticides"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "admin",
+      "bearsOn": "Integrated Pest Management Committee, including a forests ministry representative.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "14",
+      "relevance": "admin",
+      "bearsOn": "Appeals of pesticide decisions to the Environmental Appeal Board.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "15",
+      "relevance": "enforcement",
+      "bearsOn": "Suspension or revocation of licences, certificates, permits and confirmations.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "16",
+      "relevance": "enforcement",
+      "bearsOn": "Administrator's orders to stop, change or remediate a pesticide use causing an unreasonable adverse effect.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "17",
+      "relevance": "enforcement",
+      "bearsOn": "Inspectors' powers of entry and inspection.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "18",
+      "relevance": "enforcement",
+      "bearsOn": "Inspection of a private residence only with consent or warrant.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "19",
+      "relevance": "enforcement",
+      "bearsOn": "Inspection of vehicles carrying pesticides.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "20",
+      "relevance": "enforcement",
+      "bearsOn": "Seizure and prevention orders.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "21",
+      "relevance": "enforcement",
+      "bearsOn": "Duty not to interfere with inspectors.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "22",
+      "relevance": "enforcement",
+      "bearsOn": "No compensation for lawful seizure or destruction.",
+      "review": "n/a",
+      "topics": [
+        "compensation",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "23",
+      "relevance": "enforcement",
+      "bearsOn": "Administrative penalties.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "24",
+      "relevance": "enforcement",
+      "bearsOn": "No administrative penalty once an offence is charged.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "25",
+      "relevance": "enforcement",
+      "bearsOn": "Recovery of administrative penalties.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "26",
+      "relevance": "enforcement",
+      "bearsOn": "Offences and fines, including for breaching ss. 3 to 7.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "27",
+      "relevance": "enforcement",
+      "bearsOn": "Liability of corporate officers and due diligence.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "28",
+      "relevance": "enforcement",
+      "bearsOn": "Continuing offences.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "29",
+      "relevance": "enforcement",
+      "bearsOn": "Limitation period for prosecutions.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "30",
+      "relevance": "enforcement",
+      "bearsOn": "Additional fine equal to monetary benefit.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "31",
+      "relevance": "enforcement",
+      "bearsOn": "Additional sentencing orders.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "32",
+      "relevance": "enforcement",
+      "bearsOn": "Variation of sentencing orders.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "33",
+      "relevance": "enforcement",
+      "bearsOn": "Offence Act ss. 4 and 5 do not apply.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "34",
+      "relevance": "enforcement",
+      "bearsOn": "Analyst certificates as evidence.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "35",
+      "relevance": "admin",
+      "bearsOn": "Service of documents.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "36",
+      "relevance": "admin",
+      "bearsOn": "General rules for regulations, including adopting outside standards.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "37",
+      "relevance": "admin",
+      "bearsOn": "Cabinet regulations, including limiting municipal bylaws on pesticide use for forestry.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "38",
+      "relevance": "admin",
+      "bearsOn": "Minister's regulations: classes, prescribed uses, public consultation and notification, records and monitoring for pesticide uses.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "39",
+      "relevance": "admin",
+      "bearsOn": "Administrator's regulations: licence and permit categories, environmental and health protection standards, pest management plan content and pesticide use notices.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "pesticides"
+      ]
+    },
+    {
+      "n": "40",
+      "relevance": "admin",
+      "bearsOn": "Transition of licences, permits and approved pest management plans from the Pesticide Control Act.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "41",
+      "relevance": "admin",
+      "bearsOn": "Transitional regulations; the record also lists consequential amendments ss. 42 to 46 with no text.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "47",
+      "relevance": "admin",
+      "bearsOn": "Commencement by regulation.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    }
   ]
 }

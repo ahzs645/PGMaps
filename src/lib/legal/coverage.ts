@@ -34,6 +34,36 @@ export interface CoverageEntry {
   gapNote?: string
   encodable?: string
   proposedFacts?: string[]
+  /** What the section is about, from the shared vocabulary (`catalogue/topics.json`), most central first. */
+  topics?: string[]
+}
+
+/** One label of the shared vocabulary every source's sections are tagged with. */
+export interface LawTopic {
+  id: string
+  label: string
+  group: string
+  description: string
+}
+export interface LawTopicsFile {
+  format: 'pgmaps-law-topics/v1'
+  notice: string
+  topics: LawTopic[]
+}
+
+/** Every reviewed section carrying a topic, in source order, so one topic gathers the law on it. */
+export function sectionsWithTopic(reviews: CoverageReview[], topic: string) {
+  return reviews.flatMap((r) =>
+    r.sections.filter((s) => s.topics?.includes(topic)).map((entry) => ({ source: r.source, entry })),
+  )
+}
+
+/** How many sections carry each topic, across every source. */
+export function topicCounts(reviews: CoverageReview[]) {
+  const counts = new Map<string, number>()
+  for (const r of reviews)
+    for (const s of r.sections) for (const t of s.topics ?? []) counts.set(t, (counts.get(t) ?? 0) + 1)
+  return counts
 }
 export interface CoverageReview {
   format: 'pgmaps-coverage-review/v1'
@@ -168,6 +198,7 @@ export function coverageCsv(reviews: CoverageReview[], index: Map<string, Citing
       'bears_on',
       'gap_note',
       'proposed_questions',
+      'topics',
     ],
   ]
   for (const r of reviews)
@@ -182,6 +213,51 @@ export function coverageCsv(reviews: CoverageReview[], index: Map<string, Citing
         s.bearsOn,
         s.gapNote ?? '',
         (s.proposedFacts ?? []).join(' | '),
+        (s.topics ?? []).join('; '),
       ])
   return rows.map((row) => row.map(cell).join(',')).join('\n') + '\n'
+}
+
+/** Where an order applies: the natural resource regions and districts it covers, or the province. */
+export interface OrderAreas {
+  scope: 'province' | 'districts'
+  regions?: string[]
+  districts?: string[]
+  /** How the areas were found: the order's own polygons over the districts, or the district it names. */
+  basis: string
+}
+/** A section an order is made under, or a note for an authority PGMaps does not store. */
+export interface Enabling {
+  source?: string
+  provision?: string
+  text?: string
+}
+export interface OrderLinks {
+  id: string
+  title: string
+  areas?: OrderAreas
+  enabling?: Enabling[]
+}
+export interface AdminAreasFile {
+  format: 'pgmaps-admin-areas/v1'
+  notice: string
+  regions: { code: string; name: string }[]
+  districts: { code: string; name: string; region: string }[]
+}
+
+/** The orders made under each stored section, keyed as `sectionKey` keys them: "bc.land-act:93.4". */
+export function ordersUnder(orders: OrderLinks[]) {
+  const index = new Map<string, OrderLinks[]>()
+  for (const o of orders)
+    for (const e of o.enabling ?? []) {
+      if (!e.source || !e.provision) continue
+      const key = sectionKey(e.source, e.provision.match(/^[\dA-Za-z.]+?(?=\(|$)/)?.[0] ?? e.provision)
+      index.set(key, [...(index.get(key) ?? []).filter((x) => x.id !== o.id), o])
+    }
+  return index
+}
+
+/** The orders that apply in a district: those covering it, and those that apply across the province. */
+export function ordersInDistrict(orders: OrderLinks[], district: string) {
+  return orders.filter((o) => o.areas?.scope === 'province' || o.areas?.districts?.includes(district))
 }

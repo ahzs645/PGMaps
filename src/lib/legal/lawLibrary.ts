@@ -5,6 +5,7 @@
  * for the one source it shows.
  */
 import catalogue from '../../../packages/legal-rules/catalogue/sources.json'
+import type { Enabling, OrderAreas } from './coverage'
 import type { LawSource } from './lawText'
 import type { OrderText } from './orderText'
 
@@ -23,6 +24,10 @@ export interface CatalogueSource {
   title: string
   kind: string
   url: string
+  /** For an order or policy: the natural resource regions and districts it covers. */
+  areas?: OrderAreas
+  /** For an order: the sections it is made under. */
+  enabling?: Enabling[]
 }
 export const catalogueSources = catalogue.sources as CatalogueSource[]
 const byId = new Map(catalogueSources.map((s) => [s.id, s]))

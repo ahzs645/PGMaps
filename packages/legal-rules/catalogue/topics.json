@@ -1,0 +1,55 @@
+{
+  "format": "pgmaps-law-topics/v1",
+  "notice": "The labels the section review gives each section and order provision, shared by every Act, regulation and order, so one topic gathers the law on it from all of them. A label says what a provision is about, never that it applies to a block. Add a label here before using it.",
+  "topics": [
+    { "id": "cutblock-size", "label": "Cutblock size and adjacency", "group": "Harvest", "description": "Maximum cutblock size, adjacent cutblocks, green-up and patch size." },
+    { "id": "harvest-authority", "label": "Cutting permits and harvest rights", "group": "Harvest", "description": "Cutting permits, timber sale licences, licences to cut and what authorizes harvest on an area." },
+    { "id": "salvage-and-forest-health", "label": "Forest health and salvage", "group": "Harvest", "description": "Insects, disease, damaged timber, sanitation, salvage and invasive plants." },
+    { "id": "pesticides", "label": "Pesticides", "group": "Harvest", "description": "Pesticide use, permits, pest management plans and their notice." },
+    { "id": "timber-pricing-and-scaling", "label": "Stumpage, scaling and timber marks", "group": "Harvest", "description": "Stumpage, waste assessment, scaling, timber marks and transporting timber." },
+    { "id": "cut-control", "label": "Allowable annual cut and cut control", "group": "Harvest", "description": "Allowable annual cut, apportionment and cut control." },
+
+    { "id": "roads", "label": "Roads", "group": "Roads and water crossings", "description": "Road permits, construction, maintenance, use and deactivation." },
+    { "id": "stream-crossings-and-culverts", "label": "Stream crossings and culverts", "group": "Roads and water crossings", "description": "Bridges, culverts, fords and other works that cross a stream, and fish passage through them." },
+    { "id": "drainage", "label": "Drainage and water control", "group": "Roads and water crossings", "description": "Natural drainage patterns, cross-drains, ditches, sediment and surface erosion from roads and landings." },
+    { "id": "gravel-and-fill", "label": "Gravel, fill and soil removal", "group": "Roads and water crossings", "description": "Gravel pits and quarries for road material, aggregate removal, and placing fill or removing soil, including on agricultural land." },
+
+    { "id": "riparian", "label": "Streams, lakes and wetlands (riparian)", "group": "Water and fish", "description": "Riparian classes, reserve and management zones, and work beside streams, lakes and wetlands." },
+    { "id": "fish-habitat", "label": "Fish and fish habitat", "group": "Water and fish", "description": "Fish streams, fish passage, fisheries sensitive watersheds and temperature-sensitive streams." },
+    { "id": "water-quality-and-supply", "label": "Drinking water and community watersheds", "group": "Water and fish", "description": "Community watersheds, water intakes, licensed waterworks and water quality." },
+    { "id": "water-rights-and-works", "label": "Water licences and changes in a stream", "group": "Water and fish", "description": "Water licences, use approvals, diversions, and changes in and about a stream." },
+
+    { "id": "soils", "label": "Soil conservation", "group": "Site and stand", "description": "Soil disturbance, permanent access structures, landslides and gully processes." },
+    { "id": "reforestation", "label": "Reforestation and free growing", "group": "Site and stand", "description": "Stocking standards, regeneration and free growing obligations, and what relieves them." },
+    { "id": "silviculture-treatments", "label": "Site preparation, planting and stand treatments", "group": "Site and stand", "description": "Site preparation, planting, seed use, brushing, spacing and fertilizing." },
+    { "id": "stand-retention", "label": "Wildlife trees and stand retention", "group": "Site and stand", "description": "Wildlife tree retention, coarse woody debris and trees kept within a cutblock." },
+    { "id": "fire", "label": "Wildfire and burning", "group": "Site and stand", "description": "Fire hazard, slash burning, fire use and wildfire protection." },
+
+    { "id": "landscape-biodiversity", "label": "Landscape biodiversity", "group": "Landscape and values", "description": "Landscape units, seral and patch distribution, connectivity and landscape-level objectives." },
+    { "id": "old-growth", "label": "Old growth and old forest", "group": "Landscape and values", "description": "Old growth management areas, old and old interior forest targets and candidate old forest." },
+    { "id": "wildlife", "label": "Wildlife and species at risk", "group": "Landscape and values", "description": "Wildlife habitat areas, ungulate winter range, species at risk and general wildlife measures." },
+    { "id": "visual-quality", "label": "Scenic areas and visual quality", "group": "Landscape and values", "description": "Scenic areas, visual quality objectives and visual alteration." },
+    { "id": "recreation", "label": "Recreation sites and trails", "group": "Landscape and values", "description": "Recreation sites, trails, interpretive forest sites and recreation resources." },
+    { "id": "cultural-heritage", "label": "Cultural heritage", "group": "Landscape and values", "description": "Cultural heritage resources and features protected for their heritage value." },
+    { "id": "first-nations", "label": "First Nations", "group": "Landscape and values", "description": "First Nations agreements, treaty and reserve land, consultation and First Nations woodland licences." },
+    { "id": "range-and-grazing", "label": "Range, grazing and hay", "group": "Landscape and values", "description": "Range agreements, range use plans, grazing, hay cutting, range developments and natural range barriers." },
+    { "id": "agricultural-land", "label": "Agricultural land", "group": "Landscape and values", "description": "The Agricultural Land Reserve, non-farm use, agriculture development and settlement reserve areas." },
+
+    { "id": "plans", "label": "Forest stewardship, operations and site plans", "group": "Planning and decisions", "description": "Forest stewardship plans, forest operations plans and maps, site plans, woodlot licence plans and range use plans: content, approval and amendment." },
+    { "id": "objectives", "label": "Government objectives and land use orders", "group": "Planning and decisions", "description": "Objectives set by government, land use orders and how a plan must be consistent with them." },
+    { "id": "public-review-and-notice", "label": "Public review and notice", "group": "Planning and decisions", "description": "Public review and comment, notice to tenure holders and other parties, and referral." },
+    { "id": "exemptions-and-variances", "label": "Exemptions and variances", "group": "Planning and decisions", "description": "Exemptions, variances, ministerial relief and the conditions they carry." },
+
+    { "id": "forest-tenures", "label": "Forest tenures and agreements", "group": "Land and tenure", "description": "Forest licences, tree farm licences, woodlots, community forests, timber licences and other agreements under the Forest Act." },
+    { "id": "crown-land", "label": "Crown land dispositions and designations", "group": "Land and tenure", "description": "Land Act leases, licences, rights of way, reserves, withdrawals and designated use areas." },
+    { "id": "protected-areas", "label": "Parks and protected areas", "group": "Land and tenure", "description": "Parks, ecological reserves, protected areas and conservancies." },
+    { "id": "designated-areas", "label": "Special purpose and designated areas", "group": "Land and tenure", "description": "Special purpose areas, areas designated under an enactment for a use, and environment and land use orders." },
+    { "id": "private-land", "label": "Private land", "group": "Land and tenure", "description": "Private land, managed forest land and private land within a licence or woodlot." },
+    { "id": "mining", "label": "Mineral and placer tenures", "group": "Land and tenure", "description": "Mineral and placer claims, leases and access to them." },
+
+    { "id": "compliance-and-enforcement", "label": "Compliance and enforcement", "group": "Administration", "description": "Inspections, orders, contraventions, penalties, offences and remediation." },
+    { "id": "appeals-and-reviews", "label": "Appeals and reviews", "group": "Administration", "description": "Determinations, reviews and appeals." },
+    { "id": "administration", "label": "Administration and definitions", "group": "Administration", "description": "Definitions, delegation, fees, records, regulation-making powers and transition." },
+    { "id": "compensation", "label": "Compensation", "group": "Administration", "description": "Compensation for a taking, reduction or change of rights." }
+  ]
+}

@@ -15,43 +15,70 @@
         "ground:land-act-lease",
         "ground:land-act-licence",
         "ground:land-act-right-of-way"
+      ],
+      "topics": [
+        "administration",
+        "crown-land"
       ]
     },
     {
       "n": "1.1",
       "relevance": "definitions",
       "bearsOn": "Excludes Public Agency Accommodation Act land from \"Crown land\".",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "2",
       "relevance": "admin",
       "bearsOn": "Cabinet constitutes land districts.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "3",
       "relevance": "admin",
       "bearsOn": "Cabinet constitutes land recording districts.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "4",
       "relevance": "admin",
       "bearsOn": "The minister administers Crown land not under another ministry.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "5",
       "relevance": "admin",
       "bearsOn": "Minister responsible for geographical names.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "6",
       "relevance": "admin",
       "bearsOn": "Minister responsible for base mapping and land information systems.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "7",
@@ -62,37 +89,61 @@
         "ground:land-act-s15",
         "ground:land-act-s16",
         "ground:land-act-s17"
+      ],
+      "topics": [
+        "administration",
+        "crown-land"
       ]
     },
     {
       "n": "7.1",
       "relevance": "definitions",
       "bearsOn": "Defines tenure and tenure authority for the Integrated Land and Resource Registry.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "7.2",
       "relevance": "admin",
       "bearsOn": "Minister maintains the Integrated Land and Resource Registry; tenure authorities submit tenure information to it.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "7.3",
       "relevance": "admin",
       "bearsOn": "Information in the integrated registry is not notice to anyone.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "7.4",
       "relevance": "admin",
       "bearsOn": "Public electronic access to the integrated registry, with restrictions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "7.5",
       "relevance": "admin",
       "bearsOn": "No liability for reliance on the integrated registry.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "7.6",
@@ -104,13 +155,20 @@
       "n": "7.7",
       "relevance": "enforcement",
       "bearsOn": "Offence Act s. 5 does not apply to Part 1.1.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "7.8",
       "relevance": "admin",
       "bearsOn": "Regulations prescribing tenures and information for the integrated registry.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "8",
@@ -119,13 +177,19 @@
       "review": "screen",
       "coveredBy": [
         "ground:land-act-application"
+      ],
+      "topics": [
+        "crown-land"
       ]
     },
     {
       "n": "9",
       "relevance": "admin",
       "bearsOn": "Citizenship requirement for a Crown grant.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "10",
@@ -135,13 +199,19 @@
       "coveredBy": [
         "ground:land-act-application",
         "ground:land-act-s16"
+      ],
+      "topics": [
+        "crown-land"
       ]
     },
     {
       "n": "10.1",
       "relevance": "tenure",
       "bearsOn": "Minister may order that no Land Act application be made for an area, activity, use, period or class of applicant.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "11",
@@ -154,19 +224,29 @@
         "ground:land-act-licence",
         "ground:land-act-right-of-way",
         "ground:land-act-notation"
+      ],
+      "topics": [
+        "crown-land"
       ]
     },
     {
       "n": "12",
       "relevance": "admin",
       "bearsOn": "Crown grant of cancelled dedicated land to a petitioner.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "13",
       "relevance": "tenure",
       "bearsOn": "A road designated in a Land Act disposition is deemed 20 m wide (10 m each side of centreline) and stays Crown land.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "roads",
+        "crown-land"
+      ]
     },
     {
       "n": "14",
@@ -188,6 +268,10 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Do the terms of the Land Act §15 order reserving this land restrict harvesting, road construction or reforestation on the block?"
+      ],
+      "topics": [
+        "crown-land",
+        "designated-areas"
       ]
     },
     {
@@ -204,6 +288,10 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Do terms imposed on the Land Act §16 withdrawal restrict harvesting, road construction or reforestation on the block?"
+      ],
+      "topics": [
+        "crown-land",
+        "designated-areas"
       ]
     },
     {
@@ -215,91 +303,142 @@
         "bc.crown-grazing@1.0.0:land-act-designation",
         "bc.crown-grazing@1.0.0:designation-terms",
         "ground:land-act-s17"
+      ],
+      "topics": [
+        "crown-land",
+        "designated-areas"
       ]
     },
     {
       "n": "18",
       "relevance": "admin",
       "bearsOn": "Land below the natural boundary of water is not Crown granted except by order.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "19",
       "relevance": "admin",
       "bearsOn": "Land suited to quarrying or gravel is not Crown granted except by order.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "gravel-and-fill",
+        "crown-land"
+      ]
     },
     {
       "n": "20",
       "relevance": "admin",
       "bearsOn": "520 ha limit on a Crown grant.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "21",
       "relevance": "admin",
       "bearsOn": "520 ha limit on a lease, except grazing and other listed purposes.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "22",
       "relevance": "admin",
       "bearsOn": "60 year limit on a lease term.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "23",
       "relevance": "tenure",
       "bearsOn": "Crown land suitable for timber production is not Crown granted unless the minister finds it needed for agricultural settlement or a higher economic use.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land",
+        "agricultural-land"
+      ]
     },
     {
       "n": "24",
       "relevance": "tenure",
       "bearsOn": "A Land Act disposition may require payment for the timber on the land.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land",
+        "timber-pricing-and-scaling"
+      ]
     },
     {
       "n": "25",
       "relevance": "admin",
       "bearsOn": "Crown grant may issue before full payment if secured.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "26",
       "relevance": "admin",
       "bearsOn": "Interest on deferred payments.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "27",
       "relevance": "admin",
       "bearsOn": "Reservations to which a certificate of purchase is subject, including existing roads and trails.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "28",
       "relevance": "admin",
       "bearsOn": "Royalty on gravel, rock and other construction materials removed under a disposition.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land",
+        "mining"
+      ]
     },
     {
       "n": "29",
       "relevance": "admin",
       "bearsOn": "Survey fees.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "30",
       "relevance": "admin",
       "bearsOn": "Minister may vary the area under application.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "31",
       "relevance": "admin",
       "bearsOn": "Transfer of Crown land administration to Canada.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land",
+        "administration"
+      ]
     },
     {
       "n": "32",
@@ -308,43 +447,67 @@
       "review": "screen",
       "coveredBy": [
         "ground:land-act-application"
+      ],
+      "topics": [
+        "crown-land",
+        "public-review-and-notice"
       ]
     },
     {
       "n": "33",
       "relevance": "admin",
       "bearsOn": "Minister may require public notice of an application.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "public-review-and-notice",
+        "crown-land"
+      ]
     },
     {
       "n": "33.1",
       "relevance": "admin",
       "bearsOn": "Public comments on an application before a disposition.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "public-review-and-notice",
+        "crown-land"
+      ]
     },
     {
       "n": "34",
       "relevance": "admin",
       "bearsOn": "A minor may hold a disposition.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "35",
       "relevance": "admin",
       "bearsOn": "Applicant may be required to file studies, timber cruises and pay assessment costs.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "36",
       "relevance": "admin",
       "bearsOn": "Security may be required of an applicant.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "37",
       "relevance": "admin",
       "bearsOn": "Applicant must supply information; false statements are an offence.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "38",
@@ -355,6 +518,10 @@
         "bc.crown-grazing@1.0.0:lease-terms",
         "bc.crown-grazing@1.0.0:lease-not-crown-range",
         "ground:land-act-lease"
+      ],
+      "topics": [
+        "crown-land",
+        "range-and-grazing"
       ]
     },
     {
@@ -364,6 +531,9 @@
       "review": "screen",
       "coveredBy": [
         "ground:land-act-licence"
+      ],
+      "topics": [
+        "crown-land"
       ]
     },
     {
@@ -373,139 +543,213 @@
       "review": "screen",
       "coveredBy": [
         "ground:land-act-right-of-way"
+      ],
+      "topics": [
+        "crown-land",
+        "roads"
       ]
     },
     {
       "n": "41",
       "relevance": "admin",
       "bearsOn": "Application may be disallowed if the survey is not completed.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "42",
       "relevance": "admin",
       "bearsOn": "Date of a disposition is the date it is executed.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "43",
       "relevance": "admin",
       "bearsOn": "Cancellation of a disposition for default.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land",
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "44",
       "relevance": "admin",
       "bearsOn": "Amendment or cancellation of an improper approval or grant.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "45",
       "relevance": "admin",
       "bearsOn": "Abandonment of a disposition.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "46",
       "relevance": "admin",
       "bearsOn": "Debts survive cancellation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "47",
       "relevance": "admin",
       "bearsOn": "Land in a cancelled disposition may be withheld for up to a year.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "48",
       "relevance": "admin",
       "bearsOn": "Issue of a Crown grant on payment.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "49",
       "relevance": "tenure",
       "bearsOn": "Where a Crown grant reserved the timber to the government and no one holds it, the minister may grant the timber to the owner once its stumpage value is paid.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "50",
       "relevance": "admin",
       "bearsOn": "Statutory exceptions and reservations in every disposition (resumption for public works, minerals, water, and road materials including timber).",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "51",
       "relevance": "admin",
       "bearsOn": "Crown grants to government bodies.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "52",
       "relevance": "admin",
       "bearsOn": "Deleting terms from Crown grants.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "53",
       "relevance": "admin",
       "bearsOn": "Cancelling and correcting defective grants.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "54",
       "relevance": "admin",
       "bearsOn": "Delivery and registration of Crown grants.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "55",
       "relevance": "admin",
       "bearsOn": "Beds of water bodies do not pass with a Crown grant.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "56",
       "relevance": "admin",
       "bearsOn": "Application of s. 55.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "57",
       "relevance": "admin",
       "bearsOn": "Roads shown on a Crown grant plan stay Crown land, deemed 20 m wide.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "roads",
+        "crown-land"
+      ]
     },
     {
       "n": "58",
       "relevance": "admin",
       "bearsOn": "Declaration including a water body or road in a subdivision.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "59",
       "relevance": "enforcement",
       "bearsOn": "Minister's remedies for trespass on Crown land.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "crown-land"
+      ]
     },
     {
       "n": "60",
       "relevance": "enforcement",
       "bearsOn": "Offences: occupying or using Crown land, or building or excavating on it, without lawful authority.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "crown-land"
+      ]
     },
     {
       "n": "61",
       "relevance": "enforcement",
       "bearsOn": "Enforcement of trespass payments.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "62",
       "relevance": "enforcement",
       "bearsOn": "Liability for s. 60 contraventions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "63-64",
@@ -517,31 +761,49 @@
       "n": "65",
       "relevance": "enforcement",
       "bearsOn": "Holder of a disposition may sue for trespass.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "66",
       "relevance": "enforcement",
       "bearsOn": "Cabinet may prohibit a use of Crown land in a designated area by regulation; contravention is an offence.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "crown-land",
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "67",
       "relevance": "enforcement",
       "bearsOn": "Dumping garbage or other substances on Crown land prohibited.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "crown-land"
+      ]
     },
     {
       "n": "68",
       "relevance": "enforcement",
       "bearsOn": "General penalty.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
     },
     {
       "n": "69",
       "relevance": "admin",
       "bearsOn": "Survey of district lots.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "70-71",
@@ -553,157 +815,237 @@
       "n": "72",
       "relevance": "admin",
       "bearsOn": "Surveys must be confirmed by the Surveyor General.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "73",
       "relevance": "admin",
       "bearsOn": "Survey rules.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "74",
       "relevance": "admin",
       "bearsOn": "Only BC land surveyors carry out surveys.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "75",
       "relevance": "admin",
       "bearsOn": "Cancelling a survey and ordering a resurvey.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "76",
       "relevance": "admin",
       "bearsOn": "Minister may order a survey.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "77",
       "relevance": "admin",
       "bearsOn": "Surveyor General's survey instructions.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "77.1",
       "relevance": "admin",
       "bearsOn": "Survey instructions for treaty lands.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "78",
       "relevance": "admin",
       "bearsOn": "Survey may be rejected.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "79",
       "relevance": "admin",
       "bearsOn": "Road and walkway allowances.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "roads",
+        "administration"
+      ]
     },
     {
       "n": "80",
       "relevance": "admin",
       "bearsOn": "Road allowance to private land being subdivided.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "roads",
+        "administration"
+      ]
     },
     {
       "n": "81",
       "relevance": "admin",
       "bearsOn": "Agreed boundary replacing a natural boundary.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "82",
       "relevance": "admin",
       "bearsOn": "Reposting surveys.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "83",
       "relevance": "admin",
       "bearsOn": "Resurvey to replace a boundary.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "84",
       "relevance": "admin",
       "bearsOn": "Resurvey for lost posts.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "85",
       "relevance": "admin",
       "bearsOn": "Limits on resurvey powers.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "86",
       "relevance": "admin",
       "bearsOn": "Notice and hearing for resurvey.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "87",
       "relevance": "admin",
       "bearsOn": "Hearing of protest.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "88",
       "relevance": "admin",
       "bearsOn": "Confirmation of resurvey plan.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "89",
       "relevance": "admin",
       "bearsOn": "Deposit of resurvey plan.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "90",
       "relevance": "admin",
       "bearsOn": "Resurvey binding.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "91",
       "relevance": "admin",
       "bearsOn": "Compensation for land gained or lost on resurvey.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "92",
       "relevance": "admin",
       "bearsOn": "Cost of resurvey.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93",
       "relevance": "admin",
       "bearsOn": "Recovery of resurvey costs.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.01",
       "relevance": "definitions",
       "bearsOn": "Defines \"official\" for Part 7.1.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.02",
       "relevance": "admin",
       "bearsOn": "Part 7.1 and orders under it bind the government, so objectives bind BC Timber Sales as well.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
     },
     {
       "n": "93.03",
       "relevance": "admin",
       "bearsOn": "Sections 93.4 and 93.7 do not apply in the Haida Gwaii management area.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
     },
     {
       "n": "93.1-93.3",
@@ -736,7 +1078,10 @@
         "ground:robson-valley-ada"
       ],
       "gapPriority": "low",
-      "gapNote": "The Omineca orders are now rules in their own packs (the 2006 ADA/SRA order, the old growth orders, the Mackenzie biodiversity order and the visual quality orders), which cite the orders themselves; the ground screens cite s. 93.4."
+      "gapNote": "The Omineca orders are now rules in their own packs (the 2006 ADA/SRA order, the old growth orders, the Mackenzie biodiversity order and the visual quality orders), which cite the orders themselves; the ground screens cite s. 93.4.",
+      "topics": [
+        "objectives"
+      ]
     },
     {
       "n": "93.5",
@@ -748,19 +1093,30 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Does a Cabinet designation or objective under Land Act §93.1 or §93.3 apply to the block alongside a minister's order, and do they conflict?"
+      ],
+      "topics": [
+        "objectives"
       ]
     },
     {
       "n": "93.6",
       "relevance": "admin",
       "bearsOn": "Proposed §93.4 objectives must be made public for review and comment unless urgent.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "objectives",
+        "public-review-and-notice"
+      ]
     },
     {
       "n": "93.7",
       "relevance": "admin",
       "bearsOn": "Delegation of the minister's §§93.4 to 93.6 powers; continues Forest Practices Code delegations.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "objectives",
+        "administration"
+      ]
     },
     {
       "n": "93.8",
@@ -776,205 +1132,314 @@
       "proposedFacts": [
         "Does the block or its road overlap an old growth management area or other objective established under the Forest Practices Code and continued under Land Act §93.8?",
         "If a road must cross a legal OGMA, has it been shown that there is no other practicable option and how will the road be deactivated and the area replaced?"
+      ],
+      "topics": [
+        "objectives"
       ]
     },
     {
       "n": "93.81",
       "relevance": "admin",
       "bearsOn": "Regulations on procedures and criteria for §93.4 objectives.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "objectives",
+        "administration"
+      ]
     },
     {
       "n": "93.9",
       "relevance": "definitions",
       "bearsOn": "Definitions for electronic survey plans.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.901",
       "relevance": "admin",
       "bearsOn": "Application of Part 7.2 to designated electronic plans.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.91",
       "relevance": "admin",
       "bearsOn": "Effect of an electronic plan.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.911",
       "relevance": "admin",
       "bearsOn": "Submission of electronic plans.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.92",
       "relevance": "admin",
       "bearsOn": "Form of electronic plans.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.93",
       "relevance": "admin",
       "bearsOn": "Land surveyor's electronic signature.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.94",
       "relevance": "admin",
       "bearsOn": "Submitting electronic plans.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.941",
       "relevance": "admin",
       "bearsOn": "Surveyor General's electronic signature.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.95",
       "relevance": "admin",
       "bearsOn": "Recognition of certification authorities.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.96",
       "relevance": "admin",
       "bearsOn": "Certification practice statement.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.97",
       "relevance": "admin",
       "bearsOn": "Warranties of certification authorities.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.98",
       "relevance": "admin",
       "bearsOn": "Immunity of certification authorities.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.99",
       "relevance": "admin",
       "bearsOn": "Delegation to the Director of Land Titles.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "93.991",
       "relevance": "enforcement",
       "bearsOn": "Offences for false electronic certification.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "administration"
+      ]
     },
     {
       "n": "94",
       "relevance": "admin",
       "bearsOn": "Crown grant with secured balance; statutory mortgage.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "95",
       "relevance": "admin",
       "bearsOn": "Land exchanges; Cabinet may equalize timber royalty rates on exchanged land.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land",
+        "administration"
+      ]
     },
     {
       "n": "96",
       "relevance": "admin",
       "bearsOn": "Occupational rent before a disposition.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "97",
       "relevance": "admin",
       "bearsOn": "Delegation of the minister's powers; relief for illness.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "98",
       "relevance": "admin",
       "bearsOn": "Disposition in the applicant's name only.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "99",
       "relevance": "admin",
       "bearsOn": "Assignment of a disposition needs consent unless the disposition allows it.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "100",
       "relevance": "admin",
       "bearsOn": "Requiring a purchaser to take a Crown grant.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "101",
       "relevance": "admin",
       "bearsOn": "Examination of claims to Crown land.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "crown-land"
+      ]
     },
     {
       "n": "102",
       "relevance": "admin",
       "bearsOn": "Minister's consent in plan proceedings.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "103",
       "relevance": "admin",
       "bearsOn": "Removing government land from the Land Title Act.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "104",
       "relevance": "admin",
       "bearsOn": "Officials may take affidavits.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "105",
       "relevance": "enforcement",
       "bearsOn": "Officials' right of entry on Crown land.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "crown-land"
+      ]
     },
     {
       "n": "106",
       "relevance": "admin",
       "bearsOn": "Administration of acquired Crown land and transfers between ministries.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "107",
       "relevance": "admin",
       "bearsOn": "Good-faith immunity.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "108",
       "relevance": "admin",
       "bearsOn": "Register of applications.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "109",
       "relevance": "admin",
       "bearsOn": "Execution of dispositions and Crown grants.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "109.1",
       "relevance": "admin",
       "bearsOn": "Surveyor General service fees.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "110",
       "relevance": "admin",
       "bearsOn": "Regulation-making powers on interest and fees.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     }
   ]
 }

@@ -1,0 +1,1464 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.water-sustainability-act",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines \"changes in and about a stream\" (any modification of a stream's land, vegetation or flow, or any work in its channel), \"stream\" (including wetlands, springs and dry channels), \"stream channel\", \"change approval\", \"use approval\" and \"works\" (which includes access roads to works), the terms that decide whether a forest road crossing needs authority under this Act.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works",
+        "stream-crossings-and-culverts",
+        "riparian"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "definitions",
+      "bearsOn": "Lists the water use purposes (domestic, industrial, land improvement, conservation and others) for which water may be diverted; road watering or a camp's supply would fall under one of them.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "admin",
+      "bearsOn": "Nothing in this Act authorizes what the Water Protection Act prohibits.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "The Act does not apply to geothermal resources.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "admin",
+      "bearsOn": "Vests the property in and right to use stream water and groundwater in the government except for rights held under authorizations.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "roads",
+      "bearsOn": "Prohibits diverting or using water from a stream or aquifer without an authorization or a regulation allowing it, except to fight a fire (with flow restored) or to test water; a camp supply, road watering, dust control or a dugout for a block's operations needs one.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "No pack asks whether operations will divert water (camp supply, road watering, dust control, a pump from a creek) or whether a licence, use approval or regulation authorizes it; firefighting is exempt.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Will the block's operations or its roads divert or use water from a stream or aquifer other than to fight a fire (camp supply, road watering, dust control)?",
+        "Does a licence, use approval or the Water Sustainability Regulation authorize that diversion?"
+      ],
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "tenure",
+      "bearsOn": "Says what a water licence or use approval entitles its holder to do, including works and changes in and about a stream for the diversion; the On this ground water licence screen cites it to show a licensed point of diversion under or near the block.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:water-licence"
+      ],
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "tenure",
+      "bearsOn": "Makes rights and permissions under authorizations, change approvals and permits subject to the Act, their terms and the orders of water officials; cited by the water licence screen.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:water-licence"
+      ],
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "tenure",
+      "bearsOn": "Lists who may hold a water licence, including a person administering an undertaking on Crown land; a licensee wanting a long-term supply for forest operations would apply under it.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "roads",
+      "bearsOn": "Lets the comptroller or a water manager issue a use approval of up to 24 months to divert or use water, the usual authority for short-term water use such as road watering or a camp during a block's operations.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Whether short-term water use for the block holds a use approval is asked under s. 6; this section only sets what an approval may authorize.",
+      "encodable": "reviewer-question",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "roads",
+      "bearsOn": "Changes in and about a stream (a culvert, bridge, ford, instream work or channel realignment for a block's road) may be made only under a change approval, the regulations, an authorization's terms or an order; this is the authority a road crossing needs under this Act.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "No pack asks whether the block's roads make changes in and about a stream, or which authority covers each one (a change approval, the Water Sustainability Regulation with any notification it requires, an authorization or an order); the regulation is not stored, so the answer is the reviewer's.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Will the block's roads or harvesting make any change in and about a stream, such as a culvert, bridge, ford or work within a stream channel?",
+        "Is each change in and about a stream authorized by a change approval, by the Water Sustainability Regulation (with any notification it requires), by another authorization or by an order?",
+        "Where the regulation requires notice before the change, has the notice been given to a water manager in the time required?"
+      ],
+      "topics": [
+        "stream-crossings-and-culverts",
+        "water-rights-and-works",
+        "riparian"
+      ]
+    },
+    {
+      "n": "12",
+      "relevance": "admin",
+      "bearsOn": "Sets the application procedure for licences, use approvals and change approvals: fees, plans, specifications and qualified-person assessments the decision maker asks for.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "admin",
+      "bearsOn": "Requires an applicant for a licence, use approval or change approval to give notice to affected authorization holders, riparian owners and land owners, who may object.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "14",
+      "relevance": "admin",
+      "bearsOn": "Lets the decision maker refuse, amend or grant an application, require more information or security, and issue licences, use approvals or change approvals on terms.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "15",
+      "relevance": "roads",
+      "bearsOn": "Requires the decision maker to consider a stream's environmental flow needs when deciding an application that relates to the stream, including a change approval for a crossing.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Decision-maker criterion for an application; it shapes a change approval's terms but is not something the planner can test before applying.",
+      "encodable": "not-encodable",
+      "topics": [
+        "water-rights-and-works",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "16",
+      "relevance": "roads",
+      "bearsOn": "Lets the decision maker require mitigation, or compensatory mitigation elsewhere on the stream, where a diversion or a change in and about a stream is likely to have a significant adverse impact on water quality, quantity or the aquatic ecosystem.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Mitigation is set as a term of the approval; the planner could only note that a crossing's change approval may carry it.",
+      "encodable": "not-encodable",
+      "topics": [
+        "water-rights-and-works",
+        "fish-habitat",
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "17",
+      "relevance": "roads",
+      "bearsOn": "For an application in relation to a stream designated by regulation as a sensitive stream, requires mitigation for the protected fish population and lets the decision maker refuse it.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Applies only to a stream designated as sensitive by regulation; the Act names none and the designation regulation is not stored.",
+      "encodable": "reviewer-question",
+      "topics": [
+        "fish-habitat",
+        "water-rights-and-works",
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "18",
+      "relevance": "repealed",
+      "bearsOn": "Not in force.",
+      "review": "n/a"
+    },
+    {
+      "n": "19",
+      "relevance": "tenure",
+      "bearsOn": "Sets terms for licences for power purposes.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "20",
+      "relevance": "tenure",
+      "bearsOn": "Requires a licence to state its appurtenancy (land, mine or undertaking) and governs purpose and precedence.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "21",
+      "relevance": "tenure",
+      "bearsOn": "When a conditional licence may be replaced by a final licence.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "22",
+      "relevance": "tenure",
+      "bearsOn": "Precedence of water rights by date and purpose, including essential household use in shortages.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "23",
+      "relevance": "tenure",
+      "bearsOn": "Thirty-year review of long-term licence terms.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "24",
+      "relevance": "tenure",
+      "bearsOn": "Permits a licensee or change approval holder to build works on or flood Crown land; required unless another enactment authorizes it.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "crown-land"
+      ]
+    },
+    {
+      "n": "25",
+      "relevance": "tenure",
+      "bearsOn": "Authorizations, change approvals and permits pass with the land, mine or undertaking they are appurtenant to.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "26",
+      "relevance": "tenure",
+      "bearsOn": "Amendment or substitution of an authorization, change approval or permit, including extending construction times and authorizing other works.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "27",
+      "relevance": "tenure",
+      "bearsOn": "Transfer of a licence's appurtenancy.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "28",
+      "relevance": "tenure",
+      "bearsOn": "Apportioning licence rights among owners of parcels.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "29",
+      "relevance": "roads",
+      "bearsOn": "Requires anyone making changes in and about a stream under an approval, the regulations or an order to take reasonable care not to damage others' property, to inspect, maintain and repair the works, and to deactivate them when the approval ends; they are liable for damage the works cause.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A crossing built under this Act carries maintenance and deactivation duties; the planner does not record who holds them.",
+      "encodable": "reviewer-question",
+      "topics": [
+        "water-rights-and-works",
+        "stream-crossings-and-culverts",
+        "roads"
+      ]
+    },
+    {
+      "n": "30",
+      "relevance": "tenure",
+      "bearsOn": "A person who diverts water must make beneficial use of it; licensees declare use when directed.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "31",
+      "relevance": "tenure",
+      "bearsOn": "Abandonment of rights under an authorization, with terms on removing or maintaining works.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "32",
+      "relevance": "tenure",
+      "bearsOn": "A licensee may expropriate land needed for works, and for domestic or waterworks licences land whose control would help prevent pollution of the water.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "private-land",
+        "compensation"
+      ]
+    },
+    {
+      "n": "33",
+      "relevance": "tenure",
+      "bearsOn": "Registration of expropriated land when an owner refuses the compensation award.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "compensation"
+      ]
+    },
+    {
+      "n": "34",
+      "relevance": "roads",
+      "bearsOn": "Anyone who proposes to alter, move, fill in, remove or interfere with works built or used under a water authorization (an intake, pipe or ditch) must give its holder 180 days' written notice first; the water licence screen shows points of diversion under or near the block.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:water-licence"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The screen shows a licensed point of diversion but no rule asks whether the block or road will interfere with the licensee's works or whether 180 days' notice was given; the works (pipes, ditches) are often not mapped.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Will the block or its roads alter, move, fill in, remove or otherwise interfere with works built or used under a water licence, such as an intake, pipeline or ditch?",
+        "Was the licence holder given written notice of that work at least 180 days before it starts?"
+      ],
+      "topics": [
+        "water-rights-and-works",
+        "water-quality-and-supply",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "35",
+      "relevance": "tenure",
+      "bearsOn": "Lets a licensee enter and use land to build works in urgent cases, with security for the owner.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "36",
+      "relevance": "tenure",
+      "bearsOn": "Joint construction or use of works may be ordered.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "37",
+      "relevance": "tenure",
+      "bearsOn": "Extending a licence's water to other land where no other supply is reasonably available.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "38",
+      "relevance": "admin",
+      "bearsOn": "Appointment and duties of water bailiffs.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "39",
+      "relevance": "tenure",
+      "bearsOn": "Cabinet may reserve unrecorded water in a stream or aquifer from licensing.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "40",
+      "relevance": "tenure",
+      "bearsOn": "Water reservations for treaty first nations under their final agreements.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "first-nations"
+      ]
+    },
+    {
+      "n": "41",
+      "relevance": "tenure",
+      "bearsOn": "The Nisga'a water reservation.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "first-nations"
+      ]
+    },
+    {
+      "n": "42",
+      "relevance": "tenure",
+      "bearsOn": "Reissue of a licence acquired by a local government.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "43",
+      "relevance": "landscape",
+      "bearsOn": "Cabinet may set water objectives for a watershed, stream or aquifer and require a public officer making a specified decision (which could include a forest decision) to consider them and attach terms; no water objective is stored for the Omineca.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "If a water objective regulation names a forest decision for a watershed under a block, the plan or permit would have to consider it; none is stored.",
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "water-quality-and-supply",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "44",
+      "relevance": "definitions",
+      "bearsOn": "Defines bank-to-bank dam and protected river (a river in the Schedule) for the stream protection division.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "45",
+      "relevance": "roads",
+      "bearsOn": "Prohibits building a bank-to-bank dam on a protected river listed in the Schedule; a road fill or crossing that impounds a protected river would be caught.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Forest road crossings rarely impound a river, and the protected rivers are main stems a cutblock road would bridge.",
+      "encodable": "spatial",
+      "topics": [
+        "water-rights-and-works",
+        "stream-crossings-and-culverts",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "46",
+      "relevance": "block",
+      "bearsOn": "Prohibits introducing debris, waste, pesticides, fertilizers or other matter into a stream, its channel or the adjacent area so as to cause a significant adverse impact, but not for a forest practice to which FRPA s. 46 applies; harvesting and road building fall under FRPA s. 46 instead.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Forest practices are excluded in favour of FRPA s. 46; matter introduced outside a forest practice (camp refuse, human waste) remains under this section.",
+      "encodable": "reviewer-question",
+      "topics": [
+        "riparian",
+        "water-quality-and-supply",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "47",
+      "relevance": "enforcement",
+      "bearsOn": "An engineer may order a person who breached s. 46 to stop, remove the matter and remediate, or take compensatory mitigation, at that person's cost.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "riparian",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "48",
+      "relevance": "definitions",
+      "bearsOn": "Definitions for wells and groundwater protection (person responsible, professional, well driller and others).",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "49",
+      "relevance": "admin",
+      "bearsOn": "Who may construct, decommission or deactivate a well, and duties on penetrating an aquifer.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "50",
+      "relevance": "admin",
+      "bearsOn": "Qualifications for installing well pumps and conducting flow tests.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "51",
+      "relevance": "admin",
+      "bearsOn": "Proof of qualifications and insurance for well work.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "52",
+      "relevance": "admin",
+      "bearsOn": "Controlling artesian flow during well construction.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "53",
+      "relevance": "admin",
+      "bearsOn": "Owner must bring a flowing artesian well under control.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "54",
+      "relevance": "admin",
+      "bearsOn": "Well caps and covers.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "55",
+      "relevance": "admin",
+      "bearsOn": "Well identification plates.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "56",
+      "relevance": "admin",
+      "bearsOn": "Deactivating or decommissioning a well not in service.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "57",
+      "relevance": "admin",
+      "bearsOn": "Well logs and reports.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "administration"
+      ]
+    },
+    {
+      "n": "58",
+      "relevance": "admin",
+      "bearsOn": "Operating a well so as not to cause intrusion of contaminated water or significant adverse impact on aquifers or connected streams.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "59",
+      "relevance": "admin",
+      "bearsOn": "Prohibits introducing refuse, waste, pesticides or other contaminants into a well.",
+      "review": "n/a",
+      "topics": [
+        "water-quality-and-supply",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "60",
+      "relevance": "enforcement",
+      "bearsOn": "Remediation orders for foreign matter introduced into a well.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "61",
+      "relevance": "admin",
+      "bearsOn": "Application of the well provisions to wells on Crown land and to persons occupying Crown land.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "crown-land"
+      ]
+    },
+    {
+      "n": "62",
+      "relevance": "admin",
+      "bearsOn": "Drilling authorizations where a regulation restricts well activities.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "63",
+      "relevance": "admin",
+      "bearsOn": "Groundwater sampling and analysis for new or altered wells.",
+      "review": "n/a",
+      "topics": [
+        "water-quality-and-supply",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "64",
+      "relevance": "definitions",
+      "bearsOn": "Definitions for water sustainability plans (local authority, plan regulation and others).",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "objectives"
+      ]
+    },
+    {
+      "n": "65",
+      "relevance": "landscape",
+      "bearsOn": "The minister may designate an area for a water sustainability plan to address water conflicts, environmental flows, water quality or aquatic ecosystem health; none is stored for the Omineca.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Only matters if a designated plan area covers the block; no designation is stored.",
+      "encodable": "spatial",
+      "topics": [
+        "objectives",
+        "designated-areas",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "66",
+      "relevance": "admin",
+      "bearsOn": "Order establishing a water sustainability plan's development process.",
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
+    },
+    {
+      "n": "67",
+      "relevance": "admin",
+      "bearsOn": "Order limiting a water sustainability plan's issues or recommendations.",
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
+    },
+    {
+      "n": "68",
+      "relevance": "admin",
+      "bearsOn": "Required content of a plan's terms of reference.",
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
+    },
+    {
+      "n": "69",
+      "relevance": "admin",
+      "bearsOn": "A water sustainability plan may consider other provincial, local and First Nations planning processes.",
+      "review": "n/a",
+      "topics": [
+        "objectives",
+        "first-nations"
+      ]
+    },
+    {
+      "n": "70",
+      "relevance": "admin",
+      "bearsOn": "Prescribed information a plan must consider.",
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
+    },
+    {
+      "n": "71",
+      "relevance": "admin",
+      "bearsOn": "Notice to authorization holders, riparian owners and land or resource right holders a plan's recommendations would affect; a forest tenure holder could receive it.",
+      "review": "n/a",
+      "topics": [
+        "objectives",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "72",
+      "relevance": "admin",
+      "bearsOn": "The minister may require people whose land or resource activities affect water in a plan area to provide information.",
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
+    },
+    {
+      "n": "73",
+      "relevance": "admin",
+      "bearsOn": "Content of a proposed water sustainability plan.",
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
+    },
+    {
+      "n": "74",
+      "relevance": "admin",
+      "bearsOn": "Submission of a proposed plan to the minister.",
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
+    },
+    {
+      "n": "75",
+      "relevance": "admin",
+      "bearsOn": "Acceptance of a water sustainability plan.",
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
+    },
+    {
+      "n": "76",
+      "relevance": "landscape",
+      "bearsOn": "Within a plan area a plan regulation may require a public officer to consider the plan, or restrict or prohibit issuing land or resource instruments (which could include a cutting or road permit); none is stored for the Omineca.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Only matters if a water sustainability plan regulation covers the block; none is in force in the Omineca as far as the stored law shows.",
+      "encodable": "spatial",
+      "topics": [
+        "objectives",
+        "water-quality-and-supply",
+        "designated-areas"
+      ]
+    },
+    {
+      "n": "77",
+      "relevance": "admin",
+      "bearsOn": "Plan regulations affecting subdivision approval by an approving officer.",
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
+    },
+    {
+      "n": "78",
+      "relevance": "landscape",
+      "bearsOn": "A plan regulation may restrict or prohibit a specified use of land or natural resources or an activity in a plan area, whether or not another enactment authorizes it.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "As s. 76: relevant only where a plan regulation applies to the block.",
+      "encodable": "spatial",
+      "topics": [
+        "objectives",
+        "designated-areas",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "79",
+      "relevance": "admin",
+      "bearsOn": "Plan regulations reducing or cancelling water licences.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "objectives"
+      ]
+    },
+    {
+      "n": "80",
+      "relevance": "admin",
+      "bearsOn": "Plan regulations directing changes to a licensee's works or diversions.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "objectives"
+      ]
+    },
+    {
+      "n": "81",
+      "relevance": "admin",
+      "bearsOn": "Plan regulations may require provincial strategic or operational plans to consider or be consistent with a water sustainability plan.",
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
+    },
+    {
+      "n": "82",
+      "relevance": "admin",
+      "bearsOn": "Dedicated agricultural water in a plan area.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "83",
+      "relevance": "admin",
+      "bearsOn": "Plan regulations restricting groundwater activities.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "84",
+      "relevance": "admin",
+      "bearsOn": "Plan regulations apply despite other enactments, with listed exceptions.",
+      "review": "n/a",
+      "topics": [
+        "objectives",
+        "administration"
+      ]
+    },
+    {
+      "n": "85",
+      "relevance": "admin",
+      "bearsOn": "Review and amendment of water sustainability plans.",
+      "review": "n/a",
+      "topics": [
+        "objectives"
+      ]
+    },
+    {
+      "n": "86",
+      "relevance": "admin",
+      "bearsOn": "Declarations of significant water shortage when streams fall below critical environmental flow thresholds.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "87",
+      "relevance": "admin",
+      "bearsOn": "Critical environmental flow protection orders that regulate diversions during a declared shortage.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "88",
+      "relevance": "admin",
+      "bearsOn": "Fish population protection orders regulating diversion from a stream whose fish are threatened by low flow; would restrict road watering or camp diversions from that stream.",
+      "review": "n/a",
+      "topics": [
+        "fish-habitat",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "89",
+      "relevance": "enforcement",
+      "bearsOn": "Right of water officials to enter land to exercise powers.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "90",
+      "relevance": "enforcement",
+      "bearsOn": "Entry warrants.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "91",
+      "relevance": "enforcement",
+      "bearsOn": "The comptroller may have ordered work done at the defaulter's cost.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "92",
+      "relevance": "enforcement",
+      "bearsOn": "Amending or revoking orders.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "93",
+      "relevance": "enforcement",
+      "bearsOn": "Engineers may inspect works and order their alteration, repair or removal, and order a person who made changes in and about a stream to restore or remediate them or take compensatory mitigation; officers may inspect changes in and about a stream.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "stream-crossings-and-culverts",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "94",
+      "relevance": "enforcement",
+      "bearsOn": "Suspension or cancellation of authorizations, change approvals and permits for non-compliance, failure to build or non-use.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "95",
+      "relevance": "enforcement",
+      "bearsOn": "Inquiry and hearing powers.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "appeals-and-reviews"
+      ]
+    },
+    {
+      "n": "96",
+      "relevance": "enforcement",
+      "bearsOn": "Maintaining order at hearings.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "97",
+      "relevance": "enforcement",
+      "bearsOn": "Contempt for refusing to cooperate with an inquiry.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "98",
+      "relevance": "enforcement",
+      "bearsOn": "Recovery of costs of work done under an order.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "99",
+      "relevance": "enforcement",
+      "bearsOn": "Administrative monetary penalties for contraventions, orders and terms of authorizations.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "100",
+      "relevance": "enforcement",
+      "bearsOn": "Notice of intent and opportunity to be heard before a penalty.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "101",
+      "relevance": "enforcement",
+      "bearsOn": "Recovery of administrative penalties.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "102",
+      "relevance": "enforcement",
+      "bearsOn": "Compliance agreements.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "103",
+      "relevance": "enforcement",
+      "bearsOn": "Effect of an administrative penalty on prosecution.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "104",
+      "relevance": "enforcement",
+      "bearsOn": "No administrative penalty after a charge.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "105",
+      "relevance": "admin",
+      "bearsOn": "Appeals of orders and decisions to the appeal board.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews"
+      ]
+    },
+    {
+      "n": "106",
+      "relevance": "enforcement",
+      "bearsOn": "Offences including diverting water or making changes in and about a stream without lawful authority, building works without authority, breaching an authorization's terms, interfering with licensed works without s. 34 notice, and introducing foreign matter into a stream.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "stream-crossings-and-culverts",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "107",
+      "relevance": "enforcement",
+      "bearsOn": "High-penalty offences including placing or using an obstruction in a stream channel without authority, breaching a sensitive stream approval, breaching a fish population protection order or a remediation order.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "stream-crossings-and-culverts",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "108",
+      "relevance": "enforcement",
+      "bearsOn": "Fines may be increased by the monetary benefit gained.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "109",
+      "relevance": "enforcement",
+      "bearsOn": "Creative sentencing orders.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "110",
+      "relevance": "enforcement",
+      "bearsOn": "Breach of a creative sentencing order.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "111",
+      "relevance": "enforcement",
+      "bearsOn": "Liability of corporate officers and agents.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "112",
+      "relevance": "enforcement",
+      "bearsOn": "Limitation period for prosecutions.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "113",
+      "relevance": "enforcement",
+      "bearsOn": "Other liabilities remain after a penalty.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "114",
+      "relevance": "admin",
+      "bearsOn": "Designation of the comptroller, water managers, engineers and officers.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "115",
+      "relevance": "admin",
+      "bearsOn": "Advisory boards.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "116",
+      "relevance": "admin",
+      "bearsOn": "Records, measurement works and reporting duties.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "117",
+      "relevance": "admin",
+      "bearsOn": "Delivery and publication of notices and documents.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "117.1",
+      "relevance": "admin",
+      "bearsOn": "Collection and disclosure of personal information.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "118",
+      "relevance": "admin",
+      "bearsOn": "Fees, rentals and charges.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "119",
+      "relevance": "admin",
+      "bearsOn": "Protection of officials from liability.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "120",
+      "relevance": "admin",
+      "bearsOn": "Restriction on court review of proceedings and orders.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews"
+      ]
+    },
+    {
+      "n": "121",
+      "relevance": "admin",
+      "bearsOn": "No compensation for effects on applications, rights or permissions under the Act except as provided.",
+      "review": "n/a",
+      "topics": [
+        "compensation"
+      ]
+    },
+    {
+      "n": "122",
+      "relevance": "admin",
+      "bearsOn": "Owners of works remain liable for damage after an authorization ends.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "123",
+      "relevance": "admin",
+      "bearsOn": "Certified authorizations as evidence.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "124",
+      "relevance": "admin",
+      "bearsOn": "General regulation-making powers.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "125",
+      "relevance": "admin",
+      "bearsOn": "Regulations on fees, rentals and charges.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "126",
+      "relevance": "admin",
+      "bearsOn": "Regulations on administration and governance.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "127",
+      "relevance": "admin",
+      "bearsOn": "Regulation-making power for licensing and use approvals, and in subsection (3) for authorizing changes in and about a stream without a change approval (with notice, standards and timing); it is the source of the Water Sustainability Regulation's rules for crossings, which are not stored.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works",
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "128",
+      "relevance": "admin",
+      "bearsOn": "Regulations designating sensitive streams for at-risk fish populations and setting criteria and terms for approvals on them.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "129",
+      "relevance": "admin",
+      "bearsOn": "Regulations designating protected rivers, prescribing exceptions to s. 46, setting standards for works, and governing floating timber and booms in streams.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "130",
+      "relevance": "admin",
+      "bearsOn": "Regulations on groundwater and wells.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "131",
+      "relevance": "admin",
+      "bearsOn": "Regulations on measuring, testing and reporting water use.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "132",
+      "relevance": "admin",
+      "bearsOn": "Regulations on water sustainability plans.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "objectives"
+      ]
+    },
+    {
+      "n": "133",
+      "relevance": "admin",
+      "bearsOn": "Regulations on administrative penalties.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "134",
+      "relevance": "admin",
+      "bearsOn": "Regulations on compensation.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "compensation"
+      ]
+    },
+    {
+      "n": "135",
+      "relevance": "admin",
+      "bearsOn": "Regulations closing a stream or aquifer to new authorizations or restricting diversions under the regulations.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "136",
+      "relevance": "admin",
+      "bearsOn": "Regulations requiring authorizations for domestic groundwater use.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "137",
+      "relevance": "admin",
+      "bearsOn": "Minister's regulations restricting groundwater activities.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "138",
+      "relevance": "admin",
+      "bearsOn": "Transition for power licences.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "139",
+      "relevance": "admin",
+      "bearsOn": "Transition of former water use purposes.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "140",
+      "relevance": "admin",
+      "bearsOn": "Transition for existing groundwater users.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "water-rights-and-works"
+      ]
+    },
+    {
+      "n": "141",
+      "relevance": "admin",
+      "bearsOn": "Transition for water reservations.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "142",
+      "relevance": "admin",
+      "bearsOn": "Transition of water management plans.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "219",
+      "relevance": "admin",
+      "bearsOn": "Commencement of the Act's provisions.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "Schedule",
+      "relevance": "admin",
+      "bearsOn": "The list of protected rivers on which s. 45 prohibits new bank-to-bank dams; the stored text is empty, so the rivers it names cannot be read here.",
+      "review": "n/a",
+      "topics": [
+        "water-rights-and-works",
+        "fish-habitat"
+      ]
+    }
+  ]
+}

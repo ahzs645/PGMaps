@@ -8,19 +8,32 @@
       "n": "1",
       "relevance": "definitions",
       "bearsOn": "Defines range terms (authorization, range agreement holder, range readiness criteria, riparian area, stream, stubble height) and exempts range holders from Part 4 as needed for Workers Compensation rules.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "range-and-grazing",
+        "riparian"
+      ]
     },
     {
       "n": "1.1",
       "relevance": "definitions",
       "bearsOn": "Prescribes grazing, hay cutting and range developments as range practices.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "range-and-grazing",
+        "administration"
+      ]
     },
     {
       "n": "2",
       "relevance": "admin",
       "bearsOn": "Applies FRPA s. 112's power to impose conditions to discretions under this regulation.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "range-and-grazing",
+        "administration"
+      ]
     },
     {
       "n": "3",
@@ -29,13 +42,22 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Where grazing proceeds under an exemption there is no range plan for the block review to read; the range-plan rule assumes one exists.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "exemptions-and-variances",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "4",
       "relevance": "admin",
       "bearsOn": "Lists what the minister considers before letting a range holder prepare a range stewardship plan.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "5",
@@ -44,7 +66,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "plans",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "6",
@@ -53,7 +80,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "soils",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "7",
@@ -62,7 +94,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Forage seeding on harvested ground (transitory range) competes with reforestation; the crown-grazing pack asks about permanent grazing openings but not about seeding forage on a block.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "8",
@@ -71,7 +107,13 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "riparian",
+        "water-quality-and-supply",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "9",
@@ -80,7 +122,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "fish-habitat",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "10",
@@ -89,7 +136,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "wildlife",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "11",
@@ -98,7 +150,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Transitory range is harvested ground grazed until the new stand closes; the block planner's grazing review could note this objective.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "landscape-biodiversity",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "12",
@@ -107,7 +164,13 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "objectives",
+        "water-quality-and-supply",
+        "wildlife",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "13",
@@ -116,7 +179,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "14",
@@ -125,7 +192,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "15",
@@ -134,7 +205,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "salvage-and-forest-health",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "16",
@@ -146,7 +222,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The range-plan rule asks the reviewer to read the plan and its dates; the grazing schedule is where those dates sit for the season of harvest and planting.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "17",
@@ -155,7 +235,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A licensee's request to move or rebuild a fence or other range development under FRPA s. 51 may need notice; the range-development rule does not mention it.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "public-review-and-notice",
+        "plans",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "18",
@@ -164,25 +249,42 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "public-review-and-notice",
+        "plans",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "19",
       "relevance": "admin",
       "bearsOn": "Lets the minister set up a range plan advisory committee of at least 3 persons.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "public-review-and-notice"
+      ]
     },
     {
       "n": "20",
       "relevance": "admin",
       "bearsOn": "Requires a copy of a minor range plan amendment to be given to the district manager.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "21",
       "relevance": "admin",
       "bearsOn": "Lets the minister void a wrongly made minor range plan amendment.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "22",
@@ -191,13 +293,22 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "objectives",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "23",
       "relevance": "admin",
       "bearsOn": "Lets the minister balance objectives and plan content when approving a range plan.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "24",
@@ -206,7 +317,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "25-27",
@@ -221,7 +336,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "range-and-grazing"
+      ]
     },
     {
       "n": "29",
@@ -230,7 +348,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Browse and stubble limits bear on a plantation only indirectly; RPPR s. 44 is the duty the crown-grazing pack tests.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "range-and-grazing"
+      ]
     },
     {
       "n": "30",
@@ -239,7 +360,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "riparian",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "31",
@@ -248,7 +373,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "soils",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "32",
@@ -257,7 +386,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "fish-habitat",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "33",
@@ -270,7 +403,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "water-quality-and-supply",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "34",
@@ -282,7 +419,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "water-quality-and-supply",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "35",
@@ -294,7 +435,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "water-quality-and-supply",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "36",
@@ -309,7 +454,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The UWR and WHA screens cite this for their grazing reach cells.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "wildlife",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "36.1",
@@ -318,7 +467,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "wildlife",
+        "landscape-biodiversity",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "37",
@@ -327,7 +481,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "wildlife",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "38",
@@ -336,7 +494,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "range-and-grazing",
+        "designated-areas"
+      ]
     },
     {
       "n": "39",
@@ -348,7 +510,12 @@
       ],
       "gapPriority": "low",
       "gapNote": "The range-development rule asks whether the forest work touches a range development; it does not say that a replacement fence or water development is limited by this section.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "range-and-grazing",
+        "water-quality-and-supply",
+        "riparian"
+      ]
     },
     {
       "n": "40",
@@ -357,7 +524,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Where harvest damages a fence, the duty to repair it may move to the forest licensee by FRPA s. 51 authorization; the range-development rule covers the authorization.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "range-and-grazing"
+      ]
     },
     {
       "n": "41",
@@ -366,13 +536,20 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A range plan duty of the range agreement holder; it bears on a block only where the plan covers the same ground.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "range-and-grazing",
+        "soils"
+      ]
     },
     {
       "n": "42",
       "relevance": "admin",
       "bearsOn": "Requires a range holder to attach livestock tags the minister supplies and report lost tags.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "range-and-grazing"
+      ]
     },
     {
       "n": "43",
@@ -381,7 +558,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Cutting by range holders is outside the cutblock planner.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "range-and-grazing",
+        "harvest-authority"
+      ]
     },
     {
       "n": "44",
@@ -391,31 +572,51 @@
       "coveredBy": [
         "bc.crown-grazing@1.0.0:range-holder-livestock"
       ],
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "reforestation",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "45",
       "relevance": "enforcement",
       "bearsOn": "Sets the content of intervention orders to range holders and when the holder may recover its costs.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "46",
       "relevance": "admin",
       "bearsOn": "Requires a range stewardship plan holder to report livestock numbers, grazing period and issues each year by 31 December.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "47",
       "relevance": "enforcement",
       "bearsOn": "Sets how seized livestock may be advertised and sold.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "48",
       "relevance": "enforcement",
       "bearsOn": "Makes contravening the range practice sections (readiness, removal, riparian, upland, fish, water, GWMs, features, range developments, revegetation, tagging, livestock removal under s. 44, annual reports) an offence up to $5 000 or 6 months; the supplied text also carries the Schedule of range readiness leaf stages.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "range-and-grazing"
+      ]
     },
     {
       "n": "Schedule",
@@ -424,7 +625,10 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "No rule asks whether livestock turnout waits for the leaf stage of the key forage species; it bears on range use plans, not on a cutblock.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "range-and-grazing"
+      ]
     }
   ]
 }

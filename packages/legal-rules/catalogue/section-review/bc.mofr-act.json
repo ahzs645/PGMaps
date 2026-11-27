@@ -8,43 +8,66 @@
       "n": "1",
       "relevance": "admin",
       "bearsOn": "Continues the Ministry of Forests and Range and the forest service.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "2",
       "relevance": "admin",
       "bearsOn": "Appointment of deputy minister, chief forester, regional and district managers and timber sales managers.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "3",
       "relevance": "admin",
       "bearsOn": "Minister's general duties over forest and range resources.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "4",
       "relevance": "admin",
       "bearsOn": "States the ministry's purposes, including integrated planning of timber, grazing and other resource values; a purpose clause with no duty on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "plans"
+      ]
     },
     {
       "n": "5",
       "relevance": "admin",
       "bearsOn": "Minister may acquire land and dispose of acquired interests in land; no bearing on a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "crown-land"
+      ]
     },
     {
       "n": "6",
       "relevance": "admin",
       "bearsOn": "Minister may make agreements and research grants.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "6.1",
       "relevance": "admin",
       "bearsOn": "Minister may publish prescribed information or documents online.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "7-10",
@@ -56,7 +79,10 @@
       "n": "11",
       "relevance": "admin",
       "bearsOn": "Regulation-making power for publication under s. 6.1.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     }
   ]
 }

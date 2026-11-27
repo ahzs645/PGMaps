@@ -8,7 +8,11 @@
       "n": "1",
       "relevance": "definitions",
       "bearsOn": "Establishes the objectives under Land Act s. 93.4 for the seven named landscape units or groups on Maps 1-7.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "objectives",
+        "old-growth"
+      ]
     },
     {
       "n": "2",
@@ -19,7 +23,11 @@
         "ground:ogma"
       ],
       "gapPriority": "low",
-      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown.",
+      "topics": [
+        "old-growth",
+        "harvest-authority"
+      ]
     },
     {
       "n": "3",
@@ -30,7 +38,12 @@
         "ground:ogma"
       ],
       "gapPriority": "medium",
-      "gapNote": "The ceiling is tested on the gross OGMA area and disturbance the reviewer enters; the layer’s FEATURE_AREA_SQM could fill the area, and earlier disturbance is not mapped."
+      "gapNote": "The ceiling is tested on the gross OGMA area and disturbance the reviewer enters; the layer’s FEATURE_AREA_SQM could fill the area, and earlier disturbance is not mapped.",
+      "topics": [
+        "old-growth",
+        "roads",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "4",
@@ -42,7 +55,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The ogma screen already reads the warehouse layer (RMP_OGMA_LEGAL_CURRENT_SVW) this section makes decisive.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "old-growth",
+        "administration"
+      ]
     },
     {
       "n": "5",
@@ -53,13 +70,20 @@
         "ground:ogma"
       ],
       "gapPriority": "low",
-      "gapNote": "The rule asks for the notice; the reviewer names the successor office."
+      "gapNote": "The rule asks for the notice; the reviewer names the successor office.",
+      "topics": [
+        "old-growth",
+        "public-review-and-notice"
+      ]
     },
     {
       "n": "6",
       "relevance": "admin",
       "bearsOn": "Takes effect when notice is published in the Gazette.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     },
     {
       "n": "7",
@@ -68,7 +92,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A document check that the FSP was amended within the period; the citation \"8(2)(b)\" matches no current FRPA paragraph.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "administration"
+      ]
     }
   ]
 }

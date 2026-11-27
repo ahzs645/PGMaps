@@ -72,13 +72,23 @@ def table_rows(node: ET.Element) -> list[list[str]]:
         rows.append([flat(cell) for cell in row if local(cell.tag) == "entry"])
     return rows
 
-def section_blocks(node: ET.Element) -> list[dict]:
-    """The section as it prints: one block per run of text, its reference ("(3)(a)") and depth."""
+LINES = ("lefttext", "centertext", "righttext")
+
+def section_blocks(node: ET.Element, lines: bool = False) -> list[dict]:
+    """The section as it prints: one block per run of text, its reference ("(3)(a)") and depth.
+
+    With `lines`, a schedule's plain lines (`lefttext`, `indent1`…) are blocks too: a schedule
+    without sections, such as the Water Sustainability Act's list of protected rivers, holds
+    nothing else."""
     out: list[dict] = []
     def walk(el: ET.Element, ref: str, depth: int) -> None:
         for kid in el:
             kind = local(kid.tag)
-            if kind in BLOCKS:
+            if lines and (kind in LINES or re.fullmatch(r"indent\d", kind)):
+                text = flat(kid)
+                if text:
+                    out.append({"ref": ref, "depth": depth + (int(kind[-1]) if kind.startswith("indent") else 0), "text": text})
+            elif kind in BLOCKS:
                 num = child(kid, "num")
                 walk(kid, ref + "(" + num + ")", depth + 1)
             elif kind == "text":
@@ -118,7 +128,7 @@ def index_xml(data: bytes, source_id: str) -> list[dict]:
             name = label.group(1) if label else "Schedule"
             scope = hierarchy + [{"type":"schedule","number":name,"name":title}]
             if not any(local(e.tag) == "section" for e in node.iter()):
-                blocks = section_blocks(node)
+                blocks = section_blocks(node, lines=True)
                 result.append({"id":source_id + "." + name.replace(" ", ""),"number":name,"title":title,
                                "hierarchy":scope,"repealed":False,"blocks":blocks,
                                "canonicalTextSha256":hashlib.sha256(" ".join(b["text"] for b in blocks).encode("utf-8")).hexdigest(),

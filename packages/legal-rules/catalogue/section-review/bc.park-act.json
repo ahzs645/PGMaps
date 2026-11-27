@@ -1,0 +1,543 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.park-act",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines park, conservancy, recreation area, designated wildland area, park use and resource use permits, and natural resources (land, water and their vegetable components, flora included), which makes timber in a park a protected natural resource; the park screen cites \"natural resources\".",
+      "review": "screen",
+      "coveredBy": [
+        "ground:park"
+      ],
+      "topics": [
+        "administration",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "The Act is subject only to the ELUA, the Environmental Assessment Act, the Wildfire Act (except s. 18) and a few others; ministers must exercise other powers, the Forest Act's included, only in accordance with it; the Heritage Conservation and Wildlife Acts apply in parks.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "admin",
+      "bearsOn": "The minister manages parks, conservancies and recreation areas, their natural resources and the conduct of people in them.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "Appointment of directors, officers and park rangers, who enforce the Act and the Wildlife Act.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "4.1",
+      "relevance": "admin",
+      "bearsOn": "Collaborative management agreements with governments and others.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "4.2",
+      "relevance": "admin",
+      "bearsOn": "Agreements with first nations for aboriginal rights activities and access in parks.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "first-nations"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "landscape",
+      "bearsOn": "Cabinet establishes Class A, B and C parks, conservancies and recreation areas and designated wildland areas; conservancies are set aside for biodiversity, first nations' cultural uses and recreation, with development only consistent with those purposes; Schedule C and D parks and Protected Areas Act conservancies change only by statute.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "first-nations"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "Cabinet may have the minister manage land under an ELUA order, greenbelt land, heritage sites, recreation agreements, public trails and ecological reserves.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "designated-areas"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "admin",
+      "bearsOn": "Cabinet may revise park, conservancy and recreation area boundaries, except those continued by the Protected Areas Act.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "7.1",
+      "relevance": "admin",
+      "bearsOn": "Boundaries may be described by official plans, metes and bounds or lot descriptions; written descriptions prevail.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "7.2",
+      "relevance": "admin",
+      "bearsOn": "Orders establishing or modifying parks must be published in the Gazette.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "block",
+      "bearsOn": "An interest in land in a Class A, B or C park or a conservancy may be granted or made the subject of a licence only by park use permit, and recreation area land is reserved from Land Act disposal except as the minister approves; a cutting or road permit cannot carry an interest in park land without one.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:park"
+      ],
+      "topics": [
+        "protected-areas",
+        "harvest-authority",
+        "roads"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "block",
+      "bearsOn": "A natural resource in a Class A, B or C park, a recreation area or a conservancy must not be removed, destroyed or disturbed except by park use permit or the minister's approval, and never in a designated wildland area; no park use permit may authorize commercial logging in a conservancy.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:park"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The parks layer includes conservancies but no instrument screens the CONSERVANCY designation, where s. 9(10)(a) bars commercial logging outright; the park screen covers parks and recreation areas only.",
+      "encodable": "spatial",
+      "topics": [
+        "protected-areas",
+        "harvest-authority"
+      ]
+    },
+    {
+      "n": "9.1",
+      "relevance": "admin",
+      "bearsOn": "Park use permits may be issued for resort and tourism development consistent with a park's recreational values.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "recreation"
+      ]
+    },
+    {
+      "n": "9.2",
+      "relevance": "admin",
+      "bearsOn": "Park use permits may be issued for film production.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "9.3",
+      "relevance": "roads",
+      "bearsOn": "A park use permit may be issued for research, including feasibility studies for a road, pipeline or transmission line through a park, if consistent with its purpose.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "roads"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "admin",
+      "bearsOn": "Class C parks are run by park boards.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "tenure",
+      "bearsOn": "The minister may acquire land and timber rights for parks and expropriate mineral claims and leases and road-permit or special use permit roads; Crown land taken into a park is deleted from the timber supply area or area-based licence, with forest tenure compensation under Forest Act Part 18.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "compensation",
+        "forest-tenures",
+        "roads"
+      ]
+    },
+    {
+      "n": "12",
+      "relevance": "admin",
+      "bearsOn": "The minister may assign a park to a category, which limits its development.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "recreation"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "roads",
+      "bearsOn": "No structure, improvement or work may be built in a park, conservancy or recreation area except under a park use or resource use permit; culverts, bridges and road works are caught.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "The park screen's roads cell cites ss. 8 and 9 only; s. 13's bar on works and structures, and s. 16's on roads and log storage, are not cited.",
+      "encodable": "document-check",
+      "topics": [
+        "protected-areas",
+        "roads"
+      ]
+    },
+    {
+      "n": "14",
+      "relevance": "admin",
+      "bearsOn": "No garbage or waste may be transported through or deposited in a park except by permit.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "15",
+      "relevance": "block",
+      "bearsOn": "All timber cut on or removed from a park, conservancy or recreation area must be disposed of under the Forest Act.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:park"
+      ],
+      "topics": [
+        "protected-areas",
+        "harvest-authority",
+        "timber-pricing-and-scaling"
+      ]
+    },
+    {
+      "n": "16",
+      "relevance": "roads",
+      "bearsOn": "Except by park use or resource use permit, no one may use park, conservancy or recreation area land for a log storage area, mill site, road or right of way, obtain a surface right there, or exercise mineral, coal or petroleum rights there.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "The park screen's roads cell cites ss. 8 and 9 rather than s. 16(a), which names roads, rights of way and log storage areas; a road crossing a park is flagged but not by this provision.",
+      "encodable": "document-check",
+      "topics": [
+        "protected-areas",
+        "roads",
+        "mining"
+      ]
+    },
+    {
+      "n": "17",
+      "relevance": "enforcement",
+      "bearsOn": "Directors and park officers may inspect and order works altered or removed and conduct stopped.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "18",
+      "relevance": "enforcement",
+      "bearsOn": "Unperformed orders may be carried out at the person's expense.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "19",
+      "relevance": "enforcement",
+      "bearsOn": "No rights are acquired in resources or works taken or built in contravention; they may be seized.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "20",
+      "relevance": "admin",
+      "bearsOn": "The minister issues park use and resource use permits on fees and terms, with or without competition or public comment.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "20.1",
+      "relevance": "roads",
+      "bearsOn": "A park use permit may authorize a road through a Schedule F conservancy to reach natural resources beyond it.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "roads"
+      ]
+    },
+    {
+      "n": "21",
+      "relevance": "admin",
+      "bearsOn": "A permit to remove or disturb natural resources needs an application and an undertaking to pay survey, cruise and inspection costs and fees.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "22",
+      "relevance": "admin",
+      "bearsOn": "A restoration deposit may be required before a permit issues.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "23",
+      "relevance": "admin",
+      "bearsOn": "Permits are not transferable without approval.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "24",
+      "relevance": "admin",
+      "bearsOn": "Improvements in a park belong to the government unless a permit says otherwise.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "25",
+      "relevance": "admin",
+      "bearsOn": "No property right in a park except by permit.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "26",
+      "relevance": "admin",
+      "bearsOn": "Lawful occupiers of government improvements in parks are exempt from tax on them.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "27",
+      "relevance": "admin",
+      "bearsOn": "The minister may accept gifts for parks and protected areas.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "27.1",
+      "relevance": "enforcement",
+      "bearsOn": "Administrative penalties for contraventions and permit breaches.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "27.2",
+      "relevance": "enforcement",
+      "bearsOn": "Compliance agreements reducing administrative penalties.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "27.3",
+      "relevance": "enforcement",
+      "bearsOn": "Recovery of administrative penalties.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "27.4",
+      "relevance": "admin",
+      "bearsOn": "Appeals of administrative penalties to the Environmental Appeal Board.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "28",
+      "relevance": "enforcement",
+      "bearsOn": "Offences: up to $1 000 000 and a year's imprisonment for contravening the Act.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "29",
+      "relevance": "admin",
+      "bearsOn": "Regulation-making powers for parks, including protection of flora, soil and waters.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "29.01",
+      "relevance": "admin",
+      "bearsOn": "Regulations on administrative penalties.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "compliance-and-enforcement",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "29.1",
+      "relevance": "admin",
+      "bearsOn": "Sale of maps, merchandise and advertising.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "29.2",
+      "relevance": "admin",
+      "bearsOn": "Fees and charges for park use and services.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "30",
+      "relevance": "range",
+      "bearsOn": "In a Schedule D park, existing permits continue by park use permit except for commercial logging, mining or hydro development; a range tenure in effect at establishment continues under the Range Act and FRPA, capped at the animal unit months then authorized.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:park"
+      ],
+      "topics": [
+        "protected-areas",
+        "range-and-grazing"
+      ]
+    },
+    {
+      "n": "31",
+      "relevance": "admin",
+      "bearsOn": "Validates park use permits issued before 13 July 1995.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "31.1",
+      "relevance": "admin",
+      "bearsOn": "Permits may continue prior authorizations in a conservancy, except commercial logging, mining and hydro.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "32",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "33",
+      "relevance": "admin",
+      "bearsOn": "Subsurface petroleum and natural gas rights may be granted under parks without surface access.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas"
+      ]
+    },
+    {
+      "n": "34",
+      "relevance": "admin",
+      "bearsOn": "Nature conservancy areas continue as designated wildland areas.",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    },
+    {
+      "n": "Schedule",
+      "relevance": "admin",
+      "bearsOn": "Schedules A to F (no text stored).",
+      "review": "n/a",
+      "topics": [
+        "protected-areas",
+        "administration"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,901 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.alc-act",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines agricultural land, farm use (farming land, plants or animals, or a use the regulation designates), non-farm use, soil (all unconsolidated material above bedrock), fill, soil or fill use, and owner (for Crown land, the government); the ALR screen relies on \"owner\" and \"farm use\" to say the Act binds Crown land and that harvest is a farm use.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:alr"
+      ],
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "The Act and its regulations are not subject to other enactments except the Interpretation Act, the Environment and Land Use Act and the Environmental Management Act (and a water sustainability plan regulation), so Forest Act and FRPA powers yield to it on ALR land.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "block",
+      "bearsOn": "A minister or government agent must not exercise a power under another enactment except in accordance with this Act, so a cutting permit or road permit over ALR land is issued subject to the ALR use rules.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "The ALR screen cites ss. 20 and 20.3 but not s. 3, the provision that makes Forest Act permits over ALR land subject to the Act; harvest is a farm use, so it matters mainly for roads and fill.",
+      "encodable": "document-check",
+      "topics": [
+        "agricultural-land",
+        "harvest-authority",
+        "roads"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "Establishes the Provincial Agricultural Land Commission.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "4.1",
+      "relevance": "admin",
+      "bearsOn": "Establishes six administrative regions, including the North region that covers the Omineca.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "4.2-4.3",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "5",
+      "relevance": "admin",
+      "bearsOn": "Commission membership, appointment and regional representation.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "5.1",
+      "relevance": "admin",
+      "bearsOn": "Applies parts of the Administrative Tribunals Act to the Commission.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "States the Commission's purposes: preserve the ALR, encourage farming and have local governments and others accommodate farm use.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "objectives"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "admin",
+      "bearsOn": "The Commission is an agent of the government.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "admin",
+      "bearsOn": "Appointment of the chief executive officer and staff.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "admin",
+      "bearsOn": "The Commission may make resolutions and bylaws for its affairs.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "admin",
+      "bearsOn": "Executive committee and delegation to it.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "admin",
+      "bearsOn": "Establishment of Commission panels.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "11.1",
+      "relevance": "admin",
+      "bearsOn": "What the chair may and may not refer to a panel.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "11.2",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "12",
+      "relevance": "admin",
+      "bearsOn": "Financial year and corporate matters of the Commission.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "14",
+      "relevance": "admin",
+      "bearsOn": "Members may complete proceedings begun before their appointment.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "15",
+      "relevance": "landscape",
+      "bearsOn": "The Commission may designate land, Crown land included, as agricultural land, which brings it into the ALR; a block area can become ALR land without any forestry decision.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "crown-land"
+      ]
+    },
+    {
+      "n": "16",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "17",
+      "relevance": "admin",
+      "bearsOn": "Inclusion of land in the ALR on the Commission's initiative or on a local or first nation government's application, with notice and hearing.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "17.1",
+      "relevance": "admin",
+      "bearsOn": "Agricultural land leaves the ALR only by exclusion under ss. 29.1(2)(b), 30(1)(a) or 45(1).",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "18",
+      "relevance": "admin",
+      "bearsOn": "Local governments, first nation governments and approving officers may approve non-farm uses, structures, soil or fill uses and subdivisions on ALR land only as the Act permits.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "18.1",
+      "relevance": "admin",
+      "bearsOn": "An applicant must notify the Commission before registering a Land Title Act statutory right of way over ALR land.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "19",
+      "relevance": "admin",
+      "bearsOn": "Registrars must not accept plans or descriptions that subdivide agricultural land unless permitted.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "20",
+      "relevance": "block",
+      "bearsOn": "A person must not use agricultural land for a non-farm use unless the Act or the regulation permits it; a holder of a right of entry under an enactment may apply for permission. Timber harvest is a designated farm use, so the restriction bears mainly on roads, pits and other works in the ALR.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:alr"
+      ],
+      "topics": [
+        "agricultural-land",
+        "roads"
+      ]
+    },
+    {
+      "n": "20.1",
+      "relevance": "admin",
+      "bearsOn": "Limits residences on ALR parcels to one principal residence of 500 m2 or less unless permitted.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "20.2",
+      "relevance": "admin",
+      "bearsOn": "Pre-existing residential structures may continue on stated conditions.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "20.3",
+      "relevance": "roads",
+      "bearsOn": "A person must not remove soil from or place fill on agricultural land unless permitted by the Commission or the regulation, or after giving the chief executive officer notice and receiving approval or 60 days' silence; building a block road with imported fill or a borrow pit on ALR land is a soil or fill use.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:alr"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The ALR screen marks roads as \"conditions\" but no rule asks whether a block road on ALR land will remove soil or bring in fill, or whether a permission or soil and fill notice covers it.",
+      "encodable": "reviewer-question",
+      "proposedFacts": [
+        "Will the block's roads or landings remove soil from, or place fill brought from elsewhere on, Agricultural Land Reserve land?",
+        "Has the Commission granted permission, or approved a soil and fill notice, for that removal or placement?"
+      ],
+      "topics": [
+        "gravel-and-fill",
+        "agricultural-land",
+        "roads",
+        "soils"
+      ]
+    },
+    {
+      "n": "21",
+      "relevance": "admin",
+      "bearsOn": "Agricultural land must not be subdivided unless permitted.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "22",
+      "relevance": "admin",
+      "bearsOn": "The Commission may hold Land Title Act covenants on agricultural land.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "23",
+      "relevance": "admin",
+      "bearsOn": "Exceptions for parcels under 2 acres on 21 December 1972 and for non-farm uses then established.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "24",
+      "relevance": "tenure",
+      "bearsOn": "A non-farm use of Crown land leased or sold before 21 December 1972 may continue until the lease ends or title issues.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "crown-land"
+      ]
+    },
+    {
+      "n": "25",
+      "relevance": "admin",
+      "bearsOn": "The Commission decides use, subdivision and soil or fill applications: refuse, grant with or without conditions, or grant an alternative; local government authorization needed in some cases.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "26",
+      "relevance": "admin",
+      "bearsOn": "The Commission may delegate decisions on applications to a first nation government or a prescribed authority.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "first-nations"
+      ]
+    },
+    {
+      "n": "27",
+      "relevance": "admin",
+      "bearsOn": "The chief executive officer may approve applications that meet the Commission's written criteria.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "28",
+      "relevance": "admin",
+      "bearsOn": "Where a parcel is partly in the ALR, ss. 18(1)–(4) and 20–21 apply only to the ALR portion; the ALR screen likewise reads only the part of a block inside the reserve.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "29",
+      "relevance": "admin",
+      "bearsOn": "Who may apply to exclude land from the ALR, with notice and a public hearing.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "29.1",
+      "relevance": "admin",
+      "bearsOn": "The Commission's options on an exclusion application.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "30",
+      "relevance": "admin",
+      "bearsOn": "The Commission may on its own initiative exclude land or permit a non-farm, soil or fill use or subdivision after notice and a public hearing.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "30.1",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "31",
+      "relevance": "admin",
+      "bearsOn": "A permission is conditional on compliance with other Acts, bylaws and orders having jurisdiction over the land.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "32",
+      "relevance": "admin",
+      "bearsOn": "The Commission must amend ALR boundaries and notify the Registrar and local government on an exclusion.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "33",
+      "relevance": "admin",
+      "bearsOn": "Reconsideration of decisions on application or on the decision maker's initiative.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "appeals-and-reviews"
+      ]
+    },
+    {
+      "n": "33.1",
+      "relevance": "admin",
+      "bearsOn": "The chair may direct the executive committee to reconsider a panel decision.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "appeals-and-reviews"
+      ]
+    },
+    {
+      "n": "34",
+      "relevance": "admin",
+      "bearsOn": "Applications filed directly with the Commission.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "34.1",
+      "relevance": "admin",
+      "bearsOn": "Applications that go through a local or first nation government first.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "35",
+      "relevance": "admin",
+      "bearsOn": "Waiver of application fees for hardship.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "35.1",
+      "relevance": "admin",
+      "bearsOn": "An applicant must give information and fees when a decision imposes conditions.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "36",
+      "relevance": "admin",
+      "bearsOn": "Notice of applications as the regulations require.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "37",
+      "relevance": "admin",
+      "bearsOn": "Inclusion in the ALR is not a taking; no compensation.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "compensation"
+      ]
+    },
+    {
+      "n": "38",
+      "relevance": "admin",
+      "bearsOn": "The Commission may make agreements with governments and authorities.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "39",
+      "relevance": "admin",
+      "bearsOn": "Defines the inquiry \"board\" for ss. 40–45.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "40",
+      "relevance": "admin",
+      "bearsOn": "Cabinet may refer an application or Commission matter to a board for a public hearing in the provincial interest.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "appeals-and-reviews"
+      ]
+    },
+    {
+      "n": "41",
+      "relevance": "admin",
+      "bearsOn": "The minister may suspend a matter for up to 90 days pending a referral.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "42",
+      "relevance": "admin",
+      "bearsOn": "Effect of a referral: the Commission's powers on the matter pass to Cabinet.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "43",
+      "relevance": "admin",
+      "bearsOn": "The board holds a public hearing on the referred matter.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "44",
+      "relevance": "admin",
+      "bearsOn": "The board reports and recommends to Cabinet, weighing listed values in order.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "45",
+      "relevance": "admin",
+      "bearsOn": "Cabinet decides the referred matter by order.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "appeals-and-reviews"
+      ]
+    },
+    {
+      "n": "46",
+      "relevance": "admin",
+      "bearsOn": "Local government bylaws and first nation laws must be consistent with the Act; inconsistent provisions have no effect.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "47",
+      "relevance": "admin",
+      "bearsOn": "Commission revenue goes to the consolidated revenue fund.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "48",
+      "relevance": "admin",
+      "bearsOn": "An approved applicant may be required to post security for compliance with terms.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "49",
+      "relevance": "enforcement",
+      "bearsOn": "Officials may enter land, test soil and require records to administer or enforce the Act.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "50",
+      "relevance": "enforcement",
+      "bearsOn": "An official may order a contravention, such as unpermitted fill or soil removal, to stop.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "51",
+      "relevance": "enforcement",
+      "bearsOn": "The chief executive officer may rescind or vary stop work and remediation orders and penalties.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "52",
+      "relevance": "enforcement",
+      "bearsOn": "The chief executive officer may order a contravener to remedy it, including repairing damage to agricultural land.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "52.1",
+      "relevance": "enforcement",
+      "bearsOn": "Notice of a remediation order may be filed in the land title office.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "52.2",
+      "relevance": "enforcement",
+      "bearsOn": "Cancellation of a remediation order note.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "53",
+      "relevance": "enforcement",
+      "bearsOn": "The Commission may seek a Supreme Court compliance order.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "54",
+      "relevance": "enforcement",
+      "bearsOn": "The chief executive officer may levy penalties for contraventions.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "55",
+      "relevance": "admin",
+      "bearsOn": "Appeal of determinations, orders and penalties to the Commission.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "compliance-and-enforcement",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "55.01",
+      "relevance": "admin",
+      "bearsOn": "Applies parts of the Administrative Tribunals Act to those appeals.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "55.1",
+      "relevance": "admin",
+      "bearsOn": "The Commission's exclusive jurisdiction over appeals.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "55.2",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "56",
+      "relevance": "enforcement",
+      "bearsOn": "Enforcement powers apply to a first nation government or authority acting for the Commission.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "agricultural-land",
+        "first-nations"
+      ]
+    },
+    {
+      "n": "57",
+      "relevance": "enforcement",
+      "bearsOn": "Offences, including contravening s. 20(1) non-farm use or s. 20.3(1) soil and fill rules, with fines up to $1 million.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "58",
+      "relevance": "admin",
+      "bearsOn": "Regulation-making powers on farm, non-farm, residential and soil or fill uses; the ALR Use Regulation is made under it.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "58.1",
+      "relevance": "admin",
+      "bearsOn": "Regulations on statutory rights of way and subdivision.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "58.2",
+      "relevance": "admin",
+      "bearsOn": "Regulations on fees.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "58.3",
+      "relevance": "admin",
+      "bearsOn": "Regulations on applications.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "58.4",
+      "relevance": "admin",
+      "bearsOn": "Regulations on the Commission.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "58.5",
+      "relevance": "admin",
+      "bearsOn": "Regulations on enforcement and penalties.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "compliance-and-enforcement",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "58.6",
+      "relevance": "admin",
+      "bearsOn": "General regulation-making power.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "59",
+      "relevance": "enforcement",
+      "bearsOn": "Enforcement powers are cumulative.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "60",
+      "relevance": "admin",
+      "bearsOn": "Certificates of title to agricultural land are subject to the Act.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "61",
+      "relevance": "admin",
+      "bearsOn": "Transition from the Land Reserve Commission.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "62-90",
+      "relevance": "repealed",
+      "bearsOn": "Spent consequential amendments; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "91",
+      "relevance": "admin",
+      "bearsOn": "Commencement.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "Schedule",
+      "relevance": "admin",
+      "bearsOn": "The schedule describing the administrative regions (no text stored).",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    }
+  ]
+}

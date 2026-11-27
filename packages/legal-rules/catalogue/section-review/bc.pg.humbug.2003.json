@@ -8,7 +8,11 @@
       "n": "Establishment",
       "relevance": "definitions",
       "bearsOn": "Establishes the Humbug landscape unit (Map 3) as the area the objectives apply to.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "landscape-biodiversity",
+        "objectives"
+      ]
     },
     {
       "n": "Objective 3",
@@ -21,7 +25,11 @@
       ],
       "gapPriority": "low",
       "gapNote": "The ogma screen draws the OGMAs and the old forest module counts them toward PG TSA Objectives A and B; no rule tests that a block stays out of them.",
-      "encodable": "spatial"
+      "encodable": "spatial",
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "Strategy 3.01",
@@ -32,7 +40,11 @@
         "ground:ogma"
       ],
       "gapPriority": "low",
-      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown.",
+      "topics": [
+        "old-growth",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "Strategy 3.02",
@@ -43,7 +55,12 @@
         "ground:ogma"
       ],
       "gapPriority": "low",
-      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown.",
+      "topics": [
+        "old-growth",
+        "salvage-and-forest-health",
+        "harvest-authority"
+      ]
     },
     {
       "n": "Strategy 3.03",
@@ -54,13 +71,21 @@
         "ground:ogma"
       ],
       "gapPriority": "low",
-      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown."
+      "gapNote": "The rules ask the order’s questions once the reviewer names the order; the OGMA screen still leaves harvest and road reach unknown.",
+      "topics": [
+        "old-growth",
+        "roads"
+      ]
     },
     {
       "n": "Strategy 3.04",
       "relevance": "admin",
       "bearsOn": "Allows fire suppression in OGMAs; it does not bear on making a block.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "fire",
+        "old-growth"
+      ]
     },
     {
       "n": "Transition",
@@ -69,13 +94,20 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A document check that the FSP carries results or strategies for the OGMAs.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "Effective date",
       "relevance": "admin",
       "bearsOn": "Sets the effective date, August 1, 2003.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     }
   ]
 }

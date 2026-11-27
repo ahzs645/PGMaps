@@ -70,7 +70,25 @@
       "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/land-use-plans-and-objectives/omineca-region/princegeorge-biodiversity-order/ftstjames-vanderhoof-princegeorge-mackenzie_lrmps_luor_23nov2006.pdf",
       "sourceStatus": "identified",
       "legalReview": "not-completed",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG",
+          "DVA",
+          "DMK"
+        ],
+        "basis": "Spatial: the Agricultural Development Areas and Settlement Reserve Areas within 4 Forest Districts - Extent polygons (WHSE_LAND_USE_PLANNING.RMP_PLAN_LEGAL_POLY_SVW), 78305 ha, over the natural resource districts (DPG 71%, DVA 26%, DMK 3%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.4"
+        }
+      ]
     },
     {
       "id": "bc.lwbc.grazing-policy.2004",
@@ -80,7 +98,16 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "binding": false,
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "province",
+        "basis": "The policy applies across the province."
+      },
+      "enabling": [
+        {
+          "text": "A policy of Land and Water British Columbia; not an enactment"
+        }
+      ]
     },
     {
       "id": "bc.rppr",
@@ -104,7 +131,16 @@
       "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/natural-resource-use/land-water-use/crown-land/reserves.pdf",
       "sourceStatus": "identified",
       "legalReview": "not-completed",
-      "binding": false
+      "binding": false,
+      "areas": {
+        "scope": "province",
+        "basis": "The policy applies across the province."
+      },
+      "enabling": [
+        {
+          "text": "A Crown land operational policy; not an enactment"
+        }
+      ]
     },
     {
       "id": "bc.gar",
@@ -129,7 +165,27 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2004-10-20",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA",
+          "DPG"
+        ],
+        "basis": "Spatial: the Prince George Timber Supply Area (TSA) Legal Order - Landscape Biodiversity Objective Order - Extent polygons (WHSE_LAND_USE_PLANNING.RMP_PLAN_LEGAL_POLY_SVW), 7948008 ha, over the natural resource districts (DVA 57%, DPG 43%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.8"
+        },
+        {
+          "text": "Forest Practices Code of British Columbia Act s. 4(1), (2)"
+        }
+      ]
     },
     {
       "id": "bc.pgtsa.policy.2005",
@@ -139,7 +195,23 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "binding": false,
-      "embeddedAfterOrder": true
+      "embeddedAfterOrder": true,
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA",
+          "DPG"
+        ],
+        "basis": "Spatial: the Prince George Timber Supply Area (TSA) Legal Order - Landscape Biodiversity Objective Order - Extent polygons (WHSE_LAND_USE_PLANNING.RMP_PLAN_LEGAL_POLY_SVW), 7948008 ha, over the natural resource districts (DVA 57%, DPG 43%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "text": "An implementation policy for the 2004 order; not an enactment"
+        }
+      ]
     },
     {
       "id": "bc.forest-act",
@@ -307,6 +379,21 @@
       "legalReview": "not-completed"
     },
     {
+      "id": "bc.water-sustainability-regulation",
+      "title": "Water Sustainability Regulation, BC Reg 36/2016",
+      "kind": "regulation",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/36_2016",
+      "civix": {
+        "aspect": "complete",
+        "index": "statreg",
+        "documentId": "36_2016",
+        "xmlUrl": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/36_2016/xml"
+      },
+      "consolidationCurrentTo": "2026-11-27",
+      "sourceStatus": "identified",
+      "legalReview": "not-completed"
+    },
+    {
       "id": "bc.mineral-tenure-act",
       "title": "Mineral Tenure Act, RSBC 1996 c. 292",
       "kind": "statute",
@@ -338,7 +425,23 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2006-11-21",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG"
+        ],
+        "basis": "Spatial: the Agricultural Development Areas within 1 Forest District - Extent polygons (WHSE_LAND_USE_PLANNING.RMP_PLAN_LEGAL_POLY_SVW), 1294 ha, over the natural resource districts (DPG 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.4"
+        }
+      ]
     },
     {
       "id": "bc.uwr.u-7-002",
@@ -348,7 +451,30 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2003-06-19",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA"
+        ],
+        "basis": "Spatial: the winter range polygons u-7-002 (WCP_UNGULATE_WINTER_RANGE_SP), 3649 ha, over the natural resource districts (DVA 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.frpa",
+          "provision": "180"
+        },
+        {
+          "source": "bc.frpa",
+          "provision": "181"
+        },
+        {
+          "text": "Operational and Site Planning Regulation s. 69(1)(a), (b)"
+        }
+      ]
     },
     {
       "id": "bc.uwr.u-7-003",
@@ -358,7 +484,28 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2009-12-09",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG",
+          "DVA"
+        ],
+        "basis": "Spatial: the winter range polygons u-7-003 (WCP_UNGULATE_WINTER_RANGE_SP), 818068 ha, over the natural resource districts (DPG 92%, DVA 8%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "9"
+        },
+        {
+          "source": "bc.gar",
+          "provision": "12"
+        }
+      ]
     },
     {
       "id": "bc.uwr.u-7-009",
@@ -368,7 +515,27 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2005-11-24",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DMK"
+        ],
+        "basis": "Spatial: the winter range polygons u-7-009 (WCP_UNGULATE_WINTER_RANGE_SP), 34540 ha, over the natural resource districts (DMK 99%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "9"
+        },
+        {
+          "source": "bc.gar",
+          "provision": "12"
+        }
+      ]
     },
     {
       "id": "bc.uwr.u-7-010",
@@ -378,7 +545,27 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2006-03-30",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG"
+        ],
+        "basis": "Spatial: the winter range polygons u-7-010 (WCP_UNGULATE_WINTER_RANGE_SP), 489 ha, over the natural resource districts (DPG 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "9"
+        },
+        {
+          "source": "bc.gar",
+          "provision": "12"
+        }
+      ]
     },
     {
       "id": "bc.uwr.u-7-013",
@@ -388,7 +575,30 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2003-11-26",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG"
+        ],
+        "basis": "Spatial: the winter range polygons u-7-013 (WCP_UNGULATE_WINTER_RANGE_SP), 10046 ha, over the natural resource districts (DPG 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.frpa",
+          "provision": "180"
+        },
+        {
+          "source": "bc.frpa",
+          "provision": "181"
+        },
+        {
+          "text": "Operational and Site Planning Regulation s. 69(1)(a), (b)"
+        }
+      ]
     },
     {
       "id": "bc.uwr.u-7-015",
@@ -398,7 +608,27 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2005-12-13",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA"
+        ],
+        "basis": "Spatial: the winter range polygons u-7-015 (WCP_UNGULATE_WINTER_RANGE_SP), 52476 ha, over the natural resource districts (DVA 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "9"
+        },
+        {
+          "source": "bc.gar",
+          "provision": "12"
+        }
+      ]
     },
     {
       "id": "bc.uwr.omineca-moose-2022",
@@ -408,7 +638,29 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2022-03-30",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA",
+          "DPG",
+          "DMK"
+        ],
+        "basis": "Spatial: the winter range polygons u-7-018, u-7-020, u-7-022, u-7-024, u-7-027 (WCP_UNGULATE_WINTER_RANGE_SP), 441695 ha, over the natural resource districts (DVA 57%, DPG 40%, DMK 3%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "9"
+        },
+        {
+          "source": "bc.gar",
+          "provision": "12"
+        }
+      ]
     },
     {
       "id": "bc.uwr.u-7-019",
@@ -418,7 +670,27 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2010-05-25",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA"
+        ],
+        "basis": "Spatial: the winter range polygons u-7-019 (WCP_UNGULATE_WINTER_RANGE_SP), 308865 ha, over the natural resource districts (DVA 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "9"
+        },
+        {
+          "source": "bc.gar",
+          "provision": "12"
+        }
+      ]
     },
     {
       "id": "bc.wha.7-001",
@@ -428,7 +700,27 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2020-12-08",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA"
+        ],
+        "basis": "Spatial: the habitat area polygons 7-001 (WCP_WILDLIFE_HABITAT_AREA_POLY), 6315 ha, over the natural resource districts (DVA 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "9"
+        },
+        {
+          "source": "bc.gar",
+          "provision": "10"
+        }
+      ]
     },
     {
       "id": "bc.wha.7-002",
@@ -438,7 +730,27 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2020-12-08",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA"
+        ],
+        "basis": "Spatial: the habitat area polygons 7-002 (WCP_WILDLIFE_HABITAT_AREA_POLY), 664 ha, over the natural resource districts (DVA 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "9"
+        },
+        {
+          "source": "bc.gar",
+          "provision": "10"
+        }
+      ]
     },
     {
       "id": "bc.wha.7-003",
@@ -448,7 +760,27 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2005-12-13",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG"
+        ],
+        "basis": "Spatial: the habitat area polygons 7-003 (WCP_WILDLIFE_HABITAT_AREA_POLY), 174 ha, over the natural resource districts (DPG 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "9"
+        },
+        {
+          "source": "bc.gar",
+          "provision": "10"
+        }
+      ]
     },
     {
       "id": "bc.wha.caribou-2021-07",
@@ -458,7 +790,27 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2021-07-21",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA"
+        ],
+        "basis": "Spatial: the habitat area polygons 27 tags (WCP_WILDLIFE_HABITAT_AREA_POLY), 34179 ha, over the natural resource districts (DVA 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "9"
+        },
+        {
+          "source": "bc.gar",
+          "provision": "10"
+        }
+      ]
     },
     {
       "id": "bc.wha.caribou-2021-04",
@@ -468,7 +820,27 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2021-04-20",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA"
+        ],
+        "basis": "Spatial: the habitat area polygons 15 tags (WCP_WILDLIFE_HABITAT_AREA_POLY), 31071 ha, over the natural resource districts (DVA 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "9"
+        },
+        {
+          "source": "bc.gar",
+          "provision": "10"
+        }
+      ]
     },
     {
       "id": "bc.mackenzie.biodiversity.2008",
@@ -478,7 +850,23 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2008-04-09",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DMK"
+        ],
+        "basis": "Named: the order applies in Mackenzie Forest District; Mackenzie lies in today's Mackenzie Natural Resource District."
+      },
+      "enabling": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.4"
+        }
+      ]
     },
     {
       "id": "bc.mackenzie.biodiversity-amendment.2010",
@@ -488,7 +876,23 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2010-09-23",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DMK"
+        ],
+        "basis": "Named: the order applies in Mackenzie Forest District; Mackenzie lies in today's Mackenzie Natural Resource District."
+      },
+      "enabling": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.4"
+        }
+      ]
     },
     {
       "id": "bc.mackenzie.ogma.2010",
@@ -498,7 +902,23 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2010-09-23",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DMK"
+        ],
+        "basis": "Named: the order applies in Mackenzie Forest District; Mackenzie lies in today's Mackenzie Natural Resource District."
+      },
+      "enabling": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.4"
+        }
+      ]
     },
     {
       "id": "bc.mackenzie.obo-fox.2002",
@@ -508,7 +928,26 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2002-10-24",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DMK"
+        ],
+        "basis": "Spatial: the Obo River and Fox landscape units (RMP_LANDSCAPE_UNIT_SVW), 408779 ha, over the natural resource districts (DMK 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.8"
+        },
+        {
+          "text": "Forest Practices Code Act s. 4(1), (2)"
+        }
+      ]
     },
     {
       "id": "bc.mackenzie.mugaha-marsh.2001",
@@ -518,7 +957,26 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2001-10-24",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DMK"
+        ],
+        "basis": "Named: the order applies in the Mackenzie SRMP area (the order names no district); Mackenzie lies in today's Mackenzie Natural Resource District."
+      },
+      "enabling": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.8"
+        },
+        {
+          "text": "Forest Practices Code Act s. 5"
+        }
+      ]
     },
     {
       "id": "bc.pg.dome-slim.2002",
@@ -528,7 +986,26 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2002-10-31",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG"
+        ],
+        "basis": "Spatial: the Dome and Slim landscape units (RMP_LANDSCAPE_UNIT_SVW), 118067 ha, over the natural resource districts (DPG 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.8"
+        },
+        {
+          "text": "Forest Practices Code Act s. 4(1), (2)"
+        }
+      ]
     },
     {
       "id": "bc.pg.humbug.2003",
@@ -538,7 +1015,26 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2003-08-01",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG"
+        ],
+        "basis": "Spatial: the Humbug landscape unit (RMP_LANDSCAPE_UNIT_SVW), 58347 ha, over the natural resource districts (DPG 100%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.8"
+        },
+        {
+          "text": "Forest Practices Code Act s. 4(1), (2)"
+        }
+      ]
     },
     {
       "id": "bc.pg.ancient-forest-ogma.2009",
@@ -548,7 +1044,23 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2009-02-03",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG"
+        ],
+        "basis": "Named: the order applies in the Ancient Forest Trail; Ancient Forest/Chun T’oh Whudujut lies in today's Prince George Natural Resource District."
+      },
+      "enabling": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.4"
+        }
+      ]
     },
     {
       "id": "bc.pg.scenic-areas.2005",
@@ -558,7 +1070,23 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2005-11-09",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG"
+        ],
+        "basis": "Named: the order applies in Prince George Forest District; Prince George lies in today's Prince George Natural Resource District."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "7"
+        }
+      ]
     },
     {
       "id": "bc.pg.vqo.2005",
@@ -568,7 +1096,23 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2005-12-07",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG"
+        ],
+        "basis": "Named: the order applies in Prince George Forest District; Prince George lies in today's Prince George Natural Resource District."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "7"
+        }
+      ]
     },
     {
       "id": "bc.pg.bobtail-vqo.2006",
@@ -578,7 +1122,23 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2006-05-05",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DPG"
+        ],
+        "basis": "Named: the order applies in Prince George Forest District; Prince George lies in today's Prince George Natural Resource District."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "7"
+        }
+      ]
     },
     {
       "id": "bc.fsj.vqo.2005",
@@ -588,7 +1148,23 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2005-11-02",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA"
+        ],
+        "basis": "Named: the order applies in Fort St. James Forest District; Fort St. James lies in today's Stuart Nechako Natural Resource District."
+      },
+      "enabling": [
+        {
+          "source": "bc.gar",
+          "provision": "7"
+        }
+      ]
     },
     {
       "id": "bc.pgtsa.loe.2022",
@@ -598,7 +1174,23 @@
       "sourceStatus": "identified",
       "legalReview": "not-completed",
       "signedOn": "2022-12-21",
-      "supersessionStatus": "unverified_for_site"
+      "supersessionStatus": "unverified_for_site",
+      "areas": {
+        "scope": "districts",
+        "regions": [
+          "ROM"
+        ],
+        "districts": [
+          "DVA",
+          "DPG"
+        ],
+        "basis": "Spatial: the Prince George Timber Supply Area (TSA) Legal Order - Landscape Biodiversity Objective Order - Extent polygons (WHSE_LAND_USE_PLANNING.RMP_PLAN_LEGAL_POLY_SVW), 7948008 ha, over the natural resource districts (DVA 57%, DPG 43%); read from DataBC on 27 November 2026."
+      },
+      "enabling": [
+        {
+          "text": "A letter of expectations from the Prince George and Stuart Nechako district managers; not an enactment"
+        }
+      ]
     }
   ]
 }

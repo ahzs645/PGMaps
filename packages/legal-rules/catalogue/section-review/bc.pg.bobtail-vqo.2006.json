@@ -13,13 +13,22 @@
         "ground:visual-quality-objective"
       ],
       "gapPriority": "low",
-      "gapNote": "A rule now flags an objective other than modification for polygons 959 to 962."
+      "gapNote": "A rule now flags an objective other than modification for polygons 959 to 962.",
+      "topics": [
+        "visual-quality",
+        "exemptions-and-variances",
+        "salvage-and-forest-health"
+      ]
     },
     {
       "n": "Scope",
       "relevance": "definitions",
       "bearsOn": "Says the change applies to the VQOs set for the district by the December 7, 2005 order.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "visual-quality",
+        "administration"
+      ]
     }
   ]
 }

@@ -1,0 +1,92 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.elua",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines the committee and \"environment\".",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "designated-areas"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "Continues the Environment and Land Use Committee of cabinet ministers.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "designated-areas"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "admin",
+      "bearsOn": "The committee's duties: environmental awareness and ensuring environmental preservation is considered in land use and resource development.",
+      "review": "n/a",
+      "topics": [
+        "designated-areas",
+        "objectives"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "The committee may hold inquiries and appoint technical committees.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "designated-areas"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "admin",
+      "bearsOn": "Inquiry powers of the chair and members.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "Committee members receive expenses only.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "block",
+      "bearsOn": "On the committee's recommendation and despite any other Act, Cabinet may make orders on the environment or land use, and a minister named in an order must exercise other powers, the Forest Act's included, only in accordance with it; ELUA protected areas and some land use restrictions rest on such orders, whose terms are not public in the layer.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:protected-area"
+      ],
+      "gapPriority": "low",
+      "gapNote": "The protected area screen marks every activity \"unknown, the establishing order decides\"; no rule asks the reviewer what the order establishing the area under the block allows.",
+      "encodable": "reviewer-question",
+      "topics": [
+        "designated-areas",
+        "protected-areas",
+        "objectives"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "admin",
+      "bearsOn": "General regulation-making power.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    }
+  ]
+}

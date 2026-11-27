@@ -4,10 +4,64 @@
   "reviewedOn": "2026-11-27",
   "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
   "sections": [
-    {"n":"1(a)","relevance":"block","bearsOn":"Establishes the Appendix 1 scenic areas; a block visible from one is then held to the visual quality objective set for it by the December 7, 2005 order.","review":"screen","coveredBy":["ground:visual-quality-objective","ground:scenic-area"],"gapPriority":"medium","gapNote":"The inventory screens draw the scenic polygons; the designation adds nothing a rule can test without the VQO, so the gap sits with the VQO order.","encodable":"spatial","proposedFacts":["Is the block or its road in, or visible from, a scenic area listed in the 2005 Prince George scenic areas order?"]},
-    {"n":"1(b)","relevance":"definitions","bearsOn":"Folds the scenic areas continued under FRPA s. 180 into this GAR order, so in the district's TSA portion they are GAR scenic areas with VQOs rather than pre-2002 areas left to FPPR s. 9.2.","review":"n/a"},
-    {"n":"2","relevance":"admin","bearsOn":"Takes effect December 6, 2005.","review":"n/a"},
-    {"n":"Appendix 1","relevance":"definitions","bearsOn":"Lists the scenic areas by name, mostly lakes, rivers, highways, trails and mountains (Adrian Lake to Wolverine River).","review":"n/a"},
-    {"n":"Appendix 1 note","relevance":"tenure","bearsOn":"Leaves scenic areas and VQOs inside TFLs 30 and 53 to the TFL management planning process.","review":"n/a"}
+    {
+      "n": "1(a)",
+      "relevance": "block",
+      "bearsOn": "Establishes the Appendix 1 scenic areas; a block visible from one is then held to the visual quality objective set for it by the December 7, 2005 order.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:visual-quality-objective",
+        "ground:scenic-area"
+      ],
+      "gapPriority": "medium",
+      "gapNote": "The inventory screens draw the scenic polygons; the designation adds nothing a rule can test without the VQO, so the gap sits with the VQO order.",
+      "encodable": "spatial",
+      "proposedFacts": [
+        "Is the block or its road in, or visible from, a scenic area listed in the 2005 Prince George scenic areas order?"
+      ],
+      "topics": [
+        "visual-quality",
+        "designated-areas"
+      ]
+    },
+    {
+      "n": "1(b)",
+      "relevance": "definitions",
+      "bearsOn": "Folds the scenic areas continued under FRPA s. 180 into this GAR order, so in the district's TSA portion they are GAR scenic areas with VQOs rather than pre-2002 areas left to FPPR s. 9.2.",
+      "review": "n/a",
+      "topics": [
+        "visual-quality",
+        "designated-areas"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "Takes effect December 6, 2005.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    },
+    {
+      "n": "Appendix 1",
+      "relevance": "definitions",
+      "bearsOn": "Lists the scenic areas by name, mostly lakes, rivers, highways, trails and mountains (Adrian Lake to Wolverine River).",
+      "review": "n/a",
+      "topics": [
+        "visual-quality",
+        "designated-areas"
+      ]
+    },
+    {
+      "n": "Appendix 1 note",
+      "relevance": "tenure",
+      "bearsOn": "Leaves scenic areas and VQOs inside TFLs 30 and 53 to the TFL management planning process.",
+      "review": "n/a",
+      "topics": [
+        "visual-quality",
+        "forest-tenures"
+      ]
+    }
   ]
 }

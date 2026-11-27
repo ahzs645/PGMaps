@@ -13,13 +13,20 @@
         "ground:visual-quality-objective"
       ],
       "gapPriority": "medium",
-      "gapNote": "Rules now name the order and test the alteration entered from the visual quality page against the category; the planner does not read that page’s measurement itself."
+      "gapNote": "Rules now name the order and test the alteration entered from the visual quality page against the category; the planner does not read that page’s measurement itself.",
+      "topics": [
+        "visual-quality"
+      ]
     },
     {
       "n": "Para 2",
       "relevance": "definitions",
       "bearsOn": "Ties the VQOs to the scenic areas established under GAR s. 7(1) by the December 6, 2005 order.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "visual-quality",
+        "designated-areas"
+      ]
     }
   ]
 }

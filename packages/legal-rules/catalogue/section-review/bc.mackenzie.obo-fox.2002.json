@@ -8,7 +8,11 @@
       "n": "Establishment",
       "relevance": "definitions",
       "bearsOn": "Establishes the two landscape units, shown on Maps 1 and 2, as the area the objectives apply to; no DataBC layer the planner reads draws them.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "landscape-biodiversity",
+        "objectives"
+      ]
     },
     {
       "n": "1.A.a",
@@ -22,6 +26,10 @@
         "Is the block in the Obo River or Fox landscape unit, and in NDT 2 or NDT 3?",
         "After this block, what percent of the unit's openings fall in each Table 1 patch size class?",
         "Does the block move any Table 1 class farther outside its range?"
+      ],
+      "topics": [
+        "cutblock-size",
+        "landscape-biodiversity"
       ]
     },
     {
@@ -31,7 +39,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "Falls with a Table 1 patch test for 1.A.a.",
-      "encodable": "numeric"
+      "encodable": "numeric",
+      "topics": [
+        "cutblock-size",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "1.A.c",
@@ -40,7 +52,12 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A reviewer question on a Table 1 rule.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "cutblock-size",
+        "wildlife",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "1.A.d",
@@ -49,7 +66,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A Table 1 rule would need to group approved clusters before classing patches.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "cutblock-size",
+        "exemptions-and-variances"
+      ]
     },
     {
       "n": "1.A.e",
@@ -61,6 +82,11 @@
       "encodable": "reviewer-question",
       "proposedFacts": [
         "Has the district manager approved a short-term deviation from the Table 1 patch size targets for this block, for fire damage, forest health or another operational constraint?"
+      ],
+      "topics": [
+        "exemptions-and-variances",
+        "salvage-and-forest-health",
+        "cutblock-size"
       ]
     },
     {
@@ -74,6 +100,10 @@
       "proposedFacts": [
         "What percent of each biogeoclimatic variant in the landscape unit is mature plus old, against Table 2?",
         "Is any of the block in an area mapped and reserved to make up an old or mature-plus-old deficit?"
+      ],
+      "topics": [
+        "landscape-biodiversity",
+        "old-growth"
       ]
     },
     {
@@ -83,7 +113,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A reviewer note on any 1.A.f test.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "landscape-biodiversity",
+        "old-growth"
+      ]
     },
     {
       "n": "1.A.i",
@@ -91,7 +125,11 @@
       "bearsOn": "Lets BWBS retention vary as the Biodiversity Guidebook allows where deciduous stands predominate.",
       "review": "none",
       "gapPriority": "low",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "landscape-biodiversity",
+        "old-growth"
+      ]
     },
     {
       "n": "1.A.j",
@@ -99,7 +137,11 @@
       "bearsOn": "Asks that connectivity of important habitats be kept using areas already constrained from harvest; it names no measure a block can be tested against.",
       "review": "none",
       "gapPriority": "low",
-      "encodable": "not-encodable"
+      "encodable": "not-encodable",
+      "topics": [
+        "landscape-biodiversity",
+        "wildlife"
+      ]
     },
     {
       "n": "1.A.k",
@@ -107,7 +149,11 @@
       "bearsOn": "Requires every opening or cutblock to retain wildlife tree patches at the Table 3 percentage (3% to 18% of cutblock area, read from the unit's harvest history and the subzone's available share) unless operational plans detail retention that meets the unit's Table 3 targets.",
       "review": "rule",
       "gapPriority": "low",
-      "gapNote": "The rule asks the reviewer to compare retention with the order’s Table 3; the planner does not read the table by subzone."
+      "gapNote": "The rule asks the reviewer to compare retention with the order’s Table 3; the planner does not read the table by subzone.",
+      "topics": [
+        "stand-retention",
+        "landscape-biodiversity"
+      ]
     },
     {
       "n": "2.A.a",
@@ -115,7 +161,12 @@
       "bearsOn": "Bars timber harvesting within 200 m (slope distance) of Weissener Lake (UTM NAD83 zone 10, 336161 E, 6403217 N) and requires 50% of basal area volume to be retained in a further 50 m.",
       "review": "rule",
       "gapPriority": "low",
-      "gapNote": "The rule asks whether the block reaches within 250 m of Weissener Lake; no screen measures the slope distance."
+      "gapNote": "The rule asks whether the block reaches within 250 m of Weissener Lake; no screen measures the slope distance.",
+      "topics": [
+        "riparian",
+        "harvest-authority",
+        "stand-retention"
+      ]
     },
     {
       "n": "2.A.b",
@@ -124,7 +175,11 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A reviewer question beside a 2.A.a rule; the approving office no longer exists under that name.",
-      "encodable": "reviewer-question"
+      "encodable": "reviewer-question",
+      "topics": [
+        "exemptions-and-variances",
+        "riparian"
+      ]
     },
     {
       "n": "Transition",
@@ -133,13 +188,20 @@
       "review": "none",
       "gapPriority": "low",
       "gapNote": "A document check that the FSP carries results or strategies for these objectives.",
-      "encodable": "document-check"
+      "encodable": "document-check",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
     },
     {
       "n": "Effective date",
       "relevance": "admin",
       "bearsOn": "Sets the effective date, October 24, 2002.",
-      "review": "n/a"
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
     }
   ]
 }

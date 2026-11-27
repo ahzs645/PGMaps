@@ -1,0 +1,442 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.alr-use-regulation",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Definitions for the regulation (agri-tourism, compost, controlled environment structure and others); none bears on a cutblock.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "block",
+      "bearsOn": "A use the regulation permits on ALR land does not relieve the person from any other enactment, so a harvest that is a farm use still needs its Forest Act and FRPA authorities.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:alr"
+      ],
+      "topics": [
+        "agricultural-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "admin",
+      "bearsOn": "A farm use spans all parcels of one farm operation, adjacent or not.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "3.1",
+      "relevance": "admin",
+      "bearsOn": "Designates controlled environment structures as a farm use that may be prohibited.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "block",
+      "bearsOn": "The farm uses in Division 2, timber harvest among them, may not be prohibited by a local government enactment (except a farming area bylaw) or a first nation law on settlement lands.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:alr"
+      ],
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "roads",
+      "bearsOn": "Designates as a farm use a structure, driveway or utility necessary for a farm use; whether a block road is a \"driveway necessary\" for the farm use of producing timber is not stated, and soil removal or fill for it remains a soil or fill use under Act s. 20.3.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "The ALR screen's roads cell says it is not stated whether a block road is part of the farm use of producing timber, but does not cite s. 5(1)(b), the provision closest to answering it.",
+      "encodable": "document-check",
+      "topics": [
+        "agricultural-land",
+        "roads"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "Land development works (clearing, levelling, draining, reservoirs) required for farm uses may not be prohibited.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "drainage"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "admin",
+      "bearsOn": "Soil sampling and applying biosolids, soil amendments and compost may not be prohibited.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "admin",
+      "bearsOn": "Lawful cannabis production in the field or soil-based structures may not be prohibited.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "admin",
+      "bearsOn": "Horse riding, training and boarding up to 40 horses.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "block",
+      "bearsOn": "Designates agroforestry, botanical forest products and producing and harvesting timber, including silviculture and forest protection, as farm uses that may not be prohibited; harvest and reforestation on ALR land are farm uses, not non-farm uses needing permission.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:alr"
+      ],
+      "topics": [
+        "agricultural-land",
+        "harvest-authority",
+        "silviculture-treatments"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "admin",
+      "bearsOn": "Storing, packing, processing and retail sale of farm products as farm uses, on conditions.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "11.1",
+      "relevance": "admin",
+      "bearsOn": "Temporary exception to the farm product rule for specified fruits until March 2026.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "12",
+      "relevance": "admin",
+      "bearsOn": "Agri-tourism activities as a farm use on conditions.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "admin",
+      "bearsOn": "Alcohol production facilities as a farm use on conditions.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "13.01",
+      "relevance": "admin",
+      "bearsOn": "Temporary exception for wine made from grapes until March 2026.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "13.1",
+      "relevance": "admin",
+      "bearsOn": "Controlled environment structures built before 31 August 2022 may not be prohibited.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "14",
+      "relevance": "admin",
+      "bearsOn": "The non-farm uses in Part 3 Division 1 may not be prohibited by local or first nation law.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "15",
+      "relevance": "admin",
+      "bearsOn": "Structures, driveways and utilities necessary for a Division 1 permitted non-farm use are permitted.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "16",
+      "relevance": "admin",
+      "bearsOn": "Parks, ecological reserves, wildlife management areas, Land Act s. 15 recreation reserves, FRPA s. 56 recreation sites and ELUA s. 7 areas are permitted non-farm uses of ALR land.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "protected-areas",
+        "recreation"
+      ]
+    },
+    {
+      "n": "17",
+      "relevance": "admin",
+      "bearsOn": "Gathering for an event on a farm, on conditions.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "18",
+      "relevance": "roads",
+      "bearsOn": "Permits, as non-farm uses, road construction within a dedicated right of way with a constructed road bed, declaring an existing road or a new road in a managed forest a forest service road, and widening a forest service road by up to 4 m within a right of way of 30 m or less on Crown land; a new block road outside these is not listed.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:alr"
+      ],
+      "topics": [
+        "agricultural-land",
+        "roads"
+      ]
+    },
+    {
+      "n": "19",
+      "relevance": "admin",
+      "bearsOn": "Water collection and wells, surveying and prospecting for gravel or minerals with restoration, and existing railbeds are permitted non-farm uses.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "mining"
+      ]
+    },
+    {
+      "n": "20",
+      "relevance": "admin",
+      "bearsOn": "The non-farm uses in Part 3 Division 2 may be prohibited by local or first nation law.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "21",
+      "relevance": "admin",
+      "bearsOn": "Structures, driveways and utilities necessary for a Division 2 permitted non-farm use.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "22",
+      "relevance": "silviculture",
+      "bearsOn": "Permits, subject to local prohibition, open land parks and converting non-forested land to forested land on parcels under 20 ha other than as the s. 10 farm use; it bears on afforestation of small parcels, not on reforesting a cutblock.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "silviculture-treatments"
+      ]
+    },
+    {
+      "n": "23",
+      "relevance": "admin",
+      "bearsOn": "Pet breeding, livestock shelters and wildlife refuges.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "wildlife"
+      ]
+    },
+    {
+      "n": "24",
+      "relevance": "admin",
+      "bearsOn": "Home occupation use within an accessory structure.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "25",
+      "relevance": "admin",
+      "bearsOn": "Force mains, sewers, pipelines and water lines in existing rights of way, and dikes and drainage works.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "26",
+      "relevance": "roads",
+      "bearsOn": "Permits aggregate removal, subject to local prohibition, only if less than 500 m3 is removed from a parcel and the ground is rehabilitated with the topsoil salvaged; a larger gravel pit for block roads on ALR land falls back on the Act's soil removal rules (Commission permission or an approved notice).",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Neither the ALR screen nor any rule asks whether a gravel or borrow pit for the block's roads lies on ALR land, or its volume against the 500 m3 a parcel limit.",
+      "encodable": "spatial",
+      "topics": [
+        "gravel-and-fill",
+        "agricultural-land",
+        "roads",
+        "soils"
+      ]
+    },
+    {
+      "n": "27",
+      "relevance": "admin",
+      "bearsOn": "Biological pest control products, Class A compost, a temporary sawmill milling at least half timber from the same land, and farm education or research.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land"
+      ]
+    },
+    {
+      "n": "28",
+      "relevance": "admin",
+      "bearsOn": "A permitted residential use is still subject to Act s. 20.1(1)(a) and (b).",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "29",
+      "relevance": "admin",
+      "bearsOn": "Structures and vehicles used for accommodation are residential structures.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "30",
+      "relevance": "admin",
+      "bearsOn": "Structures, driveways and utilities necessary for a permitted residential use.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "31",
+      "relevance": "admin",
+      "bearsOn": "One secondary suite in the principal residence.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "32",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "33",
+      "relevance": "admin",
+      "bearsOn": "Agri-tourism accommodation on conditions.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "34",
+      "relevance": "admin",
+      "bearsOn": "Tourist accommodation in a principal residence.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "34.1",
+      "relevance": "admin",
+      "bearsOn": "Additional residences that are pre-existing structures.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "34.2",
+      "relevance": "admin",
+      "bearsOn": "Manufactured homes built 2019–2021.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "34.3",
+      "relevance": "admin",
+      "bearsOn": "Additional residences built after 30 December 2021.",
+      "review": "n/a",
+      "topics": [
+        "agricultural-land",
+        "private-land"
+      ]
+    },
+    {
+      "n": "35",
+      "relevance": "roads",
+      "bearsOn": "Lists the soil and fill uses permitted without application (farm structures up to 1 000 m2, cranberry berms, farm dikes and drainage, maintaining an existing farm road, sand top-dress, amendments, soil testing); no new forest road is among them.",
+      "review": "screen",
+      "coveredBy": [
+        "ground:alr"
+      ],
+      "topics": [
+        "gravel-and-fill",
+        "agricultural-land",
+        "roads",
+        "soils"
+      ]
+    },
+    {
+      "n": "36",
+      "relevance": "admin",
+      "bearsOn": "Construction and demolition waste (masonry, concrete, drywall, wood waste), asphalt, glass, synthetic polymers, treated wood and unchipped lumber must not be used as fill on agricultural land, except recycled concrete and asphalt on an existing farm road; materials a forest road normally uses are not listed.",
+      "review": "n/a",
+      "topics": [
+        "gravel-and-fill",
+        "agricultural-land",
+        "roads"
+      ]
+    }
+  ]
+}

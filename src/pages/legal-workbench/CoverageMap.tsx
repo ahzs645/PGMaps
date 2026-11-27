@@ -8,15 +8,25 @@ import {
   citationIndex,
   coverageCsv,
   gapsOf,
+  ordersInDistrict,
+  ordersUnder,
   sectionKey,
+  sectionsWithTopic,
   sectionState,
   STATE_LABEL,
+  topicCounts,
   type CoverageEntry,
+  type AdminAreasFile,
   type CoverageReview,
+  type Enabling,
+  type LawTopicsFile,
+  type OrderLinks,
   type SectionState,
 } from '@/lib/legal/coverage'
 import { catalogueIdForUrl, catalogueSource, catalogueSources } from '@/lib/legal/lawLibrary'
 import { cn } from '@/lib/utils'
+import adminAreas from '../../../packages/legal-rules/catalogue/admin-areas.json'
+import topicsFile from '../../../packages/legal-rules/catalogue/topics.json'
 import ground from '../../../packages/legal-rules/ground/instruments.json'
 import { ProvisionText } from './ProvisionPreview'
 import { defaults } from './registry'
@@ -44,6 +54,17 @@ const TONE: Record<SectionState, BadgeTone> = {
   unreviewed: 'neutral',
 }
 const ORDER: SectionState[] = ['rule', 'screen', 'gap-high', 'gap-medium', 'gap-low', 'outside', 'unreviewed']
+const { topics: TOPICS } = topicsFile as LawTopicsFile
+const TOPIC_GROUPS = [...new Set(TOPICS.map((t) => t.group))]
+const topicLabel = (id: string) => TOPICS.find((t) => t.id === id)?.label ?? id
+const { districts: DISTRICTS, regions: REGIONS } = adminAreas as AdminAreasFile
+const districtName = (code: string) =>
+  DISTRICTS.find((d) => d.code === code)?.name.replace(' Natural Resource District', '') ?? code
+/** Every order and policy the catalogue places in an area, with the sections it is made under. */
+const ORDERS: OrderLinks[] = catalogueSources.filter((s) => s.areas)
+const UNDER = ordersUnder(ORDERS)
+const shortTitle = (id: string) => catalogueSource(id)?.title.replace(/,.*$/, '') ?? id
+const enablingText = (e: Enabling) => (e.source ? `${shortTitle(e.source)} s. ${e.provision}` : (e.text ?? ''))
 const isOrder = (id: string) => ['regional_order', 'guidance'].includes(catalogueSource(id)?.kind ?? '')
 /** Statutes and regulations first, in the order a planner meets them, then the orders. */
 const PRIORITY = ['bc.fppr', 'bc.frpa', 'bc.gar', 'bc.forest-act', 'bc.land-act', 'bc.range-act', 'bc.rppr', 'bc.ipma']
@@ -63,6 +84,8 @@ export default function CoverageMap() {
   const [source, setSource] = useState('bc.fppr')
   const [showAll, setShowAll] = useState(false)
   const [allGaps, setAllGaps] = useState(false)
+  const [topic, setTopic] = useState('')
+  const [district, setDistrict] = useState('')
   const [picked, setPicked] = useState<Picked | null>(null)
   useEffect(() => {
     let live = true
@@ -93,11 +116,23 @@ export default function CoverageMap() {
   const cited = picked ? (index.get(sectionKey(picked.source, picked.entry.n)) ?? []) : []
   const pickedSource = picked ? catalogueSource(picked.source) : undefined
   const label = (src: string, n: string) => (isOrder(src) ? n : `s. ${n}`)
+  const counted = topicCounts(ordered)
+  const onTopic = topic ? sectionsWithTopic(ordered, topic) : []
+  const onTopicSources = [...new Set(onTopic.map((x) => x.source))]
   return (
     <div className="space-y-4" data-testid="law-coverage">
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 flex-1">
-          <SelectField label="Source" value={review.source} onValueChange={(v) => setSource(v)}>
+          <SelectField
+            label="Source"
+            value={review.source}
+            onValueChange={(v) => {
+              setSource(v)
+              setTopic('')
+              setDistrict('')
+              setAllGaps(false)
+            }}
+          >
             {ordered.map((r) => (
               <option key={r.source} value={r.source}>
                 {title(r.source)}
@@ -105,11 +140,63 @@ export default function CoverageMap() {
             ))}
           </SelectField>
         </div>
+        <div className="min-w-64 flex-1">
+          <SelectField
+            label="Topic"
+            value={topic}
+            onValueChange={(v) => {
+              setTopic(v)
+              if (v) {
+                setAllGaps(false)
+                setDistrict('')
+              }
+            }}
+          >
+            <option value="">Every topic</option>
+            {TOPIC_GROUPS.map((g) => (
+              <optgroup key={g} label={g}>
+                {TOPICS.filter((t) => t.group === g).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label} ({counted.get(t.id) ?? 0})
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </SelectField>
+        </div>
+        <div className="min-w-56 flex-1">
+          <SelectField
+            label="Natural resource district"
+            value={district}
+            onValueChange={(v) => {
+              setDistrict(v)
+              if (v) {
+                setAllGaps(false)
+                setTopic('')
+              }
+            }}
+          >
+            <option value="">Every district</option>
+            {REGIONS.map((r) => (
+              <optgroup key={r.code} label={r.name}>
+                {DISTRICTS.filter((d) => d.region === r.code).map((d) => (
+                  <option key={d.code} value={d.code}>
+                    {districtName(d.code)} ({ordersInDistrict(ORDERS, d.code).length})
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </SelectField>
+        </div>
         <Button
           size="sm"
           variant={allGaps ? 'default' : 'outline'}
           aria-pressed={allGaps}
-          onClick={() => setAllGaps(!allGaps)}
+          onClick={() => {
+            setAllGaps(!allGaps)
+            setTopic('')
+            setDistrict('')
+          }}
         >
           Every gap, all sources
         </Button>
@@ -125,14 +212,108 @@ export default function CoverageMap() {
         {review.method} Reviewed {review.reviewedOn}. Whether a rule or screen cites a section is read from the packs
         and the ground catalogue as they ship.
       </p>
-      <div className="flex flex-wrap gap-1.5" aria-label="Sections by state">
-        {counts.map(([state, n]) => (
-          <Badge key={state} tone={TONE[state]} size="sm">
-            {STATE_LABEL[state]} · {n}
-          </Badge>
-        ))}
-      </div>
-      {allGaps ? (
+      {!topic && !district && !allGaps && catalogueSource(review.source)?.areas && (
+        <OrderLinksLine order={catalogueSource(review.source)!} />
+      )}
+      {!topic && !district && (
+        <div className="flex flex-wrap gap-1.5" aria-label="Sections by state">
+          {counts.map(([state, n]) => (
+            <Badge key={state} tone={TONE[state]} size="sm">
+              {STATE_LABEL[state]} · {n}
+            </Badge>
+          ))}
+        </div>
+      )}
+      {district ? (
+        <div className="space-y-2" data-testid="law-district">
+          <p className="text-sm">
+            <span className="font-medium">{districtName(district)}</span>
+            <span className="text-muted-foreground">
+              {' '}
+              · {ordersInDistrict(ORDERS, district).length} orders and policies cover it, in part or in whole. The
+              district says an order applies somewhere in it; the map layers decide whether one reaches a block.
+            </span>
+          </p>
+          <table className="w-full text-sm">
+            <tbody>
+              {ordersInDistrict(ORDERS, district).map((o) => {
+                const reviewed = ordered.some((r) => r.source === o.id)
+                return (
+                  <tr key={o.id} className="border-t border-border align-top">
+                    <td className="py-1.5 pr-2">
+                      {reviewed ? (
+                        <button
+                          type="button"
+                          className="text-left font-medium underline-offset-2 hover:underline"
+                          onClick={() => {
+                            setSource(o.id)
+                            setDistrict('')
+                          }}
+                        >
+                          {o.title}
+                        </button>
+                      ) : (
+                        <a
+                          className="font-medium hover:underline"
+                          href={catalogueSource(o.id)?.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {o.title}
+                        </a>
+                      )}
+                      <span className="block text-xs text-muted-foreground">{o.areas?.basis}</span>
+                    </td>
+                    <td className="w-64 py-1.5 text-xs">
+                      {(o.enabling ?? []).map(enablingText).join('; ') || 'No enabling section recorded'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : topic ? (
+        <div className="space-y-3" data-testid="law-topic">
+          <p className="text-sm">
+            <span className="font-medium">{topicLabel(topic)}</span>
+            <span className="text-muted-foreground">
+              {' '}
+              · {TOPICS.find((t) => t.id === topic)?.description} {onTopic.length} sections and provisions in{' '}
+              {onTopicSources.length} sources.
+            </span>
+          </p>
+          {onTopicSources.map((src) => (
+            <section key={src} className="space-y-1" aria-label={title(src)}>
+              <h3 className="text-sm font-semibold">{title(src)}</h3>
+              <table className="w-full text-sm">
+                <tbody>
+                  {onTopic
+                    .filter((x) => x.source === src)
+                    .map(({ entry }) => {
+                      const state = sectionState(index.get(sectionKey(src, entry.n)), entry)
+                      return (
+                        <tr
+                          key={entry.n}
+                          className="cursor-pointer border-t border-border align-top hover:bg-muted"
+                          onClick={() => pick(src, entry)}
+                        >
+                          <td className="w-28 py-1.5 pr-2 font-mono text-xs">{label(src, entry.n)}</td>
+                          <td className="py-1.5 pr-2">{entry.bearsOn}</td>
+                          <td className="w-36 py-1.5">
+                            <Badge tone={TONE[state]} size="sm">
+                              {STATE_LABEL[state]}
+                            </Badge>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                </tbody>
+              </table>
+            </section>
+          ))}
+        </div>
+      ) : allGaps ? (
         <ol className="space-y-1 text-sm">
           {gapsOf(ordered)
             .filter((g) => g.entry.gapPriority !== 'low')
@@ -222,6 +403,25 @@ export default function CoverageMap() {
                 </span>
               </p>
               <p>{picked.entry.bearsOn}</p>
+              {picked.entry.topics?.length ? (
+                <p className="flex flex-wrap items-center gap-1 text-xs">
+                  <span className="font-medium">Topics:</span>
+                  {picked.entry.topics.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      className="rounded-sm border border-border px-1.5 py-0.5 hover:bg-muted"
+                      onClick={() => {
+                        setTopic(t)
+                        setAllGaps(false)
+                        setPicked(null)
+                      }}
+                    >
+                      {topicLabel(t)}
+                    </button>
+                  ))}
+                </p>
+              ) : null}
               {picked.entry.gapNote && (
                 <p className="text-xs">
                   <span className="font-medium">What a rule would need: </span>
@@ -235,6 +435,29 @@ export default function CoverageMap() {
                   ))}
                 </ul>
               ) : null}
+              {!isOrder(picked.source) && (UNDER.get(sectionKey(picked.source, picked.entry.n)) ?? []).length > 0 && (
+                <p className="flex flex-wrap items-center gap-1 text-xs">
+                  <span className="font-medium">Orders made under it:</span>
+                  {UNDER.get(sectionKey(picked.source, picked.entry.n))!.map((o) => (
+                    <button
+                      key={o.id}
+                      type="button"
+                      className="rounded-sm border border-border px-1.5 py-0.5 text-left hover:bg-muted"
+                      onClick={() => {
+                        if (ordered.some((r) => r.source === o.id)) {
+                          setSource(o.id)
+                          setTopic('')
+                          setDistrict('')
+                          setAllGaps(false)
+                        } else window.open(catalogueSource(o.id)?.url, '_blank', 'noopener')
+                        setPicked(null)
+                      }}
+                    >
+                      {o.title}
+                    </button>
+                  ))}
+                </p>
+              )}
               {cited.length > 0 && (
                 <p className="text-xs">
                   <span className="font-medium">Cited by: </span>
@@ -251,5 +474,19 @@ export default function CoverageMap() {
         )}
       </DialogShell>
     </div>
+  )
+}
+
+/** Under an order's map: the sections it is made under and the districts it covers. */
+function OrderLinksLine({ order }: { order: OrderLinks }) {
+  const areas = order.areas
+  return (
+    <p className="text-xs" data-testid="order-links">
+      <span className="font-medium">Made under: </span>
+      {(order.enabling ?? []).map(enablingText).join('; ') || 'No enabling section recorded'}
+      <span className="font-medium"> · Covers: </span>
+      {areas?.scope === 'province' ? 'the whole province' : (areas?.districts ?? []).map(districtName).join(', ')}
+      <span className="block text-muted-foreground">{areas?.basis}</span>
+    </p>
   )
 }
