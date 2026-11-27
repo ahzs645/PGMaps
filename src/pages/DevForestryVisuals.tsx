@@ -213,6 +213,7 @@ function importedStand(
 type StandPrescriptionState = { stand: Stand | null; result: PrescriptionResult | null; error: string | null }
 import { roadScar } from './dev-forestry/harvestedGround'
 import { buildScenePackage } from './dev-forestry/scenePackage'
+import { createLiveTreeTiles, roadTreeArea, TREE_TILE_METERS } from './dev-forestry/liveTreeTiles'
 import { fetchSceneCover } from './dev-forestry/bcVegetationInventory'
 import type { SceneCoverSource } from './dev-forestry/sceneCover'
 import { buildFinalStand, finalStandBearings, finalStandRadius, moveStandOrigin } from './dev-forestry/finalStand'
@@ -3031,6 +3032,11 @@ function DevForestryVisuals({
     (standingArrows.features.find((feature) => feature.properties?.faced === 1)?.geometry as
       | GeoJSON.Polygon
       | undefined) ?? null
+  const viewingGapTarget = !drive.viewingGap
+    ? null
+    : drive.lookAtTargetId
+      ? (scene.targets.find((target) => target.id === drive.lookAtTargetId)?.geometry ?? null)
+      : facedArrowGeometry
   const viewpointHoverHtml = useCallback((properties: Record<string, unknown>) => {
     const kind = properties.kind === 'rec-site' ? 'Recreation site' : 'VLI viewpoint'
     return mapTooltipHtml({
@@ -3702,9 +3708,6 @@ function DevForestryVisuals({
       detailRadiusMeters: drive.quality === 'fast' ? 0 : drive.detailRadiusMeters,
       elevation: previewTerrain.source,
       farRadiusMeters: previewTerrain.radius,
-      // Set when the background band is asked for, before its read comes: the band's own ground and inventory reach
-      // the stand separately (`forestBackground`), so its arrival changes nothing here.
-      backgroundRadiusMeters: previewTerrain.forestContextRadius,
     }),
     [
       scene.viewpoint.coordinates,
@@ -3721,7 +3724,6 @@ function DevForestryVisuals({
       drive.detailRadiusMeters,
       previewTerrain.source,
       previewTerrain.radius,
-      previewTerrain.forestContextRadius,
     ],
   )
   // The background band's ground and inventory, once its read has come: the road view's own ground and inventory
@@ -5707,6 +5709,7 @@ function DevForestryVisuals({
       farTerrainSpacingMeters?: number
       skylineTerrainRadiusMeters?: number
       skylineTerrainSpacingMeters?: number
+      liveTreeTiles?: { generation: number; size: number }
       /** Ground to read in place of the preview's own (a capture's, reaching the skyline). */
       elevation?: ElevationSource
       /** A capture's own VRI read for `terrain.cover`, beside the run's. */
@@ -5761,6 +5764,25 @@ function DevForestryVisuals({
         'Terrain: the road view’s drawn ground (AWS Open Data CDEM/SRTM). Trees: VRI where recorded, the regional stand elsewhere.',
       ],
     })
+  }
+  const roadEngineScene = (at: { lng: number; lat: number } | null, generation?: number) => {
+    const pose = drivePoseRef.current
+    const eye = at ?? pose ?? driveEye
+    if (generation === undefined || !eye) return currentScenePackage(at, { includeModels: false })
+    const area = roadTreeArea(scene.viewpoint.coordinates, eye)
+    const background = currentScenePackage(area.origin, {
+      includeModels: false,
+      terrainRadiusMeters: area.radius,
+      terrainSpacingMeters: area.spacing,
+      liveTreeTiles: { generation, size: TREE_TILE_METERS },
+    })
+    const scale = metersPerDegree(area.origin.lat)
+    background.camera.position = [
+      (eye.lng - area.origin.lng) * scale.lng,
+      (eye.lat - area.origin.lat) * scale.lat,
+      pose?.eyeElevationMeters ?? background.camera.position[2],
+    ]
+    return background
   }
   const reopenPreviousPreview = async () => {
     const previous = readPreviewRecord()
@@ -7442,7 +7464,7 @@ function DevForestryVisuals({
     forestPatches,
     treeSun,
     treeShadows: drive.treeShadows,
-    facedArrowGeometry,
+    viewingGapTarget,
     previewTerrainMessage: previewTerrain.message,
     forestBackground: forestBackgroundBand,
     forestBackgroundPending: previewTerrain.forestContextLoading,
@@ -9747,7 +9769,11 @@ function DevForestryVisuals({
                               url={engineUrl}
                               mapRef={eyeMapRef}
                               poseRef={drivePoseRef}
-                              buildScene={(at) => currentScenePackage(at, { includeModels: false })}
+                              viewingGapTarget={viewingGapTarget}
+                              buildScene={roadEngineScene}
+                              openTreeTiles={(scene) =>
+                                createLiveTreeTiles(scene, forestConfiguration, previewTerrain.source!)
+                              }
                               captureRef={engineCaptureRef}
                               stand={engineStand}
                               environment={drive.engineEnvironment}

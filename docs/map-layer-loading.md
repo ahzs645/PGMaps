@@ -211,6 +211,8 @@ Real Chrome, Metal GPU, live hosts, 19 November 2026. Before is main at fc5abf3f
 | Sentinel-2 scenes as tiles (21 November) | Tiles through `pgmaps-s2` (`addProtocol`), read and warped in a worker | Read on the page's thread: 7–11 long frames a date step, worst 311 ms | 0 of 106 frames without it; at most one long frame (68 ms) |
 | Illustrated map live hatch (26 November) | Tiles through `pgmaps-hatch` (`addProtocol`, the toolkit's `MapHatchLayer`), drawn in a worker | New layer (the fill-pattern tile it supersedes repeats one image) | 0 frames without it over a drag, zoom in, zoom out and a style change; 0.9% of the view waiting mid-drag, 9.6% on a fast zoom-out (MapLibre fetches no parents), filled 0.4 s after; a style change is one 63 ms frame once the workshop stopped building its hidden SVG (2.6 s before). Software rendering in a Linux container (`--executable`) |
 | Block planner old forest, year change (24 November) | One source per drawing, kept up while the worker draws the next; legend note after `HANDOFF_NOTE_DELAY_MS` | New layer | 0 frames without it over three year changes (8 frames each); stubbed DataBC, software rendering in a Linux container (`--executable`), so frame timings are not comparable |
+| Visual quality road view, Distant trees (26 November) | Keep the core forest layers mounted while the optional 8 km band loads | One frame without trees in each of two toggles, with trees returning 60–85 ms later | Core trees present in all 10 sampled render frames on an Apple M4 Pro. The toggle made 9 elevation and 6 inventory requests. The immediate revisit used cached data. |
+| Worldgen and Nanite road views, 1 km drive (26 November) | Stream tree tiles over a retained coarse canopy | The workers received a replacement scene after the camera moved 200 m | Both engines retained one terrain generation on each route with a tree message deliberately held. All 730 sampled frames retained visible content on the hill and across the valley. See the [tree streaming measurements](forestry-tree-streaming.md#results-on-the-apple-m4-pro). |
 
 ## Not built
 
@@ -228,6 +230,10 @@ Known gaps, so nobody assumes they are covered.
 - **Layers that redraw on `moveend` only** and show empty edges until then: `StreetCanvas`
   (`/dev/flatten`), the census chunks in `/dev/boundaries`, the transit heat surface (which already
   carries its old frame across).
+- **Background replacement beyond the live road-view footprint.** The bundled forestry workers
+  stream detail tiles over a resident coarse canopy inside a terrain scene. Very long routes can
+  reach the edge of that scene and request another terrain background. The tile transfer and
+  background limits are described in [Streaming trees in the road view](forestry-tree-streaming.md).
 
 ## Where this lives
 

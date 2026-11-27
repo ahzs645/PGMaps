@@ -10,6 +10,8 @@ import { Loader2 } from 'lucide-react'
 import type { MapRef } from '@/components/ui/map'
 import { MapOverlay } from '@/components/ui/map-panels'
 import { TextButton } from '@/components/ui/text-button'
+import { viewingGapToward } from './forest'
+import type { PolygonGeometry } from './visibility'
 import type { DrivePose } from './driveController'
 import {
   engineCamera,
@@ -27,6 +29,7 @@ import { captureTransfer, type EngineCaptureRequest } from './engineCapture'
 import type { ScenePackage } from './scenePackage'
 import { ACCEPTS_PACKED_ARRAYS, engineAccepts, packScene } from './scenePosting'
 import { sceneForEngine } from './sceneComponents'
+import { TREE_TILE_CAPABILITY, TREE_TILE_INTERVAL_MS, type createLiveTreeTiles } from './liveTreeTiles'
 import { captureForEngine } from './engineRequests'
 import { ACCEPTS_RENDER_OPTIONS, DEFAULT_ENGINE_RENDER_OPTIONS, type EngineRenderOptions } from './engineRenderOptions'
 
@@ -35,8 +38,10 @@ type Props = {
   url: string
   mapRef: RefObject<MapRef | null>
   poseRef: RefObject<DrivePose | null>
+  viewingGapTarget: PolygonGeometry | null
   /** The scene package round an eye (the drive's current one when null), or null while the road view cannot make one. */
-  buildScene: (eye: { lng: number; lat: number } | null) => ScenePackage | null
+  buildScene: (eye: { lng: number; lat: number } | null, tileGeneration?: number) => ScenePackage | null
+  openTreeTiles: (scene: ScenePackage) => ReturnType<typeof createLiveTreeTiles>
   /** A new object when the stand itself changes (harvest phase, forest records, openings, terrain): a new package. */
   stand: object
   /** The light and weather to draw; sent on its own, so a change never rebuilds the stand. */
@@ -82,7 +87,9 @@ export function ExternalRoadRenderer({
   url,
   mapRef,
   poseRef,
+  viewingGapTarget,
   buildScene,
+  openTreeTiles,
   stand,
   environment,
   renderOptions = DEFAULT_ENGINE_RENDER_OPTIONS,
@@ -95,11 +102,15 @@ export function ExternalRoadRenderer({
   const [message, setMessage] = useState<string | null>(null)
   const [stats, setStats] = useState<Record<string, unknown> | null>(null)
   // The latest scene builder, for the bridge, which lives outside render.
+  const gapTargetRef = useRef(viewingGapTarget)
   const buildRef = useRef(buildScene)
+  const openTreeTilesRef = useRef(openTreeTiles)
   const environmentRef = useRef(environment)
   const renderOptionsRef = useRef(renderOptions)
   useLayoutEffect(() => {
+    gapTargetRef.current = viewingGapTarget
     buildRef.current = buildScene
+    openTreeTilesRef.current = openTreeTiles
     environmentRef.current = environment
     renderOptionsRef.current = renderOptions
   })
@@ -108,12 +119,25 @@ export function ExternalRoadRenderer({
     sendScene: () => void
     sendEnvironment: () => void
     sendRenderOptions: () => void
+    sendCamera: () => void
   } | null>(null)
 
   useEffect(() => {
     if (!channel) return
     let listening = false
     let current: ScenePackage | null = null
+    let tiles: ReturnType<typeof createLiveTreeTiles> | null = null
+    let generation = 0
+    let tileReady = false
+    let commitTiles: (() => void) | null = null
+    let tileFailures = 0
+    let tileTimer = 0
+    let tileAckTimer = 0
+    const pauseTiles = () => {
+      tileReady = false
+      commitTiles = null
+      setMessage('Tree details paused. The coarse canopy is still visible.')
+    }
     // A transfer list hands buffers over rather than copying them (a final capture's stand is tens of megabytes).
     const post = channel.post
     // What the engine page takes (its hello): one that takes packed arrays is handed the package's numbers as
@@ -137,19 +161,40 @@ export function ExternalRoadRenderer({
       const eye = pose
         ? { lng: pose.lng, lat: pose.lat, elevationMeters: pose.eyeElevationMeters }
         : { lng: current.origin.lng, lat: current.origin.lat, elevationMeters: current.camera.position[2] }
-      post(
-        engineCamera(current.origin, eye, {
-          bearingDegrees: map.getBearing(),
-          // MapLibre's pitch is 90° at the horizon.
-          pitchDegrees: map.getPitch() - 90,
-          verticalFovDegrees: map.getVerticalFieldOfView(),
-          viewport: {
-            width: canvas.clientWidth,
-            height: canvas.clientHeight,
-            pixelRatio: canvas.width / canvas.clientWidth,
-          },
-        }),
+      const gap = gapTargetRef.current
+      const camera = engineCamera(current.origin, eye, {
+        bearingDegrees: map.getBearing(),
+        // MapLibre's pitch is 90° at the horizon.
+        pitchDegrees: map.getPitch() - 90,
+        verticalFovDegrees: map.getVerticalFieldOfView(),
+        viewport: {
+          width: canvas.clientWidth,
+          height: canvas.clientHeight,
+          pixelRatio: canvas.width / canvas.clientWidth,
+        },
+      })
+      post({
+        ...camera,
+        ...(engineAccepts(accepts, 'viewing-gap-v1') ? { viewingGap: gap ? viewingGapToward(eye, gap) : null } : {}),
+      })
+      if (!tiles || !tileReady || commitTiles || tileTimer) return
+      tileTimer = window.setTimeout(() => {
+        tileTimer = 0
+        sendCamera()
+      }, TREE_TILE_INTERVAL_MS)
+      const update = tiles.next(
+        camera.position,
+        camera.bearingDegrees,
+        camera.projection?.horizontalFovDegrees ?? camera.verticalFovDegrees,
       )
+      if (update) {
+        commitTiles = update.commit
+        tileAckTimer = window.setTimeout(pauseTiles, 30000)
+        post(update.message, update.transfer)
+      } else {
+        window.clearTimeout(tileTimer)
+        tileTimer = 0
+      }
     }
     const sendEnvironment = () => {
       if (!listening) return
@@ -166,12 +211,15 @@ export function ExternalRoadRenderer({
     let waitTimer = 0
     let waitedMs = 0
     const sendScene = () => {
-      if (!listening) return
+      if (!listening || captureFailure) return
       window.clearTimeout(waitTimer)
       const pose = poseRef.current
       let scene: ScenePackage | null = null
       try {
-        scene = buildRef.current(pose ? { lng: pose.lng, lat: pose.lat } : null)
+        scene = buildRef.current(
+          pose ? { lng: pose.lng, lat: pose.lat } : null,
+          engineAccepts(accepts, TREE_TILE_CAPABILITY) ? ++generation : undefined,
+        )
       } catch (error) {
         const text = error instanceof Error ? error.message : String(error)
         if (waitedMs < SCENE_WAIT_MS) {
@@ -188,12 +236,19 @@ export function ExternalRoadRenderer({
       waitedMs = 0
       if (!scene) return
       current = scene
+      tiles = scene.liveTreeTiles ? openTreeTilesRef.current(scene) : null
+      tileReady = false
+      commitTiles = null
+      tileFailures = 0
+      window.clearTimeout(tileTimer)
+      window.clearTimeout(tileAckTimer)
+      tileTimer = 0
       setPhase('building')
       sendEnvironment()
       postScene(scene)
       sendCamera()
     }
-    bridgeRef.current = { sendScene, sendEnvironment, sendRenderOptions }
+    bridgeRef.current = { sendScene, sendEnvironment, sendRenderOptions, sendCamera }
 
     // Captures: the next `ready` after a capture's scene, then the reply with the request's id.
     let readyWaiter: (() => void) | null = null
@@ -221,6 +276,7 @@ export function ExternalRoadRenderer({
           captureFailure = null
           if (id) replies.delete(id)
           reject(error)
+          if (engineAccepts(accepts, TREE_TILE_CAPABILITY)) sendScene()
         }
         readyWaiter = () => {
           readyWaiter = null
@@ -236,6 +292,7 @@ export function ExternalRoadRenderer({
                   captureFailure = null
                   finished = true
                   resolve(data)
+                  if (engineAccepts(accepts, TREE_TILE_CAPABILITY)) sendScene()
                 })
                 post(request, captureTransfer(request))
               },
@@ -245,6 +302,10 @@ export function ExternalRoadRenderer({
             )
         }
         current = scene
+        tiles = null
+        tileReady = false
+        commitTiles = null
+        window.clearTimeout(tileAckTimer)
         setPhase('building')
         sendEnvironment()
         postScene(scene)
@@ -253,7 +314,24 @@ export function ExternalRoadRenderer({
     if (captureRef) captureRef.current = { renderer, label: info.label, capture }
 
     const onMessage = (message: unknown) => {
-      const raw = message as { type?: unknown; id?: unknown } | null
+      const raw = message as { type?: unknown; id?: unknown; generation?: unknown; error?: unknown } | null
+      if (raw?.type === 'pgmaps-tree-tiles-applied') {
+        if (tiles && commitTiles && raw.generation === current?.liveTreeTiles?.generation) {
+          window.clearTimeout(tileAckTimer)
+          if (raw.error) {
+            if (++tileFailures >= 2) {
+              pauseTiles()
+              return
+            }
+          } else {
+            commitTiles()
+            tileFailures = 0
+          }
+          commitTiles = null
+          sendCamera()
+        }
+        return
+      }
       if (raw?.type === 'pgmaps-engine-capture' && typeof raw.id === 'string') {
         const reply = replies.get(raw.id)
         replies.delete(raw.id)
@@ -268,6 +346,8 @@ export function ExternalRoadRenderer({
         sendRenderOptions()
         sendScene()
       } else if (data.type === 'pgmaps-engine-ready') {
+        if (raw?.generation !== current?.liveTreeTiles?.generation) return
+        tileReady = !!tiles
         setPhase('ready')
         setMessage(null)
         sendCamera()
@@ -290,7 +370,12 @@ export function ExternalRoadRenderer({
       frame = requestAnimationFrame(() => {
         frame = 0
         const pose = poseRef.current
-        if (current && pose && needsNewPackage(current.origin, pose, current.treeRadiusMeters)) sendScene()
+        if (
+          current &&
+          pose &&
+          (tiles ? tiles.outside(pose) : needsNewPackage(current.origin, pose, current.treeRadiusMeters))
+        )
+          sendScene()
         else sendCamera()
       })
     }
@@ -307,8 +392,11 @@ export function ExternalRoadRenderer({
 
     return () => {
       bridgeRef.current = null
+      listening = false
       captureFailure?.(new Error(`${info.label} closed during the capture.`))
       window.clearTimeout(waitTimer)
+      window.clearTimeout(tileTimer)
+      window.clearTimeout(tileAckTimer)
       if (captureRef?.current?.capture === capture) captureRef.current = null
       replies.clear()
       readyWaiter = null
@@ -324,6 +412,9 @@ export function ExternalRoadRenderer({
   useEffect(() => {
     bridgeRef.current?.sendScene()
   }, [stand])
+  useEffect(() => {
+    bridgeRef.current?.sendCamera()
+  }, [viewingGapTarget])
   // The light and weather, on their own.
   useEffect(() => {
     bridgeRef.current?.sendEnvironment()
@@ -355,7 +446,7 @@ export function ExternalRoadRenderer({
             {info.label}: {message} <TextButton onClick={onUsePgmaps}>Use PGMaps</TextButton>
           </span>
         ) : phase === 'ready' ? (
-          <span>{engineStatsLine(info, stats)} · display only; figures are PGMaps&apos; own</span>
+          <span>{message ?? engineStatsLine(info, stats)} · display only; figures are PGMaps&apos; own</span>
         ) : (
           <>
             <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />

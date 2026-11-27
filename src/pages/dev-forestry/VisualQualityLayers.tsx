@@ -106,7 +106,7 @@ export type SceneLayerData = {
   treeSun: ComponentProps<typeof ForestOverlay>['sun']
   /** Whether the nearest trees lay shadows on the ground (`ForestOverlay`'s `shadows`). */
   treeShadows: boolean
-  facedArrowGeometry: GeoJSON.Polygon | null
+  viewingGapTarget: GeoJSON.Polygon | GeoJSON.MultiPolygon | null
   previewTerrainMessage: string | null
   /** Where "Find a landform from the terrain" reads from: a picked point or an inventory viewpoint. */
   landformVantage: LandformVantagePoint | null
@@ -231,7 +231,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     routeOutline,
     forestConfiguration,
     forestPatches,
-    facedArrowGeometry,
+    viewingGapTarget,
     forestGround,
     previewRoad,
     previewRoadScar,
@@ -418,13 +418,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             background={data.forestBackground}
             backgroundPending={data.forestBackgroundPending}
             centre={driveEye}
-            gapTarget={
-              !drive.viewingGap
-                ? null
-                : drive.lookAtTargetId
-                  ? (scene.targets.find((target) => target.id === drive.lookAtTargetId)?.geometry ?? null)
-                  : facedArrowGeometry
-            }
+            gapTarget={viewingGapTarget}
             terrainMessage={data.previewTerrainMessage}
             sun={data.treeSun}
             shadows={data.treeShadows}

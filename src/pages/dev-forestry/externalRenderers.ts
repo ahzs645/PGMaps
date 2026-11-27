@@ -244,6 +244,8 @@ export type EngineEnvironmentChoice = {
   visibilityKm: number
   /** Wind over water, m/s: 0 a mirror, 2–4 a ripple, 8+ whitecaps (Cox–Munk roughness). */
   windMs?: number
+  /** Exposure compensation for the preview's lit image, in stops. */
+  exposureStops?: number
   /** `via`: the consultants' convention (dark olive canopy, mirror lakes, little haze); `photo`: a photo's look. */
   look?: EngineLook
 }
@@ -361,6 +363,7 @@ export type EngineEnvironment = {
    * (σ² ≈ 0.003 + 0.00512 · wind): 0 a mirror, a few m/s a ripple.
    */
   windMs: number
+  exposureStops?: number
   /**
    * `via`: the convention of the consultants' renders (dark olive canopy ≈ #2a3a2a, crisp mirror lakes, haze only
    * past 8–10 km, a cloudless gradient sky). `photo`: a photograph's look (haze from `visibilityKm`, blue-grey far
@@ -451,6 +454,9 @@ export function engineEnvironment(
           ? Math.min(1, Math.max(0, choice.cloudCover))
           : DEFAULT_ENGINE_ENVIRONMENT.cloudCover,
     windMs: Number.isFinite(choice.windMs) ? Math.min(20, Math.max(0, choice.windMs!)) : 0,
+    ...(typeof choice.exposureStops === 'number' && Number.isFinite(choice.exposureStops)
+      ? { exposureStops: Math.max(-1, Math.min(2, choice.exposureStops)) }
+      : {}),
     look: choice.look === 'photo' ? 'photo' : 'via',
     visibilityKm:
       Number.isFinite(choice.visibilityKm) && choice.visibilityKm > 0

@@ -142,6 +142,15 @@ describe('an engine on a site of its own', () => {
 })
 
 describe('engine environment', () => {
+  it('sends bounded exposure compensation independently of the sun and clock', () => {
+    const today = new Date('2026-11-26T20:00:00Z')
+    const place = { lng: -122.7, lat: 53.9 }
+    const base = engineEnvironment(DEFAULT_ENGINE_ENVIRONMENT, place, today)
+    expect(engineEnvironment({ ...DEFAULT_ENGINE_ENVIRONMENT, exposureStops: 4 }, place, today)).toEqual({
+      ...base,
+      exposureStops: 2,
+    })
+  })
   const princeGeorge = { lng: -122.645589, lat: 53.910421 }
 
   it('reads the date and time on the site’s clock, whatever this computer’s', () => {

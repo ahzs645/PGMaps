@@ -3300,14 +3300,16 @@ core bands keep the stricter rule: any open polygon keeps a tile off its ground,
 first, so a fresh block listed as regrowth before its herb polygon is never roofed.
 
 Turning it on or off grows or drops only the background band's patches: their keys carry the read
-(`@key`), every core band keeps its patches, and the reach is not part of `forestPatches`' key. The
-reach is set as soon as it is asked for, and the band's ground and
-inventory reach `ForestOverlay` apart from the forest configuration (`background`): the core stand
-is drawn as soon as the road view's terrain loads, and when the background read comes only the
-background band's patches grow, keyed to that read, with nothing else regrown. The read is asked for
+(`@key`), and every core band keeps its loaded geometry. The optional outer layer is allocated with
+the core layers and takes patches when its read arrives. Its ground and inventory reach `ForestOverlay`
+through `background`. The core stand starts drawing as soon as the road view's terrain loads.
+When the background read arrives, it grows its own band's patches under that read's key. The read is asked for
 while the stand is kept, not while the road view is open, so closing the road view or holding it
-across a swap keeps it. The bands still grow nearest first, 0 to 3, the background last. If the
-background read is unavailable the road view keeps its own extent and View options says so. While
+across a swap keeps it. The two near bands take priority for driving. Within each near band, and
+across the far bands, missing patches in view or within a 20° guard grow first. Build order is
+refreshed at a 15° camera heading step or a lens change. Turning the camera keeps every loaded patch
+in its existing geographic window. If the background read is unavailable the road view keeps its own
+extent and View options says so. While
 the read is out the stand is not ready, so a saved view waits for it. The camera, the sightline run,
 the scene package and other renderers keep the road view's own ground and inventory and never read
 the background band; a saved view's picture shows what the road view draws. Not yet built: ground
@@ -3688,6 +3690,13 @@ the tree shaders against a per-frame uniform (`u_gap`), not cut as a clearing:
 a clearing that moved with the eye would regrow every forest patch each frame.
 *Viewing gap: on/off* on the road-view panel puts the timber back; no number
 moves either way.
+
+The Worldgen and Nanite road previews accept `viewing-gap-v1` on the live camera channel.
+They also stream detailed trees over a resident coarse canopy on the road. The tile handoff,
+terrain limits, exposure adjustment and browser probe are in [Streaming trees in the road view](forestry-tree-streaming.md).
+Worldgen drops stems from its draw and shadow lists. Nanite applies the wedge in its camera and
+shadow instance passes and clips across the procedural canopy's patch boundaries. Both reuse the
+stored tree placements during camera updates and draw the complete stand for report captures.
 
 The silhouettes are drawn at crown ratios near what the closure gives (spruce
 0.17, fir 0.12) on cards 0.3 of the tree's height wide, so a near card is not

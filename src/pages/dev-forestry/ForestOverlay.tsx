@@ -52,7 +52,16 @@ export const DETAIL_SETTLE_MS = 450
  * the same stem at the same size, and a dithered overlap speckled the crowns.
  */
 const DETAIL_BLEND_METERS = 0
-import { canopyRange, canopyTileMeters, forestBands, forestPatches, growForestPatch, isFarBand } from './forestPatches'
+import {
+  canopyRange,
+  canopyTileMeters,
+  forestBands,
+  forestPatches,
+  growForestPatch,
+  isFarBand,
+  orderForestPatches,
+} from './forestPatches'
+import { DRIVE_FOREST_CONTEXT_METERS } from './driveForestTerrain'
 import { haversineMeters, type PolygonGeometry } from './visibility'
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import type { ForestBackground } from './driveForestTerrain'
@@ -104,11 +113,6 @@ export type ForestConfiguration = {
    */
   detailRadiusMeters?: number
   farRadiusMeters?: number
-  /**
-   * How far the background band (View options → *Distant trees*) reaches, metres; absent draws none. Set from the
-   * start, before its read has come, so the stand's placement does not change when it arrives (`background`).
-   */
-  backgroundRadiusMeters?: number
   elevation: ElevationSource | null
 }
 export type ForestOverlayProps = {
@@ -184,7 +188,6 @@ export function ForestOverlay(props: ForestOverlayProps) {
     look = 'flat',
     detailRadiusMeters = 0,
     farRadiusMeters = 3500,
-    backgroundRadiusMeters,
     elevation,
   } = configuration
   // Placement and readiness share an identity. A source/geometry change must
@@ -228,11 +231,11 @@ export function ForestOverlay(props: ForestOverlayProps) {
     const initialEye = eyeRef.current
     if (!initialEye) return
     const anchorLatitude = sceneLatitude ?? initialEye.lat
-    const bands = forestBands(farRadiusMeters, backgroundRadiusMeters)
+    const bands = forestBands(farRadiusMeters, DRIVE_FOREST_CONTEXT_METERS)
     const coreBands = bands.filter((band) => !band.background)
     // The background band counts once its read has come.
-    let background: ForestBackground | null = backgroundRadiusMeters ? backgroundRef.current : null
-    let backgroundPending = !!backgroundRadiusMeters && backgroundPendingRef.current
+    let background: ForestBackground | null = backgroundRef.current
+    let backgroundPending = backgroundPendingRef.current
     const coverageOf = () => (background ? bands : coreBands).at(-1)!.far
     let coverageMeters = coverageOf()
     // Coarse bands draw clumps of trees per card, not one stretched tree.
@@ -419,7 +422,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
       },
       // Read-only diagnostics also let browser checks catch accidental close LODs.
       get distanceRanges() {
-        return bands.map((_, i) => canopyRange(bands, i))
+        return (background || backgroundPending ? bands : coreBands).map((_, i) => canopyRange(bands, i))
       },
       get renderLayerCount() {
         return layers.length
@@ -460,6 +463,8 @@ export function ForestOverlay(props: ForestOverlayProps) {
       dirty = true,
       lastUpload = -Infinity
     let wanted = forestPatches(initialEye, bands, anchorLatitude, background?.key ?? null)
+    let loadedHeading: number | undefined
+    let loadedFieldOfView: number | undefined
     const wantedKeys = new Set(wanted.map((patch) => patch.key))
     for (const key of cache.keys()) if (!wantedKeys.has(key)) cache.delete(key)
     const reusedPatches = cache.size
@@ -573,13 +578,13 @@ export function ForestOverlay(props: ForestOverlayProps) {
       // Its own key says whether anything changed: the eye, the light, or shadows switched on.
       refreshShadows(nearestTrees)
       // The background's read came (or went): only the background band's patches join or leave.
-      const nextBackground = backgroundRadiusMeters ? backgroundRef.current : null
+      const nextBackground = backgroundRef.current
       const backgroundChanged = nextBackground !== background
       if (backgroundChanged) {
         background = nextBackground
         coverageMeters = coverageOf()
       }
-      const nextPending = !!backgroundRadiusMeters && backgroundPendingRef.current
+      const nextPending = backgroundPendingRef.current
       if (nextPending !== backgroundPending) {
         backgroundPending = nextPending
         dirty = true
@@ -587,10 +592,24 @@ export function ForestOverlay(props: ForestOverlayProps) {
       if (backgroundChanged || (eye && haversineMeters(lastEye, eye) > 75)) {
         if (eye) lastEye = eye
         wanted = forestPatches(lastEye, bands, anchorLatitude, background?.key ?? null)
+        loadedHeading = undefined
         const keys = new Set(wanted.map((patch) => patch.key))
         for (const key of cache.keys()) if (!keys.has(key)) cache.delete(key)
         for (const key of debrisCache.keys()) if (!keys.has(key)) debrisCache.delete(key)
         dirty = true
+      }
+      if (eye && wanted.some((patch) => !cache.has(patch.key) || needsDebrisFor(patch))) {
+        const heading = Math.round(map.getBearing() / 15) * 15
+        const verticalFov = (map.getVerticalFieldOfView() * Math.PI) / 180
+        const canvas = map.getCanvas()
+        const horizontalFov = Math.round(
+          (360 / Math.PI) * Math.atan((Math.tan(verticalFov / 2) * canvas.width) / Math.max(1, canvas.height)),
+        )
+        if (heading !== loadedHeading || horizontalFov !== loadedFieldOfView) {
+          wanted = orderForestPatches(wanted, eye, heading, horizontalFov)
+          loadedHeading = heading
+          loadedFieldOfView = horizontalFov
+        }
       }
       const start = performance.now()
       for (const patch of wanted) {
@@ -688,7 +707,6 @@ export function ForestOverlay(props: ForestOverlayProps) {
     look,
     detailRadiusMeters,
     farRadiusMeters,
-    backgroundRadiusMeters,
   ])
   return null
 }
