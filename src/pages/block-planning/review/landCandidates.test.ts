@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import raw from '../../../../packages/legal-rules/packs/bc-land-status.json'
 import { parsePack } from '../../../../packages/legal-rules/src/contract'
 import { parseGroundRead, type GroundContextRead, type GroundInstrumentRead, type GroundRead } from '../ground/record'
-import { LAND, LICENCE_AREAS, landCandidates, NO_LICENCE_AREA } from './landCandidates'
+import { LAND, LICENCE_AREAS, landCandidates, NO_LICENCE_AREA, UNSETTLED_PARCELS } from './landCandidates'
 
 const FOOTPRINT_HA = 40
 const feature = (id: string, ha: number) => ({
@@ -28,6 +28,8 @@ const context = (layer: string, ha = 0, status: GroundContextRead['status'] = 'r
 
 function read({
   privateHa = 0,
+  unsettledHa = 0,
+  withUnsettled = true,
   reserveHa = 0,
   treatyHa = 0,
   licences = {} as Record<string, number>,
@@ -41,9 +43,10 @@ function read({
     footprint: 'sig',
     readOn: '2026-11-27',
     footprintHa: FOOTPRINT_HA,
-    catalogue: '1.5.0',
+    catalogue: '1.6.0',
     instruments: [
       instrument('private-land', privateHa, failed.includes('private-land') ? 'failed' : 'read'),
+      ...(withUnsettled ? [instrument(UNSETTLED_PARCELS, unsettledHa)] : []),
       ...LICENCE_AREAS.map((l) =>
         instrument(l.instrument, licences[l.instrument] ?? 0, failed.includes(l.instrument) ? 'failed' : 'read'),
       ),
@@ -141,5 +144,27 @@ describe('land status candidates', () => {
     const saved = parseGroundRead(JSON.parse(JSON.stringify(read({ reserveHa: 40 }))))
     expect(saved.context?.map((c) => c.layer)).toEqual(['indian-reserves', 'treaty-lands'])
     expect(parseGroundRead(JSON.parse(JSON.stringify(read({ withContext: false })))).context).toBeUndefined()
+  })
+
+  it('offers no land where a parcel’s owner type is not settled, and names it', () => {
+    const r = read({ unsettledHa: 0.14 })
+    expect(offer(r, 'land')).toBeUndefined()
+    expect(landCandidates(r)!.notes.join(' ')).toMatch(/no single owner type.*title decides/)
+    // A sliver of one is the boundaries meeting, as for any parcel.
+    expect(offer(read({ unsettledHa: 0.0006 }), 'land')).toBe(LAND.crown)
+    // A read made before such parcels were read offers no land until the ground is read again.
+    const old = read({ withUnsettled: false })
+    expect(offer(old, 'land')).toBeUndefined()
+    expect(landCandidates(old)!.notes.join(' ')).toMatch(/read the ground again/)
+  })
+
+  it('counts a Crown agency’s parcel as private land and says why', () => {
+    const r = read({ privateHa: 0.19 })
+    const parcels = r.instruments.find((i) => i.instrument === 'private-land')!
+    parcels.features = [{ ...parcels.features[0], name: 'Crown Agency · Subdivision' }]
+    const land = landCandidates(r)!.offers.find((o) => o.fact === 'land')!
+    expect(land.value).toBe(LAND.both)
+    expect(land.basis).toMatch(/agent of the government owns, so it is private land/)
+    expect(landCandidates(read({ privateHa: 0.19 }))!.offers.find((o) => o.fact === 'land')!.basis).not.toMatch(/agent/)
   })
 })

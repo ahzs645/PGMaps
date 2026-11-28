@@ -72,7 +72,7 @@ describe('land status checks', () => {
     expect(asked).toHaveLength(2)
     expect(asked[0].get('typeNames')).toBe('pub:WHSE_CADASTRE.PMBC_PARCEL_FABRIC_POLY_SVW')
     expect(asked[0].get('CQL_FILTER')).toMatch(
-      /^INTERSECTS\(SHAPE,SRID=4326;POLYGON\(\(-122\.50000 54\.00000,.*\)\)\) AND OWNER_TYPE IN \('Private'\)$/,
+      /^INTERSECTS\(SHAPE,SRID=4326;POLYGON\(\(-122\.50000 54\.00000,.*\)\)\) AND OWNER_TYPE IN \('Private', 'Crown Agency'\)$/,
     )
     expect(asked[0].get('propertyName')?.split(',')).toContain('SHAPE')
     expect(asked[0].has('bbox')).toBe(false)

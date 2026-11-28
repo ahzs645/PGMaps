@@ -1,6 +1,6 @@
 {
   "format": "pgmaps-ground-instruments/v1",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "readOn": "2026-11-27",
   "sourceLabels": {
     "bc.land-act": "Land Act",
@@ -3791,7 +3791,7 @@
       "where": [
         {
           "field": "OWNER_TYPE",
-          "in": ["Private"]
+          "in": ["Private", "Crown Agency"]
         }
       ],
       "statute": {
@@ -3800,11 +3800,11 @@
       },
       "binds": {
         "kind": "direct",
-        "note": "The parcel is not Crown land, so its timber is not Crown timber unless it is reserved to the government. The owner's title, not a Crown disposition, decides what happens on it.",
+        "note": "The parcel is not Crown land, so its timber is not Crown timber unless it is reserved to the government. The owner's title, not a Crown disposition, decides what happens on it. A parcel ParcelMap BC types Crown Agency is counted here: the Forest Act's Crown land does not include land owned by an agent of the government, so it is private land under that Act.",
         "cites": [
           {
             "source": "bc.forest-act",
-            "provision": "s. 1 \"private land\", \"Crown timber\""
+            "provision": "s. 1 \"private land\", \"Crown timber\", \"Crown land\""
           }
         ]
       },
@@ -3856,6 +3856,81 @@
         "holder": "The natural resource district (no owner is read or contacted from this screen)",
         "channel": "The natural resource district, quoting the PID",
         "ask": "Whether the parcel's timber is reserved to the government, and whether the block should be redrawn off the parcel"
+      },
+      "facts": []
+    },
+    {
+      "id": "parcel-owner-unsettled",
+      "label": "Parcel whose owner type is not settled",
+      "layer": "private",
+      "where": [
+        {
+          "field": "OWNER_TYPE",
+          "in": ["Unclassified", "Mixed Ownership"]
+        }
+      ],
+      "statute": {
+        "source": "bc.forest-act",
+        "provision": "s. 1"
+      },
+      "binds": {
+        "kind": "none",
+        "note": "ParcelMap BC gives the parcel no single owner type (Unclassified or Mixed Ownership), so the record does not say whether it is Crown land or private land as the Forest Act defines them. The title decides, and with it which law reaches each answer below.",
+        "cites": [
+          {
+            "source": "bc.forest-act",
+            "provision": "s. 1 \"Crown land\", \"private land\""
+          }
+        ]
+      },
+      "reach": {
+        "harvest": {
+          "state": "unknown",
+          "note": "On Crown land a Crown timber disposition reaches the timber; on private land only timber reserved to the government is Crown timber. Which this parcel is, the title decides.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 1 \"Crown timber\", \"private land\""
+            }
+          ]
+        },
+        "replant": {
+          "state": "unknown",
+          "note": "FRPA's free-growing duty follows a harvest under its plans on Crown land and on private land in an area-based licence; whether this parcel is either, the title decides.",
+          "cites": [
+            {
+              "source": "bc.frpa",
+              "provision": "s. 29"
+            }
+          ]
+        },
+        "roads": {
+          "state": "unknown",
+          "note": "A road on private land needs the owner's agreement; on Crown land a road permit or tenure. Which this parcel is, the title decides.",
+          "cites": [
+            {
+              "source": "bc.forest-act",
+              "provision": "s. 1 \"private land\""
+            }
+          ]
+        },
+        "grazing": {
+          "state": "unknown",
+          "note": "Crown range is Crown land; a Range Act agreement does not reach private land. Which this parcel is, the title decides.",
+          "cites": [
+            {
+              "source": "bc.range-act",
+              "provision": "s. 1 \"Crown range\", \"private land\""
+            }
+          ]
+        }
+      },
+      "terms": {
+        "public": false,
+        "where": "The parcel's title (the Land Title and Survey Authority), which names the registered owner",
+        "holder": "The natural resource district (no owner is read or contacted from this screen)",
+        "channel": "The natural resource district, quoting the PID or plan",
+        "ask": "Whether the parcel is Crown land or private land, and whether its timber is reserved to the government"
       },
       "facts": []
     },

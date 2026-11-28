@@ -11,6 +11,7 @@
       "review": "rule",
       "coveredBy": [
         "ground:private-land",
+        "ground:parcel-owner-unsettled",
         "ground:land-act-lease",
         "ground:land-act-licence",
         "ground:land-act-right-of-way",
@@ -23,7 +24,7 @@
         "private-land",
         "harvest-authority"
       ],
-      "gapNote": "The land status pack tests \"Crown timber\" (timber reserved to the government on private land) and \"private land\"; the ground screen reads the parcels."
+      "gapNote": "The land status pack tests \"Crown timber\" (timber reserved to the government on private land) and \"private land\", and its land question states that \"Crown land\" leaves out land an agent of the government owns; the ground screen reads the parcels, counting a Crown agency's with private land (catalogue 1.6.0) and holding a parcel with no settled owner type apart, for the title to decide."
     },
     {
       "n": "1.1",
