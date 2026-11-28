@@ -403,7 +403,7 @@ describe('reading the instruments on a block', () => {
     ])
     expect(instrument(read, 'fsp-section-196-area')).toMatchObject({ status: 'read', features: [] })
     const gate = asked.find((b) => b.get('typeNames') === 'pub:WHSE_ADMIN_BOUNDARIES.FADM_TSA_SV')!
-    expect(gate.get('propertyName')).toBe('TSA_NUMBER_DESCRIPTION,GEOMETRY')
+    expect(gate.get('propertyName')).toBe('TSA_NUMBER_DESCRIPTION')
   })
 
   it('names a parcel touching the block by a sliver apart, never as private land on the block', async () => {

@@ -2,7 +2,7 @@ import type { MultiPolygon, Polygon } from 'geojson'
 import { describe, expect, it } from 'vitest'
 import type { Fetch } from '@/lib/forestry/wfsReads'
 import { GROUND_CATALOGUE } from './groundInstruments'
-import { layerInstruments, readGroundLayer, shareRows } from './groundLayerRead'
+import { layerInstruments, MAX_EXCLUDED_KEYS, readGroundLayer, seenClause, shareRows } from './groundLayerRead'
 
 const box = (west: number, south: number, size: number): Polygon => ({
   type: 'Polygon',
@@ -244,7 +244,8 @@ describe('a layer read only inside its gates', () => {
     expect(asked[0].get('CQL_FILTER')).toMatch(
       /^INTERSECTS\(GEOMETRY,SRID=4326;POLYGON\(\(.*\)\)\) AND TSA_NUMBER_DESCRIPTION IN \('100 Mile House TSA'/,
     )
-    expect(asked[0].get('propertyName')).toBe('TSA_NUMBER_DESCRIPTION,GEOMETRY')
+    // Its field only, never its shape: a TSA's polygon is megabytes.
+    expect(asked[0].get('propertyName')).toBe('TSA_NUMBER_DESCRIPTION')
     expect(asked[1].get('CQL_FILTER')).toContain("SPECIES_CD_1 IN ('PL', 'PLI', 'PLC') AND POLYGON_AREA >= 5")
     expect(answer.outsideGates).toBeUndefined()
     expect(answer.rows).toHaveLength(1)
@@ -270,8 +271,85 @@ describe('a layer read only inside its gates', () => {
     expect(answer).toEqual({ status: 'read', rows: [], outsideGates: true })
   })
 
+  it('asks a footprint of many parts part by part without geometry, and stops at the first part inside a gate', async () => {
+    const parts: MultiPolygon = {
+      type: 'MultiPolygon',
+      coordinates: [0, 1, 2, 3].map((i) => box(-122.5 + i * 0.05, 54, 0.01).coordinates),
+    }
+    const many = (fetch: Fetch) =>
+      readGroundLayer({ layer: pine, instruments: layerInstruments(pine), footprint: parts, fetch, cap: 500 })
+    // Every part meets the TSA: one gate request, not one a part.
+    const inside = byLayer({
+      [TSA]: [{ geometry: null, properties: { TSA_NUMBER_DESCRIPTION: 'Prince George TSA' } }],
+      [pine.typeName]: [stand],
+    })
+    await many(inside.fetch)
+    expect(inside.asked.map((a) => a.get('typeNames'))).toEqual([TSA, ...parts.coordinates.map(() => pine.typeName)])
+    // Outside every gate: each gate asked once a part, none with its geometry.
+    const outside = byLayer({})
+    expect((await many(outside.fetch)).outsideGates).toBe(true)
+    expect(outside.asked.map((a) => a.get('typeNames'))).toEqual([TSA, TSA, TSA, TSA, TFL, TFL, TFL, TFL])
+    expect(outside.asked.map((a) => a.get('propertyName'))).toEqual([
+      ...Array(4).fill('TSA_NUMBER_DESCRIPTION'),
+      ...Array(4).fill('FOREST_FILE_ID'),
+    ])
+  })
+
   it('throws when a gate is not answered, so the layer reads Not read, never none', async () => {
     const { fetch } = byLayer({ [TSA]: 503 })
     await expect(read(fetch)).rejects.toThrow('DataBC answered 503 for WHSE_ADMIN_BOUNDARIES.FADM_TSA_SV.')
+  })
+})
+
+describe('a footprint of many parts', () => {
+  it('never asks a later part for a record an earlier part already gave', async () => {
+    const fdu = layer('fsp-fdu')
+    const parts: MultiPolygon = {
+      type: 'MultiPolygon',
+      coordinates: [0, 1, 2].map((i) => box(-122.5 + i * 0.05, 54, 0.01).coordinates),
+    }
+    const unit = (OBJECTID: number) => ({
+      geometry: box(-123, 53, 2),
+      properties: {
+        OBJECTID,
+        FSP_ID: 10,
+        FDU_ID: OBJECTID,
+        FSP_AMENDMENT_NUMBER: 1,
+        LIFE_CYCLE_STATUS_CODE: 'APPROVED',
+      },
+    })
+    const asked: string[] = []
+    const fetch: Fetch = async (_url, init) => {
+      const filter = new URLSearchParams(init?.body).get('CQL_FILTER') ?? ''
+      asked.push(filter)
+      // DataBC honours the exclusion: a unit named in it is not sent again.
+      const features = [unit(7), unit(8)].filter(
+        (u) => !new RegExp(`NOT \\(OBJECTID IN \\([^)]*\\b${u.properties.OBJECTID}\\b`).test(filter),
+      )
+      return { ok: true, status: 200, json: async () => ({ type: 'FeatureCollection', features }) }
+    }
+    const answer = await readGroundLayer({
+      layer: fdu,
+      instruments: layerInstruments(fdu),
+      footprint: parts,
+      fetch,
+      cap: 500,
+    })
+    expect(answer.rows.map((r) => r.properties.OBJECTID)).toEqual([7, 8])
+    expect(asked[0]).not.toContain('NOT (')
+    expect(asked[1]).toMatch(/ AND NOT \(OBJECTID IN \(7,8\)\)$/)
+    expect(asked[2]).toMatch(/ AND NOT \(OBJECTID IN \(7,8\)\)$/)
+  })
+
+  it('names kept keys as CQL literals, and none past the limit', () => {
+    expect(seenClause('OBJECTID', [7, 7, 8])).toBe('NOT (OBJECTID IN (7,8))')
+    expect(seenClause('PID', ['000-1', "O'Brien", null, ''])).toBe("NOT (PID IN ('000-1','O''Brien'))")
+    expect(seenClause('OBJECTID', [])).toBeNull()
+    expect(
+      seenClause(
+        'OBJECTID',
+        Array.from({ length: MAX_EXCLUDED_KEYS + 1 }, (_, i) => i),
+      ),
+    ).toBeNull()
   })
 })
