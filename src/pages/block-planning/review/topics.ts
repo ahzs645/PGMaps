@@ -103,6 +103,21 @@ const TOPICS: Record<string, TopicDef[]> = {
       rules: ['critical-habitat', 'possible-habitat'],
     },
   ],
+  'bc.woodlot-practices': [
+    { id: 'plan', label: 'The woodlot licence plan’s avoided and modified areas (WLPPR §§8(3), 53)', sections: ['53'] },
+    { id: 'soil', label: 'Soil disturbance and permanent access structures (§§24–25)', sections: ['24', '25'] },
+    {
+      id: 'riparian',
+      label: 'Riparian reserve and management zones (§§36–40)',
+      sections: ['36', '37', '38', '39', '40'],
+    },
+    {
+      id: 'water',
+      label: 'Fish passage, licensed waterworks and springs (§§44, 48, 50)',
+      sections: ['44', '48', '50'],
+    },
+    { id: 'wildlife', label: 'Wildlife trees and general wildlife measures (§§52, 55)', sections: ['52', '55'] },
+  ],
   'bc.mineral-tenure': [
     {
       id: 'title',

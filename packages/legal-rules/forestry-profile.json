@@ -1,7 +1,8 @@
 {
   "assessmentDate": "2026-11-17",
   "blockReleases": [
-    "bc.land-status@1.0.0",
+    "bc.land-status@1.1.0",
+    "bc.woodlot-practices@1.0.0",
     "bc.private-managed-forest@1.0.0",
     "bc.mineral-tenure@1.0.0",
     "bc.fppr@1.3.0",

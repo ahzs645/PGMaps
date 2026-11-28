@@ -1,0 +1,242 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.woodlot-practices",
+  "version": "1.0.0",
+  "title": "BC woodlot licence practices",
+  "description": "The Woodlot Licence Planning and Practices Regulation’s practice requirements for a block a woodlot licence holder harvests in its licence area, where the WLPPR applies in place of the FPPR (WLPPR §2(1), (3)): the woodlot licence plan’s avoided and modified areas, soil disturbance, permanent access structures in the cutblock and across the licence area, riparian reserve and management zones by stream, wetland and lake class, fish passage, licensed waterworks and springs, wildlife tree retention across the licence area, and general wildlife measures. Where the plan specifies its own figure as an alternative performance requirement (§13), the plan’s figure is asked about in place of the regulation’s; the pack never assumes one. Every rule applies only when the land status review answers that the block is in a woodlot licence area and the holder harvests it. The WLPPR sets no cutblock size or adjacency limit, and none is raised.",
+  "relatedPacks": [
+    {
+      "id": "bc.land-status",
+      "relationship": "Its woodlot-wlppr rule says when this pack’s rules are the block’s; the land, licence area and woodlot holder questions are asked once and shared (sameAs)."
+    },
+    {
+      "id": "bc.fppr",
+      "relationship": "Its findings do not govern a woodlot licence holder’s harvest (WLPPR §2(3)); this pack holds the woodlot counterparts."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "land",
+      "type": "choice",
+      "choices": [
+        "Crown land",
+        "Private land",
+        "Both Crown and private land",
+        "Federal land, including an Indian reserve",
+        "Treaty settlement land"
+      ],
+      "label": "What land is the block on? Crown land is land vested in the provincial government (the Land Act meaning, Forest Act §1); private land is land that is not Crown land. A reserve and treaty settlement land are asked apart: these packs do not assess them.",
+      "sameAs": "bc.land-status:land"
+    },
+    {
+      "id": "licence-area",
+      "type": "choice",
+      "choices": [
+        "A tree farm licence",
+        "A community forest agreement",
+        "A woodlot licence",
+        "A First Nations woodland licence",
+        "None of these"
+      ],
+      "label": "Is the block in the area of an area-based licence (Forest Act §1), on its Crown land or on private land the licence includes?",
+      "sameAs": "bc.land-status:licence-area"
+    },
+    {
+      "id": "woodlot-holder",
+      "type": "boolean",
+      "label": "Will the woodlot licence holder, or its employee, agent, contractor or subcontractor, carry out the harvest (WLPPR §2(1))?",
+      "sameAs": "bc.land-status:woodlot-holder"
+    },
+    {
+      "id": "plan-avoid",
+      "type": "boolean",
+      "label": "Does the block take in an area the woodlot licence plan describes as one where timber harvesting will be avoided during the plan’s term (WLPPR §§8(3), 53(1))?"
+    },
+    {
+      "id": "plan-modify",
+      "type": "boolean",
+      "label": "Does the block take in an area the woodlot licence plan describes as one where timber harvesting will be modified during the plan’s term (§§8(3), 53(2))?"
+    },
+    {
+      "id": "plan-soil",
+      "type": "boolean",
+      "label": "Does the woodlot licence plan specify, as an alternative performance requirement for the block’s location, its own amount of soil disturbance (§§13(1)(a), 24(1)(a))?"
+    },
+    {
+      "id": "soil-over-plan",
+      "type": "boolean",
+      "label": "Will soil disturbance on the block’s net area to be reforested exceed the amount the woodlot licence plan specifies (§24(1)(a))?"
+    },
+    {
+      "id": "soil-disturbance",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "label": "What share of the net area to be reforested (the harvested part of the cutblock not occupied by permanent access structures) will soil disturbance occupy: unrehabilitated temporary access structures, gouges, ruts or scalps outside them, and compacted areas (§1(2))?"
+    },
+    {
+      "id": "plan-access-block",
+      "type": "boolean",
+      "label": "Does the woodlot licence plan specify, as an alternative performance requirement for the block’s location, its own amount of a cutblock that permanent access structures may occupy (§§13(1)(b), 25(1)(a), (2)(a))?"
+    },
+    {
+      "id": "access-over-plan-block",
+      "type": "boolean",
+      "label": "Will permanent access structures occupy more of the cutblock than the amount the woodlot licence plan specifies (§25(1)(a), (2)(a))?"
+    },
+    {
+      "id": "cutblock-ha",
+      "type": "number",
+      "unit": "ha",
+      "min": 0,
+      "label": "How large is the cutblock, the area within which its cutting permit authorizes harvest (§§1(2), 25(1)–(2))?"
+    },
+    {
+      "id": "access-block",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "label": "What share of the cutblock’s total area will permanent access structures (roads, landings and other structures kept for access) occupy (§25(1)–(2))?"
+    },
+    {
+      "id": "plan-access-area",
+      "type": "boolean",
+      "label": "Does the woodlot licence plan specify, as an alternative performance requirement, its own amount of the woodlot licence area that permanent access structures may occupy (§§13(1)(b), 25(3)(a))?"
+    },
+    {
+      "id": "access-over-plan-area",
+      "type": "boolean",
+      "label": "With the block’s, will permanent access structures occupy more of the woodlot licence area than the amount the woodlot licence plan specifies (§25(3)(a))?"
+    },
+    {
+      "id": "access-area",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "label": "With the block’s, what share of the whole woodlot licence area will permanent access structures occupy (§25(3))?"
+    },
+    {
+      "id": "riparian-reserve",
+      "type": "boolean",
+      "label": "Does the block reach the riparian reserve zone of a stream, wetland or lake: by the regulation’s table, an S1-B, S2 or S3 stream (a fish stream or one in a community watershed, 1.5 m wide or wider), a W1, W2 or W5 wetland or an L1-B or L2 lake, or one the woodlot licence plan or the minister gives a reserve zone (§§36–38)?"
+    },
+    {
+      "id": "riparian-management",
+      "type": "boolean",
+      "label": "Does the block reach the riparian management zone of a classed stream, wetland or lake (every class has one by the table but an L1-A or L1-B lake), measured from the reserve zone’s outer edge, or from the bank or shore where there is none (§§36–38)?"
+    },
+    {
+      "id": "plan-riparian-widths",
+      "type": "boolean",
+      "label": "Does the woodlot licence plan specify, as an alternative performance requirement for the block’s location, its own riparian management area, reserve zone and management zone widths (§§13(1)(d), 36(4)(a), 37(3)(a), 38(2)(a))?"
+    },
+    {
+      "id": "road-in-reserve",
+      "type": "boolean",
+      "label": "Will a road be built in a riparian reserve zone in the cutblock (§39(2.1))?"
+    },
+    {
+      "id": "road-in-management",
+      "type": "boolean",
+      "label": "Will a road be built in a riparian management zone in the cutblock (§40(1))?"
+    },
+    {
+      "id": "bank-stability",
+      "type": "boolean",
+      "label": "Will trees be cut in the riparian management zone of an S4, S5 or S6 stream that has trees contributing significantly to its bank or channel stability, where the stream flows directly into an S1, S2 or S3 stream, or directly into the ocean near a herring spawning area, shellfish bed, saltwater marsh, aquaculture site, or juvenile salmonid rearing or adult salmon holding area (§40(4))?"
+    },
+    {
+      "id": "fish-passage",
+      "type": "boolean",
+      "label": "Could the block’s harvesting, roads or crossings affect fish passage in a fish stream, or will a fish stream crossing built after 15 June 1995 be maintained for it (§44)?"
+    },
+    {
+      "id": "waterworks",
+      "type": "boolean",
+      "label": "Is there a licensed waterworks that the block’s harvesting, roads or other primary forest activities could damage (§48(1))?"
+    },
+    {
+      "id": "intake-upslope",
+      "type": "boolean",
+      "label": "Is the block in a community watershed, and will its harvesting or a road for it be within a 100 m radius upslope, slope distance, of a licensed waterworks where the water is diverted for human consumption (§§48(2), 2(7))?"
+    },
+    {
+      "id": "spring",
+      "type": "boolean",
+      "label": "Will a road for the block be built within the distance the minister specified of a spring the minister identified in a community watershed as a source of water for a licensed waterworks, or, where no distance was specified, within a 100 m radius upslope of it (§50)?"
+    },
+    {
+      "id": "wtra-lower",
+      "type": "boolean",
+      "label": "Does a land use objective, or the woodlot licence plan as an alternative performance requirement, specify a proportion of the woodlot licence area for wildlife tree retention areas lower than 8% (§§13(1)(g), 52(1)(a)–(b))?"
+    },
+    {
+      "id": "wtra-below-least",
+      "type": "boolean",
+      "label": "After the block, will wildlife tree retention areas occupy less of the woodlot licence area than the least proportion a land use objective or the woodlot licence plan specifies (§52(1))?"
+    },
+    {
+      "id": "wtra-share",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "label": "After the block, what share of the woodlot licence area will wildlife tree retention areas specified in the woodlot licence plan occupy (§52(1))?"
+    },
+    {
+      "id": "wildlife-trees",
+      "type": "boolean",
+      "label": "Will the block’s harvest or roads cut, damage or remove wildlife trees, or trees within a wildlife tree retention area (§52(2))?"
+    },
+    {
+      "id": "gwm",
+      "type": "boolean",
+      "label": "Has a general wildlife measure been established for the part of the woodlot licence area the block is in, for a wildlife habitat area, ungulate winter range or other area (§55)?"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "soil-limit",
+      "value": 8,
+      "unit": "%"
+    },
+    {
+      "id": "large-cutblock",
+      "value": 5,
+      "unit": "ha"
+    },
+    {
+      "id": "access-large",
+      "value": 7,
+      "unit": "%"
+    },
+    {
+      "id": "access-small",
+      "value": 10,
+      "unit": "%"
+    },
+    {
+      "id": "access-area",
+      "value": 7,
+      "unit": "%"
+    },
+    {
+      "id": "wtra-share",
+      "value": 8,
+      "unit": "%"
+    }
+  ],
+  "sourceFiles": [
+    "sources/bc/wlppr.json"
+  ],
+  "ruleFiles": [
+    "rules/bc/woodlot-practices.json"
+  ]
+}

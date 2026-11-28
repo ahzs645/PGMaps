@@ -1,7 +1,7 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.land-status",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "BC land status of a block",
   "description": "What land the block is on, and so which law reaches its harvest: whether FRPA’s forest practices reach it (Crown land, or private land in a tree farm licence, community forest agreement or woodlot licence area), whether the WLPPR replaces the FPPR for a woodlot licence holder, whether it is private managed forest land under the PMFLA, and, on private land, timber reserved to the government, boundaries beside Crown land and the Forest Act’s timber marking and scaling. A reserve and treaty settlement land are outside every rule here: the Indian Act, a land code or the final agreement governs them, and none is assessed. The land is always the reviewer’s answer; mapped parcels and licences are candidates.",
   "relatedPacks": [
@@ -12,6 +12,10 @@
     {
       "id": "bc.forest-permits",
       "relationship": "Cutting and road permits dispose of Crown timber and roads on Crown land; on private land outside an area-based licence they do not arise unless timber is reserved to the government (crown-timber)."
+    },
+    {
+      "id": "bc.woodlot-practices",
+      "relationship": "Its rules are the WLPPR’s practice requirements for a woodlot licence holder’s block, applying when woodlot-wlppr does; the land, licence area and woodlot holder questions are shared (sameAs)."
     }
   ],
   "coverage": {
@@ -72,5 +76,7 @@
     "sources/bc/wlppr.json",
     "sources/bc/pmfla.json"
   ],
-  "ruleFiles": ["rules/bc/land-status.json"]
+  "ruleFiles": [
+    "rules/bc/land-status.json"
+  ]
 }

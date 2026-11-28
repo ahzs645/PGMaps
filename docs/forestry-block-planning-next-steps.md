@@ -50,11 +50,11 @@ Built on 27 November 2026 and moved into the planner contract, **Getting the rec
 
 Built on 27 November 2026 and moved into [the planner contract](forestry-patch-scenarios.md), **Land status**: `bc.land-status` 1.0.0, first in every block review, with `bc.private-managed-forest` 1.0.0 (the Council Regulation's practice requirements) and `bc.mineral-tenure` 1.0.0 (mineral titles and road pits); the Private Managed Forest Land Act, its Regulation, Council Regulation and Council Matters Regulation, the WLPPR and the Mines Act stored whole and reviewed section by section; the ground read's context layers (reserves, treaty lands) read for its candidates.
 
+## Done: the woodlot regulation
+
+Built on 27 November 2026 and moved into [the planner contract](forestry-patch-scenarios.md), **Land status**: `bc.woodlot-practices` 1.0.0, in every block review, raises the WLPPR's practice requirements for a woodlot licence holder's block in place of the FPPR findings: the plan's avoided and modified areas (s. 53), soil disturbance (s. 24), permanent access structures in the cutblock and the licence area (s. 25), riparian classes and zones (ss. 36–40), fish passage (s. 44), licensed waterworks and springs (ss. 48, 50), wildlife tree retention across the licence area (s. 52) and general wildlife measures (s. 55), each read through the plan's alternative performance requirements (s. 13). `bc.land-status` 1.1.0 points its WLPPR finding to it (1.0.0 kept). What it leaves is in the section review: free growing and stocking (ss. 34–35), coarse woody debris (s. 54), resource features (s. 56), ss. 41–43, Part 4's roads, and the plan's mapped areas read as a screen rather than asked (s. 8).
+
 ## Next
-
-### The woodlot regulation
-
-The WLPPR's practice requirements for a woodlot licence holder's block, in place of the FPPR findings the land status review says are not the block's: the plan's avoid and modified areas (s. 53), soil disturbance (s. 24), permanent access structures (s. 25), riparian classes and zones (ss. 36–40), wildlife tree retention across the licence area (s. 52), community watershed intakes (ss. 48, 50), each read through the plan's alternative performance requirements (s. 13). The section review lists fifteen high gaps.
 
 ### What the back-test of 27 November found
 

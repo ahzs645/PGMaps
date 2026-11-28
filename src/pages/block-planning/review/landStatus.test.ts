@@ -42,7 +42,7 @@ const asked = (answers: Answers) => {
 
 describe('land status', () => {
   it('is reviewed for every block, first', () => {
-    expect(profile.blockReleases[0]).toBe('bc.land-status@1.0.0')
+    expect(profile.blockReleases[0]).toBe('bc.land-status@1.1.0')
   })
 
   it('asks what land the block is on before anything else', () => {

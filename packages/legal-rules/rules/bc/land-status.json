@@ -9,7 +9,11 @@
         {
           "fact": "land",
           "op": "in",
-          "value": ["Crown land", "Private land", "Both Crown and private land"]
+          "value": [
+            "Crown land",
+            "Private land",
+            "Both Crown and private land"
+          ]
         }
       ]
     ],
@@ -18,14 +22,21 @@
         {
           "fact": "land",
           "op": "in",
-          "value": ["Crown land", "Both Crown and private land"]
+          "value": [
+            "Crown land",
+            "Both Crown and private land"
+          ]
         }
       ],
       [
         {
           "fact": "licence-area",
           "op": "in",
-          "value": ["A tree farm licence", "A community forest agreement", "A woodlot licence"]
+          "value": [
+            "A tree farm licence",
+            "A community forest agreement",
+            "A woodlot licence"
+          ]
         }
       ]
     ],
@@ -56,7 +67,10 @@
         {
           "fact": "licence-area",
           "op": "in",
-          "value": ["A First Nations woodland licence", "None of these"]
+          "value": [
+            "A First Nations woodland licence",
+            "None of these"
+          ]
         }
       ]
     ],
@@ -78,7 +92,11 @@
         {
           "fact": "land",
           "op": "in",
-          "value": ["Crown land", "Private land", "Both Crown and private land"]
+          "value": [
+            "Crown land",
+            "Private land",
+            "Both Crown and private land"
+          ]
         },
         {
           "fact": "licence-area",
@@ -96,11 +114,11 @@
         }
       ]
     ],
-    "finding": "The Woodlot Licence Planning and Practices Regulation applies to the woodlot licence holder, and the holder’s employees, agents and contractors, carrying out an activity in the woodlot licence area, and the FPPR, except its §1.2, does not apply to them. The FPPR findings on this block are read against a regulation that does not govern its harvest; PGMaps does not yet assess the WLPPR.",
+    "finding": "The Woodlot Licence Planning and Practices Regulation applies to the woodlot licence holder, and the holder’s employees, agents and contractors, carrying out an activity in the woodlot licence area, and the FPPR, except its §1.2, does not apply to them. The FPPR findings on this block are read against a regulation that does not govern its harvest; the woodlot licence practices review (bc.woodlot-practices) assesses the WLPPR’s practice requirements in their place.",
     "actions": [
       {
         "kind": "review",
-        "description": "Review the block against the WLPPR and the holder’s woodlot licence plan rather than the FPPR findings."
+        "description": "Review the block against the WLPPR and the holder’s woodlot licence plan, in the woodlot licence practices findings, rather than the FPPR findings."
       }
     ]
   },
@@ -114,12 +132,18 @@
         {
           "fact": "land",
           "op": "in",
-          "value": ["Private land", "Both Crown and private land"]
+          "value": [
+            "Private land",
+            "Both Crown and private land"
+          ]
         },
         {
           "fact": "licence-area",
           "op": "in",
-          "value": ["A First Nations woodland licence", "None of these"]
+          "value": [
+            "A First Nations woodland licence",
+            "None of these"
+          ]
         }
       ]
     ],
@@ -150,7 +174,10 @@
         {
           "fact": "land",
           "op": "in",
-          "value": ["Private land", "Both Crown and private land"]
+          "value": [
+            "Private land",
+            "Both Crown and private land"
+          ]
         }
       ]
     ],
@@ -181,7 +208,10 @@
         {
           "fact": "land",
           "op": "in",
-          "value": ["Private land", "Both Crown and private land"]
+          "value": [
+            "Private land",
+            "Both Crown and private land"
+          ]
         }
       ]
     ],
@@ -212,7 +242,10 @@
         {
           "fact": "land",
           "op": "in",
-          "value": ["Private land", "Both Crown and private land"]
+          "value": [
+            "Private land",
+            "Both Crown and private land"
+          ]
         }
       ]
     ],
@@ -221,7 +254,10 @@
         {
           "fact": "land",
           "op": "in",
-          "value": ["Private land", "Both Crown and private land"]
+          "value": [
+            "Private land",
+            "Both Crown and private land"
+          ]
         }
       ]
     ],
@@ -240,7 +276,9 @@
         "provision": "84(5)",
         "kind": "decision",
         "decidedBy": "The minister",
-        "evidence": ["The minister’s exemption and its conditions"]
+        "evidence": [
+          "The minister’s exemption and its conditions"
+        ]
       }
     ]
   },
@@ -254,7 +292,10 @@
         {
           "fact": "land",
           "op": "in",
-          "value": ["Private land", "Both Crown and private land"]
+          "value": [
+            "Private land",
+            "Both Crown and private land"
+          ]
         }
       ]
     ],
@@ -263,7 +304,10 @@
         {
           "fact": "land",
           "op": "in",
-          "value": ["Private land", "Both Crown and private land"]
+          "value": [
+            "Private land",
+            "Both Crown and private land"
+          ]
         }
       ]
     ],
@@ -282,7 +326,9 @@
         "provision": "94(5)",
         "kind": "decision",
         "decidedBy": "The minister",
-        "evidence": ["The minister’s exemption and its conditions"]
+        "evidence": [
+          "The minister’s exemption and its conditions"
+        ]
       }
     ]
   }

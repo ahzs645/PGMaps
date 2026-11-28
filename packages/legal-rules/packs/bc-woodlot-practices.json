@@ -1,0 +1,1840 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.woodlot-practices",
+  "version": "1.0.0",
+  "title": "BC woodlot licence practices",
+  "description": "The Woodlot Licence Planning and Practices Regulation’s practice requirements for a block a woodlot licence holder harvests in its licence area, where the WLPPR applies in place of the FPPR (WLPPR §2(1), (3)): the woodlot licence plan’s avoided and modified areas, soil disturbance, permanent access structures in the cutblock and across the licence area, riparian reserve and management zones by stream, wetland and lake class, fish passage, licensed waterworks and springs, wildlife tree retention across the licence area, and general wildlife measures. Where the plan specifies its own figure as an alternative performance requirement (§13), the plan’s figure is asked about in place of the regulation’s; the pack never assumes one. Every rule applies only when the land status review answers that the block is in a woodlot licence area and the holder harvests it. The WLPPR sets no cutblock size or adjacency limit, and none is raised.",
+  "relatedPacks": [
+    {
+      "id": "bc.land-status",
+      "relationship": "Its woodlot-wlppr rule says when this pack’s rules are the block’s; the land, licence area and woodlot holder questions are asked once and shared (sameAs)."
+    },
+    {
+      "id": "bc.fppr",
+      "relationship": "Its findings do not govern a woodlot licence holder’s harvest (WLPPR §2(3)); this pack holds the woodlot counterparts."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "land",
+      "type": "choice",
+      "choices": [
+        "Crown land",
+        "Private land",
+        "Both Crown and private land",
+        "Federal land, including an Indian reserve",
+        "Treaty settlement land"
+      ],
+      "label": "What land is the block on? Crown land is land vested in the provincial government (the Land Act meaning, Forest Act §1); private land is land that is not Crown land. A reserve and treaty settlement land are asked apart: these packs do not assess them.",
+      "sameAs": "bc.land-status:land"
+    },
+    {
+      "id": "licence-area",
+      "type": "choice",
+      "choices": [
+        "A tree farm licence",
+        "A community forest agreement",
+        "A woodlot licence",
+        "A First Nations woodland licence",
+        "None of these"
+      ],
+      "label": "Is the block in the area of an area-based licence (Forest Act §1), on its Crown land or on private land the licence includes?",
+      "sameAs": "bc.land-status:licence-area"
+    },
+    {
+      "id": "woodlot-holder",
+      "type": "boolean",
+      "label": "Will the woodlot licence holder, or its employee, agent, contractor or subcontractor, carry out the harvest (WLPPR §2(1))?",
+      "sameAs": "bc.land-status:woodlot-holder"
+    },
+    {
+      "id": "plan-avoid",
+      "type": "boolean",
+      "label": "Does the block take in an area the woodlot licence plan describes as one where timber harvesting will be avoided during the plan’s term (WLPPR §§8(3), 53(1))?"
+    },
+    {
+      "id": "plan-modify",
+      "type": "boolean",
+      "label": "Does the block take in an area the woodlot licence plan describes as one where timber harvesting will be modified during the plan’s term (§§8(3), 53(2))?"
+    },
+    {
+      "id": "plan-soil",
+      "type": "boolean",
+      "label": "Does the woodlot licence plan specify, as an alternative performance requirement for the block’s location, its own amount of soil disturbance (§§13(1)(a), 24(1)(a))?"
+    },
+    {
+      "id": "soil-over-plan",
+      "type": "boolean",
+      "label": "Will soil disturbance on the block’s net area to be reforested exceed the amount the woodlot licence plan specifies (§24(1)(a))?"
+    },
+    {
+      "id": "soil-disturbance",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "label": "What share of the net area to be reforested (the harvested part of the cutblock not occupied by permanent access structures) will soil disturbance occupy: unrehabilitated temporary access structures, gouges, ruts or scalps outside them, and compacted areas (§1(2))?"
+    },
+    {
+      "id": "plan-access-block",
+      "type": "boolean",
+      "label": "Does the woodlot licence plan specify, as an alternative performance requirement for the block’s location, its own amount of a cutblock that permanent access structures may occupy (§§13(1)(b), 25(1)(a), (2)(a))?"
+    },
+    {
+      "id": "access-over-plan-block",
+      "type": "boolean",
+      "label": "Will permanent access structures occupy more of the cutblock than the amount the woodlot licence plan specifies (§25(1)(a), (2)(a))?"
+    },
+    {
+      "id": "cutblock-ha",
+      "type": "number",
+      "unit": "ha",
+      "min": 0,
+      "label": "How large is the cutblock, the area within which its cutting permit authorizes harvest (§§1(2), 25(1)–(2))?"
+    },
+    {
+      "id": "access-block",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "label": "What share of the cutblock’s total area will permanent access structures (roads, landings and other structures kept for access) occupy (§25(1)–(2))?"
+    },
+    {
+      "id": "plan-access-area",
+      "type": "boolean",
+      "label": "Does the woodlot licence plan specify, as an alternative performance requirement, its own amount of the woodlot licence area that permanent access structures may occupy (§§13(1)(b), 25(3)(a))?"
+    },
+    {
+      "id": "access-over-plan-area",
+      "type": "boolean",
+      "label": "With the block’s, will permanent access structures occupy more of the woodlot licence area than the amount the woodlot licence plan specifies (§25(3)(a))?"
+    },
+    {
+      "id": "access-area",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "label": "With the block’s, what share of the whole woodlot licence area will permanent access structures occupy (§25(3))?"
+    },
+    {
+      "id": "riparian-reserve",
+      "type": "boolean",
+      "label": "Does the block reach the riparian reserve zone of a stream, wetland or lake: by the regulation’s table, an S1-B, S2 or S3 stream (a fish stream or one in a community watershed, 1.5 m wide or wider), a W1, W2 or W5 wetland or an L1-B or L2 lake, or one the woodlot licence plan or the minister gives a reserve zone (§§36–38)?"
+    },
+    {
+      "id": "riparian-management",
+      "type": "boolean",
+      "label": "Does the block reach the riparian management zone of a classed stream, wetland or lake (every class has one by the table but an L1-A or L1-B lake), measured from the reserve zone’s outer edge, or from the bank or shore where there is none (§§36–38)?"
+    },
+    {
+      "id": "plan-riparian-widths",
+      "type": "boolean",
+      "label": "Does the woodlot licence plan specify, as an alternative performance requirement for the block’s location, its own riparian management area, reserve zone and management zone widths (§§13(1)(d), 36(4)(a), 37(3)(a), 38(2)(a))?"
+    },
+    {
+      "id": "road-in-reserve",
+      "type": "boolean",
+      "label": "Will a road be built in a riparian reserve zone in the cutblock (§39(2.1))?"
+    },
+    {
+      "id": "road-in-management",
+      "type": "boolean",
+      "label": "Will a road be built in a riparian management zone in the cutblock (§40(1))?"
+    },
+    {
+      "id": "bank-stability",
+      "type": "boolean",
+      "label": "Will trees be cut in the riparian management zone of an S4, S5 or S6 stream that has trees contributing significantly to its bank or channel stability, where the stream flows directly into an S1, S2 or S3 stream, or directly into the ocean near a herring spawning area, shellfish bed, saltwater marsh, aquaculture site, or juvenile salmonid rearing or adult salmon holding area (§40(4))?"
+    },
+    {
+      "id": "fish-passage",
+      "type": "boolean",
+      "label": "Could the block’s harvesting, roads or crossings affect fish passage in a fish stream, or will a fish stream crossing built after 15 June 1995 be maintained for it (§44)?"
+    },
+    {
+      "id": "waterworks",
+      "type": "boolean",
+      "label": "Is there a licensed waterworks that the block’s harvesting, roads or other primary forest activities could damage (§48(1))?"
+    },
+    {
+      "id": "intake-upslope",
+      "type": "boolean",
+      "label": "Is the block in a community watershed, and will its harvesting or a road for it be within a 100 m radius upslope, slope distance, of a licensed waterworks where the water is diverted for human consumption (§§48(2), 2(7))?"
+    },
+    {
+      "id": "spring",
+      "type": "boolean",
+      "label": "Will a road for the block be built within the distance the minister specified of a spring the minister identified in a community watershed as a source of water for a licensed waterworks, or, where no distance was specified, within a 100 m radius upslope of it (§50)?"
+    },
+    {
+      "id": "wtra-lower",
+      "type": "boolean",
+      "label": "Does a land use objective, or the woodlot licence plan as an alternative performance requirement, specify a proportion of the woodlot licence area for wildlife tree retention areas lower than 8% (§§13(1)(g), 52(1)(a)–(b))?"
+    },
+    {
+      "id": "wtra-below-least",
+      "type": "boolean",
+      "label": "After the block, will wildlife tree retention areas occupy less of the woodlot licence area than the least proportion a land use objective or the woodlot licence plan specifies (§52(1))?"
+    },
+    {
+      "id": "wtra-share",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "label": "After the block, what share of the woodlot licence area will wildlife tree retention areas specified in the woodlot licence plan occupy (§52(1))?"
+    },
+    {
+      "id": "wildlife-trees",
+      "type": "boolean",
+      "label": "Will the block’s harvest or roads cut, damage or remove wildlife trees, or trees within a wildlife tree retention area (§52(2))?"
+    },
+    {
+      "id": "gwm",
+      "type": "boolean",
+      "label": "Has a general wildlife measure been established for the part of the woodlot licence area the block is in, for a wildlife habitat area, ungulate winter range or other area (§55)?"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "soil-limit",
+      "value": 8,
+      "unit": "%"
+    },
+    {
+      "id": "large-cutblock",
+      "value": 5,
+      "unit": "ha"
+    },
+    {
+      "id": "access-large",
+      "value": 7,
+      "unit": "%"
+    },
+    {
+      "id": "access-small",
+      "value": 10,
+      "unit": "%"
+    },
+    {
+      "id": "access-area",
+      "value": 7,
+      "unit": "%"
+    },
+    {
+      "id": "wtra-share",
+      "value": 8,
+      "unit": "%"
+    }
+  ],
+  "sources": [
+    {
+      "id": "wlppr",
+      "title": "Woodlot Licence Planning and Practices Regulation, BC Reg 21/2004",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/21_2004",
+      "asOf": "2026-11-27"
+    }
+  ],
+  "rules": [
+    {
+      "id": "avoid-area",
+      "title": "No harvest where the woodlot licence plan says harvesting will be avoided",
+      "source": "wlppr",
+      "provision": "53(1), 8(3)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "plan-avoid",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "The woodlot licence plan describes the part of the block as an area where timber harvesting will be avoided during the plan’s term, to protect resource features, to address private owners’ or aboriginal peoples’ interests, to manage resource values such as riparian retention, or for a mapped designation (wildlife habitat areas, scenic areas, ungulate winter ranges, community or fisheries sensitive watersheds, licensed intakes). The holder must not harvest there.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Take the avoided area out of the block, or amend the woodlot licence plan before harvesting it."
+        }
+      ]
+    },
+    {
+      "id": "modified-area",
+      "title": "Harvest in a modified area follows the woodlot licence plan’s modifications",
+      "source": "wlppr",
+      "provision": "53(2), 8(3)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "plan-modify",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "The woodlot licence plan describes the part of the block as an area where timber harvesting will be modified during the plan’s term. The harvest there must follow the modifications the plan describes; the regulation sets none of its own.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Read the plan’s modifications for the area and lay out the harvest to them."
+        }
+      ]
+    },
+    {
+      "id": "soil-disturbance",
+      "title": "Soil disturbance within the plan’s amount, or 8% of the net area to be reforested",
+      "source": "wlppr",
+      "provision": "24(1), 13(1)(a)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "plan-soil",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "soil-disturbance",
+            "op": "gt",
+            "value": {
+              "parameter": "soil-limit"
+            }
+          }
+        ],
+        [
+          {
+            "fact": "plan-soil",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "soil-over-plan",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "salvage",
+          "label": "Removing infected stumps or salvaging windthrow, with the additional disturbance the minimum necessary (§24(3))",
+          "source": "wlppr",
+          "provision": "24(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The stump removal or salvage and why the added disturbance is the minimum"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "Soil disturbance on the net area to be reforested would exceed the limit: the amount the woodlot licence plan specifies for the location, or 8% where it specifies none. Unlike the FPPR, the limit does not change with sensitive soils or standards units, and the net area to be reforested is the harvested cutblock less its permanent access structures only. Disturbance must also not be concentrated against the objective of conserving soils’ productivity and hydrologic function (§24(2)).",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Reduce the planned disturbance (temporary access, compaction, gouges and ruts) to the limit, or record the infected-stump or windthrow salvage that §24(3) allows."
+        }
+      ]
+    },
+    {
+      "id": "access-cutblock",
+      "title": "Permanent access structures within the plan’s amount, or 7% of a cutblock of 5 ha or more and 10% of a smaller one",
+      "source": "wlppr",
+      "provision": "25(1)–(2), 13(1)(b)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "plan-access-block",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "cutblock-ha",
+            "op": "gte",
+            "value": {
+              "parameter": "large-cutblock"
+            }
+          },
+          {
+            "fact": "access-block",
+            "op": "gt",
+            "value": {
+              "parameter": "access-large"
+            }
+          }
+        ],
+        [
+          {
+            "fact": "plan-access-block",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "cutblock-ha",
+            "op": "lt",
+            "value": {
+              "parameter": "large-cutblock"
+            }
+          },
+          {
+            "fact": "access-block",
+            "op": "gt",
+            "value": {
+              "parameter": "access-small"
+            }
+          }
+        ],
+        [
+          {
+            "fact": "plan-access-block",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "access-over-plan-block",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "Permanent access structures would occupy more of the cutblock’s total area than allowed: the amount the woodlot licence plan specifies, or, where it specifies none, 7% of a cutblock of 5 ha or more and 10% of one under 5 ha.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Shorten or narrow the block’s permanent roads and landings, or make them temporary and rehabilitate them, until they fit the limit."
+        }
+      ]
+    },
+    {
+      "id": "access-licence-area",
+      "title": "Permanent access structures within the plan’s amount, or 7%, of the whole woodlot licence area",
+      "source": "wlppr",
+      "provision": "25(3), 13(1)(b)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "plan-access-area",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "access-area",
+            "op": "gt",
+            "value": {
+              "parameter": "access-area"
+            }
+          }
+        ],
+        [
+          {
+            "fact": "plan-access-area",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "access-over-plan-area",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "With the block’s roads and landings, permanent access structures would occupy more of the woodlot licence area than allowed: the amount the woodlot licence plan specifies, or 7% where it specifies none. The limit holds besides each cutblock’s own.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Count the licence area’s permanent access structures with the block’s, and hold them to the limit."
+        }
+      ]
+    },
+    {
+      "id": "riparian-widths",
+      "title": "Riparian zones at the regulation’s widths",
+      "source": "wlppr",
+      "provision": "36(4)(b), 37(3)(b), 38(2)(b)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-reserve",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "plan-riparian-widths",
+            "op": "eq",
+            "value": false
+          }
+        ],
+        [
+          {
+            "fact": "riparian-management",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "plan-riparian-widths",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "The woodlot licence plan specifies no widths of its own, so the block’s riparian zones take the regulation’s, on each side and as slope distance. Reserve and management zones in metres: streams S1-A 0 and 100 (a reserve only if the minister specifies one), S1-B 50 and 20, S2 30 and 20, S3 20 and 20, S4, S5 30 and 30 (no reserve), S6 0 and 20; wetlands W1 and W5 10 and 40, W2 10 and 20, W3 and W4 0 and 30; lakes L1-B 10 and 0, L2 10 and 20, L3 and L4 0 and 30, L1-A none unless the minister specifies. A stream’s management zone reaches the edge of a wider active flood plain. Classes are the reviewer’s: S1-A to S4 are fish streams or streams in a community watershed, by width; S5 and S6 are neither.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Class each stream, wetland and lake beside the block and mark its reserve and management zones at the table’s widths, as slope distance."
+        }
+      ]
+    },
+    {
+      "id": "riparian-widths-plan",
+      "title": "Riparian zones at the woodlot licence plan’s widths",
+      "source": "wlppr",
+      "provision": "36(4)(a), 37(3)(a), 38(2)(a), 13(1)(d)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-reserve",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "plan-riparian-widths",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        [
+          {
+            "fact": "riparian-management",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "plan-riparian-widths",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "The woodlot licence plan specifies its own riparian management area, reserve zone and management zone widths for the location, and those are the block’s, as slope distance. A stream, wetland or lake the plan did not identify, or classed wrongly, takes the regulation’s widths for its true class (§8(4)).",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Mark the block’s riparian zones at the plan’s widths for the location, and the regulation’s for any water body the plan missed or misclassed."
+        }
+      ]
+    },
+    {
+      "id": "reserve-zone-trees",
+      "title": "No trees cut, modified or removed in a riparian reserve zone",
+      "source": "wlppr",
+      "provision": "39(1)–(2)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-reserve",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "plan",
+          "label": "The woodlot licence plan specifies the cutting, modification or removal, as an alternative performance requirement (§§39(1), 13(1)(e))",
+          "source": "wlppr",
+          "provision": "39(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The plan’s provision and the location it applies to"
+          ]
+        },
+        {
+          "id": "safety",
+          "label": "Felling or modifying a safety hazard, with no other practicable option (§39(1)(a))",
+          "source": "wlppr",
+          "provision": "39(1)(a)",
+          "kind": "by-law",
+          "evidence": [
+            "The hazard and the options considered"
+          ]
+        },
+        {
+          "id": "windfirm",
+          "label": "Topping or pruning a tree that is not wind firm (§39(1)(b))",
+          "source": "wlppr",
+          "provision": "39(1)(b)",
+          "kind": "by-law",
+          "evidence": [
+            "The tree and why it is not wind firm"
+          ]
+        },
+        {
+          "id": "crossing-yarding",
+          "label": "A stream crossing, a full suspension yarding corridor or guyline tiebacks (§39(1)(c)–(e))",
+          "source": "wlppr",
+          "provision": "39(1)(c)–(e)",
+          "kind": "by-law",
+          "evidence": [
+            "The crossing, corridor or tiebacks and the trees they take"
+          ]
+        },
+        {
+          "id": "damaged",
+          "label": "A sanitation treatment, or a tree windthrown or damaged by fire, insects, disease or other causes, without a material adverse impact on the zone (§39(1)(f)–(g))",
+          "source": "wlppr",
+          "provision": "39(1)(f)–(g)",
+          "kind": "by-law",
+          "evidence": [
+            "The damage or treatment, and why the zone is not harmed"
+          ]
+        },
+        {
+          "id": "recreation",
+          "label": "An interpretive forest site, recreation site, facility, trail or trail-based recreation area (§39(1)(h))",
+          "source": "wlppr",
+          "provision": "39(1)(h)",
+          "kind": "by-law",
+          "evidence": [
+            "The site or trail and its authority"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "Trees in a riparian reserve zone may not be cut, modified or removed unless the woodlot licence plan specifies it or the work is limited to one of the listed purposes; a tree felled, topped, pruned or modified for one of them may be removed only if removing it will not have a material adverse effect on the reserve zone.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Keep the block’s boundary and falling out of every reserve zone, and record any tree taken for a listed purpose."
+        }
+      ]
+    },
+    {
+      "id": "reserve-zone-road",
+      "title": "No road in a riparian reserve zone in the cutblock",
+      "source": "wlppr",
+      "provision": "39(2.1)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "road-in-reserve",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "plan",
+          "label": "The woodlot licence plan specifies the road’s construction (§39(2.1))",
+          "source": "wlppr",
+          "provision": "39(2.1)",
+          "kind": "by-law",
+          "evidence": [
+            "The plan’s provision and the road it names"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "A road may not be built in a riparian reserve zone in a cutblock unless the woodlot licence plan specifies the construction.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Move the road out of the reserve zone, or show where the woodlot licence plan specifies it."
+        }
+      ]
+    },
+    {
+      "id": "reserve-zone-treatments",
+      "title": "No brushing, site preparation, spacing or thinning in a riparian reserve zone",
+      "source": "wlppr",
+      "provision": "39(3)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-reserve",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "minister-exempts",
+          "label": "The minister exempted the holder from the section for the area, being satisfied that it is not practicable there (§78(1))",
+          "source": "wlppr",
+          "provision": "78(1)",
+          "kind": "decision",
+          "decidedBy": "The minister (Minister of Forests)",
+          "evidence": [
+            "The minister’s exemption and the area it names"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "In a riparian reserve zone the holder may not graze or broadcast herbicide to brush, prepare the site mechanically or by broadcast burning, or space or thin.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Keep the block’s silviculture prescription’s brushing, site preparation and spacing out of the reserve zones."
+        }
+      ]
+    },
+    {
+      "id": "management-zone-road",
+      "title": "No road in a riparian management zone in the cutblock",
+      "source": "wlppr",
+      "provision": "40(1)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "road-in-management",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "plan",
+          "label": "The woodlot licence plan provides for the road (§40(1)(a))",
+          "source": "wlppr",
+          "provision": "40(1)(a)",
+          "kind": "by-law",
+          "evidence": [
+            "The plan’s provision and the road it names"
+          ]
+        },
+        {
+          "id": "more-sediment",
+          "label": "A location outside the zone would create a higher risk of sediment delivery (§40(1)(b))",
+          "source": "wlppr",
+          "provision": "40(1)(b)",
+          "kind": "by-law",
+          "evidence": [
+            "The comparison of sediment risk on the two locations"
+          ]
+        },
+        {
+          "id": "no-option",
+          "label": "There is no other practicable option for locating the road (§40(1)(c))",
+          "source": "wlppr",
+          "provision": "40(1)(c)",
+          "kind": "by-law",
+          "evidence": [
+            "The locations considered and why each is not practicable"
+          ]
+        },
+        {
+          "id": "crossing",
+          "label": "The road is required as part of a stream crossing (§40(1)(d))",
+          "source": "wlppr",
+          "provision": "40(1)(d)",
+          "kind": "by-law",
+          "evidence": [
+            "The crossing and the length of road its approaches take"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "A road may not be built in a riparian management zone in a cutblock unless the woodlot licence plan provides for it, a location outside would carry a higher risk of sediment reaching the stream, wetland or lake, there is no other practicable location, or the road is part of a stream crossing. A road built there is maintained only within its clearing width, and gravel or fill is taken from the zone only within the road prism, at a crossing or where there is no other practicable option (§40(2)–(3)).",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Move the road out of the management zone, or record which of §40(1)(a)–(d) applies and why."
+        }
+      ]
+    },
+    {
+      "id": "management-zone-trees",
+      "title": "Trees cut in a riparian management zone only as the woodlot licence plan describes",
+      "source": "wlppr",
+      "provision": "40(5), 8(3)(c)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "riparian-management",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "minister-exempts",
+          "label": "The minister exempted the holder from the section for the area, being satisfied that it is not practicable there (§78(1))",
+          "source": "wlppr",
+          "provision": "78(1)",
+          "kind": "decision",
+          "decidedBy": "The minister (Minister of Forests)",
+          "evidence": [
+            "The minister’s exemption and the area it names"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "Trees within a riparian management zone may be cut, modified or removed only as the woodlot licence plan describes under §8(3), which must include any retention of trees the plan specifies in riparian management zones. The regulation sets no retention figure of its own.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Read the plan’s §8(3) description for the block’s management zones and lay out the falling and retention to it."
+        }
+      ]
+    },
+    {
+      "id": "bank-stability",
+      "title": "Enough trees kept to hold a small stream’s bank and channel",
+      "source": "wlppr",
+      "provision": "40(4)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "bank-stability",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "minister-exempts",
+          "label": "The minister exempted the holder from the section for the area, being satisfied that it is not practicable there (§78(1))",
+          "source": "wlppr",
+          "provision": "78(1)",
+          "kind": "decision",
+          "decidedBy": "The minister (Minister of Forests)",
+          "evidence": [
+            "The minister’s exemption and the area it names"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "Cutting in the riparian management zone of an S4, S5 or S6 stream that feeds an S1, S2 or S3 stream, or the ocean near a sensitive marine area, where trees contribute significantly to the bank or channel’s stability, must keep enough trees beside the stream to maintain that stability.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Mark the trees beside the stream that hold its bank and channel, and keep them."
+        }
+      ]
+    },
+    {
+      "id": "fish-passage",
+      "title": "No material adverse effect on fish passage",
+      "source": "wlppr",
+      "provision": "44",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "fish-passage",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "temporary",
+          "label": "Temporarily, to build, maintain or deactivate a road or crossing, while fish are not migrating or spawning and with the cause removed on completion (§44(3))",
+          "source": "wlppr",
+          "provision": "44(3)",
+          "kind": "by-law",
+          "evidence": [
+            "The work’s timing against the fish’s migration and spawning",
+            "When the cause was removed"
+          ]
+        },
+        {
+          "id": "minister-exempts",
+          "label": "The minister exempted the holder from the section for the area, being satisfied that it is not practicable there (§78(1))",
+          "source": "wlppr",
+          "provision": "78(1)",
+          "kind": "decision",
+          "decidedBy": "The minister (Minister of Forests)",
+          "evidence": [
+            "The minister’s exemption and the area it names"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "The block’s primary forest activities must not have a material adverse effect on fish passage in a fish stream, and a fish stream crossing built after 15 June 1995 that the holder maintains must not either. Road construction, maintenance or deactivation, a crossing’s included, may affect passage temporarily only while fish are not migrating or spawning, with the cause removed on completion.",
+      "actions": [
+        {
+          "kind": "implement",
+          "description": "Design each fish stream crossing for passage, and time in-stream work outside migration and spawning."
+        }
+      ]
+    },
+    {
+      "id": "waterworks",
+      "title": "No damage to a licensed waterworks",
+      "source": "wlppr",
+      "provision": "48(1)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "waterworks",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "minister-exempts",
+          "label": "The minister exempted the holder from the section for the area, being satisfied that it is not practicable there (§78(1))",
+          "source": "wlppr",
+          "provision": "78(1)",
+          "kind": "decision",
+          "decidedBy": "The minister (Minister of Forests)",
+          "evidence": [
+            "The minister’s exemption and the area it names"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "The block’s primary forest activities must not damage a licensed waterworks.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Locate the licensed works near the block and plan the harvest and roads to keep clear of them."
+        }
+      ]
+    },
+    {
+      "id": "intake-upslope",
+      "title": "No harvest or road within 100 m upslope of a drinking water waterworks in a community watershed",
+      "source": "wlppr",
+      "provision": "48(2)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "intake-upslope",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "no-more-sediment",
+          "label": "The harvest or road will not increase sediment delivery to the intake (§48(2))",
+          "source": "wlppr",
+          "provision": "48(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The drainage and harvest design, and why no more sediment reaches the intake"
+          ]
+        },
+        {
+          "id": "minister-exempts",
+          "label": "The minister exempted the holder from the section for the area, being satisfied that it is not practicable there (§78(1))",
+          "source": "wlppr",
+          "provision": "78(1)",
+          "kind": "decision",
+          "decidedBy": "The minister (Minister of Forests)",
+          "evidence": [
+            "The minister’s exemption and the area it names"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "In a community watershed, timber may not be harvested and a road may not be built within a 100 m radius upslope (slope distance) of a licensed waterworks diverting water for human consumption, unless the harvest or road will not increase sediment delivery to the intake.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Keep the harvest and roads out of the radius, or show they add no sediment to the intake."
+        }
+      ]
+    },
+    {
+      "id": "spring-road",
+      "title": "No road near a spring that feeds a licensed waterworks",
+      "source": "wlppr",
+      "provision": "50",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "spring",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "no-interference",
+          "label": "Where the minister specified no distance: the construction does not interfere with the subsurface flow path of the drainage area feeding the spring (§50(2))",
+          "source": "wlppr",
+          "provision": "50(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The hydrogeological assessment of the flow path"
+          ]
+        },
+        {
+          "id": "minister-permits",
+          "label": "The minister permitted the road closer to the spring than the specified distance (§50(1)(c))",
+          "source": "wlppr",
+          "provision": "50(1)(c)",
+          "kind": "decision",
+          "decidedBy": "The minister (Minister of Forests)",
+          "evidence": [
+            "The minister’s permission"
+          ]
+        },
+        {
+          "id": "minister-exempts",
+          "label": "The minister exempted the holder from the section for the area, being satisfied that it is not practicable there (§78(1))",
+          "source": "wlppr",
+          "provision": "78(1)",
+          "kind": "decision",
+          "decidedBy": "The minister (Minister of Forests)",
+          "evidence": [
+            "The minister’s exemption and the area it names"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "A road may not be located within the distance the minister specified from a spring the minister identified in a community watershed as feeding a licensed waterworks, unless the minister permits it closer; where no distance was specified, not within a 100 m radius upslope of the spring unless its construction does not interfere with the subsurface flow path of the drainage area that feeds the spring.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Move the road beyond the distance, or obtain the minister’s permission, or show it does not interfere with the spring’s subsurface flow path."
+        }
+      ]
+    },
+    {
+      "id": "wildlife-tree-area",
+      "title": "Wildlife tree retention areas over at least 8% of the woodlot licence area, or a lower share the objective or plan specifies",
+      "source": "wlppr",
+      "provision": "52(1), 13(1)(g)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "wtra-lower",
+            "op": "eq",
+            "value": false
+          },
+          {
+            "fact": "wtra-share",
+            "op": "lt",
+            "value": {
+              "parameter": "wtra-share"
+            }
+          }
+        ],
+        [
+          {
+            "fact": "wtra-lower",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "fact": "wtra-below-least",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "minister-exempts",
+          "label": "The minister exempted the holder from the section for the area, being satisfied that it is not practicable there (§78(1))",
+          "source": "wlppr",
+          "provision": "78(1)",
+          "kind": "decision",
+          "decidedBy": "The minister (Minister of Forests)",
+          "evidence": [
+            "The minister’s exemption and the area it names"
+          ]
+        },
+        {
+          "id": "private-pre-1995",
+          "label": "Private land in a woodlot licence issued before 15 June 1995, whose management plan holds no commitment on the subject (§2(5)–(6))",
+          "source": "wlppr",
+          "provision": "2(5)–(6)",
+          "kind": "by-law",
+          "evidence": [
+            "The licence’s issue date",
+            "The management plan’s commitments, if any"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "Wildlife tree retention areas would occupy less of the woodlot licence area than required: the least of the proportion a land use objective specifies, the proportion the woodlot licence plan specifies and 8%. Unlike the FPPR, the share is measured across the whole licence area, not each cutblock, and only an area the plan specifies counts.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Add wildlife tree retention areas to the plan, or keep the block out of the ones it holds, until the licence area meets the share."
+        }
+      ]
+    },
+    {
+      "id": "wildlife-trees",
+      "title": "Wildlife trees and retention areas cut only under the plan’s strategy",
+      "source": "wlppr",
+      "provision": "52(2), 11",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "wildlife-trees",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "minister-exempts",
+          "label": "The minister exempted the holder from the section for the area, being satisfied that it is not practicable there (§78(1))",
+          "source": "wlppr",
+          "provision": "78(1)",
+          "kind": "decision",
+          "decidedBy": "The minister (Minister of Forests)",
+          "evidence": [
+            "The minister’s exemption and the area it names"
+          ]
+        },
+        {
+          "id": "private-pre-1995",
+          "label": "Private land in a woodlot licence issued before 15 June 1995, whose management plan holds no commitment on the subject (§2(5)–(6))",
+          "source": "wlppr",
+          "provision": "2(5)–(6)",
+          "kind": "by-law",
+          "evidence": [
+            "The licence’s issue date",
+            "The management plan’s commitments, if any"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "Wildlife trees, and trees within a wildlife tree retention area, may be cut, damaged or removed only as the wildlife tree retention strategy in the woodlot licence plan allows: its conditions for removing them and how each removed tree is replaced.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Read the plan’s wildlife tree retention strategy, and remove only what its conditions allow, replacing it as the strategy says."
+        }
+      ]
+    },
+    {
+      "id": "general-wildlife-measure",
+      "title": "Every general wildlife measure for the area is met",
+      "source": "wlppr",
+      "provision": "55",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          },
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "gwm",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "exceptions": [
+        {
+          "id": "wildlife-minister",
+          "label": "The Wildlife Act minister exempted the holder from the measure, the measure’s intent being achieved or compliance being impracticable (§79(1))",
+          "source": "wlppr",
+          "provision": "79(1)",
+          "kind": "decision",
+          "decidedBy": "The minister responsible for the Wildlife Act",
+          "evidence": [
+            "The exemption and the measure it names"
+          ]
+        },
+        {
+          "id": "earlier-permit",
+          "label": "The block’s cutting or road permit was in effect when the measure was established (§2(4))",
+          "source": "wlppr",
+          "provision": "2(4)",
+          "kind": "by-law",
+          "evidence": [
+            "The permit’s date",
+            "The measure’s establishment date"
+          ]
+        },
+        {
+          "id": "private-pre-1995",
+          "label": "Private land in a woodlot licence issued before 15 June 1995, whose management plan holds no commitment on the subject (§2(5)–(6))",
+          "source": "wlppr",
+          "provision": "2(5)–(6)",
+          "kind": "by-law",
+          "evidence": [
+            "The licence’s issue date",
+            "The management plan’s commitments, if any"
+          ]
+        },
+        {
+          "id": "workers-compensation",
+          "label": "Only as needed to conform to the Workers Compensation Act and its regulations (§2(9))",
+          "source": "wlppr",
+          "provision": "2(9)",
+          "kind": "by-law",
+          "evidence": [
+            "The safety requirement and why the practice could not also be met"
+          ]
+        }
+      ],
+      "finding": "The holder’s primary forest activities in the area must comply with each general wildlife measure established for it. On this ground lists the wildlife habitat areas and ungulate winter ranges the block overlaps and, where the order is stored, its measures.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Read each general wildlife measure for the area and plan the harvest and roads to it."
+        }
+      ]
+    }
+  ]
+}
