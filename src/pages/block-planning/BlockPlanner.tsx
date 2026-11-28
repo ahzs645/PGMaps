@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Maximize, Minimize, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
@@ -45,6 +45,7 @@ import {
 import { openPlanFile } from './migrate'
 import { PeriodTable } from './PeriodTable'
 import { emptyPlan, periodYears, samplePlan, type Plan } from './plan'
+import { crossingMapFeatures } from './crossings/mapFeatures'
 import { PlanMap } from './PlanMap'
 import { storePlan } from './store'
 import { AreaStep } from './steps/AreaStep'
@@ -229,6 +230,8 @@ export default function BlockPlanner({
   const [exportOpen, setExportOpen] = useState(false)
   const [exportStart, setExportStart] = useState<BlockPlanningExport | undefined>()
   const library = useLibrary(defaults)
+  // The schedule on the map's crossings, each by its own standing; recomputed with the plan.
+  const crossingMap = useMemo(() => crossingMapFeatures(plan, shown.schedule, library), [plan, shown.schedule, library])
 
   // --- Interface -------------------------------------------------------------------------------
   const {
@@ -673,6 +676,7 @@ export default function BlockPlanner({
                 drawing={drawing}
                 fitKey={fitKey}
                 oldForest={oldForestMapOn ? oldForestMap : null}
+                crossings={crossingMap}
               />
             </div>
             <PlaybackControls

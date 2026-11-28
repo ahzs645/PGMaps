@@ -117,7 +117,8 @@ import { issueStamp, parseProjectIssue, PLANNING_CAVEAT } from './projectIssue'
 import { parseFieldReview } from './fieldReview'
 import { parseHaulSettings } from './haulReview'
 import { projectReadiness, readinessReportHtml, vehicleFit, type VehicleFit } from './readiness'
-import { crossingRegisterReportHtml } from './crossingRegister'
+import { buildCrossingRegister, crossingRegisterReportHtml, registerExportCrossings } from './crossingRegister'
+import { designerCrossingProperties } from '@/lib/forestry/designerCrossings'
 import { buildCulvertSchedule, culvertScheduleReportHtml } from './culverts/culvertSchedule'
 import { culvertChannels } from './culverts/culvertChannels'
 import { vehiclePreset } from './jobStandards'
@@ -1352,7 +1353,15 @@ export function importContextGeoJson(raw: unknown): ContextFeature[] {
   return result
 }
 
-export function projectGeoJson(project: RoadProject, analyses: Map<string, RoadAnalysis>): GeoJSON.FeatureCollection {
+/**
+ * The project as GeoJSON. `drainageCurrent` says which roads' stored drainage check still matches
+ * the road: only those list their modelled crossings in the register points.
+ */
+export function projectGeoJson(
+  project: RoadProject,
+  analyses: Map<string, RoadAnalysis>,
+  options: { drainageCurrent?: (alignmentId: string) => boolean } = {},
+): GeoJSON.FeatureCollection {
   refuseInvalidResults('GeoJSON', ...project.alignments.map((alignment) => analyses.get(alignment.id)))
   const output: GeoJSON.Feature[] = []
   for (const a of project.alignments) {
@@ -1403,7 +1412,22 @@ export function projectGeoJson(project: RoadProject, analyses: Map<string, RoadA
           analysis && analysis.centerline.length >= 2 ? analysis.centerline : a.points.map((p) => p.coordinate),
       },
     })
-    for (const crossing of analysis?.crossings ?? [])
+    // Stream crossings carry the crossing register's row (`designerCrossings.ts`), which the block
+    // planner reads; modelled-only rows are points of their own at their station on the road.
+    const register = analysis
+      ? buildCrossingRegister({
+          alignment: a,
+          analysis,
+          context: project.context,
+          drainage: {
+            record: project.drainage?.records.find((record) => record.alignmentId === a.id),
+            stale: !options.drainageCurrent?.(a.id),
+          },
+        })
+      : undefined
+    const registerRows = register && analysis ? registerExportCrossings(a, analysis, register, project.context) : []
+    for (const crossing of analysis?.crossings ?? []) {
+      const row = registerRows.find((r) => r.id === `mapped:${crossing.id}`)
       output.push({
         type: 'Feature',
         id: `${a.id}-${crossing.id}`,
@@ -1415,6 +1439,21 @@ export function projectGeoJson(project: RoadProject, analyses: Map<string, RoadA
           context_kind: crossing.kind,
           chainage_m: crossing.chainage,
           note: 'Geometric intersection only; structure type and capacity are not designed.',
+          ...(row ? designerCrossingProperties(row) : {}),
+        },
+      })
+    }
+    for (const row of registerRows.filter((r) => r.source === 'modelled'))
+      output.push({
+        type: 'Feature',
+        id: `${a.id}-${row.id}`,
+        geometry: { type: 'Point', coordinates: row.point },
+        properties: {
+          kind: 'crossing-review',
+          name: row.stream,
+          context_kind: 'modelled-flow',
+          note: 'A flow line the drainage check modelled over the terrain; no mapped stream within the match distance.',
+          ...designerCrossingProperties(row),
         },
       })
     for (const c of analysis?.engineering?.culverts ?? [])

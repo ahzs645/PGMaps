@@ -31,6 +31,10 @@ import {
   type CrossingStructureKind,
 } from './record'
 import { CROSSING_STANDING_WORDS, crossingRollup, type CrossingAssessment, type CrossingStanding } from './standing'
+import { unreviewedCandidates } from './candidates'
+import { CrossingEvidencePanel } from './CrossingEvidence'
+import { CrossingReads } from './CrossingReads'
+import { datingBracket, REPLACED_QUESTION } from './dating'
 
 export const CROSSING_STANDING_TONE: Record<CrossingStanding, BadgeTone> = {
   error: 'danger',
@@ -87,14 +91,16 @@ function TextEntry({
   )
 }
 
-/** What the reviewer records about one crossing, its own review, and the evidence read for it (none yet). */
+/** What the reviewer records about one crossing, what was read about it, and its own review. */
 function CrossingDetail({
+  plan,
   assessed,
   library,
   edit,
   keepPacks,
   onRemoved,
 }: {
+  plan: Plan
   assessed: CrossingAssessment
   library: Pack[]
   edit: (change: (plan: Plan) => Plan) => void
@@ -137,7 +143,7 @@ function CrossingDetail({
         <FormField
           label="Origin"
           group
-          description="Entered by the reviewer. Crossings from the road designer and the map come later."
+          description="Entered by the reviewer, or added from the road designer’s register, the mapped layers or PSCIS under Find crossings."
         >
           <p className="text-xs">{CROSSING_ORIGIN_LABELS[record.origin]}</p>
         </FormField>
@@ -206,26 +212,7 @@ function CrossingDetail({
         />
       </div>
       <TextEntry label="Note" multiline value={record.note ?? ''} onCommit={(note) => change({ note })} />
-      <div className="space-y-1">
-        <p className="text-xs font-medium">Evidence</p>
-        <p className="text-2xs text-muted-foreground" data-testid="crossing-evidence">
-          {record.evidence.length
-            ? `${record.evidence.length} record${record.evidence.length === 1 ? '' : 's'} read`
-            : 'None read for this crossing yet. Records read later (PSCIS assessments, fish observations, Water Act notices, the designer’s sizing) are candidates beside the answers, never the answers.'}
-        </p>
-        {record.evidence.length > 0 && (
-          <ul className="space-y-0.5 text-2xs">
-            {record.evidence.map((e, i) => (
-              <li key={i}>
-                {e.summary}{' '}
-                <span className="text-muted-foreground">
-                  ({e.source}, read {e.readOn})
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <CrossingEvidencePanel plan={plan} record={record} library={library} edit={edit} keepPacks={keepPacks} />
       <CaseReview
         library={library}
         instruments={[...CROSSING_INSTRUMENTS]}
@@ -233,6 +220,7 @@ function CrossingDetail({
         measurements={[]}
         hints={{
           structure: record.structure ? `Recorded above: ${structureText(record)}.` : undefined,
+          'built-after-1995': `${datingBracket(record.sightings ?? []).text} ${REPLACED_QUESTION}`,
           'stream-gradient':
             'Under 20% presumes a fish stream unless one of limb (b)’s three rebuttals is shown; 20% or more makes none by limb (b), though limb (a) still may.',
           'no-listed-species':
@@ -271,6 +259,7 @@ export function CrossingsSection({
   keepPacks: (plan: Plan) => Plan
 }) {
   const rollup = crossingRollup(plan, block.id, schedule, library)
+  const unreviewed = unreviewedCandidates(plan, block.id, schedule).length
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [name, setName] = useState('')
   const open = rollup.crossings.find((c) => c.record.key === openKey)
@@ -306,6 +295,11 @@ export function CrossingsSection({
           <span className="text-muted-foreground">
             No crossings listed for this block. The block review asks whether its roads or harvesting change a stream at
             all; list each crossing here to answer it on its own.
+          </span>
+        )}
+        {unreviewed > 0 && (
+          <span className="mt-1 block text-2xs" data-testid="crossings-unreviewed">
+            {unreviewed} crossing{unreviewed === 1 ? '' : 's'} read under Find crossings and not added.
           </span>
         )}
       </p>
@@ -360,6 +354,7 @@ export function CrossingsSection({
           </table>
         </div>
       )}
+      <CrossingReads plan={plan} edit={edit} block={block} schedule={schedule} onAdded={setOpenKey} />
       <form
         className="flex items-end gap-2"
         onSubmit={(e) => {
@@ -385,6 +380,7 @@ export function CrossingsSection({
       {open && (
         <CrossingDetail
           key={open.record.key}
+          plan={plan}
           assessed={open}
           library={library}
           edit={edit}

@@ -22,7 +22,18 @@ import type { OldForestChoices, PlanChecks } from './records'
 import type { MackenzieOldForestChoices } from './oldForest/mackenzieRecord'
 import { rangeReviewCurrent } from './review/rangeReview'
 import { blankCrossing, crossingFootprint, type CrossingRecord } from './crossings/record'
-import type { Pack } from '../../../packages/legal-rules/src/contract'
+import {
+  crossingReadCurrent,
+  placeCandidate,
+  type CrossingRead,
+  type CrossingReadSource,
+  type FactOffer,
+  type Placed,
+} from './crossings/candidates'
+import { mergeSightings, type CrossingSighting } from './crossings/dating'
+import { setFact } from './review/caseEdits'
+import { setLinkedFact } from './review/linkedFacts'
+import { accepts, releaseKey, type Pack } from '../../../packages/legal-rules/src/contract'
 import {
   dayOf,
   fspIdToken,
@@ -181,6 +192,7 @@ export function removeBlock(plan: Plan, id: string): Plan {
     rangeReviews: plan.rangeReviews?.filter((review) => review.block !== id),
     groundReads: plan.groundReads?.filter((read) => read.block !== id),
     ...withCrossings(plan, (c) => c.block !== id),
+    ...withCrossingReads(plan, (r) => r.block !== id),
     ...withAcquisition(
       plan,
       (block) => block !== id,
@@ -304,6 +316,7 @@ export function removeSchedule(plan: Plan, id: string): Plan {
     rangeReviews: plan.rangeReviews?.filter((review) => review.schedule !== id),
     groundReads: plan.groundReads?.filter((read) => read.schedule !== id),
     ...withCrossings(plan, (c) => c.schedule !== id),
+    ...withCrossingReads(plan, (r) => r.schedule !== id),
     ...withAcquisition(
       plan,
       () => true,
@@ -390,6 +403,111 @@ export function confirmCrossing(plan: Plan, key: string): Plan {
 
 export function removeCrossing(plan: Plan, key: string): Plan {
   return plan.crossings ? { ...plan, crossings: plan.crossings.filter((c) => c.key !== key) } : plan
+}
+
+/** The plan's crossing reads that `keep` keeps; a plan that had none stays without the key. */
+function withCrossingReads(plan: Plan, keep: (r: CrossingRead) => boolean): Pick<Plan, 'crossingReads'> {
+  return plan.crossingReads ? { crossingReads: plan.crossingReads.filter(keep) } : {}
+}
+
+/**
+ * Keeps a read of crossings round a block, replacing the block, schedule and source's earlier one.
+ * A read for other ground (the block was redrawn while it ran) is refused.
+ */
+export function saveCrossingRead(plan: Plan, read: CrossingRead): Plan {
+  if (!crossingReadCurrent(plan, read)) return plan
+  const others = (plan.crossingReads ?? []).filter(
+    (r) => r.block !== read.block || r.schedule !== read.schedule || r.source !== read.source,
+  )
+  return { ...plan, crossingReads: [...others, read] }
+}
+
+export function removeCrossingRead(plan: Plan, block: string, schedule: string, source: CrossingReadSource): Plan {
+  if (!plan.crossingReads) return plan
+  return {
+    ...plan,
+    crossingReads: plan.crossingReads.filter(
+      (r) => r.block !== block || r.schedule !== schedule || r.source !== source,
+    ),
+  }
+}
+
+/**
+ * Adds a read candidate as a crossing, on the reviewer's click: onto the record that holds it
+ * already (by alias, else by place under the PSCIS site rule), else as a new record of its origin
+ * (`placeCandidate`). `site` adds one site of a folded PSCIS candidate; `apart` makes a new record
+ * even where one matches by place.
+ */
+export function addCrossingCandidate(
+  plan: Plan,
+  block: string,
+  schedule: string,
+  source: CrossingReadSource,
+  candidate: string,
+  options: { site?: number; apart?: boolean } = {},
+): Placed | { plan: Plan; key: ''; merged: false } {
+  const b = plan.blocks.find((x) => x.id === block)
+  const read = plan.crossingReads?.find((r) => r.block === block && r.schedule === schedule && r.source === source)
+  const found = read?.candidates.find((c) => c.id === candidate)
+  if (!b || !read || !found || !crossingReadCurrent(plan, read)) return { plan, key: '', merged: false }
+  return placeCandidate(plan, b, schedule, found, options)
+}
+
+/**
+ * Uses what a crossing's evidence offers for one fact (`factOffers`) as the crossing's answer, with
+ * the offer's basis as its evidence. Refused when the crossing's releases do not ask the fact or the
+ * value does not fit it.
+ */
+export function applyCrossingOffer(plan: Plan, library: Pack[], key: string, offer: FactOffer): UseResult {
+  const record = plan.crossings?.find((c) => c.key === key)
+  if (!record) return { error: 'The crossing is no longer in the plan.' }
+  const packs = library.filter((p) => record.review.selected.includes(releaseKey(p)))
+  const pack = packs.find((p) => p.id === offer.pack)
+  if (!pack) return { error: `${record.label} does not use ${offer.pack}.` }
+  const fact = pack.facts.find((f) => f.id === offer.fact)
+  if (!fact || !accepts(fact, offer.value)) return { error: `${pack.title} ${pack.version} does not take this value.` }
+  let review = setLinkedFact(record.review, packs, pack, fact.id, offer.value)
+  review = setFact(
+    review,
+    pack,
+    fact.id,
+    offer.value,
+    `Offered by the crossing’s evidence and used by the reviewer: ${offer.basis}`,
+  )
+  return { plan: setCrossingReview(plan, key, review) }
+}
+
+/** Adds a dated sighting the reviewer made (an air photo, a scene, a field visit) to a crossing. */
+export function addCrossingSighting(plan: Plan, key: string, sighting: CrossingSighting): Plan {
+  const record = plan.crossings?.find((c) => c.key === key)
+  if (!record || !dayOf(sighting.date)) return plan
+  const clean: CrossingSighting = { source: sighting.source, date: sighting.date, state: sighting.state }
+  if (sighting.reference?.trim()) clean.reference = sighting.reference.trim()
+  if (sighting.resolutionM !== undefined && Number.isFinite(sighting.resolutionM) && sighting.resolutionM > 0)
+    clean.resolutionM = sighting.resolutionM
+  if (sighting.note?.trim()) clean.note = sighting.note.trim()
+  return {
+    ...plan,
+    crossings: plan.crossings!.map((c) =>
+      c.key === key ? { ...c, sightings: mergeSightings(c.sightings ?? [], [clean]) } : c,
+    ),
+  }
+}
+
+/** Removes one sighting, by its place in the crossing's dated list. */
+export function removeCrossingSighting(plan: Plan, key: string, index: number): Plan {
+  const record = plan.crossings?.find((c) => c.key === key)
+  if (!record?.sightings?.[index]) return plan
+  const sightings = record.sightings.filter((_, i) => i !== index)
+  return {
+    ...plan,
+    crossings: plan.crossings!.map((c) => {
+      if (c.key !== key) return c
+      const next: CrossingRecord = { ...c, sightings }
+      if (!sightings.length) delete next.sightings
+      return next
+    }),
+  }
 }
 
 // ---------------------------------------------------------------------------------------------

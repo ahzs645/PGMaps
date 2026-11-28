@@ -41,6 +41,19 @@ export const OLD_FOREST_COLOURS: Record<DrawnKind, string> = {
   corridor: '#292524',
 }
 
+/**
+ * Stream crossings on the map by standing (`crossings/standing.ts`), worst warmest; a crossing read
+ * but not added is drawn smaller and faded in the candidate grey, so it never reads as a standing.
+ */
+export const CROSSING_COLOURS = {
+  error: '#7f1d1d',
+  raised: '#dc2626',
+  open: '#d97706',
+  unreviewed: '#2563eb',
+  clear: '#15803d',
+  candidate: '#a3a3a0',
+} as const
+
 /** Map ink: blocks, past disturbances and riparian zones. */
 export const MAP_COLOURS = {
   block: '#c2410c',

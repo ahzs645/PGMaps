@@ -1357,6 +1357,19 @@ in the project file.
   crossing register and the design standards,** so the printed document says what was and was not
   checked, including every check that was not assessed.
 
+### The crossing register in the GeoJSON
+
+Each stream crossing point (`kind: "crossing-review"`) also carries its row of the crossing
+register, flat, with `register_format: "pgmaps-designer-crossing/v1"`: the road and its station,
+mapped, modelled or both, the structure and a culvert's diameter and length, what keeps it from
+counting as sized, the stream's riparian class and its status, a modelled flow line's catchment,
+and the skew and straight approaches (`registerExportCrossings`, written and read through the
+shared `src/lib/forestry/designerCrossings.ts`). A modelled flow line with no mapped stream is a
+point of its own at its station on the road (`context_kind: "modelled-flow"`). Only the open road's
+drainage check is known to match its road, so only it lists modelled rows. The block planner reads
+these points as crossing candidates. No person's name travels: the stream assessment's assessor is
+not a register field. The points are export only and never import back as roads.
+
 ### Shapefile
 
 - **Three layers, written without a GIS library.** Point and PolyLine geometry, dBase III tables,
