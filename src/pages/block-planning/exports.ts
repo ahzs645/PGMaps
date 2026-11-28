@@ -59,7 +59,7 @@ import {
   REACH_LABELS,
 } from '@/lib/legal/groundInstruments'
 import { precedentSummary } from './ground/precedent'
-import { failedByReason, groundReadCurrent, nearText, type GroundRead } from './ground/record'
+import { failedByReason, groundReadCurrent, nearText, sliverLines, type GroundRead } from './ground/record'
 import { documentRequests } from './ground/requests'
 import { exceptionsToRequest, wildlifeCitesText, wildlifeRows, withheldRequests } from './ground/wildlifeMeasures'
 import { CROSSING_ORIGIN_LABELS, CROSSING_ROLE_LABELS, CROSSING_STRUCTURE_LABELS } from './crossings/record'
@@ -463,7 +463,8 @@ function groundHtml(plan: Plan, read: GroundRead, names: Record<string, string>)
   })
   const label = (id: string) => groundInstrument(id)?.label ?? id
   const failed = read.instruments.filter((r) => r.status === 'failed')
-  const empty = read.instruments.filter((r) => r.status !== 'failed' && !r.features.length)
+  const empty = read.instruments.filter((r) => r.status !== 'failed' && !r.features.length && !r.slivers?.length)
+  const slivers = sliverLines(read, label, (id) => groundLayer(id)?.title ?? id)
   const requests = [
     ...documentRequests(read, block?.name ?? read.block),
     ...withheldRequests(read, groundInstrument, block?.name ?? read.block),
@@ -512,6 +513,7 @@ ${failedByReason(failed)
   .map(({ reason, ids }) => `<p class="warn">Not read: ${escape(ids.map(label).join(', '))}. ${escape(reason)}</p>`)
   .join('\n')}
 ${empty.length ? `<p class="note">Read, nothing mapped on the footprint: ${escape(empty.map((r) => label(r.instrument)).join(', '))}.</p>` : ''}
+${slivers.map((line) => `<p class="note">${escape(line)}.</p>`).join('\n')}
 ${
   found.length && read.precedent
     ? `<h4>Precedent within ${read.precedent.radiusM / 1000} km (RESULTS and other public records)</h4>

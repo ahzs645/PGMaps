@@ -26,6 +26,7 @@ import {
   groundReadOf,
   nearText,
   saveGroundRead,
+  sliverLines,
   type GroundContextRead,
   type GroundRead,
   type PrecedentOpening,
@@ -137,10 +138,13 @@ export function GroundInstruments({
     const instrument = groundInstrument(r.instrument)
     return instrument && r.features.length ? [{ read: r, instrument }] : []
   })
-  const empty = (read?.instruments ?? []).filter((r) => r.status !== 'failed' && !r.features.length)
+  const empty = (read?.instruments ?? []).filter(
+    (r) => r.status !== 'failed' && !r.features.length && !r.slivers?.length,
+  )
   const failed = (read?.instruments ?? []).filter((r) => r.status === 'failed')
   const truncated = (read?.instruments ?? []).filter((r) => r.status === 'truncated')
   const label = (id: string) => groundInstrument(id)?.label ?? id
+  const slivers = read ? sliverLines(read, label, (id) => groundLayer(id)?.title ?? id) : []
   const requests = read
     ? [...documentRequests(read, block.name), ...withheldRequests(read, groundInstrument, block.name)]
     : []
@@ -288,6 +292,15 @@ export function GroundInstruments({
               Read, nothing mapped on the footprint: {empty.map((r) => label(r.instrument)).join(', ')}.
             </p>
           )}
+          {slivers.length > 0 && (
+            <ul className="space-y-0.5 text-2xs text-muted-foreground" data-testid="block-planning-ground-slivers">
+              {slivers.map((line) => (
+                <li key={line} className="[overflow-wrap:anywhere]">
+                  {line}.
+                </li>
+              ))}
+            </ul>
+          )}
           {read.context && read.context.length > 0 && <ContextLayers context={read.context} />}
           {found.length > 0 && (
             <CalculationTable
@@ -399,7 +412,9 @@ function ContextLayers({ context }: { context: GroundContextRead[] }) {
                   ? c.features
                       .map((f) => `${f.name} (${f.id}), ${f.sharePercent.toFixed(1)}% of the footprint`)
                       .join('; ')
-                  : 'none mapped on the footprint'}
+                  : c.slivers?.length
+                    ? 'only a sliver at the boundary, listed above'
+                    : 'none mapped on the footprint'}
               {c.status === 'truncated' ? ` ${c.message ?? ''}` : ''}
             </li>
           )

@@ -25,6 +25,7 @@ import { readAcrossParts, wfsRead, type Fetch, type RawFeature } from '../wfsRea
 import type { GroundOverlay } from './groundRead'
 import {
   MAX_PRECEDENT_OPENINGS,
+  SLIVER_HA,
   type GroundPrecedent,
   type PrecedentAlrApplication,
   type PrecedentCutBlock,
@@ -402,13 +403,15 @@ export function describeAlrApplication(p: Props, kind: PrecedentAlrApplication['
 }
 
 /**
- * Which openings each instrument holds: inside one of its features near the block and harvested on
- * or after that feature's date (or any, without one; an opening with no harvest date is kept and
- * shows it). Exported for the tests.
+ * Which openings each instrument holds: inside one of its features near the block (sharing at least
+ * `SLIVER_HA` with it) and harvested on or after that feature's date (or any, without one; an
+ * opening with no harvest date is kept and shows it). An opening that only touches the instrument by
+ * a sliver is left out and counted (`touching`). `overlapHa` is `[region][opening]` in hectares.
+ * Exported for the tests.
  */
 export function assignOpenings(
   regions: PrecedentRegion[],
-  inRegion: boolean[][],
+  overlapHa: number[][],
   openings: Props[],
   dated: Record<string, boolean>,
 ): PrecedentRow[] {
@@ -416,57 +419,74 @@ export function assignOpenings(
   return instruments.map((instrument) => {
     const mine = regions.map((r, i) => ({ r, i })).filter(({ r }) => r.instrument === instrument)
     const dates = mine.map(({ r }) => r.effective).filter((d): d is string => d !== null)
-    const { kept, earlier } = insideFrom(mine, inRegion, openings, (o) => numberOf(o.OPENING_ID) ?? 0, harvestedOn)
+    const { kept, earlier, touching } = insideFrom(
+      mine,
+      overlapHa,
+      openings,
+      (o) => numberOf(o.OPENING_ID) ?? 0,
+      harvestedOn,
+    )
     return {
       instrument,
       ...(dates.length ? { since: dates.sort()[0] } : {}),
       dated: Boolean(dated[instrument]),
       openings: kept,
       earlier,
+      touching,
     }
   })
 }
 
+const SLIVER_M2 = Math.round(SLIVER_HA * 10_000)
+
+/** Whether an item shares ground with a region: at least `SLIVER_HA`, a sliver being the boundaries meeting. */
+export const sharesGround = (ha: number | undefined) => (ha ?? 0) >= SLIVER_HA
+
 /**
  * The items inside one instrument's regions, counted from each region's own date (or any, without
- * one; an item with no date is kept), and how many inside were dated before it.
+ * one; an item with no date is kept), how many inside were dated before it, and how many touch its
+ * regions only by slivers.
  */
 function insideFrom(
   mine: { r: PrecedentRegion; i: number }[],
-  inRegion: boolean[][],
+  overlapHa: number[][],
   items: Props[],
   idOf: (p: Props) => number,
   dateOf: (p: Props) => string | undefined,
-): { kept: number[]; earlier: number } {
+): { kept: number[]; earlier: number; touching: number } {
   const kept: number[] = []
   let earlier = 0
+  let touching = 0
   items.forEach((o, j) => {
-    const inside = mine.filter(({ i }) => inRegion[i]?.[j])
-    if (!inside.length) return
+    const inside = mine.filter(({ i }) => sharesGround(overlapHa[i]?.[j]))
+    if (!inside.length) {
+      if (mine.some(({ i }) => (overlapHa[i]?.[j] ?? 0) > 0)) touching++
+      return
+    }
     const on = dateOf(o)
     if (inside.some(({ r }) => r.effective === null || !on || on >= r.effective)) kept.push(idOf(o))
     else earlier++
   })
-  return { kept, earlier }
+  return { kept, earlier, touching }
 }
 
 /** Adds the exempt cut blocks inside each instrument, from its date as the openings are. Exported for the tests. */
 export function assignCutBlocks(
   rows: PrecedentRow[],
   regions: PrecedentRegion[],
-  inRegion: boolean[][],
+  overlapHa: number[][],
   blocks: Props[],
 ): PrecedentRow[] {
   return rows.map((row) => {
     const mine = regions.map((r, i) => ({ r, i })).filter(({ r }) => r.instrument === row.instrument)
-    const { kept, earlier } = insideFrom(
+    const { kept, earlier, touching } = insideFrom(
       mine,
-      inRegion,
+      overlapHa,
       blocks,
       (b) => numberOf(b.CUT_BLOCK_SKEY) ?? 0,
       (b) => dayOf(b.DISTURBANCE_START_DATE) ?? undefined,
     )
-    return { ...row, exemptBlocks: kept, exemptEarlier: earlier }
+    return { ...row, exemptBlocks: kept, exemptEarlier: earlier, ...(touching ? { exemptTouching: touching } : {}) }
   })
 }
 
@@ -578,11 +598,11 @@ export async function readPrecedent({
   const openings = raw.slice(0, MAX_PRECEDENT_OPENINGS).filter((f) => isArea(f.geometry))
   const clipped = regions.map((r) => overlay.clip(r.geometry, grown))
   const present = clipped.map((c, i) => ({ c, i })).filter((x): x is { c: Shape; i: number } => x.c !== null)
-  const matrix = overlay.overlaps(
+  const matrix = overlay.overlapHa(
     present.map((x) => x.c),
     openings.map((o) => o.geometry as Shape),
   )
-  const inRegion: boolean[][] = regions.map(() => [])
+  const inRegion: number[][] = regions.map(() => [])
   present.forEach((x, k) => (inRegion[x.i] = matrix[k]))
   let rows = assignOpenings(
     regions,
@@ -625,12 +645,12 @@ export async function readPrecedent({
   let exemptBlocks: PrecedentCutBlock[] | undefined
   if (exempt) {
     const m = present.length
-      ? overlay.overlaps(
+      ? overlay.overlapHa(
           present.map((x) => x.c),
           exempt.map((b) => b.geometry),
         )
       : []
-    const inside: boolean[][] = regions.map(() => [])
+    const inside: number[][] = regions.map(() => [])
     present.forEach((x, k) => (inside[x.i] = m[k]))
     rows = assignCutBlocks(
       rows,
@@ -659,33 +679,36 @@ export async function readPrecedent({
         'ALR_APPLICATION_ID',
       )
       if (!items) return null
-      const m = overlay.overlaps(
+      const m = overlay.overlapHa(
         alrRegions.map((x) => x.c),
         items.map((i) => i.geometry),
       )
+      // An application touching the reserve only by a sliver is the boundaries meeting: left out and counted.
       return items.flatMap((item, j) => {
-        const inside = alrRegions.filter((_, k) => m[k][j])
-        return inside.length ? [{ ...describeAlrApplication(item.properties, kind), inside }] : []
+        const inside = alrRegions.filter((_, k) => sharesGround(m[k][j]))
+        const touching = alrRegions.filter((_, k) => m[k][j] > 0)
+        return touching.length ? [{ ...describeAlrApplication(item.properties, kind), inside, touching }] : []
       })
     }
     const applications = await read(ALR_APPLICATION_LAYER, 'GEOMETRY', 'application')
     const notices = await read(ALR_NOTICE_LAYER, 'SHAPE', 'notice of intent')
-    const kept = [...(applications ?? []), ...(notices ?? [])]
-    rows = rows.map((row) =>
-      ALR_PRECEDENT_INSTRUMENTS.includes(row.instrument) && applications && notices
-        ? {
-            ...row,
-            alrApplications: kept
-              .filter((a) => a.inside.some((x) => regions[x.i].instrument === row.instrument))
-              .map((a) => a.id),
-          }
-        : row,
-    )
+    const near = [...(applications ?? []), ...(notices ?? [])]
+    const kept = near.filter((a) => a.inside.length)
+    const ofRow = (xs: { i: number }[], instrument: string) => xs.some((x) => regions[x.i].instrument === instrument)
+    rows = rows.map((row) => {
+      if (!ALR_PRECEDENT_INSTRUMENTS.includes(row.instrument) || !applications || !notices) return row
+      const touching = near.filter((a) => !ofRow(a.inside, row.instrument) && ofRow(a.touching, row.instrument)).length
+      return {
+        ...row,
+        alrApplications: kept.filter((a) => ofRow(a.inside, row.instrument)).map((a) => a.id),
+        ...(touching ? { alrTouching: touching } : {}),
+      }
+    })
     alr = {
       applications: applications ? 'read' : 'failed',
       notices: notices ? 'read' : 'failed',
       kept: kept
-        .map(({ inside: _inside, ...a }) => a)
+        .map(({ inside: _inside, touching: _touching, ...a }) => a)
         .sort((x, y) => (y.received ?? '').localeCompare(x.received ?? '') || x.id - y.id),
     }
   }
@@ -752,6 +775,10 @@ export function precedentSummary(precedent: GroundPrecedent, instrument: string)
   const undated = row.since ? mine.filter((o) => !o.harvested).length : 0
   if (undated) parts.push(`${undated} with no harvest date recorded`)
   if (row.earlier) parts.push(`${row.earlier} harvested before its date left out`)
+  if (row.touching)
+    parts.push(
+      `${plural(row.touching, 'opening touches', 'openings touch')} it only by a sliver under ${SLIVER_M2} m², read as the boundaries meeting and left out`,
+    )
   parts.push(...signalParts(precedent, row, mine))
   const text = parts.join('; ')
   return precedent.status === 'truncated' ? `${text}. Incomplete: ${precedent.message}` : text
@@ -785,7 +812,7 @@ function signalParts(precedent: GroundPrecedent, row: PrecedentRow, mine: Preced
     parts.push('cut blocks exempt from a silviculture prescription not read')
   else if (row.exemptBlocks?.length)
     parts.push(
-      `${plural(row.exemptBlocks.length, 'cut block', 'cut blocks')} marked exempt from a silviculture prescription (Forest Practices Code s. 30)${row.exemptEarlier ? `, ${row.exemptEarlier} earlier left out` : ''}`,
+      `${plural(row.exemptBlocks.length, 'cut block', 'cut blocks')} marked exempt from a silviculture prescription (Forest Practices Code s. 30)${row.exemptEarlier ? `, ${row.exemptEarlier} earlier left out` : ''}${row.exemptTouching ? `, ${row.exemptTouching} touching it only by a sliver left out` : ''}`,
     )
   if (ALR_PRECEDENT_INSTRUMENTS.includes(row.instrument) && precedent.joins.alrApplications !== undefined) {
     if (precedent.joins.alrApplications === 'failed' || precedent.joins.alrNotices === 'failed')
@@ -796,7 +823,7 @@ function signalParts(precedent: GroundPrecedent, row: PrecedentRow, mine: Preced
       const apps = kept.filter((a) => a.kind === 'application').length
       const notices = kept.length - apps
       parts.push(
-        `${plural(apps, 'ALR application', 'ALR applications')} and ${plural(notices, 'notice of intent', 'notices of intent')} mapped within ${precedent.radiusM / 1000} km (the Commission's decisions are not in the layer)`,
+        `${plural(apps, 'ALR application', 'ALR applications')} and ${plural(notices, 'notice of intent', 'notices of intent')} mapped within ${precedent.radiusM / 1000} km (the Commission's decisions are not in the layer)${row.alrTouching ? `; ${row.alrTouching} touching it only by a sliver left out` : ''}`,
       )
     }
   }

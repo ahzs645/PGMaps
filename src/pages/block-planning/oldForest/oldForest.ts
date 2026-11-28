@@ -974,13 +974,20 @@ export function clipShape(a: Shape, b: Shape): Shape | null {
 }
 
 /**
- * Which items share area with which regions, `[region][item]`, each projected once. Touching along
- * an edge is not sharing ground. Used for the ground read's precedent (openings in an instrument).
+ * The area each item shares with each region, in hectares, `[region][item]`, each projected once;
+ * 0 where they share none (touching along an edge is not sharing ground). Used for the ground read's
+ * precedent (openings in an instrument), which leaves a sliver out (`SLIVER_HA`, `ground/record.ts`).
  */
-export function overlapMatrix(regions: Shape[], items: Shape[]): boolean[][] {
+export function overlapAreaMatrix(regions: Shape[], items: Shape[]): number[][] {
   const r = regions.map((s) => toAlbers(s))
   const it = items.map((s) => toAlbers(s))
-  return r.map((region) => it.map((item) => intersection(region, item) !== null))
+  return r.map((region) =>
+    it.map((item) =>
+      region.getEnvelopeInternal().intersects(item.getEnvelopeInternal())
+        ? area(intersection(region, item)) / SQ_M_PER_HA
+        : 0,
+    ),
+  )
 }
 
 /** The overlays the ground read takes (`GroundOverlay` in `ground/groundRead.ts`). */
@@ -988,7 +995,7 @@ export const groundOverlay = {
   measure: overlapsWith,
   grow: grownFootprint,
   clip: clipShape,
-  overlaps: overlapMatrix,
+  overlapHa: overlapAreaMatrix,
   lines: linesNearFootprint,
   points: pointsNearFootprint,
 }
