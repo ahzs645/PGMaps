@@ -22,6 +22,7 @@ import { chooseRelease, instrumentOf, setClaim } from './caseEdits'
 import { ExceptionClaim, STANDING_TONE } from './ExceptionClaim'
 import { recordLinkedAnswer, setLinkedFact, sharedQuestion, type SharedQuestion } from './linkedFacts'
 import { dateGaps, dateGapText, findingCounts, questions, type Finding, type Question } from './questions'
+import type { ExceptionSignal } from './tenureSignals'
 import { topicSections } from './topics'
 import { describeCheck, formatValue, STANDING_WORDS, STATUS_WORDS, type Status } from './wording'
 
@@ -193,12 +194,14 @@ function FindingRow({
   finding,
   facts,
   date,
+  signals,
   onClaim,
 }: {
   pack: Pack
   finding: Finding
   facts: FactSet
   date: string
+  signals?: ExceptionSignal[]
   onClaim: (claim: Claim | undefined) => void
 }) {
   const exception = 'exception' in finding ? finding.exception : undefined
@@ -251,7 +254,7 @@ function FindingRow({
             <span className="font-medium">{ACTION_KIND[a.kind]}:</span> {a.description}
           </p>
         ))}
-      <ExceptionClaim pack={pack} rule={rule} finding={finding} onChange={onClaim} />
+      <ExceptionClaim pack={pack} rule={rule} finding={finding} signals={signals} onChange={onClaim} />
       {stages.map(([heading, stage]) => (
         <div key={heading} className="space-y-1">
           <p className="font-medium">{heading}</p>
@@ -302,6 +305,8 @@ export interface CaseReviewProps {
   hints?: Partial<Record<string, ReactNode>>
   /** What the questions shared by several provisions are grouped under: "Whole block", "Whole landscape". */
   caseLabel?: string
+  /** Public records bearing on an exception, offered beside it (`tenureSignals.ts`); never an answer. */
+  signals?: ExceptionSignal[]
   testId?: string
 }
 
@@ -318,6 +323,7 @@ export function CaseReview({
   measurements,
   hints = {},
   caseLabel,
+  signals,
   testId,
 }: CaseReviewProps) {
   const packs = library.filter((p) => instruments.includes(p.id) && review.selected.includes(releaseKey(p)))
@@ -552,6 +558,7 @@ export function CaseReview({
                       finding={f}
                       facts={release.facts}
                       date={review.date}
+                      signals={signals}
                       onClaim={(claim) => onChange(setClaim(review, release.pack, f.rule, claim))}
                     />
                   ))}

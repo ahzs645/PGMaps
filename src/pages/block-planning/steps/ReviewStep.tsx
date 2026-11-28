@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { blockAreaHa } from '@/lib/forestry/blockSheet/blockFacts'
 import { FORM_INPUT_CLASS, FormField, SelectField } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -28,6 +29,7 @@ import { blockGaps } from '../acquire/gaps'
 import { recordIdsOf } from '../acquire/record'
 import type { StepProps } from './types'
 import { landOfferHints } from '../review/LandOffers'
+import { currentTenureRead, TenureRecords, type KeptTenureRead } from '../review/TenureRecords'
 
 /** The Prince George order is reviewed once for the landscape; every other instrument per block. */
 export const ORDER_INSTRUMENT = 'bc.pgtsa.biodiversity'
@@ -43,6 +45,9 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis, o
   const library = useLibrary(defaults)
   const result = shownResult(analysis)
   const block = plan.blocks.find((b) => b.id === selectedBlock) ?? null
+  // The block's tenure records, read on the reviewer's click and kept for the session only.
+  const [tenure, setTenure] = useState<KeptTenureRead | null>(null)
+  const tenureRead = block ? currentTenureRead(plan, block, plan.reviewSchedule, tenure) : null
   // A crossing's instruments are answered per crossing, never for the block.
   const blockInstruments = [...new Set(library.map((p) => p.id))].filter(
     (id) => id !== ORDER_INSTRUMENT && id !== RANGE_INSTRUMENT && !CROSSING_INSTRUMENTS.includes(id),
@@ -165,12 +170,27 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis, o
             }}
             onChange={(review) => edit((p) => keepPacks({ ...p, reviews: { ...p.reviews, [block.id]: review } }))}
             caseLabel="Whole block"
+            signals={tenureRead?.signals}
             testId="block-planning-block-review"
           />
         ) : (
           <InlineAlert tone="info">Select a block here, on the map or in step 2.</InlineAlert>
         )}
       </ToolSection>
+      {block && (
+        <ToolSection
+          key={JSON.stringify(['tenure', block.id, plan.reviewSchedule])}
+          title="Tenure records"
+          summary={
+            tenureRead
+              ? `${tenureRead.records.length} on the block · ${tenureRead.signals.length} bearing on an exception`
+              : 'Not read'
+          }
+          help="The harvesting authorities, cut blocks and RESULTS openings on the block's ground, and what they record about a catastrophic or salvage harvest, a permit's issue date or a site plan exemption. Each is offered beside the exception it bears on; none answers a question or claims one."
+        >
+          <TenureRecords plan={plan} block={block} schedule={plan.reviewSchedule} kept={tenure} onRead={setTenure} />
+        </ToolSection>
+      )}
       {block && (
         <ToolSection
           key={JSON.stringify(['crossings', block.id, plan.reviewSchedule])}
