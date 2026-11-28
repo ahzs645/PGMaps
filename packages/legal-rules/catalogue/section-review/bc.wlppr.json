@@ -1,0 +1,1215 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.wlppr",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Takes the FPPR s. 1 definitions for terms it does not define, and defines its own: cutblock (the area a cutting permit identifies), net area to be reforested (the harvested part of a cutblock not occupied by permanent access structures, with none of FPPR s. 1(2)'s other exclusions), sensitive soil (slope over 60% or indicators of potential slope instability), soil disturbance, intermediate cuttings, commencement, regeneration and free growing dates, and wildlife tree retention area (an area specified in the woodlot licence plan).",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A woodlot rule would compute the net area to be reforested as the harvested cutblock less permanent access structures only, not FPPR s. 1(2)'s six exclusions, and could flag a block on slopes over 60% as sensitive soil.",
+      "topics": [
+        "administration",
+        "soils",
+        "reforestation"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "block",
+      "bearsOn": "Applies the regulation only to a woodlot licence holder (and its employees and contractors) working on the woodlot licence area or a road permit area giving access to it, and turns the FPPR off for them except its s. 1.2; distances for riparian zones and Division 4 are slope distances; Division 6 of Part 3 and s. 41 do not reach a cutting or road permit in effect before the feature or objective was established; ss. 52, 54 and the Division 6 sections do not apply to private land in a licence issued before 15 June 1995 unless its management plan committed to them; and Parts 3 and 4 give way to the Workers Compensation Act.",
+      "review": "rule",
+      "gapPriority": "low",
+      "gapNote": "The land status pack names the WLPPR, not the FPPR, for a woodlot licence holder; subsections (4) and (5) (permits in effect before an objective, private land in a licence issued before 15 June 1995) are not asked, and no WLPPR practice rule exists yet.",
+      "topics": [
+        "administration",
+        "forest-tenures",
+        "private-land"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "definitions",
+      "bearsOn": "Woodlot counterpart of FPPR s. 3: defines damage to the environment for FRPA s. 46 (landslides, Coast gully processes and fan destabilization, soil disturbance, harmful deposits into water, debris torrents into fish streams, changes to soil) and exempts fire control or suppression.",
+      "review": "n/a",
+      "topics": [
+        "soils",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "tenure",
+      "bearsOn": "Woodlot counterpart of FPPR s. 4(1)-(1.1): makes the regulation a prescribed enactment for FRPA s. 52(1)(e)(ii) and lets a woodlot licence holder cut Crown timber as needed for silviculture, stand tending and forest health treatments; it does not authorize harvesting a cutblock.",
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "salvage-and-forest-health"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "plan",
+      "bearsOn": "Exempts a holder from needing a woodlot licence plan where harvest or road construction is limited to a FRPA s. 4(1) purpose or authorized under another enactment; lets the minister exempt one where the work is consistent with government objectives, or authorize a cutting or road permit without a plan to harvest timber damaged by natural causes or to address conditions others created; such work skips s. 17's review but the minister may require a newspaper notice, maps to named persons and the comments received after at least 5 days.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask whether the block is under an approved woodlot licence plan or one of the three routes here, since without either no cutting permit may issue.",
+      "topics": [
+        "plans",
+        "exemptions-and-variances",
+        "harvest-authority"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "plan",
+      "bearsOn": "Exempts a woodlot licence plan from FRPA s. 14(1)(a)'s 10-year term where under 10 years remain on the licence or the holder cannot reasonably plan for 10 years; after a plan expires the holder must still reforest and act under it where a permit was issued before expiry and timber was harvested under it.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could check that the plan the block relies on is in its term, or that a permit issued before it expired carries its obligations.",
+      "topics": [
+        "plans"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "plan",
+      "bearsOn": "Requires the woodlot licence plan to address the whole woodlot licence area, unless the minister accepts a smaller area because no harvest or road construction will occur on the rest.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would test that the block and its roads fall inside the area the woodlot licence plan addresses.",
+      "topics": [
+        "plans"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "plan",
+      "bearsOn": "Requires the plan to map forest cover, topography, streams, wetlands and lakes with their riparian classes and fish streams, BEC subzones, utilities, Land Act zones and landscape units, wildlife habitat areas, scenic areas, ungulate winter ranges, community and fisheries sensitive watersheds, licensed intakes, contiguous sensitive soils, roads, barricades, private property and resource features; (3) requires it to describe areas where harvest will be avoided or modified (resource features, private owners or aboriginal interests, riparian retention including in riparian management zones, and the (1)(g)-(k) areas); (4) makes the Division 3 widths apply to a water body missed or misclassified.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would read the plan's (3) avoid and modify areas against the block, and a screen would list the (1)(g)-(k) designations the block overlaps that the plan must show.",
+      "topics": [
+        "plans",
+        "riparian",
+        "wildlife",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "plan",
+      "bearsOn": "Sets the government objectives a woodlot licence plan addresses: timber supply, soil productivity and hydrologic function, riparian values at the landscape level, aboriginal cultural heritage resources not under the Heritage Conservation Act, any land use objective, any fisheries sensitive watershed or water quality objective, and wildlife habitat for ungulate winter survival, species at risk and regionally important wildlife, the last only once the Wildlife Act minister has named the species and indicators at least 4 months before submission.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would list the land use, fisheries sensitive watershed and water quality objectives over the block and ask whether a wildlife notice under (3) applies to it.",
+      "topics": [
+        "objectives",
+        "plans",
+        "wildlife",
+        "cultural-heritage"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "plan",
+      "bearsOn": "Relieves the plan from specifying a result or strategy for the s. 9 objectives (except aboriginal cultural heritage), recreation, wildlife habitat area, ungulate winter range, lakeshore management zone and visual quality objectives; the holder instead complies with Part 3's practice requirements.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A woodlot pack would test these objectives through the Part 3 practice sections (ss. 41, 55-60), not through the plan's results.",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "plan",
+      "bearsOn": "Requires the plan to set a wildlife tree retention strategy describing the species and characteristics of wildlife trees, the forest cover of retention areas, when individual wildlife trees or trees in a retention area may be removed, and how they will be replaced.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask whether harvest or road work in the block removes wildlife trees or enters a retention area, and if so whether the strategy's conditions allow it.",
+      "topics": [
+        "plans",
+        "stand-retention"
+      ]
+    },
+    {
+      "n": "12",
+      "relevance": "silviculture",
+      "bearsOn": "Requires the plan to specify stocking standards for areas harvested by intermediate cuts or special forest products under s. 34(3).",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "For a partial-cut block exempt from free growing, a rule would ask which plan stocking standard the 12-month s. 34(3) check uses.",
+      "topics": [
+        "plans",
+        "reforestation"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "plan",
+      "bearsOn": "Lets a holder propose alternative performance requirements in the plan for soil disturbance, permanent access structure area, stocking standards and dates, riparian management area and zone widths, harvest in riparian reserve zones, roads in riparian management zones, the wildlife tree retention share, coarse woody debris and resource feature measures, each tied to its provision and location with a rationale.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "Each numeric woodlot rule would read the plan's approved alternative for the block's location before falling back to the regulation's default.",
+      "topics": [
+        "plans",
+        "exemptions-and-variances",
+        "riparian",
+        "soils"
+      ]
+    },
+    {
+      "n": "14",
+      "relevance": "plan",
+      "bearsOn": "Woodlot counterpart of FPPR s. 17: requires the plan to specify measures to prevent invasive plants being introduced or spread by the holder's forest practices, subject to a s. 78(1) exemption.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Plan content; a reviewer prompt about invasive-plant measures on the block's roads and landings would be the block-level analogue.",
+      "topics": [
+        "plans",
+        "salvage-and-forest-health"
+      ]
+    },
+    {
+      "n": "15",
+      "relevance": "range",
+      "bearsOn": "Woodlot counterpart of FPPR s. 18: requires the plan to specify measures to mitigate removing or rendering ineffective natural range barriers, subject to a s. 78(1) exemption.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule would ask, where the block removes a natural range barrier, what the plan's mitigation is.",
+      "topics": [
+        "plans",
+        "range-and-grazing"
+      ]
+    },
+    {
+      "n": "16",
+      "relevance": "admin",
+      "bearsOn": "Lets a person the holder authorizes sign the woodlot licence plan.",
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "administration"
+      ]
+    },
+    {
+      "n": "17",
+      "relevance": "plan",
+      "bearsOn": "Requires the holder, before submitting a plan, to publish a newspaper notice, refer it to agencies or persons the minister names, allow 30 days of review (5 for an emergency, longer if the minister sets it), make reasonable efforts to meet affected First Nations, consider written comments, and submit the notice, comments, changes and First Nations efforts with the plan; the minister may waive the notice for an amendment that will not materially affect others.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Plan-level process; a rule could ask whether the plan or amendment that added the block went through review and First Nations efforts.",
+      "topics": [
+        "plans",
+        "public-review-and-notice",
+        "first-nations"
+      ]
+    },
+    {
+      "n": "18",
+      "relevance": "admin",
+      "bearsOn": "Sets how the minister considers alternative performance requirements and s. 12 stocking standards: Schedule 1 factors suffice, information may be requested, stocking alternatives must be approved when ecologically suitable and consistent with timber supply, and an alternative may not be refused for being outside natural variation, innovative or based on other factors.",
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "reforestation",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "19",
+      "relevance": "admin",
+      "bearsOn": "Prescribes the circumstances for emergency approval of a woodlot licence plan as those in FRPA s. 17.",
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "20",
+      "relevance": "plan",
+      "bearsOn": "Makes a minor amendment that adds or varies an alternative performance requirement need the minister's approval.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule relying on an alternative performance requirement would ask that its amendment was approved.",
+      "topics": [
+        "plans",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "21",
+      "relevance": "plan",
+      "bearsOn": "Lets a minor amendment take effect on signature without approval when it corrects mapping or data without shrinking avoided areas or increasing impact, reclassifies a stream, wetland or lake, or changes the wildlife tree retention strategy without lowering wildlife tree quality.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could note when the block's riparian classes rest on a reclassification made by unapproved minor amendment.",
+      "topics": [
+        "plans",
+        "riparian"
+      ]
+    },
+    {
+      "n": "22",
+      "relevance": "admin",
+      "bearsOn": "Woodlot counterpart of FPPR s. 31: lets the minister void a minor amendment wrongly made without approval and suspend operations relying on it, protecting work done in good faith before then.",
+      "review": "n/a",
+      "topics": [
+        "plans"
+      ]
+    },
+    {
+      "n": "23",
+      "relevance": "plan",
+      "bearsOn": "Requires a plan amendment, and a stop to affected operations until it is approved, when the holder knows the plan's operations will not achieve its results or this regulation; and notice to the minister when a practice or natural event makes the plan's requirements unattainable.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could ask whether a natural event (fire, beetle, windthrow) on the block has made the plan's requirements unattainable and an amendment pending.",
+      "topics": [
+        "plans"
+      ]
+    },
+    {
+      "n": "24",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 35, with a different limit: soil disturbance on the net area to be reforested may not exceed the amount in the woodlot licence plan or, failing one, 8%, and may not be concentrated against the soils objective; the limit may be exceeded only by the minimum needed to remove infected stumps or salvage windthrow.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would compare planned soil disturbance with the plan's figure or 8% of the net area to be reforested, not the FPPR's 5% or 10% by standards unit.",
+      "topics": [
+        "soils"
+      ]
+    },
+    {
+      "n": "25",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 36, with different limits: permanent access structures may occupy at most the plan's figure or, failing one, 7% of a cutblock of 5 ha or more and 10% of a cutblock under 5 ha, and at most the plan's figure or 7% of the whole woodlot licence area.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would compute the road and landing share of the block against 7% (block of 5 ha or more) or 10% (under 5 ha), and the woodlot-wide share against 7%; the road designer already computes clearing area.",
+      "topics": [
+        "soils",
+        "roads"
+      ]
+    },
+    {
+      "n": "26",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 37: a primary forest activity must not cause a landslide with a material adverse effect on a FRPA s. 149(1) value.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask for a terrain stability assessment where the block or road crosses sensitive soil (over 60% slope or instability indicators).",
+      "topics": [
+        "soils"
+      ]
+    },
+    {
+      "n": "27",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 38: on the Coast, a primary forest activity must not cause a gully process with a material adverse effect on a FRPA s. 149(1) value.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Coast only; a rule would ask for a gully assessment where a Coast block crosses gullies.",
+      "topics": [
+        "soils"
+      ]
+    },
+    {
+      "n": "28",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 39: a holder building a temporary or permanent access structure must maintain natural surface drainage during and after construction, or where not practicable restore a compatible pattern by the end of construction or the next freshet.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would read the road designer's drainage review (cross-drains at low points, flow lines crossed) for the block's roads.",
+      "topics": [
+        "drainage",
+        "roads"
+      ]
+    },
+    {
+      "n": "29",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 40: soil exposed by road construction or deactivation must be revegetated within two years where erosion would foreseeably send sediment to water or harm a s. 149(1) value and revegetation would materially reduce it.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could ask for a revegetation plan for road segments within reach of a stream, wetland or lake.",
+      "topics": [
+        "roads",
+        "soils",
+        "drainage"
+      ]
+    },
+    {
+      "n": "30",
+      "relevance": "silviculture",
+      "bearsOn": "Woodlot counterpart of FPPR s. 41: insect brood concentrated with trap trees or pheromones must be destroyed before it emerges.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Operational practice; a prompt where the block uses trap trees.",
+      "topics": [
+        "salvage-and-forest-health"
+      ]
+    },
+    {
+      "n": "31",
+      "relevance": "silviculture",
+      "bearsOn": "Woodlot counterpart of FPPR s. 42: livestock used for site preparation or brush control must be controlled to limit predator conflict and disease transmission to wildlife and kept healthy.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A prompt where the block's silviculture prescribes livestock brushing.",
+      "topics": [
+        "silviculture-treatments",
+        "range-and-grazing",
+        "wildlife"
+      ]
+    },
+    {
+      "n": "32",
+      "relevance": "silviculture",
+      "bearsOn": "Woodlot counterpart of FPPR s. 43: a holder planting to establish a free growing stand must use seed registered, stored, selected and transferred to the chief forester's standards unless an alternative is approved, and keep seed registration numbers and a planting map.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could check that the block's planting prescription names seedlots within the seed transfer limits.",
+      "topics": [
+        "silviculture-treatments",
+        "reforestation"
+      ]
+    },
+    {
+      "n": "33",
+      "relevance": "silviculture",
+      "bearsOn": "Before harvesting where a free growing stand is required, the holder must prepare a map to the chief forester's standards showing BEC site series and the stocking standards that apply, show it to the district manager on request and keep it until free growing or relief.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask that a pre-harvest map with site series and stocking standards exists for the block before harvest begins.",
+      "topics": [
+        "reforestation",
+        "plans"
+      ]
+    },
+    {
+      "n": "34",
+      "relevance": "silviculture",
+      "bearsOn": "Woodlot counterpart of FPPR s. 44: the holder must establish a free growing stand on the net area to be reforested and on unauthorized-harvest areas, except where harvest is limited to safety hazards, seed collection openings up to 1 ha, landing and right-of-way clean-up, intermediate cuts or special forest products; intermediate cuts and special forest products must meet the s. 12 stocking standards for 12 months; the minister may set the commencement date for beetle or windthrow salvage or amalgamated areas.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would decide from the block's harvest purpose whether a free growing obligation follows, with the WLPPR's shorter list of exemptions (no Range Act grazing, experiment, recreation or trap tree exemption).",
+      "topics": [
+        "reforestation"
+      ]
+    },
+    {
+      "n": "35",
+      "relevance": "silviculture",
+      "bearsOn": "Requires a stand conforming to the stocking standards for the area's BEC classification by the regeneration date and a free growing stand by the free growing date, using the plan's standards and dates or, where the plan gives none, the ministry's Reference Guide for Forest Development Plan Stocking Standards.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would show which stocking standard and dates govern the block (plan or Reference Guide) beside its harvest schedule.",
+      "topics": [
+        "reforestation"
+      ]
+    },
+    {
+      "n": "35.1",
+      "relevance": "silviculture",
+      "bearsOn": "Woodlot counterpart of FPPR s. 46.2: a holder who knows ss. 34-35 cannot be met must notify the minister with reasons and propose stocking standards, a free growing height and a date; the minister approves a proposal consistent with s. 18(3), and a rejection is reviewable.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could ask, where the reviewer expects natural regeneration to fail (for example under grazing), whether a s. 35.1 proposal is needed.",
+      "topics": [
+        "reforestation",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "36",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 47: classes streams S1-A to S4 (fish or community watershed) and S5-S6 (neither) by width, and sets riparian management area, reserve zone and management zone widths on each side from the woodlot licence plan or, failing it, the table (S1-B 70/50/20 m, S2 50/30/20, S3 40/20/20, S4 30/0/30, S5 30/0/30, S6 20/0/20, S1-A 100 m management zone with no reserve unless the minister sets one); the management zone reaches the edge of a wider active flood plain.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would class each stream by the block and test that harvest stays out of the reserve zone at the plan's width or the table's, the widths read as slope distance.",
+      "topics": [
+        "riparian",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "36.1",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (B.C. Reg. 106/2005).",
+      "review": "n/a"
+    },
+    {
+      "n": "37",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 48: classes wetlands W1-W5 by size and BEC zone (W5 for complexes within 60-100 m totalling 5 ha or more) and sets widths from the plan or the table (W1 and W5 50/10/40 m, W2 30/10/20, W3 and W4 30/0/30); no zone extends onto enclosed upland of a W1 over 1 000 ha in boreal, subboreal or hyper-maritime climates unless the minister requires one.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would class wetlands near the block by area and BEC subzone and test harvest against the reserve zone width.",
+      "topics": [
+        "riparian"
+      ]
+    },
+    {
+      "n": "38",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 49: classes lakes L1-A (1 000 ha or more), L1-B (over 5 ha or designated), L2-L4 by size and BEC zone, and sets widths from the plan or the table (L1-B 10/10/0 m, L2 30/10/20, L3 and L4 30/0/30, L1-A none unless the minister sets them).",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would class lakes near the block by area and BEC subzone and test harvest against the reserve zone width.",
+      "topics": [
+        "riparian"
+      ]
+    },
+    {
+      "n": "39",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 51: no cutting, modifying or removing trees in a riparian reserve zone unless the woodlot licence plan specifies it or it is for a listed purpose (safety hazard, windfirm topping, a stream crossing, a full-suspension yarding corridor, guyline tiebacks, sanitation, damaged trees, recreation sites); no road in a reserve zone in a cutblock unless the plan specifies it; and no grazing or broadcast herbicide brushing, mechanized site preparation, broadcast burning, spacing or thinning there.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would test that the block's harvest area and roads stay out of every riparian reserve zone, unless the plan specifies the entry or a listed purpose applies.",
+      "topics": [
+        "riparian",
+        "roads",
+        "silviculture-treatments"
+      ]
+    },
+    {
+      "n": "40",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 50 and s. 52(2), but on the riparian management zone, not the whole management area: no road in a riparian management zone in a cutblock unless the plan provides for it, an outside location carries more sediment risk, there is no practicable option or it is part of a crossing; no maintenance beyond the clearing width or gravel removal outside the prism or crossing; enough trees kept to hold the banks of S4-S6 streams that feed S1-S3 streams or sensitive marine areas; and trees cut in a management zone only as s. 8(3) describes.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would flag roads entering a riparian management zone inside a cutblock and ask which (1)(a)-(d) ground applies, and test harvest in the zone against the plan's s. 8(3) retention.",
+      "topics": [
+        "riparian",
+        "roads",
+        "gravel-and-fill"
+      ]
+    },
+    {
+      "n": "41",
+      "relevance": "landscape",
+      "bearsOn": "Requires forest practices on Crown land in the woodlot licence area to be consistent with any lakeshore management zone objective that applies, unless exempted.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask whether a lakeshore management zone objective covers the block and whether its harvest is consistent with it; no public layer maps these zones.",
+      "topics": [
+        "riparian",
+        "objectives",
+        "recreation"
+      ]
+    },
+    {
+      "n": "42",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 53: felling in a riparian zone beside a temperature sensitive stream or its direct tributary must keep enough shading crowns or understory to stop a warming that would harm fish.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would check whether a stream by the block is a designated temperature sensitive stream or its tributary and ask for the shade retention.",
+      "topics": [
+        "riparian",
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "43",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 55: a stream crossing must be located, built and used to protect the channel and banks above and below it and mitigate disturbance at it, and a temporary crossing removed when no longer needed.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "The FPPR crossings questions would be asked of each woodlot road crossing under this section.",
+      "topics": [
+        "stream-crossings-and-culverts",
+        "riparian"
+      ]
+    },
+    {
+      "n": "44",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 56: a primary forest activity, and maintenance of a fish stream crossing built after 15 June 1995, must not materially harm fish passage, except temporarily during road work while fish are not migrating or spawning with the cause removed on completion.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "The FPPR crossings pack's fish-passage questions would be asked of each woodlot road crossing of a fish stream.",
+      "topics": [
+        "fish-habitat",
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "45",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 57: a primary forest activity must be timed and carried out so it is unlikely to harm fish or destroy, damage or harmfully alter fish habitat.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask for instream work windows for crossings and work near fish streams.",
+      "topics": [
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "46",
+      "relevance": "silviculture",
+      "bearsOn": "Woodlot counterpart of FPPR s. 58: no livestock corral in a riparian zone, on ground draining directly to fish waters or to a potable source in a community watershed, and no livestock used in a riparian zone inside a community watershed.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A prompt where the block's brushing uses livestock near water.",
+      "topics": [
+        "riparian",
+        "range-and-grazing",
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "47",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 59: a primary forest activity must not cause material harmful to human health to reach water diverted for human consumption by a licensed waterworks.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would find licensed drinking-water intakes downstream of the block and ask what protects them.",
+      "topics": [
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "48",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 60: a primary forest activity must not damage a licensed waterworks, and in a community watershed no harvest or road within a 100 m radius upslope of a drinking-water waterworks unless it will not increase sediment delivery to the intake.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would test the block and its roads against a 100 m upslope radius of each licensed drinking-water intake in a community watershed.",
+      "topics": [
+        "water-quality-and-supply",
+        "roads"
+      ]
+    },
+    {
+      "n": "49",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 61: excavated or bladed trails built for harvest in a community watershed must not deliver sediment harmful to human health to water diverted by a licensed waterworks.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask, for a block in a community watershed, whether excavated or bladed trails are planned and how sediment is controlled.",
+      "topics": [
+        "water-quality-and-supply",
+        "soils"
+      ]
+    },
+    {
+      "n": "50",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 62: the minister may identify a spring feeding a licensed waterworks in a community watershed and set a no-road distance; failing a distance, no road within a 100 m radius upslope of that spring unless it does not interfere with the subsurface flow path.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would test road alignments against a 100 m upslope radius (or the minister's distance) of identified springs.",
+      "topics": [
+        "water-quality-and-supply",
+        "roads"
+      ]
+    },
+    {
+      "n": "51",
+      "relevance": "silviculture",
+      "bearsOn": "Woodlot counterpart of FPPR s. 63: in a community watershed, fertilizer may not be applied within 100 m upslope of a licensed waterworks or 10 m of an aerially visible perennial stream so as to raise nitrate above 10 ppm or chlorophyll above 2 µg/L in a lake or 50 mg/m² in the stream; spot application is exempt.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A prompt where fertilization is prescribed in a community watershed.",
+      "topics": [
+        "water-quality-and-supply",
+        "silviculture-treatments"
+      ]
+    },
+    {
+      "n": "52",
+      "relevance": "block",
+      "bearsOn": "Differs from FPPR s. 66: wildlife tree retention areas must cover at least the least of the land use objective's proportion, the woodlot licence plan's proportion and 8% of the woodlot licence area, measured over the woodlot licence area rather than per cutblock; wildlife trees and trees in a retention area may be cut only under the s. 11 strategy.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would sum retention areas across the woodlot licence area against the least of the objective's, plan's or 8% share, and ask whether the block's harvest touches a retention area or wildlife trees outside the strategy.",
+      "topics": [
+        "stand-retention"
+      ]
+    },
+    {
+      "n": "53",
+      "relevance": "block",
+      "bearsOn": "Bars harvest in areas the woodlot licence plan identifies under s. 8(3) as avoided during its term, and requires harvest in areas it identifies as modified to follow the plan's modifications; unlike FPPR s. 67 it is not about wildlife tree retention areas.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would overlay the block on the plan's avoid areas (a finding if they overlap) and modify areas (asking for the modification).",
+      "topics": [
+        "plans",
+        "harvest-authority"
+      ]
+    },
+    {
+      "n": "54",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 68: where a free growing stand is required, logs must be retained at the plan's amount or, failing one, at least 4 per hectare 5 m long and 30 cm at one end on the Coast or 2 m and 7.5 cm in the Interior, unless an agreement or enactment requires otherwise or an authorized controlled burn is carried out.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask for the coarse woody debris prescription against the plan's figure or 4 logs/ha of the regional size.",
+      "topics": [
+        "stand-retention"
+      ]
+    },
+    {
+      "n": "55",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 69 for general wildlife measures: a holder carrying out primary forest activities must comply with every general wildlife measure established for the woodlot licence area, unless the Wildlife Act minister exempts.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "The ground screen's wildlife habitat area and ungulate winter range measures would be applied to a woodlot block under this section rather than FPPR s. 69.",
+      "topics": [
+        "wildlife"
+      ]
+    },
+    {
+      "n": "55.1",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 69 for general ecological community measures: a holder must comply with every general ecological community measure established for the woodlot licence area, unless the Wildlife Act minister exempts.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A screen would list general ecological community measures over the block; none has one today.",
+      "topics": [
+        "wildlife"
+      ]
+    },
+    {
+      "n": "56",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 70: a forest practice that could affect a resource feature must carry out the plan's measures for it or, failing any, not damage or render it ineffective, and must never damage or render ineffective a wildlife habitat feature.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A screen would list resource features (recreation sites and trails, karst) and wildlife habitat features near the block, and a rule ask for the plan's measure.",
+      "topics": [
+        "wildlife",
+        "recreation",
+        "cultural-heritage"
+      ]
+    },
+    {
+      "n": "57",
+      "relevance": "landscape",
+      "bearsOn": "Requires primary forest activities to be consistent with any fisheries sensitive watershed objective that applies to the woodlot licence area, unless exempted.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would find a fisheries sensitive watershed objective over the block and ask how its harvest stays consistent with the objective's limits.",
+      "topics": [
+        "fish-habitat",
+        "objectives"
+      ]
+    },
+    {
+      "n": "57.1",
+      "relevance": "landscape",
+      "bearsOn": "Until 31 December 2005, required primary forest activities in a Schedule 2 fisheries sensitive watershed without an objective not to cause cumulative hydrological effects that materially harm the fish species it was set for; the duty has lapsed.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "The duty ended in 2005; nothing to test now beyond noting a Schedule 2 watershed.",
+      "topics": [
+        "fish-habitat"
+      ]
+    },
+    {
+      "n": "58",
+      "relevance": "landscape",
+      "bearsOn": "Requires primary forest activities to be consistent with any water quality objective that applies to the woodlot licence area, unless exempted.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would find a water quality objective (for example a community watershed objective) over the block and ask how harvest stays consistent with it.",
+      "topics": [
+        "water-quality-and-supply",
+        "objectives"
+      ]
+    },
+    {
+      "n": "58.1",
+      "relevance": "landscape",
+      "bearsOn": "In a community watershed continued under FRPA s. 180(e) with no water quality objective, where water is diverted for human consumption through a licensed waterworks, the cumulative hydrological effects of the woodlot's primary forest activities must not materially affect the waterworks' water quantity or flow timing or harm human health beyond what required treatment addresses.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would flag a block in a community watershed without an objective and ask for a cumulative hydrological assessment (equivalent clearcut area).",
+      "topics": [
+        "water-quality-and-supply"
+      ]
+    },
+    {
+      "n": "59",
+      "relevance": "landscape",
+      "bearsOn": "Requires primary forest activities to be consistent with any visual quality objective that applies to the woodlot licence area, unless exempted; the woodlot licence plan sets no result for it (s. 10(f)).",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would name the VQO over the block and compare the visual quality page's measured alteration with its category.",
+      "topics": [
+        "visual-quality",
+        "objectives"
+      ]
+    },
+    {
+      "n": "59.1",
+      "relevance": "landscape",
+      "bearsOn": "Practice counterpart of FPPR s. 9.2's objective: in a scenic area established by 24 October 2002 with no VQO, primary forest activities must leave an altered landscape in the category set by visual sensitivity class (1 preservation or retention, 2 retention or partial retention, 3 and 4 partial retention or modification, 5 modification or maximum modification).",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would read the scenic area's visual sensitivity class for the block and test the alteration against the two allowed categories.",
+      "topics": [
+        "visual-quality"
+      ]
+    },
+    {
+      "n": "60",
+      "relevance": "landscape",
+      "bearsOn": "Requires primary forest activities to be consistent with any objective for an interpretive forest site, recreation site, recreation trail or trail-based recreation area that applies to the woodlot licence area, unless exempted.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A screen would list recreation sites and trails with objectives near the block and ask how harvest is consistent with them.",
+      "topics": [
+        "recreation",
+        "objectives"
+      ]
+    },
+    {
+      "n": "61",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 72: a road the holder builds or maintains, and its bridges, culverts and fords, must be structurally sound and safe for industrial users.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Engineering practice; the road designer's structure checks are the analogue.",
+      "topics": [
+        "roads",
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "62",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 73: a bridge must be designed and fabricated to CAN/CSA-S6 and the Canadian Foundation Engineering Manual for piers and abutments, allowing for unbalanced loads and off-centre logging trucks.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A prompt asking for an engineered bridge design where a road crosses a stream by bridge.",
+      "topics": [
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "63",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 74: a bridge or culvert must pass the peak flow of a 10-year return period if on site up to 3 years, 50 years for a bridge on site 3-15 years, and 100 years for a bridge over 15 years, a culvert over 3 years or any structure in a community watershed over 3 years, with narrow exceptions for low-flow temporary structures removed before high flow (culverts only on non-fish streams).",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "The road designer's culvert capacity check would test each crossing against the return period its expected life sets.",
+      "topics": [
+        "stream-crossings-and-culverts",
+        "drainage"
+      ]
+    },
+    {
+      "n": "64",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 75: a bridge with a structural defect must be corrected, closed, removed or replaced, load-restricted or signed with its maximum load.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Maintenance practice.",
+      "topics": [
+        "roads",
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "65",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 76: permanent culvert materials must be fabricated to CSA G401 or B182.8 or equivalent strength and durability.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Material specification; a culvert schedule could carry the standard.",
+      "topics": [
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "66",
+      "relevance": "admin",
+      "bearsOn": "Woodlot counterpart of FPPR s. 77: requires construction records and as-built drawings for bridges and major culverts, inspection records kept a year after removal, and their delivery to the district manager when a permit ends without deactivation.",
+      "review": "n/a",
+      "topics": [
+        "roads",
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "67",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 78: road clearing widths must be the minimum needed, having regard to safety, topography, drainage, terrain stability and operational needs such as pits, landings, material storage, turnarounds and snow removal.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Clearing width feeds the permanent access share under s. 25; the road designer computes it.",
+      "topics": [
+        "roads"
+      ]
+    },
+    {
+      "n": "68",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 79: a holder authorized to build a road must maintain it and its structures (prism, clearing, drainage, safety for industrial users) until it is deactivated, another permit holder takes it, the district manager says not to deactivate it or it becomes a forest service road; a holder ordered to maintain a forest service road may build a bridge or culvert on 30 days' notice.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Maintenance obligation; a rule could note that a new road commits the holder to maintain it.",
+      "topics": [
+        "roads",
+        "drainage"
+      ]
+    },
+    {
+      "n": "69",
+      "relevance": "roads",
+      "bearsOn": "Requires a woodlot licence holder exempted under FRPA s. 22.1(4) from road use requirements to follow this regulation's road maintenance provisions.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Maintenance obligation; not a block-layout test.",
+      "topics": [
+        "roads"
+      ]
+    },
+    {
+      "n": "70",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 81: a road the holder must maintain that industrial users are not using need keep its prism and drainage only to avoid harm to forest resources, and need not be safe for industrial users.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Maintenance obligation; not a block-layout test.",
+      "topics": [
+        "roads"
+      ]
+    },
+    {
+      "n": "71",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 82: deactivating a road requires barricading it against motor vehicles other than ATVs, removing bridge and log culvert superstructures and stream pipe culverts, removing substructures whose failure would harm downstream values, and stabilizing the prism where needed; the minister may exempt where there are no bridges or major culverts.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could ask for a deactivation plan for roads the block's plan marks temporary.",
+      "topics": [
+        "roads",
+        "stream-crossings-and-culverts"
+      ]
+    },
+    {
+      "n": "72",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 83: a warning sign must be posted while a road is being deactivated.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Operational practice.",
+      "topics": [
+        "roads"
+      ]
+    },
+    {
+      "n": "73",
+      "relevance": "roads",
+      "bearsOn": "Woodlot counterpart of FPPR s. 84: at least 48 hours before road construction or deactivation in a community watershed, affected water licensees must be notified.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could flag roads in a community watershed and ask that water licensees were notified.",
+      "topics": [
+        "roads",
+        "water-quality-and-supply",
+        "public-review-and-notice"
+      ]
+    },
+    {
+      "n": "74",
+      "relevance": "admin",
+      "bearsOn": "Woodlot counterpart of FPPR s. 85: the holder must notify the district manager, with location, contact and projected date, before starting (or restarting after 3 months idle) harvesting in a cutblock over 1 ha or building a permanent road, except for safety hazards, trap trees or seed-collection openings up to 1 ha.",
+      "review": "n/a",
+      "topics": [
+        "harvest-authority",
+        "roads"
+      ]
+    },
+    {
+      "n": "75",
+      "relevance": "silviculture",
+      "bearsOn": "Requires surveys of permanent access and soil disturbance when the minister asks, a free growing survey of the net area to be reforested by the free growing date, a survey 1-3 years after intermediate cuttings, and other surveys the minister directs, with records filed with the annual report.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Post-harvest obligation; the plan could note the survey dates the schedule commits the holder to.",
+      "topics": [
+        "reforestation",
+        "soils"
+      ]
+    },
+    {
+      "n": "76",
+      "relevance": "admin",
+      "bearsOn": "Requires an annual report by 31 May covering the previous calendar year: minor amendments, resource and wildlife habitat features found near cutblocks or roads where their order requires it, and information the chief forester specifies.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "plans"
+      ]
+    },
+    {
+      "n": "77",
+      "relevance": "admin",
+      "bearsOn": "Woodlot counterpart of FPPR s. 90: exempts a holder from complying with its plan to the extent government-authorized actions prevent it.",
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "78",
+      "relevance": "block",
+      "bearsOn": "Woodlot counterpart of FPPR s. 91: where impracticable for an area, the minister may exempt a holder from FRPA ss. 29 and 29.1 and from WLPPR ss. 14, 15, 30, 31, 39(3), 40(2)-(4), 41, 42, 43-52, 54, 56(1), 59-62, 64, 65, 67, 68 and 72-74; and may exempt from free growing (FRPA s. 29(3), ss. 34-35) salvage of at most 500 m³ of timber at risk that, with adjoining areas, makes no clearcut over 1 ha unless the adjoining area is free growing.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Each woodlot rule over a listed section would carry this exemption as a decision exception, and the free growing rule the 500 m³ / 1 ha salvage route.",
+      "topics": [
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "79",
+      "relevance": "block",
+      "bearsOn": "Lets the Wildlife Act minister exempt a person from s. 55 or 55.1 where the measure's intent will be achieved or compliance is impracticable, and from ss. 56(2), 57 or 58 where compliance is impracticable.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "The general wildlife measure and objective rules would carry this exemption as a decision by the Wildlife Act minister.",
+      "topics": [
+        "exemptions-and-variances",
+        "wildlife"
+      ]
+    },
+    {
+      "n": "80",
+      "relevance": "admin",
+      "bearsOn": "Makes government pay expenses reasonably incurred under FRPA ss. 26(9), 27(5) and 77.1(4), and lets a holder recover intervention costs under s. 77(3) where the order says so.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "salvage-and-forest-health"
+      ]
+    },
+    {
+      "n": "81",
+      "relevance": "silviculture",
+      "bearsOn": "Woodlot counterpart of FPPR s. 94: lets a free growing obligation be transferred to a person the minister expects to meet it (with security), keeping the stocking standards in effect before transfer and binding the transferee to Part 3 and s. 75.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Obligation transfer; not a block-layout test.",
+      "topics": [
+        "reforestation"
+      ]
+    },
+    {
+      "n": "82",
+      "relevance": "admin",
+      "bearsOn": "Woodlot counterpart of FPPR s. 95: defines which small licence holders may have the district manager assume the free growing obligation under FRPA s. 30 (no large replaceable licence, shares, affiliation or association), with a one-year notice period and a request made with the first cutting permit application.",
+      "review": "n/a",
+      "topics": [
+        "reforestation",
+        "forest-tenures"
+      ]
+    },
+    {
+      "n": "83",
+      "relevance": "admin",
+      "bearsOn": "Woodlot counterpart of FPPR s. 96: sets when the minister may relieve or fund obligations after wildfire or another event that leaves an area ill-suited to free growing, or catastrophic damage, what an application contains, its 2-year deadline, and that ss. 26-29 are relieved only in extraordinary circumstances in the public interest.",
+      "review": "n/a",
+      "topics": [
+        "reforestation",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "83.1",
+      "relevance": "admin",
+      "bearsOn": "Woodlot counterpart of FPPR s. 96.1: lets a holder submit, at least 90 days before the deadline, an application submission plan for a relief or funding application it cannot make in time.",
+      "review": "n/a",
+      "topics": [
+        "reforestation",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "84",
+      "relevance": "silviculture",
+      "bearsOn": "Woodlot counterpart of FPPR s. 97: a free growing declaration may be made early once the stand reaches free growing height and is not under threat, no earlier than 12 months after harvest for s. 35(2) areas, with a forest cover inventory; the notice period under FRPA s. 107(3) is 15 months.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Declaration rules apply years after harvest.",
+      "topics": [
+        "reforestation"
+      ]
+    },
+    {
+      "n": "85",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (B.C. Reg. 585/2004).",
+      "review": "n/a"
+    },
+    {
+      "n": "86",
+      "relevance": "admin",
+      "bearsOn": "Woodlot counterpart of FPPR s. 106.1: an order or exemption under the regulation must be in writing, specify its matter and effective date, be delivered and be filed with the district office, and takes effect on the later of its stated date and receipt.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "87",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (B.C. Reg. 585/2004).",
+      "review": "n/a"
+    },
+    {
+      "n": "88",
+      "relevance": "enforcement",
+      "bearsOn": "Sets what a FRPA s. 77(1) intervention order must specify and lets the minister intervene where an act or omission will likely cause a significant failure or delay in meeting stocking requirements or fundamentally alter an ecosystem.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "reforestation"
+      ]
+    },
+    {
+      "n": "89",
+      "relevance": "enforcement",
+      "bearsOn": "Lets the minister seek and act on an interested group's recommendations before levying an administrative penalty on a woodlot licence holder.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "90",
+      "relevance": "enforcement",
+      "bearsOn": "Woodlot counterpart of FPPR s. 102: three offence tiers, up to $500 000 and 2 years (soil disturbance, landslides, free growing, riparian, watersheds, wildlife tree retention, harvest in avoided areas, wildlife measures, bridges and culverts), $100 000 and 1 year (drainage, revegetation, visual quality, recreation, maintenance), and $5 000 and 6 months (permanent access, livestock, seed, logs, clearing width, notices).",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "91",
+      "relevance": "enforcement",
+      "bearsOn": "Woodlot counterpart of FPPR s. 103: failing an approved alternative performance requirement carries the penalty of the provision it replaces.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "92",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (B.C. Reg. 585/2004).",
+      "review": "n/a"
+    },
+    {
+      "n": "93-94",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (B.C. Reg. 585/2004).",
+      "review": "n/a"
+    },
+    {
+      "n": "95-96",
+      "relevance": "repealed",
+      "bearsOn": "Repealed (B.C. Reg. 106/2005).",
+      "review": "n/a"
+    },
+    {
+      "n": "97",
+      "relevance": "admin",
+      "bearsOn": "Woodlot counterpart of FPPR s. 107.3: keeps the Forest Practices Code applying to forest development plans described in FRPA ss. 199 and 200(1).",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "plans"
+      ]
+    },
+    {
+      "n": "Schedule 1.1",
+      "relevance": "admin",
+      "bearsOn": "Lets information in land use plans approved under the Land Act be used to judge whether a woodlot licence plan is consistent with the land use objective in s. 9(1)(e).",
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "objectives"
+      ]
+    },
+    {
+      "n": "Schedule 1.2",
+      "relevance": "admin",
+      "bearsOn": "Lists factors for a wildlife tree retention strategy: the characteristics of trees suited to wildlife and stand-level biodiversity, and how far wildlife habitat areas, winter ranges, riparian zones, scenic areas and other reserved areas already provide habitat.",
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "stand-retention"
+      ]
+    },
+    {
+      "n": "Schedule 1.3",
+      "relevance": "admin",
+      "bearsOn": "Lists factors for judging a plan's consistency with the soils objective: area under permanent access structures and soil disturbance on the net area to be reforested, by soil sensitivity, detrimental kinds and amounts, and rehabilitation.",
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "soils"
+      ]
+    },
+    {
+      "n": "Schedule 1.4",
+      "relevance": "admin",
+      "bearsOn": "Lists factors for judging a plan's consistency with the riparian objective: the management regime each riparian class needs, the practices allowed under it, and forest shade over temperature sensitive streams.",
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "riparian"
+      ]
+    },
+    {
+      "n": "Schedule 1.5",
+      "relevance": "admin",
+      "bearsOn": "Lists factors for judging a plan's consistency with the cultural heritage objective: the resource's value, scarcity and historical use to an aboriginal people, the impact of protecting it on timber rights, and mitigation options.",
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "cultural-heritage",
+        "first-nations"
+      ]
+    },
+    {
+      "n": "Schedule 1.6",
+      "relevance": "admin",
+      "bearsOn": "Lists factors for stocking standards: forest health risks to species choice, and for even-aged and uneven-aged stands the species, numbers and distribution of trees to establish or retain.",
+      "review": "n/a",
+      "topics": [
+        "plans",
+        "reforestation"
+      ]
+    },
+    {
+      "n": "Schedule 2",
+      "relevance": "landscape",
+      "bearsOn": "Lists the 44 fisheries sensitive watersheds by forest district that s. 57.1 applied to (among them the Cottonwood River in Quesnel and the Horsefly River in the Cariboo-Chilcotin).",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Reference list for the lapsed s. 57.1; a screen could name a block inside one.",
+      "topics": [
+        "fish-habitat"
+      ]
+    }
+  ]
+}

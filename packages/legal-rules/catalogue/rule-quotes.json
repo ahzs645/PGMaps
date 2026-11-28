@@ -2255,6 +2255,113 @@
           "quote": "A person who constructs or maintains a road must ensure that the road and the bridges, culverts, fords and other structures associated with the road are structurally sound and safe for use by industrial users."
         }
       ]
+    },
+    "bc.land-status": {
+      "frpa-reach": [
+        {
+          "source": "bc.frpa",
+          "provision": "1",
+          "quote": "forest practice means a prescribed activity that is carried out by"
+        },
+        {
+          "source": "bc.frpa",
+          "provision": "1",
+          "quote": "on private land, subject to a tree farm licence, a community forest agreement or a woodlot licence, or on Crown forest land"
+        }
+      ],
+      "frpa-no-reach": [
+        {
+          "source": "bc.frpa",
+          "provision": "1",
+          "quote": "on private land, subject to a tree farm licence, a community forest agreement or a woodlot licence, or on Crown forest land"
+        },
+        {
+          "source": "bc.forest-act",
+          "provision": "1",
+          "quote": "private land means land that is not Crown land"
+        }
+      ],
+      "woodlot-wlppr": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "this regulation applies only to a woodlot licence holder"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "Unless this regulation specifically provides otherwise, the Forest Planning and Practices Regulation, except for section 1.2, does not apply to a person referred to in subsection (1)."
+        },
+        {
+          "source": "bc.fppr",
+          "provision": "1",
+          "quote": "agreement holder means a holder of an agreement under the Forest Act, other than a woodlot licence"
+        }
+      ],
+      "managed-forest-land": [
+        {
+          "source": "bc.pmfla",
+          "provision": "1",
+          "quote": "private managed forest land means private land"
+        },
+        {
+          "source": "bc.pmfla",
+          "provision": "3",
+          "quote": "This Act applies to private managed forest land other than land that is in a tree farm licence area, a woodlot licence area or a community forest agreement area."
+        }
+      ],
+      "crown-timber": [
+        {
+          "source": "bc.forest-act",
+          "provision": "1",
+          "quote": "Crown timber means timber on Crown land, or timber reserved to the government"
+        }
+      ],
+      "private-boundaries": [
+        {
+          "source": "bc.frpa",
+          "provision": "53",
+          "quote": "Before a person cuts or removes timber from private land adjacent to Crown land, the person must ascertain the boundaries of the private land."
+        },
+        {
+          "source": "bc.frpa",
+          "provision": "53",
+          "quote": "the owner or occupier must inform that other person of the boundaries of the private land"
+        }
+      ],
+      "timber-mark": [
+        {
+          "source": "bc.forest-act",
+          "provision": "84",
+          "quote": "A person must not store unscaled timber in decks or piles on Crown land or, in prescribed circumstances, on private land, or remove or transport unscaled timber from Crown land or private land unless the timber has been marked in the prescribed manner with a timber mark that pertains to that land."
+        },
+        {
+          "source": "bc.forest-act",
+          "provision": "85",
+          "quote": "On application that identifies private land on which there is timber"
+        }
+      ],
+      "timber-mark#minister-exemption": [
+        {
+          "source": "bc.forest-act",
+          "provision": "84",
+          "quote": "The minister may exempt unscaled timber from subsection (1) or (3) and may attach conditions to the exemption."
+        }
+      ],
+      "scaling": [
+        {
+          "source": "bc.forest-act",
+          "provision": "94",
+          "quote": "timber that is cut from private land unless it is scaled by a licensed scaler authorized by the minister to scale the timber"
+        }
+      ],
+      "scaling#minister-exemption": [
+        {
+          "source": "bc.forest-act",
+          "provision": "94",
+          "quote": "The minister may exempt timber or a person from subsection (1) or (4)."
+        }
+      ]
     }
   }
 }

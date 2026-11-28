@@ -1,6 +1,6 @@
 {
   "format": "pgmaps-ground-instruments/v1",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "readOn": "2026-11-27",
   "sourceLabels": {
     "bc.land-act": "Land Act",
@@ -1550,7 +1550,7 @@
         "field": "EFFECTIVE_DATE",
         "label": "Effective"
       },
-      "context": "Listed for what lies under a block: the visual quality page's land status checks read it. No instrument here has reach cells, because the final agreements and the Acts that bring them into effect were not read for this catalogue; the planner's On this ground does not read the layer, and no cell may be given for it until they are."
+      "context": "Listed for what lies under a block: the visual quality page's land status checks read it. No instrument here has reach cells, because the final agreements and the Acts that bring them into effect were not read for this catalogue; the planner's On this ground reads it with no reach, for the land status review's candidates, and no cell may be given for it until they are."
     },
     {
       "id": "indian-reserves",
@@ -1581,7 +1581,7 @@
       },
       "date": null,
       "dateNote": "The layer gives no date the reserve was set apart; the Canada Lands Survey Records do.",
-      "context": "Listed for what lies under a block: the visual quality page's land status checks read it. No instrument here has reach cells, because the Indian Act and the federal reserve records were not read for this catalogue; the planner's On this ground does not read the layer, and no cell may be given for it until they are."
+      "context": "Listed for what lies under a block: the visual quality page's land status checks read it. No instrument here has reach cells, because the Indian Act and the federal reserve records were not read for this catalogue; the planner's On this ground reads it with no reach, for the land status review's candidates, and no cell may be given for it until they are."
     }
   ],
   "instruments": [

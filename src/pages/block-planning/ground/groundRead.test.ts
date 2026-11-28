@@ -331,10 +331,18 @@ describe('reading the instruments on a block', () => {
   it('reads each layer once by the footprint, shares it out by instrument and measures each on the block', async () => {
     const { read, asked } = await readSample()
     const layerReads = asked.filter((b) => GROUND_CATALOGUE.layers.some((l) => l.typeName === b.get('typeNames')))
-    // Every layer that holds an instrument, once; a context layer (treaty land, reserves) is the land checks' only.
-    const instrumentLayers = GROUND_CATALOGUE.layers.filter((l) => !l.context)
-    expect(instrumentLayers.length).toBe(GROUND_CATALOGUE.layers.length - 2)
-    expect(layerReads.map((b) => b.get('typeNames'))).toEqual(instrumentLayers.map((l) => l.typeName))
+    // Every layer once, in the catalogue's order; a context layer (treaty land, reserves) is read
+    // whole for the land status review and kept apart from the instruments.
+    expect(GROUND_CATALOGUE.layers.filter((l) => l.context).map((l) => l.id)).toEqual([
+      'treaty-lands',
+      'indian-reserves',
+    ])
+    expect(layerReads.map((b) => b.get('typeNames'))).toEqual(GROUND_CATALOGUE.layers.map((l) => l.typeName))
+    expect(read.context?.map((c) => [c.layer, c.status])).toEqual([
+      ['treaty-lands', 'read'],
+      ['indian-reserves', 'read'],
+    ])
+    expect(read.instruments.some((r) => r.instrument === 'treaty-lands')).toBe(false)
     for (const b of layerReads) {
       expect(b.get('CQL_FILTER')).toMatch(/^INTERSECTS\((SHAPE|GEOMETRY),SRID=4326;POLYGON\(\(/)
       expect(b.get('propertyName')).not.toMatch(/CLIENT|HOLDER|_WHO_|USER/)

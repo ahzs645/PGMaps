@@ -1,0 +1,585 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.mines-act",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines mine to include a place where the ground is mechanically disturbed or excavated to explore for or produce rock, limestone, earth, clay, sand or gravel, with its cleared areas, machinery and buildings, and closed and abandoned mines; mining activity is any activity related to exploring, developing or producing a mineral, placer mineral, coal, sand, gravel or rock, reclamation included. The text makes no exception for a pit or quarry dug for road building, so a forest road's gravel pit or rock quarry is a mine under the Act.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would test whether a road's borrow pit, gravel pit or quarry is a mine under s. 1, which brings s. 10's permit requirement to it.",
+      "topics": [
+        "mining",
+        "gravel-and-fill",
+        "administration"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "The Act applies to all mines during exploration, development, construction, production, closure, reclamation and abandonment.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule would treat a closed or abandoned mine on or beside a block as still under the Act.",
+      "topics": [
+        "mining"
+      ]
+    },
+    {
+      "n": "2.1",
+      "relevance": "admin",
+      "bearsOn": "The minister designates a public servant as chief auditor, who may not be the chief inspector, the chief permitting officer or an inspector.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "2.2",
+      "relevance": "admin",
+      "bearsOn": "The chief auditor may audit the effectiveness of BC's regulatory framework for mining and the policies and practices that carry it out.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "2.3",
+      "relevance": "admin",
+      "bearsOn": "The chief auditor must make and publish a yearly audit plan.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "2.4",
+      "relevance": "admin",
+      "bearsOn": "The chief auditor may delegate powers in writing, but not to the chief inspector, the chief permitting officer or an inspector.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "2.5",
+      "relevance": "enforcement",
+      "bearsOn": "For an audit the chief auditor may enter land under a mineral title or a mine, inspect and require records, and order remedial action, suspension of work or closure of a mine where a hazard is dangerous.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "2.6",
+      "relevance": "admin",
+      "bearsOn": "The chief auditor reports each audit's conclusions and recommendations to the minister and publishes the reports.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "admin",
+      "bearsOn": "The minister designates a public servant as the Chief Inspector of Mines.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "The chief inspector has every power of an inspector.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "admin",
+      "bearsOn": "The chief inspector may appoint inspectors of mines.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "The chief inspector may delegate powers to an inspector in writing.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "enforcement",
+      "bearsOn": "On the chief inspector's direction an inspector must investigate and report on an incident that caused or could have caused serious injury, death, loss of property or environmental damage.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "enforcement",
+      "bearsOn": "In an investigation an inspector may order a person to answer questions or produce records, and may seek a Supreme Court order to enforce it.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "8.1",
+      "relevance": "enforcement",
+      "bearsOn": "A person who will not attend, swear, answer or produce records under s. 8 may be committed for contempt.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "8.2",
+      "relevance": "admin",
+      "bearsOn": "The minister designates a public servant as the chief permitting officer.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "8.3",
+      "relevance": "admin",
+      "bearsOn": "The chief permitting officer may delegate powers to an inspector in writing.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "admin",
+      "bearsOn": "The chief permitting officer establishes and chairs an advisory committee and regional advisory committees to review referred applications for mine approvals and reclamation permits.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "block",
+      "bearsOn": "Before starting any work in, on or about a mine, the owner, agent, manager or any other person must hold a permit from the chief permitting officer, filing a plan of the work and a program to conserve cultural heritage resources and protect and reclaim the land and watercourses affected; classes of persons or work may be exempted by regulation, a person may be exempted in writing, and a permit may require reclamation security. Under the Mineral Tenure Act s. 14 the issue of any permit under this section gives a recorded holder the use of a claim's surface.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would test whether a block's road pit or quarry, or work in, on or about an existing mine on the block, has a permit under s. 10 or an exemption under s. 10 (1.1) or (2) before work starts, and whether a permit issued on a claim under the block has given its holder surface rights.",
+      "topics": [
+        "mining",
+        "gravel-and-fill",
+        "cultural-heritage",
+        "exemptions-and-variances"
+      ]
+    },
+    {
+      "n": "10.1",
+      "relevance": "enforcement",
+      "bearsOn": "Where reclamation requirements or permit conditions are not met, the chief inspector may order a remedy and then stop the operation, do the work, use the security, close the mine or cancel the permit.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "admin",
+      "bearsOn": "The minister may exercise all the chief permitting officer's permit powers when it is necessary in the public interest.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "11.1",
+      "relevance": "admin",
+      "bearsOn": "A person who acquires a mine must apply for a permit, or to be named on the existing one, before engaging in mining activity.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "12",
+      "relevance": "admin",
+      "bearsOn": "A mine reclamation fund may be established by regulation to hold cash security under s. 10, refunded when no longer needed for reclamation or used for work under s. 10.1.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "admin",
+      "bearsOn": "On application the chief inspector may suspend or vary a regulation or code provision for a mine's health and safety, keeps a register of variances and reviews each at least every 5 years.",
+      "review": "n/a",
+      "topics": [
+        "exemptions-and-variances",
+        "mining"
+      ]
+    },
+    {
+      "n": "14",
+      "relevance": "admin",
+      "bearsOn": "A manager must not let an employee be discriminated against for complying with the Act; the chief inspector investigates complaints and may order reinstatement and lost wages.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "15",
+      "relevance": "enforcement",
+      "bearsOn": "Inspectors may enter a mine or any site where they consider mining activity is taking place, permitted or not, inspect, report, and order remedial action, suspension or closure, including against a contractor carrying out mining activity without a permit.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "16",
+      "relevance": "roads",
+      "bearsOn": "An inspector may order a mine to be operated so that it does not interfere with a public work, public service, public utility, highway, railway, pipeline or an adjacent mine property; a forest road is not named.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could note that a mine next to a block's road access may be ordered not to interfere with a highway or public work, but the section names no forest road and gives the forest operator no right.",
+      "topics": [
+        "mining",
+        "roads"
+      ]
+    },
+    {
+      "n": "17",
+      "relevance": "enforcement",
+      "bearsOn": "In an emergency at a mine, or where work is needed at a closed or abandoned mine to prevent danger or abate pollution, the chief inspector may order any person not to carry out an action and may do the work, its cost becoming a lien on the mine or mineral title.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would test whether an order under s. 17 (1.1) (a) restricts or prohibits work at a closed or abandoned mine on or beside a block; no such order is mapped, so it would be the reviewer's answer.",
+      "topics": [
+        "mining",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "18",
+      "relevance": "enforcement",
+      "bearsOn": "An inspector may order an owner to provide an independent engineering study on health and safety, environmental damage from mining activity or an incident.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "19",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "20",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "21",
+      "relevance": "admin",
+      "bearsOn": "An owner or agent must appoint a manager before work begins, keep someone in that role at all times, notify the inspector in writing and give the manager the means to run the mine as the Act requires.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could remind that a road pit or quarry that is a mine needs a manager appointed and the inspector notified before work begins.",
+      "topics": [
+        "mining",
+        "gravel-and-fill"
+      ]
+    },
+    {
+      "n": "22",
+      "relevance": "admin",
+      "bearsOn": "Managers and designates must hold the qualifications set by the regulations or the code, and attend an operating mine daily.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "23",
+      "relevance": "admin",
+      "bearsOn": "A manager must designate a qualified person in writing to be responsible in the manager's absence.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "24",
+      "relevance": "admin",
+      "bearsOn": "An owner, agent, manager or permittee, and anyone performing or supervising work at a mine, must take all reasonable measures to comply with the Act, the code, the permit and orders, and the owner, agent, manager or permittee must carry out reclamation as the regulations, code, permit and orders require.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would test that a road pit or quarry under a permit has the reclamation its permit and the code require planned for when the road no longer needs it.",
+      "topics": [
+        "mining",
+        "gravel-and-fill",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "25",
+      "relevance": "admin",
+      "bearsOn": "Where work at a mine is let to a contractor, the contractor and its manager, as well as the owner, agent and manager, must take all reasonable measures to comply with the Act, code, permit and orders for the work they control, and a contractor who does not commits an offence.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could note that a road contractor working a pit that is a mine carries the permit's obligations for that work.",
+      "topics": [
+        "mining",
+        "gravel-and-fill",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "26",
+      "relevance": "admin",
+      "bearsOn": "A manager must ensure workers are under the daily supervision of a certificated person where the regulations or code require.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "27",
+      "relevance": "admin",
+      "bearsOn": "A manager must keep accurate mine plans at the mine office, updated every 3 months, at a sound engineering scale and with the particulars the code sets.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "28",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "29",
+      "relevance": "admin",
+      "bearsOn": "Where an inspector suspends work or closes a mine and no other work is available, the manager must pay workers their earnings for up to 3 working days.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "30",
+      "relevance": "admin",
+      "bearsOn": "A manager must post inspection reports and orders at the mine for 30 days and keep them legible.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "31",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "32",
+      "relevance": "admin",
+      "bearsOn": "A manager must establish an occupational health and safety committee and let its members take part in inspections and meetings as time worked.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "33",
+      "relevance": "admin",
+      "bearsOn": "A person adversely affected by an inspector's decision or order, or a chief auditor's order, may appeal it to the chief inspector within 30 days; an appeal does not stay it unless the chief inspector orders.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "mining"
+      ]
+    },
+    {
+      "n": "34",
+      "relevance": "admin",
+      "bearsOn": "The minister establishes a health, safety and reclamation code committee chaired by the chief inspector, which prepares the code, in force on Cabinet approval; the code may require approvals before an action or equipment use, and regulations prevail over it.",
+      "review": "n/a",
+      "topics": [
+        "mining",
+        "administration"
+      ]
+    },
+    {
+      "n": "35",
+      "relevance": "enforcement",
+      "bearsOn": "An inspector may order compliance where a mine is not operated as the Act, code, permit or an order requires, and may seek a Supreme Court order.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "36",
+      "relevance": "admin",
+      "bearsOn": "The chief inspector publishes an annual report on results in achieving the Act's purposes.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "mining"
+      ]
+    },
+    {
+      "n": "36.1",
+      "relevance": "enforcement",
+      "bearsOn": "After a hearing the chief inspector may find a contravention of a prescribed provision, an order or a permit or exemption term, with directors and corporations also liable.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "36.2",
+      "relevance": "enforcement",
+      "bearsOn": "The chief inspector may impose an administrative penalty up to the prescribed limit; prosecution remains possible, but not a penalty after a conviction for the same circumstances.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "36.3",
+      "relevance": "enforcement",
+      "bearsOn": "Notice of a contravention or penalty must identify it, state the right of appeal and the amount and due date, and its reasons may be made public.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "36.4",
+      "relevance": "enforcement",
+      "bearsOn": "An administrative penalty is due 40 days after notice, or after the appeal decision.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "36.5",
+      "relevance": "enforcement",
+      "bearsOn": "An unpaid administrative penalty is a debt to government and may be filed in court as a judgment.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "36.6",
+      "relevance": "enforcement",
+      "bearsOn": "Notice of a contravention must be given within 3 years of the chief inspector learning of it.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "36.7",
+      "relevance": "enforcement",
+      "bearsOn": "A contravention or penalty decision may be appealed to the tribunal named by regulation within 30 days.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "mining"
+      ]
+    },
+    {
+      "n": "37",
+      "relevance": "enforcement",
+      "bearsOn": "Obstructing an official, or contravening the Act, code, a permit condition or an order, is an offence punishable by a fine up to $1 000 000, imprisonment up to 3 years or both, with daily penalties after notice and liability for directors.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "37.1",
+      "relevance": "enforcement",
+      "bearsOn": "Section 5 of the Offence Act does not apply to this Act or its regulations.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "mining"
+      ]
+    },
+    {
+      "n": "38",
+      "relevance": "admin",
+      "bearsOn": "Cabinet may make regulations on mine exploration, operation, closure and abandonment, permit applications, the exemptions under s. 10 (1.1), equipment, health and safety, environmental protection and reclamation standards, cultural heritage and administrative penalties, and may treat classes of mines differently.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Which pits or quarries are exempt from a permit is set by regulation under s. 38 (2) (a.2) and s. 10 (1.1), not in the Act, so a rule would need that regulation stored.",
+      "topics": [
+        "mining",
+        "exemptions-and-variances",
+        "gravel-and-fill"
+      ]
+    }
+  ]
+}

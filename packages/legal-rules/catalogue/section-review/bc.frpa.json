@@ -8,12 +8,13 @@
       "n": "1",
       "relevance": "definitions",
       "bearsOn": "Defines terms used throughout the Act (forest practice, free growing stand, objectives set by government, operational plan, range development, recreation site); no requirement for a block by itself.",
-      "review": "n/a",
+      "review": "partial",
       "topics": [
         "administration",
         "reforestation",
         "plans"
-      ]
+      ],
+      "gapNote": "The land status pack tests the land the \"forest practice\" definition reaches (Crown forest land, and private land in a tree farm licence, community forest agreement or woodlot licence area); the other definitions are read by the rules that use them."
     },
     {
       "n": "2",
@@ -1524,13 +1525,11 @@
       "n": "53",
       "relevance": "block",
       "bearsOn": "Before timber is cut or removed from private land next to Crown land, the owner must tell the operator the boundaries and the operator must ascertain them.",
-      "review": "screen",
+      "review": "rule",
       "coveredBy": [
         "ground:private-land"
       ],
-      "gapPriority": "low",
-      "gapNote": "The private-land screen shows the parcel but no rule asks whether the private–Crown boundary has been ascertained before cutting.",
-      "encodable": "reviewer-question",
+      "gapNote": "The land status pack raises the duty on private land beside Crown land; whether the boundaries were ascertained is the reviewer’s record, not a fact asked.",
       "topics": [
         "private-land",
         "harvest-authority",

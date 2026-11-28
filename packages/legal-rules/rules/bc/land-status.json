@@ -1,0 +1,289 @@
+[
+  {
+    "id": "frpa-reach",
+    "title": "FRPA’s forest practices reach the block’s land",
+    "source": "frpa",
+    "provision": "1(1) \"forest practice\"",
+    "scope": [
+      [
+        {
+          "fact": "land",
+          "op": "in",
+          "value": ["Crown land", "Private land", "Both Crown and private land"]
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "land",
+          "op": "in",
+          "value": ["Crown land", "Both Crown and private land"]
+        }
+      ],
+      [
+        {
+          "fact": "licence-area",
+          "op": "in",
+          "value": ["A tree farm licence", "A community forest agreement", "A woodlot licence"]
+        }
+      ]
+    ],
+    "finding": "A forest practice under FRPA is an activity on Crown forest land, or on private land subject to a tree farm licence, a community forest agreement or a woodlot licence. The block’s land is one of these, so FRPA and its practices regulation reach the harvest: review the block under them.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Review the block under FRPA and the practices regulation that applies to its holder: the FPPR, or the WLPPR in a woodlot licence area."
+      }
+    ]
+  },
+  {
+    "id": "frpa-no-reach",
+    "title": "FRPA’s forest practices do not reach this private land",
+    "source": "frpa",
+    "provision": "1(1) \"forest practice\"",
+    "scope": [
+      [
+        {
+          "fact": "land",
+          "op": "eq",
+          "value": "Private land"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "licence-area",
+          "op": "in",
+          "value": ["A First Nations woodland licence", "None of these"]
+        }
+      ]
+    ],
+    "finding": "FRPA’s definition of a forest practice takes in private land only where a tree farm licence, a community forest agreement or a woodlot licence covers it; a First Nations woodland licence is not named. The block is wholly on private land outside those, so the FPPR findings on this block are not this land’s. The owner’s title, the Forest Act’s timber marking and scaling, and on managed forest land the Private Managed Forest Land Act govern instead. This is a reading of the definition’s text.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Read the block’s FPPR, permit and forest operations findings as not applying to this land, and review it under the rules below and, if it is managed forest land, the Private Managed Forest Land Act."
+      }
+    ]
+  },
+  {
+    "id": "woodlot-wlppr",
+    "title": "The WLPPR, not the FPPR, governs the woodlot licence holder",
+    "source": "wlppr",
+    "provision": "2(1), (3)",
+    "scope": [
+      [
+        {
+          "fact": "land",
+          "op": "in",
+          "value": ["Crown land", "Private land", "Both Crown and private land"]
+        },
+        {
+          "fact": "licence-area",
+          "op": "eq",
+          "value": "A woodlot licence"
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "woodlot-holder",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The Woodlot Licence Planning and Practices Regulation applies to the woodlot licence holder, and the holder’s employees, agents and contractors, carrying out an activity in the woodlot licence area, and the FPPR, except its §1.2, does not apply to them. The FPPR findings on this block are read against a regulation that does not govern its harvest; PGMaps does not yet assess the WLPPR.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Review the block against the WLPPR and the holder’s woodlot licence plan rather than the FPPR findings."
+      }
+    ]
+  },
+  {
+    "id": "managed-forest-land",
+    "title": "Private managed forest land: the PMFLA’s objectives apply",
+    "source": "pmfla",
+    "provision": "1, 3",
+    "scope": [
+      [
+        {
+          "fact": "land",
+          "op": "in",
+          "value": ["Private land", "Both Crown and private land"]
+        },
+        {
+          "fact": "licence-area",
+          "op": "in",
+          "value": ["A First Nations woodland licence", "None of these"]
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "managed-forest",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "The block’s private land is private managed forest land outside a tree farm licence, woodlot licence and community forest agreement area, so the Private Managed Forest Land Act applies: its forest management objectives for soil conservation, drinking water, fish habitat, critical wildlife habitat and reforestation (§§12–16) and the Council Regulation’s requirements govern the harvest, not FRPA’s.",
+    "actions": [
+      {
+        "kind": "review",
+        "description": "Review the block against the PMFLA’s objectives and the Private Managed Forest Land Council Regulation; the owner’s management commitment is with the Private Managed Forest Land Council."
+      }
+    ]
+  },
+  {
+    "id": "crown-timber",
+    "title": "Timber reserved to the government is Crown timber",
+    "source": "forest-act",
+    "provision": "1(1) \"Crown timber\"",
+    "scope": [
+      [
+        {
+          "fact": "land",
+          "op": "in",
+          "value": ["Private land", "Both Crown and private land"]
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "timber-reserved",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Timber reserved to the government is Crown timber although it stands on private land, so cutting it needs an authority to harvest Crown timber under the Forest Act, as on Crown land; the owner cannot grant it.",
+    "actions": [
+      {
+        "kind": "obtain-approval",
+        "description": "Find the reservation in the title or Crown grant, and hold a Forest Act authority to cut the reserved timber before harvesting it."
+      }
+    ]
+  },
+  {
+    "id": "private-boundaries",
+    "title": "Private land beside Crown land: ascertain the boundaries",
+    "source": "frpa",
+    "provision": "53",
+    "scope": [
+      [
+        {
+          "fact": "land",
+          "op": "in",
+          "value": ["Private land", "Both Crown and private land"]
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "adjacent-crown",
+          "op": "eq",
+          "value": true
+        }
+      ]
+    ],
+    "finding": "Before anyone cuts or removes timber from private land adjacent to Crown land, they must ascertain the private land’s boundaries, and the owner or occupier who authorizes them must first inform them of the boundaries. Not knowing them is no defence to a prosecution for cutting Crown timber (§94).",
+    "actions": [
+      {
+        "kind": "implement",
+        "description": "Have the private land’s boundaries ascertained and marked on the ground before falling, and keep the owner’s notice of them."
+      }
+    ]
+  },
+  {
+    "id": "timber-mark",
+    "title": "Timber from private land carries that land’s timber mark",
+    "source": "forest-act",
+    "provision": "84(1), (3)",
+    "scope": [
+      [
+        {
+          "fact": "land",
+          "op": "in",
+          "value": ["Private land", "Both Crown and private land"]
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "land",
+          "op": "in",
+          "value": ["Private land", "Both Crown and private land"]
+        }
+      ]
+    ],
+    "finding": "Unscaled timber cut from the block’s private land must be marked in the prescribed manner with a timber mark that pertains to that land before it is removed or transported, and in prescribed circumstances before it is stored in decks or piles there. The registrar issues a timber mark certificate for private land on application (§85).",
+    "actions": [
+      {
+        "kind": "obtain-approval",
+        "description": "Apply for a timber mark certificate for the private land, unless one in force already pertains to it, and mark the timber before it leaves the land."
+      }
+    ],
+    "exceptions": [
+      {
+        "id": "minister-exemption",
+        "label": "The minister has exempted the unscaled timber from marking, with any conditions (§84(5))",
+        "source": "forest-act",
+        "provision": "84(5)",
+        "kind": "decision",
+        "decidedBy": "The minister",
+        "evidence": ["The minister’s exemption and its conditions"]
+      }
+    ]
+  },
+  {
+    "id": "scaling",
+    "title": "Timber from private land is scaled by a licensed scaler",
+    "source": "forest-act",
+    "provision": "94(1)(a)",
+    "scope": [
+      [
+        {
+          "fact": "land",
+          "op": "in",
+          "value": ["Private land", "Both Crown and private land"]
+        }
+      ]
+    ],
+    "when": [
+      [
+        {
+          "fact": "land",
+          "op": "in",
+          "value": ["Private land", "Both Crown and private land"]
+        }
+      ]
+    ],
+    "finding": "Timber cut from the block’s private land may not be manufactured into products, sold, or transported anywhere but the place it must go for scaling until a licensed scaler authorized by the minister scales it.",
+    "actions": [
+      {
+        "kind": "implement",
+        "description": "Arrange scaling by a licensed scaler at the scale site before the timber is sold or manufactured."
+      }
+    ],
+    "exceptions": [
+      {
+        "id": "minister-exemption",
+        "label": "The minister has exempted the timber or the person from scaling, with any conditions (§94(5)–(6))",
+        "source": "forest-act",
+        "provision": "94(5)",
+        "kind": "decision",
+        "decidedBy": "The minister",
+        "evidence": ["The minister’s exemption and its conditions"]
+      }
+    ]
+  }
+]

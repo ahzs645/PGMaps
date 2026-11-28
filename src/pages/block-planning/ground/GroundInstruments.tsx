@@ -26,6 +26,7 @@ import {
   groundReadOf,
   nearText,
   saveGroundRead,
+  type GroundContextRead,
   type GroundRead,
   type PrecedentOpening,
 } from './record'
@@ -287,6 +288,7 @@ export function GroundInstruments({
               Read, nothing mapped on the footprint: {empty.map((r) => label(r.instrument)).join(', ')}.
             </p>
           )}
+          {read.context && read.context.length > 0 && <ContextLayers context={read.context} />}
           {found.length > 0 && (
             <CalculationTable
               caption="Mapped on the block, as DataBC names it"
@@ -377,6 +379,41 @@ export function GroundInstruments({
 }
 
 /** Why some layers' precedent counts every date: each layer without one says where the date is. */
+/**
+ * What the context layers hold under the block: no instrument, no reach cell, read so the land
+ * status review can offer them. A layer not read says so, never none.
+ */
+function ContextLayers({ context }: { context: GroundContextRead[] }) {
+  return (
+    <div className="space-y-1" data-testid="block-planning-ground-context">
+      <p className="text-2xs font-medium">Also under the block, with no reach given</p>
+      <ul className="space-y-0.5 text-2xs">
+        {context.map((c) => {
+          const title = groundLayer(c.layer)?.title ?? c.layer
+          return (
+            <li key={c.layer} className="[overflow-wrap:anywhere]">
+              {title}:{' '}
+              {c.status === 'failed'
+                ? `Not read. ${c.message ?? ''}`
+                : c.features.length
+                  ? c.features
+                      .map((f) => `${f.name} (${f.id}), ${f.sharePercent.toFixed(1)}% of the footprint`)
+                      .join('; ')
+                  : 'none mapped on the footprint'}
+              {c.status === 'truncated' ? ` ${c.message ?? ''}` : ''}
+            </li>
+          )
+        })}
+      </ul>
+      <p className="text-2xs text-muted-foreground">
+        The final agreements, the Acts that bring them into effect, the Indian Act and the federal reserve records were
+        not read for the catalogue, so these layers have no reach cells. The land status review offers what they hold as
+        a candidate answer.
+      </p>
+    </div>
+  )
+}
+
 function undatedNotes(found: { instrument: GroundInstrument }[]) {
   const layers = [...new Set(found.map(({ instrument }) => instrument.layer))].map((id) => groundLayer(id))
   return layers.flatMap((l) => (l && !l.date && l.dateNote ? [l.dateNote] : []))

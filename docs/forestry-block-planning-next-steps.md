@@ -46,7 +46,23 @@ Built on 27 November 2026 and moved into the planner contract, **Getting the rec
 2. **The Forest Operations Map's `fspId`.** Its API sends no CORS headers, so the panel links to the map; a bcdatamapper snapshot of `publicSummary` cut to `id`, `fspId` and the point (no project or client names) would let the panel name the plan for blocks since 2022.
 3. **A LiDAR flow screen for small streams**, where a 1 m DEM is published, through the road designer's drainage, as places for the field survey to check.
 
+## Done: land status
+
+Built on 27 November 2026 and moved into [the planner contract](forestry-patch-scenarios.md), **Land status**: `bc.land-status` 1.0.0, first in every block review; the Private Managed Forest Land Act, its Regulation and the Council Regulation, the WLPPR and the Mines Act stored whole and reviewed section by section; the ground read's context layers (reserves, treaty lands) read for its candidates.
+
 ## Next
+
+### Private managed forest land
+
+The Council Regulation's practice requirements as a pack for a block the land status review puts on private managed forest land: roads and logging trails held to the minimum (ss. 13–14, which state no figure, so a reviewer's judgement beside the measured road area), roads beside streams (s. 16: 30 m from class A and B streams, 10 m from C, D and E), crossings and drainage (ss. 17–22), drinking water and licensed intakes (ss. 14.1, 15, 20, 23, 25), tree retention by stream class (ss. 27–30), reforestation (s. 31: 400 or 600 crop trees a hectare within 5 years, a regenerated stand within 15) and critical wildlife habitat (the Regulation's ss. 5–8). The stream classes and the Coast and Interior line come from the Private Managed Forest Land Council Matters Regulation (BC Reg 372/2004), which must be stored and read first.
+
+### Mineral and placer tenures
+
+A pack for a block or road over a mineral or placer claim or lease: the recorded holder's surface rights once a Mines Act permit is issued and its timber under the Forest Act (Mineral Tenure Act ss. 14, 16), and a Mines Act s. 10 permit before work on a mine, which the Act's definition makes of a pit or quarry dug for road gravel or rock. Which pits a regulation exempts, and the Health, Safety and Reclamation Code, are not stored.
+
+### The woodlot regulation
+
+The WLPPR's practice requirements for a woodlot licence holder's block, in place of the FPPR findings the land status review says are not the block's: the plan's avoid and modified areas (s. 53), soil disturbance (s. 24), permanent access structures (s. 25), riparian classes and zones (ss. 36–40), wildlife tree retention across the licence area (s. 52), community watershed intakes (ss. 48, 50), each read through the plan's alternative performance requirements (s. 13). The section review lists fifteen high gaps.
 
 ### Stream crossings from the road designer and the map
 

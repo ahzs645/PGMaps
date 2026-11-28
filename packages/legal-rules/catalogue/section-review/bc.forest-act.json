@@ -8,7 +8,7 @@
       "n": "1",
       "relevance": "definitions",
       "bearsOn": "Defines Crown timber, private land, area-based licence, licence area, cutting permit area and BCTS licence; the Crown timber and private land definitions decide whether this Act and FRPA govern harvest on a block's ground at all.",
-      "review": "screen",
+      "review": "rule",
       "coveredBy": [
         "ground:private-land",
         "ground:land-act-lease",
@@ -22,7 +22,8 @@
         "forest-tenures",
         "private-land",
         "harvest-authority"
-      ]
+      ],
+      "gapNote": "The land status pack tests \"Crown timber\" (timber reserved to the government on private land) and \"private land\"; the ground screen reads the parcels."
     },
     {
       "n": "1.1",
@@ -2027,18 +2028,18 @@
     },
     {
       "n": "84",
-      "relevance": "admin",
-      "bearsOn": "Unscaled timber decked or removed must carry the land's timber mark; log handling, not block design.",
-      "review": "n/a",
+      "relevance": "block",
+      "bearsOn": "Unscaled timber stored, removed or transported from Crown or private land must carry the timber mark that pertains to that land; on private land the land status pack names it as what governs the harvest beside the owner’s title.",
+      "review": "rule",
       "topics": [
         "timber-pricing-and-scaling"
       ]
     },
     {
       "n": "85",
-      "relevance": "admin",
-      "bearsOn": "Issuing timber marks for private land.",
-      "review": "n/a",
+      "relevance": "block",
+      "bearsOn": "The registrar issues a timber mark certificate for private land on application, to the owner of the timber, an agent of the government or utility, or a woodlot licence holder for its private land.",
+      "review": "rule",
       "topics": [
         "timber-pricing-and-scaling",
         "private-land"
@@ -2129,9 +2130,9 @@
     },
     {
       "n": "94",
-      "relevance": "admin",
-      "bearsOn": "Timber must be scaled by an authorized scaler before manufacture, sale or transport elsewhere; log accounting. No bearing on a block.",
-      "review": "n/a",
+      "relevance": "block",
+      "bearsOn": "Timber cut from private land must be scaled by a licensed scaler, and Crown timber by an official or forest service scaler, before manufacture, sale or transport elsewhere than the scale site.",
+      "review": "rule",
       "topics": [
         "timber-pricing-and-scaling"
       ]

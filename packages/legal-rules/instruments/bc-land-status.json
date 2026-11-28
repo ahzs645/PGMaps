@@ -1,0 +1,76 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.land-status",
+  "version": "1.0.0",
+  "title": "BC land status of a block",
+  "description": "What land the block is on, and so which law reaches its harvest: whether FRPA’s forest practices reach it (Crown land, or private land in a tree farm licence, community forest agreement or woodlot licence area), whether the WLPPR replaces the FPPR for a woodlot licence holder, whether it is private managed forest land under the PMFLA, and, on private land, timber reserved to the government, boundaries beside Crown land and the Forest Act’s timber marking and scaling. A reserve and treaty settlement land are outside every rule here: the Indian Act, a land code or the final agreement governs them, and none is assessed. The land is always the reviewer’s answer; mapped parcels and licences are candidates.",
+  "relatedPacks": [
+    {
+      "id": "bc.fppr",
+      "relationship": "Its findings are the block’s only where FRPA’s forest practices reach the land and the holder is not a woodlot licence holder (frpa-reach, frpa-no-reach, woodlot-wlppr)."
+    },
+    {
+      "id": "bc.forest-permits",
+      "relationship": "Cutting and road permits dispose of Crown timber and roads on Crown land; on private land outside an area-based licence they do not arise unless timber is reserved to the government (crown-timber)."
+    }
+  ],
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-27"
+  },
+  "facts": [
+    {
+      "id": "land",
+      "type": "choice",
+      "choices": [
+        "Crown land",
+        "Private land",
+        "Both Crown and private land",
+        "Federal land, including an Indian reserve",
+        "Treaty settlement land"
+      ],
+      "label": "What land is the block on? Crown land is land vested in the provincial government (the Land Act meaning, Forest Act §1); private land is land that is not Crown land. A reserve and treaty settlement land are asked apart: these packs do not assess them."
+    },
+    {
+      "id": "licence-area",
+      "type": "choice",
+      "choices": [
+        "A tree farm licence",
+        "A community forest agreement",
+        "A woodlot licence",
+        "A First Nations woodland licence",
+        "None of these"
+      ],
+      "label": "Is the block in the area of an area-based licence (Forest Act §1), on its Crown land or on private land the licence includes?"
+    },
+    {
+      "id": "woodlot-holder",
+      "type": "boolean",
+      "label": "Will the woodlot licence holder, or its employee, agent, contractor or subcontractor, carry out the harvest (WLPPR §2(1))?"
+    },
+    {
+      "id": "managed-forest",
+      "type": "boolean",
+      "label": "Is the block’s private land private managed forest land: land under a management commitment and classified as managed forest land under the Assessment Act (PMFLA §1), or land classified as managed forest land when the Act came into force and deemed so without a commitment (§45)?"
+    },
+    {
+      "id": "timber-reserved",
+      "type": "boolean",
+      "label": "Is any timber on the block’s private land reserved to the government, by its Crown grant or otherwise (Forest Act §1, “Crown timber”)?"
+    },
+    {
+      "id": "adjacent-crown",
+      "type": "boolean",
+      "label": "Is the block’s private land adjacent to Crown land (FRPA §53)?"
+    }
+  ],
+  "parameters": [],
+  "sourceFiles": [
+    "sources/bc/frpa.json",
+    "sources/bc/fppr.json",
+    "sources/bc/forest-act.json",
+    "sources/bc/wlppr.json",
+    "sources/bc/pmfla.json"
+  ],
+  "ruleFiles": ["rules/bc/land-status.json"]
+}

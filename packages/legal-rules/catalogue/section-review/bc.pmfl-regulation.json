@@ -1,0 +1,162 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.pmfl-regulation",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines critical wildlife habitat (established under s. 5), local government, species at risk (Schedule C) and wildlife minister, and for Act s. 21(1) defines a forest management activity as a Schedule A activity related to producing or harvesting forest resources on the owner's land for as long as it is classified as managed forest land.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A critical wildlife habitat or local government rule would take its terms from here; nothing reads them yet.",
+      "topics": [
+        "wildlife",
+        "private-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "admin",
+      "bearsOn": "When the assessor declassifies managed forest land, the council sets the exit fee: the annual tax difference times the consecutive years classified times the Schedule B factor; none is payable if taxes would fall or after 15 or more years.",
+      "review": "n/a",
+      "topics": [
+        "private-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "admin",
+      "bearsOn": "No exit fee is payable for a declassified portion under a right of way or easement, expropriated, gifted to or exchanged with government or local government, unless declassification followed a council notice of contravention.",
+      "review": "n/a",
+      "topics": [
+        "private-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "enforcement",
+      "bearsOn": "For the wildlife minister's entry under Act s. 24, a reasonable time begins 14 days after written notice to the owner, or sooner where the public interest requires or the owner agrees.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "wildlife",
+        "private-land"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "block",
+      "bearsOn": "The wildlife minister may establish, vary or cancel an area of private managed forest land as critical wildlife habitat where habitat of a Schedule C species at risk is on the land and is required for the species' survival because suitable habitat on Crown land in that ecoregion is insufficient; within it, the owner must carry out timber harvesting, related activities and road construction as the s. 7 notice requires.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask whether the block or its road lies in critical wildlife habitat established by a wildlife minister's notice and, if so, whether harvest and roads follow the notice's modifications.",
+      "topics": [
+        "wildlife",
+        "private-land"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "block",
+      "bearsOn": "Where the wildlife minister notifies an owner that an area may qualify as critical wildlife habitat, the owner must give the minister information on any road construction or timber harvesting proposed for the area in the 30 days after receiving the notice.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule would ask whether a notice under this section covers the block and, if so, whether the proposed harvest and roads were reported within 30 days.",
+      "topics": [
+        "wildlife",
+        "private-land"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "block",
+      "bearsOn": "Before establishing critical wildlife habitat the wildlife minister must give the owner a notice describing it and the area where roads and harvest must be modified; unless the owner agrees, that area is new, totals no more than the lesser of 1% of the land in the management commitment or the area the species needs, and modified operations last no more than one year. The habitat takes effect on receipt and the modifications 14 days after receipt or on a date the minister sets.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule would date a notice's modifications (in effect 14 days after receipt, no longer than one year) against the block's harvest and road dates.",
+      "topics": [
+        "wildlife",
+        "private-land"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "block",
+      "bearsOn": "Where the ministry has published, by ecoregion, species at risk lacking habitat on Crown land, an owner who knows there may be habitat for a listed species on the land must promptly notify the wildlife minister and refrain from road construction or harvest that could harm it until 14 days after the minister receives the notice, the minister says the work may proceed, or a s. 7 notice is received, whichever comes first.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask whether habitat of a listed species may be on or by the block and, if so, whether the minister was notified and the 14-day hold has passed before harvest or road construction.",
+      "topics": [
+        "wildlife",
+        "private-land"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "10",
+      "relevance": "enforcement",
+      "bearsOn": "An appeal with a deficient notice proceeds only after the period allowed to correct it expires or the remedying material is filed, whichever is earlier.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "private-land"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "enforcement",
+      "bearsOn": "Contravening s. 5(2) is an offence with a fine up to $50 000, s. 6(2) up to $25, and s. 8(2) up to $1 000 for a first offence and $5 000 after.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "wildlife",
+        "private-land"
+      ]
+    },
+    {
+      "n": "Schedule A",
+      "relevance": "definitions",
+      "bearsOn": "Lists the forest management activities local government may not restrict under Act s. 21, among them silviculture and harvesting, transport, sorting and scaling, road, bridge and trail construction and maintenance, drilling and blasting, aggregate production, slash and prescribed burning, vegetation and pest treatment, water storage, agroforestry and silvopasture, wood waste disposal and one dwelling per parcel.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A land status review would name these activities as beyond local bylaws and permits on the land (Act s. 21); no rule reads the list.",
+      "topics": [
+        "private-land",
+        "gravel-and-fill",
+        "administration"
+      ]
+    },
+    {
+      "n": "Schedule B",
+      "relevance": "admin",
+      "bearsOn": "Exit fee adjustment factors by years classified as managed forest land, from 1.00 for 1 to 5 years down to 0.025 at 15 years and 0 beyond.",
+      "review": "n/a",
+      "topics": [
+        "private-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "Schedule C",
+      "relevance": "definitions",
+      "bearsOn": "Lists the species at risk for critical wildlife habitat, among them caribou (mountain, boreal and northern), grizzly bear, wolverine, badger, marbled murrelet, the Queen Charlotte goshawk, spotted owl, tailed frogs and Vananda Lake sticklebacks.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A critical wildlife habitat rule would take its species from this list, and only those the ministry lists by ecoregion under s. 8.",
+      "topics": [
+        "wildlife",
+        "private-land"
+      ]
+    }
+  ]
+}

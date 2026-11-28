@@ -1,0 +1,422 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.pmfl-council-regulation",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Defines riparian classes A to E (by the Schedule), cutblock (harvested private managed forest land, not counting harvest only to clear a road), deactivated, drinking water intake (a Water Sustainability Act licensed intake for domestic or industrial purpose consumed by humans), logging trail (including excavated or bladed trails), primary forest activity (harvesting, road construction, maintenance or deactivation, silviculture), stream channel (between the outermost banks where rooted terrestrial vegetation begins) and stream crossing (bridge, culvert or ford); other terms, such as fish stream and licensed waterworks intake, come from the Private Managed Forest Land Council Matters Regulation.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A pack would word its facts with these terms; the Council Matters Regulation that defines fish stream, stream and licensed waterworks intake is not stored.",
+      "topics": [
+        "administration",
+        "riparian",
+        "private-land"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "block",
+      "bearsOn": "Nothing authorizes changes in and about a stream under the Water Sustainability Act. Distances are horizontal except the slope distances in ss. 16, 20(2), 23, 24, 27(1), (2) and (4), 28(1), (2) and (4), 29(1) and 30(1); stream width is the average across the channel at right angles to flow; tree diameter is at 1.3 m on the upslope side; Divisions 2 and 3 of Part 3 do not apply within 30 m of the high water mark of a hydroelectric reservoir.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "Rules would measure the road setbacks, intake distances and retention bands as slope distances, take stream width as the mean channel width, and lift the soil and water requirements within 30 m of a hydroelectric reservoir.",
+      "topics": [
+        "riparian",
+        "water-rights-and-works",
+        "private-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "block",
+      "bearsOn": "An owner or its contractors are exempt from a Part 3 requirement to the extent it cannot be met because of a person authorized by government, to the extent needed to conform to the Workers Compensation Act, and to the extent needed to prevent environmental damage or protect public safety.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A pack would list these three as by-law exceptions on each Part 3 rule, claimed by the reviewer and never assumed.",
+      "topics": [
+        "exemptions-and-variances",
+        "private-land"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "block",
+      "bearsOn": "By written notice the council may exempt an owner or contractor from a Part 3 requirement, with or without conditions, only if needed for public safety or not inconsistent with the public interest and the Act's objectives (unless needed to manage forest health factors); the exempted person must meet the conditions.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A pack would list a council exemption as a decided exception on each Part 3 rule, decided by the council.",
+      "topics": [
+        "exemptions-and-variances",
+        "private-land"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "admin",
+      "bearsOn": "A request to the council to rescind or vary under Act s. 32 must be written, identify the decision and give grounds, and the council may require written submissions first.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "private-land"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "The annual administration fee is due March 15 of its calendar year, on written notice served at least 30 days before.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "admin",
+      "bearsOn": "The council must notify owners in writing of a surplus within 30 days of determining it.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "admin",
+      "bearsOn": "The council must notify the affected local government within 60 days of receiving an owner's notice of withdrawal.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "tenure",
+      "bearsOn": "A management commitment must give the area's size and location, a commitment to use the land to produce and harvest timber, long term objectives and strategies, a soil quality assessment for Assessment Act s. 24(6), an inventory of existing roads 500 m or longer, a forest cover inventory, the commercial tree species to be used in reforestation and a signature; an owner who disposes of part of the land must submit an amended commitment within 60 days.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A reforestation rule would take crop tree species from the commitment's list (s. 9(1)(h)), which the planner does not hold.",
+      "topics": [
+        "private-land",
+        "reforestation",
+        "plans"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "admin",
+      "bearsOn": "A notice withdrawing a management commitment must give the legal description, size and location of the area and a signature.",
+      "review": "n/a",
+      "topics": [
+        "private-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "admin",
+      "bearsOn": "A holder who disposes of land under a management commitment must notify the council in writing within 30 days with the sale date, purchaser and legal description.",
+      "review": "n/a",
+      "topics": [
+        "private-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "12",
+      "relevance": "plan",
+      "bearsOn": "The annual declaration must show areas restocked under s. 31(3)(a) and successfully regenerated under s. 31(3)(b), roads deactivated, roads 500 m or longer built in the preceding season, with maps and a signature.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could check that the block is declared, which fixes its completion of harvesting for s. 31, and record when it was declared restocked and regenerated.",
+      "topics": [
+        "private-land",
+        "plans",
+        "reforestation"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "roads",
+      "bearsOn": "Whoever harvests a cutblock must restrict the productive forest land in it converted to roads to the minimum necessary for safe and efficient harvesting; the regulation sets no percentage.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would ask whether the block's roads take no more productive land than safe and efficient harvesting needs, with the road area the planner measures shown beside the reviewer's answer; there is no numeric limit to test against.",
+      "topics": [
+        "soils",
+        "roads",
+        "private-land"
+      ]
+    },
+    {
+      "n": "14",
+      "relevance": "block",
+      "bearsOn": "Whoever harvests a cutblock must restrict productive forest land converted to logging trails to the minimum necessary, and must rehabilitate the trails as needed to meet s. 31 reforestation, unless a trail was reasonably expected to give access beyond the cutblock.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask whether logging trails were held to the minimum and whether those serving only the block are rehabilitated so the disturbed area can meet s. 31.",
+      "topics": [
+        "soils",
+        "reforestation",
+        "private-land"
+      ]
+    },
+    {
+      "n": "14.1",
+      "relevance": "block",
+      "bearsOn": "A primary forest activity must not cause a material adverse effect on drinking water quality that may affect human health at the point of diversion of a drinking water intake, unless the intake is another's and was built on the owner's land without written consent.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would screen licensed domestic and industrial intakes downstream of the block and ask whether harvest and roads could affect drinking water at their points of diversion.",
+      "topics": [
+        "water-quality-and-supply",
+        "private-land"
+      ]
+    },
+    {
+      "n": "15",
+      "relevance": "block",
+      "bearsOn": "A primary forest activity must not cause sediment or other material to be transported to or deposited in a stream where it will have a material adverse effect on fish habitat or on water diverted by a licensed waterworks intake.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask whether harvest or roads deliver sediment to a fish stream or a stream above a licensed intake, using the block's stream crossings and road-to-stream distances.",
+      "topics": [
+        "drainage",
+        "fish-habitat",
+        "water-quality-and-supply",
+        "private-land"
+      ]
+    },
+    {
+      "n": "16",
+      "relevance": "roads",
+      "bearsOn": "No road may be built within 30 m of a class A or B stream or within 10 m of a class C, D or E stream (slope distance) unless meeting the distance would raise the risk of sediment delivery, there is no other practicable location, or the road is part of a stream crossing.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would measure each road's slope distance to classed streams against 30 m (A, B) and 10 m (C, D, E) and ask the reviewer which exception applies where it is closer.",
+      "topics": [
+        "roads",
+        "riparian",
+        "private-land"
+      ]
+    },
+    {
+      "n": "17",
+      "relevance": "roads",
+      "bearsOn": "A stream crossing on a road or logging trail must be located, built and used to protect the channel and banks immediately above and below and mitigate disturbance at the crossing, as needed to avoid a material adverse effect on fish habitat or licensed waterworks water; a logging trail crossing must be removed when no longer required.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would list the block's crossings and ask whether each protects the channel and banks, and whether trail crossings are scheduled for removal.",
+      "topics": [
+        "stream-crossings-and-culverts",
+        "fish-habitat",
+        "private-land"
+      ]
+    },
+    {
+      "n": "18",
+      "relevance": "roads",
+      "bearsOn": "Whoever builds a road or logging trail must maintain natural surface drainage patterns during and after construction as needed to avoid a material adverse effect on fish habitat or licensed waterworks water, or, where impracticable, make the altered pattern compatible by the end of construction or the next freshet, whichever is earlier.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask whether the road keeps natural drainage, reading cross-drain candidates from the road designer, and when any altered pattern is made compatible.",
+      "topics": [
+        "drainage",
+        "roads",
+        "private-land"
+      ]
+    },
+    {
+      "n": "19",
+      "relevance": "roads",
+      "bearsOn": "Soil exposed outside a road's running surface during construction or deactivation, where surface erosion could foreseeably harm fish habitat or licensed waterworks water, must be revegetated or otherwise treated within two years of completing the work.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask whether exposed cut and fill slopes above streams are scheduled for revegetation within two years of the road's completion.",
+      "topics": [
+        "soils",
+        "drainage",
+        "roads",
+        "private-land"
+      ]
+    },
+    {
+      "n": "20",
+      "relevance": "roads",
+      "bearsOn": "A primary forest activity must not damage a licensed waterworks intake, and no road may be built within a 100 m radius upslope of one (slope distance) unless it will not increase sediment delivery to the intake or the licence holder approves in advance.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would find licensed intakes within 100 m upslope of the block's roads and ask for the licence holder's approval or the no-added-sediment finding.",
+      "topics": [
+        "water-quality-and-supply",
+        "roads",
+        "private-land"
+      ]
+    },
+    {
+      "n": "21",
+      "relevance": "roads",
+      "bearsOn": "A road built or used for harvesting must be maintained until deactivated, keeping the prism and clearing width structurally sound and drainage working as needed to avoid a material adverse effect on fish habitat or licensed waterworks water; a road built under another enactment is maintained while used for harvesting and while the owner is its primary user.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask who maintains each road the block uses and until when, and whether an existing road built under another enactment is used with the owner as primary user.",
+      "topics": [
+        "roads",
+        "drainage",
+        "private-land"
+      ]
+    },
+    {
+      "n": "22",
+      "relevance": "roads",
+      "bearsOn": "A road no longer required and no longer to be maintained must have its round-pipe stream culverts removed, and other culverts or bridges removed and the prism stabilized where that reduces the likelihood of harm to fish habitat or licensed waterworks water.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would ask, for each road to be left unmaintained after the block, whether its round-pipe stream culverts are to be removed.",
+      "topics": [
+        "roads",
+        "stream-crossings-and-culverts",
+        "private-land"
+      ]
+    },
+    {
+      "n": "23",
+      "relevance": "roads",
+      "bearsOn": "At least 48 hours before building or deactivating a road within 1 km upstream (slope distance) of a licensed waterworks intake, the licence holder must be notified.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would find licensed intakes within 1 km downstream of the block's road work and ask whether their holders are to be notified 48 hours ahead.",
+      "topics": [
+        "water-quality-and-supply",
+        "roads",
+        "public-review-and-notice",
+        "private-land"
+      ]
+    },
+    {
+      "n": "24",
+      "relevance": "silviculture",
+      "bearsOn": "No broadcast fertilizer within 100 m upslope of a licensed waterworks intake, nor within 1 000 m upslope and 10 m of a flowing stream visible from the air that flows directly into the intake's stream; nitrogen fertilizer above an intake must not raise nitrate above 10 ppm immediately downstream; no aerial broadcast within 10 m of a fish stream.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule would test planned fertilization of the block against the intake and stream buffers; the planner does not plan fertilization.",
+      "topics": [
+        "silviculture-treatments",
+        "water-quality-and-supply",
+        "private-land"
+      ]
+    },
+    {
+      "n": "25",
+      "relevance": "block",
+      "bearsOn": "Where a waterworks licence holder shows reduced water quality from a source on the owner's land, the owner must describe the source and, if the owner caused it, give and carry out measures on a schedule; the holder may refer non-compliance to the council.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could ask whether a licence holder has notified a water quality problem traced to the land near the block and whether the scheduled measures are done.",
+      "topics": [
+        "water-quality-and-supply",
+        "private-land"
+      ]
+    },
+    {
+      "n": "26",
+      "relevance": "block",
+      "bearsOn": "The council must be notified within 24 hours of the owner learning that a landslide or debris flow on the land deposited debris or sediment into a class A, B, C, D or E stream.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "Reporting after the event; a rule could record whether a landslide from the block reached a classed stream and was reported.",
+      "topics": [
+        "riparian",
+        "soils",
+        "private-land"
+      ]
+    },
+    {
+      "n": "27",
+      "relevance": "block",
+      "bearsOn": "Harvesting next to a class A stream must keep, on each side of every 100 m of stream beside the cutblock, at least 30 trees chosen in order: within 10 m of the channel edge first 30 cm+ then 20 cm+, then within 20 m 30 cm+ then 20 cm+, then within 30 m 30 cm+ then 20 cm+, keeping the pre-harvest conifer to deciduous proportion (and, for 30 cm+ trees, size range); fewer qualifying means keep all that qualify. They are spread evenly along the 100 m unless the other side meets the count and the species do not suit partial cutting, and only a tree that falls naturally outside the channel may be removed; hybrid poplar and cottonwood plantations on Fraser River islands and banks below Hope are excepted.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would take the block's class A stream length on each side and require at least 30 retained trees per 100 m within 30 m slope distance, chosen in the stated order, or all qualifying trees where fewer stand.",
+      "topics": [
+        "riparian",
+        "stand-retention",
+        "fish-habitat",
+        "private-land"
+      ]
+    },
+    {
+      "n": "28",
+      "relevance": "block",
+      "bearsOn": "Harvesting next to a class B stream must keep, on each side of every 100 m of stream beside the cutblock, at least 25 trees chosen in the same order as for class A (within 10 m, then 20 m, then 30 m of the channel edge, 30 cm+ before 20 cm+), keeping the pre-harvest conifer to deciduous proportion (and, for 30 cm+ trees, size range); all qualifying trees if fewer; spread evenly unless the other side meets the count and the species do not suit partial cutting; removal only of trees that fall naturally outside the channel.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would take the block's class B stream length on each side and require at least 25 retained trees per 100 m within 30 m slope distance, chosen in the stated order.",
+      "topics": [
+        "riparian",
+        "stand-retention",
+        "fish-habitat",
+        "private-land"
+      ]
+    },
+    {
+      "n": "29",
+      "relevance": "block",
+      "bearsOn": "Harvesting next to a class C stream must keep, on each side of every 100 m of stream beside the cutblock, at least 15 trees within 10 m of the channel edge and 20 cm or more in diameter, maintaining the pre-harvest conifer to deciduous proportion and range of sizes (the text ties this to a stream gradient of 8% or less), or all qualifying trees if fewer. Where the gradient is over 8% a retained tree may be cut only if another 20 cm+ tree is kept in its place; at 8% or less, only a tree that falls naturally outside the channel may be removed.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would take the block's class C stream length on each side and its gradient, and require at least 15 retained trees of 20 cm+ per 100 m within 10 m slope distance.",
+      "topics": [
+        "riparian",
+        "stand-retention",
+        "fish-habitat",
+        "private-land"
+      ]
+    },
+    {
+      "n": "30",
+      "relevance": "block",
+      "bearsOn": "A primary forest activity must keep all non-commercial trees and understory vegetation within 30 m of a class A or B stream and within 10 m of a class C, D or E stream (slope distance), except where removal is needed to meet s. 31, is tied to a road built under s. 16 or 17 or a logging trail under s. 17, or will not cause a material adverse effect on fish habitat or licensed waterworks water.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would buffer each classed stream by 30 m (A, B) or 10 m (C, D, E) and ask whether non-commercial trees and understory there are kept, or which exception applies.",
+      "topics": [
+        "riparian",
+        "stand-retention",
+        "private-land"
+      ]
+    },
+    {
+      "n": "31",
+      "relevance": "silviculture",
+      "bearsOn": "An area where harvesting is completed or timber was destroyed (less roads and logging trails under ss. 13 and 14(1)) must be restocked within 5 years with at least 400 crop trees per hectare on the Coast or 600 in the Interior, reasonably well distributed, and carry a successfully regenerated stand within 15 years: those densities with crop trees taller than competing vegetation within 1 m by 50% on the Coast or 25% in the Interior. Crop trees are commercial species named in the management commitment and free of pathogens; the clock starts at the declaration date or, if undeclared, no more than two consecutive operating seasons after harvest began. The duty does not apply to a contiguous area under 1 ha, to remaining trees that already meet the stand, to destroyed timber on ground too unproductive, or to ground taken by buildings or structures.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would set the block's restocking (5 years, 400 Coast or 600 Interior crop trees per ha) and regeneration (15 years, 25% or 50% over competition) dates from its declared completion and ask whether they are met or an exclusion applies.",
+      "topics": [
+        "reforestation",
+        "private-land"
+      ]
+    },
+    {
+      "n": "Schedule.1",
+      "relevance": "definitions",
+      "bearsOn": "A stream portion that is a fish stream or lies upstream of a licensed waterworks intake's diversion is class A if its channel is 10 m wide or wider, B if 3 m to under 10 m, C if 1.5 m to under 3 m and D if under 1.5 m; a portion 1.5 m wide or wider that is a direct tributary to a class A, B, C or D stream is class E.",
+      "review": "none",
+      "gapPriority": "high",
+      "gapNote": "A rule would class each stream by the block from its fish status, position above a licensed intake, channel width and what it flows into, since every road setback and retention rule takes that class.",
+      "topics": [
+        "riparian",
+        "fish-habitat",
+        "water-quality-and-supply",
+        "private-land"
+      ]
+    }
+  ]
+}

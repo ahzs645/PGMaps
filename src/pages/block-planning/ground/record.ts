@@ -63,6 +63,20 @@ export interface GroundInstrumentRead {
   near?: NearMeasure
 }
 
+/**
+ * A context layer read on the footprint (treaty land, Indian reserves): what lies under the block,
+ * with no instrument and no reach cell. The land status review offers its shares as candidates.
+ */
+export interface GroundContextRead {
+  /** A catalogue layer id with `context` set. */
+  layer: string
+  status: ReadStatus
+  message?: string
+  features: GroundFeature[]
+  /** The footprint its features cover, ground two of them share counted once. */
+  coveredHa: number
+}
+
 export interface PrecedentOpening {
   openingId: number
   mapLabel?: string
@@ -167,6 +181,8 @@ export interface GroundRead {
   /** The catalogue version the reach came from. */
   catalogue: string
   instruments: GroundInstrumentRead[]
+  /** Context layers read on the footprint; absent in a read made before they were. */
+  context?: GroundContextRead[]
   precedent?: GroundPrecedent
 }
 
@@ -226,6 +242,19 @@ function instrumentRead(value: unknown, at: string): GroundInstrumentRead {
     ),
     coveredHa: num(o.coveredHa, `${at} coveredHa`),
     near: optional(o, 'near', (v) => nearMeasure(v, `${at} near`)),
+  }
+}
+
+function contextRead(value: unknown, at: string): GroundContextRead {
+  const o = object(value, at)
+  return {
+    layer: text(o.layer, `${at} layer`, 50),
+    status: oneOf(o.status, `${at} status`, READ_STATUSES),
+    message: optText(o, 'message', at, 2000),
+    features: list(o.features, `${at} features`, MAX_GROUND_FEATURES).map((f, i) =>
+      feature(f, `${at} feature ${i + 1}`),
+    ),
+    coveredHa: num(o.coveredHa, `${at} coveredHa`),
   }
 }
 
@@ -364,6 +393,9 @@ export function parseGroundRead(value: unknown, at = 'ground read'): GroundRead 
     instruments: list(o.instruments, `${at} instruments`, 100).map((x, i) =>
       instrumentRead(x, `${at} instrument ${i + 1}`),
     ),
+    ...(o.context !== undefined
+      ? { context: list(o.context, `${at} context`, 20).map((x, i) => contextRead(x, `${at} context ${i + 1}`)) }
+      : {}),
     precedent: optional(o, 'precedent', (v) => precedent(v, `${at} precedent`)),
   }
 }

@@ -69,6 +69,20 @@ const TOPICS: Record<string, TopicDef[]> = {
       rules: ['spa-licence', 'spa-road'],
     },
   ],
+  'bc.land-status': [
+    {
+      id: 'reach',
+      label: 'Which law reaches the land (FRPA §1, WLPPR §2, PMFLA §§1, 3)',
+      sections: [],
+      rules: ['frpa-reach', 'frpa-no-reach', 'woodlot-wlppr', 'managed-forest-land'],
+    },
+    {
+      id: 'private',
+      label: 'Private land: reserved timber, boundaries, marking and scaling (Forest Act §§1, 84, 94; FRPA §53)',
+      sections: [],
+      rules: ['crown-timber', 'private-boundaries', 'timber-mark', 'scaling'],
+    },
+  ],
   'bc.forest-operations': [
     {
       id: 'fop',

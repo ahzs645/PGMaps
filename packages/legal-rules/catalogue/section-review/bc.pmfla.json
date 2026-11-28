@@ -1,0 +1,506 @@
+{
+  "format": "pgmaps-coverage-review/v1",
+  "source": "bc.pmfla",
+  "reviewedOn": "2026-11-27",
+  "method": "Each section read in full by a machine-assisted reviewer against the packs and the ground catalogue as of this date; not a legal review.",
+  "sections": [
+    {
+      "n": "1",
+      "relevance": "definitions",
+      "bearsOn": "Private managed forest land is private land that both (a) has a management commitment, which the council determines meets s. 17, and (b) is classified as managed forest land under the Assessment Act. The owner is the person registered under the Land Title Act as owner of such land; the section also defines council, management commitment and exit fee.",
+      "review": "rule",
+      "gapNote": "The land status pack asks whether the land is private managed forest land, naming both conditions and s. 45’s deemed land; the classification and the commitment are not mapped publicly.",
+      "topics": [
+        "private-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "2",
+      "relevance": "definitions",
+      "bearsOn": "Nothing in the Act restricts fire suppression under the Wildfire Act, and an owner or its contractors do not contravene the Act or regulations through an activity carried out by a person authorized under another enactment to be on the land and to carry it out.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A pack would list subsection (2) as a by-law exception on each practice rule: a contravention caused by a person authorized under another enactment is not the owner's.",
+      "topics": [
+        "private-land",
+        "exemptions-and-variances",
+        "fire"
+      ]
+    },
+    {
+      "n": "3",
+      "relevance": "tenure",
+      "bearsOn": "The Act applies to private managed forest land except land in a tree farm licence area, a woodlot licence area or a community forest agreement area, so private land inside one of those is outside the Act and its regulations.",
+      "review": "rule",
+      "gapNote": "The land status pack applies the Act only to private managed forest land outside tree farm licence, woodlot licence and community forest agreement areas; no practice rule from the Council Regulation exists yet.",
+      "topics": [
+        "private-land",
+        "forest-tenures"
+      ]
+    },
+    {
+      "n": "4",
+      "relevance": "admin",
+      "bearsOn": "Establishes the Private Managed Forest Land Council as a corporation of the members appointed under s. 6.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "5",
+      "relevance": "admin",
+      "bearsOn": "The council's object is to encourage forest management practices on private managed forest land, taking into account their social, environmental and economic benefits.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "6",
+      "relevance": "admin",
+      "bearsOn": "The minister appoints 2 council members and the owners 2 (the minister may appoint them if the owners do not), all knowledgeable in forest management practices or local government; those 4 appoint a chair, with ministerial appointment of a 6-month chair if they do not within 60 days.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "7",
+      "relevance": "admin",
+      "bearsOn": "The council may hire staff and consultants; the public service Acts do not apply to it.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "8",
+      "relevance": "admin",
+      "bearsOn": "The council may pass resolutions and bylaws and refer matters to panels, but not the making of a resolution, bylaw or regulation.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "9",
+      "relevance": "admin",
+      "bearsOn": "Owners pay the council an annual administration fee, set as a percentage of bare land assessed value to fund the council's operations; the council may levy for a shortfall and return, credit or keep a surplus.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "10",
+      "relevance": "admin",
+      "bearsOn": "The council's fiscal year runs April 1 to March 31, and its published annual report gives the number of owners, hectares under the Act, withdrawals, inspections, consent agreements, penalties and orders.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "11",
+      "relevance": "admin",
+      "bearsOn": "The minister may order an independent audit of the council's performance by the Forest Practices Board or another auditor, and must publish the final report with the council's comments.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "12",
+      "relevance": "block",
+      "bearsOn": "The soil conservation objective for harvested areas is to protect soil productivity by minimizing the area occupied by permanent roads, landings and excavated or bladed trails.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would read this objective through the council regulation's ss. 13 and 14 (roads and logging trails held to the minimum necessary); the objective sets no figure of its own.",
+      "topics": [
+        "soils",
+        "roads",
+        "private-land"
+      ]
+    },
+    {
+      "n": "13",
+      "relevance": "block",
+      "bearsOn": "The water quality objective is to protect human drinking water during and after harvesting; an owner need not retain additional streamside trees or understory for water quality problems that originate off the owner's private managed forest land.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would test the objective through the council regulation's drinking water, sediment and waterworks intake requirements (ss. 14.1, 15, 20, 23 and 24) for intakes downstream of the block.",
+      "topics": [
+        "water-quality-and-supply",
+        "private-land"
+      ]
+    },
+    {
+      "n": "14",
+      "relevance": "block",
+      "bearsOn": "The fish habitat objective is to retain sufficient streamside mature trees and understory to protect natural water temperature variation, fish cover, a continual source of large woody debris, bank-holding roots, a sediment filter, in-stream woody debris and litter-fall nutrients, during and after harvesting; problems originating off the land need no additional retention.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would test the objective through the council regulation's retention by stream class (ss. 27 to 30); the objective itself sets no width or count.",
+      "topics": [
+        "fish-habitat",
+        "riparian",
+        "private-land"
+      ]
+    },
+    {
+      "n": "15",
+      "relevance": "block",
+      "bearsOn": "The critical wildlife habitat objective is to give a person designated by the Wildlife Act deputy minister a reasonable opportunity to assess whether critical wildlife habitat is present, and to foster agreements between government and owners to protect habitat found.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule would ask whether critical wildlife habitat has been assessed or noticed on the land under the Private Managed Forest Land Regulation ss. 5 to 8.",
+      "topics": [
+        "wildlife",
+        "private-land"
+      ]
+    },
+    {
+      "n": "16",
+      "relevance": "silviculture",
+      "bearsOn": "The reforestation objective is to promptly regenerate areas where timber was harvested or destroyed with a healthy, commercially valuable stand of trees not impeded by competing plants or shrubs.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A rule would test the objective through the council regulation's s. 31 duty (restocked in 5 years, successfully regenerated in 15).",
+      "topics": [
+        "reforestation",
+        "private-land"
+      ]
+    },
+    {
+      "n": "17",
+      "relevance": "tenure",
+      "bearsOn": "Before private land may be classified as private managed forest land or as managed forest land under the Assessment Act, the landowner must submit to the council a management commitment in the prescribed form with the land's legal description and an acknowledgement of the fee, exit fee and duty to comply; the council reviews it, recommends classification to the assessor, and the assessor classifies the land and notifies the council and owner. Treaty lands of a treaty first nation and Nisga'a Lands are not private land for this section.",
+      "review": "none",
+      "gapPriority": "medium",
+      "gapNote": "A land status rule would ask whether the block's parcel is under a management commitment the council accepted and was classified on the council's recommendation, and is not treaty land or Nisga'a Lands.",
+      "topics": [
+        "private-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "18",
+      "relevance": "tenure",
+      "bearsOn": "An owner may withdraw its management commitment by written notice to the council in the prescribed form.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A land status rule would treat land whose commitment has been withdrawn (listed to the assessor under s. 31(2)(b)) as no longer private managed forest land; the planner reads no withdrawals.",
+      "topics": [
+        "private-land"
+      ]
+    },
+    {
+      "n": "19",
+      "relevance": "admin",
+      "bearsOn": "Except where exempt, an owner pays an exit fee when the assessor declassifies the land under s. 24(3)(b) of the Assessment Act; it may be collected as property tax, and the minister reviews its calculation at least every 5 years.",
+      "review": "n/a",
+      "topics": [
+        "private-land",
+        "administration"
+      ]
+    },
+    {
+      "n": "20",
+      "relevance": "plan",
+      "bearsOn": "By May 1 each year the owner must declare to the council, for the preceding operating season, the location and size of areas harvested, the location, size and cause of areas where timber was destroyed, the location and approximate length of roads built, and anything else the council prescribes.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A rule could check that a harvested block is declared by the next May 1, since the declaration date marks completion of harvesting and starts the council regulation s. 31 reforestation clock.",
+      "topics": [
+        "private-land",
+        "plans",
+        "reforestation"
+      ]
+    },
+    {
+      "n": "21",
+      "relevance": "tenure",
+      "bearsOn": "A local government must not adopt a bylaw, or issue a building permit under s. 8(3)(l) of the Community Charter or Part 9 Division 1 of the Local Government Act or a Part 14 permit, that would restrict, directly or indirectly, a forest management activity on private managed forest land, even if the bylaw or permit does not apply directly to that land.",
+      "review": "none",
+      "gapPriority": "low",
+      "gapNote": "A land status review could note that local zoning and development permits cannot restrict the forest management activities listed in the Private Managed Forest Land Regulation's Schedule A on this land.",
+      "topics": [
+        "private-land",
+        "objectives"
+      ]
+    },
+    {
+      "n": "22",
+      "relevance": "enforcement",
+      "bearsOn": "The council may require an owner or its contractors to produce records it needs to decide whether the Act or regulations have been contravened.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "23",
+      "relevance": "enforcement",
+      "bearsOn": "The council or a person it authorizes may enter private managed forest land at a reasonable time to inspect activities regulated under the Act, and the owner must admit them.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "24",
+      "relevance": "enforcement",
+      "bearsOn": "The Wildlife Act minister or a person authorized by that minister may enter private managed forest land for the management of critical wildlife habitat when there are reasonable grounds to believe it is present, and the owner must admit them.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "wildlife",
+        "private-land"
+      ]
+    },
+    {
+      "n": "25",
+      "relevance": "enforcement",
+      "bearsOn": "The council and an owner may enter a consent agreement for remedial and preventive measures and a penalty of no more than $5 000, after which the council makes no further determination unless the owner breaks it.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "26",
+      "relevance": "enforcement",
+      "bearsOn": "After an opportunity to be heard, the council may find a contravention and levy an administrative penalty of up to $25 000 within 2 years of learning the facts, weighing listed factors including whether the Part 3 Division 1 objectives are still achieved.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "27",
+      "relevance": "enforcement",
+      "bearsOn": "After an opportunity to be heard, the council may order a person who contravened the Act or regulations to carry out the missed requirement or repair or mitigate the damage, within 2 years of learning the facts; the owner may assume a contractor's order.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "28",
+      "relevance": "enforcement",
+      "bearsOn": "The council must not levy a penalty for a contravention the government has prosecuted as an offence, and the government must stay an administrative proceeding in that case.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "29",
+      "relevance": "enforcement",
+      "bearsOn": "Due diligence, a reasonable and honest mistake of fact and officially induced error are defences to a council determination under ss. 26 and 27.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "30",
+      "relevance": "enforcement",
+      "bearsOn": "The council or a person it authorizes may order a contravention to stop, orally where it is causing or may imminently cause serious environmental damage, confirmed in writing within 96 hours.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "31",
+      "relevance": "enforcement",
+      "bearsOn": "The council may notify the assessor of a contravention, and each September 30 must give the assessor the owners and legal descriptions of all private managed forest land and of land whose commitment was withdrawn in the preceding 12 months.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "32",
+      "relevance": "enforcement",
+      "bearsOn": "The council may rescind an order, decision or determination made on insufficient grounds, or vary one on new information with the consent of its subject, except after an appeal on it has concluded.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "private-land"
+      ]
+    },
+    {
+      "n": "33",
+      "relevance": "enforcement",
+      "bearsOn": "A person subject to a council penalty, remediation order, stop work order, assessor notification or reconsideration may appeal to the Forest Appeals Commission, which hears it anew; orders other than stop work orders are stayed until appeals end.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "private-land"
+      ]
+    },
+    {
+      "n": "33.1",
+      "relevance": "enforcement",
+      "bearsOn": "Part 8.1 of the Forest and Range Practices Act applies to appeals under this Act.",
+      "review": "n/a",
+      "topics": [
+        "appeals-and-reviews",
+        "private-land"
+      ]
+    },
+    {
+      "n": "34",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "35",
+      "relevance": "enforcement",
+      "bearsOn": "Cabinet may make a contravention of a regulation of Cabinet or the council an offence with a fine of up to $500 000, with a 2-year limit from the council learning the facts.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "36",
+      "relevance": "enforcement",
+      "bearsOn": "On conviction a court may order a person to refrain, remedy environmental harm, publish the facts, pay costs or restitution, and may raise the fine by the economic benefit gained.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "37",
+      "relevance": "enforcement",
+      "bearsOn": "Due diligence, a reasonable and honest mistake of fact and officially induced error are defences to a prosecution under the Act.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "38",
+      "relevance": "enforcement",
+      "bearsOn": "The Act's compliance provisions add to, and do not limit, remedies, appeals and inquiries under other enactments.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "39",
+      "relevance": "enforcement",
+      "bearsOn": "Subject to s. 28, the council's and commission's powers may be used separately, concurrently or cumulatively and do not limit government's powers.",
+      "review": "n/a",
+      "topics": [
+        "compliance-and-enforcement",
+        "private-land"
+      ]
+    },
+    {
+      "n": "40",
+      "relevance": "admin",
+      "bearsOn": "The council serves documents personally, by registered mail (deemed served on the 14th day) or, where the person or address is unknown, by newspaper publication (deemed served on the 7th day).",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "41",
+      "relevance": "admin",
+      "bearsOn": "Penalties under ss. 25 and 26 are paid into the consolidated revenue fund.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "compliance-and-enforcement"
+      ]
+    },
+    {
+      "n": "42",
+      "relevance": "admin",
+      "bearsOn": "Cabinet's regulation-making power, including the management of critical wildlife habitat, where a limit on activity may not exceed, unless the owner agrees, 1% of the owner's private managed forest land or one year; exit fees; and offences.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "wildlife",
+        "private-land"
+      ]
+    },
+    {
+      "n": "43",
+      "relevance": "admin",
+      "bearsOn": "The council may make regulations on fees, commitments, withdrawals, declarations, soil conservation, water quality, fish habitat and reforestation (including crop tree species, density, distribution and time to reforest) and exemptions; those on practices must be consistent with the Part 3 Division 1 objectives unless needed to manage forest health factors.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "44",
+      "relevance": "repealed",
+      "bearsOn": "Repealed; no operative text.",
+      "review": "n/a"
+    },
+    {
+      "n": "45",
+      "relevance": "tenure",
+      "bearsOn": "Land classified as managed forest land under s. 24 of the Assessment Act as it read before this Act is deemed private managed forest land and managed forest land without a s. 17 management commitment, and its owner must comply with the Act; an owner who withdrew within a year paid no exit fee.",
+      "review": "rule",
+      "gapNote": "Named in the land status pack’s managed forest land question.",
+      "topics": [
+        "private-land"
+      ]
+    },
+    {
+      "n": "46",
+      "relevance": "admin",
+      "bearsOn": "For the council's first 6 months the minister appointed the chair and members for terms of no more than 6 months.",
+      "review": "n/a",
+      "topics": [
+        "administration",
+        "private-land"
+      ]
+    },
+    {
+      "n": "63",
+      "relevance": "admin",
+      "bearsOn": "The Act comes into force by Cabinet regulation.",
+      "review": "n/a",
+      "topics": [
+        "administration"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 {
   "assessmentDate": "2026-11-17",
   "blockReleases": [
+    "bc.land-status@1.0.0",
     "bc.fppr@1.3.0",
     "bc.forest-permits@1.2.0",
     "bc.forest-operations@1.0.0",

@@ -27,6 +27,7 @@ import { FspPanel } from '../acquire/FspPanel'
 import { blockGaps } from '../acquire/gaps'
 import { recordIdsOf } from '../acquire/record'
 import type { StepProps } from './types'
+import { landOfferHints } from '../review/LandOffers'
 
 /** The Prince George order is reviewed once for the landscape; every other instrument per block. */
 export const ORDER_INSTRUMENT = 'bc.pgtsa.biodiversity'
@@ -150,6 +151,14 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis, o
             review={blockCase(plan, block.id)}
             measurements={[]}
             hints={{
+              ...landOfferHints({
+                plan,
+                block: block.id,
+                schedule: plan.reviewSchedule,
+                review: blockCase(plan, block.id),
+                library,
+                onChange: (review) => edit((p) => keepPacks({ ...p, reviews: { ...p.reviews, [block.id]: review } })),
+              }),
               ...crossingHints,
               nar: `The drawing’s gross area is ${area.format(blockAreaHa(block.shapes[0].geometry))} ha. Net area to be reforested needs its own survey and exclusions.`,
               ...mackenzieEvidence(plan, block.id),

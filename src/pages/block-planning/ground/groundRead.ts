@@ -38,6 +38,7 @@ export { keepFields, valueText }
 import { readPrecedent, PRECEDENT_RADIUS_METRES, type PrecedentRegion } from './precedent'
 import {
   MAX_GROUND_FEATURES,
+  type GroundContextRead,
   type GroundFeature,
   type GroundInstrumentRead,
   type GroundRead,
@@ -251,10 +252,16 @@ export async function readGroundInstruments({
   const { footprintHa } = overlay.measure(footprint, [])
   const reads: GroundInstrumentRead[] = []
   const regions: PrecedentRegion[] = []
+  const context: GroundContextRead[] = []
   for (const layer of catalogue.layers) {
     const instruments = layerInstruments(layer, catalogue)
-    // A context layer holds no instrument: it is read for the land status checks, not here.
-    if (!instruments.length) continue
+    // A context layer holds no instrument and no reach: it is read whole for what lies under the
+    // block, which the land status review offers as a candidate, and measured like an instrument.
+    if (!instruments.length) {
+      onProgress?.({ kind: 'layer', layer })
+      context.push(await readContext(layer, footprint, footprintHa, fetch, signal, overlay, readOn))
+      continue
+    }
     onProgress?.({ kind: 'layer', layer })
     let answer: LayerAnswer<Shape | Lines | Points>
     try {
@@ -334,6 +341,43 @@ export async function readGroundInstruments({
     footprintHa,
     catalogue: catalogue.version,
     instruments: reads,
+    context,
     ...(precedent ? { precedent } : {}),
+  }
+}
+
+/** One context layer on the footprint, its records measured as an instrument's are; a failure is recorded, never none. */
+async function readContext(
+  layer: GroundLayer,
+  footprint: Shape,
+  footprintHa: number,
+  fetch: Fetch,
+  signal: AbortSignal | undefined,
+  overlay: GroundOverlay,
+  readOn: string,
+): Promise<GroundContextRead> {
+  try {
+    const answer = await readGroundLayer({ layer, instruments: [], footprint, fetch, signal, cap: MAX_GROUND_FEATURES })
+    const { features, coveredHa } = measureInstrument(
+      layer,
+      answer.rows as LayerAnswer['rows'],
+      footprint,
+      footprintHa,
+      overlay,
+      readOn,
+    )
+    return {
+      layer: layer.id,
+      status: answer.status,
+      ...(answer.status === 'truncated'
+        ? { message: `DataBC holds more than ${MAX_GROUND_FEATURES} records here; only the first are listed.` }
+        : {}),
+      features: features.map(({ geometry: _geometry, ...f }) => f),
+      coveredHa,
+    }
+  } catch (e) {
+    if (aborted(signal, e)) throw e
+    const message = e instanceof Error && e.message ? e.message.slice(0, 2000) : 'The read failed.'
+    return { layer: layer.id, status: 'failed', message, features: [], coveredHa: 0 }
   }
 }
