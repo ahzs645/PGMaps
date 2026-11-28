@@ -58,15 +58,23 @@ The WLPPR's practice requirements for a woodlot licence holder's block, in place
 
 ### What the back-test of 27 November found
 
-Twenty-two openings harvested from 2015 to 2024 in the Prince George, Mackenzie and Stuart Nechako districts were run through the planner's own reads and rules, with facts taken only from the public record (real ids kept outside the repository). Reserves and treaty land are now read (land status, above), and a sliver is no longer offered as land. Left, highest first:
+Twenty-two openings harvested from 2015 to 2024 in the Prince George, Mackenzie and Stuart Nechako districts were run through the planner's own reads and rules, with facts taken only from the public record (real ids kept outside the repository). Reserves and treaty land are now read (land status, above), and a sliver is no longer offered as land.
 
-1. **A review dated after a release's window loses it silently.** Several releases cover only 17 November 2026; a later or a historical assessment date makes every rule `outside_source_window`, which the counts show as not applicable. Say it in the review, and widen the windows the texts support.
-2. **A legal OGMA under an order the old-growth pack does not hold raises nothing** (one block cut into a Robson Valley legal OGMA).
-3. **Slivers elsewhere.** `MIN_GROUND_OVERLAP_HA` (1 m²) lets 1–30 m² overlaps through *On this ground* and the precedent's overlap test; land status now reads them as boundaries meeting, the rest does not.
-4. **The crossing read:** a tree farm licence's timber mark with a slash (`53/353`) throws and loses the read; the first road found labels a crossing even when it is a pending or retired permit beside an active forest service road; two surveys of one culvert 19–20 m apart become two candidates; a timber-mark corridor that matches no road reads as read with nothing, while PSCIS records outside the corridor are still listed.
-5. **Exceptions the record shows:** catastrophic salvage (`CATASTROPHIC_IND`) and an SP-exempt block (`SP_EXEMPT_IND`, FPPR §33) are not read, so `limit-60` and `site-plan` are raised with no exception offered.
-6. **Harvest on another holder's area-based licence** (a forestry licence to cut on a woodlot or community forest) falls out of both permit packs, and ParcelMap's *Unclassified* and *Crown Agency* parcels are dropped by the private land filter (Crown agency land is private land under the Forest Act's definition).
-7. **A block of many parts** cost 163 s and 149 MB, most of it the pine-leading gate reading the TSA polygon once a part.
+Built on 27 November 2026 and moved into the planner contract:
+
+- **Review dates** (**Review dates and release windows**): a release that does not cover the review's date is said so, with its window, never counted as not applying; old growth 1.2.0, visual quality 1.1.0, Mackenzie 1.1.0 and crown grazing 1.3.0 cover 27 November. Run again on the same facts dated 27 November, the cases' old growth, visual quality and Mackenzie rules are assessed again (case 1's `cofa` is raised, as it was on 17 November); dated at a permit's issue date, every release says it does not cover the date.
+- **A legal OGMA under another order** raises `ogma-other-order` (old growth 1.2.0, Land Act s. 93.4(1)), the order's own text deciding. The Robson Valley OGMA orders were not transcribed: the legal OGMA layer's enabling document link answers 404, and the province's 2023 Robson Valley old growth report says the legal OGMAs there were set by three orders, whose signed PDFs are still to find.
+- **Exceptions the record shows** (**Tenure records**): catastrophic and salvage harvesting authorities, permit issue dates, SP-exempt cut blocks and SPEX openings, read on the reviewer's click and offered beside the exception; permits 1.3.0 lists FPPR §33(1) and (2) on the site plan. Read live for the back-test's cases, the three catastrophic sales offer §64(2) and the SP-exempt block offers §33(1) and its 1999 permit date for FRPA §3(1.1).
+- **Another holder's area-based licence** (land status 1.1.0, **Land status**): a harvest there by anyone but the holder raises the holder's exclusive right with the Forest Act's exceptions; Crown agency parcels count as private land and parcels of unsettled ownership are held apart (catalogue 1.6.0).
+
+Left, highest first:
+
+1. **Slivers elsewhere.** `MIN_GROUND_OVERLAP_HA` (1 m²) lets 1–30 m² overlaps through *On this ground* and the precedent's overlap test; land status and the tenure records read them as boundaries meeting, the rest does not.
+2. **The crossing read:** a tree farm licence's timber mark with a slash (`53/353`) throws and loses the read; the first road found labels a crossing even when it is a pending or retired permit beside an active forest service road; two surveys of one culvert 19–20 m apart become two candidates; a timber-mark corridor that matches no road reads as read with nothing, while PSCIS records outside the corridor are still listed.
+3. **A block of many parts** cost 163 s and 149 MB, most of it the pine-leading gate reading the TSA polygon once a part.
+4. **A historical review** needs the law as it stood on the date: each statute's point-in-time consolidation and the orders then in force, as releases of their own. None is stored.
+5. **Questions** the back-test found asked where they cannot apply or once for split ground (its d2–d5): the PG-only wildlands, Mugaha and Obo–Fox questions asked of every block, `crossings-listed`'s "No" raising a Water Sustainability Act finding, one `mackenzie:applies` answer for a block split across Crown land, a woodlot and a community forest, and the same stream questions per culvert.
+6. **Federal and other parcels.** ParcelMap BC's *Federal* parcels other than reserves are not read as land of any kind; the Forest Act's private land includes them, and the land status pack asks federal land apart.
 
 ### Stream crossings from the road designer and the map
 

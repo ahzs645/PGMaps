@@ -123,7 +123,7 @@ export function TenureRecords({
           )}
           <p data-testid="tenure-signal-count">
             {read.signals.length
-              ? `${read.signals.length} record${read.signals.length === 1 ? '' : 's'} bear${read.signals.length === 1 ? 's' : ''} on an exception; each is offered beside it in the block review, on a raised rule that lists it.`
+              ? `${read.signals.length} ${read.signals.length === 1 ? 'entry bears' : 'entries bear'} on an exception; each is offered beside it in the block review, on a raised rule that lists it.`
               : 'None of these records bears on an exception a rule lists.'}
           </p>
         </div>
