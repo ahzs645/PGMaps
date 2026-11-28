@@ -78,14 +78,17 @@ test('land status offers what the ground read maps, answers only on Use, and tak
   await expect(landOffer).toContainText('PID 000-000-001')
   await expect(question(land, /^What land is the block on\?/)).toHaveText(/Not answered/)
   await landOffer.getByRole('button', { name: 'Use' }).click()
-  // Answered, it folds into the answered list, its evidence the read it rests on.
-  await expect(land.getByRole('button', { name: /^Whole block 1 answered/ })).toBeVisible()
-  await expect(question(land, /^What land is the block on\?/)).toHaveCount(0)
+  // Answered, it moves to the answered list, its evidence the read it rests on. The licence area,
+  // read by the reach rules and by the area-based licences' exclusive rights, is asked beside it.
+  await expect(question(land, /^Is the block in the area of an area-based licence/)).toHaveText(/Not answered/)
+  await expect(question(land, /^What land is the block on\?/)).toHaveText(/Private land/)
 
   const licenceOffer = land.getByTestId('land-offer-licence-area')
   await expect(licenceOffer).toContainText('None of these')
   await licenceOffer.getByRole('button', { name: 'Use' }).click()
-  await expect(question(land, /^Is the block in the area of an area-based licence/)).toHaveText(/None of these/)
+  // With both answered, the shared questions fold into the answered list.
+  await expect(land.getByRole('button', { name: /^Whole block 2 answered/ })).toBeVisible()
+  await expect(question(land, /^Is the block in the area of an area-based licence/)).toHaveCount(0)
 
   await choose(question(land, /^Is the block’s private land private managed forest land/), 'No')
   await choose(question(land, /^Is any timber on the block’s private land reserved/), 'No')
@@ -94,6 +97,7 @@ test('land status offers what the ground read maps, answers only on Use, and tak
   await expect(land).toContainText('FRPA’s forest practices do not reach this private land')
   await expect(land).toContainText('Private land beside Crown land: ascertain the boundaries')
   await expect(land).toContainText('Timber from private land carries that land’s timber mark')
-  // FRPA's reach is settled as not triggered; four findings, and nothing left to answer.
-  await expect(land).toContainText('4 need review · 0 need an answer · 3 not triggered · 1 do not apply')
+  // FRPA's reach is settled as not triggered; four findings, and nothing left to answer. Outside an
+  // area-based licence its holder's exclusive right does not apply.
+  await expect(land).toContainText('4 need review · 0 need an answer · 3 not triggered · 5 do not apply')
 })

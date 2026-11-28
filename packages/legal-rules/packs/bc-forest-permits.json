@@ -1,7 +1,7 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.forest-permits",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "title": "BC cutting and road permits",
   "description": "Whether a block and its roads can be applied for and harvested: the forest stewardship plan and its forest development unit, the plan's results and strategies the block must achieve, the site plan, the forest operations map and its review, the cutting permit, a forest operations plan in a forest landscape area, and special purpose areas. The minister decides every permit; these rules say what the law requires first, and list the exceptions it makes.",
   "coverage": {
@@ -541,7 +541,29 @@
       "actions": [
         {
           "kind": "review",
-          "description": "Prepare the site plan with the block layout, unless a prescribed circumstance exempts it, and keep it with the block record."
+          "description": "Prepare the site plan with the block layout, unless a prescribed circumstance (FPPR §33) exempts it, and keep it with the block record."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "fppr-33-cutblock",
+          "label": "For the cutblock: harvesting that must proceed expeditiously to eliminate a safety hazard, collects seed leaving an opening of 1 ha or less, or is limited to 50 m³ or less, or a holder exempt under FPPR §44(3) (FPPR §33(1))",
+          "source": "instrument",
+          "provision": "33(1)",
+          "kind": "by-law",
+          "evidence": [
+            "The circumstance: the hazard, the seed collection and its opening, the volume, or the §44(3) exemption"
+          ]
+        },
+        {
+          "id": "fppr-33-road",
+          "label": "For the road: harvesting limited to removing timber to improve safety for road users, by eliminating a safety hazard, improving visibility, or adding or enlarging pullouts (FPPR §33(2))",
+          "source": "instrument",
+          "provision": "33(2)",
+          "kind": "by-law",
+          "evidence": [
+            "The road work and the timber it removes"
+          ]
         }
       ]
     },

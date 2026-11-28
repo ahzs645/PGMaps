@@ -1075,10 +1075,11 @@
         "ground:legal-objective",
         "ground:ogma",
         "ground:omineca-ada-sra",
-        "ground:robson-valley-ada"
+        "ground:robson-valley-ada",
+        "bc.omineca.old-growth@1.2.0:ogma-other-order"
       ],
       "gapPriority": "low",
-      "gapNote": "The Omineca orders are now rules in their own packs (the 2006 ADA/SRA order, the old growth orders, the Mackenzie biodiversity order and the visual quality orders), which cite the orders themselves; the ground screens cite s. 93.4.",
+      "gapNote": "The Omineca orders are now rules in their own packs (the 2006 ADA/SRA order, the old growth orders, the Mackenzie biodiversity order and the visual quality orders), which cite the orders themselves; the ground screens cite s. 93.4. A legal OGMA under an order not transcribed (the Robson Valley orders, among others) raises old growth 1.2.0's ogma-other-order on s. 93.4 and leaves the order's objectives to the reviewer.",
       "topics": [
         "objectives"
       ]

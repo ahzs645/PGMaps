@@ -77,6 +77,12 @@ const TOPICS: Record<string, TopicDef[]> = {
       rules: ['frpa-reach', 'frpa-no-reach', 'woodlot-wlppr', 'managed-forest-land'],
     },
     {
+      id: 'exclusive',
+      label: 'Another holder’s area-based licence (Forest Act §§22.2, 35, 43.3, 43.55, 45)',
+      sections: [],
+      rules: ['woodlot-exclusive', 'community-forest-exclusive', 'tfl-exclusive', 'fnwl-exclusive'],
+    },
+    {
       id: 'private',
       label: 'Private land: reserved timber, boundaries, marking and scaling (Forest Act §§1, 84, 94; FRPA §53)',
       sections: [],
@@ -102,6 +108,21 @@ const TOPICS: Record<string, TopicDef[]> = {
       sections: [],
       rules: ['critical-habitat', 'possible-habitat'],
     },
+  ],
+  'bc.woodlot-practices': [
+    { id: 'plan', label: 'The woodlot licence plan’s avoided and modified areas (WLPPR §§8(3), 53)', sections: ['53'] },
+    { id: 'soil', label: 'Soil disturbance and permanent access structures (§§24–25)', sections: ['24', '25'] },
+    {
+      id: 'riparian',
+      label: 'Riparian reserve and management zones (§§36–40)',
+      sections: ['36', '37', '38', '39', '40'],
+    },
+    {
+      id: 'water',
+      label: 'Fish passage, licensed waterworks and springs (§§44, 48, 50)',
+      sections: ['44', '48', '50'],
+    },
+    { id: 'wildlife', label: 'Wildlife trees and general wildlife measures (§§52, 55)', sections: ['52', '55'] },
   ],
   'bc.mineral-tenure': [
     {
@@ -186,6 +207,7 @@ const TOPICS: Record<string, TopicDef[]> = {
         'mackenzie-ceiling',
         'mackenzie-notice',
         'ancient-forest-retain',
+        'ogma-other-order',
       ],
     },
     {

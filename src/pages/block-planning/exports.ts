@@ -29,6 +29,7 @@ import { DEFAULT_INDEX_WEIGHTS, indexFormula, INDEX_INDICATORS, planningIndex } 
 import { pathways, trendYearOf } from './review/pathways'
 import { featureMeasure, GROUP_LABELS, layerSummary, MAPPED_LAYER_INFO } from './review/grazingEvidence'
 import { mappedReadCurrent, rangeReviewCurrent } from './review/rangeReview'
+import { dateGaps, dateGapText } from './review/questions'
 import { STANDING_WORDS } from './review/wording'
 import { corridorSentence, excludedSentence } from './oldForest/recordText'
 import { BOARD_2019_SOURCE, gisDisagrees, oldForestUnit } from './oldForest/units'
@@ -59,7 +60,7 @@ import {
   REACH_LABELS,
 } from '@/lib/legal/groundInstruments'
 import { precedentSummary } from './ground/precedent'
-import { failedByReason, groundReadCurrent, nearText, type GroundRead } from './ground/record'
+import { failedByReason, groundReadCurrent, nearText, sliverLines, type GroundRead } from './ground/record'
 import { documentRequests } from './ground/requests'
 import { exceptionsToRequest, wildlifeCitesText, wildlifeRows, withheldRequests } from './ground/wildlifeMeasures'
 import { CROSSING_ORIGIN_LABELS, CROSSING_ROLE_LABELS, CROSSING_STRUCTURE_LABELS } from './crossings/record'
@@ -463,7 +464,8 @@ function groundHtml(plan: Plan, read: GroundRead, names: Record<string, string>)
   })
   const label = (id: string) => groundInstrument(id)?.label ?? id
   const failed = read.instruments.filter((r) => r.status === 'failed')
-  const empty = read.instruments.filter((r) => r.status !== 'failed' && !r.features.length)
+  const empty = read.instruments.filter((r) => r.status !== 'failed' && !r.features.length && !r.slivers?.length)
+  const slivers = sliverLines(read, label, (id) => groundLayer(id)?.title ?? id)
   const requests = [
     ...documentRequests(read, block?.name ?? read.block),
     ...withheldRequests(read, groundInstrument, block?.name ?? read.block),
@@ -512,6 +514,7 @@ ${failedByReason(failed)
   .map(({ reason, ids }) => `<p class="warn">Not read: ${escape(ids.map(label).join(', '))}. ${escape(reason)}</p>`)
   .join('\n')}
 ${empty.length ? `<p class="note">Read, nothing mapped on the footprint: ${escape(empty.map((r) => label(r.instrument)).join(', '))}.</p>` : ''}
+${slivers.map((line) => `<p class="note">${escape(line)}.</p>`).join('\n')}
 ${
   found.length && read.precedent
     ? `<h4>Precedent within ${read.precedent.radiusM / 1000} km (RESULTS and other public records)</h4>
@@ -645,6 +648,40 @@ function exceptionLine(f: AssessedFinding) {
     ? `Decided by ${x.claim.decision.by}${x.claim.decision.date ? ' on ' + x.claim.decision.date : ''}${x.claim.decision.reference ? ' (' + x.claim.decision.reference + ')' : ''}.`
     : ''
   return ` <em>${escape(STANDING_WORDS[x.standing])}:</em> ${escape(x.label)}.${x.claim.rationale ? ' ' + escape(x.claim.rationale) : ''}${decision ? ' ' + escape(decision) : ''}${evidence.length ? ' Evidence: ' + escape(evidence.join('; ')) + '.' : ''}`
+}
+
+/**
+ * Every release a block, crossing or grazing review used that does not cover its review's date, said
+ * plainly: its rules were not assessed, which is never "does not apply".
+ */
+function dateGapsHtml(
+  plan: Plan,
+  blockReviews: Record<string, ReturnType<typeof review>>,
+  crossings: CrossingAssessment[],
+) {
+  const blockName = (id: string) => escape(plan.blocks.find((b) => b.id === id)?.name ?? id)
+  const rows = [
+    ...Object.entries(blockReviews).flatMap(([id, result]) =>
+      result && 'releases' in result
+        ? dateGaps(result.assessmentDate, result.releases).map(
+            (g) => `<li><strong>${blockName(id)}</strong> · ${escape(dateGapText(g))}</li>`,
+          )
+        : [],
+    ),
+    ...crossings.flatMap((c) =>
+      c.report
+        ? dateGaps(c.report.assessmentDate, c.report.releases).map(
+            (g) =>
+              `<li><strong>${blockName(c.record.block)} · ${escape(c.record.label)}</strong> · ${escape(dateGapText(g))}</li>`,
+          )
+        : [],
+    ),
+  ]
+  return rows.length
+    ? `<h2>Releases that do not cover the review date</h2>
+<p class="warn">The rules of these releases were not assessed on the review's date. That is not a finding that they do not apply.</p>
+<ul>${rows.join('')}</ul>`
+    : ''
 }
 
 /** Every exception relied on across the block reviews and their crossings, with its standing, rationale and evidence. */
@@ -868,11 +905,12 @@ ${record.rangeReviews
     const findings =
       r.assessment && 'releases' in r.assessment ? r.assessment.releases.flatMap((release) => release.findings) : []
     const rows = findings.filter((f) => f.status === 'review_required' || f.status === 'missing_evidence')
-    const outsideWindow = findings.some((f) => f.status === 'outside_source_window')
+    const gaps =
+      r.assessment && 'releases' in r.assessment ? dateGaps(r.assessment.assessmentDate, r.assessment.releases) : []
     return `<h3>${escape(names[r.schedule] ?? r.schedule)} · ${escape(block?.name ?? r.block)} · ${escape(shape?.name ?? r.shape)} · ${r.harvestYear ?? 'No harvest scheduled'}</h3>
 <p class="note">${r.current ? `Legal assessment date ${escape(r.review.date)}.` : 'The shape or harvest year changed. Review pending.'}</p>
 ${r.reference ? `<p>${escape(r.reference).replace(/\n/g, '<br>')}</p>` : ''}
-${outsideWindow ? '<p>The assessment date is outside the rule pack’s source window.</p>' : ''}
+${gaps.map((g) => `<p class="warn">${escape(dateGapText(g))}</p>`).join('')}
 ${r.assessment && 'error' in r.assessment ? `<p>${escape(r.assessment.error)}</p>` : ''}
 ${rows.length ? `<ul>${rows.map((f) => `<li>${escape(f.title)} (§${escape(f.provision)}) — ${f.status === 'review_required' ? escape(f.finding) + exceptionLine(f) : 'Evidence needed.'}</li>`).join('')}</ul>` : ''}
 ${mappedHtml(r.mapped, r.mappedCurrent)}`
@@ -900,6 +938,7 @@ ${schedules}
 ${published}
 ${boardHtml}
 ${oldHtml}
+${dateGapsHtml(plan, record.blockReviews, crossingAssessments)}
 ${exceptionsHtml(plan, record.blockReviews, crossingAssessments)}
 ${crossingsHtml(plan, library, names)}
 ${acquisitionHtml(plan, library, generatedOn, names)}

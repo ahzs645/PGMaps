@@ -48,6 +48,7 @@ export const OLD_FOREST_COLOURS: Record<DrawnKind, string> = {
 export const CROSSING_COLOURS = {
   error: '#7f1d1d',
   raised: '#dc2626',
+  undated: '#9333ea',
   open: '#d97706',
   unreviewed: '#2563eb',
   clear: '#15803d',

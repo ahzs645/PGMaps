@@ -66,6 +66,12 @@ export const PSCIS_STREAM_M = 30
 export const PSCIS_MATCH_M = 50
 /** A ministry structure joins a mapped crossing or PSCIS site within this, metres. */
 export const STRUCTURE_MATCH_M = 50
+/**
+ * …or the one crossing within this on the road file and section the structure names, metres. The
+ * back-test of 27 November 2026 found a culvert 119 m from the crossing its record names: a
+ * structure's point is where it was inventoried, not always on the stream.
+ */
+export const STRUCTURE_FILE_MATCH_M = 150
 /** Water Act approvals and notifications within this of a crossing are listed as its evidence, metres. */
 export const APPROVAL_NEAR_M = 150
 /** A TRIM road within this of a crossing dates the road there, metres. */
@@ -282,8 +288,14 @@ export function corridorText(c: Corridor): string {
   return `Road sections and segments ${within}, and Freshwater Atlas streams along them`
 }
 
-/** A road file or timber mark as a CQL literal, or null when it is not a plain identifier. */
-export const identifier = (s: string) => (/^[A-Za-z0-9-]{1,20}$/.test(s.trim()) ? s.trim().toUpperCase() : null)
+/**
+ * A road file or timber mark as a CQL literal, or null when it is not one: letters and digits, with
+ * "-" or "/" between them (a tree farm licence's marks carry the licence, `53/353`, `53/0R1`).
+ */
+export const identifier = (s: string) => {
+  const t = s.trim().toUpperCase()
+  return t.length <= 20 && /^[A-Z0-9]+(?:[/-][A-Z0-9]+)*$/.test(t) ? t : null
+}
 
 const str = (v: unknown) =>
   typeof v === 'string' && v.trim() ? v.trim() : typeof v === 'number' ? String(v) : undefined
@@ -300,6 +312,35 @@ export function tenureTokens(text: unknown): string[] {
     .split(/[^A-Z0-9-]+/)
     .filter((t) => /\d/.test(t) && /^[A-Z]{0,4}\d[A-Z0-9-]{1,11}$/.test(t))
   return [...new Set(tokens)].slice(0, 5)
+}
+
+/**
+ * Whether a PSCIS road tenure token names a road: its file (`5506`, `R09333`), or its file and
+ * section written together or with a dash (`550601`, `5506-01` for road 5506 section 01).
+ */
+export function tenureNamesRoad(token: string, file: string, section?: string): boolean {
+  const t = token.toUpperCase()
+  const f = file.toUpperCase()
+  if (t === f) return true
+  return !!section && (t === `${f}${section.toUpperCase()}` || t === `${f}-${section.toUpperCase()}`)
+}
+
+/**
+ * The order roads are preferred in when several lie on one crossing: active, then any status not
+ * given, then pending, then retired (a retirement date counts as retired). The label, the alias and
+ * the road a candidate carries come from the first.
+ */
+const STATUS_RANK: Record<string, number> = { ACTIVE: 0, PENDING: 2, RETIRED: 3 }
+export function roadRank(props: Record<string, unknown>): number {
+  if (dayOf(props.RETIREMENT_DATE)) return 3
+  const status = typeof props.LIFE_CYCLE_STATUS_CODE === 'string' ? props.LIFE_CYCLE_STATUS_CODE.toUpperCase() : ''
+  return STATUS_RANK[status] ?? 1
+}
+const statusWord = (props: Record<string, unknown>) => {
+  const status = typeof props.LIFE_CYCLE_STATUS_CODE === 'string' ? props.LIFE_CYCLE_STATUS_CODE.toLowerCase() : ''
+  return dayOf(props.RETIREMENT_DATE) && status !== 'retired'
+    ? `${status || 'status not given'}, retired`
+    : status || 'status not given'
 }
 
 const FISS_SEGMENTS = [3, 6, 5, 5, 4, 4, 3, 3, 3, 3, 3, 3]
@@ -465,17 +506,28 @@ function fewParts(shape: Shape, most = 30): Shape {
   return { type: 'Polygon', coordinates: [hullRing(parts.flatMap((p) => p[0]))] }
 }
 
-interface MappedCrossing {
-  point: LonLat
+/** One road on a crossing, as found. */
+interface CrossingRoad {
   file?: string
   section?: string
-  timberMarks: Set<string>
+  mark?: string
+  ref?: string
   chainageM?: number
-  roadRefs: Set<string>
-  retired: boolean
+  rank: number
+  status: string
+}
+
+interface MappedCrossing {
+  point: LonLat
+  /** Every road found on it, in the order found; `bestRoad` chooses the one it is labelled by. */
+  roads: CrossingRoad[]
   stream: StreamPart
   alongM: number
 }
+
+/** The road a crossing is labelled by: the best ranked (`roadRank`), the first found among equals. */
+const bestRoad = (roads: CrossingRoad[]) =>
+  roads.reduce<CrossingRoad | undefined>((best, r) => (!best || r.rank < best.rank ? r : best), undefined)
 
 /**
  * Reads the corridor's roads, the streams along them, and the evidence round each crossing, and
@@ -542,19 +594,39 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
     }
   }
 
-  // 1. Roads in the corridor.
+  const notes: string[] = []
+  const done = (candidates: CrossingCandidate[]): CrossingRead => ({
+    block: input.block,
+    schedule: input.schedule,
+    shape: input.shape,
+    footprint: input.signature,
+    source: 'mapped',
+    readOn,
+    basis: corridorText({ ...corridor, metres } as Corridor).slice(0, 500),
+    layers,
+    ...(notes.length ? { notes } : {}),
+    candidates: candidates.slice(0, 1000),
+  })
+
+  // 1. Roads in the corridor. A file or mark the read cannot ask for is a read not made, never none.
   progress('Reading roads…')
+  const typed = corridor.by === 'timber-mark' ? corridor.mark : corridor.by === 'file' ? corridor.file : ''
+  const asked = corridor.by === 'distance' ? null : identifier(typed)
+  if (corridor.by !== 'distance' && !asked) {
+    const what = corridor.by === 'file' ? 'road file' : 'timber mark'
+    const message = `“${typed.trim().slice(0, 40)}” is not a ${what} this read can ask DataBC for: letters and digits, with “-” or “/” between them.`
+    record('sections', { features: [], status: 'failed', message })
+    record('segments', { features: [], status: 'failed', message })
+    notes.push(`Not read: no road was asked for, so no crossing could be found and nothing else was read. ${message}`)
+    return done([])
+  }
   let sections: LayerResult = { features: [], status: 'skipped' }
   let segments: LayerResult
   if (corridor.by === 'timber-mark') {
-    const mark = identifier(corridor.mark)
-    if (!mark) throw Error('A timber mark is letters and digits only.')
-    segments = await readLayer('segments', area, `TIMBER_MARK = ${quote(mark)}`, CAP.roads)
+    segments = await readLayer('segments', area, `TIMBER_MARK = ${quote(asked!)}`, CAP.roads)
     sections.message = 'Sections carry no timber mark: the segments under the mark are read.'
   } else {
-    const file = corridor.by === 'file' ? identifier(corridor.file) : null
-    if (corridor.by === 'file' && !file) throw Error('A road file is letters and digits only.')
-    const only = file ? `FOREST_FILE_ID = ${quote(file)}` : null
+    const only = asked ? `FOREST_FILE_ID = ${quote(asked)}` : null
     sections = await readLayer('sections', area, only, CAP.roads)
     segments = await readLayer('segments', area, only, CAP.roads)
   }
@@ -562,6 +634,14 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
   record('segments', segments)
   if (sections.status === 'failed' && segments.status === 'failed')
     throw Error(`DataBC's road layers could not be read: ${sections.message ?? segments.message}`)
+  // A file or mark no road carries is a corridor with nothing in it: say so, never just "read".
+  const roadsRead = [sections, segments].filter((r) => r.status !== 'skipped' && r.status !== 'failed')
+  if (asked && roadsRead.length && roadsRead.every((r) => r.features.length === 0))
+    notes.push(
+      corridor.by === 'timber-mark'
+        ? `No road segment within ${metres.toLocaleString()} m of the block carries timber mark ${asked}, so this corridor holds no road and no crossing. Road segments carry the road permit's marks; a cutting permit's mark is rarely among them. Read by distance, or by the road file.`
+        : `No road section or segment within ${metres.toLocaleString()} m of the block is on road file ${asked}, so this corridor holds no road and no crossing. Read by distance, or check the file.`,
+    )
 
   // 2. PSCIS, read before the streams so its records outside the roads get a stream too.
   progress('Reading PSCIS…')
@@ -605,30 +685,25 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
         const file = str(road.props.FOREST_FILE_ID)
         const section = str(road.props.ROAD_SECTION_ID)
         const start = num(road.props.START_STATION)
+        const found: CrossingRoad = {
+          file,
+          section,
+          mark: str(road.props.TIMBER_MARK),
+          ref: file ? `${file}${section ? `/${section}` : ''}` : undefined,
+          chainageM: road.segment && start !== undefined ? start + roadM : road.segment ? undefined : roadM,
+          rank: roadRank(road.props),
+          status: statusWord(road.props),
+        }
         const same = crossings.find(
           (c) =>
             blueLineKey(c.stream.props) === blueLineKey(stream.props) &&
             distanceM(c.point, hit.point) <= SAME_CROSSING_M,
         )
-        const ref = file ? `${file}${section ? `/${section}` : ''}` : undefined
-        const mark = str(road.props.TIMBER_MARK)
         if (same) {
-          if (ref) same.roadRefs.add(ref)
-          if (mark) same.timberMarks.add(mark)
-          if (!same.file && file) Object.assign(same, { file, section })
+          same.roads.push(found)
           continue
         }
-        crossings.push({
-          point: roundPoint(hit.point),
-          file,
-          section,
-          timberMarks: new Set(mark ? [mark] : []),
-          chainageM: road.segment && start !== undefined ? start + roadM : road.segment ? undefined : roadM,
-          roadRefs: new Set(ref ? [ref] : []),
-          retired: !!dayOf(road.props.RETIREMENT_DATE),
-          stream,
-          alongM,
-        })
+        crossings.push({ point: roundPoint(hit.point), roads: [found], stream, alongM })
       }
 
   // 5. PSCIS records into sites, each with the nearest mapped stream within 30 m.
@@ -658,6 +733,7 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
       day: row.stage === 'assessment' ? stageDay(row) : undefined,
       blueLineKey: near ? blueLineKey(near.part.props) : undefined,
       measureM: near ? routeMeasure(near.part.props, near.alongM) : undefined,
+      structure: row.stage === 'assessment' ? siteStructure(row.props) : undefined,
       row,
     }
   })
@@ -665,14 +741,19 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
   const sites = fold.sites
 
   // 6. Candidates: each mapped crossing, with the PSCIS site nearest it within 50 m on its stream.
+  /** The road refs each candidate lies on, for the structures' file-and-section join. */
+  const refsOf = new Map<CrossingCandidate, Set<string>>()
   const candidates: CrossingCandidate[] = crossings.map((c) => {
     const blk = blueLineKey(c.stream.props)
     const measureM = routeMeasure(c.stream.props, c.alongM)
     const name = str(c.stream.props.GNIS_NAME)
+    const best = bestRoad(c.roads)!
+    const withFile = bestRoad(c.roads.filter((r) => r.file))
     const road: CrossingCandidate['road'] = {}
-    if (c.file) road.file = c.file
-    if (c.section) road.section = c.section
-    if (c.chainageM !== undefined) road.chainageM = Math.round(c.chainageM)
+    const labelled = withFile && withFile.rank <= best.rank ? withFile : best
+    if (labelled.file) road.file = labelled.file
+    if (labelled.section) road.section = labelled.section
+    if (labelled.chainageM !== undefined) road.chainageM = Math.round(labelled.chainageM)
     const stream: CrossingCandidate['stream'] = {}
     if (name) stream.name = name
     if (blk !== undefined) stream.blueLineKey = blk
@@ -689,7 +770,12 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
       values.gradientPercent = Math.round(gradient.percent * 10) / 10
       values.gradient_over_m = Math.round(gradient.overM)
     }
-    const refs = [...c.roadRefs]
+    // The labelled road first, then the others in the order found, each once with its status.
+    const ordered = [labelled, ...c.roads.filter((r) => r !== labelled)]
+    const refs = [...new Set(ordered.flatMap((r) => r.ref ?? []))]
+    const marks = [...new Set(c.roads.flatMap((r) => r.mark ?? []))]
+    const statusOf = (ref: string) => bestRoad(c.roads.filter((r) => r.ref === ref))!.status
+    const others = refs.slice(1).map((ref) => `${ref} (${statusOf(ref)})`)
     const evidence: CrossingEvidence[] = [
       {
         kind: 'stream',
@@ -703,7 +789,11 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
         kind: 'road',
         source: 'Forest tenure road sections and segments (FTEN_ROAD_SECTION_LINES_SVW, FTEN_ROAD_SEGMENT_LINES_SVW)',
         readOn,
-        summary: `${refs.length ? `Road ${refs.join(', ')}` : 'A tenured road'}${c.timberMarks.size ? `, timber mark ${[...c.timberMarks].join(', ')}` : ''}${c.retired ? '; retired in the record' : ''}. A section's award date is the permit's, never the crossing's.`,
+        summary:
+          `${refs.length ? `Road ${refs[0]} (${statusOf(refs[0])})` : 'A tenured road'}${marks.length ? `, timber mark ${marks.join(', ')}` : ''}${labelled.rank === 3 ? '; retired in the record' : ''}${others.length ? `. Also mapped on this crossing: ${others.join(', ')}; the crossing is labelled by the active road where there is one` : ''}. A section's award date is the permit's, never the crossing's.`.slice(
+            0,
+            2000,
+          ),
         ...(refs[0] ? { reference: refs[0] } : {}),
       },
     ]
@@ -722,6 +812,7 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
     }
     if (Object.keys(road).length) candidate.road = road
     if (Object.keys(stream).length) candidate.stream = stream
+    refsOf.set(candidate, new Set(refs))
     return candidate
   })
 
@@ -797,23 +888,51 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
   })
 
   // PSCIS sites with no mapped crossing: one candidate each, or one for those within 15 m on the same road.
-  const loose = sites.flatMap((site, s) => (siteOf.has(s) ? [] : [site]))
-  const roadOf = (site: (SiteRecord & { row: PscisRow })[]) => {
-    let best: { ref: string; d: number } | undefined
+  // A site's road is the corridor road it lies on (within 30 m, the active one first), else the
+  // corridor road its tenure names; a corridor by file or mark lists only the sites on its roads.
+  type SiteRows = (SiteRecord & { row: PscisRow })[]
+  const roadOf = (site: SiteRows): { file: string; section?: string; rank: number } | undefined => {
+    let best: { file: string; section?: string; rank: number; d: number } | undefined
     for (const r of roadLines) {
-      const d = nearestOnLine(site[0].point, r.line).distanceM
-      const ref = str(r.props.FOREST_FILE_ID)
-      if (ref && d <= PSCIS_STREAM_M && (!best || d < best.d)) best = { ref, d }
+      const file = str(r.props.FOREST_FILE_ID)
+      if (!file) continue
+      const d = Math.min(...site.map((x) => nearestOnLine(x.point, r.line).distanceM))
+      const rank = roadRank(r.props)
+      if (d <= PSCIS_STREAM_M && (!best || rank < best.rank || (rank === best.rank && d < best.d)))
+        best = { file, section: str(r.props.ROAD_SECTION_ID), rank, d }
     }
-    return best?.ref
+    if (best) return best
+    const tokens = site.flatMap((x) => tenureTokens(x.row.props.ROAD_TENURE))
+    for (const r of [...roadLines].sort((a, b) => roadRank(a.props) - roadRank(b.props))) {
+      const file = str(r.props.FOREST_FILE_ID)
+      const section = str(r.props.ROAD_SECTION_ID)
+      if (file && tokens.some((t) => tenureNamesRoad(t, file, section)))
+        return { file, section, rank: roadRank(r.props) }
+    }
+    return undefined
+  }
+  const onCorridor = (site: SiteRows) =>
+    site.some((x) => roadLines.some((r) => nearestOnLine(x.point, r.line).distanceM <= PSCIS_MATCH_M)) ||
+    (corridor.by === 'file' &&
+      !!asked &&
+      site.some((x) => tenureTokens(x.row.props.ROAD_TENURE).some((t) => tenureNamesRoad(t, asked))))
+  const unmatched = sites.flatMap((site, s) => (siteOf.has(s) ? [] : [site]))
+  const loose = corridor.by === 'distance' ? unmatched : unmatched.filter(onCorridor)
+  if (loose.length < unmatched.length)
+    notes.push(
+      `${unmatched.length - loose.length} PSCIS ${unmatched.length - loose.length === 1 ? 'site' : 'sites'} within ${metres.toLocaleString()} m of the block ${unmatched.length - loose.length === 1 ? 'lies' : 'lie'} more than ${PSCIS_MATCH_M} m from the corridor's roads and ${unmatched.length - loose.length === 1 ? 'is' : 'are'} not listed: read by distance to list ${unmatched.length - loose.length === 1 ? 'it' : 'them'}.`,
+    )
+  const roadKey = (site: SiteRows) => {
+    const r = roadOf(site)
+    return r ? `${r.file}/${r.section ?? ''}` : undefined
   }
   const groups: (SiteRecord & { row: PscisRow })[][][] = []
   for (const site of loose) {
-    const road = roadOf(site)
+    const road = roadKey(site)
     const group = road
       ? groups.find(
           (g) =>
-            roadOf(g[0]) === road &&
+            roadKey(g[0]) === road &&
             g.some((other) => distanceM(other[0].point, site[0].point) <= PSCIS_SITE_RULE.nearM),
         )
       : undefined
@@ -848,7 +967,10 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
     if (blk !== undefined) stream.blueLineKey = blk
     if (measureM !== undefined) stream.measureM = measureM
     if (Object.keys(stream).length) cand.stream = stream
-    if (tenure.length) cand.road = { file: tenure[0] }
+    const onRoad = roadOf(group.flat())
+    if (onRoad) cand.road = { file: onRoad.file, ...(onRoad.section ? { section: onRoad.section } : {}) }
+    else if (tenure.length) cand.road = { file: tenure[0] }
+    refsOf.set(cand, new Set(onRoad ? [`${onRoad.file}${onRoad.section ? `/${onRoad.section}` : ''}`] : []))
     const notes: string[] = []
     if (!near)
       notes.push(
@@ -872,7 +994,7 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
   // 7. Ministry structures, Water Act approvals and TRIM roads round the candidates.
   progress('Reading structures, approvals and base mapping…')
   const points = candidates.map((c) => c.point)
-  const round = overlay.corridor([], 0, points, Math.max(APPROVAL_NEAR_M, STRUCTURE_MATCH_M) + 10)
+  const round = overlay.corridor([], 0, points, Math.max(APPROVAL_NEAR_M, STRUCTURE_FILE_MATCH_M) + 10)
   const structures = await readLayer('structures', round, null, CAP.structures)
   const approvals = await readLayer('approvals', round, null, CAP.approvals)
   const trimArea = overlay.corridor([], 0, points, TRIM_NEAR_M + 10)
@@ -890,7 +1012,22 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
   }
   for (const f of structures.features) {
     const p = pointParts(f.geometry)[0]
-    const near = p && nearest(p, STRUCTURE_MATCH_M)
+    if (!p) continue
+    const named = structureRoadRef(f.properties)
+    let near: { cand: CrossingCandidate; d: number; byFile?: boolean } | undefined = nearest(p, STRUCTURE_MATCH_M)
+    if (!near && named) {
+      // Farther than 50 m, the structure joins the one crossing within 150 m on the file and section it names.
+      const onRoad = candidates
+        .map((cand) => ({ cand, d: distanceM(p, cand.point) }))
+        .filter(({ cand, d }) => d <= STRUCTURE_FILE_MATCH_M && refsOf.get(cand)?.has(named))
+      if (onRoad.length === 1) near = { ...onRoad[0], byFile: true }
+      else if (onRoad.length > 1)
+        notes.push(
+          `Ministry structure ${str(f.properties.CROSSING_SITE_ID) ?? ''} names road ${named} and lies ${onRoad
+            .map(({ d }) => `${Math.round(d)} m`)
+            .join(' and ')} from ${onRoad.length} crossings on it: joined to none; match it on the ground.`,
+        )
+    }
     if (!near) continue
     const id = str(f.properties.CROSSING_SITE_ID)
     if (id)
@@ -899,7 +1036,7 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
         id,
         seenOn: dayOf(f.properties.LAST_INSPECTION_DATE) ?? readOn,
       })
-    near.cand.evidence.push(structureEvidence(f.properties, readOn, near.d))
+    near.cand.evidence.push(structureEvidence(f.properties, readOn, near.d, near.byFile))
   }
   for (const f of approvals.features) {
     const p = pointParts(f.geometry)[0]
@@ -993,16 +1130,26 @@ export async function readMappedCrossings(input: MappedReadInput): Promise<Cross
   progress('Done.')
   candidates.sort((a, b) => a.distanceM - b.distanceM || a.label.localeCompare(b.label))
   for (const c of candidates) c.sightings.sort((a, b) => a.date.localeCompare(b.date))
+  return done(candidates)
+}
+
+/** The road file and section a ministry structure's record names, as a candidate's road ref, or undefined. */
+const structureRoadRef = (p: Record<string, unknown>) => {
+  const file = str(p.FOREST_FILE_ID)
+  const section = str(p.ROAD_SECTION_ID)
+  return file && section ? `${file}/${section}` : undefined
+}
+
+/** A PSCIS assessment's structure for the site rule: its type, size and barrel length. */
+function siteStructure(p: Record<string, unknown>): SiteRecord['structure'] {
+  const type = str(p.CROSSING_TYPE_CODE)
+  if (!type) return undefined
+  const size = num(p.DIAMETER_OR_SPAN)
+  const length = num(p.LENGTH_OR_WIDTH)
   return {
-    block: input.block,
-    schedule: input.schedule,
-    shape: input.shape,
-    footprint: input.signature,
-    source: 'mapped',
-    readOn,
-    basis: corridorText({ ...corridor, metres } as Corridor),
-    layers,
-    candidates: candidates.slice(0, 1000),
+    type,
+    ...(size !== undefined && size > 0 && size < 1000 ? { sizeM: size } : {}),
+    ...(length !== undefined && length > 0 && length < 1000 ? { lengthM: length } : {}),
   }
 }
 
@@ -1084,7 +1231,7 @@ export function pscisEvidence(
   }
 }
 
-function structureEvidence(p: Record<string, unknown>, readOn: string, d: number): CrossingEvidence {
+function structureEvidence(p: Record<string, unknown>, readOn: string, d: number, byFile = false): CrossingEvidence {
   const id = str(p.CROSSING_SITE_ID) ?? ''
   const kind = str(p.CROSSING_SITE_TYPE_DESC) ?? str(p.CROSSING_SITE_TYPE_CODE) ?? 'Structure'
   const parts = [
@@ -1094,6 +1241,10 @@ function structureEvidence(p: Record<string, unknown>, readOn: string, d: number
     parts.push(`On road ${str(p.FOREST_FILE_ID)}${str(p.ROAD_SECTION_ID) ? ` section ${str(p.ROAD_SECTION_ID)}` : ''}.`)
   const inspected = dayOf(p.LAST_INSPECTION_DATE)
   if (inspected) parts.push(`Last inspected ${inspected}.`)
+  if (byFile)
+    parts.push(
+      `Its point is ${Math.round(d)} m from the crossing, farther than ${STRUCTURE_MATCH_M} m: joined because its record names this crossing's road file and section, and no other crossing on them lies within ${STRUCTURE_FILE_MATCH_M} m.`,
+    )
   return {
     kind: 'mof-structure',
     source: 'Ministry bridges and major culverts (RRI_BRIDGES_MAJOR_CULVERTS_SP)',

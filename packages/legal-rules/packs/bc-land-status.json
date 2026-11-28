@@ -1,9 +1,9 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.land-status",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "BC land status of a block",
-  "description": "What land the block is on, and so which law reaches its harvest: whether FRPA’s forest practices reach it (Crown land, or private land in a tree farm licence, community forest agreement or woodlot licence area), whether the WLPPR replaces the FPPR for a woodlot licence holder, whether it is private managed forest land under the PMFLA, and, on private land, timber reserved to the government, boundaries beside Crown land and the Forest Act’s timber marking and scaling. A reserve and treaty settlement land are outside every rule here: the Indian Act, a land code or the final agreement governs them, and none is assessed. The land is always the reviewer’s answer; mapped parcels and licences are candidates.",
+  "description": "What land the block is on, and so which law reaches its harvest: whether FRPA’s forest practices reach it (Crown land, or private land in a tree farm licence, community forest agreement or woodlot licence area), whether the WLPPR replaces the FPPR for a woodlot licence holder, whether it is private managed forest land under the PMFLA, whether another holder’s area-based licence gives that holder the exclusive right to harvest the block’s timber, and, on private land, timber reserved to the government, boundaries beside Crown land and the Forest Act’s timber marking and scaling. A reserve and treaty settlement land are outside every rule here: the Indian Act, a land code or the final agreement governs them, and none is assessed. The land is always the reviewer’s answer; mapped parcels and licences are candidates.",
   "relatedPacks": [
     {
       "id": "bc.fppr",
@@ -12,6 +12,10 @@
     {
       "id": "bc.forest-permits",
       "relationship": "Cutting and road permits dispose of Crown timber and roads on Crown land; on private land outside an area-based licence they do not arise unless timber is reserved to the government (crown-timber)."
+    },
+    {
+      "id": "bc.woodlot-practices",
+      "relationship": "Its rules are the WLPPR’s practice requirements for a woodlot licence holder’s block, applying when woodlot-wlppr does; the land, licence area and woodlot holder questions are shared (sameAs)."
     }
   ],
   "coverage": {
@@ -29,7 +33,7 @@
         "Federal land, including an Indian reserve",
         "Treaty settlement land"
       ],
-      "label": "What land is the block on? Crown land is land vested in the provincial government (the Land Act meaning, Forest Act §1); private land is land that is not Crown land. A reserve and treaty settlement land are asked apart: these packs do not assess them."
+      "label": "What land is the block on? Crown land is land vested in the provincial government (the Land Act meaning), not including land owned by an agent of the government (Forest Act §1); private land is land that is not Crown land, so land a Crown agency owns is private land here. A reserve and treaty settlement land are asked apart: these packs do not assess them."
     },
     {
       "id": "licence-area",
@@ -47,6 +51,11 @@
       "id": "woodlot-holder",
       "type": "boolean",
       "label": "Will the woodlot licence holder, or its employee, agent, contractor or subcontractor, carry out the harvest (WLPPR §2(1))?"
+    },
+    {
+      "id": "area-holder-harvests",
+      "type": "boolean",
+      "label": "Will the block be harvested under that tree farm licence, community forest agreement or First Nations woodland licence, by its holder or the holder’s employee, agent or contractor?"
     },
     {
       "id": "managed-forest",
@@ -213,11 +222,11 @@
           }
         ]
       ],
-      "finding": "The Woodlot Licence Planning and Practices Regulation applies to the woodlot licence holder, and the holder’s employees, agents and contractors, carrying out an activity in the woodlot licence area, and the FPPR, except its §1.2, does not apply to them. The FPPR findings on this block are read against a regulation that does not govern its harvest; PGMaps does not yet assess the WLPPR.",
+      "finding": "The Woodlot Licence Planning and Practices Regulation applies to the woodlot licence holder, and the holder’s employees, agents and contractors, carrying out an activity in the woodlot licence area, and the FPPR, except its §1.2, does not apply to them. The FPPR findings on this block are read against a regulation that does not govern its harvest; the woodlot licence practices review (bc.woodlot-practices) assesses the WLPPR’s practice requirements in their place.",
       "actions": [
         {
           "kind": "review",
-          "description": "Review the block against the WLPPR and the holder’s woodlot licence plan rather than the FPPR findings."
+          "description": "Review the block against the WLPPR and the holder’s woodlot licence plan, in the woodlot licence practices findings, rather than the FPPR findings."
         }
       ]
     },
@@ -427,6 +436,296 @@
           "decidedBy": "The minister",
           "evidence": [
             "The minister’s exemption and its conditions"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "woodlot-exclusive",
+      "title": "Harvest in another holder’s woodlot licence area",
+      "source": "forest-act",
+      "provision": "45(1)(c)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A woodlot licence"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "woodlot-holder",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A woodlot licence gives its holder, subject to the Forest Act, the exclusive right to harvest timber on the Crown land in its area for its term. The block is to be harvested by someone else, so that harvest needs a right the Act gives despite the licence; the licence or permit it is made under, and its terms, say which.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Find the licence or permit the block is harvested under, the Forest Act provision it was granted under and its terms, and the release, reservation or reduction it rests on; record them with the area holder’s file number."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "bcts-release",
+          "label": "A BC Timber Sales licence entered into because the holder released rights to harvest Crown timber under a BCTS disposition agreement (Forest Act §22.2(5))",
+          "source": "forest-act",
+          "provision": "22.2(5)",
+          "kind": "by-law",
+          "evidence": [
+            "The BCTS disposition agreement and the rights it released",
+            "The BCTS licence entered into as a result"
+          ]
+        },
+        {
+          "id": "bcts-reduction",
+          "label": "Timber taken out of what the woodlot holder may harvest, for a specified period, to enter into BC Timber Sales licences (Forest Act §45(1)(f.2))",
+          "source": "forest-act",
+          "provision": "45(1)(f.2)",
+          "kind": "by-law",
+          "evidence": [
+            "The woodlot licence’s requirement and its period",
+            "The BCTS licence entered into under it"
+          ]
+        },
+        {
+          "id": "other-provision",
+          "label": "Another provision of the Forest Act the licence or permit to cut was granted under, to which the exclusive right is subject",
+          "source": "forest-act",
+          "provision": "45(1)(c)",
+          "kind": "decision",
+          "decidedBy": "The minister, or the timber sales manager, who granted the licence or permit to cut",
+          "evidence": [
+            "The licence or permit to cut and the provision it was granted under",
+            "The woodlot licence’s terms"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "community-forest-exclusive",
+      "title": "Harvest in another holder’s community forest agreement area",
+      "source": "forest-act",
+      "provision": "43.3(1)(c)(i)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A community forest agreement"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "area-holder-harvests",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A community forest agreement gives its holder, subject to the Forest Act and the agreement, the exclusive right to harvest timber on the Crown land in its area for its term. The block is to be harvested by someone else, so that harvest needs a right the Act or the agreement gives despite it; the licence or permit it is made under, and its terms, say which.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Find the licence or permit the block is harvested under, the Forest Act provision it was granted under and its terms, and the release, reservation or reduction it rests on; record them with the area holder’s file number."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "bcts-release",
+          "label": "A BC Timber Sales licence entered into because the holder released rights to harvest Crown timber under a BCTS disposition agreement (Forest Act §22.2(5))",
+          "source": "forest-act",
+          "provision": "22.2(5)",
+          "kind": "by-law",
+          "evidence": [
+            "The BCTS disposition agreement and the rights it released",
+            "The BCTS licence entered into as a result"
+          ]
+        },
+        {
+          "id": "reserved-timber",
+          "label": "Timber the agreement reserves for disposition to others under timber sale licences or forestry licences to cut under §47.6(3) (Forest Act §43.3(1)(g.2))",
+          "source": "forest-act",
+          "provision": "43.3(1)(g.2)",
+          "kind": "by-law",
+          "evidence": [
+            "The agreement’s reservation and its amount",
+            "The timber sale licence or forestry licence to cut disposing of it"
+          ]
+        },
+        {
+          "id": "bcts-reduction",
+          "label": "Timber taken out of what the agreement holder may harvest, for a specified period, to enter into BC Timber Sales licences (Forest Act §43.3(1)(g.3))",
+          "source": "forest-act",
+          "provision": "43.3(1)(g.3)",
+          "kind": "by-law",
+          "evidence": [
+            "The agreement’s requirement and its period",
+            "The BCTS licence entered into under it"
+          ]
+        },
+        {
+          "id": "other-provision",
+          "label": "Another provision of the Forest Act the licence or permit to cut was granted under, to which the exclusive right is subject",
+          "source": "forest-act",
+          "provision": "43.3(1)(c)",
+          "kind": "decision",
+          "decidedBy": "The minister, or the timber sales manager, who granted the licence or permit to cut",
+          "evidence": [
+            "The licence or permit to cut and the provision it was granted under",
+            "The community forest agreement’s terms"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tfl-exclusive",
+      "title": "Harvest in another holder’s tree farm licence area",
+      "source": "forest-act",
+      "provision": "35(1)(e)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Private land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A tree farm licence"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "area-holder-harvests",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A tree farm licence grants its holder, subject to the Forest Act and the licence, the exclusive right to harvest from the tree farm licence area during its term. The block is to be harvested by someone else, so that harvest needs a right the Act or the licence gives despite it; the licence or permit it is made under, and its terms, say which.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Find the licence or permit the block is harvested under, the Forest Act provision it was granted under and its terms, and the release, reservation or reduction it rests on; record them with the area holder’s file number."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "bcts-release",
+          "label": "A BC Timber Sales licence entered into because the holder released rights to harvest Crown timber under a BCTS disposition agreement (Forest Act §22.2(5))",
+          "source": "forest-act",
+          "provision": "22.2(5)",
+          "kind": "by-law",
+          "evidence": [
+            "The BCTS disposition agreement and the rights it released",
+            "The BCTS licence entered into as a result"
+          ]
+        },
+        {
+          "id": "other-provision",
+          "label": "Another provision of the Forest Act the licence or permit to cut was granted under, to which the exclusive right is subject",
+          "source": "forest-act",
+          "provision": "35(1)(e)",
+          "kind": "decision",
+          "decidedBy": "The minister, or the timber sales manager, who granted the licence or permit to cut",
+          "evidence": [
+            "The licence or permit to cut and the provision it was granted under",
+            "The tree farm licence’s terms"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fnwl-exclusive",
+      "title": "Harvest in another holder’s First Nations woodland licence area",
+      "source": "forest-act",
+      "provision": "43.55(1)(c)(i)",
+      "scope": [
+        [
+          {
+            "fact": "land",
+            "op": "in",
+            "value": [
+              "Crown land",
+              "Both Crown and private land"
+            ]
+          },
+          {
+            "fact": "licence-area",
+            "op": "eq",
+            "value": "A First Nations woodland licence"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "area-holder-harvests",
+            "op": "eq",
+            "value": false
+          }
+        ]
+      ],
+      "finding": "A First Nations woodland licence gives its holder, subject to the Forest Act and the licence, the exclusive right to harvest timber on the Crown land in its area for its term. The block is to be harvested by someone else, so that harvest needs a right the Act or the licence gives despite it; the licence or permit it is made under, and its terms, say which.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Find the licence or permit the block is harvested under, the Forest Act provision it was granted under and its terms, and the release, reservation or reduction it rests on; record them with the area holder’s file number."
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "bcts-release",
+          "label": "A BC Timber Sales licence entered into because the holder released rights to harvest Crown timber under a BCTS disposition agreement (Forest Act §22.2(5))",
+          "source": "forest-act",
+          "provision": "22.2(5)",
+          "kind": "by-law",
+          "evidence": [
+            "The BCTS disposition agreement and the rights it released",
+            "The BCTS licence entered into as a result"
+          ]
+        },
+        {
+          "id": "other-provision",
+          "label": "Another provision of the Forest Act the licence or permit to cut was granted under, to which the exclusive right is subject",
+          "source": "forest-act",
+          "provision": "43.55(1)(c)",
+          "kind": "decision",
+          "decidedBy": "The minister, or the timber sales manager, who granted the licence or permit to cut",
+          "evidence": [
+            "The licence or permit to cut and the provision it was granted under",
+            "The First Nations woodland licence’s terms"
           ]
         }
       ]

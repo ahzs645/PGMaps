@@ -51,6 +51,11 @@ export type LandCheckLayer = {
    * instrument the layer holds, or the whole layer when it is a context layer.
    */
   layer: string
+  /**
+   * The catalogue instruments it counts, when not every one its layer holds: ParcelMap BC's layer
+   * also holds parcels whose owner type is not settled, which are not private land.
+   */
+  instruments?: readonly string[]
   /** A feature's name as the note lists it; reads only fields the catalogue layer keeps. */
   name: (props: Props) => string
   /** Why it matters to a cutblock, for the card's note. */
@@ -80,6 +85,7 @@ export const LAND_CHECKS: readonly LandCheckLayer[] = [
     id: 'private',
     label: 'Private land',
     layer: 'private',
+    instruments: ['private-land'],
     name: (p) =>
       text(p.PID_FORMATTED)
         ? `PID ${text(p.PID_FORMATTED)}`
@@ -167,7 +173,7 @@ export async function readLandCheck(
   maxFeatures = MAX_LAND_CHECK_FEATURES,
 ): Promise<{ features: LandFeature[]; truncated: boolean }> {
   const layer = landCheckLayer(check)
-  const instruments = layerInstruments(layer)
+  const instruments = layerInstruments(layer).filter((x) => !check.instruments || check.instruments.includes(x.id))
   const answer = await readGroundLayer({ layer, instruments, footprint, fetch: fetcher, signal, cap: maxFeatures })
   const features = answer.rows.flatMap((row): LandFeature[] =>
     (row.geometry.type === 'Polygon' || row.geometry.type === 'MultiPolygon') &&

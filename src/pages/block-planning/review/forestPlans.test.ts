@@ -4,6 +4,7 @@ import { parsePack, type Claim, type Pack, type Scalar } from '../../../../packa
 import profile from '../../../../packages/legal-rules/forestry-profile.json'
 import permitsPack from '../../../../packages/legal-rules/packs/bc-forest-permits.json'
 import permitsEarlier from '../../../../packages/legal-rules/packs/bc-forest-permits-v1.1.0.json'
+import permitsSaved from '../../../../packages/legal-rules/packs/bc-forest-permits-v1.2.0.json'
 import operationsPack from '../../../../packages/legal-rules/packs/bc-forest-operations.json'
 import { questions } from './questions'
 import { ruleTopic } from './topics'
@@ -56,8 +57,9 @@ describe('the permit pack 1.2.0: the FSP’s results for an ordinary block (FRPA
   it('keeps 1.1.0 for saved reviews and moves the block profile to 1.2.0', () => {
     expect(parsePack(permitsEarlier).version).toBe('1.1.0')
     expect(parsePack(permitsEarlier).rules.some((r) => r.id === 'fsp-results')).toBe(false)
-    expect(profile.blockReleases).toContain('bc.forest-permits@1.2.0')
+    expect(profile.blockReleases).toContain('bc.forest-permits@1.3.0')
     expect(profile.blockReleases).not.toContain('bc.forest-permits@1.1.0')
+    expect(profile.blockReleases).not.toContain('bc.forest-permits@1.2.0')
   })
 
   it('asks the plan’s standing first, then every kind of result at once', () => {
@@ -185,5 +187,35 @@ describe('the forest operations plan pack (FRPA §§2.35–2.47, FPPR §§4.11�
   it('puts every rule of both packs under a named topic', () => {
     for (const pack of [permits, operations])
       expect(pack.rules.filter((r) => ruleTopic(pack, r).id.startsWith('section-')).map((r) => r.id)).toEqual([])
+  })
+})
+
+describe('the permit pack 1.3.0: when a site plan is not required (FPPR §33)', () => {
+  it('keeps 1.2.0 for saved reviews, with the site plan rule as it was', () => {
+    const earlier = parsePack(permitsSaved)
+    expect(earlier.version).toBe('1.2.0')
+    expect(earlier.rules.find((r) => r.id === 'site-plan')?.exceptions).toBeUndefined()
+    expect(permits.version).toBe('1.3.0')
+    // Only the exceptions and the action's words changed: the rule's scope and trigger are 1.2.0's.
+    const now = permits.rules.find((r) => r.id === 'site-plan')!
+    const then = earlier.rules.find((r) => r.id === 'site-plan')!
+    expect([now.scope, now.when, now.provision]).toEqual([then.scope, then.when, then.provision])
+  })
+
+  it('lists FPPR §33(1) and (2) on the site plan rule, and leaves the finding raised when one is claimed', () => {
+    const answers = { ...licensee, 'site-plan': false }
+    expect(run(permits, answers).status('site-plan')).toBe('review_required')
+    const exceptions = permits.rules.find((r) => r.id === 'site-plan')!.exceptions!
+    expect(exceptions.map((x) => [x.id, x.source, x.provision, x.kind])).toEqual([
+      ['fppr-33-cutblock', 'instrument', '33(1)', 'by-law'],
+      ['fppr-33-road', 'instrument', '33(2)', 'by-law'],
+    ])
+    const claimed = run(permits, answers, {
+      rule: 'site-plan',
+      exception: 'fppr-33-cutblock',
+      rationale: 'Harvest limited to 50 m³',
+    })
+    expect(claimed.status('site-plan')).toBe('review_required')
+    expect(claimed.standing('site-plan')).toBe('relied_on')
   })
 })

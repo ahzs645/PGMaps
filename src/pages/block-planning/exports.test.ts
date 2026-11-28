@@ -75,6 +75,22 @@ describe('block planning exports', () => {
     expect(reopened.plan.reviews[block.id].sets['bc.fppr@1.3.0'].claims).toHaveLength(1)
   })
 
+  it('says when a block review’s release does not cover its date, never that its rules do not apply', () => {
+    const block = plan.blocks[0]
+    const dated = (date: string) => ({
+      ...plan,
+      reviews: { [block.id]: { selected: ['bc.fppr@1.3.0'], date, sets: {} } },
+    })
+    const both = [...library, parsePack(fppr)]
+    const historical = buildExport('summary', dated('2016-06-01'), result, both, 'today')
+    expect(historical).toContain('<h2>Releases that do not cover the review date</h2>')
+    expect(historical).toContain('covers 2026-01-01 to 2026-11-27')
+    expect(historical).toContain('law as it stood then')
+    expect(buildExport('summary', dated('2026-11-27'), result, both, 'today')).not.toContain(
+      'Releases that do not cover the review date',
+    )
+  })
+
   it('writes a plan file that opens again unchanged', () => {
     const reopened = openPlanFile(JSON.parse(buildExport('plan', plan, undefined, library, '2026-11-23')))
     expect(reopened.plan).toEqual(JSON.parse(JSON.stringify(plan)))

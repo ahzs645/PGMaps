@@ -1404,6 +1404,13 @@
           "provision": "2.A.a",
           "quote": "not allowing timber harvesting within 200 metres (slope distance) of Weissener Lake indicated in Table 4"
         }
+      ],
+      "ogma-other-order": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.4",
+          "quote": "For the purposes of the Forest and Range Practices Act, the minister by order may establish objectives for the use and management of"
+        }
       ]
     },
     "bc.omineca.visual-quality": {
@@ -1687,6 +1694,20 @@
           "source": "bc.forest-act",
           "provision": "215",
           "quote": "After the effective date of the designation of an area as a special purpose area, and except as authorized under subsection (2), an authorized official must not, under a road permit or special use permit, authorize the holder of the permit to construct a road in the special purpose area."
+        }
+      ],
+      "site-plan#fppr-33-cutblock": [
+        {
+          "source": "bc.fppr",
+          "provision": "33",
+          "quote": "the prescribed circumstances, in which the holder of a forest stewardship plan need not prepare a site plan in accordance with section 10 (1) (a) of the Act, are"
+        }
+      ],
+      "site-plan#fppr-33-road": [
+        {
+          "source": "bc.fppr",
+          "provision": "33",
+          "quote": "a prescribed circumstance, in which the holder of a forest stewardship plan need not prepare a site plan in accordance with section 10 (1) (b) of the Act, is that timber harvesting associated with a road referred to in that provision is limited to removal of timber to improve safety for road users by"
         }
       ]
     },
@@ -2361,6 +2382,111 @@
           "provision": "94",
           "quote": "The minister may exempt timber or a person from subsection (1) or (4)."
         }
+      ],
+      "woodlot-exclusive": [
+        {
+          "source": "bc.forest-act",
+          "provision": "45",
+          "quote": "subject to the provisions of this Act, must give to its holder the exclusive right to harvest timber on the Crown land referred to in paragraph (b), for its term,"
+        }
+      ],
+      "woodlot-exclusive#bcts-release": [
+        {
+          "source": "bc.forest-act",
+          "provision": "22.2",
+          "quote": "is subject to the right to harvest Crown timber under a BCTS licence if"
+        }
+      ],
+      "woodlot-exclusive#bcts-reduction": [
+        {
+          "source": "bc.forest-act",
+          "provision": "45",
+          "quote": "may require that the amount of timber on Crown land within the woodlot licence area that is available to the holder of the woodlot licence be reduced by a specified amount of timber for a specified period of time for the purpose of entering into one or more BCTS licences"
+        }
+      ],
+      "woodlot-exclusive#other-provision": [
+        {
+          "source": "bc.forest-act",
+          "provision": "45",
+          "quote": "subject to the provisions of this Act, must give to its holder the exclusive right to harvest timber"
+        }
+      ],
+      "community-forest-exclusive": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.3",
+          "quote": "must give to its holder the exclusive right to harvest timber on the Crown land referred to in paragraph (b), for the term of the agreement, and"
+        }
+      ],
+      "community-forest-exclusive#bcts-release": [
+        {
+          "source": "bc.forest-act",
+          "provision": "22.2",
+          "quote": "is subject to the right to harvest Crown timber under a BCTS licence if"
+        }
+      ],
+      "community-forest-exclusive#reserved-timber": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.3",
+          "quote": "may require that a specified amount of timber on Crown land within the community forest agreement area is to be reserved and available for disposition, to persons other than the holder of the community forest agreement, under"
+        }
+      ],
+      "community-forest-exclusive#bcts-reduction": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.3",
+          "quote": "may require that the amount of timber on Crown land within the community forest agreement area that is available to the holder of the community forest agreement be reduced by a specified amount of timber for a specified period of time"
+        }
+      ],
+      "community-forest-exclusive#other-provision": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.3",
+          "quote": "subject to this Act and the agreement,"
+        }
+      ],
+      "tfl-exclusive": [
+        {
+          "source": "bc.forest-act",
+          "provision": "35",
+          "quote": "subject to this Act and the licence, must grant to its holder the exclusive right to harvest from the tree farm licence area during the term of the tree farm licence one or both of the following:"
+        }
+      ],
+      "tfl-exclusive#bcts-release": [
+        {
+          "source": "bc.forest-act",
+          "provision": "22.2",
+          "quote": "is subject to the right to harvest Crown timber under a BCTS licence if"
+        }
+      ],
+      "tfl-exclusive#other-provision": [
+        {
+          "source": "bc.forest-act",
+          "provision": "35",
+          "quote": "subject to this Act and the licence, must grant to its holder the exclusive right to harvest"
+        }
+      ],
+      "fnwl-exclusive": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.55",
+          "quote": "must give to its holder the exclusive right to harvest timber on the Crown land referred to in paragraph (b), for the term of the agreement, and"
+        }
+      ],
+      "fnwl-exclusive#bcts-release": [
+        {
+          "source": "bc.forest-act",
+          "provision": "22.2",
+          "quote": "is subject to the right to harvest Crown timber under a BCTS licence if"
+        }
+      ],
+      "fnwl-exclusive#other-provision": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.55",
+          "quote": "subject to this Act and the licence,"
+        }
       ]
     },
     "bc.private-managed-forest": {
@@ -2955,6 +3081,643 @@
           "source": "bc.mines-act",
           "provision": "10",
           "quote": "may exempt a person from the requirement under subsection (1) to hold a permit if"
+        }
+      ]
+    },
+    "bc.woodlot-practices": {
+      "avoid-area": [
+        {
+          "source": "bc.wlppr",
+          "provision": "53",
+          "quote": "must not harvest timber in areas identified under section 8 (3) [mapping and information] as areas where harvesting will be avoided during the term of the woodlot licence plan"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "8",
+          "quote": "describe in the holder's woodlot licence plan areas where timber harvesting will be avoided or modified during the term of the plan"
+        }
+      ],
+      "avoid-area#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "modified-area": [
+        {
+          "source": "bc.wlppr",
+          "provision": "53",
+          "quote": "must harvest timber in areas described in section 8 (3) as areas where harvesting will be modified during the term of the woodlot licence plan in accordance with the modifications described in the plan"
+        }
+      ],
+      "modified-area#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "soil-disturbance": [
+        {
+          "source": "bc.wlppr",
+          "provision": "24",
+          "quote": "must not cause the amount of soil disturbance on the net area to be reforested to exceed"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "24",
+          "quote": "8%, if there is no amount specified in paragraph (a)"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "13",
+          "quote": "an amount of soil disturbance for the purposes of section 24 (1) (a)"
+        }
+      ],
+      "soil-disturbance#salvage": [
+        {
+          "source": "bc.wlppr",
+          "provision": "24",
+          "quote": "the holder is removing infected stumps or salvaging windthrow, and"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "24",
+          "quote": "the additional disturbance is the minimum necessary"
+        }
+      ],
+      "soil-disturbance#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "access-cutblock": [
+        {
+          "source": "bc.wlppr",
+          "provision": "25",
+          "quote": "the maximum amount of the total area within a cutblock that is 5 ha or greater in size that is occupied by permanent access structures is"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "25",
+          "quote": "the maximum amount of the total area within a cutblock that is less than 5 ha in size that is occupied by permanent access structures is"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "25",
+          "quote": "10%, if there is no amount specified in paragraph (a)"
+        }
+      ],
+      "access-cutblock#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "access-licence-area": [
+        {
+          "source": "bc.wlppr",
+          "provision": "25",
+          "quote": "Without limiting subsections (1) and (2), a woodlot licence holder must ensure that the maximum amount of the woodlot licence area that is occupied by permanent access structures is"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "13",
+          "quote": "an area for occupation by permanent access structures for the purposes of sections 25 (1) (a), (2) (a) or (3) (a)"
+        }
+      ],
+      "access-licence-area#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "riparian-widths": [
+        {
+          "source": "bc.wlppr",
+          "provision": "36",
+          "quote": "if widths are not specified in a woodlot licence plan, as follows:"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "37",
+          "quote": "if no widths are specified in a woodlot licence plan, as follows:"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "38",
+          "quote": "if no widths are specified in a woodlot licence plan, as follows:"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "A reference to distance in respect to riparian management zones and riparian reserve zones, and in Division 4 [Watersheds] of Part 3 [Practice requirements], is a reference to the slope distance."
+        }
+      ],
+      "riparian-widths#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "riparian-widths-plan": [
+        {
+          "source": "bc.wlppr",
+          "provision": "36",
+          "quote": "as specified in the holder's woodlot licence plan, or"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "13",
+          "quote": "the minimum riparian management area width, riparian reserve zone width and riparian management zone width for the purposes of one or more of section 36 (4) (a), 37 (3) (a) or 38 (2) (a)"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "8",
+          "quote": "If a stream, wetland or lake was not identified or was incorrectly classified in subsection (1) (c), the riparian reserve zone and riparian management area have widths as determined under Division 3"
+        }
+      ],
+      "riparian-widths-plan#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "reserve-zone-trees": [
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "must not cut, modify or remove trees in a riparian reserve zone, unless it has been specified in a woodlot licence plan or it is limited to one of the following purposes:"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "may remove the tree only if the removal will not have a material adverse affect on the riparian reserve zone"
+        }
+      ],
+      "reserve-zone-trees#plan": [
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "unless it has been specified in a woodlot licence plan"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "13",
+          "quote": "the circumstances in which cutting, modification or removal of trees may occur in a riparian reserve zone for the purposes of section 39 (1)"
+        }
+      ],
+      "reserve-zone-trees#safety": [
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "felling or modifying a tree that is a safety hazard, if there is no other practicable option for addressing the safety hazard"
+        }
+      ],
+      "reserve-zone-trees#windfirm": [
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "topping or pruning a tree that is not wind firm"
+        }
+      ],
+      "reserve-zone-trees#crossing-yarding": [
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "constructing a stream crossing"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "creating a corridor for full suspension yarding"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "creating guyline tiebacks"
+        }
+      ],
+      "reserve-zone-trees#damaged": [
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "carrying out a sanitation treatment"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "felling or modifying a tree that has been windthrown or has been damaged by fire, insects, disease or other causes, if the felling or modifying will not have a material adverse impact on the riparian reserve zone"
+        }
+      ],
+      "reserve-zone-trees#recreation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "felling or modifying a tree for the purpose of establishing or maintaining an interpretive forest site, recreation site, recreation facility, recreation trail or trail-based recreation area"
+        }
+      ],
+      "reserve-zone-trees#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "reserve-zone-road": [
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "must not construct a road in a riparian reserve zone in a cutblock unless the construction has been specified in a woodlot licence plan"
+        }
+      ],
+      "reserve-zone-road#plan": [
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "unless the construction has been specified in a woodlot licence plan"
+        }
+      ],
+      "reserve-zone-road#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "reserve-zone-treatments": [
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "must not carry out the following silviculture treatments in a riparian reserve zone:"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "39",
+          "quote": "mechanized site preparation or broadcast burning for the purpose of site preparation"
+        }
+      ],
+      "reserve-zone-treatments#minister-exempts": [
+        {
+          "source": "bc.wlppr",
+          "provision": "78",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt a woodlot licence holder from"
+        }
+      ],
+      "reserve-zone-treatments#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "management-zone-road": [
+        {
+          "source": "bc.wlppr",
+          "provision": "40",
+          "quote": "must not construct a road in a riparian management zone in a cutblock, unless one of the following applies:"
+        }
+      ],
+      "management-zone-road#plan": [
+        {
+          "source": "bc.wlppr",
+          "provision": "40",
+          "quote": "the construction of the road is provided for in the woodlot licence plan"
+        }
+      ],
+      "management-zone-road#more-sediment": [
+        {
+          "source": "bc.wlppr",
+          "provision": "40",
+          "quote": "locating the road outside the riparian management zone would create a higher risk of sediment delivery to the stream, wetland or lake to which the riparian management zone applies"
+        }
+      ],
+      "management-zone-road#no-option": [
+        {
+          "source": "bc.wlppr",
+          "provision": "40",
+          "quote": "there is no other practicable option for locating the road"
+        }
+      ],
+      "management-zone-road#crossing": [
+        {
+          "source": "bc.wlppr",
+          "provision": "40",
+          "quote": "the road is required as part of a stream crossing"
+        }
+      ],
+      "management-zone-road#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "management-zone-trees": [
+        {
+          "source": "bc.wlppr",
+          "provision": "40",
+          "quote": "must cut, modify or remove trees within a riparian management zone only as described in section 8 (3) [mapping and information]"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "8",
+          "quote": "to manage resource values including specifying retention of trees in riparian management zones"
+        }
+      ],
+      "management-zone-trees#minister-exempts": [
+        {
+          "source": "bc.wlppr",
+          "provision": "78",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt a woodlot licence holder from"
+        }
+      ],
+      "management-zone-trees#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "bank-stability": [
+        {
+          "source": "bc.wlppr",
+          "provision": "40",
+          "quote": "must retain enough trees adjacent to the stream to maintain the stream bank or channel stability, if the stream"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "40",
+          "quote": "is a direct tributary to an S1, S2 or S3 stream,"
+        }
+      ],
+      "bank-stability#minister-exempts": [
+        {
+          "source": "bc.wlppr",
+          "provision": "78",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt a woodlot licence holder from"
+        }
+      ],
+      "bank-stability#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "fish-passage": [
+        {
+          "source": "bc.wlppr",
+          "provision": "44",
+          "quote": "must ensure that the primary forest activity does not have a material adverse effect on fish passage in a fish stream"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "44",
+          "quote": "who maintains a fish stream crossing built after June 15, 1995, must ensure that the crossing does not have a material adverse effect on fish passage"
+        }
+      ],
+      "fish-passage#temporary": [
+        {
+          "source": "bc.wlppr",
+          "provision": "44",
+          "quote": "may temporarily have a material adverse effect on fish passage to construct, maintain or deactivate a road, including a stream crossing, if"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "44",
+          "quote": "fish are not migrating or spawning, and"
+        }
+      ],
+      "fish-passage#minister-exempts": [
+        {
+          "source": "bc.wlppr",
+          "provision": "78",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt a woodlot licence holder from"
+        }
+      ],
+      "fish-passage#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "waterworks": [
+        {
+          "source": "bc.wlppr",
+          "provision": "48",
+          "quote": "must ensure that the primary forest activity does not damage a licensed waterworks"
+        }
+      ],
+      "waterworks#minister-exempts": [
+        {
+          "source": "bc.wlppr",
+          "provision": "78",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt a woodlot licence holder from"
+        }
+      ],
+      "waterworks#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "intake-upslope": [
+        {
+          "source": "bc.wlppr",
+          "provision": "48",
+          "quote": "must not harvest timber or construct a road within a community watershed if the timber harvesting or road construction is within a 100 m radius upslope of a licensed waterworks where the water is diverted for human consumption"
+        }
+      ],
+      "intake-upslope#no-more-sediment": [
+        {
+          "source": "bc.wlppr",
+          "provision": "48",
+          "quote": "unless the timber harvesting or road construction will not increase sediment delivery to the intake"
+        }
+      ],
+      "intake-upslope#minister-exempts": [
+        {
+          "source": "bc.wlppr",
+          "provision": "78",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt a woodlot licence holder from"
+        }
+      ],
+      "intake-upslope#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "spring-road": [
+        {
+          "source": "bc.wlppr",
+          "provision": "50",
+          "quote": "specify a distance from the spring within which a person who constructs a road must not locate the road"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "50",
+          "quote": "must not locate the road closer than a 100 m radius upslope of the spring identified under subsection (1) (a)"
+        }
+      ],
+      "spring-road#no-interference": [
+        {
+          "source": "bc.wlppr",
+          "provision": "50",
+          "quote": "unless the construction does not interfere with the subsurface flow path of a drainage area that contributes to the spring"
+        }
+      ],
+      "spring-road#minister-permits": [
+        {
+          "source": "bc.wlppr",
+          "provision": "50",
+          "quote": "permit a person who constructs a road to locate the road closer to the spring than the distance specified under paragraph (b)"
+        }
+      ],
+      "spring-road#minister-exempts": [
+        {
+          "source": "bc.wlppr",
+          "provision": "78",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt a woodlot licence holder from"
+        }
+      ],
+      "spring-road#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "wildlife-tree-area": [
+        {
+          "source": "bc.wlppr",
+          "provision": "52",
+          "quote": "must ensure that the proportion of the woodlot licence area that is occupied by wildlife tree retention areas is no less than the least of the following:"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "52",
+          "quote": "8% of the woodlot licence area."
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "13",
+          "quote": "the proportion of the woodlot licence area that may consist of wildlife tree retention areas for the purposes of section 52 (1) (b)"
+        }
+      ],
+      "wildlife-tree-area#minister-exempts": [
+        {
+          "source": "bc.wlppr",
+          "provision": "78",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt a woodlot licence holder from"
+        }
+      ],
+      "wildlife-tree-area#private-pre-1995": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "the following sections do not apply to private land in a woodlot licence area that is subject to a woodlot licence issued before June 15, 1995"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "contains commitments respecting the subject matter described in subsection (5), the provision of this regulation that applies to that subject matter applies to the private land"
+        }
+      ],
+      "wildlife-tree-area#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "wildlife-trees": [
+        {
+          "source": "bc.wlppr",
+          "provision": "52",
+          "quote": "must not cut, damage or remove wildlife trees or trees within a wildlife tree retention area except in accordance with the wildlife tree retention strategy prepared under section 11"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "11",
+          "quote": "the conditions under which trees may be removed from within a wildlife tree retention area, and"
+        }
+      ],
+      "wildlife-trees#minister-exempts": [
+        {
+          "source": "bc.wlppr",
+          "provision": "78",
+          "quote": "If the minister is satisfied that it is not practicable, given the circumstances or conditions applicable to a particular area, the minister may exempt a woodlot licence holder from"
+        }
+      ],
+      "wildlife-trees#private-pre-1995": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "the following sections do not apply to private land in a woodlot licence area that is subject to a woodlot licence issued before June 15, 1995"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "contains commitments respecting the subject matter described in subsection (5), the provision of this regulation that applies to that subject matter applies to the private land"
+        }
+      ],
+      "wildlife-trees#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
+        }
+      ],
+      "general-wildlife-measure": [
+        {
+          "source": "bc.wlppr",
+          "provision": "55",
+          "quote": "if a general wildlife measure is established for a woodlot licence area, a woodlot licence holder who carries out primary forest activities in the area must comply with each general wildlife measure that applies to the area"
+        }
+      ],
+      "general-wildlife-measure#wildlife-minister": [
+        {
+          "source": "bc.wlppr",
+          "provision": "79",
+          "quote": "The minister responsible for the Wildlife Act may exempt a person from section 55 of this regulation in relation to a general wildlife measure"
+        }
+      ],
+      "general-wildlife-measure#earlier-permit": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "do not apply to any forest practice carried out on an area that is subject to a cutting permit or road permit that was in effect on the date the feature, objective, site, trail or measure under that Division or section was identified or established"
+        }
+      ],
+      "general-wildlife-measure#private-pre-1995": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "the following sections do not apply to private land in a woodlot licence area that is subject to a woodlot licence issued before June 15, 1995"
+        },
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "contains commitments respecting the subject matter described in subsection (5), the provision of this regulation that applies to that subject matter applies to the private land"
+        }
+      ],
+      "general-wildlife-measure#workers-compensation": [
+        {
+          "source": "bc.wlppr",
+          "provision": "2",
+          "quote": "as necessary to allow the person to conform to the Workers Compensation Act and the regulations under that Act"
         }
       ]
     }

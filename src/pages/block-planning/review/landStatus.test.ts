@@ -42,7 +42,7 @@ const asked = (answers: Answers) => {
 
 describe('land status', () => {
   it('is reviewed for every block, first', () => {
-    expect(profile.blockReleases[0]).toBe('bc.land-status@1.0.0')
+    expect(profile.blockReleases[0]).toBe('bc.land-status@1.1.0')
   })
 
   it('asks what land the block is on before anything else', () => {
@@ -83,9 +83,56 @@ describe('land status', () => {
       'frpa-reach',
       'woodlot-wlppr',
     ])
+    // Someone else harvesting a woodlot's Crown land meets the holder's exclusive right instead (Forest Act §45(1)(c)).
     expect(raised({ land: CROWN, 'licence-area': 'A woodlot licence', 'woodlot-holder': false })).toEqual([
       'frpa-reach',
+      'woodlot-exclusive',
     ])
+  })
+
+  it('raises a harvest by anyone but the holder on an area-based licence’s ground, with the exceptions the Act makes', () => {
+    const cfa = { land: CROWN, 'licence-area': 'A community forest agreement' }
+    // The holder's own harvest is not asked about again; someone else's is raised.
+    expect(asked(cfa)).toEqual(['area-holder-harvests'])
+    expect(raised({ ...cfa, 'area-holder-harvests': true })).toEqual(['frpa-reach'])
+    expect(raised({ ...cfa, 'area-holder-harvests': false })).toEqual(['community-forest-exclusive', 'frpa-reach'])
+    const rule = (id: string) => pack.rules.find((r) => r.id === id)!
+    expect(rule('community-forest-exclusive').provision).toBe('43.3(1)(c)(i)')
+    expect(rule('community-forest-exclusive').exceptions?.map((x) => x.id)).toEqual([
+      'bcts-release',
+      'reserved-timber',
+      'bcts-reduction',
+      'other-provision',
+    ])
+    expect(rule('woodlot-exclusive').exceptions?.map((x) => [x.id, x.provision])).toEqual([
+      ['bcts-release', '22.2(5)'],
+      ['bcts-reduction', '45(1)(f.2)'],
+      ['other-provision', '45(1)(c)'],
+    ])
+    // Who granted another licence decides under which provision: a decision, never assumed.
+    expect(rule('woodlot-exclusive').exceptions?.find((x) => x.id === 'other-provision')?.kind).toBe('decision')
+    expect(raised({ land: CROWN, 'licence-area': 'A tree farm licence', 'area-holder-harvests': false })).toEqual([
+      'frpa-reach',
+      'tfl-exclusive',
+    ])
+    expect(
+      raised({ land: CROWN, 'licence-area': 'A First Nations woodland licence', 'area-holder-harvests': false }),
+    ).toEqual(['fnwl-exclusive', 'frpa-reach'])
+    // A TFL's exclusive right is over its whole area, its private land included.
+    expect(raised({ land: PRIVATE, 'licence-area': 'A tree farm licence', 'area-holder-harvests': false })).toContain(
+      'tfl-exclusive',
+    )
+    // Outside an area-based licence nothing is asked about a holder.
+    expect(asked({ land: CROWN, 'licence-area': NONE })).not.toContain('area-holder-harvests')
+    for (const r of pack.rules)
+      for (const f of [r.finding, ...r.actions.map((a) => a.description)]) expect(f).not.toMatch(/compl/i)
+  })
+
+  it('reads land a Crown agency owns as private land, as the Forest Act defines Crown land', () => {
+    expect(pack.version).toBe('1.1.0')
+    expect(pack.facts.find((f) => f.id === 'land')?.label).toMatch(
+      /not including land owned by an agent of the government/,
+    )
   })
 
   it('sends private managed forest land to the PMFLA, and only outside the three licence areas', () => {

@@ -1,12 +1,12 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.omineca.old-growth",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "title": "Omineca old growth and sensitive area orders",
-  "description": "Block screens for the legal old growth management areas and sensitive areas set by Omineca land use orders (Dome and Slim, Humbug, the 2010 Mackenzie spatial order, the Ancient Forest Trail), the Mugaha Marsh sensitive area, the Obo River and Fox landscape units, and the Prince George candidate old forest areas the district managers expect to be left unharvested.",
+  "description": "Block screens for the legal old growth management areas and sensitive areas set by Omineca land use orders (Dome and Slim, Humbug, the 2010 Mackenzie spatial order, the Ancient Forest Trail, and any other order, whose own text this release does not hold), the Mugaha Marsh sensitive area, the Obo River and Fox landscape units, and the Prince George candidate old forest areas the district managers expect to be left unharvested.",
   "coverage": {
     "from": "2026-11-17",
-    "through": "2026-11-17"
+    "through": "2026-11-27"
   },
   "facts": [
     {
@@ -137,7 +137,8 @@
     "sources/bc/ancient-forest-order.json",
     "sources/bc/mugaha-marsh-order.json",
     "sources/bc/obo-fox-order.json",
-    "sources/bc/pgtsa-loe.json"
+    "sources/bc/pgtsa-loe.json",
+    "sources/bc/land-act.json"
   ],
   "ruleFiles": [
     "rules/bc/omineca/old-growth.json"

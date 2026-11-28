@@ -1,0 +1,437 @@
+{
+  "format": "pgmaps-legal-pack/v1",
+  "id": "bc.omineca.visual-quality",
+  "version": "1.0.0",
+  "title": "Visual quality objectives (Prince George and Fort St. James)",
+  "description": "Scenic areas and visual quality objectives set under the Government Actions Regulation for the Prince George and Fort St. James districts, and scenic areas made known without one. The perspective-view ranges are the 2013 guide's, the scale the visual quality page measures on; the legal test is the category's own definition in FPPR s. 1.1.",
+  "coverage": {
+    "from": "2026-11-17",
+    "through": "2026-11-17"
+  },
+  "facts": [
+    {
+      "id": "vqo",
+      "label": "What visual quality objective is established for the scenic area the block is seen in?",
+      "type": "choice",
+      "choices": [
+        "None established",
+        "Preservation",
+        "Retention",
+        "Partial retention",
+        "Modification",
+        "Maximum modification"
+      ]
+    },
+    {
+      "id": "vqo-order",
+      "label": "Which order established the visual quality objective where the block is seen?",
+      "type": "choice",
+      "choices": [
+        "Prince George District order (2005)",
+        "Prince George, Bobtail Lake polygons 959 to 962 (2006 variance)",
+        "Fort St. James District order (2005)",
+        "Another order, such as a tree farm licence management plan"
+      ]
+    },
+    {
+      "id": "scenic-no-vqo",
+      "label": "Is the block in a scenic area made known but without an established visual quality objective?",
+      "type": "boolean"
+    },
+    {
+      "id": "perspective",
+      "label": "Alteration seen in perspective view from the significant viewpoint, as measured",
+      "type": "number",
+      "unit": "%",
+      "min": 0,
+      "max": 100
+    }
+  ],
+  "parameters": [
+    {
+      "id": "preservation",
+      "value": 0,
+      "unit": "%"
+    },
+    {
+      "id": "retention",
+      "value": 1.5,
+      "unit": "%"
+    },
+    {
+      "id": "partial-retention",
+      "value": 7,
+      "unit": "%"
+    },
+    {
+      "id": "modification",
+      "value": 18,
+      "unit": "%"
+    },
+    {
+      "id": "maximum-modification",
+      "value": 30,
+      "unit": "%"
+    }
+  ],
+  "sources": [
+    {
+      "id": "gar",
+      "title": "Government Actions Regulation, BC Reg 582/2004",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/582_2004",
+      "asOf": "2026-11-17"
+    },
+    {
+      "id": "instrument",
+      "title": "BC Forest Planning and Practices Regulation",
+      "url": "https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004",
+      "asOf": "2026-11-17"
+    },
+    {
+      "id": "pg-vqo",
+      "title": "Prince George District visual quality objectives order, 2005",
+      "url": "https://www2.gov.bc.ca/assets/gov/environment/natural-resource-policy-legislation/legislation-regulation/gar-ministerial-orders/dpg_vqo.pdf",
+      "asOf": "2026-11-27"
+    },
+    {
+      "id": "pg-bobtail-vqo",
+      "title": "Bobtail Lake visual quality objective variance, Prince George District, 2006",
+      "url": "https://www2.gov.bc.ca/assets/gov/environment/natural-resource-policy-legislation/legislation-regulation/gar-ministerial-orders/dpg_vqo_bobtail.pdf",
+      "asOf": "2026-11-27"
+    },
+    {
+      "id": "fsj-vqo",
+      "title": "Fort St. James District visual quality objective order, 2005",
+      "url": "https://www2.gov.bc.ca/assets/gov/environment/natural-resource-policy-legislation/legislation-regulation/gar-ministerial-orders/signed20vqo20order.pdf",
+      "asOf": "2026-11-27"
+    }
+  ],
+  "rules": [
+    {
+      "id": "vqo-established",
+      "title": "Established visual quality objective",
+      "source": "gar",
+      "provision": "7(2)",
+      "when": [
+        [
+          {
+            "fact": "vqo",
+            "op": "in",
+            "value": [
+              "Preservation",
+              "Retention",
+              "Partial retention",
+              "Modification",
+              "Maximum modification"
+            ]
+          }
+        ]
+      ],
+      "finding": "A visual quality objective established under GAR s. 7(2) applies to the scenic area. The forest stewardship plan must state results or strategies consistent with it, and the holder must achieve them.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Assess the block from the scenic area's significant viewpoints on the visual quality page, and record the FSP result or strategy that applies."
+        }
+      ]
+    },
+    {
+      "id": "pg-vqo",
+      "title": "Prince George District VQO order",
+      "source": "pg-vqo",
+      "provision": "Para 1–2",
+      "scope": [
+        [
+          {
+            "fact": "vqo-order",
+            "op": "eq",
+            "value": "Prince George District order (2005)"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "vqo",
+            "op": "in",
+            "value": [
+              "Preservation",
+              "Retention",
+              "Partial retention",
+              "Modification",
+              "Maximum modification"
+            ]
+          }
+        ]
+      ],
+      "finding": "The 2005 order establishes the objective as its map shows, for the scenic areas established on 6 December 2005.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Read the objective off the order’s map for the polygon the block is seen in, and check the polygon against the visual landscape inventory layer. Bobtail Lake polygons 959 to 962 were varied in 2006."
+        }
+      ]
+    },
+    {
+      "id": "bobtail-vqo",
+      "title": "Bobtail Lake variance",
+      "source": "pg-bobtail-vqo",
+      "provision": "Variance",
+      "scope": [
+        [
+          {
+            "fact": "vqo-order",
+            "op": "eq",
+            "value": "Prince George, Bobtail Lake polygons 959 to 962 (2006 variance)"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "vqo",
+            "op": "in",
+            "value": [
+              "None established",
+              "Preservation",
+              "Retention",
+              "Partial retention",
+              "Maximum modification"
+            ]
+          }
+        ]
+      ],
+      "finding": "The 2006 order varied Bobtail Lake polygons 959 to 962 from partial retention to modification, so the objective there is modification, not the one entered.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Assess the block against modification, and correct the objective recorded for the polygon."
+        }
+      ]
+    },
+    {
+      "id": "fsj-vqo",
+      "title": "Fort St. James District VQO order",
+      "source": "fsj-vqo",
+      "provision": "Para 1–2",
+      "scope": [
+        [
+          {
+            "fact": "vqo-order",
+            "op": "eq",
+            "value": "Fort St. James District order (2005)"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "vqo",
+            "op": "in",
+            "value": [
+              "Preservation",
+              "Retention",
+              "Partial retention",
+              "Modification",
+              "Maximum modification"
+            ]
+          }
+        ]
+      ],
+      "finding": "The 2005 order establishes the objective as its map shows, for the scenic areas of the Fort St. James timber supply area carried forward and designated under GAR s. 7(1).",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Read the objective off the order’s map for the polygon the block is seen in, and check the polygon against the visual landscape inventory layer."
+        }
+      ]
+    },
+    {
+      "id": "scenic-made-known",
+      "title": "Scenic area without an objective",
+      "source": "instrument",
+      "provision": "9.2",
+      "when": [
+        [
+          {
+            "fact": "scenic-no-vqo",
+            "op": "eq",
+            "value": true
+          }
+        ]
+      ],
+      "finding": "In a scenic area made known without an established objective, FPPR s. 9.2 sets the objective by the visual sensitivity class of the area.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Read the visual landscape inventory's sensitivity class for the polygon and assess the block against the category it gives."
+        }
+      ]
+    },
+    {
+      "id": "over-preservation",
+      "title": "Alteration above the Preservation range",
+      "source": "instrument",
+      "provision": "1.1(a)",
+      "scope": [
+        [
+          {
+            "fact": "vqo",
+            "op": "eq",
+            "value": "Preservation"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "perspective",
+            "op": "gt",
+            "value": {
+              "parameter": "preservation"
+            }
+          }
+        ]
+      ],
+      "finding": "The measured perspective-view alteration is above the 2013 guide's range for preservation. FPPR s. 1.1 defines the category by how the altered landscape looks from a significant public viewpoint; the figure is evidence for that judgement, not the test itself.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Run or review the visual impact assessment for the block from the significant viewpoints and redesign it, or record why the landscape still meets the category."
+        }
+      ]
+    },
+    {
+      "id": "over-retention",
+      "title": "Alteration above the Retention range",
+      "source": "instrument",
+      "provision": "1.1(b)",
+      "scope": [
+        [
+          {
+            "fact": "vqo",
+            "op": "eq",
+            "value": "Retention"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "perspective",
+            "op": "gt",
+            "value": {
+              "parameter": "retention"
+            }
+          }
+        ]
+      ],
+      "finding": "The measured perspective-view alteration is above the 2013 guide's range for retention. FPPR s. 1.1 defines the category by how the altered landscape looks from a significant public viewpoint; the figure is evidence for that judgement, not the test itself.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Run or review the visual impact assessment for the block from the significant viewpoints and redesign it, or record why the landscape still meets the category."
+        }
+      ]
+    },
+    {
+      "id": "over-partial-retention",
+      "title": "Alteration above the Partial retention range",
+      "source": "instrument",
+      "provision": "1.1(c)",
+      "scope": [
+        [
+          {
+            "fact": "vqo",
+            "op": "eq",
+            "value": "Partial retention"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "perspective",
+            "op": "gt",
+            "value": {
+              "parameter": "partial-retention"
+            }
+          }
+        ]
+      ],
+      "finding": "The measured perspective-view alteration is above the 2013 guide's range for partial retention. FPPR s. 1.1 defines the category by how the altered landscape looks from a significant public viewpoint; the figure is evidence for that judgement, not the test itself.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Run or review the visual impact assessment for the block from the significant viewpoints and redesign it, or record why the landscape still meets the category."
+        }
+      ]
+    },
+    {
+      "id": "over-modification",
+      "title": "Alteration above the Modification range",
+      "source": "instrument",
+      "provision": "1.1(d)",
+      "scope": [
+        [
+          {
+            "fact": "vqo",
+            "op": "eq",
+            "value": "Modification"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "perspective",
+            "op": "gt",
+            "value": {
+              "parameter": "modification"
+            }
+          }
+        ]
+      ],
+      "finding": "The measured perspective-view alteration is above the 2013 guide's range for modification. FPPR s. 1.1 defines the category by how the altered landscape looks from a significant public viewpoint; the figure is evidence for that judgement, not the test itself.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Run or review the visual impact assessment for the block from the significant viewpoints and redesign it, or record why the landscape still meets the category."
+        }
+      ]
+    },
+    {
+      "id": "over-maximum-modification",
+      "title": "Alteration above the Maximum modification range",
+      "source": "instrument",
+      "provision": "1.1(e)",
+      "scope": [
+        [
+          {
+            "fact": "vqo",
+            "op": "eq",
+            "value": "Maximum modification"
+          }
+        ]
+      ],
+      "when": [
+        [
+          {
+            "fact": "perspective",
+            "op": "gt",
+            "value": {
+              "parameter": "maximum-modification"
+            }
+          }
+        ]
+      ],
+      "finding": "The measured perspective-view alteration is above the 2013 guide's range for maximum modification. FPPR s. 1.1 defines the category by how the altered landscape looks from a significant public viewpoint; the figure is evidence for that judgement, not the test itself.",
+      "actions": [
+        {
+          "kind": "review",
+          "description": "Run or review the visual impact assessment for the block from the significant viewpoints and redesign it, or record why the landscape still meets the category."
+        }
+      ]
+    }
+  ]
+}

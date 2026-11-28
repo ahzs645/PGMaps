@@ -4,7 +4,7 @@ import { shapeSignature } from '../records'
 import { mappedCurrent } from './grazingEvidence'
 
 export const RANGE_INSTRUMENT = 'bc.crown-grazing'
-export const RANGE_RELEASE = `${RANGE_INSTRUMENT}@1.2.0`
+export const RANGE_RELEASE = `${RANGE_INSTRUMENT}@1.3.0`
 
 const sameFootprint = (a: RangeReview, b: RangeReview) =>
   a.shape === b.shape && a.footprint === b.footprint && a.harvestYear === b.harvestYear

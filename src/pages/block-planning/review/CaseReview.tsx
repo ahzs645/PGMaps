@@ -21,7 +21,8 @@ import type { ReviewCase } from '../plan'
 import { chooseRelease, instrumentOf, setClaim } from './caseEdits'
 import { ExceptionClaim, STANDING_TONE } from './ExceptionClaim'
 import { recordLinkedAnswer, setLinkedFact, sharedQuestion, type SharedQuestion } from './linkedFacts'
-import { findingCounts, questions, type Finding, type Question } from './questions'
+import { dateGaps, dateGapText, findingCounts, questions, type Finding, type Question } from './questions'
+import type { ExceptionSignal } from './tenureSignals'
 import { topicSections } from './topics'
 import { describeCheck, formatValue, STANDING_WORDS, STATUS_WORDS, type Status } from './wording'
 
@@ -38,7 +39,7 @@ const STATUS_TONE: Record<Status, BadgeTone> = {
   missing_evidence: 'info',
   condition_not_triggered: 'neutral',
   outside_scope: 'neutral',
-  outside_source_window: 'neutral',
+  outside_source_window: 'warning',
 }
 
 function Answer({
@@ -193,12 +194,14 @@ function FindingRow({
   finding,
   facts,
   date,
+  signals,
   onClaim,
 }: {
   pack: Pack
   finding: Finding
   facts: FactSet
   date: string
+  signals?: ExceptionSignal[]
   onClaim: (claim: Claim | undefined) => void
 }) {
   const exception = 'exception' in finding ? finding.exception : undefined
@@ -251,7 +254,7 @@ function FindingRow({
             <span className="font-medium">{ACTION_KIND[a.kind]}:</span> {a.description}
           </p>
         ))}
-      <ExceptionClaim pack={pack} rule={rule} finding={finding} onChange={onClaim} />
+      <ExceptionClaim pack={pack} rule={rule} finding={finding} signals={signals} onChange={onClaim} />
       {stages.map(([heading, stage]) => (
         <div key={heading} className="space-y-1">
           <p className="font-medium">{heading}</p>
@@ -302,6 +305,8 @@ export interface CaseReviewProps {
   hints?: Partial<Record<string, ReactNode>>
   /** What the questions shared by several provisions are grouped under: "Whole block", "Whole landscape". */
   caseLabel?: string
+  /** Public records bearing on an exception, offered beside it (`tenureSignals.ts`); never an answer. */
+  signals?: ExceptionSignal[]
   testId?: string
 }
 
@@ -318,6 +323,7 @@ export function CaseReview({
   measurements,
   hints = {},
   caseLabel,
+  signals,
   testId,
 }: CaseReviewProps) {
   const packs = library.filter((p) => instruments.includes(p.id) && review.selected.includes(releaseKey(p)))
@@ -340,6 +346,8 @@ export function CaseReview({
   } catch (e) {
     problem = e instanceof Error ? e.message : 'The review could not be evaluated.'
   }
+  // A release that does not cover the date assessed none of its rules: said plainly, never as "does not apply".
+  const gaps = report ? dateGaps(review.date, report.releases) : []
   // Every release's questions first, so a question two instruments ask is asked under one of them.
   const askedBy = new Map(
     (report?.releases ?? []).map((release) => {
@@ -432,9 +440,22 @@ export function CaseReview({
         .
       </p>
       {problem && <InlineAlert tone="error">{problem}</InlineAlert>}
+      {gaps.length > 0 && (
+        <InlineAlert tone="warning" title="Not assessed on this date">
+          <span data-testid="review-date-gaps">
+            {gaps.length === 1 ? 'One release does not' : `${gaps.length} releases do not`} cover the legal assessment
+            date {review.date}:{' '}
+            {gaps
+              .map((g) => `${g.pack.title} ${g.pack.version} (${g.pack.coverage.from} to ${g.pack.coverage.through})`)
+              .join('; ')}
+            . Their rules were not assessed, which is not the same as not applying.
+          </span>
+        </InlineAlert>
+      )}
       {report?.releases.map((release) => {
         const asked = askedBy.get(releaseKey(release.pack))!
         const counts = findingCounts(release.findings)
+        const gap = gaps.find((g) => g.pack === release.pack)
         const value = (fact: Fact) => release.facts.facts.find((f) => f.id === fact.id)?.value ?? null
         const sections = topicSections(release.pack, asked, release.findings, caseLabel)
         const answers = Object.fromEntries(release.facts.facts.map((f) => [f.id, f.value]))
@@ -450,8 +471,14 @@ export function CaseReview({
                 · {counts.review} need review
                 {counts.exception ? ` (${counts.exception} relying on an exception)` : ''} · {counts.open} need an
                 answer · {counts.clear} not triggered · {counts.notApplicable} do not apply
+                {counts.outsideDates ? ` · ${counts.outsideDates} not assessed on this date` : ''}
               </span>
             </p>
+            {gap && (
+              <InlineAlert tone="warning">
+                <span data-testid="release-date-gap">{dateGapText(gap)}</span>
+              </InlineAlert>
+            )}
             {!asked.some((q) => waiting(release.pack, q)) && (
               <p className="text-xs text-muted-foreground">No rule is waiting on an answer.</p>
             )}
@@ -460,7 +487,9 @@ export function CaseReview({
               const rest = asks.filter((q) => !open.includes(q))
               const active = findings.filter((f) => f.status === 'review_required' || f.status === 'missing_evidence')
               const reviewing = findings.filter((f) => f.status === 'review_required').length
-              const settled = findings.filter((f) => !active.includes(f))
+              // Not assessed on this date: listed in the open, never folded among the settled rules.
+              const unassessed = findings.filter((f) => f.status === 'outside_source_window')
+              const settled = findings.filter((f) => !active.includes(f) && f.status !== 'outside_source_window')
               // A question asked under another instrument, and not yet answered there, is not answered here.
               const askedElsewhere = rest.filter((q) => {
                 const shared = q.state === 'open' ? linked(release.pack, q) : null
@@ -470,6 +499,7 @@ export function CaseReview({
                 [
                   open.length ? `${open.length} to answer` : '',
                   reviewing ? `${reviewing} need${reviewing === 1 ? 's' : ''} review` : '',
+                  unassessed.length ? `${unassessed.length} not assessed on this date` : '',
                 ]
                   .filter(Boolean)
                   .join(' · ') ||
@@ -522,6 +552,17 @@ export function CaseReview({
                     ),
                   )}
                   {active.map((f) => (
+                    <FindingRow
+                      key={f.rule}
+                      pack={release.pack}
+                      finding={f}
+                      facts={release.facts}
+                      date={review.date}
+                      signals={signals}
+                      onClaim={(claim) => onChange(setClaim(review, release.pack, f.rule, claim))}
+                    />
+                  ))}
+                  {unassessed.map((f) => (
                     <FindingRow
                       key={f.rule}
                       pack={release.pack}

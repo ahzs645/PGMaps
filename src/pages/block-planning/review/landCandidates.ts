@@ -9,7 +9,16 @@
  *
  * DOM- and network-free.
  */
-import type { GroundContextRead, GroundInstrumentRead, GroundRead } from '../ground/record'
+import {
+  SLIVER_HA,
+  type GroundContextRead,
+  type GroundInstrumentRead,
+  type GroundRead,
+  type GroundSliver,
+} from '../ground/record'
+
+/** The sliver screen, shared with the ground read and its precedent (`ground/record.ts`). */
+export { SLIVER_HA }
 
 export const LAND_STATUS_INSTRUMENT = 'bc.land-status'
 export const MINERAL_TENURE_INSTRUMENT = 'bc.mineral-tenure'
@@ -39,14 +48,6 @@ export const NO_LICENCE_AREA = 'None of these'
  */
 export const WHOLE_SHARE_PERCENT = 99.5
 
-/**
- * A mapped overlap smaller than this, in hectares (100 m²), is read as two drawn boundaries meeting,
- * not as land of that kind in the block: the back-test of 27 November 2026 found private parcels
- * touching harvested blocks by 1–6 m² and candidate old forest areas by 10–30 m². It is a screen,
- * not a survey: the sliver is named, and the offer says so.
- */
-export const SLIVER_HA = 0.01
-
 export interface LandOffer {
   fact: 'land' | 'licence-area' | 'mineral-title'
   value: string | boolean
@@ -61,11 +62,30 @@ export interface LandCandidates {
   notes: string[]
 }
 
+/** The ground catalogue's parcels whose owner type ParcelMap BC does not settle. */
+export const UNSETTLED_PARCELS = 'parcel-owner-unsettled'
+
+/** Said when a Crown agency's parcel is among the private parcels, since it reads as Crown land elsewhere. */
+const agencyNote = (r: { features: { name: string }[] }) =>
+  r.features.some((f) => f.name.startsWith('Crown Agency'))
+    ? '. A Crown agency’s parcel is among them: the Forest Act’s Crown land does not include land an agent of the government owns, so it is private land here'
+    : ''
+
 const pct = (share: number) => `${share >= 10 ? share.toFixed(0) : share.toFixed(1)}%`
 const shareOf = (read: { coveredHa: number }, footprintHa: number) =>
   footprintHa > 0 && read.coveredHa >= SLIVER_HA ? Math.min(100, (read.coveredHa / footprintHa) * 100) : 0
-const sliverM2 = (read: { coveredHa: number }) =>
-  read.coveredHa > 0 && read.coveredHa < SLIVER_HA ? Math.round(read.coveredHa * 10_000) : 0
+/**
+ * The square metres a layer touches the block by when it touches it only by slivers: from the
+ * read's `slivers` where it keeps them apart, else (a read made before) from a cover under the screen.
+ */
+const sliverM2 = (read: { coveredHa: number; features: unknown[]; slivers?: GroundSliver[] }) =>
+  read.slivers
+    ? read.features.length
+      ? 0
+      : read.slivers.reduce((m2, s) => m2 + s.overlapM2, 0)
+    : read.coveredHa > 0 && read.coveredHa < SLIVER_HA
+      ? Math.round(read.coveredHa * 10_000)
+      : 0
 const named = (r: { features: { id: string; name: string }[] }) =>
   r.features
     .slice(0, 3)
@@ -80,12 +100,18 @@ export function landCandidates(read: GroundRead | undefined): LandCandidates | n
   const offers: LandOffer[] = []
   const notes: string[] = []
 
-  // What land: private parcels, reserves and treaty land, each a share of the footprint.
+  // What land: private parcels, reserves and treaty land, each a share of the footprint. A parcel
+  // ParcelMap BC types Crown Agency is in `private-land` (the Forest Act's Crown land leaves out land
+  // an agent of the government owns); one with no settled owner type is apart and offers no land.
   const parcels = instrument('private-land')
+  const unsettled = instrument(UNSETTLED_PARCELS)
   const reserves = context('indian-reserves')
   const treaty = context('treaty-lands')
   const unread = [
     !parcels || parcels.status === 'failed' ? 'private parcels' : null,
+    !unsettled || unsettled.status === 'failed'
+      ? `parcels with no settled owner type${unsettled ? '' : ' (this read was made before they were read; read the ground again)'}`
+      : null,
     !reserves || reserves.status === 'failed' ? 'Indian reserves' : null,
     !treaty || treaty.status === 'failed' ? 'treaty lands' : null,
   ].filter((x): x is string => Boolean(x))
@@ -95,10 +121,12 @@ export function landCandidates(read: GroundRead | undefined): LandCandidates | n
     )
   } else {
     const privateShare = shareOf(parcels!, read.footprintHa)
+    const unsettledShare = shareOf(unsettled!, read.footprintHa)
     const reserveShare = shareOf(reserves!, read.footprintHa)
     const treatyShare = shareOf(treaty!, read.footprintHa)
     const slivers = [
       [parcels!, 'Private parcels'],
+      [unsettled!, 'A parcel with no settled owner type'],
       [reserves!, 'Indian reserve land'],
       [treaty!, 'Treaty land'],
     ] as const
@@ -107,7 +135,7 @@ export function landCandidates(read: GroundRead | undefined): LandCandidates | n
         notes.push(
           `${what} touches the block by only ${sliverM2(r)} m², read as the two boundaries meeting rather than land of that kind in the block; check the survey plan.`,
         )
-    const truncated = [parcels!, reserves!, treaty!].some((r) => r.status === 'truncated')
+    const truncated = [parcels!, unsettled!, reserves!, treaty!].some((r) => r.status === 'truncated')
     if (truncated) notes.push('A layer holds more records here than were kept, so its share may be low.')
     if (reserveShare >= WHOLE_SHARE_PERCENT)
       offers.push({ fact: 'land', value: LAND.federal, basis: `Indian reserve ${named(reserves!)} covers the block` })
@@ -117,17 +145,21 @@ export function landCandidates(read: GroundRead | undefined): LandCandidates | n
       notes.push(
         `${reserveShare > 0 ? `Indian reserve land covers ${pct(reserveShare)}` : `Treaty land covers ${pct(treatyShare)}`} of the block: these packs do not assess it, so review the rest as its own block or answer for the part assessed.`,
       )
+    else if (unsettledShare > 0)
+      notes.push(
+        `ParcelMap BC gives ${named(unsettled!)} no single owner type (Unclassified or Mixed Ownership), and it covers ${pct(unsettledShare)} of the block: its title decides whether that is Crown or private land, so no land is offered.`,
+      )
     else if (privateShare >= WHOLE_SHARE_PERCENT)
       offers.push({
         fact: 'land',
         value: LAND.private,
-        basis: `Private parcels cover the block (ParcelMap BC: ${named(parcels!)})`,
+        basis: `Private parcels cover the block (ParcelMap BC: ${named(parcels!)})${agencyNote(parcels!)}`,
       })
     else if (privateShare > 0)
       offers.push({
         fact: 'land',
         value: LAND.both,
-        basis: `Private parcels cover ${pct(privateShare)} of the block (ParcelMap BC: ${named(parcels!)}); the rest holds no private parcel`,
+        basis: `Private parcels cover ${pct(privateShare)} of the block (ParcelMap BC: ${named(parcels!)}); the rest holds no private parcel${agencyNote(parcels!)}`,
       })
     else
       offers.push({
