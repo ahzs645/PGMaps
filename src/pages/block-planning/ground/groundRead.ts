@@ -38,14 +38,21 @@ export { keepFields, valueText }
 import { readPrecedent, PRECEDENT_RADIUS_METRES, type PrecedentRegion } from './precedent'
 import {
   MAX_GROUND_FEATURES,
+  SLIVER_HA,
   type GroundContextRead,
   type GroundFeature,
   type GroundInstrumentRead,
   type GroundRead,
+  type GroundSliver,
   type NearMeasure,
 } from './record'
 
-/** Overlaps smaller than a square metre are the overlay's rounding, not ground, and are left out. */
+export { SLIVER_HA }
+
+/**
+ * Overlaps smaller than a square metre are the overlay's rounding, not ground, and are left out.
+ * Between this and `SLIVER_HA` an overlap is a sliver: named apart, never counted as on the block.
+ */
 export const MIN_GROUND_OVERLAP_HA = 0.0001
 /** Shorter stretches of a line are the overlay's rounding, not a line on the ground, and are left out. */
 export const MIN_NEAR_LENGTH_M = 0.01
@@ -58,8 +65,8 @@ export interface GroundOverlay {
   grow: (footprint: Shape, metres: number) => Shape
   /** The part of `a` inside `b`, or `null`. */
   clip: (a: Shape, b: Shape) => Shape | null
-  /** Which items share area with which regions, `[region][item]`. */
-  overlaps: (regions: Shape[], items: Shape[]) => boolean[][]
+  /** The hectares each item shares with each region, `[region][item]`; 0 where they share none. */
+  overlapHa: (regions: Shape[], items: Shape[]) => number[][]
   /** Each line's length inside the footprint and within `metres` of it, and the same for all joined. */
   lines: (
     footprint: Shape,
@@ -184,7 +191,11 @@ export function measureNear(
   }
 }
 
-/** An instrument's share of a layer's records, measured on the footprint. Exported for the tests. */
+/**
+ * An instrument's share of a layer's records, measured on the footprint. A record sharing less than
+ * `SLIVER_HA` with it is a sliver: named in `slivers`, never a feature on the block, never counted
+ * in `coveredHa` and never a precedent region. Exported for the tests.
+ */
 export function measureInstrument(
   layer: GroundLayer,
   rows: LayerAnswer['rows'],
@@ -192,18 +203,23 @@ export function measureInstrument(
   footprintHa: number,
   overlay: GroundOverlay,
   readOn?: string,
-): { features: (GroundFeature & { geometry: Shape })[]; coveredHa: number } {
-  if (!rows.length) return { features: [], coveredHa: 0 }
+): { features: (GroundFeature & { geometry: Shape })[]; coveredHa: number; slivers: GroundSliver[] } {
+  if (!rows.length) return { features: [], coveredHa: 0, slivers: [] }
   const { eachHa } = overlay.measure(
     footprint,
     rows.map((r) => r.geometry),
   )
-  const kept = rows
+  const touching = rows
     .map((r, i) => ({ ...describeFeature(layer, r.properties, readOn), geometry: r.geometry, overlapHa: eachHa[i] }))
     .filter((f) => f.overlapHa >= MIN_GROUND_OVERLAP_HA)
     .sort((a, b) => b.overlapHa - a.overlapHa || a.id.localeCompare(b.id))
-  const coveredHa =
-    kept.length === 1
+  const kept = touching.filter((f) => f.overlapHa >= SLIVER_HA)
+  const slivers = touching
+    .filter((f) => f.overlapHa < SLIVER_HA)
+    .map((f) => ({ id: f.id, name: f.name, overlapM2: Math.max(1, Math.round(f.overlapHa * 10_000)) }))
+  const coveredHa = !kept.length
+    ? 0
+    : kept.length === 1
       ? kept[0].overlapHa
       : overlay.measure(
           footprint,
@@ -215,6 +231,7 @@ export function measureInstrument(
       sharePercent: footprintHa > 0 ? Math.min(100, (f.overlapHa / footprintHa) * 100) : 0,
     })),
     coveredHa,
+    slivers,
   }
 }
 
@@ -299,7 +316,7 @@ export async function readGroundInstruments({
         reads.push({ instrument: x.id, status: answer.status, ...incomplete, features, coveredHa: 0, near })
         continue
       }
-      const { features, coveredHa } = measureInstrument(
+      const { features, coveredHa, slivers } = measureInstrument(
         layer,
         shares.get(x.id)! as LayerAnswer['rows'],
         footprint,
@@ -313,6 +330,7 @@ export async function readGroundInstruments({
         ...incomplete,
         features: features.map(({ geometry: _geometry, ...f }) => f),
         coveredHa,
+        slivers,
       })
       for (const f of features)
         regions.push({ instrument: x.id, feature: f.id, effective: f.effective ?? null, geometry: f.geometry })
@@ -358,7 +376,7 @@ async function readContext(
 ): Promise<GroundContextRead> {
   try {
     const answer = await readGroundLayer({ layer, instruments: [], footprint, fetch, signal, cap: MAX_GROUND_FEATURES })
-    const { features, coveredHa } = measureInstrument(
+    const { features, coveredHa, slivers } = measureInstrument(
       layer,
       answer.rows as LayerAnswer['rows'],
       footprint,
@@ -374,6 +392,7 @@ async function readContext(
         : {}),
       features: features.map(({ geometry: _geometry, ...f }) => f),
       coveredHa,
+      slivers,
     }
   } catch (e) {
     if (aborted(signal, e)) throw e

@@ -9,7 +9,16 @@
  *
  * DOM- and network-free.
  */
-import type { GroundContextRead, GroundInstrumentRead, GroundRead } from '../ground/record'
+import {
+  SLIVER_HA,
+  type GroundContextRead,
+  type GroundInstrumentRead,
+  type GroundRead,
+  type GroundSliver,
+} from '../ground/record'
+
+/** The sliver screen, shared with the ground read and its precedent (`ground/record.ts`). */
+export { SLIVER_HA }
 
 export const LAND_STATUS_INSTRUMENT = 'bc.land-status'
 export const MINERAL_TENURE_INSTRUMENT = 'bc.mineral-tenure'
@@ -39,14 +48,6 @@ export const NO_LICENCE_AREA = 'None of these'
  */
 export const WHOLE_SHARE_PERCENT = 99.5
 
-/**
- * A mapped overlap smaller than this, in hectares (100 m²), is read as two drawn boundaries meeting,
- * not as land of that kind in the block: the back-test of 27 November 2026 found private parcels
- * touching harvested blocks by 1–6 m² and candidate old forest areas by 10–30 m². It is a screen,
- * not a survey: the sliver is named, and the offer says so.
- */
-export const SLIVER_HA = 0.01
-
 export interface LandOffer {
   fact: 'land' | 'licence-area' | 'mineral-title'
   value: string | boolean
@@ -64,8 +65,18 @@ export interface LandCandidates {
 const pct = (share: number) => `${share >= 10 ? share.toFixed(0) : share.toFixed(1)}%`
 const shareOf = (read: { coveredHa: number }, footprintHa: number) =>
   footprintHa > 0 && read.coveredHa >= SLIVER_HA ? Math.min(100, (read.coveredHa / footprintHa) * 100) : 0
-const sliverM2 = (read: { coveredHa: number }) =>
-  read.coveredHa > 0 && read.coveredHa < SLIVER_HA ? Math.round(read.coveredHa * 10_000) : 0
+/**
+ * The square metres a layer touches the block by when it touches it only by slivers: from the
+ * read's `slivers` where it keeps them apart, else (a read made before) from a cover under the screen.
+ */
+const sliverM2 = (read: { coveredHa: number; features: unknown[]; slivers?: GroundSliver[] }) =>
+  read.slivers
+    ? read.features.length
+      ? 0
+      : read.slivers.reduce((m2, s) => m2 + s.overlapM2, 0)
+    : read.coveredHa > 0 && read.coveredHa < SLIVER_HA
+      ? Math.round(read.coveredHa * 10_000)
+      : 0
 const named = (r: { features: { id: string; name: string }[] }) =>
   r.features
     .slice(0, 3)

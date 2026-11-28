@@ -9,7 +9,17 @@ import { analyzePlan } from '../planAnalysis'
 import type { Fetch } from '../wfsReads'
 import { readGroundInstruments } from './groundRead'
 import { ACTIVITY_LAYER, OPENING_LAYER, PLANTING_LAYER, precedentSummary, STANDARDS_UNIT_LAYER } from './precedent'
-import { groundFootprint, groundReadCurrent, groundReadOf, saveGroundRead, type GroundRead } from './record'
+import { LAND, landCandidates } from '../review/landCandidates'
+import {
+  groundFootprint,
+  groundReadCurrent,
+  groundReadOf,
+  parseGroundRead,
+  saveGroundRead,
+  SLIVER_HA,
+  sliverLines,
+  type GroundRead,
+} from './record'
 import { documentRequests } from './requests'
 
 const box = (west: number, south: number, east: number, north: number): Polygon => ({
@@ -393,7 +403,57 @@ describe('reading the instruments on a block', () => {
     ])
     expect(instrument(read, 'fsp-section-196-area')).toMatchObject({ status: 'read', features: [] })
     const gate = asked.find((b) => b.get('typeNames') === 'pub:WHSE_ADMIN_BOUNDARIES.FADM_TSA_SV')!
-    expect(gate.get('propertyName')).toBe('TSA_NUMBER_DESCRIPTION,GEOMETRY')
+    expect(gate.get('propertyName')).toBe('TSA_NUMBER_DESCRIPTION')
+  })
+
+  it('names a parcel touching the block by a sliver apart, never as private land on the block', async () => {
+    // The block's east edge is -122.7611: the first parcel reaches 0.00005° (about 3 m) over it for
+    // 0.0001° (about 11 m), the second 0.0002° for 0.001°.
+    const sliver = box(-122.76115, 53.9901, -122.76, 53.9902)
+    const parcel = box(-122.7613, 53.993, -122.76, 53.994)
+    const { read } = await readSample({
+      ...ANSWERS,
+      'pub:WHSE_CADASTRE.PMBC_PARCEL_FABRIC_POLY_SVW': [
+        feature({ PARCEL_FABRIC_POLY_ID: 32, PID_FORMATTED: '000-000-003', OWNER_TYPE: 'Private' }, sliver),
+      ],
+    })
+    const only = instrument(read, 'private-land')
+    expect(only.features).toEqual([])
+    expect(only.coveredHa).toBe(0)
+    expect(only.slivers).toHaveLength(1)
+    expect(only.slivers![0].id).toBe('PID 000-000-003')
+    expect(only.slivers![0].overlapM2).toBeGreaterThan(20)
+    expect(only.slivers![0].overlapM2).toBeLessThan(100)
+    const lines = sliverLines(
+      read,
+      (id) => id,
+      (id) => id,
+    )
+    expect(lines).toEqual([
+      expect.stringMatching(
+        /^private-land: PID 000-000-003 \(\d+ m²\) touches the block by less than 100 m², read as the boundaries meeting/,
+      ),
+    ])
+    // Kept through the plan and offered to land status as a boundary, not as private land.
+    expect(parseGroundRead(JSON.parse(JSON.stringify(read)))).toEqual(read)
+    const offers = landCandidates(read)!
+    expect(offers.offers.find((o) => o.fact === 'land')?.value).toBe(LAND.crown)
+    expect(offers.notes.join(' ')).toMatch(/Private parcels touches the block by only \d+ m²/)
+
+    const { read: both } = await readSample({
+      ...ANSWERS,
+      'pub:WHSE_CADASTRE.PMBC_PARCEL_FABRIC_POLY_SVW': [
+        feature({ PARCEL_FABRIC_POLY_ID: 32, PID_FORMATTED: '000-000-003', OWNER_TYPE: 'Private' }, sliver),
+        feature({ PARCEL_FABRIC_POLY_ID: 33, PID_FORMATTED: '000-000-004', OWNER_TYPE: 'Private' }, parcel),
+      ],
+    })
+    const two = instrument(both, 'private-land')
+    expect(two.features.map((f) => f.id)).toEqual(['PID 000-000-004'])
+    expect(two.features[0].overlapHa).toBeGreaterThan(SLIVER_HA)
+    expect(two.coveredHa).toBeCloseTo(two.features[0].overlapHa, 6)
+    expect(two.slivers!.map((s) => s.id)).toEqual(['PID 000-000-003'])
+    // Only the parcel on the block is a precedent region.
+    expect(both.precedent?.rows.find((r) => r.instrument === 'private-land')).toBeDefined()
   })
 
   it('says Not read for a layer DataBC did not answer, for every instrument it holds', async () => {
@@ -464,6 +524,26 @@ describe('precedent inside each instrument', () => {
     expect(row('land-act-lease').openings).toEqual([])
     // The far opening is outside the 5 km and in nothing.
     expect(p.openings.map((o) => o.openingId).sort()).toEqual([1001, 1002, 1003])
+  })
+
+  it('leaves out an opening that touches an instrument only by a sliver, and says so', async () => {
+    // The §17 area's east edge is -122.7656: this opening reaches 0.00005° (about 3 m) into it for 0.0002° (about 22 m).
+    const touching = box(-122.76565, 53.982, -122.764, 53.9822)
+    const { read } = await readSample({
+      ...ANSWERS,
+      [OPENING_LAYER]: [
+        ...(ANSWERS[OPENING_LAYER] as Record<string, unknown>[]),
+        feature({ OPENING_ID: 1005, DISTURBANCE_START_DATE: '2021-01-01Z' }, touching),
+      ],
+    })
+    const row = (id: string) => read.precedent!.rows.find((r) => r.instrument === id)!
+    expect(row('land-act-s17')).toMatchObject({ openings: [1001, 1002], touching: 1 })
+    // It is inside the wider order, which counts it.
+    expect(row('pg-biodiversity').openings).toContain(1005)
+    expect(row('pg-biodiversity').touching).toBe(0)
+    expect(precedentSummary(read.precedent!, 'land-act-s17')).toContain(
+      '1 opening touches it only by a sliver under 100 m², read as the boundaries meeting and left out',
+    )
   })
 
   it('joins standards, planting and site preparation by opening', async () => {

@@ -22,8 +22,17 @@ import { builtAfter1995, datingBracket, FPPR_56_2_CUTOFF } from './dating'
 import { designerRead } from './designerImport'
 import { matchCrossing } from './key'
 import { crossingMapFeatures } from './mapFeatures'
-import { fissWatershedCode, readMappedCrossings, tenureTokens, type CrossingOverlay } from './mappedRead'
-import { foldSites, pairVerdict, structureChange, type SiteRecord } from './pscisSites'
+import {
+  fissWatershedCode,
+  identifier,
+  readMappedCrossings,
+  roadRank,
+  tenureNamesRoad,
+  tenureTokens,
+  type Corridor,
+  type CrossingOverlay,
+} from './mappedRead'
+import { foldSites, pairVerdict, sameBarrel, structureChange, type SiteRecord } from './pscisSites'
 import { crossingFootprint, crossingsOf } from './record'
 
 const library: Pack[] = Object.values(
@@ -83,6 +92,58 @@ describe('the PSCIS site rule', () => {
     const fold = foldSites([site('a', 0, '2013-08-01'), site('b', 10, '2023-08-01'), site('c', 20, '2013-08-01')])
     expect(fold.sites.map((s) => s.map((r) => r.id).sort())).toEqual([['a', 'b'], ['c']])
     expect(fold.apart.some((p) => p.reason === 'day-guard')).toBe(true)
+  })
+
+  it('joins two surveys of one barrel from its two ends, and never two distinct structures', () => {
+    // 2013 and 2023 surveys of a 1.2 m pipe 17.5–20 m long, 19.7 m apart, neither on a mapped stream.
+    const pipe = (sizeM: number, lengthM?: number) => ({ structure: { type: 'CBS', sizeM, lengthM } })
+    expect(
+      pairVerdict(site('a', 0, '2013-08-01', pipe(1.2, 20)), site('b', 19.7, '2023-08-01', pipe(1.2, 17.5))),
+    ).toEqual({ join: true, reason: 'same-structure' })
+    // 0.9 m and 0.85 m are one size within 15% and 5 cm.
+    expect(
+      pairVerdict(site('a', 0, '2013-08-01', pipe(0.9, 16)), site('b', 19.4, '2023-08-01', pipe(0.85, 18.5))).join,
+    ).toBe(true)
+    // Farther apart than the longer barrel and 2 m, of another size or type, with no length, on one
+    // day, or on two mapped streams: apart.
+    expect(
+      pairVerdict(site('a', 0, '2013-08-01', pipe(1.2, 12)), site('b', 19.7, '2023-08-01', pipe(1.2, 15))).join,
+    ).toBe(false)
+    expect(
+      pairVerdict(site('a', 0, '2013-08-01', pipe(1.2, 20)), site('b', 19.7, '2023-08-01', pipe(1.6, 20))).join,
+    ).toBe(false)
+    expect(
+      pairVerdict(
+        site('a', 0, '2013-08-01', pipe(1.2, 20)),
+        site('b', 19.7, '2023-08-01', { structure: { type: 'OBS', sizeM: 1.2, lengthM: 20 } }),
+      ).join,
+    ).toBe(false)
+    expect(pairVerdict(site('a', 0, '2013-08-01', pipe(1.2)), site('b', 19.7, '2023-08-01', pipe(1.2))).join).toBe(
+      false,
+    )
+    expect(
+      pairVerdict(site('a', 0, '2023-08-01', pipe(1.2, 20)), site('b', 19.7, '2023-08-01', pipe(1.2, 20))).join,
+    ).toBe(false)
+    expect(
+      pairVerdict(
+        site('a', 0, '2013-08-01', { ...pipe(1.2, 20), blueLineKey: 1 }),
+        site('b', 19.7, '2023-08-01', { ...pipe(1.2, 20), blueLineKey: 2 }),
+      ).join,
+    ).toBe(false)
+    // Never past 30 m, however long the barrel.
+    expect(sameBarrel({ type: 'CBS', sizeM: 1.2, lengthM: 40 }, { type: 'CBS', sizeM: 1.2, lengthM: 40 }, 31)).toBe(
+      true,
+    )
+    expect(
+      pairVerdict(site('a', 0, '2013-08-01', pipe(1.2, 40)), site('b', 31, '2023-08-01', pipe(1.2, 40))).join,
+    ).toBe(false)
+    // A later survey that saw two pipes on one day keeps the earlier record off the farther one.
+    const fold = foldSites([
+      site('old', 0, '2013-08-01', pipe(1.2, 20)),
+      site('near', 3, '2023-08-01', pipe(1.2, 20)),
+      site('next', 19, '2023-08-01', pipe(1.2, 20)),
+    ])
+    expect(fold.sites.map((x) => x.map((r) => r.id))).toEqual([['old', 'near'], ['next']])
   })
 
   it('takes records sharing a crossing id as one site before the rule runs', () => {
@@ -409,14 +470,14 @@ const ANSWERS: Record<string, unknown[]> = {
   ],
 }
 
-function fakeDataBc(fail: string[] = []) {
+function fakeDataBc(fail: string[] = [], answers: Record<string, unknown[]> = ANSWERS) {
   const asked: URLSearchParams[] = []
   const fetch: Fetch = async (_url, init) => {
     const body = new URLSearchParams(init?.body ?? '')
     asked.push(body)
     const layer = body.get('typeNames') ?? ''
     if (fail.includes(layer)) return { ok: false, status: 500, json: async () => ({}) }
-    const all = ANSWERS[layer] ?? []
+    const all = answers[layer] ?? []
     const start = Number(body.get('startIndex') ?? 0)
     return {
       ok: true,
@@ -427,8 +488,13 @@ function fakeDataBc(fail: string[] = []) {
   return { fetch, asked }
 }
 
-async function mappedRead(plan: Plan, fail: string[] = []) {
-  const { fetch, asked } = fakeDataBc(fail)
+async function mappedRead(
+  plan: Plan,
+  fail: string[] = [],
+  answers: Record<string, unknown[]> = ANSWERS,
+  corridor: Corridor = { by: 'distance', metres: 500 },
+) {
+  const { fetch, asked } = fakeDataBc(fail, answers)
   const where = at(plan)
   const read = await readMappedCrossings({
     footprint: where.geometry,
@@ -436,7 +502,7 @@ async function mappedRead(plan: Plan, fail: string[] = []) {
     schedule: where.schedule,
     shape: where.shape,
     signature: where.footprint,
-    corridor: { by: 'distance', metres: 500 },
+    corridor,
     fetch,
     overlay: crossingOverlay as CrossingOverlay,
     readOn: TODAY,
@@ -536,6 +602,156 @@ describe('mapped crossings', () => {
       ]),
     )
     expect(offers.find(([f]) => f === 'stream-gradient')?.[1]).toBeCloseTo(2, 0)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// What the back-test of 27 November 2026 found, on made-up roads and records
+
+const SECTIONS = 'pub:WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW'
+const SEGMENTS = 'pub:WHSE_FOREST_TENURE.FTEN_ROAD_SEGMENT_LINES_SVW'
+const PSCIS = 'pub:WHSE_FISH.PSCIS_ASSESSMENT_SVW'
+const STRUCTURES = 'pub:WHSE_FOREST_TENURE.RRI_BRIDGES_MAJOR_CULVERTS_SP'
+/** `[lon, lat]` moved `east` and `north` metres. */
+const moved = ([lon, lat]: [number, number], east: number, north = 0): [number, number] => [
+  lon + east / (111_320 * Math.cos((lat * Math.PI) / 180)),
+  lat + north / 111_320,
+]
+/** Where the test road crosses the first stream. */
+const CROSSING: [number, number] = [-122.765, 53.9925]
+const ROAD = line([
+  [-122.775, 53.9925],
+  [-122.756, 53.9925],
+])
+const section = (
+  OBJECTID: number,
+  FOREST_FILE_ID: string,
+  ROAD_SECTION_ID: string,
+  extra: Record<string, unknown> = {},
+) => feat({ OBJECTID, FOREST_FILE_ID, ROAD_SECTION_ID, ...extra }, ROAD)
+const assessment = (OBJECTID: number, id: number, day: string, at: [number, number], extra: Record<string, unknown>) =>
+  feat({ OBJECTID, STREAM_CROSSING_ID: id, ASSESSMENT_DATE: `${day}Z`, CROSSING_TYPE_CODE: 'CBS', ...extra }, pt(at))
+
+describe('mapped crossings, as the back-test found them', () => {
+  it('asks for a tree farm licence mark with its slash, and makes no read of a mark it cannot ask for', async () => {
+    expect(identifier(' 53/353 ')).toBe('53/353')
+    expect(identifier('53/0r1')).toBe('53/0R1')
+    expect(identifier('R09333')).toBe('R09333')
+    for (const bad of ['53//1', '/53', 'A B', "X' OR 1=1", '']) expect(identifier(bad)).toBeNull()
+    const { read, asked } = await mappedRead(samplePlan(), [], ANSWERS, {
+      by: 'timber-mark',
+      mark: '53/353',
+      metres: 2000,
+    })
+    expect(asked.find((b) => b.get('typeNames') === SEGMENTS)?.get('CQL_FILTER')).toContain("TIMBER_MARK = '53/353'")
+    expect(read.layers.find((l) => l.id === 'segments')?.status).toBe('read')
+    // A mark no read can ask for is Not read, with nothing else asked: never a thrown read, never none.
+    const bad = await mappedRead(samplePlan(), [], ANSWERS, { by: 'timber-mark', mark: '53 353', metres: 2000 })
+    expect(bad.asked).toHaveLength(0)
+    expect(bad.read.layers.find((l) => l.id === 'segments')).toMatchObject({ status: 'failed' })
+    expect(bad.read.notes?.[0]).toMatch(/^Not read: no road was asked for/)
+    expect(bad.read.candidates).toEqual([])
+  })
+
+  it('says so when a corridor by mark holds no road, and lists only the PSCIS sites on its roads', async () => {
+    const answers = { ...ANSWERS, [SEGMENTS]: [] }
+    const { read } = await mappedRead(samplePlan(), [], answers, { by: 'timber-mark', mark: 'EJ30C6', metres: 2000 })
+    expect(read.layers.find((l) => l.id === 'segments')).toMatchObject({ status: 'read', count: 0 })
+    expect(read.notes?.[0]).toMatch(/No road segment within 2,000 m of the block carries timber mark EJ30C6/)
+    // The three PSCIS sites lie on a road this corridor does not hold: counted, not listed.
+    expect(read.candidates).toEqual([])
+    expect(read.notes?.[1]).toMatch(
+      /^3 PSCIS sites within 2,000 m of the block lie more than 50 m from the corridor's roads/,
+    )
+    // By road file, the sites on the file's road, or naming it, are listed with that road.
+    const byFile = await mappedRead(samplePlan(), [], ANSWERS, { by: 'file', file: 'R12345', metres: 2000 })
+    expect(byFile.read.notes).toBeUndefined()
+    expect(byFile.read.candidates.find((c) => c.origin === 'pscis')?.road).toEqual({ file: 'R12345', section: '01' })
+    expect(tenureNamesRoad('550601', '5506', '01')).toBe(true)
+    expect(tenureNamesRoad('5506-01', '5506', '01')).toBe(true)
+    expect(tenureNamesRoad('5506', '5506', '24')).toBe(true)
+    expect(tenureNamesRoad('550624', '5506', '01')).toBe(false)
+  })
+
+  it('labels a crossing by the active road on it, never a pending or retired permit found first', async () => {
+    const answers = {
+      ...ANSWERS,
+      [SECTIONS]: [
+        section(1, 'R23886', '99', { LIFE_CYCLE_STATUS_CODE: 'PENDING' }),
+        section(2, 'R23280', '99', { LIFE_CYCLE_STATUS_CODE: 'RETIRED', RETIREMENT_DATE: '2019-01-01Z' }),
+        section(3, '5506', '24', { LIFE_CYCLE_STATUS_CODE: 'ACTIVE' }),
+      ],
+    }
+    const { read } = await mappedRead(samplePlan(), [], answers)
+    const first = read.candidates.find((c) => c.origin === 'mapped')!
+    expect(first.label).toMatch(/× road 5506\/24$/)
+    expect(first.road).toMatchObject({ file: '5506', section: '24' })
+    expect(first.aliases[0].id).toMatch(/^5506\/24×356000001@/)
+    const road = first.evidence.find((e) => e.kind === 'road')!
+    expect(road.summary).toMatch(/^Road 5506\/24 \(active\)/)
+    expect(road.summary).toContain('Also mapped on this crossing: R23886/99 (pending), R23280/99 (retired)')
+    expect(road.summary).not.toContain('retired in the record')
+    expect(roadRank({ LIFE_CYCLE_STATUS_CODE: 'ACTIVE' })).toBeLessThan(roadRank({}))
+    expect(roadRank({})).toBeLessThan(roadRank({ LIFE_CYCLE_STATUS_CODE: 'PENDING' }))
+    expect(roadRank({ LIFE_CYCLE_STATUS_CODE: 'ACTIVE', RETIREMENT_DATE: '2020-01-01Z' })).toBe(3)
+    // With only a retired road there, it says so.
+    const retired = await mappedRead(samplePlan(), [], {
+      ...ANSWERS,
+      [SECTIONS]: [section(1, 'R23280', '99', { LIFE_CYCLE_STATUS_CODE: 'RETIRED' })],
+    })
+    const onRetired = retired.read.candidates.find((c) => c.origin === 'mapped')!
+    expect(onRetired.evidence.find((e) => e.kind === 'road')!.summary).toContain('retired in the record')
+  })
+
+  it('takes two surveys of one barrel as one site, and keeps two distinct pipes apart', async () => {
+    // A 2013 survey 3 m off the crossing and a 2023 survey of the same 18 m pipe 19 m north of it.
+    const pipe = (id: number, day: string, at: [number, number], size: number, length: number) =>
+      assessment(id, id, day, at, { DIAMETER_OR_SPAN: size, LENGTH_OR_WIDTH: length, ROAD_TENURE: 'R12345' })
+    const ends = (length: number) => ({
+      ...ANSWERS,
+      [PSCIS]: [
+        pipe(1, '2013-08-06', moved(CROSSING, -3), 0.9, 16),
+        pipe(2, '2023-08-06', moved(CROSSING, -3, 19), 0.85, length),
+      ],
+    })
+    const one = (await mappedRead(samplePlan(), [], ends(18.5))).read
+    const crossing = one.candidates.find((c) => c.origin === 'mapped' && c.stream?.blueLineKey === 356000001)!
+    expect(crossing.aliases.filter((a) => a.source === 'pscis').map((a) => a.id)).toEqual(['1', '2'])
+    expect(one.candidates.filter((c) => c.origin === 'pscis')).toEqual([])
+    // A pipe too short to reach between them is another structure: listed apart.
+    const two = (await mappedRead(samplePlan(), [], ends(8))).read
+    expect(two.candidates.filter((c) => c.origin === 'pscis').map((c) => c.id)).toEqual(['pscis:2'])
+  })
+
+  it('joins a ministry structure by the road file and section it names, out to 150 m, and only to one crossing', async () => {
+    const structure = (at: [number, number], file: string) =>
+      feat({ OBJECTID: 1, CROSSING_SITE_ID: 'G5-209', FOREST_FILE_ID: file, ROAD_SECTION_ID: '01' }, pt(at))
+    const at119 = moved(CROSSING, 0, 119)
+    const named = (await mappedRead(samplePlan(), [], { ...ANSWERS, [STRUCTURES]: [structure(at119, 'R12345')] })).read
+    const crossing = named.candidates.find((c) => c.stream?.blueLineKey === 356000001)!
+    expect(crossing.aliases.some((a) => a.source === 'mof-structure' && a.id === 'G5-209')).toBe(true)
+    expect(crossing.evidence.find((e) => e.kind === 'mof-structure')).toMatchObject({ distanceM: 119 })
+    expect(crossing.evidence.find((e) => e.kind === 'mof-structure')!.summary).toMatch(
+      /joined because its record names/,
+    )
+    // Another road's structure that far off is not this crossing's.
+    const other = (await mappedRead(samplePlan(), [], { ...ANSWERS, [STRUCTURES]: [structure(at119, 'R99999')] })).read
+    expect(other.candidates.some((c) => c.aliases.some((a) => a.source === 'mof-structure'))).toBe(false)
+    // Halfway between two crossings on its road, it is joined to neither and the read says so.
+    const twoStreams = {
+      ...ANSWERS,
+      'pub:WHSE_BASEMAPPING.FWA_STREAM_NETWORKS_SP': [
+        ...ANSWERS['pub:WHSE_BASEMAPPING.FWA_STREAM_NETWORKS_SP'],
+        feat(
+          { OBJECTID: 3, BLUE_LINE_KEY: 356000003, STREAM_ORDER: 1 },
+          line([moved(CROSSING, 200, -300), moved(CROSSING, 200, 300)]),
+        ),
+      ],
+      [STRUCTURES]: [structure(moved(CROSSING, 100, 60), 'R12345')],
+    }
+    const between = (await mappedRead(samplePlan(), [], twoStreams)).read
+    expect(between.candidates.some((c) => c.aliases.some((a) => a.source === 'mof-structure'))).toBe(false)
+    expect(between.notes?.join(' ')).toMatch(/Ministry structure G5-209 names road R12345\/01 .* joined to none/)
   })
 })
 

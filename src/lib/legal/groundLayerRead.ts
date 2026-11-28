@@ -17,7 +17,17 @@
  * DOM- and network-free: `fetch` and the footprint's growing are passed in.
  */
 import type { LineString, MultiLineString, MultiPoint, Point } from 'geojson'
-import { keepFields, readAcrossParts, wfsRead, type Fetch, type RawFeature, type Shape } from '@/lib/forestry/wfsReads'
+import {
+  hullRing,
+  keepFields,
+  readAcrossParts,
+  ringFilter,
+  shapeParts,
+  wfsRead,
+  type Fetch,
+  type RawFeature,
+  type Shape,
+} from '@/lib/forestry/wfsReads'
 import {
   conditionCql,
   GROUND_CATALOGUE,
@@ -65,8 +75,11 @@ export interface GroundLayerAnswer<G = GroundGeometry> {
 
 /**
  * Whether the footprint meets a record of any of the layer's gates, asked in order by the
- * footprint's own parts; the first found ends it. Only the gate's own field is asked for, and nothing
- * of its records is kept. A gate DataBC does not answer throws, as the layer's read would.
+ * footprint's own parts (each part's ring, or its hull for a `byHull` gate); the first record found
+ * ends it. Only the gate's own field is asked for, never its geometry: a gate is a TSA or a TFL, and
+ * asking with its shape sent the whole Prince George TSA (5.3 MB) once per part, 75 MB for a block of
+ * fourteen parts in the back-test of 27 November 2026. Nothing of its records is kept. A gate DataBC
+ * does not answer throws, as the layer's read would.
  */
 export async function withinGates({
   layer,
@@ -79,27 +92,20 @@ export async function withinGates({
   fetch: Fetch
   signal?: AbortSignal
 }): Promise<boolean> {
-  for (const gate of layer.within?.any ?? []) {
-    const found = await readAcrossParts(
-      footprint,
-      async (intersects) =>
-        (
-          await wfsRead({
-            fetch,
-            signal,
-            layer: gate.typeName,
-            filter: `${intersects} AND ${conditionCql({ field: gate.field, in: gate.in })}`,
-            propertyName: [gate.field, gate.geometryField].join(','),
-            sortBy: gate.field,
-            cap: 1,
-          })
-        ).features.map((f) => ({ ...f, properties: keepFields(f.properties, [gate.field]) })),
-      gate.geometryField,
-      (f) => valueText(f.properties[gate.field]) ?? '',
-      gate.byHull === true,
-    )
-    if (found.some((f) => gate.in.includes(valueText(f.properties[gate.field]) ?? ''))) return true
-  }
+  for (const gate of layer.within?.any ?? [])
+    for (const part of shapeParts(footprint)) {
+      const { features } = await wfsRead({
+        fetch,
+        signal,
+        layer: gate.typeName,
+        filter: `${ringFilter(gate.geometryField, gate.byHull === true ? hullRing(part[0]) : part[0])} AND ${conditionCql({ field: gate.field, in: gate.in })}`,
+        propertyName: gate.field,
+        sortBy: gate.field,
+        cap: 1,
+      })
+      if (features.some((f) => gate.in.includes(valueText(keepFields(f.properties, [gate.field])[gate.field]) ?? '')))
+        return true
+    }
   return false
 }
 
@@ -136,20 +142,25 @@ export async function readGroundLayer({
   const where = instruments.length ? layerCql(instruments) : null
   const asked = layer.near && grow ? grow(footprint, layer.near.metres + NEAR_READ_SLACK_METRES) : footprint
   let truncated = false
+  // Records already kept from an earlier part are not asked for again (`seenClause`).
+  const seen: unknown[] = []
   const raw = await readAcrossParts(
     asked,
     async (intersects) => {
+      const exclude = seenClause(layer.key, seen)
       const answer = await wfsRead({
         fetch,
         signal,
         layer: layer.typeName,
-        filter: where ? `${intersects} AND ${where}` : intersects,
+        filter: [intersects, where, exclude].filter(Boolean).join(' AND '),
         propertyName: [...layer.fields, layer.geometryField].join(','),
         sortBy: layer.key,
         cap,
       })
       truncated ||= answer.truncated
-      return answer.features.map((f) => ({ ...f, properties: keepFields(f.properties, layer.fields) }))
+      const kept = answer.features.map((f) => ({ ...f, properties: keepFields(f.properties, layer.fields) }))
+      for (const f of kept) seen.push(f.properties[layer.key])
+      return kept
     },
     layer.geometryField,
     (f) => valueText(f.properties[layer.key]) ?? JSON.stringify(f.properties),
@@ -164,6 +175,32 @@ export async function readGroundLayer({
       .filter((f) => kind(f.geometry))
       .map((f) => ({ properties: f.properties, geometry: f.geometry as GroundGeometry })),
   }
+}
+
+/** At most this many keys a read leaves out by name: past it, a part asks for everything and the reader keeps each record once. */
+export const MAX_EXCLUDED_KEYS = 300
+
+/**
+ * A CQL clause leaving out the records already kept from an earlier part of the footprint, by the
+ * layer's key, or `null` when there are none (or too many to name). A footprint of many parts under
+ * one large polygon (a forest development unit, a legal objective, a TSA-wide order) was sent that
+ * polygon once a part: 50 MB of development units for a block of fourteen parts in the back-test of
+ * 27 November 2026. A key of no usable value is not named; that record is only kept once, as before.
+ */
+export function seenClause(key: string, values: readonly unknown[]): string | null {
+  const literals = [
+    ...new Set(
+      values.flatMap((v) =>
+        typeof v === 'number' && Number.isFinite(v)
+          ? [String(v)]
+          : typeof v === 'string' && v.trim()
+            ? [`'${v.replace(/'/g, "''")}'`]
+            : [],
+      ),
+    ),
+  ]
+  if (!literals.length || literals.length > MAX_EXCLUDED_KEYS) return null
+  return `NOT (${key} IN (${literals.join(',')}))`
 }
 
 /** Each record to the first instrument whose conditions it meets, in the order given; a record none meets is left out. */

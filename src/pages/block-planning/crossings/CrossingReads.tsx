@@ -59,6 +59,11 @@ function LayerNotes({ read }: { read: CrossingRead }) {
           {l.label}: {l.message}
         </p>
       ))}
+      {(read.notes ?? []).map((note) => (
+        <InlineAlert key={note} tone={note.startsWith('Not read') ? 'warning' : 'info'}>
+          {note}
+        </InlineAlert>
+      ))}
     </div>
   )
 }
@@ -195,7 +200,12 @@ function ReadCard({
         </InlineAlert>
       )}
       <LayerNotes read={read} />
-      {read.candidates.length === 0 ? (
+      {read.candidates.length === 0 &&
+      read.layers.some((l) => (l.id === 'sections' || l.id === 'segments') && l.status === 'failed') ? (
+        <p className="text-2xs text-muted-foreground">
+          No crossing could be looked for: the roads were not read. What the corridor holds is unknown, not none.
+        </p>
+      ) : read.candidates.length === 0 ? (
         <p className="text-2xs text-muted-foreground">
           No crossing found. A stream the mapped layers do not hold can still be crossed: the block’s small streams are
           often below the Freshwater Atlas’s resolution.

@@ -23,6 +23,25 @@ export const MAX_GROUND_FEATURES = 500
 export const MAX_PRECEDENT_OPENINGS = 1000
 
 /**
+ * A mapped overlap smaller than this, in hectares (100 m²), is read as two drawn boundaries meeting,
+ * not as ground of that kind in the block: the back-test of 27 November 2026 found private parcels
+ * touching harvested blocks by 1–6 m², candidate old forest areas by 10–30 m², a designated use area
+ * by 9 m² and precedent openings touching an instrument by 0.2–66 m². The same screen everywhere a
+ * ground read measures area: *On this ground* (`groundRead.ts`), its precedent (`precedent.ts`) and
+ * the land status candidates (`landCandidates.ts`). It is a screen, not a survey: a sliver is named
+ * where it was found, never dropped silently.
+ */
+export const SLIVER_HA = 0.01
+
+/** A feature that touches the footprint by less than `SLIVER_HA`: named, never counted as on the block. */
+export interface GroundSliver {
+  id: string
+  name: string
+  /** The area shared with the footprint, in square metres, rounded. */
+  overlapM2: number
+}
+
+/**
  * A line or point layer's measure: its length (lines) or count (points) inside the footprint and
  * within `metres` of it, inside included. An area layer has none.
  */
@@ -61,6 +80,8 @@ export interface GroundInstrumentRead {
   coveredHa: number
   /** For a line or point layer: what lies inside and near the footprint, a length two records share counted once. */
   near?: NearMeasure
+  /** Area features touching the footprint by less than `SLIVER_HA`; absent in reads made before they were kept apart. */
+  slivers?: GroundSliver[]
 }
 
 /**
@@ -75,6 +96,8 @@ export interface GroundContextRead {
   features: GroundFeature[]
   /** The footprint its features cover, ground two of them share counted once. */
   coveredHa: number
+  /** Features touching the footprint by less than `SLIVER_HA`; absent in reads made before they were kept apart. */
+  slivers?: GroundSliver[]
 }
 
 export interface PrecedentOpening {
@@ -143,11 +166,20 @@ export interface PrecedentRow {
   openings: number[]
   /** Openings inside it and the radius harvested before its date, left out. */
   earlier: number
+  /**
+   * Openings that touch it only by a sliver (less than `SLIVER_HA` with each of its features),
+   * left out and counted; absent in reads made before they were.
+   */
+  touching?: number
   /** Exempt cut blocks inside it and the radius from its date (`CUT_BLOCK_SKEY`); absent before they were read. */
   exemptBlocks?: number[]
   exemptEarlier?: number
+  /** Exempt cut blocks touching it only by a sliver, left out; absent when none, or in reads made before. */
+  exemptTouching?: number
   /** ALR applications and notices of intent inside it and the radius (the ALR row only). */
   alrApplications?: number[]
+  /** ALR applications and notices touching it only by a sliver, left out; absent when none, or in reads made before. */
+  alrTouching?: number
 }
 
 export interface GroundPrecedent {
@@ -184,6 +216,28 @@ export interface GroundRead {
   /** Context layers read on the footprint; absent in a read made before they were. */
   context?: GroundContextRead[]
   precedent?: GroundPrecedent
+}
+
+/**
+ * What a read's slivers say, one line per instrument or context layer that has any, for the panel
+ * and the printed summary: the features touching the block by less than `SLIVER_HA`, read as two
+ * boundaries meeting rather than ground of that kind on the block.
+ */
+export function sliverLines(
+  read: GroundRead,
+  label: (instrument: string) => string,
+  layerTitle: (layer: string) => string,
+) {
+  const line = (what: string, slivers: GroundSliver[] | undefined) =>
+    slivers?.length
+      ? [
+          `${what}: ${slivers.map((s) => `${s.id} (${s.overlapM2} m²)`).join(', ')} ${slivers.length === 1 ? 'touches' : 'touch'} the block by less than ${Math.round(SLIVER_HA * 10_000)} m², read as the boundaries meeting, not as ground of that kind on the block`,
+        ]
+      : []
+  return [
+    ...read.instruments.flatMap((r) => line(label(r.instrument), r.slivers)),
+    ...(read.context ?? []).flatMap((c) => line(layerTitle(c.layer), c.slivers)),
+  ]
 }
 
 const ID = 200
@@ -231,6 +285,20 @@ function feature(value: unknown, at: string): GroundFeature {
   }
 }
 
+function slivers(o: JsonObject, at: string): { slivers?: GroundSliver[] } {
+  if (o.slivers === undefined) return {}
+  return {
+    slivers: list(o.slivers, `${at} slivers`, MAX_GROUND_FEATURES).map((x, i) => {
+      const r = object(x, `${at} sliver ${i + 1}`)
+      return {
+        id: text(r.id, `${at} sliver id`, ID),
+        name: text(r.name, `${at} sliver name`, 500),
+        overlapM2: num(r.overlapM2, `${at} sliver overlapM2`, SLIVER_HA * 10_000),
+      }
+    }),
+  }
+}
+
 function instrumentRead(value: unknown, at: string): GroundInstrumentRead {
   const o = object(value, at)
   return {
@@ -242,6 +310,7 @@ function instrumentRead(value: unknown, at: string): GroundInstrumentRead {
     ),
     coveredHa: num(o.coveredHa, `${at} coveredHa`),
     near: optional(o, 'near', (v) => nearMeasure(v, `${at} near`)),
+    ...slivers(o, at),
   }
 }
 
@@ -255,6 +324,7 @@ function contextRead(value: unknown, at: string): GroundContextRead {
       feature(f, `${at} feature ${i + 1}`),
     ),
     coveredHa: num(o.coveredHa, `${at} coveredHa`),
+    ...slivers(o, at),
   }
 }
 
@@ -354,6 +424,9 @@ function precedent(value: unknown, at: string): GroundPrecedent {
           int(n, `${at} row opening`, 0, Number.MAX_SAFE_INTEGER),
         ),
         earlier: int(r.earlier, `${at} row earlier`, 0, MAX_PRECEDENT_OPENINGS),
+        ...(r.touching !== undefined
+          ? { touching: int(r.touching, `${at} row touching`, 0, MAX_PRECEDENT_OPENINGS) }
+          : {}),
         ...(r.exemptBlocks !== undefined ? { exemptBlocks: ids(r.exemptBlocks, `${at} row exempt blocks`) } : {}),
         ...(r.exemptEarlier !== undefined
           ? { exemptEarlier: int(r.exemptEarlier, `${at} row exemptEarlier`, 0, MAX_PRECEDENT_OPENINGS) }
@@ -361,6 +434,11 @@ function precedent(value: unknown, at: string): GroundPrecedent {
         ...(r.alrApplications !== undefined
           ? { alrApplications: ids(r.alrApplications, `${at} row ALR applications`) }
           : {}),
+        ...Object.fromEntries(
+          (['exemptTouching', 'alrTouching'] as const).flatMap((k) =>
+            r[k] === undefined ? [] : [[k, int(r[k], `${at} row ${k}`, 0, MAX_PRECEDENT_OPENINGS)]],
+          ),
+        ),
       }
     }),
     ...(o.exemptBlocks !== undefined

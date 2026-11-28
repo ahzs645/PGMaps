@@ -1,6 +1,7 @@
 import type { Polygon } from 'geojson'
 import { describe, expect, it } from 'vitest'
-import { assignOpenings, describeOpening, type PrecedentRegion } from './precedent'
+import { assignOpenings, describeOpening, sharesGround, type PrecedentRegion } from './precedent'
+import { SLIVER_HA } from './record'
 
 const square: Polygon = {
   type: 'Polygon',
@@ -29,17 +30,34 @@ describe('assigning openings to instruments', () => {
       { OPENING_ID: 3 },
       { OPENING_ID: 4, DISTURBANCE_START_DATE: '2020-01-01Z' },
     ]
-    // [region][opening]: 1 is in a1 only, 2 in a1 and b1, 3 in b1, 4 in a2.
-    const inRegion = [
-      [true, true, false, false],
-      [false, false, false, true],
-      [false, true, true, false],
+    // [region][opening] in hectares: 1 is in a1 only, 2 in a1 and b1, 3 in b1, 4 in a2.
+    const overlapHa = [
+      [2, 1, 0, 0],
+      [0, 0, 0, 3],
+      [0, 0.5, 4, 0],
     ]
-    const rows = assignOpenings(regions, inRegion, openings, { a: true, b: true })
+    const rows = assignOpenings(regions, overlapHa, openings, { a: true, b: true })
     expect(rows).toEqual([
-      { instrument: 'a', since: '2010-01-01', dated: true, openings: [2, 4], earlier: 1 },
-      { instrument: 'b', since: '2015-06-01', dated: true, openings: [3], earlier: 1 },
+      { instrument: 'a', since: '2010-01-01', dated: true, openings: [2, 4], earlier: 1, touching: 0 },
+      { instrument: 'b', since: '2015-06-01', dated: true, openings: [3], earlier: 1, touching: 0 },
     ])
+  })
+
+  it('leaves out an opening that touches an instrument only by a sliver, and counts it', () => {
+    const regions = [region('a', 'a1', null), region('a', 'a2', null), region('b', 'b1', null)]
+    const openings = [{ OPENING_ID: 1 }, { OPENING_ID: 2 }, { OPENING_ID: 3 }]
+    // 1 touches a1 by 66 m² and a2 by 11 m²; 2 touches a1 by 66 m² but lies 1 ha in a2; 3 shares 100 m² with b1.
+    const overlapHa = [
+      [0.0066, 0.0066, 0],
+      [0.0011, 1, 0],
+      [0, 0, SLIVER_HA],
+    ]
+    expect(assignOpenings(regions, overlapHa, openings, {})).toEqual([
+      { instrument: 'a', dated: false, openings: [2], earlier: 0, touching: 1 },
+      { instrument: 'b', dated: false, openings: [3], earlier: 0, touching: 0 },
+    ])
+    expect(sharesGround(SLIVER_HA)).toBe(true)
+    expect(sharesGround(SLIVER_HA * 0.99)).toBe(false)
   })
 })
 
