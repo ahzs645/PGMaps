@@ -9,7 +9,11 @@
  * 2. **Same survey day.** Two records of one day are one site only within 5 m (twin structures);
  *    otherwise they are listed apart for the reviewer.
  * 3. **Different days.** Within 15 m they are one site; within 30 m too when both lie on the same
- *    `BLUE_LINE_KEY` with route measures within 10 m.
+ *    `BLUE_LINE_KEY` with route measures within 10 m; and within 30 m too when both record the same
+ *    structure (same type, diameter or span within 15% and 5 cm, `structureChange`) no farther apart
+ *    than the longer recorded barrel length and 2 m: the two ends of one pipe, surveyed from either
+ *    end on different visits (the back-test of 27 November 2026 found 2013 and 2023 surveys of
+ *    16–20 m culverts 19.4–19.7 m apart, one of them on no mapped stream).
  * 4. **Day guard.** A join that would put two records of one day more than 5 m apart into one site
  *    is refused, and so is one that would put two mapped streams in one site.
  *
@@ -21,16 +25,24 @@
  */
 import { distanceM, type LonLat } from './geometry'
 
-/** The rule's distances, metres. Change them only with a new run over the districts' records. */
+/**
+ * The rule's distances, metres. Change them only with a new run over the districts' records. The
+ * same-structure step was run on 27 November 2026 over the 7,242 PSCIS assessments between 127.5°
+ * and 120° W and 53° and 57.5° N: of 55 different-day pairs 15–30 m apart it joins 20, and of 58
+ * same-day pairs 15–30 m apart, which are distinct structures by construction, 3 would pass its test
+ * (5%) against 31 (53%) for a matching structure alone. Those 3 stay apart by step 2.
+ */
 export const PSCIS_SITE_RULE = {
   /** Two records of one survey day within this are twin structures at one site. */
   twinM: 5,
   /** Two records of different days within this are one site. */
   nearM: 15,
-  /** …or within this when on the same mapped stream, */
+  /** …or within this when on the same mapped stream, or recording the same structure, */
   sameStreamM: 30,
-  /** …with route measures this close. */
+  /** …with route measures this close, */
   measureM: 10,
+  /** …or no farther apart than the longer recorded barrel length and this. */
+  lengthToleranceM: 2,
 } as const
 
 export interface SiteRecord {
@@ -41,10 +53,12 @@ export interface SiteRecord {
   /** The mapped stream within `sameStreamM`, and the record's route measure on it. */
   blueLineKey?: number
   measureM?: number
+  /** The structure the record surveyed, with its barrel length (`LENGTH_OR_WIDTH`), where it gives one. */
+  structure?: StructureSeen & { lengthM?: number }
 }
 
 export type PairVerdict =
-  | { join: true; reason: 'twin' | 'near' | 'same-stream' }
+  | { join: true; reason: 'twin' | 'near' | 'same-stream' | 'same-structure' }
   | { join: false; reason: 'two-streams' | 'same-day' | 'far' }
 
 /** Whether two records may be one site, by the rule's first three steps. */
@@ -63,7 +77,24 @@ export function pairVerdict(a: SiteRecord, b: SiteRecord, d = distanceM(a.point,
     Math.abs(a.measureM - b.measureM) <= PSCIS_SITE_RULE.measureM
   )
     return { join: true, reason: 'same-stream' }
+  if (d <= PSCIS_SITE_RULE.sameStreamM && sameBarrel(a.structure, b.structure, d))
+    return { join: true, reason: 'same-structure' }
   return { join: false, reason: 'far' }
+}
+
+/**
+ * Whether two surveys `d` metres apart record one barrel from its two ends: the same structure
+ * (`structureChange` 'same', which needs a type and a size on both) and `d` no more than the longer
+ * recorded length and `lengthToleranceM`. A record with no length never joins this way.
+ */
+export function sameBarrel(a: SiteRecord['structure'], b: SiteRecord['structure'], d: number): boolean {
+  if (!a || !b || a.sizeM === undefined || b.sizeM === undefined) return false
+  const length = Math.max(a.lengthM ?? 0, b.lengthM ?? 0)
+  if (!(length > 0) || d > length + PSCIS_SITE_RULE.lengthToleranceM) return false
+  const x = { type: a.type, sizeM: a.sizeM }
+  const y = { type: b.type, sizeM: b.sizeM }
+  // Both ways round, so the size test is taken on the smaller pipe.
+  return structureChange(x, y) === 'same' && structureChange(y, x) === 'same'
 }
 
 /** Two groups' records may share a site: no two mapped streams, no two records of one day apart. */

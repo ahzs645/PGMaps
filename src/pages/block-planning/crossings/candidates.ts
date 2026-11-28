@@ -96,6 +96,12 @@ export interface CrossingRead {
   basis: string
   /** Each layer read, with how many records it gave or why it gave none. */
   layers: { id: string; label: string; status: ReadLayerStatus; count: number; message?: string }[]
+  /**
+   * What the read itself could not settle, for the reviewer: a corridor holding no road, PSCIS sites
+   * left off a corridor's roads, a structure that could be on either of two crossings. Absent in
+   * reads made before they were kept.
+   */
+  notes?: string[]
   candidates: CrossingCandidate[]
 }
 
@@ -527,6 +533,7 @@ function parseRead(v: unknown): CrossingRead | undefined {
         return [defined({ id, label, status, count, message: shortText(o.message, 1000) })]
       })
     : []
+  const notes = Array.isArray(r.notes) ? r.notes.slice(0, 20).flatMap((n) => shortText(n, 2000) ?? []) : []
   return {
     block,
     schedule,
@@ -536,6 +543,7 @@ function parseRead(v: unknown): CrossingRead | undefined {
     readOn: r.readOn as string,
     basis,
     layers,
+    ...(notes.length ? { notes } : {}),
     candidates: r.candidates.slice(0, MAX_CANDIDATES).flatMap((c) => parseCandidate(c) ?? []),
   }
 }
