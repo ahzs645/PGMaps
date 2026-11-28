@@ -1,12 +1,12 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.omineca.visual-quality",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "Visual quality objectives (Prince George and Fort St. James)",
   "description": "Scenic areas and visual quality objectives set under the Government Actions Regulation for the Prince George and Fort St. James districts, and scenic areas made known without one. The perspective-view ranges are the 2013 guide's, the scale the visual quality page measures on; the legal test is the category's own definition in FPPR s. 1.1.",
   "coverage": {
     "from": "2026-11-17",
-    "through": "2026-11-17"
+    "through": "2026-11-27"
   },
   "facts": [
     {

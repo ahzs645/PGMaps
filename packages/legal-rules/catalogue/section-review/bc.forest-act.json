@@ -308,17 +308,22 @@
       "n": "22.2",
       "relevance": "tenure",
       "bearsOn": "Area-based licence holders may release harvesting rights to BCTS; the exclusive right under a TFL, CFA, FNWL or woodlot is then subject to the BCTS licence, which decides who may harvest a block inside such a licence area.",
-      "review": "screen",
+      "review": "partial",
       "coveredBy": [
         "ground:woodlot-licence",
         "ground:community-forest",
         "ground:first-nations-woodland-licence",
-        "ground:tree-farm-licence"
+        "ground:tree-farm-licence",
+        "bc.land-status@1.1.0:woodlot-exclusive#bcts-release",
+        "bc.land-status@1.1.0:community-forest-exclusive#bcts-release",
+        "bc.land-status@1.1.0:tfl-exclusive#bcts-release",
+        "bc.land-status@1.1.0:fnwl-exclusive#bcts-release"
       ],
       "topics": [
         "forest-tenures",
         "cut-control"
-      ]
+      ],
+      "gapNote": "Listed as an exception on each area-based licence's exclusive-right rule in land status 1.1.0; the disposition agreement and the BCTS licence are the reviewer's evidence, and whether the released rights cover the block is not checked."
     },
     {
       "n": "22.3",
@@ -483,13 +488,16 @@
       "n": "35",
       "relevance": "tenure",
       "bearsOn": "A TFL describes its licence area and grants the exclusive right to harvest specified types of timber or terrain there, subject to reservations for BCTS, woodlots and free use permits; inside a TFL only its holder (or a BCTS or permit holder) may harvest a block.",
-      "review": "screen",
+      "review": "partial",
       "coveredBy": [
-        "ground:tree-farm-licence"
+        "ground:tree-farm-licence",
+        "bc.land-status@1.1.0:tfl-exclusive",
+        "bc.land-status@1.1.0:tfl-exclusive#other-provision"
       ],
       "topics": [
         "forest-tenures"
-      ]
+      ],
+      "gapNote": "Land status 1.1.0 raises a harvest in a TFL area by anyone but its holder (s. 35(1)(e)) and lists the BCTS release and another provision as exceptions. The licence's reservations (BCTS, woodlots, free use permits) are not transcribed: the licence decides which applies."
     },
     {
       "n": "35.1",
@@ -615,11 +623,15 @@
       "n": "43.3",
       "relevance": "tenure",
       "bearsOn": "A community forest agreement describes its area, gives its holder the exclusive right to harvest Crown timber there and requires an approved management plan to be implemented, so a block inside a CFA is the holder's (or BCTS's under a reservation) and must follow that plan.",
-      "review": "screen",
+      "review": "partial",
       "coveredBy": [
-        "ground:community-forest"
+        "ground:community-forest",
+        "bc.land-status@1.1.0:community-forest-exclusive",
+        "bc.land-status@1.1.0:community-forest-exclusive#reserved-timber",
+        "bc.land-status@1.1.0:community-forest-exclusive#bcts-reduction",
+        "bc.land-status@1.1.0:community-forest-exclusive#other-provision"
       ],
-      "gapNote": "The community forest screen flags the area; nothing asks whether the block is the CFA holder's and consistent with the approved management plan.",
+      "gapNote": "Land status 1.1.0 raises a harvest on a community forest's Crown land by anyone but its holder (s. 43.3(1)(c)(i)) and lists the (g.2) reservation, the (g.3) reduction, the BCTS release and another provision as exceptions; the agreement's terms are the reviewer's to read. Nothing asks whether the holder's own block is consistent with the approved management plan.",
       "topics": [
         "forest-tenures"
       ]
@@ -691,14 +703,17 @@
       "n": "43.55",
       "relevance": "tenure",
       "bearsOn": "A first nations woodland licence describes its area and gives its holder the exclusive right to harvest Crown timber there under an approved management plan, so a block inside an FNWL is the holder's (or BCTS's under a reservation).",
-      "review": "screen",
+      "review": "partial",
       "coveredBy": [
-        "ground:first-nations-woodland-licence"
+        "ground:first-nations-woodland-licence",
+        "bc.land-status@1.1.0:fnwl-exclusive",
+        "bc.land-status@1.1.0:fnwl-exclusive#other-provision"
       ],
       "topics": [
         "forest-tenures",
         "first-nations"
-      ]
+      ],
+      "gapNote": "Land status 1.1.0 raises a harvest on an FNWL's Crown land by anyone but its holder (s. 43.55(1)(c)(i)) and lists the BCTS release and another provision as exceptions; the licence's reservations are not transcribed."
     },
     {
       "n": "43.56",
@@ -739,11 +754,14 @@
       "n": "45",
       "relevance": "tenure",
       "bearsOn": "A woodlot licence describes its area (at most 1 200 ha of Crown land outside the Coast) and gives its holder the exclusive right to harvest Crown timber there under an approved management plan, so a block inside a woodlot is the holder's and falls under woodlot rules rather than the FSP regime.",
-      "review": "screen",
+      "review": "partial",
       "coveredBy": [
-        "ground:woodlot-licence"
+        "ground:woodlot-licence",
+        "bc.land-status@1.1.0:woodlot-exclusive",
+        "bc.land-status@1.1.0:woodlot-exclusive#bcts-reduction",
+        "bc.land-status@1.1.0:woodlot-exclusive#other-provision"
       ],
-      "gapNote": "The woodlot screen flags the area; the FPPR pack only asks the reviewer to confirm the FPPR regime applies, without saying that woodlot blocks fall under the woodlot licence plan regime instead.",
+      "gapNote": "Land status 1.1.0 raises a harvest on a woodlot's Crown land by anyone but its holder (s. 45(1)(c)) and lists the BCTS release, the s. 45(1)(f.2) reduction and another provision of the Act as exceptions; which provision the other licence was granted under, and its terms, stay the reviewer's to find. Nothing checks the block against the woodlot's management plan.",
       "topics": [
         "forest-tenures"
       ]
@@ -1011,8 +1029,8 @@
       "bearsOn": "Forest licence, area-based licence, timber licence, master licence to cut and some forestry licence to cut holders may harvest only as authorized under a cutting permit, so every such cutblock must lie in an issued cutting permit area before harvest.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.2.0:cutting-permit",
-        "bc.forest-permits@1.2.0:cutting-permit#authorized-without"
+        "bc.forest-permits@1.3.0:cutting-permit",
+        "bc.forest-permits@1.3.0:cutting-permit#authorized-without"
       ],
       "topics": [
         "harvest-authority"
@@ -1066,8 +1084,8 @@
         "If the block is in a forest landscape area, does the applicant hold a forest operations plan that applies there, and is the block consistent with a proposed cutblock it shows?"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.2.0:permit-refusal",
-        "bc.forest-permits@1.2.0:fop"
+        "bc.forest-permits@1.3.0:permit-refusal",
+        "bc.forest-permits@1.3.0:fop"
       ],
       "topics": [
         "harvest-authority",
@@ -2534,8 +2552,8 @@
         "Is any part of the road permit area inside a forest landscape area?"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.2.0:permit-refusal",
-        "bc.forest-permits@1.2.0:fop"
+        "bc.forest-permits@1.3.0:permit-refusal",
+        "bc.forest-permits@1.3.0:fop"
       ],
       "topics": [
         "roads"
@@ -4139,8 +4157,8 @@
         "If so, is the authorizing licence a forestry licence to cut for fire suppression, forest health or public safety, or a licence entered into for the special purpose area's own purpose under s. 223?"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.2.0:spa-licence",
-        "bc.forest-permits@1.2.0:spa-licence#fltc-purpose",
+        "bc.forest-permits@1.3.0:spa-licence",
+        "bc.forest-permits@1.3.0:spa-licence#fltc-purpose",
         "ground:special-purpose-area"
       ],
       "topics": [
@@ -4228,8 +4246,8 @@
         "If so, which s. 215(2) exception does the road rely on (no significant interference, a fire/forest health/safety FLTC, or a licence to cut entered into before the designation)?"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.2.0:spa-road",
-        "bc.forest-permits@1.2.0:spa-road#no-interference",
+        "bc.forest-permits@1.3.0:spa-road",
+        "bc.forest-permits@1.3.0:spa-road#no-interference",
         "ground:special-purpose-area"
       ],
       "topics": [

@@ -81,16 +81,63 @@ export function questions(pack: Pack, facts: FactSet, findings: Finding[], measu
   )
 }
 
-/** How many rules a review has in each state, for a one-line summary. */
+/**
+ * How many rules a review has in each state, for a one-line summary. A rule outside its release's
+ * dates was not assessed at all: it is counted apart, never as not applying.
+ */
 export function findingCounts(findings: Finding[]) {
-  const counts = { review: 0, exception: 0, open: 0, clear: 0, notApplicable: 0 }
+  const counts = { review: 0, exception: 0, open: 0, clear: 0, notApplicable: 0, outsideDates: 0 }
   for (const f of findings) {
     if (f.status === 'review_required') {
       counts.review++
       if ('exception' in f && f.exception) counts.exception++
     } else if (f.status === 'missing_evidence') counts.open++
     else if (f.status === 'condition_not_triggered') counts.clear++
+    else if (f.status === 'outside_source_window') counts.outsideDates++
     else counts.notApplicable++
   }
   return counts
+}
+
+/** A release whose dates do not cover the review's legal assessment date, and how many rules it left unassessed. */
+export interface DateGap {
+  pack: Pack
+  date: string
+  /** `before`: the date is earlier than the release's first day; `after`: later than its last. */
+  side: 'before' | 'after'
+  rules: number
+}
+
+/** The releases of an evaluated review whose dates do not cover its date, in release order. */
+export function dateGaps(date: string, releases: { pack: Pack; findings: { status: string }[] }[]): DateGap[] {
+  return releases.flatMap(({ pack, findings }) =>
+    date < pack.coverage.from || date > pack.coverage.through
+      ? [
+          {
+            pack,
+            date,
+            side: date < pack.coverage.from ? ('before' as const) : ('after' as const),
+            rules: findings.filter((f) => f.status === 'outside_source_window').length,
+          },
+        ]
+      : [],
+  )
+}
+
+/**
+ * The plain statement of a date gap: the release's own window, that its rules were not assessed, and
+ * that this is never "does not apply". A date before the window is the law as it stood then, which
+ * the release does not hold; a date after it is past what its stored text was checked to.
+ */
+export function dateGapText(gap: DateGap) {
+  const { pack, date, side, rules } = gap
+  const window =
+    pack.coverage.from === pack.coverage.through
+      ? `only ${pack.coverage.from}`
+      : `${pack.coverage.from} to ${pack.coverage.through}`
+  const why =
+    side === 'before'
+      ? `A review at an earlier date needs the law as it stood then (its consolidation and orders on that date), which this release does not hold.`
+      : `Its stored text was checked to ${pack.coverage.through}; choose a release that covers the date, or a date this one covers.`
+  return `${pack.title} ${pack.version} covers ${window}. The legal assessment date ${date} is ${side} that, so none of its ${rules} rule${rules === 1 ? ' was' : 's were'} assessed: they are not shown as applying or not applying. ${why}`
 }

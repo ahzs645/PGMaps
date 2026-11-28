@@ -517,8 +517,8 @@
         "Is each proposed road inside a forest development unit of that approved forest stewardship plan?"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.2.0:fdu",
-        "bc.forest-permits@1.2.0:fdu#earlier-permit",
+        "bc.forest-permits@1.3.0:fdu",
+        "bc.forest-permits@1.3.0:fdu#earlier-permit",
         "ground:fsp-forest-development-unit",
         "ground:fsp-forest-development-unit-submitted",
         "ground:fsp-declared-area"
@@ -535,9 +535,9 @@
       "gapPriority": "low",
       "gapNote": "Claimed as an exception on the forest development unit, map and refusal rules; the 1 ha opening and 500 m³ limits are the evidence the reviewer records, not tested figures.",
       "coveredBy": [
-        "bc.forest-permits@1.2.0:fdu#section-4-purpose",
-        "bc.forest-permits@1.2.0:fom#section-4-purpose",
-        "bc.forest-permits@1.2.0:permit-refusal#section-4-purpose"
+        "bc.forest-permits@1.3.0:fdu#section-4-purpose",
+        "bc.forest-permits@1.3.0:fom#section-4-purpose",
+        "bc.forest-permits@1.3.0:permit-refusal#section-4-purpose"
       ],
       "topics": [
         "plans",
@@ -619,7 +619,7 @@
       "bearsOn": "Except in prescribed circumstances, an FSP holder must prepare a site plan for each cutblock before harvesting and for each road before harvesting for its construction, consistent with the FSP and Act, identifying how the FSP's results or strategies apply to the site.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.2.0:site-plan"
+        "bc.forest-permits@1.3.0:site-plan"
       ],
       "topics": [
         "plans",
@@ -696,8 +696,8 @@
       "bearsOn": "Before applying for a cutting or road permit an FSP holder must publish a forest operations map showing the cutblock or road for review and comment, report on that review to government, and apply within 2 years (or a longer prescribed period) of publication.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.2.0:fom",
-        "bc.forest-permits@1.2.0:fom#section-4-purpose"
+        "bc.forest-permits@1.3.0:fom",
+        "bc.forest-permits@1.3.0:fom#section-4-purpose"
       ],
       "topics": [
         "plans",
@@ -835,8 +835,8 @@
       "bearsOn": "The holder of an FSP or woodlot licence plan must achieve the plan's intended results, carry out its strategies and comply with related provisions, and the obligation continues after expiry unless a replacement plan replaces it.",
       "review": "rule",
       "coveredBy": [
-        "bc.forest-permits@1.2.0:fsp-results",
-        "bc.forest-permits@1.2.0:fsp-results#replaced",
+        "bc.forest-permits@1.3.0:fsp-results",
+        "bc.forest-permits@1.3.0:fsp-results#replaced",
         "bc.crown-grazing@1.0.0:restricted-activity",
         "bc.crown-grazing@1.0.0:fsp-ada-strategy",
         "ground:legal-objective",
@@ -873,7 +873,7 @@
         "plans"
       ],
       "coveredBy": [
-        "bc.forest-permits@1.2.0:fsp-results",
+        "bc.forest-permits@1.3.0:fsp-results",
         "bc.forest-operations@1.0.0:fop-requirements",
         "ground:fsp-forest-development-unit"
       ]

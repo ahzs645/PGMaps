@@ -571,8 +571,8 @@
       "review": "rule",
       "coveredBy": [
         "bc.crown-grazing@1.0.0:range-holder-livestock",
-        "bc.crown-grazing@1.2.0:range-holder-livestock",
-        "bc.crown-grazing@1.2.0:range-holder-livestock#keep-out-exemption"
+        "bc.crown-grazing@1.3.0:range-holder-livestock",
+        "bc.crown-grazing@1.3.0:range-holder-livestock#keep-out-exemption"
       ],
       "encodable": "reviewer-question",
       "topics": [

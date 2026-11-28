@@ -3,7 +3,7 @@ import { assess } from '../../../../packages/legal-rules/engine/evaluate'
 import { parsePack, type FactSet } from '../../../../packages/legal-rules/src/contract'
 import fppr from '../../../../packages/legal-rules/packs/bc-fppr-planning-1.1.0.json'
 import pg from '../../../../packages/legal-rules/packs/bc-pgtsa-planning-1.2.0.json'
-import { findingCounts, questions } from './questions'
+import { dateGaps, dateGapText, findingCounts, questions } from './questions'
 import { describeCheck, STATUS_WORDS } from './wording'
 
 const pack = parsePack(fppr)
@@ -90,5 +90,37 @@ describe('grouping by provision', () => {
     const { ruleTopic } = await import('./topics')
     const other = { ...pack, id: 'example.other' }
     expect(ruleTopic(other, pack.rules[0])).toEqual({ id: 'section-64', label: 'Section 64' })
+  })
+})
+
+describe('a review date a release does not cover', () => {
+  const later = (date: string) => assess(date, [pack], [set(pack, [{ id: 'applicable', value: false }])]).releases[0]
+
+  it('counts its rules as not assessed, never as not applying', () => {
+    const counts = findingCounts(later('2026-12-15').findings)
+    expect(counts.outsideDates).toBe(pack.rules.length)
+    expect(counts.notApplicable).toBe(0)
+    expect(STATUS_WORDS.outside_source_window).toMatch(/^Not assessed/)
+  })
+
+  it('names the release’s window and says which side the date falls on', () => {
+    const after = later('2026-12-15')
+    const [gap] = dateGaps('2026-12-15', [after])
+    expect(gap).toMatchObject({ side: 'after', rules: pack.rules.length, date: '2026-12-15' })
+    const text = dateGapText(gap)
+    expect(text).toContain(`${pack.coverage.from} to ${pack.coverage.through}`)
+    expect(text).toContain('none of its')
+    expect(text).not.toMatch(/does not apply|complies/)
+    // A historical date (a permit's issue date) is before the window: the law as it stood then is not held.
+    const [before] = dateGaps('2016-06-01', [later('2016-06-01')])
+    expect(before.side).toBe('before')
+    expect(dateGapText(before)).toMatch(/law as it stood then/)
+    // A date the release covers leaves no gap.
+    expect(dateGaps(pack.coverage.through, [later(pack.coverage.through)])).toEqual([])
+  })
+
+  it('keeps a rule outside the release’s dates from asking anything', () => {
+    const release = assess('2016-06-01', [pack], [set(pack, [])]).releases[0]
+    expect(questions(pack, release.facts, release.findings, new Set()).filter((q) => q.state === 'open')).toEqual([])
   })
 })

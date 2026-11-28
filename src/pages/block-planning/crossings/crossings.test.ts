@@ -24,7 +24,7 @@ import { parsePlan, samplePlan, type Plan, type ReviewCase } from '../plan'
 import { boardCheckKey, oldForestKey } from '../records'
 import { setClaim, setFact } from '../review/caseEdits'
 import { CROSSING_INSTRUMENTS, CROSSING_RELEASES, crossingCurrent, crossingsOf } from './record'
-import { assessCrossing, crossingRollup, rollupText } from './standing'
+import { assessCrossing, CROSSING_STANDING_WORDS, crossingRollup, rollupText, STANDING_ORDER } from './standing'
 
 const library: Pack[] = Object.values(
   import.meta.glob('../../../../packages/legal-rules/packs/*.json', { eager: true, import: 'default' }),
@@ -266,6 +266,19 @@ describe('one answer set per crossing', () => {
     })
     // Another schedule's crossings are not this schedule's.
     expect(crossingsOf(twoCrossings(), 'block-1', 'deferred')).toEqual([])
+  })
+
+  it('never reads a crossing whose releases do not cover the review date as clear', () => {
+    let plan = addCrossing(samplePlan(), 'block-1', 'proposed', 'Only').plan
+    // A date before every crossing release's window: nothing was assessed, so nothing is clear.
+    plan = setCrossingReview(plan, 'crossing-1', { ...plan.crossings![0].review, date: '2016-06-01' })
+    const rollup = crossingRollup(plan, 'block-1', 'proposed', library)
+    expect(rollup.standing).toBe('undated')
+    expect(rollup.crossings[0].raised).toEqual([])
+    expect(CROSSING_STANDING_WORDS.undated).toBe('Not assessed on this date')
+    // A raised rule in a covering release still leads.
+    expect(STANDING_ORDER.indexOf('raised')).toBeLessThan(STANDING_ORDER.indexOf('undated'))
+    expect(STANDING_ORDER.indexOf('undated')).toBeLessThan(STANDING_ORDER.indexOf('clear'))
   })
 
   it('keeps each crossing’s exception claims in that crossing’s own facts', () => {

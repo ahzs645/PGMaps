@@ -1404,6 +1404,13 @@
           "provision": "2.A.a",
           "quote": "not allowing timber harvesting within 200 metres (slope distance) of Weissener Lake indicated in Table 4"
         }
+      ],
+      "ogma-other-order": [
+        {
+          "source": "bc.land-act",
+          "provision": "93.4",
+          "quote": "For the purposes of the Forest and Range Practices Act, the minister by order may establish objectives for the use and management of"
+        }
       ]
     },
     "bc.omineca.visual-quality": {
@@ -1687,6 +1694,20 @@
           "source": "bc.forest-act",
           "provision": "215",
           "quote": "After the effective date of the designation of an area as a special purpose area, and except as authorized under subsection (2), an authorized official must not, under a road permit or special use permit, authorize the holder of the permit to construct a road in the special purpose area."
+        }
+      ],
+      "site-plan#fppr-33-cutblock": [
+        {
+          "source": "bc.fppr",
+          "provision": "33",
+          "quote": "the prescribed circumstances, in which the holder of a forest stewardship plan need not prepare a site plan in accordance with section 10 (1) (a) of the Act, are"
+        }
+      ],
+      "site-plan#fppr-33-road": [
+        {
+          "source": "bc.fppr",
+          "provision": "33",
+          "quote": "a prescribed circumstance, in which the holder of a forest stewardship plan need not prepare a site plan in accordance with section 10 (1) (b) of the Act, is that timber harvesting associated with a road referred to in that provision is limited to removal of timber to improve safety for road users by"
         }
       ]
     },
@@ -2360,6 +2381,111 @@
           "source": "bc.forest-act",
           "provision": "94",
           "quote": "The minister may exempt timber or a person from subsection (1) or (4)."
+        }
+      ],
+      "woodlot-exclusive": [
+        {
+          "source": "bc.forest-act",
+          "provision": "45",
+          "quote": "subject to the provisions of this Act, must give to its holder the exclusive right to harvest timber on the Crown land referred to in paragraph (b), for its term,"
+        }
+      ],
+      "woodlot-exclusive#bcts-release": [
+        {
+          "source": "bc.forest-act",
+          "provision": "22.2",
+          "quote": "is subject to the right to harvest Crown timber under a BCTS licence if"
+        }
+      ],
+      "woodlot-exclusive#bcts-reduction": [
+        {
+          "source": "bc.forest-act",
+          "provision": "45",
+          "quote": "may require that the amount of timber on Crown land within the woodlot licence area that is available to the holder of the woodlot licence be reduced by a specified amount of timber for a specified period of time for the purpose of entering into one or more BCTS licences"
+        }
+      ],
+      "woodlot-exclusive#other-provision": [
+        {
+          "source": "bc.forest-act",
+          "provision": "45",
+          "quote": "subject to the provisions of this Act, must give to its holder the exclusive right to harvest timber"
+        }
+      ],
+      "community-forest-exclusive": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.3",
+          "quote": "must give to its holder the exclusive right to harvest timber on the Crown land referred to in paragraph (b), for the term of the agreement, and"
+        }
+      ],
+      "community-forest-exclusive#bcts-release": [
+        {
+          "source": "bc.forest-act",
+          "provision": "22.2",
+          "quote": "is subject to the right to harvest Crown timber under a BCTS licence if"
+        }
+      ],
+      "community-forest-exclusive#reserved-timber": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.3",
+          "quote": "may require that a specified amount of timber on Crown land within the community forest agreement area is to be reserved and available for disposition, to persons other than the holder of the community forest agreement, under"
+        }
+      ],
+      "community-forest-exclusive#bcts-reduction": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.3",
+          "quote": "may require that the amount of timber on Crown land within the community forest agreement area that is available to the holder of the community forest agreement be reduced by a specified amount of timber for a specified period of time"
+        }
+      ],
+      "community-forest-exclusive#other-provision": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.3",
+          "quote": "subject to this Act and the agreement,"
+        }
+      ],
+      "tfl-exclusive": [
+        {
+          "source": "bc.forest-act",
+          "provision": "35",
+          "quote": "subject to this Act and the licence, must grant to its holder the exclusive right to harvest from the tree farm licence area during the term of the tree farm licence one or both of the following:"
+        }
+      ],
+      "tfl-exclusive#bcts-release": [
+        {
+          "source": "bc.forest-act",
+          "provision": "22.2",
+          "quote": "is subject to the right to harvest Crown timber under a BCTS licence if"
+        }
+      ],
+      "tfl-exclusive#other-provision": [
+        {
+          "source": "bc.forest-act",
+          "provision": "35",
+          "quote": "subject to this Act and the licence, must grant to its holder the exclusive right to harvest"
+        }
+      ],
+      "fnwl-exclusive": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.55",
+          "quote": "must give to its holder the exclusive right to harvest timber on the Crown land referred to in paragraph (b), for the term of the agreement, and"
+        }
+      ],
+      "fnwl-exclusive#bcts-release": [
+        {
+          "source": "bc.forest-act",
+          "provision": "22.2",
+          "quote": "is subject to the right to harvest Crown timber under a BCTS licence if"
+        }
+      ],
+      "fnwl-exclusive#other-provision": [
+        {
+          "source": "bc.forest-act",
+          "provision": "43.55",
+          "quote": "subject to this Act and the licence,"
         }
       ]
     },

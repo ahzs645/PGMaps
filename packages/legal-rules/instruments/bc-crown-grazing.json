@@ -1,12 +1,12 @@
 {
   "format": "pgmaps-legal-pack/v1",
   "id": "bc.crown-grazing",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "title": "BC Crown grazing and reforestation",
   "description": "Evidence review for forestry on grazing land, in Land Act designated areas and in the 2006 Omineca agriculture and settlement reserve areas: lease terms, designations, range plans, range barriers and developments, the order's harvest pathways and whether the harvested ground can be reforested.",
   "coverage": {
     "from": "2026-11-17",
-    "through": "2026-11-17"
+    "through": "2026-11-27"
   },
   "facts": [
     {

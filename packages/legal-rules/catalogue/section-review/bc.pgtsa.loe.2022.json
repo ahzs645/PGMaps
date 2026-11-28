@@ -112,7 +112,7 @@
       "review": "rule",
       "gapNote": "On this ground reads the non-legal OGMA layer (WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW) by NON_LEGAL_OGMA_PROVID, PRG_COFA, with the 2009 PRG_DPG records in A22 and A23, as a candidate for the old growth pack's cofa fact; whether the block or road overlaps a COFA stays the reviewer's answer.",
       "coveredBy": [
-        "bc.omineca.old-growth@1.1.0:cofa",
+        "bc.omineca.old-growth@1.2.0:cofa",
         "ground:pg-cofa"
       ],
       "topics": [
@@ -146,7 +146,7 @@
       "review": "rule",
       "gapNote": "On this ground reads the non-legal OGMA layer (WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW) by NON_LEGAL_OGMA_PROVID, PRG_COFA, with the 2009 PRG_DPG records in A22 and A23, as a candidate for the old growth pack's cofa fact; whether the block or road overlaps a COFA stays the reviewer's answer.",
       "coveredBy": [
-        "bc.omineca.old-growth@1.1.0:cofa#variance",
+        "bc.omineca.old-growth@1.2.0:cofa#variance",
         "ground:pg-cofa"
       ],
       "topics": [
@@ -175,7 +175,7 @@
       "review": "rule",
       "gapNote": "On this ground reads the non-legal OGMA layer (WHSE_LAND_USE_PLANNING.RMP_OGMA_NON_LEGAL_CURRENT_SVW) by NON_LEGAL_OGMA_PROVID, PRG_COFA, with the 2009 PRG_DPG records in A22 and A23, as a candidate for the old growth pack's cofa fact; whether the block or road overlaps a COFA stays the reviewer's answer.",
       "coveredBy": [
-        "bc.omineca.old-growth@1.1.0:cofa-summary",
+        "bc.omineca.old-growth@1.2.0:cofa-summary",
         "ground:pg-cofa"
       ],
       "topics": [

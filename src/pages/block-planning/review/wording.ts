@@ -20,7 +20,7 @@ export const STATUS_WORDS: Record<Status, string> = {
   missing_evidence: 'To answer',
   condition_not_triggered: 'Not triggered',
   outside_scope: 'Does not apply',
-  outside_source_window: 'Outside the release’s dates',
+  outside_source_window: 'Not assessed: outside the release’s dates',
 }
 
 const OP_WORDS: Record<string, string> = {

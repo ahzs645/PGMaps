@@ -217,7 +217,7 @@ describe('Crown grazing rules', () => {
   })
 
   it('asks no §44(3) purpose or §46.11 question: each is an exception on the rules it relieves', () => {
-    expect(pack.version).toBe('1.2.0')
+    expect(pack.version).toBe('1.3.0')
     expect(pack.facts.some((f) => f.id === 'exempt-purpose')).toBe(false)
     for (const id of ['opening-tolerance', 'intermediate-cut-stocking', 'exclusive-range', 'not-exclusive'])
       expect(pack.rules.some((r) => r.id === id)).toBe(false)
@@ -251,7 +251,7 @@ describe('Grazing reviews saved with release 1.1.0', () => {
     const block = initial.blocks[0]
     const { record } = rangeReviewFor(initial, block)
     expect(record.review.selected).toEqual([RANGE_RELEASE])
-    expect(RANGE_RELEASE).toBe('bc.crown-grazing@1.2.0')
+    expect(RANGE_RELEASE).toBe('bc.crown-grazing@1.3.0')
     const exempt = '(d) land used exclusively for grazing or hay under a Range Act agreement'
     const answers = {
       'section-29-scope': true,
