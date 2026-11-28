@@ -7,7 +7,10 @@
  * flow line within `CROSSING_MATCH_DISTANCE_M` along the road are listed as one crossing, and
  * everything else is listed as unmatched rather than left for the reader to reconcile.
  */
-import { labelStation } from './roadStationing'
+import type { DesignerCrossing } from '@/lib/forestry/designerCrossings'
+import { labelStation, withStationing } from './roadStationing'
+import { positionAt } from './engine'
+import { crossingGeometry } from './streamCrossingReview'
 import { crossingsWithoutStructure } from './costReadiness'
 import { CROSSING_STRUCTURES, LEGACY_CULVERT_ASSOCIATION_M } from './crossingPlan'
 import type { DrainageEvidence } from './drainageEvidence'
@@ -263,6 +266,82 @@ export function crossingMatchText(row: CrossingRegisterRow, register: CrossingRe
       ? `Modelled crossings ${register.drainage === 'stale' ? 'are out of date' : 'not checked'}`
       : `No modelled flow line within ${register.matchDistanceM} m`
   return `No mapped stream within ${register.matchDistanceM} m`
+}
+
+/**
+ * The register as the GeoJSON export writes it for other tools (the block planner reads it through
+ * `readDesignerCrossings`): one point a row, at the mapped crossing or, for a modelled-only row,
+ * at its station on the road, with the culvert's sizing and each mapped crossing's skew and straight
+ * approaches. Stations are named by the road's own stationing.
+ */
+export function registerExportCrossings(
+  alignment: Alignment,
+  analysis: RoadAnalysis,
+  register: CrossingRegister,
+  context: readonly ContextFeature[],
+): DesignerCrossing[] {
+  const culverts = alignment.engineering?.culverts ?? []
+  const geometry = crossingGeometry(
+    alignment,
+    context,
+    register.rows.flatMap((row) => (row.mapped ? [row.mapped] : [])),
+  )
+  return withStationing(alignment.stationing, () =>
+    register.rows.flatMap((row): DesignerCrossing[] => {
+      const crossing = row.mapped ? analysis.crossings.find((c) => `mapped:${c.id}` === row.id) : undefined
+      let point: [number, number]
+      try {
+        const at = crossing?.coordinate ?? positionAt(alignment, row.chainage).coordinate
+        point = [at[0], at[1]]
+      } catch {
+        return []
+      }
+      const culvert = row.structure.culvertId ? culverts.find((c) => c.id === row.structure.culvertId) : undefined
+      const shape = row.mapped
+        ? geometry.find((g) => g.featureId === row.mapped!.featureId && g.chainage === row.mapped!.chainage)
+        : undefined
+      const out: DesignerCrossing = {
+        id: row.id,
+        roadId: alignment.id,
+        road: alignment.name,
+        chainageM: row.chainage,
+        station: labelStation(row.chainage),
+        point,
+        source: row.source,
+        stream: row.name,
+        structure: {
+          kind: row.structure.kind,
+          label: row.structure.label,
+          capacity: row.structure.capacity,
+          outstanding: row.structure.outstanding,
+        },
+      }
+      if (culvert) {
+        out.structure.diameterM = culvert.diameterM
+        out.structure.lengthM = culvert.lengthM
+      }
+      if (row.structure.kind === 'record') {
+        const record = analysis.crossingEstimate?.rows.find(
+          (r) =>
+            r.status === 'current' &&
+            r.record.featureId === row.mapped?.featureId &&
+            Math.abs(r.chainage - row.chainage) <= 0.01,
+        )
+        if (record && record.record.structure !== 'undecided') out.structure.record = record.record.structure
+      }
+      if (row.riparianClass) out.riparianClass = row.riparianClass
+      if (row.classStatus) out.classStatus = row.classStatus
+      if (row.separationM !== null) out.separationM = row.separationM
+      if (row.modelled) out.catchmentHa = row.modelled.areaHa
+      if (shape) {
+        out.skewDegrees = shape.skewDegrees
+        out.onCurve = shape.onCurve
+        out.approachBackM = shape.backM
+        out.approachAheadM = shape.aheadM
+      }
+      return [out]
+    }),
+  )
 }
 
 /** The register for the printed report. */

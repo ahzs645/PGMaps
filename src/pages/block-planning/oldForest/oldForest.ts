@@ -889,6 +889,36 @@ export function grownFootprint(footprint: Shape, metres: number): Shape {
 }
 
 /**
+ * The ground within `metres` of some lines and within `pointMetres` of some points, in WGS84,
+ * simplified by a tenth of the margin: what the crossing read asks for streams along the roads it
+ * found (`crossings/mappedRead.ts`). Simplifying inside the margin only ever asks for less than the
+ * margin by that tenth, never for ground farther away.
+ */
+export function corridorAround(
+  lines: Position[][],
+  metres: number,
+  points: Position[] = [],
+  pointMetres = metres,
+): Shape | null {
+  const parts: Geometry[] = []
+  for (const line of lines)
+    if (line.length >= 2) parts.push(BufferOp.bufferOp(toAlbers({ type: 'LineString', coordinates: line }), metres))
+  for (const [x, y] of points)
+    parts.push(BufferOp.bufferOp(reader.read({ type: 'Point', coordinates: lngLatToAlbers(x, y) }), pointMetres))
+  if (!parts.length) return null
+  let joined: Geometry
+  try {
+    joined = UnaryUnionOp.union(factory.createGeometryCollection(parts))
+  } catch {
+    joined = UnaryUnionOp.union(GeometryPrecisionReducer.reduce(factory.createGeometryCollection(parts), coarse))
+  }
+  return toLngLat(TopologyPreservingSimplifier.simplify(joined, metres / 10) as Geometry)
+}
+
+/** The overlays the crossing read takes (`CrossingOverlay` in `crossings/mappedRead.ts`). */
+export const crossingOverlay = { grow: grownFootprint, corridor: corridorAround }
+
+/**
  * Each line's length in metres inside the footprint and within `metres` of it (inside included),
  * and the same for all of them joined, so a stretch two records share is counted once.
  */

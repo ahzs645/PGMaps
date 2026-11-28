@@ -12,6 +12,8 @@ const R = 6_371_008.8
 const RAD = Math.PI / 180
 
 export type LonLat = [number, number]
+/** Any GeoJSON geometry, a collection included: the helpers below read the kinds they know. */
+type GeometryLike = { type: string; coordinates?: unknown }
 type XY = [number, number]
 
 /** Great-circle distance in metres. */
@@ -106,7 +108,8 @@ export function nearestOnLine(p: Position, line: Position[]): Nearest {
     const y = y1 + t * dy
     const d = Math.hypot(x, y)
     const len = Math.sqrt(len2)
-    if (d < best.distanceM) best = { distanceM: d, point: plane.toLonLat([x, y]), alongM: along + t * len, index: i - 1, t }
+    if (d < best.distanceM)
+      best = { distanceM: d, point: plane.toLonLat([x, y]), alongM: along + t * len, index: i - 1, t }
     along += len
   }
   return best
@@ -142,26 +145,26 @@ export function distanceToPolygonsM(p: Position, polygons: Position[][][]): numb
 }
 
 /** The parts of a line or multi-line, as position lists. */
-export function lineParts(geometry: { type: string; coordinates: unknown } | null | undefined): Position[][] {
+export function lineParts(geometry: GeometryLike | null | undefined): Position[][] {
   if (!geometry) return []
-  if (geometry.type === 'LineString') return [geometry.coordinates as Position[]]
-  if (geometry.type === 'MultiLineString') return geometry.coordinates as Position[][]
+  if (geometry.type === 'LineString') return [(geometry as { coordinates: unknown }).coordinates as Position[]]
+  if (geometry.type === 'MultiLineString') return (geometry as { coordinates: unknown }).coordinates as Position[][]
   return []
 }
 
 /** The points of a point or multi-point. */
-export function pointParts(geometry: { type: string; coordinates: unknown } | null | undefined): Position[] {
+export function pointParts(geometry: GeometryLike | null | undefined): Position[] {
   if (!geometry) return []
-  if (geometry.type === 'Point') return [geometry.coordinates as Position]
-  if (geometry.type === 'MultiPoint') return geometry.coordinates as Position[]
+  if (geometry.type === 'Point') return [(geometry as { coordinates: unknown }).coordinates as Position]
+  if (geometry.type === 'MultiPoint') return (geometry as { coordinates: unknown }).coordinates as Position[]
   return []
 }
 
 /** The polygons of a polygon or multi-polygon. */
-export function polygonParts(geometry: { type: string; coordinates: unknown } | null | undefined): Position[][][] {
+export function polygonParts(geometry: GeometryLike | null | undefined): Position[][][] {
   if (!geometry) return []
-  if (geometry.type === 'Polygon') return [geometry.coordinates as Position[][]]
-  if (geometry.type === 'MultiPolygon') return geometry.coordinates as Position[][][]
+  if (geometry.type === 'Polygon') return [(geometry as { coordinates: unknown }).coordinates as Position[][]]
+  if (geometry.type === 'MultiPolygon') return (geometry as { coordinates: unknown }).coordinates as Position[][][]
   return []
 }
 

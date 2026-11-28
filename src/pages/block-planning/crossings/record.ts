@@ -73,9 +73,11 @@ export interface CrossingPlace {
 }
 
 /**
- * A record read about the crossing (a PSCIS stage, a modelled crossing, a fish observation, a
- * ministry structure, a Water Act notice, the designer's sizing): a candidate the reviewer weighs,
- * with its read date and source, names cut. None are read yet.
+ * A record read about the crossing (a PSCIS stage, a ministry structure, a fish observation, a Water
+ * Act approval or notification, the mapped stream, the designer's sizing, a received record): a
+ * candidate the reviewer weighs, with its read date and source, names cut. `kind` is an open word
+ * (`EVIDENCE_KIND_LABELS` in `candidates.ts` names the ones the readers write), so a file with a kind this PGMaps does not
+ * know still opens and prints it.
  */
 export interface CrossingEvidence {
   kind: string
@@ -85,6 +87,12 @@ export interface CrossingEvidence {
   reference?: string
   /** A value the reviewer transcribed from a received record (`acquire/`), `<record id>/<value id>`; kind `received`. */
   received?: string
+  /** The day the record describes (a survey, an inspection, an approval), where it has one. */
+  date?: string
+  /** How far the record lies from the crossing's point, metres. */
+  distanceM?: number
+  /** The record's own fields as read, by DataBC's name; names of people and companies are never among them. */
+  values?: Record<string, string | number | boolean>
 }
 
 export interface CrossingRecord {
@@ -101,6 +109,10 @@ export interface CrossingRecord {
   structure?: CrossingStructure
   note?: string
   evidence: CrossingEvidence[]
+  /** The ids sources give this place (`key.ts`): evidence of where it was seen, never its key. */
+  aliases?: CrossingAlias[]
+  /** Dated sightings of the road and crossing (`dating.ts`), the readers' and the reviewer's. */
+  sightings?: CrossingSighting[]
   /** Its own review over the crossing releases. */
   review: ReviewCase
 }
@@ -222,9 +234,21 @@ function parsePlace(value: unknown): CrossingPlace | undefined {
   return Object.keys(place).length ? place : undefined
 }
 
+/** A record's fields as read: short keys, and text, finite numbers or yes/no only. */
+function parseValues(value: unknown): CrossingEvidence['values'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const out: Record<string, string | number | boolean> = {}
+  for (const [k, v] of Object.entries(value as JsonObject).slice(0, 60)) {
+    if (!/^[A-Za-z0-9_.-]{1,60}$/.test(k)) continue
+    if (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))) out[k] = v
+    else if (typeof v === 'string' && v.length <= 500) out[k] = v
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 function parseEvidence(value: unknown): CrossingEvidence[] {
   if (!Array.isArray(value)) return []
-  return value.flatMap((item) => {
+  return value.slice(0, 500).flatMap((item) => {
     if (!item || typeof item !== 'object') return []
     const e = item as JsonObject
     const kind = shortText(e.kind, 60)
@@ -240,6 +264,9 @@ function parseEvidence(value: unknown): CrossingEvidence[] {
         summary,
         reference: shortText(e.reference, 500),
         received: shortText(e.received, 130),
+        date: day(e.date),
+        distanceM: finite(e.distanceM, 0, 1e6),
+        values: parseValues(e.values),
       }),
     ]
   })
@@ -274,6 +301,10 @@ export function parseCrossing(value: unknown, at = 'crossing'): CrossingRecord {
   if (structure) record.structure = structure
   const note = shortText(c.note, MAX_NOTE)
   if (note) record.note = note
+  const aliases = parseAliases(c.aliases)
+  if (aliases.length) record.aliases = aliases
+  const sightings = parseSightings(c.sightings)
+  if (sightings.length) record.sightings = sightings
   return record
 }
 

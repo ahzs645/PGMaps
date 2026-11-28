@@ -445,6 +445,12 @@ test('alternatives, comparison, undo and GeoJSON/project round trips preserve ed
   expect(collection.features.some((feature) => feature.geometry.type === 'LineString')).toBe(true)
   expect(collection.features.some((feature) => feature.geometry.type === 'Point')).toBe(true)
   expect(geo.text).not.toContain('NaN')
+  // The crossing register travels as points the block planner reads (`designerCrossings.ts`).
+  const register = collection.features.filter(
+    (feature) => feature.properties?.register_format === 'pgmaps-designer-crossing/v1',
+  )
+  expect(register.length).toBeGreaterThan(0)
+  expect(register[0].properties).toMatchObject({ kind: 'crossing-review', register_source: expect.any(String) })
 
   // Save & export only saves; road lines come in through the Design tab's Import line.
   await page

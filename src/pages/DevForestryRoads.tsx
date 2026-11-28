@@ -4098,6 +4098,8 @@ export default function DevForestryRoads({
             projectGeoJson(
               { ...safe, alignments: exportRoads(safe.alignments, safe.activeAlignmentId, roadScope) },
               w.analyses,
+              // Only the open road's drainage check is known to match its road.
+              { drainageCurrent: (id) => id === alignment.id && !!drainageEvidence && !drainageStale },
             ),
             null,
             2,

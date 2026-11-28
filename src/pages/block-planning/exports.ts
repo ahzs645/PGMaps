@@ -64,6 +64,8 @@ import { documentRequests } from './ground/requests'
 import { exceptionsToRequest, wildlifeCitesText, wildlifeRows, withheldRequests } from './ground/wildlifeMeasures'
 import { CROSSING_ORIGIN_LABELS, CROSSING_ROLE_LABELS, CROSSING_STRUCTURE_LABELS } from './crossings/record'
 import { assessCrossing, CROSSING_STANDING_WORDS, crossingRollup, type CrossingAssessment } from './crossings/standing'
+import { CROSSING_ALIAS_LABELS } from './crossings/key'
+import { datingBracket } from './crossings/dating'
 import { channelOf, gapKindOf } from './acquire/channels'
 import { blockGaps, gapSubject, planGaps } from './acquire/gaps'
 import { FSP_BASIS_LABELS, RECORD_ID_FIELDS, RECORD_ID_LABELS, REQUEST_EVENT_LABELS } from './acquire/record'
@@ -699,7 +701,7 @@ ${pairs
     const name = plan.blocks.find((b) => b.id === block)?.name ?? block
     const worst = rollup.worst.map((c) => c.record.label).join(', ')
     return `<h3>${escape(name)} · ${escape(names[schedule] ?? schedule)}${rollup.standing ? ` — ${escape(CROSSING_STANDING_WORDS[rollup.standing])}: ${escape(worst)}` : ''}</h3>
-<table><thead><tr><th>Crossing</th><th>Origin</th><th>Road</th><th>Structure</th><th>Standing</th><th>Findings</th></tr></thead><tbody>
+<table><thead><tr><th>Crossing</th><th>Origin</th><th>Road</th><th>Structure</th><th>Seen by · dating</th><th>Standing</th><th>Findings</th></tr></thead><tbody>
 ${rollup.crossings
   .map((c) => {
     const s = c.record.structure
@@ -709,7 +711,9 @@ ${rollup.crossings
     const findings = c.error
       ? `<p>${escape(c.error)}</p>`
       : `${c.raised.length ? `<ul>${c.raised.map(({ finding }) => findingItem(finding)).join('')}</ul>` : ''}${c.openQuestions ? `<p class="note">${c.openQuestions} question${c.openQuestions === 1 ? '' : 's'} to answer.</p>` : ''}`
-    return `<tr>${cell(c.record.label + (c.current ? '' : ' (the block’s shape changed since it was listed)'))}${cell(CROSSING_ORIGIN_LABELS[c.record.origin])}${cell(CROSSING_ROLE_LABELS[c.record.role])}${cell(structure)}${cell(CROSSING_STANDING_WORDS[c.standing])}<td>${findings || '—'}</td></tr>`
+    const seen = (c.record.aliases ?? []).map((a) => `${CROSSING_ALIAS_LABELS[a.source]} ${a.id}`).join('; ')
+    const dating = c.record.sightings?.length ? datingBracket(c.record.sightings).text : ''
+    return `<tr>${cell(c.record.label + (c.current ? '' : ' (the block’s shape changed since it was listed)'))}${cell(CROSSING_ORIGIN_LABELS[c.record.origin])}${cell(CROSSING_ROLE_LABELS[c.record.role])}${cell(structure)}${cell([seen, dating].filter(Boolean).join(' · ') || '—')}${cell(CROSSING_STANDING_WORDS[c.standing])}<td>${findings || '—'}</td></tr>`
   })
   .join('\n')}
 </tbody></table>`

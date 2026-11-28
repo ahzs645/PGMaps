@@ -37,6 +37,7 @@ import type { FactSet } from '../../../packages/legal-rules/src/contract'
 import { districts, table } from '../forest-patches/project'
 import { parseGroundReads, type GroundRead } from './ground/record'
 import { parseCrossings, type CrossingRecord } from './crossings/record'
+import { parseCrossingReads, type CrossingRead } from './crossings/candidates'
 import { parseAcquisition, type Acquisition } from './acquire/record'
 import {
   parseMackenzieChoices,
@@ -312,6 +313,12 @@ export interface Plan {
    * and keyed to the footprint (`crossings/`). Absent in a plan that lists none.
    */
   crossings?: CrossingRecord[]
+  /**
+   * Crossings read from the road designer's register or DataBC's layers, per block, schedule and
+   * source and keyed to the footprint, before the reviewer adds them (`crossings/candidates.ts`).
+   * Absent in a plan with none.
+   */
+  crossingReads?: CrossingRead[]
   /**
    * Getting the records a review lacks: the identifiers a request quotes, each request's status and
    * what came back, as the reviewer's transcription (`acquire/`). Absent in a plan that has none.
@@ -1034,6 +1041,7 @@ export function parsePlan(value: unknown): Plan {
   }
   const l = object(p.landscape ?? {}, 'landscape')
   const crossings = parseCrossings(p.crossings, blocks, schedules)
+  const crossingReads = parseCrossingReads(p.crossingReads, blocks, schedules)
   const { acquisition } = parseAcquisition(p.acquisition, blocks, schedules)
   return {
     format: PLAN_FORMAT,
@@ -1108,6 +1116,7 @@ export function parsePlan(value: unknown): Plan {
     checks: optional(p, 'checks', parseChecks),
     groundReads: parseGroundReads(p.groundReads, blocks, schedules),
     ...(crossings ? { crossings } : {}),
+    ...(crossingReads ? { crossingReads } : {}),
     ...(acquisition ? { acquisition } : {}),
   }
 }

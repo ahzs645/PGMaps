@@ -62,16 +62,21 @@ export function crossingIdentifiers(record: CrossingRecord): string[] {
   return out
 }
 
-/** PSCIS ids a crossing carries: its aliases where it has them, else the references of its PSCIS evidence. */
+/**
+ * PSCIS ids a crossing carries: its PSCIS aliases where it has any (one per survey site the record
+ * holds, `crossings/key.ts`), else the references of evidence the reviewer recorded as PSCIS. A
+ * record with aliases quotes those and nothing else, so a letter never names another site's id.
+ */
 export function pscisIds(record: CrossingRecord): string[] {
-  const aliases = (record as CrossingRecord & { aliases?: { source?: unknown; id?: unknown }[] }).aliases
-  const fromAliases = Array.isArray(aliases)
-    ? aliases.filter((a) => /pscis/i.test(String(a.source ?? ''))).map((a) => identifierToken(String(a.id ?? '')))
-    : []
+  const fromAliases = (record.aliases ?? [])
+    .filter((a) => a.source === 'pscis')
+    .map((a) => identifierToken(a.id))
+    .filter((v): v is string => !!v)
+  if (fromAliases.length) return [...new Set(fromAliases)]
   const fromEvidence = record.evidence
     .filter((e) => /pscis/i.test(e.kind) || /pscis/i.test(e.source))
     .map((e) => identifierToken(e.reference))
-  return [...new Set([...fromAliases, ...fromEvidence].filter((v): v is string => !!v))]
+  return [...new Set(fromEvidence.filter((v): v is string => !!v))]
 }
 
 /** The block's identifiers a channel asks for, each as "Label: value". */

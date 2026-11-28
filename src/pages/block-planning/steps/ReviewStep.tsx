@@ -18,6 +18,7 @@ import { PathwayCard } from '../review/PathwayCard'
 import { measuredTrend, pathways, trendMeasurements, trendYearOf } from '../review/pathways'
 import { RANGE_INSTRUMENT, rangeReviewCurrent, rangeReviewFor } from '../review/rangeReview'
 import { CROSSING_INSTRUMENTS, crossingsOf } from '../crossings/record'
+import { unreviewedCandidates } from '../crossings/candidates'
 import { CrossingsSection } from '../crossings/CrossingsSection'
 import { crossingRollup, CROSSING_STANDING_WORDS } from '../crossings/standing'
 import { shownResult } from '../usePlanAnalysis'
@@ -77,13 +78,16 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis, o
   }
   const years = periodYears(plan.area.startYear)
   const listed = block ? crossingsOf(plan, block.id, plan.reviewSchedule) : []
+  // Read but not added: counted beside the block's question, never an answer to it.
+  const unreviewed = block ? unreviewedCandidates(plan, block.id, plan.reviewSchedule).length : 0
+  const unreviewedText = unreviewed ? ` ${unreviewed} more read under Find crossings and not added.` : ''
   const crossingHints = {
     'stream-changes': listed.length
-      ? `${listed.length} crossing${listed.length === 1 ? '' : 's'} listed under Stream crossings for ${reviewName}.`
-      : 'No crossing is listed under Stream crossings yet.',
+      ? `${listed.length} crossing${listed.length === 1 ? '' : 's'} listed under Stream crossings for ${reviewName}.${unreviewedText}`
+      : `No crossing is listed under Stream crossings yet.${unreviewedText}`,
     'crossings-listed': listed.length
-      ? `Listed for ${reviewName}: ${listed.map((c) => c.label).join(', ')}.`
-      : `None listed for ${reviewName} yet; add each under Stream crossings below.`,
+      ? `Listed for ${reviewName}: ${listed.map((c) => c.label).join(', ')}.${unreviewedText}`
+      : `None listed for ${reviewName} yet; add each under Stream crossings below.${unreviewedText}`,
   }
   return (
     <>
@@ -164,9 +168,10 @@ export function ReviewStep({ plan, edit, selectedBlock, selectBlock, analysis, o
           title="Stream crossings"
           summary={(() => {
             const rollup = crossingRollup(plan, block.id, plan.reviewSchedule, library)
+            const read = unreviewed ? ` · ${unreviewed} read, not added` : ''
             return rollup.standing
-              ? `${rollup.crossings.length} listed · ${CROSSING_STANDING_WORDS[rollup.standing]}`
-              : 'None listed'
+              ? `${rollup.crossings.length} listed · ${CROSSING_STANDING_WORDS[rollup.standing]}${read}`
+              : `None listed${read}`
           })()}
           help="Each crossing the block's roads and harvesting make, answered on its own under the Water Sustainability Act and Regulation and FPPR §§55–57, 72 and 73, so a crossing with no authority is never hidden behind one that has one. The block's standing is the worst of its crossings, worked out each time. Every answer is the reviewer's."
           defaultOpen

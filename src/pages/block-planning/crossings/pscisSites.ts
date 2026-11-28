@@ -77,9 +77,9 @@ function groupsCompatible(a: SiteRecord[], b: SiteRecord[]): 'ok' | 'two-streams
   return 'ok'
 }
 
-export interface SiteFold {
+export interface SiteFold<T extends SiteRecord = SiteRecord> {
   /** Each site's records, in the order given. */
-  sites: SiteRecord[][]
+  sites: T[][]
   /** Pairs within reach that the rule kept apart, nearest first, for the reviewer. */
   apart: { a: string; b: string; distanceM: number; reason: 'two-streams' | 'same-day' | 'day-guard' }[]
 }
@@ -88,7 +88,7 @@ export interface SiteFold {
  * Folds records into sites. Records that share an id are one site before the rule runs (the four
  * PSCIS stages of one crossing carry one `STREAM_CROSSING_ID`).
  */
-export function foldSites(records: SiteRecord[], sameId: (r: SiteRecord) => string = (r) => r.id): SiteFold {
+export function foldSites<T extends SiteRecord>(records: T[], sameId: (r: T) => string = (r) => r.id): SiteFold<T> {
   const parent = records.map((_, i) => i)
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])))
   const members = (root: number) => records.filter((_, i) => find(i) === root)
@@ -113,7 +113,8 @@ export function foldSites(records: SiteRecord[], sameId: (r: SiteRecord) => stri
     if (ri === rj) continue
     const verdict = pairVerdict(records[i], records[j], d)
     if (!verdict.join) {
-      if (verdict.reason !== 'far') apart.push({ a: records[i].id, b: records[j].id, distanceM: d, reason: verdict.reason })
+      if (verdict.reason !== 'far')
+        apart.push({ a: records[i].id, b: records[j].id, distanceM: d, reason: verdict.reason })
       continue
     }
     const fit = groupsCompatible(members(ri), members(rj))
@@ -123,7 +124,7 @@ export function foldSites(records: SiteRecord[], sameId: (r: SiteRecord) => stri
     }
     parent[rj] = ri
   }
-  const groups = new Map<number, SiteRecord[]>()
+  const groups = new Map<number, T[]>()
   records.forEach((r, i) => {
     const root = find(i)
     groups.set(root, [...(groups.get(root) ?? []), r])
@@ -144,10 +145,12 @@ export interface StructureSeen {
  * within 15% and 5 cm), a likely replacement (a larger pipe or an open-bottom structure three or more
  * years later), or a difference with no stated reason, which the reviewer is shown.
  */
-export function structureChange(earlier: StructureSeen, later: StructureSeen): 'same' | 'replaced' | 'differs' | 'unknown' {
+export function structureChange(
+  earlier: StructureSeen,
+  later: StructureSeen,
+): 'same' | 'replaced' | 'differs' | 'unknown' {
   if (!earlier.type || !later.type) return 'unknown'
-  const years =
-    earlier.day && later.day ? (Date.parse(later.day) - Date.parse(earlier.day)) / (365.25 * 86_400_000) : 0
+  const years = earlier.day && later.day ? (Date.parse(later.day) - Date.parse(earlier.day)) / (365.25 * 86_400_000) : 0
   const sameSize =
     earlier.sizeM !== undefined &&
     later.sizeM !== undefined &&

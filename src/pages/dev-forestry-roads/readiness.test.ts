@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { designInputsOf, safeAnalyzeRoad } from './analysisResult'
 import { assessCostReadiness, unpricedQuantities } from './costReadiness'
-import { buildCrossingRegister, CROSSING_MATCH_DISTANCE_M, crossingRegisterSummary } from './crossingRegister'
+import {
+  buildCrossingRegister,
+  CROSSING_MATCH_DISTANCE_M,
+  crossingRegisterSummary,
+  registerExportCrossings,
+} from './crossingRegister'
+import { designerCrossingProperties, readDesignerCrossings } from '@/lib/forestry/designerCrossings'
 import { DEFAULT_DESIGN_STANDARDS, type DesignStandards } from './designStandards'
 import type { DrainageEvidence } from './drainageEvidence'
 import { analyzeRoad, offsetCoordinate, positionAt } from './engine'
@@ -1374,6 +1380,63 @@ describe('buildCrossingRegister', () => {
     expect(register.rows[0].structure.outstanding).toEqual(['no inverts', 'capacity not checked'])
     expect(register.rows[2].classStatus).toBeNull()
     expect(crossingRegisterSummary(register)).toBe('2 mapped · 2 modelled · 1 matched')
+  })
+
+  it('writes each register row as a point the block planner reads back exactly', () => {
+    const alignment = road()
+    alignment.engineering!.culverts = [culvert({ sourceFeatureId: '1', chainage: 100 })]
+    const context = [stream('1', 100), stream('2', 150)]
+    const analysis = analyzeRoad(alignment, hillside, DEFAULT_ROAD_SETTINGS, context)
+    const register = buildCrossingRegister({
+      alignment,
+      analysis,
+      context,
+      drainage: {
+        stale: false,
+        record: drainageRecord([
+          { id: 'crossing-1', chainage: 100 + CROSSING_MATCH_DISTANCE_M - 1, areaHa: 7.6 },
+          { id: 'crossing-2', chainage: 335.6, areaHa: 2.69 },
+        ]),
+      },
+    })
+    const rows = registerExportCrossings(alignment, analysis, register, context)
+    expect(rows.map((r) => [r.source, r.structure.kind, r.structure.diameterM])).toEqual([
+      ['both', 'culvert', alignment.engineering!.culverts[0].diameterM],
+      ['mapped', 'none', undefined],
+      ['modelled', 'none', undefined],
+    ])
+    // A modelled-only row stands on the road at its station.
+    const modelled = rows[2]
+    const onRoad = positionAt(alignment, modelled.chainageM).coordinate
+    expect(modelled.point).toEqual([onRoad[0], onRoad[1]])
+    expect(modelled.catchmentHa).toBe(2.69)
+    expect(rows[1].skewDegrees === null || typeof rows[1].skewDegrees === 'number').toBe(true)
+    const file = {
+      type: 'FeatureCollection',
+      features: [
+        ...rows.map((r) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: r.point },
+          properties: { kind: 'crossing-review', ...designerCrossingProperties(r) },
+        })),
+        // A geometric crossing point from before the register: passed over.
+        { type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] }, properties: { kind: 'crossing-review' } },
+      ],
+    }
+    const read = readDesignerCrossings(JSON.stringify(file))
+    expect(read.skipped).toBe(0)
+    expect(read.crossings).toHaveLength(3)
+    expect(read.crossings[0]).toMatchObject({
+      id: rows[0].id,
+      source: 'both',
+      structure: {
+        kind: 'culvert',
+        diameterM: rows[0].structure.diameterM,
+        outstanding: rows[0].structure.outstanding,
+      },
+    })
+    // Nothing about a person travels: the stream assessment's assessor is not a register field.
+    expect(JSON.stringify(file)).not.toMatch(/assessor/i)
   })
 
   it('pairs each mapped stream with its nearest flow line and never one flow line twice', () => {

@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Feature, FeatureCollection, MultiPolygon, Polygon, Position } from 'geojson'
+import type { Feature, FeatureCollection, MultiPolygon, Point, Polygon, Position } from 'geojson'
 import type { StyleSpecification } from 'maplibre-gl'
 import { fitMapToPoints } from '@pgmaps/geo-toolkit/map/map-fit'
 import { Map, useMap } from '@/components/ui/map'
-import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
+import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { HANDOFF_NOTE_DELAY_MS } from '@/components/ui/map-raster-handoff'
 import { LegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { MapSketch, type MapSketchController } from '@/components/ui/map-sketch'
 import { WORKSPACE_MAP_CONTROLS } from '@pgmaps/geo-toolkit/map/map-controls'
 import { bins, table } from '../forest-patches/project'
-import { CLASS_COLOURS, MAP_COLOURS, OLD_FOREST_COLOURS, UNCLASSIFIED_COLOUR } from './colors'
+import { CLASS_COLOURS, CROSSING_COLOURS, MAP_COLOURS, OLD_FOREST_COLOURS, UNCLASSIFIED_COLOUR } from './colors'
+import type { CrossingMapProperties } from './crossings/mapFeatures'
+import { CROSSING_STANDING_WORDS } from './crossings/standing'
 import { DRAWN_KINDS, DRAWN_LABELS, MAP_SIMPLIFY_METRES, type DrawnKind } from './oldForest/drawing'
 import { entryOf, shapeOf, type Plan } from './plan'
 import type { OldForestMap } from './useOldForestMap'
@@ -174,6 +176,8 @@ export interface PlanMapProps {
   fitKey: number
   /** The old forest layer (`useOldForestMap`); null while it is off. */
   oldForest?: OldForestMap | null
+  /** Stream crossings for the schedule shown, by standing, and those read but not added (`crossings/mapFeatures.ts`). */
+  crossings?: FeatureCollection<Point, CrossingMapProperties>
 }
 
 /**
@@ -192,6 +196,7 @@ export function PlanMap({
   drawing,
   fitKey,
   oldForest = null,
+  crossings,
 }: PlanMapProps) {
   const blocks = useMemo<FeatureCollection<Polygon | MultiPolygon>>(
     () => ({
@@ -243,6 +248,16 @@ export function PlanMap({
     ...bins.flatMap((bin) => [bin, CLASS_COLOURS[bin]]),
     UNCLASSIFIED_COLOUR,
   ]
+  const crossingColour = [
+    'match',
+    ['get', 'state'],
+    ...(Object.keys(CROSSING_STANDING_WORDS) as (keyof typeof CROSSING_STANDING_WORDS)[]).flatMap((k) => [
+      k,
+      CROSSING_COLOURS[k],
+    ]),
+    CROSSING_COLOURS.candidate,
+  ]
+  const crossingStates = new Set((crossings?.features ?? []).map((f) => f.properties.state))
   const sketchColour = drawing === 'disturbance' ? MAP_COLOURS.disturbance : MAP_COLOURS.block
   const later = (state: BlockState) => ['==', ['get', 'state'], state]
   return (
@@ -325,6 +340,29 @@ export function PlanMap({
           interactive={false}
           visible={!!plan.area.unit}
         />
+        <MapCircleLayer
+          data={crossings ?? EMPTY}
+          sourceKey="planning-crossing-candidates"
+          filter={['==', ['get', 'state'], 'candidate'] as never}
+          color={CROSSING_COLOURS.candidate}
+          radius={3.5}
+          opacity={0.5}
+          strokeColor={CROSSING_COLOURS.candidate}
+          strokeWidth={0.5}
+          visible={!!crossings?.features.length}
+          hoverHtml={(p) => mapTooltipHtml({ title: String(p.label), lines: [String(p.detail)] })}
+          onFeatureClick={(_, __, p) => onSelectBlock(String(p.block))}
+        />
+        <MapCircleLayer
+          data={crossings ?? EMPTY}
+          sourceKey="planning-crossings"
+          filter={['!=', ['get', 'state'], 'candidate'] as never}
+          color={crossingColour as never}
+          radius={5.5}
+          visible={!!crossings?.features.length}
+          hoverHtml={(p) => mapTooltipHtml({ title: String(p.label), lines: [String(p.detail)] })}
+          onFeatureClick={(_, __, p) => onSelectBlock(String(p.block))}
+        />
         <MapSketch sketch={sketch} color={sketchColour} testId="block-planning-sketch" />
         <FitToPlan plan={plan} fitKey={fitKey} />
       </Map>
@@ -336,6 +374,19 @@ export function PlanMap({
           <LegendItem color={MAP_COLOURS.disturbance} swatchShape="square" label="Past disturbance" />
           {plan.zones && <LegendItem color={MAP_COLOURS.zone} swatchShape="square" label="Mapped riparian zone" />}
           {plan.area.unit && <LegendItem color={MAP_COLOURS.unit} swatchShape="dashed-line" label="Reporting unit" />}
+          {(Object.keys(CROSSING_STANDING_WORDS) as (keyof typeof CROSSING_STANDING_WORDS)[])
+            .filter((k) => crossingStates.has(k))
+            .map((k) => (
+              <LegendItem
+                key={k}
+                color={CROSSING_COLOURS[k]}
+                swatchShape="circle"
+                label={`Crossing: ${CROSSING_STANDING_WORDS[k].toLowerCase()}`}
+              />
+            ))}
+          {crossingStates.has('candidate') && (
+            <LegendItem color={CROSSING_COLOURS.candidate} swatchShape="circle" label="Crossing read, not added" />
+          )}
         </div>
         <p className="mt-2 text-2xs text-muted-foreground">Young patches by size (ha)</p>
         <MapSteppedLegend
